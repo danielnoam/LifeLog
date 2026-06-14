@@ -609,9 +609,17 @@
       info.textContent = "Connected: " + gi.owner + "/" + gi.repo + " (" + gi.path + " on " + gi.branch + "), auto-syncing.";
       conn.textContent = "Update connection";
       disc.hidden = false;
-      const blob = Storage.setupBlob();
-      if (blob) {
-        $("#ghSetupLink").value = location.origin + location.pathname + "#setup=" + blob;
+      const frag = Storage.setupFragment();
+      if (frag) {
+        const link = location.origin + location.pathname + "#" + frag;
+        $("#ghSetupLink").value = link;
+        // warn when the current URL isn't reachable from a phone
+        const localOnly = location.protocol === "file:" || /^(localhost$|127\.|0\.0\.0\.0$|\[::1\]$)/.test(location.hostname);
+        $("#ghLocalWarn").hidden = !localOnly;
+        // render QR (hidden when local-only or text too long for a v1-9 code)
+        const qr = $("#ghQr");
+        const svg = (!localOnly && window.LifeLogQR) ? window.LifeLogQR.svg(link, { size: 200 }) : null;
+        if (svg) { qr.innerHTML = svg; qr.hidden = false; } else { qr.innerHTML = ""; qr.hidden = true; }
         share.hidden = false;
       } else share.hidden = true;
     } else {
@@ -903,12 +911,12 @@
   async function init() {
     wire();
 
-    // One-link device setup: open the app with #setup=… and it auto-connects.
+    // One-link device setup: open the app with #t=… (or legacy #setup=…) and it auto-connects.
     let setupMsg = null, setupErr = false;
-    const sm = location.hash.match(/[#&]setup=([A-Za-z0-9\-_]+)/);
-    if (sm) {
+    if (Storage.hashHasSetup(location.hash)) {
+      const savedHash = location.hash;
       history.replaceState(null, "", location.pathname + location.search); // drop the token from the URL
-      try { await Storage.importSetup(sm[1], emptyData()); setupMsg = "Connected to your GitHub sync"; }
+      try { await Storage.connectFromHash(savedHash, emptyData()); setupMsg = "Connected to your GitHub sync"; }
       catch (e) { setupMsg = "Setup link failed: " + (e.message || e); setupErr = true; }
     }
 

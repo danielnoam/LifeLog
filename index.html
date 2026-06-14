@@ -188,12 +188,14 @@
           <button class="btn" id="ghDisconnectBtn" hidden>Disconnect</button>
         </div>
         <div class="gh-share" id="ghShare" hidden>
-          <p class="hint"><strong>Set up another device:</strong> open this link on your phone and it connects automatically — no retyping.</p>
+          <p class="hint"><strong>Set up another device:</strong> scan this with your phone camera (or open the link) and it connects automatically — no retyping.</p>
+          <p class="warn" id="ghLocalWarn" hidden>You're viewing this from a local file/localhost, so this link only works on this computer. Open your published site (e.g. your GitHub Pages URL) and copy it from there to use it on your phone.</p>
+          <div class="gh-qr" id="ghQr" hidden></div>
           <div class="row">
             <input id="ghSetupLink" type="text" readonly onclick="this.select()" />
             <button class="btn" id="ghCopyLinkBtn" type="button">Copy</button>
           </div>
-          <p class="hint">This link contains your access token — only share it with your own devices.</p>
+          <p class="hint">The link/QR contains your access token — only share it with your own devices.</p>
         </div>
         <p class="hint">Syncs to a private repo so phone &amp; desktop share one log. Every save is a commit (versioned backup). The token is stored only in this browser.</p>
       </section>
@@ -228,6 +230,7 @@
 
   <div id="toast" class="toast" hidden></div>
 
+  <script src="src/qr.js"></script>
   <script src="src/storage.js"></script>
   <script src="src/app.js"></script>
 </body>

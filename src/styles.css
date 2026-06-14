@@ -237,6 +237,13 @@ select:focus { outline: none; border-color: var(--accent); }
   flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border);
   color: var(--text-dim); border-radius: 8px; padding: 8px 10px; font-size: 11.5px;
 }
+.gh-qr { display: flex; justify-content: center; margin: 4px 0 12px; }
+.gh-qr svg { background: #fff; padding: 10px; border-radius: 10px; box-shadow: var(--shadow); }
+.warn {
+  margin: 0 0 10px; font-size: 12px; color: #ffcaca;
+  background: rgba(226, 59, 59, .12); border: 1px solid var(--danger);
+  border-radius: 8px; padding: 8px 10px;
+}
 .hint, .muted { color: var(--text-faint); font-size: 12px; }
 .muted code { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; color: var(--text-dim); font-size: 11.5px; }
 .muted strong { color: var(--text-dim); }

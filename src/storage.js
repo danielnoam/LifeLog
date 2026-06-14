@@ -344,15 +344,38 @@
     },
 
     // ---- one-link device setup ----
-    // A compact blob carrying the full connection (incl. token) for the setup link.
-    setupBlob() {
+    // Compact URL fragment carrying the connection (incl. token). Default fields
+    // are omitted so the link/QR stays short; the owner is derived from the token.
+    setupFragment() {
       if (!gh || !gh.token) return null;
-      return b64urlEncode(JSON.stringify({ o: gh.owner, r: gh.repo, p: gh.path, b: gh.branch, t: gh.token }));
+      const p = new URLSearchParams();
+      p.set("t", gh.token);
+      const advanced = (gh.repo && gh.repo !== "lifelog-data");
+      if (advanced) p.set("r", gh.repo);
+      if (gh.path && gh.path !== "lifelog.json") p.set("p", gh.path);
+      if (gh.branch && gh.branch !== "main") p.set("b", gh.branch);
+      if (advanced && gh.owner) p.set("o", gh.owner); // org/non-default repos can't derive owner
+      return p.toString();
     },
-    // Connect from a setup blob produced on another device.
-    async importSetup(blob, currentData) {
-      const c = JSON.parse(b64urlDecode(blob));
-      return this.connectGithub({ owner: c.o, repo: c.r, path: c.p, branch: c.b, token: c.t }, currentData);
+    // True if a location hash carries a setup payload (new #t= or legacy #setup=).
+    hashHasSetup(hash) {
+      return /[#&](t|setup)=/.test(hash || "");
+    },
+    // Connect from a location hash produced on another device. Returns the
+    // connectGithub result, or null if the hash has no setup payload.
+    async connectFromHash(hash, currentData) {
+      const h = (hash || "").replace(/^#/, "");
+      let cfg = null;
+      const legacy = h.match(/(?:^|&)setup=([A-Za-z0-9\-_]+)/);
+      if (legacy) {
+        const c = JSON.parse(b64urlDecode(legacy[1]));
+        cfg = { owner: c.o, repo: c.r, path: c.p, branch: c.b, token: c.t };
+      } else {
+        const p = new URLSearchParams(h);
+        if (!p.get("t")) return null;
+        cfg = { owner: p.get("o") || "", repo: p.get("r") || "", path: p.get("p") || "", branch: p.get("b") || "", token: p.get("t") };
+      }
+      return this.connectGithub(cfg, currentData);
     },
   };
 
