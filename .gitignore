@@ -1,0 +1,4 @@
+# Your actual log data — never publish these. Data lives in the private
+# lifelog-data repo (cloud sync) and/or your local file.
+lifelog.json
+data/
