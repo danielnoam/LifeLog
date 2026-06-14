@@ -65,6 +65,7 @@
 
   async function persist() {
     state.data.exportedAt = new Date().toISOString();
+    setSyncing("Saving…");
     const where = await Storage.save(state.data);
     refreshStorageStatus(where);
   }
@@ -568,12 +569,23 @@
   }
 
   // ---------- settings / storage ----------
-  // Reflects every connected target. Pass the result of Storage.save() to flag
-  // when a connected target couldn't be reached (offline).
-  function refreshStorageStatus(savedWhere) {
+  function setStorageStatus(cls, txt) {
     const s = $("#storageStatus");
     s.innerHTML = "";
     s.appendChild(el("span", "led"));
+    s.className = cls;
+    s.appendChild(document.createTextNode(txt));
+  }
+
+  // Transient state while a load/save is in flight (pulsing led).
+  function setSyncing(label) {
+    setStorageStatus("storage-status syncing", label);
+  }
+
+  // Reflects every connected target ("up to date" once this resolves). Pass
+  // the result of Storage.save() to flag when a connected target couldn't be
+  // reached (offline).
+  function refreshStorageStatus(savedWhere) {
     const ghOn = Storage.githubConnected;
     const fileOn = Storage.fileConnected;
     const gi = Storage.githubInfo;
@@ -584,8 +596,7 @@
     else if (Storage.fileName && Storage.needsReconnect) { cls = "storage-status local"; txt = "File needs reconnect — open Settings"; }
     else { cls = "storage-status local"; txt = Storage.fsSupported ? "Browser only — set up Data in Settings" : "Browser storage (this browser only)"; }
     if (savedWhere === "cache" && (ghOn || fileOn)) { cls = "storage-status local"; txt += " — offline, will retry"; }
-    s.className = cls;
-    s.appendChild(document.createTextNode(txt));
+    setStorageStatus(cls, txt);
   }
 
   function updateBackendInfo() {
@@ -923,6 +934,7 @@
   // ---------- init ----------
   async function init() {
     wire();
+    setSyncing("Loading…");
 
     // One-link device setup: open the app with #t=… (or legacy #setup=…) and it auto-connects.
     let setupMsg = null, setupErr = false;
