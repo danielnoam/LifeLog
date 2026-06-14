@@ -2,10 +2,12 @@
 // Strategy: network-first for app files (so code updates aren't stale), with a
 // cache fallback when offline. The GitHub API is never cached.
 const CACHE = "lifelog-v1";
+// Note: lifelog.json is intentionally NOT precached — it isn't deployed (your
+// data is private). The app fetches it at runtime with a graceful fallback.
 const ASSETS = [
   "./", "./index.html",
   "./src/styles.css", "./src/app.js", "./src/storage.js",
-  "./manifest.json", "./icon.svg", "./lifelog.json",
+  "./manifest.json", "./icon.svg",
 ];
 
 self.addEventListener("install", (e) => {
