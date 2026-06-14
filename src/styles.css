@@ -110,6 +110,8 @@ select:focus { outline: none; border-color: var(--accent); }
 .storage-status .led { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); }
 .storage-status.connected .led { background: #4bd07a; }
 .storage-status.local .led { background: #e2b23b; }
+.storage-status.syncing .led { background: var(--accent); animation: led-pulse 1s ease-in-out infinite; }
+@keyframes led-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
 
 /* ---------- content ---------- */
 .content { padding: 22px 20px 80px; max-width: 2400px; margin: 0 auto; }
