@@ -254,11 +254,14 @@
     const catCard = el("div", "card");
     catCard.appendChild(el("h2", null, "Categories"));
     const catCounts = countBy(entries, (e) => e.category);
+    const byCat = groupBy(entries, (e) => e.category);
+    const catUnique = {};
+    for (const n of Object.keys(catCounts)) catUnique[n] = new Set(byCat[n].map((e) => e.title.trim().toLowerCase())).size;
     const catOrder = state.data.categories.map((c) => c.name).filter((n) => catCounts[n]);
     for (const n of Object.keys(catCounts)) if (!catOrder.includes(n)) catOrder.push(n);
     const catMax = Math.max(1, ...Object.values(catCounts));
     catOrder.sort((a, b) => catCounts[b] - catCounts[a])
-      .forEach((n) => catCard.appendChild(barRow(n, catCounts[n], catMax, colorOf(n))));
+      .forEach((n) => catCard.appendChild(barRow(n, catCounts[n], catMax, colorOf(n), catUnique[n])));
 
     // by year
     const yearCard = el("div", "card");
@@ -280,7 +283,7 @@
     i.appendChild(el("div", "l", l));
     return i;
   }
-  function barRow(label, val, max, color) {
+  function barRow(label, val, max, color, uniqueVal) {
     const row = el("div", "bar-row");
     row.appendChild(el("div", "lbl", label));
     const track = el("div", "bar-track");
@@ -289,7 +292,15 @@
     fill.style.background = color;
     track.appendChild(fill);
     row.appendChild(track);
-    row.appendChild(el("div", "val", String(val)));
+    const valEl = el("div", "val");
+    if (uniqueVal != null && uniqueVal !== val) {
+      valEl.title = uniqueVal + " unique title" + (uniqueVal === 1 ? "" : "s") + " (" + val + " total)";
+      valEl.appendChild(el("span", "val-total", String(val)));
+      valEl.appendChild(el("span", "val-unique", String(uniqueVal)));
+    } else {
+      valEl.textContent = String(val);
+    }
+    row.appendChild(valEl);
     return row;
   }
 
@@ -618,8 +629,10 @@
         $("#ghLocalWarn").hidden = !localOnly;
         // render QR (hidden when local-only or text too long for a v1-9 code)
         const qr = $("#ghQr");
-        const svg = (!localOnly && window.LifeLogQR) ? window.LifeLogQR.svg(link, { size: 200 }) : null;
+        const tooLong = !localOnly && window.LifeLogQR && !window.LifeLogQR.fits(link);
+        const svg = (!localOnly && window.LifeLogQR && !tooLong) ? window.LifeLogQR.svg(link, { size: 200 }) : null;
         if (svg) { qr.innerHTML = svg; qr.hidden = false; } else { qr.innerHTML = ""; qr.hidden = true; }
+        $("#ghQrTooLong").hidden = !tooLong;
         share.hidden = false;
       } else share.hidden = true;
     } else {
