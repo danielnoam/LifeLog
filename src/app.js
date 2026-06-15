@@ -15,7 +15,7 @@
     rounded: '"Trebuchet MS", Verdana, sans-serif',
   };
   const VISUAL_KEY = "lifelog-visual-settings-v1";
-  const APP_VERSION = "0.4.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.5.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -343,6 +343,27 @@
     grid.appendChild(yearCard);
     root.appendChild(big);
     root.appendChild(grid);
+
+    // most re-logged titles (rewatches/replays/rereads)
+    const byTitle = new Map();
+    for (const e of entries) {
+      const key = e.title.trim().toLowerCase();
+      let g = byTitle.get(key);
+      if (!g) { g = { title: e.title, count: 0, category: e.category }; byTitle.set(key, g); }
+      g.count++;
+    }
+    const repeats = [...byTitle.values()].filter((g) => g.count > 1).sort((a, b) => b.count - a.count).slice(0, 5);
+    if (repeats.length) {
+      const repCard = el("div", "card");
+      repCard.appendChild(el("h2", null, "Most repeated"));
+      const repMax = Math.max(1, ...repeats.map((r) => r.count));
+      repeats.forEach((r) => {
+        const row = barRow(r.title, r.count, repMax, colorOf(r.category));
+        row.querySelector(".lbl").title = r.title;
+        repCard.appendChild(row);
+      });
+      root.appendChild(repCard);
+    }
   }
 
   function statItem(n, l) {
@@ -450,10 +471,53 @@
         { year: "numeric", month: "short", day: "numeric" });
       added.hidden = false;
     } else added.hidden = true;
+    $("#fTitleSuggest").hidden = true;
+    $("#fTitleSuggest").innerHTML = "";
     $("#entryModal").hidden = false;
     $("#fTitle").focus();
   }
   function closeEntryModal() { $("#entryModal").hidden = true; }
+
+  // Suggest previously-logged titles matching what's being typed, so a
+  // re-entry (rewatch/replay/reread) reuses the exact same title/category.
+  function titleSuggestions(query, excludeId) {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    const groups = new Map();
+    for (const e of state.data.entries) {
+      if (e.id === excludeId) continue;
+      const key = e.title.trim().toLowerCase();
+      if (!key.includes(q)) continue;
+      let g = groups.get(key);
+      if (!g) { g = { title: e.title, count: 0, category: e.category, year: e.year, month: e.month }; groups.set(key, g); }
+      g.count++;
+      if (e.year > g.year || (e.year === g.year && e.month > g.month)) {
+        g.title = e.title; g.category = e.category; g.year = e.year; g.month = e.month;
+      }
+    }
+    return [...groups.values()]
+      .sort((a, b) => a.title.toLowerCase().indexOf(q) - b.title.toLowerCase().indexOf(q) || b.count - a.count)
+      .slice(0, 6);
+  }
+
+  function renderTitleSuggestions() {
+    const list = $("#fTitleSuggest");
+    const matches = titleSuggestions($("#fTitle").value, $("#entryId").value || null);
+    list.innerHTML = "";
+    if (!matches.length) { list.hidden = true; return; }
+    matches.forEach((m) => {
+      const item = el("div", "ac-item");
+      item.appendChild(el("span", "ac-title", m.title));
+      item.appendChild(el("span", "ac-meta", `×${m.count} · last ${MONTHS_SHORT[m.month]} ${m.year}`));
+      item.onclick = () => {
+        $("#fTitle").value = m.title;
+        if (state.data.categories.some((c) => c.name === m.category)) $("#fCategory").value = m.category;
+        list.hidden = true;
+      };
+      list.appendChild(item);
+    });
+    list.hidden = false;
+  }
 
   async function saveEntryFromForm(ev) {
     ev.preventDefault();
@@ -1081,6 +1145,10 @@
     $("#cancelEntryBtn").onclick = closeEntryModal;
     $("#entryForm").onsubmit = saveEntryFromForm;
     $("#deleteEntryBtn").onclick = deleteCurrentEntry;
+    $("#fTitle").oninput = renderTitleSuggestions;
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest(".ac-wrap")) $("#fTitleSuggest").hidden = true;
+    });
 
     $("#cancelAchBtn").onclick = closeAchModal;
     $("#achForm").onsubmit = saveAchFromForm;
