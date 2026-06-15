@@ -15,7 +15,7 @@
     rounded: '"Trebuchet MS", Verdana, sans-serif',
   };
   const VISUAL_KEY = "lifelog-visual-settings-v1";
-  const APP_VERSION = "0.6.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.7.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -140,7 +140,7 @@
         accs.forEach((acc, i) => {
           const chip = el("span", "acc", acc.text);
           chip.title = "Edit achievement";
-          chip.onclick = () => openAchModal({ year: +y, index: i, text: acc.text, createdAt: acc.createdAt });
+          chip.onclick = () => openAchModal({ year: +y, index: i, text: acc.text, createdAt: acc.createdAt, notes: acc.notes });
           a.appendChild(chip);
         });
         head.appendChild(a);
@@ -479,7 +479,6 @@
         { year: "numeric", month: "short", day: "numeric" });
       added.hidden = false;
     } else added.hidden = true;
-    $("#entryExtra").hidden = !editing;
     setRating(editing ? (entry.rating || 0) : 0);
     $("#fNotes").value = editing ? (entry.notes || "") : "";
     $("#fTitleSuggest").hidden = true;
@@ -555,11 +554,14 @@
       if (rating) e.rating = rating; else delete e.rating;
       if (notes) e.notes = notes; else delete e.notes;
     } else {
-      state.data.entries.push({
+      const newEntry = {
         id: uid(), title, category, year, month,
         date: `${year}-${String(month).padStart(2, "0")}`,
         createdAt: new Date().toISOString(),
-      });
+      };
+      if (rating) newEntry.rating = rating;
+      if (notes) newEntry.notes = notes;
+      state.data.entries.push(newEntry);
     }
     if (fromBacklogId) state.data.backlog = state.data.backlog.filter((b) => b.id !== fromBacklogId);
     closeEntryModal();
@@ -595,6 +597,7 @@
         { year: "numeric", month: "short", day: "numeric" });
       added.hidden = false;
     } else added.hidden = true;
+    $("#aNotes").value = editing ? (ach.notes || "") : "";
     $("#achModal").hidden = false;
     $("#aText").focus();
   }
@@ -604,6 +607,7 @@
     ev.preventDefault();
     const text = $("#aText").value.trim();
     const year = parseInt($("#aYear").value, 10);
+    const notes = $("#aNotes").value.trim();
     if (!text || !year) return;
     const accs = state.data.accomplishments;
     const orig = $("#achOrig").value;
@@ -613,7 +617,9 @@
       if (accs[oy] && accs[oy][+oi]) createdAt = accs[oy][+oi].createdAt; // may be null (imported)
       if (accs[oy]) { accs[oy].splice(+oi, 1); if (!accs[oy].length) delete accs[oy]; }
     }
-    (accs[year] = accs[year] || []).push({ text, createdAt });
+    const ach = { text, createdAt };
+    if (notes) ach.notes = notes;
+    (accs[year] = accs[year] || []).push(ach);
     closeAchModal();
     render();
     await persist();
@@ -745,6 +751,7 @@
     fillSelect($("#bCategory"),
       state.data.categories.map((c) => ({ value: c.name, label: c.name })),
       editing ? item.category : (state.data.categories[0] && state.data.categories[0].name));
+    $("#bNotes").value = editing ? (item.notes || "") : "";
     $("#deleteBacklogBtn").hidden = !editing;
     $("#backlogModal").hidden = false;
     $("#bTitle").focus();
@@ -756,12 +763,16 @@
     const id = $("#backlogId").value;
     const title = $("#bTitle").value.trim();
     const category = $("#bCategory").value;
+    const notes = $("#bNotes").value.trim();
     if (!title) return;
     if (id) {
       const b = state.data.backlog.find((x) => x.id === id);
       Object.assign(b, { title, category });
+      if (notes) b.notes = notes; else delete b.notes;
     } else {
-      state.data.backlog.push({ id: uid(), title, category, createdAt: new Date().toISOString() });
+      const item = { id: uid(), title, category, createdAt: new Date().toISOString() };
+      if (notes) item.notes = notes;
+      state.data.backlog.push(item);
     }
     closeBacklogModal();
     render();
@@ -1060,12 +1071,16 @@
       if (e.notes) out.notes = e.notes;
       return out;
     });
-    data.backlog = (data.backlog || []).map((b) => ({
-      id: b.id || uid(),
-      title: b.title || "",
-      category: b.category || "Other",
-      createdAt: b.createdAt || null,
-    }));
+    data.backlog = (data.backlog || []).map((b) => {
+      const out = {
+        id: b.id || uid(),
+        title: b.title || "",
+        category: b.category || "Other",
+        createdAt: b.createdAt || null,
+      };
+      if (b.notes) out.notes = b.notes;
+      return out;
+    });
     const incomingSettings = data.settings || {};
     // One-time migration: visual layout prefs used to be synced as part of
     // data.settings. Pull them into this device's local-only settings if it
@@ -1082,9 +1097,12 @@
     const accIn = data.accomplishments || {};
     data.accomplishments = {};
     for (const y of Object.keys(accIn)) {
-      data.accomplishments[y] = (accIn[y] || []).map((a) =>
-        typeof a === "string" ? { text: a, createdAt: null }
-          : { text: a.text || "", createdAt: a.createdAt || null });
+      data.accomplishments[y] = (accIn[y] || []).map((a) => {
+        if (typeof a === "string") return { text: a, createdAt: null };
+        const out = { text: a.text || "", createdAt: a.createdAt || null };
+        if (a.notes) out.notes = a.notes;
+        return out;
+      });
     }
     // ensure every used category exists
     const known = new Set(data.categories.map((c) => c.name));
