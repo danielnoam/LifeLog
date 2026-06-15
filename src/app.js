@@ -15,7 +15,7 @@
     rounded: '"Trebuchet MS", Verdana, sans-serif',
   };
   const VISUAL_KEY = "lifelog-visual-settings-v1";
-  const APP_VERSION = "0.5.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.6.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -172,9 +172,16 @@
     const t = el("span", "etitle", e.title);
     t.title = e.title;
     row.appendChild(t);
+    if (e.rating) row.appendChild(ratingBadge(e.rating));
     row.appendChild(el("span", "ecat", e.category));
     row.onclick = () => openEntryModal(e);
     return row;
+  }
+
+  function ratingBadge(rating) {
+    const span = el("span", "erating", "★".repeat(rating));
+    span.title = rating + "/5";
+    return span;
   }
 
   function renderCategories(root, entries) {
@@ -267,6 +274,7 @@
     row.appendChild(bar);
     const t = el("span", "etitle", e.title); t.title = e.title;
     row.appendChild(t);
+    if (e.rating) row.appendChild(ratingBadge(e.rating));
     row.appendChild(el("span", "ecat", `${MONTHS_SHORT[e.month]} ${e.year}`));
     row.onclick = () => openEntryModal(e);
     return row;
@@ -471,12 +479,23 @@
         { year: "numeric", month: "short", day: "numeric" });
       added.hidden = false;
     } else added.hidden = true;
+    $("#entryExtra").hidden = !editing;
+    setRating(editing ? (entry.rating || 0) : 0);
+    $("#fNotes").value = editing ? (entry.notes || "") : "";
     $("#fTitleSuggest").hidden = true;
     $("#fTitleSuggest").innerHTML = "";
     $("#entryModal").hidden = false;
     $("#fTitle").focus();
   }
   function closeEntryModal() { $("#entryModal").hidden = true; }
+
+  function setRating(value) {
+    const wrap = $("#fRating");
+    wrap.dataset.value = String(value);
+    wrap.querySelectorAll(".star").forEach((s) => {
+      s.classList.toggle("filled", parseInt(s.dataset.star, 10) <= value);
+    });
+  }
 
   // Suggest previously-logged titles matching what's being typed, so a
   // re-entry (rewatch/replay/reread) reuses the exact same title/category.
@@ -527,10 +546,14 @@
     const category = $("#fCategory").value;
     const year = parseInt($("#fYear").value, 10);
     const month = parseInt($("#fMonth").value, 10);
+    const rating = parseInt($("#fRating").dataset.value, 10) || 0;
+    const notes = $("#fNotes").value.trim();
     if (!title) return;
     if (id) {
       const e = state.data.entries.find((x) => x.id === id);
       Object.assign(e, { title, category, year, month, date: `${year}-${String(month).padStart(2, "0")}` });
+      if (rating) e.rating = rating; else delete e.rating;
+      if (notes) e.notes = notes; else delete e.notes;
     } else {
       state.data.entries.push({
         id: uid(), title, category, year, month,
@@ -1023,15 +1046,20 @@
   function normalize(data) {
     data = data || emptyData();
     data.categories = data.categories || [];
-    data.entries = (data.entries || []).map((e) => ({
-      id: e.id || uid(),
-      title: e.title || "",
-      category: e.category || "Other",
-      year: +e.year,
-      month: +e.month,
-      date: e.date || `${e.year}-${String(e.month).padStart(2, "0")}`,
-      createdAt: e.createdAt || null,
-    }));
+    data.entries = (data.entries || []).map((e) => {
+      const out = {
+        id: e.id || uid(),
+        title: e.title || "",
+        category: e.category || "Other",
+        year: +e.year,
+        month: +e.month,
+        date: e.date || `${e.year}-${String(e.month).padStart(2, "0")}`,
+        createdAt: e.createdAt || null,
+      };
+      if (e.rating) out.rating = +e.rating;
+      if (e.notes) out.notes = e.notes;
+      return out;
+    });
     data.backlog = (data.backlog || []).map((b) => ({
       id: b.id || uid(),
       title: b.title || "",
@@ -1146,6 +1174,12 @@
     $("#entryForm").onsubmit = saveEntryFromForm;
     $("#deleteEntryBtn").onclick = deleteCurrentEntry;
     $("#fTitle").oninput = renderTitleSuggestions;
+    $("#fRating").querySelectorAll(".star").forEach((s) => {
+      s.onclick = () => {
+        const v = parseInt(s.dataset.star, 10);
+        setRating(v === parseInt($("#fRating").dataset.value, 10) ? 0 : v);
+      };
+    });
     document.addEventListener("click", (e) => {
       if (!e.target.closest(".ac-wrap")) $("#fTitleSuggest").hidden = true;
     });
