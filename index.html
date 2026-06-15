@@ -28,7 +28,7 @@
 
       <div class="topbar-actions">
         <div class="add-wrap">
-          <button id="addBtn" class="btn" aria-label="Add"><span class="add-icon">+</span><span class="add-label"> Add ▾</span></button>
+          <button id="addBtn" class="btn btn-primary" aria-label="Add"><span class="add-icon">+</span><span class="add-label"> Add ▾</span></button>
           <div class="add-menu" id="addMenu" hidden>
             <button type="button" data-add="entry">Add entry</button>
             <button type="button" data-add="achievement">Add achievement</button>
@@ -36,7 +36,7 @@
             <button type="button" data-add="backlog">Add to backlog</button>
           </div>
         </div>
-        <button id="settingsBtn" class="btn btn-icon" title="Settings">⚙</button>
+        <button id="settingsBtn" class="btn btn-primary btn-icon" title="Settings">⚙</button>
       </div>
     </div>
   </header>
@@ -252,6 +252,19 @@
             <input id="monthMax" type="number" min="0" max="1000" step="10" />
           </label>
         </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Font</h3>
+        <p class="muted">Changes the typeface used throughout the app on this device.</p>
+        <label>Typeface
+          <select id="fontFamily">
+            <option value="system">Default (system)</option>
+            <option value="serif">Serif</option>
+            <option value="mono">Monospace</option>
+            <option value="rounded">Rounded</option>
+          </select>
+        </label>
       </section>
       </div><!-- /visual panel -->
 

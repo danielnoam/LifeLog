@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.4.0] - 2026-06-15
+
+### Added
+- Font choice in Settings → Visual: pick Default (system), Serif, Monospace,
+  or Rounded. Applies throughout the app and is remembered on this device.
+
+### Changed
+- Mobile bottom bar now shows only the active tab (e.g. "Timeline ▾");
+  tapping it opens a menu with the other views, and tapping a view or
+  outside the menu closes it.
+- The `+ Add` and ⚙ Settings buttons are accent-colored again on both
+  desktop and mobile.
+
 ## [0.3.0] - 2026-06-15
 
 ### Added

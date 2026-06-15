@@ -7,9 +7,15 @@
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   const DEFAULT_SETTINGS = { monthOrder: "asc" }; // monthOrder: asc (Jan->Dec) | desc (Dec->Jan) — synced
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0 }; // maxWidth 0 = stretch — local to this device, not synced
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system" }; // maxWidth 0 = stretch — local to this device, not synced
+  const FONT_STACKS = {
+    system: '"Segoe UI", system-ui, -apple-system, sans-serif',
+    serif: 'Georgia, "Times New Roman", serif',
+    mono: '"Consolas", "SF Mono", Menlo, monospace',
+    rounded: '"Trebuchet MS", Verdana, sans-serif',
+  };
   const VISUAL_KEY = "lifelog-visual-settings-v1";
-  const APP_VERSION = "0.3.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.4.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -816,6 +822,7 @@
     updateGithubInfo();
     $("#monthMin").value = state.visual.monthMinWidth;
     $("#monthMax").value = state.visual.monthMaxWidth;
+    $("#fontFamily").value = state.visual.fontFamily;
     $("#settingsModal").hidden = false;
   }
 
@@ -827,6 +834,11 @@
     state.visual.monthMaxWidth = max;
     saveVisualSettings(state.visual);
     applyMonthLayout();
+  }
+  function onFontChange() {
+    state.visual.fontFamily = $("#fontFamily").value;
+    saveVisualSettings(state.visual);
+    applyFont();
   }
   function closeSettings() { $("#settingsModal").hidden = true; }
 
@@ -996,6 +1008,7 @@
   function afterDataChange() {
     rebuildColorMap();
     applyMonthLayout();
+    applyFont();
     buildYearFilter();
     buildCatFilter();
     render();
@@ -1007,6 +1020,11 @@
     const max = parseInt(s.monthMaxWidth, 10) || 0;
     document.documentElement.style.setProperty("--month-min", min + "px");
     document.documentElement.style.setProperty("--month-max", max > 0 ? Math.max(min, max) + "px" : "1fr");
+  }
+
+  function applyFont() {
+    const s = state.visual || DEFAULT_VISUAL;
+    document.documentElement.style.setProperty("--font-family", FONT_STACKS[s.fontFamily] || FONT_STACKS.system);
   }
 
   function timelineToolbar() {
@@ -1031,8 +1049,20 @@
   // ---------- events ----------
   function wire() {
     $("#appVersion").textContent = "LifeLog v" + APP_VERSION;
+    const viewTabs = $("#viewTabs");
     document.querySelectorAll(".tab").forEach((t) =>
-      t.onclick = () => { state.view = t.dataset.view; render(); });
+      t.onclick = (e) => {
+        e.stopPropagation();
+        // On mobile only the active tab shows; tapping it opens a menu of the
+        // others instead of immediately re-selecting the same view.
+        if (t.classList.contains("active") && !viewTabs.classList.contains("open")) {
+          viewTabs.classList.add("open");
+          return;
+        }
+        viewTabs.classList.remove("open");
+        state.view = t.dataset.view;
+        render();
+      });
     $("#search").oninput = (e) => { state.search = e.target.value; render(); };
 
     const addMenu = $("#addMenu");
@@ -1046,6 +1076,7 @@
       else openCategoryModal(null);
     });
     document.addEventListener("click", closeAddMenu);
+    document.addEventListener("click", () => viewTabs.classList.remove("open"));
 
     $("#cancelEntryBtn").onclick = closeEntryModal;
     $("#entryForm").onsubmit = saveEntryFromForm;
@@ -1078,6 +1109,7 @@
     };
     $("#monthMin").onchange = onLayoutChange;
     $("#monthMax").onchange = onLayoutChange;
+    $("#fontFamily").onchange = onFontChange;
     $("#exportJsonBtn").onclick = exportJson;
     $("#exportCsvBtn").onclick = exportCsv;
     $("#importJsonBtn").onclick = () => $("#importJsonInput").click();
@@ -1090,7 +1122,11 @@
       ov.addEventListener("click", (e) => { if (e.target === ov) ov.hidden = true; });
     });
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") { closeEntryModal(); closeAchModal(); closeCategoryModal(); closeBacklogModal(); closeSettings(); $("#addMenu").hidden = true; }
+      if (e.key === "Escape") {
+        closeEntryModal(); closeAchModal(); closeCategoryModal(); closeBacklogModal(); closeSettings();
+        $("#addMenu").hidden = true;
+        viewTabs.classList.remove("open");
+      }
     });
   }
 
