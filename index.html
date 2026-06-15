@@ -250,6 +250,16 @@
           <p class="hint">The link/QR contains your access token — only share it with your own devices.</p>
         </div>
         <p class="hint">Syncs to a private repo so phone &amp; desktop share one log. Every save is a commit (versioned backup). The token is stored only in this browser.</p>
+        <label>Check for updates from other devices
+          <select id="ghPollInterval">
+            <option value="0">Off</option>
+            <option value="10">Every 10 seconds</option>
+            <option value="30">Every 30 seconds</option>
+            <option value="60">Every minute</option>
+            <option value="300">Every 5 minutes</option>
+          </select>
+        </label>
+        <p class="hint">While connected to GitHub, periodically checks for changes saved from another device and pulls them in automatically. Setting is local to this device.</p>
       </section>
 
       <section class="settings-section">

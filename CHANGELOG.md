@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.8.0] - 2026-06-15
+
+### Added
+- The sync status indicator now shows when a save didn't reach GitHub or your
+  local file backup ("unsynced changes, will sync when online"), and keeps
+  showing it across reloads until it's resolved.
+- Pending saves are automatically retried as soon as the connection comes
+  back or the tab regains focus — no need to make another edit to re-trigger
+  a sync.
+- Settings → Data → Cloud sync: a "Check for updates from other devices"
+  option (off / 10s / 30s / 1 min / 5 min) periodically polls GitHub while
+  connected and pulls in changes saved from another device automatically.
+
 ## [0.7.0] - 2026-06-15
 
 ### Added

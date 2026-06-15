@@ -378,6 +378,21 @@
       localStorage.removeItem(GH_KEY);
     },
 
+    // Lightweight poll for changes made elsewhere (e.g. another device).
+    // Returns { changed: true, data } if the remote file moved on since we
+    // last loaded/saved it, { changed: false } if it's the same, or null if
+    // GitHub isn't connected or unreachable (e.g. offline) — callers should
+    // treat null as "nothing to report" and try again later.
+    async checkRemote() {
+      if (!gh || !gh.token) return null;
+      try {
+        const f = await ghGetFile();
+        if (!f || f.sha === gh.sha) return { changed: false };
+        gh.sha = f.sha; saveGhCfg();
+        return { changed: true, data: f.data };
+      } catch (e) { return null; }
+    },
+
     // ---- one-link device setup ----
     // Compact URL fragment carrying the connection (incl. token). Default fields
     // are omitted so the link/QR stays short; the owner is derived from the token.

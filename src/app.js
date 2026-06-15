@@ -7,7 +7,7 @@
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   const DEFAULT_SETTINGS = { monthOrder: "asc" }; // monthOrder: asc (Jan->Dec) | desc (Dec->Jan) — synced
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system" }; // maxWidth 0 = stretch — local to this device, not synced
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30 }; // maxWidth 0 = stretch — local to this device, not synced
   const FONT_STACKS = {
     system: '"Segoe UI", system-ui, -apple-system, sans-serif',
     serif: 'Georgia, "Times New Roman", serif',
@@ -15,7 +15,8 @@
     rounded: '"Trebuchet MS", Verdana, sans-serif',
   };
   const VISUAL_KEY = "lifelog-visual-settings-v1";
-  const APP_VERSION = "0.7.0"; // bump with each shipped change so it's visible in Settings
+  const PENDING_KEY = "lifelog-pending-sync-v1";
+  const APP_VERSION = "0.8.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -28,9 +29,22 @@
     try { localStorage.setItem(VISUAL_KEY, JSON.stringify(v)); } catch (e) {}
   }
 
+  // Whether the last save didn't reach every connected target (e.g. made
+  // offline) — persisted so the indicator survives a reload until it syncs.
+  function loadPendingSync() {
+    try { return localStorage.getItem(PENDING_KEY) === "1"; } catch (e) { return false; }
+  }
+  function savePendingSync(v) {
+    try {
+      if (v) localStorage.setItem(PENDING_KEY, "1");
+      else localStorage.removeItem(PENDING_KEY);
+    } catch (e) {}
+  }
+
   const state = {
     data: emptyData(),
     visual: loadVisualSettings() || { ...DEFAULT_VISUAL },
+    pendingSync: loadPendingSync(),
     view: "timeline",
     search: "",
     activeYears: new Set(),
@@ -97,8 +111,13 @@
   async function persist() {
     state.data.exportedAt = new Date().toISOString();
     setSyncing("Saving…");
-    const where = await Storage.save(state.data);
-    refreshStorageStatus(where);
+    syncInFlight = true;
+    try {
+      const where = await Storage.save(state.data);
+      refreshStorageStatus(where);
+    } finally {
+      syncInFlight = false;
+    }
   }
 
   // ---------- rendering ----------
@@ -807,19 +826,77 @@
 
   // Reflects every connected target ("up to date" once this resolves). Pass
   // the result of Storage.save() to flag when a connected target couldn't be
-  // reached (offline).
+  // reached (offline) — this updates the persisted pending-sync flag too.
   function refreshStorageStatus(savedWhere) {
     const ghOn = Storage.githubConnected;
     const fileOn = Storage.fileConnected;
     const gi = Storage.githubInfo;
+
+    if (!ghOn && !fileOn) setPendingSync(false);
+
+    if (savedWhere) {
+      const ghPending = ghOn && savedWhere !== "github" && savedWhere !== "github+file";
+      const filePending = fileOn && savedWhere !== "file" && savedWhere !== "github+file";
+      setPendingSync(ghPending || filePending);
+    }
+
     let txt, cls = "storage-status connected";
     if (ghOn && fileOn) txt = "Synced to " + (gi ? gi.owner + "/" + gi.repo : "GitHub") + " + file backup";
     else if (ghOn) txt = "Synced to " + (gi ? gi.owner + "/" + gi.repo : "GitHub");
     else if (fileOn) txt = "Saved to " + (Storage.fileName || "file");
     else if (Storage.fileName && Storage.needsReconnect) { cls = "storage-status local"; txt = "File needs reconnect — open Settings"; }
     else { cls = "storage-status local"; txt = Storage.fsSupported ? "Browser only — set up Data in Settings" : "Browser storage (this browser only)"; }
-    if (savedWhere === "cache" && (ghOn || fileOn)) { cls = "storage-status local"; txt += " — offline, will retry"; }
+    if (state.pendingSync && (ghOn || fileOn)) {
+      cls = "storage-status pending";
+      txt += " — unsynced changes, will sync when online";
+    }
     setStorageStatus(cls, txt);
+  }
+
+  // Update the persisted pending-sync flag (only writes to storage on change).
+  function setPendingSync(val) {
+    if (state.pendingSync === val) return;
+    state.pendingSync = val;
+    savePendingSync(val);
+  }
+
+  // ---------- background sync: retry pending saves, poll for remote updates ----------
+  let syncInFlight = false;
+  let pollTimer = null;
+
+  // Re-attempt a save that previously only landed in the local cache.
+  async function retrySync() {
+    if (!state.pendingSync || syncInFlight) return;
+    await persist();
+  }
+
+  function isAnyModalOpen() {
+    return !!document.querySelector(".modal-overlay:not([hidden])");
+  }
+
+  // Periodic check for changes made on another device. If we have unsynced
+  // local edits, push those first; otherwise pull in a newer remote copy.
+  async function pollForUpdates() {
+    if (!Storage.githubConnected || syncInFlight || isAnyModalOpen()) return;
+    if (state.pendingSync) { await retrySync(); return; }
+    const res = await Storage.checkRemote();
+    if (res && res.changed) {
+      // Re-check: a save may have started while checkRemote() was in flight.
+      if (syncInFlight || isAnyModalOpen() || state.pendingSync) return;
+      state.data = normalize(res.data);
+      Storage._cache(state.data);
+      afterDataChange();
+      refreshStorageStatus();
+      toast("Updated from another device");
+    }
+  }
+
+  // (Re)start the polling timer based on the current setting and connection.
+  function schedulePoll() {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    const secs = state.visual.pollInterval;
+    if (!secs || !Storage.githubConnected) return;
+    pollTimer = setInterval(pollForUpdates, secs * 1000);
   }
 
   function updateBackendInfo() {
@@ -918,10 +995,17 @@
     updateBackendInfo();
     updateFileInfo();
     updateGithubInfo();
+    $("#ghPollInterval").value = String(state.visual.pollInterval);
     $("#monthMin").value = state.visual.monthMinWidth;
     $("#monthMax").value = state.visual.monthMaxWidth;
     $("#fontFamily").value = state.visual.fontFamily;
     $("#settingsModal").hidden = false;
+  }
+
+  function onPollIntervalChange() {
+    state.visual.pollInterval = parseInt($("#ghPollInterval").value, 10) || 0;
+    saveVisualSettings(state.visual);
+    schedulePoll();
   }
 
   function onLayoutChange() {
@@ -1000,6 +1084,7 @@
       $("#ghToken").value = "";
       refreshStorageStatus();
       updateBackendInfo(); updateGithubInfo(); updateFileInfo();
+      schedulePoll();
       toast(Storage.fileConnected ? "GitHub connected — syncing, file kept as backup" : "GitHub connected — syncing here");
     } catch (e) {
       if (e && e.name === "AbortError") return;
@@ -1011,6 +1096,7 @@
     await Storage.disconnectGithub();
     refreshStorageStatus();
     updateBackendInfo(); updateGithubInfo(); updateFileInfo();
+    schedulePoll();
     toast(Storage.fileConnected ? "GitHub disconnected (still saving to local file)" : "GitHub disconnected (browser storage only)");
   }
 
@@ -1222,6 +1308,7 @@
     $("#disconnectFileBtn").onclick = disconnectFile;
     $("#ghConnectBtn").onclick = connectGithub;
     $("#ghDisconnectBtn").onclick = disconnectGithub;
+    $("#ghPollInterval").onchange = onPollIntervalChange;
     $("#ghCopyLinkBtn").onclick = async () => {
       const v = $("#ghSetupLink").value;
       try { await navigator.clipboard.writeText(v); toast("Setup link copied"); }
@@ -1247,6 +1334,16 @@
         $("#addMenu").hidden = true;
         viewTabs.classList.remove("open");
       }
+    });
+
+    // Retry a pending save and check for remote updates as soon as the
+    // connection comes back, and again when the tab regains focus. Pause
+    // the poll timer while the tab is hidden and restart it on return.
+    function onReconnectOrFocus() { retrySync(); pollForUpdates(); }
+    window.addEventListener("online", onReconnectOrFocus);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") { onReconnectOrFocus(); schedulePoll(); }
+      else if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     });
   }
 
@@ -1309,6 +1406,9 @@
     else if (Storage.githubConnected && !githubReached) {
       toast("Offline — showing last saved copy; will sync when GitHub is reachable", true);
     }
+
+    if (state.pendingSync) retrySync();
+    schedulePoll();
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").catch(() => {});
