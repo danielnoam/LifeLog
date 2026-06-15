@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.5.0] - 2026-06-15
+
+### Added
+- When adding/editing an entry, typing a title now suggests matching titles
+  you've logged before (with how many times and when you last logged it).
+  Picking one fills in the exact title and category — handy for rewatches,
+  replays, or rereads.
+- Stats: a new "Most repeated" card lists titles you've logged more than
+  once, ordered by how many times.
+
 ## [0.4.0] - 2026-06-15
 
 ### Added

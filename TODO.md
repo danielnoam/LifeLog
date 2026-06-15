@@ -6,3 +6,8 @@ todo:
   Library/Google Books) — needs a per-category API key in Settings since
   LifeLog has no backend
 - better offline behavior
+- entry rating and notes: optional 1-5 rating + short note/review per entry
+- activity heatmap: GitHub-style calendar grid showing entry density by
+  month/year
+- year in review: shareable summary card for a chosen year (top categories,
+  totals, achievements)

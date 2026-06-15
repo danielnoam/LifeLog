@@ -63,7 +63,10 @@
         <input type="hidden" id="entryId" />
         <input type="hidden" id="entryFromBacklog" />
         <label>Title
-          <input id="fTitle" type="text" required autocomplete="off" />
+          <div class="ac-wrap">
+            <input id="fTitle" type="text" required autocomplete="off" />
+            <div class="ac-list" id="fTitleSuggest" hidden></div>
+          </div>
         </label>
         <label>Category
           <select id="fCategory" required></select>
