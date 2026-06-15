@@ -211,20 +211,22 @@
       return gh ? { owner: gh.owner, repo: gh.repo, path: gh.path, branch: gh.branch } : null;
     },
 
-    // Returns { data, source }  source: 'github' | 'file' | 'cache' | 'seed' | 'empty'
+    // Returns one of:
+    //   { data, source }   source: 'github' | 'file' | 'cache' | 'seed' | 'empty'
+    //   { conflict: [{ source, label, data }, ...] }  when sources disagree (by exportedAt)
     async load() {
       await ensureHandleLoaded(); // so the local file can also serve as a backup
 
-      // --- GitHub is the source of truth when connected ---
+      const candidates = [];
+
+      // --- GitHub ---
       if (gh && gh.token) {
         try {
           const f = await ghGetFile();
           if (f) {
             gh.sha = f.sha; saveGhCfg();
             githubError = null;
-            this._cache(f.data);
-            await backupToFile(f.data); // keep the on-disk backup fresh
-            return { data: f.data, source: "github" };
+            candidates.push({ source: "github", label: "GitHub (" + gh.owner + "/" + gh.repo + ")", data: f.data });
           }
           // file vanished — fall through to local/cache/seed
         } catch (e) { githubError = e; /* offline/bad token → local/cache */ }
@@ -234,29 +236,62 @@
       if (handle && !needsReconnect) {
         try {
           const data = await readHandle(handle);
-          this._cache(data);
-          return { data, source: "file" };
+          candidates.push({ source: "file", label: "Local file (" + handle.name + ")", data });
         } catch (e) { /* file moved/unreadable; fall through */ }
       }
 
       // --- localStorage cache ---
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
-        try { return { data: JSON.parse(cached), source: "cache" }; }
+        try { candidates.push({ source: "cache", label: "This browser", data: JSON.parse(cached) }); }
         catch (e) { /* ignore */ }
       }
 
-      // --- seed from bundled file (works when served over http) ---
-      try {
-        const res = await fetch("lifelog.json", { cache: "no-store" });
-        if (res.ok) {
-          const data = await res.json();
-          this._cache(data);
-          return { data, source: "seed" };
-        }
-      } catch (e) { /* ignore */ }
+      if (!candidates.length) {
+        // --- seed from bundled file (works when served over http) ---
+        try {
+          const res = await fetch("lifelog.json", { cache: "no-store" });
+          if (res.ok) {
+            const data = await res.json();
+            this._cache(data);
+            return { data, source: "seed" };
+          }
+        } catch (e) { /* ignore */ }
 
-      return { data: null, source: "empty" };
+        return { data: null, source: "empty" };
+      }
+
+      // If the available sources were saved at different times, let the user pick.
+      const stamped = candidates.filter((c) => c.data && c.data.exportedAt);
+      if (new Set(stamped.map((c) => c.data.exportedAt)).size > 1) {
+        return { conflict: candidates };
+      }
+
+      // Otherwise GitHub wins (source of truth), then the local file, then cache.
+      const order = { github: 0, file: 1, cache: 2 };
+      candidates.sort((a, b) => order[a.source] - order[b.source]);
+      const winner = candidates[0];
+      if (winner.source === "github") {
+        this._cache(winner.data);
+        await backupToFile(winner.data); // keep the on-disk backup fresh
+      } else if (winner.source === "file") {
+        this._cache(winner.data);
+      }
+      return { data: winner.data, source: winner.source };
+    },
+
+    // Apply the user's chosen version (from a `conflict` result) everywhere:
+    // cache it and push it to GitHub / the local file if connected, so every
+    // target ends up holding the same data.
+    async resolveConflict(candidate) {
+      const data = candidate.data;
+      this._cache(data);
+      if (gh && gh.token) {
+        try { await ghSave(data); githubError = null; }
+        catch (e) { githubError = e; }
+      }
+      await backupToFile(data);
+      return { data, source: candidate.source };
     },
 
     _cache(data) {
