@@ -237,6 +237,15 @@
     </div>
   </div>
 
+  <!-- Version conflict picker (shown on load if sources disagree) -->
+  <div class="modal-overlay" id="conflictModal" hidden>
+    <div class="modal modal-wide">
+      <h2>Pick which version to keep</h2>
+      <p class="muted">Your data differs between where it's saved. Choose the version to keep — it'll be copied to the others.</p>
+      <div class="conflict-list" id="conflictList"></div>
+    </div>
+  </div>
+
   <div id="toast" class="toast" hidden></div>
 
   <script src="src/qr.js"></script>

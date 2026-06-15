@@ -948,12 +948,37 @@
     $("#importJsonBtn").onclick = () => $("#importJsonInput").click();
     $("#importJsonInput").onchange = (e) => { if (e.target.files[0]) importJson(e.target.files[0]); e.target.value = ""; };
 
-    // close modals on overlay click / Escape
+    // close modals on overlay click / Escape (the conflict picker is modal —
+    // it must be resolved via its buttons, not dismissed)
     document.querySelectorAll(".modal-overlay").forEach((ov) => {
+      if (ov.id === "conflictModal") return;
       ov.addEventListener("click", (e) => { if (e.target === ov) ov.hidden = true; });
     });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") { closeEntryModal(); closeAchModal(); closeCategoryModal(); closeSettings(); $("#addMenu").hidden = true; }
+    });
+  }
+
+  // Show the version-conflict picker and resolve once the user chooses one.
+  function pickVersion(candidates) {
+    return new Promise((resolve) => {
+      const list = $("#conflictList");
+      list.innerHTML = "";
+      for (const c of candidates) {
+        const item = el("div", "conflict-item");
+        const info = el("div", "conflict-info");
+        info.appendChild(el("strong", null, c.label));
+        const count = (c.data.entries || []).length;
+        const when = c.data.exportedAt ? new Date(c.data.exportedAt).toLocaleString() : "unknown time";
+        info.appendChild(el("span", "muted", "Saved " + when + " · " + count + " entries"));
+        item.appendChild(info);
+        const btn = el("button", "btn btn-primary", "Use this");
+        btn.type = "button";
+        btn.onclick = () => { $("#conflictModal").hidden = true; resolve(c); };
+        item.appendChild(btn);
+        list.appendChild(item);
+      }
+      $("#conflictModal").hidden = false;
     });
   }
 
@@ -971,16 +996,26 @@
       catch (e) { setupMsg = "Setup link failed: " + (e.message || e); setupErr = true; }
     }
 
-    const { data, source } = await Storage.load();
-    if (data) state.data = normalize(data);
-    else state.data = emptyData();
+    const result = await Storage.load();
+    let source, githubReached;
+    if (result.conflict) {
+      const chosen = await pickVersion(result.conflict);
+      const resolved = await Storage.resolveConflict(chosen);
+      state.data = normalize(resolved.data);
+      source = resolved.source;
+      githubReached = result.conflict.some((c) => c.source === "github");
+    } else {
+      state.data = result.data ? normalize(result.data) : emptyData();
+      source = result.source;
+      githubReached = source === "github";
+    }
     afterDataChange();
 
     refreshStorageStatus();
 
     if (setupMsg) toast(setupMsg, setupErr);
     else if (source === "seed") toast("Loaded " + state.data.entries.length + " entries from your sheet");
-    else if (Storage.githubConnected && source !== "github") {
+    else if (Storage.githubConnected && !githubReached) {
       toast("Offline — showing last saved copy; will sync when GitHub is reachable", true);
     }
 
