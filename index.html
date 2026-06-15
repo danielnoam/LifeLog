@@ -16,23 +16,26 @@
       <h1>LifeLog</h1>
     </div>
 
-    <nav class="views" id="viewTabs">
-      <button class="tab active" data-view="timeline">Timeline</button>
-      <button class="tab" data-view="categories">Categories</button>
-      <button class="tab" data-view="stats">Stats</button>
-    </nav>
+    <input id="search" class="search" type="search" placeholder="Search titles…" />
 
-    <div class="topbar-actions">
-      <input id="search" class="search" type="search" placeholder="Search titles…" />
-      <div class="add-wrap">
-        <button id="addBtn" class="btn btn-primary">+ Add ▾</button>
-        <div class="add-menu" id="addMenu" hidden>
-          <button type="button" data-add="entry">Add entry</button>
-          <button type="button" data-add="achievement">Add achievement</button>
-          <button type="button" data-add="category">Add category</button>
+    <div class="topbar-bottom" id="topbarBottom">
+      <nav class="views" id="viewTabs">
+        <button class="tab active" data-view="timeline">Timeline</button>
+        <button class="tab" data-view="categories">Categories</button>
+        <button class="tab" data-view="stats">Stats</button>
+      </nav>
+
+      <div class="topbar-actions">
+        <div class="add-wrap">
+          <button id="addBtn" class="btn btn-primary" aria-label="Add"><span class="add-icon">+</span><span class="add-label"> Add ▾</span></button>
+          <div class="add-menu" id="addMenu" hidden>
+            <button type="button" data-add="entry">Add entry</button>
+            <button type="button" data-add="achievement">Add achievement</button>
+            <button type="button" data-add="category">Add category</button>
+          </div>
         </div>
+        <button id="settingsBtn" class="btn btn-icon" title="Settings">⚙</button>
       </div>
-      <button id="settingsBtn" class="btn btn-icon" title="Settings">⚙</button>
     </div>
   </header>
 
