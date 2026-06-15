@@ -19,6 +19,7 @@
     <input id="search" class="search" type="search" placeholder="Search titles…" />
 
     <div class="topbar-bottom" id="topbarBottom">
+      <button class="view-current" id="viewCurrent" type="button"></button>
       <nav class="views" id="viewTabs">
         <button class="tab active" data-view="timeline">Timeline</button>
         <button class="tab" data-view="categories">Categories</button>
@@ -187,11 +188,13 @@
       </div>
 
       <nav class="settings-tabs" id="settingsTabs">
-        <button class="stab active" data-stab="data" type="button">Data</button>
-        <button class="stab" data-stab="visual" type="button">Visual</button>
+        <button class="stab active" data-stab="storage" type="button">Storage</button>
+        <button class="stab" data-stab="sync" type="button">Sync</button>
+        <button class="stab" data-stab="backup" type="button">Backup</button>
+        <button class="stab" data-stab="appearance" type="button">Appearance</button>
       </nav>
 
-      <div class="settings-panel" data-panel="data">
+      <div class="settings-panel" data-panel="storage">
       <section class="settings-section">
         <h3>Where your data is saved</h3>
         <p class="muted" id="backendInfo"></p>
@@ -207,7 +210,9 @@
         </div>
         <p class="hint">Saves to a <code>.json</code> file you pick (e.g. inside a Google Drive folder for desktop backup). Desktop Chrome/Edge only — not phones.</p>
       </section>
+      </div><!-- /storage panel -->
 
+      <div class="settings-panel" data-panel="sync" hidden>
       <section class="settings-section">
         <h3>Cloud sync <span class="muted">(GitHub — works on phones)</span></h3>
         <p class="muted" id="ghInfo"></p>
@@ -238,18 +243,24 @@
           <button class="btn" id="ghConnectBtn">Connect GitHub</button>
           <button class="btn" id="ghDisconnectBtn" hidden>Disconnect</button>
         </div>
-        <div class="gh-share" id="ghShare" hidden>
-          <p class="hint"><strong>Set up another device:</strong> scan this with your phone camera (or open the link) and it connects automatically — no retyping.</p>
-          <p class="warn" id="ghLocalWarn" hidden>You're viewing this from a local file/localhost, so this link only works on this computer. Open your published site (e.g. your GitHub Pages URL) and copy it from there to use it on your phone.</p>
-          <div class="gh-qr" id="ghQr" hidden></div>
-          <p class="warn" id="ghQrTooLong" hidden>Your setup link is too long to show as a QR code — use the copy button below to share it instead.</p>
-          <div class="row">
-            <input id="ghSetupLink" type="text" readonly onclick="this.select()" />
-            <button class="btn" id="ghCopyLinkBtn" type="button">Copy</button>
-          </div>
-          <p class="hint">The link/QR contains your access token — only share it with your own devices.</p>
-        </div>
         <p class="hint">Syncs to a private repo so phone &amp; desktop share one log. Every save is a commit (versioned backup). The token is stored only in this browser.</p>
+      </section>
+
+      <section class="settings-section gh-share" id="ghShare" hidden>
+        <h3>Share with another device</h3>
+        <p class="hint"><strong>Set up another device:</strong> scan this with your phone camera (or open the link) and it connects automatically — no retyping.</p>
+        <p class="warn" id="ghLocalWarn" hidden>You're viewing this from a local file/localhost, so this link only works on this computer. Open your published site (e.g. your GitHub Pages URL) and copy it from there to use it on your phone.</p>
+        <div class="gh-qr" id="ghQr" hidden></div>
+        <p class="warn" id="ghQrTooLong" hidden>Your setup link is too long to show as a QR code — use the copy button below to share it instead.</p>
+        <div class="row">
+          <input id="ghSetupLink" type="text" readonly onclick="this.select()" />
+          <button class="btn" id="ghCopyLinkBtn" type="button">Copy</button>
+        </div>
+        <p class="hint">The link/QR contains your access token — only share it with your own devices.</p>
+      </section>
+
+      <section class="settings-section">
+        <h3>Sync frequency</h3>
         <label>Check for updates from other devices
           <select id="ghPollInterval">
             <option value="0">Off</option>
@@ -261,9 +272,11 @@
         </label>
         <p class="hint">While connected to GitHub, periodically checks for changes saved from another device and pulls them in automatically. Setting is local to this device.</p>
       </section>
+      </div><!-- /sync panel -->
 
+      <div class="settings-panel" data-panel="backup" hidden>
       <section class="settings-section">
-        <h3>Backup &amp; import</h3>
+        <h3>Export &amp; import</h3>
         <div class="btn-row">
           <button class="btn" id="exportJsonBtn">Export JSON</button>
           <button class="btn" id="exportCsvBtn">Export CSV</button>
@@ -271,9 +284,9 @@
         </div>
         <input type="file" id="importJsonInput" accept="application/json,.json" hidden />
       </section>
-      </div><!-- /data panel -->
+      </div><!-- /backup panel -->
 
-      <div class="settings-panel" data-panel="visual" hidden>
+      <div class="settings-panel" data-panel="appearance" hidden>
       <section class="settings-section">
         <h3>Timeline layout</h3>
         <p class="muted">Month card width on the Timeline. Smaller min = more months per row. Max 0 = stretch to fill.</p>
@@ -299,7 +312,7 @@
           </select>
         </label>
       </section>
-      </div><!-- /visual panel -->
+      </div><!-- /appearance panel -->
 
       <p class="version-tag" id="appVersion"></p>
     </div>

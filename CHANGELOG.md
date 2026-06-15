@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.1] - 2026-06-15
+
+### Fixed
+- Mobile bottom nav: tapping the active view (e.g. "Timeline ▾") no longer
+  hides its button and reshows it in the popup menu. The button now stays in
+  place, and the menu that opens above it lists only the other views.
+
+## [0.9.0] - 2026-06-15
+
+### Changed
+- Settings is now organized into four tabs — Storage, Sync, Backup, and
+  Appearance — instead of two. The old "Cloud sync" section (which mixed
+  GitHub connection setup, device pairing via QR code, and sync-polling
+  frequency) is now split into separate "Cloud sync", "Share with another
+  device", and "Sync frequency" sections under the new Sync tab.
+
 ## [0.8.0] - 2026-06-15
 
 ### Added

@@ -16,7 +16,7 @@
   };
   const VISUAL_KEY = "lifelog-visual-settings-v1";
   const PENDING_KEY = "lifelog-pending-sync-v1";
-  const APP_VERSION = "0.8.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.9.1"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -122,8 +122,13 @@
 
   // ---------- rendering ----------
   function render() {
-    document.querySelectorAll(".tab").forEach((t) =>
-      t.classList.toggle("active", t.dataset.view === state.view));
+    let activeLabel = "";
+    document.querySelectorAll(".tab").forEach((t) => {
+      const active = t.dataset.view === state.view;
+      t.classList.toggle("active", active);
+      if (active) activeLabel = t.textContent;
+    });
+    $("#viewCurrent").textContent = activeLabel;
     const c = $("#content");
     c.innerHTML = "";
     if (state.view === "backlog") { renderBacklog(c); return; }
@@ -991,7 +996,7 @@
   }
 
   function openSettings() {
-    setSettingsTab("data");
+    setSettingsTab("storage");
     updateBackendInfo();
     updateFileInfo();
     updateGithubInfo();
@@ -1246,15 +1251,15 @@
   function wire() {
     $("#appVersion").textContent = "LifeLog v" + APP_VERSION;
     const viewTabs = $("#viewTabs");
+    // On mobile the active view shows as a button outside #viewTabs; tapping
+    // it opens a menu of the other views (see .views.open in styles.css).
+    $("#viewCurrent").onclick = (e) => {
+      e.stopPropagation();
+      viewTabs.classList.toggle("open");
+    };
     document.querySelectorAll(".tab").forEach((t) =>
       t.onclick = (e) => {
         e.stopPropagation();
-        // On mobile only the active tab shows; tapping it opens a menu of the
-        // others instead of immediately re-selecting the same view.
-        if (t.classList.contains("active") && !viewTabs.classList.contains("open")) {
-          viewTabs.classList.add("open");
-          return;
-        }
         viewTabs.classList.remove("open");
         state.view = t.dataset.view;
         render();
