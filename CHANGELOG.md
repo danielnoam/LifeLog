@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.2.1] - 2026-06-15
+
+### Changed
+- Categories tab: the expand arrow now sits to the right of the category
+  name instead of between the color dot and the name.
+- The "Oldest first / Newest first" month-order toggle moved out of the
+  filter bar (where it showed even on Categories/Stats) into its own
+  toolbar above the Timeline.
+
+### Fixed
+- Year achievements that are numerous or have long text no longer overflow
+  or break the timeline layout — they now wrap onto multiple lines.
+
 ## [0.2.0] - 2026-06-15
 
 ### Added

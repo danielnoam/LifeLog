@@ -124,15 +124,19 @@ select:focus { outline: none; border-color: var(--accent); }
 .content { padding: 22px 20px 80px; max-width: 2400px; margin: 0 auto; }
 
 /* timeline */
+.timeline-toolbar { display: flex; justify-content: flex-end; margin-bottom: 16px; }
 .year-block { margin-bottom: 30px; }
 .year-head {
-  display: flex; align-items: baseline; gap: 12px; margin: 0 0 14px;
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px; margin: 0 0 14px;
   padding-bottom: 8px; border-bottom: 1px solid var(--border);
 }
 .year-head h2 { font-size: 22px; margin: 0; font-weight: 700; }
 .year-head .ycount { color: var(--text-faint); font-size: 13px; }
-.year-head .accs { margin-left: auto; color: var(--text-dim); font-size: 12.5px; }
-.year-head .accs .acc { background: var(--bg-elev2); padding: 3px 9px; border-radius: 20px; margin-left: 6px; cursor: pointer; border: 1px solid transparent; }
+.year-head .accs {
+  margin-left: auto; max-width: 100%; color: var(--text-dim); font-size: 12.5px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+}
+.year-head .accs .acc { background: var(--bg-elev2); padding: 3px 9px; border-radius: 20px; cursor: pointer; border: 1px solid transparent; max-width: 100%; overflow-wrap: break-word; }
 .year-head .accs .acc:hover { border-color: var(--accent); color: var(--text); }
 
 .month-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--month-min, 180px), var(--month-max, 1fr))); gap: 14px; align-items: start; }

@@ -7,7 +7,7 @@
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   const DEFAULT_SETTINGS = { monthMinWidth: 180, monthMaxWidth: 0, monthOrder: "asc" }; // maxWidth 0 = stretch; monthOrder: asc (Jan->Dec) | desc (Dec->Jan)
-  const APP_VERSION = "0.2.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.2.1"; // bump with each shipped change so it's visible in Settings
 
   const state = {
     data: emptyData(),
@@ -94,6 +94,8 @@
   function emptyState(msg) { return el("div", "empty", msg); }
 
   function renderTimeline(root, entries) {
+    root.appendChild(timelineToolbar());
+
     const byYear = groupBy(entries, (e) => e.year);
     for (const y of Object.keys(byYear).sort((a, b) => b - a)) {
       const block = el("div", "year-block");
@@ -164,9 +166,9 @@
 
       const dot = el("span", "dot"); dot.style.background = colorOf(name);
       head.appendChild(dot);
-      head.appendChild(el("span", "chev", "▶"));
       const h = el("h2", null, name);
       head.appendChild(h);
+      head.appendChild(el("span", "chev", "▶"));
 
       // Clicking the colour or label opens the edit-category modal.
       if (cat) {
@@ -869,7 +871,6 @@
     applyMonthLayout();
     buildYearFilter();
     buildCatFilter();
-    updateMonthOrderBtn();
     render();
   }
 
@@ -881,18 +882,21 @@
     document.documentElement.style.setProperty("--month-max", max > 0 ? Math.max(min, max) + "px" : "1fr");
   }
 
-  function updateMonthOrderBtn() {
-    const btn = $("#monthOrderBtn");
+  function timelineToolbar() {
+    const bar = el("div", "timeline-toolbar");
     const desc = state.data.settings.monthOrder === "desc";
-    btn.textContent = desc ? "↑ Oldest first" : "↓ Newest first";
+    const btn = el("button", "btn btn-sm", desc ? "↑ Oldest first" : "↓ Newest first");
+    btn.type = "button";
     btn.title = desc
       ? "Showing newest month first within each year — click for oldest first"
       : "Showing oldest month first within each year — click for newest first";
+    btn.onclick = toggleMonthOrder;
+    bar.appendChild(btn);
+    return bar;
   }
 
   async function toggleMonthOrder() {
     state.data.settings.monthOrder = state.data.settings.monthOrder === "desc" ? "asc" : "desc";
-    updateMonthOrderBtn();
     render();
     await persist();
   }
@@ -903,7 +907,6 @@
     document.querySelectorAll(".tab").forEach((t) =>
       t.onclick = () => { state.view = t.dataset.view; render(); });
     $("#search").oninput = (e) => { state.search = e.target.value; render(); };
-    $("#monthOrderBtn").onclick = toggleMonthOrder;
 
     const addMenu = $("#addMenu");
     const closeAddMenu = () => { addMenu.hidden = true; };
