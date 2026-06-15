@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.6.0] - 2026-06-15
+
+### Added
+- Rating and notes for entries: when editing an existing entry, give it a
+  1-5 star rating and an optional note/review, shown below the other
+  fields. Rated entries show their stars on the Timeline and Categories
+  views.
+
 ## [0.5.0] - 2026-06-15
 
 ### Added
