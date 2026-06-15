@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.7.0] - 2026-06-15
+
+### Added
+- Rating and notes are now available when *adding* a new entry too, not
+  just when editing one.
+- Notes field for backlog items, so you can jot down why something's on
+  your list.
+- Notes field for achievements, for extra details about how you got there.
+
 ## [0.6.0] - 2026-06-15
 
 ### Added

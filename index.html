@@ -80,7 +80,7 @@
           </label>
         </div>
         <p class="muted added-line" id="addedLine" hidden></p>
-        <div class="entry-extra" id="entryExtra" hidden>
+        <div class="entry-extra" id="entryExtra">
           <label>Rating
             <div class="rating-input" id="fRating" data-value="0">
               <button type="button" class="star" data-star="1" aria-label="1 star">★</button>
@@ -117,6 +117,9 @@
           <input id="aYear" type="number" min="1900" max="2100" required />
         </label>
         <p class="muted added-line" id="achAddedLine" hidden></p>
+        <label>Notes
+          <textarea id="aNotes" rows="3" placeholder="Optional details…"></textarea>
+        </label>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteAchBtn" hidden>Delete</button>
           <span class="spacer"></span>
@@ -161,6 +164,9 @@
         </label>
         <label>Category
           <select id="bCategory" required></select>
+        </label>
+        <label>Notes
+          <textarea id="bNotes" rows="3" placeholder="Optional thoughts, why it's on your list…"></textarea>
         </label>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteBacklogBtn" hidden>Delete</button>
