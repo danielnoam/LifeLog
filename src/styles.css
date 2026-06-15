@@ -192,6 +192,9 @@ select:focus { outline: none; border-color: var(--accent); }
 .stat-big .item .n { font-size: 26px; font-weight: 700; }
 .stat-big .item .l { color: var(--text-faint); font-size: 12px; }
 
+/* backlog */
+.backlog-card { max-width: 640px; margin: 0 auto; }
+
 .empty { text-align: center; color: var(--text-faint); padding: 60px 20px; }
 
 /* ---------- modals ---------- */

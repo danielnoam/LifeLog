@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.3.0] - 2026-06-15
+
+### Added
+- New "Backlog" tab for things you want to watch, play, or read later.
+  Add items via "+ Add" → "Add to backlog", then click "✓ Done" on an item
+  to move it into your log (opens the Add entry form pre-filled with its
+  title and category).
+
 ## [0.2.2] - 2026-06-15
 
 ### Changed

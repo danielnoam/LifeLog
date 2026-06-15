@@ -9,7 +9,7 @@
   const DEFAULT_SETTINGS = { monthOrder: "asc" }; // monthOrder: asc (Jan->Dec) | desc (Dec->Jan) — synced
   const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0 }; // maxWidth 0 = stretch — local to this device, not synced
   const VISUAL_KEY = "lifelog-visual-settings-v1";
-  const APP_VERSION = "0.2.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.3.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -33,7 +33,7 @@
   let catColor = {}; // name -> color
 
   function emptyData() {
-    return { version: 1, categories: [], entries: [], accomplishments: {}, settings: { ...DEFAULT_SETTINGS } };
+    return { version: 1, categories: [], entries: [], backlog: [], accomplishments: {}, settings: { ...DEFAULT_SETTINGS } };
   }
 
   // ---------- helpers ----------
@@ -69,6 +69,16 @@
     });
   }
 
+  function getFilteredBacklog() {
+    const q = state.search.trim().toLowerCase();
+    const cf = state.activeCats;
+    return state.data.backlog.filter((b) => {
+      if (cf.size && !cf.has(b.category)) return false;
+      if (q && !b.title.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }
+
   function toast(msg, isErr) {
     const t = $("#toast");
     t.textContent = msg;
@@ -91,6 +101,7 @@
       t.classList.toggle("active", t.dataset.view === state.view));
     const c = $("#content");
     c.innerHTML = "";
+    if (state.view === "backlog") { renderBacklog(c); return; }
     const entries = getFiltered();
     if (!state.data.entries.length) {
       c.appendChild(emptyState("No entries yet. Click “+ Add” to start, or import data from Settings."));
@@ -255,6 +266,38 @@
     return row;
   }
 
+  function renderBacklog(root) {
+    if (!state.data.backlog.length) {
+      root.appendChild(emptyState("Your backlog is empty. Use “+ Add” → “Add to backlog” for things to watch, play, or read later, then mark them “✓ Done” once you finish."));
+      return;
+    }
+    const items = getFilteredBacklog()
+      .slice().sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+    if (!items.length) {
+      root.appendChild(emptyState("No backlog items match your filters."));
+      return;
+    }
+    const card = el("div", "card backlog-card");
+    items.forEach((b) => card.appendChild(backlogRow(b)));
+    root.appendChild(card);
+  }
+
+  function backlogRow(b) {
+    const row = el("div", "entry");
+    const bar = el("div", "bar"); bar.style.background = colorOf(b.category);
+    row.appendChild(bar);
+    const t = el("span", "etitle", b.title); t.title = b.title;
+    row.appendChild(t);
+    row.appendChild(el("span", "ecat", b.category));
+    const doneBtn = el("button", "btn btn-sm", "✓ Done");
+    doneBtn.type = "button";
+    doneBtn.title = "Move to your log";
+    doneBtn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
+    row.appendChild(doneBtn);
+    row.onclick = () => openBacklogModal(b);
+    return row;
+  }
+
   function renderStats(root, entries) {
     const ys = [...new Set(entries.map((e) => e.year))];
     const thisYear = new Date().getFullYear();
@@ -381,14 +424,15 @@
     if (val != null) sel.value = val;
   }
 
-  function openEntryModal(entry) {
+  function openEntryModal(entry, fromBacklog) {
     const editing = !!entry;
     $("#entryModalTitle").textContent = editing ? "Edit entry" : "Add entry";
     $("#entryId").value = editing ? entry.id : "";
-    $("#fTitle").value = editing ? entry.title : "";
+    $("#entryFromBacklog").value = fromBacklog ? fromBacklog.id : "";
+    $("#fTitle").value = editing ? entry.title : (fromBacklog ? fromBacklog.title : "");
     fillSelect($("#fCategory"),
       state.data.categories.map((c) => ({ value: c.name, label: c.name })),
-      editing ? entry.category : (state.data.categories[0] && state.data.categories[0].name));
+      editing ? entry.category : (fromBacklog ? fromBacklog.category : (state.data.categories[0] && state.data.categories[0].name)));
     fillSelect($("#fMonth"),
       MONTHS.slice(1).map((m, i) => ({ value: i + 1, label: m })),
       editing ? entry.month : (new Date().getMonth() + 1));
@@ -408,6 +452,7 @@
   async function saveEntryFromForm(ev) {
     ev.preventDefault();
     const id = $("#entryId").value;
+    const fromBacklogId = $("#entryFromBacklog").value;
     const title = $("#fTitle").value.trim();
     const category = $("#fCategory").value;
     const year = parseInt($("#fYear").value, 10);
@@ -423,11 +468,12 @@
         createdAt: new Date().toISOString(),
       });
     }
+    if (fromBacklogId) state.data.backlog = state.data.backlog.filter((b) => b.id !== fromBacklogId);
     closeEntryModal();
     buildYearFilter();
     render();
     await persist();
-    toast(id ? "Entry updated" : "Entry added");
+    toast(id ? "Entry updated" : (fromBacklogId ? "Moved to log" : "Entry added"));
   }
 
   async function deleteCurrentEntry() {
@@ -503,8 +549,10 @@
     $("#cColor").value = editing ? cat.color : "#3bb2e2";
     const uses = $("#cUses");
     if (editing) {
-      const n = countBy(state.data.entries, (e) => e.category)[cat.name] || 0;
-      uses.textContent = n + (n === 1 ? " entry uses this" : " entries use this");
+      const entryCount = countBy(state.data.entries, (e) => e.category)[cat.name] || 0;
+      const backlogCount = countBy(state.data.backlog, (b) => b.category)[cat.name] || 0;
+      const n = entryCount + backlogCount;
+      uses.textContent = n + (n === 1 ? " item uses this" : " items use this");
       uses.hidden = false;
     } else uses.hidden = true;
     $("#deleteCatBtn").hidden = !editing;
@@ -545,6 +593,7 @@
       cat.name = newName;
       cat.id = newName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
       state.data.entries.forEach((e) => { if (e.category === old) e.category = newName; });
+      state.data.backlog.forEach((b) => { if (b.category === old) b.category = newName; });
       if (state.activeCats.has(old)) { state.activeCats.delete(old); state.activeCats.add(newName); }
     }
     closeCategoryModal();
@@ -571,16 +620,18 @@
 
   async function deleteCategory(cat) {
     const counts = countBy(state.data.entries, (e) => e.category);
-    const n = counts[cat.name] || 0;
+    const backlogCounts = countBy(state.data.backlog, (b) => b.category);
+    const n = (counts[cat.name] || 0) + (backlogCounts[cat.name] || 0);
     if (n > 0) {
       if (cat.name === "Other") {
         toast("Can't delete “Other” while it's in use", true);
         return;
       }
-      if (!confirm(`“${cat.name}” is used by ${n} entr${n === 1 ? "y" : "ies"}. Move them to “Other” and delete?`)) return;
+      if (!confirm(`“${cat.name}” is used by ${n} item${n === 1 ? "" : "s"}. Move them to “Other” and delete?`)) return;
       let other = state.data.categories.find((c) => c.name === "Other");
       if (!other) { other = { id: "other", name: "Other", color: "#7a8a99" }; state.data.categories.push(other); }
       state.data.entries.forEach((e) => { if (e.category === cat.name) e.category = "Other"; });
+      state.data.backlog.forEach((b) => { if (b.category === cat.name) b.category = "Other"; });
     } else {
       if (!confirm(`Delete category “${cat.name}”?`)) return;
     }
@@ -590,6 +641,50 @@
     buildCatFilter(); render();
     await persist();
     toast("Category deleted");
+  }
+
+  // ---------- backlog ----------
+  function openBacklogModal(item) {
+    const editing = !!item;
+    $("#backlogModalTitle").textContent = editing ? "Edit backlog item" : "Add to backlog";
+    $("#backlogId").value = editing ? item.id : "";
+    $("#bTitle").value = editing ? item.title : "";
+    fillSelect($("#bCategory"),
+      state.data.categories.map((c) => ({ value: c.name, label: c.name })),
+      editing ? item.category : (state.data.categories[0] && state.data.categories[0].name));
+    $("#deleteBacklogBtn").hidden = !editing;
+    $("#backlogModal").hidden = false;
+    $("#bTitle").focus();
+  }
+  function closeBacklogModal() { $("#backlogModal").hidden = true; }
+
+  async function saveBacklogFromForm(ev) {
+    ev.preventDefault();
+    const id = $("#backlogId").value;
+    const title = $("#bTitle").value.trim();
+    const category = $("#bCategory").value;
+    if (!title) return;
+    if (id) {
+      const b = state.data.backlog.find((x) => x.id === id);
+      Object.assign(b, { title, category });
+    } else {
+      state.data.backlog.push({ id: uid(), title, category, createdAt: new Date().toISOString() });
+    }
+    closeBacklogModal();
+    render();
+    await persist();
+    toast(id ? "Backlog item updated" : "Added to backlog");
+  }
+
+  async function deleteCurrentBacklogItem() {
+    const id = $("#backlogId").value;
+    if (!id) return;
+    if (!confirm("Remove this from your backlog?")) return;
+    state.data.backlog = state.data.backlog.filter((x) => x.id !== id);
+    closeBacklogModal();
+    render();
+    await persist();
+    toast("Removed from backlog");
   }
 
   // ---------- settings / storage ----------
@@ -861,6 +956,12 @@
       date: e.date || `${e.year}-${String(e.month).padStart(2, "0")}`,
       createdAt: e.createdAt || null,
     }));
+    data.backlog = (data.backlog || []).map((b) => ({
+      id: b.id || uid(),
+      title: b.title || "",
+      category: b.category || "Other",
+      createdAt: b.createdAt || null,
+    }));
     const incomingSettings = data.settings || {};
     // One-time migration: visual layout prefs used to be synced as part of
     // data.settings. Pull them into this device's local-only settings if it
@@ -885,7 +986,7 @@
     const known = new Set(data.categories.map((c) => c.name));
     const palette = ["#e23b3b","#e2723b","#e2b23b","#9fe23b","#3be25a","#3bb2e2","#5b8cff","#723be2","#b23be2","#e23b72","#7a8a99"];
     let pi = data.categories.length;
-    for (const e of data.entries) if (!known.has(e.category)) {
+    for (const e of [...data.entries, ...data.backlog]) if (!known.has(e.category)) {
       known.add(e.category);
       data.categories.push({ id: e.category.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: e.category, color: palette[pi++ % palette.length] });
     }
@@ -941,6 +1042,7 @@
       closeAddMenu();
       if (b.dataset.add === "entry") openEntryModal(null);
       else if (b.dataset.add === "achievement") openAchModal(null);
+      else if (b.dataset.add === "backlog") openBacklogModal(null);
       else openCategoryModal(null);
     });
     document.addEventListener("click", closeAddMenu);
@@ -956,6 +1058,10 @@
     $("#cancelCatBtn").onclick = closeCategoryModal;
     $("#catForm").onsubmit = saveCategoryFromForm;
     $("#deleteCatBtn").onclick = deleteCurrentCategory;
+
+    $("#cancelBacklogBtn").onclick = closeBacklogModal;
+    $("#backlogForm").onsubmit = saveBacklogFromForm;
+    $("#deleteBacklogBtn").onclick = deleteCurrentBacklogItem;
 
     $("#settingsBtn").onclick = openSettings;
     $("#closeSettingsBtn").onclick = closeSettings;
@@ -984,7 +1090,7 @@
       ov.addEventListener("click", (e) => { if (e.target === ov) ov.hidden = true; });
     });
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") { closeEntryModal(); closeAchModal(); closeCategoryModal(); closeSettings(); $("#addMenu").hidden = true; }
+      if (e.key === "Escape") { closeEntryModal(); closeAchModal(); closeCategoryModal(); closeBacklogModal(); closeSettings(); $("#addMenu").hidden = true; }
     });
   }
 

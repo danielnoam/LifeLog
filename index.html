@@ -23,6 +23,7 @@
         <button class="tab active" data-view="timeline">Timeline</button>
         <button class="tab" data-view="categories">Categories</button>
         <button class="tab" data-view="stats">Stats</button>
+        <button class="tab" data-view="backlog">Backlog</button>
       </nav>
 
       <div class="topbar-actions">
@@ -32,6 +33,7 @@
             <button type="button" data-add="entry">Add entry</button>
             <button type="button" data-add="achievement">Add achievement</button>
             <button type="button" data-add="category">Add category</button>
+            <button type="button" data-add="backlog">Add to backlog</button>
           </div>
         </div>
         <button id="settingsBtn" class="btn btn-icon" title="Settings">⚙</button>
@@ -59,6 +61,7 @@
       <h2 id="entryModalTitle">Add entry</h2>
       <form id="entryForm">
         <input type="hidden" id="entryId" />
+        <input type="hidden" id="entryFromBacklog" />
         <label>Title
           <input id="fTitle" type="text" required autocomplete="off" />
         </label>
@@ -124,6 +127,28 @@
           <button type="button" class="btn btn-danger" id="deleteCatBtn">Delete</button>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelCatBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Backlog add/edit modal -->
+  <div class="modal-overlay" id="backlogModal" hidden>
+    <div class="modal">
+      <h2 id="backlogModalTitle">Add to backlog</h2>
+      <form id="backlogForm">
+        <input type="hidden" id="backlogId" />
+        <label>Title
+          <input id="bTitle" type="text" required autocomplete="off" placeholder="e.g. The Last of Us Part II" />
+        </label>
+        <label>Category
+          <select id="bCategory" required></select>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="deleteBacklogBtn" hidden>Delete</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelBacklogBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
         </div>
       </form>
