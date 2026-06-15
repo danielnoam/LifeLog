@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.2.2] - 2026-06-15
+
+### Changed
+- Timeline layout (month-card min/max width, in Settings → Visual) is now
+  stored locally on this device instead of syncing with the rest of your
+  data — each device can have its own preferred layout. Existing synced
+  values are migrated to this device automatically on first load.
+
 ## [0.2.1] - 2026-06-15
 
 ### Changed

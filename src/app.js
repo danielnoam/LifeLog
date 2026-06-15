@@ -6,11 +6,25 @@
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const DEFAULT_SETTINGS = { monthMinWidth: 180, monthMaxWidth: 0, monthOrder: "asc" }; // maxWidth 0 = stretch; monthOrder: asc (Jan->Dec) | desc (Dec->Jan)
-  const APP_VERSION = "0.2.1"; // bump with each shipped change so it's visible in Settings
+  const DEFAULT_SETTINGS = { monthOrder: "asc" }; // monthOrder: asc (Jan->Dec) | desc (Dec->Jan) — synced
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0 }; // maxWidth 0 = stretch — local to this device, not synced
+  const VISUAL_KEY = "lifelog-visual-settings-v1";
+  const APP_VERSION = "0.2.2"; // bump with each shipped change so it's visible in Settings
+
+  function loadVisualSettings() {
+    try {
+      const raw = localStorage.getItem(VISUAL_KEY);
+      if (raw) return Object.assign({ ...DEFAULT_VISUAL }, JSON.parse(raw));
+    } catch (e) {}
+    return null;
+  }
+  function saveVisualSettings(v) {
+    try { localStorage.setItem(VISUAL_KEY, JSON.stringify(v)); } catch (e) {}
+  }
 
   const state = {
     data: emptyData(),
+    visual: loadVisualSettings() || { ...DEFAULT_VISUAL },
     view: "timeline",
     search: "",
     activeYears: new Set(),
@@ -705,19 +719,19 @@
     updateBackendInfo();
     updateFileInfo();
     updateGithubInfo();
-    $("#monthMin").value = state.data.settings.monthMinWidth;
-    $("#monthMax").value = state.data.settings.monthMaxWidth;
+    $("#monthMin").value = state.visual.monthMinWidth;
+    $("#monthMax").value = state.visual.monthMaxWidth;
     $("#settingsModal").hidden = false;
   }
 
-  async function onLayoutChange() {
+  function onLayoutChange() {
     const min = Math.max(80, Math.min(600, parseInt($("#monthMin").value, 10) || 180));
     let max = parseInt($("#monthMax").value, 10);
     if (isNaN(max) || max < 0) max = 0;
-    state.data.settings.monthMinWidth = min;
-    state.data.settings.monthMaxWidth = max;
+    state.visual.monthMinWidth = min;
+    state.visual.monthMaxWidth = max;
+    saveVisualSettings(state.visual);
     applyMonthLayout();
-    await persist();
   }
   function closeSettings() { $("#settingsModal").hidden = true; }
 
@@ -847,7 +861,19 @@
       date: e.date || `${e.year}-${String(e.month).padStart(2, "0")}`,
       createdAt: e.createdAt || null,
     }));
-    data.settings = Object.assign({ ...DEFAULT_SETTINGS }, data.settings || {});
+    const incomingSettings = data.settings || {};
+    // One-time migration: visual layout prefs used to be synced as part of
+    // data.settings. Pull them into this device's local-only settings if it
+    // doesn't have its own yet, then drop them from the synced data.
+    if (localStorage.getItem(VISUAL_KEY) == null &&
+        (incomingSettings.monthMinWidth != null || incomingSettings.monthMaxWidth != null)) {
+      state.visual = {
+        monthMinWidth: incomingSettings.monthMinWidth ?? DEFAULT_VISUAL.monthMinWidth,
+        monthMaxWidth: incomingSettings.monthMaxWidth ?? DEFAULT_VISUAL.monthMaxWidth,
+      };
+      saveVisualSettings(state.visual);
+    }
+    data.settings = { monthOrder: incomingSettings.monthOrder || DEFAULT_SETTINGS.monthOrder };
     const accIn = data.accomplishments || {};
     data.accomplishments = {};
     for (const y of Object.keys(accIn)) {
@@ -875,7 +901,7 @@
   }
 
   function applyMonthLayout() {
-    const s = state.data.settings || DEFAULT_SETTINGS;
+    const s = state.visual || DEFAULT_VISUAL;
     const min = Math.max(80, parseInt(s.monthMinWidth, 10) || 180);
     const max = parseInt(s.monthMaxWidth, 10) || 0;
     document.documentElement.style.setProperty("--month-min", min + "px");
