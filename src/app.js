@@ -16,7 +16,7 @@
   };
   const VISUAL_KEY = "lifelog-visual-settings-v1";
   const PENDING_KEY = "lifelog-pending-sync-v1";
-  const APP_VERSION = "0.8.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.9.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -991,7 +991,7 @@
   }
 
   function openSettings() {
-    setSettingsTab("data");
+    setSettingsTab("storage");
     updateBackendInfo();
     updateFileInfo();
     updateGithubInfo();
