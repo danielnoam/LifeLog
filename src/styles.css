@@ -53,6 +53,9 @@ html, body {
 .tab:hover { background: var(--bg-elev2); color: var(--text); }
 .tab.active { background: var(--accent); color: #fff; }
 
+/* mobile-only "current view" trigger; see .views.open below */
+.view-current { display: none; }
+
 .topbar-actions { display: flex; align-items: center; gap: 10px; order: 4; }
 .add-wrap { position: relative; }
 .add-menu {
@@ -338,17 +341,21 @@ select:focus { outline: none; border-color: var(--accent); }
     padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom));
     background: var(--bg-elev); border-top: 1px solid var(--border);
   }
-  .views { flex: 1; position: relative; }
+  .view-current {
+    display: block; flex: 1; text-align: center; padding: 13px 4px; font-size: 12px;
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    font-weight: 550; cursor: pointer;
+  }
+  .view-current::after { content: " ▾"; font-size: 9px; opacity: .8; }
+  .views { flex: 1; position: relative; display: none; }
   .tab { flex: 1; text-align: center; padding: 13px 4px; font-size: 12px; }
-  .tab:not(.active) { display: none; }
-  .tab.active::after { content: " ▾"; font-size: 9px; opacity: .8; }
   .views.open {
     position: absolute; left: 0; right: 0; bottom: 100%; margin-bottom: 8px;
     display: flex; flex-direction: column; gap: 4px;
     background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px;
     box-shadow: var(--shadow); padding: 5px;
   }
-  .views.open .tab { display: block; }
+  .views.open .tab.active { display: none; }
   .topbar-actions { gap: 6px; margin-left: auto; }
   .topbar-actions .btn { padding: 10px 14px; }
   .topbar-actions .btn-icon { padding: 10px 12px; }

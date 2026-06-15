@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.1] - 2026-06-15
+
+### Fixed
+- Mobile bottom nav: tapping the active view (e.g. "Timeline ▾") no longer
+  hides its button and reshows it in the popup menu. The button now stays in
+  place, and the menu that opens above it lists only the other views.
+
 ## [0.9.0] - 2026-06-15
 
 ### Changed
