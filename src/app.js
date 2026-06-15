@@ -6,13 +6,13 @@
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const DEFAULT_SETTINGS = { monthMinWidth: 180, monthMaxWidth: 0 }; // maxWidth 0 = stretch
+  const DEFAULT_SETTINGS = { monthMinWidth: 180, monthMaxWidth: 0, monthOrder: "asc" }; // maxWidth 0 = stretch; monthOrder: asc (Jan->Dec) | desc (Dec->Jan)
 
   const state = {
     data: emptyData(),
     view: "timeline",
     search: "",
-    yearFilter: "all",
+    activeYears: new Set(),
     activeCats: new Set(),
   };
   let catColor = {}; // name -> color
@@ -44,10 +44,10 @@
 
   function getFiltered() {
     const q = state.search.trim().toLowerCase();
-    const yf = state.yearFilter;
+    const yf = state.activeYears;
     const cf = state.activeCats;
     return state.data.entries.filter((e) => {
-      if (yf !== "all" && e.year !== +yf) return false;
+      if (yf.size && !yf.has(e.year)) return false;
       if (cf.size && !cf.has(e.category)) return false;
       if (q && !e.title.toLowerCase().includes(q)) return false;
       return true;
@@ -115,7 +115,8 @@
 
       const grid = el("div", "month-grid");
       const byMonth = groupBy(byYear[y], (e) => e.month);
-      for (const m of Object.keys(byMonth).sort((a, b) => a - b)) {
+      const monthSort = state.data.settings.monthOrder === "desc" ? (a, b) => b - a : (a, b) => a - b;
+      for (const m of Object.keys(byMonth).sort(monthSort)) {
         const card = el("div", "month-card");
         const h = el("h3");
         h.appendChild(el("span", null, MONTHS[m]));
@@ -319,14 +320,20 @@
 
   // ---------- filter bar ----------
   function buildYearFilter() {
-    const sel = $("#yearFilter");
-    const cur = state.yearFilter;
-    sel.innerHTML = '<option value="all">All years</option>';
-    years().forEach((y) => {
-      const o = el("option", null, String(y)); o.value = y;
-      sel.appendChild(o);
+    const wrap = $("#yearFilter");
+    wrap.innerHTML = "";
+    const ys = years();
+    for (const y of state.activeYears) if (!ys.includes(y)) state.activeYears.delete(y);
+    ys.forEach((y) => {
+      const chip = el("span", "cat-chip year-chip" + (state.activeYears.has(y) ? " on" : ""), String(y));
+      chip.onclick = () => {
+        if (state.activeYears.has(y)) state.activeYears.delete(y);
+        else state.activeYears.add(y);
+        buildYearFilter();
+        render();
+      };
+      wrap.appendChild(chip);
     });
-    sel.value = cur;
   }
   function buildCatFilter() {
     const wrap = $("#catFilter");
@@ -861,6 +868,7 @@
     applyMonthLayout();
     buildYearFilter();
     buildCatFilter();
+    updateMonthOrderBtn();
     render();
   }
 
@@ -872,12 +880,28 @@
     document.documentElement.style.setProperty("--month-max", max > 0 ? Math.max(min, max) + "px" : "1fr");
   }
 
+  function updateMonthOrderBtn() {
+    const btn = $("#monthOrderBtn");
+    const desc = state.data.settings.monthOrder === "desc";
+    btn.textContent = desc ? "↑ Oldest first" : "↓ Newest first";
+    btn.title = desc
+      ? "Showing newest month first within each year — click for oldest first"
+      : "Showing oldest month first within each year — click for newest first";
+  }
+
+  async function toggleMonthOrder() {
+    state.data.settings.monthOrder = state.data.settings.monthOrder === "desc" ? "asc" : "desc";
+    updateMonthOrderBtn();
+    render();
+    await persist();
+  }
+
   // ---------- events ----------
   function wire() {
     document.querySelectorAll(".tab").forEach((t) =>
       t.onclick = () => { state.view = t.dataset.view; render(); });
     $("#search").oninput = (e) => { state.search = e.target.value; render(); };
-    $("#yearFilter").onchange = (e) => { state.yearFilter = e.target.value; render(); };
+    $("#monthOrderBtn").onclick = toggleMonthOrder;
 
     const addMenu = $("#addMenu");
     const closeAddMenu = () => { addMenu.hidden = true; };
