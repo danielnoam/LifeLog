@@ -9,3 +9,6 @@ todo:
   month/year
 - year in review: shareable summary card for a chosen year (top categories,
   totals, achievements)
+- rework/reorganize settings: the Data tab's Cloud sync section now mixes
+  connection setup, device sharing/QR, and sync-polling options — split into
+  clearer subsections (or more tabs) as settings keep growing
