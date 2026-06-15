@@ -7,6 +7,7 @@
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   const DEFAULT_SETTINGS = { monthMinWidth: 180, monthMaxWidth: 0, monthOrder: "asc" }; // maxWidth 0 = stretch; monthOrder: asc (Jan->Dec) | desc (Dec->Jan)
+  const APP_VERSION = "0.1.0"; // bump with each shipped change so it's visible in Settings
 
   const state = {
     data: emptyData(),
@@ -898,6 +899,7 @@
 
   // ---------- events ----------
   function wire() {
+    $("#appVersion").textContent = "LifeLog v" + APP_VERSION;
     document.querySelectorAll(".tab").forEach((t) =>
       t.onclick = () => { state.view = t.dataset.view; render(); });
     $("#search").oninput = (e) => { state.search = e.target.value; render(); };
