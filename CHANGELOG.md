@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.5.2] - 2026-06-16
+
+### Changed
+- Backlog: items are grouped under a bordered category panel (same style as
+  the Categories tab), so the per-item category label was removed — it was
+  redundant with the section header.
+- Opening Add/Edit for an entry, achievement, category, or backlog item no
+  longer auto-focuses the first field, so it won't pop the on-screen
+  keyboard on mobile.
+- Backlog edit modal now shows the fetched cover, rating, year, and summary
+  (when the item has them), matching what's shown on the backlog card.
+
 ## [0.9.5.1] - 2026-06-16
 
 ### Fixed

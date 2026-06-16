@@ -19,7 +19,7 @@
   const UI_KEY = "lifelog-ui-v1";
   const MEDIA_KEY = "lifelog-media-settings-v1";
   const DEFAULT_MEDIA = { enabled: false, rawgKey: "", tmdbKey: "", categorySources: {} };
-  const APP_VERSION = "0.9.5.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.9.5.2"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -335,6 +335,7 @@
     if (query !== lastBacklogAutocompleted) {
       ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bExternalRating"]
         .forEach((id) => { const f = $(id); if (f) f.value = ""; });
+      setBacklogCover();
     }
 
     list.innerHTML = "";
@@ -362,6 +363,7 @@
           $("#bSummary").value = r.summary || "";
           $("#bReleaseYear").value = r.year ? String(r.year) : "";
           $("#bExternalRating").value = r.externalRating || "";
+          setBacklogCover();
           list.hidden = true;
         }));
       });
@@ -406,7 +408,6 @@
     row.appendChild(bar);
     const t = el("span", "etitle", b.title); t.title = b.title;
     row.appendChild(t);
-    row.appendChild(el("span", "ecat", b.category));
     const doneBtn = el("button", "btn btn-sm", "✓ Done");
     doneBtn.type = "button";
     doneBtn.title = "Move to your log";
@@ -430,8 +431,7 @@
     if (meta.length) body.appendChild(el("span", "bl-meta", meta.join(" · ")));
     if (b.summary) body.appendChild(el("p", "bl-summary", b.summary));
     row.appendChild(body);
-    // Category + done button at the right — same position as plain backlog rows
-    row.appendChild(el("span", "ecat", b.category));
+    // Done button at the right — same position as plain backlog rows
     const doneBtn = el("button", "btn btn-sm", "✓ Done");
     doneBtn.type = "button"; doneBtn.title = "Move to your log";
     doneBtn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
@@ -746,7 +746,6 @@
     $("#fTitleSuggest").hidden = true;
     $("#fTitleSuggest").innerHTML = "";
     $("#entryModal").hidden = false;
-    $("#fTitle").focus();
   }
   function closeEntryModal() { $("#entryModal").hidden = true; }
 
@@ -826,6 +825,25 @@
     const coverImg = $("#entryCoverImg");
     if (coverUrl) { coverImg.src = coverUrl; coverDiv.hidden = false; }
     else { coverDiv.hidden = true; coverImg.src = ""; }
+  }
+
+  function setBacklogCover() {
+    const coverUrl = $("#bCoverUrl").value;
+    const coverDiv = $("#backlogCover");
+    const coverImg = $("#backlogCoverImg");
+    const meta = $("#backlogCoverMeta");
+    meta.innerHTML = "";
+    if (!coverUrl) { coverDiv.hidden = true; coverImg.src = ""; return; }
+    coverImg.src = coverUrl;
+    const line = [];
+    const rating = $("#bExternalRating").value;
+    const year = $("#bReleaseYear").value;
+    if (rating) line.push("★ " + rating);
+    if (year) line.push(year);
+    if (line.length) meta.appendChild(el("span", "bl-meta", line.join(" · ")));
+    const summary = $("#bSummary").value;
+    if (summary) meta.appendChild(el("p", "bl-summary", summary));
+    coverDiv.hidden = false;
   }
 
   function renderTitleSuggestions() {
@@ -962,7 +980,6 @@
     } else added.hidden = true;
     $("#aNotes").value = editing ? (ach.notes || "") : "";
     $("#achModal").hidden = false;
-    $("#aText").focus();
   }
   function closeAchModal() { $("#achModal").hidden = true; }
 
@@ -1019,7 +1036,6 @@
     } else uses.hidden = true;
     $("#deleteCatBtn").hidden = !editing;
     $("#catModal").hidden = false;
-    $("#cName").focus();
   }
   function closeCategoryModal() { $("#catModal").hidden = true; }
 
@@ -1125,8 +1141,8 @@
     $("#bTitleSuggest").innerHTML = "";
     $("#bTitleSuggest").hidden = true;
     $("#deleteBacklogBtn").hidden = !editing;
+    setBacklogCover();
     $("#backlogModal").hidden = false;
-    $("#bTitle").focus();
   }
   function closeBacklogModal() { $("#backlogModal").hidden = true; }
 

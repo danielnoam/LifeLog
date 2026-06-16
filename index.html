@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.9.5.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.9.5.2" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -163,6 +163,10 @@
   <!-- Backlog add/edit modal -->
   <div class="modal-overlay" id="backlogModal" hidden>
     <div class="modal">
+      <div id="backlogCover" hidden>
+        <div class="modal-cover"><img id="backlogCoverImg" src="" alt="Cover" /></div>
+        <div class="modal-cover-meta" id="backlogCoverMeta"></div>
+      </div>
       <h2 id="backlogModalTitle">Add to backlog</h2>
       <form id="backlogForm">
         <input type="hidden" id="backlogId" />
@@ -376,9 +380,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.9.5.1"></script>
-  <script src="src/media.js?v=0.9.5.1"></script>
-  <script src="src/storage.js?v=0.9.5.1"></script>
-  <script src="src/app.js?v=0.9.5.1"></script>
+  <script src="src/qr.js?v=0.9.5.2"></script>
+  <script src="src/media.js?v=0.9.5.2"></script>
+  <script src="src/storage.js?v=0.9.5.2"></script>
+  <script src="src/app.js?v=0.9.5.2"></script>
 </body>
 </html>
