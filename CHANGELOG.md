@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.5.1] - 2026-06-16
+
+### Fixed
+- A previous edit had introduced smart/curly quotes as string delimiters in
+  `renderBacklog()`, causing a `SyntaxError` that silently broke the entire
+  app (blank screen, nothing loads). Fixed.
+- Script/style tags and the service-worker cache name are now versioned, so
+  a deploy is no longer at risk of serving a stale cached copy of the app
+  code from the browser. Going forward, small fixes bump the version with a
+  trailing `.0`/`.1` etc. so you can confirm a new build loaded from the
+  version shown at the bottom of Settings.
+
 ## [0.9.5] - 2026-06-16
 
 ### Added
