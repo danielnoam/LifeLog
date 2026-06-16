@@ -371,13 +371,13 @@
 
   function renderBacklog(root) {
     if (!state.data.backlog.length) {
-      root.appendChild(emptyState(“Your backlog is empty. Use “+ Add” → “Add to backlog” for things to watch, play, or read later, then mark them “✓ Done” once you finish.”));
+      root.appendChild(emptyState(`Your backlog is empty. Use "+ Add" → "Add to backlog" for things to watch, play, or read later, then mark them "✓ Done" once you finish.`));
       return;
     }
     const items = getFilteredBacklog()
-      .slice().sort((a, b) => (a.createdAt || “”).localeCompare(b.createdAt || “”));
+      .slice().sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
     if (!items.length) {
-      root.appendChild(emptyState(“No backlog items match your filters.”));
+      root.appendChild(emptyState("No backlog items match your filters."));
       return;
     }
     const byCat = groupBy(items, (b) => b.category);
@@ -385,14 +385,14 @@
     for (const n of Object.keys(byCat)) if (!order.includes(n)) order.push(n);
     for (const catName of order) {
       const catItems = byCat[catName];
-      const section = el(“div”, “backlog-section”);
-      const head = el(“div”, “backlog-section-head”);
-      const dot = el(“span”, “dot”); dot.style.background = colorOf(catName);
+      const section = el("div", "backlog-section");
+      const head = el("div", "backlog-section-head");
+      const dot = el("span", "dot"); dot.style.background = colorOf(catName);
       head.appendChild(dot);
-      head.appendChild(el(“span”, “backlog-section-name”, catName));
-      head.appendChild(el(“span”, “backlog-section-count”, String(catItems.length)));
+      head.appendChild(el("span", "backlog-section-name", catName));
+      head.appendChild(el("span", "backlog-section-count", String(catItems.length)));
       section.appendChild(head);
-      const card = el(“div”, “card backlog-card”);
+      const card = el("div", "card backlog-card");
       catItems.forEach((b) => card.appendChild(backlogRow(b)));
       section.appendChild(card);
       root.appendChild(section);
