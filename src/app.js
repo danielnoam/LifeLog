@@ -371,18 +371,32 @@
 
   function renderBacklog(root) {
     if (!state.data.backlog.length) {
-      root.appendChild(emptyState("Your backlog is empty. Use “+ Add” → “Add to backlog” for things to watch, play, or read later, then mark them “✓ Done” once you finish."));
+      root.appendChild(emptyState(“Your backlog is empty. Use “+ Add” → “Add to backlog” for things to watch, play, or read later, then mark them “✓ Done” once you finish.”));
       return;
     }
     const items = getFilteredBacklog()
-      .slice().sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+      .slice().sort((a, b) => (a.createdAt || “”).localeCompare(b.createdAt || “”));
     if (!items.length) {
-      root.appendChild(emptyState("No backlog items match your filters."));
+      root.appendChild(emptyState(“No backlog items match your filters.”));
       return;
     }
-    const card = el("div", "card backlog-card");
-    items.forEach((b) => card.appendChild(backlogRow(b)));
-    root.appendChild(card);
+    const byCat = groupBy(items, (b) => b.category);
+    const order = state.data.categories.map((c) => c.name).filter((n) => byCat[n]);
+    for (const n of Object.keys(byCat)) if (!order.includes(n)) order.push(n);
+    for (const catName of order) {
+      const catItems = byCat[catName];
+      const section = el(“div”, “backlog-section”);
+      const head = el(“div”, “backlog-section-head”);
+      const dot = el(“span”, “dot”); dot.style.background = colorOf(catName);
+      head.appendChild(dot);
+      head.appendChild(el(“span”, “backlog-section-name”, catName));
+      head.appendChild(el(“span”, “backlog-section-count”, String(catItems.length)));
+      section.appendChild(head);
+      const card = el(“div”, “card backlog-card”);
+      catItems.forEach((b) => card.appendChild(backlogRow(b)));
+      section.appendChild(card);
+      root.appendChild(section);
+    }
   }
 
   function backlogRow(b) {
@@ -415,17 +429,13 @@
     if (b.releaseYear) meta.push(String(b.releaseYear));
     if (meta.length) body.appendChild(el("span", "bl-meta", meta.join(" · ")));
     if (b.summary) body.appendChild(el("p", "bl-summary", b.summary));
-    const actions = el("div", "bl-actions");
-    const dot = el("span", "bl-cat-dot");
-    dot.style.background = colorOf(b.category);
-    actions.appendChild(dot);
-    actions.appendChild(el("span", "ecat", b.category));
+    row.appendChild(body);
+    // Category + done button at the right — same position as plain backlog rows
+    row.appendChild(el("span", "ecat", b.category));
     const doneBtn = el("button", "btn btn-sm", "✓ Done");
     doneBtn.type = "button"; doneBtn.title = "Move to your log";
     doneBtn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
-    actions.appendChild(doneBtn);
-    body.appendChild(actions);
-    row.appendChild(body);
+    row.appendChild(doneBtn);
     row.onclick = () => openBacklogModal(b);
     return row;
   }
@@ -1567,6 +1577,9 @@
       };
       if (e.rating) out.rating = +e.rating;
       if (e.notes) out.notes = e.notes;
+      if (e.coverUrl) out.coverUrl = e.coverUrl;
+      if (e.mediaId) out.mediaId = e.mediaId;
+      if (e.mediaSource) out.mediaSource = e.mediaSource;
       return out;
     });
     data.backlog = (data.backlog || []).map((b) => {
@@ -1577,6 +1590,12 @@
         createdAt: b.createdAt || null,
       };
       if (b.notes) out.notes = b.notes;
+      if (b.coverUrl) out.coverUrl = b.coverUrl;
+      if (b.mediaId) out.mediaId = b.mediaId;
+      if (b.mediaSource) out.mediaSource = b.mediaSource;
+      if (b.summary) out.summary = b.summary;
+      if (b.releaseYear) out.releaseYear = b.releaseYear;
+      if (b.externalRating) out.externalRating = b.externalRating;
       return out;
     });
     const incomingSettings = data.settings || {};
