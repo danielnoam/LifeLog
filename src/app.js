@@ -19,7 +19,7 @@
   const UI_KEY = "lifelog-ui-v1";
   const MEDIA_KEY = "lifelog-media-settings-v1";
   const DEFAULT_MEDIA = { enabled: false, rawgKey: "", tmdbKey: "", categorySources: {} };
-  const APP_VERSION = "0.9.5.3"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.9.5.4"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -1580,55 +1580,107 @@
     const reader = new FileReader();
     reader.onload = async () => {
       try {
-        const data = JSON.parse(reader.result);
-        if (!data.entries || !Array.isArray(data.entries)) throw new Error("not a LifeLog file");
-        if (!confirm(`Import ${data.entries.length} entries? This replaces your current data.`)) return;
-        state.data = normalize(data);
+        const incoming = JSON.parse(reader.result);
+        if (!Array.isArray(incoming.entries) && !Array.isArray(incoming.backlog)) throw new Error("not a LifeLog file");
+        const entryKey = (e) => `${(e.title || "").toLowerCase()}|${(e.category || "").toLowerCase()}|${+e.year}|${+e.month}`;
+        const backlogKey = (b) => `${(b.title || "").toLowerCase()}|${(b.category || "").toLowerCase()}`;
+
+        const existingEntryKeys = new Set(state.data.entries.map(entryKey));
+        const newEntries = (incoming.entries || []).map(sanitizeEntry).filter((e) => !existingEntryKeys.has(entryKey(e)));
+
+        const existingBacklogKeys = new Set(state.data.backlog.map(backlogKey));
+        const newBacklog = (incoming.backlog || []).map(sanitizeBacklog).filter((b) => !existingBacklogKeys.has(backlogKey(b)));
+
+        if (!newEntries.length && !newBacklog.length) { toast("Nothing new to import — all items already exist"); return; }
+        const skipped = ((incoming.entries || []).length - newEntries.length) + ((incoming.backlog || []).length - newBacklog.length);
+        const parts = [];
+        if (newEntries.length) parts.push(`${newEntries.length} entries`);
+        if (newBacklog.length) parts.push(`${newBacklog.length} backlog items`);
+        const msg = `Add ${parts.join(" and ")} to your current data?` + (skipped ? ` (${skipped} duplicates will be skipped)` : "");
+        if (!confirm(msg)) return;
+
+        // prefer colors from incoming categories when creating new ones; fall
+        // back to the palette (via ensureCategories) for anything else
+        const knownNames = new Set(state.data.categories.map((c) => c.name));
+        for (const c of incoming.categories || []) {
+          if (c.name && c.color && !knownNames.has(c.name)) {
+            state.data.categories.push({ id: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: c.name, color: c.color });
+            knownNames.add(c.name);
+          }
+        }
+        ensureCategories(state.data.categories, [...newEntries, ...newBacklog]);
+
+        state.data.entries.push(...newEntries);
+        state.data.backlog.push(...newBacklog);
+
+        const accIn = incoming.accomplishments || {};
+        for (const y of Object.keys(accIn)) {
+          state.data.accomplishments[y] = state.data.accomplishments[y] || [];
+          const existingTexts = new Set(state.data.accomplishments[y].map((a) => (a.text || "").toLowerCase()));
+          for (const a of accIn[y] || []) {
+            const out = typeof a === "string" ? { text: a, createdAt: null } : { text: a.text || "", createdAt: a.createdAt || null, ...(a.notes ? { notes: a.notes } : {}) };
+            if (out.text && !existingTexts.has(out.text.toLowerCase())) { state.data.accomplishments[y].push(out); existingTexts.add(out.text.toLowerCase()); }
+          }
+        }
+
         afterDataChange();
         await persist();
-        toast("Imported " + state.data.entries.length + " entries");
+        toast(`Imported ${parts.join(" and ")}`);
       } catch (e) { toast("Import failed: " + (e.message || e), true); }
     };
     reader.readAsText(file);
   }
 
   // ---------- data lifecycle ----------
+  function sanitizeEntry(e) {
+    const out = {
+      id: e.id || uid(),
+      title: e.title || "",
+      category: e.category || "Other",
+      year: +e.year,
+      month: +e.month,
+      date: e.date || `${e.year}-${String(e.month).padStart(2, "0")}`,
+      createdAt: e.createdAt || null,
+    };
+    if (e.rating) out.rating = +e.rating;
+    if (e.notes) out.notes = e.notes;
+    if (e.coverUrl) out.coverUrl = e.coverUrl;
+    if (e.mediaId) out.mediaId = e.mediaId;
+    if (e.mediaSource) out.mediaSource = e.mediaSource;
+    return out;
+  }
+  function sanitizeBacklog(b) {
+    const out = {
+      id: b.id || uid(),
+      title: b.title || "",
+      category: b.category || "Other",
+      createdAt: b.createdAt || null,
+    };
+    if (b.notes) out.notes = b.notes;
+    if (b.coverUrl) out.coverUrl = b.coverUrl;
+    if (b.mediaId) out.mediaId = b.mediaId;
+    if (b.mediaSource) out.mediaSource = b.mediaSource;
+    if (b.summary) out.summary = b.summary;
+    if (b.releaseYear) out.releaseYear = b.releaseYear;
+    if (b.externalRating) out.externalRating = b.externalRating;
+    return out;
+  }
+  // adds a category entry (with a palette color) for any category name used
+  // by entries/backlog items that isn't already known
+  function ensureCategories(categories, items) {
+    const known = new Set(categories.map((c) => c.name));
+    const palette = ["#e23b3b","#e2723b","#e2b23b","#9fe23b","#3be25a","#3bb2e2","#5b8cff","#723be2","#b23be2","#e23b72","#7a8a99"];
+    let pi = categories.length;
+    for (const item of items) if (!known.has(item.category)) {
+      known.add(item.category);
+      categories.push({ id: item.category.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: item.category, color: palette[pi++ % palette.length] });
+    }
+  }
   function normalize(data) {
     data = data || emptyData();
     data.categories = data.categories || [];
-    data.entries = (data.entries || []).map((e) => {
-      const out = {
-        id: e.id || uid(),
-        title: e.title || "",
-        category: e.category || "Other",
-        year: +e.year,
-        month: +e.month,
-        date: e.date || `${e.year}-${String(e.month).padStart(2, "0")}`,
-        createdAt: e.createdAt || null,
-      };
-      if (e.rating) out.rating = +e.rating;
-      if (e.notes) out.notes = e.notes;
-      if (e.coverUrl) out.coverUrl = e.coverUrl;
-      if (e.mediaId) out.mediaId = e.mediaId;
-      if (e.mediaSource) out.mediaSource = e.mediaSource;
-      return out;
-    });
-    data.backlog = (data.backlog || []).map((b) => {
-      const out = {
-        id: b.id || uid(),
-        title: b.title || "",
-        category: b.category || "Other",
-        createdAt: b.createdAt || null,
-      };
-      if (b.notes) out.notes = b.notes;
-      if (b.coverUrl) out.coverUrl = b.coverUrl;
-      if (b.mediaId) out.mediaId = b.mediaId;
-      if (b.mediaSource) out.mediaSource = b.mediaSource;
-      if (b.summary) out.summary = b.summary;
-      if (b.releaseYear) out.releaseYear = b.releaseYear;
-      if (b.externalRating) out.externalRating = b.externalRating;
-      return out;
-    });
+    data.entries = (data.entries || []).map(sanitizeEntry);
+    data.backlog = (data.backlog || []).map(sanitizeBacklog);
     const incomingSettings = data.settings || {};
     // One-time migration: visual layout prefs used to be synced as part of
     // data.settings. Pull them into this device's local-only settings if it
@@ -1653,13 +1705,7 @@
       });
     }
     // ensure every used category exists
-    const known = new Set(data.categories.map((c) => c.name));
-    const palette = ["#e23b3b","#e2723b","#e2b23b","#9fe23b","#3be25a","#3bb2e2","#5b8cff","#723be2","#b23be2","#e23b72","#7a8a99"];
-    let pi = data.categories.length;
-    for (const e of [...data.entries, ...data.backlog]) if (!known.has(e.category)) {
-      known.add(e.category);
-      data.categories.push({ id: e.category.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: e.category, color: palette[pi++ % palette.length] });
-    }
+    ensureCategories(data.categories, [...data.entries, ...data.backlog]);
     return data;
   }
 

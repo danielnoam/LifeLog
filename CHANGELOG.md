@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.5.4] - 2026-06-16
+
+### Fixed
+- Settings → Backup says importing a JSON file "merges with your current
+  data — it does not replace it", but it actually replaced everything.
+  Import now does what the label says: new entries, backlog items,
+  categories, and achievements are added, exact duplicates are skipped, and
+  nothing existing is removed or overwritten.
+
 ## [0.9.5.3] - 2026-06-16
 
 ### Added
