@@ -19,7 +19,7 @@
   const UI_KEY = "lifelog-ui-v1";
   const MEDIA_KEY = "lifelog-media-settings-v1";
   const DEFAULT_MEDIA = { enabled: false, rawgKey: "", tmdbKey: "", categorySources: {} };
-  const APP_VERSION = "0.9.5.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.9.5.3"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -394,9 +394,9 @@
       head.appendChild(el("span", "backlog-section-name", catName));
       head.appendChild(el("span", "backlog-section-count", String(catItems.length)));
       section.appendChild(head);
-      const card = el("div", "card backlog-card");
-      catItems.forEach((b) => card.appendChild(backlogRow(b)));
-      section.appendChild(card);
+      const list = el("div", "backlog-list");
+      catItems.forEach((b) => list.appendChild(backlogRow(b)));
+      section.appendChild(list);
       root.appendChild(section);
     }
   }
@@ -404,8 +404,6 @@
   function backlogRow(b) {
     if (b.coverUrl) return backlogRowRich(b);
     const row = el("div", "entry");
-    const bar = el("div", "bar"); bar.style.background = colorOf(b.category);
-    row.appendChild(bar);
     const t = el("span", "etitle", b.title); t.title = b.title;
     row.appendChild(t);
     const doneBtn = el("button", "btn btn-sm", "✓ Done");
@@ -704,6 +702,23 @@
       };
       wrap.appendChild(chip);
     });
+  }
+
+  // Clicking the "Years"/"Categories" label selects all chips; clicking again
+  // when everything is already selected deselects all.
+  function toggleAllYears() {
+    const ys = years();
+    if (state.activeYears.size === ys.length) state.activeYears.clear();
+    else { state.activeYears.clear(); ys.forEach((y) => state.activeYears.add(y)); }
+    buildYearFilter();
+    render();
+  }
+  function toggleAllCats() {
+    const names = state.data.categories.map((c) => c.name);
+    if (state.activeCats.size === names.length) state.activeCats.clear();
+    else { state.activeCats.clear(); names.forEach((n) => state.activeCats.add(n)); }
+    buildCatFilter();
+    render();
   }
 
   // ---------- entry modal ----------
@@ -1718,6 +1733,8 @@
       scrollSaveTimer = setTimeout(saveUiState, 300);
     }, { passive: true });
     $("#search").oninput = (e) => { state.search = e.target.value; render(); };
+    $("#yearFilterLabel").onclick = toggleAllYears;
+    $("#catFilterLabel").onclick = toggleAllCats;
 
     const addMenu = $("#addMenu");
     const closeAddMenu = () => { addMenu.hidden = true; };

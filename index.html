@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.9.5.2" />
+  <link rel="stylesheet" href="src/styles.css?v=0.9.5.3" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -44,11 +44,11 @@
 
   <div class="filterbar">
     <div class="filter-group">
-      <label>Years</label>
+      <label id="yearFilterLabel" class="filter-label" title="Click to select/deselect all">Years</label>
       <div class="cats" id="yearFilter"></div>
     </div>
     <div class="filter-group">
-      <label>Categories</label>
+      <label id="catFilterLabel" class="filter-label" title="Click to select/deselect all">Categories</label>
       <div class="cats" id="catFilter"></div>
     </div>
     <div class="storage-status" id="storageStatus"></div>
@@ -380,9 +380,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.9.5.2"></script>
-  <script src="src/media.js?v=0.9.5.2"></script>
-  <script src="src/storage.js?v=0.9.5.2"></script>
-  <script src="src/app.js?v=0.9.5.2"></script>
+  <script src="src/qr.js?v=0.9.5.3"></script>
+  <script src="src/media.js?v=0.9.5.3"></script>
+  <script src="src/storage.js?v=0.9.5.3"></script>
+  <script src="src/app.js?v=0.9.5.3"></script>
 </body>
 </html>

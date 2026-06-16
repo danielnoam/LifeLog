@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.5.3] - 2026-06-16
+
+### Added
+- Filter bar: clicking the "Years" or "Categories" label selects all chips;
+  clicking again when everything is already selected deselects all.
+
+### Changed
+- Backlog: the category header and its items now share a single bordered
+  panel instead of two separate boxes.
+- Backlog: plain (no-cover) items no longer show a category-colored bar —
+  redundant with the section's color dot.
+
 ## [0.9.5.2] - 2026-06-16
 
 ### Changed
