@@ -398,7 +398,7 @@
       root.appendChild(repCard);
     }
 
-    renderHeatmap(root, state.data.entries);
+    renderHeatmap(root, entries);
     renderYearInReview(root, state.data.entries);
   }
 
