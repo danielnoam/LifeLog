@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.4] - 2026-06-16
+
+### Added
+- The app now remembers which tab you had open and how far you had scrolled.
+  Refreshing the page or returning to it later brings you back to the same
+  view and scroll position (stored in `localStorage`, per device).
+
 ## [0.9.3] - 2026-06-16
 
 ### Added
