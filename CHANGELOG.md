@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.3] - 2026-06-16
+
+### Added
+- **Activity heatmap** in Stats: a month-level calendar grid (rows = years newest-first,
+  columns = Jan → Dec) coloured by entry count. Hovering a cell shows the exact count and
+  period. Always reflects the full unfiltered log so the overall activity pattern is visible
+  regardless of active category/year filters.
+- **Year in Review** in Stats: year-selector pills default to the most recent year; shows
+  total entries, unique title count, best month, top-5 categories (bar chart), most-repeated
+  titles, and achievements logged that year.
+
 ## [0.9.2] - 2026-06-16
 
 ### Fixed
