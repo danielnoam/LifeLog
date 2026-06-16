@@ -16,7 +16,8 @@
   };
   const VISUAL_KEY = "lifelog-visual-settings-v1";
   const PENDING_KEY = "lifelog-pending-sync-v1";
-  const APP_VERSION = "0.9.3"; // bump with each shipped change so it's visible in Settings
+  const UI_KEY = "lifelog-ui-v1";
+  const APP_VERSION = "0.9.4"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -27,6 +28,9 @@
   }
   function saveVisualSettings(v) {
     try { localStorage.setItem(VISUAL_KEY, JSON.stringify(v)); } catch (e) {}
+  }
+  function saveUiState() {
+    try { localStorage.setItem(UI_KEY, JSON.stringify({ view: state.view, scrollY: window.scrollY })); } catch (e) {}
   }
 
   // Whether the last save didn't reach every connected target (e.g. made
@@ -1398,7 +1402,13 @@
         viewTabs.classList.remove("open");
         state.view = t.dataset.view;
         render();
+        saveUiState();
       });
+    let scrollSaveTimer;
+    window.addEventListener("scroll", () => {
+      clearTimeout(scrollSaveTimer);
+      scrollSaveTimer = setTimeout(saveUiState, 300);
+    }, { passive: true });
     $("#search").oninput = (e) => { state.search = e.target.value; render(); };
 
     const addMenu = $("#addMenu");
@@ -1524,6 +1534,10 @@
       catch (e) { setupMsg = "Setup link failed: " + (e.message || e); setupErr = true; }
     }
 
+    let savedUi = null;
+    try { savedUi = JSON.parse(localStorage.getItem(UI_KEY)); } catch (e) {}
+    if (savedUi?.view) state.view = savedUi.view;
+
     const result = await Storage.load();
     let source, githubReached;
     if (result.conflict) {
@@ -1538,6 +1552,7 @@
       githubReached = source === "github";
     }
     afterDataChange();
+    if (savedUi?.scrollY) setTimeout(() => window.scrollTo(0, savedUi.scrollY), 0);
 
     refreshStorageStatus();
 
