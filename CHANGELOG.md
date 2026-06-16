@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.2] - 2026-06-16
+
+### Fixed
+- Settings: removed spurious vertical scrollbar from the tab navigation bar.
+- Settings: rewrote descriptions in all four panels (Storage, Sync, Backup,
+  Appearance) with clearer language; Appearance now uses bullet points.
+- Stats: hovering a category bar row now shows the unique title count with a
+  small "unique" label beneath it, making the number self-explanatory.
+- Bottom bar (mobile): removed the ▾ arrow icon from the active-view button.
+- Bottom bar (mobile): the view-switcher popup now sizes and anchors itself
+  to the active-view button instead of spanning full screen width.
+- Filter bar: "Years" and "Categories" labels now share a fixed min-width so
+  filter chips start at the same indent on every row.
+
 ## [0.9.1] - 2026-06-15
 
 ### Fixed

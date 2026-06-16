@@ -98,7 +98,7 @@ html, body {
   background: var(--bg);
 }
 .filter-group { display: flex; align-items: center; gap: 10px; }
-.filter-group > label { color: var(--text-faint); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; min-width: 80px; }
+.filter-group > label { color: var(--text-faint); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; min-width: 90px; }
 select {
   background: var(--bg-elev); color: var(--text); border: 1px solid var(--border);
   padding: 6px 10px; border-radius: 8px; font-size: 13px;
