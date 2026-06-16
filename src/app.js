@@ -16,7 +16,7 @@
   };
   const VISUAL_KEY = "lifelog-visual-settings-v1";
   const PENDING_KEY = "lifelog-pending-sync-v1";
-  const APP_VERSION = "0.9.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.9.3"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -49,6 +49,7 @@
     search: "",
     activeYears: new Set(),
     activeCats: new Set(),
+    statsYear: null,
   };
   let catColor = {}; // name -> color
 
@@ -396,6 +397,135 @@
       });
       root.appendChild(repCard);
     }
+
+    renderHeatmap(root, state.data.entries);
+    renderYearInReview(root, state.data.entries);
+  }
+
+  function heatColor(count, max) {
+    const t = max <= 1 ? 1 : Math.max(0.2, count / max);
+    return `rgb(${Math.round(0x22 + (0x5b - 0x22) * t)},${Math.round(0x28 + (0x8c - 0x28) * t)},${Math.round(0x36 + (0xff - 0x36) * t)})`;
+  }
+
+  function renderHeatmap(root, allEntries) {
+    if (!allEntries.length) return;
+    const counts = {};
+    let maxCount = 0;
+    for (const e of allEntries) {
+      const k = `${e.year}-${e.month}`;
+      counts[k] = (counts[k] || 0) + 1;
+      if (counts[k] > maxCount) maxCount = counts[k];
+    }
+    const thisYear = new Date().getFullYear();
+    const allYears = [...new Set([...allEntries.map((e) => e.year), thisYear])].sort((a, b) => a - b);
+
+    const card = el("div", "card");
+    card.style.marginTop = "20px";
+    card.appendChild(el("h2", null, "Activity"));
+    const wrap = el("div", "heatmap");
+
+    const header = el("div", "heatmap-row");
+    header.appendChild(el("span", "heatmap-year-lbl"));
+    for (const m of MONTHS_SHORT.slice(1)) header.appendChild(el("span", "heatmap-month-lbl", m));
+    wrap.appendChild(header);
+
+    for (const year of [...allYears].reverse()) {
+      const row = el("div", "heatmap-row");
+      row.appendChild(el("span", "heatmap-year-lbl", String(year)));
+      for (let m = 1; m <= 12; m++) {
+        const count = counts[`${year}-${m}`] || 0;
+        const cell = el("div", "heatmap-cell");
+        if (count) {
+          cell.style.background = heatColor(count, maxCount);
+          cell.title = `${count} ${count === 1 ? "entry" : "entries"} · ${MONTHS_SHORT[m]} ${year}`;
+        }
+        row.appendChild(cell);
+      }
+      wrap.appendChild(row);
+    }
+    card.appendChild(wrap);
+    root.appendChild(card);
+  }
+
+  function renderYearInReview(root, allEntries) {
+    const allYears = [...new Set(allEntries.map((e) => e.year))].sort((a, b) => b - a);
+    if (!allYears.length) return;
+    if (!state.statsYear || !allYears.includes(state.statsYear)) state.statsYear = allYears[0];
+
+    const card = el("div", "card yir-card");
+    card.style.marginTop = "20px";
+    card.appendChild(el("h2", null, "Year in Review"));
+
+    const yearNav = el("div", "yir-years");
+    for (const y of allYears) {
+      const btn = el("button", "yir-year-btn" + (y === state.statsYear ? " active" : ""), String(y));
+      btn.type = "button";
+      btn.onclick = () => { state.statsYear = y; render(); };
+      yearNav.appendChild(btn);
+    }
+    card.appendChild(yearNav);
+
+    const yearEntries = allEntries.filter((e) => e.year === state.statsYear);
+    const achs = state.data.accomplishments[state.statsYear] || [];
+
+    if (!yearEntries.length && !achs.length) {
+      card.appendChild(el("p", "muted", `No entries logged in ${state.statsYear}.`));
+      root.appendChild(card);
+      return;
+    }
+
+    const uniqueTitles = new Set(yearEntries.map((e) => e.title.trim().toLowerCase())).size;
+    const monthCounts = countBy(yearEntries, (e) => e.month);
+    const topMonth = Object.entries(monthCounts).sort((a, b) => b[1] - a[1])[0];
+    const highlights = el("div", "yir-highlights");
+    highlights.appendChild(statItem(yearEntries.length, "entries"));
+    highlights.appendChild(statItem(uniqueTitles, "unique titles"));
+    if (topMonth) highlights.appendChild(statItem(MONTHS_SHORT[+topMonth[0]], "best month"));
+    card.appendChild(highlights);
+
+    if (yearEntries.length) {
+      const catCounts = countBy(yearEntries, (e) => e.category);
+      const topCats = Object.entries(catCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      const catMax = topCats[0][1];
+      const sec = el("div", "yir-section");
+      sec.appendChild(el("h3", null, "Top categories"));
+      for (const [name, count] of topCats) sec.appendChild(barRow(name, count, catMax, colorOf(name)));
+      card.appendChild(sec);
+    }
+
+    const byTitle = new Map();
+    for (const e of yearEntries) {
+      const key = e.title.trim().toLowerCase();
+      let g = byTitle.get(key);
+      if (!g) { g = { title: e.title, count: 0, category: e.category }; byTitle.set(key, g); }
+      g.count++;
+    }
+    const repeats = [...byTitle.values()].filter((g) => g.count > 1).sort((a, b) => b.count - a.count).slice(0, 5);
+    if (repeats.length) {
+      const repMax = repeats[0].count;
+      const sec = el("div", "yir-section");
+      sec.appendChild(el("h3", null, "Most repeated"));
+      for (const r of repeats) {
+        const row = barRow(r.title, r.count, repMax, colorOf(r.category));
+        row.querySelector(".lbl").title = r.title;
+        sec.appendChild(row);
+      }
+      card.appendChild(sec);
+    }
+
+    if (achs.length) {
+      const sec = el("div", "yir-section");
+      sec.appendChild(el("h3", null, `Achievements (${achs.length})`));
+      for (const a of achs) {
+        const item = el("div", "yir-ach");
+        item.appendChild(el("span", "yir-ach-bullet", "✦"));
+        item.appendChild(el("span", null, a.text));
+        sec.appendChild(item);
+      }
+      card.appendChild(sec);
+    }
+
+    root.appendChild(card);
   }
 
   function statItem(n, l) {
