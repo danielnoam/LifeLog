@@ -59,10 +59,16 @@
   <!-- Entry add/edit modal -->
   <div class="modal-overlay" id="entryModal" hidden>
     <div class="modal">
+      <div id="entryCover" class="modal-cover" hidden>
+        <img id="entryCoverImg" src="" alt="Cover" />
+      </div>
       <h2 id="entryModalTitle">Add entry</h2>
       <form id="entryForm">
         <input type="hidden" id="entryId" />
         <input type="hidden" id="entryFromBacklog" />
+        <input type="hidden" id="fCoverUrl" />
+        <input type="hidden" id="fMediaId" />
+        <input type="hidden" id="fMediaSource" />
         <label>Title
           <div class="ac-wrap">
             <input id="fTitle" type="text" required autocomplete="off" />
@@ -160,8 +166,17 @@
       <h2 id="backlogModalTitle">Add to backlog</h2>
       <form id="backlogForm">
         <input type="hidden" id="backlogId" />
+        <input type="hidden" id="bCoverUrl" />
+        <input type="hidden" id="bMediaId" />
+        <input type="hidden" id="bMediaSource" />
+        <input type="hidden" id="bSummary" />
+        <input type="hidden" id="bReleaseYear" />
+        <input type="hidden" id="bExternalRating" />
         <label>Title
-          <input id="bTitle" type="text" required autocomplete="off" placeholder="e.g. The Last of Us Part II" />
+          <div class="ac-wrap">
+            <input id="bTitle" type="text" required autocomplete="off" placeholder="e.g. The Last of Us Part II" />
+            <div class="ac-list" id="bTitleSuggest" hidden></div>
+          </div>
         </label>
         <label>Category
           <select id="bCategory" required></select>
@@ -192,6 +207,7 @@
         <button class="stab" data-stab="sync" type="button">Sync</button>
         <button class="stab" data-stab="backup" type="button">Backup</button>
         <button class="stab" data-stab="appearance" type="button">Appearance</button>
+        <button class="stab" data-stab="media" type="button">Media</button>
       </nav>
 
       <div class="settings-panel" data-panel="storage">
@@ -319,6 +335,32 @@
       </section>
       </div><!-- /appearance panel -->
 
+      <div class="settings-panel" data-panel="media" hidden>
+      <section class="settings-section">
+        <h3>Media enrichment</h3>
+        <p class="hint">When enabled, LifeLog fetches cover art and metadata while you type a title. API keys are stored in this browser only — never synced to GitHub.</p>
+        <label class="toggle-label">
+          <input type="checkbox" id="mediaEnabled" />
+          Enable media enrichment
+        </label>
+      </section>
+      <section class="settings-section" id="mediaKeysSection" hidden>
+        <h3>API keys</h3>
+        <label>RAWG key <span class="muted">(games — free at rawg.io/apidocs)</span>
+          <input id="rawgKey" type="password" placeholder="Paste your RAWG API key…" autocomplete="off" spellcheck="false" />
+        </label>
+        <label>TMDB key <span class="muted">(movies &amp; shows — free at themoviedb.org)</span>
+          <input id="tmdbKey" type="password" placeholder="Paste your TMDB API key…" autocomplete="off" spellcheck="false" />
+        </label>
+        <p class="hint">Open Library (books) works without a key.</p>
+      </section>
+      <section class="settings-section" id="mediaCatSection" hidden>
+        <h3>Source per category</h3>
+        <p class="hint">Choose which API to use for each of your categories. Categories set to "None" won't fetch metadata.</p>
+        <div id="mediaCatRows"></div>
+      </section>
+      </div><!-- /media panel -->
+
       <p class="version-tag" id="appVersion"></p>
     </div>
   </div>
@@ -335,6 +377,7 @@
   <div id="toast" class="toast" hidden></div>
 
   <script src="src/qr.js"></script>
+  <script src="src/media.js"></script>
   <script src="src/storage.js"></script>
   <script src="src/app.js"></script>
 </body>

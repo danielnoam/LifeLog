@@ -229,6 +229,28 @@ select:focus { outline: none; border-color: var(--accent); }
 
 /* backlog */
 .backlog-card { max-width: 640px; margin: 0 auto; }
+.backlog-item-rich {
+  display: flex; gap: 12px; padding: 10px 7px; border-radius: 7px; cursor: pointer;
+}
+.backlog-item-rich:hover { background: var(--bg-elev2); }
+.backlog-item-rich .bl-cover {
+  width: 60px; height: 88px; object-fit: cover; border-radius: 5px; flex: 0 0 auto;
+}
+.backlog-item-rich .bl-body {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px;
+}
+.backlog-item-rich .bl-title {
+  font-size: 13.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.backlog-item-rich .bl-meta { font-size: 11.5px; color: var(--accent); }
+.backlog-item-rich .bl-summary {
+  font-size: 12px; color: var(--text-dim); overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.backlog-item-rich .bl-actions {
+  display: flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 2px;
+}
+.bl-cat-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 
 .empty { text-align: center; color: var(--text-faint); padding: 60px 20px; }
 
@@ -243,6 +265,8 @@ select:focus { outline: none; border-color: var(--accent); }
   padding: 22px 24px; width: 420px; max-width: 100%; box-shadow: var(--shadow);
   max-height: 90vh; overflow-y: auto;
 }
+.modal-cover { margin: -22px -24px 16px; overflow: hidden; border-radius: 14px 14px 0 0; max-height: 180px; }
+.modal-cover img { width: 100%; height: 180px; object-fit: cover; object-position: top; display: block; }
 .modal-wide { width: 560px; }
 .modal h2 { margin: 0 0 16px; font-size: 18px; }
 .modal-head { display:flex; align-items:center; justify-content: space-between; margin-bottom: 6px; }
@@ -279,6 +303,10 @@ select:focus { outline: none; border-color: var(--accent); }
 .ac-item:hover { background: var(--bg-elev2); }
 .ac-item .ac-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ac-item .ac-meta { color: var(--text-dim); font-size: 11.5px; white-space: nowrap; }
+.ac-item.ac-media { gap: 8px; }
+.ac-item .ac-thumb { width: 32px; height: 46px; object-fit: cover; border-radius: 3px; flex: 0 0 auto; }
+.ac-item .ac-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ac-divider { border-top: 1px solid var(--border); margin: 2px 0; }
 
 .conflict-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
 .conflict-item {
@@ -327,6 +355,18 @@ select:focus { outline: none; border-color: var(--accent); }
 .version-tag {
   margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--border);
   text-align: center; color: var(--text-faint); font-size: 11px;
+}
+.toggle-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text); }
+.toggle-label input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+.media-cat-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.media-cat-row:last-child { border-bottom: none; }
+.media-cat-name { color: var(--text-dim); }
+.media-cat-sel {
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  padding: 5px 8px; border-radius: 7px; font-size: 12px;
 }
 .hint, .muted { color: var(--text-faint); font-size: 12px; }
 .muted code { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; color: var(--text-dim); font-size: 11.5px; }
