@@ -98,7 +98,7 @@ html, body {
   background: var(--bg);
 }
 .filter-group { display: flex; align-items: center; gap: 10px; }
-.filter-group > label { color: var(--text-faint); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+.filter-group > label { color: var(--text-faint); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; min-width: 80px; }
 select {
   background: var(--bg-elev); color: var(--text); border: 1px solid var(--border);
   padding: 6px 10px; border-radius: 8px; font-size: 13px;
@@ -192,8 +192,11 @@ select:focus { outline: none; border-color: var(--accent); }
 .bar-fill { height: 100%; border-radius: 6px; }
 .bar-row .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); font-weight:600; }
 .bar-row .val .val-unique { display: none; }
+.bar-row .val .val-unique-lbl { display: none; font-size: 9px; color: var(--accent); line-height: 1; }
 .bar-row:hover .val .val-total { display: none; }
-.bar-row:hover .val .val-unique { display: inline; color: var(--accent); }
+.bar-row:hover .val .val-unique { display: block; color: var(--accent); }
+.bar-row:hover .val .val-unique-lbl { display: block; }
+.bar-row:hover .val { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
 .stat-big { display:flex; gap: 26px; flex-wrap: wrap; margin-bottom: 4px; }
 .stat-big .item .n { font-size: 26px; font-weight: 700; }
 .stat-big .item .l { color: var(--text-faint); font-size: 12px; }
@@ -259,7 +262,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .conflict-info { display: flex; flex-direction: column; gap: 4px; }
 .conflict-info strong { font-size: 13.5px; }
 
-.settings-tabs { display: flex; gap: 4px; margin: 4px 0 4px; border-bottom: 1px solid var(--border); overflow-x: auto; }
+.settings-tabs { display: flex; gap: 4px; margin: 4px 0 4px; border-bottom: 1px solid var(--border); overflow-x: auto; overflow-y: hidden; }
 .stab {
   background: transparent; border: none; border-bottom: 2px solid transparent;
   color: var(--text-dim); padding: 8px 14px; font-weight: 550; cursor: pointer;
@@ -346,11 +349,10 @@ select:focus { outline: none; border-color: var(--accent); }
     background: var(--accent); color: #fff; border: none; border-radius: 8px;
     font-weight: 550; cursor: pointer;
   }
-  .view-current::after { content: " ▾"; font-size: 9px; opacity: .8; }
-  .views { flex: 1; position: relative; display: none; }
+  .views { flex: 1; display: none; }
   .tab { flex: 1; text-align: center; padding: 13px 4px; font-size: 12px; }
   .views.open {
-    position: absolute; left: 0; right: 0; bottom: 100%; margin-bottom: 8px;
+    position: absolute; bottom: 100%; margin-bottom: 8px;
     display: flex; flex-direction: column; gap: 4px;
     background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px;
     box-shadow: var(--shadow); padding: 5px;

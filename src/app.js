@@ -415,9 +415,9 @@
     row.appendChild(track);
     const valEl = el("div", "val");
     if (uniqueVal != null && uniqueVal !== val) {
-      valEl.title = uniqueVal + " unique title" + (uniqueVal === 1 ? "" : "s") + " (" + val + " total)";
       valEl.appendChild(el("span", "val-total", String(val)));
       valEl.appendChild(el("span", "val-unique", String(uniqueVal)));
+      valEl.appendChild(el("span", "val-unique-lbl", "unique"));
     } else {
       valEl.textContent = String(val);
     }
@@ -1255,7 +1255,12 @@
     // it opens a menu of the other views (see .views.open in styles.css).
     $("#viewCurrent").onclick = (e) => {
       e.stopPropagation();
-      viewTabs.classList.toggle("open");
+      const isOpen = viewTabs.classList.toggle("open");
+      if (isOpen) {
+        const btn = e.currentTarget;
+        viewTabs.style.left = btn.offsetLeft + "px";
+        viewTabs.style.width = btn.offsetWidth + "px";
+      }
     };
     document.querySelectorAll(".tab").forEach((t) =>
       t.onclick = (e) => {

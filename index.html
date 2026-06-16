@@ -196,37 +196,37 @@
 
       <div class="settings-panel" data-panel="storage">
       <section class="settings-section">
-        <h3>Where your data is saved</h3>
+        <h3>Active storage</h3>
         <p class="muted" id="backendInfo"></p>
       </section>
 
       <section class="settings-section">
-        <h3>Local file <span class="muted">(this computer)</span></h3>
+        <h3>Local file <span class="muted">(this device)</span></h3>
         <p class="muted" id="fileInfo"></p>
         <div class="btn-row">
           <button class="btn" id="connectFileBtn">Choose data file…</button>
           <button class="btn" id="reconnectFileBtn" hidden>Reconnect file</button>
           <button class="btn" id="disconnectFileBtn" hidden>Disconnect</button>
         </div>
-        <p class="hint">Saves to a <code>.json</code> file you pick (e.g. inside a Google Drive folder for desktop backup). Desktop Chrome/Edge only — not phones.</p>
+        <p class="hint">Stores your data in a <code>.json</code> file you choose on this computer. Good for keeping a local backup or syncing via a folder shared with Google Drive / Dropbox. Works on desktop Chrome and Edge only — not supported on phones.</p>
       </section>
       </div><!-- /storage panel -->
 
       <div class="settings-panel" data-panel="sync" hidden>
       <section class="settings-section">
-        <h3>Cloud sync <span class="muted">(GitHub — works on phones)</span></h3>
+        <h3>GitHub sync <span class="muted">(works on all devices)</span></h3>
         <p class="muted" id="ghInfo"></p>
         <div class="gh-fields" id="ghFields">
           <ol class="gh-steps">
-            <li><a id="ghTokenLink" href="https://github.com/settings/tokens/new?description=LifeLog&amp;scopes=repo" target="_blank" rel="noopener">Create a token on GitHub →</a>, click <strong>Generate token</strong>, and copy it.</li>
-            <li>Paste it below and press <strong>Connect</strong> — your private data repo is created automatically.</li>
+            <li><a id="ghTokenLink" href="https://github.com/settings/tokens/new?description=LifeLog&amp;scopes=repo" target="_blank" rel="noopener">Create a GitHub token →</a>, click <strong>Generate token</strong>, and copy it.</li>
+            <li>Paste it below and press <strong>Connect</strong> — a private data repo is created for you automatically.</li>
           </ol>
           <label>Access token
             <input id="ghToken" type="password" placeholder="ghp_… or github_pat_…" autocomplete="off" spellcheck="false" />
           </label>
           <details class="gh-advanced">
             <summary>Advanced</summary>
-            <label>Repository <span class="muted">owner/repo — leave blank for your account / lifelog-data</span>
+            <label>Repository <span class="muted">owner/repo — leave blank to use your account / lifelog-data</span>
               <input id="ghRepo" type="text" placeholder="(auto: yourname/lifelog-data)" autocomplete="off" spellcheck="false" />
             </label>
             <div class="row">
@@ -243,25 +243,25 @@
           <button class="btn" id="ghConnectBtn">Connect GitHub</button>
           <button class="btn" id="ghDisconnectBtn" hidden>Disconnect</button>
         </div>
-        <p class="hint">Syncs to a private repo so phone &amp; desktop share one log. Every save is a commit (versioned backup). The token is stored only in this browser.</p>
+        <p class="hint">Keeps your phone and desktop in sync via a private GitHub repo. Every save becomes a commit, giving you a full version history. Your token stays in this browser only — it is never sent anywhere else.</p>
       </section>
 
       <section class="settings-section gh-share" id="ghShare" hidden>
-        <h3>Share with another device</h3>
-        <p class="hint"><strong>Set up another device:</strong> scan this with your phone camera (or open the link) and it connects automatically — no retyping.</p>
-        <p class="warn" id="ghLocalWarn" hidden>You're viewing this from a local file/localhost, so this link only works on this computer. Open your published site (e.g. your GitHub Pages URL) and copy it from there to use it on your phone.</p>
+        <h3>Add another device</h3>
+        <p class="hint">Scan the QR code with your phone camera (or open the link) to connect a new device instantly — no manual setup needed.</p>
+        <p class="warn" id="ghLocalWarn" hidden>You're on a local/localhost URL, so this link only works on this computer. Open your published site (e.g. GitHub Pages) and copy the link from there to use it on other devices.</p>
         <div class="gh-qr" id="ghQr" hidden></div>
-        <p class="warn" id="ghQrTooLong" hidden>Your setup link is too long to show as a QR code — use the copy button below to share it instead.</p>
+        <p class="warn" id="ghQrTooLong" hidden>The setup link is too long for a QR code — use the copy button below to share it instead.</p>
         <div class="row">
           <input id="ghSetupLink" type="text" readonly onclick="this.select()" />
           <button class="btn" id="ghCopyLinkBtn" type="button">Copy</button>
         </div>
-        <p class="hint">The link/QR contains your access token — only share it with your own devices.</p>
+        <p class="hint">This link contains your access token — only share it with your own devices.</p>
       </section>
 
       <section class="settings-section">
-        <h3>Sync frequency</h3>
-        <label>Check for updates from other devices
+        <h3>Auto-sync interval</h3>
+        <label>Check for remote changes
           <select id="ghPollInterval">
             <option value="0">Off</option>
             <option value="10">Every 10 seconds</option>
@@ -270,26 +270,31 @@
             <option value="300">Every 5 minutes</option>
           </select>
         </label>
-        <p class="hint">While connected to GitHub, periodically checks for changes saved from another device and pulls them in automatically. Setting is local to this device.</p>
+        <p class="hint">When enabled, LifeLog periodically pulls changes saved from your other devices. This setting is per-device.</p>
       </section>
       </div><!-- /sync panel -->
 
       <div class="settings-panel" data-panel="backup" hidden>
       <section class="settings-section">
         <h3>Export &amp; import</h3>
+        <p class="hint">Download a full copy of your data or restore from a previous backup.</p>
         <div class="btn-row">
           <button class="btn" id="exportJsonBtn">Export JSON</button>
           <button class="btn" id="exportCsvBtn">Export CSV</button>
           <button class="btn" id="importJsonBtn">Import JSON…</button>
         </div>
         <input type="file" id="importJsonInput" accept="application/json,.json" hidden />
+        <p class="hint">JSON keeps everything (entries, categories, backlog, achievements). CSV exports entries only and is useful for spreadsheets. Importing JSON merges with your current data — it does not replace it.</p>
       </section>
       </div><!-- /backup panel -->
 
       <div class="settings-panel" data-panel="appearance" hidden>
       <section class="settings-section">
         <h3>Timeline layout</h3>
-        <p class="muted">Month card width on the Timeline. Smaller min = more months per row. Max 0 = stretch to fill.</p>
+        <p class="hint">Controls how wide each month card is in the Timeline view.
+          <br>• <strong>Min width</strong> — smaller values fit more months per row.
+          <br>• <strong>Max width</strong> — set to 0 to let cards stretch and fill the available space.
+        </p>
         <div class="row">
           <label>Min width (px)
             <input id="monthMin" type="number" min="80" max="600" step="10" />
@@ -302,7 +307,7 @@
 
       <section class="settings-section">
         <h3>Font</h3>
-        <p class="muted">Changes the typeface used throughout the app on this device.</p>
+        <p class="hint">Changes the typeface used throughout the app on this device only.</p>
         <label>Typeface
           <select id="fontFamily">
             <option value="system">Default (system)</option>
