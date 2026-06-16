@@ -17,7 +17,9 @@
   const VISUAL_KEY = "lifelog-visual-settings-v1";
   const PENDING_KEY = "lifelog-pending-sync-v1";
   const UI_KEY = "lifelog-ui-v1";
-  const APP_VERSION = "0.9.4"; // bump with each shipped change so it's visible in Settings
+  const MEDIA_KEY = "lifelog-media-settings-v1";
+  const DEFAULT_MEDIA = { enabled: false, rawgKey: "", tmdbKey: "", categorySources: {} };
+  const APP_VERSION = "0.9.5"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -31,6 +33,17 @@
   }
   function saveUiState() {
     try { localStorage.setItem(UI_KEY, JSON.stringify({ view: state.view, scrollY: window.scrollY })); } catch (e) {}
+  }
+
+  function loadMediaSettings() {
+    try {
+      const raw = localStorage.getItem(MEDIA_KEY);
+      if (raw) return Object.assign({ ...DEFAULT_MEDIA }, JSON.parse(raw));
+    } catch (e) {}
+    return { ...DEFAULT_MEDIA };
+  }
+  function saveMediaSettings() {
+    try { localStorage.setItem(MEDIA_KEY, JSON.stringify(state.media)); } catch (e) {}
   }
 
   // Whether the last save didn't reach every connected target (e.g. made
@@ -48,6 +61,7 @@
   const state = {
     data: emptyData(),
     visual: loadVisualSettings() || { ...DEFAULT_VISUAL },
+    media: loadMediaSettings(),
     pendingSync: loadPendingSync(),
     view: "timeline",
     search: "",
@@ -309,6 +323,52 @@
     return row;
   }
 
+  let lastBacklogAutocompleted = "";
+  let backlogSuggestDebounce = null;
+  let backlogSuggestGen = 0;
+
+  async function renderBacklogTitleSuggestions() {
+    const list = $("#bTitleSuggest");
+    const query = $("#bTitle").value;
+    const cat = $("#bCategory").value;
+
+    if (query !== lastBacklogAutocompleted) {
+      ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bExternalRating"]
+        .forEach((id) => { const f = $(id); if (f) f.value = ""; });
+    }
+
+    list.innerHTML = "";
+    list.hidden = true;
+
+    if (!query.trim() || !state.media.enabled) return;
+    const source = (state.media.categorySources || {})[cat];
+    if (!source) return;
+
+    clearTimeout(backlogSuggestDebounce);
+    const gen = ++backlogSuggestGen;
+    const querySnap = query;
+    backlogSuggestDebounce = setTimeout(async () => {
+      const results = await fetchMediaSuggestions(querySnap, cat);
+      if (gen !== backlogSuggestGen) return;
+      list.innerHTML = "";
+      if (!results.length) { list.hidden = true; return; }
+      results.forEach((r) => {
+        list.appendChild(makeMediaAcItem(r, () => {
+          lastBacklogAutocompleted = r.title;
+          $("#bTitle").value = r.title;
+          $("#bCoverUrl").value = r.coverUrl || "";
+          $("#bMediaId").value = r.id || "";
+          $("#bMediaSource").value = r.source || "";
+          $("#bSummary").value = r.summary || "";
+          $("#bReleaseYear").value = r.year ? String(r.year) : "";
+          $("#bExternalRating").value = r.externalRating || "";
+          list.hidden = true;
+        }));
+      });
+      list.hidden = false;
+    }, 400);
+  }
+
   function renderBacklog(root) {
     if (!state.data.backlog.length) {
       root.appendChild(emptyState("Your backlog is empty. Use “+ Add” → “Add to backlog” for things to watch, play, or read later, then mark them “✓ Done” once you finish."));
@@ -326,6 +386,7 @@
   }
 
   function backlogRow(b) {
+    if (b.coverUrl) return backlogRowRich(b);
     const row = el("div", "entry");
     const bar = el("div", "bar"); bar.style.background = colorOf(b.category);
     row.appendChild(bar);
@@ -337,6 +398,34 @@
     doneBtn.title = "Move to your log";
     doneBtn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
     row.appendChild(doneBtn);
+    row.onclick = () => openBacklogModal(b);
+    return row;
+  }
+
+  function backlogRowRich(b) {
+    const row = el("div", "backlog-item-rich");
+    const img = document.createElement("img");
+    img.src = b.coverUrl; img.alt = b.title; img.className = "bl-cover";
+    img.onerror = () => { img.style.display = "none"; };
+    row.appendChild(img);
+    const body = el("div", "bl-body");
+    body.appendChild(el("span", "bl-title", b.title));
+    const meta = [];
+    if (b.externalRating) meta.push("★ " + b.externalRating);
+    if (b.releaseYear) meta.push(String(b.releaseYear));
+    if (meta.length) body.appendChild(el("span", "bl-meta", meta.join(" · ")));
+    if (b.summary) body.appendChild(el("p", "bl-summary", b.summary));
+    const actions = el("div", "bl-actions");
+    const dot = el("span", "bl-cat-dot");
+    dot.style.background = colorOf(b.category);
+    actions.appendChild(dot);
+    actions.appendChild(el("span", "ecat", b.category));
+    const doneBtn = el("button", "btn btn-sm", "✓ Done");
+    doneBtn.type = "button"; doneBtn.title = "Move to your log";
+    doneBtn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
+    actions.appendChild(doneBtn);
+    body.appendChild(actions);
+    row.appendChild(body);
     row.onclick = () => openBacklogModal(b);
     return row;
   }
@@ -639,6 +728,11 @@
     } else added.hidden = true;
     setRating(editing ? (entry.rating || 0) : 0);
     $("#fNotes").value = editing ? (entry.notes || "") : "";
+    const coverSrc = editing ? (entry.coverUrl || "") : (fromBacklog ? (fromBacklog.coverUrl || "") : "");
+    const mediaSrc = editing ? (entry.mediaSource || "") : (fromBacklog ? (fromBacklog.mediaSource || "") : "");
+    const mediaId = editing ? (entry.mediaId || "") : (fromBacklog ? (fromBacklog.mediaId || "") : "");
+    lastAutocompletedTitle = editing ? entry.title : (fromBacklog ? fromBacklog.title : "");
+    setEntryCover(coverSrc, mediaId, mediaSrc);
     $("#fTitleSuggest").hidden = true;
     $("#fTitleSuggest").innerHTML = "";
     $("#entryModal").hidden = false;
@@ -656,6 +750,7 @@
 
   // Suggest previously-logged titles matching what's being typed, so a
   // re-entry (rewatch/replay/reread) reuses the exact same title/category.
+  // Also carries cover media fields so re-entries inherit existing art.
   function titleSuggestions(query, excludeId) {
     const q = query.trim().toLowerCase();
     if (!q) return [];
@@ -665,10 +760,15 @@
       const key = e.title.trim().toLowerCase();
       if (!key.includes(q)) continue;
       let g = groups.get(key);
-      if (!g) { g = { title: e.title, count: 0, category: e.category, year: e.year, month: e.month }; groups.set(key, g); }
+      if (!g) {
+        g = { title: e.title, count: 0, category: e.category, year: e.year, month: e.month,
+              coverUrl: e.coverUrl || "", mediaId: e.mediaId || "", mediaSource: e.mediaSource || "" };
+        groups.set(key, g);
+      }
       g.count++;
       if (e.year > g.year || (e.year === g.year && e.month > g.month)) {
         g.title = e.title; g.category = e.category; g.year = e.year; g.month = e.month;
+        g.coverUrl = e.coverUrl || ""; g.mediaId = e.mediaId || ""; g.mediaSource = e.mediaSource || "";
       }
     }
     return [...groups.values()]
@@ -676,23 +776,109 @@
       .slice(0, 6);
   }
 
+  // Last title value that was set by clicking an autocomplete item, used to
+  // detect when the user manually edits the field (and should lose the cover).
+  let lastAutocompletedTitle = "";
+  let titleSuggestDebounce = null;
+  let titleSuggestGen = 0;
+
+  async function fetchMediaSuggestions(title, category) {
+    if (!state.media || !state.media.enabled) return [];
+    const source = (state.media.categorySources || {})[category];
+    if (!source || !window.LifeLogMedia) return [];
+    const keys = { rawg: state.media.rawgKey || "", tmdb: state.media.tmdbKey || "" };
+    try { return await window.LifeLogMedia.search(title, source, keys); } catch (e) { return []; }
+  }
+
+  function makeMediaAcItem(r, onPick) {
+    const item = el("div", r.coverUrl ? "ac-item ac-media" : "ac-item");
+    if (r.coverUrl) {
+      const img = document.createElement("img");
+      img.src = r.coverUrl; img.alt = ""; img.className = "ac-thumb";
+      item.appendChild(img);
+    }
+    const info = el("div", "ac-info");
+    info.appendChild(el("span", "ac-title", r.title));
+    const meta = [];
+    if (r.year) meta.push(String(r.year));
+    if (r.externalRating) meta.push("★ " + r.externalRating);
+    if (meta.length) info.appendChild(el("span", "ac-meta", meta.join(" · ")));
+    item.appendChild(info);
+    item.onclick = onPick;
+    return item;
+  }
+
+  function setEntryCover(coverUrl, mediaId, mediaSource) {
+    $("#fCoverUrl").value = coverUrl || "";
+    $("#fMediaId").value = mediaId || "";
+    $("#fMediaSource").value = mediaSource || "";
+    const coverDiv = $("#entryCover");
+    const coverImg = $("#entryCoverImg");
+    if (coverUrl) { coverImg.src = coverUrl; coverDiv.hidden = false; }
+    else { coverDiv.hidden = true; coverImg.src = ""; }
+  }
+
   function renderTitleSuggestions() {
     const list = $("#fTitleSuggest");
-    const matches = titleSuggestions($("#fTitle").value, $("#entryId").value || null);
+    const query = $("#fTitle").value;
+
+    // If user is typing new content (not just after an autocomplete pick), clear cover
+    if (query !== lastAutocompletedTitle && $("#fCoverUrl").value) {
+      setEntryCover("", "", "");
+    }
+
+    const localMatches = titleSuggestions(query, $("#entryId").value || null);
     list.innerHTML = "";
-    if (!matches.length) { list.hidden = true; return; }
-    matches.forEach((m) => {
-      const item = el("div", "ac-item");
-      item.appendChild(el("span", "ac-title", m.title));
-      item.appendChild(el("span", "ac-meta", `×${m.count} · last ${MONTHS_SHORT[m.month]} ${m.year}`));
-      item.onclick = () => {
-        $("#fTitle").value = m.title;
-        if (state.data.categories.some((c) => c.name === m.category)) $("#fCategory").value = m.category;
-        list.hidden = true;
-      };
+
+    localMatches.forEach((m) => {
+      const item = makeMediaAcItem(
+        { title: m.title, coverUrl: m.coverUrl, year: null, externalRating: null },
+        () => {
+          lastAutocompletedTitle = m.title;
+          $("#fTitle").value = m.title;
+          if (state.data.categories.some((c) => c.name === m.category)) $("#fCategory").value = m.category;
+          setEntryCover(m.coverUrl, m.mediaId, m.mediaSource);
+          list.hidden = true;
+        }
+      );
+      // Replace the generated ac-meta with the reentry-style meta
+      const info = item.querySelector(".ac-info");
+      const existing = info.querySelector(".ac-meta");
+      if (existing) existing.remove();
+      info.appendChild(el("span", "ac-meta", `×${m.count} · last ${MONTHS_SHORT[m.month]} ${m.year}`));
       list.appendChild(item);
     });
-    list.hidden = false;
+
+    const localTitlesLower = new Set(localMatches.map((m) => m.title.toLowerCase()));
+    const cat = $("#fCategory").value;
+    const hasMediaSource = state.media.enabled && (state.media.categorySources || {})[cat];
+
+    if (!localMatches.length && !hasMediaSource) { list.hidden = true; return; }
+    if (localMatches.length) list.hidden = false;
+
+    clearTimeout(titleSuggestDebounce);
+    const gen = ++titleSuggestGen;
+    const querySnap = query;
+    titleSuggestDebounce = setTimeout(async () => {
+      if (!hasMediaSource || !querySnap.trim()) return;
+      const results = await fetchMediaSuggestions(querySnap, cat);
+      if (gen !== titleSuggestGen) return;
+      const fresh = results.filter((r) => !localTitlesLower.has(r.title.toLowerCase()));
+      if (!fresh.length) return;
+      if (localMatches.length) {
+        const divider = el("div", "ac-divider");
+        list.appendChild(divider);
+      }
+      fresh.forEach((r) => {
+        list.appendChild(makeMediaAcItem(r, () => {
+          lastAutocompletedTitle = r.title;
+          $("#fTitle").value = r.title;
+          setEntryCover(r.coverUrl, r.id, r.source);
+          list.hidden = true;
+        }));
+      });
+      list.hidden = false;
+    }, 400);
   }
 
   async function saveEntryFromForm(ev) {
@@ -705,12 +891,18 @@
     const month = parseInt($("#fMonth").value, 10);
     const rating = parseInt($("#fRating").dataset.value, 10) || 0;
     const notes = $("#fNotes").value.trim();
+    const coverUrl = $("#fCoverUrl").value;
+    const mediaId = $("#fMediaId").value;
+    const mediaSource = $("#fMediaSource").value;
     if (!title) return;
     if (id) {
       const e = state.data.entries.find((x) => x.id === id);
       Object.assign(e, { title, category, year, month, date: `${year}-${String(month).padStart(2, "0")}` });
       if (rating) e.rating = rating; else delete e.rating;
       if (notes) e.notes = notes; else delete e.notes;
+      if (coverUrl) e.coverUrl = coverUrl; else delete e.coverUrl;
+      if (mediaId) e.mediaId = mediaId; else delete e.mediaId;
+      if (mediaSource) e.mediaSource = mediaSource; else delete e.mediaSource;
     } else {
       const newEntry = {
         id: uid(), title, category, year, month,
@@ -719,6 +911,9 @@
       };
       if (rating) newEntry.rating = rating;
       if (notes) newEntry.notes = notes;
+      if (coverUrl) newEntry.coverUrl = coverUrl;
+      if (mediaId) newEntry.mediaId = mediaId;
+      if (mediaSource) newEntry.mediaSource = mediaSource;
       state.data.entries.push(newEntry);
     }
     if (fromBacklogId) state.data.backlog = state.data.backlog.filter((b) => b.id !== fromBacklogId);
@@ -910,6 +1105,15 @@
       state.data.categories.map((c) => ({ value: c.name, label: c.name })),
       editing ? item.category : (state.data.categories[0] && state.data.categories[0].name));
     $("#bNotes").value = editing ? (item.notes || "") : "";
+    $("#bCoverUrl").value = editing ? (item.coverUrl || "") : "";
+    $("#bMediaId").value = editing ? (item.mediaId || "") : "";
+    $("#bMediaSource").value = editing ? (item.mediaSource || "") : "";
+    $("#bSummary").value = editing ? (item.summary || "") : "";
+    $("#bReleaseYear").value = editing && item.releaseYear ? String(item.releaseYear) : "";
+    $("#bExternalRating").value = editing ? (item.externalRating || "") : "";
+    lastBacklogAutocompleted = editing ? item.title : "";
+    $("#bTitleSuggest").innerHTML = "";
+    $("#bTitleSuggest").hidden = true;
     $("#deleteBacklogBtn").hidden = !editing;
     $("#backlogModal").hidden = false;
     $("#bTitle").focus();
@@ -922,14 +1126,32 @@
     const title = $("#bTitle").value.trim();
     const category = $("#bCategory").value;
     const notes = $("#bNotes").value.trim();
+    const coverUrl = $("#bCoverUrl").value;
+    const mediaId = $("#bMediaId").value;
+    const mediaSource = $("#bMediaSource").value;
+    const summary = $("#bSummary").value;
+    const releaseYear = $("#bReleaseYear").value;
+    const externalRating = $("#bExternalRating").value;
     if (!title) return;
     if (id) {
       const b = state.data.backlog.find((x) => x.id === id);
       Object.assign(b, { title, category });
       if (notes) b.notes = notes; else delete b.notes;
+      if (coverUrl) b.coverUrl = coverUrl; else delete b.coverUrl;
+      if (mediaId) b.mediaId = mediaId; else delete b.mediaId;
+      if (mediaSource) b.mediaSource = mediaSource; else delete b.mediaSource;
+      if (summary) b.summary = summary; else delete b.summary;
+      if (releaseYear) b.releaseYear = parseInt(releaseYear, 10); else delete b.releaseYear;
+      if (externalRating) b.externalRating = externalRating; else delete b.externalRating;
     } else {
       const item = { id: uid(), title, category, createdAt: new Date().toISOString() };
       if (notes) item.notes = notes;
+      if (coverUrl) item.coverUrl = coverUrl;
+      if (mediaId) item.mediaId = mediaId;
+      if (mediaSource) item.mediaSource = mediaSource;
+      if (summary) item.summary = summary;
+      if (releaseYear) item.releaseYear = parseInt(releaseYear, 10);
+      if (externalRating) item.externalRating = externalRating;
       state.data.backlog.push(item);
     }
     closeBacklogModal();
@@ -1129,6 +1351,56 @@
     document.querySelectorAll(".settings-panel").forEach((p) => { p.hidden = p.dataset.panel !== name; });
   }
 
+  function toggleMediaSections(enabled) {
+    $("#mediaKeysSection").hidden = !enabled;
+    $("#mediaCatSection").hidden = !enabled;
+  }
+
+  function renderMediaCatRows() {
+    const container = $("#mediaCatRows");
+    if (!container) return;
+    container.innerHTML = "";
+    const sources = [
+      { value: "", label: "None" },
+      { value: "rawg", label: "RAWG (games)" },
+      { value: "tmdb-movie", label: "TMDB (movie)" },
+      { value: "tmdb-tv", label: "TMDB (TV / anime)" },
+      { value: "openlibrary", label: "Open Library (books)" },
+    ];
+    if (!state.data.categories.length) {
+      container.appendChild(el("p", "muted", "No categories yet — add categories first."));
+      return;
+    }
+    for (const cat of state.data.categories) {
+      const row = el("div", "media-cat-row");
+      row.appendChild(el("span", "media-cat-name", cat.name));
+      const sel = el("select", "media-cat-sel");
+      sources.forEach((s) => {
+        const opt = el("option", null, s.label);
+        opt.value = s.value;
+        if ((state.media.categorySources || {})[cat.name] === s.value) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.onchange = () => {
+        if (!state.media.categorySources) state.media.categorySources = {};
+        state.media.categorySources[cat.name] = sel.value;
+        saveMediaSettings();
+      };
+      row.appendChild(sel);
+      container.appendChild(row);
+    }
+  }
+
+  function updateMediaSettings() {
+    const enableEl = $("#mediaEnabled");
+    if (!enableEl) return;
+    enableEl.checked = !!state.media.enabled;
+    $("#rawgKey").value = state.media.rawgKey || "";
+    $("#tmdbKey").value = state.media.tmdbKey || "";
+    toggleMediaSections(!!state.media.enabled);
+    renderMediaCatRows();
+  }
+
   function openSettings() {
     setSettingsTab("storage");
     updateBackendInfo();
@@ -1138,6 +1410,7 @@
     $("#monthMin").value = state.visual.monthMinWidth;
     $("#monthMax").value = state.visual.monthMaxWidth;
     $("#fontFamily").value = state.visual.fontFamily;
+    updateMediaSettings();
     $("#settingsModal").hidden = false;
   }
 
@@ -1449,6 +1722,13 @@
     $("#cancelBacklogBtn").onclick = closeBacklogModal;
     $("#backlogForm").onsubmit = saveBacklogFromForm;
     $("#deleteBacklogBtn").onclick = deleteCurrentBacklogItem;
+    $("#bTitle").oninput = renderBacklogTitleSuggestions;
+    document.addEventListener("click", (e) => {
+      if (!e.target.closest("#backlogModal .ac-wrap")) {
+        const bs = $("#bTitleSuggest");
+        if (bs) bs.hidden = true;
+      }
+    });
 
     $("#settingsBtn").onclick = openSettings;
     $("#closeSettingsBtn").onclick = closeSettings;
@@ -1467,6 +1747,13 @@
     $("#monthMin").onchange = onLayoutChange;
     $("#monthMax").onchange = onLayoutChange;
     $("#fontFamily").onchange = onFontChange;
+    $("#mediaEnabled").onchange = () => {
+      state.media.enabled = $("#mediaEnabled").checked;
+      saveMediaSettings();
+      toggleMediaSections(state.media.enabled);
+    };
+    $("#rawgKey").oninput = () => { state.media.rawgKey = $("#rawgKey").value; saveMediaSettings(); };
+    $("#tmdbKey").oninput = () => { state.media.tmdbKey = $("#tmdbKey").value; saveMediaSettings(); };
     $("#exportJsonBtn").onclick = exportJson;
     $("#exportCsvBtn").onclick = exportCsv;
     $("#importJsonBtn").onclick = () => $("#importJsonInput").click();

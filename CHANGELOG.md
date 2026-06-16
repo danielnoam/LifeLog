@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.5] - 2026-06-16
+
+### Added
+- **Media enrichment** (opt-in via Settings → Media): while typing a title in the entry or
+  backlog modal, LifeLog can fetch cover art, release year, summary, and external ratings
+  from third-party APIs and display enriched autocomplete suggestions with thumbnails.
+  - **RAWG** for games, **TMDB** for movies and TV/anime, **Open Library** for books (no
+    key required). API keys are stored in this browser only — never synced.
+  - Per-category source mapping: each category can be assigned an API source (or none).
+  - Cover art is shown in the **entry edit modal** header when an entry has one.
+  - **Backlog cards** with a cover image display a rich layout: poster, rating, release year,
+    and a 2-line summary.
+  - Re-entries inherit the cover art from the most recent logged instance automatically,
+    without an extra API call.
+
 ## [0.9.4] - 2026-06-16
 
 ### Added
