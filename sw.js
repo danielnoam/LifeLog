@@ -1,12 +1,12 @@
 // LifeLog service worker — makes the app installable and usable offline.
 // Strategy: network-first for app files (so code updates aren't stale), with a
 // cache fallback when offline. The GitHub API is never cached.
-const CACHE = "lifelog-v2";
+const CACHE = "lifelog-v3";
 // Note: lifelog.json is intentionally NOT precached — it isn't deployed (your
 // data is private). The app fetches it at runtime with a graceful fallback.
 const ASSETS = [
   "./", "./index.html",
-  "./src/styles.css", "./src/app.js", "./src/storage.js", "./src/qr.js",
+  "./src/styles.css", "./src/app.js", "./src/storage.js", "./src/media.js", "./src/qr.js",
   "./manifest.json", "./icon.svg",
 ];
 
@@ -34,6 +34,6 @@ self.addEventListener("fetch", (e) => {
         caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
         return res;
       })
-      .catch(() => caches.match(e.request).then((r) => r || caches.match("./index.html")))
+      .catch(() => caches.match(e.request, { ignoreSearch: true }).then((r) => r || caches.match("./index.html")))
   );
 });

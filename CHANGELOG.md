@@ -4,6 +4,42 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.5.3] - 2026-06-16
+
+### Added
+- Filter bar: clicking the "Years" or "Categories" label selects all chips;
+  clicking again when everything is already selected deselects all.
+
+### Changed
+- Backlog: the category header and its items now share a single bordered
+  panel instead of two separate boxes.
+- Backlog: plain (no-cover) items no longer show a category-colored bar —
+  redundant with the section's color dot.
+
+## [0.9.5.2] - 2026-06-16
+
+### Changed
+- Backlog: items are grouped under a bordered category panel (same style as
+  the Categories tab), so the per-item category label was removed — it was
+  redundant with the section header.
+- Opening Add/Edit for an entry, achievement, category, or backlog item no
+  longer auto-focuses the first field, so it won't pop the on-screen
+  keyboard on mobile.
+- Backlog edit modal now shows the fetched cover, rating, year, and summary
+  (when the item has them), matching what's shown on the backlog card.
+
+## [0.9.5.1] - 2026-06-16
+
+### Fixed
+- A previous edit had introduced smart/curly quotes as string delimiters in
+  `renderBacklog()`, causing a `SyntaxError` that silently broke the entire
+  app (blank screen, nothing loads). Fixed.
+- Script/style tags and the service-worker cache name are now versioned, so
+  a deploy is no longer at risk of serving a stale cached copy of the app
+  code from the browser. Going forward, small fixes bump the version with a
+  trailing `.0`/`.1` etc. so you can confirm a new build loaded from the
+  version shown at the bottom of Settings.
+
 ## [0.9.5] - 2026-06-16
 
 ### Added

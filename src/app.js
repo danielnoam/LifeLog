@@ -19,7 +19,7 @@
   const UI_KEY = "lifelog-ui-v1";
   const MEDIA_KEY = "lifelog-media-settings-v1";
   const DEFAULT_MEDIA = { enabled: false, rawgKey: "", tmdbKey: "", categorySources: {} };
-  const APP_VERSION = "0.9.5"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.9.5.3"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -335,6 +335,7 @@
     if (query !== lastBacklogAutocompleted) {
       ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bExternalRating"]
         .forEach((id) => { const f = $(id); if (f) f.value = ""; });
+      setBacklogCover();
     }
 
     list.innerHTML = "";
@@ -362,6 +363,7 @@
           $("#bSummary").value = r.summary || "";
           $("#bReleaseYear").value = r.year ? String(r.year) : "";
           $("#bExternalRating").value = r.externalRating || "";
+          setBacklogCover();
           list.hidden = true;
         }));
       });
@@ -371,13 +373,13 @@
 
   function renderBacklog(root) {
     if (!state.data.backlog.length) {
-      root.appendChild(emptyState(“Your backlog is empty. Use “+ Add” → “Add to backlog” for things to watch, play, or read later, then mark them “✓ Done” once you finish.”));
+      root.appendChild(emptyState(`Your backlog is empty. Use "+ Add" → "Add to backlog" for things to watch, play, or read later, then mark them "✓ Done" once you finish.`));
       return;
     }
     const items = getFilteredBacklog()
-      .slice().sort((a, b) => (a.createdAt || “”).localeCompare(b.createdAt || “”));
+      .slice().sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
     if (!items.length) {
-      root.appendChild(emptyState(“No backlog items match your filters.”));
+      root.appendChild(emptyState("No backlog items match your filters."));
       return;
     }
     const byCat = groupBy(items, (b) => b.category);
@@ -385,16 +387,16 @@
     for (const n of Object.keys(byCat)) if (!order.includes(n)) order.push(n);
     for (const catName of order) {
       const catItems = byCat[catName];
-      const section = el(“div”, “backlog-section”);
-      const head = el(“div”, “backlog-section-head”);
-      const dot = el(“span”, “dot”); dot.style.background = colorOf(catName);
+      const section = el("div", "backlog-section");
+      const head = el("div", "backlog-section-head");
+      const dot = el("span", "dot"); dot.style.background = colorOf(catName);
       head.appendChild(dot);
-      head.appendChild(el(“span”, “backlog-section-name”, catName));
-      head.appendChild(el(“span”, “backlog-section-count”, String(catItems.length)));
+      head.appendChild(el("span", "backlog-section-name", catName));
+      head.appendChild(el("span", "backlog-section-count", String(catItems.length)));
       section.appendChild(head);
-      const card = el(“div”, “card backlog-card”);
-      catItems.forEach((b) => card.appendChild(backlogRow(b)));
-      section.appendChild(card);
+      const list = el("div", "backlog-list");
+      catItems.forEach((b) => list.appendChild(backlogRow(b)));
+      section.appendChild(list);
       root.appendChild(section);
     }
   }
@@ -402,11 +404,8 @@
   function backlogRow(b) {
     if (b.coverUrl) return backlogRowRich(b);
     const row = el("div", "entry");
-    const bar = el("div", "bar"); bar.style.background = colorOf(b.category);
-    row.appendChild(bar);
     const t = el("span", "etitle", b.title); t.title = b.title;
     row.appendChild(t);
-    row.appendChild(el("span", "ecat", b.category));
     const doneBtn = el("button", "btn btn-sm", "✓ Done");
     doneBtn.type = "button";
     doneBtn.title = "Move to your log";
@@ -430,8 +429,7 @@
     if (meta.length) body.appendChild(el("span", "bl-meta", meta.join(" · ")));
     if (b.summary) body.appendChild(el("p", "bl-summary", b.summary));
     row.appendChild(body);
-    // Category + done button at the right — same position as plain backlog rows
-    row.appendChild(el("span", "ecat", b.category));
+    // Done button at the right — same position as plain backlog rows
     const doneBtn = el("button", "btn btn-sm", "✓ Done");
     doneBtn.type = "button"; doneBtn.title = "Move to your log";
     doneBtn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
@@ -706,6 +704,23 @@
     });
   }
 
+  // Clicking the "Years"/"Categories" label selects all chips; clicking again
+  // when everything is already selected deselects all.
+  function toggleAllYears() {
+    const ys = years();
+    if (state.activeYears.size === ys.length) state.activeYears.clear();
+    else { state.activeYears.clear(); ys.forEach((y) => state.activeYears.add(y)); }
+    buildYearFilter();
+    render();
+  }
+  function toggleAllCats() {
+    const names = state.data.categories.map((c) => c.name);
+    if (state.activeCats.size === names.length) state.activeCats.clear();
+    else { state.activeCats.clear(); names.forEach((n) => state.activeCats.add(n)); }
+    buildCatFilter();
+    render();
+  }
+
   // ---------- entry modal ----------
   function fillSelect(sel, opts, val) {
     sel.innerHTML = "";
@@ -746,7 +761,6 @@
     $("#fTitleSuggest").hidden = true;
     $("#fTitleSuggest").innerHTML = "";
     $("#entryModal").hidden = false;
-    $("#fTitle").focus();
   }
   function closeEntryModal() { $("#entryModal").hidden = true; }
 
@@ -826,6 +840,25 @@
     const coverImg = $("#entryCoverImg");
     if (coverUrl) { coverImg.src = coverUrl; coverDiv.hidden = false; }
     else { coverDiv.hidden = true; coverImg.src = ""; }
+  }
+
+  function setBacklogCover() {
+    const coverUrl = $("#bCoverUrl").value;
+    const coverDiv = $("#backlogCover");
+    const coverImg = $("#backlogCoverImg");
+    const meta = $("#backlogCoverMeta");
+    meta.innerHTML = "";
+    if (!coverUrl) { coverDiv.hidden = true; coverImg.src = ""; return; }
+    coverImg.src = coverUrl;
+    const line = [];
+    const rating = $("#bExternalRating").value;
+    const year = $("#bReleaseYear").value;
+    if (rating) line.push("★ " + rating);
+    if (year) line.push(year);
+    if (line.length) meta.appendChild(el("span", "bl-meta", line.join(" · ")));
+    const summary = $("#bSummary").value;
+    if (summary) meta.appendChild(el("p", "bl-summary", summary));
+    coverDiv.hidden = false;
   }
 
   function renderTitleSuggestions() {
@@ -962,7 +995,6 @@
     } else added.hidden = true;
     $("#aNotes").value = editing ? (ach.notes || "") : "";
     $("#achModal").hidden = false;
-    $("#aText").focus();
   }
   function closeAchModal() { $("#achModal").hidden = true; }
 
@@ -1019,7 +1051,6 @@
     } else uses.hidden = true;
     $("#deleteCatBtn").hidden = !editing;
     $("#catModal").hidden = false;
-    $("#cName").focus();
   }
   function closeCategoryModal() { $("#catModal").hidden = true; }
 
@@ -1125,8 +1156,8 @@
     $("#bTitleSuggest").innerHTML = "";
     $("#bTitleSuggest").hidden = true;
     $("#deleteBacklogBtn").hidden = !editing;
+    setBacklogCover();
     $("#backlogModal").hidden = false;
-    $("#bTitle").focus();
   }
   function closeBacklogModal() { $("#backlogModal").hidden = true; }
 
@@ -1702,6 +1733,8 @@
       scrollSaveTimer = setTimeout(saveUiState, 300);
     }, { passive: true });
     $("#search").oninput = (e) => { state.search = e.target.value; render(); };
+    $("#yearFilterLabel").onclick = toggleAllYears;
+    $("#catFilterLabel").onclick = toggleAllCats;
 
     const addMenu = $("#addMenu");
     const closeAddMenu = () => { addMenu.hidden = true; };
