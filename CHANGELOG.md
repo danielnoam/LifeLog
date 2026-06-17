@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.5.10] - 2026-06-17
+
+### Fixed
+- Settings panel height was driven by the longest tab (Sync, Media) — so
+  every tab, even short ones like Backup, inherited a scrollbar sized to
+  content it didn't have. The panel now sizes itself to the shorter,
+  similarly-sized tabs (Storage/Backup/Appearance); Sync and Media scroll
+  within themselves only when their own content actually needs it, and the
+  modal no longer resizes when switching tabs.
+
+### Changed
+- Settings tab row (Storage/Sync/Backup/Appearance/Media) is now centered
+  instead of left-aligned.
+
 ## [0.9.5.9] - 2026-06-17
 
 ### Fixed

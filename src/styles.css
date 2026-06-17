@@ -331,7 +331,7 @@ body.modal-open { overflow: hidden; }
 .conflict-info { display: flex; flex-direction: column; gap: 4px; }
 .conflict-info strong { font-size: 13.5px; }
 
-.settings-tabs { display: flex; gap: 4px; margin: 4px 0 4px; border-bottom: 1px solid var(--border); }
+.settings-tabs { display: flex; justify-content: center; gap: 4px; margin: 4px 0 4px; border-bottom: 1px solid var(--border); }
 .stab {
   background: transparent; border: none; border-bottom: 2px solid transparent;
   color: var(--text-dim); padding: 8px 14px; font-weight: 550; cursor: pointer;
@@ -340,9 +340,10 @@ body.modal-open { overflow: hidden; }
 .stab:hover { color: var(--text); }
 .stab.active { color: var(--text); border-bottom-color: var(--accent); }
 .settings-modal { display: flex; flex-direction: column; overflow-y: hidden; }
-.settings-panels { display: grid; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
+.settings-panels { display: grid; position: relative; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 .settings-panel { grid-row: 1; grid-column: 1; padding-top: 4px; visibility: hidden; }
 .settings-panel.active { visibility: visible; }
+.settings-panel-fill { position: absolute; inset: 0; overflow-y: auto; }
 .settings-section { border-top: 1px solid var(--border); padding: 16px 0; }
 .settings-panel > .settings-section:first-child { border-top: none; }
 .settings-section:first-of-type { border-top: none; }
