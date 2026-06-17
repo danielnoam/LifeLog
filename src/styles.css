@@ -271,10 +271,11 @@ select:focus { outline: none; border-color: var(--accent); }
   display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px;
 }
 .modal-overlay[hidden] { display: none; }
+body.modal-open { overflow: hidden; }
 .modal {
   background: var(--bg-elev); border: 1px solid var(--border); border-radius: 14px;
   padding: 22px 24px; width: 420px; max-width: 100%; box-shadow: var(--shadow);
-  max-height: 90vh; overflow-y: auto;
+  max-height: 90vh; overflow-y: auto; overscroll-behavior: contain;
 }
 .modal-cover { margin: -22px -24px 16px; overflow: hidden; border-radius: 14px 14px 0 0; max-height: 180px; }
 .modal-cover img { width: 100%; height: 180px; object-fit: cover; object-position: top; display: block; }
@@ -338,7 +339,9 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .stab:hover { color: var(--text); }
 .stab.active { color: var(--text); border-bottom-color: var(--accent); }
-.settings-panel { padding-top: 4px; min-height: 540px; }
+.settings-panels { display: grid; }
+.settings-panel { grid-row: 1; grid-column: 1; padding-top: 4px; visibility: hidden; }
+.settings-panel.active { visibility: visible; }
 .settings-section { border-top: 1px solid var(--border); padding: 16px 0; }
 .settings-panel > .settings-section:first-child { border-top: none; }
 .settings-section:first-of-type { border-top: none; }
@@ -454,20 +457,16 @@ select:focus { outline: none; border-color: var(--accent); }
 @media (max-width: 490px) {
   .settings-tabs { gap: 4px; }
   .stab { padding: 8px 8px; font-size: 12px; }
-  .settings-panel { min-height: 570px; }
 }
 @media (max-width: 410px) {
   .settings-tabs { gap: 3px; }
   .stab { padding: 8px 6px; font-size: 11.5px; }
-  .settings-panel { min-height: 610px; }
 }
 @media (max-width: 380px) {
   .settings-tabs { gap: 2px; }
   .stab { padding: 8px 5px; font-size: 11px; }
-  .settings-panel { min-height: 625px; }
 }
 @media (max-width: 350px) {
   .settings-tabs { gap: 1px; }
   .stab { padding: 8px 3px; font-size: 10.5px; }
-  .settings-panel { min-height: 640px; }
 }

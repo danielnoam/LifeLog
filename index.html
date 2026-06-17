@@ -214,7 +214,8 @@
         <button class="stab" data-stab="media" type="button">Media</button>
       </nav>
 
-      <div class="settings-panel" data-panel="storage">
+      <div class="settings-panels">
+      <div class="settings-panel active" data-panel="storage">
       <section class="settings-section">
         <h3>Active storage</h3>
         <p class="muted" id="backendInfo"></p>
@@ -232,7 +233,7 @@
       </section>
       </div><!-- /storage panel -->
 
-      <div class="settings-panel" data-panel="sync" hidden>
+      <div class="settings-panel" data-panel="sync">
       <section class="settings-section">
         <h3>GitHub sync <span class="muted">(works on all devices)</span></h3>
         <p class="muted" id="ghInfo"></p>
@@ -294,7 +295,7 @@
       </section>
       </div><!-- /sync panel -->
 
-      <div class="settings-panel" data-panel="backup" hidden>
+      <div class="settings-panel" data-panel="backup">
       <section class="settings-section">
         <h3>Export &amp; import</h3>
         <p class="hint">Download a full copy of your data or restore from a previous backup.</p>
@@ -308,7 +309,7 @@
       </section>
       </div><!-- /backup panel -->
 
-      <div class="settings-panel" data-panel="appearance" hidden>
+      <div class="settings-panel" data-panel="appearance">
       <section class="settings-section">
         <h3>Timeline layout</h3>
         <p class="hint">Controls how wide each month card is in the Timeline view.
@@ -339,7 +340,7 @@
       </section>
       </div><!-- /appearance panel -->
 
-      <div class="settings-panel" data-panel="media" hidden>
+      <div class="settings-panel" data-panel="media">
       <section class="settings-section">
         <h3>Media enrichment</h3>
         <p class="hint">When enabled, LifeLog fetches cover art and metadata while you type a title. API keys are stored in this browser only — never synced to GitHub.</p>
@@ -364,6 +365,7 @@
         <div id="mediaCatRows"></div>
       </section>
       </div><!-- /media panel -->
+      </div><!-- /settings-panels -->
 
       <p class="version-tag" id="appVersion"></p>
     </div>

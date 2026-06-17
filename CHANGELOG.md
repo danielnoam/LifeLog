@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.5.8] - 2026-06-17
+
+### Changed
+- Settings tab panels now size themselves to their actual content
+  instead of using fixed/measured heights — more robust and self-correcting
+  if content changes later, while still keeping all 5 tabs the same height
+  so switching tabs doesn't resize the modal.
+
+### Fixed
+- Modals (Settings and others) no longer let background page scroll leak
+  through when their content doesn't need to scroll — the background is
+  now locked while any modal is open.
+
 ## [0.9.5.7] - 2026-06-17
 
 ### Changed

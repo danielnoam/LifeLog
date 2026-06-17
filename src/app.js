@@ -19,7 +19,7 @@
   const UI_KEY = "lifelog-ui-v1";
   const MEDIA_KEY = "lifelog-media-settings-v1";
   const DEFAULT_MEDIA = { enabled: false, rawgKey: "", tmdbKey: "", categorySources: {} };
-  const APP_VERSION = "0.9.5.7"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.9.5.8"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -1389,7 +1389,11 @@
 
   function setSettingsTab(name) {
     document.querySelectorAll(".stab").forEach((t) => t.classList.toggle("active", t.dataset.stab === name));
-    document.querySelectorAll(".settings-panel").forEach((p) => { p.hidden = p.dataset.panel !== name; });
+    document.querySelectorAll(".settings-panel").forEach((p) => {
+      const isActive = p.dataset.panel === name;
+      p.classList.toggle("active", isActive);
+      if (!isActive && p.contains(document.activeElement)) document.activeElement.blur();
+    });
   }
 
   function toggleMediaSections(enabled) {
@@ -1863,6 +1867,18 @@
       if (ov.id === "conflictModal") return;
       ov.addEventListener("click", (e) => { if (e.target === ov) ov.hidden = true; });
     });
+
+    // Lock background scroll while any modal is visible. A single
+    // MutationObserver watches every overlay's `hidden` attribute so this
+    // covers every open/close path (button, backdrop, Escape) for all
+    // modals without touching each open/close function individually.
+    const syncModalOpenState = () => document.body.classList.toggle("modal-open", isAnyModalOpen());
+    const modalObserver = new MutationObserver(syncModalOpenState);
+    document.querySelectorAll(".modal-overlay").forEach((ov) => {
+      modalObserver.observe(ov, { attributes: true, attributeFilter: ["hidden"] });
+    });
+    syncModalOpenState();
+
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         closeEntryModal(); closeAchModal(); closeCategoryModal(); closeBacklogModal(); closeSettings();
