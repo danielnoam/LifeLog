@@ -19,7 +19,7 @@
   const UI_KEY = "lifelog-ui-v1";
   const MEDIA_KEY = "lifelog-media-settings-v1";
   const DEFAULT_MEDIA = { enabled: false, rawgKey: "", tmdbKey: "", categorySources: {} };
-  const APP_VERSION = "0.9.5.8"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.9.5.9"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {

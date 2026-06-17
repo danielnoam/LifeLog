@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.5.9] - 2026-06-17
+
+### Fixed
+- Settings: the version tag ("LifeLog vX.Y.Z") now stays pinned at the
+  bottom of the modal instead of scrolling away with the tab content.
+- Settings: tabs whose content fits within the modal no longer show a
+  scrollbar — only a tab whose content genuinely exceeds the available
+  height scrolls (previously every tab inherited scrollability driven by
+  the tallest tab, Sync).
+
 ## [0.9.5.8] - 2026-06-17
 
 ### Changed
