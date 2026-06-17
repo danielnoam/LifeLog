@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.5.6] - 2026-06-17
+
+### Changed
+- Settings tab row (Storage/Sync/Backup/Appearance/Media) now fits on a
+  single line on narrow screens instead of scrolling — tabs shrink
+  slightly to fit, no more side-scrolling. Also added more breathing room
+  between modal headers and their content so the close button doesn't
+  feel cramped against what's below it.
+
 ## [0.9.5.5] - 2026-06-17
 
 ### Fixed
