@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.5.5] - 2026-06-17
+
+### Fixed
+- Settings tab row (Storage/Sync/Backup/Appearance/Media) no longer shows a
+  visible scrollbar when the tabs overflow on narrow screens — it still
+  scrolls, just without the ugly scrollbar track.
+
 ## [0.9.5.4] - 2026-06-16
 
 ### Fixed
