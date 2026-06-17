@@ -338,7 +338,7 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .stab:hover { color: var(--text); }
 .stab.active { color: var(--text); border-bottom-color: var(--accent); }
-.settings-panel { padding-top: 4px; }
+.settings-panel { padding-top: 4px; min-height: 540px; }
 .settings-section { border-top: 1px solid var(--border); padding: 16px 0; }
 .settings-panel > .settings-section:first-child { border-top: none; }
 .settings-section:first-of-type { border-top: none; }
@@ -446,7 +446,28 @@ select:focus { outline: none; border-color: var(--accent); }
 
   .content { padding-bottom: 92px; }
   .toast { bottom: 92px; }
+}
 
-  .settings-tabs { gap: 0; }
-  .stab { padding: 8px 2px; font-size: 10.5px; }
+/* Settings tabs: shrink just enough to keep all 5 on one line, no
+   scrolling — tiered by available width so common phones (390-430px)
+   stay roomy and only genuinely narrow screens get squeezed. */
+@media (max-width: 490px) {
+  .settings-tabs { gap: 4px; }
+  .stab { padding: 8px 8px; font-size: 12px; }
+  .settings-panel { min-height: 570px; }
+}
+@media (max-width: 410px) {
+  .settings-tabs { gap: 3px; }
+  .stab { padding: 8px 6px; font-size: 11.5px; }
+  .settings-panel { min-height: 610px; }
+}
+@media (max-width: 380px) {
+  .settings-tabs { gap: 2px; }
+  .stab { padding: 8px 5px; font-size: 11px; }
+  .settings-panel { min-height: 625px; }
+}
+@media (max-width: 350px) {
+  .settings-tabs { gap: 1px; }
+  .stab { padding: 8px 3px; font-size: 10.5px; }
+  .settings-panel { min-height: 640px; }
 }

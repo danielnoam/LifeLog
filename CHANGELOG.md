@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.5.7] - 2026-06-17
+
+### Changed
+- Settings tabs no longer use one flat tight squeeze across the whole
+  mobile range — spacing now eases in gradually with screen width, so
+  common phones (390-430px) get comfortable spacing instead of looking
+  "snapped together", while only genuinely narrow screens (≤350px) get
+  the tightest sizing.
+- All Settings tab panels (Storage/Sync/Backup/Appearance/Media) now
+  share the same minimum height, so switching tabs no longer
+  resizes/jumps the modal.
+
 ## [0.9.5.6] - 2026-06-17
 
 ### Changed
