@@ -341,7 +341,7 @@ body.modal-open { overflow: hidden; }
 .stab.active { color: var(--text); border-bottom-color: var(--accent); }
 .settings-modal { display: flex; flex-direction: column; overflow-y: hidden; }
 .settings-panels { display: grid; position: relative; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
-.settings-panel { grid-row: 1; grid-column: 1; padding-top: 4px; visibility: hidden; }
+.settings-panel { grid-row: 1; grid-column: 1; padding-top: 4px; padding-bottom: 32px; visibility: hidden; }
 .settings-panel.active { visibility: visible; }
 .settings-panel-fill { position: absolute; inset: 0; overflow-y: auto; }
 .settings-section { border-top: 1px solid var(--border); padding: 16px 0; }

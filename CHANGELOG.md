@@ -4,6 +4,11 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.9.5.11] - 2026-06-17
+
+### Changed
+- Settings panel box is slightly taller for more breathing room.
+
 ## [0.9.5.10] - 2026-06-17
 
 ### Fixed
