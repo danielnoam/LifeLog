@@ -298,6 +298,7 @@ body.modal-open { overflow: hidden; }
 }
 .modal .row { display: flex; gap: 12px; }
 .modal .row label { flex: 1; }
+.modal .row[hidden] { display: none; }
 .rating-input { display: flex; gap: 4px; margin-top: 5px; }
 .rating-input .star { background: none; border: none; cursor: pointer; padding: 0; font-size: 22px; line-height: 1; color: var(--bg-elev2); }
 .rating-input .star.filled, .rating-input .star:hover { color: var(--accent); }
@@ -453,22 +454,52 @@ body.modal-open { overflow: hidden; }
   .toast { bottom: 92px; }
 }
 
-/* Settings tabs: shrink just enough to keep all 5 on one line, no
+/* Settings tabs: shrink just enough to keep all 6 on one line, no
    scrolling — tiered by available width so common phones (390-430px)
    stay roomy and only genuinely narrow screens get squeezed. */
-@media (max-width: 490px) {
+@media (max-width: 560px) {
   .settings-tabs { gap: 4px; }
   .stab { padding: 8px 8px; font-size: 12px; }
 }
-@media (max-width: 410px) {
+@media (max-width: 460px) {
   .settings-tabs { gap: 3px; }
   .stab { padding: 8px 6px; font-size: 11.5px; }
 }
-@media (max-width: 380px) {
+@media (max-width: 420px) {
   .settings-tabs { gap: 2px; }
   .stab { padding: 8px 5px; font-size: 11px; }
 }
-@media (max-width: 350px) {
+@media (max-width: 380px) {
   .settings-tabs { gap: 1px; }
   .stab { padding: 8px 3px; font-size: 10.5px; }
 }
+
+/* ---------- app lock screen ---------- */
+.lock-screen {
+  position: fixed; inset: 0; background: var(--bg);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200; padding: 20px;
+}
+.lock-screen[hidden] { display: none; }
+.lock-box {
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 14px;
+  box-shadow: var(--shadow); padding: 30px 28px; width: 320px; max-width: 100%;
+  text-align: center;
+}
+.lock-icon { font-size: 30px; margin-bottom: 6px; }
+.lock-box h2 { margin: 0 0 6px; font-size: 18px; }
+.lock-box .muted { margin: 0 0 18px; }
+.lock-pin-form { display: flex; gap: 8px; }
+.lock-pin-form[hidden] { display: none; }
+.lock-pin-form input {
+  flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  padding: 9px 11px; border-radius: 8px; font-size: 16px; text-align: center; letter-spacing: 2px;
+}
+.lock-pin-form input:focus { outline: none; border-color: var(--accent); }
+.lock-bio-btn { width: 100%; }
+.lock-error {
+  margin: 14px 0 0; font-size: 12px; color: #ffcaca;
+  background: rgba(226, 59, 59, .12); border: 1px solid var(--danger);
+  border-radius: 8px; padding: 8px 10px;
+}
+.lock-error[hidden] { display: none; }
