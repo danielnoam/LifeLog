@@ -503,3 +503,8 @@ body.modal-open { overflow: hidden; }
   border-radius: 8px; padding: 8px 10px;
 }
 .lock-error[hidden] { display: none; }
+.lock-reset-btn {
+  display: block; margin: 16px auto 0; background: none; border: none; cursor: pointer;
+  color: var(--text-faint); font-size: 11.5px; text-decoration: underline;
+}
+.lock-reset-btn:hover { color: var(--accent); }

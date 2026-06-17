@@ -25,7 +25,7 @@
   // method: 'pin' | 'biometric'. pinHash/pinSalt: SHA-256 of salt+PIN, so the
   // PIN itself is never stored. credentialId: base64 WebAuthn credential id.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null };
-  const APP_VERSION = "0.10.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.10.1"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -2074,6 +2074,7 @@
       const input = $("#lockPinInput");
       const bioBtn = $("#lockBioBtn");
       const errorEl = $("#lockError");
+      const resetBtn = $("#lockResetBtn");
       const isPin = state.privacy.method !== "biometric";
 
       screen.hidden = false;
@@ -2095,6 +2096,7 @@
         document.body.style.overflow = "";
         form.onsubmit = null;
         bioBtn.onclick = null;
+        resetBtn.onclick = null;
       }
       form.onsubmit = async (e) => {
         e.preventDefault();
@@ -2107,6 +2109,17 @@
         errorEl.hidden = true;
         try { await verifyBiometric(state.privacy.credentialId); cleanup(); resolve(); }
         catch (e) { showError("Couldn't verify — try again"); }
+      };
+      // Forgotten PIN / lost biometric: the lock is local to this device and
+      // separate from your data (which lives in GitHub/local file/cache), so
+      // clearing it can't lose anything — it just removes the unlock prompt.
+      resetBtn.onclick = () => {
+        if (!confirm("Remove the PIN/fingerprint requirement on this device? Your data is stored separately and won't be affected — you can set up a new PIN or fingerprint again afterward in Settings → Privacy.")) return;
+        state.privacy = { ...DEFAULT_PRIVACY };
+        savePrivacySettings();
+        cleanup();
+        resolve();
+        toast("App lock removed on this device");
       };
       if (!isPin) bioBtn.onclick();
     });

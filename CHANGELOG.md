@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.10.1] - 2026-06-17
+
+### Added
+- App lock screen: a "Forgot PIN? Reset app lock" option clears the
+  PIN/fingerprint requirement on that device without touching your data
+  (the lock is stored separately from your data, so this can't lose
+  anything) — covers a forgotten PIN or unavailable biometric.
+
 ## [0.10.0] - 2026-06-17
 
 ### Added
