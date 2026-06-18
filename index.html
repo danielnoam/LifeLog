@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.9.5.4" />
+  <link rel="stylesheet" href="src/styles.css?v=0.13.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -92,7 +92,12 @@
         <label>Title
           <div class="ac-wrap">
             <input id="fTitle" type="text" required autocomplete="off" />
+            <button type="button" class="btn btn-sm sync-btn" id="fSyncBtn" title="Look up cover, year &amp; rating" hidden>🔄</button>
             <div class="ac-list" id="fTitleSuggest" hidden></div>
+          </div>
+          <div class="sync-status" id="fSyncStatus" hidden>
+            <span id="fSyncStatusText"></span>
+            <button type="button" class="link-btn" id="fUnsyncBtn">✕ Unsync</button>
           </div>
         </label>
         <label>Category
@@ -199,7 +204,12 @@
         <label>Title
           <div class="ac-wrap">
             <input id="bTitle" type="text" required autocomplete="off" placeholder="e.g. The Last of Us Part II" />
+            <button type="button" class="btn btn-sm sync-btn" id="bSyncBtn" title="Look up cover, year &amp; rating" hidden>🔄</button>
             <div class="ac-list" id="bTitleSuggest" hidden></div>
+          </div>
+          <div class="sync-status" id="bSyncStatus" hidden>
+            <span id="bSyncStatusText"></span>
+            <button type="button" class="link-btn" id="bUnsyncBtn">✕ Unsync</button>
           </div>
         </label>
         <label>Category
@@ -451,9 +461,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.9.5.4"></script>
-  <script src="src/media.js?v=0.9.5.4"></script>
-  <script src="src/storage.js?v=0.9.5.4"></script>
-  <script src="src/app.js?v=0.9.5.4"></script>
+  <script src="src/qr.js?v=0.13.0"></script>
+  <script src="src/media.js?v=0.13.0"></script>
+  <script src="src/storage.js?v=0.13.0"></script>
+  <script src="src/app.js?v=0.13.0"></script>
 </body>
 </html>

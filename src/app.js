@@ -19,13 +19,18 @@
   const UI_KEY = "lifelog-ui-v1";
   const MEDIA_KEY = "lifelog-media-settings-v1";
   const DEFAULT_MEDIA = { enabled: false, rawgKey: "", tmdbKey: "", categorySources: {} };
+  const MEDIA_SOURCE_LABELS = {
+    rawg: "RAWG", "tmdb-movie": "TMDB", "tmdb-tv": "TMDB",
+    "anilist-anime": "AniList", "anilist-manga": "AniList",
+    openlibrary: "Open Library", googlebooks: "Google Books", musicbrainz: "MusicBrainz",
+  };
   const PRIVACY_KEY = "lifelog-privacy-v1";
   // App lock: gates opening the app on this device. Local-only, never synced
   // (a PIN/credential set up on one device wouldn't make sense on another).
   // method: 'pin' | 'biometric'. pinHash/pinSalt: SHA-256 of salt+PIN, so the
   // PIN itself is never stored. credentialId: base64 WebAuthn credential id.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null };
-  const APP_VERSION = "0.12.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.13.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -388,52 +393,48 @@
     return row;
   }
 
-  let lastBacklogAutocompleted = "";
-  let backlogSuggestDebounce = null;
-  let backlogSuggestGen = 0;
+  // Title last attached to synced media metadata, so a manual edit (vs. a
+  // sync pick) is detected and clears the now-stale cover/metadata.
+  let lastSyncedBacklogTitle = "";
 
-  async function renderBacklogTitleSuggestions() {
-    const list = $("#bTitleSuggest");
+  function onBacklogTitleInput() {
     const query = $("#bTitle").value;
-    const cat = $("#bCategory").value;
-
-    if (query !== lastBacklogAutocompleted) {
+    if (query !== lastSyncedBacklogTitle) {
       ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bExternalRating"]
         .forEach((id) => { const f = $(id); if (f) f.value = ""; });
       setBacklogCover();
     }
+  }
 
+  async function syncBacklogTitle() {
+    const title = $("#bTitle").value.trim();
+    const category = $("#bCategory").value;
+    if (!title) return;
+    const list = $("#bTitleSuggest");
+    const results = await fetchMediaSuggestions(title, category);
     list.innerHTML = "";
-    list.hidden = true;
+    if (!results.length) { list.hidden = true; toast("No matches found"); return; }
+    results.forEach((r) => {
+      list.appendChild(makeMediaAcItem(r, () => {
+        lastSyncedBacklogTitle = $("#bTitle").value;
+        $("#bCoverUrl").value = r.coverUrl || "";
+        $("#bMediaId").value = r.id || "";
+        $("#bMediaSource").value = r.source || "";
+        $("#bSummary").value = r.summary || "";
+        $("#bReleaseYear").value = r.year ? String(r.year) : "";
+        $("#bExternalRating").value = r.externalRating || "";
+        setBacklogCover();
+        list.hidden = true;
+      }));
+    });
+    list.hidden = false;
+  }
 
-    if (!query.trim() || !state.media.enabled) return;
-    const source = (state.media.categorySources || {})[cat];
-    if (!source) return;
-
-    clearTimeout(backlogSuggestDebounce);
-    const gen = ++backlogSuggestGen;
-    const querySnap = query;
-    backlogSuggestDebounce = setTimeout(async () => {
-      const results = await fetchMediaSuggestions(querySnap, cat);
-      if (gen !== backlogSuggestGen) return;
-      list.innerHTML = "";
-      if (!results.length) { list.hidden = true; return; }
-      results.forEach((r) => {
-        list.appendChild(makeMediaAcItem(r, () => {
-          lastBacklogAutocompleted = r.title;
-          $("#bTitle").value = r.title;
-          $("#bCoverUrl").value = r.coverUrl || "";
-          $("#bMediaId").value = r.id || "";
-          $("#bMediaSource").value = r.source || "";
-          $("#bSummary").value = r.summary || "";
-          $("#bReleaseYear").value = r.year ? String(r.year) : "";
-          $("#bExternalRating").value = r.externalRating || "";
-          setBacklogCover();
-          list.hidden = true;
-        }));
-      });
-      list.hidden = false;
-    }, 400);
+  function unsyncBacklogItem() {
+    ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bExternalRating"]
+      .forEach((id) => { const f = $(id); if (f) f.value = ""; });
+    setBacklogCover();
+    $("#bTitleSuggest").hidden = true;
   }
 
   function renderBacklog(root) {
@@ -491,11 +492,13 @@
     render();
   }
 
-  function toggleBulkItem(id) {
-    if (state.bulk.selected.has(id)) state.bulk.selected.delete(id);
-    else state.bulk.selected.add(id);
+  function setBulkItem(id, value) {
+    if (state.bulk.selected.has(id) === value) return;
+    if (value) state.bulk.selected.add(id); else state.bulk.selected.delete(id);
     render();
   }
+
+  function toggleBulkItem(id) { setBulkItem(id, !state.bulk.selected.has(id)); }
 
   function toggleBulkCategoryAll(catItems) {
     const allSelected = catItems.every((b) => state.bulk.selected.has(b.id));
@@ -520,6 +523,10 @@
       await bulkMoveSelected(moveSel.value);
     };
     bar.appendChild(moveSel);
+    const syncBtn = el("button", "btn btn-sm", "🔄 Sync");
+    syncBtn.type = "button";
+    syncBtn.onclick = () => bulkSyncSelected(syncBtn);
+    bar.appendChild(syncBtn);
     const delBtn = el("button", "btn btn-sm btn-danger", "Delete");
     delBtn.type = "button";
     delBtn.onclick = bulkDeleteSelected;
@@ -529,6 +536,35 @@
     cancelBtn.onclick = toggleBulkMode;
     bar.appendChild(cancelBtn);
     return bar;
+  }
+
+  // Syncs each selected backlog item to media metadata, auto-picking the top
+  // search result (no per-item review, since reviewing N items individually
+  // would defeat the point of a bulk action).
+  async function bulkSyncSelected(btn) {
+    const ids = [...state.bulk.selected];
+    btn.disabled = true;
+    btn.textContent = "Syncing…";
+    let synced = 0, skipped = 0;
+    for (const id of ids) {
+      const item = state.data.backlog.find((b) => b.id === id);
+      if (!item || !hasMediaSourceFor(item.category)) { skipped++; continue; }
+      const results = await fetchMediaSuggestions(item.title, item.category);
+      if (!results.length) { skipped++; continue; }
+      const r = results[0];
+      item.coverUrl = r.coverUrl || "";
+      item.mediaId = r.id || "";
+      item.mediaSource = r.source || "";
+      item.summary = r.summary || "";
+      if (r.year) item.releaseYear = r.year; else delete item.releaseYear;
+      item.externalRating = r.externalRating || "";
+      synced++;
+    }
+    state.bulk.active = false;
+    state.bulk.selected.clear();
+    render();
+    await persist();
+    toast(skipped ? `Synced ${synced} item${synced === 1 ? "" : "s"}, skipped ${skipped}` : `Synced ${synced} item${synced === 1 ? "" : "s"}`);
   }
 
   async function bulkMoveSelected(categoryName) {
@@ -597,11 +633,23 @@
     return row;
   }
 
+  // While a pointer is held down on a bulk checkbox, dragging over other
+  // checkboxes paints them to the same selected/unselected state — lets you
+  // select a run of items by pressing and moving instead of tapping each one.
+  let dragPaint = null;
+
   function bulkCheckbox(b) {
     const cb = document.createElement("input");
     cb.type = "checkbox"; cb.className = "bulk-check";
     cb.checked = state.bulk.selected.has(b.id);
-    cb.onclick = (ev) => { ev.stopPropagation(); toggleBulkItem(b.id); };
+    cb.dataset.blId = b.id;
+    cb.onclick = (ev) => ev.preventDefault(); // selection is driven by pointerdown below
+    cb.onpointerdown = (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      const value = !state.bulk.selected.has(b.id);
+      dragPaint = { value };
+      setBulkItem(b.id, value);
+    };
     return cb;
   }
 
@@ -923,8 +971,9 @@
     const coverSrc = editing ? (entry.coverUrl || "") : (fromBacklog ? (fromBacklog.coverUrl || "") : "");
     const mediaSrc = editing ? (entry.mediaSource || "") : (fromBacklog ? (fromBacklog.mediaSource || "") : "");
     const mediaId = editing ? (entry.mediaId || "") : (fromBacklog ? (fromBacklog.mediaId || "") : "");
-    lastAutocompletedTitle = editing ? entry.title : (fromBacklog ? fromBacklog.title : "");
+    lastSyncedEntryTitle = editing ? entry.title : (fromBacklog ? fromBacklog.title : "");
     setEntryCover(coverSrc, mediaId, mediaSrc);
+    updateSyncBtnVisibility("f", $("#fCategory").value);
     $("#fTitleSuggest").hidden = true;
     $("#fTitleSuggest").innerHTML = "";
     $("#entryModal").hidden = false;
@@ -967,11 +1016,13 @@
       .slice(0, 6);
   }
 
-  // Last title value that was set by clicking an autocomplete item, used to
-  // detect when the user manually edits the field (and should lose the cover).
-  let lastAutocompletedTitle = "";
-  let titleSuggestDebounce = null;
-  let titleSuggestGen = 0;
+  // Title last attached to synced media metadata, so a manual edit (vs. a
+  // local-match or sync pick) is detected and clears the now-stale cover.
+  let lastSyncedEntryTitle = "";
+
+  function hasMediaSourceFor(category) {
+    return !!(state.media.enabled && (state.media.categorySources || {})[category]);
+  }
 
   async function fetchMediaSuggestions(title, category) {
     if (!state.media || !state.media.enabled) return [];
@@ -1000,6 +1051,23 @@
     return item;
   }
 
+  function showSyncStatus(prefix, source) {
+    const statusDiv = $("#" + prefix + "SyncStatus");
+    const statusText = $("#" + prefix + "SyncStatusText");
+    if (!statusDiv) return;
+    if (source) {
+      statusText.textContent = "Synced via " + (MEDIA_SOURCE_LABELS[source] || source);
+      statusDiv.hidden = false;
+    } else {
+      statusDiv.hidden = true;
+    }
+  }
+
+  function updateSyncBtnVisibility(prefix, category) {
+    const btn = $("#" + prefix + "SyncBtn");
+    if (btn) btn.hidden = !hasMediaSourceFor(category);
+  }
+
   function setEntryCover(coverUrl, mediaId, mediaSource) {
     $("#fCoverUrl").value = coverUrl || "";
     $("#fMediaId").value = mediaId || "";
@@ -1009,6 +1077,7 @@
     coverImg.onerror = () => { coverDiv.hidden = true; };
     if (coverUrl) { coverImg.src = coverUrl; coverDiv.hidden = false; }
     else { coverDiv.hidden = true; coverImg.src = ""; }
+    showSyncStatus("f", mediaSource);
   }
 
   function setBacklogCover() {
@@ -1017,6 +1086,7 @@
     const coverImg = $("#backlogCoverImg");
     const meta = $("#backlogCoverMeta");
     meta.innerHTML = "";
+    showSyncStatus("b", $("#bMediaSource").value);
     if (!coverUrl) { coverDiv.hidden = true; coverImg.src = ""; return; }
     coverImg.onerror = () => { coverDiv.hidden = true; };
     coverImg.src = coverUrl;
@@ -1035,8 +1105,8 @@
     const list = $("#fTitleSuggest");
     const query = $("#fTitle").value;
 
-    // If user is typing new content (not just after an autocomplete pick), clear cover
-    if (query !== lastAutocompletedTitle && $("#fCoverUrl").value) {
+    // If user is typing new content (not just after a local-match pick), clear cover
+    if (query !== lastSyncedEntryTitle && $("#fCoverUrl").value) {
       setEntryCover("", "", "");
     }
 
@@ -1047,10 +1117,11 @@
       const item = makeMediaAcItem(
         { title: m.title, coverUrl: m.coverUrl, year: null, externalRating: null },
         () => {
-          lastAutocompletedTitle = m.title;
+          lastSyncedEntryTitle = m.title;
           $("#fTitle").value = m.title;
           if (state.data.categories.some((c) => c.name === m.category)) $("#fCategory").value = m.category;
           setEntryCover(m.coverUrl, m.mediaId, m.mediaSource);
+          updateSyncBtnVisibility("f", $("#fCategory").value);
           list.hidden = true;
         }
       );
@@ -1062,36 +1133,29 @@
       list.appendChild(item);
     });
 
-    const localTitlesLower = new Set(localMatches.map((m) => m.title.toLowerCase()));
-    const cat = $("#fCategory").value;
-    const hasMediaSource = state.media.enabled && (state.media.categorySources || {})[cat];
+    list.hidden = !localMatches.length;
+  }
 
-    if (!localMatches.length && !hasMediaSource) { list.hidden = true; return; }
-    if (localMatches.length) list.hidden = false;
+  async function syncEntryTitle() {
+    const title = $("#fTitle").value.trim();
+    const category = $("#fCategory").value;
+    if (!title) return;
+    const list = $("#fTitleSuggest");
+    const results = await fetchMediaSuggestions(title, category);
+    list.innerHTML = "";
+    if (!results.length) { list.hidden = true; toast("No matches found"); return; }
+    results.forEach((r) => {
+      list.appendChild(makeMediaAcItem(r, () => {
+        setEntryCover(r.coverUrl, r.id, r.source);
+        list.hidden = true;
+      }));
+    });
+    list.hidden = false;
+  }
 
-    clearTimeout(titleSuggestDebounce);
-    const gen = ++titleSuggestGen;
-    const querySnap = query;
-    titleSuggestDebounce = setTimeout(async () => {
-      if (!hasMediaSource || !querySnap.trim()) return;
-      const results = await fetchMediaSuggestions(querySnap, cat);
-      if (gen !== titleSuggestGen) return;
-      const fresh = results.filter((r) => !localTitlesLower.has(r.title.toLowerCase()));
-      if (!fresh.length) return;
-      if (localMatches.length) {
-        const divider = el("div", "ac-divider");
-        list.appendChild(divider);
-      }
-      fresh.forEach((r) => {
-        list.appendChild(makeMediaAcItem(r, () => {
-          lastAutocompletedTitle = r.title;
-          $("#fTitle").value = r.title;
-          setEntryCover(r.coverUrl, r.id, r.source);
-          list.hidden = true;
-        }));
-      });
-      list.hidden = false;
-    }, 400);
+  function unsyncEntry() {
+    setEntryCover("", "", "");
+    $("#fTitleSuggest").hidden = true;
   }
 
   async function saveEntryFromForm(ev) {
@@ -1322,11 +1386,12 @@
     $("#bSummary").value = editing ? (item.summary || "") : "";
     $("#bReleaseYear").value = editing && item.releaseYear ? String(item.releaseYear) : "";
     $("#bExternalRating").value = editing ? (item.externalRating || "") : "";
-    lastBacklogAutocompleted = editing ? item.title : "";
+    lastSyncedBacklogTitle = editing ? item.title : "";
     $("#bTitleSuggest").innerHTML = "";
     $("#bTitleSuggest").hidden = true;
     $("#deleteBacklogBtn").hidden = !editing;
     setBacklogCover();
+    updateSyncBtnVisibility("b", $("#bCategory").value);
     $("#backlogModal").hidden = false;
   }
   function closeBacklogModal() { $("#backlogModal").hidden = true; }
@@ -1968,6 +2033,20 @@
   // ---------- events ----------
   function wire() {
     $("#appVersion").textContent = "LifeLog v" + APP_VERSION;
+
+    // Bulk-select drag-paint: while dragPaint is set (started by a
+    // checkbox's pointerdown), moving over other checkboxes paints them to
+    // the same value. Uses elementFromPoint instead of event.target since
+    // re-rendering mid-drag swaps out the actual DOM nodes.
+    document.addEventListener("pointermove", (ev) => {
+      if (!dragPaint) return;
+      const target = document.elementFromPoint(ev.clientX, ev.clientY);
+      const cb = target && target.closest(".bulk-check");
+      if (!cb) return;
+      setBulkItem(cb.dataset.blId, dragPaint.value);
+    });
+    document.addEventListener("pointerup", () => { dragPaint = null; });
+    document.addEventListener("pointercancel", () => { dragPaint = null; });
     const viewTabs = $("#viewTabs");
     // On mobile the active view shows as a button outside #viewTabs; tapping
     // it opens a menu of the other views (see .views.open in styles.css).
@@ -2014,6 +2093,9 @@
     $("#entryForm").onsubmit = saveEntryFromForm;
     $("#deleteEntryBtn").onclick = deleteCurrentEntry;
     $("#fTitle").oninput = renderTitleSuggestions;
+    $("#fCategory").onchange = () => updateSyncBtnVisibility("f", $("#fCategory").value);
+    $("#fSyncBtn").onclick = syncEntryTitle;
+    $("#fUnsyncBtn").onclick = unsyncEntry;
     $("#fRating").querySelectorAll(".star").forEach((s) => {
       s.onclick = () => {
         const v = parseInt(s.dataset.star, 10);
@@ -2035,7 +2117,10 @@
     $("#cancelBacklogBtn").onclick = closeBacklogModal;
     $("#backlogForm").onsubmit = saveBacklogFromForm;
     $("#deleteBacklogBtn").onclick = deleteCurrentBacklogItem;
-    $("#bTitle").oninput = renderBacklogTitleSuggestions;
+    $("#bTitle").oninput = onBacklogTitleInput;
+    $("#bCategory").onchange = () => updateSyncBtnVisibility("b", $("#bCategory").value);
+    $("#bSyncBtn").onclick = syncBacklogTitle;
+    $("#bUnsyncBtn").onclick = unsyncBacklogItem;
     document.addEventListener("click", (e) => {
       if (!e.target.closest("#backlogModal .ac-wrap")) {
         const bs = $("#bTitleSuggest");
