@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.15.0] - 2026-06-18
+
+### Added
+- Settings → Privacy → App lock: a "Stay unlocked for" option (off / 1 / 5 /
+  15 minutes / 1 hour) skips the PIN/biometric prompt on this device if you
+  already unlocked within that window — covers refreshing the page or
+  reopening the app without locking again immediately. Defaults to "Always
+  require unlock" so existing app-lock setups are unaffected unless you
+  opt in.
+
 ## [0.14.0] - 2026-06-18
 
 ### Added

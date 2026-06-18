@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.14.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.15.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -348,6 +348,16 @@
           <input type="checkbox" id="privacyEnabled" />
           Require unlock to open this app
         </label>
+        <label>Stay unlocked for
+          <select id="privacyGrace">
+            <option value="0">Always require unlock</option>
+            <option value="1">1 minute</option>
+            <option value="5">5 minutes</option>
+            <option value="15">15 minutes</option>
+            <option value="60">1 hour</option>
+          </select>
+        </label>
+        <p class="hint">After unlocking, refreshing or reopening the app within this window won't prompt again. Once the window passes, the next open asks again.</p>
       </section>
 
       <section class="settings-section">
@@ -461,9 +471,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.14.0"></script>
-  <script src="src/media.js?v=0.14.0"></script>
-  <script src="src/storage.js?v=0.14.0"></script>
-  <script src="src/app.js?v=0.14.0"></script>
+  <script src="src/qr.js?v=0.15.0"></script>
+  <script src="src/media.js?v=0.15.0"></script>
+  <script src="src/storage.js?v=0.15.0"></script>
+  <script src="src/app.js?v=0.15.0"></script>
 </body>
 </html>
