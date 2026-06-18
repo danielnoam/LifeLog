@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.18.0] - 2026-06-18
+
+### Added
+- New "Steam" media source for the Games category: syncing a backlog game
+  auto-resolves its Steam App ID via Steam's store search, the same flow
+  as RAWG/TMDB/etc.
+- New GG.deals API key field in Settings → Media. With a key set, backlog
+  cards for games synced via Steam show a current lowest-price badge
+  (best of retail/keyshop price, sourced from GG.deals).
+
 ## [0.17.0] - 2026-06-18
 
 ### Changed

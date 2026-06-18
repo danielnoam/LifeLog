@@ -122,6 +122,38 @@
     } catch (e) { return []; }
   }
 
+  async function searchSteam(title) {
+    try {
+      const url = "https://store.steampowered.com/api/storesearch/?term=" + encodeURIComponent(title) + "&l=english&cc=us";
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.items || []).slice(0, 5).map((it) => ({
+        id: String(it.id),
+        title: it.name || "",
+        coverUrl: it.tiny_image || "",
+        year: null,
+        summary: "",
+        externalRating: "",
+        source: "steam",
+      }));
+    } catch (e) { return []; }
+  }
+
+  // Looks up current/historical lowest prices for Steam app IDs via the
+  // GG.deals API. appIds are Steam app IDs (the same id searchSteam returns).
+  async function fetchGgDealsPrices(appIds, apiKey) {
+    if (!apiKey || !appIds.length) return {};
+    try {
+      const url = "https://api.gg.deals/v1/prices/by-steam-app-id/?ids=" +
+        appIds.join(",") + "&key=" + encodeURIComponent(apiKey) + "&region=us";
+      const res = await fetch(url);
+      if (!res.ok) return {};
+      const data = await res.json();
+      return (data && data.success && data.data) || {};
+    } catch (e) { return {}; }
+  }
+
   async function searchMusicBrainz(title) {
     try {
       const url = "https://musicbrainz.org/ws/2/release-group/?query=" +
@@ -156,7 +188,9 @@
       if (source === "anilist-manga") return searchAniList(title, "MANGA");
       if (source === "googlebooks") return searchGoogleBooks(title);
       if (source === "musicbrainz") return searchMusicBrainz(title);
+      if (source === "steam") return searchSteam(title);
       return [];
     },
+    fetchPrices: fetchGgDealsPrices,
   };
 })();
