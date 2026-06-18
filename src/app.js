@@ -6,7 +6,7 @@
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const DEFAULT_SETTINGS = { monthOrder: "asc", mediaCategorySources: {} }; // monthOrder, mediaCategorySources — synced
+  const DEFAULT_SETTINGS = { monthOrder: "asc", mediaCategorySources: {}, mediaKeys: { rawg: "", tmdb: "" } }; // monthOrder, mediaCategorySources, mediaKeys — synced
   const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, mediaEnabled: false }; // maxWidth 0 = stretch — local to this device, not synced
   const FONT_STACKS = {
     system: '"Segoe UI", system-ui, -apple-system, sans-serif',
@@ -18,7 +18,7 @@
   const PENDING_KEY = "lifelog-pending-sync-v1";
   const UI_KEY = "lifelog-ui-v1";
   const MEDIA_KEY = "lifelog-media-settings-v1";
-  const DEFAULT_MEDIA = { rawgKey: "", tmdbKey: "" }; // API keys: local to this device, never synced
+  const DEFAULT_MEDIA = {}; // legacy local-only shape; rawgKey/tmdbKey migrated into synced settings on load (see normalize())
   const MEDIA_SOURCE_LABELS = {
     rawg: "RAWG", "tmdb-movie": "TMDB", "tmdb-tv": "TMDB",
     "anilist-anime": "AniList", "anilist-manga": "AniList",
@@ -32,7 +32,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.16.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.17.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -1067,7 +1067,7 @@
     if (!state.visual.mediaEnabled) return [];
     const source = (state.data.settings.mediaCategorySources || {})[category];
     if (!source || !window.LifeLogMedia) return [];
-    const keys = { rawg: state.media.rawgKey || "", tmdb: state.media.tmdbKey || "" };
+    const keys = state.data.settings.mediaKeys || { rawg: "", tmdb: "" };
     try { return await window.LifeLogMedia.search(title, source, keys); } catch (e) { return []; }
   }
 
@@ -1717,8 +1717,8 @@
 
   function updateMediaSettings() {
     if (!$("#rawgKey")) return;
-    $("#rawgKey").value = state.media.rawgKey || "";
-    $("#tmdbKey").value = state.media.tmdbKey || "";
+    $("#rawgKey").value = state.data.settings.mediaKeys?.rawg || "";
+    $("#tmdbKey").value = state.data.settings.mediaKeys?.tmdb || "";
     toggleMediaSections(!!state.visual.mediaEnabled);
     renderMediaCatRows();
   }
@@ -2029,9 +2029,22 @@
       delete state.media.categorySources;
       saveMediaSettings();
     }
+    // One-time migration: API keys used to live in local-only media settings,
+    // kept separate from synced data for privacy. Now they sync like
+    // everything else, so pasting a key once covers every device.
+    let mediaKeys = incomingSettings.mediaKeys;
+    if (mediaKeys === undefined) {
+      mediaKeys = { rawg: state.media.rawgKey || "", tmdb: state.media.tmdbKey || "" };
+    }
+    if (state.media.rawgKey !== undefined || state.media.tmdbKey !== undefined) {
+      delete state.media.rawgKey;
+      delete state.media.tmdbKey;
+      saveMediaSettings();
+    }
     data.settings = {
       monthOrder: incomingSettings.monthOrder || DEFAULT_SETTINGS.monthOrder,
       mediaCategorySources,
+      mediaKeys,
     };
     const accIn = data.accomplishments || {};
     data.accomplishments = {};
@@ -2210,8 +2223,16 @@
       saveVisualSettings(state.visual);
       toggleMediaSections(state.visual.mediaEnabled);
     };
-    $("#rawgKey").oninput = () => { state.media.rawgKey = $("#rawgKey").value; saveMediaSettings(); };
-    $("#tmdbKey").oninput = () => { state.media.tmdbKey = $("#tmdbKey").value; saveMediaSettings(); };
+    $("#rawgKey").oninput = async () => {
+      if (!state.data.settings.mediaKeys) state.data.settings.mediaKeys = { rawg: "", tmdb: "" };
+      state.data.settings.mediaKeys.rawg = $("#rawgKey").value;
+      await persist();
+    };
+    $("#tmdbKey").oninput = async () => {
+      if (!state.data.settings.mediaKeys) state.data.settings.mediaKeys = { rawg: "", tmdb: "" };
+      state.data.settings.mediaKeys.tmdb = $("#tmdbKey").value;
+      await persist();
+    };
 
     $("#privacyEnabled").onchange = () => {
       const checked = $("#privacyEnabled").checked;
