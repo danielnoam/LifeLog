@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.17.0] - 2026-06-18
+
+### Changed
+- Settings → Media → API keys (RAWG, TMDB) now sync across your devices
+  too, like the category-source assignments — paste a key once and it's
+  available everywhere, instead of re-entering it on every device.
+  Existing local keys are carried over to the synced copy automatically.
+
 ## [0.16.0] - 2026-06-18
 
 ### Changed
