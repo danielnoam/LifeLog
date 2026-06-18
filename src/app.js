@@ -30,7 +30,7 @@
   // method: 'pin' | 'biometric'. pinHash/pinSalt: SHA-256 of salt+PIN, so the
   // PIN itself is never stored. credentialId: base64 WebAuthn credential id.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null };
-  const APP_VERSION = "0.13.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.14.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -452,6 +452,7 @@
     const byCat = groupBy(items, (b) => b.category);
     const order = state.data.categories.map((c) => c.name).filter((n) => byCat[n]);
     for (const n of Object.keys(byCat)) if (!order.includes(n)) order.push(n);
+    const grid = el("div", "backlog-grid");
     for (const catName of order) {
       const catItems = byCat[catName];
       const section = el("div", "backlog-section");
@@ -472,8 +473,9 @@
       const list = el("div", "backlog-list");
       catItems.forEach((b) => list.appendChild(backlogRow(b)));
       section.appendChild(list);
-      root.appendChild(section);
+      grid.appendChild(section);
     }
+    root.appendChild(grid);
     if (state.bulk.active && state.bulk.selected.size) root.appendChild(bulkActionBar());
   }
 
@@ -492,9 +494,16 @@
     render();
   }
 
-  function setBulkItem(id, value) {
+  function setBulkItem(id, value, opts) {
     if (state.bulk.selected.has(id) === value) return;
     if (value) state.bulk.selected.add(id); else state.bulk.selected.delete(id);
+    if (opts && opts.skipRender) {
+      // Mid-drag: update the checkbox in place instead of re-rendering, since a
+      // full render() while the pointer is still down can detach the element the
+      // gesture started on and cause mobile browsers to cancel the touch early.
+      document.querySelectorAll(`.bulk-check[data-bl-id="${id}"]`).forEach((cb) => { cb.checked = value; });
+      return;
+    }
     render();
   }
 
@@ -604,6 +613,7 @@
       row.appendChild(doneBtn);
     }
     row.onclick = () => state.bulk.active ? toggleBulkItem(b.id) : openBacklogModal(b);
+    attachLongPressSelect(row, b);
     return row;
   }
 
@@ -630,7 +640,34 @@
       row.appendChild(doneBtn);
     }
     row.onclick = () => state.bulk.active ? toggleBulkItem(b.id) : openBacklogModal(b);
+    attachLongPressSelect(row, b);
     return row;
+  }
+
+  // Long-pressing a backlog row (touch only — desktop already has the
+  // "☑ Select" button) enters bulk mode with that item pre-selected, without
+  // needing the toolbar button first. Cancelled by movement past a small
+  // threshold so it doesn't fire mid-scroll.
+  function attachLongPressSelect(row, b) {
+    let timer = null, start = null;
+    const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } start = null; };
+    row.addEventListener("pointerdown", (ev) => {
+      if (state.bulk.active || ev.pointerType === "mouse") return;
+      start = { x: ev.clientX, y: ev.clientY };
+      timer = setTimeout(() => {
+        timer = null;
+        state.bulk.active = true;
+        state.bulk.selected.clear();
+        state.bulk.selected.add(b.id);
+        render();
+      }, 500);
+    });
+    row.addEventListener("pointermove", (ev) => {
+      if (!start) return;
+      if (Math.abs(ev.clientX - start.x) > 10 || Math.abs(ev.clientY - start.y) > 10) cancel();
+    });
+    row.addEventListener("pointerup", cancel);
+    row.addEventListener("pointercancel", cancel);
   }
 
   // While a pointer is held down on a bulk checkbox, dragging over other
@@ -648,7 +685,7 @@
       ev.preventDefault(); ev.stopPropagation();
       const value = !state.bulk.selected.has(b.id);
       dragPaint = { value };
-      setBulkItem(b.id, value);
+      setBulkItem(b.id, value, { skipRender: true });
     };
     return cb;
   }
@@ -2043,10 +2080,11 @@
       const target = document.elementFromPoint(ev.clientX, ev.clientY);
       const cb = target && target.closest(".bulk-check");
       if (!cb) return;
-      setBulkItem(cb.dataset.blId, dragPaint.value);
+      setBulkItem(cb.dataset.blId, dragPaint.value, { skipRender: true });
     });
-    document.addEventListener("pointerup", () => { dragPaint = null; });
-    document.addEventListener("pointercancel", () => { dragPaint = null; });
+    const endDragPaint = () => { if (dragPaint) { dragPaint = null; render(); } };
+    document.addEventListener("pointerup", endDragPaint);
+    document.addEventListener("pointercancel", endDragPaint);
     const viewTabs = $("#viewTabs");
     // On mobile the active view shows as a button outside #viewTabs; tapping
     // it opens a menu of the other views (see .views.open in styles.css).

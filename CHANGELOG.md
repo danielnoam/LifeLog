@@ -4,6 +4,24 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.14.0] - 2026-06-18
+
+### Added
+- Long-pressing a backlog item (touch devices) now enters bulk-select mode
+  with that item pre-selected, as a faster alternative to the "☑ Select"
+  toolbar button.
+- Backlog now lays out category sections in a responsive grid, like
+  Timeline's month-cards — on wide screens, multiple categories sit
+  side-by-side instead of always stacking in a single centered column.
+
+### Fixed
+- Bulk-select drag-to-paint (press a checkbox and drag across others to
+  select/deselect a run) was unreliable on mobile: every checkbox toggled
+  mid-drag triggered a full re-render, which could detach the element the
+  touch gesture started on and cause the browser to cancel it early. The
+  drag now updates checkboxes directly during the gesture and only
+  re-renders once it ends.
+
 ## [0.13.0] - 2026-06-18
 
 ### Changed
