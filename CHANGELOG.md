@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.11.0] - 2026-06-18
+
+### Added
+- Three new media enrichment sources (Settings → Media), all free and requiring
+  no API key: **AniList** for anime and manga (better title/cover matching
+  than TMDB's general TV search), **Google Books** for books (often better
+  cover art and summaries than Open Library), and **MusicBrainz** for a new
+  Music/Albums category. Assign any of these per category alongside the
+  existing RAWG/TMDB/Open Library sources.
+
+### Changed
+- Renamed the "TMDB (TV / anime)" category-source option to "TMDB (TV)" now
+  that AniList is available and a better fit for anime/manga.
+
 ## [0.10.2] - 2026-06-18
 
 ### Fixed

@@ -25,7 +25,7 @@
   // method: 'pin' | 'biometric'. pinHash/pinSalt: SHA-256 of salt+PIN, so the
   // PIN itself is never stored. credentialId: base64 WebAuthn credential id.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null };
-  const APP_VERSION = "0.10.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.11.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -883,6 +883,7 @@
     if (r.coverUrl) {
       const img = document.createElement("img");
       img.src = r.coverUrl; img.alt = ""; img.className = "ac-thumb";
+      img.onerror = () => { img.style.display = "none"; };
       item.appendChild(img);
     }
     const info = el("div", "ac-info");
@@ -902,6 +903,7 @@
     $("#fMediaSource").value = mediaSource || "";
     const coverDiv = $("#entryCover");
     const coverImg = $("#entryCoverImg");
+    coverImg.onerror = () => { coverDiv.hidden = true; };
     if (coverUrl) { coverImg.src = coverUrl; coverDiv.hidden = false; }
     else { coverDiv.hidden = true; coverImg.src = ""; }
   }
@@ -913,6 +915,7 @@
     const meta = $("#backlogCoverMeta");
     meta.innerHTML = "";
     if (!coverUrl) { coverDiv.hidden = true; coverImg.src = ""; return; }
+    coverImg.onerror = () => { coverDiv.hidden = true; };
     coverImg.src = coverUrl;
     const line = [];
     const rating = $("#bExternalRating").value;
@@ -1473,8 +1476,12 @@
       { value: "", label: "None" },
       { value: "rawg", label: "RAWG (games)" },
       { value: "tmdb-movie", label: "TMDB (movie)" },
-      { value: "tmdb-tv", label: "TMDB (TV / anime)" },
+      { value: "tmdb-tv", label: "TMDB (TV)" },
+      { value: "anilist-anime", label: "AniList (anime)" },
+      { value: "anilist-manga", label: "AniList (manga)" },
       { value: "openlibrary", label: "Open Library (books)" },
+      { value: "googlebooks", label: "Google Books (books)" },
+      { value: "musicbrainz", label: "MusicBrainz (music)" },
     ];
     if (!state.data.categories.length) {
       container.appendChild(el("p", "muted", "No categories yet — add categories first."));
