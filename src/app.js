@@ -19,7 +19,13 @@
   const UI_KEY = "lifelog-ui-v1";
   const MEDIA_KEY = "lifelog-media-settings-v1";
   const DEFAULT_MEDIA = { enabled: false, rawgKey: "", tmdbKey: "", categorySources: {} };
-  const APP_VERSION = "0.9.5.11"; // bump with each shipped change so it's visible in Settings
+  const PRIVACY_KEY = "lifelog-privacy-v1";
+  // App lock: gates opening the app on this device. Local-only, never synced
+  // (a PIN/credential set up on one device wouldn't make sense on another).
+  // method: 'pin' | 'biometric'. pinHash/pinSalt: SHA-256 of salt+PIN, so the
+  // PIN itself is never stored. credentialId: base64 WebAuthn credential id.
+  const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null };
+  const APP_VERSION = "0.10.2"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -46,6 +52,63 @@
     try { localStorage.setItem(MEDIA_KEY, JSON.stringify(state.media)); } catch (e) {}
   }
 
+  function loadPrivacySettings() {
+    try {
+      const raw = localStorage.getItem(PRIVACY_KEY);
+      if (raw) return Object.assign({ ...DEFAULT_PRIVACY }, JSON.parse(raw));
+    } catch (e) {}
+    return { ...DEFAULT_PRIVACY };
+  }
+  function savePrivacySettings() {
+    try { localStorage.setItem(PRIVACY_KEY, JSON.stringify(state.privacy)); } catch (e) {}
+  }
+
+  // ---------- app lock: PIN hashing + WebAuthn biometric ----------
+  function randomHex(nBytes) {
+    const arr = new Uint8Array(nBytes);
+    crypto.getRandomValues(arr);
+    return [...arr].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  async function hashPin(pin, salt) {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + pin));
+    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  function bufToB64(buf) {
+    return btoa(String.fromCharCode(...new Uint8Array(buf)));
+  }
+  function b64ToBuf(b64) {
+    return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  }
+  async function biometricAvailable() {
+    return !!(window.PublicKeyCredential &&
+      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable &&
+      (await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false)));
+  }
+  async function registerBiometric() {
+    const cred = await navigator.credentials.create({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        rp: { name: "LifeLog" },
+        user: { id: crypto.getRandomValues(new Uint8Array(16)), name: "lifelog", displayName: "LifeLog" },
+        pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: "platform", userVerification: "required" },
+        timeout: 60000,
+        attestation: "none",
+      },
+    });
+    return bufToB64(cred.rawId);
+  }
+  async function verifyBiometric(credentialId) {
+    await navigator.credentials.get({
+      publicKey: {
+        challenge: crypto.getRandomValues(new Uint8Array(32)),
+        allowCredentials: [{ id: b64ToBuf(credentialId), type: "public-key" }],
+        userVerification: "required",
+        timeout: 60000,
+      },
+    });
+  }
+
   // Whether the last save didn't reach every connected target (e.g. made
   // offline) — persisted so the indicator survives a reload until it syncs.
   function loadPendingSync() {
@@ -62,6 +125,7 @@
     data: emptyData(),
     visual: loadVisualSettings() || { ...DEFAULT_VISUAL },
     media: loadMediaSettings(),
+    privacy: loadPrivacySettings(),
     pendingSync: loadPendingSync(),
     view: "timeline",
     search: "",
@@ -1456,7 +1520,44 @@
     $("#monthMax").value = state.visual.monthMaxWidth;
     $("#fontFamily").value = state.visual.fontFamily;
     updateMediaSettings();
+    updatePrivacySettings();
     $("#settingsModal").hidden = false;
+  }
+
+  // ---------- privacy / app lock settings ----------
+  let bioAvailable = null; // cached after the first check (per page load)
+
+  async function updatePrivacySettings() {
+    $("#privacyEnabled").checked = !!state.privacy.enabled;
+    $("#privacyMethod").value = state.privacy.method || "pin";
+    refreshPrivacyMethodUI();
+
+    if (bioAvailable === null) bioAvailable = await biometricAvailable();
+    $("#privacyMethod").querySelector('option[value="biometric"]').disabled = !bioAvailable;
+    $("#privacyBioUnavailable").hidden = bioAvailable;
+  }
+
+  function refreshPrivacyMethodUI() {
+    const method = $("#privacyMethod").value;
+    $("#privacyPinControls").hidden = method !== "pin";
+    $("#privacyBioControls").hidden = method !== "biometric";
+
+    $("#privacyPinStatus").textContent = state.privacy.pinHash
+      ? "A PIN is set on this device." : "No PIN set yet.";
+    $("#setPinBtn").textContent = state.privacy.pinHash ? "Change PIN" : "Set PIN";
+    $("#removePinBtn").hidden = !state.privacy.pinHash;
+
+    $("#privacyBioStatus").textContent = state.privacy.credentialId
+      ? "Fingerprint/Face ID is set up on this device." : "Not set up yet.";
+    $("#removeBioBtn").hidden = !state.privacy.credentialId;
+  }
+
+  function hidePinForm() {
+    $("#privacyPinForm").hidden = true;
+    $("#setPinBtn").hidden = false;
+    $("#savePinBtn").hidden = true;
+    $("#cancelPinBtn").hidden = true;
+    $("#newPin").value = ""; $("#confirmPin").value = "";
   }
 
   function onPollIntervalChange() {
@@ -1856,6 +1957,72 @@
     };
     $("#rawgKey").oninput = () => { state.media.rawgKey = $("#rawgKey").value; saveMediaSettings(); };
     $("#tmdbKey").oninput = () => { state.media.tmdbKey = $("#tmdbKey").value; saveMediaSettings(); };
+
+    $("#privacyEnabled").onchange = () => {
+      const checked = $("#privacyEnabled").checked;
+      if (checked) {
+        const method = state.privacy.method;
+        const ready = method === "biometric" ? !!state.privacy.credentialId : !!state.privacy.pinHash;
+        if (!ready) {
+          toast("Set up a PIN or Fingerprint/Face ID first", true);
+          $("#privacyEnabled").checked = false;
+          return;
+        }
+      }
+      state.privacy.enabled = checked;
+      savePrivacySettings();
+    };
+    $("#privacyMethod").onchange = () => {
+      state.privacy.method = $("#privacyMethod").value;
+      savePrivacySettings();
+      refreshPrivacyMethodUI();
+    };
+    $("#setPinBtn").onclick = () => {
+      $("#privacyPinForm").hidden = false;
+      $("#setPinBtn").hidden = true;
+      $("#savePinBtn").hidden = false;
+      $("#cancelPinBtn").hidden = false;
+      $("#newPin").focus();
+    };
+    $("#cancelPinBtn").onclick = hidePinForm;
+    $("#savePinBtn").onclick = async () => {
+      const a = $("#newPin").value, b = $("#confirmPin").value;
+      if (!/^\d{4,8}$/.test(a)) { toast("PIN must be 4–8 digits", true); return; }
+      if (a !== b) { toast("PINs don't match", true); return; }
+      const salt = randomHex(16);
+      state.privacy.pinSalt = salt;
+      state.privacy.pinHash = await hashPin(a, salt);
+      state.privacy.method = "pin";
+      savePrivacySettings();
+      hidePinForm();
+      $("#privacyMethod").value = "pin";
+      refreshPrivacyMethodUI();
+      toast("PIN set");
+    };
+    $("#removePinBtn").onclick = () => {
+      if (!confirm("Remove the PIN from this device?")) return;
+      state.privacy.pinHash = null; state.privacy.pinSalt = null;
+      if (state.privacy.method === "pin") state.privacy.enabled = false;
+      savePrivacySettings();
+      refreshPrivacyMethodUI();
+    };
+    $("#setBioBtn").onclick = async () => {
+      try {
+        state.privacy.credentialId = await registerBiometric();
+        state.privacy.method = "biometric";
+        savePrivacySettings();
+        $("#privacyMethod").value = "biometric";
+        refreshPrivacyMethodUI();
+        toast("Fingerprint/Face ID set up");
+      } catch (e) { toast("Couldn't set up: " + (e.message || e), true); }
+    };
+    $("#removeBioBtn").onclick = () => {
+      if (!confirm("Remove Fingerprint/Face ID from this device?")) return;
+      state.privacy.credentialId = null;
+      if (state.privacy.method === "biometric") state.privacy.enabled = false;
+      savePrivacySettings();
+      refreshPrivacyMethodUI();
+    };
     $("#exportJsonBtn").onclick = exportJson;
     $("#exportCsvBtn").onclick = exportCsv;
     $("#importJsonBtn").onclick = () => $("#importJsonInput").click();
@@ -1898,6 +2065,76 @@
     });
   }
 
+  // Show the app-lock screen and resolve once the user unlocks it. Blocks
+  // the rest of init() so no data is loaded/rendered until then.
+  function showLockScreen() {
+    return new Promise((resolve) => {
+      const screen = $("#lockScreen");
+      const form = $("#lockPinForm");
+      const input = $("#lockPinInput");
+      const bioBtn = $("#lockBioBtn");
+      const errorEl = $("#lockError");
+      const resetBtn = $("#lockResetBtn");
+      const isPin = state.privacy.method !== "biometric";
+
+      screen.hidden = false;
+      document.body.style.overflow = "hidden";
+      form.hidden = !isPin;
+      bioBtn.hidden = isPin;
+      errorEl.hidden = true;
+      $("#lockHint").textContent = isPin
+        ? "Enter your PIN to continue."
+        : "Use your device's fingerprint or Face ID to continue.";
+      if (isPin) setTimeout(() => input.focus(), 50);
+
+      function showError(msg) {
+        errorEl.textContent = msg;
+        errorEl.hidden = false;
+      }
+      function cleanup() {
+        screen.hidden = true;
+        document.body.style.overflow = "";
+        form.onsubmit = null;
+        bioBtn.onclick = null;
+        resetBtn.onclick = null;
+      }
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        const hash = await hashPin(input.value, state.privacy.pinSalt);
+        input.value = "";
+        if (hash === state.privacy.pinHash) { cleanup(); resolve(); }
+        else { showError("Incorrect PIN"); input.focus(); }
+      };
+      bioBtn.onclick = async () => {
+        errorEl.hidden = true;
+        try { await verifyBiometric(state.privacy.credentialId); cleanup(); resolve(); }
+        catch (e) { showError("Couldn't verify — try again"); }
+      };
+      // Forgotten PIN / lost biometric: a reset that just removed the lock and
+      // left the data sitting there would be a free bypass for anyone, so
+      // resetting also wipes this device's local copy + connections. If
+      // GitHub or a local file is connected, their actual contents are
+      // untouched — reconnecting afterward in Settings restores everything.
+      // If neither is connected, this device's data has no other copy and
+      // the wipe is permanent.
+      resetBtn.onclick = async () => {
+        const recoverable = Storage.githubConnected || Storage.fileConnected;
+        const msg = recoverable
+          ? "Reset app lock on this device? This clears the PIN/fingerprint and wipes this device's local copy of your data, and disconnects GitHub/the local file — their actual contents are untouched. You'll start from an empty log here; reconnect in Settings → Sync/Backup afterward to get your data back."
+          : "Reset app lock on this device? This device isn't connected to GitHub or a backup file, so this will permanently delete all your data with no way to recover it.";
+        if (!confirm(msg)) return;
+        await Storage.forgetDevice();
+        state.privacy = { ...DEFAULT_PRIVACY };
+        savePrivacySettings();
+        state.data = emptyData();
+        cleanup();
+        resolve();
+        toast(recoverable ? "Local data cleared — reconnect in Settings to restore it" : "All data on this device permanently deleted");
+      };
+      if (!isPin) bioBtn.onclick();
+    });
+  }
+
   // Show the version-conflict picker and resolve once the user chooses one.
   function pickVersion(candidates) {
     return new Promise((resolve) => {
@@ -1924,6 +2161,7 @@
   // ---------- init ----------
   async function init() {
     wire();
+    if (state.privacy.enabled) await showLockScreen();
     setSyncing("Loading…");
 
     // One-link device setup: open the app with #t=… (or legacy #setup=…) and it auto-connects.

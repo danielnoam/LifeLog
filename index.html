@@ -10,6 +10,26 @@
   <link rel="apple-touch-icon" href="icon.svg" />
 </head>
 <body>
+  <!-- App lock screen (per-device privacy lock; see Settings → Privacy) -->
+  <div class="lock-screen" id="lockScreen" hidden>
+    <div class="lock-box">
+      <div class="lock-icon">🔒</div>
+      <h2>LifeLog is locked</h2>
+      <p class="muted" id="lockHint">Enter your PIN to continue.</p>
+
+      <form id="lockPinForm" class="lock-pin-form" hidden>
+        <input id="lockPinInput" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN" />
+        <button class="btn btn-primary" type="submit">Unlock</button>
+      </form>
+
+      <button class="btn btn-primary lock-bio-btn" id="lockBioBtn" type="button" hidden>Use Fingerprint / Face ID</button>
+
+      <p class="lock-error" id="lockError" hidden></p>
+
+      <button class="lock-reset-btn" id="lockResetBtn" type="button">Forgot PIN? Reset this device</button>
+    </div>
+  </div>
+
   <header class="topbar">
     <div class="brand">
       <span class="brand-mark">◆</span>
@@ -210,6 +230,7 @@
         <button class="stab active" data-stab="storage" type="button">Storage</button>
         <button class="stab" data-stab="sync" type="button">Sync</button>
         <button class="stab" data-stab="backup" type="button">Backup</button>
+        <button class="stab" data-stab="privacy" type="button">Privacy</button>
         <button class="stab" data-stab="appearance" type="button">Appearance</button>
         <button class="stab" data-stab="media" type="button">Media</button>
       </nav>
@@ -308,6 +329,54 @@
         <p class="hint">JSON keeps everything (entries, categories, backlog, achievements). CSV exports entries only and is useful for spreadsheets. Importing JSON merges with your current data — it does not replace it.</p>
       </section>
       </div><!-- /backup panel -->
+
+      <div class="settings-panel" data-panel="privacy">
+      <section class="settings-section">
+        <h3>App lock <span class="muted">(this device only)</span></h3>
+        <p class="hint">Require a PIN or your device's fingerprint/Face ID to open LifeLog. This is a lock on this device only — it isn't synced to your other devices, and it doesn't encrypt your data. If you forget your PIN, the lock screen's reset option wipes this device's local copy of the data (so it isn't a free bypass) — if GitHub or a local file is connected you can reconnect afterward to get your data back; if not, the wipe is permanent.</p>
+        <label class="toggle-label">
+          <input type="checkbox" id="privacyEnabled" />
+          Require unlock to open this app
+        </label>
+      </section>
+
+      <section class="settings-section">
+        <h3>Unlock method</h3>
+        <label>Method
+          <select id="privacyMethod">
+            <option value="pin">PIN</option>
+            <option value="biometric">Fingerprint / Face ID</option>
+          </select>
+        </label>
+        <p class="warn" id="privacyBioUnavailable" hidden>Fingerprint/Face ID isn't available on this device or browser.</p>
+
+        <div id="privacyPinControls">
+          <div class="row" id="privacyPinForm" hidden>
+            <label>New PIN <span class="muted">(4–8 digits)</span>
+              <input id="newPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" />
+            </label>
+            <label>Confirm PIN
+              <input id="confirmPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" />
+            </label>
+          </div>
+          <p class="muted" id="privacyPinStatus"></p>
+          <div class="btn-row">
+            <button class="btn" id="setPinBtn" type="button">Set PIN</button>
+            <button class="btn btn-primary" id="savePinBtn" type="button" hidden>Save PIN</button>
+            <button class="btn" id="cancelPinBtn" type="button" hidden>Cancel</button>
+            <button class="btn btn-danger" id="removePinBtn" type="button" hidden>Remove PIN</button>
+          </div>
+        </div>
+
+        <div id="privacyBioControls" hidden>
+          <p class="muted" id="privacyBioStatus"></p>
+          <div class="btn-row">
+            <button class="btn" id="setBioBtn" type="button">Set up Fingerprint / Face ID</button>
+            <button class="btn btn-danger" id="removeBioBtn" type="button" hidden>Remove</button>
+          </div>
+        </div>
+      </section>
+      </div><!-- /privacy panel -->
 
       <div class="settings-panel" data-panel="appearance">
       <section class="settings-section">
