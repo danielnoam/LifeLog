@@ -26,7 +26,7 @@
 
       <p class="lock-error" id="lockError" hidden></p>
 
-      <button class="lock-reset-btn" id="lockResetBtn" type="button">Forgot PIN? Reset app lock</button>
+      <button class="lock-reset-btn" id="lockResetBtn" type="button">Forgot PIN? Reset this device</button>
     </div>
   </div>
 
@@ -333,7 +333,7 @@
       <div class="settings-panel" data-panel="privacy">
       <section class="settings-section">
         <h3>App lock <span class="muted">(this device only)</span></h3>
-        <p class="hint">Require a PIN or your device's fingerprint/Face ID to open LifeLog. This is a lock on this device only — it isn't synced to your other devices, and it doesn't encrypt your data.</p>
+        <p class="hint">Require a PIN or your device's fingerprint/Face ID to open LifeLog. This is a lock on this device only — it isn't synced to your other devices, and it doesn't encrypt your data. If you forget your PIN, the lock screen's reset option wipes this device's local copy of the data (so it isn't a free bypass) — if GitHub or a local file is connected you can reconnect afterward to get your data back; if not, the wipe is permanent.</p>
         <label class="toggle-label">
           <input type="checkbox" id="privacyEnabled" />
           Require unlock to open this app

@@ -25,7 +25,7 @@
   // method: 'pin' | 'biometric'. pinHash/pinSalt: SHA-256 of salt+PIN, so the
   // PIN itself is never stored. credentialId: base64 WebAuthn credential id.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null };
-  const APP_VERSION = "0.10.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.10.2"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -2110,16 +2110,26 @@
         try { await verifyBiometric(state.privacy.credentialId); cleanup(); resolve(); }
         catch (e) { showError("Couldn't verify — try again"); }
       };
-      // Forgotten PIN / lost biometric: the lock is local to this device and
-      // separate from your data (which lives in GitHub/local file/cache), so
-      // clearing it can't lose anything — it just removes the unlock prompt.
-      resetBtn.onclick = () => {
-        if (!confirm("Remove the PIN/fingerprint requirement on this device? Your data is stored separately and won't be affected — you can set up a new PIN or fingerprint again afterward in Settings → Privacy.")) return;
+      // Forgotten PIN / lost biometric: a reset that just removed the lock and
+      // left the data sitting there would be a free bypass for anyone, so
+      // resetting also wipes this device's local copy + connections. If
+      // GitHub or a local file is connected, their actual contents are
+      // untouched — reconnecting afterward in Settings restores everything.
+      // If neither is connected, this device's data has no other copy and
+      // the wipe is permanent.
+      resetBtn.onclick = async () => {
+        const recoverable = Storage.githubConnected || Storage.fileConnected;
+        const msg = recoverable
+          ? "Reset app lock on this device? This clears the PIN/fingerprint and wipes this device's local copy of your data, and disconnects GitHub/the local file — their actual contents are untouched. You'll start from an empty log here; reconnect in Settings → Sync/Backup afterward to get your data back."
+          : "Reset app lock on this device? This device isn't connected to GitHub or a backup file, so this will permanently delete all your data with no way to recover it.";
+        if (!confirm(msg)) return;
+        await Storage.forgetDevice();
         state.privacy = { ...DEFAULT_PRIVACY };
         savePrivacySettings();
+        state.data = emptyData();
         cleanup();
         resolve();
-        toast("App lock removed on this device");
+        toast(recoverable ? "Local data cleared — reconnect in Settings to restore it" : "All data on this device permanently deleted");
       };
       if (!isPin) bioBtn.onclick();
     });

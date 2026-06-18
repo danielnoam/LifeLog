@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.10.2] - 2026-06-18
+
+### Fixed
+- App lock "Forgot PIN?" reset (added in 0.10.1) only removed the
+  PIN/fingerprint requirement and left the data sitting there — meaning
+  anyone without the PIN could bypass the lock for free by clicking reset.
+  It now wipes this device's local copy of the data and disconnects
+  GitHub/the local file when resetting; if either was connected, their
+  actual contents are untouched and reconnecting in Settings afterward
+  restores everything, otherwise the wipe is permanent. The button is now
+  labeled "Forgot PIN? Reset this device" to reflect this.
+
 ## [0.10.1] - 2026-06-17
 
 ### Added

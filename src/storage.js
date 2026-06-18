@@ -378,6 +378,17 @@
       localStorage.removeItem(GH_KEY);
     },
 
+    // Wipes this device's local copy and connections — used by the app-lock
+    // "forgot PIN" reset, so that resetting the lock can't double as a free
+    // bypass to see the data. Forgets the GitHub token and local file handle
+    // (without touching the actual repo or file contents — those can be
+    // reconnected to afterward) and clears the localStorage cache.
+    async forgetDevice() {
+      if (gh && gh.token) await Storage.disconnectGithub();
+      if (handle) await Storage.disconnect();
+      try { localStorage.removeItem(CACHE_KEY); } catch (e) {}
+    },
+
     // Lightweight poll for changes made elsewhere (e.g. another device).
     // Returns { changed: true, data } if the remote file moved on since we
     // last loaded/saved it, { changed: false } if it's the same, or null if
