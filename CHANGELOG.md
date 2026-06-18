@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.13.0] - 2026-06-18
+
+### Changed
+- Media sync (cover art, year, summary, rating) is no longer fetched
+  automatically while typing a title in the entry/backlog modal. Instead, a
+  "🔄" button next to the Title field looks it up on demand, and picking a
+  result no longer overwrites the title you typed — it only attaches the
+  metadata. A "Synced via [source]" label (with an "✕ Unsync" option) shows
+  inside the form under the title once something's attached. Local
+  suggestions from your own previously-logged titles are unaffected — typing
+  still surfaces and auto-fills those as before.
+
+### Added
+- Backlog bulk select: a "🔄 Sync" button in the bulk action bar syncs all
+  selected items at once, auto-picking the top match for each (no per-item
+  review, since syncing many items individually would defeat the purpose).
+
 ## [0.12.1] - 2026-06-18
 
 ### Added
