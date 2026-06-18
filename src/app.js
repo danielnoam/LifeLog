@@ -32,7 +32,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.15.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.15.1"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -2369,6 +2369,8 @@
           ? "Reset app lock on this device? This clears the PIN/fingerprint and wipes this device's local copy of your data, and disconnects GitHub/the local file — their actual contents are untouched. You'll start from an empty log here; reconnect in Settings → Sync/Backup afterward to get your data back."
           : "Reset app lock on this device? This device isn't connected to GitHub or a backup file, so this will permanently delete all your data with no way to recover it.";
         if (!confirm(msg)) return;
+        const typed = prompt('Type "reset" to confirm — this cannot be undone from this device.');
+        if ((typed || "").trim().toLowerCase() !== "reset") { toast("Reset cancelled"); return; }
         await Storage.forgetDevice();
         state.privacy = { ...DEFAULT_PRIVACY };
         savePrivacySettings();
@@ -2420,7 +2422,7 @@
     if (Storage.hashHasSetup(location.hash)) {
       const savedHash = location.hash;
       history.replaceState(null, "", location.pathname + location.search); // drop the token from the URL
-      try { await Storage.connectFromHash(savedHash, emptyData()); setupMsg = "Connected to your GitHub sync"; }
+      try { await Storage.connectFromHash(savedHash, null); setupMsg = "Connected to your GitHub sync"; }
       catch (e) { setupMsg = "Setup link failed: " + (e.message || e); setupErr = true; }
     }
 

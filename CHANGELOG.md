@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.15.1] - 2026-06-18
+
+### Fixed
+- Pairing a new device via the one-link/QR setup could wipe a GitHub-synced
+  log: the link-based connect seeded GitHub with this (new, empty) device's
+  data as a fallback whenever it couldn't confirm a file already existed at
+  the configured path/branch — which could silently overwrite real data on
+  a transient API hiccup or branch mismatch. Pairing now only ever joins an
+  existing sync target; if it can't find one, it shows an error instead of
+  creating/overwriting anything. (Connecting GitHub manually from Settings
+  is unaffected — that flow already asks before overwriting either side.)
+
+### Changed
+- Lock screen's "Forgot PIN? Reset this device" now requires typing "reset"
+  in a follow-up prompt, in addition to the existing confirmation dialog,
+  before it wipes this device's local data.
+
 ## [0.15.0] - 2026-06-18
 
 ### Added
