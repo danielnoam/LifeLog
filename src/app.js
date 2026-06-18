@@ -29,8 +29,10 @@
   // (a PIN/credential set up on one device wouldn't make sense on another).
   // method: 'pin' | 'biometric'. pinHash/pinSalt: SHA-256 of salt+PIN, so the
   // PIN itself is never stored. credentialId: base64 WebAuthn credential id.
-  const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null };
-  const APP_VERSION = "0.14.0"; // bump with each shipped change so it's visible in Settings
+  // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
+  // last successful unlock skips the prompt instead of asking again.
+  const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
+  const APP_VERSION = "0.15.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -1741,6 +1743,7 @@
 
   async function updatePrivacySettings() {
     $("#privacyEnabled").checked = !!state.privacy.enabled;
+    $("#privacyGrace").value = String(state.privacy.graceMinutes || 0);
     $("#privacyMethod").value = state.privacy.method || "pin";
     refreshPrivacyMethodUI();
 
@@ -2205,6 +2208,10 @@
       state.privacy.enabled = checked;
       savePrivacySettings();
     };
+    $("#privacyGrace").onchange = () => {
+      state.privacy.graceMinutes = parseInt($("#privacyGrace").value, 10) || 0;
+      savePrivacySettings();
+    };
     $("#privacyMethod").onchange = () => {
       state.privacy.method = $("#privacyMethod").value;
       savePrivacySettings();
@@ -2331,16 +2338,22 @@
         bioBtn.onclick = null;
         resetBtn.onclick = null;
       }
+      function unlocked() {
+        state.privacy.lastUnlockAt = Date.now();
+        savePrivacySettings();
+        cleanup();
+        resolve();
+      }
       form.onsubmit = async (e) => {
         e.preventDefault();
         const hash = await hashPin(input.value, state.privacy.pinSalt);
         input.value = "";
-        if (hash === state.privacy.pinHash) { cleanup(); resolve(); }
+        if (hash === state.privacy.pinHash) unlocked();
         else { showError("Incorrect PIN"); input.focus(); }
       };
       bioBtn.onclick = async () => {
         errorEl.hidden = true;
-        try { await verifyBiometric(state.privacy.credentialId); cleanup(); resolve(); }
+        try { await verifyBiometric(state.privacy.credentialId); unlocked(); }
         catch (e) { showError("Couldn't verify — try again"); }
       };
       // Forgotten PIN / lost biometric: a reset that just removed the lock and
@@ -2392,9 +2405,14 @@
   }
 
   // ---------- init ----------
+  function withinUnlockGrace() {
+    if (!state.privacy.graceMinutes || !state.privacy.lastUnlockAt) return false;
+    return Date.now() - state.privacy.lastUnlockAt < state.privacy.graceMinutes * 60 * 1000;
+  }
+
   async function init() {
     wire();
-    if (state.privacy.enabled) await showLockScreen();
+    if (state.privacy.enabled && !withinUnlockGrace()) await showLockScreen();
     setSyncing("Loading…");
 
     // One-link device setup: open the app with #t=… (or legacy #setup=…) and it auto-connects.
