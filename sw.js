@@ -1,7 +1,7 @@
 // LifeLog service worker — makes the app installable and usable offline.
 // Strategy: network-first for app files (so code updates aren't stale), with a
 // cache fallback when offline. The GitHub API is never cached.
-const CACHE = "lifelog-v8";
+const CACHE = "lifelog-v9";
 // Note: lifelog.json is intentionally NOT precached — it isn't deployed (your
 // data is private). The app fetches it at runtime with a graceful fallback.
 const ASSETS = [
