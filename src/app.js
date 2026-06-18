@@ -25,7 +25,7 @@
   // method: 'pin' | 'biometric'. pinHash/pinSalt: SHA-256 of salt+PIN, so the
   // PIN itself is never stored. credentialId: base64 WebAuthn credential id.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null };
-  const APP_VERSION = "0.11.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.12.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -132,6 +132,7 @@
     activeYears: new Set(),
     activeCats: new Set(),
     statsYear: null,
+    bulk: { active: false, selected: new Set() },
   };
   let catColor = {}; // name -> color
 
@@ -446,6 +447,7 @@
       root.appendChild(emptyState("No backlog items match your filters."));
       return;
     }
+    root.appendChild(backlogToolbar());
     const byCat = groupBy(items, (b) => b.category);
     const order = state.data.categories.map((c) => c.name).filter((n) => byCat[n]);
     for (const n of Object.keys(byCat)) if (!order.includes(n)) order.push(n);
@@ -453,6 +455,14 @@
       const catItems = byCat[catName];
       const section = el("div", "backlog-section");
       const head = el("div", "backlog-section-head");
+      if (state.bulk.active) {
+        const allSelected = catItems.every((b) => state.bulk.selected.has(b.id));
+        const cb = document.createElement("input");
+        cb.type = "checkbox"; cb.className = "bulk-check"; cb.checked = allSelected;
+        cb.title = "Select all in " + catName;
+        cb.onclick = (ev) => { ev.stopPropagation(); toggleBulkCategoryAll(catItems); };
+        head.appendChild(cb);
+      }
       const dot = el("span", "dot"); dot.style.background = colorOf(catName);
       head.appendChild(dot);
       head.appendChild(el("span", "backlog-section-name", catName));
@@ -463,24 +473,107 @@
       section.appendChild(list);
       root.appendChild(section);
     }
+    if (state.bulk.active && state.bulk.selected.size) root.appendChild(bulkActionBar());
+  }
+
+  function backlogToolbar() {
+    const bar = el("div", "timeline-toolbar");
+    const btn = el("button", "btn btn-sm", state.bulk.active ? "✕ Cancel select" : "☑ Select");
+    btn.type = "button";
+    btn.onclick = toggleBulkMode;
+    bar.appendChild(btn);
+    return bar;
+  }
+
+  function toggleBulkMode() {
+    state.bulk.active = !state.bulk.active;
+    state.bulk.selected.clear();
+    render();
+  }
+
+  function toggleBulkItem(id) {
+    if (state.bulk.selected.has(id)) state.bulk.selected.delete(id);
+    else state.bulk.selected.add(id);
+    render();
+  }
+
+  function toggleBulkCategoryAll(catItems) {
+    const allSelected = catItems.every((b) => state.bulk.selected.has(b.id));
+    catItems.forEach((b) => {
+      if (allSelected) state.bulk.selected.delete(b.id);
+      else state.bulk.selected.add(b.id);
+    });
+    render();
+  }
+
+  function bulkActionBar() {
+    const bar = el("div", "bulk-bar");
+    bar.appendChild(el("span", "bulk-count", `${state.bulk.selected.size} selected`));
+    const moveSel = document.createElement("select");
+    moveSel.className = "bulk-move-select";
+    fillSelect(moveSel, [
+      { value: "", label: "Move to category…" },
+      ...state.data.categories.map((c) => ({ value: c.name, label: c.name })),
+    ], "");
+    moveSel.onchange = async () => {
+      if (!moveSel.value) return;
+      await bulkMoveSelected(moveSel.value);
+    };
+    bar.appendChild(moveSel);
+    const delBtn = el("button", "btn btn-sm btn-danger", "Delete");
+    delBtn.type = "button";
+    delBtn.onclick = bulkDeleteSelected;
+    bar.appendChild(delBtn);
+    const cancelBtn = el("button", "btn btn-sm", "Cancel");
+    cancelBtn.type = "button";
+    cancelBtn.onclick = toggleBulkMode;
+    bar.appendChild(cancelBtn);
+    return bar;
+  }
+
+  async function bulkMoveSelected(categoryName) {
+    const ids = state.bulk.selected;
+    state.data.backlog.forEach((b) => { if (ids.has(b.id)) b.category = categoryName; });
+    const n = ids.size;
+    state.bulk.active = false;
+    state.bulk.selected.clear();
+    render();
+    await persist();
+    toast(`Moved ${n} item${n === 1 ? "" : "s"} to “${categoryName}”`);
+  }
+
+  async function bulkDeleteSelected() {
+    const ids = state.bulk.selected;
+    const n = ids.size;
+    if (!confirm(`Remove ${n} item${n === 1 ? "" : "s"} from your backlog?`)) return;
+    state.data.backlog = state.data.backlog.filter((b) => !ids.has(b.id));
+    state.bulk.active = false;
+    state.bulk.selected.clear();
+    render();
+    await persist();
+    toast(`Removed ${n} item${n === 1 ? "" : "s"} from backlog`);
   }
 
   function backlogRow(b) {
     if (b.coverUrl) return backlogRowRich(b);
     const row = el("div", "entry");
+    if (state.bulk.active) row.appendChild(bulkCheckbox(b));
     const t = el("span", "etitle", b.title); t.title = b.title;
     row.appendChild(t);
-    const doneBtn = el("button", "btn btn-sm", "✓ Done");
-    doneBtn.type = "button";
-    doneBtn.title = "Move to your log";
-    doneBtn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
-    row.appendChild(doneBtn);
-    row.onclick = () => openBacklogModal(b);
+    if (!state.bulk.active) {
+      const doneBtn = el("button", "btn btn-sm", "✓ Done");
+      doneBtn.type = "button";
+      doneBtn.title = "Move to your log";
+      doneBtn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
+      row.appendChild(doneBtn);
+    }
+    row.onclick = () => state.bulk.active ? toggleBulkItem(b.id) : openBacklogModal(b);
     return row;
   }
 
   function backlogRowRich(b) {
     const row = el("div", "backlog-item-rich");
+    if (state.bulk.active) row.appendChild(bulkCheckbox(b));
     const img = document.createElement("img");
     img.src = b.coverUrl; img.alt = b.title; img.className = "bl-cover";
     img.onerror = () => { img.style.display = "none"; };
@@ -494,12 +587,22 @@
     if (b.summary) body.appendChild(el("p", "bl-summary", b.summary));
     row.appendChild(body);
     // Done button at the right — same position as plain backlog rows
-    const doneBtn = el("button", "btn btn-sm", "✓ Done");
-    doneBtn.type = "button"; doneBtn.title = "Move to your log";
-    doneBtn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
-    row.appendChild(doneBtn);
-    row.onclick = () => openBacklogModal(b);
+    if (!state.bulk.active) {
+      const doneBtn = el("button", "btn btn-sm", "✓ Done");
+      doneBtn.type = "button"; doneBtn.title = "Move to your log";
+      doneBtn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
+      row.appendChild(doneBtn);
+    }
+    row.onclick = () => state.bulk.active ? toggleBulkItem(b.id) : openBacklogModal(b);
     return row;
+  }
+
+  function bulkCheckbox(b) {
+    const cb = document.createElement("input");
+    cb.type = "checkbox"; cb.className = "bulk-check";
+    cb.checked = state.bulk.selected.has(b.id);
+    cb.onclick = (ev) => { ev.stopPropagation(); toggleBulkItem(b.id); };
+    return cb;
   }
 
   function renderStats(root, entries) {

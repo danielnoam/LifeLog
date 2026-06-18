@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.12.0] - 2026-06-18
+
+### Added
+- Bulk editing in Backlog: a "☑ Select" toggle above the list reveals a
+  checkbox on every item plus a "select all" checkbox on each category
+  header. With items selected, a sticky bar lets you move them all to a
+  different category or delete them all at once. (Timeline may get the
+  same treatment later; Categories and Stats don't need it.)
+
 ## [0.11.0] - 2026-06-18
 
 ### Added

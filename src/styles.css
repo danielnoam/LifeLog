@@ -263,6 +263,21 @@ select:focus { outline: none; border-color: var(--accent); }
 .backlog-item-rich .ecat { align-self: flex-start; margin-top: 3px; flex-shrink: 0; }
 .backlog-item-rich .btn-sm { align-self: flex-start; flex-shrink: 0; }
 
+.bulk-check { width: 16px; height: 16px; flex: 0 0 auto; cursor: pointer; accent-color: var(--accent); }
+.backlog-section-head .bulk-check { margin-right: 2px; }
+.backlog-item-rich .bulk-check { margin-top: 4px; }
+.bulk-bar {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  background: var(--bg-elev2); border: 1px solid var(--border); color: var(--text);
+  padding: 10px 14px; border-radius: 10px; box-shadow: var(--shadow); z-index: 75;
+  display: flex; align-items: center; gap: 10px; font-size: 13px; max-width: calc(100vw - 32px);
+}
+.bulk-count { font-weight: 600; white-space: nowrap; }
+.bulk-move-select {
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  padding: 6px 8px; border-radius: 8px; font-size: 12px;
+}
+
 .empty { text-align: center; color: var(--text-faint); padding: 60px 20px; }
 
 /* ---------- modals ---------- */
@@ -452,6 +467,7 @@ body.modal-open { overflow: hidden; }
 
   .content { padding-bottom: 92px; }
   .toast { bottom: 92px; }
+  .bulk-bar { bottom: 92px; flex-wrap: wrap; }
 }
 
 /* Settings tabs: shrink just enough to keep all 6 on one line, no
