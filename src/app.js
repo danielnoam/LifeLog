@@ -25,7 +25,7 @@
   // method: 'pin' | 'biometric'. pinHash/pinSalt: SHA-256 of salt+PIN, so the
   // PIN itself is never stored. credentialId: base64 WebAuthn credential id.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null };
-  const APP_VERSION = "0.12.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.12.1"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -491,11 +491,13 @@
     render();
   }
 
-  function toggleBulkItem(id) {
-    if (state.bulk.selected.has(id)) state.bulk.selected.delete(id);
-    else state.bulk.selected.add(id);
+  function setBulkItem(id, value) {
+    if (state.bulk.selected.has(id) === value) return;
+    if (value) state.bulk.selected.add(id); else state.bulk.selected.delete(id);
     render();
   }
+
+  function toggleBulkItem(id) { setBulkItem(id, !state.bulk.selected.has(id)); }
 
   function toggleBulkCategoryAll(catItems) {
     const allSelected = catItems.every((b) => state.bulk.selected.has(b.id));
@@ -597,11 +599,23 @@
     return row;
   }
 
+  // While a pointer is held down on a bulk checkbox, dragging over other
+  // checkboxes paints them to the same selected/unselected state — lets you
+  // select a run of items by pressing and moving instead of tapping each one.
+  let dragPaint = null;
+
   function bulkCheckbox(b) {
     const cb = document.createElement("input");
     cb.type = "checkbox"; cb.className = "bulk-check";
     cb.checked = state.bulk.selected.has(b.id);
-    cb.onclick = (ev) => { ev.stopPropagation(); toggleBulkItem(b.id); };
+    cb.dataset.blId = b.id;
+    cb.onclick = (ev) => ev.preventDefault(); // selection is driven by pointerdown below
+    cb.onpointerdown = (ev) => {
+      ev.preventDefault(); ev.stopPropagation();
+      const value = !state.bulk.selected.has(b.id);
+      dragPaint = { value };
+      setBulkItem(b.id, value);
+    };
     return cb;
   }
 
@@ -1968,6 +1982,20 @@
   // ---------- events ----------
   function wire() {
     $("#appVersion").textContent = "LifeLog v" + APP_VERSION;
+
+    // Bulk-select drag-paint: while dragPaint is set (started by a
+    // checkbox's pointerdown), moving over other checkboxes paints them to
+    // the same value. Uses elementFromPoint instead of event.target since
+    // re-rendering mid-drag swaps out the actual DOM nodes.
+    document.addEventListener("pointermove", (ev) => {
+      if (!dragPaint) return;
+      const target = document.elementFromPoint(ev.clientX, ev.clientY);
+      const cb = target && target.closest(".bulk-check");
+      if (!cb) return;
+      setBulkItem(cb.dataset.blId, dragPaint.value);
+    });
+    document.addEventListener("pointerup", () => { dragPaint = null; });
+    document.addEventListener("pointercancel", () => { dragPaint = null; });
     const viewTabs = $("#viewTabs");
     // On mobile the active view shows as a button outside #viewTabs; tapping
     // it opens a menu of the other views (see .views.open in styles.css).

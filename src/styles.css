@@ -263,7 +263,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .backlog-item-rich .ecat { align-self: flex-start; margin-top: 3px; flex-shrink: 0; }
 .backlog-item-rich .btn-sm { align-self: flex-start; flex-shrink: 0; }
 
-.bulk-check { width: 16px; height: 16px; flex: 0 0 auto; cursor: pointer; accent-color: var(--accent); }
+.bulk-check { width: 16px; height: 16px; flex: 0 0 auto; cursor: pointer; accent-color: var(--accent); touch-action: none; }
 .backlog-section-head .bulk-check { margin-right: 2px; }
 .backlog-item-rich .bulk-check { margin-top: 4px; }
 .bulk-bar {

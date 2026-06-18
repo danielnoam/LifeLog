@@ -4,6 +4,12 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.12.1] - 2026-06-18
+
+### Added
+- Backlog bulk select: press and drag across checkboxes to select (or
+  deselect) a run of items in one motion instead of tapping each one.
+
 ## [0.12.0] - 2026-06-18
 
 ### Added
