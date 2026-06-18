@@ -345,8 +345,11 @@
     // cfg: { owner?, repo?, path?, branch?, token }. Owner defaults to the
     // token's account and the repo is auto-created (private) if missing, so the
     // user normally only needs to supply a token.
+    // allowCreate: when false, refuses to create a new file if none exists yet
+    // (used by link-based pairing, which should only ever join an existing
+    // sync target — never silently seed/overwrite it with empty data).
     // Returns { existed: bool, data?: <remote data when it already existed> }.
-    async connectGithub(cfg, currentData) {
+    async connectGithub(cfg, currentData, allowCreate = true) {
       const prev = gh;
       gh = {
         owner: (cfg.owner || "").trim(),
@@ -363,6 +366,9 @@
           gh.sha = existing.sha;
           saveGhCfg(); githubError = null;
           return { existed: true, data: existing.data };
+        }
+        if (!allowCreate) {
+          throw new Error("No existing data found at this sync target — open the link from the device that already has your data, or set this up from Settings instead.");
         }
         // Create the file with whatever we currently have.
         gh.sha = await ghPut(currentData, null);
@@ -423,7 +429,10 @@
       return /[#&](t|setup)=/.test(hash || "");
     },
     // Connect from a location hash produced on another device. Returns the
-    // connectGithub result, or null if the hash has no setup payload.
+    // connectGithub result, or null if the hash has no setup payload. Never
+    // creates a new (empty) file — pairing only ever joins a sync target that
+    // already has data; if it doesn't, that's an error, not something to fix
+    // by overwriting it with this device's (likely empty) data.
     async connectFromHash(hash, currentData) {
       const h = (hash || "").replace(/^#/, "");
       let cfg = null;
@@ -436,7 +445,7 @@
         if (!p.get("t")) return null;
         cfg = { owner: p.get("o") || "", repo: p.get("r") || "", path: p.get("p") || "", branch: p.get("b") || "", token: p.get("t") };
       }
-      return this.connectGithub(cfg, currentData);
+      return this.connectGithub(cfg, currentData, false);
     },
   };
 
