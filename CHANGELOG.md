@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.16.0] - 2026-06-18
+
+### Changed
+- Settings → Media: the per-category source assignments (which API each
+  category uses) now sync across your devices like the rest of your data,
+  so you don't have to redo them on every device. API keys still stay in
+  this browser only, as before.
+- The "Enable media enrichment" toggle moved to Settings → Appearance and
+  is now explicitly per-device — each device decides independently
+  whether to use the (now-synced) category assignments, e.g. to skip
+  fetching on a phone's mobile data while keeping it on at home. Existing
+  setups carry their current on/off state and category assignments over
+  automatically.
+
 ## [0.15.1] - 2026-06-18
 
 ### Fixed

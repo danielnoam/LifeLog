@@ -6,8 +6,8 @@
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const DEFAULT_SETTINGS = { monthOrder: "asc" }; // monthOrder: asc (Jan->Dec) | desc (Dec->Jan) — synced
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30 }; // maxWidth 0 = stretch — local to this device, not synced
+  const DEFAULT_SETTINGS = { monthOrder: "asc", mediaCategorySources: {} }; // monthOrder, mediaCategorySources — synced
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, mediaEnabled: false }; // maxWidth 0 = stretch — local to this device, not synced
   const FONT_STACKS = {
     system: '"Segoe UI", system-ui, -apple-system, sans-serif',
     serif: 'Georgia, "Times New Roman", serif',
@@ -18,7 +18,7 @@
   const PENDING_KEY = "lifelog-pending-sync-v1";
   const UI_KEY = "lifelog-ui-v1";
   const MEDIA_KEY = "lifelog-media-settings-v1";
-  const DEFAULT_MEDIA = { enabled: false, rawgKey: "", tmdbKey: "", categorySources: {} };
+  const DEFAULT_MEDIA = { rawgKey: "", tmdbKey: "" }; // API keys: local to this device, never synced
   const MEDIA_SOURCE_LABELS = {
     rawg: "RAWG", "tmdb-movie": "TMDB", "tmdb-tv": "TMDB",
     "anilist-anime": "AniList", "anilist-manga": "AniList",
@@ -32,7 +32,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.15.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.16.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -1060,12 +1060,12 @@
   let lastSyncedEntryTitle = "";
 
   function hasMediaSourceFor(category) {
-    return !!(state.media.enabled && (state.media.categorySources || {})[category]);
+    return !!(state.visual.mediaEnabled && (state.data.settings.mediaCategorySources || {})[category]);
   }
 
   async function fetchMediaSuggestions(title, category) {
-    if (!state.media || !state.media.enabled) return [];
-    const source = (state.media.categorySources || {})[category];
+    if (!state.visual.mediaEnabled) return [];
+    const source = (state.data.settings.mediaCategorySources || {})[category];
     if (!source || !window.LifeLogMedia) return [];
     const keys = { rawg: state.media.rawgKey || "", tmdb: state.media.tmdbKey || "" };
     try { return await window.LifeLogMedia.search(title, source, keys); } catch (e) { return []; }
@@ -1673,6 +1673,7 @@
   function toggleMediaSections(enabled) {
     $("#mediaKeysSection").hidden = !enabled;
     $("#mediaCatSection").hidden = !enabled;
+    $("#mediaDisabledHint").hidden = !!enabled;
   }
 
   function renderMediaCatRows() {
@@ -1701,13 +1702,13 @@
       sources.forEach((s) => {
         const opt = el("option", null, s.label);
         opt.value = s.value;
-        if ((state.media.categorySources || {})[cat.name] === s.value) opt.selected = true;
+        if ((state.data.settings.mediaCategorySources || {})[cat.name] === s.value) opt.selected = true;
         sel.appendChild(opt);
       });
-      sel.onchange = () => {
-        if (!state.media.categorySources) state.media.categorySources = {};
-        state.media.categorySources[cat.name] = sel.value;
-        saveMediaSettings();
+      sel.onchange = async () => {
+        if (!state.data.settings.mediaCategorySources) state.data.settings.mediaCategorySources = {};
+        state.data.settings.mediaCategorySources[cat.name] = sel.value;
+        await persist();
       };
       row.appendChild(sel);
       container.appendChild(row);
@@ -1715,12 +1716,10 @@
   }
 
   function updateMediaSettings() {
-    const enableEl = $("#mediaEnabled");
-    if (!enableEl) return;
-    enableEl.checked = !!state.media.enabled;
+    if (!$("#rawgKey")) return;
     $("#rawgKey").value = state.media.rawgKey || "";
     $("#tmdbKey").value = state.media.tmdbKey || "";
-    toggleMediaSections(!!state.media.enabled);
+    toggleMediaSections(!!state.visual.mediaEnabled);
     renderMediaCatRows();
   }
 
@@ -1733,6 +1732,7 @@
     $("#monthMin").value = state.visual.monthMinWidth;
     $("#monthMax").value = state.visual.monthMaxWidth;
     $("#fontFamily").value = state.visual.fontFamily;
+    $("#mediaEnabled").checked = !!state.visual.mediaEnabled;
     updateMediaSettings();
     updatePrivacySettings();
     $("#settingsModal").hidden = false;
@@ -2013,7 +2013,26 @@
       };
       saveVisualSettings(state.visual);
     }
-    data.settings = { monthOrder: incomingSettings.monthOrder || DEFAULT_SETTINGS.monthOrder };
+    // One-time migration: the media-enrichment on/off toggle and its
+    // per-category source assignments used to both live in local-only
+    // media settings. The toggle stays local (each device can opt in/out
+    // independently); the assignments move into data.settings so they sync
+    // and don't need redoing per device.
+    if (state.media.enabled !== undefined) {
+      state.visual.mediaEnabled = !!state.media.enabled;
+      delete state.media.enabled;
+      saveVisualSettings(state.visual);
+    }
+    let mediaCategorySources = incomingSettings.mediaCategorySources;
+    if (mediaCategorySources === undefined) mediaCategorySources = state.media.categorySources || {};
+    if (state.media.categorySources !== undefined) {
+      delete state.media.categorySources;
+      saveMediaSettings();
+    }
+    data.settings = {
+      monthOrder: incomingSettings.monthOrder || DEFAULT_SETTINGS.monthOrder,
+      mediaCategorySources,
+    };
     const accIn = data.accomplishments || {};
     data.accomplishments = {};
     for (const y of Object.keys(accIn)) {
@@ -2187,9 +2206,9 @@
     $("#monthMax").onchange = onLayoutChange;
     $("#fontFamily").onchange = onFontChange;
     $("#mediaEnabled").onchange = () => {
-      state.media.enabled = $("#mediaEnabled").checked;
-      saveMediaSettings();
-      toggleMediaSections(state.media.enabled);
+      state.visual.mediaEnabled = $("#mediaEnabled").checked;
+      saveVisualSettings(state.visual);
+      toggleMediaSections(state.visual.mediaEnabled);
     };
     $("#rawgKey").oninput = () => { state.media.rawgKey = $("#rawgKey").value; saveMediaSettings(); };
     $("#tmdbKey").oninput = () => { state.media.tmdbKey = $("#tmdbKey").value; saveMediaSettings(); };
