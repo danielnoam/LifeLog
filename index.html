@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.17.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.18.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -448,11 +448,14 @@
         <label>TMDB key <span class="muted">(movies &amp; shows — free at themoviedb.org)</span>
           <input id="tmdbKey" type="password" placeholder="Paste your TMDB API key…" autocomplete="off" spellcheck="false" />
         </label>
+        <label>GG.deals key <span class="muted">(game prices — free at gg.deals/api)</span>
+          <input id="ggdealsKey" type="password" placeholder="Paste your GG.deals API key…" autocomplete="off" spellcheck="false" />
+        </label>
         <p class="hint">Open Library, AniList, Google Books, and MusicBrainz all work without a key.</p>
       </section>
       <section class="settings-section" id="mediaCatSection" hidden>
         <h3>Source per category</h3>
-        <p class="hint">Choose which API to use for each of your categories. Categories set to "None" won't fetch metadata. These assignments sync across your devices.</p>
+        <p class="hint">Choose which API to use for each of your categories. Categories set to "None" won't fetch metadata. These assignments sync across your devices. Games synced via "Steam" also show current lowest prices on backlog cards once a GG.deals key is set above.</p>
         <div id="mediaCatRows"></div>
       </section>
       <p class="hint" id="mediaDisabledHint">Media enrichment is off on this device — turn it on in Settings → Appearance.</p>
@@ -474,9 +477,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.17.0"></script>
-  <script src="src/media.js?v=0.17.0"></script>
-  <script src="src/storage.js?v=0.17.0"></script>
-  <script src="src/app.js?v=0.17.0"></script>
+  <script src="src/qr.js?v=0.18.0"></script>
+  <script src="src/media.js?v=0.18.0"></script>
+  <script src="src/storage.js?v=0.18.0"></script>
+  <script src="src/app.js?v=0.18.0"></script>
 </body>
 </html>

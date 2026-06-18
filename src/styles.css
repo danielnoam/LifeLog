@@ -256,6 +256,8 @@ select:focus { outline: none; border-color: var(--accent); }
   font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .backlog-item-rich .bl-meta { font-size: 11px; color: var(--accent); }
+.backlog-item-rich .bl-price { font-size: 11px; color: var(--text-dim); }
+.backlog-item-rich .bl-price:empty { display: none; }
 .backlog-item-rich .bl-summary {
   font-size: 11.5px; color: var(--text-dim); overflow: hidden;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;

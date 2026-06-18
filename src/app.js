@@ -6,7 +6,7 @@
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const DEFAULT_SETTINGS = { monthOrder: "asc", mediaCategorySources: {}, mediaKeys: { rawg: "", tmdb: "" } }; // monthOrder, mediaCategorySources, mediaKeys — synced
+  const DEFAULT_SETTINGS = { monthOrder: "asc", mediaCategorySources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" } }; // monthOrder, mediaCategorySources, mediaKeys — synced
   const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, mediaEnabled: false }; // maxWidth 0 = stretch — local to this device, not synced
   const FONT_STACKS = {
     system: '"Segoe UI", system-ui, -apple-system, sans-serif',
@@ -23,7 +23,11 @@
     rawg: "RAWG", "tmdb-movie": "TMDB", "tmdb-tv": "TMDB",
     "anilist-anime": "AniList", "anilist-manga": "AniList",
     openlibrary: "Open Library", googlebooks: "Google Books", musicbrainz: "MusicBrainz",
+    steam: "Steam",
   };
+  // How long a fetched GG.deals price stays valid before a backlog re-render
+  // re-fetches it; avoids re-querying the rate-limited API on every render.
+  const PRICE_CACHE_MS = 15 * 60 * 1000;
   const PRIVACY_KEY = "lifelog-privacy-v1";
   // App lock: gates opening the app on this device. Local-only, never synced
   // (a PIN/credential set up on one device wouldn't make sense on another).
@@ -32,7 +36,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.17.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.18.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -479,6 +483,56 @@
     }
     root.appendChild(grid);
     if (state.bulk.active && state.bulk.selected.size) root.appendChild(bulkActionBar());
+    loadBacklogPrices(items);
+  }
+
+  // In-memory only (not persisted/synced) — prices change over time and are
+  // cheap to re-fetch next session, so there's no need to store them.
+  const priceCache = new Map();
+
+  function bestCurrentPrice(p) {
+    const vals = [p.currentRetail, p.currentKeyshops]
+      .map((v) => (v != null ? parseFloat(v) : null))
+      .filter((v) => v != null && !isNaN(v));
+    return vals.length ? Math.min(...vals) : null;
+  }
+
+  // Fetches GG.deals prices for any visible backlog items synced via Steam,
+  // skipping ones already cached recently, and patches their price badge in
+  // place once results arrive (no full re-render needed).
+  async function loadBacklogPrices(items) {
+    const apiKey = state.data.settings.mediaKeys?.ggdeals;
+    if (!apiKey || !window.LifeLogMedia) return;
+    const now = Date.now();
+    const appIds = [...new Set(
+      items.filter((b) => b.mediaSource === "steam" && b.mediaId).map((b) => b.mediaId)
+    )].filter((id) => {
+      const cached = priceCache.get(id);
+      return !cached || now - cached.ts > PRICE_CACHE_MS;
+    });
+    if (!appIds.length) {
+      applyCachedPrices(items);
+      return;
+    }
+    for (let i = 0; i < appIds.length; i += 100) {
+      const chunk = appIds.slice(i, i + 100);
+      const result = await window.LifeLogMedia.fetchPrices(chunk, apiKey);
+      for (const id of chunk) priceCache.set(id, { ts: now, data: result[id] || null });
+    }
+    applyCachedPrices(items);
+  }
+
+  function applyCachedPrices(items) {
+    for (const b of items) {
+      if (b.mediaSource !== "steam" || !b.mediaId) continue;
+      const cached = priceCache.get(b.mediaId);
+      if (!cached || !cached.data) continue;
+      const best = bestCurrentPrice(cached.data.prices || {});
+      if (best == null) continue;
+      document.querySelectorAll(`.bl-price[data-appid="${b.mediaId}"]`).forEach((elm) => {
+        elm.textContent = "💰 $" + best.toFixed(2);
+      });
+    }
   }
 
   function backlogToolbar() {
@@ -633,6 +687,11 @@
     if (b.releaseYear) meta.push(String(b.releaseYear));
     if (meta.length) body.appendChild(el("span", "bl-meta", meta.join(" · ")));
     if (b.summary) body.appendChild(el("p", "bl-summary", b.summary));
+    if (b.mediaSource === "steam" && b.mediaId) {
+      const price = el("span", "bl-price");
+      price.dataset.appid = b.mediaId;
+      body.appendChild(price);
+    }
     row.appendChild(body);
     // Done button at the right — same position as plain backlog rows
     if (!state.bulk.active) {
@@ -1067,7 +1126,7 @@
     if (!state.visual.mediaEnabled) return [];
     const source = (state.data.settings.mediaCategorySources || {})[category];
     if (!source || !window.LifeLogMedia) return [];
-    const keys = state.data.settings.mediaKeys || { rawg: "", tmdb: "" };
+    const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     try { return await window.LifeLogMedia.search(title, source, keys); } catch (e) { return []; }
   }
 
@@ -1683,6 +1742,7 @@
     const sources = [
       { value: "", label: "None" },
       { value: "rawg", label: "RAWG (games)" },
+      { value: "steam", label: "Steam (games)" },
       { value: "tmdb-movie", label: "TMDB (movie)" },
       { value: "tmdb-tv", label: "TMDB (TV)" },
       { value: "anilist-anime", label: "AniList (anime)" },
@@ -1719,6 +1779,7 @@
     if (!$("#rawgKey")) return;
     $("#rawgKey").value = state.data.settings.mediaKeys?.rawg || "";
     $("#tmdbKey").value = state.data.settings.mediaKeys?.tmdb || "";
+    $("#ggdealsKey").value = state.data.settings.mediaKeys?.ggdeals || "";
     toggleMediaSections(!!state.visual.mediaEnabled);
     renderMediaCatRows();
   }
@@ -2032,10 +2093,9 @@
     // One-time migration: API keys used to live in local-only media settings,
     // kept separate from synced data for privacy. Now they sync like
     // everything else, so pasting a key once covers every device.
-    let mediaKeys = incomingSettings.mediaKeys;
-    if (mediaKeys === undefined) {
-      mediaKeys = { rawg: state.media.rawgKey || "", tmdb: state.media.tmdbKey || "" };
-    }
+    let mediaKeys = incomingSettings.mediaKeys
+      ? { ...DEFAULT_SETTINGS.mediaKeys, ...incomingSettings.mediaKeys }
+      : { ...DEFAULT_SETTINGS.mediaKeys, rawg: state.media.rawgKey || "", tmdb: state.media.tmdbKey || "" };
     if (state.media.rawgKey !== undefined || state.media.tmdbKey !== undefined) {
       delete state.media.rawgKey;
       delete state.media.tmdbKey;
@@ -2223,16 +2283,14 @@
       saveVisualSettings(state.visual);
       toggleMediaSections(state.visual.mediaEnabled);
     };
-    $("#rawgKey").oninput = async () => {
-      if (!state.data.settings.mediaKeys) state.data.settings.mediaKeys = { rawg: "", tmdb: "" };
-      state.data.settings.mediaKeys.rawg = $("#rawgKey").value;
+    const setMediaKey = async (field, value) => {
+      if (!state.data.settings.mediaKeys) state.data.settings.mediaKeys = { ...DEFAULT_SETTINGS.mediaKeys };
+      state.data.settings.mediaKeys[field] = value;
       await persist();
     };
-    $("#tmdbKey").oninput = async () => {
-      if (!state.data.settings.mediaKeys) state.data.settings.mediaKeys = { rawg: "", tmdb: "" };
-      state.data.settings.mediaKeys.tmdb = $("#tmdbKey").value;
-      await persist();
-    };
+    $("#rawgKey").oninput = () => setMediaKey("rawg", $("#rawgKey").value);
+    $("#tmdbKey").oninput = () => setMediaKey("tmdb", $("#tmdbKey").value);
+    $("#ggdealsKey").oninput = () => setMediaKey("ggdeals", $("#ggdealsKey").value);
 
     $("#privacyEnabled").onchange = () => {
       const checked = $("#privacyEnabled").checked;
