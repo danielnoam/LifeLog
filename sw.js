@@ -1,7 +1,11 @@
 // LifeLog service worker — makes the app installable and usable offline.
-// Strategy: network-first for app files (so code updates aren't stale), with a
-// cache fallback when offline. The GitHub API is never cached.
-const CACHE = "lifelog-v12";
+// Strategy: network-first for this app's own files (so code updates aren't
+// stale), with a cache fallback when offline. Third-party API calls
+// (GitHub, RAWG/TMDB/Steam/GG.deals/etc.) are never touched — intercepting
+// those and falling back to index.html on failure previously turned a real
+// network/CORS error into a fake 200 OK full of HTML, masking the actual
+// failure from the app's own error handling.
+const CACHE = "lifelog-v13";
 // Note: lifelog.json is intentionally NOT precached — it isn't deployed (your
 // data is private). The app fetches it at runtime with a graceful fallback.
 const ASSETS = [
@@ -24,8 +28,8 @@ self.addEventListener("activate", (e) => {
 
 self.addEventListener("fetch", (e) => {
   const url = new URL(e.request.url);
-  if (e.request.method !== "GET") return;          // writes pass straight through
-  if (url.origin === "https://api.github.com") return; // never cache the data API
+  if (e.request.method !== "GET") return;            // writes pass straight through
+  if (url.origin !== self.location.origin) return;   // never intercept third-party requests
 
   e.respondWith(
     fetch(e.request)

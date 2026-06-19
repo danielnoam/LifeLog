@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.18.2] - 2026-06-19
+
+### Fixed
+- The service worker intercepted *every* fetch, including calls to RAWG,
+  TMDB, Steam, GG.deals, etc., and silently served the app's own
+  `index.html` whenever the real request failed (e.g. a CORS block) —
+  turning a real network error into a fake 200 OK full of HTML, which
+  broke JSON parsing and masked the actual failure reason behind a
+  confusing "Unexpected token '<'" error. The service worker now only
+  ever touches this app's own files; third-party requests are untouched
+  and fail honestly.
+
 ## [0.18.1] - 2026-06-19
 
 ### Fixed
