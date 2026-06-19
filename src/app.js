@@ -36,7 +36,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.18.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.19.0"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -405,10 +405,30 @@
 
   function onBacklogTitleInput() {
     const query = $("#bTitle").value;
-    if (query !== lastSyncedBacklogTitle) {
+    // A manually-entered Steam App ID isn't derived from the title, so editing
+    // the title shouldn't clear it the way it clears a search-based sync.
+    if (query !== lastSyncedBacklogTitle && $("#bMediaSource").value !== "steam") {
       ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bExternalRating"]
         .forEach((id) => { const f = $(id); if (f) f.value = ""; });
       setBacklogCover();
+    }
+  }
+
+  // Builds the cover/media fields directly from a manually-entered Steam App
+  // ID (see media.js — Steam's own search API is CORS-blocked from browsers).
+  function applySteamAppId(prefix) {
+    const id = $("#" + prefix + "SteamAppId").value.trim();
+    const coverUrl = id ? window.LifeLogMedia.steamCoverUrl(id) : "";
+    if (prefix === "b") {
+      $("#bCoverUrl").value = coverUrl;
+      $("#bMediaId").value = id;
+      $("#bMediaSource").value = id ? "steam" : "";
+      $("#bReleaseYear").value = "";
+      $("#bExternalRating").value = "";
+      $("#bSummary").value = "";
+      setBacklogCover();
+    } else {
+      setEntryCover(coverUrl, id, id ? "steam" : "");
     }
   }
 
@@ -444,6 +464,7 @@
   function unsyncBacklogItem() {
     ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bExternalRating"]
       .forEach((id) => { const f = $(id); if (f) f.value = ""; });
+    $("#bSteamAppId").value = "";
     setBacklogCover();
     $("#bTitleSuggest").hidden = true;
   }
@@ -625,7 +646,10 @@
     let synced = 0, skipped = 0, lastErr = "";
     for (const id of ids) {
       const item = state.data.backlog.find((b) => b.id === id);
-      if (!item || !hasMediaSourceFor(item.category)) { skipped++; continue; }
+      // Steam has no search (CORS-blocked) — its App ID can only be entered
+      // manually per item, so it's skipped here rather than attempted.
+      const source = item && (state.data.settings.mediaCategorySources || {})[item.category];
+      if (!item || !source || source === "steam") { skipped++; continue; }
       const results = await fetchMediaSuggestions(item.title, item.category);
       if (!results.length) {
         skipped++;
@@ -1088,6 +1112,7 @@
     const mediaId = editing ? (entry.mediaId || "") : (fromBacklog ? (fromBacklog.mediaId || "") : "");
     lastSyncedEntryTitle = editing ? entry.title : (fromBacklog ? fromBacklog.title : "");
     setEntryCover(coverSrc, mediaId, mediaSrc);
+    $("#fSteamAppId").value = mediaSrc === "steam" ? mediaId : "";
     updateSyncBtnVisibility("f", $("#fCategory").value);
     $("#fTitleSuggest").hidden = true;
     $("#fTitleSuggest").innerHTML = "";
@@ -1179,8 +1204,11 @@
   }
 
   function updateSyncBtnVisibility(prefix, category) {
+    const isSteam = (state.data.settings.mediaCategorySources || {})[category] === "steam";
     const btn = $("#" + prefix + "SyncBtn");
-    if (btn) btn.hidden = !hasMediaSourceFor(category);
+    if (btn) btn.hidden = isSteam || !hasMediaSourceFor(category);
+    const steamField = $("#" + prefix + "SteamField");
+    if (steamField) steamField.hidden = !isSteam;
   }
 
   function setEntryCover(coverUrl, mediaId, mediaSource) {
@@ -1220,8 +1248,9 @@
     const list = $("#fTitleSuggest");
     const query = $("#fTitle").value;
 
-    // If user is typing new content (not just after a local-match pick), clear cover
-    if (query !== lastSyncedEntryTitle && $("#fCoverUrl").value) {
+    // If user is typing new content (not just after a local-match pick), clear cover —
+    // unless it's a manually-entered Steam App ID, which isn't derived from the title.
+    if (query !== lastSyncedEntryTitle && $("#fCoverUrl").value && $("#fMediaSource").value !== "steam") {
       setEntryCover("", "", "");
     }
 
@@ -1275,6 +1304,7 @@
 
   function unsyncEntry() {
     setEntryCover("", "", "");
+    $("#fSteamAppId").value = "";
     $("#fTitleSuggest").hidden = true;
   }
 
@@ -1507,6 +1537,7 @@
     $("#bReleaseYear").value = editing && item.releaseYear ? String(item.releaseYear) : "";
     $("#bExternalRating").value = editing ? (item.externalRating || "") : "";
     lastSyncedBacklogTitle = editing ? item.title : "";
+    $("#bSteamAppId").value = editing && item.mediaSource === "steam" ? (item.mediaId || "") : "";
     $("#bTitleSuggest").innerHTML = "";
     $("#bTitleSuggest").hidden = true;
     $("#deleteBacklogBtn").hidden = !editing;
@@ -1764,7 +1795,7 @@
     const sources = [
       { value: "", label: "None" },
       { value: "rawg", label: "RAWG (games)" },
-      { value: "steam", label: "Steam (games)" },
+      { value: "steam", label: "Steam (manual App ID)" },
       { value: "tmdb-movie", label: "TMDB (movie)" },
       { value: "tmdb-tv", label: "TMDB (TV)" },
       { value: "anilist-anime", label: "AniList (anime)" },
@@ -2251,6 +2282,7 @@
     $("#fCategory").onchange = () => updateSyncBtnVisibility("f", $("#fCategory").value);
     $("#fSyncBtn").onclick = syncEntryTitle;
     $("#fUnsyncBtn").onclick = unsyncEntry;
+    $("#fSteamAppId").oninput = () => applySteamAppId("f");
     $("#fRating").querySelectorAll(".star").forEach((s) => {
       s.onclick = () => {
         const v = parseInt(s.dataset.star, 10);
@@ -2276,6 +2308,7 @@
     $("#bCategory").onchange = () => updateSyncBtnVisibility("b", $("#bCategory").value);
     $("#bSyncBtn").onclick = syncBacklogTitle;
     $("#bUnsyncBtn").onclick = unsyncBacklogItem;
+    $("#bSteamAppId").oninput = () => applySteamAppId("b");
     document.addEventListener("click", (e) => {
       if (!e.target.closest("#backlogModal .ac-wrap")) {
         const bs = $("#bTitleSuggest");

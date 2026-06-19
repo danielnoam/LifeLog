@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.19.0] - 2026-06-19
+
+### Changed
+- Replaced the "Steam" media source's title search with manual Steam App ID
+  entry — Steam's storesearch API has no CORS allowance for browser
+  requests, so it could never actually return results (confirmed via
+  testing: every search failed with "Failed to fetch"). Categories set to
+  "Steam" now show a Steam App ID field instead of the search box; paste
+  the ID from the game's store URL (`store.steampowered.com/app/<id>/…`)
+  and the cover art is pulled directly from Steam's CDN. GG.deals price
+  lookups are unaffected — they already worked from the App ID, not a
+  search result.
+
 ## [0.18.2] - 2026-06-19
 
 ### Fixed

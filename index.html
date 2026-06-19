@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.18.2" />
+  <link rel="stylesheet" href="src/styles.css?v=0.19.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -100,6 +100,12 @@
             <button type="button" class="link-btn" id="fUnsyncBtn">✕ Unsync</button>
           </div>
         </label>
+        <div id="fSteamField" hidden>
+          <label>Steam App ID
+            <input id="fSteamAppId" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 1245620" />
+          </label>
+          <p class="hint">Steam's search can't be called from a browser, so paste the ID from the game's store URL (store.steampowered.com/app/<em>1245620</em>/…) — used for cover art and GG.deals prices.</p>
+        </div>
         <label>Category
           <select id="fCategory" required></select>
         </label>
@@ -212,6 +218,12 @@
             <button type="button" class="link-btn" id="bUnsyncBtn">✕ Unsync</button>
           </div>
         </label>
+        <div id="bSteamField" hidden>
+          <label>Steam App ID
+            <input id="bSteamAppId" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 1245620" />
+          </label>
+          <p class="hint">Steam's search can't be called from a browser, so paste the ID from the game's store URL (store.steampowered.com/app/<em>1245620</em>/…) — used for cover art and GG.deals prices.</p>
+        </div>
         <label>Category
           <select id="bCategory" required></select>
         </label>
@@ -455,7 +467,7 @@
       </section>
       <section class="settings-section" id="mediaCatSection" hidden>
         <h3>Source per category</h3>
-        <p class="hint">Choose which API to use for each of your categories. Categories set to "None" won't fetch metadata. These assignments sync across your devices. Games synced via "Steam" also show current lowest prices on backlog cards once a GG.deals key is set above.</p>
+        <p class="hint">Choose which API to use for each of your categories. Categories set to "None" won't fetch metadata. These assignments sync across your devices. Categories set to "Steam" show a manual Steam App ID field instead of search (Steam has no browser-callable search API) — paste the ID from the game's store URL to get cover art and, once a GG.deals key is set above, current lowest prices.</p>
         <div id="mediaCatRows"></div>
       </section>
       <p class="hint" id="mediaDisabledHint">Media enrichment is off on this device — turn it on in Settings → Appearance.</p>
@@ -477,9 +489,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.18.2"></script>
-  <script src="src/media.js?v=0.18.2"></script>
-  <script src="src/storage.js?v=0.18.2"></script>
-  <script src="src/app.js?v=0.18.2"></script>
+  <script src="src/qr.js?v=0.19.0"></script>
+  <script src="src/media.js?v=0.19.0"></script>
+  <script src="src/storage.js?v=0.19.0"></script>
+  <script src="src/app.js?v=0.19.0"></script>
 </body>
 </html>
