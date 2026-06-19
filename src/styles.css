@@ -182,6 +182,21 @@ select:focus { outline: none; border-color: var(--accent); }
 .datechip { font-size: 11px; color: var(--text-faint); background: var(--bg-elev2); border: 1px solid var(--border); border-radius: 8px; padding: 2px 7px; cursor: pointer; }
 .datechip:hover { color: var(--text); border-color: var(--accent); }
 
+/* finance */
+.tab-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; align-self: center; }
+.finance-list { display: flex; flex-direction: column; gap: 2px; }
+.finance-entry .fdate { font-size: 11px; color: var(--text-faint); width: 78px; flex: 0 0 auto; }
+.finance-entry .famount { font-weight: 700; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+.famount.fpositive { color: #4bd07a; }
+.famount.fnegative { color: var(--danger); }
+.bar-row.money { grid-template-columns: 120px 1fr 100px; }
+.money-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+.money-row:last-child { border-bottom: none; }
+.money-row .lbl { color: var(--text-dim); }
+.money-row .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+.chip-edit { margin-left: 2px; opacity: .6; font-size: 11px; }
+.chip-edit:hover { opacity: 1; color: var(--accent); }
+
 /* stats */
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
 @media (max-width: 800px){ .stats-grid { grid-template-columns: 1fr; } }
@@ -470,6 +485,7 @@ body.modal-open { overflow: hidden; }
     box-shadow: var(--shadow); padding: 5px;
   }
   .views.open .tab.active { display: none; }
+  .tab-sep { width: 100%; height: 1px; margin: 4px 0; }
   .topbar-actions { gap: 6px; margin-left: auto; }
   .topbar-actions .btn { padding: 10px 14px; }
   .topbar-actions .btn-icon { padding: 10px 12px; }

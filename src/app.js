@@ -36,7 +36,17 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.19.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.20.0"; // bump with each shipped change so it's visible in Settings
+
+  // Seeded so a first-time switch to the Finance tab starts from a familiar
+  // set of categories instead of empty — fully editable/deletable afterward.
+  const DEFAULT_FINANCE_CATEGORY_NAMES = ["Entertainment", "Food", "Fuel", "Clothing", "Health", "Smoking", "Other"];
+  const FINANCE_PALETTE = ["#e2723b", "#3bb2e2", "#9fe23b", "#b23be2", "#e23b72", "#6b7384", "#7a8a99"];
+  function seedFinanceCategories() {
+    return DEFAULT_FINANCE_CATEGORY_NAMES.map((name, i) => ({
+      id: name.toLowerCase(), name, color: FINANCE_PALETTE[i % FINANCE_PALETTE.length],
+    }));
+  }
 
   function loadVisualSettings() {
     try {
@@ -142,13 +152,20 @@
     search: "",
     activeYears: new Set(),
     activeCats: new Set(),
+    financeActiveYears: new Set(),
+    financeActiveCats: new Set(),
     statsYear: null,
     bulk: { active: false, selected: new Set() },
   };
   let catColor = {}; // name -> color
+  let financeCatColor = {}; // name -> color
 
   function emptyData() {
-    return { version: 1, categories: [], entries: [], backlog: [], accomplishments: {}, settings: { ...DEFAULT_SETTINGS } };
+    return {
+      version: 1, categories: [], entries: [], backlog: [], accomplishments: {},
+      financeCategories: seedFinanceCategories(), financeEntries: [],
+      settings: { ...DEFAULT_SETTINGS },
+    };
   }
 
   // ---------- helpers ----------
@@ -166,6 +183,36 @@
     for (const c of state.data.categories) catColor[c.name] = c.color;
   }
   const colorOf = (name) => catColor[name] || "#7a8a99";
+
+  function rebuildFinanceColorMap() {
+    financeCatColor = {};
+    for (const c of state.data.financeCategories) financeCatColor[c.name] = c.color;
+  }
+  const financeColorOf = (name) => financeCatColor[name] || "#7a8a99";
+
+  // Manual formatting instead of Intl.NumberFormat("he-IL", {style:"currency"}) —
+  // that locale injects invisible RTL bidi marks and puts the symbol after the
+  // number ("1,302.00 ₪"), not matching the source sheet's "₪1,302.00".
+  function formatMoney(n) {
+    const sign = n < 0 ? "-" : "";
+    return sign + "₪" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  function financeYearOf(f) { return +String(f.date).slice(0, 4); }
+  function financeYears() {
+    const ys = new Set(state.data.financeEntries.map(financeYearOf));
+    return [...ys].sort((a, b) => b - a);
+  }
+
+  function getFilteredFinance() {
+    const q = state.search.trim().toLowerCase();
+    return state.data.financeEntries.filter((f) => {
+      if (state.financeActiveYears.size && !state.financeActiveYears.has(financeYearOf(f))) return false;
+      if (state.financeActiveCats.size && !state.financeActiveCats.has(f.category)) return false;
+      if (q && !(f.note || "").toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }
 
   function years() {
     const ys = new Set(state.data.entries.map((e) => e.year));
@@ -227,6 +274,8 @@
     const c = $("#content");
     c.innerHTML = "";
     if (state.view === "backlog") { renderBacklog(c); return; }
+    if (state.view === "finance") { renderFinanceEntries(c); return; }
+    if (state.view === "finance-stats") { renderFinanceStats(c); return; }
     const entries = getFiltered();
     if (!state.data.entries.length) {
       c.appendChild(emptyState("No entries yet. Click “+ Add” to start, or import data from Settings."));
@@ -792,6 +841,121 @@
     return cb;
   }
 
+  // ---------- finance ----------
+  function renderFinanceEntries(root) {
+    if (!state.data.financeEntries.length) {
+      root.appendChild(emptyState(`No finance entries yet. Use "+ Add" → "Add finance entry" to log income or expenses.`));
+      return;
+    }
+    const items = getFilteredFinance();
+    if (!items.length) {
+      root.appendChild(emptyState("No finance entries match your filters."));
+      return;
+    }
+    const byYear = groupBy(items, financeYearOf);
+    for (const y of Object.keys(byYear).sort((a, b) => b - a)) {
+      const block = el("div", "year-block");
+      const head = el("div", "year-head");
+      head.appendChild(el("h2", null, y));
+      head.appendChild(el("span", "ycount", `${byYear[y].length} entries`));
+      block.appendChild(head);
+      const list = el("div", "finance-list");
+      byYear[y].slice().sort((a, b) => b.date.localeCompare(a.date)).forEach((f) => list.appendChild(financeRow(f)));
+      block.appendChild(list);
+      root.appendChild(block);
+    }
+  }
+
+  function financeRow(f) {
+    const row = el("div", "entry finance-entry");
+    const bar = el("div", "bar");
+    bar.style.background = financeColorOf(f.category);
+    row.appendChild(bar);
+    row.appendChild(el("span", "fdate", f.date));
+    const t = el("span", "etitle", f.note || f.category);
+    t.title = f.note || f.category;
+    row.appendChild(t);
+    row.appendChild(el("span", "ecat", f.category));
+    const sign = f.type === "income" ? "+" : "-";
+    const amt = el("span", "famount " + (f.type === "income" ? "fpositive" : "fnegative"), sign + formatMoney(f.amount));
+    row.appendChild(amt);
+    row.onclick = () => openFinanceModal(f);
+    return row;
+  }
+
+  function renderFinanceStats(root) {
+    if (!state.data.financeEntries.length) {
+      root.appendChild(emptyState("No finance entries yet — add some on the Finance tab to see stats here."));
+      return;
+    }
+    const items = getFilteredFinance();
+    if (!items.length) {
+      root.appendChild(emptyState("No finance entries match your filters."));
+      return;
+    }
+
+    const income = items.filter((f) => f.type === "income").reduce((s, f) => s + f.amount, 0);
+    const expense = items.filter((f) => f.type === "expense").reduce((s, f) => s + f.amount, 0);
+
+    const big = el("div", "card");
+    big.appendChild(el("h2", null, "Overview"));
+    const bigRow = el("div", "stat-big");
+    bigRow.appendChild(moneyStatItem(income, "income"));
+    bigRow.appendChild(moneyStatItem(expense, "expenses"));
+    bigRow.appendChild(moneyStatItem(income - expense, "net"));
+    big.appendChild(bigRow);
+    root.appendChild(big);
+
+    const grid = el("div", "stats-grid");
+    const expenseItems = items.filter((f) => f.type === "expense");
+
+    const catCard = el("div", "card");
+    catCard.appendChild(el("h2", null, "By category"));
+    const catTotals = {};
+    for (const f of expenseItems) catTotals[f.category] = (catTotals[f.category] || 0) + f.amount;
+    let catOrder = state.data.financeCategories.map((c) => c.name).filter((n) => catTotals[n]);
+    for (const n of Object.keys(catTotals)) if (!catOrder.includes(n)) catOrder.push(n);
+    const catMax = Math.max(1, ...Object.values(catTotals));
+    catOrder.sort((a, b) => catTotals[b] - catTotals[a])
+      .forEach((n) => catCard.appendChild(barRow(n, catTotals[n], catMax, financeColorOf(n), null, formatMoney)));
+    grid.appendChild(catCard);
+
+    const yearCard = el("div", "card");
+    yearCard.appendChild(el("h2", null, "By year"));
+    const yearTotals = {};
+    for (const f of expenseItems) {
+      const y = financeYearOf(f);
+      yearTotals[y] = (yearTotals[y] || 0) + f.amount;
+    }
+    const yearMax = Math.max(1, ...Object.values(yearTotals));
+    Object.keys(yearTotals).sort((a, b) => b - a)
+      .forEach((y) => yearCard.appendChild(barRow(y, yearTotals[y], yearMax, "#5b8cff", null, formatMoney)));
+    grid.appendChild(yearCard);
+
+    root.appendChild(grid);
+
+    // Mirrors the source sheet's own "Per Month" row (yearly total ÷ 12).
+    const pmCard = el("div", "card");
+    pmCard.style.marginTop = "20px";
+    pmCard.appendChild(el("h2", null, "Per month average"));
+    Object.keys(yearTotals).sort((a, b) => b - a)
+      .forEach((y) => pmCard.appendChild(moneyRow(y, yearTotals[y] / 12)));
+    root.appendChild(pmCard);
+  }
+
+  function moneyStatItem(n, l) {
+    const i = el("div", "item");
+    i.appendChild(el("div", "n", formatMoney(n)));
+    i.appendChild(el("div", "l", l));
+    return i;
+  }
+  function moneyRow(label, amount) {
+    const row = el("div", "money-row");
+    row.appendChild(el("span", "lbl", String(label)));
+    row.appendChild(el("span", "val", formatMoney(amount)));
+    return row;
+  }
+
   function renderStats(root, entries) {
     const ys = [...new Set(entries.map((e) => e.year))];
     const thisYear = new Date().getFullYear();
@@ -989,7 +1153,7 @@
     i.appendChild(el("div", "l", l));
     return i;
   }
-  function barRow(label, val, max, color, uniqueVal) {
+  function barRow(label, val, max, color, uniqueVal, fmt) {
     const row = el("div", "bar-row");
     row.appendChild(el("div", "lbl", label));
     const track = el("div", "bar-track");
@@ -999,12 +1163,14 @@
     track.appendChild(fill);
     row.appendChild(track);
     const valEl = el("div", "val");
+    const display = fmt ? fmt(val) : String(val);
+    if (fmt) row.classList.add("money");
     if (uniqueVal != null && uniqueVal !== val) {
-      valEl.appendChild(el("span", "val-total", String(val)));
+      valEl.appendChild(el("span", "val-total", display));
       valEl.appendChild(el("span", "val-unique", String(uniqueVal)));
       valEl.appendChild(el("span", "val-unique-lbl", "unique"));
     } else {
-      valEl.textContent = String(val);
+      valEl.textContent = display;
     }
     row.appendChild(valEl);
     return row;
@@ -1023,16 +1189,23 @@
   }
 
   // ---------- filter bar ----------
+  // The same #yearFilter/#catFilter chip bar is shared by every view (it was
+  // already loosely reused this way — e.g. backlog shows year chips it
+  // doesn't filter by) — finance views swap in their own data/active-set.
+  function isFinanceView() { return state.view === "finance" || state.view === "finance-stats"; }
+
   function buildYearFilter() {
     const wrap = $("#yearFilter");
     wrap.innerHTML = "";
-    const ys = years();
-    for (const y of state.activeYears) if (!ys.includes(y)) state.activeYears.delete(y);
+    const finance = isFinanceView();
+    const ys = finance ? financeYears() : years();
+    const activeYears = finance ? state.financeActiveYears : state.activeYears;
+    for (const y of activeYears) if (!ys.includes(y)) activeYears.delete(y);
     ys.forEach((y) => {
-      const chip = el("span", "cat-chip year-chip" + (state.activeYears.has(y) ? " on" : ""), String(y));
+      const chip = el("span", "cat-chip year-chip" + (activeYears.has(y) ? " on" : ""), String(y));
       chip.onclick = () => {
-        if (state.activeYears.has(y)) state.activeYears.delete(y);
-        else state.activeYears.add(y);
+        if (activeYears.has(y)) activeYears.delete(y);
+        else activeYears.add(y);
         buildYearFilter();
         render();
       };
@@ -1042,15 +1215,24 @@
   function buildCatFilter() {
     const wrap = $("#catFilter");
     wrap.innerHTML = "";
-    state.data.categories.forEach((c) => {
-      const chip = el("span", "cat-chip" + (state.activeCats.has(c.name) ? " on" : ""));
+    const finance = isFinanceView();
+    const cats = finance ? state.data.financeCategories : state.data.categories;
+    const activeCats = finance ? state.financeActiveCats : state.activeCats;
+    cats.forEach((c) => {
+      const chip = el("span", "cat-chip" + (activeCats.has(c.name) ? " on" : ""));
       const dot = el("span", "dot"); dot.style.background = c.color;
       chip.appendChild(dot);
       chip.appendChild(document.createTextNode(c.name));
-      if (state.activeCats.has(c.name)) chip.style.background = c.color + "22";
+      if (activeCats.has(c.name)) chip.style.background = c.color + "22";
+      if (finance) {
+        const edit = el("span", "chip-edit", "✎");
+        edit.title = "Edit category";
+        edit.onclick = (ev) => { ev.stopPropagation(); openFinanceCatModal(c); };
+        chip.appendChild(edit);
+      }
       chip.onclick = () => {
-        if (state.activeCats.has(c.name)) state.activeCats.delete(c.name);
-        else state.activeCats.add(c.name);
+        if (activeCats.has(c.name)) activeCats.delete(c.name);
+        else activeCats.add(c.name);
         buildCatFilter();
         render();
       };
@@ -1061,16 +1243,20 @@
   // Clicking the "Years"/"Categories" label selects all chips; clicking again
   // when everything is already selected deselects all.
   function toggleAllYears() {
-    const ys = years();
-    if (state.activeYears.size === ys.length) state.activeYears.clear();
-    else { state.activeYears.clear(); ys.forEach((y) => state.activeYears.add(y)); }
+    const finance = isFinanceView();
+    const ys = finance ? financeYears() : years();
+    const activeYears = finance ? state.financeActiveYears : state.activeYears;
+    if (activeYears.size === ys.length) activeYears.clear();
+    else { activeYears.clear(); ys.forEach((y) => activeYears.add(y)); }
     buildYearFilter();
     render();
   }
   function toggleAllCats() {
-    const names = state.data.categories.map((c) => c.name);
-    if (state.activeCats.size === names.length) state.activeCats.clear();
-    else { state.activeCats.clear(); names.forEach((n) => state.activeCats.add(n)); }
+    const finance = isFinanceView();
+    const names = (finance ? state.data.financeCategories : state.data.categories).map((c) => c.name);
+    const activeCats = finance ? state.financeActiveCats : state.activeCats;
+    if (activeCats.size === names.length) activeCats.clear();
+    else { activeCats.clear(); names.forEach((n) => activeCats.add(n)); }
     buildCatFilter();
     render();
   }
@@ -1598,6 +1784,148 @@
     toast("Removed from backlog");
   }
 
+  // ---------- finance entries ----------
+  function openFinanceModal(entry) {
+    const editing = !!entry;
+    $("#financeModalTitle").textContent = editing ? "Edit finance entry" : "Add finance entry";
+    $("#financeId").value = editing ? entry.id : "";
+    $("#finDate").value = editing ? entry.date : new Date().toISOString().slice(0, 10);
+    $("#finType").value = editing ? entry.type : "expense";
+    $("#finAmount").value = editing ? entry.amount : "";
+    fillSelect($("#finCategory"),
+      state.data.financeCategories.map((c) => ({ value: c.name, label: c.name })),
+      editing ? entry.category : (state.data.financeCategories[0] && state.data.financeCategories[0].name));
+    $("#finNote").value = editing ? (entry.note || "") : "";
+    $("#deleteFinanceBtn").hidden = !editing;
+    $("#financeModal").hidden = false;
+  }
+  function closeFinanceModal() { $("#financeModal").hidden = true; }
+
+  async function saveFinanceFromForm(ev) {
+    ev.preventDefault();
+    const id = $("#financeId").value;
+    const date = $("#finDate").value;
+    const type = $("#finType").value === "income" ? "income" : "expense";
+    const amount = Math.abs(parseFloat($("#finAmount").value)) || 0;
+    const category = $("#finCategory").value;
+    const note = $("#finNote").value.trim();
+    if (!date || !amount) return;
+    if (id) {
+      const f = state.data.financeEntries.find((x) => x.id === id);
+      Object.assign(f, { date, type, amount, category });
+      if (note) f.note = note; else delete f.note;
+    } else {
+      const item = { id: uid(), date, type, amount, category, createdAt: new Date().toISOString() };
+      if (note) item.note = note;
+      state.data.financeEntries.push(item);
+    }
+    closeFinanceModal();
+    buildYearFilter();
+    render();
+    await persist();
+    toast(id ? "Finance entry updated" : "Finance entry added");
+  }
+
+  async function deleteCurrentFinanceEntry() {
+    const id = $("#financeId").value;
+    if (!id) return;
+    if (!confirm("Delete this finance entry?")) return;
+    state.data.financeEntries = state.data.financeEntries.filter((x) => x.id !== id);
+    closeFinanceModal();
+    buildYearFilter();
+    render();
+    await persist();
+    toast("Finance entry deleted");
+  }
+
+  // ---------- finance categories management ----------
+  function openFinanceCatModal(cat) {
+    const editing = !!cat;
+    $("#financeCatModalTitle").textContent = editing ? "Edit finance category" : "Add finance category";
+    $("#finCatOrigName").value = editing ? cat.name : "";
+    $("#finCatName").value = editing ? cat.name : "";
+    $("#finCatColorInput").value = editing ? cat.color : "#3bb2e2";
+    const uses = $("#finCatUses");
+    if (editing) {
+      const n = countBy(state.data.financeEntries, (f) => f.category)[cat.name] || 0;
+      uses.textContent = n + (n === 1 ? " entry uses this" : " entries use this");
+      uses.hidden = false;
+    } else uses.hidden = true;
+    $("#deleteFinanceCatBtn").hidden = !editing;
+    $("#financeCatModal").hidden = false;
+  }
+  function closeFinanceCatModal() { $("#financeCatModal").hidden = true; }
+
+  async function saveFinanceCatFromForm(ev) {
+    ev.preventDefault();
+    const orig = $("#finCatOrigName").value;
+    const newName = $("#finCatName").value.trim();
+    const color = $("#finCatColorInput").value;
+    if (!newName) return;
+
+    if (!orig) { // adding a new category
+      if (state.data.financeCategories.some((c) => c.name === newName)) {
+        toast("That category already exists", true);
+        return;
+      }
+      state.data.financeCategories.push({ id: newName.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: newName, color });
+      closeFinanceCatModal();
+      rebuildFinanceColorMap(); buildCatFilter(); render();
+      await persist();
+      toast("Finance category added");
+      return;
+    }
+
+    const cat = state.data.financeCategories.find((c) => c.name === orig);
+    if (!cat) return;
+    if (newName !== cat.name && state.data.financeCategories.some((c) => c !== cat && c.name === newName)) {
+      toast("A category with that name already exists", true);
+      return;
+    }
+    cat.color = color;
+    if (newName !== cat.name) {
+      const old = cat.name;
+      cat.name = newName;
+      cat.id = newName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      state.data.financeEntries.forEach((f) => { if (f.category === old) f.category = newName; });
+      if (state.financeActiveCats.has(old)) { state.financeActiveCats.delete(old); state.financeActiveCats.add(newName); }
+    }
+    closeFinanceCatModal();
+    rebuildFinanceColorMap(); buildCatFilter(); render();
+    await persist();
+    toast("Finance category saved");
+  }
+
+  function deleteCurrentFinanceCategory() {
+    const cat = state.data.financeCategories.find((c) => c.name === $("#finCatOrigName").value);
+    if (!cat) return;
+    closeFinanceCatModal();
+    deleteFinanceCategory(cat);
+  }
+
+  async function deleteFinanceCategory(cat) {
+    const counts = countBy(state.data.financeEntries, (f) => f.category);
+    const n = counts[cat.name] || 0;
+    if (n > 0) {
+      if (cat.name === "Other") {
+        toast("Can't delete “Other” while it's in use", true);
+        return;
+      }
+      if (!confirm(`“${cat.name}” is used by ${n} entr${n === 1 ? "y" : "ies"}. Move them to “Other” and delete?`)) return;
+      let other = state.data.financeCategories.find((c) => c.name === "Other");
+      if (!other) { other = { id: "other", name: "Other", color: "#7a8a99" }; state.data.financeCategories.push(other); }
+      state.data.financeEntries.forEach((f) => { if (f.category === cat.name) f.category = "Other"; });
+    } else {
+      if (!confirm(`Delete category “${cat.name}”?`)) return;
+    }
+    state.data.financeCategories = state.data.financeCategories.filter((c) => c !== cat);
+    state.financeActiveCats.delete(cat.name);
+    rebuildFinanceColorMap();
+    buildCatFilter(); render();
+    await persist();
+    toast("Finance category deleted");
+  }
+
   // ---------- settings / storage ----------
   function setStorageStatus(cls, txt) {
     const s = $("#storageStatus");
@@ -2099,6 +2427,18 @@
     if (b.externalRating) out.externalRating = b.externalRating;
     return out;
   }
+  function sanitizeFinanceEntry(f) {
+    const out = {
+      id: f.id || uid(),
+      date: f.date || "",
+      type: f.type === "income" ? "income" : "expense",
+      amount: Math.abs(+f.amount) || 0,
+      category: f.category || "Other",
+      createdAt: f.createdAt || null,
+    };
+    if (f.note) out.note = f.note;
+    return out;
+  }
   // adds a category entry (with a palette color) for any category name used
   // by entries/backlog items that isn't already known
   function ensureCategories(categories, items) {
@@ -2171,11 +2511,17 @@
     }
     // ensure every used category exists
     ensureCategories(data.categories, [...data.entries, ...data.backlog]);
+
+    if (data.financeCategories === undefined) data.financeCategories = seedFinanceCategories();
+    data.financeEntries = (data.financeEntries || []).map(sanitizeFinanceEntry);
+    ensureCategories(data.financeCategories, data.financeEntries);
+
     return data;
   }
 
   function afterDataChange() {
     rebuildColorMap();
+    rebuildFinanceColorMap();
     applyMonthLayout();
     applyFont();
     buildYearFilter();
@@ -2250,6 +2596,8 @@
         e.stopPropagation();
         viewTabs.classList.remove("open");
         state.view = t.dataset.view;
+        buildYearFilter();
+        buildCatFilter();
         render();
         saveUiState();
       });
@@ -2270,6 +2618,8 @@
       if (b.dataset.add === "entry") openEntryModal(null);
       else if (b.dataset.add === "achievement") openAchModal(null);
       else if (b.dataset.add === "backlog") openBacklogModal(null);
+      else if (b.dataset.add === "finance") openFinanceModal(null);
+      else if (b.dataset.add === "finance-category") openFinanceCatModal(null);
       else openCategoryModal(null);
     });
     document.addEventListener("click", closeAddMenu);
@@ -2300,6 +2650,14 @@
     $("#cancelCatBtn").onclick = closeCategoryModal;
     $("#catForm").onsubmit = saveCategoryFromForm;
     $("#deleteCatBtn").onclick = deleteCurrentCategory;
+
+    $("#cancelFinanceBtn").onclick = closeFinanceModal;
+    $("#financeForm").onsubmit = saveFinanceFromForm;
+    $("#deleteFinanceBtn").onclick = deleteCurrentFinanceEntry;
+
+    $("#cancelFinanceCatBtn").onclick = closeFinanceCatModal;
+    $("#financeCatForm").onsubmit = saveFinanceCatFromForm;
+    $("#deleteFinanceCatBtn").onclick = deleteCurrentFinanceCategory;
 
     $("#cancelBacklogBtn").onclick = closeBacklogModal;
     $("#backlogForm").onsubmit = saveBacklogFromForm;
@@ -2441,7 +2799,8 @@
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
-        closeEntryModal(); closeAchModal(); closeCategoryModal(); closeBacklogModal(); closeSettings();
+        closeEntryModal(); closeAchModal(); closeCategoryModal(); closeBacklogModal();
+        closeFinanceModal(); closeFinanceCatModal(); closeSettings();
         $("#addMenu").hidden = true;
         viewTabs.classList.remove("open");
       }

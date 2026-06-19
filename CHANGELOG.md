@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.20.0] - 2026-06-19
+
+### Added
+- Finance logging: two new tabs, "Finance" and "Finance Stats", visually
+  separated from the media/lifelog tabs by a divider. Log income/expense
+  entries with date, amount, category, and an optional note; entries are
+  filterable by year and category using the same chip filters as the
+  Timeline view. Categories are seeded with 7 defaults (Entertainment,
+  Food, Fuel, Clothing, Health, Smoking, Other) and are fully editable/
+  deletable like any category. Finance Stats shows income/expense/net
+  totals, per-category and per-year breakdowns, and a per-month average
+  per year. Amounts are formatted as ₪ (Israeli New Shekel).
+
 ## [0.19.0] - 2026-06-19
 
 ### Changed
