@@ -1,6 +1,12 @@
 // LifeLog — media enrichment: fetch cover art and metadata from RAWG, TMDB,
 // Open Library, AniList, Google Books, and MusicBrainz.
 (function () {
+  // Set whenever a search/price fetch fails outright (network error, CORS
+  // block, bad key, rate limit) so the UI can show *why* nothing came back
+  // instead of a generic "no matches" — most failures here are silent
+  // browser-side CORS rejections that never reach devtools-less users.
+  let lastError = "";
+
   function stripHtml(s) {
     return (s || "").replace(/<[^>]*>/g, "");
   }
@@ -126,7 +132,7 @@
     try {
       const url = "https://store.steampowered.com/api/storesearch/?term=" + encodeURIComponent(title) + "&l=english&cc=us";
       const res = await fetch(url);
-      if (!res.ok) return [];
+      if (!res.ok) { lastError = "Steam search failed (HTTP " + res.status + ")"; return []; }
       const data = await res.json();
       return (data.items || []).slice(0, 5).map((it) => ({
         id: String(it.id),
@@ -137,7 +143,10 @@
         externalRating: "",
         source: "steam",
       }));
-    } catch (e) { return []; }
+    } catch (e) {
+      lastError = "Steam search failed (" + ((e && e.message) || "network/CORS error") + ")";
+      return [];
+    }
   }
 
   // Looks up current/historical lowest prices for Steam app IDs via the
@@ -148,10 +157,14 @@
       const url = "https://api.gg.deals/v1/prices/by-steam-app-id/?ids=" +
         appIds.join(",") + "&key=" + encodeURIComponent(apiKey) + "&region=us";
       const res = await fetch(url);
-      if (!res.ok) return {};
+      if (!res.ok) { lastError = "GG.deals price lookup failed (HTTP " + res.status + ")"; return {}; }
       const data = await res.json();
-      return (data && data.success && data.data) || {};
-    } catch (e) { return {}; }
+      if (!data || !data.success) { lastError = "GG.deals price lookup failed (bad response)"; return {}; }
+      return data.data || {};
+    } catch (e) {
+      lastError = "GG.deals price lookup failed (" + ((e && e.message) || "network/CORS error") + ")";
+      return {};
+    }
   }
 
   async function searchMusicBrainz(title) {
@@ -179,6 +192,7 @@
 
   window.LifeLogMedia = {
     async search(title, source, keys) {
+      lastError = "";
       if (!title || !source) return [];
       if (source === "rawg") return searchRawg(title, keys.rawg || "");
       if (source === "tmdb-movie") return searchTmdb(title, "movie", keys.tmdb || "");
@@ -191,6 +205,10 @@
       if (source === "steam") return searchSteam(title);
       return [];
     },
-    fetchPrices: fetchGgDealsPrices,
+    async fetchPrices(appIds, apiKey) {
+      lastError = "";
+      return fetchGgDealsPrices(appIds, apiKey);
+    },
+    getLastError: () => lastError,
   };
 })();

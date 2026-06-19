@@ -36,7 +36,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.18.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.18.1"; // bump with each shipped change so it's visible in Settings
 
   function loadVisualSettings() {
     try {
@@ -200,7 +200,7 @@
     t.className = "toast" + (isErr ? " err" : "");
     t.hidden = false;
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => (t.hidden = true), 2600);
+    toast._t = setTimeout(() => (t.hidden = true), isErr ? 6000 : 2600);
   }
 
   async function persist() {
@@ -419,7 +419,12 @@
     const list = $("#bTitleSuggest");
     const results = await fetchMediaSuggestions(title, category);
     list.innerHTML = "";
-    if (!results.length) { list.hidden = true; toast("No matches found"); return; }
+    if (!results.length) {
+      list.hidden = true;
+      const err = window.LifeLogMedia && window.LifeLogMedia.getLastError();
+      toast(err ? "No matches found — " + err : "No matches found", !!err);
+      return;
+    }
     results.forEach((r) => {
       list.appendChild(makeMediaAcItem(r, () => {
         lastSyncedBacklogTitle = $("#bTitle").value;
@@ -517,10 +522,17 @@
     for (let i = 0; i < appIds.length; i += 100) {
       const chunk = appIds.slice(i, i + 100);
       const result = await window.LifeLogMedia.fetchPrices(chunk, apiKey);
+      const err = window.LifeLogMedia.getLastError();
+      if (err && !priceErrorToasted) { priceErrorToasted = true; toast(err, true); }
       for (const id of chunk) priceCache.set(id, { ts: now, data: result[id] || null });
     }
     applyCachedPrices(items);
   }
+
+  // Toasted at most once per session — loadBacklogPrices reruns on every
+  // backlog render/poll, and a persistent failure (bad key, CORS) shouldn't
+  // re-announce itself every time.
+  let priceErrorToasted = false;
 
   function applyCachedPrices(items) {
     for (const b of items) {
@@ -610,12 +622,16 @@
     const ids = [...state.bulk.selected];
     btn.disabled = true;
     btn.textContent = "Syncing…";
-    let synced = 0, skipped = 0;
+    let synced = 0, skipped = 0, lastErr = "";
     for (const id of ids) {
       const item = state.data.backlog.find((b) => b.id === id);
       if (!item || !hasMediaSourceFor(item.category)) { skipped++; continue; }
       const results = await fetchMediaSuggestions(item.title, item.category);
-      if (!results.length) { skipped++; continue; }
+      if (!results.length) {
+        skipped++;
+        lastErr = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || lastErr;
+        continue;
+      }
       const r = results[0];
       item.coverUrl = r.coverUrl || "";
       item.mediaId = r.id || "";
@@ -629,7 +645,8 @@
     state.bulk.selected.clear();
     render();
     await persist();
-    toast(skipped ? `Synced ${synced} item${synced === 1 ? "" : "s"}, skipped ${skipped}` : `Synced ${synced} item${synced === 1 ? "" : "s"}`);
+    const base = skipped ? `Synced ${synced} item${synced === 1 ? "" : "s"}, skipped ${skipped}` : `Synced ${synced} item${synced === 1 ? "" : "s"}`;
+    toast(lastErr ? base + " — " + lastErr : base, !!(skipped && lastErr));
   }
 
   async function bulkMoveSelected(categoryName) {
@@ -1241,7 +1258,12 @@
     const list = $("#fTitleSuggest");
     const results = await fetchMediaSuggestions(title, category);
     list.innerHTML = "";
-    if (!results.length) { list.hidden = true; toast("No matches found"); return; }
+    if (!results.length) {
+      list.hidden = true;
+      const err = window.LifeLogMedia && window.LifeLogMedia.getLastError();
+      toast(err ? "No matches found — " + err : "No matches found", !!err);
+      return;
+    }
     results.forEach((r) => {
       list.appendChild(makeMediaAcItem(r, () => {
         setEntryCover(r.coverUrl, r.id, r.source);
