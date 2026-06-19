@@ -128,25 +128,13 @@
     } catch (e) { return []; }
   }
 
-  async function searchSteam(title) {
-    try {
-      const url = "https://store.steampowered.com/api/storesearch/?term=" + encodeURIComponent(title) + "&l=english&cc=us";
-      const res = await fetch(url);
-      if (!res.ok) { lastError = "Steam search failed (HTTP " + res.status + ")"; return []; }
-      const data = await res.json();
-      return (data.items || []).slice(0, 5).map((it) => ({
-        id: String(it.id),
-        title: it.name || "",
-        coverUrl: it.tiny_image || "",
-        year: null,
-        summary: "",
-        externalRating: "",
-        source: "steam",
-      }));
-    } catch (e) {
-      lastError = "Steam search failed (" + ((e && e.message) || "network/CORS error") + ")";
-      return [];
-    }
+  // Steam's own storesearch API has no CORS allowance for third-party origins,
+  // so it can never be called from a browser — there is no search here.
+  // Instead the app asks for a Steam App ID directly (found in the game's
+  // store URL) and builds the cover image straight from Steam's CDN, since
+  // <img> tags aren't subject to CORS the way fetch() is.
+  function steamCoverUrl(appId) {
+    return "https://cdn.akamai.steamstatic.com/steam/apps/" + encodeURIComponent(appId) + "/header.jpg";
   }
 
   // Looks up current/historical lowest prices for Steam app IDs via the
@@ -202,7 +190,6 @@
       if (source === "anilist-manga") return searchAniList(title, "MANGA");
       if (source === "googlebooks") return searchGoogleBooks(title);
       if (source === "musicbrainz") return searchMusicBrainz(title);
-      if (source === "steam") return searchSteam(title);
       return [];
     },
     async fetchPrices(appIds, apiKey) {
@@ -210,5 +197,6 @@
       return fetchGgDealsPrices(appIds, apiKey);
     },
     getLastError: () => lastError,
+    steamCoverUrl,
   };
 })();
