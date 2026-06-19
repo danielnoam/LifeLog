@@ -36,7 +36,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.20.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.21.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -867,11 +867,11 @@
   }
 
   function financeRow(f) {
-    const row = el("div", "entry finance-entry");
+    const row = el("div", "entry finance-entry" + (f.yearly ? " yearly-expense" : ""));
     const bar = el("div", "bar");
     bar.style.background = financeColorOf(f.category);
     row.appendChild(bar);
-    row.appendChild(el("span", "fdate", f.date));
+    row.appendChild(el("span", "fdate" + (f.yearly ? " fyearly" : ""), f.yearly ? `${f.date} · yearly` : f.date));
     const t = el("span", "etitle", f.note || f.category);
     t.title = f.note || f.category;
     row.appendChild(t);
@@ -1785,11 +1785,22 @@
   }
 
   // ---------- finance entries ----------
+  function applyFinanceYearlyUI() {
+    const yearly = $("#finYearly").checked;
+    $("#finDateLabel").hidden = yearly;
+    $("#finYearLabel").hidden = !yearly;
+    $("#finTypeLabel").hidden = yearly;
+    $("#finDate").required = !yearly;
+    $("#finYear").required = yearly;
+  }
   function openFinanceModal(entry) {
     const editing = !!entry;
+    const yearly = editing && !!entry.yearly;
     $("#financeModalTitle").textContent = editing ? "Edit finance entry" : "Add finance entry";
     $("#financeId").value = editing ? entry.id : "";
-    $("#finDate").value = editing ? entry.date : new Date().toISOString().slice(0, 10);
+    $("#finYearly").checked = yearly;
+    $("#finDate").value = (editing && !yearly) ? entry.date : new Date().toISOString().slice(0, 10);
+    $("#finYear").value = yearly ? entry.date : "";
     $("#finType").value = editing ? entry.type : "expense";
     $("#finAmount").value = editing ? entry.amount : "";
     fillSelect($("#finCategory"),
@@ -1797,6 +1808,7 @@
       editing ? entry.category : (state.data.financeCategories[0] && state.data.financeCategories[0].name));
     $("#finNote").value = editing ? (entry.note || "") : "";
     $("#deleteFinanceBtn").hidden = !editing;
+    applyFinanceYearlyUI();
     $("#financeModal").hidden = false;
   }
   function closeFinanceModal() { $("#financeModal").hidden = true; }
@@ -1804,19 +1816,23 @@
   async function saveFinanceFromForm(ev) {
     ev.preventDefault();
     const id = $("#financeId").value;
-    const date = $("#finDate").value;
-    const type = $("#finType").value === "income" ? "income" : "expense";
+    const yearly = $("#finYearly").checked;
+    const date = yearly ? $("#finYear").value : $("#finDate").value;
+    const type = yearly ? "expense" : ($("#finType").value === "income" ? "income" : "expense");
     const amount = Math.abs(parseFloat($("#finAmount").value)) || 0;
     const category = $("#finCategory").value;
     const note = $("#finNote").value.trim();
     if (!date || !amount) return;
+    if (yearly && !/^\d{4}$/.test(date)) return;
     if (id) {
       const f = state.data.financeEntries.find((x) => x.id === id);
       Object.assign(f, { date, type, amount, category });
       if (note) f.note = note; else delete f.note;
+      if (yearly) f.yearly = true; else delete f.yearly;
     } else {
       const item = { id: uid(), date, type, amount, category, createdAt: new Date().toISOString() };
       if (note) item.note = note;
+      if (yearly) item.yearly = true;
       state.data.financeEntries.push(item);
     }
     closeFinanceModal();
@@ -2353,11 +2369,16 @@
         const existingBacklogKeys = new Set(state.data.backlog.map(backlogKey));
         const newBacklog = (incoming.backlog || []).map(sanitizeBacklog).filter((b) => !existingBacklogKeys.has(backlogKey(b)));
 
-        if (!newEntries.length && !newBacklog.length) { toast("Nothing new to import — all items already exist"); return; }
-        const skipped = ((incoming.entries || []).length - newEntries.length) + ((incoming.backlog || []).length - newBacklog.length);
+        const existingFinanceKeys = new Set(state.data.financeEntries.map(financeKey));
+        const newFinance = (incoming.financeEntries || []).map(sanitizeFinanceEntry).filter((f) => !existingFinanceKeys.has(financeKey(f)));
+
+        if (!newEntries.length && !newBacklog.length && !newFinance.length) { toast("Nothing new to import — all items already exist"); return; }
+        const skipped = ((incoming.entries || []).length - newEntries.length) + ((incoming.backlog || []).length - newBacklog.length)
+          + ((incoming.financeEntries || []).length - newFinance.length);
         const parts = [];
         if (newEntries.length) parts.push(`${newEntries.length} entries`);
         if (newBacklog.length) parts.push(`${newBacklog.length} backlog items`);
+        if (newFinance.length) parts.push(`${newFinance.length} finance entries`);
         const msg = `Add ${parts.join(" and ")} to your current data?` + (skipped ? ` (${skipped} duplicates will be skipped)` : "");
         if (!confirm(msg)) return;
 
@@ -2372,8 +2393,18 @@
         }
         ensureCategories(state.data.categories, [...newEntries, ...newBacklog]);
 
+        const knownFinanceNames = new Set(state.data.financeCategories.map((c) => c.name));
+        for (const c of incoming.financeCategories || []) {
+          if (c.name && c.color && !knownFinanceNames.has(c.name)) {
+            state.data.financeCategories.push({ id: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: c.name, color: c.color });
+            knownFinanceNames.add(c.name);
+          }
+        }
+        ensureCategories(state.data.financeCategories, newFinance);
+
         state.data.entries.push(...newEntries);
         state.data.backlog.push(...newBacklog);
+        state.data.financeEntries.push(...newFinance);
 
         const accIn = incoming.accomplishments || {};
         for (const y of Object.keys(accIn)) {
@@ -2384,6 +2415,96 @@
             if (out.text && !existingTexts.has(out.text.toLowerCase())) { state.data.accomplishments[y].push(out); existingTexts.add(out.text.toLowerCase()); }
           }
         }
+
+        afterDataChange();
+        await persist();
+        toast(`Imported ${parts.join(" and ")}`);
+      } catch (e) { toast("Import failed: " + (e.message || e), true); }
+    };
+    reader.readAsText(file);
+  }
+
+  // parses CSV text into rows of cells, honoring quoted fields (with
+  // "" escapes) that may contain commas or newlines — needed because
+  // money cells like "₪1,302.00" are quoted due to the embedded comma
+  function parseCsv(text) {
+    const rows = [];
+    let row = [];
+    let field = "";
+    let inQuotes = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQuotes) {
+        if (c === '"') {
+          if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false;
+        } else field += c;
+      } else if (c === '"') {
+        inQuotes = true;
+      } else if (c === ",") {
+        row.push(field); field = "";
+      } else if (c === "\n") {
+        row.push(field); field = ""; rows.push(row); row = [];
+      } else if (c === "\r") {
+        // ignore; \n follows
+      } else field += c;
+    }
+    if (field !== "" || row.length) { row.push(field); rows.push(row); }
+    return rows;
+  }
+  function parseMoneyCell(s) {
+    return parseFloat(String(s || "").replace(/[^0-9.\-]/g, "")) || 0;
+  }
+  // parses a yearly pivot-report export: each year has a 12-month x 3-column
+  // (Amount, Category, Note) grid for real line items, a redundant
+  // monthly-totals/category-totals matrix, and trailing ad-hoc big purchases
+  // with a year-level amount + label but no month
+  function parseFinanceCsv(text) {
+    const rows = parseCsv(text);
+    const monthNames = MONTHS.slice(1);
+    const monthly = [];
+    const yearly = [];
+    let currentYear = null;
+    for (const row of rows) {
+      const yearMatch = (row[1] || "").trim().match(/^(\d{4}):$/);
+      if (yearMatch) { currentYear = yearMatch[1]; continue; }
+      if (!currentYear) continue;
+      for (let m = 0; m < 12; m++) {
+        const note = (row[3 + m * 3] || "").trim();
+        if (!note) continue; // blank note = summary/total row, not a real transaction
+        const amount = parseMoneyCell(row[1 + m * 3]);
+        if (!amount) continue;
+        const category = (row[2 + m * 3] || "").trim() || "Other";
+        monthly.push({ date: `${currentYear}-${String(m + 1).padStart(2, "0")}-01`, type: "expense", amount, category, note });
+      }
+      const label = (row[38] || "").trim();
+      if (label && !monthNames.includes(label)) {
+        const amount = parseMoneyCell(row[37]);
+        if (amount) yearly.push({ date: currentYear, type: "expense", amount, category: "Other", note: label, yearly: true });
+      }
+    }
+    if (currentYear === null) throw new Error("No year blocks found — is this the right CSV export?");
+    return { monthly, yearly };
+  }
+  function importFinanceCsv(file) {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const { monthly, yearly } = parseFinanceCsv(reader.result);
+        const incoming = [...monthly, ...yearly].map(sanitizeFinanceEntry);
+        const existingFinanceKeys = new Set(state.data.financeEntries.map(financeKey));
+        const newFinance = incoming.filter((f) => !existingFinanceKeys.has(financeKey(f)));
+        if (!newFinance.length) { toast("Nothing new to import — all entries already exist"); return; }
+        const skipped = incoming.length - newFinance.length;
+        const newMonthly = newFinance.filter((f) => !f.yearly).length;
+        const newYearly = newFinance.length - newMonthly;
+        const parts = [];
+        if (newMonthly) parts.push(`${newMonthly} monthly entries`);
+        if (newYearly) parts.push(`${newYearly} yearly expenses`);
+        const msg = `Import ${parts.join(" and ")}?` + (skipped ? ` (${skipped} duplicates will be skipped)` : "");
+        if (!confirm(msg)) return;
+
+        ensureCategories(state.data.financeCategories, newFinance);
+        state.data.financeEntries.push(...newFinance);
 
         afterDataChange();
         await persist();
@@ -2436,9 +2557,15 @@
       category: f.category || "Other",
       createdAt: f.createdAt || null,
     };
+    if (f.yearly) {
+      out.yearly = true;
+      out.type = "expense";
+      out.date = String(out.date).slice(0, 4);
+    }
     if (f.note) out.note = f.note;
     return out;
   }
+  const financeKey = (f) => `${(f.date || "").toLowerCase()}|${f.type}|${+f.amount}|${(f.category || "").toLowerCase()}|${(f.note || "").toLowerCase()}|${f.yearly ? 1 : 0}`;
   // adds a category entry (with a palette color) for any category name used
   // by entries/backlog items that isn't already known
   function ensureCategories(categories, items) {
@@ -2654,6 +2781,7 @@
     $("#cancelFinanceBtn").onclick = closeFinanceModal;
     $("#financeForm").onsubmit = saveFinanceFromForm;
     $("#deleteFinanceBtn").onclick = deleteCurrentFinanceEntry;
+    $("#finYearly").onchange = applyFinanceYearlyUI;
 
     $("#cancelFinanceCatBtn").onclick = closeFinanceCatModal;
     $("#financeCatForm").onsubmit = saveFinanceCatFromForm;
@@ -2778,6 +2906,8 @@
     $("#exportCsvBtn").onclick = exportCsv;
     $("#importJsonBtn").onclick = () => $("#importJsonInput").click();
     $("#importJsonInput").onchange = (e) => { if (e.target.files[0]) importJson(e.target.files[0]); e.target.value = ""; };
+    $("#importFinanceCsvBtn").onclick = () => $("#importFinanceCsvInput").click();
+    $("#importFinanceCsvInput").onchange = (e) => { if (e.target.files[0]) importFinanceCsv(e.target.files[0]); e.target.value = ""; };
 
     // close modals on overlay click / Escape (the conflict picker is modal —
     // it must be resolved via its buttons, not dismissed)

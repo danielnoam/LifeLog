@@ -251,11 +251,18 @@
       <h2 id="financeModalTitle">Add finance entry</h2>
       <form id="financeForm">
         <input type="hidden" id="financeId" />
-        <label>Date
+        <label class="toggle-label">
+          <input type="checkbox" id="finYearly" />
+          Yearly expense (no specific month)
+        </label>
+        <label id="finDateLabel">Date
           <input id="finDate" type="date" required />
         </label>
+        <label id="finYearLabel" hidden>Year
+          <input id="finYear" type="number" min="1900" max="2999" step="1" />
+        </label>
         <div class="row">
-          <label>Type
+          <label id="finTypeLabel">Type
             <select id="finType">
               <option value="expense">Expense</option>
               <option value="income">Income</option>
@@ -404,7 +411,7 @@
 
       <div class="settings-panel" data-panel="backup">
       <section class="settings-section">
-        <h3>Export &amp; import</h3>
+        <h3>General data</h3>
         <p class="hint">Download a full copy of your data or restore from a previous backup.</p>
         <div class="btn-row">
           <button class="btn" id="exportJsonBtn">Export JSON</button>
@@ -412,7 +419,17 @@
           <button class="btn" id="importJsonBtn">Import JSON…</button>
         </div>
         <input type="file" id="importJsonInput" accept="application/json,.json" hidden />
-        <p class="hint">JSON keeps everything (entries, categories, backlog, achievements). CSV exports entries only and is useful for spreadsheets. Importing JSON merges with your current data — it does not replace it.</p>
+        <p class="hint">JSON keeps everything (entries, categories, backlog, achievements, finance). CSV exports entries only and is useful for spreadsheets. Importing JSON merges with your current data — it does not replace it.</p>
+      </section>
+
+      <section class="settings-section">
+        <h3>Finance data</h3>
+        <p class="hint">Import your expense history from a Google Sheets export.</p>
+        <div class="btn-row">
+          <button class="btn" id="importFinanceCsvBtn">Import Finance CSV…</button>
+        </div>
+        <input type="file" id="importFinanceCsvInput" accept="text/csv,.csv" hidden />
+        <p class="hint">Expects the yearly pivot format exported from the source spreadsheet (year blocks, 12 month columns, a note on each real transaction). Big one-off purchases with no month become "yearly expenses." Importing merges with your current finance data — it does not replace it.</p>
       </section>
       </div><!-- /backup panel -->
 

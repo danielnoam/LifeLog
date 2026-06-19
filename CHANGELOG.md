@@ -4,6 +4,31 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.21.0] - 2026-06-19
+
+### Added
+- Yearly expenses: a finance entry can now be tied to a year only, with no
+  specific month — toggle "Yearly expense" in the Add/Edit Finance Entry
+  form to swap the Date field for a Year field (Type is forced to
+  Expense). Yearly expenses show up in their year's group in the Finance
+  list tagged "· yearly" and roll into the Finance Stats by-year totals
+  like any other expense.
+- Settings → Backup is now split into "General data" (Export/Import JSON,
+  Export CSV — unchanged) and a new "Finance data" section with an
+  "Import Finance CSV…" button that reads the yearly pivot-report format
+  exported from the source spreadsheet: it pulls real line items out of
+  the 12-month transaction grid (skipping the redundant totals/category
+  summary rows), defaults their date to the 1st of the month, and turns
+  any trailing one-off big purchase (no month, just a year-level amount +
+  label) into a yearly expense. Duplicate entries are skipped on re-import.
+
+### Fixed
+- Importing a JSON backup never merged finance entries or finance
+  categories, so re-importing a full backup silently dropped all finance
+  data. Import JSON now merges finance data the same way it already
+  merged entries/backlog/categories, with the same duplicate-skipping
+  behavior.
+
 ## [0.20.0] - 2026-06-19
 
 ### Added
