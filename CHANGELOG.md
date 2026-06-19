@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.18.1] - 2026-06-19
+
+### Fixed
+- Syncing via Steam or fetching GG.deals prices that failed (bad key, rate
+  limit, or a browser CORS block) silently showed "No matches found" or
+  nothing at all, with no way to tell why short of opening devtools. Sync
+  toasts and the price lookup now include the actual failure reason.
+
 ## [0.18.0] - 2026-06-18
 
 ### Added
