@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.19.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.20.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -45,6 +45,9 @@
         <button class="tab" data-view="categories">Categories</button>
         <button class="tab" data-view="stats">Stats</button>
         <button class="tab" data-view="backlog">Backlog</button>
+        <span class="tab-sep" aria-hidden="true"></span>
+        <button class="tab" data-view="finance">Finance</button>
+        <button class="tab" data-view="finance-stats">Finance Stats</button>
       </nav>
 
       <div class="topbar-actions">
@@ -55,6 +58,8 @@
             <button type="button" data-add="achievement">Add achievement</button>
             <button type="button" data-add="category">Add category</button>
             <button type="button" data-add="backlog">Add to backlog</button>
+            <button type="button" data-add="finance">Add finance entry</button>
+            <button type="button" data-add="finance-category">Add finance category</button>
           </div>
         </div>
         <button id="settingsBtn" class="btn btn-primary btn-icon" title="Settings">⚙</button>
@@ -234,6 +239,65 @@
           <button type="button" class="btn btn-danger" id="deleteBacklogBtn" hidden>Delete</button>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelBacklogBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Finance entry add/edit modal -->
+  <div class="modal-overlay" id="financeModal" hidden>
+    <div class="modal">
+      <h2 id="financeModalTitle">Add finance entry</h2>
+      <form id="financeForm">
+        <input type="hidden" id="financeId" />
+        <label>Date
+          <input id="finDate" type="date" required />
+        </label>
+        <div class="row">
+          <label>Type
+            <select id="finType">
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+            </select>
+          </label>
+          <label>Amount
+            <input id="finAmount" type="number" min="0" step="0.01" required />
+          </label>
+        </div>
+        <label>Category
+          <select id="finCategory" required></select>
+        </label>
+        <label>Note
+          <input id="finNote" type="text" autocomplete="off" placeholder="Optional description…" />
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="deleteFinanceBtn" hidden>Delete</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelFinanceBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Finance category add/edit modal -->
+  <div class="modal-overlay" id="financeCatModal" hidden>
+    <div class="modal">
+      <h2 id="financeCatModalTitle">Edit finance category</h2>
+      <form id="financeCatForm">
+        <input type="hidden" id="finCatOrigName" />
+        <label>Name
+          <input id="finCatName" type="text" required autocomplete="off" />
+        </label>
+        <label>Colour
+          <input id="finCatColorInput" type="color" />
+        </label>
+        <p class="muted" id="finCatUses"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="deleteFinanceCatBtn">Delete</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelFinanceCatBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
         </div>
       </form>
@@ -489,9 +553,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.19.0"></script>
-  <script src="src/media.js?v=0.19.0"></script>
-  <script src="src/storage.js?v=0.19.0"></script>
-  <script src="src/app.js?v=0.19.0"></script>
+  <script src="src/qr.js?v=0.20.0"></script>
+  <script src="src/media.js?v=0.20.0"></script>
+  <script src="src/storage.js?v=0.20.0"></script>
+  <script src="src/app.js?v=0.20.0"></script>
 </body>
 </html>
