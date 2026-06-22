@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.21.2] - 2026-06-22
+
+### Changed
+- Added a visual divider in the "+ Add" menu between the
+  media/lifelog entries (Entry, Achievement, Category, Backlog) and the
+  finance entries (Finance entry, Finance category).
+
 ## [0.21.1] - 2026-06-22
 
 ### Fixed
