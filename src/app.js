@@ -6,7 +6,8 @@
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const DEFAULT_SETTINGS = { monthOrder: "asc", mediaCategorySources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" } }; // monthOrder, mediaCategorySources, mediaKeys — synced
+  const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" } }; // monthOrder, currency, mediaCategorySources, mediaKeys — synced
+  const CURRENCY_SYMBOLS = { ILS: "₪", USD: "$", EUR: "€", GBP: "£" };
   const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, mediaEnabled: false }; // maxWidth 0 = stretch — local to this device, not synced
   const FONT_STACKS = {
     system: '"Segoe UI", system-ui, -apple-system, sans-serif',
@@ -36,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.21.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.22.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -195,7 +196,8 @@
   // number ("1,302.00 ₪"), not matching the source sheet's "₪1,302.00".
   function formatMoney(n) {
     const sign = n < 0 ? "-" : "";
-    return sign + "₪" + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const symbol = CURRENCY_SYMBOLS[state.data.settings.currency] || CURRENCY_SYMBOLS.ILS;
+    return sign + symbol + Math.abs(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function financeYearOf(f) { return +String(f.date).slice(0, 4); }
@@ -2190,6 +2192,7 @@
     $("#monthMin").value = state.visual.monthMinWidth;
     $("#monthMax").value = state.visual.monthMaxWidth;
     $("#fontFamily").value = state.visual.fontFamily;
+    $("#currency").value = state.data.settings.currency;
     $("#mediaEnabled").checked = !!state.visual.mediaEnabled;
     updateMediaSettings();
     updatePrivacySettings();
@@ -2629,6 +2632,7 @@
     }
     data.settings = {
       monthOrder: incomingSettings.monthOrder || DEFAULT_SETTINGS.monthOrder,
+      currency: incomingSettings.currency || DEFAULT_SETTINGS.currency,
       mediaCategorySources,
       mediaKeys,
     };
@@ -2825,6 +2829,11 @@
     $("#monthMin").onchange = onLayoutChange;
     $("#monthMax").onchange = onLayoutChange;
     $("#fontFamily").onchange = onFontChange;
+    $("#currency").onchange = async () => {
+      state.data.settings.currency = $("#currency").value;
+      render();
+      await persist();
+    };
     $("#mediaEnabled").onchange = () => {
       state.visual.mediaEnabled = $("#mediaEnabled").checked;
       saveVisualSettings(state.visual);

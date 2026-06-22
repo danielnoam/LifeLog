@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.22.0] - 2026-06-22
+
+### Added
+- Currency setting (Settings → Appearance): choose between ILS, USD,
+  EUR, and GBP — controls the symbol shown on all Finance amounts and
+  syncs across devices.
+
+### Changed
+- Merged the "Storage" and "Sync" Settings tabs into a single "Data" tab.
+- Renamed the "Backup" Settings tab to "Import / Export".
+
 ## [0.21.2] - 2026-06-22
 
 ### Changed

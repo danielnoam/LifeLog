@@ -321,16 +321,15 @@
       </div>
 
       <nav class="settings-tabs" id="settingsTabs">
-        <button class="stab active" data-stab="storage" type="button">Storage</button>
-        <button class="stab" data-stab="sync" type="button">Sync</button>
-        <button class="stab" data-stab="backup" type="button">Backup</button>
+        <button class="stab active" data-stab="storage" type="button">Data</button>
+        <button class="stab" data-stab="backup" type="button">Import / Export</button>
         <button class="stab" data-stab="privacy" type="button">Privacy</button>
         <button class="stab" data-stab="appearance" type="button">Appearance</button>
         <button class="stab" data-stab="media" type="button">Media</button>
       </nav>
 
       <div class="settings-panels">
-      <div class="settings-panel active" data-panel="storage">
+      <div class="settings-panel settings-panel-fill active" data-panel="storage">
       <section class="settings-section">
         <h3>Active storage</h3>
         <p class="muted" id="backendInfo"></p>
@@ -346,9 +345,7 @@
         </div>
         <p class="hint">Stores your data in a <code>.json</code> file you choose on this computer. Good for keeping a local backup or syncing via a folder shared with Google Drive / Dropbox. Works on desktop Chrome and Edge only — not supported on phones.</p>
       </section>
-      </div><!-- /storage panel -->
 
-      <div class="settings-panel settings-panel-fill" data-panel="sync">
       <section class="settings-section">
         <h3>GitHub sync <span class="muted">(works on all devices)</span></h3>
         <p class="muted" id="ghInfo"></p>
@@ -408,7 +405,7 @@
         </label>
         <p class="hint">When enabled, LifeLog periodically pulls changes saved from your other devices. This setting is per-device.</p>
       </section>
-      </div><!-- /sync panel -->
+      </div><!-- /storage panel -->
 
       <div class="settings-panel" data-panel="backup">
       <section class="settings-section">
@@ -518,6 +515,19 @@
             <option value="serif">Serif</option>
             <option value="mono">Monospace</option>
             <option value="rounded">Rounded</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="settings-section">
+        <h3>Currency</h3>
+        <p class="hint">Controls the currency symbol used throughout the Finance tabs. Syncs across your devices.</p>
+        <label>Symbol
+          <select id="currency">
+            <option value="ILS">₪ Shekel (ILS)</option>
+            <option value="USD">$ Dollar (USD)</option>
+            <option value="EUR">€ Euro (EUR)</option>
+            <option value="GBP">£ Pound (GBP)</option>
           </select>
         </label>
       </section>
