@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.21.1] - 2026-06-22
+
+### Fixed
+- Finance CSV import always reported "Nothing new to import" on real
+  spreadsheet exports — it read transaction columns at the wrong offset
+  (off by one), so every real line item's Note cell came back blank and
+  got skipped. Also broadened the redundant-row exclusion: the importer
+  now correctly skips category-totals, grand-total, and per-month-average
+  rows (previously only month-totals rows were excluded), preventing
+  those from being wrongly imported as phantom yearly expenses.
+
 ## [0.21.0] - 2026-06-19
 
 ### Added
