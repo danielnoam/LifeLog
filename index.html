@@ -422,12 +422,13 @@
 
       <section class="settings-section">
         <h3>Finance data</h3>
-        <p class="hint">Import your expense history from a Google Sheets export.</p>
+        <p class="hint">Import your expense history from a Google Sheets export, or export what's currently in LifeLog.</p>
         <div class="btn-row">
           <button class="btn" id="importFinanceCsvBtn">Import Finance CSV…</button>
+          <button class="btn" id="exportFinanceCsvBtn">Export Finance CSV…</button>
         </div>
         <input type="file" id="importFinanceCsvInput" accept="text/csv,.csv" hidden />
-        <p class="hint">Expects the yearly pivot format exported from the source spreadsheet (year blocks, 12 month columns, a note on each real transaction). Big one-off purchases with no month become "yearly expenses." Importing merges with your current finance data — it does not replace it.</p>
+        <p class="hint">Expects the yearly pivot format exported from the source spreadsheet (year blocks, 12 month columns, a note on each real transaction). Big one-off purchases with no month become "yearly expenses." Both import and export let you pick exactly which entries to include before confirming.</p>
       </section>
       </div><!-- /backup panel -->
 
@@ -571,6 +572,30 @@
   </div>
 
   <!-- Version conflict picker (shown on load if sources disagree) -->
+  <!-- Finance entries picker — used for both CSV import preview and CSV export selection -->
+  <div class="modal-overlay" id="financePickerModal" hidden>
+    <div class="modal modal-wide">
+      <h2 id="financePickerTitle">Import Finance CSV</h2>
+      <p class="hint" id="financePickerHint"></p>
+      <label class="toggle-label" id="financePickerDupRow" hidden>
+        <input type="checkbox" id="financePickerShowDup" />
+        Show entries already in your data
+      </label>
+      <div class="picker-toolbar">
+        <button type="button" class="link-btn" id="financePickerSelectAll">Select all</button>
+        <button type="button" class="link-btn" id="financePickerSelectNone">Select none</button>
+        <span class="spacer"></span>
+        <span class="muted" id="financePickerCount"></span>
+      </div>
+      <div class="picker-list" id="financePickerList"></div>
+      <div class="modal-actions">
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="financePickerCancelBtn">Cancel</button>
+        <button type="button" class="btn btn-primary" id="financePickerConfirmBtn">Import</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="conflictModal" hidden>
     <div class="modal modal-wide">
       <h2>Pick which version to keep</h2>

@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.23.0] - 2026-06-22
+
+### Added
+- Finance CSV import now opens a checkbox preview instead of importing
+  everything immediately: review each entry, uncheck any you don't want,
+  and a "Show entries already in your data" toggle lets you reveal (and,
+  if you choose, deliberately re-import) rows that match an existing
+  entry. Nothing is force-reimported unless you check it yourself.
+- New Export Finance CSV… button (Settings → Import / Export) opens the
+  same checkbox picker to choose exactly which Finance entries to
+  include in the exported CSV.
+
 ## [0.22.1] - 2026-06-22
 
 ### Fixed

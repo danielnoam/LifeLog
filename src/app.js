@@ -37,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.22.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.23.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -2501,31 +2501,113 @@
   }
   function importFinanceCsv(file) {
     const reader = new FileReader();
-    reader.onload = async () => {
+    reader.onload = () => {
       try {
         const { monthly, yearly } = parseFinanceCsv(reader.result);
         const incoming = [...monthly, ...yearly].map(sanitizeFinanceEntry);
+        if (!incoming.length) { toast("No entries found in this file"); return; }
         const existingFinanceKeys = new Set(state.data.financeEntries.map(financeKey));
-        const newFinance = incoming.filter((f) => !existingFinanceKeys.has(financeKey(f)));
-        if (!newFinance.length) { toast("Nothing new to import — all entries already exist"); return; }
-        const skipped = incoming.length - newFinance.length;
-        const newMonthly = newFinance.filter((f) => !f.yearly).length;
-        const newYearly = newFinance.length - newMonthly;
-        const parts = [];
-        if (newMonthly) parts.push(`${newMonthly} monthly entries`);
-        if (newYearly) parts.push(`${newYearly} yearly expenses`);
-        const msg = `Import ${parts.join(" and ")}?` + (skipped ? ` (${skipped} duplicates will be skipped)` : "");
-        if (!confirm(msg)) return;
-
-        ensureCategories(state.data.financeCategories, newFinance);
-        state.data.financeEntries.push(...newFinance);
-
-        afterDataChange();
-        await persist();
-        toast(`Imported ${parts.join(" and ")}`);
+        const items = incoming.map((entry) => {
+          const dup = existingFinanceKeys.has(financeKey(entry));
+          return { entry, dup, checked: !dup };
+        });
+        openFinancePicker({
+          title: "Import Finance CSV",
+          hint: "Pick which entries to add. Entries already in your data are hidden by default — turn on the toggle below to review and re-import them anyway.",
+          mode: "import",
+          items,
+          confirmLabel: "Import",
+          onConfirm: async (selected) => {
+            if (!selected.length) { toast("Nothing selected"); return; }
+            ensureCategories(state.data.financeCategories, selected);
+            state.data.financeEntries.push(...selected);
+            afterDataChange();
+            await persist();
+            toast(`Imported ${selected.length} entr${selected.length === 1 ? "y" : "ies"}`);
+          },
+        });
       } catch (e) { toast("Import failed: " + (e.message || e), true); }
     };
     reader.readAsText(file);
+  }
+  function exportFinanceCsv() {
+    if (!state.data.financeEntries.length) { toast("No finance entries to export"); return; }
+    const items = state.data.financeEntries.map((entry) => ({ entry, dup: false, checked: true }));
+    openFinancePicker({
+      title: "Export Finance CSV",
+      hint: "Pick which entries to export.",
+      mode: "export",
+      items,
+      confirmLabel: "Export",
+      onConfirm: (selected) => {
+        if (!selected.length) { toast("Nothing selected"); return; }
+        const esc = (s) => {
+          s = String(s == null ? "" : s);
+          return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+        };
+        const rows = [["Date", "Type", "Amount", "Category", "Note", "Yearly"]];
+        selected.slice().sort((a, b) => b.date.localeCompare(a.date)).forEach((f) =>
+          rows.push([f.date, f.type, f.amount, f.category, f.note || "", f.yearly ? "yes" : ""]));
+        download("lifelog-finance.csv", rows.map((r) => r.map(esc).join(",")).join("\n"), "text/csv");
+        toast(`Exported ${selected.length} entr${selected.length === 1 ? "y" : "ies"}`);
+      },
+    });
+  }
+  // shared checkbox-list picker used by both the Finance CSV importer
+  // (preview before adding) and exporter (choose what to include)
+  function openFinancePicker({ title, hint, mode, items, confirmLabel, onConfirm }) {
+    items = items.slice().sort((a, b) => b.entry.date.localeCompare(a.entry.date));
+    $("#financePickerTitle").textContent = title;
+    $("#financePickerHint").textContent = hint;
+    $("#financePickerConfirmBtn").textContent = confirmLabel;
+    const dupRow = $("#financePickerDupRow");
+    const showDupCb = $("#financePickerShowDup");
+    dupRow.hidden = mode !== "import" || !items.some((i) => i.dup);
+    showDupCb.checked = false;
+    const list = $("#financePickerList");
+
+    function rowFor(item) {
+      const f = item.entry;
+      const row = el("label", "entry finance-entry picker-row" + (f.yearly ? " yearly-expense" : "") + (item.dup ? " is-dup" : ""));
+      const cb = el("input"); cb.type = "checkbox"; cb.checked = item.checked;
+      cb.onchange = () => { item.checked = cb.checked; updateCount(); };
+      row.appendChild(cb);
+      const bar = el("div", "bar");
+      bar.style.background = financeColorOf(f.category);
+      row.appendChild(bar);
+      row.appendChild(el("span", "fdate" + (f.yearly ? " fyearly" : ""), f.yearly ? `${f.date} · yearly` : f.date));
+      const t = el("span", "etitle", f.note || f.category);
+      t.title = f.note || f.category;
+      row.appendChild(t);
+      row.appendChild(el("span", "ecat", f.category));
+      const sign = f.type === "income" ? "+" : "-";
+      row.appendChild(el("span", "famount " + (f.type === "income" ? "fpositive" : "fnegative"), sign + formatMoney(f.amount)));
+      if (item.dup) row.appendChild(el("span", "dup-tag", "already added"));
+      return row;
+    }
+    function visibleItems() { return items.filter((i) => !i.dup || showDupCb.checked); }
+    function updateCount() {
+      const checked = visibleItems().filter((i) => i.checked).length;
+      $("#financePickerCount").textContent = `${checked} selected`;
+    }
+    function render() {
+      list.innerHTML = "";
+      visibleItems().forEach((item) => list.appendChild(rowFor(item)));
+      updateCount();
+    }
+
+    showDupCb.onchange = render;
+    $("#financePickerSelectAll").onclick = () => { visibleItems().forEach((i) => (i.checked = true)); render(); };
+    $("#financePickerSelectNone").onclick = () => { visibleItems().forEach((i) => (i.checked = false)); render(); };
+    $("#financePickerCancelBtn").onclick = () => { $("#financePickerModal").hidden = true; };
+    $("#financePickerConfirmBtn").onclick = async () => {
+      const selected = items.filter((i) => i.checked).map((i) => i.entry);
+      $("#financePickerModal").hidden = true;
+      await onConfirm(selected);
+    };
+
+    render();
+    $("#financePickerModal").hidden = false;
   }
 
   // ---------- data lifecycle ----------
@@ -2928,6 +3010,7 @@
     $("#importJsonInput").onchange = (e) => { if (e.target.files[0]) importJson(e.target.files[0]); e.target.value = ""; };
     $("#importFinanceCsvBtn").onclick = () => $("#importFinanceCsvInput").click();
     $("#importFinanceCsvInput").onchange = (e) => { if (e.target.files[0]) importFinanceCsv(e.target.files[0]); e.target.value = ""; };
+    $("#exportFinanceCsvBtn").onclick = exportFinanceCsv;
 
     // close modals on overlay click / Escape (the conflict picker is modal —
     // it must be resolved via its buttons, not dismissed)
