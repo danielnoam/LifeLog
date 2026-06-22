@@ -37,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.22.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.22.1"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -2463,13 +2463,18 @@
   // with a year-level amount + label but no month
   function parseFinanceCsv(text) {
     const rows = parseCsv(text);
-    // labels that show up in the trailing Amount/Label pair but are part of
-    // the redundant totals matrix, not a real ad-hoc yearly expense
-    const reservedLabels = new Set([
-      ...MONTHS.slice(1),
+    // category-totals, grand-total, and per-month-average rows repeat the
+    // same label across every month column with zero/blank cells — they're
+    // redundant aggregates, not real transactions, so skip the whole row
+    const rowSkipLabels = new Set([
       ...state.data.financeCategories.map((c) => c.name),
       "Total", "Per Month",
     ]);
+    // month-totals rows (the first 12 rows of each year block) carry a real
+    // transaction in one of their month columns *and* a month name in the
+    // trailing label — that label should only be excluded from the yearly
+    // ad-hoc-expense check below, not used to skip the row's own monthly data
+    const reservedLabels = new Set([...MONTHS.slice(1), ...rowSkipLabels]);
     const monthly = [];
     const yearly = [];
     let currentYear = null;
@@ -2477,15 +2482,15 @@
       const yearMatch = (row[1] || "").trim().match(/^(\d{4}):$/);
       if (yearMatch) { currentYear = yearMatch[1]; continue; }
       if (!currentYear) continue;
+      const label = (row[37] || "").trim();
+      if (label && rowSkipLabels.has(label)) continue;
       for (let m = 0; m < 12; m++) {
-        const note = (row[2 + m * 3] || "").trim();
-        if (!note) continue; // blank note = summary/total row, not a real transaction
         const amount = parseMoneyCell(row[0 + m * 3]);
         if (!amount) continue;
         const category = (row[1 + m * 3] || "").trim() || "Other";
+        const note = (row[2 + m * 3] || "").trim();
         monthly.push({ date: `${currentYear}-${String(m + 1).padStart(2, "0")}-01`, type: "expense", amount, category, note });
       }
-      const label = (row[37] || "").trim();
       if (label && !reservedLabels.has(label)) {
         const amount = parseMoneyCell(row[36]);
         if (amount) yearly.push({ date: currentYear, type: "expense", amount, category: "Other", note: label, yearly: true });

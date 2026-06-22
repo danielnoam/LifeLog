@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.22.1] - 2026-06-22
+
+### Fixed
+- Finance CSV import dropped real transactions that had no note (e.g.
+  routine fuel fill-ups logged with just an amount). The importer now
+  identifies redundant summary rows (category totals, grand total,
+  per-month average) by their row label instead of by blank notes, so
+  genuine transactions without a note are imported correctly.
+
 ## [0.22.0] - 2026-06-22
 
 ### Added
