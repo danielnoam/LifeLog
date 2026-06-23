@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.25.1] - 2026-06-23
+
+### Changed
+- Renamed the "Finance" and "Finance Stats" tabs to "Entries" and
+  "Summary" — the new "Finance" group header already says it, so the
+  tab labels no longer repeat it (matching Journal's Timeline/Categories/
+  Stats/Backlog, none of which repeat "Journal").
+
 ## [0.25.0] - 2026-06-23
 
 ### Changed
