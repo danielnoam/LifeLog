@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.25.2] - 2026-06-23
+
+### Changed
+- Renamed the Finance "Entries" tab to "Timeline", mirroring Journal's
+  own Timeline tab.
+- Restyled the Journal/Finance tab group headers: each header now
+  carries its own divider as part of the same element (a vertical rule
+  on desktop, flanking horizontal rules on the mobile dropdown) instead
+  of a separate separator element next to plain text.
+
 ## [0.25.1] - 2026-06-23
 
 ### Changed
