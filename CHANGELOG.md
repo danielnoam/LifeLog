@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.26.0] - 2026-06-23
+
+### Added
+- Settings → History tab: browse your last ~20 saves (for GitHub-synced
+  data) and restore one with a click. Restoring loads that version's data
+  and saves it forward as a new commit — nothing in GitHub's history is
+  ever deleted or rewritten. Requires GitHub sync; other backends show an
+  explanatory message pointing to the Data tab.
+
 ## [0.25.2] - 2026-06-23
 
 ### Changed

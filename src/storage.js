@@ -166,6 +166,33 @@
     return { data: JSON.parse(b64decode(j.content)), sha: j.sha };
   }
 
+  // Recent commits that touched the data file (newest first). Capped at 20 —
+  // this is a rollback aid, not a full audit log.
+  async function ghListCommits() {
+    const url = `${API}/repos/${gh.owner}/${gh.repo}/commits` +
+      `?path=${encodeURIComponent(gh.path)}&sha=${encodeURIComponent(gh.branch)}&per_page=20`;
+    const r = await fetch(url, { headers: ghHeaders(), cache: "no-store" });
+    if (!r.ok) throw ghErr(r.status, await r.text());
+    const j = await r.json();
+    return j.map((c) => ({
+      sha: c.sha,
+      date: (c.commit.author && c.commit.author.date) || (c.commit.committer && c.commit.committer.date) || null,
+      message: (c.commit.message || "").split("\n")[0],
+    }));
+  }
+
+  // Historical content of the data file at a specific commit. Same shape as
+  // ghGetFile() (data, sha) but addressed by commit sha instead of the branch tip.
+  async function ghGetFileAtRef(ref) {
+    const r = await fetch(ghContentsUrl() + "?ref=" + encodeURIComponent(ref), {
+      headers: ghHeaders(), cache: "no-store",
+    });
+    if (r.status === 404) return null;
+    if (!r.ok) throw ghErr(r.status, await r.text());
+    const j = await r.json();
+    return { data: JSON.parse(b64decode(j.content)), sha: j.sha };
+  }
+
   async function ghPut(data, sha) {
     const body = {
       message: "Update lifelog (" + new Date().toISOString() + ")",
@@ -408,6 +435,24 @@
         gh.sha = f.sha; saveGhCfg();
         return { changed: true, data: f.data };
       } catch (e) { return null; }
+    },
+
+    // ---- version history (GitHub only) ----
+    // Recent commits to the data file. Throws if GitHub isn't connected or the
+    // request fails — this is a user-initiated action, so callers should show
+    // the error rather than swallow it.
+    async listHistory() {
+      if (!gh || !gh.token) throw new Error("GitHub isn't connected.");
+      return ghListCommits();
+    },
+    // Data as of a specific historical commit. Read-only — does not touch the
+    // current save state. Callers should normalize() the result and call
+    // Storage.save() themselves to commit it forward as the new current state.
+    async getVersion(sha) {
+      if (!gh || !gh.token) throw new Error("GitHub isn't connected.");
+      const f = await ghGetFileAtRef(sha);
+      if (!f) throw new Error("That version's data file couldn't be found.");
+      return f.data;
     },
 
     // ---- one-link device setup ----

@@ -37,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.25.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.26.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -2230,6 +2230,77 @@
     }
   }
 
+  // ---------- version history (Settings → History tab) ----------
+  let historyCache = []; // last fetched list, so restore can look it up
+
+  function formatHistoryDate(iso) {
+    if (!iso) return "Unknown time";
+    return new Date(iso).toLocaleString();
+  }
+
+  async function updateHistoryPanel() {
+    const empty = $("#historyEmptyState");
+    const controls = $("#historyControls");
+    if (!Storage.githubConnected) {
+      empty.hidden = false;
+      controls.hidden = true;
+      return;
+    }
+    empty.hidden = true;
+    controls.hidden = false;
+    await refreshHistoryList();
+  }
+
+  async function refreshHistoryList() {
+    const status = $("#historyStatus");
+    const list = $("#historyList");
+    status.textContent = "Loading…";
+    list.innerHTML = "";
+    try {
+      historyCache = await Storage.listHistory();
+      status.textContent = historyCache.length
+        ? `Showing the last ${historyCache.length} save${historyCache.length === 1 ? "" : "s"}.`
+        : "No history yet — make a save first.";
+      historyCache.forEach((c, i) => {
+        const row = el("div", "history-row");
+        row.appendChild(el("span", "history-date", formatHistoryDate(c.date)));
+        row.appendChild(el("span", "history-msg", c.message || "(no message)"));
+        if (i === 0) row.appendChild(el("span", "history-badge", "Current"));
+        const btn = el("button", "btn btn-small", i === 0 ? "Current" : "Restore");
+        btn.type = "button";
+        btn.disabled = i === 0;
+        btn.onclick = () => restoreHistoryVersion(c.sha, c.date);
+        row.appendChild(btn);
+        list.appendChild(row);
+      });
+    } catch (e) {
+      status.textContent = "";
+      list.innerHTML = "";
+      list.appendChild(el("p", "warn", "Couldn't load history: " + (e.message || e)));
+    }
+  }
+
+  async function restoreHistoryVersion(sha, date) {
+    const when = formatHistoryDate(date);
+    if (!confirm(
+      "Restore the version from " + when + "?\n\n" +
+      "This loads that version's data and saves it as your new current state " +
+      "(it becomes a new commit — nothing in GitHub's history is deleted)."
+    )) return;
+    try {
+      setSyncing("Restoring…");
+      const data = await Storage.getVersion(sha);
+      state.data = normalize(data);
+      afterDataChange();
+      await persist();
+      await refreshHistoryList();
+      toast("Restored version from " + when);
+    } catch (e) {
+      toast("Restore failed: " + (e.message || e), true);
+      refreshStorageStatus();
+    }
+  }
+
   function updateFileInfo() {
     const info = $("#fileInfo");
     const connect = $("#connectFileBtn");
@@ -2330,6 +2401,7 @@
     updateBackendInfo();
     updateFileInfo();
     updateGithubInfo();
+    updateHistoryPanel();
     $("#ghPollInterval").value = String(state.visual.pollInterval);
     $("#monthMin").value = state.visual.monthMinWidth;
     $("#monthMax").value = state.visual.monthMaxWidth;
@@ -2459,7 +2531,7 @@
       }
       $("#ghToken").value = "";
       refreshStorageStatus();
-      updateBackendInfo(); updateGithubInfo(); updateFileInfo();
+      updateBackendInfo(); updateGithubInfo(); updateFileInfo(); updateHistoryPanel();
       schedulePoll();
       toast(Storage.fileConnected ? "GitHub connected — syncing, file kept as backup" : "GitHub connected — syncing here");
     } catch (e) {
@@ -2471,7 +2543,7 @@
   async function disconnectGithub() {
     await Storage.disconnectGithub();
     refreshStorageStatus();
-    updateBackendInfo(); updateGithubInfo(); updateFileInfo();
+    updateBackendInfo(); updateGithubInfo(); updateFileInfo(); updateHistoryPanel();
     schedulePoll();
     toast(Storage.fileConnected ? "GitHub disconnected (still saving to local file)" : "GitHub disconnected (browser storage only)");
   }
@@ -3246,6 +3318,7 @@
     $("#disconnectFileBtn").onclick = disconnectFile;
     $("#ghConnectBtn").onclick = connectGithub;
     $("#ghDisconnectBtn").onclick = disconnectGithub;
+    $("#historyRefreshBtn").onclick = refreshHistoryList;
     $("#ghPollInterval").onchange = onPollIntervalChange;
     $("#ghCopyLinkBtn").onclick = async () => {
       const v = $("#ghSetupLink").value;
