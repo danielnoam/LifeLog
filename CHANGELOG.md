@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.25.0] - 2026-06-23
+
+### Changed
+- View tabs are now grouped under "Journal" (Timeline, Categories, Stats,
+  Backlog) and "Finance" (Finance, Finance Stats) headers, on both the
+  desktop tab bar and the mobile dropdown menu — matching the same
+  Journal/Finance grouping already used in Settings → Import / Export.
+
 ## [0.24.0] - 2026-06-23
 
 ### Added

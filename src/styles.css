@@ -53,6 +53,13 @@ html, body {
 .tab:hover { background: var(--bg-elev2); color: var(--text); }
 .tab.active { background: var(--accent); color: #fff; }
 
+/* "Journal" / "Finance" group headers inside .views — labels, not buttons */
+.tab-group-label {
+  color: var(--text-faint); font-size: 11px; text-transform: uppercase;
+  letter-spacing: .5px; font-weight: 600; align-self: center; padding: 0 2px;
+}
+.tab-group-label:not(:first-child) { margin-left: 6px; }
+
 /* mobile-only "current view" trigger; see .views.open below */
 .view-current { display: none; }
 
@@ -184,7 +191,6 @@ select:focus { outline: none; border-color: var(--accent); }
 .datechip:hover { color: var(--text); border-color: var(--accent); }
 
 /* finance */
-.tab-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; align-self: center; }
 .finance-list { display: flex; flex-direction: column; gap: 2px; }
 .finance-entry .fdate { font-size: 11px; color: var(--text-faint); width: 78px; flex: 0 0 auto; }
 .finance-entry .fdate.fyearly { width: auto; font-style: italic; }
@@ -508,7 +514,11 @@ body.modal-open { overflow: hidden; }
     box-shadow: var(--shadow); padding: 5px;
   }
   .views.open .tab.active { display: none; }
-  .tab-sep { width: 100%; height: 1px; margin: 4px 0; }
+  .tab-group-label {
+    width: 100%; text-align: center; padding: 4px 0;
+    margin: 0; border-top: 1px solid var(--border);
+  }
+  .tab-group-label:first-child { border-top: none; padding-top: 0; }
   .topbar-actions { gap: 6px; margin-left: auto; }
   .topbar-actions .btn { padding: 10px 14px; }
   .topbar-actions .btn-icon { padding: 10px 12px; }
