@@ -37,12 +37,13 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.23.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.24.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
   const DEFAULT_FINANCE_CATEGORY_NAMES = ["Entertainment", "Food", "Fuel", "Clothing", "Health", "Smoking", "Other"];
   const FINANCE_PALETTE = ["#e2723b", "#3bb2e2", "#9fe23b", "#b23be2", "#e23b72", "#6b7384", "#7a8a99"];
+  const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
   function seedFinanceCategories() {
     return DEFAULT_FINANCE_CATEGORY_NAMES.map((name, i) => ({
       id: name.toLowerCase(), name, color: FINANCE_PALETTE[i % FINANCE_PALETTE.length],
@@ -164,7 +165,7 @@
   function emptyData() {
     return {
       version: 1, categories: [], entries: [], backlog: [], accomplishments: {},
-      financeCategories: seedFinanceCategories(), financeEntries: [],
+      financeCategories: seedFinanceCategories(), financeEntries: [], recurringExpenses: [],
       settings: { ...DEFAULT_SETTINGS },
     };
   }
@@ -201,14 +202,64 @@
   }
 
   function financeYearOf(f) { return +String(f.date).slice(0, 4); }
+
+  // ---------- recurring expenses ----------
+  // Recurring expenses are stored as a single template (start date, interval,
+  // amount/category/note) rather than as individual finance entries. Their
+  // occurrences are computed on the fly, from the start date up through
+  // today, every time finance data is read — nothing is written to
+  // state.data.financeEntries for them. This keeps the template the single
+  // source of truth: editing it changes every past and future occurrence,
+  // and there's no per-occurrence row to clean up if it's stopped or edited.
+  function addMonthsClamped(date, n, day) {
+    const d = new Date(date.getFullYear(), date.getMonth() + n, 1);
+    const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+    d.setDate(Math.min(day, daysInMonth));
+    return d;
+  }
+  function nextRecurringDate(date, interval, anchorDay) {
+    if (interval === "weekly") { const d = new Date(date); d.setDate(d.getDate() + 7); return d; }
+    if (interval === "yearly") { const d = new Date(date); d.setFullYear(d.getFullYear() + 1); return d; }
+    return addMonthsClamped(date, 1, anchorDay);
+  }
+  // generates every occurrence of a recurring template from its start date
+  // up to (and including) `until`, capped at the template's stop date if set
+  function recurringOccurrences(rec, until) {
+    const start = new Date(rec.startDate + "T00:00:00");
+    if (isNaN(start.getTime())) return [];
+    const stop = rec.endDate ? new Date(rec.endDate + "T00:00:00") : null;
+    const cutoff = stop && stop < until ? stop : until;
+    const anchorDay = start.getDate();
+    const out = [];
+    let d = start;
+    let n = 0;
+    while (d <= cutoff) {
+      out.push({
+        id: `${rec.id}:${n}`, date: d.toISOString().slice(0, 10), type: "expense",
+        amount: rec.amount, category: rec.category, note: rec.note, createdAt: rec.createdAt,
+        recurringId: rec.id, virtual: true,
+      });
+      n++;
+      d = nextRecurringDate(d, rec.interval, anchorDay);
+    }
+    return out;
+  }
+  // real finance entries plus every recurring template's occurrences through
+  // today — the merged list everything else (list view, stats, filters)
+  // should read instead of state.data.financeEntries directly
+  function getEffectiveFinanceEntries() {
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const virtual = (state.data.recurringExpenses || []).flatMap((r) => recurringOccurrences(r, today));
+    return [...state.data.financeEntries, ...virtual];
+  }
   function financeYears() {
-    const ys = new Set(state.data.financeEntries.map(financeYearOf));
+    const ys = new Set(getEffectiveFinanceEntries().map(financeYearOf));
     return [...ys].sort((a, b) => b - a);
   }
 
   function getFilteredFinance() {
     const q = state.search.trim().toLowerCase();
-    return state.data.financeEntries.filter((f) => {
+    return getEffectiveFinanceEntries().filter((f) => {
       if (state.financeActiveYears.size && !state.financeActiveYears.has(financeYearOf(f))) return false;
       if (state.financeActiveCats.size && !state.financeActiveCats.has(f.category)) return false;
       if (q && !(f.note || "").toLowerCase().includes(q)) return false;
@@ -845,7 +896,8 @@
 
   // ---------- finance ----------
   function renderFinanceEntries(root) {
-    if (!state.data.financeEntries.length) {
+    renderRecurringCard(root);
+    if (!state.data.financeEntries.length && !state.data.recurringExpenses.length) {
       root.appendChild(emptyState(`No finance entries yet. Use "+ Add" → "Add finance entry" to log income or expenses.`));
       return;
     }
@@ -878,15 +930,18 @@
     t.title = f.note || f.category;
     row.appendChild(t);
     row.appendChild(el("span", "ecat", f.category));
+    if (f.virtual) row.appendChild(el("span", "recur-badge", "↻"));
     const sign = f.type === "income" ? "+" : "-";
     const amt = el("span", "famount " + (f.type === "income" ? "fpositive" : "fnegative"), sign + formatMoney(f.amount));
     row.appendChild(amt);
-    row.onclick = () => openFinanceModal(f);
+    row.onclick = f.virtual
+      ? () => openRecurringModal(state.data.recurringExpenses.find((r) => r.id === f.recurringId))
+      : () => openFinanceModal(f);
     return row;
   }
 
   function renderFinanceStats(root) {
-    if (!state.data.financeEntries.length) {
+    if (!state.data.financeEntries.length && !state.data.recurringExpenses.length) {
       root.appendChild(emptyState("No finance entries yet — add some on the Finance tab to see stats here."));
       return;
     }
@@ -1856,6 +1911,89 @@
     toast("Finance entry deleted");
   }
 
+  // ---------- recurring expenses ----------
+  function openRecurringModal(rec) {
+    const editing = !!rec;
+    $("#recurringModalTitle").textContent = editing ? "Edit recurring expense" : "Add recurring expense";
+    $("#recId").value = editing ? rec.id : "";
+    $("#recStart").value = editing ? rec.startDate : new Date().toISOString().slice(0, 10);
+    $("#recInterval").value = editing ? rec.interval : "monthly";
+    $("#recAmount").value = editing ? rec.amount : "";
+    fillSelect($("#recCategory"),
+      state.data.financeCategories.map((c) => ({ value: c.name, label: c.name })),
+      editing ? rec.category : (state.data.financeCategories[0] && state.data.financeCategories[0].name));
+    $("#recNote").value = editing ? (rec.note || "") : "";
+    $("#stopRecurringBtn").hidden = !editing;
+    $("#recurringModal").hidden = false;
+  }
+  function closeRecurringModal() { $("#recurringModal").hidden = true; }
+
+  async function saveRecurringFromForm(ev) {
+    ev.preventDefault();
+    const id = $("#recId").value;
+    const startDate = $("#recStart").value;
+    const interval = $("#recInterval").value;
+    const amount = Math.abs(parseFloat($("#recAmount").value)) || 0;
+    const category = $("#recCategory").value;
+    const note = $("#recNote").value.trim();
+    if (!startDate || !amount) return;
+    if (id) {
+      const r = state.data.recurringExpenses.find((x) => x.id === id);
+      Object.assign(r, { startDate, interval, amount, category });
+      if (note) r.note = note; else delete r.note;
+    } else {
+      const item = { id: uid(), startDate, interval, amount, category, createdAt: new Date().toISOString() };
+      if (note) item.note = note;
+      state.data.recurringExpenses.push(item);
+    }
+    closeRecurringModal();
+    buildYearFilter();
+    render();
+    await persist();
+    toast(id ? "Recurring expense updated" : "Recurring expense added");
+  }
+
+  // stops a recurring expense without erasing the occurrences it already
+  // generated: capping it at today (rather than deleting the template)
+  // keeps everything up to now intact in stats/history
+  async function stopCurrentRecurring() {
+    const id = $("#recId").value;
+    if (!id) return;
+    if (!confirm("Stop this recurring expense? Past occurrences stay in your history; no new ones will be generated.")) return;
+    const r = state.data.recurringExpenses.find((x) => x.id === id);
+    if (r) r.endDate = new Date().toISOString().slice(0, 10);
+    closeRecurringModal();
+    buildYearFilter();
+    render();
+    await persist();
+    toast("Recurring expense stopped");
+  }
+
+  function renderRecurringCard(root) {
+    const active = (state.data.recurringExpenses || []).filter((r) => !r.endDate || r.endDate >= new Date().toISOString().slice(0, 10));
+    if (!active.length) return;
+    const card = el("div", "recur-card");
+    const head = el("div", "year-head");
+    head.appendChild(el("h2", null, "Recurring expenses"));
+    head.appendChild(el("span", "ycount", `${active.length} active`));
+    card.appendChild(head);
+    active.slice().sort((a, b) => a.startDate.localeCompare(b.startDate)).forEach((r) => {
+      const row = el("div", "recur-row");
+      const bar = el("div", "bar");
+      bar.style.background = financeColorOf(r.category);
+      row.appendChild(bar);
+      row.appendChild(el("span", "recur-badge", "↻ " + r.interval));
+      const t = el("span", "etitle", r.note || r.category);
+      t.title = r.note || r.category;
+      row.appendChild(t);
+      row.appendChild(el("span", "ecat", r.category));
+      row.appendChild(el("span", "famount fnegative", "-" + formatMoney(r.amount)));
+      row.onclick = () => openRecurringModal(r);
+      card.appendChild(row);
+    });
+    root.appendChild(card);
+  }
+
   // ---------- finance categories management ----------
   function openFinanceCatModal(cat) {
     const editing = !!cat;
@@ -1865,7 +2003,8 @@
     $("#finCatColorInput").value = editing ? cat.color : "#3bb2e2";
     const uses = $("#finCatUses");
     if (editing) {
-      const n = countBy(state.data.financeEntries, (f) => f.category)[cat.name] || 0;
+      const n = (countBy(state.data.financeEntries, (f) => f.category)[cat.name] || 0)
+        + (countBy(state.data.recurringExpenses, (r) => r.category)[cat.name] || 0);
       uses.textContent = n + (n === 1 ? " entry uses this" : " entries use this");
       uses.hidden = false;
     } else uses.hidden = true;
@@ -1906,6 +2045,7 @@
       cat.name = newName;
       cat.id = newName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
       state.data.financeEntries.forEach((f) => { if (f.category === old) f.category = newName; });
+      state.data.recurringExpenses.forEach((r) => { if (r.category === old) r.category = newName; });
       if (state.financeActiveCats.has(old)) { state.financeActiveCats.delete(old); state.financeActiveCats.add(newName); }
     }
     closeFinanceCatModal();
@@ -1923,7 +2063,8 @@
 
   async function deleteFinanceCategory(cat) {
     const counts = countBy(state.data.financeEntries, (f) => f.category);
-    const n = counts[cat.name] || 0;
+    const recurCounts = countBy(state.data.recurringExpenses, (r) => r.category);
+    const n = (counts[cat.name] || 0) + (recurCounts[cat.name] || 0);
     if (n > 0) {
       if (cat.name === "Other") {
         toast("Can't delete “Other” while it's in use", true);
@@ -1933,6 +2074,7 @@
       let other = state.data.financeCategories.find((c) => c.name === "Other");
       if (!other) { other = { id: "other", name: "Other", color: "#7a8a99" }; state.data.financeCategories.push(other); }
       state.data.financeEntries.forEach((f) => { if (f.category === cat.name) f.category = "Other"; });
+      state.data.recurringExpenses.forEach((r) => { if (r.category === cat.name) r.category = "Other"; });
     } else {
       if (!confirm(`Delete category “${cat.name}”?`)) return;
     }
@@ -2345,83 +2487,207 @@
   function exportJson() {
     download("lifelog.json", JSON.stringify(state.data, null, 2), "application/json");
   }
-  function exportCsv() {
-    const esc = (s) => {
-      s = String(s == null ? "" : s);
-      return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  function csvEsc(s) {
+    s = String(s == null ? "" : s);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function exportJournalJson() {
+    const payload = { entries: state.data.entries, backlog: state.data.backlog, categories: state.data.categories };
+    download("lifelog-journal.json", JSON.stringify(payload, null, 2), "application/json");
+  }
+  function exportFinanceJson() {
+    const payload = {
+      financeEntries: state.data.financeEntries,
+      financeCategories: state.data.financeCategories,
+      recurringExpenses: state.data.recurringExpenses,
     };
-    const rows = [["Year", "Month", "Category", "Title", "Added"]];
+    download("lifelog-finance.json", JSON.stringify(payload, null, 2), "application/json");
+  }
+  // journal CSV covers both Timeline entries (dated, Year+Month) and Backlog
+  // items (undated) — the Kind column tells them apart on re-import
+  function exportJournalCsv() {
+    const rows = [["Kind", "Year", "Month", "Category", "Title", "Added"]];
     state.data.entries.slice()
       .sort((a, b) => (a.year - b.year) || (a.month - b.month))
-      .forEach((e) => rows.push([e.year, MONTHS[e.month], e.category, e.title,
+      .forEach((e) => rows.push(["Entry", e.year, MONTHS[e.month], e.category, e.title,
         e.createdAt ? e.createdAt.slice(0, 10) : ""]));
-    download("lifelog.csv", rows.map((r) => r.map(esc).join(",")).join("\n"), "text/csv");
+    state.data.backlog.slice()
+      .sort((a, b) => (a.title || "").localeCompare(b.title || ""))
+      .forEach((b) => rows.push(["Backlog", "", "", b.category, b.title,
+        b.createdAt ? b.createdAt.slice(0, 10) : ""]));
+    download("lifelog-journal.csv", rows.map((r) => r.map(csvEsc).join(",")).join("\n"), "text/csv");
   }
-  function importJson(file) {
+  const MONTH_NAME_TO_NUM = MONTHS.reduce((m, name, i) => { if (name) m[name.toLowerCase()] = i; return m; }, {});
+  function parseJournalCsv(text) {
+    const rows = parseCsv(text);
+    const entries = [];
+    const backlog = [];
+    for (const row of rows) {
+      const kind = (row[0] || "").trim().toLowerCase();
+      if (kind !== "entry" && kind !== "backlog") continue; // skips header row + blank lines
+      const category = (row[3] || "Other").trim() || "Other";
+      const title = (row[4] || "").trim();
+      const createdAt = (row[5] || "").trim();
+      if (!title) continue;
+      if (kind === "entry") {
+        const year = parseInt(row[1], 10);
+        const month = MONTH_NAME_TO_NUM[(row[2] || "").trim().toLowerCase()];
+        if (!year || !month) continue;
+        entries.push({ title, category, year, month, createdAt: createdAt ? new Date(createdAt).toISOString() : null });
+      } else {
+        backlog.push({ title, category, createdAt: createdAt ? new Date(createdAt).toISOString() : null });
+      }
+    }
+    if (!entries.length && !backlog.length) throw new Error("No rows found — is this a Journal CSV export?");
+    return { entries, backlog };
+  }
+
+  // ---------- unified import review ----------
+  // Builds the mixed-kind item list + new-category list for the picker,
+  // scoped to "journal" (entries/backlog), "finance" (finance/recurring), or
+  // "all" (everything) — shared by every JSON/CSV importer below.
+  function buildNewCategoryList(items, incomingCats, knownCategories) {
+    const known = new Set(knownCategories.map((c) => c.name));
+    const colorByName = {};
+    for (const c of incomingCats || []) if (c.name) colorByName[c.name] = c.color;
+    const names = new Set((incomingCats || []).map((c) => c.name).filter(Boolean));
+    for (const it of items) if (it.entry.category) names.add(it.entry.category);
+    const out = [];
+    let pi = 0;
+    names.forEach((name) => {
+      if (known.has(name)) return;
+      out.push({ name, color: colorByName[name] || CATEGORY_PALETTE[pi++ % CATEGORY_PALETTE.length], scope: knownCategories === state.data.financeCategories ? "finance" : "journal", add: true });
+    });
+    return out;
+  }
+  function buildImportItems({ entries, backlog, financeEntries, recurringExpenses, categories, financeCategories }) {
+    const items = [];
+    const entryKey = (e) => `${(e.title || "").toLowerCase()}|${(e.category || "").toLowerCase()}|${+e.year}|${+e.month}`;
+    const backlogKey = (b) => `${(b.title || "").toLowerCase()}|${(b.category || "").toLowerCase()}`;
+    const existingEntryKeys = new Set(state.data.entries.map(entryKey));
+    const existingBacklogKeys = new Set(state.data.backlog.map(backlogKey));
+    const existingFinanceKeys = new Set(state.data.financeEntries.map(financeKey));
+    const existingRecurKeys = new Set(state.data.recurringExpenses.map(recurringKey));
+
+    (entries || []).map(sanitizeEntry).forEach((e) => {
+      const dup = existingEntryKeys.has(entryKey(e));
+      items.push({ kind: "entry", entry: e, dup, checked: !dup });
+    });
+    (backlog || []).map(sanitizeBacklog).forEach((b) => {
+      const dup = existingBacklogKeys.has(backlogKey(b));
+      items.push({ kind: "backlog", entry: b, dup, checked: !dup });
+    });
+    (financeEntries || []).map(sanitizeFinanceEntry).forEach((f) => {
+      const dup = existingFinanceKeys.has(financeKey(f));
+      items.push({ kind: "finance", entry: f, dup, checked: !dup });
+    });
+    (recurringExpenses || []).map(sanitizeRecurring).forEach((r) => {
+      const dup = existingRecurKeys.has(recurringKey(r));
+      items.push({ kind: "recurring", entry: r, dup, checked: !dup });
+    });
+
+    const newCategories = [
+      ...buildNewCategoryList(items.filter((i) => i.kind === "entry" || i.kind === "backlog"), categories, state.data.categories),
+      ...buildNewCategoryList(items.filter((i) => i.kind === "finance" || i.kind === "recurring"), financeCategories, state.data.financeCategories),
+    ];
+    return { items, newCategories };
+  }
+  // applies a confirmed picker selection: registers opted-in new categories,
+  // pushes each selected item into its matching state array, and reports a
+  // single summary toast across every kind that was touched
+  async function applyImportSelection(selected, addCats) {
+    if (!selected.length) { toast("Nothing selected"); return; }
+    for (const c of addCats) {
+      const target = c.scope === "finance" ? state.data.financeCategories : state.data.categories;
+      if (!target.some((x) => x.name === c.name)) target.push({ id: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: c.name, color: c.color });
+    }
+    const byKind = { entry: [], backlog: [], finance: [], recurring: [] };
+    selected.forEach((i) => byKind[i.kind].push(i.entry));
+    state.data.entries.push(...byKind.entry);
+    state.data.backlog.push(...byKind.backlog);
+    state.data.financeEntries.push(...byKind.finance);
+    state.data.recurringExpenses.push(...byKind.recurring);
+    ensureCategories(state.data.categories, [...byKind.entry, ...byKind.backlog]);
+    ensureCategories(state.data.financeCategories, [...byKind.finance, ...byKind.recurring]);
+
+    afterDataChange();
+    await persist();
+    const parts = [];
+    if (byKind.entry.length) parts.push(`${byKind.entry.length} entries`);
+    if (byKind.backlog.length) parts.push(`${byKind.backlog.length} backlog items`);
+    if (byKind.finance.length) parts.push(`${byKind.finance.length} finance entries`);
+    if (byKind.recurring.length) parts.push(`${byKind.recurring.length} recurring expenses`);
+    toast(`Imported ${parts.join(", ")}`);
+  }
+  function mergeAccomplishments(accIn) {
+    let added = 0;
+    for (const y of Object.keys(accIn || {})) {
+      state.data.accomplishments[y] = state.data.accomplishments[y] || [];
+      const existingTexts = new Set(state.data.accomplishments[y].map((a) => (a.text || "").toLowerCase()));
+      for (const a of accIn[y] || []) {
+        const out = typeof a === "string" ? { text: a, createdAt: null } : { text: a.text || "", createdAt: a.createdAt || null, ...(a.notes ? { notes: a.notes } : {}) };
+        if (out.text && !existingTexts.has(out.text.toLowerCase())) { state.data.accomplishments[y].push(out); existingTexts.add(out.text.toLowerCase()); added++; }
+      }
+    }
+    return added;
+  }
+  function reviewAndImport(title, hint, built, extraOnConfirm) {
+    if (!built.items.length) { toast("No items found in this file"); return; }
+    openImportPicker({
+      title, hint, mode: "import", items: built.items, newCategories: built.newCategories,
+      confirmLabel: "Import",
+      onConfirm: async (selected, addCats) => {
+        await applyImportSelection(selected, addCats);
+        if (extraOnConfirm) extraOnConfirm();
+      },
+    });
+  }
+  function importJsonAll(file) {
     const reader = new FileReader();
-    reader.onload = async () => {
+    reader.onload = () => {
       try {
         const incoming = JSON.parse(reader.result);
-        if (!Array.isArray(incoming.entries) && !Array.isArray(incoming.backlog)) throw new Error("not a LifeLog file");
-        const entryKey = (e) => `${(e.title || "").toLowerCase()}|${(e.category || "").toLowerCase()}|${+e.year}|${+e.month}`;
-        const backlogKey = (b) => `${(b.title || "").toLowerCase()}|${(b.category || "").toLowerCase()}`;
-
-        const existingEntryKeys = new Set(state.data.entries.map(entryKey));
-        const newEntries = (incoming.entries || []).map(sanitizeEntry).filter((e) => !existingEntryKeys.has(entryKey(e)));
-
-        const existingBacklogKeys = new Set(state.data.backlog.map(backlogKey));
-        const newBacklog = (incoming.backlog || []).map(sanitizeBacklog).filter((b) => !existingBacklogKeys.has(backlogKey(b)));
-
-        const existingFinanceKeys = new Set(state.data.financeEntries.map(financeKey));
-        const newFinance = (incoming.financeEntries || []).map(sanitizeFinanceEntry).filter((f) => !existingFinanceKeys.has(financeKey(f)));
-
-        if (!newEntries.length && !newBacklog.length && !newFinance.length) { toast("Nothing new to import — all items already exist"); return; }
-        const skipped = ((incoming.entries || []).length - newEntries.length) + ((incoming.backlog || []).length - newBacklog.length)
-          + ((incoming.financeEntries || []).length - newFinance.length);
-        const parts = [];
-        if (newEntries.length) parts.push(`${newEntries.length} entries`);
-        if (newBacklog.length) parts.push(`${newBacklog.length} backlog items`);
-        if (newFinance.length) parts.push(`${newFinance.length} finance entries`);
-        const msg = `Add ${parts.join(" and ")} to your current data?` + (skipped ? ` (${skipped} duplicates will be skipped)` : "");
-        if (!confirm(msg)) return;
-
-        // prefer colors from incoming categories when creating new ones; fall
-        // back to the palette (via ensureCategories) for anything else
-        const knownNames = new Set(state.data.categories.map((c) => c.name));
-        for (const c of incoming.categories || []) {
-          if (c.name && c.color && !knownNames.has(c.name)) {
-            state.data.categories.push({ id: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: c.name, color: c.color });
-            knownNames.add(c.name);
-          }
-        }
-        ensureCategories(state.data.categories, [...newEntries, ...newBacklog]);
-
-        const knownFinanceNames = new Set(state.data.financeCategories.map((c) => c.name));
-        for (const c of incoming.financeCategories || []) {
-          if (c.name && c.color && !knownFinanceNames.has(c.name)) {
-            state.data.financeCategories.push({ id: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: c.name, color: c.color });
-            knownFinanceNames.add(c.name);
-          }
-        }
-        ensureCategories(state.data.financeCategories, newFinance);
-
-        state.data.entries.push(...newEntries);
-        state.data.backlog.push(...newBacklog);
-        state.data.financeEntries.push(...newFinance);
-
-        const accIn = incoming.accomplishments || {};
-        for (const y of Object.keys(accIn)) {
-          state.data.accomplishments[y] = state.data.accomplishments[y] || [];
-          const existingTexts = new Set(state.data.accomplishments[y].map((a) => (a.text || "").toLowerCase()));
-          for (const a of accIn[y] || []) {
-            const out = typeof a === "string" ? { text: a, createdAt: null } : { text: a.text || "", createdAt: a.createdAt || null, ...(a.notes ? { notes: a.notes } : {}) };
-            if (out.text && !existingTexts.has(out.text.toLowerCase())) { state.data.accomplishments[y].push(out); existingTexts.add(out.text.toLowerCase()); }
-          }
-        }
-
-        afterDataChange();
-        await persist();
-        toast(`Imported ${parts.join(" and ")}`);
+        if (!Array.isArray(incoming.entries) && !Array.isArray(incoming.backlog) && !Array.isArray(incoming.financeEntries)) throw new Error("not a LifeLog file");
+        const built = buildImportItems(incoming);
+        reviewAndImport("Import full backup", "Review what to bring in — pick individual items, toggle whole periods on/off, and choose which new categories to add. Items already in your data are hidden by default.", built, () => {
+          const added = mergeAccomplishments(incoming.accomplishments);
+          if (added) toast(`Also imported ${added} accomplishment${added === 1 ? "" : "s"}`);
+        });
+      } catch (e) { toast("Import failed: " + (e.message || e), true); }
+    };
+    reader.readAsText(file);
+  }
+  function importJournalJson(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const incoming = JSON.parse(reader.result);
+        if (!Array.isArray(incoming.entries) && !Array.isArray(incoming.backlog)) throw new Error("not a Journal export");
+        const built = buildImportItems(incoming);
+        reviewAndImport("Import journal data", "Review what to bring in — pick individual items, toggle whole periods on/off, and choose which new categories to add. Items already in your data are hidden by default.", built);
+      } catch (e) { toast("Import failed: " + (e.message || e), true); }
+    };
+    reader.readAsText(file);
+  }
+  function importJournalCsv(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const { entries, backlog } = parseJournalCsv(reader.result);
+        const built = buildImportItems({ entries, backlog });
+        reviewAndImport("Import journal CSV", "Review what to bring in — pick individual items, toggle whole periods on/off, and choose which new categories to add. Items already in your data are hidden by default.", built);
+      } catch (e) { toast("Import failed: " + (e.message || e), true); }
+    };
+    reader.readAsText(file);
+  }
+  function importFinanceJson(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const incoming = JSON.parse(reader.result);
+        if (!Array.isArray(incoming.financeEntries) && !Array.isArray(incoming.recurringExpenses)) throw new Error("not a Finance export");
+        const built = buildImportItems(incoming);
+        reviewAndImport("Import finance data", "Review what to bring in — pick individual items, toggle whole periods on/off, and choose which new categories to add. Items already in your data are hidden by default.", built);
       } catch (e) { toast("Import failed: " + (e.message || e), true); }
     };
     reader.readAsText(file);
@@ -2504,36 +2770,17 @@
     reader.onload = () => {
       try {
         const { monthly, yearly } = parseFinanceCsv(reader.result);
-        const incoming = [...monthly, ...yearly].map(sanitizeFinanceEntry);
-        if (!incoming.length) { toast("No entries found in this file"); return; }
-        const existingFinanceKeys = new Set(state.data.financeEntries.map(financeKey));
-        const items = incoming.map((entry) => {
-          const dup = existingFinanceKeys.has(financeKey(entry));
-          return { entry, dup, checked: !dup };
-        });
-        openFinancePicker({
-          title: "Import Finance CSV",
-          hint: "Pick which entries to add. Entries already in your data are hidden by default — turn on the toggle below to review and re-import them anyway.",
-          mode: "import",
-          items,
-          confirmLabel: "Import",
-          onConfirm: async (selected) => {
-            if (!selected.length) { toast("Nothing selected"); return; }
-            ensureCategories(state.data.financeCategories, selected);
-            state.data.financeEntries.push(...selected);
-            afterDataChange();
-            await persist();
-            toast(`Imported ${selected.length} entr${selected.length === 1 ? "y" : "ies"}`);
-          },
-        });
+        const incoming = [...monthly, ...yearly];
+        const built = buildImportItems({ financeEntries: incoming });
+        reviewAndImport("Import Finance CSV", "Pick which entries to add, disable whole years/months at once, and choose which new categories to bring in. Entries already in your data are hidden by default — turn on the toggle below to review and re-import them anyway.", built);
       } catch (e) { toast("Import failed: " + (e.message || e), true); }
     };
     reader.readAsText(file);
   }
   function exportFinanceCsv() {
     if (!state.data.financeEntries.length) { toast("No finance entries to export"); return; }
-    const items = state.data.financeEntries.map((entry) => ({ entry, dup: false, checked: true }));
-    openFinancePicker({
+    const items = state.data.financeEntries.map((entry) => ({ kind: "finance", entry, dup: false, checked: true }));
+    openImportPicker({
       title: "Export Finance CSV",
       hint: "Pick which entries to export.",
       mode: "export",
@@ -2541,22 +2788,77 @@
       confirmLabel: "Export",
       onConfirm: (selected) => {
         if (!selected.length) { toast("Nothing selected"); return; }
-        const esc = (s) => {
-          s = String(s == null ? "" : s);
-          return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
-        };
         const rows = [["Date", "Type", "Amount", "Category", "Note", "Yearly"]];
-        selected.slice().sort((a, b) => b.date.localeCompare(a.date)).forEach((f) =>
+        selected.map((i) => i.entry).sort((a, b) => b.date.localeCompare(a.date)).forEach((f) =>
           rows.push([f.date, f.type, f.amount, f.category, f.note || "", f.yearly ? "yes" : ""]));
-        download("lifelog-finance.csv", rows.map((r) => r.map(esc).join(",")).join("\n"), "text/csv");
+        download("lifelog-finance.csv", rows.map((r) => r.map(csvEsc).join(",")).join("\n"), "text/csv");
         toast(`Exported ${selected.length} entr${selected.length === 1 ? "y" : "ies"}`);
       },
     });
   }
-  // shared checkbox-list picker used by both the Finance CSV importer
-  // (preview before adding) and exporter (choose what to include)
-  function openFinancePicker({ title, hint, mode, items, confirmLabel, onConfirm }) {
-    items = items.slice().sort((a, b) => b.entry.date.localeCompare(a.entry.date));
+
+  // ---------- shared import/export review picker ----------
+  // Used by every importer/exporter above. Items are { kind, entry, dup,
+  // checked } where kind is "entry" (journal), "backlog", "finance", or
+  // "recurring" — rendered with a kind-appropriate row, grouped into
+  // year/month "period" chips that bulk-toggle their items on/off, with an
+  // optional "new categories found" checklist shown above the list (import
+  // only).
+  function importItemDateStr(item) {
+    const e = item.entry;
+    if (item.kind === "finance") return e.date || "";
+    if (item.kind === "entry") return `${e.year}-${String(e.month).padStart(2, "0")}`;
+    if (item.kind === "recurring") return e.startDate || "";
+    return ""; // backlog has no date
+  }
+  function importBucketKey(item) {
+    const ds = importItemDateStr(item);
+    if (!ds) return null;
+    return ds.length === 4 ? ds : ds.slice(0, 7);
+  }
+  function importBucketLabel(key) {
+    if (key.length === 4) return `${key} · yearly`;
+    const [y, m] = key.split("-");
+    return `${MONTHS_SHORT[+m]} ${y}`;
+  }
+  function importRowFor(item, onChange) {
+    const e = item.entry;
+    const finance = item.kind === "finance" || item.kind === "recurring";
+    const row = el("label", "entry picker-row" + (item.dup ? " is-dup" : "") + (finance ? " finance-entry" : "") + (e.yearly ? " yearly-expense" : ""));
+    const cb = el("input"); cb.type = "checkbox"; cb.checked = item.checked;
+    cb.onchange = () => { item.checked = cb.checked; onChange(); };
+    row.appendChild(cb);
+    const bar = el("div", "bar");
+    bar.style.background = finance ? financeColorOf(e.category) : colorOf(e.category);
+    row.appendChild(bar);
+    if (item.kind === "finance") {
+      row.appendChild(el("span", "fdate" + (e.yearly ? " fyearly" : ""), e.yearly ? `${e.date} · yearly` : e.date));
+      const t = el("span", "etitle", e.note || e.category); t.title = e.note || e.category; row.appendChild(t);
+      row.appendChild(el("span", "ecat", e.category));
+      const sign = e.type === "income" ? "+" : "-";
+      row.appendChild(el("span", "famount " + (e.type === "income" ? "fpositive" : "fnegative"), sign + formatMoney(e.amount)));
+    } else if (item.kind === "recurring") {
+      row.appendChild(el("span", "fdate", e.startDate));
+      row.appendChild(el("span", "recur-badge", "↻ " + e.interval));
+      const t = el("span", "etitle", e.note || e.category); t.title = e.note || e.category; row.appendChild(t);
+      row.appendChild(el("span", "ecat", e.category));
+      row.appendChild(el("span", "famount fnegative", "-" + formatMoney(e.amount)));
+    } else if (item.kind === "entry") {
+      row.appendChild(el("span", "fdate", `${MONTHS_SHORT[e.month]} ${e.year}`));
+      const t = el("span", "etitle", e.title); t.title = e.title; row.appendChild(t);
+      row.appendChild(el("span", "ecat", e.category));
+    } else { // backlog
+      row.appendChild(el("span", "fdate", "—"));
+      const t = el("span", "etitle", e.title); t.title = e.title; row.appendChild(t);
+      row.appendChild(el("span", "ecat", e.category));
+      row.appendChild(el("span", "dup-tag", "backlog"));
+    }
+    if (item.dup) row.appendChild(el("span", "dup-tag", "already added"));
+    return row;
+  }
+  function openImportPicker({ title, hint, mode, items, newCategories, confirmLabel, onConfirm }) {
+    items = items.slice().sort((a, b) => importItemDateStr(b).localeCompare(importItemDateStr(a)));
+    newCategories = newCategories || [];
     $("#financePickerTitle").textContent = title;
     $("#financePickerHint").textContent = hint;
     $("#financePickerConfirmBtn").textContent = confirmLabel;
@@ -2565,34 +2867,50 @@
     dupRow.hidden = mode !== "import" || !items.some((i) => i.dup);
     showDupCb.checked = false;
     const list = $("#financePickerList");
+    const bucketsWrap = $("#financePickerBuckets");
+    const newCatsWrap = $("#financePickerNewCats");
+    const newCatsList = $("#financePickerNewCatsList");
 
-    function rowFor(item) {
-      const f = item.entry;
-      const row = el("label", "entry finance-entry picker-row" + (f.yearly ? " yearly-expense" : "") + (item.dup ? " is-dup" : ""));
-      const cb = el("input"); cb.type = "checkbox"; cb.checked = item.checked;
-      cb.onchange = () => { item.checked = cb.checked; updateCount(); };
+    newCatsWrap.hidden = !newCategories.length;
+    newCatsList.innerHTML = "";
+    newCategories.forEach((nc) => {
+      const row = el("label", "toggle-label");
+      const cb = el("input"); cb.type = "checkbox"; cb.checked = nc.add;
+      cb.onchange = () => { nc.add = cb.checked; };
       row.appendChild(cb);
-      const bar = el("div", "bar");
-      bar.style.background = financeColorOf(f.category);
-      row.appendChild(bar);
-      row.appendChild(el("span", "fdate" + (f.yearly ? " fyearly" : ""), f.yearly ? `${f.date} · yearly` : f.date));
-      const t = el("span", "etitle", f.note || f.category);
-      t.title = f.note || f.category;
-      row.appendChild(t);
-      row.appendChild(el("span", "ecat", f.category));
-      const sign = f.type === "income" ? "+" : "-";
-      row.appendChild(el("span", "famount " + (f.type === "income" ? "fpositive" : "fnegative"), sign + formatMoney(f.amount)));
-      if (item.dup) row.appendChild(el("span", "dup-tag", "already added"));
-      return row;
-    }
+      const dot = el("span", "dot"); dot.style.background = nc.color;
+      dot.style.width = "9px"; dot.style.height = "9px"; dot.style.borderRadius = "50%"; dot.style.display = "inline-block";
+      row.appendChild(dot);
+      row.appendChild(document.createTextNode(nc.name));
+      newCatsList.appendChild(row);
+    });
+
     function visibleItems() { return items.filter((i) => !i.dup || showDupCb.checked); }
+    function renderBuckets() {
+      const map = new Map();
+      visibleItems().forEach((i) => {
+        const key = importBucketKey(i);
+        if (key) (map.get(key) || map.set(key, []).get(key)).push(i);
+      });
+      bucketsWrap.innerHTML = "";
+      bucketsWrap.hidden = map.size < 2;
+      [...map.keys()].sort((a, b) => b.localeCompare(a)).forEach((key) => {
+        const its = map.get(key);
+        const allOn = its.every((i) => i.checked);
+        const chip = el("span", "cat-chip" + (allOn ? " on" : ""), importBucketLabel(key));
+        chip.title = "Toggle this period on/off";
+        chip.onclick = () => { const v = !allOn; its.forEach((i) => (i.checked = v)); render(); };
+        bucketsWrap.appendChild(chip);
+      });
+    }
     function updateCount() {
       const checked = visibleItems().filter((i) => i.checked).length;
       $("#financePickerCount").textContent = `${checked} selected`;
     }
     function render() {
       list.innerHTML = "";
-      visibleItems().forEach((item) => list.appendChild(rowFor(item)));
+      visibleItems().forEach((item) => list.appendChild(importRowFor(item, updateCount)));
+      renderBuckets();
       updateCount();
     }
 
@@ -2601,9 +2919,10 @@
     $("#financePickerSelectNone").onclick = () => { visibleItems().forEach((i) => (i.checked = false)); render(); };
     $("#financePickerCancelBtn").onclick = () => { $("#financePickerModal").hidden = true; };
     $("#financePickerConfirmBtn").onclick = async () => {
-      const selected = items.filter((i) => i.checked).map((i) => i.entry);
+      const selected = items.filter((i) => i.checked);
+      const addCats = newCategories.filter((nc) => nc.add);
       $("#financePickerModal").hidden = true;
-      await onConfirm(selected);
+      await onConfirm(selected, addCats);
     };
 
     render();
@@ -2662,11 +2981,25 @@
     return out;
   }
   const financeKey = (f) => `${(f.date || "").toLowerCase()}|${f.type}|${+f.amount}|${(f.category || "").toLowerCase()}|${(f.note || "").toLowerCase()}|${f.yearly ? 1 : 0}`;
+  function sanitizeRecurring(r) {
+    const out = {
+      id: r.id || uid(),
+      startDate: r.startDate || "",
+      interval: ["weekly", "monthly", "yearly"].includes(r.interval) ? r.interval : "monthly",
+      amount: Math.abs(+r.amount) || 0,
+      category: r.category || "Other",
+      createdAt: r.createdAt || null,
+    };
+    if (r.note) out.note = r.note;
+    if (r.endDate) out.endDate = r.endDate;
+    return out;
+  }
+  const recurringKey = (r) => `${r.startDate}|${r.interval}|${+r.amount}|${(r.category || "").toLowerCase()}|${(r.note || "").toLowerCase()}`;
   // adds a category entry (with a palette color) for any category name used
   // by entries/backlog items that isn't already known
   function ensureCategories(categories, items) {
     const known = new Set(categories.map((c) => c.name));
-    const palette = ["#e23b3b","#e2723b","#e2b23b","#9fe23b","#3be25a","#3bb2e2","#5b8cff","#723be2","#b23be2","#e23b72","#7a8a99"];
+    const palette = CATEGORY_PALETTE;
     let pi = categories.length;
     for (const item of items) if (!known.has(item.category)) {
       known.add(item.category);
@@ -2738,7 +3071,8 @@
 
     if (data.financeCategories === undefined) data.financeCategories = seedFinanceCategories();
     data.financeEntries = (data.financeEntries || []).map(sanitizeFinanceEntry);
-    ensureCategories(data.financeCategories, data.financeEntries);
+    data.recurringExpenses = (data.recurringExpenses || []).map(sanitizeRecurring);
+    ensureCategories(data.financeCategories, [...data.financeEntries, ...data.recurringExpenses]);
 
     return data;
   }
@@ -2843,6 +3177,7 @@
       else if (b.dataset.add === "achievement") openAchModal(null);
       else if (b.dataset.add === "backlog") openBacklogModal(null);
       else if (b.dataset.add === "finance") openFinanceModal(null);
+      else if (b.dataset.add === "recurring") openRecurringModal(null);
       else if (b.dataset.add === "finance-category") openFinanceCatModal(null);
       else openCategoryModal(null);
     });
@@ -2879,6 +3214,10 @@
     $("#financeForm").onsubmit = saveFinanceFromForm;
     $("#deleteFinanceBtn").onclick = deleteCurrentFinanceEntry;
     $("#finYearly").onchange = applyFinanceYearlyUI;
+
+    $("#cancelRecurringBtn").onclick = closeRecurringModal;
+    $("#recurringForm").onsubmit = saveRecurringFromForm;
+    $("#stopRecurringBtn").onclick = stopCurrentRecurring;
 
     $("#cancelFinanceCatBtn").onclick = closeFinanceCatModal;
     $("#financeCatForm").onsubmit = saveFinanceCatFromForm;
@@ -3005,12 +3344,22 @@
       refreshPrivacyMethodUI();
     };
     $("#exportJsonBtn").onclick = exportJson;
-    $("#exportCsvBtn").onclick = exportCsv;
     $("#importJsonBtn").onclick = () => $("#importJsonInput").click();
-    $("#importJsonInput").onchange = (e) => { if (e.target.files[0]) importJson(e.target.files[0]); e.target.value = ""; };
+    $("#importJsonInput").onchange = (e) => { if (e.target.files[0]) importJsonAll(e.target.files[0]); e.target.value = ""; };
+
+    $("#exportJournalJsonBtn").onclick = exportJournalJson;
+    $("#exportJournalCsvBtn").onclick = exportJournalCsv;
+    $("#importJournalJsonBtn").onclick = () => $("#importJournalJsonInput").click();
+    $("#importJournalJsonInput").onchange = (e) => { if (e.target.files[0]) importJournalJson(e.target.files[0]); e.target.value = ""; };
+    $("#importJournalCsvBtn").onclick = () => $("#importJournalCsvInput").click();
+    $("#importJournalCsvInput").onchange = (e) => { if (e.target.files[0]) importJournalCsv(e.target.files[0]); e.target.value = ""; };
+
+    $("#exportFinanceJsonBtn").onclick = exportFinanceJson;
+    $("#exportFinanceCsvBtn").onclick = exportFinanceCsv;
+    $("#importFinanceJsonBtn").onclick = () => $("#importFinanceJsonInput").click();
+    $("#importFinanceJsonInput").onchange = (e) => { if (e.target.files[0]) importFinanceJson(e.target.files[0]); e.target.value = ""; };
     $("#importFinanceCsvBtn").onclick = () => $("#importFinanceCsvInput").click();
     $("#importFinanceCsvInput").onchange = (e) => { if (e.target.files[0]) importFinanceCsv(e.target.files[0]); e.target.value = ""; };
-    $("#exportFinanceCsvBtn").onclick = exportFinanceCsv;
 
     // close modals on overlay click / Escape (the conflict picker is modal —
     // it must be resolved via its buttons, not dismissed)

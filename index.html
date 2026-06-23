@@ -60,6 +60,7 @@
             <button type="button" data-add="backlog">Add to backlog</button>
             <div class="add-menu-divider" role="separator"></div>
             <button type="button" data-add="finance">Add finance entry</button>
+            <button type="button" data-add="recurring">Add recurring expense</button>
             <button type="button" data-add="finance-category">Add finance category</button>
           </div>
         </div>
@@ -289,6 +290,44 @@
     </div>
   </div>
 
+  <!-- Recurring expense add/edit modal -->
+  <div class="modal-overlay" id="recurringModal" hidden>
+    <div class="modal">
+      <h2 id="recurringModalTitle">Add recurring expense</h2>
+      <form id="recurringForm">
+        <input type="hidden" id="recId" />
+        <label id="recStartLabel">Start date
+          <input id="recStart" type="date" required />
+        </label>
+        <div class="row">
+          <label>Repeats
+            <select id="recInterval">
+              <option value="weekly">Weekly</option>
+              <option value="monthly" selected>Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </label>
+          <label>Amount
+            <input id="recAmount" type="number" min="0" step="0.01" required />
+          </label>
+        </div>
+        <label>Category
+          <select id="recCategory" required></select>
+        </label>
+        <label>Note
+          <input id="recNote" type="text" autocomplete="off" placeholder="Optional description…" />
+        </label>
+        <p class="hint" id="recHint">Generates an expense entry on this date every period, up to today. Editing this later changes every past and future occurrence.</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="stopRecurringBtn" hidden>Stop repeating</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelRecurringBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Finance category add/edit modal -->
   <div class="modal-overlay" id="financeCatModal" hidden>
     <div class="modal">
@@ -409,26 +448,42 @@
 
       <div class="settings-panel" data-panel="backup">
       <section class="settings-section">
-        <h3>General data</h3>
-        <p class="hint">Download a full copy of your data or restore from a previous backup.</p>
+        <h3>Full backup</h3>
+        <p class="hint">Download everything (entries, categories, backlog, achievements, finance, recurring expenses) in one file, or restore from a previous backup.</p>
         <div class="btn-row">
           <button class="btn" id="exportJsonBtn">Export JSON</button>
-          <button class="btn" id="exportCsvBtn">Export CSV</button>
           <button class="btn" id="importJsonBtn">Import JSON…</button>
         </div>
         <input type="file" id="importJsonInput" accept="application/json,.json" hidden />
-        <p class="hint">JSON keeps everything (entries, categories, backlog, achievements, finance). CSV exports entries only and is useful for spreadsheets. Importing JSON merges with your current data — it does not replace it.</p>
+        <p class="hint">Importing merges with your current data — it does not replace it. You'll get a review screen to pick which items, periods, and new categories to bring in.</p>
+      </section>
+
+      <section class="settings-section">
+        <h3>Journal data <span class="muted">(Timeline, Categories, Backlog)</span></h3>
+        <p class="hint">Export or import just your timeline entries and backlog, as JSON or CSV.</p>
+        <div class="btn-row">
+          <button class="btn" id="exportJournalJsonBtn">Export JSON</button>
+          <button class="btn" id="exportJournalCsvBtn">Export CSV</button>
+          <button class="btn" id="importJournalJsonBtn">Import JSON…</button>
+          <button class="btn" id="importJournalCsvBtn">Import CSV…</button>
+        </div>
+        <input type="file" id="importJournalJsonInput" accept="application/json,.json" hidden />
+        <input type="file" id="importJournalCsvInput" accept="text/csv,.csv" hidden />
+        <p class="hint">Importing opens a review screen: pick individual items, disable whole years/months at once, choose which new categories to add, and skip anything already in your data.</p>
       </section>
 
       <section class="settings-section">
         <h3>Finance data</h3>
-        <p class="hint">Import your expense history from a Google Sheets export, or export what's currently in LifeLog.</p>
+        <p class="hint">Export or import your finance entries, categories, and recurring expenses, as JSON or CSV.</p>
         <div class="btn-row">
+          <button class="btn" id="exportFinanceJsonBtn">Export JSON</button>
+          <button class="btn" id="exportFinanceCsvBtn">Export CSV…</button>
+          <button class="btn" id="importFinanceJsonBtn">Import JSON…</button>
           <button class="btn" id="importFinanceCsvBtn">Import Finance CSV…</button>
-          <button class="btn" id="exportFinanceCsvBtn">Export Finance CSV…</button>
         </div>
+        <input type="file" id="importFinanceJsonInput" accept="application/json,.json" hidden />
         <input type="file" id="importFinanceCsvInput" accept="text/csv,.csv" hidden />
-        <p class="hint">Expects the yearly pivot format exported from the source spreadsheet (year blocks, 12 month columns, a note on each real transaction). Big one-off purchases with no month become "yearly expenses." Both import and export let you pick exactly which entries to include before confirming.</p>
+        <p class="hint">Finance CSV import expects the yearly pivot format exported from a Google Sheets export (year blocks, 12 month columns, a note on each real transaction); big one-off purchases with no month become "yearly expenses." Every import goes through the same review screen as Journal data.</p>
       </section>
       </div><!-- /backup panel -->
 
@@ -577,6 +632,11 @@
     <div class="modal modal-wide">
       <h2 id="financePickerTitle">Import Finance CSV</h2>
       <p class="hint" id="financePickerHint"></p>
+      <div class="picker-newcats" id="financePickerNewCats" hidden>
+        <p class="hint">New categories found in this file — pick which ones to add:</p>
+        <div class="picker-newcats-list" id="financePickerNewCatsList"></div>
+      </div>
+      <div class="picker-buckets" id="financePickerBuckets" hidden></div>
       <label class="toggle-label" id="financePickerDupRow" hidden>
         <input type="checkbox" id="financePickerShowDup" />
         Show entries already in your data

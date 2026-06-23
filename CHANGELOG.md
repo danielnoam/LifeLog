@@ -4,6 +4,29 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.24.0] - 2026-06-23
+
+### Added
+- Recurring expenses: add a weekly, monthly, or yearly recurring expense
+  (Add menu → Add recurring expense) and it automatically appears in the
+  Finance list and stats up through today, marked with a ↻ badge. Nothing
+  is stored per-occurrence — occurrences are computed on the fly from the
+  template, so editing the template (amount, category, note) updates every
+  past and future occurrence at once. Stop a recurring expense to keep its
+  history but halt future occurrences.
+- Centralized import/export in Settings → Import / Export: Journal data
+  (Timeline, Categories, Backlog) and Finance data (entries, categories,
+  recurring expenses) each now support both JSON and CSV export/import,
+  alongside the existing full-backup JSON.
+- Every import (full backup, Journal, Finance) now goes through the same
+  review screen used by Finance CSV import: pick individual items,
+  bulk-toggle whole years/months on or off with one click, and opt in to
+  any new categories found in the file before anything is added.
+
+### Changed
+- Removed the old entries-only "Export CSV" button in favor of the
+  Journal/Finance-scoped export buttons above.
+
 ## [0.23.0] - 2026-06-22
 
 ### Added
