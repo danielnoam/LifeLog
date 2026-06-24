@@ -37,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.30.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.30.1"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -1214,7 +1214,20 @@
       };
       wrap.appendChild(chip);
     });
+    equalizeChipWidths(wrap);
   }
+
+  // Pads every chip in a filter group out to the width of its widest sibling,
+  // so e.g. "Books" and "Video Games" line up as even-length pills instead of
+  // hugging their own text.
+  function equalizeChipWidths(wrap) {
+    const chips = [...wrap.querySelectorAll(".cat-chip")];
+    if (chips.length < 2) return;
+    chips.forEach((c) => { c.style.minWidth = ""; });
+    const max = Math.max(...chips.map((c) => c.offsetWidth));
+    chips.forEach((c) => { c.style.minWidth = max + "px"; });
+  }
+
   function buildCatFilter() {
     const wrap = $("#catFilter");
     wrap.innerHTML = "";
@@ -1239,6 +1252,7 @@
       };
       wrap.appendChild(chip);
     });
+    equalizeChipWidths(wrap);
   }
 
   // Clicking the "Years"/"Categories" label selects all chips; clicking again

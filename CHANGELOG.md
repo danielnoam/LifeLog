@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.30.1] - 2026-06-24
+
+### Changed
+- Year/category filter pills are now all padded out to the width of the
+  widest one in their group, so they line up evenly instead of each
+  hugging its own text. Pill text is also always white now, regardless
+  of selected state.
+
 ## [0.30.0] - 2026-06-24
 
 ### Added
