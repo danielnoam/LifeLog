@@ -148,7 +148,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .year-block { margin-bottom: 30px; }
 .year-head {
   display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px; margin: 0 0 14px;
-  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  padding: 10px 0 14px; border-bottom: 1px solid var(--border);
 }
 .year-head h2 { font-size: 22px; margin: 0; font-weight: 700; }
 .year-head .ycount { color: var(--text-faint); font-size: 13px; }
@@ -161,7 +161,10 @@ select:focus { outline: none; border-color: var(--accent); }
 
 .month-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--month-min, 180px), var(--month-max, 1fr))); gap: 14px; align-items: start; }
 .month-card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 13px; }
-.month-card h3 { margin: 0 0 9px; font-size: 13px; color: var(--text-dim); font-weight: 600; display:flex; justify-content:space-between; }
+.month-card h3 {
+  margin: 0 0 9px; padding: 4px 0 10px; border-bottom: 1px solid var(--border);
+  font-size: 13px; color: var(--text-dim); font-weight: 600; display:flex; justify-content:space-between;
+}
 .month-card h3 .mc { color: var(--text-faint); font-weight: 500; }
 .entry {
   display: flex; align-items: center; gap: 8px; padding: 5px 7px; border-radius: 7px;

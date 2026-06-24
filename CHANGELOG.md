@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.28.1] - 2026-06-24
+
+### Changed
+- Timeline year and month headers got more vertical padding, and month
+  headers now have a separator line below them to set them apart from the
+  entries underneath.
+
 ## [0.28.0] - 2026-06-24
 
 ### Added
