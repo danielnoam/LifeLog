@@ -37,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.28.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.29.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -389,14 +389,19 @@
 
   function entryRow(e) {
     const row = el("div", "entry");
-    const bar = el("div", "bar");
-    bar.style.background = colorOf(e.category);
-    row.appendChild(bar);
+    const color = colorOf(e.category);
+    const chip = el("span", "entry-cat");
+    chip.style.background = color + "22";
+    chip.style.color = color;
+    const dot = el("span", "dot");
+    dot.style.background = color;
+    chip.appendChild(dot);
+    chip.appendChild(document.createTextNode(e.category));
+    row.appendChild(chip);
     const t = el("span", "etitle", e.title);
     t.title = e.title;
     row.appendChild(t);
     if (e.rating) row.appendChild(ratingBadge(e.rating));
-    row.appendChild(el("span", "ecat", e.category));
     row.onclick = () => openEntryModal(e);
     return row;
   }

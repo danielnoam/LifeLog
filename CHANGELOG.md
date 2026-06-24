@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.29.0] - 2026-06-24
+
+### Changed
+- Journal Timeline entry rows now show the category as a small colored
+  chip in front of the title, instead of a thin color bar plus faint
+  trailing text. Easier to scan which category an entry belongs to at a
+  glance, and reuses the same chip style as the category filters.
+
 ## [0.28.2] - 2026-06-24
 
 ### Fixed
