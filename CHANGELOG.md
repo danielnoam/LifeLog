@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.31.0] - 2026-06-24
+
+### Changed
+- "Add category" and "Add finance category" are no longer in the top
+  "+ Add" menu. Instead, a "+" pill at the end of the Categories filter
+  row (Journal and Finance) opens the same add-category modal.
+- Every category dropdown (Entry, Backlog, Finance entry, Recurring
+  expense) now has a trailing "+ Add new category…" option. Picking it
+  opens the add-category modal inline and returns you to the form you
+  were filling out — with the new category selected on save, or your
+  prior selection restored on cancel.
+
 ## [0.30.1] - 2026-06-24
 
 ### Changed

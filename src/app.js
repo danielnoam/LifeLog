@@ -37,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.30.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.31.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -1253,6 +1253,13 @@
       wrap.appendChild(chip);
     });
     equalizeChipWidths(wrap);
+    const addChip = el("span", "cat-chip add-chip", "+");
+    addChip.title = finance ? "Add finance category" : "Add category";
+    addChip.onclick = (ev) => {
+      ev.stopPropagation();
+      finance ? openFinanceCatModal(null) : openCategoryModal(null);
+    };
+    wrap.appendChild(addChip);
   }
 
   // Clicking the "Years"/"Categories" label selects all chips; clicking again
@@ -1286,14 +1293,49 @@
     if (val != null) sel.value = val;
   }
 
+  // Category <select>s get a trailing "+ Add new category…" option so a
+  // new category can be created without leaving the form that's using it.
+  const ADD_CATEGORY_OPTION = "__add_category__";
+  function fillCategorySelect(sel, cats, val) {
+    fillSelect(sel,
+      cats.map((c) => ({ value: c.name, label: c.name }))
+        .concat([{ value: ADD_CATEGORY_OPTION, label: "+ Add new category…" }]),
+      val);
+    sel.dataset.prevValue = val || "";
+  }
+
+  // Picking that option hides the current modal, opens the add-category
+  // modal, and remembers where to return to: with the new category selected
+  // on save, or back to the prior selection on cancel.
+  let pendingCatSelect = null; // { selectId, modalId, finance }
+  function wireCategorySelect(selId, modalId, finance) {
+    const sel = $(selId);
+    sel.addEventListener("change", () => {
+      if (sel.value !== ADD_CATEGORY_OPTION) { sel.dataset.prevValue = sel.value; return; }
+      pendingCatSelect = { selectId: selId, modalId, finance };
+      $(modalId).hidden = true;
+      finance ? openFinanceCatModal(null) : openCategoryModal(null);
+    });
+  }
+  function resolvePendingCatSelect(newName) {
+    if (!pendingCatSelect) return;
+    const { selectId, modalId, finance } = pendingCatSelect;
+    pendingCatSelect = null;
+    const sel = $(selectId);
+    if (sel) {
+      const cats = finance ? state.data.financeCategories : state.data.categories;
+      fillCategorySelect(sel, cats, newName != null ? newName : sel.dataset.prevValue);
+    }
+    $(modalId).hidden = false;
+  }
+
   function openEntryModal(entry, fromBacklog) {
     const editing = !!entry;
     $("#entryModalTitle").textContent = editing ? "Edit entry" : "Add entry";
     $("#entryId").value = editing ? entry.id : "";
     $("#entryFromBacklog").value = fromBacklog ? fromBacklog.id : "";
     $("#fTitle").value = editing ? entry.title : (fromBacklog ? fromBacklog.title : "");
-    fillSelect($("#fCategory"),
-      state.data.categories.map((c) => ({ value: c.name, label: c.name })),
+    fillCategorySelect($("#fCategory"), state.data.categories,
       editing ? entry.category : (fromBacklog ? fromBacklog.category : (state.data.categories[0] && state.data.categories[0].name)));
     fillSelect($("#fMonth"),
       MONTHS.slice(1).map((m, i) => ({ value: i + 1, label: m })),
@@ -1638,6 +1680,7 @@
     $("#catModal").hidden = false;
   }
   function closeCategoryModal() { $("#catModal").hidden = true; }
+  function cancelCategoryModal() { closeCategoryModal(); resolvePendingCatSelect(); }
 
   async function saveCategoryFromForm(ev) {
     ev.preventDefault();
@@ -1656,6 +1699,7 @@
       rebuildColorMap(); buildCatFilter(); render();
       await persist();
       toast("Category added");
+      resolvePendingCatSelect(newName);
       return;
     }
 
@@ -1718,8 +1762,7 @@
     $("#backlogModalTitle").textContent = editing ? "Edit backlog item" : "Add to backlog";
     $("#backlogId").value = editing ? item.id : "";
     $("#bTitle").value = editing ? item.title : "";
-    fillSelect($("#bCategory"),
-      state.data.categories.map((c) => ({ value: c.name, label: c.name })),
+    fillCategorySelect($("#bCategory"), state.data.categories,
       editing ? item.category : (state.data.categories[0] && state.data.categories[0].name));
     $("#bNotes").value = editing ? (item.notes || "") : "";
     $("#bCoverUrl").value = editing ? (item.coverUrl || "") : "";
@@ -1809,8 +1852,7 @@
     $("#finYear").value = yearly ? entry.date : "";
     $("#finType").value = editing ? entry.type : "expense";
     $("#finAmount").value = editing ? entry.amount : "";
-    fillSelect($("#finCategory"),
-      state.data.financeCategories.map((c) => ({ value: c.name, label: c.name })),
+    fillCategorySelect($("#finCategory"), state.data.financeCategories,
       editing ? entry.category : (state.data.financeCategories[0] && state.data.financeCategories[0].name));
     $("#finNote").value = editing ? (entry.note || "") : "";
     $("#deleteFinanceBtn").hidden = !editing;
@@ -1868,8 +1910,7 @@
     $("#recStart").value = editing ? rec.startDate : new Date().toISOString().slice(0, 10);
     $("#recInterval").value = editing ? rec.interval : "monthly";
     $("#recAmount").value = editing ? rec.amount : "";
-    fillSelect($("#recCategory"),
-      state.data.financeCategories.map((c) => ({ value: c.name, label: c.name })),
+    fillCategorySelect($("#recCategory"), state.data.financeCategories,
       editing ? rec.category : (state.data.financeCategories[0] && state.data.financeCategories[0].name));
     $("#recNote").value = editing ? (rec.note || "") : "";
     $("#stopRecurringBtn").hidden = !editing;
@@ -1961,6 +2002,7 @@
     $("#financeCatModal").hidden = false;
   }
   function closeFinanceCatModal() { $("#financeCatModal").hidden = true; }
+  function cancelFinanceCatModal() { closeFinanceCatModal(); resolvePendingCatSelect(); }
 
   async function saveFinanceCatFromForm(ev) {
     ev.preventDefault();
@@ -1979,6 +2021,7 @@
       rebuildFinanceColorMap(); buildCatFilter(); render();
       await persist();
       toast("Finance category added");
+      resolvePendingCatSelect(newName);
       return;
     }
 
@@ -3209,11 +3252,14 @@
       else if (b.dataset.add === "backlog") openBacklogModal(null);
       else if (b.dataset.add === "finance") openFinanceModal(null);
       else if (b.dataset.add === "recurring") openRecurringModal(null);
-      else if (b.dataset.add === "finance-category") openFinanceCatModal(null);
-      else openCategoryModal(null);
     });
     document.addEventListener("click", closeAddMenu);
     document.addEventListener("click", () => viewTabs.classList.remove("open"));
+
+    wireCategorySelect("#fCategory", "#entryModal", false);
+    wireCategorySelect("#bCategory", "#backlogModal", false);
+    wireCategorySelect("#finCategory", "#financeModal", true);
+    wireCategorySelect("#recCategory", "#recurringModal", true);
 
     $("#cancelEntryBtn").onclick = closeEntryModal;
     $("#entryForm").onsubmit = saveEntryFromForm;
@@ -3237,7 +3283,7 @@
     $("#achForm").onsubmit = saveAchFromForm;
     $("#deleteAchBtn").onclick = deleteCurrentAch;
 
-    $("#cancelCatBtn").onclick = closeCategoryModal;
+    $("#cancelCatBtn").onclick = cancelCategoryModal;
     $("#catForm").onsubmit = saveCategoryFromForm;
     $("#deleteCatBtn").onclick = deleteCurrentCategory;
 
@@ -3250,7 +3296,7 @@
     $("#recurringForm").onsubmit = saveRecurringFromForm;
     $("#stopRecurringBtn").onclick = stopCurrentRecurring;
 
-    $("#cancelFinanceCatBtn").onclick = closeFinanceCatModal;
+    $("#cancelFinanceCatBtn").onclick = cancelFinanceCatModal;
     $("#financeCatForm").onsubmit = saveFinanceCatFromForm;
     $("#deleteFinanceCatBtn").onclick = deleteCurrentFinanceCategory;
 
@@ -3397,7 +3443,12 @@
     // it must be resolved via its buttons, not dismissed)
     document.querySelectorAll(".modal-overlay").forEach((ov) => {
       if (ov.id === "conflictModal") return;
-      ov.addEventListener("click", (e) => { if (e.target === ov) ov.hidden = true; });
+      ov.addEventListener("click", (e) => {
+        if (e.target !== ov) return;
+        if (ov.id === "catModal") cancelCategoryModal();
+        else if (ov.id === "financeCatModal") cancelFinanceCatModal();
+        else ov.hidden = true;
+      });
     });
 
     // Lock background scroll while any modal is visible. A single
@@ -3413,8 +3464,8 @@
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
-        closeEntryModal(); closeAchModal(); closeCategoryModal(); closeBacklogModal();
-        closeFinanceModal(); closeFinanceCatModal(); closeSettings();
+        closeEntryModal(); closeAchModal(); cancelCategoryModal(); closeBacklogModal();
+        closeFinanceModal(); cancelFinanceCatModal(); closeSettings();
         $("#addMenu").hidden = true;
         viewTabs.classList.remove("open");
       }

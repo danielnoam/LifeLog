@@ -131,6 +131,8 @@ select:focus { outline: none; border-color: var(--accent); }
 .cat-chip .dot { width: 9px; height: 9px; border-radius: 50%; }
 .cat-chip.on { border-color: transparent; }
 .year-chip.on { background: var(--accent); color: #fff; }
+.cat-chip.add-chip { padding: 4px 12px; font-weight: 700; color: var(--text-dim); min-width: 0 !important; }
+.cat-chip.add-chip:hover { color: #fff; border-color: var(--accent); }
 
 .storage-status { margin-left: auto; font-size: 12px; color: var(--text-faint); display:flex; align-items:center; gap:7px; }
 .storage-status .led { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); }
