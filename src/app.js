@@ -37,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.29.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.30.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -385,10 +385,18 @@
       }
       block.appendChild(grid);
     }
+    if (state.bulk.active) {
+      root.appendChild(bulkActionBar({
+        categories: state.data.categories,
+        onMove: bulkMoveEntriesSelected,
+        onDelete: bulkDeleteEntriesSelected,
+      }));
+    }
   }
 
   function entryRow(e) {
     const row = el("div", "entry");
+    if (state.bulk.active) row.appendChild(bulkCheckbox(e));
     const color = colorOf(e.category);
     const chip = el("span", "entry-cat");
     chip.style.background = color + "22";
@@ -402,7 +410,8 @@
     t.title = e.title;
     row.appendChild(t);
     if (e.rating) row.appendChild(ratingBadge(e.rating));
-    row.onclick = () => openEntryModal(e);
+    row.onclick = () => state.bulk.active ? toggleBulkItem(e.id) : openEntryModal(e);
+    attachLongPressSelect(row, e);
     return row;
   }
 
@@ -493,7 +502,6 @@
       root.appendChild(emptyState("No backlog items match your filters."));
       return;
     }
-    root.appendChild(backlogToolbar());
     const byCat = groupBy(items, (b) => b.category);
     const order = state.data.categories.map((c) => c.name).filter((n) => byCat[n]);
     for (const n of Object.keys(byCat)) if (!order.includes(n)) order.push(n);
@@ -521,7 +529,14 @@
       grid.appendChild(section);
     }
     root.appendChild(grid);
-    if (state.bulk.active && state.bulk.selected.size) root.appendChild(bulkActionBar());
+    if (state.bulk.active) {
+      root.appendChild(bulkActionBar({
+        categories: state.data.categories,
+        onMove: bulkMoveSelected,
+        onDelete: bulkDeleteSelected,
+        onSync: bulkSyncSelected,
+      }));
+    }
     loadBacklogPrices(items);
   }
 
@@ -581,15 +596,6 @@
     }
   }
 
-  function backlogToolbar() {
-    const bar = el("div", "timeline-toolbar");
-    const btn = el("button", "btn btn-sm", state.bulk.active ? "✕ Cancel select" : "☑ Select");
-    btn.type = "button";
-    btn.onclick = toggleBulkMode;
-    bar.appendChild(btn);
-    return bar;
-  }
-
   function toggleBulkMode() {
     state.bulk.active = !state.bulk.active;
     state.bulk.selected.clear();
@@ -603,7 +609,7 @@
       // Mid-drag: update the checkbox in place instead of re-rendering, since a
       // full render() while the pointer is still down can detach the element the
       // gesture started on and cause mobile browsers to cancel the touch early.
-      document.querySelectorAll(`.bulk-check[data-bl-id="${id}"]`).forEach((cb) => { cb.checked = value; });
+      document.querySelectorAll(`.bulk-check[data-bulk-id="${id}"]`).forEach((cb) => { cb.checked = value; });
       return;
     }
     render();
@@ -620,27 +626,34 @@
     render();
   }
 
-  function bulkActionBar() {
+  function bulkActionBar(opts) {
+    const { categories, onMove, onDelete, onSync } = opts;
+    const empty = state.bulk.selected.size === 0;
     const bar = el("div", "bulk-bar");
     bar.appendChild(el("span", "bulk-count", `${state.bulk.selected.size} selected`));
     const moveSel = document.createElement("select");
     moveSel.className = "bulk-move-select";
+    moveSel.disabled = empty;
     fillSelect(moveSel, [
       { value: "", label: "Move to category…" },
-      ...state.data.categories.map((c) => ({ value: c.name, label: c.name })),
+      ...categories.map((c) => ({ value: c.name, label: c.name })),
     ], "");
     moveSel.onchange = async () => {
       if (!moveSel.value) return;
-      await bulkMoveSelected(moveSel.value);
+      await onMove(moveSel.value);
     };
     bar.appendChild(moveSel);
-    const syncBtn = el("button", "btn btn-sm", "🔄 Sync");
-    syncBtn.type = "button";
-    syncBtn.onclick = () => bulkSyncSelected(syncBtn);
-    bar.appendChild(syncBtn);
+    if (onSync) {
+      const syncBtn = el("button", "btn btn-sm", "🔄 Sync");
+      syncBtn.type = "button";
+      syncBtn.disabled = empty;
+      syncBtn.onclick = () => onSync(syncBtn);
+      bar.appendChild(syncBtn);
+    }
     const delBtn = el("button", "btn btn-sm btn-danger", "Delete");
     delBtn.type = "button";
-    delBtn.onclick = bulkDeleteSelected;
+    delBtn.disabled = empty;
+    delBtn.onclick = onDelete;
     bar.appendChild(delBtn);
     const cancelBtn = el("button", "btn btn-sm", "Cancel");
     cancelBtn.type = "button";
@@ -709,6 +722,29 @@
     toast(`Removed ${n} item${n === 1 ? "" : "s"} from backlog`);
   }
 
+  async function bulkMoveEntriesSelected(categoryName) {
+    const ids = state.bulk.selected;
+    state.data.entries.forEach((e) => { if (ids.has(e.id)) e.category = categoryName; });
+    const n = ids.size;
+    state.bulk.active = false;
+    state.bulk.selected.clear();
+    render();
+    await persist();
+    toast(`Moved ${n} entr${n === 1 ? "y" : "ies"} to “${categoryName}”`);
+  }
+
+  async function bulkDeleteEntriesSelected() {
+    const ids = state.bulk.selected;
+    const n = ids.size;
+    if (!confirm(`Delete ${n} entr${n === 1 ? "y" : "ies"} from your timeline?`)) return;
+    state.data.entries = state.data.entries.filter((e) => !ids.has(e.id));
+    state.bulk.active = false;
+    state.bulk.selected.clear();
+    render();
+    await persist();
+    toast(`Deleted ${n} entr${n === 1 ? "y" : "ies"}`);
+  }
+
   function backlogRow(b) {
     if (b.coverUrl) return backlogRowRich(b);
     const row = el("div", "entry");
@@ -759,15 +795,14 @@
     return row;
   }
 
-  // Long-pressing a backlog row (touch only — desktop already has the
-  // "☑ Select" button) enters bulk mode with that item pre-selected, without
-  // needing the toolbar button first. Cancelled by movement past a small
-  // threshold so it doesn't fire mid-scroll.
+  // Long-pressing a row is the only way into bulk mode (there's no separate
+  // toggle button) — works for touch and mouse alike. Cancelled by movement
+  // past a small threshold so it doesn't fire mid-scroll/mid-drag.
   function attachLongPressSelect(row, b) {
     let timer = null, start = null;
     const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } start = null; };
     row.addEventListener("pointerdown", (ev) => {
-      if (state.bulk.active || ev.pointerType === "mouse") return;
+      if (state.bulk.active) return;
       start = { x: ev.clientX, y: ev.clientY };
       timer = setTimeout(() => {
         timer = null;
@@ -794,7 +829,7 @@
     const cb = document.createElement("input");
     cb.type = "checkbox"; cb.className = "bulk-check";
     cb.checked = state.bulk.selected.has(b.id);
-    cb.dataset.blId = b.id;
+    cb.dataset.bulkId = b.id;
     cb.onclick = (ev) => ev.preventDefault(); // selection is driven by pointerdown below
     cb.onpointerdown = (ev) => {
       ev.preventDefault(); ev.stopPropagation();
@@ -3112,7 +3147,7 @@
       const target = document.elementFromPoint(ev.clientX, ev.clientY);
       const cb = target && target.closest(".bulk-check");
       if (!cb) return;
-      setBulkItem(cb.dataset.blId, dragPaint.value, { skipRender: true });
+      setBulkItem(cb.dataset.bulkId, dragPaint.value, { skipRender: true });
     });
     const endDragPaint = () => { if (dragPaint) { dragPaint = null; render(); } };
     document.addEventListener("pointerup", endDragPaint);
@@ -3134,6 +3169,8 @@
         e.stopPropagation();
         viewTabs.classList.remove("open");
         state.view = t.dataset.view;
+        state.bulk.active = false;
+        state.bulk.selected.clear();
         buildYearFilter();
         buildCatFilter();
         render();

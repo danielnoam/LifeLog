@@ -3,11 +3,13 @@ todo:
 - make the Finance timeline match the Journal timeline — same sticky
   year/month headers on mobile, and the same year/month panel grouping
 - rework visuals for categories, finance tab, and finance stats — make them all consistent in style
-- bulk editing for timeline entries
 - bulk editing for finance entries
 
 done:
 
+- bulk editing for timeline entries (move to category, delete) — entered
+  via long-press, same mechanism as Backlog; bulk action bar always shows
+  while active so Cancel is reachable even with nothing selected
 - rework timeline visual: sticky year/month headers on mobile so the
   current year/month stays pinned near the top while scrolling
 - remove the journal Categories tab — editing a category now happens via

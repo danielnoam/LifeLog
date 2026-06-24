@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.30.0] - 2026-06-24
+
+### Added
+- Bulk editing (move to category, delete) for Journal Timeline entries,
+  matching the existing Backlog bulk-edit mechanism.
+
+### Changed
+- Bulk mode (Timeline and Backlog) is now entered by long-pressing a row
+  instead of a separate "☑ Select" button — works for touch and mouse
+  alike. The bulk action bar now always stays visible while bulk mode is
+  active, even with nothing selected, since Cancel is the only way out.
+
 ## [0.29.0] - 2026-06-24
 
 ### Changed
