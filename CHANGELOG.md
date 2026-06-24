@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.28.2] - 2026-06-24
+
+### Fixed
+- Hairline gap that could appear between the sticky year and month headers
+  in Timeline on mobile, caused by rounding the measured header height to
+  a whole pixel; now measured with sub-pixel precision.
+
 ## [0.28.1] - 2026-06-24
 
 ### Changed

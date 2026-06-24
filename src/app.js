@@ -37,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.28.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.28.2"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -366,8 +366,10 @@
         head.appendChild(a);
       }
       block.appendChild(head);
-      root.appendChild(block); // attach now so head.offsetHeight reflects real layout
-      block.style.setProperty("--year-head-h", head.offsetHeight + "px");
+      root.appendChild(block); // attach now so its real layout can be measured
+      // getBoundingClientRect (not offsetHeight) keeps the sub-pixel remainder,
+      // which otherwise rounds away and leaves a hairline gap under the sticky header.
+      block.style.setProperty("--year-head-h", head.getBoundingClientRect().height + "px");
 
       const grid = el("div", "month-grid");
       const byMonth = groupBy(byYear[y], (e) => e.month);
@@ -3092,7 +3094,7 @@
     // styles.css) anchor below the topbar — its height changes with wrapping,
     // so track it live rather than hardcoding a pixel value.
     const topbar = $(".topbar");
-    const setTopbarH = () => document.documentElement.style.setProperty("--topbar-h", topbar.offsetHeight + "px");
+    const setTopbarH = () => document.documentElement.style.setProperty("--topbar-h", topbar.getBoundingClientRect().height + "px");
     new ResizeObserver(setTopbarH).observe(topbar);
     setTopbarH();
 
