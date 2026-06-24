@@ -1,12 +1,15 @@
 todo:
 
-- rework timeline visual
+- make the Finance timeline match the Journal timeline — same sticky
+  year/month headers on mobile, and the same year/month panel grouping
 - rework visuals for categories, finance tab, and finance stats — make them all consistent in style
 - bulk editing for timeline entries
 - bulk editing for finance entries
 
 done:
 
+- rework timeline visual: sticky year/month headers on mobile so the
+  current year/month stays pinned near the top while scrolling
 - remove the journal Categories tab — editing a category now happens via
   the ✎ button on its filter chip (matching Finance); per-category counts
   already live in journal Stats
