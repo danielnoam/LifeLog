@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.31.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.32.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -316,8 +316,12 @@
           <input id="recNote" type="text" autocomplete="off" placeholder="Optional description…" />
         </label>
         <p class="hint" id="recHint">Generates an expense entry on this date every period, up to today. Editing this later changes every past and future occurrence.</p>
+        <div class="rec-occurrences" id="recOccurrences" hidden>
+          <p class="hint">Generated occurrences</p>
+          <div class="rec-occ-list" id="recOccList"></div>
+        </div>
         <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="stopRecurringBtn" hidden>Stop repeating</button>
+          <button type="button" class="btn btn-danger" id="deleteRecurringBtn" hidden>Delete</button>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelRecurringBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
@@ -682,9 +686,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.31.0"></script>
-  <script src="src/media.js?v=0.31.0"></script>
-  <script src="src/storage.js?v=0.31.0"></script>
-  <script src="src/app.js?v=0.31.0"></script>
+  <script src="src/qr.js?v=0.32.0"></script>
+  <script src="src/media.js?v=0.32.0"></script>
+  <script src="src/storage.js?v=0.32.0"></script>
+  <script src="src/app.js?v=0.32.0"></script>
 </body>
 </html>

@@ -37,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.31.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.32.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -202,6 +202,9 @@
   }
 
   function financeYearOf(f) { return +String(f.date).slice(0, 4); }
+  // yearly ad-hoc entries (imported big purchases) carry just a year, no
+  // month — they get bucketed into a pseudo-month (0) rendered as "Yearly"
+  function financeMonthOf(f) { return f.yearly ? 0 : +String(f.date).slice(5, 7); }
 
   // ---------- recurring expenses ----------
   // Recurring expenses are stored as a single template (start date, interval,
@@ -859,10 +862,30 @@
       head.appendChild(el("h2", null, y));
       head.appendChild(el("span", "ycount", `${byYear[y].length} entries`));
       block.appendChild(head);
-      const list = el("div", "finance-list");
-      byYear[y].slice().sort((a, b) => b.date.localeCompare(a.date)).forEach((f) => list.appendChild(financeRow(f)));
-      block.appendChild(list);
-      root.appendChild(block);
+      root.appendChild(block); // attach now so its real layout can be measured
+      // getBoundingClientRect (not offsetHeight) keeps the sub-pixel remainder,
+      // which otherwise rounds away and leaves a hairline gap under the sticky header.
+      block.style.setProperty("--year-head-h", head.getBoundingClientRect().height + "px");
+
+      const grid = el("div", "month-grid");
+      grid.style.setProperty("--month-min", "260px"); // finance rows need more room (date + amount columns)
+      const byMonth = groupBy(byYear[y], financeMonthOf);
+      const monthSort = (a, b) => {
+        a = +a; b = +b;
+        if (a === 0) return 1; // yearly ad-hoc bucket always last
+        if (b === 0) return -1;
+        return state.data.settings.monthOrder === "desc" ? b - a : a - b;
+      };
+      for (const m of Object.keys(byMonth).sort(monthSort)) {
+        const card = el("div", "month-card");
+        const h = el("h3");
+        h.appendChild(el("span", null, +m === 0 ? "Yearly" : MONTHS[m]));
+        h.appendChild(el("span", "mc", String(byMonth[m].length)));
+        card.appendChild(h);
+        byMonth[m].slice().sort((a, b) => b.date.localeCompare(a.date)).forEach((f) => card.appendChild(financeRow(f)));
+        grid.appendChild(card);
+      }
+      block.appendChild(grid);
     }
   }
 
@@ -1913,7 +1936,23 @@
     fillCategorySelect($("#recCategory"), state.data.financeCategories,
       editing ? rec.category : (state.data.financeCategories[0] && state.data.financeCategories[0].name));
     $("#recNote").value = editing ? (rec.note || "") : "";
-    $("#stopRecurringBtn").hidden = !editing;
+    $("#deleteRecurringBtn").hidden = !editing;
+    const occWrap = $("#recOccurrences");
+    if (editing) {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const occ = recurringOccurrences(rec, today).slice().sort((a, b) => b.date.localeCompare(a.date));
+      const list = $("#recOccList");
+      list.innerHTML = "";
+      occ.forEach((o) => {
+        const row = el("div", "rec-occ-row");
+        row.appendChild(el("span", "rec-occ-date", o.date));
+        row.appendChild(el("span", "rec-occ-amount", "-" + formatMoney(o.amount)));
+        list.appendChild(row);
+      });
+      occWrap.hidden = false;
+    } else {
+      occWrap.hidden = true;
+    }
     $("#recurringModal").hidden = false;
   }
   function closeRecurringModal() { $("#recurringModal").hidden = true; }
@@ -1943,20 +1982,28 @@
     toast(id ? "Recurring expense updated" : "Recurring expense added");
   }
 
-  // stops a recurring expense without erasing the occurrences it already
-  // generated: capping it at today (rather than deleting the template)
-  // keeps everything up to now intact in stats/history
-  async function stopCurrentRecurring() {
+  // Deleting a recurring expense removes the template (so no new occurrences
+  // get generated) but first materializes every occurrence it already
+  // produced into real finance entries, so none of that history disappears.
+  async function deleteCurrentRecurring() {
     const id = $("#recId").value;
     if (!id) return;
-    if (!confirm("Stop this recurring expense? Past occurrences stay in your history; no new ones will be generated.")) return;
+    if (!confirm("Delete this recurring expense? It will stop generating new occurrences, but everything it already created stays in your history.")) return;
     const r = state.data.recurringExpenses.find((x) => x.id === id);
-    if (r) r.endDate = new Date().toISOString().slice(0, 10);
+    if (r) {
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      recurringOccurrences(r, today).forEach((o) => {
+        const entry = { id: uid(), date: o.date, type: "expense", amount: o.amount, category: o.category, createdAt: new Date().toISOString() };
+        if (o.note) entry.note = o.note;
+        state.data.financeEntries.push(entry);
+      });
+      state.data.recurringExpenses = state.data.recurringExpenses.filter((x) => x.id !== id);
+    }
     closeRecurringModal();
     buildYearFilter();
     render();
     await persist();
-    toast("Recurring expense stopped");
+    toast("Recurring expense deleted");
   }
 
   function renderRecurringCard(root) {
@@ -3294,7 +3341,7 @@
 
     $("#cancelRecurringBtn").onclick = closeRecurringModal;
     $("#recurringForm").onsubmit = saveRecurringFromForm;
-    $("#stopRecurringBtn").onclick = stopCurrentRecurring;
+    $("#deleteRecurringBtn").onclick = deleteCurrentRecurring;
 
     $("#cancelFinanceCatBtn").onclick = cancelFinanceCatModal;
     $("#financeCatForm").onsubmit = saveFinanceCatFromForm;

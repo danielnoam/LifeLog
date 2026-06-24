@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.32.0] - 2026-06-24
+
+### Changed
+- Finance timeline now matches the Journal timeline: entries are grouped
+  into year blocks with month cards, with the same sticky year/month
+  headers on mobile. Ad-hoc "yearly" entries (no real month) are bucketed
+  into a trailing "Yearly" card instead of being mixed into a month.
+- Recurring expense edit modal now lists every occurrence it has
+  generated so far.
+- "Stop repeating" is replaced by a single "Delete" action: it removes
+  the recurring template (so no new occurrences are generated) but first
+  saves every occurrence it already produced as real finance entries, so
+  none of that history disappears.
+
 ## [0.31.0] - 2026-06-24
 
 ### Changed
