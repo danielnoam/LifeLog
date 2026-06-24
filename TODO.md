@@ -2,6 +2,10 @@ todo:
 
 - rework visuals for categories, finance tab, and finance stats — make them all consistent in style
 - bulk editing for finance entries
+- add a "+" button to the top right of each month panel (Timeline) for
+  quick-adding an entry directly to that month
+- bulk edit: add a "select all" checkbox to the month header so you can
+  select every entry in that month at once
 
 done:
 
