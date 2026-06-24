@@ -37,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.27.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.28.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -366,6 +366,8 @@
         head.appendChild(a);
       }
       block.appendChild(head);
+      root.appendChild(block); // attach now so head.offsetHeight reflects real layout
+      block.style.setProperty("--year-head-h", head.offsetHeight + "px");
 
       const grid = el("div", "month-grid");
       const byMonth = groupBy(byYear[y], (e) => e.month);
@@ -380,7 +382,6 @@
         grid.appendChild(card);
       }
       block.appendChild(grid);
-      root.appendChild(block);
     }
   }
 
@@ -3086,6 +3087,14 @@
   // ---------- events ----------
   function wire() {
     $("#appVersion").textContent = "LifeLog v" + APP_VERSION;
+
+    // Sticky timeline year/month headers (see .year-head / .month-card h3 in
+    // styles.css) anchor below the topbar — its height changes with wrapping,
+    // so track it live rather than hardcoding a pixel value.
+    const topbar = $(".topbar");
+    const setTopbarH = () => document.documentElement.style.setProperty("--topbar-h", topbar.offsetHeight + "px");
+    new ResizeObserver(setTopbarH).observe(topbar);
+    setTopbarH();
 
     // Bulk-select drag-paint: while dragPaint is set (started by a
     // checkbox's pointerdown), moving over other checkboxes paints them to

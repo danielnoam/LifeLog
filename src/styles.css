@@ -520,6 +520,15 @@ body.modal-open { overflow: hidden; }
   .content { padding-bottom: 92px; }
   .toast { bottom: 92px; }
   .bulk-bar { bottom: 92px; flex-wrap: wrap; }
+
+  /* Timeline is a single column at this width, so the year/month you're
+     scrolled into can stick under the topbar like a sticky list header. */
+  .year-head { position: sticky; top: var(--topbar-h, 0px); z-index: 6; background: var(--bg); }
+  .month-card h3 {
+    position: sticky; background: var(--bg-elev);
+    /* stacks below the sticky year-head, whose height varies per year (achievement chips can wrap) */
+    top: calc(var(--topbar-h, 0px) + var(--year-head-h, 46px)); z-index: 4;
+  }
 }
 
 /* Settings tabs: shrink just enough to keep all 6 on one line, no

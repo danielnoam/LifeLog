@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.28.0] - 2026-06-24
+
+### Added
+- Sticky year/month headers in the Timeline view on mobile (≤720px). While
+  scrolling, the year and month you're currently in stay pinned near the
+  top of the screen instead of scrolling away, so it's easier to tell where
+  you are in a long timeline. Desktop's multi-column grid is unaffected.
+
 ## [0.27.0] - 2026-06-24
 
 ### Removed
