@@ -7,6 +7,9 @@ todo:
 
 done:
 
+- finance timeline entries now look like journal entries: pill-shaped
+  category chip on the right, amount stays on the right, no per-entry
+  date (the month card already conveys that)
 - make the Finance timeline match the Journal timeline — same sticky
   year/month headers on mobile, and the same year/month panel grouping
 - recurring expenses: edit modal now lists every occurrence it has

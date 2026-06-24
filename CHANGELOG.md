@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.33.0] - 2026-06-24
+
+### Changed
+- Finance timeline entries now look like Journal entries: title on the
+  left, a colored pill-shaped category chip on the right, and the amount
+  staying at the far right. The per-entry date is no longer shown (the
+  month card it's grouped under already conveys that).
+
 ## [0.32.0] - 2026-06-24
 
 ### Changed

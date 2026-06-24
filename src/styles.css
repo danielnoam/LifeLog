@@ -185,8 +185,8 @@ select:focus { outline: none; border-color: var(--accent); }
 .entry .entry-cat .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 
 /* finance */
-.finance-entry .fdate { font-size: 11px; color: var(--text-faint); width: 78px; flex: 0 0 auto; }
-.finance-entry .fdate.fyearly { width: auto; font-style: italic; }
+.picker-row .fdate { font-size: 11px; color: var(--text-faint); width: 78px; flex: 0 0 auto; }
+.picker-row .fdate.fyearly { width: auto; font-style: italic; }
 .finance-entry .famount { font-weight: 700; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .famount.fpositive { color: #4bd07a; }
 .famount.fnegative { color: var(--danger); }

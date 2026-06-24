@@ -37,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.32.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.33.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -891,15 +891,19 @@
 
   function financeRow(f) {
     const row = el("div", "entry finance-entry" + (f.yearly ? " yearly-expense" : ""));
-    const bar = el("div", "bar");
-    bar.style.background = financeColorOf(f.category);
-    row.appendChild(bar);
-    row.appendChild(el("span", "fdate" + (f.yearly ? " fyearly" : ""), f.yearly ? `${f.date} · yearly` : f.date));
     const t = el("span", "etitle", f.note || f.category);
     t.title = f.note || f.category;
     row.appendChild(t);
-    row.appendChild(el("span", "ecat", f.category));
     if (f.virtual) row.appendChild(el("span", "recur-badge", "↻"));
+    const color = financeColorOf(f.category);
+    const chip = el("span", "entry-cat");
+    chip.style.background = color + "22";
+    chip.style.color = color;
+    const dot = el("span", "dot");
+    dot.style.background = color;
+    chip.appendChild(dot);
+    chip.appendChild(document.createTextNode(f.category));
+    row.appendChild(chip);
     const sign = f.type === "income" ? "+" : "-";
     const amt = el("span", "famount " + (f.type === "income" ? "fpositive" : "fnegative"), sign + formatMoney(f.amount));
     row.appendChild(amt);
