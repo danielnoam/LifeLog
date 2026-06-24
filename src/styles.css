@@ -168,6 +168,18 @@ select:focus { outline: none; border-color: var(--accent); }
   font-size: 13px; color: var(--text-dim); font-weight: 600; display:flex; justify-content:space-between;
 }
 .month-card h3 .mc { color: var(--text-faint); font-weight: 500; }
+.month-card h3 .mc-left, .month-card h3 .mc-right { display: flex; align-items: center; gap: 6px; }
+.month-add-btn {
+  width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-elev2);
+  color: var(--text-dim); font-size: 13px; line-height: 1; cursor: pointer; display: flex;
+  align-items: center; justify-content: center; padding: 0; flex: 0 0 auto;
+}
+.month-add-btn:hover { color: var(--text); border-color: var(--accent); }
+.month-total {
+  display: flex; justify-content: space-between; margin-top: 8px; padding: 7px 7px 0;
+  border-top: 1px solid var(--border); font-size: 12.5px; font-weight: 600; color: var(--text-dim);
+}
+.month-total .famount { font-weight: 700; }
 .entry {
   display: flex; align-items: center; gap: 8px; padding: 5px 7px; border-radius: 7px;
   cursor: pointer; font-size: 13px;

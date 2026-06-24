@@ -1,12 +1,16 @@
 todo:
 
-- add a "+" button to the top right of each month panel (Timeline) for
-  quick-adding an entry directly to that month
-- bulk edit: add a "select all" checkbox to the month header so you can
-  select every entry in that month at once
-
 done:
 
+- add a "+" button to the top right of each month panel (Journal
+  Timeline and Finance) for quick-adding an entry directly to that month
+- bulk edit: add a "select all" checkbox to the month header so you can
+  select every entry in that month at once (Journal and Finance)
+- bulk editing for finance entries (move to category, delete) — same
+  long-press mechanism as Journal/Backlog; recurring occurrences aren't
+  selectable
+- each Finance month card shows a running total (income minus expenses)
+  at the bottom
 - finance timeline entries now look like journal entries: pill-shaped
   category chip on the right, amount stays on the right, no per-entry
   date (the month card already conveys that)

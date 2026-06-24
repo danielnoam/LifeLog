@@ -37,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.33.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.34.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -347,6 +347,37 @@
 
   function emptyState(msg) { return el("div", "empty", msg); }
 
+  // Shared month-card header for Timeline and Finance: a label + count on
+  // the left/right, plus an optional bulk "select all in this month"
+  // checkbox (replacing the optional quick-add "+" while bulk mode is on,
+  // since both live in the same corner).
+  function monthCardHeader(label, count, selectableItems, opts) {
+    const h = el("h3");
+    const left = el("span", "mc-left");
+    if (state.bulk.active && selectableItems.length) {
+      const allSelected = selectableItems.every((b) => state.bulk.selected.has(b.id));
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.className = "bulk-check";
+      cb.checked = allSelected;
+      cb.title = "Select all in " + label;
+      cb.onclick = (ev) => { ev.stopPropagation(); toggleBulkCategoryAll(selectableItems); };
+      left.appendChild(cb);
+    }
+    left.appendChild(el("span", null, label));
+    h.appendChild(left);
+    const right = el("span", "mc-right");
+    right.appendChild(el("span", "mc", String(count)));
+    if (opts && opts.onAdd && !state.bulk.active) {
+      const addBtn = el("button", "month-add-btn", "+");
+      addBtn.type = "button";
+      addBtn.title = "Add to " + label;
+      addBtn.onclick = (ev) => { ev.stopPropagation(); opts.onAdd(); };
+      right.appendChild(addBtn);
+    }
+    h.appendChild(right);
+    return h;
+  }
+
   function renderTimeline(root, entries) {
     root.appendChild(timelineToolbar());
 
@@ -379,10 +410,10 @@
       const monthSort = state.data.settings.monthOrder === "desc" ? (a, b) => b - a : (a, b) => a - b;
       for (const m of Object.keys(byMonth).sort(monthSort)) {
         const card = el("div", "month-card");
-        const h = el("h3");
-        h.appendChild(el("span", null, MONTHS[m]));
-        h.appendChild(el("span", "mc", String(byMonth[m].length)));
-        card.appendChild(h);
+        const yy = +y, mm = +m;
+        card.appendChild(monthCardHeader(MONTHS[m], byMonth[m].length, byMonth[m], {
+          onAdd: () => openEntryModal(null, null, { year: yy, month: mm }),
+        }));
         byMonth[m].forEach((e) => card.appendChild(entryRow(e)));
         grid.appendChild(card);
       }
@@ -748,6 +779,29 @@
     toast(`Deleted ${n} entr${n === 1 ? "y" : "ies"}`);
   }
 
+  async function bulkMoveFinanceSelected(categoryName) {
+    const ids = state.bulk.selected;
+    state.data.financeEntries.forEach((f) => { if (ids.has(f.id)) f.category = categoryName; });
+    const n = ids.size;
+    state.bulk.active = false;
+    state.bulk.selected.clear();
+    render();
+    await persist();
+    toast(`Moved ${n} entr${n === 1 ? "y" : "ies"} to “${categoryName}”`);
+  }
+
+  async function bulkDeleteFinanceSelected() {
+    const ids = state.bulk.selected;
+    const n = ids.size;
+    if (!confirm(`Delete ${n} entr${n === 1 ? "y" : "ies"} from your finance log?`)) return;
+    state.data.financeEntries = state.data.financeEntries.filter((f) => !ids.has(f.id));
+    state.bulk.active = false;
+    state.bulk.selected.clear();
+    render();
+    await persist();
+    toast(`Deleted ${n} entr${n === 1 ? "y" : "ies"}`);
+  }
+
   function backlogRow(b) {
     if (b.coverUrl) return backlogRowRich(b);
     const row = el("div", "entry");
@@ -878,19 +932,34 @@
       };
       for (const m of Object.keys(byMonth).sort(monthSort)) {
         const card = el("div", "month-card");
-        const h = el("h3");
-        h.appendChild(el("span", null, +m === 0 ? "Yearly" : MONTHS[m]));
-        h.appendChild(el("span", "mc", String(byMonth[m].length)));
-        card.appendChild(h);
-        byMonth[m].slice().sort((a, b) => b.date.localeCompare(a.date)).forEach((f) => card.appendChild(financeRow(f)));
+        const yy = +y, mm = +m;
+        const monthItems = byMonth[m];
+        const label = mm === 0 ? "Yearly" : MONTHS[m];
+        card.appendChild(monthCardHeader(label, monthItems.length, monthItems.filter((f) => !f.virtual), {
+          onAdd: () => openFinanceModal(null, { year: yy, month: mm }),
+        }));
+        monthItems.slice().sort((a, b) => b.date.localeCompare(a.date)).forEach((f) => card.appendChild(financeRow(f)));
+        const total = monthItems.reduce((s, f) => s + (f.type === "income" ? f.amount : -f.amount), 0);
+        const totalRow = el("div", "month-total");
+        totalRow.appendChild(el("span", null, "Total"));
+        totalRow.appendChild(el("span", "famount " + (total >= 0 ? "fpositive" : "fnegative"), (total >= 0 ? "+" : "-") + formatMoney(Math.abs(total))));
+        card.appendChild(totalRow);
         grid.appendChild(card);
       }
       block.appendChild(grid);
+    }
+    if (state.bulk.active) {
+      root.appendChild(bulkActionBar({
+        categories: state.data.financeCategories,
+        onMove: bulkMoveFinanceSelected,
+        onDelete: bulkDeleteFinanceSelected,
+      }));
     }
   }
 
   function financeRow(f) {
     const row = el("div", "entry finance-entry" + (f.yearly ? " yearly-expense" : ""));
+    if (state.bulk.active && !f.virtual) row.appendChild(bulkCheckbox(f));
     const t = el("span", "etitle", f.note || f.category);
     t.title = f.note || f.category;
     row.appendChild(t);
@@ -909,7 +978,8 @@
     row.appendChild(amt);
     row.onclick = f.virtual
       ? () => openRecurringModal(state.data.recurringExpenses.find((r) => r.id === f.recurringId))
-      : () => openFinanceModal(f);
+      : () => (state.bulk.active ? toggleBulkItem(f.id) : openFinanceModal(f));
+    if (!f.virtual) attachLongPressSelect(row, f);
     return row;
   }
 
@@ -1356,7 +1426,7 @@
     $(modalId).hidden = false;
   }
 
-  function openEntryModal(entry, fromBacklog) {
+  function openEntryModal(entry, fromBacklog, presetDate) {
     const editing = !!entry;
     $("#entryModalTitle").textContent = editing ? "Edit entry" : "Add entry";
     $("#entryId").value = editing ? entry.id : "";
@@ -1366,8 +1436,8 @@
       editing ? entry.category : (fromBacklog ? fromBacklog.category : (state.data.categories[0] && state.data.categories[0].name)));
     fillSelect($("#fMonth"),
       MONTHS.slice(1).map((m, i) => ({ value: i + 1, label: m })),
-      editing ? entry.month : (new Date().getMonth() + 1));
-    $("#fYear").value = editing ? entry.year : new Date().getFullYear();
+      editing ? entry.month : (presetDate ? presetDate.month : (new Date().getMonth() + 1)));
+    $("#fYear").value = editing ? entry.year : (presetDate ? presetDate.year : new Date().getFullYear());
     $("#deleteEntryBtn").hidden = !editing;
     const added = $("#addedLine");
     if (editing && entry.createdAt) {
@@ -1869,14 +1939,15 @@
     $("#finDate").required = !yearly;
     $("#finYear").required = yearly;
   }
-  function openFinanceModal(entry) {
+  function openFinanceModal(entry, presetDate) {
     const editing = !!entry;
-    const yearly = editing && !!entry.yearly;
+    const yearly = editing ? !!entry.yearly : (presetDate && presetDate.month === 0);
     $("#financeModalTitle").textContent = editing ? "Edit finance entry" : "Add finance entry";
     $("#financeId").value = editing ? entry.id : "";
     $("#finYearly").checked = yearly;
-    $("#finDate").value = (editing && !yearly) ? entry.date : new Date().toISOString().slice(0, 10);
-    $("#finYear").value = yearly ? entry.date : "";
+    $("#finDate").value = (editing && !yearly) ? entry.date
+      : (!yearly && presetDate ? `${presetDate.year}-${String(presetDate.month).padStart(2, "0")}-01` : new Date().toISOString().slice(0, 10));
+    $("#finYear").value = yearly ? (editing ? entry.date : (presetDate ? String(presetDate.year) : "")) : "";
     $("#finType").value = editing ? entry.type : "expense";
     $("#finAmount").value = editing ? entry.amount : "";
     fillCategorySelect($("#finCategory"), state.data.financeCategories,

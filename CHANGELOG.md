@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.34.0] - 2026-06-24
+
+### Added
+- Each month panel (Journal Timeline and Finance) now has a "+" button
+  in the top right for quick-adding an entry directly to that month.
+- Bulk edit (long-press to select) now also works on Finance entries:
+  move to category or delete. Recurring occurrences aren't selectable —
+  edit those through the recurring expense itself.
+- Bulk edit's month header now has a "select all" checkbox so you can
+  select every entry in that month at once, on both Journal and Finance.
+- Each Finance month card shows a running total (income minus expenses)
+  at the bottom.
+
 ## [0.33.0] - 2026-06-24
 
 ### Changed
