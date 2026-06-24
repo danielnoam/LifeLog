@@ -173,29 +173,6 @@ select:focus { outline: none; border-color: var(--accent); }
 .entry .ecat { font-size: 11px; color: var(--text-faint); }
 .entry .erating { font-size: 11px; color: var(--accent); letter-spacing: 1px; }
 
-/* by category */
-.cat-section { margin-bottom: 22px; }
-.cat-section-head { display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 12px; background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); }
-.cat-section-head .dot { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 auto; }
-.cat-section-head h2 { font-size: 16px; margin: 0; }
-.cat-section-head .count { margin-left: auto; color: var(--text-dim); font-weight: 600; }
-.cat-section-head .chev { color: var(--text-faint); transition: transform .15s; }
-.cat-section.open .chev { transform: rotate(90deg); }
-.cat-section-head .clickable { border-radius: 6px; }
-.cat-section-head h2.clickable:hover { color: var(--accent); }
-.cat-section-head .dot.clickable:hover { box-shadow: 0 0 0 3px var(--bg-elev2); }
-.cat-section-head .move { background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 13px; padding: 3px 6px; border-radius: 6px; }
-.cat-section-head .move:hover { color: var(--text); background: var(--bg-elev2); }
-.cat-list { display: none; padding: 8px 4px 4px; }
-.cat-section.open .cat-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px,1fr)); gap: 4px; }
-.entry.combined { flex-direction: column; align-items: stretch; gap: 5px; cursor: default; padding: 7px; }
-.entry.combined:hover { background: transparent; }
-.entry.combined .crow { display: flex; align-items: center; gap: 8px; }
-.entry .times { font-size: 11px; font-weight: 700; color: var(--text); background: var(--bg-elev2); border-radius: 10px; padding: 1px 7px; }
-.entry.combined .dates { display: flex; flex-wrap: wrap; gap: 4px; padding-left: 11px; }
-.datechip { font-size: 11px; color: var(--text-faint); background: var(--bg-elev2); border: 1px solid var(--border); border-radius: 8px; padding: 2px 7px; cursor: pointer; }
-.datechip:hover { color: var(--text); border-color: var(--accent); }
-
 /* finance */
 .finance-list { display: flex; flex-direction: column; gap: 2px; }
 .finance-entry .fdate { font-size: 11px; color: var(--text-faint); width: 78px; flex: 0 0 auto; }

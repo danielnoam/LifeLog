@@ -37,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.26.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.27.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -339,7 +339,6 @@
       return;
     }
     if (state.view === "timeline") renderTimeline(c, entries);
-    else if (state.view === "categories") renderCategories(c, entries);
     else renderStats(c, entries);
   }
 
@@ -403,102 +402,6 @@
     const span = el("span", "erating", "★".repeat(rating));
     span.title = rating + "/5";
     return span;
-  }
-
-  function renderCategories(root, entries) {
-    const counts = countBy(entries, (e) => e.category);
-
-    // Show all categories so empty ones can still be managed; if category
-    // filter chips are active, narrow to those.
-    let order = state.data.categories.map((c) => c.name);
-    for (const n of Object.keys(counts)) if (!order.includes(n)) order.push(n);
-    if (state.activeCats.size) order = order.filter((n) => state.activeCats.has(n));
-
-    for (const name of order) {
-      const realIdx = state.data.categories.findIndex((c) => c.name === name);
-      const cat = realIdx >= 0 ? state.data.categories[realIdx] : null;
-      const items = entries.filter((e) => e.category === name)
-        .sort((a, b) => (b.year - a.year) || (b.month - a.month));
-      const sec = el("div", "cat-section");
-      const head = el("div", "cat-section-head");
-      head.onclick = () => sec.classList.toggle("open"); // click row to expand
-
-      const dot = el("span", "dot"); dot.style.background = colorOf(name);
-      head.appendChild(dot);
-      const h = el("h2", null, name);
-      head.appendChild(h);
-      head.appendChild(el("span", "chev", "▶"));
-
-      // Clicking the colour or label opens the edit-category modal.
-      if (cat) {
-        dot.classList.add("clickable"); dot.title = "Edit category";
-        h.classList.add("clickable"); h.title = "Edit category";
-        const openEdit = (ev) => { ev.stopPropagation(); openCategoryModal(cat); };
-        dot.onclick = openEdit;
-        h.onclick = openEdit;
-      }
-
-      head.appendChild(el("span", "count", String(items.length)));
-
-      if (cat) {
-        const up = el("button", "move", "▲"); up.title = "Move up";
-        up.onclick = (ev) => { ev.stopPropagation(); moveCategory(realIdx, -1); };
-        const dn = el("button", "move", "▼"); dn.title = "Move down";
-        dn.onclick = (ev) => { ev.stopPropagation(); moveCategory(realIdx, 1); };
-        head.appendChild(up); head.appendChild(dn);
-      }
-      sec.appendChild(head);
-
-      const list = el("div", "cat-list");
-
-      // Combine duplicate titles (e.g. a game/show experienced more than once).
-      const groups = [];
-      const byTitle = new Map();
-      items.forEach((e) => {
-        const key = e.title.trim().toLowerCase();
-        let g = byTitle.get(key);
-        if (!g) { g = { title: e.title, items: [] }; byTitle.set(key, g); groups.push(g); }
-        g.items.push(e);
-      });
-
-      groups.forEach((g) => {
-        if (g.items.length === 1) { list.appendChild(catEntryRow(g.items[0], name)); return; }
-
-        const row = el("div", "entry combined");
-        const crow = el("div", "crow");
-        const bar = el("div", "bar"); bar.style.background = colorOf(name);
-        crow.appendChild(bar);
-        const t = el("span", "etitle", g.title); t.title = g.title;
-        crow.appendChild(t);
-        crow.appendChild(el("span", "times", "×" + g.items.length));
-        row.appendChild(crow);
-
-        const dates = el("div", "dates");
-        g.items.forEach((e) => {
-          const chip = el("span", "datechip", `${MONTHS_SHORT[e.month]} ${e.year}`);
-          chip.title = "Edit this one";
-          chip.onclick = () => openEntryModal(e);
-          dates.appendChild(chip);
-        });
-        row.appendChild(dates);
-        list.appendChild(row);
-      });
-
-      sec.appendChild(list);
-      root.appendChild(sec);
-    }
-  }
-
-  function catEntryRow(e, name) {
-    const row = el("div", "entry");
-    const bar = el("div", "bar"); bar.style.background = colorOf(name);
-    row.appendChild(bar);
-    const t = el("span", "etitle", e.title); t.title = e.title;
-    row.appendChild(t);
-    if (e.rating) row.appendChild(ratingBadge(e.rating));
-    row.appendChild(el("span", "ecat", `${MONTHS_SHORT[e.month]} ${e.year}`));
-    row.onclick = () => openEntryModal(e);
-    return row;
   }
 
   // Title last attached to synced media metadata, so a manual edit (vs. a
@@ -1281,12 +1184,10 @@
       chip.appendChild(dot);
       chip.appendChild(document.createTextNode(c.name));
       if (activeCats.has(c.name)) chip.style.background = c.color + "22";
-      if (finance) {
-        const edit = el("span", "chip-edit", "✎");
-        edit.title = "Edit category";
-        edit.onclick = (ev) => { ev.stopPropagation(); openFinanceCatModal(c); };
-        chip.appendChild(edit);
-      }
+      const edit = el("span", "chip-edit", "✎");
+      edit.title = "Edit category";
+      edit.onclick = (ev) => { ev.stopPropagation(); finance ? openFinanceCatModal(c) : openCategoryModal(c); };
+      chip.appendChild(edit);
       chip.onclick = () => {
         if (activeCats.has(c.name)) activeCats.delete(c.name);
         else activeCats.add(c.name);
@@ -1727,15 +1628,6 @@
     if (!cat) return;
     closeCategoryModal();
     deleteCategory(cat); // handles confirm, reassign-to-Other, persist & render
-  }
-
-  async function moveCategory(idx, dir) {
-    const arr = state.data.categories;
-    const j = idx + dir;
-    if (j < 0 || j >= arr.length) return;
-    [arr[idx], arr[j]] = [arr[j], arr[idx]];
-    buildCatFilter(); render();
-    await persist();
   }
 
   async function deleteCategory(cat) {

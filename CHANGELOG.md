@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.27.0] - 2026-06-24
+
+### Removed
+- Journal "Categories" tab. Editing a category now happens via the ✎
+  button on its filter chip, same as Finance categories — no separate tab
+  needed. Per-category entry counts (previously shown there) already live
+  in journal Stats.
+
+### Changed
+- Category reordering (the old tab's ▲/▼ buttons) was dropped along with
+  the tab, so journal categories now behave like Finance categories:
+  add/edit/delete only, ordered by creation.
+
 ## [0.26.0] - 2026-06-23
 
 ### Added
