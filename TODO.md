@@ -2,6 +2,8 @@ todo:
 
 done:
 
+- Settings → Appearance → "Force layout" (None/Mobile/PC) to pin the
+  responsive layout on this device regardless of actual screen size
 - add a "+" button to the top right of each month panel (Journal
   Timeline and Finance) for quick-adding an entry directly to that month
 - bulk edit: add a "select all" checkbox to the month header so you can

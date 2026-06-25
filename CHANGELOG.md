@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.35.0] - 2026-06-25
+
+### Added
+- Settings → Appearance → "Force layout" lets you pin the app to Mobile
+  or PC layout on this device regardless of actual screen size (or leave
+  it on "None" for automatic). Useful for previewing the other layout, or
+  for pinning one in place on an in-between-sized screen. Device-local,
+  not synced.
+
 ## [0.34.1] - 2026-06-25
 
 ### Fixed

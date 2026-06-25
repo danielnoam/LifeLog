@@ -238,7 +238,8 @@ select:focus { outline: none; border-color: var(--accent); }
 
 /* stats */
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
-@media (max-width: 800px){ .stats-grid { grid-template-columns: 1fr; } }
+@media (max-width: 800px){ html:not(.force-pc) .stats-grid { grid-template-columns: 1fr; } }
+html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .stats-grid + .card { margin-top: 20px; }
 .card { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
 .card h2 { margin: 0 0 14px; font-size: 15px; }
@@ -510,53 +511,103 @@ body.modal-open { overflow: hidden; }
 .toast.err { border-color: var(--danger); }
 
 /* ---------- mobile ---------- */
+/* html:not(.force-pc) lets Settings → Appearance → Force layout "PC" suppress
+   these rules even on an actually-narrow screen. The same ruleset is repeated
+   below, unscoped from @media, under html.force-mobile so "Force layout:
+   Mobile" applies it regardless of the real viewport width (desktop browsers
+   never re-derive their layout viewport from the <meta viewport> tag, so a
+   class is the only thing that works in that direction). */
 @media (max-width: 720px) {
-  .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
-  .search { order: 2; margin-left: 0; width: auto; flex: 1 1 auto; min-width: 0; }
+  html:not(.force-pc) .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
+  html:not(.force-pc) .search { order: 2; margin-left: 0; width: auto; flex: 1 1 auto; min-width: 0; }
 
-  .topbar-bottom {
+  html:not(.force-pc) .topbar-bottom {
     display: flex; justify-content: space-between; align-items: center; gap: 8px;
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
     padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom));
     background: var(--bg-elev); border-top: 1px solid var(--border);
   }
-  .view-current {
+  html:not(.force-pc) .view-current {
     display: block; flex: 1; text-align: center; padding: 13px 4px; font-size: 12px;
     background: var(--accent); color: #fff; border: none; border-radius: 8px;
     font-weight: 550; cursor: pointer;
   }
-  .views { flex: 1; display: none; }
-  .tab { flex: 1; text-align: center; padding: 13px 4px; font-size: 12px; }
-  .views.open {
+  html:not(.force-pc) .views { flex: 1; display: none; }
+  html:not(.force-pc) .tab { flex: 1; text-align: center; padding: 13px 4px; font-size: 12px; }
+  html:not(.force-pc) .views.open {
     position: absolute; bottom: 100%; margin-bottom: 8px;
     display: flex; flex-direction: column; gap: 4px;
     background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px;
     box-shadow: var(--shadow); padding: 5px;
   }
-  .views.open .tab.active { display: none; }
-  .tab-group-label { width: 100%; justify-content: center; padding: 6px 0; margin: 0; }
-  .tab-group-label:not(:first-child) { margin-left: 0; }
-  .tab-group-label:not(:first-child)::before { width: auto; height: 1px; flex: 1; }
-  .tab-group-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
-  .tab-group-label:first-child::before { content: ""; flex: 1; height: 1px; background: var(--border); }
-  .topbar-actions { gap: 6px; margin-left: auto; }
-  .topbar-actions .btn { padding: 10px 14px; }
-  .topbar-actions .btn-icon { padding: 10px 12px; }
-  .add-menu { top: auto; bottom: calc(100% + 8px); }
-  .add-label { display: none; }
+  html:not(.force-pc) .views.open .tab.active { display: none; }
+  html:not(.force-pc) .tab-group-label { width: 100%; justify-content: center; padding: 6px 0; margin: 0; }
+  html:not(.force-pc) .tab-group-label:not(:first-child) { margin-left: 0; }
+  html:not(.force-pc) .tab-group-label:not(:first-child)::before { width: auto; height: 1px; flex: 1; }
+  html:not(.force-pc) .tab-group-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+  html:not(.force-pc) .tab-group-label:first-child::before { content: ""; flex: 1; height: 1px; background: var(--border); }
+  html:not(.force-pc) .topbar-actions { gap: 6px; margin-left: auto; }
+  html:not(.force-pc) .topbar-actions .btn { padding: 10px 14px; }
+  html:not(.force-pc) .topbar-actions .btn-icon { padding: 10px 12px; }
+  html:not(.force-pc) .add-menu { top: auto; bottom: calc(100% + 8px); }
+  html:not(.force-pc) .add-label { display: none; }
 
-  .content { padding-bottom: 92px; }
-  .toast { bottom: 92px; }
-  .bulk-bar { bottom: 92px; flex-wrap: wrap; }
+  html:not(.force-pc) .content { padding-bottom: 92px; }
+  html:not(.force-pc) .toast { bottom: 92px; }
+  html:not(.force-pc) .bulk-bar { bottom: 92px; flex-wrap: wrap; }
 
   /* Timeline is a single column at this width, so the year/month you're
      scrolled into can stick under the topbar like a sticky list header. */
-  .year-head { position: sticky; top: var(--topbar-h, 0px); z-index: 6; background: var(--bg); }
-  .month-card h3 {
+  html:not(.force-pc) .year-head { position: sticky; top: var(--topbar-h, 0px); z-index: 6; background: var(--bg); }
+  html:not(.force-pc) .month-card h3 {
     position: sticky; background: var(--bg-elev);
     /* stacks below the sticky year-head, whose height varies per year (achievement chips can wrap) */
     top: calc(var(--topbar-h, 0px) + var(--year-head-h, 46px)); z-index: 4;
   }
+}
+
+html.force-mobile .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
+html.force-mobile .search { order: 2; margin-left: 0; width: auto; flex: 1 1 auto; min-width: 0; }
+
+html.force-mobile .topbar-bottom {
+  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom));
+  background: var(--bg-elev); border-top: 1px solid var(--border);
+}
+html.force-mobile .view-current {
+  display: block; flex: 1; text-align: center; padding: 13px 4px; font-size: 12px;
+  background: var(--accent); color: #fff; border: none; border-radius: 8px;
+  font-weight: 550; cursor: pointer;
+}
+html.force-mobile .views { flex: 1; display: none; }
+html.force-mobile .tab { flex: 1; text-align: center; padding: 13px 4px; font-size: 12px; }
+html.force-mobile .views.open {
+  position: absolute; bottom: 100%; margin-bottom: 8px;
+  display: flex; flex-direction: column; gap: 4px;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: var(--shadow); padding: 5px;
+}
+html.force-mobile .views.open .tab.active { display: none; }
+html.force-mobile .tab-group-label { width: 100%; justify-content: center; padding: 6px 0; margin: 0; }
+html.force-mobile .tab-group-label:not(:first-child) { margin-left: 0; }
+html.force-mobile .tab-group-label:not(:first-child)::before { width: auto; height: 1px; flex: 1; }
+html.force-mobile .tab-group-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+html.force-mobile .tab-group-label:first-child::before { content: ""; flex: 1; height: 1px; background: var(--border); }
+html.force-mobile .topbar-actions { gap: 6px; margin-left: auto; }
+html.force-mobile .topbar-actions .btn { padding: 10px 14px; }
+html.force-mobile .topbar-actions .btn-icon { padding: 10px 12px; }
+html.force-mobile .add-menu { top: auto; bottom: calc(100% + 8px); }
+html.force-mobile .add-label { display: none; }
+
+html.force-mobile .content { padding-bottom: 92px; }
+html.force-mobile .toast { bottom: 92px; }
+html.force-mobile .bulk-bar { bottom: 92px; flex-wrap: wrap; }
+
+html.force-mobile .year-head { position: sticky; top: var(--topbar-h, 0px); z-index: 6; background: var(--bg); }
+html.force-mobile .month-card h3 {
+  position: sticky; background: var(--bg-elev);
+  top: calc(var(--topbar-h, 0px) + var(--year-head-h, 46px)); z-index: 4;
 }
 
 /* Settings tabs: shrink just enough to keep all 6 on one line, no

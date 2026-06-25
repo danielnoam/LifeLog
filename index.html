@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.34.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.35.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -596,6 +596,18 @@
       </section>
 
       <section class="settings-section">
+        <h3>Force layout</h3>
+        <p class="hint">Overrides which responsive layout is used on this device, regardless of actual screen size — like a browser's "Request desktop site". Useful for previewing the other layout, or pinning one in place on an in-between-sized screen. This device only.</p>
+        <label>Layout
+          <select id="forceLayout">
+            <option value="none">None (automatic)</option>
+            <option value="mobile">Mobile</option>
+            <option value="pc">PC</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="settings-section">
         <h3>Currency</h3>
         <p class="hint">Controls the currency symbol used throughout the Finance tabs. Syncs across your devices.</p>
         <label>Symbol
@@ -686,9 +698,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.34.1"></script>
-  <script src="src/media.js?v=0.34.1"></script>
-  <script src="src/storage.js?v=0.34.1"></script>
-  <script src="src/app.js?v=0.34.1"></script>
+  <script src="src/qr.js?v=0.35.0"></script>
+  <script src="src/media.js?v=0.35.0"></script>
+  <script src="src/storage.js?v=0.35.0"></script>
+  <script src="src/app.js?v=0.35.0"></script>
 </body>
 </html>

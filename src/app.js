@@ -8,7 +8,7 @@
 
   const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" } }; // monthOrder, currency, mediaCategorySources, mediaKeys — synced
   const CURRENCY_SYMBOLS = { ILS: "₪", USD: "$", EUR: "€", GBP: "£" };
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, mediaEnabled: false }; // maxWidth 0 = stretch — local to this device, not synced
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, mediaEnabled: false, forceLayout: "none" }; // maxWidth 0 = stretch — local to this device, not synced
   const FONT_STACKS = {
     system: '"Segoe UI", system-ui, -apple-system, sans-serif',
     serif: 'Georgia, "Times New Roman", serif',
@@ -37,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.34.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.35.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -2520,6 +2520,7 @@
     $("#monthMin").value = state.visual.monthMinWidth;
     $("#monthMax").value = state.visual.monthMaxWidth;
     $("#fontFamily").value = state.visual.fontFamily;
+    $("#forceLayout").value = state.visual.forceLayout || "none";
     $("#currency").value = state.data.settings.currency;
     $("#mediaEnabled").checked = !!state.visual.mediaEnabled;
     updateMediaSettings();
@@ -2583,6 +2584,11 @@
     state.visual.fontFamily = $("#fontFamily").value;
     saveVisualSettings(state.visual);
     applyFont();
+  }
+  function onForceLayoutChange() {
+    state.visual.forceLayout = $("#forceLayout").value;
+    saveVisualSettings(state.visual);
+    applyForceLayout();
   }
   function closeSettings() { $("#settingsModal").hidden = true; }
 
@@ -3268,6 +3274,7 @@
     rebuildFinanceColorMap();
     applyMonthLayout();
     applyFont();
+    applyForceLayout();
     buildYearFilter();
     buildCatFilter();
     render();
@@ -3284,6 +3291,23 @@
   function applyFont() {
     const s = state.visual || DEFAULT_VISUAL;
     document.documentElement.style.setProperty("--font-family", FONT_STACKS[s.fontFamily] || FONT_STACKS.system);
+  }
+
+  // Forces the mobile/desktop layout regardless of actual screen size.
+  // html.force-mobile/.force-pc directly toggle the matching CSS rules in
+  // styles.css (works on any browser engine). The viewport meta is also
+  // updated as a "Request desktop site"-style aid: real mobile browsers
+  // honor its width and auto-zoom the page to fit, which desktop browsers
+  // ignore — hence needing the class switch to cover that direction too.
+  function applyForceLayout() {
+    const s = state.visual || DEFAULT_VISUAL;
+    document.documentElement.classList.toggle("force-mobile", s.forceLayout === "mobile");
+    document.documentElement.classList.toggle("force-pc", s.forceLayout === "pc");
+    const meta = document.querySelector('meta[name="viewport"]');
+    if (!meta) return;
+    if (s.forceLayout === "mobile") meta.content = "width=400, initial-scale=1.0";
+    else if (s.forceLayout === "pc") meta.content = "width=1280, initial-scale=1.0";
+    else meta.content = "width=device-width, initial-scale=1.0";
   }
 
   function timelineToolbar() {
@@ -3455,6 +3479,7 @@
     $("#monthMin").onchange = onLayoutChange;
     $("#monthMax").onchange = onLayoutChange;
     $("#fontFamily").onchange = onFontChange;
+    $("#forceLayout").onchange = onForceLayoutChange;
     $("#currency").onchange = async () => {
       state.data.settings.currency = $("#currency").value;
       render();
