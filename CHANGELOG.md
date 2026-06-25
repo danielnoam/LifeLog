@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.34.1] - 2026-06-25
+
+### Fixed
+- Finance timeline entries now show the category pill on the left
+  (before the title), matching the Journal entry layout instead of
+  having it sit between the title and the amount.
+
 ## [0.34.0] - 2026-06-24
 
 ### Added
