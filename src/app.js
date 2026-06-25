@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.38.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.39.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -470,7 +470,7 @@
   // sync pick) is detected and clears the now-stale cover/metadata.
   let lastSyncedBacklogTitle = "";
 
-  function onBacklogTitleInput() {
+  function renderBacklogTitleSuggestions() {
     const query = $("#bTitle").value;
     // A manually-entered Steam App ID isn't derived from the title, so editing
     // the title shouldn't clear it the way it clears a search-based sync.
@@ -479,6 +479,82 @@
         .forEach((id) => { const f = $(id); if (f) f.value = ""; });
       setBacklogCover();
     }
+
+    const list = $("#bTitleSuggest");
+    const selfId = $("#backlogId").value || null;
+    const backlogMatches = backlogSuggestions(query, selfId);
+    const journalMatches = titleSuggestions(query, null);
+    list.innerHTML = "";
+
+    backlogMatches.forEach((b) => {
+      const item = makeMediaAcItem(
+        { title: b.title, coverUrl: b.coverUrl || "", year: null, externalRating: null },
+        () => {
+          lastSyncedBacklogTitle = b.title;
+          $("#bTitle").value = b.title;
+          if (state.data.categories.some((c) => c.name === b.category)) $("#bCategory").value = b.category;
+          $("#bCoverUrl").value = b.coverUrl || "";
+          $("#bMediaId").value = b.mediaId || "";
+          $("#bMediaSource").value = b.mediaSource || "";
+          setBacklogCover();
+          updateSyncBtnVisibility("b", $("#bCategory").value);
+          list.hidden = true;
+          updateBacklogDuplicateBanner();
+        }
+      );
+      const info = item.querySelector(".ac-info");
+      const existing = info.querySelector(".ac-meta");
+      if (existing) existing.remove();
+      info.appendChild(el("span", "ac-meta", `📋 Already in backlog · ${b.category}`));
+      list.appendChild(item);
+    });
+
+    if (backlogMatches.length && journalMatches.length) list.appendChild(el("div", "ac-divider"));
+
+    journalMatches.forEach((m) => {
+      const item = makeMediaAcItem(
+        { title: m.title, coverUrl: m.coverUrl, year: null, externalRating: null },
+        () => {
+          lastSyncedBacklogTitle = m.title;
+          $("#bTitle").value = m.title;
+          if (state.data.categories.some((c) => c.name === m.category)) $("#bCategory").value = m.category;
+          $("#bCoverUrl").value = m.coverUrl || "";
+          $("#bMediaId").value = m.mediaId || "";
+          $("#bMediaSource").value = m.mediaSource || "";
+          setBacklogCover();
+          updateSyncBtnVisibility("b", $("#bCategory").value);
+          list.hidden = true;
+          updateBacklogDuplicateBanner();
+        }
+      );
+      const info = item.querySelector(".ac-info");
+      const existing = info.querySelector(".ac-meta");
+      if (existing) existing.remove();
+      info.appendChild(el("span", "ac-meta", `✓ Logged ×${m.count} · last ${MONTHS_SHORT[m.month]} ${m.year}`));
+      list.appendChild(item);
+    });
+
+    list.hidden = !backlogMatches.length && !journalMatches.length;
+
+    updateBacklogDuplicateBanner();
+  }
+
+  // Purely informational: shows whether the typed title already exists in
+  // the backlog (excluding the item being edited) and/or is already logged,
+  // so duplicates and "you've already done this" can be caught before save.
+  function updateBacklogDuplicateBanner() {
+    const title = $("#bTitle").value.trim().toLowerCase();
+    const selfId = $("#backlogId").value;
+    const status = $("#bDuplicateStatus");
+    if (!title) { status.hidden = true; return; }
+    const inBacklog = state.data.backlog.some((b) => b.id !== selfId && b.title.trim().toLowerCase() === title);
+    const inJournal = state.data.entries.some((e) => e.title.trim().toLowerCase() === title);
+    if (!inBacklog && !inJournal) { status.hidden = true; return; }
+    const parts = [];
+    if (inBacklog) parts.push("already in your backlog");
+    if (inJournal) parts.push("already logged in your timeline");
+    $("#bDuplicateStatusText").textContent = "📋 This title is " + parts.join(" and ") + ".";
+    status.hidden = false;
   }
 
   // Builds the cover/media fields directly from a manually-entered Steam App
@@ -1510,11 +1586,11 @@
 
   // Suggest matching backlog items, so adding an entry surfaces the fact
   // it's already sitting in the backlog and offers to remove it on save.
-  function backlogSuggestions(query) {
+  function backlogSuggestions(query, excludeId) {
     const q = query.trim().toLowerCase();
     if (!q) return [];
     return state.data.backlog
-      .filter((b) => b.title.trim().toLowerCase().includes(q))
+      .filter((b) => b.id !== excludeId && b.title.trim().toLowerCase().includes(q))
       .sort((a, b) => a.title.toLowerCase().indexOf(q) - b.title.toLowerCase().indexOf(q))
       .slice(0, 6);
   }
@@ -1945,6 +2021,7 @@
     $("#deleteBacklogBtn").hidden = !editing;
     setBacklogCover();
     updateSyncBtnVisibility("b", $("#bCategory").value);
+    updateBacklogDuplicateBanner();
     $("#backlogModal").hidden = false;
   }
   function closeBacklogModal() { $("#backlogModal").hidden = true; }
@@ -3532,7 +3609,7 @@
     $("#cancelBacklogBtn").onclick = closeBacklogModal;
     $("#backlogForm").onsubmit = saveBacklogFromForm;
     $("#deleteBacklogBtn").onclick = deleteCurrentBacklogItem;
-    $("#bTitle").oninput = onBacklogTitleInput;
+    $("#bTitle").oninput = renderBacklogTitleSuggestions;
     $("#bCategory").onchange = () => updateSyncBtnVisibility("b", $("#bCategory").value);
     $("#bSyncBtn").onclick = syncBacklogTitle;
     $("#bUnsyncBtn").onclick = unsyncBacklogItem;

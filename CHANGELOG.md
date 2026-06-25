@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.39.0] - 2026-06-25
+
+### Added
+- Adding a backlog item now checks whether that title already exists —
+  either as another backlog item (duplicate) or as an entry already in
+  your journal timeline (already logged). Matches show up in the title
+  suggestion dropdown ("📋 Already in backlog" / "✓ Logged ×N · last
+  MMM YYYY"), and typing the exact title shows an informational banner
+  ("This title is already in your backlog / already logged in your
+  timeline") — purely a heads-up, it doesn't block saving.
+
 ## [0.38.0] - 2026-06-25
 
 ### Added

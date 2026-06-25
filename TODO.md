@@ -2,6 +2,10 @@ todo:
 
 done:
 
+- adding a backlog item now checks if that title already exists, either
+  as another backlog item (duplicate) or as something already logged in
+  the journal timeline — surfaced in the title suggestion dropdown and
+  an informational banner on exact match; doesn't block saving
 - adding a journal entry now also checks the backlog for a matching
   title (not just previous entries): matches show up in the title
   suggestion dropdown tagged "in backlog"; picking one, or typing the
