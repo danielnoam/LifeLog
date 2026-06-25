@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.37.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.38.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -1467,6 +1467,7 @@
     updateSyncBtnVisibility("f", $("#fCategory").value);
     $("#fTitleSuggest").hidden = true;
     $("#fTitleSuggest").innerHTML = "";
+    updateBacklogLinkBanner();
     $("#entryModal").hidden = false;
   }
   function closeEntryModal() { $("#entryModal").hidden = true; }
@@ -1504,6 +1505,17 @@
     }
     return [...groups.values()]
       .sort((a, b) => a.title.toLowerCase().indexOf(q) - b.title.toLowerCase().indexOf(q) || b.count - a.count)
+      .slice(0, 6);
+  }
+
+  // Suggest matching backlog items, so adding an entry surfaces the fact
+  // it's already sitting in the backlog and offers to remove it on save.
+  function backlogSuggestions(query) {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return state.data.backlog
+      .filter((b) => b.title.trim().toLowerCase().includes(q))
+      .sort((a, b) => a.title.toLowerCase().indexOf(q) - b.title.toLowerCase().indexOf(q))
       .slice(0, 6);
   }
 
@@ -1606,6 +1618,8 @@
     }
 
     const localMatches = titleSuggestions(query, $("#entryId").value || null);
+    const isAdding = !$("#entryId").value;
+    const backlogMatches = isAdding ? backlogSuggestions(query) : [];
     list.innerHTML = "";
 
     localMatches.forEach((m) => {
@@ -1628,7 +1642,52 @@
       list.appendChild(item);
     });
 
-    list.hidden = !localMatches.length;
+    if (localMatches.length && backlogMatches.length) list.appendChild(el("div", "ac-divider"));
+
+    backlogMatches.forEach((b) => {
+      const item = makeMediaAcItem(
+        { title: b.title, coverUrl: b.coverUrl || "", year: null, externalRating: null },
+        () => {
+          lastSyncedEntryTitle = b.title;
+          $("#fTitle").value = b.title;
+          if (state.data.categories.some((c) => c.name === b.category)) $("#fCategory").value = b.category;
+          setEntryCover(b.coverUrl || "", b.mediaId || "", b.mediaSource || "");
+          updateSyncBtnVisibility("f", $("#fCategory").value);
+          $("#entryFromBacklog").value = b.id;
+          updateBacklogLinkBanner();
+          list.hidden = true;
+        }
+      );
+      const info = item.querySelector(".ac-info");
+      const existing = info.querySelector(".ac-meta");
+      if (existing) existing.remove();
+      info.appendChild(el("span", "ac-meta", `📋 In backlog · ${b.category}`));
+      list.appendChild(item);
+    });
+
+    list.hidden = !localMatches.length && !backlogMatches.length;
+
+    // Exact typed match against the backlog auto-links it, without a click —
+    // but only ever sets the link, never clears one already set (e.g. from
+    // the ✓ Done button), so a later edit to the title can't silently undo it.
+    if (isAdding && !$("#entryFromBacklog").value) {
+      const q = query.trim().toLowerCase();
+      if (q) {
+        const exact = state.data.backlog.find((b) => b.title.trim().toLowerCase() === q);
+        if (exact) $("#entryFromBacklog").value = exact.id;
+      }
+    }
+
+    updateBacklogLinkBanner();
+  }
+
+  // Shows/hides the "will be removed from backlog on save" banner based on
+  // #entryFromBacklog, however it got set (✓ Done button, suggestion click,
+  // or exact-typed-title auto-link) — and wires the opt-out unlink button.
+  function updateBacklogLinkBanner() {
+    const id = $("#entryFromBacklog").value;
+    const linked = id && state.data.backlog.some((b) => b.id === id);
+    $("#fBacklogLinkStatus").hidden = !linked;
   }
 
   async function syncEntryTitle() {
@@ -3437,6 +3496,7 @@
     $("#fCategory").onchange = () => updateSyncBtnVisibility("f", $("#fCategory").value);
     $("#fSyncBtn").onclick = syncEntryTitle;
     $("#fUnsyncBtn").onclick = unsyncEntry;
+    $("#fBacklogUnlinkBtn").onclick = () => { $("#entryFromBacklog").value = ""; updateBacklogLinkBanner(); };
     $("#fSteamAppId").oninput = () => applySteamAppId("f");
     $("#fRating").querySelectorAll(".star").forEach((s) => {
       s.onclick = () => {

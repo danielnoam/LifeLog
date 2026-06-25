@@ -2,6 +2,12 @@ todo:
 
 done:
 
+- adding a journal entry now also checks the backlog for a matching
+  title (not just previous entries): matches show up in the title
+  suggestion dropdown tagged "in backlog"; picking one, or typing the
+  exact backlog title, links the entry to it and shows a banner saying
+  it'll be removed from the backlog on save, with a way to opt out; the
+  existing "✓ Done" button on backlog rows now shows the same banner too
 - fix a brief flash of the default theme/font/layout on every page
   load/reload — those now apply immediately instead of waiting on the
   data load to finish

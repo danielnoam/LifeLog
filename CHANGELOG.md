@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.38.0] - 2026-06-25
+
+### Added
+- Adding a journal entry now also checks your backlog for a matching
+  title, not just previous entries. Matching backlog items show up in
+  the title suggestion dropdown (tagged "📋 In backlog"); picking one, or
+  just typing the exact backlog title, links the entry to it and shows a
+  banner confirming it'll be removed from the backlog when you save —
+  with a "✕ Don't remove" button to opt out. The existing "✓ Done" button
+  on backlog rows now shows the same banner instead of removing silently.
+
 ## [0.37.1] - 2026-06-25
 
 ### Fixed
