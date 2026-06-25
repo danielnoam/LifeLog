@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.37.1] - 2026-06-25
+
+### Fixed
+- Theme, font, timeline layout and force-layout now apply immediately on
+  load instead of after the data finishes loading, removing the brief
+  flash of the default look on every page load/reload.
+
 ## [0.37.0] - 2026-06-25
 
 ### Changed

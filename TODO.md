@@ -2,6 +2,9 @@ todo:
 
 done:
 
+- fix a brief flash of the default theme/font/layout on every page
+  load/reload — those now apply immediately instead of waiting on the
+  data load to finish
 - reposition the global Add and Settings buttons: Add is now a floating
   "+" button anchored to the bottom-right corner on every layout;
   Settings moved into its own spot in the header corner, away from Add

@@ -9,6 +9,7 @@
   const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" } }; // monthOrder, currency, mediaCategorySources, mediaKeys — synced
   const CURRENCY_SYMBOLS = { ILS: "₪", USD: "$", EUR: "€", GBP: "£" };
   const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, mediaEnabled: false, forceLayout: "none", theme: "default" }; // maxWidth 0 = stretch — local to this device, not synced
+  const THEMES = ["light", "nord", "dracula"]; // "default" has no class — it's the bare :root palette
   const FONT_STACKS = {
     system: '"Segoe UI", system-ui, -apple-system, sans-serif',
     serif: 'Georgia, "Times New Roman", serif',
@@ -37,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.37.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.37.1"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -161,6 +162,16 @@
   };
   let catColor = {}; // name -> color
   let financeCatColor = {}; // name -> color
+
+  // Applied immediately (before any data load/await) so the right theme,
+  // font, layout and force-layout are in place before first paint — these
+  // are device-local settings already known synchronously from
+  // localStorage, so there's no reason to wait on afterDataChange() and
+  // show a flash of the default look first.
+  applyMonthLayout();
+  applyFont();
+  applyTheme();
+  applyForceLayout();
 
   function emptyData() {
     return {
@@ -3299,8 +3310,6 @@
     const s = state.visual || DEFAULT_VISUAL;
     document.documentElement.style.setProperty("--font-family", FONT_STACKS[s.fontFamily] || FONT_STACKS.system);
   }
-
-  const THEMES = ["light", "nord", "dracula"]; // "default" has no class — it's the bare :root palette
 
   function applyTheme() {
     const s = state.visual || DEFAULT_VISUAL;
