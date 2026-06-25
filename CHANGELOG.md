@@ -4,6 +4,12 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.36.0] - 2026-06-25
+
+### Added
+- Settings → Appearance → "Theme" lets you pick a color scheme: Default,
+  Light, Nord, or Dracula. Device-local, not synced.
+
 ## [0.35.0] - 2026-06-25
 
 ### Added

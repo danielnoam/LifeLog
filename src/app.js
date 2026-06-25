@@ -8,7 +8,7 @@
 
   const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" } }; // monthOrder, currency, mediaCategorySources, mediaKeys — synced
   const CURRENCY_SYMBOLS = { ILS: "₪", USD: "$", EUR: "€", GBP: "£" };
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, mediaEnabled: false, forceLayout: "none" }; // maxWidth 0 = stretch — local to this device, not synced
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, mediaEnabled: false, forceLayout: "none", theme: "default" }; // maxWidth 0 = stretch — local to this device, not synced
   const FONT_STACKS = {
     system: '"Segoe UI", system-ui, -apple-system, sans-serif',
     serif: 'Georgia, "Times New Roman", serif',
@@ -37,7 +37,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.35.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.36.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -2520,6 +2520,7 @@
     $("#monthMin").value = state.visual.monthMinWidth;
     $("#monthMax").value = state.visual.monthMaxWidth;
     $("#fontFamily").value = state.visual.fontFamily;
+    $("#themeSelect").value = state.visual.theme || "default";
     $("#forceLayout").value = state.visual.forceLayout || "none";
     $("#currency").value = state.data.settings.currency;
     $("#mediaEnabled").checked = !!state.visual.mediaEnabled;
@@ -2589,6 +2590,11 @@
     state.visual.forceLayout = $("#forceLayout").value;
     saveVisualSettings(state.visual);
     applyForceLayout();
+  }
+  function onThemeChange() {
+    state.visual.theme = $("#themeSelect").value;
+    saveVisualSettings(state.visual);
+    applyTheme();
   }
   function closeSettings() { $("#settingsModal").hidden = true; }
 
@@ -3274,6 +3280,7 @@
     rebuildFinanceColorMap();
     applyMonthLayout();
     applyFont();
+    applyTheme();
     applyForceLayout();
     buildYearFilter();
     buildCatFilter();
@@ -3291,6 +3298,13 @@
   function applyFont() {
     const s = state.visual || DEFAULT_VISUAL;
     document.documentElement.style.setProperty("--font-family", FONT_STACKS[s.fontFamily] || FONT_STACKS.system);
+  }
+
+  const THEMES = ["light", "nord", "dracula"]; // "default" has no class — it's the bare :root palette
+
+  function applyTheme() {
+    const s = state.visual || DEFAULT_VISUAL;
+    THEMES.forEach((t) => document.documentElement.classList.toggle("theme-" + t, s.theme === t));
   }
 
   // Forces the mobile/desktop layout regardless of actual screen size.
@@ -3479,6 +3493,7 @@
     $("#monthMin").onchange = onLayoutChange;
     $("#monthMax").onchange = onLayoutChange;
     $("#fontFamily").onchange = onFontChange;
+    $("#themeSelect").onchange = onThemeChange;
     $("#forceLayout").onchange = onForceLayoutChange;
     $("#currency").onchange = async () => {
       state.data.settings.currency = $("#currency").value;

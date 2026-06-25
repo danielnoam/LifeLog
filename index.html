@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.35.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.36.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -567,6 +567,19 @@
 
       <div class="settings-panel" data-panel="appearance">
       <section class="settings-section">
+        <h3>Theme</h3>
+        <p class="hint">Changes the color scheme used throughout the app on this device only.</p>
+        <label>Color scheme
+          <select id="themeSelect">
+            <option value="default">Default</option>
+            <option value="light">Light</option>
+            <option value="nord">Nord</option>
+            <option value="dracula">Dracula</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="settings-section">
         <h3>Timeline layout</h3>
         <p class="hint">Controls how wide each month card is in the Timeline view.
           <br>• <strong>Min width</strong> — smaller values fit more months per row.
@@ -698,9 +711,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.35.0"></script>
-  <script src="src/media.js?v=0.35.0"></script>
-  <script src="src/storage.js?v=0.35.0"></script>
-  <script src="src/app.js?v=0.35.0"></script>
+  <script src="src/qr.js?v=0.36.0"></script>
+  <script src="src/media.js?v=0.36.0"></script>
+  <script src="src/storage.js?v=0.36.0"></script>
+  <script src="src/app.js?v=0.36.0"></script>
 </body>
 </html>

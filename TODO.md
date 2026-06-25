@@ -2,6 +2,8 @@ todo:
 
 done:
 
+- Settings → Appearance → "Theme" (Default/Light/Nord/Dracula) color
+  scheme picker
 - Settings → Appearance → "Force layout" (None/Mobile/PC) to pin the
   responsive layout on this device regardless of actual screen size
 - add a "+" button to the top right of each month panel (Journal
