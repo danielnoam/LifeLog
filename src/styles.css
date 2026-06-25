@@ -96,8 +96,8 @@ html, body {
 .brand-mark { color: var(--accent); font-size: 18px; }
 .brand h1 { font-size: 17px; margin: 0; font-weight: 650; letter-spacing: .3px; }
 
-/* groups views + topbar-actions; on desktop it's transparent to the flex
-   layout, on mobile it becomes the fixed bottom bar */
+/* groups the view tabs; on desktop it's transparent to the flex layout,
+   on mobile it becomes the fixed bottom nav bar */
 .topbar-bottom { display: contents; }
 
 .views { display: flex; gap: 4px; order: 2; }
@@ -125,12 +125,30 @@ html, body {
 /* mobile-only "current view" trigger; see .views.open below */
 .view-current { display: none; }
 
-.topbar-actions { display: flex; align-items: center; gap: 10px; order: 4; }
-.add-wrap { position: relative; }
+.search {
+  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  padding: 7px 12px; border-radius: 8px; width: 200px; font-size: 13px;
+  order: 3; margin-left: auto;
+}
+.search:focus { outline: none; border-color: var(--accent); }
+
+/* Settings lives in the header corner, separate from the Add FAB, so the
+   two don't compete for attention as if they were equally weighted actions. */
+#settingsBtn { order: 5; }
+
+/* Add floats free of the header/tabs entirely — a single fixed FAB in the
+   bottom-right corner on every layout, so it's never crowded next to
+   Settings or the view tabs. */
+.fab-wrap { position: fixed; right: 24px; bottom: 24px; z-index: 35; }
+.fab {
+  width: 52px; height: 52px; border-radius: 50%; padding: 0;
+  font-size: 26px; line-height: 1; display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow);
+}
 .add-menu {
-  position: absolute; right: 0; top: calc(100% + 6px); min-width: 185px;
+  position: absolute; right: 0; bottom: calc(100% + 10px); min-width: 185px;
   background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px;
-  box-shadow: var(--shadow); padding: 5px; z-index: 40; display: flex; flex-direction: column;
+  box-shadow: var(--shadow); padding: 5px; display: flex; flex-direction: column;
 }
 .add-menu[hidden] { display: none; }
 .add-menu button {
@@ -139,13 +157,6 @@ html, body {
 }
 .add-menu button:hover { background: var(--bg-elev2); }
 .add-menu-divider { border-top: 1px solid var(--border); margin: 4px 6px; }
-.add-label { display: inline; }
-.search {
-  background: var(--bg); border: 1px solid var(--border); color: var(--text);
-  padding: 7px 12px; border-radius: 8px; width: 200px; font-size: 13px;
-  order: 3; margin-left: auto;
-}
-.search:focus { outline: none; border-color: var(--accent); }
 
 /* ---------- buttons ---------- */
 .btn {
@@ -602,12 +613,8 @@ body.modal-open { overflow: hidden; }
   html:not(.force-pc) .tab-group-label:not(:first-child)::before { width: auto; height: 1px; flex: 1; }
   html:not(.force-pc) .tab-group-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
   html:not(.force-pc) .tab-group-label:first-child::before { content: ""; flex: 1; height: 1px; background: var(--border); }
-  html:not(.force-pc) .topbar-actions { gap: 6px; margin-left: auto; }
-  html:not(.force-pc) .topbar-actions .btn { padding: 10px 14px; }
-  html:not(.force-pc) .topbar-actions .btn-icon { padding: 10px 12px; }
-  html:not(.force-pc) .add-menu { top: auto; bottom: calc(100% + 8px); }
-  html:not(.force-pc) .add-label { display: none; }
 
+  html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); }
   html:not(.force-pc) .content { padding-bottom: 92px; }
   html:not(.force-pc) .toast { bottom: 92px; }
   html:not(.force-pc) .bulk-bar { bottom: 92px; flex-wrap: wrap; }
@@ -650,12 +657,8 @@ html.force-mobile .tab-group-label:not(:first-child) { margin-left: 0; }
 html.force-mobile .tab-group-label:not(:first-child)::before { width: auto; height: 1px; flex: 1; }
 html.force-mobile .tab-group-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
 html.force-mobile .tab-group-label:first-child::before { content: ""; flex: 1; height: 1px; background: var(--border); }
-html.force-mobile .topbar-actions { gap: 6px; margin-left: auto; }
-html.force-mobile .topbar-actions .btn { padding: 10px 14px; }
-html.force-mobile .topbar-actions .btn-icon { padding: 10px 12px; }
-html.force-mobile .add-menu { top: auto; bottom: calc(100% + 8px); }
-html.force-mobile .add-label { display: none; }
 
+html.force-mobile .fab-wrap { right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); }
 html.force-mobile .content { padding-bottom: 92px; }
 html.force-mobile .toast { bottom: 92px; }
 html.force-mobile .bulk-bar { bottom: 92px; flex-wrap: wrap; }

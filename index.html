@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.36.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.37.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -49,23 +49,22 @@
         <button class="tab" data-view="finance">Timeline</button>
         <button class="tab" data-view="finance-stats">Summary</button>
       </nav>
-
-      <div class="topbar-actions">
-        <div class="add-wrap">
-          <button id="addBtn" class="btn btn-primary" aria-label="Add"><span class="add-icon">+</span><span class="add-label"> Add ▾</span></button>
-          <div class="add-menu" id="addMenu" hidden>
-            <button type="button" data-add="entry">Add entry</button>
-            <button type="button" data-add="achievement">Add achievement</button>
-            <button type="button" data-add="backlog">Add to backlog</button>
-            <div class="add-menu-divider" role="separator"></div>
-            <button type="button" data-add="finance">Add finance entry</button>
-            <button type="button" data-add="recurring">Add recurring expense</button>
-          </div>
-        </div>
-        <button id="settingsBtn" class="btn btn-primary btn-icon" title="Settings">⚙</button>
-      </div>
     </div>
+
+    <button id="settingsBtn" class="btn btn-icon" title="Settings">⚙</button>
   </header>
+
+  <div class="fab-wrap" id="fabWrap">
+    <div class="add-menu" id="addMenu" hidden>
+      <button type="button" data-add="entry">Add entry</button>
+      <button type="button" data-add="achievement">Add achievement</button>
+      <button type="button" data-add="backlog">Add to backlog</button>
+      <div class="add-menu-divider" role="separator"></div>
+      <button type="button" data-add="finance">Add finance entry</button>
+      <button type="button" data-add="recurring">Add recurring expense</button>
+    </div>
+    <button id="addBtn" class="btn btn-primary fab" aria-label="Add">+</button>
+  </div>
 
   <div class="filterbar">
     <div class="filter-group">
@@ -711,9 +710,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.36.0"></script>
-  <script src="src/media.js?v=0.36.0"></script>
-  <script src="src/storage.js?v=0.36.0"></script>
-  <script src="src/app.js?v=0.36.0"></script>
+  <script src="src/qr.js?v=0.37.0"></script>
+  <script src="src/media.js?v=0.37.0"></script>
+  <script src="src/storage.js?v=0.37.0"></script>
+  <script src="src/app.js?v=0.37.0"></script>
 </body>
 </html>

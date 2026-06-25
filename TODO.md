@@ -2,6 +2,10 @@ todo:
 
 done:
 
+- reposition the global Add and Settings buttons: Add is now a floating
+  "+" button anchored to the bottom-right corner on every layout;
+  Settings moved into its own spot in the header corner, away from Add
+  and the view tabs
 - Settings → Appearance → "Theme" (Default/Light/Nord/Dracula) color
   scheme picker
 - Settings → Appearance → "Force layout" (None/Mobile/PC) to pin the

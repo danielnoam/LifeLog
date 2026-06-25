@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.37.0] - 2026-06-25
+
+### Changed
+- Repositioned the global Add and Settings buttons so they don't compete
+  for attention: Add is now a floating "+" button anchored to the
+  bottom-right corner on every layout, and Settings moved into its own
+  spot in the header corner, away from Add and the view tabs.
+
 ## [0.36.0] - 2026-06-25
 
 ### Added
