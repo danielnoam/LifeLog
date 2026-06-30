@@ -228,3 +228,33 @@ For an update to an existing site, the loop is: edit → bump version +
 `CHANGELOG.md` (6) → preview at desktop + mobile widths (7) →
 `git push origin main` (2) → load the live URL and confirm the version
 bumped + both layouts work (9).
+
+---
+
+## Maintaining this skill — keep every copy in sync
+
+This skill is intentionally **duplicated** across several locations so it
+loads both locally and in web sessions: a user-scoped copy
+(`~/.claude/skills/`) covers local Claude Code sessions, and a copy committed
+inside each repo's `.claude/skills/` covers web sessions opened on that repo
+(web containers don't see your user-scoped skills). The copies must stay
+identical, so treat the list below as part of the skill.
+
+**Copies of this skill (the list) — keep these in sync:**
+
+1. `danielnoam/lifelog` → `.claude/skills/github-pages/SKILL.md` — **source of truth, edit here first**
+2. `danielnoam/portfolio` → `.claude/skills/github-pages/SKILL.md`
+3. User scope → `~/.claude/skills/github-pages/SKILL.md` (local machine)
+
+**Rules whenever this file changes:**
+
+- **Edit the source of truth (LifeLog's copy) first**, then immediately copy
+  the *entire* file over every other location in the list, and commit + push
+  each repo (straight to `main`). Never leave copies on different versions.
+- **If you add the skill to a new place** (another repo, another machine, an
+  account-level skill store, a plugin), **add that location to the list above
+  in the same change** — so the next person/session knows to sync it too.
+- **If you remove a copy**, delete it from the list as well.
+- Quick check that they match: diff each copy against LifeLog's; they should
+  be byte-identical (e.g. `diff <lifelog>/.claude/skills/github-pages/SKILL.md
+  <other>/SKILL.md` prints nothing).
