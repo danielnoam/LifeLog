@@ -1,6 +1,6 @@
 ---
 name: github-pages
-description: Build and deploy a no-build static site to GitHub Pages — scaffold the files, get the project-page base path right, optionally add client-side routing (SPA 404 trick) or a PWA layer (manifest + service worker), preview locally, and verify the live deploy. Use when creating a new GitHub Pages site, hosting a static site on Pages, or fixing a Pages site that 404s, ships stale assets, or breaks under its /<repo>/ subpath.
+description: Build and deploy a no-build static site to GitHub Pages — scaffold the files, get the project-page base path right, optionally add client-side routing (SPA 404 trick) or a PWA layer (manifest + service worker), keep a visible version marker + changelog, verify on desktop and mobile, and ship by pushing to main. Use when creating a new GitHub Pages site, hosting a static site on Pages, deploying/updating one, or fixing a Pages site that 404s, ships stale assets, or breaks under its /<repo>/ subpath.
 ---
 
 # Building a GitHub Pages site
@@ -14,7 +14,7 @@ in this account are built:
 - **danielnoam/portfolio** — a static **SPA** with a client-side router,
   uses the **404 redirect** trick, configures a base path.
 
-Work through the steps that apply. Steps 1–3 and 6–7 apply to every Pages
+Work through the steps that apply. Steps 1–3 and 6–10 apply to every Pages
 site; 4 (routing) and 5 (PWA) are opt-in.
 
 ## 1. Pick the site type
@@ -43,6 +43,13 @@ the `actions/deploy-pages` flow) and out of scope here.
    most Pages bugs; see step 3. (A repo named `<user>.github.io` is a
    *user* page served from the domain root with no subpath — then base
    path is a non-issue.)
+5. **Deploy = push to `main`.** With "deploy from a branch" there's no
+   build pipeline or release branch — committing to `main` *is* the
+   deploy; Pages rebuilds within a minute or two. So ship straight to
+   `main`: do the work, verify locally (step 7), bump the version +
+   changelog (step 6), commit, and `git push origin main`. No PR, no
+   `gh-pages` branch, no merge dance. (Use a short-lived branch only if
+   you genuinely want a review first, then merge to `main` to publish.)
 
 ## 3. Get the base path right — the #1 source of breakage
 
@@ -127,7 +134,32 @@ Only if the user wants "add to home screen" / offline. Mirror **lifelog**:
   - **Don't precache private/user data** — keep it out of the asset list
     and fetch it at runtime with a graceful fallback.
 
-## 6. Preview locally before pushing
+## 6. Version marker + changelog — your deploy smoke signal
+
+Because "did my push actually deploy?" is otherwise invisible (Pages caches
+hard, and a stale service worker can serve old code), every site should
+carry a **single, visible version number** plus a **`CHANGELOG.md`**, bumped
+together on every change. This is how lifelog works — copy the pattern:
+
+- **One version constant, rendered in the UI.** lifelog defines
+  `const APP_VERSION = "x.y.z"` in `src/app.js` and shows it in Settings as
+  "LifeLog vX.Y.Z". Put it somewhere always visible (footer, settings, an
+  `<meta>`/about line). It's the only string you eyeball on the live site to
+  confirm the deploy landed: load the page, check the number went up.
+- **`CHANGELOG.md`**, Keep-a-Changelog style — newest first,
+  `## [x.y.z] - YYYY-MM-DD`, with `### Added/Changed/Fixed/Removed`. The top
+  heading must always equal the in-app version constant.
+- **Bump both with every deploy**, even tiny fixes — semver: feature →
+  minor, fix/tweak → patch, breaking → major. Never push to `main`
+  (step 2) without bumping, or you lose the ability to tell what's live.
+- **PWA:** bump the **service-worker cache version** in the same change
+  (step 5) so clients actually fetch the new build instead of the cached one
+  — otherwise the visible version won't update for returning visitors.
+
+> LifeLog has a ready-made `release-checklist` skill that automates exactly
+> this (version + CHANGELOG + TODO in sync) — reuse it for that repo.
+
+## 7. Preview locally — on desktop *and* mobile widths
 
 Open `file://` for a quick look, but module scripts, fetch, and service
 workers need a real origin. Use a tiny static server like lifelog's
@@ -136,12 +168,27 @@ get wrong) on `http://localhost:5173`. Check the browser console for path
 404s and module errors **before** deploying, since the live subpath is
 unforgiving.
 
+**Check both layouts — these sites are opened on phones as much as PCs, and
+both reference sites are responsive** (lifelog: a top bar with view tabs on
+desktop, a fixed bottom nav on mobile; portfolio: a sidebar on desktop, a
+hamburger `mobile-top-bar` on mobile). Drive it with Playwright
+(`NODE_PATH=/opt/node22/lib/node_modules node script.js`, Chromium at
+`/opt/pw-browsers/chromium`) at two viewports and assert **zero**
+`pageerror`/`console.error` at each:
+
+- **Desktop** (~1280×800): the desktop chrome/nav is shown, content is laid
+  out for width.
+- **Mobile** (≤720px, e.g. 390×844): the mobile nav appears, the desktop
+  nav is hidden, nothing overflows horizontally, tap targets are reachable.
+
+Exercise the views/flows your change actually touched at *both* sizes.
+
 > Note: a flat local server serves from `/`, so relative-path sites match
 > production but **base-path bugs may hide locally** and only appear under
 > `/<repo>/` live. After deploy, always load the real Pages URL and watch
-> the Network tab (step 8).
+> the Network tab (step 9).
 
-## 7. Hygiene
+## 8. Hygiene
 
 - **No build step, no dependencies** — keep it vanilla. If you pull a
   library, prefer a committed vendor file (portfolio vendors Prism under
@@ -153,17 +200,31 @@ unforgiving.
 - Provide a **`404.html`** even for plain sites — a friendly page beats the
   default Pages 404.
 
-## 8. Verify the live deploy
+## 9. Verify the live deploy
 
-After Pages builds (watch the green check in **Settings → Pages**, or the
-"pages build and deployment" run):
+After you push to `main` (step 2) and Pages builds (watch the green check in
+**Settings → Pages**, or the "pages build and deployment" run):
 
-- Load `https://<user>.github.io/<repo>/` and open DevTools **Network** —
-  zero 404s on CSS/JS/icons/manifest (catches base-path mistakes).
+- **Confirm the version bumped.** Load `https://<user>.github.io/<repo>/`
+  and check the visible version marker (step 6) shows the new number — this
+  is the one-glance proof the deploy actually landed. If it still shows the
+  old number, the build hasn't finished or you're on a stale cache (next
+  point).
+- Open DevTools **Network** — zero 404s on CSS/JS/icons/manifest (catches
+  base-path mistakes that hid behind the flat local server).
 - Hard-refresh (or bump the SW cache version) if you changed assets — a
   stale service worker is the usual "my fix didn't deploy" culprit.
+- **Check it on desktop and mobile width**, same as step 7 — Pages sites are
+  opened on phones as much as PCs. Confirm the mobile nav/layout works live,
+  not just locally.
 - SPA: deep-link directly to a sub-route and confirm the 404 redirect
   restores the right view, and that Back/Forward work.
 - PWA: confirm it's installable (address-bar install prompt) and that the
   manifest + SW load with no console errors.
-- Test once on mobile width too — Pages sites are commonly opened on phones.
+
+## 10. Quick deploy checklist
+
+For an update to an existing site, the loop is: edit → bump version +
+`CHANGELOG.md` (6) → preview at desktop + mobile widths (7) →
+`git push origin main` (2) → load the live URL and confirm the version
+bumped + both layouts work (9).
