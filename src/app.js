@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.40.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.41.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -658,8 +658,19 @@
       }
       section.appendChild(head);
       const list = el("div", "backlog-list");
-      catItems.slice().sort((a, b) => (b.priority || 0) - (a.priority || 0))
-        .forEach((b) => list.appendChild(backlogRow(b)));
+      const sorted = catItems.slice().sort((a, b) => {
+        if (!!a.dropped !== !!b.dropped) return a.dropped ? 1 : -1;
+        return (b.priority || 0) - (a.priority || 0);
+      });
+      let sawActive = false, sepAdded = false;
+      sorted.forEach((b) => {
+        if (b.dropped) {
+          if (sawActive && !sepAdded) { list.appendChild(el("div", "backlog-dropped-sep")); sepAdded = true; }
+        } else {
+          sawActive = true;
+        }
+        list.appendChild(backlogRow(b));
+      });
       section.appendChild(list);
       grid.appendChild(section);
     }
@@ -906,6 +917,7 @@
   function backlogRow(b) {
     if (b.coverUrl) return backlogRowRich(b);
     const row = el("div", "entry");
+    if (b.dropped) row.classList.add("is-dropped");
     if (state.bulk.active) row.appendChild(bulkCheckbox(b));
     const t = el("span", "etitle", b.title); t.title = b.title;
     row.appendChild(t);
@@ -924,6 +936,7 @@
 
   function backlogRowRich(b) {
     const row = el("div", "backlog-item-rich");
+    if (b.dropped) row.classList.add("is-dropped");
     if (state.bulk.active) row.appendChild(bulkCheckbox(b));
     const img = document.createElement("img");
     img.src = b.coverUrl; img.alt = b.title; img.className = "bl-cover";
@@ -2033,6 +2046,7 @@
     $("#bReleaseYear").value = editing && item.releaseYear ? String(item.releaseYear) : "";
     $("#bExternalRating").value = editing ? (item.externalRating || "") : "";
     setPriority(editing ? (item.priority || 0) : 0);
+    $("#bDropped").checked = editing ? !!item.dropped : false;
     lastSyncedBacklogTitle = editing ? item.title : "";
     $("#bSteamAppId").value = editing && item.mediaSource === "steam" ? (item.mediaId || "") : "";
     $("#bTitleSuggest").innerHTML = "";
@@ -2058,6 +2072,7 @@
     const releaseYear = $("#bReleaseYear").value;
     const externalRating = $("#bExternalRating").value;
     const priority = parseInt($("#bPriority").dataset.value, 10) || 0;
+    const dropped = $("#bDropped").checked;
     if (!title) return;
     if (id) {
       const b = state.data.backlog.find((x) => x.id === id);
@@ -2070,6 +2085,7 @@
       if (releaseYear) b.releaseYear = parseInt(releaseYear, 10); else delete b.releaseYear;
       if (externalRating) b.externalRating = externalRating; else delete b.externalRating;
       if (priority) b.priority = priority; else delete b.priority;
+      if (dropped) b.dropped = true; else delete b.dropped;
     } else {
       const item = { id: uid(), title, category, createdAt: new Date().toISOString() };
       if (notes) item.notes = notes;
@@ -2080,6 +2096,7 @@
       if (releaseYear) item.releaseYear = parseInt(releaseYear, 10);
       if (externalRating) item.externalRating = externalRating;
       if (priority) item.priority = priority;
+      if (dropped) item.dropped = true;
       state.data.backlog.push(item);
     }
     closeBacklogModal();
@@ -3329,6 +3346,7 @@
     if (b.releaseYear) out.releaseYear = b.releaseYear;
     if (b.externalRating) out.externalRating = b.externalRating;
     if (b.priority) out.priority = +b.priority;
+    if (b.dropped) out.dropped = true;
     return out;
   }
   function sanitizeFinanceEntry(f) {

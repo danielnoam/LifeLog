@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.41.0] - 2026-07-03
+
+### Added
+- Backlog items can now be marked "Dropped" (no longer plan to finish
+  it) from the Add/Edit backlog modal. Dropped items sink to the bottom
+  of their category section, below a separator, and show dimmed with a
+  strikethrough title so they're clearly out of the active queue without
+  having to delete them.
+
 ## [0.40.0] - 2026-07-02
 
 ### Added

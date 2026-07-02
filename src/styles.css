@@ -388,6 +388,10 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .backlog-item-rich .ecat { align-self: flex-start; margin-top: 3px; flex-shrink: 0; }
 .backlog-item-rich .btn-sm { align-self: flex-start; flex-shrink: 0; }
 
+.backlog-dropped-sep { border-top: 1px dashed var(--border); margin: 6px 2px; }
+.entry.is-dropped, .backlog-item-rich.is-dropped { opacity: .55; }
+.entry.is-dropped .etitle, .backlog-item-rich.is-dropped .bl-title { text-decoration: line-through; }
+
 .bulk-check { width: 16px; height: 16px; flex: 0 0 auto; cursor: pointer; accent-color: var(--accent); touch-action: none; }
 .backlog-section-head .bulk-check { margin-right: 2px; }
 .backlog-item-rich .bulk-check { margin-top: 4px; }

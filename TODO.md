@@ -2,6 +2,9 @@ todo:
 
 done:
 
+- backlog items can now be marked "Dropped" — sinks to the bottom of
+  its category section below a separator, shown dimmed with a
+  strikethrough title, without deleting it
 - backlog items now have a priority star rating (separate from the
   external critic rating) — set it on add/edit, and higher-priority
   items sort to the top of their category section
