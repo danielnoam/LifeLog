@@ -256,6 +256,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .entry .etitle { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entry .ecat { font-size: 11px; color: var(--text-faint); }
 .entry .erating { font-size: 11px; color: var(--accent); letter-spacing: 1px; }
+.bpriority { font-size: 11px; color: #e2b23b; letter-spacing: 1px; flex-shrink: 0; }
 .entry .entry-cat {
   display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
   padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;
@@ -441,7 +442,13 @@ body.modal-open { overflow: hidden; }
 .modal label[hidden] { display: none; }
 .rating-input { display: flex; gap: 4px; margin-top: 5px; }
 .rating-input .star { background: none; border: none; cursor: pointer; padding: 0; font-size: 22px; line-height: 1; color: var(--bg-elev2); }
-.rating-input .star.filled, .rating-input .star:hover { color: var(--accent); }
+.rating-input .star.filled { color: var(--accent); }
+.rating-input .star:hover { color: var(--accent-hover); }
+
+/* Priority (backlog) uses the same amber as its .bpriority badge, so the
+   picker and the star count shown on backlog rows read as the same signal. */
+#bPriority.rating-input .star.filled { color: #e2b23b; }
+#bPriority.rating-input .star:hover { color: #f3ca6b; }
 .modal-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 .modal-actions .spacer { flex: 1; }
 

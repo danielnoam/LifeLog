@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.39.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.40.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -466,6 +466,12 @@
     return span;
   }
 
+  function priorityBadge(priority) {
+    const span = el("span", "bpriority", "★".repeat(priority));
+    span.title = "Priority " + priority + "/5";
+    return span;
+  }
+
   // Title last attached to synced media metadata, so a manual edit (vs. a
   // sync pick) is detected and clears the now-stale cover/metadata.
   let lastSyncedBacklogTitle = "";
@@ -643,9 +649,17 @@
       head.appendChild(dot);
       head.appendChild(el("span", "backlog-section-name", catName));
       head.appendChild(el("span", "backlog-section-count", String(catItems.length)));
+      if (!state.bulk.active) {
+        const addBtn = el("button", "month-add-btn", "+");
+        addBtn.type = "button";
+        addBtn.title = "Add to " + catName;
+        addBtn.onclick = (ev) => { ev.stopPropagation(); openBacklogModal(null, catName); };
+        head.appendChild(addBtn);
+      }
       section.appendChild(head);
       const list = el("div", "backlog-list");
-      catItems.forEach((b) => list.appendChild(backlogRow(b)));
+      catItems.slice().sort((a, b) => (b.priority || 0) - (a.priority || 0))
+        .forEach((b) => list.appendChild(backlogRow(b)));
       section.appendChild(list);
       grid.appendChild(section);
     }
@@ -895,6 +909,7 @@
     if (state.bulk.active) row.appendChild(bulkCheckbox(b));
     const t = el("span", "etitle", b.title); t.title = b.title;
     row.appendChild(t);
+    if (b.priority) row.appendChild(priorityBadge(b.priority));
     if (!state.bulk.active) {
       const doneBtn = el("button", "btn btn-sm", "✓ Done");
       doneBtn.type = "button";
@@ -916,6 +931,7 @@
     row.appendChild(img);
     const body = el("div", "bl-body");
     body.appendChild(el("span", "bl-title", b.title));
+    if (b.priority) body.appendChild(priorityBadge(b.priority));
     const meta = [];
     if (b.externalRating) meta.push("★ " + b.externalRating);
     if (b.releaseYear) meta.push(String(b.releaseYear));
@@ -1548,13 +1564,15 @@
   }
   function closeEntryModal() { $("#entryModal").hidden = true; }
 
-  function setRating(value) {
-    const wrap = $("#fRating");
+  function setStars(sel, value) {
+    const wrap = $(sel);
     wrap.dataset.value = String(value);
     wrap.querySelectorAll(".star").forEach((s) => {
       s.classList.toggle("filled", parseInt(s.dataset.star, 10) <= value);
     });
   }
+  function setRating(value) { setStars("#fRating", value); }
+  function setPriority(value) { setStars("#bPriority", value); }
 
   // Suggest previously-logged titles matching what's being typed, so a
   // re-entry (rewatch/replay/reread) reuses the exact same title/category.
@@ -2000,13 +2018,13 @@
   }
 
   // ---------- backlog ----------
-  function openBacklogModal(item) {
+  function openBacklogModal(item, presetCategory) {
     const editing = !!item;
     $("#backlogModalTitle").textContent = editing ? "Edit backlog item" : "Add to backlog";
     $("#backlogId").value = editing ? item.id : "";
     $("#bTitle").value = editing ? item.title : "";
     fillCategorySelect($("#bCategory"), state.data.categories,
-      editing ? item.category : (state.data.categories[0] && state.data.categories[0].name));
+      editing ? item.category : (presetCategory || (state.data.categories[0] && state.data.categories[0].name)));
     $("#bNotes").value = editing ? (item.notes || "") : "";
     $("#bCoverUrl").value = editing ? (item.coverUrl || "") : "";
     $("#bMediaId").value = editing ? (item.mediaId || "") : "";
@@ -2014,6 +2032,7 @@
     $("#bSummary").value = editing ? (item.summary || "") : "";
     $("#bReleaseYear").value = editing && item.releaseYear ? String(item.releaseYear) : "";
     $("#bExternalRating").value = editing ? (item.externalRating || "") : "";
+    setPriority(editing ? (item.priority || 0) : 0);
     lastSyncedBacklogTitle = editing ? item.title : "";
     $("#bSteamAppId").value = editing && item.mediaSource === "steam" ? (item.mediaId || "") : "";
     $("#bTitleSuggest").innerHTML = "";
@@ -2038,6 +2057,7 @@
     const summary = $("#bSummary").value;
     const releaseYear = $("#bReleaseYear").value;
     const externalRating = $("#bExternalRating").value;
+    const priority = parseInt($("#bPriority").dataset.value, 10) || 0;
     if (!title) return;
     if (id) {
       const b = state.data.backlog.find((x) => x.id === id);
@@ -2049,6 +2069,7 @@
       if (summary) b.summary = summary; else delete b.summary;
       if (releaseYear) b.releaseYear = parseInt(releaseYear, 10); else delete b.releaseYear;
       if (externalRating) b.externalRating = externalRating; else delete b.externalRating;
+      if (priority) b.priority = priority; else delete b.priority;
     } else {
       const item = { id: uid(), title, category, createdAt: new Date().toISOString() };
       if (notes) item.notes = notes;
@@ -2058,6 +2079,7 @@
       if (summary) item.summary = summary;
       if (releaseYear) item.releaseYear = parseInt(releaseYear, 10);
       if (externalRating) item.externalRating = externalRating;
+      if (priority) item.priority = priority;
       state.data.backlog.push(item);
     }
     closeBacklogModal();
@@ -3306,6 +3328,7 @@
     if (b.summary) out.summary = b.summary;
     if (b.releaseYear) out.releaseYear = b.releaseYear;
     if (b.externalRating) out.externalRating = b.externalRating;
+    if (b.priority) out.priority = +b.priority;
     return out;
   }
   function sanitizeFinanceEntry(f) {
@@ -3579,6 +3602,12 @@
       s.onclick = () => {
         const v = parseInt(s.dataset.star, 10);
         setRating(v === parseInt($("#fRating").dataset.value, 10) ? 0 : v);
+      };
+    });
+    $("#bPriority").querySelectorAll(".star").forEach((s) => {
+      s.onclick = () => {
+        const v = parseInt(s.dataset.star, 10);
+        setPriority(v === parseInt($("#bPriority").dataset.value, 10) ? 0 : v);
       };
     });
     document.addEventListener("click", (e) => {

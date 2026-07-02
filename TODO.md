@@ -2,6 +2,14 @@ todo:
 
 done:
 
+- backlog items now have a priority star rating (separate from the
+  external critic rating) — set it on add/edit, and higher-priority
+  items sort to the top of their category section
+- a "+" quick-add button on each Backlog category header, same as the
+  one on each Timeline month card
+- star rating pickers (entry rating, backlog priority) now show a
+  distinct hover color vs. the selected/filled color; backlog priority
+  uses its own amber scheme matching the priority badge on backlog rows
 - adding a backlog item now checks if that title already exists, either
   as another backlog item (duplicate) or as something already logged in
   the journal timeline — surfaced in the title suggestion dropdown and

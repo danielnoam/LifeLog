@@ -4,6 +4,25 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.40.0] - 2026-07-02
+
+### Added
+- Backlog items now have a "Priority" star rating (separate from the
+  external critic rating pulled from RAWG/TMDB) — set it in the Add/Edit
+  backlog modal, and higher-priority items float to the top of their
+  category section so you can see what to tackle first at a glance.
+- A "+" quick-add button on each Backlog category section header, same
+  as the one on each Timeline month card, for adding directly into that
+  category.
+
+### Changed
+- Star rating pickers (journal entry rating, backlog priority) now show
+  a distinct hover color from the selected/filled color, so it's clearer
+  which stars are already chosen versus just under the cursor. Backlog
+  priority stars use their own amber color scheme matching the priority
+  badge shown on backlog rows, instead of the blue used for entry
+  ratings.
+
 ## [0.39.0] - 2026-06-25
 
 ### Added
