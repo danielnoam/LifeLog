@@ -9,6 +9,10 @@ todo:
   current Overview/By category/By year/Per month average cards)
 - move the sync status indicator (the storage-status LED, currently in the
   filter bar) up into the top bar, in the section under the Settings button
+- fix bulk editing not showing up at all — not sure yet if this is
+  mobile-only
+- fix bulk editing: entries are hard to select
+- mobile navbar: maybe add a shadow and make it slightly taller
 
 done:
 
