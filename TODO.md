@@ -7,6 +7,8 @@ todo:
   headers within each tab into more specific groupings
 - improve the Finance summary section (richer breakdown, not just the
   current Overview/By category/By year/Per month average cards)
+- move the sync status indicator (the storage-status LED, currently in the
+  filter bar) up into the top bar, in the section under the Settings button
 
 done:
 
