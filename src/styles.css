@@ -695,41 +695,35 @@ body.modal-open { overflow: hidden; }
   html:not(.force-pc) .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
   html:not(.force-pc) .search { order: 2; margin-left: 0; width: auto; flex: 1 1 auto; min-width: 0; }
 
+  /* Persistent bottom nav — every view is one tap away instead of two
+     (tap the collapsed pill, then tap the view). Matches the design
+     system's mobile bottom-nav pattern: icon-over-label tabs, a thin
+     divider between the Journal/Finance groups, no collapse step. */
   html:not(.force-pc) .topbar-bottom {
-    display: flex; justify-content: space-between; align-items: center; gap: 8px;
+    display: flex; align-items: stretch;
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-    padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom));
+    padding-bottom: env(safe-area-inset-bottom);
     background: var(--bg-elev); border-top: 1px solid var(--border);
   }
-  html:not(.force-pc) .view-current {
-    display: block; flex: 1; text-align: center; padding: 13px 4px; font-size: 12px;
-    background: var(--accent); color: var(--text-on-accent); border: none; border-radius: 8px;
-    font-weight: 550; cursor: pointer;
-  }
-  html:not(.force-pc) .view-current::before { content: attr(data-icon); margin-right: 6px; font-size: 13px; }
-  html:not(.force-pc) .views { flex: 1; display: none; }
+  html:not(.force-pc) .view-current { display: none; }
+  html:not(.force-pc) .views { flex: 1; display: flex; align-items: stretch; }
   html:not(.force-pc) .tab {
-    flex: 1; text-align: center; padding: 10px 4px 9px; font-size: 12px;
-    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    padding: 9px 2px 8px; font-size: 10px; color: var(--text-faint);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  html:not(.force-pc) .tab::before { content: attr(data-icon); font-size: 16px; line-height: 1; }
-  html:not(.force-pc) .views.open {
-    position: absolute; bottom: 100%; margin-bottom: 8px;
-    display: flex; flex-direction: column; gap: 4px;
-    background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px;
-    box-shadow: var(--shadow); padding: 5px;
+  html:not(.force-pc) .tab::before { content: attr(data-icon); font-size: 17px; line-height: 1; }
+  html:not(.force-pc) .tab.active { color: var(--accent); background: none; }
+  html:not(.force-pc) .tab-group-label {
+    flex: 0 0 auto; width: 1px; margin: 10px 3px; padding: 0;
+    background: var(--border); color: transparent; font-size: 0; overflow: hidden;
   }
-  html:not(.force-pc) .views.open .tab.active { display: none; }
-  html:not(.force-pc) .tab-group-label { width: 100%; justify-content: center; padding: 6px 0; margin: 0; }
-  html:not(.force-pc) .tab-group-label:not(:first-child) { margin-left: 0; }
-  html:not(.force-pc) .tab-group-label:not(:first-child)::before { width: auto; height: 1px; flex: 1; }
-  html:not(.force-pc) .tab-group-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
-  html:not(.force-pc) .tab-group-label:first-child::before { content: ""; flex: 1; height: 1px; background: var(--border); }
+  html:not(.force-pc) .tab-group-label::before { display: none; }
 
-  html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); }
-  html:not(.force-pc) .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: 92px; }
-  html:not(.force-pc) .toast { bottom: 92px; }
-  html:not(.force-pc) .bulk-bar { bottom: 92px; flex-wrap: wrap; }
+  html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); }
+  html:not(.force-pc) .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: 82px; }
+  html:not(.force-pc) .toast { bottom: 82px; }
+  html:not(.force-pc) .bulk-bar { bottom: 82px; flex-wrap: wrap; }
   html:not(.force-pc) .month-add-btn { width: 20px; height: 20px; font-size: 14px; }
 
   /* Timeline is a single column at this width, so the year/month you're
@@ -746,40 +740,30 @@ html.force-mobile .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
 html.force-mobile .search { order: 2; margin-left: 0; width: auto; flex: 1 1 auto; min-width: 0; }
 
 html.force-mobile .topbar-bottom {
-  display: flex; justify-content: space-between; align-items: center; gap: 8px;
+  display: flex; align-items: stretch;
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-  padding: 10px 12px; padding-bottom: max(10px, env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
   background: var(--bg-elev); border-top: 1px solid var(--border);
 }
-html.force-mobile .view-current {
-  display: block; flex: 1; text-align: center; padding: 13px 4px; font-size: 12px;
-  background: var(--accent); color: var(--text-on-accent); border: none; border-radius: 8px;
-  font-weight: 550; cursor: pointer;
-}
-html.force-mobile .view-current::before { content: attr(data-icon); margin-right: 6px; font-size: 13px; }
-html.force-mobile .views { flex: 1; display: none; }
+html.force-mobile .view-current { display: none; }
+html.force-mobile .views { flex: 1; display: flex; align-items: stretch; }
 html.force-mobile .tab {
-  flex: 1; text-align: center; padding: 10px 4px 9px; font-size: 12px;
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: 9px 2px 8px; font-size: 10px; color: var(--text-faint);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-html.force-mobile .tab::before { content: attr(data-icon); font-size: 16px; line-height: 1; }
-html.force-mobile .views.open {
-  position: absolute; bottom: 100%; margin-bottom: 8px;
-  display: flex; flex-direction: column; gap: 4px;
-  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px;
-  box-shadow: var(--shadow); padding: 5px;
+html.force-mobile .tab::before { content: attr(data-icon); font-size: 17px; line-height: 1; }
+html.force-mobile .tab.active { color: var(--accent); background: none; }
+html.force-mobile .tab-group-label {
+  flex: 0 0 auto; width: 1px; margin: 10px 3px; padding: 0;
+  background: var(--border); color: transparent; font-size: 0; overflow: hidden;
 }
-html.force-mobile .views.open .tab.active { display: none; }
-html.force-mobile .tab-group-label { width: 100%; justify-content: center; padding: 6px 0; margin: 0; }
-html.force-mobile .tab-group-label:not(:first-child) { margin-left: 0; }
-html.force-mobile .tab-group-label:not(:first-child)::before { width: auto; height: 1px; flex: 1; }
-html.force-mobile .tab-group-label::after { content: ""; flex: 1; height: 1px; background: var(--border); }
-html.force-mobile .tab-group-label:first-child::before { content: ""; flex: 1; height: 1px; background: var(--border); }
+html.force-mobile .tab-group-label::before { display: none; }
 
-html.force-mobile .fab-wrap { right: 16px; bottom: calc(86px + env(safe-area-inset-bottom)); }
-html.force-mobile .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: 92px; }
-html.force-mobile .toast { bottom: 92px; }
-html.force-mobile .bulk-bar { bottom: 92px; flex-wrap: wrap; }
+html.force-mobile .fab-wrap { right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); }
+html.force-mobile .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: 82px; }
+html.force-mobile .toast { bottom: 82px; }
+html.force-mobile .bulk-bar { bottom: 82px; flex-wrap: wrap; }
 html.force-mobile .month-add-btn { width: 20px; height: 20px; font-size: 14px; }
 
 html.force-mobile .year-head { position: sticky; top: var(--topbar-h, 0px); z-index: 6; background: var(--bg); }

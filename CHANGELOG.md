@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.43.0] - 2026-07-04
+
+### Changed
+- Mobile bottom nav is now a persistent bar showing all 5 views (Timeline,
+  Stats, Backlog, Finance Timeline, Finance Summary) with icon + label at
+  once, instead of a collapsed "current view" pill you had to tap open
+  first — one tap to switch views instead of two.
+
 ## [0.42.0] - 2026-07-04
 
 ### Added

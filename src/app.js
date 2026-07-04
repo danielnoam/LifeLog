@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.42.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.43.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -370,14 +370,9 @@
 
   // ---------- rendering ----------
   function render() {
-    let activeLabel = "", activeIcon = "";
     document.querySelectorAll(".tab").forEach((t) => {
-      const active = t.dataset.view === state.view;
-      t.classList.toggle("active", active);
-      if (active) { activeLabel = t.textContent; activeIcon = t.dataset.icon || ""; }
+      t.classList.toggle("active", t.dataset.view === state.view);
     });
-    $("#viewCurrent").textContent = activeLabel;
-    $("#viewCurrent").dataset.icon = activeIcon;
     const c = $("#content");
     c.innerHTML = "";
     fadeInOnViewChange(c);
@@ -3655,22 +3650,9 @@
     const endDragPaint = () => { if (dragPaint) { dragPaint = null; render(); } };
     document.addEventListener("pointerup", endDragPaint);
     document.addEventListener("pointercancel", endDragPaint);
-    const viewTabs = $("#viewTabs");
-    // On mobile the active view shows as a button outside #viewTabs; tapping
-    // it opens a menu of the other views (see .views.open in styles.css).
-    $("#viewCurrent").onclick = (e) => {
-      e.stopPropagation();
-      const isOpen = viewTabs.classList.toggle("open");
-      if (isOpen) {
-        const btn = e.currentTarget;
-        viewTabs.style.left = btn.offsetLeft + "px";
-        viewTabs.style.width = btn.offsetWidth + "px";
-      }
-    };
     document.querySelectorAll(".tab").forEach((t) =>
       t.onclick = (e) => {
         e.stopPropagation();
-        viewTabs.classList.remove("open");
         state.view = t.dataset.view;
         state.bulk.active = false;
         state.bulk.selected.clear();
@@ -3700,7 +3682,6 @@
       else if (b.dataset.add === "recurring") openRecurringModal(null);
     });
     document.addEventListener("click", closeAddMenu);
-    document.addEventListener("click", () => viewTabs.classList.remove("open"));
 
     wireCategorySelect("#fCategory", "#entryModal", false);
     wireCategorySelect("#bCategory", "#backlogModal", false);
@@ -3922,7 +3903,6 @@
         closeEntryModal(); closeAchModal(); cancelCategoryModal(); closeBacklogModal();
         closeFinanceModal(); cancelFinanceCatModal(); closeSettings();
         $("#addMenu").hidden = true;
-        viewTabs.classList.remove("open");
       }
     });
 
