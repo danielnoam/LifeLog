@@ -4,6 +4,38 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.42.0] - 2026-07-04
+
+### Added
+- Rich first-run empty states for Timeline, Backlog, and Finance — an icon
+  badge, title, body copy, a primary "add" action, and a hint line, instead
+  of a single plain sentence.
+- Lock screen now has an on-screen numeric keypad with animated PIN-progress
+  dots and a shake animation on a wrong PIN, alongside the existing PIN
+  field (typing still works for keyboard/desktop users).
+- Mobile bottom nav now shows a small icon next to each view's label (in the
+  expanded drawer and the collapsed current-view pill).
+- Import review picker: a tinted callout with a live count for "N new
+  categories found," and "already added" now renders as a bordered badge.
+- Settings tabs and the main view now fade in on switch instead of snapping.
+- Finance Overview numbers (income/expenses/net) are now color-coded
+  green/red/neutral, and Stats/Finance totals count up instead of snapping
+  to their new value.
+
+### Changed
+- Reconciled the app's color variables onto a two-layer token system
+  (surfaces/text/accent/status), fixing several cross-theme contrast bugs:
+  accent-filled buttons/tabs used hardcoded white text that was unreadable
+  on Nord's light cyan and Dracula's light violet; category filter chips
+  used hardcoded white text that was invisible on the Light theme's white
+  background; the "By year" stat charts were hardcoded to the old default
+  blue instead of following the active theme's accent; Dracula's
+  success/warning colors now use its own palette instead of a generic hex
+  shared with every theme.
+- Mobile content padding tightened to 14px (was inheriting the desktop
+  22px/20px), and the month/backlog "+" quick-add button is slightly larger
+  on mobile for an easier tap target.
+
 ## [0.41.0] - 2026-07-03
 
 ### Added

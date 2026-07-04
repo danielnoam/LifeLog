@@ -1,5 +1,13 @@
 todo:
 
+- show media pictures (cover art) for journal entries in the Timeline, not
+  just the Backlog — with a Settings → Appearance toggle to turn it on/off;
+  add the same show/hide toggle for Backlog covers
+- clean up Settings: reorder the tabs and combine/reorganize the section
+  headers within each tab into more specific groupings
+- improve the Finance summary section (richer breakdown, not just the
+  current Overview/By category/By year/Per month average cards)
+
 done:
 
 - backlog items can now be marked "Dropped" — sinks to the bottom of

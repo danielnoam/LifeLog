@@ -18,8 +18,25 @@
       <p class="muted" id="lockHint">Enter your PIN to continue.</p>
 
       <form id="lockPinForm" class="lock-pin-form" hidden>
-        <input id="lockPinInput" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN" />
-        <button class="btn btn-primary" type="submit">Unlock</button>
+        <div class="lock-pin-dots" id="lockPinDots" aria-hidden="true"></div>
+        <div class="lock-pin-row">
+          <input id="lockPinInput" type="password" inputmode="numeric" autocomplete="off" maxlength="8" placeholder="PIN" />
+          <button class="btn btn-primary" type="submit">Unlock</button>
+        </div>
+        <div class="lock-keypad" id="lockKeypad">
+          <button type="button" class="lock-key" data-key="1">1</button>
+          <button type="button" class="lock-key" data-key="2">2</button>
+          <button type="button" class="lock-key" data-key="3">3</button>
+          <button type="button" class="lock-key" data-key="4">4</button>
+          <button type="button" class="lock-key" data-key="5">5</button>
+          <button type="button" class="lock-key" data-key="6">6</button>
+          <button type="button" class="lock-key" data-key="7">7</button>
+          <button type="button" class="lock-key" data-key="8">8</button>
+          <button type="button" class="lock-key" data-key="9">9</button>
+          <span></span>
+          <button type="button" class="lock-key" data-key="0">0</button>
+          <button type="button" class="lock-key" data-key="del" aria-label="Delete">⌫</button>
+        </div>
       </form>
 
       <button class="btn btn-primary lock-bio-btn" id="lockBioBtn" type="button" hidden>Use Fingerprint / Face ID</button>
@@ -42,12 +59,12 @@
       <button class="view-current" id="viewCurrent" type="button"></button>
       <nav class="views" id="viewTabs">
         <span class="tab-group-label">Journal</span>
-        <button class="tab active" data-view="timeline">Timeline</button>
-        <button class="tab" data-view="stats">Stats</button>
-        <button class="tab" data-view="backlog">Backlog</button>
+        <button class="tab active" data-view="timeline" data-icon="☰">Timeline</button>
+        <button class="tab" data-view="stats" data-icon="▤">Stats</button>
+        <button class="tab" data-view="backlog" data-icon="★">Backlog</button>
         <span class="tab-group-label">Finance</span>
-        <button class="tab" data-view="finance">Timeline</button>
-        <button class="tab" data-view="finance-stats">Summary</button>
+        <button class="tab" data-view="finance" data-icon="₪">Timeline</button>
+        <button class="tab" data-view="finance-stats" data-icon="◑">Summary</button>
       </nav>
     </div>
 
@@ -698,7 +715,7 @@
       <h2 id="financePickerTitle">Import Finance CSV</h2>
       <p class="hint" id="financePickerHint"></p>
       <div class="picker-newcats" id="financePickerNewCats" hidden>
-        <p class="hint">New categories found in this file — pick which ones to add:</p>
+        <p class="picker-newcats-eyebrow" id="financePickerNewCatsEyebrow"></p>
         <div class="picker-newcats-list" id="financePickerNewCatsList"></div>
       </div>
       <div class="picker-buckets" id="financePickerBuckets" hidden></div>

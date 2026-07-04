@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.41.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.42.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -191,6 +191,45 @@
   };
   const uid = () => "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
+  // ---------- motion: count-up numbers + view fade-in ----------
+  // Mirrors the design system's AnimatedNumber/FadeIn: short, eased-out,
+  // no bounce, and skipped entirely under prefers-reduced-motion.
+  const prefersReducedMotion = () =>
+    window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const numberAnimCache = new Map();
+  // Tweens `node`'s text from the previously-seen value under `key` to `value`
+  // (550ms, ease-out-cubic). Non-numeric values (e.g. "Jan") just render as-is.
+  function animatedNumberText(node, key, value, formatFn) {
+    const prev = numberAnimCache.get(key);
+    numberAnimCache.set(key, value);
+    if (typeof value !== "number" || prev == null || prev === value || prefersReducedMotion()) {
+      node.textContent = formatFn(value);
+      return;
+    }
+    const duration = 550, start = performance.now(), from = prev, to = value;
+    node.textContent = formatFn(from); // paint the starting frame immediately, don't wait on the first rAF
+    const step = (ts) => {
+      const p = Math.min(1, (ts - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      node.textContent = formatFn(from + (to - from) * eased);
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  let lastRenderedView = null;
+  // Replays the view-fade-in animation on `root` only when the active view
+  // actually changed (not on every in-view re-render, e.g. after an edit).
+  function fadeInOnViewChange(root) {
+    if (state.view === lastRenderedView) return;
+    lastRenderedView = state.view;
+    if (prefersReducedMotion()) return;
+    root.classList.remove("view-fade-in");
+    void root.offsetWidth; // force reflow so the animation restarts
+    root.classList.add("view-fade-in");
+  }
+
   function rebuildColorMap() {
     catColor = {};
     for (const c of state.data.categories) catColor[c.name] = c.color;
@@ -331,21 +370,30 @@
 
   // ---------- rendering ----------
   function render() {
-    let activeLabel = "";
+    let activeLabel = "", activeIcon = "";
     document.querySelectorAll(".tab").forEach((t) => {
       const active = t.dataset.view === state.view;
       t.classList.toggle("active", active);
-      if (active) activeLabel = t.textContent;
+      if (active) { activeLabel = t.textContent; activeIcon = t.dataset.icon || ""; }
     });
     $("#viewCurrent").textContent = activeLabel;
+    $("#viewCurrent").dataset.icon = activeIcon;
     const c = $("#content");
     c.innerHTML = "";
+    fadeInOnViewChange(c);
     if (state.view === "backlog") { renderBacklog(c); return; }
     if (state.view === "finance") { renderFinanceEntries(c); return; }
     if (state.view === "finance-stats") { renderFinanceStats(c); return; }
     const entries = getFiltered();
     if (!state.data.entries.length) {
-      c.appendChild(emptyState("No entries yet. Click “+ Add” to start, or import data from Settings."));
+      c.appendChild(emptyState({
+        glyph: "☰",
+        title: "Nothing logged yet",
+        body: "Log the things you experience — a game you finished, a book you read, a trip you took. They'll stack up here by year and month.",
+        action: "Add your first entry",
+        onAction: () => openEntryModal(null),
+        hint: "Tip: you can also import an existing lifelog.json from Settings → Import / Export.",
+      }));
       return;
     }
     if (!entries.length) {
@@ -356,7 +404,23 @@
     else renderStats(c, entries);
   }
 
-  function emptyState(msg) { return el("div", "empty", msg); }
+  // Plain string → the old faint one-liner (used for "nothing matches your
+  // filters", where there's no useful add action). An object → the richer
+  // first-run empty state: icon badge, title, body, primary CTA, hint line.
+  function emptyState(msg) {
+    if (typeof msg === "string") return el("div", "empty", msg);
+    const { glyph, title, body, action, onAction, hint } = msg;
+    const wrap = el("div", "empty-state");
+    wrap.appendChild(el("div", "empty-glyph", glyph));
+    wrap.appendChild(el("h2", null, title));
+    wrap.appendChild(el("p", "empty-body", body));
+    const btn = el("button", "btn btn-primary", "+ " + action);
+    btn.type = "button";
+    btn.onclick = onAction;
+    wrap.appendChild(btn);
+    if (hint) wrap.appendChild(el("p", "empty-hint", hint));
+    return wrap;
+  }
 
   // Shared month-card header for Timeline and Finance: a label + count on
   // the left/right, plus an optional bulk "select all in this month"
@@ -620,7 +684,14 @@
 
   function renderBacklog(root) {
     if (!state.data.backlog.length) {
-      root.appendChild(emptyState(`Your backlog is empty. Use "+ Add" → "Add to backlog" for things to watch, play, or read later, then mark them "✓ Done" once you finish.`));
+      root.appendChild(emptyState({
+        glyph: "★",
+        title: "Your backlog is empty",
+        body: "Add things you want to get to. They sit here grouped by category and sorted by priority, until the day you log them.",
+        action: "Add to backlog",
+        onAction: () => openBacklogModal(null),
+        hint: "Higher-priority items rise to the top of their category.",
+      }));
       return;
     }
     const items = getFilteredBacklog()
@@ -1017,7 +1088,14 @@
   function renderFinanceEntries(root) {
     renderRecurringCard(root);
     if (!state.data.financeEntries.length && !state.data.recurringExpenses.length) {
-      root.appendChild(emptyState(`No finance entries yet. Use "+ Add" → "Add finance entry" to log income or expenses.`));
+      root.appendChild(emptyState({
+        glyph: CURRENCY_SYMBOLS[state.data.settings.currency] || CURRENCY_SYMBOLS.ILS,
+        title: "No finance entries yet",
+        body: "Track an expense or income and LifeLog starts building your monthly summary, category breakdown and spend trend.",
+        action: "Add finance entry",
+        onAction: () => openFinanceModal(null),
+        hint: "Recurring expenses can generate their entries automatically.",
+      }));
       return;
     }
     const items = getFilteredFinance();
@@ -1058,7 +1136,10 @@
         const total = monthItems.reduce((s, f) => s + (f.type === "income" ? f.amount : -f.amount), 0);
         const totalRow = el("div", "month-total");
         totalRow.appendChild(el("span", null, "Total"));
-        totalRow.appendChild(el("span", "famount " + (total >= 0 ? "fpositive" : "fnegative"), (total >= 0 ? "+" : "-") + formatMoney(Math.abs(total))));
+        const totalAmt = el("span", "famount " + (total >= 0 ? "fpositive" : "fnegative"));
+        animatedNumberText(totalAmt, "fin-month-total:" + yy + "-" + mm, total,
+          (v) => (v >= 0 ? "+" : "-") + formatMoney(Math.abs(v)));
+        totalRow.appendChild(totalAmt);
         card.appendChild(totalRow);
         grid.appendChild(card);
       }
@@ -1101,7 +1182,14 @@
 
   function renderFinanceStats(root) {
     if (!state.data.financeEntries.length && !state.data.recurringExpenses.length) {
-      root.appendChild(emptyState("No finance entries yet — add some on the Timeline tab to see stats here."));
+      root.appendChild(emptyState({
+        glyph: CURRENCY_SYMBOLS[state.data.settings.currency] || CURRENCY_SYMBOLS.ILS,
+        title: "No finance entries yet",
+        body: "Track an expense or income and LifeLog starts building your monthly summary, category breakdown and spend trend.",
+        action: "Add finance entry",
+        onAction: () => openFinanceModal(null),
+        hint: "Recurring expenses can generate their entries automatically.",
+      }));
       return;
     }
     const items = getFilteredFinance();
@@ -1116,8 +1204,8 @@
     const big = el("div", "card");
     big.appendChild(el("h2", null, "Overview"));
     const bigRow = el("div", "stat-big");
-    bigRow.appendChild(moneyStatItem(income, "income"));
-    bigRow.appendChild(moneyStatItem(expense, "expenses"));
+    bigRow.appendChild(moneyStatItem(income, "income", "var(--income)"));
+    bigRow.appendChild(moneyStatItem(expense, "expenses", "var(--expense)"));
     bigRow.appendChild(moneyStatItem(income - expense, "net"));
     big.appendChild(bigRow);
     root.appendChild(big);
@@ -1145,7 +1233,7 @@
     }
     const yearMax = Math.max(1, ...Object.values(yearTotals));
     Object.keys(yearTotals).sort((a, b) => b - a)
-      .forEach((y) => yearCard.appendChild(barRow(y, yearTotals[y], yearMax, "#5b8cff", null, formatMoney)));
+      .forEach((y) => yearCard.appendChild(barRow(y, yearTotals[y], yearMax, "var(--accent)", null, formatMoney)));
     grid.appendChild(yearCard);
 
     root.appendChild(grid);
@@ -1159,9 +1247,12 @@
     root.appendChild(pmCard);
   }
 
-  function moneyStatItem(n, l) {
+  function moneyStatItem(n, l, color) {
     const i = el("div", "item");
-    i.appendChild(el("div", "n", formatMoney(n)));
+    const nEl = el("div", "n");
+    if (color) nEl.style.color = color;
+    animatedNumberText(nEl, "finstat:" + l, n, formatMoney);
+    i.appendChild(nEl);
     i.appendChild(el("div", "l", l));
     return i;
   }
@@ -1205,7 +1296,7 @@
     const yearCounts = countBy(entries, (e) => e.year);
     const yearMax = Math.max(1, ...Object.values(yearCounts));
     Object.keys(yearCounts).sort((a, b) => b - a)
-      .forEach((y) => yearCard.appendChild(barRow(y, yearCounts[y], yearMax, "#5b8cff")));
+      .forEach((y) => yearCard.appendChild(barRow(y, yearCounts[y], yearMax, "var(--accent)")));
 
     grid.appendChild(catCard);
     grid.appendChild(yearCard);
@@ -1313,9 +1404,9 @@
     const monthCounts = countBy(yearEntries, (e) => e.month);
     const topMonth = Object.entries(monthCounts).sort((a, b) => b[1] - a[1])[0];
     const highlights = el("div", "yir-highlights");
-    highlights.appendChild(statItem(yearEntries.length, "entries"));
-    highlights.appendChild(statItem(uniqueTitles, "unique titles"));
-    if (topMonth) highlights.appendChild(statItem(MONTHS_SHORT[+topMonth[0]], "best month"));
+    highlights.appendChild(statItem(yearEntries.length, "entries", "yir:entries"));
+    highlights.appendChild(statItem(uniqueTitles, "unique titles", "yir:unique"));
+    if (topMonth) highlights.appendChild(statItem(MONTHS_SHORT[+topMonth[0]], "best month", "yir:month"));
     card.appendChild(highlights);
 
     if (yearEntries.length) {
@@ -1363,9 +1454,11 @@
     root.appendChild(card);
   }
 
-  function statItem(n, l) {
+  function statItem(n, l, key) {
     const i = el("div", "item");
-    i.appendChild(el("div", "n", String(n)));
+    const nEl = el("div", "n");
+    animatedNumberText(nEl, "stat:" + (key || l), n, (v) => typeof v === "number" ? String(Math.round(v)) : String(v));
+    i.appendChild(nEl);
     i.appendChild(el("div", "l", l));
     return i;
   }
@@ -2638,6 +2731,11 @@
       const isActive = p.dataset.panel === name;
       p.classList.toggle("active", isActive);
       if (!isActive && p.contains(document.activeElement)) document.activeElement.blur();
+      if (isActive && !prefersReducedMotion()) {
+        p.classList.remove("view-fade-in");
+        void p.offsetWidth; // force reflow so the animation replays
+        p.classList.add("view-fade-in");
+      }
     });
   }
 
@@ -3256,6 +3354,8 @@
     const newCatsList = $("#financePickerNewCatsList");
 
     newCatsWrap.hidden = !newCategories.length;
+    $("#financePickerNewCatsEyebrow").textContent =
+      `${newCategories.length} new categor${newCategories.length === 1 ? "y" : "ies"} found — pick which ones to add`;
     newCatsList.innerHTML = "";
     newCategories.forEach((nc) => {
       const row = el("label", "toggle-label");
@@ -3842,8 +3942,11 @@
   function showLockScreen() {
     return new Promise((resolve) => {
       const screen = $("#lockScreen");
+      const box = screen.querySelector(".lock-box");
       const form = $("#lockPinForm");
       const input = $("#lockPinInput");
+      const dots = $("#lockPinDots");
+      const keypad = $("#lockKeypad");
       const bioBtn = $("#lockBioBtn");
       const errorEl = $("#lockError");
       const resetBtn = $("#lockResetBtn");
@@ -3859,9 +3962,32 @@
         : "Use your device's fingerprint or Face ID to continue.";
       if (isPin) setTimeout(() => input.focus(), 50);
 
+      // On-screen keypad mirrors the PIN into `input` (still typable directly
+      // too, e.g. with a physical keyboard) — dots show progress without
+      // revealing the digits.
+      function renderDots() {
+        const len = input.value.length;
+        const count = Math.max(4, len); // grows past 4 for longer PINs
+        dots.innerHTML = "";
+        for (let i = 0; i < count; i++) dots.appendChild(el("span", i < len ? "filled" : null));
+      }
+      renderDots();
+      input.addEventListener("input", renderDots);
+      keypad.onclick = (e) => {
+        const btn = e.target.closest("button[data-key]");
+        if (!btn) return;
+        const k = btn.dataset.key;
+        if (k === "del") input.value = input.value.slice(0, -1);
+        else if (input.value.length < 8) input.value += k;
+        renderDots();
+      };
+
       function showError(msg) {
         errorEl.textContent = msg;
         errorEl.hidden = false;
+        box.classList.remove("shake");
+        void box.offsetWidth; // force reflow so the shake replays each time
+        box.classList.add("shake");
       }
       function cleanup() {
         screen.hidden = true;
@@ -3869,6 +3995,9 @@
         form.onsubmit = null;
         bioBtn.onclick = null;
         resetBtn.onclick = null;
+        keypad.onclick = null;
+        input.removeEventListener("input", renderDots);
+        box.classList.remove("shake");
       }
       function unlocked() {
         state.privacy.lastUnlockAt = Date.now();
@@ -3880,6 +4009,7 @@
         e.preventDefault();
         const hash = await hashPin(input.value, state.privacy.pinSalt);
         input.value = "";
+        renderDots();
         if (hash === state.privacy.pinHash) unlocked();
         else { showError("Incorrect PIN"); input.focus(); }
       };
