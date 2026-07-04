@@ -40,6 +40,7 @@
   --warning: #e2b23b;
   --radius: 10px;
   --shadow: 0 8px 30px rgba(0,0,0,.45);
+  --nav-shadow: rgba(0,0,0,.35);
   --ease: cubic-bezier(.4,0,.2,1);
   --dur-fast: .12s;
   --dur: .18s;
@@ -75,6 +76,7 @@ html.theme-light {
   --led-connected: var(--success);
   --led-local: var(--warning);
   --shadow: 0 8px 30px rgba(0,0,0,.12);
+  --nav-shadow: rgba(0,0,0,.10);
 }
 html.theme-nord {
   --bg: #2e3440;
@@ -103,6 +105,7 @@ html.theme-nord {
   --led-connected: var(--success);
   --led-local: var(--warning);
   --shadow: 0 8px 30px rgba(0,0,0,.5);
+  --nav-shadow: rgba(0,0,0,.4);
 }
 html.theme-dracula {
   --bg: #282a36;
@@ -130,6 +133,7 @@ html.theme-dracula {
   --led-connected: var(--success);
   --led-local: var(--warning);
   --shadow: 0 8px 30px rgba(0,0,0,.5);
+  --nav-shadow: rgba(0,0,0,.4);
 }
 
 * { box-sizing: border-box; }
@@ -334,6 +338,7 @@ select:focus { outline: none; border-color: var(--accent); }
   max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .entry .entry-cat .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.entry .etn-cover { width: 22px; height: 30px; object-fit: cover; border-radius: 3px; flex-shrink: 0; }
 
 /* finance */
 .picker-row .fdate { font-size: 11px; color: var(--text-faint); width: 78px; flex: 0 0 auto; }
@@ -704,12 +709,13 @@ body.modal-open { overflow: hidden; }
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
     padding-bottom: env(safe-area-inset-bottom);
     background: var(--bg-elev); border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 10px var(--nav-shadow);
   }
   html:not(.force-pc) .view-current { display: none; }
   html:not(.force-pc) .views { flex: 1; display: flex; align-items: stretch; }
   html:not(.force-pc) .tab {
     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-    padding: 9px 2px 8px; font-size: 10px; color: var(--text-faint);
+    padding: 12px 2px 11px; font-size: 10px; color: var(--text-faint);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
   html:not(.force-pc) .tab::before { content: attr(data-icon); font-size: 17px; line-height: 1; }
@@ -720,10 +726,10 @@ body.modal-open { overflow: hidden; }
   }
   html:not(.force-pc) .tab-group-label::before { display: none; }
 
-  html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); }
-  html:not(.force-pc) .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: 82px; }
-  html:not(.force-pc) .toast { bottom: 82px; }
-  html:not(.force-pc) .bulk-bar { bottom: 82px; flex-wrap: wrap; }
+  html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(82px + env(safe-area-inset-bottom)); }
+  html:not(.force-pc) .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: 88px; }
+  html:not(.force-pc) .toast { bottom: 88px; }
+  html:not(.force-pc) .bulk-bar { bottom: 88px; flex-wrap: wrap; }
   html:not(.force-pc) .month-add-btn { width: 20px; height: 20px; font-size: 14px; }
 
   /* Timeline is a single column at this width, so the year/month you're
@@ -744,12 +750,13 @@ html.force-mobile .topbar-bottom {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
   padding-bottom: env(safe-area-inset-bottom);
   background: var(--bg-elev); border-top: 1px solid var(--border);
+  box-shadow: 0 -2px 10px var(--nav-shadow);
 }
 html.force-mobile .view-current { display: none; }
 html.force-mobile .views { flex: 1; display: flex; align-items: stretch; }
 html.force-mobile .tab {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  padding: 9px 2px 8px; font-size: 10px; color: var(--text-faint);
+  padding: 12px 2px 11px; font-size: 10px; color: var(--text-faint);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 html.force-mobile .tab::before { content: attr(data-icon); font-size: 17px; line-height: 1; }
@@ -760,10 +767,10 @@ html.force-mobile .tab-group-label {
 }
 html.force-mobile .tab-group-label::before { display: none; }
 
-html.force-mobile .fab-wrap { right: 16px; bottom: calc(76px + env(safe-area-inset-bottom)); }
-html.force-mobile .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: 82px; }
-html.force-mobile .toast { bottom: 82px; }
-html.force-mobile .bulk-bar { bottom: 82px; flex-wrap: wrap; }
+html.force-mobile .fab-wrap { right: 16px; bottom: calc(82px + env(safe-area-inset-bottom)); }
+html.force-mobile .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: 88px; }
+html.force-mobile .toast { bottom: 88px; }
+html.force-mobile .bulk-bar { bottom: 88px; flex-wrap: wrap; }
 html.force-mobile .month-add-btn { width: 20px; height: 20px; font-size: 14px; }
 
 html.force-mobile .year-head { position: sticky; top: var(--topbar-h, 0px); z-index: 6; background: var(--bg); }

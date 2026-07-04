@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.44.0] - 2026-07-04
+
+### Added
+- Journal Timeline entries now show cover art (not just Backlog), with a
+  Settings → Appearance → "Cover art" toggle to turn it on/off; Backlog
+  covers got a matching show/hide toggle in the same section.
+
+### Changed
+- Mobile bottom nav is slightly taller and now has a subtle drop shadow
+  above it, for more visual separation from the content.
+
 ## [0.43.0] - 2026-07-04
 
 ### Changed

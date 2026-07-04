@@ -8,7 +8,7 @@
 
   const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" } }; // monthOrder, currency, mediaCategorySources, mediaKeys — synced
   const CURRENCY_SYMBOLS = { ILS: "₪", USD: "$", EUR: "€", GBP: "£" };
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, mediaEnabled: false, forceLayout: "none", theme: "default" }; // maxWidth 0 = stretch — local to this device, not synced
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, mediaEnabled: false, forceLayout: "none", theme: "default", showTimelineCovers: true, showBacklogCovers: true }; // maxWidth 0 = stretch — local to this device, not synced
   const THEMES = ["light", "nord", "dracula"]; // "default" has no class — it's the bare :root palette
   const FONT_STACKS = {
     system: '"Segoe UI", system-ui, -apple-system, sans-serif',
@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.43.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.44.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -501,6 +501,12 @@
   function entryRow(e) {
     const row = el("div", "entry");
     if (state.bulk.active) row.appendChild(bulkCheckbox(e));
+    if (e.coverUrl && state.visual.showTimelineCovers) {
+      const img = document.createElement("img");
+      img.src = e.coverUrl; img.alt = ""; img.className = "etn-cover";
+      img.onerror = () => { img.style.display = "none"; };
+      row.appendChild(img);
+    }
     const color = colorOf(e.category);
     const chip = el("span", "entry-cat");
     chip.style.background = color + "22";
@@ -981,7 +987,7 @@
   }
 
   function backlogRow(b) {
-    if (b.coverUrl) return backlogRowRich(b);
+    if (b.coverUrl && state.visual.showBacklogCovers) return backlogRowRich(b);
     const row = el("div", "entry");
     if (b.dropped) row.classList.add("is-dropped");
     if (state.bulk.active) row.appendChild(bulkCheckbox(b));
@@ -2802,6 +2808,8 @@
     $("#themeSelect").value = state.visual.theme || "default";
     $("#forceLayout").value = state.visual.forceLayout || "none";
     $("#currency").value = state.data.settings.currency;
+    $("#showTimelineCovers").checked = state.visual.showTimelineCovers !== false;
+    $("#showBacklogCovers").checked = state.visual.showBacklogCovers !== false;
     $("#mediaEnabled").checked = !!state.visual.mediaEnabled;
     updateMediaSettings();
     updatePrivacySettings();
@@ -2874,6 +2882,16 @@
     state.visual.theme = $("#themeSelect").value;
     saveVisualSettings(state.visual);
     applyTheme();
+  }
+  function onShowTimelineCoversChange() {
+    state.visual.showTimelineCovers = $("#showTimelineCovers").checked;
+    saveVisualSettings(state.visual);
+    render();
+  }
+  function onShowBacklogCoversChange() {
+    state.visual.showBacklogCovers = $("#showBacklogCovers").checked;
+    saveVisualSettings(state.visual);
+    render();
   }
   function closeSettings() { $("#settingsModal").hidden = true; }
 
@@ -3769,6 +3787,8 @@
     $("#fontFamily").onchange = onFontChange;
     $("#themeSelect").onchange = onThemeChange;
     $("#forceLayout").onchange = onForceLayoutChange;
+    $("#showTimelineCovers").onchange = onShowTimelineCoversChange;
+    $("#showBacklogCovers").onchange = onShowBacklogCoversChange;
     $("#currency").onchange = async () => {
       state.data.settings.currency = $("#currency").value;
       render();

@@ -1,8 +1,5 @@
 todo:
 
-- show media pictures (cover art) for journal entries in the Timeline, not
-  just the Backlog — with a Settings → Appearance toggle to turn it on/off;
-  add the same show/hide toggle for Backlog covers
 - clean up Settings: reorder the tabs and combine/reorganize the section
   headers within each tab into more specific groupings
 - improve the Finance summary section (richer breakdown, not just the
@@ -12,9 +9,13 @@ todo:
 - fix bulk editing not showing up at all — not sure yet if this is
   mobile-only
 - fix bulk editing: entries are hard to select
-- mobile navbar: maybe add a shadow and make it slightly taller
 
 done:
+
+- show media pictures (cover art) for journal entries in the Timeline, not
+  just the Backlog — with a Settings → Appearance toggle to turn it on/off;
+  added the same show/hide toggle for Backlog covers
+- mobile navbar: added a subtle shadow and made it slightly taller
 
 - backlog items can now be marked "Dropped" — sinks to the bottom of
   its category section below a separator, shown dimmed with a
