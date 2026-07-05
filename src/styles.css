@@ -153,14 +153,16 @@ html, body {
   display: flex;
   align-items: center;
   gap: 20px;
-  padding: 12px 20px;
+  /* extra bottom padding reserves real room for the sync status line under
+     the logo (see .storage-status) so it never overlaps the filter bar. */
+  padding: 12px 20px 32px;
   background: var(--bg-elev);
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
   z-index: 20;
 }
-.brand { display: flex; align-items: center; gap: 9px; order: 1; }
+.brand { display: flex; align-items: center; gap: 9px; order: 1; position: relative; }
 .brand-mark { color: var(--accent); font-size: 18px; }
 .brand h1 { font-size: 17px; margin: 0; font-weight: 650; letter-spacing: .3px; }
 
@@ -201,18 +203,18 @@ html, body {
 .search:focus { outline: none; border-color: var(--accent); }
 
 /* Settings lives in the header corner, separate from the Add FAB, so the
-   two don't compete for attention as if they were equally weighted actions.
-   The sync status indicator hangs below it, in the same corner — absolutely
-   positioned so its (often much wider) text never changes the corner's own
-   size, which would otherwise drag the Settings button down onto its own
-   line when the header wraps on mobile. margin-left: auto keeps the corner
-   pinned to the right edge the same way it did as a lone flex item. */
-.settings-corner { position: relative; order: 5; margin-left: auto; }
+   two don't compete for attention as if they were equally weighted actions. */
+#settingsBtn { order: 5; }
+
+/* Sync status sits directly under the logo — absolutely positioned (against
+   .brand) so its text width, often much wider than "LifeLog", never affects
+   the header's flex layout/wrapping like it did as a sized flex item. The
+   topbar's extra bottom padding above reserves it real space instead of
+   overlapping the filter bar underneath. */
 .storage-status {
-  position: absolute; top: 100%; right: 0; margin-top: 6px; z-index: 1;
-  padding: 3px 9px; border-radius: 20px; background: var(--bg-elev-2);
+  position: absolute; top: 100%; left: 0; margin-top: 4px;
   font-size: 11px; color: var(--text-faint); display: flex; align-items: center; gap: 6px;
-  max-width: 220px; white-space: nowrap;
+  max-width: 260px; white-space: nowrap;
 }
 .storage-status .led { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); flex-shrink: 0; }
 .storage-status .stxt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -724,7 +726,7 @@ body.modal-open { overflow: hidden; }
    never re-derive their layout viewport from the <meta viewport> tag, so a
    class is the only thing that works in that direction). */
 @media (max-width: 720px) {
-  html:not(.force-pc) .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
+  html:not(.force-pc) .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 30px; }
   html:not(.force-pc) .search { order: 2; margin-left: 0; width: auto; flex: 1 1 auto; min-width: 0; }
 
   /* Persistent bottom nav — every view is one tap away instead of two
@@ -776,7 +778,7 @@ body.modal-open { overflow: hidden; }
   }
 }
 
-html.force-mobile .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
+html.force-mobile .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 30px; }
 html.force-mobile .search { order: 2; margin-left: 0; width: auto; flex: 1 1 auto; min-width: 0; }
 
 html.force-mobile .topbar-bottom {

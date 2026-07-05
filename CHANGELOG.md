@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.47.2] - 2026-07-05
+
+### Changed
+- Moved the sync status text from a floating pill under the Settings
+  button to plain text under the LifeLog logo on the left — the pill
+  look is gone and the header now reserves real space for it, so it no
+  longer overlaps the filter bar underneath.
+
 ## [0.47.1] - 2026-07-05
 
 ### Fixed
