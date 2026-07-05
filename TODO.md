@@ -4,11 +4,12 @@ todo:
   headers within each tab into more specific groupings
 - improve the Finance summary section (richer breakdown, not just the
   current Overview/By category/By year/Per month average cards)
-- move the sync status indicator (the storage-status LED, currently in the
-  filter bar) up into the top bar, in the section under the Settings button
 
 done:
 
+- moved the sync status indicator (the storage-status LED) out of the
+  filter bar and up into the top bar, in a section right under the
+  Settings button
 - bulk edit for Timeline entries now has a "Sync" action too, same as
   Backlog — re-fetches cover art/metadata for every selected entry from
   its category's configured media source
