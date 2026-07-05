@@ -13,9 +13,13 @@ done:
   Backlog — re-fetches cover art/metadata for every selected entry from
   its category's configured media source
 - Settings → Appearance → Cover art: independent "Timeline cover size"
-  and "Backlog cover size" dropdowns (Small/Big) — previously Timeline
-  covers were always small and Backlog covers always big with no way to
-  change either
+  and "Backlog cover size" dropdowns, each with None/Small/Big — merged
+  the separate show/hide toggle into the size dropdown itself (None
+  replaces it) instead of having both a toggle and a dropdown per view
+- removed the separate "Enable media enrichment on this device" toggle
+  in Settings → Appearance — it was redundant with the per-category
+  source dropdowns in the Media tab, which are now always visible and
+  are the only on/off switch (set a category to "None" to disable it)
 
 - fix the bulk-edit action bar not showing up / appearing in the wrong
   place — a lingering CSS animation transform on the content area was

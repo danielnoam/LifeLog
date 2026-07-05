@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.46.0] - 2026-07-05
+
+### Changed
+- Settings → Appearance → Cover art: the separate "Show cover art in
+  Timeline/Backlog" toggles are gone — pick "None" in the Timeline/Backlog
+  cover size dropdown instead, so each view has one control instead of two.
+- Removed the "Enable media enrichment on this device" toggle — it was
+  redundant with the per-category source dropdowns in the Media tab
+  (now always visible), which are the only on/off switch: set a category
+  to "None" there to stop fetching metadata for it.
+
 ## [0.45.0] - 2026-07-05
 
 ### Added

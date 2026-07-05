@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.45.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.46.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -658,24 +658,18 @@
 
       <section class="settings-section">
         <h3>Cover art</h3>
-        <p class="hint">Controls whether saved cover art is shown in each view. This device only.</p>
-        <label class="toggle-label">
-          <input type="checkbox" id="showTimelineCovers" />
-          Show cover art in Timeline
-        </label>
-        <label class="toggle-label">
-          <input type="checkbox" id="showBacklogCovers" />
-          Show cover art in Backlog
-        </label>
+        <p class="hint">Controls whether saved cover art is shown in each view, and at what size. This device only.</p>
         <div class="row">
           <label>Timeline cover size
             <select id="timelineCoverSize">
+              <option value="none">None</option>
               <option value="small">Small</option>
               <option value="big">Big</option>
             </select>
           </label>
           <label>Backlog cover size
             <select id="backlogCoverSize">
+              <option value="none">None</option>
               <option value="small">Small</option>
               <option value="big">Big</option>
             </select>
@@ -696,18 +690,10 @@
         </label>
       </section>
 
-      <section class="settings-section">
-        <h3>Media enrichment</h3>
-        <p class="hint">Fetches cover art and metadata while you type a title. This switch is per-device — the API keys and per-category sources you set up in the Media tab sync everywhere, but each device decides independently whether to use them.</p>
-        <label class="toggle-label">
-          <input type="checkbox" id="mediaEnabled" />
-          Enable media enrichment on this device
-        </label>
-      </section>
       </div><!-- /appearance panel -->
 
       <div class="settings-panel settings-panel-fill" data-panel="media">
-      <section class="settings-section" id="mediaKeysSection" hidden>
+      <section class="settings-section" id="mediaKeysSection">
         <h3>API keys</h3>
         <p class="hint">Synced across your devices like the rest of your data — paste a key once and it's available everywhere.</p>
         <label>RAWG key <span class="muted">(games — free at rawg.io/apidocs)</span>
@@ -721,12 +707,11 @@
         </label>
         <p class="hint">Open Library, AniList, Google Books, and MusicBrainz all work without a key.</p>
       </section>
-      <section class="settings-section" id="mediaCatSection" hidden>
+      <section class="settings-section" id="mediaCatSection">
         <h3>Source per category</h3>
         <p class="hint">Choose which API to use for each of your categories. Categories set to "None" won't fetch metadata. These assignments sync across your devices. Categories set to "Steam" show a manual Steam App ID field instead of search (Steam has no browser-callable search API) — paste the ID from the game's store URL to get cover art and, once a GG.deals key is set above, current lowest prices.</p>
         <div id="mediaCatRows"></div>
       </section>
-      <p class="hint" id="mediaDisabledHint">Media enrichment is off on this device — turn it on in Settings → Appearance.</p>
       </div><!-- /media panel -->
       </div><!-- /settings-panels -->
 
@@ -774,9 +759,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.45.0"></script>
-  <script src="src/media.js?v=0.45.0"></script>
-  <script src="src/storage.js?v=0.45.0"></script>
-  <script src="src/app.js?v=0.45.0"></script>
+  <script src="src/qr.js?v=0.46.0"></script>
+  <script src="src/media.js?v=0.46.0"></script>
+  <script src="src/storage.js?v=0.46.0"></script>
+  <script src="src/app.js?v=0.46.0"></script>
 </body>
 </html>

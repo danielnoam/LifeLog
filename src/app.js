@@ -8,7 +8,7 @@
 
   const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" } }; // monthOrder, currency, mediaCategorySources, mediaKeys — synced
   const CURRENCY_SYMBOLS = { ILS: "₪", USD: "$", EUR: "€", GBP: "£" };
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, mediaEnabled: false, forceLayout: "none", theme: "default", showTimelineCovers: true, showBacklogCovers: true, timelineCoverSize: "small", backlogCoverSize: "big" }; // maxWidth 0 = stretch — local to this device, not synced
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big" }; // maxWidth 0 = stretch — local to this device, not synced
   const THEMES = ["light", "nord", "dracula"]; // "default" has no class — it's the bare :root palette
   const FONT_STACKS = {
     system: '"Segoe UI", system-ui, -apple-system, sans-serif',
@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.45.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.46.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -520,7 +520,7 @@
   function entryRow(e) {
     const row = el("div", "entry");
     if (state.bulk.active) row.appendChild(bulkCheckbox(e));
-    if (e.coverUrl && state.visual.showTimelineCovers) {
+    if (e.coverUrl && state.visual.timelineCoverSize !== "none") {
       const img = document.createElement("img");
       img.src = e.coverUrl; img.alt = "";
       img.className = "etn-cover " + (state.visual.timelineCoverSize === "big" ? "cover-lg" : "cover-sm");
@@ -1042,7 +1042,7 @@
   }
 
   function backlogRow(b) {
-    if (b.coverUrl && state.visual.showBacklogCovers) return backlogRowRich(b);
+    if (b.coverUrl && state.visual.backlogCoverSize !== "none") return backlogRowRich(b);
     const row = el("div", "entry");
     if (b.dropped) row.classList.add("is-dropped");
     if (state.bulk.active) row.appendChild(bulkCheckbox(b));
@@ -1786,11 +1786,10 @@
   let lastSyncedEntryTitle = "";
 
   function hasMediaSourceFor(category) {
-    return !!(state.visual.mediaEnabled && (state.data.settings.mediaCategorySources || {})[category]);
+    return !!((state.data.settings.mediaCategorySources || {})[category]);
   }
 
   async function fetchMediaSuggestions(title, category) {
-    if (!state.visual.mediaEnabled) return [];
     const source = (state.data.settings.mediaCategorySources || {})[category];
     if (!source || !window.LifeLogMedia) return [];
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
@@ -2801,12 +2800,6 @@
     });
   }
 
-  function toggleMediaSections(enabled) {
-    $("#mediaKeysSection").hidden = !enabled;
-    $("#mediaCatSection").hidden = !enabled;
-    $("#mediaDisabledHint").hidden = !!enabled;
-  }
-
   function renderMediaCatRows() {
     const container = $("#mediaCatRows");
     if (!container) return;
@@ -2852,7 +2845,6 @@
     $("#rawgKey").value = state.data.settings.mediaKeys?.rawg || "";
     $("#tmdbKey").value = state.data.settings.mediaKeys?.tmdb || "";
     $("#ggdealsKey").value = state.data.settings.mediaKeys?.ggdeals || "";
-    toggleMediaSections(!!state.visual.mediaEnabled);
     renderMediaCatRows();
   }
 
@@ -2869,11 +2861,8 @@
     $("#themeSelect").value = state.visual.theme || "default";
     $("#forceLayout").value = state.visual.forceLayout || "none";
     $("#currency").value = state.data.settings.currency;
-    $("#showTimelineCovers").checked = state.visual.showTimelineCovers !== false;
-    $("#showBacklogCovers").checked = state.visual.showBacklogCovers !== false;
     $("#timelineCoverSize").value = state.visual.timelineCoverSize || "small";
     $("#backlogCoverSize").value = state.visual.backlogCoverSize || "big";
-    $("#mediaEnabled").checked = !!state.visual.mediaEnabled;
     updateMediaSettings();
     updatePrivacySettings();
     $("#settingsModal").hidden = false;
@@ -2945,16 +2934,6 @@
     state.visual.theme = $("#themeSelect").value;
     saveVisualSettings(state.visual);
     applyTheme();
-  }
-  function onShowTimelineCoversChange() {
-    state.visual.showTimelineCovers = $("#showTimelineCovers").checked;
-    saveVisualSettings(state.visual);
-    render();
-  }
-  function onShowBacklogCoversChange() {
-    state.visual.showBacklogCovers = $("#showBacklogCovers").checked;
-    saveVisualSettings(state.visual);
-    render();
   }
   function onTimelineCoverSizeChange() {
     state.visual.timelineCoverSize = $("#timelineCoverSize").value;
@@ -3595,16 +3574,10 @@
       };
       saveVisualSettings(state.visual);
     }
-    // One-time migration: the media-enrichment on/off toggle and its
-    // per-category source assignments used to both live in local-only
-    // media settings. The toggle stays local (each device can opt in/out
-    // independently); the assignments move into data.settings so they sync
-    // and don't need redoing per device.
-    if (state.media.enabled !== undefined) {
-      state.visual.mediaEnabled = !!state.media.enabled;
-      delete state.media.enabled;
-      saveVisualSettings(state.visual);
-    }
+    // One-time migration: media enrichment used to have a separate on/off
+    // toggle, stored here; it's gone now (per-category source assignments
+    // below are the only on/off switch — "None" disables a category).
+    if (state.media.enabled !== undefined) delete state.media.enabled;
     let mediaCategorySources = incomingSettings.mediaCategorySources;
     if (mediaCategorySources === undefined) mediaCategorySources = state.media.categorySources || {};
     if (state.media.categorySources !== undefined) {
@@ -3860,19 +3833,12 @@
     $("#fontFamily").onchange = onFontChange;
     $("#themeSelect").onchange = onThemeChange;
     $("#forceLayout").onchange = onForceLayoutChange;
-    $("#showTimelineCovers").onchange = onShowTimelineCoversChange;
-    $("#showBacklogCovers").onchange = onShowBacklogCoversChange;
     $("#timelineCoverSize").onchange = onTimelineCoverSizeChange;
     $("#backlogCoverSize").onchange = onBacklogCoverSizeChange;
     $("#currency").onchange = async () => {
       state.data.settings.currency = $("#currency").value;
       render();
       await persist();
-    };
-    $("#mediaEnabled").onchange = () => {
-      state.visual.mediaEnabled = $("#mediaEnabled").checked;
-      saveVisualSettings(state.visual);
-      toggleMediaSections(state.visual.mediaEnabled);
     };
     const setMediaKey = async (field, value) => {
       if (!state.data.settings.mediaKeys) state.data.settings.mediaKeys = { ...DEFAULT_SETTINGS.mediaKeys };
