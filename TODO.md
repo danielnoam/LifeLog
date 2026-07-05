@@ -6,12 +6,15 @@ todo:
   current Overview/By category/By year/Per month average cards)
 - move the sync status indicator (the storage-status LED, currently in the
   filter bar) up into the top bar, in the section under the Settings button
-- fix bulk editing not showing up at all — not sure yet if this is
-  mobile-only
-- fix bulk editing: entries are hard to select
 
 done:
 
+- fix bulk editing not showing up on touch devices — long-pressing an
+  entry was fighting the browser's native text-selection/callout gesture
+  instead of triggering select mode; rows now disable text selection so
+  the long-press timer gets a clean shot at it
+- fix bulk editing: tapping a row's checkbox is no longer immediately
+  undone by a stray click bubbling up to the row and re-toggling it
 - show media pictures (cover art) for journal entries in the Timeline, not
   just the Backlog — with a Settings → Appearance toggle to turn it on/off;
   added the same show/hide toggle for Backlog covers

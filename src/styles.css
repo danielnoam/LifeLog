@@ -325,6 +325,10 @@ select:focus { outline: none; border-color: var(--accent); }
 .entry {
   display: flex; align-items: center; gap: 8px; padding: 5px 7px; border-radius: 7px;
   cursor: pointer; font-size: 13px;
+  /* Long-press enters bulk-select mode — without these, touch devices treat the
+     hold as "select text" / show the native copy callout instead, and the
+     custom gesture never gets a chance to fire. */
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
 }
 .entry:hover { background: var(--bg-elev-2); }
 .entry .bar { width: 3px; align-self: stretch; border-radius: 3px; min-height: 16px; }
@@ -453,6 +457,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .backlog-list { display: flex; flex-direction: column; gap: 2px; }
 .backlog-item-rich {
   display: flex; align-items: flex-start; gap: 8px; padding: 6px 7px; border-radius: 7px; cursor: pointer;
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
 }
 .backlog-item-rich:hover { background: var(--bg-elev-2); }
 .backlog-item-rich .bl-cover {

@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.44.2] - 2026-07-05
+
+### Fixed
+- Bulk editing wasn't entering select mode at all on touch devices —
+  the long-press was losing the race against the browser's native
+  text-selection/callout gesture on the row text. Rows now disable
+  text selection so the custom long-press handler gets a clean shot.
+- Bulk editing: tapping a row's own checkbox toggled it and then
+  immediately toggled it back, because the click event bubbled up to
+  the row's click handler after the checkbox's pointerdown handler had
+  already applied the change. Selecting/deselecting entries now sticks.
+
 ## [0.44.1] - 2026-07-05
 
 ### Fixed
