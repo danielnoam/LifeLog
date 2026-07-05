@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.48.0] - 2026-07-05
+
+### Added
+- Media sync now strips a trailing "S1"/"Season 1"/"B1"/"Book 1" style
+  marker from the title before searching, so entries you tag with your
+  own season/book number (e.g. "Breaking Bad S1") still find a match —
+  it falls back to the untouched title if the stripped search comes up
+  empty, and only the search query is affected, never the saved title.
+
+### Changed
+- Gave the sync status line under the logo a bit more breathing room
+  from "LifeLog" and trimmed the excess empty space the header was
+  reserving below it.
+
 ## [0.47.2] - 2026-07-05
 
 ### Changed

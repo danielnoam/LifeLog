@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.47.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.48.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -1806,11 +1806,29 @@
     return !!((state.data.settings.mediaCategorySources || {})[category]);
   }
 
+  // Strips a trailing "S1"/"Season 1"/"B1"/"Book 1" style marker some people
+  // append to entry titles to tell apart e.g. individual seasons or books of
+  // the same show/series — a media source's search has no idea what to do
+  // with that suffix, so it's dropped before searching (the entry's own
+  // title, and what gets saved, are never touched).
+  const MEDIA_SEARCH_SUFFIX_RE = /\s+[-–—:]?\s*(?:season|s|book|b)\s*\.?\s*\d+\s*$/i;
+  function stripMediaSearchSuffix(title) {
+    const stripped = title.replace(MEDIA_SEARCH_SUFFIX_RE, "").trim();
+    return stripped || title;
+  }
+
   async function fetchMediaSuggestions(title, category) {
     const source = (state.data.settings.mediaCategorySources || {})[category];
     if (!source || !window.LifeLogMedia) return [];
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
-    try { return await window.LifeLogMedia.search(title, source, keys); } catch (e) { return []; }
+    const stripped = stripMediaSearchSuffix(title);
+    try {
+      if (stripped !== title) {
+        const results = await window.LifeLogMedia.search(stripped, source, keys);
+        if (results.length) return results;
+      }
+      return await window.LifeLogMedia.search(title, source, keys);
+    } catch (e) { return []; }
   }
 
   function makeMediaAcItem(r, onPick) {

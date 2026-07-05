@@ -7,6 +7,12 @@ todo:
 
 done:
 
+- media sync strips a trailing "S1"/"Season 1"/"B1"/"Book 1" style
+  marker from the title before searching (falls back to the untouched
+  title if that comes up empty), so personal season/book numbering
+  doesn't block a match
+- sync status line under the logo: more gap from "LifeLog", less
+  leftover empty space below it in the header
 - backlog keeps the current category header sticky under the top bar
   while scrolling on mobile, matching the Timeline's sticky year/month
   headers

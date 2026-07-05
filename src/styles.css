@@ -155,7 +155,7 @@ html, body {
   gap: 20px;
   /* extra bottom padding reserves real room for the sync status line under
      the logo (see .storage-status) so it never overlaps the filter bar. */
-  padding: 12px 20px 32px;
+  padding: 12px 20px 24px;
   background: var(--bg-elev);
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -212,7 +212,7 @@ html, body {
    topbar's extra bottom padding above reserves it real space instead of
    overlapping the filter bar underneath. */
 .storage-status {
-  position: absolute; top: 100%; left: 0; margin-top: 4px;
+  position: absolute; top: 100%; left: 0; margin-top: 10px;
   font-size: 11px; color: var(--text-faint); display: flex; align-items: center; gap: 6px;
   max-width: 260px; white-space: nowrap;
 }
@@ -726,7 +726,7 @@ body.modal-open { overflow: hidden; }
    never re-derive their layout viewport from the <meta viewport> tag, so a
    class is the only thing that works in that direction). */
 @media (max-width: 720px) {
-  html:not(.force-pc) .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 30px; }
+  html:not(.force-pc) .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 23px; }
   html:not(.force-pc) .search { order: 2; margin-left: 0; width: auto; flex: 1 1 auto; min-width: 0; }
 
   /* Persistent bottom nav — every view is one tap away instead of two
@@ -778,7 +778,7 @@ body.modal-open { overflow: hidden; }
   }
 }
 
-html.force-mobile .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 30px; }
+html.force-mobile .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 23px; }
 html.force-mobile .search { order: 2; margin-left: 0; width: auto; flex: 1 1 auto; min-width: 0; }
 
 html.force-mobile .topbar-bottom {
