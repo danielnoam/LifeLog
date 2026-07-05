@@ -202,13 +202,17 @@ html, body {
 
 /* Settings lives in the header corner, separate from the Add FAB, so the
    two don't compete for attention as if they were equally weighted actions.
-   The sync status indicator sits right under it, in the same corner. */
-/* margin-left: auto keeps it pinned to the right edge even when it wraps
-   to its own line on mobile (a sole flex item otherwise sits at the left). */
-.settings-corner { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; order: 5; margin-left: auto; }
+   The sync status indicator hangs below it, in the same corner — absolutely
+   positioned so its (often much wider) text never changes the corner's own
+   size, which would otherwise drag the Settings button down onto its own
+   line when the header wraps on mobile. margin-left: auto keeps the corner
+   pinned to the right edge the same way it did as a lone flex item. */
+.settings-corner { position: relative; order: 5; margin-left: auto; }
 .storage-status {
+  position: absolute; top: 100%; right: 0; margin-top: 6px; z-index: 1;
+  padding: 3px 9px; border-radius: 20px; background: var(--bg-elev-2);
   font-size: 11px; color: var(--text-faint); display: flex; align-items: center; gap: 6px;
-  max-width: 220px;
+  max-width: 220px; white-space: nowrap;
 }
 .storage-status .led { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); flex-shrink: 0; }
 .storage-status .stxt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
