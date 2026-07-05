@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.44.1] - 2026-07-05
+
+### Fixed
+- The `?v=` cache-busting query string on `index.html`'s script/stylesheet
+  tags hadn't been bumped since v0.40.0 — returning visitors' browsers kept
+  serving that old cached JS/CSS after every deploy since, even though the
+  server had the new files. Now synced to the app version again.
+
 ## [0.44.0] - 2026-07-04
 
 ### Added

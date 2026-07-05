@@ -19,6 +19,11 @@ don't open a PR with any step skipped.
   - Bug fix / small tweak / styling-only → bump patch (`0.x.Y` → `0.x.(Y+1)`)
   - Breaking change to the saved data format (`data.version` in `src/storage.js`) → bump major
 - Never open a PR without bumping this, even for small fixes.
+- Also update the `?v=x.y.z` cache-busting query string on every
+  `<script>`/`<link rel="stylesheet">` tag in `index.html` to match —
+  browsers cache these by URL, so leaving the query string stale means
+  returning visitors keep serving old JS/CSS after a deploy even though
+  the file content changed on the server.
 
 ## 2. Update CHANGELOG.md
 
