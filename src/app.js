@@ -8,7 +8,7 @@
 
   const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" } }; // monthOrder, currency, mediaCategorySources, mediaKeys — synced
   const CURRENCY_SYMBOLS = { ILS: "₪", USD: "$", EUR: "€", GBP: "£" };
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, mediaEnabled: false, forceLayout: "none", theme: "default", showTimelineCovers: true, showBacklogCovers: true }; // maxWidth 0 = stretch — local to this device, not synced
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, mediaEnabled: false, forceLayout: "none", theme: "default", showTimelineCovers: true, showBacklogCovers: true, timelineCoverSize: "small", backlogCoverSize: "big" }; // maxWidth 0 = stretch — local to this device, not synced
   const THEMES = ["light", "nord", "dracula"]; // "default" has no class — it's the bare :root palette
   const FONT_STACKS = {
     system: '"Segoe UI", system-ui, -apple-system, sans-serif',
@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.44.3"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.45.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -512,6 +512,7 @@
         categories: state.data.categories,
         onMove: bulkMoveEntriesSelected,
         onDelete: bulkDeleteEntriesSelected,
+        onSync: bulkSyncEntriesSelected,
       }));
     }
   }
@@ -521,7 +522,8 @@
     if (state.bulk.active) row.appendChild(bulkCheckbox(e));
     if (e.coverUrl && state.visual.showTimelineCovers) {
       const img = document.createElement("img");
-      img.src = e.coverUrl; img.alt = ""; img.className = "etn-cover";
+      img.src = e.coverUrl; img.alt = "";
+      img.className = "etn-cover " + (state.visual.timelineCoverSize === "big" ? "cover-lg" : "cover-sm");
       img.onerror = () => { img.style.display = "none"; };
       row.appendChild(img);
     }
@@ -981,6 +983,41 @@
     toast(`Deleted ${n} entr${n === 1 ? "y" : "ies"}`);
   }
 
+  // Syncs each selected timeline entry to media metadata, auto-picking the top
+  // search result (no per-item review, since reviewing N items individually
+  // would defeat the point of a bulk action) — same approach as the Backlog's
+  // bulk sync.
+  async function bulkSyncEntriesSelected(btn) {
+    const ids = [...state.bulk.selected];
+    btn.disabled = true;
+    btn.textContent = "Syncing…";
+    let synced = 0, skipped = 0, lastErr = "";
+    for (const id of ids) {
+      const item = state.data.entries.find((e) => e.id === id);
+      // Steam has no search (CORS-blocked) — its App ID can only be entered
+      // manually per item, so it's skipped here rather than attempted.
+      const source = item && (state.data.settings.mediaCategorySources || {})[item.category];
+      if (!item || !source || source === "steam") { skipped++; continue; }
+      const results = await fetchMediaSuggestions(item.title, item.category);
+      if (!results.length) {
+        skipped++;
+        lastErr = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || lastErr;
+        continue;
+      }
+      const r = results[0];
+      item.coverUrl = r.coverUrl || "";
+      item.mediaId = r.id || "";
+      item.mediaSource = r.source || "";
+      synced++;
+    }
+    state.bulk.active = false;
+    state.bulk.selected.clear();
+    render();
+    await persist();
+    const base = skipped ? `Synced ${synced} entr${synced === 1 ? "y" : "ies"}, skipped ${skipped}` : `Synced ${synced} entr${synced === 1 ? "y" : "ies"}`;
+    toast(lastErr ? base + " — " + lastErr : base, !!(skipped && lastErr));
+  }
+
   async function bulkMoveFinanceSelected(categoryName) {
     const ids = state.bulk.selected;
     state.data.financeEntries.forEach((f) => { if (ids.has(f.id)) f.category = categoryName; });
@@ -1029,7 +1066,8 @@
     if (b.dropped) row.classList.add("is-dropped");
     if (state.bulk.active) row.appendChild(bulkCheckbox(b));
     const img = document.createElement("img");
-    img.src = b.coverUrl; img.alt = b.title; img.className = "bl-cover";
+    img.src = b.coverUrl; img.alt = b.title;
+    img.className = "bl-cover " + (state.visual.backlogCoverSize === "small" ? "cover-sm" : "cover-lg");
     img.onerror = () => { img.style.display = "none"; };
     row.appendChild(img);
     const body = el("div", "bl-body");
@@ -2833,6 +2871,8 @@
     $("#currency").value = state.data.settings.currency;
     $("#showTimelineCovers").checked = state.visual.showTimelineCovers !== false;
     $("#showBacklogCovers").checked = state.visual.showBacklogCovers !== false;
+    $("#timelineCoverSize").value = state.visual.timelineCoverSize || "small";
+    $("#backlogCoverSize").value = state.visual.backlogCoverSize || "big";
     $("#mediaEnabled").checked = !!state.visual.mediaEnabled;
     updateMediaSettings();
     updatePrivacySettings();
@@ -2913,6 +2953,16 @@
   }
   function onShowBacklogCoversChange() {
     state.visual.showBacklogCovers = $("#showBacklogCovers").checked;
+    saveVisualSettings(state.visual);
+    render();
+  }
+  function onTimelineCoverSizeChange() {
+    state.visual.timelineCoverSize = $("#timelineCoverSize").value;
+    saveVisualSettings(state.visual);
+    render();
+  }
+  function onBacklogCoverSizeChange() {
+    state.visual.backlogCoverSize = $("#backlogCoverSize").value;
     saveVisualSettings(state.visual);
     render();
   }
@@ -3812,6 +3862,8 @@
     $("#forceLayout").onchange = onForceLayoutChange;
     $("#showTimelineCovers").onchange = onShowTimelineCoversChange;
     $("#showBacklogCovers").onchange = onShowBacklogCoversChange;
+    $("#timelineCoverSize").onchange = onTimelineCoverSizeChange;
+    $("#backlogCoverSize").onchange = onBacklogCoverSizeChange;
     $("#currency").onchange = async () => {
       state.data.settings.currency = $("#currency").value;
       render();

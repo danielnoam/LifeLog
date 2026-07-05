@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.45.0] - 2026-07-05
+
+### Added
+- Bulk edit for Timeline entries now has a "Sync" action, matching
+  Backlog — re-fetches cover art and metadata for every selected entry
+  from its category's configured media source.
+- Settings → Appearance → Cover art: independent "Timeline cover size"
+  and "Backlog cover size" dropdowns (Small/Big). Previously Timeline
+  covers were always small and Backlog covers always big with no way to
+  change either; defaults match the prior look so nothing changes until
+  you pick something else.
+
 ## [0.44.3] - 2026-07-05
 
 ### Fixed

@@ -346,7 +346,11 @@ select:focus { outline: none; border-color: var(--accent); }
   max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .entry .entry-cat .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.entry .etn-cover { width: 22px; height: 30px; object-fit: cover; border-radius: 3px; flex-shrink: 0; }
+.entry .etn-cover { object-fit: cover; border-radius: 3px; flex-shrink: 0; }
+/* Shared cover-art size options (Settings → Appearance → Cover art) — applied
+   alongside .etn-cover / .bl-cover, independently for Timeline and Backlog. */
+.cover-sm { width: 22px; height: 30px; }
+.cover-lg { width: 48px; height: 70px; }
 
 /* finance */
 .picker-row .fdate { font-size: 11px; color: var(--text-faint); width: 78px; flex: 0 0 auto; }
@@ -465,7 +469,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 }
 .backlog-item-rich:hover { background: var(--bg-elev-2); }
 .backlog-item-rich .bl-cover {
-  width: 48px; height: 70px; object-fit: cover; border-radius: 4px; flex: 0 0 auto; margin-top: 1px;
+  object-fit: cover; border-radius: 4px; flex: 0 0 auto; margin-top: 1px;
 }
 .backlog-item-rich .bl-body {
   flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; padding-top: 2px;

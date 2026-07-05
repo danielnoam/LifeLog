@@ -9,6 +9,14 @@ todo:
 
 done:
 
+- bulk edit for Timeline entries now has a "Sync" action too, same as
+  Backlog — re-fetches cover art/metadata for every selected entry from
+  its category's configured media source
+- Settings → Appearance → Cover art: independent "Timeline cover size"
+  and "Backlog cover size" dropdowns (Small/Big) — previously Timeline
+  covers were always small and Backlog covers always big with no way to
+  change either
+
 - fix the bulk-edit action bar not showing up / appearing in the wrong
   place — a lingering CSS animation transform on the content area was
   making it a containing block for the bar's `position: fixed`, so it
