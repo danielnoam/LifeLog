@@ -4,6 +4,24 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.47.0] - 2026-07-05
+
+### Added
+- Backlog now keeps the current category's header pinned under the top bar
+  while you scroll it on mobile, same as the Timeline's sticky year/month
+  headers.
+- Timeline and Backlog rows with no cover art (or a cover that fails to
+  load) now show an empty placeholder in its place, so every row in a
+  list is the same height instead of the covered ones standing taller.
+
+### Fixed
+- Renaming an entry or backlog item no longer disconnects its synced
+  media — the cover/rating/summary link now only clears via the explicit
+  "✕ Unsync" button.
+- Picking a match from the "🔄 Sync" search button now sticks the same
+  way a title-suggestion pick already did, so editing the title right
+  afterward doesn't immediately undo it.
+
 ## [0.46.1] - 2026-07-05
 
 ### Changed

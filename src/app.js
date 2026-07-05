@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.46.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.47.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -520,12 +520,19 @@
   function entryRow(e) {
     const row = el("div", "entry");
     if (state.bulk.active) row.appendChild(bulkCheckbox(e));
-    if (e.coverUrl && state.visual.timelineCoverSize !== "none") {
-      const img = document.createElement("img");
-      img.src = e.coverUrl; img.alt = "";
-      img.className = "etn-cover " + (state.visual.timelineCoverSize === "big" ? "cover-lg" : "cover-sm");
-      img.onerror = () => { img.style.display = "none"; };
-      row.appendChild(img);
+    if (state.visual.timelineCoverSize !== "none") {
+      const sizeClass = state.visual.timelineCoverSize === "big" ? "cover-lg" : "cover-sm";
+      if (e.coverUrl) {
+        const img = document.createElement("img");
+        img.src = e.coverUrl; img.alt = "";
+        img.className = "etn-cover " + sizeClass;
+        // On a broken URL, swap in the same empty placeholder used for entries
+        // with no cover at all, instead of collapsing the space it held.
+        img.onerror = () => { img.replaceWith(el("span", "etn-cover cover-empty " + sizeClass)); };
+        row.appendChild(img);
+      } else {
+        row.appendChild(el("span", "etn-cover cover-empty " + sizeClass));
+      }
     }
     const color = colorOf(e.category);
     const chip = el("span", "entry-cat");
@@ -563,9 +570,12 @@
 
   function renderBacklogTitleSuggestions() {
     const query = $("#bTitle").value;
+    const isAdding = !$("#backlogId").value;
     // A manually-entered Steam App ID isn't derived from the title, so editing
-    // the title shouldn't clear it the way it clears a search-based sync.
-    if (query !== lastSyncedBacklogTitle && $("#bMediaSource").value !== "steam") {
+    // the title shouldn't clear it the way it clears a search-based sync. And
+    // only while adding: renaming an already-synced existing item shouldn't
+    // silently drop its media link — that takes an explicit "✕ Unsync" now.
+    if (isAdding && query !== lastSyncedBacklogTitle && $("#bMediaSource").value !== "steam") {
       ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bExternalRating"]
         .forEach((id) => { const f = $(id); if (f) f.value = ""; });
       setBacklogCover();
@@ -1042,7 +1052,7 @@
   }
 
   function backlogRow(b) {
-    if (b.coverUrl && state.visual.backlogCoverSize !== "none") return backlogRowRich(b);
+    if (state.visual.backlogCoverSize !== "none") return backlogRowRich(b);
     const row = el("div", "entry");
     if (b.dropped) row.classList.add("is-dropped");
     if (state.bulk.active) row.appendChild(bulkCheckbox(b));
@@ -1065,11 +1075,18 @@
     const row = el("div", "backlog-item-rich");
     if (b.dropped) row.classList.add("is-dropped");
     if (state.bulk.active) row.appendChild(bulkCheckbox(b));
-    const img = document.createElement("img");
-    img.src = b.coverUrl; img.alt = b.title;
-    img.className = "bl-cover " + (state.visual.backlogCoverSize === "small" ? "cover-sm" : "cover-lg");
-    img.onerror = () => { img.style.display = "none"; };
-    row.appendChild(img);
+    const sizeClass = state.visual.backlogCoverSize === "small" ? "cover-sm" : "cover-lg";
+    if (b.coverUrl) {
+      const img = document.createElement("img");
+      img.src = b.coverUrl; img.alt = b.title;
+      img.className = "bl-cover " + sizeClass;
+      // On a broken URL, swap in the same empty placeholder used for items
+      // with no cover at all, instead of collapsing the space it held.
+      img.onerror = () => { img.replaceWith(el("span", "bl-cover cover-empty " + sizeClass)); };
+      row.appendChild(img);
+    } else {
+      row.appendChild(el("span", "bl-cover cover-empty " + sizeClass));
+    }
     const body = el("div", "bl-body");
     body.appendChild(el("span", "bl-title", b.title));
     if (b.priority) body.appendChild(priorityBadge(b.priority));
@@ -1871,15 +1888,17 @@
   function renderTitleSuggestions() {
     const list = $("#fTitleSuggest");
     const query = $("#fTitle").value;
+    const isAdding = !$("#entryId").value;
 
     // If user is typing new content (not just after a local-match pick), clear cover —
     // unless it's a manually-entered Steam App ID, which isn't derived from the title.
-    if (query !== lastSyncedEntryTitle && $("#fCoverUrl").value && $("#fMediaSource").value !== "steam") {
+    // Only while adding: renaming an already-synced existing entry shouldn't silently
+    // drop its media link — that takes an explicit "✕ Unsync" now.
+    if (isAdding && query !== lastSyncedEntryTitle && $("#fCoverUrl").value && $("#fMediaSource").value !== "steam") {
       setEntryCover("", "", "");
     }
 
     const localMatches = titleSuggestions(query, $("#entryId").value || null);
-    const isAdding = !$("#entryId").value;
     const backlogMatches = isAdding ? backlogSuggestions(query) : [];
     list.innerHTML = "";
 
@@ -1966,6 +1985,7 @@
     }
     results.forEach((r) => {
       list.appendChild(makeMediaAcItem(r, () => {
+        lastSyncedEntryTitle = $("#fTitle").value.trim();
         setEntryCover(r.coverUrl, r.id, r.source);
         list.hidden = true;
       }));

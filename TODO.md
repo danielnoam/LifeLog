@@ -7,6 +7,16 @@ todo:
 
 done:
 
+- backlog keeps the current category header sticky under the top bar
+  while scrolling on mobile, matching the Timeline's sticky year/month
+  headers
+- Timeline and Backlog entries with no cover art (or a broken cover URL)
+  now show an empty placeholder instead, so every row in a list is the
+  same height
+- fix media sync disconnecting automatically when renaming an entry or
+  backlog item — it now only clears via the explicit "✕ Unsync" button;
+  picking a match from the "🔄 Sync" button also now sticks the same way
+  a title-suggestion pick already did
 - moved the sync status indicator (the storage-status LED) out of the
   filter bar and up into the top bar, in a section right under the
   Settings button

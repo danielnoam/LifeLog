@@ -357,6 +357,10 @@ select:focus { outline: none; border-color: var(--accent); }
    alongside .etn-cover / .bl-cover, independently for Timeline and Backlog. */
 .cover-sm { width: 22px; height: 30px; }
 .cover-lg { width: 48px; height: 70px; }
+/* Placeholder for entries/backlog items with no cover art (or a broken cover
+   URL) — keeps every row the same height as its cover-bearing neighbors
+   instead of shrinking to fit bare text. */
+.cover-empty { display: inline-block; background: var(--bg-elev-2); border: 1px solid var(--border); }
 
 /* finance */
 .picker-row .fdate { font-size: 11px; color: var(--text-faint); width: 78px; flex: 0 0 auto; }
@@ -759,6 +763,13 @@ body.modal-open { overflow: hidden; }
     /* stacks below the sticky year-head, whose height varies per year (achievement chips can wrap) */
     top: calc(var(--topbar-h, 0px) + var(--year-head-h, 46px)); z-index: 4;
   }
+
+  /* Backlog is single-column here too (see .backlog-grid's auto-fit min
+     width) — same sticky-category-header treatment as the timeline's
+     month cards, one per section since there's no year level above it. */
+  html:not(.force-pc) .backlog-section-head {
+    position: sticky; top: var(--topbar-h, 0px); z-index: 4; background: var(--surface-card);
+  }
 }
 
 html.force-mobile .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px; }
@@ -796,6 +807,9 @@ html.force-mobile .year-head { position: sticky; top: var(--topbar-h, 0px); z-in
 html.force-mobile .month-card h3 {
   position: sticky; background: var(--bg-elev);
   top: calc(var(--topbar-h, 0px) + var(--year-head-h, 46px)); z-index: 4;
+}
+html.force-mobile .backlog-section-head {
+  position: sticky; top: var(--topbar-h, 0px); z-index: 4; background: var(--surface-card);
 }
 
 /* Settings tabs: shrink just enough to keep all 6 on one line, no
