@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.44.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.44.3"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -228,6 +228,12 @@
     root.classList.remove("view-fade-in");
     void root.offsetWidth; // force reflow so the animation restarts
     root.classList.add("view-fade-in");
+    // The animation's fill-mode holds its final `transform` computed value on
+    // `root` indefinitely once it ends, which makes `root` a containing block
+    // for any `position: fixed` descendant (e.g. the bulk-edit bar) — pinning
+    // it to root's box instead of the viewport. Drop the class once the
+    // animation finishes so that stops.
+    root.addEventListener("animationend", () => root.classList.remove("view-fade-in"), { once: true });
   }
 
   function rebuildColorMap() {
@@ -370,33 +376,45 @@
 
   // ---------- rendering ----------
   function render() {
-    document.querySelectorAll(".tab").forEach((t) => {
-      t.classList.toggle("active", t.dataset.view === state.view);
-    });
-    const c = $("#content");
-    c.innerHTML = "";
-    fadeInOnViewChange(c);
-    if (state.view === "backlog") { renderBacklog(c); return; }
-    if (state.view === "finance") { renderFinanceEntries(c); return; }
-    if (state.view === "finance-stats") { renderFinanceStats(c); return; }
-    const entries = getFiltered();
-    if (!state.data.entries.length) {
-      c.appendChild(emptyState({
-        glyph: "☰",
-        title: "Nothing logged yet",
-        body: "Log the things you experience — a game you finished, a book you read, a trip you took. They'll stack up here by year and month.",
-        action: "Add your first entry",
-        onAction: () => openEntryModal(null),
-        hint: "Tip: you can also import an existing lifelog.json from Settings → Import / Export.",
-      }));
-      return;
+    // Clearing #content below momentarily collapses the page to whatever
+    // height the topbar/nav alone take up, and browsers clamp window.scrollY
+    // down to fit — permanently, even once the full content is rebuilt right
+    // after. Restore it afterward for an in-view re-render (add/edit/filter),
+    // where the user expects to stay put; skip it on a real view switch,
+    // where landing at the top is the expected behavior.
+    const sameView = state.view === lastRenderedView;
+    const prevScrollY = window.scrollY;
+    try {
+      document.querySelectorAll(".tab").forEach((t) => {
+        t.classList.toggle("active", t.dataset.view === state.view);
+      });
+      const c = $("#content");
+      c.innerHTML = "";
+      fadeInOnViewChange(c);
+      if (state.view === "backlog") { renderBacklog(c); return; }
+      if (state.view === "finance") { renderFinanceEntries(c); return; }
+      if (state.view === "finance-stats") { renderFinanceStats(c); return; }
+      const entries = getFiltered();
+      if (!state.data.entries.length) {
+        c.appendChild(emptyState({
+          glyph: "☰",
+          title: "Nothing logged yet",
+          body: "Log the things you experience — a game you finished, a book you read, a trip you took. They'll stack up here by year and month.",
+          action: "Add your first entry",
+          onAction: () => openEntryModal(null),
+          hint: "Tip: you can also import an existing lifelog.json from Settings → Import / Export.",
+        }));
+        return;
+      }
+      if (!entries.length) {
+        c.appendChild(emptyState("No entries match your filters."));
+        return;
+      }
+      if (state.view === "timeline") renderTimeline(c, entries);
+      else renderStats(c, entries);
+    } finally {
+      if (sameView && prevScrollY) window.scrollTo(0, prevScrollY);
     }
-    if (!entries.length) {
-      c.appendChild(emptyState("No entries match your filters."));
-      return;
-    }
-    if (state.view === "timeline") renderTimeline(c, entries);
-    else renderStats(c, entries);
   }
 
   // Plain string → the old faint one-liner (used for "nothing matches your
@@ -470,10 +488,6 @@
         head.appendChild(a);
       }
       block.appendChild(head);
-      root.appendChild(block); // attach now so its real layout can be measured
-      // getBoundingClientRect (not offsetHeight) keeps the sub-pixel remainder,
-      // which otherwise rounds away and leaves a hairline gap under the sticky header.
-      block.style.setProperty("--year-head-h", head.getBoundingClientRect().height + "px");
 
       const grid = el("div", "month-grid");
       const byMonth = groupBy(byYear[y], (e) => e.month);
@@ -488,6 +502,10 @@
         grid.appendChild(card);
       }
       block.appendChild(grid);
+      root.appendChild(block); // attach now, fully built, so its real layout can be measured
+      // getBoundingClientRect (not offsetHeight) keeps the sub-pixel remainder,
+      // which otherwise rounds away and leaves a hairline gap under the sticky header.
+      block.style.setProperty("--year-head-h", head.getBoundingClientRect().height + "px");
     }
     if (state.bulk.active) {
       root.appendChild(bulkActionBar({
@@ -1048,6 +1066,9 @@
     const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } start = null; };
     row.addEventListener("pointerdown", (ev) => {
       if (state.bulk.active) return;
+      // A long-press on the title text itself is left alone so it can still be
+      // used to select/copy the text — only the rest of the row enters bulk mode.
+      if (ev.target.closest(".etitle, .bl-title")) return;
       start = { x: ev.clientX, y: ev.clientY };
       timer = setTimeout(() => {
         timer = null;
@@ -1113,10 +1134,6 @@
       head.appendChild(el("h2", null, y));
       head.appendChild(el("span", "ycount", `${byYear[y].length} entries`));
       block.appendChild(head);
-      root.appendChild(block); // attach now so its real layout can be measured
-      // getBoundingClientRect (not offsetHeight) keeps the sub-pixel remainder,
-      // which otherwise rounds away and leaves a hairline gap under the sticky header.
-      block.style.setProperty("--year-head-h", head.getBoundingClientRect().height + "px");
 
       const grid = el("div", "month-grid");
       grid.style.setProperty("--month-min", "260px"); // finance rows need more room (date + amount columns)
@@ -1147,6 +1164,10 @@
         grid.appendChild(card);
       }
       block.appendChild(grid);
+      root.appendChild(block); // attach now, fully built, so its real layout can be measured
+      // getBoundingClientRect (not offsetHeight) keeps the sub-pixel remainder,
+      // which otherwise rounds away and leaves a hairline gap under the sticky header.
+      block.style.setProperty("--year-head-h", head.getBoundingClientRect().height + "px");
     }
     if (state.bulk.active) {
       root.appendChild(bulkActionBar({

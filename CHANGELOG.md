@@ -4,6 +4,27 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.44.3] - 2026-07-05
+
+### Fixed
+- The bulk-edit action bar could fail to show up, or show up in the
+  wrong place, on the Timeline/Backlog/Finance views: the view-switch
+  fade-in animation left a `transform` applied to the content area even
+  after finishing (a CSS animation fill-mode quirk), which turned it
+  into a positioning container for the bar's `position: fixed` — so it
+  floated relative to the content box instead of being pinned to the
+  bottom of the screen. The animation class is now cleared once it ends.
+- Adding an entry (or any other in-view change, e.g. a filter toggle)
+  reset the scroll position back to the top every time. Rebuilding the
+  view's content on every render briefly collapses the page's height,
+  and browsers don't restore the scroll position once content grows back
+  — it's now explicitly restored for in-view re-renders, while switching
+  views (which should reset to the top) is unaffected.
+- Long-pressing an entry's title text to enter bulk-edit mode blocked
+  selecting/copying that text. Long-pressing the title now selects the
+  text as before; long-pressing anywhere else on the row (category chip,
+  badge, padding) still enters bulk mode.
+
 ## [0.44.2] - 2026-07-05
 
 ### Fixed

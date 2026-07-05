@@ -327,10 +327,14 @@ select:focus { outline: none; border-color: var(--accent); }
   cursor: pointer; font-size: 13px;
   /* Long-press enters bulk-select mode — without these, touch devices treat the
      hold as "select text" / show the native copy callout instead, and the
-     custom gesture never gets a chance to fire. */
+     custom gesture never gets a chance to fire. The title itself opts back in
+     below so it can still be long-pressed to select/copy. */
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
 }
 .entry:hover { background: var(--bg-elev-2); }
+.entry .etitle, .backlog-item-rich .bl-title {
+  -webkit-touch-callout: default; -webkit-user-select: text; user-select: text;
+}
 .entry .bar { width: 3px; align-self: stretch; border-radius: 3px; min-height: 16px; }
 .entry .etitle { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entry .ecat { font-size: 11px; color: var(--text-faint); }

@@ -9,6 +9,17 @@ todo:
 
 done:
 
+- fix the bulk-edit action bar not showing up / appearing in the wrong
+  place — a lingering CSS animation transform on the content area was
+  making it a containing block for the bar's `position: fixed`, so it
+  floated relative to the content box instead of the viewport
+- fix the view jumping/resetting to the top after adding an entry (or
+  any other in-view change) — clearing and rebuilding the page's content
+  on every render momentarily collapsed its height, and the browser's
+  scroll position never recovered; it's now restored afterward
+- long-pressing an entry's title text now still lets you select/copy it
+  instead of entering bulk mode — long-pressing anywhere else on the row
+  (the category chip, badge, padding) enters bulk mode as before
 - fix bulk editing not showing up on touch devices — long-pressing an
   entry was fighting the browser's native text-selection/callout gesture
   instead of triggering select mode; rows now disable text selection so
