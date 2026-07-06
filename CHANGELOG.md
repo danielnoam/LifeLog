@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.49.2] - 2026-07-06
+
+### Changed
+- Renamed the Finance tab formerly called "Timeline" to "Ledger" — both
+  the Journal and Finance sections had a tab named "Timeline", which was
+  ambiguous in references outside the nav itself (e.g. Settings, TODO).
+
 ## [0.49.1] - 2026-07-06
 
 ### Changed

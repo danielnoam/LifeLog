@@ -2,8 +2,6 @@ todo:
 
 - improve the Finance summary section (richer breakdown, not just the
   current Overview/By category/By year/Per month average cards)
-- find a new name for the Journal Timeline and Finance Timeline tabs —
-  both being called "Timeline" is confusing
 - when setting up fingerprint/Face ID app lock, require a PIN to be set
   too (as a fallback), not just the biometric
 - rework version history so restoring works fully offline / without
@@ -19,6 +17,8 @@ todo:
 
 done:
 
+- renamed the Finance tab formerly called "Timeline" to "Ledger" — both
+  Journal and Finance had a tab named "Timeline", which was ambiguous
 - trimmed a lot of repetitive Settings hint text (dropped the redundant
   "(this device)" tag on Local file, merged Theme/Font's identical
   hints, cut duplicate "this device only" phrasing, generalized the
