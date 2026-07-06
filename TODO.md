@@ -1,12 +1,14 @@
 todo:
 
-- clean up Settings: reorder the tabs and combine/reorganize the section
-  headers within each tab into more specific groupings
 - improve the Finance summary section (richer breakdown, not just the
   current Overview/By category/By year/Per month average cards)
 
 done:
 
+- cleaned up Settings: merged the History tab into Data, moved Currency
+  from Appearance into Data, combined Theme/Font into one "Look" section,
+  and merged Privacy's and Media's paired sections into single sections
+  with subheadings — 6 tabs down to 5, tighter groupings throughout
 - backlog entries get a divider between prioritized and unprioritized
   items within a category, same as the existing dropped-items divider
 - category filter pills use the same solid accent highlight as selected

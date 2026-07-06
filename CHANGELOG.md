@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.49.0] - 2026-07-06
+
+### Changed
+- Reorganized Settings: merged the History tab into Data (as a "Version
+  history" section alongside storage backend and GitHub sync settings),
+  moved Currency from Appearance into Data, combined Theme and Font into
+  one "Look" section, and merged Privacy's "App lock"/"Unlock method" and
+  Media's "API keys"/"Source per category" into single sections with
+  subheadings — 6 tabs down to 5, and every tab's sections now group more
+  tightly related controls together instead of listing loosely-related
+  ones as peers.
+
 ## [0.48.1] - 2026-07-06
 
 ### Changed

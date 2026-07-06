@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.48.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.49.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -2736,7 +2736,7 @@
     }
   }
 
-  // ---------- version history (Settings → History tab) ----------
+  // ---------- version history (Settings → Data tab) ----------
   let historyCache = []; // last fetched list, so restore can look it up
 
   function formatHistoryDate(iso) {
