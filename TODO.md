@@ -16,6 +16,10 @@ todo:
 - make sure sync correctly reconciles actions done while offline with
   actions done on other devices during that same offline period, once
   back online
+- add playtime for games, length for movies, episode/season counts for
+  shows, and book length if possible — most important for backlog
+  entries, not just logged ones
+- auto wishlist import for Steam, and GG.deals cost support for it
 
 done:
 
