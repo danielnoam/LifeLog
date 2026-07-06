@@ -285,8 +285,7 @@ select:focus { outline: none; border-color: var(--accent); }
   user-select: none; transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 .cat-chip .dot { width: 9px; height: 9px; border-radius: 50%; }
-.cat-chip.on { border-color: transparent; }
-.year-chip.on { background: var(--accent); color: var(--text-on-accent); }
+.cat-chip.on { border-color: transparent; background: var(--accent); color: var(--text-on-accent); }
 .cat-chip.add-chip { padding: 4px 12px; font-weight: 700; color: var(--text-dim); min-width: 0 !important; }
 .cat-chip.add-chip:hover { color: var(--text); border-color: var(--accent); }
 
@@ -366,7 +365,8 @@ select:focus { outline: none; border-color: var(--accent); }
 /* Placeholder for entries/backlog items with no cover art (or a broken cover
    URL) — keeps every row the same height as its cover-bearing neighbors
    instead of shrinking to fit bare text. */
-.cover-empty { display: inline-block; background: var(--bg-elev-2); border: 1px solid var(--border); }
+.cover-empty { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); font-size: 12px; }
+.cover-lg.cover-empty { font-size: 20px; }
 
 /* finance */
 .picker-row .fdate { font-size: 11px; color: var(--text-faint); width: 78px; flex: 0 0 auto; }
@@ -503,7 +503,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .backlog-item-rich .ecat { align-self: flex-start; margin-top: 3px; flex-shrink: 0; }
 .backlog-item-rich .btn-sm { align-self: flex-start; flex-shrink: 0; }
 
-.backlog-dropped-sep { border-top: 1px dashed var(--border); margin: 6px 2px; }
+.backlog-dropped-sep, .backlog-priority-sep { border-top: 1px dashed var(--border); margin: 6px 2px; }
 .entry.is-dropped, .backlog-item-rich.is-dropped { opacity: .55; }
 .entry.is-dropped .etitle, .backlog-item-rich.is-dropped .bl-title { text-decoration: line-through; }
 

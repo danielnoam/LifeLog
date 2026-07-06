@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.48.1] - 2026-07-06
+
+### Changed
+- Backlog entries now get a divider between prioritized and unprioritized
+  items within a category, the same way dropped items already get one.
+- Entries/backlog items with no cover art (or a broken cover URL) now show
+  a small icon on a background tinted to their category's color, instead
+  of a blank box.
+- Selecting a category in the filter bar now highlights it with the same
+  solid accent pill used for selected years, instead of tinting the pill
+  with that category's own color.
+
 ## [0.48.0] - 2026-07-05
 
 ### Added

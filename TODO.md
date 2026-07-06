@@ -7,6 +7,12 @@ todo:
 
 done:
 
+- backlog entries get a divider between prioritized and unprioritized
+  items within a category, same as the existing dropped-items divider
+- category filter pills use the same solid accent highlight as selected
+  year pills when active, instead of tinting with the category's own color
+- Timeline and Backlog entries with no cover art (or a broken cover URL)
+  now show an icon on a category-tinted background instead of a blank box
 - media sync strips a trailing "S1"/"Season 1"/"B1"/"Book 1" style
   marker from the title before searching (falls back to the untouched
   title if that comes up empty), so personal season/book numbering
@@ -16,9 +22,6 @@ done:
 - backlog keeps the current category header sticky under the top bar
   while scrolling on mobile, matching the Timeline's sticky year/month
   headers
-- Timeline and Backlog entries with no cover art (or a broken cover URL)
-  now show an empty placeholder instead, so every row in a list is the
-  same height
 - fix media sync disconnecting automatically when renaming an entry or
   backlog item — it now only clears via the explicit "✕ Unsync" button;
   picking a match from the "🔄 Sync" button also now sticks the same way

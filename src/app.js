@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.48.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.48.1"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -241,6 +241,16 @@
     for (const c of state.data.categories) catColor[c.name] = c.color;
   }
   const colorOf = (name) => catColor[name] || "#7a8a99";
+
+  // Placeholder for entries/backlog items with no cover art (or a broken
+  // cover URL) — tinted to the item's category so it's not just a blank box.
+  function emptyCoverEl(cls, category) {
+    const span = el("span", cls, "🖼");
+    const color = colorOf(category);
+    span.style.background = color + "22";
+    span.style.color = color;
+    return span;
+  }
 
   function rebuildFinanceColorMap() {
     financeCatColor = {};
@@ -528,10 +538,10 @@
         img.className = "etn-cover " + sizeClass;
         // On a broken URL, swap in the same empty placeholder used for entries
         // with no cover at all, instead of collapsing the space it held.
-        img.onerror = () => { img.replaceWith(el("span", "etn-cover cover-empty " + sizeClass)); };
+        img.onerror = () => { img.replaceWith(emptyCoverEl("etn-cover cover-empty " + sizeClass, e.category)); };
         row.appendChild(img);
       } else {
-        row.appendChild(el("span", "etn-cover cover-empty " + sizeClass));
+        row.appendChild(emptyCoverEl("etn-cover cover-empty " + sizeClass, e.category));
       }
     }
     const color = colorOf(e.category);
@@ -764,11 +774,13 @@
         if (!!a.dropped !== !!b.dropped) return a.dropped ? 1 : -1;
         return (b.priority || 0) - (a.priority || 0);
       });
-      let sawActive = false, sepAdded = false;
+      let sawActive = false, sepAdded = false, sawPriority = false, prioritySepAdded = false;
       sorted.forEach((b) => {
         if (b.dropped) {
           if (sawActive && !sepAdded) { list.appendChild(el("div", "backlog-dropped-sep")); sepAdded = true; }
         } else {
+          if (b.priority) sawPriority = true;
+          else if (sawPriority && !prioritySepAdded) { list.appendChild(el("div", "backlog-priority-sep")); prioritySepAdded = true; }
           sawActive = true;
         }
         list.appendChild(backlogRow(b));
@@ -1082,10 +1094,10 @@
       img.className = "bl-cover " + sizeClass;
       // On a broken URL, swap in the same empty placeholder used for items
       // with no cover at all, instead of collapsing the space it held.
-      img.onerror = () => { img.replaceWith(el("span", "bl-cover cover-empty " + sizeClass)); };
+      img.onerror = () => { img.replaceWith(emptyCoverEl("bl-cover cover-empty " + sizeClass, b.category)); };
       row.appendChild(img);
     } else {
-      row.appendChild(el("span", "bl-cover cover-empty " + sizeClass));
+      row.appendChild(emptyCoverEl("bl-cover cover-empty " + sizeClass, b.category));
     }
     const body = el("div", "bl-body");
     body.appendChild(el("span", "bl-title", b.title));
@@ -1624,7 +1636,6 @@
       const dot = el("span", "dot"); dot.style.background = c.color;
       chip.appendChild(dot);
       chip.appendChild(document.createTextNode(c.name));
-      if (activeCats.has(c.name)) chip.style.background = c.color + "22";
       const edit = el("span", "chip-edit", "✎");
       edit.title = "Edit category";
       edit.onclick = (ev) => { ev.stopPropagation(); finance ? openFinanceCatModal(c) : openCategoryModal(c); };
