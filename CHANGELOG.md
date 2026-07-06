@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.49.1] - 2026-07-06
+
+### Changed
+- Moved Currency back under Appearance (it had just moved to Data in the
+  previous Settings reorg).
+- Trimmed a lot of repetitive Settings copy: dropped the redundant
+  "(this device)" tag on Local file, merged Theme/Font's identical
+  hints into one line under "Look", cut duplicate "this device only"
+  phrasing from Force layout/Cover art/App lock, and shortened several
+  other hints.
+- The "browser doesn't support saving to a file" message no longer
+  singles out Brave by name — it's now phrased as "some browsers" with
+  the fix as a bullet point, matching the style of other multi-point hints.
+- On mobile, the Journal Timeline tab now sits one position to the right
+  in the bottom nav (swapped with Stats) instead of being the leftmost tab.
+
 ## [0.49.0] - 2026-07-06
 
 ### Changed

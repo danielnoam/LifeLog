@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.49.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.49.1"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -2815,11 +2815,9 @@
     if (!Storage.fsSupported) {
       info.innerHTML =
         "Saving to a chosen file isn't enabled in this browser." +
-        "<br><strong>Using Brave?</strong> It ships this feature off by default. Turn it on: " +
-        "open <code>brave://flags</code> → search <em>“File System Access API”</em> → set to " +
-        "<strong>Enabled</strong> → <strong>Relaunch</strong>, then reload this page." +
-        "<br>Chrome and Edge support it out of the box." +
-        "<br>Until then your data is saved in this browser — use <strong>Export JSON</strong> for backups.";
+        "<br>• Chrome and Edge support it out of the box." +
+        "<br>• Some browsers (e.g. Brave) ship it off by default — enable it from that browser's flags page (search “File System Access API”, set to Enabled, relaunch), then reload." +
+        "<br>• Until then your data is saved in this browser only — use <strong>Export JSON</strong> for backups.";
       connect.hidden = true; recon.hidden = true; disc.hidden = true;
       return;
     }

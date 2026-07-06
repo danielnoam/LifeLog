@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.49.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.49.1" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -411,14 +411,14 @@
         <h3>Storage backend</h3>
         <p class="muted" id="backendInfo"></p>
 
-        <h4>Local file <span class="muted">(this device)</span></h4>
+        <h4>Local file</h4>
         <p class="muted" id="fileInfo"></p>
         <div class="btn-row">
           <button class="btn" id="connectFileBtn">Choose data file…</button>
           <button class="btn" id="reconnectFileBtn" hidden>Reconnect file</button>
           <button class="btn" id="disconnectFileBtn" hidden>Disconnect</button>
         </div>
-        <p class="hint">Stores your data in a <code>.json</code> file you choose on this computer. Good for keeping a local backup or syncing via a folder shared with Google Drive / Dropbox. Works on desktop Chrome and Edge only — not supported on phones.</p>
+        <p class="hint">Stores your data in a <code>.json</code> file on this computer — handy as a local backup or for syncing via a shared Google Drive/Dropbox folder. Desktop Chrome/Edge only, not supported on phones.</p>
 
         <h4>GitHub sync <span class="muted">(works on all devices)</span></h4>
         <p class="muted" id="ghInfo"></p>
@@ -449,7 +449,7 @@
           <button class="btn" id="ghConnectBtn">Connect GitHub</button>
           <button class="btn" id="ghDisconnectBtn" hidden>Disconnect</button>
         </div>
-        <p class="hint">Keeps your phone and desktop in sync via a private GitHub repo. Every save becomes a commit, giving you a full version history. Your token stays in this browser only — it is never sent anywhere else.</p>
+        <p class="hint">Keeps your phone and desktop in sync via a private GitHub repo — every save becomes a commit, giving you a version history. Your token stays in this browser only.</p>
       </section>
 
       <section class="settings-section">
@@ -478,12 +478,12 @@
             <option value="300">Every 5 minutes</option>
           </select>
         </label>
-        <p class="hint">When enabled, LifeLog periodically pulls changes saved from your other devices. This setting is per-device.</p>
+        <p class="hint">When enabled, LifeLog periodically pulls changes saved from your other devices.</p>
       </section>
 
       <section class="settings-section">
         <h3>Version history <span class="muted">(GitHub sync only)</span></h3>
-        <p class="hint">A short rollback history, not a full audit log — keeps roughly your last 20 saves so you can undo a mistake. Restoring loads that version's data and saves it as a new current version; it never deletes or rewrites GitHub history, so nothing is lost either way.</p>
+        <p class="hint">A short rollback history, not a full audit log — keeps roughly your last 20 saves so you can undo a mistake. Restoring saves that version as your new current one; nothing in GitHub's history is ever deleted.</p>
 
         <p class="muted" id="historyEmptyState" hidden>This needs GitHub sync. Connect it above — every save already becomes a commit there, this section just lets you browse and restore from them.</p>
 
@@ -496,18 +496,6 @@
         </div>
       </section>
 
-      <section class="settings-section">
-        <h3>Currency</h3>
-        <p class="hint">Controls the currency symbol used throughout the Finance tabs. Syncs across your devices.</p>
-        <label>Symbol
-          <select id="currency">
-            <option value="ILS">₪ Shekel (ILS)</option>
-            <option value="USD">$ Dollar (USD)</option>
-            <option value="EUR">€ Euro (EUR)</option>
-            <option value="GBP">£ Pound (GBP)</option>
-          </select>
-        </label>
-      </section>
       </div><!-- /storage panel -->
 
       <div class="settings-panel" data-panel="backup">
@@ -554,7 +542,7 @@
       <div class="settings-panel" data-panel="privacy">
       <section class="settings-section">
         <h3>App lock <span class="muted">(this device only)</span></h3>
-        <p class="hint">Require a PIN or your device's fingerprint/Face ID to open LifeLog. This is a lock on this device only — it isn't synced to your other devices, and it doesn't encrypt your data. If you forget your PIN, the lock screen's reset option wipes this device's local copy of the data (so it isn't a free bypass) — if GitHub or a local file is connected you can reconnect afterward to get your data back; if not, the wipe is permanent.</p>
+        <p class="hint">Require a PIN or fingerprint/Face ID to open LifeLog — this device only, not synced elsewhere, and it doesn't encrypt your data. Forgetting your PIN wipes this device's local copy via the lock screen's reset option (not a free bypass); reconnect GitHub or a local file afterward to get your data back, or it's gone for good.</p>
         <label class="toggle-label">
           <input type="checkbox" id="privacyEnabled" />
           Require unlock to open this app
@@ -568,7 +556,7 @@
             <option value="60">1 hour</option>
           </select>
         </label>
-        <p class="hint">After unlocking, refreshing or reopening the app within this window won't prompt again. Once the window passes, the next open asks again.</p>
+        <p class="hint">Skips the unlock prompt for this long after you last unlocked.</p>
 
         <h4>Unlock method</h4>
         <label>Method
@@ -610,7 +598,7 @@
       <div class="settings-panel" data-panel="appearance">
       <section class="settings-section">
         <h3>Look</h3>
-        <p class="hint">Changes the color scheme used throughout the app on this device only.</p>
+        <p class="hint">Color scheme and typeface — both visual only, this device only.</p>
         <label>Color scheme
           <select id="themeSelect">
             <option value="default">Default</option>
@@ -619,7 +607,6 @@
             <option value="dracula">Dracula</option>
           </select>
         </label>
-        <p class="hint">Changes the typeface used throughout the app on this device only.</p>
         <label>Typeface
           <select id="fontFamily">
             <option value="system">Default (system)</option>
@@ -648,7 +635,7 @@
 
       <section class="settings-section">
         <h3>Force layout</h3>
-        <p class="hint">Overrides which responsive layout is used on this device, regardless of actual screen size — like a browser's "Request desktop site". Useful for previewing the other layout, or pinning one in place on an in-between-sized screen. This device only.</p>
+        <p class="hint">Overrides which responsive layout this device uses, regardless of actual screen size — like a browser's "Request desktop site". Useful for previewing the other layout, or pinning one in place on an in-between-sized screen.</p>
         <label>Layout
           <select id="forceLayout">
             <option value="none">None (automatic)</option>
@@ -660,7 +647,7 @@
 
       <section class="settings-section">
         <h3>Cover art</h3>
-        <p class="hint">Controls whether saved cover art is shown in each view, and at what size. This device only.</p>
+        <p class="hint">Controls whether saved cover art is shown in each view, and at what size (this device only).</p>
         <div class="row">
           <label>Timeline cover size
             <select id="timelineCoverSize">
@@ -677,6 +664,19 @@
             </select>
           </label>
         </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Currency</h3>
+        <p class="hint">Currency symbol used throughout the Finance tabs. Syncs across your devices.</p>
+        <label>Symbol
+          <select id="currency">
+            <option value="ILS">₪ Shekel (ILS)</option>
+            <option value="USD">$ Dollar (USD)</option>
+            <option value="EUR">€ Euro (EUR)</option>
+            <option value="GBP">£ Pound (GBP)</option>
+          </select>
+        </label>
       </section>
 
       </div><!-- /appearance panel -->
@@ -749,9 +749,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.49.0"></script>
-  <script src="src/media.js?v=0.49.0"></script>
-  <script src="src/storage.js?v=0.49.0"></script>
-  <script src="src/app.js?v=0.49.0"></script>
+  <script src="src/qr.js?v=0.49.1"></script>
+  <script src="src/media.js?v=0.49.1"></script>
+  <script src="src/storage.js?v=0.49.1"></script>
+  <script src="src/app.js?v=0.49.1"></script>
 </body>
 </html>

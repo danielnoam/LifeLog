@@ -2,12 +2,8 @@ todo:
 
 - improve the Finance summary section (richer breakdown, not just the
   current Overview/By category/By year/Per month average cards)
-- trim Settings: a lot of the hint text under each section doesn't
-  actually say much — cut it down; also move the Currency select back
-  under Appearance
 - find a new name for the Journal Timeline and Finance Timeline tabs —
   both being called "Timeline" is confusing
-- move the Journal Timeline's button one position to the right on mobile
 - when setting up fingerprint/Face ID app lock, require a PIN to be set
   too (as a fallback), not just the biometric
 - rework version history so restoring works fully offline / without
@@ -23,6 +19,13 @@ todo:
 
 done:
 
+- trimmed a lot of repetitive Settings hint text (dropped the redundant
+  "(this device)" tag on Local file, merged Theme/Font's identical
+  hints, cut duplicate "this device only" phrasing, generalized the
+  Brave-specific browser message into a bullet point) and moved Currency
+  back under Appearance
+- on mobile, the Journal Timeline tab moved one position to the right in
+  the bottom nav (swapped with Stats), so it's no longer the leftmost tab
 - cleaned up Settings: merged the History tab into Data, moved Currency
   from Appearance into Data, combined Theme/Font into one "Look" section,
   and merged Privacy's and Media's paired sections into single sections
