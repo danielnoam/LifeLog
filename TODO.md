@@ -2,6 +2,20 @@ todo:
 
 - improve the Finance summary section (richer breakdown, not just the
   current Overview/By category/By year/Per month average cards)
+- trim Settings: a lot of the hint text under each section doesn't
+  actually say much — cut it down; also move the Currency select back
+  under Appearance
+- find a new name for the Journal Timeline and Finance Timeline tabs —
+  both being called "Timeline" is confusing
+- move the Journal Timeline's button one position to the right on mobile
+- when setting up fingerprint/Face ID app lock, require a PIN to be set
+  too (as a fallback), not just the biometric
+- rework version history so restoring works fully offline / without
+  GitHub connected — every action needs to be restorable, and restoring
+  needs to work perfectly regardless of connection
+- make sure sync correctly reconciles actions done while offline with
+  actions done on other devices during that same offline period, once
+  back online
 
 done:
 
