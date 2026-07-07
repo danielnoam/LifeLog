@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.51.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.51.2"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -1121,8 +1121,10 @@
       row.appendChild(emptyCoverEl("bl-cover cover-empty " + sizeClass, b.category));
     }
     const body = el("div", "bl-body");
-    body.appendChild(el("span", "bl-title", b.title));
-    if (b.priority) body.appendChild(priorityBadge());
+    const titleRow = el("div", "bl-title-row");
+    titleRow.appendChild(el("span", "bl-title", b.title));
+    if (b.priority) titleRow.appendChild(priorityBadge());
+    body.appendChild(titleRow);
     const meta = [];
     if (b.externalRating) meta.push("★ " + b.externalRating);
     if (b.releaseYear) meta.push(String(b.releaseYear));
@@ -2404,6 +2406,7 @@
     $("#bExternalRating").value = editing ? (item.externalRating || "") : "";
     $("#bLength").value = editing ? (item.length || "") : "";
     $("#bPriority").checked = editing ? !!item.priority : false;
+    updatePriorityBtn();
     $("#bDropped").checked = editing ? !!item.dropped : false;
     updateDroppedBtnLabel();
     lastSyncedBacklogTitle = editing ? item.title : "";
@@ -2424,6 +2427,18 @@
   function toggleDropped() {
     $("#bDropped").checked = !$("#bDropped").checked;
     updateDroppedBtnLabel();
+  }
+
+  function updatePriorityBtn() {
+    const on = $("#bPriority").checked;
+    const btn = $("#bPriorityBtn");
+    btn.textContent = on ? "★" : "☆";
+    btn.classList.toggle("active", on);
+    btn.title = on ? "Prioritized — click to remove" : "Prioritize";
+  }
+  function togglePriority() {
+    $("#bPriority").checked = !$("#bPriority").checked;
+    updatePriorityBtn();
   }
 
   async function saveBacklogFromForm(ev) {
@@ -4016,6 +4031,7 @@
     $("#backlogForm").onsubmit = saveBacklogFromForm;
     $("#deleteBacklogBtn").onclick = deleteCurrentBacklogItem;
     $("#toggleDroppedBtn").onclick = toggleDropped;
+    $("#bPriorityBtn").onclick = togglePriority;
     $("#bTitle").oninput = renderBacklogTitleSuggestions;
     $("#bCategory").onchange = () => updateSyncBtnVisibility("b", $("#bCategory").value);
     $("#bSyncBtn").onclick = syncBacklogTitle;

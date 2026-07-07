@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.51.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.51.2" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -238,6 +238,7 @@
         <label>Title
           <div class="ac-wrap">
             <input id="bTitle" type="text" required autocomplete="off" placeholder="e.g. The Last of Us Part II" />
+            <button type="button" class="btn btn-sm priority-star" id="bPriorityBtn" title="Prioritize">☆</button>
             <button type="button" class="btn btn-sm sync-btn" id="bSyncBtn" title="Look up cover, year &amp; rating" hidden>🔄</button>
             <div class="ac-list" id="bTitleSuggest" hidden></div>
           </div>
@@ -258,10 +259,7 @@
         <label>Category
           <select id="bCategory" required></select>
         </label>
-        <label class="toggle-label">
-          <input type="checkbox" id="bPriority" />
-          ★ Prioritize — bumps this to the top of its category
-        </label>
+        <input type="checkbox" id="bPriority" hidden />
         <input type="checkbox" id="bDropped" hidden />
         <label>Notes
           <textarea id="bNotes" rows="3" placeholder="Optional thoughts, why it's on your list…"></textarea>
@@ -745,9 +743,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.51.1"></script>
-  <script src="src/media.js?v=0.51.1"></script>
-  <script src="src/storage.js?v=0.51.1"></script>
-  <script src="src/app.js?v=0.51.1"></script>
+  <script src="src/qr.js?v=0.51.2"></script>
+  <script src="src/media.js?v=0.51.2"></script>
+  <script src="src/storage.js?v=0.51.2"></script>
+  <script src="src/app.js?v=0.51.2"></script>
 </body>
 </html>

@@ -12,6 +12,11 @@ todo:
 
 done:
 
+- backlog priority star now sits inline with the title in list rows
+  instead of wasting its own line; the "★ Prioritize" toggle in the
+  backlog editor moved from a form row into a compact button next to
+  the title field
+
 - simplified backlog priority to a single "★ Prioritize" toggle instead
   of a 1-5 star rating; moved the "Dropped" checkbox into a "Mark as
   dropped"/"Restore" button next to Delete; bulk sync now shows live

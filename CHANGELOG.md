@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.51.2] - 2026-07-07
+
+### Changed
+- Backlog rows: the priority star now sits inline with the title
+  instead of on its own line, so the rating/year/length line moves up
+  one row — no more wasted vertical space for a single "★".
+- Backlog editor: the "★ Prioritize" toggle moved from its own form row
+  into a compact star button next to the title field.
+
 ## [0.51.1] - 2026-07-07
 
 ### Changed
