@@ -9,6 +9,8 @@ todo:
   actions done on other devices during that same offline period, once
   back online
 - auto wishlist import for Steam, and GG.deals cost support for it
+- remove income from Finance — not used, strip it out (income type on
+  entries, income stats/breakdown, savings rate, etc.)
 
 done:
 
