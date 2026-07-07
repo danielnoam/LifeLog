@@ -1,7 +1,5 @@
 todo:
 
-- when setting up fingerprint/Face ID app lock, require a PIN to be set
-  too (as a fallback), not just the biometric
 - rework version history so restoring works fully offline / without
   GitHub connected — every action needs to be restorable, and restoring
   needs to work perfectly regardless of connection
@@ -12,6 +10,12 @@ todo:
 
 done:
 
+- app lock: Fingerprint/Face ID now requires a PIN to be set up first as
+  a mandatory fallback, instead of being usable on its own; the lock
+  screen shows both the PIN pad and a Fingerprint/Face ID button
+  together when both are set up, instead of only one method at a time;
+  and entering the correct PIN unlocks immediately without needing to
+  press Unlock
 - removed income tracking from Finance entirely — the Type field on
   entries, the income/expense/net stats, the savings-rate stat, and
   the "Income by category" card are all gone; every amount now shows

@@ -33,12 +33,14 @@
   const PRIVACY_KEY = "lifelog-privacy-v1";
   // App lock: gates opening the app on this device. Local-only, never synced
   // (a PIN/credential set up on one device wouldn't make sense on another).
-  // method: 'pin' | 'biometric'. pinHash/pinSalt: SHA-256 of salt+PIN, so the
-  // PIN itself is never stored. credentialId: base64 WebAuthn credential id.
+  // A PIN is always the base requirement; pinHash/pinSalt: SHA-256 of
+  // salt+PIN, so the PIN itself is never stored. credentialId (base64
+  // WebAuthn credential id) is an optional addition on top of the PIN, never
+  // a replacement for it, so the PIN is always available as a fallback.
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
-  const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.52.0"; // bump with each shipped change so it's visible in Settings
+  const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
+  const APP_VERSION = "0.53.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -3077,26 +3079,24 @@
   async function updatePrivacySettings() {
     $("#privacyEnabled").checked = !!state.privacy.enabled;
     $("#privacyGrace").value = String(state.privacy.graceMinutes || 0);
-    $("#privacyMethod").value = state.privacy.method || "pin";
-    refreshPrivacyMethodUI();
+    refreshPrivacyUI();
 
     if (bioAvailable === null) bioAvailable = await biometricAvailable();
-    $("#privacyMethod").querySelector('option[value="biometric"]').disabled = !bioAvailable;
+    $("#setBioBtn").hidden = !bioAvailable;
     $("#privacyBioUnavailable").hidden = bioAvailable;
   }
 
-  function refreshPrivacyMethodUI() {
-    const method = $("#privacyMethod").value;
-    $("#privacyPinControls").hidden = method !== "pin";
-    $("#privacyBioControls").hidden = method !== "biometric";
-
+  function refreshPrivacyUI() {
     $("#privacyPinStatus").textContent = state.privacy.pinHash
       ? "A PIN is set on this device." : "No PIN set yet.";
     $("#setPinBtn").textContent = state.privacy.pinHash ? "Change PIN" : "Set PIN";
     $("#removePinBtn").hidden = !state.privacy.pinHash;
 
+    $("#setBioBtn").disabled = !state.privacy.pinHash;
+    $("#setBioBtn").title = state.privacy.pinHash ? "" : "Set a PIN first";
     $("#privacyBioStatus").textContent = state.privacy.credentialId
-      ? "Fingerprint/Face ID is set up on this device." : "Not set up yet.";
+      ? "Fingerprint/Face ID is set up on this device."
+      : (state.privacy.pinHash ? "Not set up yet." : "Set a PIN first to enable this.");
     $("#removeBioBtn").hidden = !state.privacy.credentialId;
   }
 
@@ -4050,14 +4050,10 @@
 
     $("#privacyEnabled").onchange = () => {
       const checked = $("#privacyEnabled").checked;
-      if (checked) {
-        const method = state.privacy.method;
-        const ready = method === "biometric" ? !!state.privacy.credentialId : !!state.privacy.pinHash;
-        if (!ready) {
-          toast("Set up a PIN or Fingerprint/Face ID first", true);
-          $("#privacyEnabled").checked = false;
-          return;
-        }
+      if (checked && !state.privacy.pinHash) {
+        toast("Set a PIN first", true);
+        $("#privacyEnabled").checked = false;
+        return;
       }
       state.privacy.enabled = checked;
       savePrivacySettings();
@@ -4065,11 +4061,6 @@
     $("#privacyGrace").onchange = () => {
       state.privacy.graceMinutes = parseInt($("#privacyGrace").value, 10) || 0;
       savePrivacySettings();
-    };
-    $("#privacyMethod").onchange = () => {
-      state.privacy.method = $("#privacyMethod").value;
-      savePrivacySettings();
-      refreshPrivacyMethodUI();
     };
     $("#setPinBtn").onclick = () => {
       $("#privacyPinForm").hidden = false;
@@ -4086,36 +4077,37 @@
       const salt = randomHex(16);
       state.privacy.pinSalt = salt;
       state.privacy.pinHash = await hashPin(a, salt);
-      state.privacy.method = "pin";
       savePrivacySettings();
       hidePinForm();
-      $("#privacyMethod").value = "pin";
-      refreshPrivacyMethodUI();
+      refreshPrivacyUI();
       toast("PIN set");
     };
     $("#removePinBtn").onclick = () => {
-      if (!confirm("Remove the PIN from this device?")) return;
+      const alsoBio = !!state.privacy.credentialId;
+      const msg = alsoBio
+        ? "Remove the PIN from this device? Fingerprint/Face ID requires a PIN fallback, so this will remove that too."
+        : "Remove the PIN from this device?";
+      if (!confirm(msg)) return;
       state.privacy.pinHash = null; state.privacy.pinSalt = null;
-      if (state.privacy.method === "pin") state.privacy.enabled = false;
+      if (alsoBio) state.privacy.credentialId = null;
+      state.privacy.enabled = false;
       savePrivacySettings();
-      refreshPrivacyMethodUI();
+      refreshPrivacyUI();
     };
     $("#setBioBtn").onclick = async () => {
+      if (!state.privacy.pinHash) { toast("Set a PIN first", true); return; }
       try {
         state.privacy.credentialId = await registerBiometric();
-        state.privacy.method = "biometric";
         savePrivacySettings();
-        $("#privacyMethod").value = "biometric";
-        refreshPrivacyMethodUI();
+        refreshPrivacyUI();
         toast("Fingerprint/Face ID set up");
       } catch (e) { toast("Couldn't set up: " + (e.message || e), true); }
     };
     $("#removeBioBtn").onclick = () => {
       if (!confirm("Remove Fingerprint/Face ID from this device?")) return;
       state.privacy.credentialId = null;
-      if (state.privacy.method === "biometric") state.privacy.enabled = false;
       savePrivacySettings();
-      refreshPrivacyMethodUI();
+      refreshPrivacyUI();
     };
     $("#exportJsonBtn").onclick = exportJson;
     $("#importJsonBtn").onclick = () => $("#importJsonInput").click();
@@ -4187,39 +4179,51 @@
       const input = $("#lockPinInput");
       const dots = $("#lockPinDots");
       const keypad = $("#lockKeypad");
+      const divider = $("#lockDivider");
       const bioBtn = $("#lockBioBtn");
       const errorEl = $("#lockError");
       const resetBtn = $("#lockResetBtn");
-      const isPin = state.privacy.method !== "biometric";
+      const hasPin = !!state.privacy.pinHash;
+      const hasBio = !!state.privacy.credentialId;
 
       screen.hidden = false;
       document.body.style.overflow = "hidden";
-      form.hidden = !isPin;
-      bioBtn.hidden = isPin;
+      form.hidden = !hasPin;
+      bioBtn.hidden = !hasBio;
+      divider.hidden = !(hasPin && hasBio);
       errorEl.hidden = true;
-      $("#lockHint").textContent = isPin
-        ? "Enter your PIN to continue."
-        : "Use your device's fingerprint or Face ID to continue.";
-      if (isPin) setTimeout(() => input.focus(), 50);
+      $("#lockHint").textContent = hasPin && hasBio
+        ? "Enter your PIN or use fingerprint/Face ID to continue."
+        : hasBio
+        ? "Use your device's fingerprint or Face ID to continue."
+        : "Enter your PIN to continue.";
+      if (hasPin) setTimeout(() => input.focus(), 50);
 
       // On-screen keypad mirrors the PIN into `input` (still typable directly
       // too, e.g. with a physical keyboard) — dots show progress without
-      // revealing the digits.
+      // revealing the digits. A matching PIN unlocks immediately, without
+      // needing to also press Unlock/Enter.
       function renderDots() {
         const len = input.value.length;
         const count = Math.max(4, len); // grows past 4 for longer PINs
         dots.innerHTML = "";
         for (let i = 0; i < count; i++) dots.appendChild(el("span", i < len ? "filled" : null));
       }
+      async function onPinChanged() {
+        renderDots();
+        if (!input.value) return;
+        const hash = await hashPin(input.value, state.privacy.pinSalt);
+        if (hash === state.privacy.pinHash) unlocked();
+      }
       renderDots();
-      input.addEventListener("input", renderDots);
+      input.addEventListener("input", onPinChanged);
       keypad.onclick = (e) => {
         const btn = e.target.closest("button[data-key]");
         if (!btn) return;
         const k = btn.dataset.key;
         if (k === "del") input.value = input.value.slice(0, -1);
         else if (input.value.length < 8) input.value += k;
-        renderDots();
+        onPinChanged();
       };
 
       function showError(msg) {
@@ -4236,7 +4240,7 @@
         bioBtn.onclick = null;
         resetBtn.onclick = null;
         keypad.onclick = null;
-        input.removeEventListener("input", renderDots);
+        input.removeEventListener("input", onPinChanged);
         box.classList.remove("shake");
       }
       function unlocked() {
@@ -4281,7 +4285,9 @@
         resolve();
         toast(recoverable ? "Local data cleared — reconnect in Settings to restore it" : "All data on this device permanently deleted");
       };
-      if (!isPin) bioBtn.onclick();
+      // Auto-prompt biometrics on open when available — the PIN form (if also
+      // set up) stays visible underneath as a fallback if it's cancelled/fails.
+      if (hasBio) bioBtn.onclick();
     });
   }
 

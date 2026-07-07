@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.52.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.53.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -39,6 +39,7 @@
         </div>
       </form>
 
+      <p class="lock-divider" id="lockDivider" hidden>or</p>
       <button class="btn btn-primary lock-bio-btn" id="lockBioBtn" type="button" hidden>Use Fingerprint / Face ID</button>
 
       <p class="lock-error" id="lockError" hidden></p>
@@ -544,14 +545,8 @@
         </label>
         <p class="hint">Skips the unlock prompt for this long after you last unlocked.</p>
 
-        <h4>Unlock method</h4>
-        <label>Method
-          <select id="privacyMethod">
-            <option value="pin">PIN</option>
-            <option value="biometric">Fingerprint / Face ID</option>
-          </select>
-        </label>
-        <p class="warn" id="privacyBioUnavailable" hidden>Fingerprint/Face ID isn't available on this device or browser.</p>
+        <h4>Unlock methods</h4>
+        <p class="hint">A PIN is required first — fingerprint/Face ID is an optional addition on top of it, with the PIN as a fallback if biometrics fail.</p>
 
         <div id="privacyPinControls">
           <div class="row" id="privacyPinForm" hidden>
@@ -571,7 +566,8 @@
           </div>
         </div>
 
-        <div id="privacyBioControls" hidden>
+        <div id="privacyBioControls">
+          <p class="warn" id="privacyBioUnavailable" hidden>Fingerprint/Face ID isn't available on this device or browser.</p>
           <p class="muted" id="privacyBioStatus"></p>
           <div class="btn-row">
             <button class="btn" id="setBioBtn" type="button">Set up Fingerprint / Face ID</button>
@@ -735,9 +731,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.52.0"></script>
-  <script src="src/media.js?v=0.52.0"></script>
-  <script src="src/storage.js?v=0.52.0"></script>
-  <script src="src/app.js?v=0.52.0"></script>
+  <script src="src/qr.js?v=0.53.0"></script>
+  <script src="src/media.js?v=0.53.0"></script>
+  <script src="src/storage.js?v=0.53.0"></script>
+  <script src="src/app.js?v=0.53.0"></script>
 </body>
 </html>

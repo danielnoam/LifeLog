@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.53.0] - 2026-07-07
+
+### Changed
+- App lock: Fingerprint/Face ID now always requires a PIN to be set up
+  first, as a mandatory fallback — you can no longer set up biometric
+  unlock on its own. Removing a PIN that has biometrics attached now
+  removes both, since biometric unlock isn't allowed to exist without
+  its fallback.
+- App lock screen: if a device has both a PIN and Fingerprint/Face ID
+  set up, both now show on the same unlock screen (a PIN pad plus a
+  "Use Fingerprint / Face ID" button below an "or" divider) instead of
+  only one method being available at a time.
+- App lock screen: entering the correct PIN now unlocks immediately —
+  no need to also press Unlock or hit Enter.
+
 ## [0.52.0] - 2026-07-07
 
 ### Removed
