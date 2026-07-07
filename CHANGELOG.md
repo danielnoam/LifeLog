@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.55.1] - 2026-07-07
+
+### Removed
+- SteamGridDB as a games source — confirmed on a real device that its
+  API is CORS-blocked from browser-side `fetch()` (a "Failed to fetch"
+  error), the same dead end as TheGamesDB/OMDb. Pulled the source, its
+  API key field, and its dropdown entries back out rather than leave a
+  non-functional option in Settings.
+
 ## [0.55.0] - 2026-07-07
 
 ### Added

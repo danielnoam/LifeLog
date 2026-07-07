@@ -1,6 +1,5 @@
-// LifeLog — media enrichment: fetch cover art and metadata from RAWG,
-// SteamGridDB, TMDB, Open Library, AniList, Jikan, Google Books, and
-// MusicBrainz.
+// LifeLog — media enrichment: fetch cover art and metadata from RAWG, TMDB,
+// Open Library, AniList, Jikan, Google Books, and MusicBrainz.
 (function () {
   // Set whenever a search/price fetch fails outright (network error, CORS
   // block, bad key, rate limit) so the UI can show *why* nothing came back
@@ -202,53 +201,6 @@
     return "https://cdn.akamai.steamstatic.com/steam/apps/" + encodeURIComponent(appId) + "/header.jpg";
   }
 
-  // Games fallback (behind RAWG) — cover-art focused, so results carry no
-  // year/rating, just a title match and a grid-style cover. Unconfirmed
-  // whether SteamGridDB's API allows browser-origin requests at all (unlike
-  // every other source here, no public confirmation either way); lastError
-  // is set on every failure path specifically so that's diagnosable without
-  // devtools (e.g. from a phone), instead of just silently returning [].
-  async function searchSteamGridDB(title, apiKey) {
-    if (!apiKey) return [];
-    try {
-      const url = "https://www.steamgriddb.com/api/v2/search/autocomplete/" + encodeURIComponent(title);
-      const res = await fetch(url, { headers: { Authorization: "Bearer " + apiKey } });
-      if (!res.ok) { lastError = "SteamGridDB lookup failed (HTTP " + res.status + ")"; return []; }
-      const data = await res.json();
-      if (!data || !data.success) { lastError = "SteamGridDB lookup failed (bad response)"; return []; }
-      const games = (data.data || []).slice(0, 5);
-      // The autocomplete endpoint returns name matches only; each pick's
-      // cover comes from a second per-game call to the grids endpoint, done
-      // lazily up front here (small batch, capped at 5) rather than only on
-      // pick, so the picker list itself shows real art like every other source.
-      const withCovers = await Promise.all(games.map(async (g) => {
-        let coverUrl = "";
-        try {
-          const gridRes = await fetch("https://www.steamgriddb.com/api/v2/grids/game/" + g.id, {
-            headers: { Authorization: "Bearer " + apiKey },
-          });
-          if (gridRes.ok) {
-            const gridData = await gridRes.json();
-            coverUrl = (gridData.success && gridData.data && gridData.data[0] && (gridData.data[0].thumb || gridData.data[0].url)) || "";
-          }
-        } catch (e) { /* missing cover isn't fatal — the title match still stands */ }
-        return {
-          id: String(g.id),
-          title: g.name || "",
-          coverUrl,
-          year: null,
-          summary: "",
-          externalRating: "",
-          source: "steamgriddb",
-        };
-      }));
-      return withCovers;
-    } catch (e) {
-      lastError = "SteamGridDB lookup failed (" + ((e && e.message) || "network/CORS error") + ")";
-      return [];
-    }
-  }
-
   // Looks up current/historical lowest prices for Steam app IDs via the
   // GG.deals API. appIds are Steam app IDs (the same id searchSteam returns).
   async function fetchGgDealsPrices(appIds, apiKey) {
@@ -295,7 +247,6 @@
       lastError = "";
       if (!title || !source) return [];
       if (source === "rawg") return searchRawg(title, keys.rawg || "");
-      if (source === "steamgriddb") return searchSteamGridDB(title, keys.steamgriddb || "");
       if (source === "tmdb-movie") return searchTmdb(title, "movie", keys.tmdb || "");
       if (source === "tmdb-tv") return searchTmdb(title, "tv", keys.tmdb || "");
       if (source === "openlibrary") return searchOpenLibrary(title);
