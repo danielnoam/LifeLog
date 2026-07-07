@@ -6,7 +6,7 @@
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" } }; // monthOrder, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys — synced
+  const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "" } }; // monthOrder, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys — synced
   const CURRENCY_SYMBOLS = { ILS: "₪", USD: "$", EUR: "€", GBP: "£" };
   const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big" }; // maxWidth 0 = stretch — local to this device, not synced
   const THEMES = ["light", "nord", "dracula"]; // "default" has no class — it's the bare :root palette
@@ -22,29 +22,11 @@
   const MEDIA_KEY = "lifelog-media-settings-v1";
   const DEFAULT_MEDIA = {}; // legacy local-only shape; rawgKey/tmdbKey migrated into synced settings on load (see normalize())
   const MEDIA_SOURCE_LABELS = {
-    rawg: "RAWG", "tmdb-movie": "TMDB", "tmdb-tv": "TMDB",
+    rawg: "RAWG", steamgriddb: "SteamGridDB", "tmdb-movie": "TMDB", "tmdb-tv": "TMDB",
     "anilist-anime": "AniList", "anilist-manga": "AniList",
     "jikan-anime": "Jikan", "jikan-manga": "Jikan",
     openlibrary: "Open Library", googlebooks: "Google Books", musicbrainz: "MusicBrainz",
     steam: "Steam",
-  };
-  // Which sources are interchangeable for the same media type — used to
-  // restrict a category's fallback-source dropdown to only the alternatives
-  // that make sense for its primary source (e.g. an anime fallback can only
-  // be another anime source). Steam and "None" are excluded: Steam has no
-  // search to fall back from/to (manual App ID only), and "None" means
-  // metadata fetching is off entirely.
-  const MEDIA_SOURCE_TYPE = {
-    rawg: "games",
-    "tmdb-movie": "movie",
-    "tmdb-tv": "tv",
-    "anilist-anime": "anime",
-    "jikan-anime": "anime",
-    "anilist-manga": "manga",
-    "jikan-manga": "manga",
-    openlibrary: "books",
-    googlebooks: "books",
-    musicbrainz: "music",
   };
   // How long a fetched GG.deals price stays valid before a backlog re-render
   // re-fetches it; avoids re-querying the rate-limited API on every render.
@@ -59,7 +41,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.54.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.55.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -3042,6 +3024,7 @@
     const sources = [
       { value: "", label: "None" },
       { value: "rawg", label: "RAWG (games)" },
+      { value: "steamgriddb", label: "SteamGridDB (games)" },
       { value: "steam", label: "Steam (manual App ID)" },
       { value: "tmdb-movie", label: "TMDB (movie)" },
       { value: "tmdb-tv", label: "TMDB (TV)" },
@@ -3053,6 +3036,12 @@
       { value: "googlebooks", label: "Google Books (books)" },
       { value: "musicbrainz", label: "MusicBrainz (music)" },
     ];
+    // Fallback dropdown offers every source (minus whatever's picked as
+    // primary and minus Steam, which has no search to fall back to/from —
+    // manual App ID only) — no restriction to "compatible" types, so it's
+    // on you to leave it at "No fallback" for a category where a second
+    // source doesn't make sense (e.g. Movies, until something else covers TMDB).
+    const fallbackSources = sources.filter((s) => s.value && s.value !== "steam");
     if (!state.data.categories.length) {
       container.appendChild(el("p", "muted", "No categories yet — add categories first."));
       return;
@@ -3070,37 +3059,21 @@
         sel.appendChild(opt);
       });
 
-      // Fallback source, tried only when the primary finds no matches — its
-      // options are limited to whatever else is compatible with the primary's
-      // media type (e.g. anime only offers other anime sources), so it's
-      // hidden entirely for types with just one supported source (games,
-      // movies/TV, music) until a second one exists.
       const arrow = el("span", "media-cat-arrow", "→");
       const fallbackSel = el("select", "media-cat-sel media-cat-fallback");
-      function refreshFallbackOptions() {
-        const type = MEDIA_SOURCE_TYPE[sel.value];
-        const current = (state.data.settings.mediaCategoryFallbackSources || {})[cat.name] || "";
-        fallbackSel.innerHTML = "";
-        const noneOpt = el("option", null, "No fallback");
-        noneOpt.value = "";
-        fallbackSel.appendChild(noneOpt);
-        const alts = type ? sources.filter((s) => s.value && s.value !== sel.value && MEDIA_SOURCE_TYPE[s.value] === type) : [];
-        alts.forEach((s) => {
-          const opt = el("option", null, s.label);
-          opt.value = s.value;
-          fallbackSel.appendChild(opt);
-        });
-        fallbackSel.value = alts.some((s) => s.value === current) ? current : "";
-        const show = alts.length > 0;
-        arrow.hidden = !show;
-        fallbackSel.hidden = !show;
-      }
-      refreshFallbackOptions();
+      const noneOpt = el("option", null, "No fallback");
+      noneOpt.value = "";
+      fallbackSel.appendChild(noneOpt);
+      fallbackSources.forEach((s) => {
+        const opt = el("option", null, s.label);
+        opt.value = s.value;
+        if ((state.data.settings.mediaCategoryFallbackSources || {})[cat.name] === s.value) opt.selected = true;
+        fallbackSel.appendChild(opt);
+      });
 
       sel.onchange = async () => {
         if (!state.data.settings.mediaCategorySources) state.data.settings.mediaCategorySources = {};
         state.data.settings.mediaCategorySources[cat.name] = sel.value;
-        refreshFallbackOptions();
         await persist();
       };
       fallbackSel.onchange = async () => {
@@ -3122,6 +3095,7 @@
     $("#rawgKey").value = state.data.settings.mediaKeys?.rawg || "";
     $("#tmdbKey").value = state.data.settings.mediaKeys?.tmdb || "";
     $("#ggdealsKey").value = state.data.settings.mediaKeys?.ggdeals || "";
+    $("#steamgriddbKey").value = state.data.settings.mediaKeys?.steamgriddb || "";
     renderMediaCatRows();
   }
 
@@ -4121,6 +4095,7 @@
     $("#rawgKey").oninput = () => setMediaKey("rawg", $("#rawgKey").value);
     $("#tmdbKey").oninput = () => setMediaKey("tmdb", $("#tmdbKey").value);
     $("#ggdealsKey").oninput = () => setMediaKey("ggdeals", $("#ggdealsKey").value);
+    $("#steamgriddbKey").oninput = () => setMediaKey("steamgriddb", $("#steamgriddbKey").value);
 
     $("#privacyEnabled").onchange = () => {
       const checked = $("#privacyEnabled").checked;

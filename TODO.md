@@ -7,14 +7,20 @@ todo:
   actions done on other devices during that same offline period, once
   back online
 - auto wishlist import for Steam, and GG.deals cost support for it
+- confirm whether SteamGridDB actually works as a games source from a
+  browser (paste a key in Settings → Media and try it) — if it's
+  CORS-blocked like TheGamesDB/OMDb/Jikan-competitors turned out to be,
+  pull it back out
 
 done:
 
-- each category's media source can now have a fallback, tried
-  automatically when the primary finds no matches: anime/manga can fall
-  back from AniList to a new Jikan source, and books from Open Library
-  to Google Books; games and movies/TV stay single-source since no
-  second browser-callable (CORS-friendly) API exists for them yet
+- each category's media source can now have an optional fallback,
+  tried automatically when the primary finds no matches — the
+  fallback dropdown offers every source, not just ones "compatible"
+  with the primary's type, so it's on you to leave it at "No fallback"
+  where a second source doesn't make sense; added Jikan (anime/manga,
+  behind AniList) and SteamGridDB (games cover art, behind RAWG,
+  CORS support unconfirmed) as two new sources
 - app lock: Fingerprint/Face ID now requires a PIN to be set up first as
   a mandatory fallback, instead of being usable on its own; the lock
   screen shows both the PIN pad and a Fingerprint/Face ID button

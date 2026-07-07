@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.55.0] - 2026-07-07
+
+### Added
+- SteamGridDB as a games cover-art source, selectable as a fallback (or
+  primary) alongside RAWG. Whether it actually works from a browser is
+  unconfirmed — SteamGridDB's CORS support couldn't be verified ahead
+  of time, so this ships as a "try it and see" option; every source
+  here already fails silently if a fetch is blocked, so there's no
+  downside to having it available.
+
+### Changed
+- Media sources: the fallback-source dropdown for each category now
+  offers every source, not just ones "compatible" with the primary's
+  media type — pick whatever you want, including no fallback for
+  categories that don't need one (like Movies).
+
 ## [0.54.0] - 2026-07-07
 
 ### Added
