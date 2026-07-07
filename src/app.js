@@ -41,7 +41,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.56.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.57.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -284,6 +284,9 @@
   // state.data.financeEntries for them. This keeps the template the single
   // source of truth: editing it changes every past and future occurrence,
   // and there's no per-occurrence row to clean up if it's stopped or edited.
+  // rec.overrides (optional) keys a sparse { amount?, note? } patch by
+  // occurrence date, for the rare month that genuinely differed (a price
+  // change, a one-off note) without dragging every other occurrence along.
   function addMonthsClamped(date, n, day) {
     const d = new Date(date.getFullYear(), date.getMonth() + n, 1);
     const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
@@ -307,10 +310,15 @@
     let d = start;
     let n = 0;
     while (d <= cutoff) {
+      const dateStr = d.toISOString().slice(0, 10);
+      const ov = (rec.overrides || {})[dateStr];
       out.push({
-        id: `${rec.id}:${n}`, date: d.toISOString().slice(0, 10), type: "expense",
-        amount: rec.amount, category: rec.category, note: rec.note, createdAt: rec.createdAt,
-        recurringId: rec.id, virtual: true,
+        id: `${rec.id}:${n}`, date: dateStr, type: "expense",
+        amount: ov && ov.amount != null ? ov.amount : rec.amount,
+        category: rec.category,
+        note: ov && ov.note != null ? ov.note : rec.note,
+        createdAt: rec.createdAt,
+        recurringId: rec.id, virtual: true, overridden: !!ov,
       });
       n++;
       d = nextRecurringDate(d, rec.interval, anchorDay);
@@ -1286,11 +1294,18 @@
     const t = el("span", "etitle", f.note || f.category);
     t.title = f.note || f.category;
     row.appendChild(t);
-    if (f.virtual) row.appendChild(el("span", "recur-badge", "↻"));
+    if (f.virtual) {
+      const badge = el("span", "recur-badge", f.overridden ? "↻*" : "↻");
+      badge.title = f.overridden ? "Recurring — custom amount/note for this date" : "Recurring";
+      row.appendChild(badge);
+    }
     const amt = el("span", "famount fnegative", formatMoney(f.amount));
     row.appendChild(amt);
     row.onclick = f.virtual
-      ? () => openRecurringModal(state.data.recurringExpenses.find((r) => r.id === f.recurringId))
+      ? () => {
+          const rec = state.data.recurringExpenses.find((r) => r.id === f.recurringId);
+          if (rec) openRecurringOccModal(rec, f);
+        }
       : () => (state.bulk.active ? toggleBulkItem(f.id) : openFinanceModal(f));
     if (!f.virtual) attachLongPressSelect(row, f);
     return row;
@@ -2575,9 +2590,11 @@
       const list = $("#recOccList");
       list.innerHTML = "";
       occ.forEach((o) => {
-        const row = el("div", "rec-occ-row");
-        row.appendChild(el("span", "rec-occ-date", o.date));
+        const row = el("div", "rec-occ-row" + (o.overridden ? " is-overridden" : ""));
+        row.appendChild(el("span", "rec-occ-date", o.date + (o.overridden ? " *" : "")));
         row.appendChild(el("span", "rec-occ-amount", "-" + formatMoney(o.amount)));
+        row.title = "Edit this occurrence";
+        row.onclick = () => openRecurringOccModal(rec, o);
         list.appendChild(row);
       });
       occWrap.hidden = false;
@@ -2587,6 +2604,59 @@
     $("#recurringModal").hidden = false;
   }
   function closeRecurringModal() { $("#recurringModal").hidden = true; }
+
+  // Edits one generated occurrence's amount/note without touching the
+  // template or any other occurrence — stored as a sparse patch on
+  // rec.overrides, keyed by that occurrence's date.
+  function openRecurringOccModal(rec, occ) {
+    $("#recurringOccModalTitle").textContent = occ.date;
+    $("#recOccRecId").value = rec.id;
+    $("#recOccDate").value = occ.date;
+    $("#recOccAmount").value = occ.amount;
+    $("#recOccNote").value = occ.note || "";
+    $("#resetRecOccBtn").hidden = !occ.overridden;
+    $("#recurringOccModal").hidden = false;
+  }
+  function closeRecurringOccModal() { $("#recurringOccModal").hidden = true; }
+
+  async function saveRecurringOccFromForm(ev) {
+    ev.preventDefault();
+    const rec = state.data.recurringExpenses.find((x) => x.id === $("#recOccRecId").value);
+    if (!rec) return;
+    const date = $("#recOccDate").value;
+    const amount = Math.abs(parseFloat($("#recOccAmount").value)) || 0;
+    const note = $("#recOccNote").value.trim();
+    const ov = {};
+    if (amount !== rec.amount) ov.amount = amount;
+    if (note !== (rec.note || "")) ov.note = note;
+    if (Object.keys(ov).length) {
+      if (!rec.overrides) rec.overrides = {};
+      rec.overrides[date] = ov;
+    } else if (rec.overrides) {
+      delete rec.overrides[date];
+      if (!Object.keys(rec.overrides).length) delete rec.overrides;
+    }
+    const reopenTemplate = !$("#recurringModal").hidden;
+    closeRecurringOccModal();
+    render();
+    await persist();
+    toast("Occurrence updated");
+    if (reopenTemplate) openRecurringModal(rec);
+  }
+  async function resetRecurringOcc() {
+    const rec = state.data.recurringExpenses.find((x) => x.id === $("#recOccRecId").value);
+    const date = $("#recOccDate").value;
+    if (rec && rec.overrides) {
+      delete rec.overrides[date];
+      if (!Object.keys(rec.overrides).length) delete rec.overrides;
+    }
+    const reopenTemplate = !$("#recurringModal").hidden;
+    closeRecurringOccModal();
+    render();
+    await persist();
+    toast("Reset to template amount");
+    if (reopenTemplate && rec) openRecurringModal(rec);
+  }
 
   async function saveRecurringFromForm(ev) {
     ev.preventDefault();
@@ -2637,12 +2707,29 @@
     toast("Recurring expense deleted");
   }
 
+  // Finds, among a template's generated occurrences, the one closest in
+  // time to a given date — used to map a linked real entry onto whichever
+  // occurrence date the template actually lands on for that period, since
+  // the entry's own date (e.g. the 3rd) doesn't necessarily match the
+  // template's anchor day (e.g. the 5th).
+  function closestOccurrenceDate(occs, targetDateStr) {
+    const target = new Date(targetDateStr + "T00:00:00").getTime();
+    let best = null, bestDiff = Infinity;
+    for (const o of occs) {
+      const diff = Math.abs(new Date(o.date + "T00:00:00").getTime() - target);
+      if (diff < bestDiff) { bestDiff = diff; best = o.date; }
+    }
+    return best;
+  }
+
   // Lets old, manually-logged finance entries (from before this recurring
   // expense existed, or a stray real entry that duplicates a since-covered
   // period) be folded into the template: picked entries are deleted, and if
   // any predate the template's start, the start date moves back to cover
-  // them — from then on that history is generated by the template like
-  // everything else, at the template's current amount/category/note.
+  // them. Each linked entry's own amount/note is preserved as a
+  // per-occurrence override rather than silently snapping to the
+  // template's current amount — a bill that changed price over time
+  // shouldn't have its history rewritten by linking it.
   function openLinkPastExpensesPicker(rec) {
     // Yearly big-purchase entries only carry a bare year (no month/day), so
     // they're excluded both because a template's startDate needs a real
@@ -2653,7 +2740,7 @@
     const items = candidates.map((e) => ({ kind: "finance", entry: e, dup: false, checked: false }));
     openImportPicker({
       title: "Link past expenses",
-      hint: `Pick expenses you logged before this recurring expense existed (or a stray duplicate of one it already covers). Linked ones are removed — if any predate ${rec.startDate}, the start date moves back to cover them, and they'll show up as this recurring expense's own generated history instead, at its current amount.`,
+      hint: `Pick expenses you logged before this recurring expense existed (or a stray duplicate of one it already covers). Linked ones are removed — if any predate ${rec.startDate}, the start date moves back to cover them. Each one keeps its own original amount/note as an override, so a price that changed over time isn't flattened to the template's current amount.`,
       mode: "link",
       items,
       searchable: true,
@@ -2665,6 +2752,21 @@
         const minDate = selected.map((i) => i.entry.date).sort()[0];
         const movedStart = minDate < rec.startDate;
         if (movedStart) rec.startDate = minDate;
+
+        const today = new Date(); today.setHours(0, 0, 0, 0);
+        const occs = recurringOccurrences(rec, today);
+        selected.forEach((i) => {
+          const e = i.entry;
+          const ov = {};
+          if (e.amount !== rec.amount) ov.amount = e.amount;
+          if ((e.note || "") !== (rec.note || "")) ov.note = e.note || "";
+          if (Object.keys(ov).length) {
+            const occDate = closestOccurrenceDate(occs, e.date) || e.date;
+            if (!rec.overrides) rec.overrides = {};
+            rec.overrides[occDate] = ov;
+          }
+        });
+
         buildYearFilter();
         render();
         await persist();
@@ -3837,6 +3939,17 @@
     };
     if (r.note) out.note = r.note;
     if (r.endDate) out.endDate = r.endDate;
+    if (r.overrides && typeof r.overrides === "object") {
+      const overrides = {};
+      for (const [date, ov] of Object.entries(r.overrides)) {
+        if (!ov || typeof ov !== "object") continue;
+        const clean = {};
+        if (ov.amount != null) clean.amount = Math.abs(+ov.amount) || 0;
+        if (ov.note != null) clean.note = String(ov.note);
+        if (Object.keys(clean).length) overrides[date] = clean;
+      }
+      if (Object.keys(overrides).length) out.overrides = overrides;
+    }
     return out;
   }
   const recurringKey = (r) => `${r.startDate}|${r.interval}|${+r.amount}|${(r.category || "").toLowerCase()}|${(r.note || "").toLowerCase()}`;
@@ -4087,6 +4200,14 @@
     $("#linkPastExpensesBtn").onclick = () => {
       const rec = state.data.recurringExpenses.find((x) => x.id === $("#recId").value);
       if (rec) openLinkPastExpensesPicker(rec);
+    };
+    $("#cancelRecOccBtn").onclick = closeRecurringOccModal;
+    $("#recurringOccForm").onsubmit = saveRecurringOccFromForm;
+    $("#resetRecOccBtn").onclick = resetRecurringOcc;
+    $("#editRecTemplateBtn").onclick = () => {
+      const rec = state.data.recurringExpenses.find((x) => x.id === $("#recOccRecId").value);
+      closeRecurringOccModal();
+      if (rec) openRecurringModal(rec);
     };
 
     $("#cancelFinanceCatBtn").onclick = cancelFinanceCatModal;

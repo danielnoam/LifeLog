@@ -14,6 +14,12 @@ todo:
 
 done:
 
+- recurring expenses: occurrences can now be edited individually — click
+  one (in the Ledger or the template's own list) to set a per-date
+  amount/note override without changing the template or any other
+  occurrence, shown with a ↻* badge; linking past expenses now preserves
+  each one's original amount/note this way too, instead of flattening
+  it to the template's current amount
 - recurring expenses: added a "🔗 Link past expenses" button in the edit
   modal — a searchable picker (styled like the import review screens)
   over your existing expenses in that category, so old manually-logged

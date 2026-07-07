@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.56.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.57.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -350,6 +350,33 @@
           <button type="button" class="btn btn-danger" id="deleteRecurringBtn" hidden>Delete</button>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelRecurringBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Edit a single recurring occurrence (amount/note only — everything
+       else, including which dates exist at all, still comes from the
+       template) -->
+  <div class="modal-overlay" id="recurringOccModal" hidden>
+    <div class="modal">
+      <h2 id="recurringOccModalTitle">Edit occurrence</h2>
+      <form id="recurringOccForm">
+        <input type="hidden" id="recOccRecId" />
+        <input type="hidden" id="recOccDate" />
+        <label>Amount
+          <input id="recOccAmount" type="number" min="0" step="0.01" required />
+        </label>
+        <label>Note
+          <input id="recOccNote" type="text" autocomplete="off" placeholder="Optional description…" />
+        </label>
+        <p class="hint">Only changes this one date — every other occurrence keeps following the template.</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="resetRecOccBtn" hidden>Reset to template</button>
+          <span class="spacer"></span>
+          <button type="button" class="link-btn" id="editRecTemplateBtn">Edit the template instead</button>
+          <button type="button" class="btn" id="cancelRecOccBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
         </div>
       </form>
@@ -735,9 +762,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.56.0"></script>
-  <script src="src/media.js?v=0.56.0"></script>
-  <script src="src/storage.js?v=0.56.0"></script>
-  <script src="src/app.js?v=0.56.0"></script>
+  <script src="src/qr.js?v=0.57.0"></script>
+  <script src="src/media.js?v=0.57.0"></script>
+  <script src="src/storage.js?v=0.57.0"></script>
+  <script src="src/app.js?v=0.57.0"></script>
 </body>
 </html>

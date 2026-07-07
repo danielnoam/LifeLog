@@ -385,8 +385,10 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .rec-occ-head .link-btn:hover { text-decoration: underline; }
 .rec-occ-list { max-height: 160px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); }
-.rec-occ-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 10px; font-size: 12.5px; }
+.rec-occ-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 10px; font-size: 12.5px; cursor: pointer; }
 .rec-occ-row:not(:last-child) { border-bottom: 1px solid var(--border); }
+.rec-occ-row:hover { background: var(--bg-elev-2); }
+.rec-occ-row.is-overridden .rec-occ-date { color: var(--accent); }
 .rec-occ-date { color: var(--text-dim); }
 .rec-occ-amount { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--danger); }
 
@@ -590,6 +592,10 @@ body.modal-open { overflow: hidden; }
 
 .modal-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 .modal-actions .spacer { flex: 1; }
+.modal-actions .link-btn {
+  background: none; border: none; color: var(--accent); cursor: pointer; font-size: 12.5px; padding: 0;
+}
+.modal-actions .link-btn:hover { text-decoration: underline; }
 
 .ac-wrap { position: relative; display: flex; align-items: center; gap: 6px; margin-top: 5px; }
 .ac-wrap input { flex: 1; margin-top: 0; width: auto; }

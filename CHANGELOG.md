@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.57.0] - 2026-07-07
+
+### Added
+- Recurring expenses: individual occurrences can now be edited on their
+  own — click any generated occurrence (in the Ledger, or in the
+  template's own occurrence list) to open a small editor for just that
+  date's amount/note, stored as an override without touching the
+  template or any other occurrence. Overridden dates show a `↻*` badge
+  instead of the usual `↻`, and a "Reset to template" button clears the
+  override. Linking past expenses now preserves each one's original
+  amount/note as one of these overrides too, instead of flattening it
+  to the template's current amount — a bill that changed price over
+  time keeps its real history.
+
 ## [0.56.0] - 2026-07-07
 
 ### Added
