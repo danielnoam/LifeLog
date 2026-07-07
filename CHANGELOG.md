@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.52.0] - 2026-07-07
+
+### Removed
+- Income tracking in Finance is gone — the Type (Expense/Income) field
+  on finance entries, the Overview income/expense/net stats, the
+  savings-rate stat, and the "Income by category" card have all been
+  removed. Every amount now shows as a plain expense (no +/- sign);
+  the Overview card is now a single "Expenses" total. Finance CSV
+  export no longer has a "Type" column. If your existing data has any
+  entries saved with `type: "income"`, they'll be treated as ordinary
+  expenses (folded into the same totals) the next time they're saved
+  or re-imported — this app only tracks expenses now.
+
 ## [0.51.2] - 2026-07-07
 
 ### Changed

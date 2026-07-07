@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.51.2" />
+  <link rel="stylesheet" href="src/styles.css?v=0.52.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -291,17 +291,9 @@
         <label id="finYearLabel" hidden>Year
           <input id="finYear" type="number" min="1900" max="2999" step="1" />
         </label>
-        <div class="row">
-          <label id="finTypeLabel">Type
-            <select id="finType">
-              <option value="expense">Expense</option>
-              <option value="income">Income</option>
-            </select>
-          </label>
-          <label>Amount
-            <input id="finAmount" type="number" min="0" step="0.01" required />
-          </label>
-        </div>
+        <label>Amount
+          <input id="finAmount" type="number" min="0" step="0.01" required />
+        </label>
         <label>Category
           <select id="finCategory" required></select>
         </label>
@@ -743,9 +735,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.51.2"></script>
-  <script src="src/media.js?v=0.51.2"></script>
-  <script src="src/storage.js?v=0.51.2"></script>
-  <script src="src/app.js?v=0.51.2"></script>
+  <script src="src/qr.js?v=0.52.0"></script>
+  <script src="src/media.js?v=0.52.0"></script>
+  <script src="src/storage.js?v=0.52.0"></script>
+  <script src="src/app.js?v=0.52.0"></script>
 </body>
 </html>

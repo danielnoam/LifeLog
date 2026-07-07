@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.51.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.52.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -1206,7 +1206,7 @@
       root.appendChild(emptyState({
         glyph: CURRENCY_SYMBOLS[state.data.settings.currency] || CURRENCY_SYMBOLS.ILS,
         title: "No finance entries yet",
-        body: "Track an expense or income and LifeLog starts building your monthly summary, category breakdown and spend trend.",
+        body: "Track an expense and LifeLog starts building your monthly summary, category breakdown and spend trend.",
         action: "Add finance entry",
         onAction: () => openFinanceModal(null),
         hint: "Recurring expenses can generate their entries automatically.",
@@ -1244,12 +1244,11 @@
           onAdd: () => openFinanceModal(null, { year: yy, month: mm }),
         }));
         monthItems.slice().sort((a, b) => b.date.localeCompare(a.date)).forEach((f) => card.appendChild(financeRow(f)));
-        const total = monthItems.reduce((s, f) => s + (f.type === "income" ? f.amount : -f.amount), 0);
+        const total = monthItems.reduce((s, f) => s + f.amount, 0);
         const totalRow = el("div", "month-total");
         totalRow.appendChild(el("span", null, "Total"));
-        const totalAmt = el("span", "famount " + (total >= 0 ? "fpositive" : "fnegative"));
-        animatedNumberText(totalAmt, "fin-month-total:" + yy + "-" + mm, total,
-          (v) => (v >= 0 ? "+" : "-") + formatMoney(Math.abs(v)));
+        const totalAmt = el("span", "famount fnegative");
+        animatedNumberText(totalAmt, "fin-month-total:" + yy + "-" + mm, total, formatMoney);
         totalRow.appendChild(totalAmt);
         card.appendChild(totalRow);
         grid.appendChild(card);
@@ -1285,8 +1284,7 @@
     t.title = f.note || f.category;
     row.appendChild(t);
     if (f.virtual) row.appendChild(el("span", "recur-badge", "↻"));
-    const sign = f.type === "income" ? "+" : "-";
-    const amt = el("span", "famount " + (f.type === "income" ? "fpositive" : "fnegative"), sign + formatMoney(f.amount));
+    const amt = el("span", "famount fnegative", formatMoney(f.amount));
     row.appendChild(amt);
     row.onclick = f.virtual
       ? () => openRecurringModal(state.data.recurringExpenses.find((r) => r.id === f.recurringId))
@@ -1300,7 +1298,7 @@
       root.appendChild(emptyState({
         glyph: CURRENCY_SYMBOLS[state.data.settings.currency] || CURRENCY_SYMBOLS.ILS,
         title: "No finance entries yet",
-        body: "Track an expense or income and LifeLog starts building your monthly summary, category breakdown and spend trend.",
+        body: "Track an expense and LifeLog starts building your monthly summary, category breakdown and spend trend.",
         action: "Add finance entry",
         onAction: () => openFinanceModal(null),
         hint: "Recurring expenses can generate their entries automatically.",
@@ -1313,33 +1311,22 @@
       return;
     }
 
-    const income = items.filter((f) => f.type === "income").reduce((s, f) => s + f.amount, 0);
-    const expense = items.filter((f) => f.type === "expense").reduce((s, f) => s + f.amount, 0);
+    const expense = items.reduce((s, f) => s + f.amount, 0);
 
     const big = el("div", "card");
-    big.appendChild(el("h2", null, "Overview"));
+    big.appendChild(el("h2", null, "Expenses"));
     const bigRow = el("div", "stat-big");
-    bigRow.appendChild(moneyStatItem(income, "income", "var(--income)"));
-    bigRow.appendChild(moneyStatItem(expense, "expenses", "var(--expense)"));
-    bigRow.appendChild(moneyStatItem(income - expense, "net"));
-    if (income > 0) {
-      const savingsRate = (income - expense) / income * 100;
-      bigRow.appendChild(pctStatItem(savingsRate, "savings rate", savingsRate >= 0 ? "var(--income)" : "var(--expense)"));
-    }
+    bigRow.appendChild(moneyStatItem(expense, "total", "var(--expense)"));
     big.appendChild(bigRow);
     root.appendChild(big);
 
     const grid = el("div", "stats-grid");
-    const expenseItems = items.filter((f) => f.type === "expense");
-    const incomeItems = items.filter((f) => f.type === "income");
-
-    grid.appendChild(financeCategoryCard("By category", expenseItems));
-    grid.appendChild(financeCategoryCard("Income by category", incomeItems));
+    grid.appendChild(financeCategoryCard("By category", items));
 
     const yearCard = el("div", "card");
     yearCard.appendChild(el("h2", null, "By year"));
     const yearTotals = {};
-    for (const f of expenseItems) {
+    for (const f of items) {
       const y = financeYearOf(f);
       yearTotals[y] = (yearTotals[y] || 0) + f.amount;
     }
@@ -1351,12 +1338,11 @@
     root.appendChild(grid);
 
     renderFinanceMonthCard(root, items);
-    renderRecurringSplitCard(root, expenseItems);
-    renderTopExpensesCard(root, expenseItems);
+    renderRecurringSplitCard(root, items);
+    renderTopExpensesCard(root, items);
   }
 
-  // Shared by the expense and income "by category" cards — same shape,
-  // different type filter, so the totals/counts/ordering logic lives once.
+  // Builds the "By category" breakdown card (bar per category, sorted by total).
   function financeCategoryCard(title, catItems) {
     const card = el("div", "card");
     card.appendChild(el("h2", null, title));
@@ -1381,7 +1367,7 @@
     return a - b;
   };
 
-  // Real per-month net (income − expense), replacing the old flat
+  // Real per-month expense total, replacing the old flat
   // yearTotal/12 "Per month average" — one year at a time via a tab
   // picker, same pattern as the Journal Stats "Year in Review" card.
   function renderFinanceMonthCard(root, items) {
@@ -1407,15 +1393,14 @@
     Object.keys(byMonth).sort(monthSortAsc).forEach((m) => {
       const mm = +m;
       const label = mm === 0 ? "Yearly" : MONTHS[mm];
-      const net = byMonth[m].reduce((s, f) => s + (f.type === "income" ? f.amount : -f.amount), 0);
-      card.appendChild(signedMoneyRow(label, net));
+      const total = byMonth[m].reduce((s, f) => s + f.amount, 0);
+      card.appendChild(financeMoneyRow(label, total));
     });
     root.appendChild(card);
   }
 
   // Splits filtered expenses between auto-generated recurring occurrences
-  // and manually-entered one-off ones — recurringOccurrences() only ever
-  // emits type "expense", so there's no recurring-income equivalent.
+  // and manually-entered one-off ones.
   function renderRecurringSplitCard(root, expenseItems) {
     if (!expenseItems.length) return;
     const recurring = expenseItems.filter((f) => f.virtual);
@@ -1459,21 +1444,10 @@
     i.appendChild(el("div", "l", l));
     return i;
   }
-  function pctStatItem(n, l, color) {
-    const i = el("div", "item");
-    const nEl = el("div", "n");
-    if (color) nEl.style.color = color;
-    nEl.textContent = Math.round(n) + "%";
-    i.appendChild(nEl);
-    i.appendChild(el("div", "l", l));
-    return i;
-  }
-  function signedMoneyRow(label, amount) {
+  function financeMoneyRow(label, amount) {
     const row = el("div", "month-total");
     row.appendChild(el("span", null, String(label)));
-    const amt = el("span", "famount " + (amount >= 0 ? "fpositive" : "fnegative"),
-      (amount >= 0 ? "+" : "-") + formatMoney(Math.abs(amount)));
-    row.appendChild(amt);
+    row.appendChild(el("span", "famount fnegative", formatMoney(amount)));
     return row;
   }
 
@@ -2506,7 +2480,6 @@
     const yearly = $("#finYearly").checked;
     $("#finDateLabel").hidden = yearly;
     $("#finYearLabel").hidden = !yearly;
-    $("#finTypeLabel").hidden = yearly;
     $("#finDate").required = !yearly;
     $("#finYear").required = yearly;
   }
@@ -2519,7 +2492,6 @@
     $("#finDate").value = (editing && !yearly) ? entry.date
       : (!yearly && presetDate ? `${presetDate.year}-${String(presetDate.month).padStart(2, "0")}-01` : new Date().toISOString().slice(0, 10));
     $("#finYear").value = yearly ? (editing ? entry.date : (presetDate ? String(presetDate.year) : "")) : "";
-    $("#finType").value = editing ? entry.type : "expense";
     $("#finAmount").value = editing ? entry.amount : "";
     fillCategorySelect($("#finCategory"), state.data.financeCategories,
       editing ? entry.category : (state.data.financeCategories[0] && state.data.financeCategories[0].name));
@@ -2535,7 +2507,6 @@
     const id = $("#financeId").value;
     const yearly = $("#finYearly").checked;
     const date = yearly ? $("#finYear").value : $("#finDate").value;
-    const type = yearly ? "expense" : ($("#finType").value === "income" ? "income" : "expense");
     const amount = Math.abs(parseFloat($("#finAmount").value)) || 0;
     const category = $("#finCategory").value;
     const note = $("#finNote").value.trim();
@@ -2543,11 +2514,11 @@
     if (yearly && !/^\d{4}$/.test(date)) return;
     if (id) {
       const f = state.data.financeEntries.find((x) => x.id === id);
-      Object.assign(f, { date, type, amount, category });
+      Object.assign(f, { date, amount, category });
       if (note) f.note = note; else delete f.note;
       if (yearly) f.yearly = true; else delete f.yearly;
     } else {
-      const item = { id: uid(), date, type, amount, category, createdAt: new Date().toISOString() };
+      const item = { id: uid(), date, amount, category, createdAt: new Date().toISOString() };
       if (note) item.note = note;
       if (yearly) item.yearly = true;
       state.data.financeEntries.push(item);
@@ -3534,11 +3505,11 @@
         if (!amount) continue;
         const category = (row[1 + m * 3] || "").trim() || "Other";
         const note = (row[2 + m * 3] || "").trim();
-        monthly.push({ date: `${currentYear}-${String(m + 1).padStart(2, "0")}-01`, type: "expense", amount, category, note });
+        monthly.push({ date: `${currentYear}-${String(m + 1).padStart(2, "0")}-01`, amount, category, note });
       }
       if (label && !reservedLabels.has(label)) {
         const amount = parseMoneyCell(row[36]);
-        if (amount) yearly.push({ date: currentYear, type: "expense", amount, category: "Other", note: label, yearly: true });
+        if (amount) yearly.push({ date: currentYear, amount, category: "Other", note: label, yearly: true });
       }
     }
     if (currentYear === null) throw new Error("No year blocks found — is this the right CSV export?");
@@ -3567,9 +3538,9 @@
       confirmLabel: "Export",
       onConfirm: (selected) => {
         if (!selected.length) { toast("Nothing selected"); return; }
-        const rows = [["Date", "Type", "Amount", "Category", "Note", "Yearly"]];
+        const rows = [["Date", "Amount", "Category", "Note", "Yearly"]];
         selected.map((i) => i.entry).sort((a, b) => b.date.localeCompare(a.date)).forEach((f) =>
-          rows.push([f.date, f.type, f.amount, f.category, f.note || "", f.yearly ? "yes" : ""]));
+          rows.push([f.date, f.amount, f.category, f.note || "", f.yearly ? "yes" : ""]));
         download("lifelog-finance.csv", rows.map((r) => r.map(csvEsc).join(",")).join("\n"), "text/csv");
         toast(`Exported ${selected.length} entr${selected.length === 1 ? "y" : "ies"}`);
       },
@@ -3614,8 +3585,7 @@
       row.appendChild(el("span", "fdate" + (e.yearly ? " fyearly" : ""), e.yearly ? `${e.date} · yearly` : e.date));
       const t = el("span", "etitle", e.note || e.category); t.title = e.note || e.category; row.appendChild(t);
       row.appendChild(el("span", "ecat", e.category));
-      const sign = e.type === "income" ? "+" : "-";
-      row.appendChild(el("span", "famount " + (e.type === "income" ? "fpositive" : "fnegative"), sign + formatMoney(e.amount)));
+      row.appendChild(el("span", "famount fnegative", formatMoney(e.amount)));
     } else if (item.kind === "recurring") {
       row.appendChild(el("span", "fdate", e.startDate));
       row.appendChild(el("span", "recur-badge", "↻ " + e.interval));
@@ -3752,20 +3722,18 @@
     const out = {
       id: f.id || uid(),
       date: f.date || "",
-      type: f.type === "income" ? "income" : "expense",
       amount: Math.abs(+f.amount) || 0,
       category: f.category || "Other",
       createdAt: f.createdAt || null,
     };
     if (f.yearly) {
       out.yearly = true;
-      out.type = "expense";
       out.date = String(out.date).slice(0, 4);
     }
     if (f.note) out.note = f.note;
     return out;
   }
-  const financeKey = (f) => `${(f.date || "").toLowerCase()}|${f.type}|${+f.amount}|${(f.category || "").toLowerCase()}|${(f.note || "").toLowerCase()}|${f.yearly ? 1 : 0}`;
+  const financeKey = (f) => `${(f.date || "").toLowerCase()}|${+f.amount}|${(f.category || "").toLowerCase()}|${(f.note || "").toLowerCase()}|${f.yearly ? 1 : 0}`;
   function sanitizeRecurring(r) {
     const out = {
       id: r.id || uid(),

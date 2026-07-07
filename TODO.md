@@ -9,11 +9,14 @@ todo:
   actions done on other devices during that same offline period, once
   back online
 - auto wishlist import for Steam, and GG.deals cost support for it
-- remove income from Finance — not used, strip it out (income type on
-  entries, income stats/breakdown, savings rate, etc.)
 
 done:
 
+- removed income tracking from Finance entirely — the Type field on
+  entries, the income/expense/net stats, the savings-rate stat, and
+  the "Income by category" card are all gone; every amount now shows
+  as a plain expense with no +/- sign, and CSV export dropped its
+  "Type" column
 - backlog priority star now sits inline with the title in list rows
   instead of wasting its own line; the "★ Prioritize" toggle in the
   backlog editor moved from a form row into a compact button next to

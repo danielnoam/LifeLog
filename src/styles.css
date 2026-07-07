@@ -26,7 +26,6 @@
   --danger-bg: rgba(226,85,75,.12);
   --danger-text: #ffcaca;
   --success: #4bd07a;
-  --income: var(--success);
   --expense: var(--danger);
   --led-idle: var(--text-faint);
   --led-connected: var(--success);
@@ -372,7 +371,6 @@ select:focus { outline: none; border-color: var(--accent); }
 .picker-row .fdate { font-size: 11px; color: var(--text-faint); width: 78px; flex: 0 0 auto; }
 .picker-row .fdate.fyearly { width: auto; font-style: italic; }
 .finance-entry .famount { font-weight: 700; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
-.famount.fpositive { color: var(--income); }
 .famount.fnegative { color: var(--danger); }
 .recur-badge { font-size: 12px; color: var(--text-faint); flex: 0 0 auto; }
 .recur-card { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
