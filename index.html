@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.50.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.51.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -99,8 +99,9 @@
   <!-- Entry add/edit modal -->
   <div class="modal-overlay" id="entryModal" hidden>
     <div class="modal">
-      <div id="entryCover" class="modal-cover" hidden>
-        <img id="entryCoverImg" src="" alt="Cover" />
+      <div id="entryCover" hidden>
+        <div class="modal-cover"><img id="entryCoverImg" src="" alt="Cover" /></div>
+        <div class="modal-cover-meta" id="entryCoverMeta"></div>
       </div>
       <h2 id="entryModalTitle">Add entry</h2>
       <form id="entryForm">
@@ -109,6 +110,7 @@
         <input type="hidden" id="fCoverUrl" />
         <input type="hidden" id="fMediaId" />
         <input type="hidden" id="fMediaSource" />
+        <input type="hidden" id="fLength" />
         <label>Title
           <div class="ac-wrap">
             <input id="fTitle" type="text" required autocomplete="off" />
@@ -158,6 +160,7 @@
         </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteEntryBtn" hidden>Delete</button>
+          <button type="button" class="btn" id="moveToBacklogBtn" hidden>Move to backlog</button>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelEntryBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
@@ -231,6 +234,7 @@
         <input type="hidden" id="bSummary" />
         <input type="hidden" id="bReleaseYear" />
         <input type="hidden" id="bExternalRating" />
+        <input type="hidden" id="bLength" />
         <label>Title
           <div class="ac-wrap">
             <input id="bTitle" type="text" required autocomplete="off" placeholder="e.g. The Last of Us Part II" />
@@ -749,9 +753,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.50.0"></script>
-  <script src="src/media.js?v=0.50.0"></script>
-  <script src="src/storage.js?v=0.50.0"></script>
-  <script src="src/app.js?v=0.50.0"></script>
+  <script src="src/qr.js?v=0.51.0"></script>
+  <script src="src/media.js?v=0.51.0"></script>
+  <script src="src/storage.js?v=0.51.0"></script>
+  <script src="src/app.js?v=0.51.0"></script>
 </body>
 </html>

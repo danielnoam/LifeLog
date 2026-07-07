@@ -8,13 +8,15 @@ todo:
 - make sure sync correctly reconciles actions done while offline with
   actions done on other devices during that same offline period, once
   back online
-- add playtime for games, length for movies, episode/season counts for
-  shows, and book length if possible — most important for backlog
-  entries, not just logged ones
 - auto wishlist import for Steam, and GG.deals cost support for it
 
 done:
 
+- added length metadata for backlog items and journal entries: playtime
+  (games), runtime (movies), season/episode counts (shows), page count
+  (books) — synced via RAWG/TMDB/Open Library/Google Books
+- journal entries can be moved back to the backlog via a new "Move to
+  backlog" button next to Delete, the reverse of the "✓ Done" button
 - improved Finance Summary: savings-rate stat, an Income by category
   breakdown, a real By month card (replacing the flat yearly/12
   average), a Recurring vs one-off split, and a Top expenses card

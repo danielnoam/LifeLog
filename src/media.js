@@ -27,9 +27,35 @@
         externalRating: g.metacritic
           ? g.metacritic + " Metacritic"
           : (g.rating ? (Math.round(g.rating * 20)) + "% users" : ""),
+        length: g.playtime ? g.playtime + " hrs" : "",
         source: "rawg",
       }));
     } catch (e) { return []; }
+  }
+
+  // TMDB's search endpoint has no runtime/season data — that only exists on
+  // the per-title details endpoint, so it's a separate on-demand call (see
+  // fetchTmdbDetails below), fired only when a specific title is picked.
+  async function fetchTmdbDetails(id, type, apiKey) {
+    if (!apiKey || !id) return "";
+    try {
+      const url = "https://api.themoviedb.org/3/" + type + "/" + encodeURIComponent(id) +
+        "?api_key=" + encodeURIComponent(apiKey);
+      const res = await fetch(url);
+      if (!res.ok) return "";
+      const data = await res.json();
+      if (type === "movie") {
+        if (!data.runtime) return "";
+        const h = Math.floor(data.runtime / 60), m = data.runtime % 60;
+        return (h ? h + "h " : "") + (m || !h ? m + "m" : "");
+      }
+      const seasons = data.number_of_seasons, episodes = data.number_of_episodes;
+      if (!seasons && !episodes) return "";
+      const parts = [];
+      if (seasons) parts.push(seasons + (seasons === 1 ? " season" : " seasons"));
+      if (episodes) parts.push(episodes + (episodes === 1 ? " episode" : " episodes"));
+      return parts.join(" · ");
+    } catch (e) { return ""; }
   }
 
   async function searchTmdb(title, type, apiKey) {
@@ -77,6 +103,7 @@
         externalRating: d.ratings_average
           ? (Math.round(d.ratings_average * 10) / 10) + " OL"
           : "",
+        length: d.number_of_pages_median ? d.number_of_pages_median + " pages" : "",
         source: "openlibrary",
       }));
     } catch (e) { return []; }
@@ -122,6 +149,7 @@
           year: v.publishedDate ? parseInt(v.publishedDate, 10) : null,
           summary: v.description || "",
           externalRating: v.averageRating ? v.averageRating + " Google Books" : "",
+          length: v.pageCount ? v.pageCount + " pages" : "",
           source: "googlebooks",
         };
       });
@@ -195,6 +223,11 @@
     async fetchPrices(appIds, apiKey) {
       lastError = "";
       return fetchGgDealsPrices(appIds, apiKey);
+    },
+    async fetchLength(id, source, apiKey) {
+      if (source === "tmdb-movie") return fetchTmdbDetails(id, "movie", apiKey);
+      if (source === "tmdb-tv") return fetchTmdbDetails(id, "tv", apiKey);
+      return "";
     },
     getLastError: () => lastError,
     steamCoverUrl,

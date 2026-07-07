@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.51.0] - 2026-07-07
+
+### Added
+- Backlog items and journal entries now carry a synced "length" for the
+  media they're linked to: playtime for games (RAWG), runtime for
+  movies, season/episode counts for shows (both via TMDB), and page
+  count for books (Open Library/Google Books) — shown alongside the
+  existing rating/year line wherever a cover is shown.
+- Journal entries can now be moved back to the backlog: a "Move to
+  backlog" button next to Delete in the entry editor, the reverse of
+  the existing "✓ Done" button that moves a backlog item into the log.
+
 ## [0.50.0] - 2026-07-07
 
 ### Added

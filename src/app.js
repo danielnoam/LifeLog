@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.50.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.51.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -681,9 +681,10 @@
       $("#bReleaseYear").value = "";
       $("#bExternalRating").value = "";
       $("#bSummary").value = "";
+      $("#bLength").value = "";
       setBacklogCover();
     } else {
-      setEntryCover(coverUrl, id, id ? "steam" : "");
+      setEntryCover(coverUrl, id, id ? "steam" : "", "");
     }
   }
 
@@ -700,8 +701,9 @@
       toast(err ? "No matches found — " + err : "No matches found", !!err);
       return;
     }
+    const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     results.forEach((r) => {
-      list.appendChild(makeMediaAcItem(r, () => {
+      list.appendChild(makeMediaAcItem(r, async () => {
         lastSyncedBacklogTitle = $("#bTitle").value;
         $("#bCoverUrl").value = r.coverUrl || "";
         $("#bMediaId").value = r.id || "";
@@ -709,6 +711,7 @@
         $("#bSummary").value = r.summary || "";
         $("#bReleaseYear").value = r.year ? String(r.year) : "";
         $("#bExternalRating").value = r.externalRating || "";
+        $("#bLength").value = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
         setBacklogCover();
         list.hidden = true;
       }));
@@ -717,7 +720,7 @@
   }
 
   function unsyncBacklogItem() {
-    ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bExternalRating"]
+    ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bExternalRating", "#bLength"]
       .forEach((id) => { const f = $(id); if (f) f.value = ""; });
     $("#bSteamAppId").value = "";
     setBacklogCover();
@@ -928,6 +931,7 @@
   // would defeat the point of a bulk action).
   async function bulkSyncSelected(btn) {
     const ids = [...state.bulk.selected];
+    const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     btn.disabled = true;
     btn.textContent = "Syncing…";
     let synced = 0, skipped = 0, lastErr = "";
@@ -950,6 +954,9 @@
       item.summary = r.summary || "";
       if (r.year) item.releaseYear = r.year; else delete item.releaseYear;
       item.externalRating = r.externalRating || "";
+      // TMDB needs a second per-title call for runtime/season data — the
+      // search endpoint doesn't include it (see fetchLength in media.js).
+      item.length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
       synced++;
     }
     state.bulk.active = false;
@@ -1012,6 +1019,7 @@
   // bulk sync.
   async function bulkSyncEntriesSelected(btn) {
     const ids = [...state.bulk.selected];
+    const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     btn.disabled = true;
     btn.textContent = "Syncing…";
     let synced = 0, skipped = 0, lastErr = "";
@@ -1031,6 +1039,9 @@
       item.coverUrl = r.coverUrl || "";
       item.mediaId = r.id || "";
       item.mediaSource = r.source || "";
+      // TMDB needs a second per-title call for runtime/season data — the
+      // search endpoint doesn't include it (see fetchLength in media.js).
+      item.length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
       synced++;
     }
     state.bulk.active = false;
@@ -1106,6 +1117,7 @@
     const meta = [];
     if (b.externalRating) meta.push("★ " + b.externalRating);
     if (b.releaseYear) meta.push(String(b.releaseYear));
+    if (b.length) meta.push(b.length);
     if (meta.length) body.appendChild(el("span", "bl-meta", meta.join(" · ")));
     if (b.summary) body.appendChild(el("p", "bl-summary", b.summary));
     if (b.mediaSource === "steam" && b.mediaId) {
@@ -1838,6 +1850,7 @@
       editing ? entry.month : (presetDate ? presetDate.month : (new Date().getMonth() + 1)));
     $("#fYear").value = editing ? entry.year : (presetDate ? presetDate.year : new Date().getFullYear());
     $("#deleteEntryBtn").hidden = !editing;
+    $("#moveToBacklogBtn").hidden = !editing;
     const added = $("#addedLine");
     if (editing && entry.createdAt) {
       added.textContent = "Added " + new Date(entry.createdAt).toLocaleDateString(undefined,
@@ -1849,8 +1862,9 @@
     const coverSrc = editing ? (entry.coverUrl || "") : (fromBacklog ? (fromBacklog.coverUrl || "") : "");
     const mediaSrc = editing ? (entry.mediaSource || "") : (fromBacklog ? (fromBacklog.mediaSource || "") : "");
     const mediaId = editing ? (entry.mediaId || "") : (fromBacklog ? (fromBacklog.mediaId || "") : "");
+    const lengthSrc = editing ? (entry.length || "") : (fromBacklog ? (fromBacklog.length || "") : "");
     lastSyncedEntryTitle = editing ? entry.title : (fromBacklog ? fromBacklog.title : "");
-    setEntryCover(coverSrc, mediaId, mediaSrc);
+    setEntryCover(coverSrc, mediaId, mediaSrc, lengthSrc);
     $("#fSteamAppId").value = mediaSrc === "steam" ? mediaId : "";
     updateSyncBtnVisibility("f", $("#fCategory").value);
     $("#fTitleSuggest").hidden = true;
@@ -1884,13 +1898,13 @@
       let g = groups.get(key);
       if (!g) {
         g = { title: e.title, count: 0, category: e.category, year: e.year, month: e.month,
-              coverUrl: e.coverUrl || "", mediaId: e.mediaId || "", mediaSource: e.mediaSource || "" };
+              coverUrl: e.coverUrl || "", mediaId: e.mediaId || "", mediaSource: e.mediaSource || "", length: e.length || "" };
         groups.set(key, g);
       }
       g.count++;
       if (e.year > g.year || (e.year === g.year && e.month > g.month)) {
         g.title = e.title; g.category = e.category; g.year = e.year; g.month = e.month;
-        g.coverUrl = e.coverUrl || ""; g.mediaId = e.mediaId || ""; g.mediaSource = e.mediaSource || "";
+        g.coverUrl = e.coverUrl || ""; g.mediaId = e.mediaId || ""; g.mediaSource = e.mediaSource || ""; g.length = e.length || "";
       }
     }
     return [...groups.values()]
@@ -1981,12 +1995,16 @@
     if (steamField) steamField.hidden = !isSteam;
   }
 
-  function setEntryCover(coverUrl, mediaId, mediaSource) {
+  function setEntryCover(coverUrl, mediaId, mediaSource, length) {
     $("#fCoverUrl").value = coverUrl || "";
     $("#fMediaId").value = mediaId || "";
     $("#fMediaSource").value = mediaSource || "";
+    $("#fLength").value = length || "";
     const coverDiv = $("#entryCover");
     const coverImg = $("#entryCoverImg");
+    const meta = $("#entryCoverMeta");
+    meta.innerHTML = "";
+    if (length) meta.appendChild(el("span", "bl-meta", length));
     coverImg.onerror = () => { coverDiv.hidden = true; };
     if (coverUrl) { coverImg.src = coverUrl; coverDiv.hidden = false; }
     else { coverDiv.hidden = true; coverImg.src = ""; }
@@ -2006,8 +2024,10 @@
     const line = [];
     const rating = $("#bExternalRating").value;
     const year = $("#bReleaseYear").value;
+    const length = $("#bLength").value;
     if (rating) line.push("★ " + rating);
     if (year) line.push(year);
+    if (length) line.push(length);
     if (line.length) meta.appendChild(el("span", "bl-meta", line.join(" · ")));
     const summary = $("#bSummary").value;
     if (summary) meta.appendChild(el("p", "bl-summary", summary));
@@ -2024,7 +2044,7 @@
     // Only while adding: renaming an already-synced existing entry shouldn't silently
     // drop its media link — that takes an explicit "✕ Unsync" now.
     if (isAdding && query !== lastSyncedEntryTitle && $("#fCoverUrl").value && $("#fMediaSource").value !== "steam") {
-      setEntryCover("", "", "");
+      setEntryCover("", "", "", "");
     }
 
     const localMatches = titleSuggestions(query, $("#entryId").value || null);
@@ -2038,7 +2058,7 @@
           lastSyncedEntryTitle = m.title;
           $("#fTitle").value = m.title;
           if (state.data.categories.some((c) => c.name === m.category)) $("#fCategory").value = m.category;
-          setEntryCover(m.coverUrl, m.mediaId, m.mediaSource);
+          setEntryCover(m.coverUrl, m.mediaId, m.mediaSource, m.length || "");
           updateSyncBtnVisibility("f", $("#fCategory").value);
           list.hidden = true;
         }
@@ -2060,7 +2080,7 @@
           lastSyncedEntryTitle = b.title;
           $("#fTitle").value = b.title;
           if (state.data.categories.some((c) => c.name === b.category)) $("#fCategory").value = b.category;
-          setEntryCover(b.coverUrl || "", b.mediaId || "", b.mediaSource || "");
+          setEntryCover(b.coverUrl || "", b.mediaId || "", b.mediaSource || "", b.length || "");
           updateSyncBtnVisibility("f", $("#fCategory").value);
           $("#entryFromBacklog").value = b.id;
           updateBacklogLinkBanner();
@@ -2112,10 +2132,12 @@
       toast(err ? "No matches found — " + err : "No matches found", !!err);
       return;
     }
+    const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     results.forEach((r) => {
-      list.appendChild(makeMediaAcItem(r, () => {
+      list.appendChild(makeMediaAcItem(r, async () => {
         lastSyncedEntryTitle = $("#fTitle").value.trim();
-        setEntryCover(r.coverUrl, r.id, r.source);
+        const length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+        setEntryCover(r.coverUrl, r.id, r.source, length);
         list.hidden = true;
       }));
     });
@@ -2123,7 +2145,7 @@
   }
 
   function unsyncEntry() {
-    setEntryCover("", "", "");
+    setEntryCover("", "", "", "");
     $("#fSteamAppId").value = "";
     $("#fTitleSuggest").hidden = true;
   }
@@ -2141,6 +2163,7 @@
     const coverUrl = $("#fCoverUrl").value;
     const mediaId = $("#fMediaId").value;
     const mediaSource = $("#fMediaSource").value;
+    const length = $("#fLength").value;
     if (!title) return;
     if (id) {
       const e = state.data.entries.find((x) => x.id === id);
@@ -2150,6 +2173,7 @@
       if (coverUrl) e.coverUrl = coverUrl; else delete e.coverUrl;
       if (mediaId) e.mediaId = mediaId; else delete e.mediaId;
       if (mediaSource) e.mediaSource = mediaSource; else delete e.mediaSource;
+      if (length) e.length = length; else delete e.length;
     } else {
       const newEntry = {
         id: uid(), title, category, year, month,
@@ -2161,6 +2185,7 @@
       if (coverUrl) newEntry.coverUrl = coverUrl;
       if (mediaId) newEntry.mediaId = mediaId;
       if (mediaSource) newEntry.mediaSource = mediaSource;
+      if (length) newEntry.length = length;
       state.data.entries.push(newEntry);
     }
     if (fromBacklogId) state.data.backlog = state.data.backlog.filter((b) => b.id !== fromBacklogId);
@@ -2181,6 +2206,27 @@
     render();
     await persist();
     toast("Entry deleted");
+  }
+
+  async function moveEntryToBacklog() {
+    const id = $("#entryId").value;
+    if (!id) return;
+    const entry = state.data.entries.find((e) => e.id === id);
+    if (!entry) return;
+    if (!confirm("Move this entry to your backlog?")) return;
+    const item = { id: uid(), title: entry.title, category: entry.category, createdAt: new Date().toISOString() };
+    if (entry.notes) item.notes = entry.notes;
+    if (entry.coverUrl) item.coverUrl = entry.coverUrl;
+    if (entry.mediaId) item.mediaId = entry.mediaId;
+    if (entry.mediaSource) item.mediaSource = entry.mediaSource;
+    if (entry.length) item.length = entry.length;
+    state.data.backlog.push(item);
+    state.data.entries = state.data.entries.filter((e) => e.id !== id);
+    closeEntryModal();
+    buildYearFilter();
+    render();
+    await persist();
+    toast("Moved to backlog");
   }
 
   // ---------- achievements ----------
@@ -2348,6 +2394,7 @@
     $("#bSummary").value = editing ? (item.summary || "") : "";
     $("#bReleaseYear").value = editing && item.releaseYear ? String(item.releaseYear) : "";
     $("#bExternalRating").value = editing ? (item.externalRating || "") : "";
+    $("#bLength").value = editing ? (item.length || "") : "";
     setPriority(editing ? (item.priority || 0) : 0);
     $("#bDropped").checked = editing ? !!item.dropped : false;
     lastSyncedBacklogTitle = editing ? item.title : "";
@@ -2374,6 +2421,7 @@
     const summary = $("#bSummary").value;
     const releaseYear = $("#bReleaseYear").value;
     const externalRating = $("#bExternalRating").value;
+    const length = $("#bLength").value;
     const priority = parseInt($("#bPriority").dataset.value, 10) || 0;
     const dropped = $("#bDropped").checked;
     if (!title) return;
@@ -2387,6 +2435,7 @@
       if (summary) b.summary = summary; else delete b.summary;
       if (releaseYear) b.releaseYear = parseInt(releaseYear, 10); else delete b.releaseYear;
       if (externalRating) b.externalRating = externalRating; else delete b.externalRating;
+      if (length) b.length = length; else delete b.length;
       if (priority) b.priority = priority; else delete b.priority;
       if (dropped) b.dropped = true; else delete b.dropped;
     } else {
@@ -2398,6 +2447,7 @@
       if (summary) item.summary = summary;
       if (releaseYear) item.releaseYear = parseInt(releaseYear, 10);
       if (externalRating) item.externalRating = externalRating;
+      if (length) item.length = length;
       if (priority) item.priority = priority;
       if (dropped) item.dropped = true;
       state.data.backlog.push(item);
@@ -3644,6 +3694,7 @@
     if (e.coverUrl) out.coverUrl = e.coverUrl;
     if (e.mediaId) out.mediaId = e.mediaId;
     if (e.mediaSource) out.mediaSource = e.mediaSource;
+    if (e.length) out.length = e.length;
     return out;
   }
   function sanitizeBacklog(b) {
@@ -3660,6 +3711,7 @@
     if (b.summary) out.summary = b.summary;
     if (b.releaseYear) out.releaseYear = b.releaseYear;
     if (b.externalRating) out.externalRating = b.externalRating;
+    if (b.length) out.length = b.length;
     if (b.priority) out.priority = +b.priority;
     if (b.dropped) out.dropped = true;
     return out;
@@ -3905,6 +3957,7 @@
     $("#cancelEntryBtn").onclick = closeEntryModal;
     $("#entryForm").onsubmit = saveEntryFromForm;
     $("#deleteEntryBtn").onclick = deleteCurrentEntry;
+    $("#moveToBacklogBtn").onclick = moveEntryToBacklog;
     $("#fTitle").oninput = renderTitleSuggestions;
     $("#fCategory").onchange = () => updateSyncBtnVisibility("f", $("#fCategory").value);
     $("#fSyncBtn").onclick = syncEntryTitle;
