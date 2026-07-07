@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.49.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.50.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -158,6 +158,7 @@
     financeActiveYears: new Set(),
     financeActiveCats: new Set(),
     statsYear: null,
+    financeStatsYear: null,
     bulk: { active: false, selected: new Set() },
   };
   let catColor = {}; // name -> color
@@ -1298,22 +1299,19 @@
     bigRow.appendChild(moneyStatItem(income, "income", "var(--income)"));
     bigRow.appendChild(moneyStatItem(expense, "expenses", "var(--expense)"));
     bigRow.appendChild(moneyStatItem(income - expense, "net"));
+    if (income > 0) {
+      const savingsRate = (income - expense) / income * 100;
+      bigRow.appendChild(pctStatItem(savingsRate, "savings rate", savingsRate >= 0 ? "var(--income)" : "var(--expense)"));
+    }
     big.appendChild(bigRow);
     root.appendChild(big);
 
     const grid = el("div", "stats-grid");
     const expenseItems = items.filter((f) => f.type === "expense");
+    const incomeItems = items.filter((f) => f.type === "income");
 
-    const catCard = el("div", "card");
-    catCard.appendChild(el("h2", null, "By category"));
-    const catTotals = {};
-    for (const f of expenseItems) catTotals[f.category] = (catTotals[f.category] || 0) + f.amount;
-    let catOrder = state.data.financeCategories.map((c) => c.name).filter((n) => catTotals[n]);
-    for (const n of Object.keys(catTotals)) if (!catOrder.includes(n)) catOrder.push(n);
-    const catMax = Math.max(1, ...Object.values(catTotals));
-    catOrder.sort((a, b) => catTotals[b] - catTotals[a])
-      .forEach((n) => catCard.appendChild(barRow(n, catTotals[n], catMax, financeColorOf(n), null, formatMoney)));
-    grid.appendChild(catCard);
+    grid.appendChild(financeCategoryCard("By category", expenseItems));
+    grid.appendChild(financeCategoryCard("Income by category", incomeItems));
 
     const yearCard = el("div", "card");
     yearCard.appendChild(el("h2", null, "By year"));
@@ -1329,13 +1327,104 @@
 
     root.appendChild(grid);
 
-    // Mirrors the source sheet's own "Per Month" row (yearly total ÷ 12).
-    const pmCard = el("div", "card");
-    pmCard.style.marginTop = "20px";
-    pmCard.appendChild(el("h2", null, "Per month average"));
-    Object.keys(yearTotals).sort((a, b) => b - a)
-      .forEach((y) => pmCard.appendChild(moneyRow(y, yearTotals[y] / 12)));
-    root.appendChild(pmCard);
+    renderFinanceMonthCard(root, items);
+    renderRecurringSplitCard(root, expenseItems);
+    renderTopExpensesCard(root, expenseItems);
+  }
+
+  // Shared by the expense and income "by category" cards — same shape,
+  // different type filter, so the totals/counts/ordering logic lives once.
+  function financeCategoryCard(title, catItems) {
+    const card = el("div", "card");
+    card.appendChild(el("h2", null, title));
+    const totals = {};
+    const counts = {};
+    for (const f of catItems) {
+      totals[f.category] = (totals[f.category] || 0) + f.amount;
+      counts[f.category] = (counts[f.category] || 0) + 1;
+    }
+    let order = state.data.financeCategories.map((c) => c.name).filter((n) => totals[n]);
+    for (const n of Object.keys(totals)) if (!order.includes(n)) order.push(n);
+    const max = Math.max(1, ...Object.values(totals));
+    order.sort((a, b) => totals[b] - totals[a])
+      .forEach((n) => card.appendChild(barRow(n, totals[n], max, financeColorOf(n), counts[n], formatMoney, "entries")));
+    return card;
+  }
+
+  const monthSortAsc = (a, b) => {
+    a = +a; b = +b;
+    if (a === 0) return 1; // yearly ad-hoc bucket always last
+    if (b === 0) return -1;
+    return a - b;
+  };
+
+  // Real per-month net (income − expense), replacing the old flat
+  // yearTotal/12 "Per month average" — one year at a time via a tab
+  // picker, same pattern as the Journal Stats "Year in Review" card.
+  function renderFinanceMonthCard(root, items) {
+    const allYears = [...new Set(items.map(financeYearOf))].sort((a, b) => b - a);
+    if (!allYears.length) return;
+    if (!state.financeStatsYear || !allYears.includes(state.financeStatsYear)) state.financeStatsYear = allYears[0];
+
+    const card = el("div", "card");
+    card.style.marginTop = "20px";
+    card.appendChild(el("h2", null, "By month"));
+
+    const yearNav = el("div", "yir-years");
+    for (const y of allYears) {
+      const btn = el("button", "yir-year-btn" + (y === state.financeStatsYear ? " active" : ""), String(y));
+      btn.type = "button";
+      btn.onclick = () => { state.financeStatsYear = y; render(); };
+      yearNav.appendChild(btn);
+    }
+    card.appendChild(yearNav);
+
+    const yearItems = items.filter((f) => financeYearOf(f) === state.financeStatsYear);
+    const byMonth = groupBy(yearItems, financeMonthOf);
+    Object.keys(byMonth).sort(monthSortAsc).forEach((m) => {
+      const mm = +m;
+      const label = mm === 0 ? "Yearly" : MONTHS[mm];
+      const net = byMonth[m].reduce((s, f) => s + (f.type === "income" ? f.amount : -f.amount), 0);
+      card.appendChild(signedMoneyRow(label, net));
+    });
+    root.appendChild(card);
+  }
+
+  // Splits filtered expenses between auto-generated recurring occurrences
+  // and manually-entered one-off ones — recurringOccurrences() only ever
+  // emits type "expense", so there's no recurring-income equivalent.
+  function renderRecurringSplitCard(root, expenseItems) {
+    if (!expenseItems.length) return;
+    const recurring = expenseItems.filter((f) => f.virtual);
+    const oneOff = expenseItems.filter((f) => !f.virtual);
+    const recurTotal = recurring.reduce((s, f) => s + f.amount, 0);
+    const oneOffTotal = oneOff.reduce((s, f) => s + f.amount, 0);
+    if (!recurTotal && !oneOffTotal) return;
+
+    const card = el("div", "card");
+    card.style.marginTop = "20px";
+    card.appendChild(el("h2", null, "Recurring vs one-off"));
+    const max = Math.max(1, recurTotal, oneOffTotal);
+    card.appendChild(barRow("Recurring", recurTotal, max, "var(--accent)", recurring.length, formatMoney, "entries"));
+    card.appendChild(barRow("One-off", oneOffTotal, max, "var(--expense)", oneOff.length, formatMoney, "entries"));
+    root.appendChild(card);
+  }
+
+  // Top 5 largest single expense transactions in the filtered range.
+  function renderTopExpensesCard(root, expenseItems) {
+    const top = expenseItems.slice().sort((a, b) => b.amount - a.amount).slice(0, 5);
+    if (!top.length) return;
+    const card = el("div", "card");
+    card.style.marginTop = "20px";
+    card.appendChild(el("h2", null, "Top expenses"));
+    const max = Math.max(1, ...top.map((f) => f.amount));
+    top.forEach((f) => {
+      const label = f.note || f.category;
+      const row = barRow(label, f.amount, max, financeColorOf(f.category), null, formatMoney);
+      row.querySelector(".lbl").title = label;
+      card.appendChild(row);
+    });
+    root.appendChild(card);
   }
 
   function moneyStatItem(n, l, color) {
@@ -1347,10 +1436,21 @@
     i.appendChild(el("div", "l", l));
     return i;
   }
-  function moneyRow(label, amount) {
-    const row = el("div", "money-row");
-    row.appendChild(el("span", "lbl", String(label)));
-    row.appendChild(el("span", "val", formatMoney(amount)));
+  function pctStatItem(n, l, color) {
+    const i = el("div", "item");
+    const nEl = el("div", "n");
+    if (color) nEl.style.color = color;
+    nEl.textContent = Math.round(n) + "%";
+    i.appendChild(nEl);
+    i.appendChild(el("div", "l", l));
+    return i;
+  }
+  function signedMoneyRow(label, amount) {
+    const row = el("div", "month-total");
+    row.appendChild(el("span", null, String(label)));
+    const amt = el("span", "famount " + (amount >= 0 ? "fpositive" : "fnegative"),
+      (amount >= 0 ? "+" : "-") + formatMoney(Math.abs(amount)));
+    row.appendChild(amt);
     return row;
   }
 
@@ -1553,7 +1653,7 @@
     i.appendChild(el("div", "l", l));
     return i;
   }
-  function barRow(label, val, max, color, uniqueVal, fmt) {
+  function barRow(label, val, max, color, uniqueVal, fmt, uniqueLabel = "unique") {
     const row = el("div", "bar-row");
     row.appendChild(el("div", "lbl", label));
     const track = el("div", "bar-track");
@@ -1568,7 +1668,7 @@
     if (uniqueVal != null && uniqueVal !== val) {
       valEl.appendChild(el("span", "val-total", display));
       valEl.appendChild(el("span", "val-unique", String(uniqueVal)));
-      valEl.appendChild(el("span", "val-unique-lbl", "unique"));
+      valEl.appendChild(el("span", "val-unique-lbl", uniqueLabel));
     } else {
       valEl.textContent = display;
     }

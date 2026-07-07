@@ -1,7 +1,5 @@
 todo:
 
-- improve the Finance summary section (richer breakdown, not just the
-  current Overview/By category/By year/Per month average cards)
 - when setting up fingerprint/Face ID app lock, require a PIN to be set
   too (as a fallback), not just the biometric
 - rework version history so restoring works fully offline / without
@@ -17,6 +15,9 @@ todo:
 
 done:
 
+- improved Finance Summary: savings-rate stat, an Income by category
+  breakdown, a real By month card (replacing the flat yearly/12
+  average), a Recurring vs one-off split, and a Top expenses card
 - renamed the Finance tab formerly called "Timeline" to "Ledger" — both
   Journal and Finance had a tab named "Timeline", which was ambiguous
 - trimmed a lot of repetitive Settings hint text (dropped the redundant

@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.50.0] - 2026-07-07
+
+### Added
+- Finance Summary got five additions: a savings-rate stat on the
+  Overview card, a new "Income by category" breakdown (income had no
+  breakdown at all before), a real "By month" card with a year-tab
+  picker showing actual signed monthly totals (replacing the old flat
+  "yearly total ÷ 12" average), a "Recurring vs one-off" split, and a
+  "Top expenses" card listing the 5 largest transactions in range.
+- The category breakdown cards (expense and income) now show a
+  transaction count on hover, same as the Journal Stats category card.
+
 ## [0.49.2] - 2026-07-06
 
 ### Changed

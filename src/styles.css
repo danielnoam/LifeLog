@@ -411,10 +411,6 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .picker-newcats-list { display: flex; flex-wrap: wrap; gap: 14px; }
 .bar-row.money { grid-template-columns: 120px 1fr 100px; }
-.money-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
-.money-row:last-child { border-bottom: none; }
-.money-row .lbl { color: var(--text-dim); }
-.money-row .val { font-weight: 600; font-variant-numeric: tabular-nums; }
 .chip-edit { margin-left: 2px; opacity: .6; font-size: 11px; }
 .chip-edit:hover { opacity: 1; color: var(--accent); }
 
