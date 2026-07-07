@@ -14,6 +14,12 @@ todo:
 
 done:
 
+- recurring expenses: added a "🔗 Link past expenses" button in the edit
+  modal — a searchable picker (styled like the import review screens)
+  over your existing expenses in that category, so old manually-logged
+  entries from before the recurring expense existed can be folded into
+  it; linked entries are removed and the start date backdates to cover
+  them, generated from then on by the template itself
 - confirmed SteamGridDB is CORS-blocked from the browser (real-device
   test: "Failed to fetch") and removed it — the source function, its
   Settings API key field, and its dropdown entries; games stays RAWG-only

@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.56.0] - 2026-07-07
+
+### Added
+- Recurring expenses: a new "🔗 Link past expenses" button in the edit
+  modal opens a searchable picker (same review-list style as the
+  import screens) over your existing expenses in that category, for
+  folding old manually-logged entries — from before the recurring
+  expense existed, or a stray duplicate of a period it already covers
+  — into the template. Linked entries are removed, and if any predate
+  the template's start date, the start date moves back to cover them,
+  so that history now shows up as the template's own generated
+  occurrences at its current amount/category/note.
+
 ## [0.55.1] - 2026-07-07
 
 ### Removed

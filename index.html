@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.55.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.56.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -340,7 +340,10 @@
         </label>
         <p class="hint" id="recHint">Generates an expense entry on this date every period, up to today. Editing this later changes every past and future occurrence.</p>
         <div class="rec-occurrences" id="recOccurrences" hidden>
-          <p class="hint">Generated occurrences</p>
+          <div class="rec-occ-head">
+            <p class="hint">Generated occurrences</p>
+            <button type="button" class="link-btn" id="linkPastExpensesBtn">🔗 Link past expenses</button>
+          </div>
           <div class="rec-occ-list" id="recOccList"></div>
         </div>
         <div class="modal-actions">
@@ -697,6 +700,7 @@
     <div class="modal modal-wide">
       <h2 id="financePickerTitle">Import Finance CSV</h2>
       <p class="hint" id="financePickerHint"></p>
+      <input type="text" class="picker-search" id="financePickerSearch" placeholder="Search note, category, amount…" hidden />
       <div class="picker-newcats" id="financePickerNewCats" hidden>
         <p class="picker-newcats-eyebrow" id="financePickerNewCatsEyebrow"></p>
         <div class="picker-newcats-list" id="financePickerNewCatsList"></div>
@@ -731,9 +735,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.55.1"></script>
-  <script src="src/media.js?v=0.55.1"></script>
-  <script src="src/storage.js?v=0.55.1"></script>
-  <script src="src/app.js?v=0.55.1"></script>
+  <script src="src/qr.js?v=0.56.0"></script>
+  <script src="src/media.js?v=0.56.0"></script>
+  <script src="src/storage.js?v=0.56.0"></script>
+  <script src="src/app.js?v=0.56.0"></script>
 </body>
 </html>
