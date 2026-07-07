@@ -673,9 +673,13 @@ body.modal-open { overflow: hidden; }
 .media-cat-row {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+  flex-wrap: wrap;
 }
 .media-cat-row:last-child { border-bottom: none; }
 .media-cat-name { color: var(--text-dim); }
+.media-cat-sels { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.media-cat-arrow { color: var(--text-faint); font-size: 11px; }
+.media-cat-arrow[hidden] { display: none; }
 .media-cat-sel {
   background: var(--bg); border: 1px solid var(--border); color: var(--text);
   padding: 5px 8px; border-radius: 7px; font-size: 12px;

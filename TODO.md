@@ -10,6 +10,11 @@ todo:
 
 done:
 
+- each category's media source can now have a fallback, tried
+  automatically when the primary finds no matches: anime/manga can fall
+  back from AniList to a new Jikan source, and books from Open Library
+  to Google Books; games and movies/TV stay single-source since no
+  second browser-callable (CORS-friendly) API exists for them yet
 - app lock: Fingerprint/Face ID now requires a PIN to be set up first as
   a mandatory fallback, instead of being usable on its own; the lock
   screen shows both the PIN pad and a Fingerprint/Face ID button

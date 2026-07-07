@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.54.0] - 2026-07-07
+
+### Added
+- Media sources: each category can now have a fallback source, tried
+  automatically only when the primary source finds no matches for a
+  title — no more manually re-picking a different source and searching
+  again by hand. Anime/manga can fall back from AniList to a new Jikan
+  (MyAnimeList) source, and books can fall back from Open Library to
+  Google Books. A fallback is only offered where a second compatible
+  source actually exists for that media type, so games and movies/TV
+  (currently single-source) show just the one dropdown as before.
+
 ## [0.53.0] - 2026-07-07
 
 ### Changed

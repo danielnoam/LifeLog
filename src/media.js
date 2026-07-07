@@ -1,5 +1,5 @@
 // LifeLog — media enrichment: fetch cover art and metadata from RAWG, TMDB,
-// Open Library, AniList, Google Books, and MusicBrainz.
+// Open Library, AniList, Jikan, Google Books, and MusicBrainz.
 (function () {
   // Set whenever a search/price fetch fails outright (network error, CORS
   // block, bad key, rate limit) so the UI can show *why* nothing came back
@@ -132,6 +132,42 @@
     } catch (e) { return []; }
   }
 
+  // Fallback for AniList (anime/manga) — an unofficial MyAnimeList API proxy,
+  // no auth needed. Kept stricter on rate limits than AniList (it throttles
+  // hard since it's proxying MAL), so it's only ever queried as a fallback,
+  // never the primary source.
+  async function searchJikan(title, type) {
+    try {
+      const url = "https://api.jikan.moe/v4/" + type + "?q=" + encodeURIComponent(title) + "&limit=5";
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.data || []).map((d) => {
+        const dateProp = type === "anime" ? d.aired : d.published;
+        const year = (dateProp && dateProp.prop && dateProp.prop.from && dateProp.prop.from.year) || null;
+        let length = "";
+        if (type === "anime") {
+          length = d.episodes ? d.episodes + (d.episodes === 1 ? " episode" : " episodes") : "";
+        } else {
+          const parts = [];
+          if (d.volumes) parts.push(d.volumes + (d.volumes === 1 ? " volume" : " volumes"));
+          if (d.chapters) parts.push(d.chapters + (d.chapters === 1 ? " chapter" : " chapters"));
+          length = parts.join(" · ");
+        }
+        return {
+          id: String(d.mal_id || ""),
+          title: d.title_english || d.title || "",
+          coverUrl: (d.images && d.images.jpg && (d.images.jpg.image_url || d.images.jpg.small_image_url)) || "",
+          year,
+          summary: d.synopsis || "",
+          externalRating: d.score ? d.score + " Jikan" : "",
+          length,
+          source: type === "manga" ? "jikan-manga" : "jikan-anime",
+        };
+      });
+    } catch (e) { return []; }
+  }
+
   async function searchGoogleBooks(title) {
     try {
       const url = "https://www.googleapis.com/books/v1/volumes?q=" +
@@ -216,6 +252,8 @@
       if (source === "openlibrary") return searchOpenLibrary(title);
       if (source === "anilist-anime") return searchAniList(title, "ANIME");
       if (source === "anilist-manga") return searchAniList(title, "MANGA");
+      if (source === "jikan-anime") return searchJikan(title, "anime");
+      if (source === "jikan-manga") return searchJikan(title, "manga");
       if (source === "googlebooks") return searchGoogleBooks(title);
       if (source === "musicbrainz") return searchMusicBrainz(title);
       return [];

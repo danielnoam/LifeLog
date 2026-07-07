@@ -6,7 +6,7 @@
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" } }; // monthOrder, currency, mediaCategorySources, mediaKeys — synced
+  const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" } }; // monthOrder, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys — synced
   const CURRENCY_SYMBOLS = { ILS: "₪", USD: "$", EUR: "€", GBP: "£" };
   const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big" }; // maxWidth 0 = stretch — local to this device, not synced
   const THEMES = ["light", "nord", "dracula"]; // "default" has no class — it's the bare :root palette
@@ -24,8 +24,27 @@
   const MEDIA_SOURCE_LABELS = {
     rawg: "RAWG", "tmdb-movie": "TMDB", "tmdb-tv": "TMDB",
     "anilist-anime": "AniList", "anilist-manga": "AniList",
+    "jikan-anime": "Jikan", "jikan-manga": "Jikan",
     openlibrary: "Open Library", googlebooks: "Google Books", musicbrainz: "MusicBrainz",
     steam: "Steam",
+  };
+  // Which sources are interchangeable for the same media type — used to
+  // restrict a category's fallback-source dropdown to only the alternatives
+  // that make sense for its primary source (e.g. an anime fallback can only
+  // be another anime source). Steam and "None" are excluded: Steam has no
+  // search to fall back from/to (manual App ID only), and "None" means
+  // metadata fetching is off entirely.
+  const MEDIA_SOURCE_TYPE = {
+    rawg: "games",
+    "tmdb-movie": "movie",
+    "tmdb-tv": "tv",
+    "anilist-anime": "anime",
+    "jikan-anime": "anime",
+    "anilist-manga": "manga",
+    "jikan-manga": "manga",
+    openlibrary: "books",
+    googlebooks: "books",
+    musicbrainz: "music",
   };
   // How long a fetched GG.deals price stays valid before a backlog re-render
   // re-fetches it; avoids re-querying the rate-limited API on every render.
@@ -40,7 +59,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.53.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.54.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -1928,17 +1947,28 @@
     return stripped || title;
   }
 
+  // Tries the category's primary media source first; only if that comes back
+  // completely empty does it fall back to the category's configured fallback
+  // source (if any) — the fallback never overrides a primary that actually
+  // found something, it just fills the gap when the primary has nothing.
   async function fetchMediaSuggestions(title, category) {
     const source = (state.data.settings.mediaCategorySources || {})[category];
     if (!source || !window.LifeLogMedia) return [];
+    const fallbackSource = (state.data.settings.mediaCategoryFallbackSources || {})[category];
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     const stripped = stripMediaSearchSuffix(title);
-    try {
+    async function trySource(src) {
+      if (!src) return [];
       if (stripped !== title) {
-        const results = await window.LifeLogMedia.search(stripped, source, keys);
+        const results = await window.LifeLogMedia.search(stripped, src, keys);
         if (results.length) return results;
       }
-      return await window.LifeLogMedia.search(title, source, keys);
+      return window.LifeLogMedia.search(title, src, keys);
+    }
+    try {
+      const results = await trySource(source);
+      if (results.length) return results;
+      return await trySource(fallbackSource);
     } catch (e) { return []; }
   }
 
@@ -3016,7 +3046,9 @@
       { value: "tmdb-movie", label: "TMDB (movie)" },
       { value: "tmdb-tv", label: "TMDB (TV)" },
       { value: "anilist-anime", label: "AniList (anime)" },
+      { value: "jikan-anime", label: "Jikan (anime)" },
       { value: "anilist-manga", label: "AniList (manga)" },
+      { value: "jikan-manga", label: "Jikan (manga)" },
       { value: "openlibrary", label: "Open Library (books)" },
       { value: "googlebooks", label: "Google Books (books)" },
       { value: "musicbrainz", label: "MusicBrainz (music)" },
@@ -3028,6 +3060,8 @@
     for (const cat of state.data.categories) {
       const row = el("div", "media-cat-row");
       row.appendChild(el("span", "media-cat-name", cat.name));
+
+      const selWrap = el("div", "media-cat-sels");
       const sel = el("select", "media-cat-sel");
       sources.forEach((s) => {
         const opt = el("option", null, s.label);
@@ -3035,12 +3069,50 @@
         if ((state.data.settings.mediaCategorySources || {})[cat.name] === s.value) opt.selected = true;
         sel.appendChild(opt);
       });
+
+      // Fallback source, tried only when the primary finds no matches — its
+      // options are limited to whatever else is compatible with the primary's
+      // media type (e.g. anime only offers other anime sources), so it's
+      // hidden entirely for types with just one supported source (games,
+      // movies/TV, music) until a second one exists.
+      const arrow = el("span", "media-cat-arrow", "→");
+      const fallbackSel = el("select", "media-cat-sel media-cat-fallback");
+      function refreshFallbackOptions() {
+        const type = MEDIA_SOURCE_TYPE[sel.value];
+        const current = (state.data.settings.mediaCategoryFallbackSources || {})[cat.name] || "";
+        fallbackSel.innerHTML = "";
+        const noneOpt = el("option", null, "No fallback");
+        noneOpt.value = "";
+        fallbackSel.appendChild(noneOpt);
+        const alts = type ? sources.filter((s) => s.value && s.value !== sel.value && MEDIA_SOURCE_TYPE[s.value] === type) : [];
+        alts.forEach((s) => {
+          const opt = el("option", null, s.label);
+          opt.value = s.value;
+          fallbackSel.appendChild(opt);
+        });
+        fallbackSel.value = alts.some((s) => s.value === current) ? current : "";
+        const show = alts.length > 0;
+        arrow.hidden = !show;
+        fallbackSel.hidden = !show;
+      }
+      refreshFallbackOptions();
+
       sel.onchange = async () => {
         if (!state.data.settings.mediaCategorySources) state.data.settings.mediaCategorySources = {};
         state.data.settings.mediaCategorySources[cat.name] = sel.value;
+        refreshFallbackOptions();
         await persist();
       };
-      row.appendChild(sel);
+      fallbackSel.onchange = async () => {
+        if (!state.data.settings.mediaCategoryFallbackSources) state.data.settings.mediaCategoryFallbackSources = {};
+        state.data.settings.mediaCategoryFallbackSources[cat.name] = fallbackSel.value;
+        await persist();
+      };
+
+      selWrap.appendChild(sel);
+      selWrap.appendChild(arrow);
+      selWrap.appendChild(fallbackSel);
+      row.appendChild(selWrap);
       container.appendChild(row);
     }
   }
@@ -3786,6 +3858,7 @@
       delete state.media.categorySources;
       saveMediaSettings();
     }
+    const mediaCategoryFallbackSources = incomingSettings.mediaCategoryFallbackSources || {};
     // One-time migration: API keys used to live in local-only media settings,
     // kept separate from synced data for privacy. Now they sync like
     // everything else, so pasting a key once covers every device.
@@ -3801,6 +3874,7 @@
       monthOrder: incomingSettings.monthOrder || DEFAULT_SETTINGS.monthOrder,
       currency: incomingSettings.currency || DEFAULT_SETTINGS.currency,
       mediaCategorySources,
+      mediaCategoryFallbackSources,
       mediaKeys,
     };
     const accIn = data.accomplishments || {};
