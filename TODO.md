@@ -14,6 +14,9 @@ todo:
 
 done:
 
+- Finance Summary: "Recurring vs one-off" is now just "Recurring" —
+  lists each recurring expense's own total for the period instead of
+  one lumped total against all one-off spending
 - recurring expenses: occurrences can now be edited individually — click
   one (in the Ledger or the template's own list) to set a per-date
   amount/note override without changing the template or any other

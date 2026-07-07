@@ -41,7 +41,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.57.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.57.1"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -1417,22 +1417,25 @@
     root.appendChild(card);
   }
 
-  // Splits filtered expenses between auto-generated recurring occurrences
-  // and manually-entered one-off ones.
+  // Total spent this period through each recurring expense, broken out
+  // individually (largest first) rather than lumped into one bucket.
   function renderRecurringSplitCard(root, expenseItems) {
-    if (!expenseItems.length) return;
     const recurring = expenseItems.filter((f) => f.virtual);
-    const oneOff = expenseItems.filter((f) => !f.virtual);
-    const recurTotal = recurring.reduce((s, f) => s + f.amount, 0);
-    const oneOffTotal = oneOff.reduce((s, f) => s + f.amount, 0);
-    if (!recurTotal && !oneOffTotal) return;
+    if (!recurring.length) return;
+    const byRec = groupBy(recurring, (f) => f.recurringId);
+    const rows = Object.keys(byRec).map((id) => {
+      const group = byRec[id];
+      const rec = state.data.recurringExpenses.find((r) => r.id === id);
+      const label = (rec && (rec.note || rec.category)) || group[0].note || group[0].category;
+      const color = financeColorOf((rec && rec.category) || group[0].category);
+      return { label, color, total: group.reduce((s, f) => s + f.amount, 0), count: group.length };
+    }).sort((a, b) => b.total - a.total);
 
     const card = el("div", "card");
     card.style.marginTop = "20px";
-    card.appendChild(el("h2", null, "Recurring vs one-off"));
-    const max = Math.max(1, recurTotal, oneOffTotal);
-    card.appendChild(barRow("Recurring", recurTotal, max, "var(--accent)", recurring.length, formatMoney, "entries"));
-    card.appendChild(barRow("One-off", oneOffTotal, max, "var(--expense)", oneOff.length, formatMoney, "entries"));
+    card.appendChild(el("h2", null, "Recurring"));
+    const max = Math.max(1, ...rows.map((r) => r.total));
+    rows.forEach((r) => card.appendChild(barRow(r.label, r.total, max, r.color, r.count, formatMoney, "entries")));
     root.appendChild(card);
   }
 

@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.57.1] - 2026-07-07
+
+### Changed
+- Finance Summary: the "Recurring vs one-off" card is now just
+  "Recurring" — instead of one lumped total for all recurring expenses
+  against all one-off ones, it lists each recurring expense's own
+  total for the period, largest first.
+
 ## [0.57.0] - 2026-07-07
 
 ### Added
