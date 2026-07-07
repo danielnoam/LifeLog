@@ -38,7 +38,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, method: "pin", pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.51.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.51.1"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -569,9 +569,9 @@
     return span;
   }
 
-  function priorityBadge(priority) {
-    const span = el("span", "bpriority", "★".repeat(priority));
-    span.title = "Priority " + priority + "/5";
+  function priorityBadge() {
+    const span = el("span", "bpriority", "★");
+    span.title = "Prioritized";
     return span;
   }
 
@@ -895,6 +895,7 @@
     const empty = state.bulk.selected.size === 0;
     const bar = el("div", "bulk-bar");
     bar.appendChild(el("span", "bulk-count", `${state.bulk.selected.size} selected`));
+    bar.appendChild(el("span", "bulk-progress"));
     const moveSel = document.createElement("select");
     moveSel.className = "bulk-move-select";
     moveSel.disabled = empty;
@@ -932,32 +933,36 @@
   async function bulkSyncSelected(btn) {
     const ids = [...state.bulk.selected];
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
+    const progress = $(".bulk-progress");
     btn.disabled = true;
-    btn.textContent = "Syncing…";
     let synced = 0, skipped = 0, lastErr = "";
     for (const id of ids) {
       const item = state.data.backlog.find((b) => b.id === id);
       // Steam has no search (CORS-blocked) — its App ID can only be entered
       // manually per item, so it's skipped here rather than attempted.
       const source = item && (state.data.settings.mediaCategorySources || {})[item.category];
-      if (!item || !source || source === "steam") { skipped++; continue; }
-      const results = await fetchMediaSuggestions(item.title, item.category);
-      if (!results.length) {
+      if (!item || !source || source === "steam") {
         skipped++;
-        lastErr = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || lastErr;
-        continue;
+      } else {
+        const results = await fetchMediaSuggestions(item.title, item.category);
+        if (!results.length) {
+          skipped++;
+          lastErr = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || lastErr;
+        } else {
+          const r = results[0];
+          item.coverUrl = r.coverUrl || "";
+          item.mediaId = r.id || "";
+          item.mediaSource = r.source || "";
+          item.summary = r.summary || "";
+          if (r.year) item.releaseYear = r.year; else delete item.releaseYear;
+          item.externalRating = r.externalRating || "";
+          // TMDB needs a second per-title call for runtime/season data — the
+          // search endpoint doesn't include it (see fetchLength in media.js).
+          item.length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+          synced++;
+        }
       }
-      const r = results[0];
-      item.coverUrl = r.coverUrl || "";
-      item.mediaId = r.id || "";
-      item.mediaSource = r.source || "";
-      item.summary = r.summary || "";
-      if (r.year) item.releaseYear = r.year; else delete item.releaseYear;
-      item.externalRating = r.externalRating || "";
-      // TMDB needs a second per-title call for runtime/season data — the
-      // search endpoint doesn't include it (see fetchLength in media.js).
-      item.length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
-      synced++;
+      if (progress) progress.textContent = `${synced + skipped}/${ids.length} synced`;
     }
     state.bulk.active = false;
     state.bulk.selected.clear();
@@ -1020,29 +1025,33 @@
   async function bulkSyncEntriesSelected(btn) {
     const ids = [...state.bulk.selected];
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
+    const progress = $(".bulk-progress");
     btn.disabled = true;
-    btn.textContent = "Syncing…";
     let synced = 0, skipped = 0, lastErr = "";
     for (const id of ids) {
       const item = state.data.entries.find((e) => e.id === id);
       // Steam has no search (CORS-blocked) — its App ID can only be entered
       // manually per item, so it's skipped here rather than attempted.
       const source = item && (state.data.settings.mediaCategorySources || {})[item.category];
-      if (!item || !source || source === "steam") { skipped++; continue; }
-      const results = await fetchMediaSuggestions(item.title, item.category);
-      if (!results.length) {
+      if (!item || !source || source === "steam") {
         skipped++;
-        lastErr = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || lastErr;
-        continue;
+      } else {
+        const results = await fetchMediaSuggestions(item.title, item.category);
+        if (!results.length) {
+          skipped++;
+          lastErr = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || lastErr;
+        } else {
+          const r = results[0];
+          item.coverUrl = r.coverUrl || "";
+          item.mediaId = r.id || "";
+          item.mediaSource = r.source || "";
+          // TMDB needs a second per-title call for runtime/season data — the
+          // search endpoint doesn't include it (see fetchLength in media.js).
+          item.length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+          synced++;
+        }
       }
-      const r = results[0];
-      item.coverUrl = r.coverUrl || "";
-      item.mediaId = r.id || "";
-      item.mediaSource = r.source || "";
-      // TMDB needs a second per-title call for runtime/season data — the
-      // search endpoint doesn't include it (see fetchLength in media.js).
-      item.length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
-      synced++;
+      if (progress) progress.textContent = `${synced + skipped}/${ids.length} synced`;
     }
     state.bulk.active = false;
     state.bulk.selected.clear();
@@ -1082,7 +1091,7 @@
     if (state.bulk.active) row.appendChild(bulkCheckbox(b));
     const t = el("span", "etitle", b.title); t.title = b.title;
     row.appendChild(t);
-    if (b.priority) row.appendChild(priorityBadge(b.priority));
+    if (b.priority) row.appendChild(priorityBadge());
     if (!state.bulk.active) {
       const doneBtn = el("button", "btn btn-sm", "✓ Done");
       doneBtn.type = "button";
@@ -1113,7 +1122,7 @@
     }
     const body = el("div", "bl-body");
     body.appendChild(el("span", "bl-title", b.title));
-    if (b.priority) body.appendChild(priorityBadge(b.priority));
+    if (b.priority) body.appendChild(priorityBadge());
     const meta = [];
     if (b.externalRating) meta.push("★ " + b.externalRating);
     if (b.releaseYear) meta.push(String(b.releaseYear));
@@ -1882,7 +1891,6 @@
     });
   }
   function setRating(value) { setStars("#fRating", value); }
-  function setPriority(value) { setStars("#bPriority", value); }
 
   // Suggest previously-logged titles matching what's being typed, so a
   // re-entry (rewatch/replay/reread) reuses the exact same title/category.
@@ -2395,8 +2403,9 @@
     $("#bReleaseYear").value = editing && item.releaseYear ? String(item.releaseYear) : "";
     $("#bExternalRating").value = editing ? (item.externalRating || "") : "";
     $("#bLength").value = editing ? (item.length || "") : "";
-    setPriority(editing ? (item.priority || 0) : 0);
+    $("#bPriority").checked = editing ? !!item.priority : false;
     $("#bDropped").checked = editing ? !!item.dropped : false;
+    updateDroppedBtnLabel();
     lastSyncedBacklogTitle = editing ? item.title : "";
     $("#bSteamAppId").value = editing && item.mediaSource === "steam" ? (item.mediaId || "") : "";
     $("#bTitleSuggest").innerHTML = "";
@@ -2408,6 +2417,14 @@
     $("#backlogModal").hidden = false;
   }
   function closeBacklogModal() { $("#backlogModal").hidden = true; }
+
+  function updateDroppedBtnLabel() {
+    $("#toggleDroppedBtn").textContent = $("#bDropped").checked ? "Restore" : "Mark as dropped";
+  }
+  function toggleDropped() {
+    $("#bDropped").checked = !$("#bDropped").checked;
+    updateDroppedBtnLabel();
+  }
 
   async function saveBacklogFromForm(ev) {
     ev.preventDefault();
@@ -2422,7 +2439,7 @@
     const releaseYear = $("#bReleaseYear").value;
     const externalRating = $("#bExternalRating").value;
     const length = $("#bLength").value;
-    const priority = parseInt($("#bPriority").dataset.value, 10) || 0;
+    const priority = $("#bPriority").checked ? 1 : 0;
     const dropped = $("#bDropped").checked;
     if (!title) return;
     if (id) {
@@ -3970,12 +3987,6 @@
         setRating(v === parseInt($("#fRating").dataset.value, 10) ? 0 : v);
       };
     });
-    $("#bPriority").querySelectorAll(".star").forEach((s) => {
-      s.onclick = () => {
-        const v = parseInt(s.dataset.star, 10);
-        setPriority(v === parseInt($("#bPriority").dataset.value, 10) ? 0 : v);
-      };
-    });
     document.addEventListener("click", (e) => {
       if (!e.target.closest(".ac-wrap")) $("#fTitleSuggest").hidden = true;
     });
@@ -4004,6 +4015,7 @@
     $("#cancelBacklogBtn").onclick = closeBacklogModal;
     $("#backlogForm").onsubmit = saveBacklogFromForm;
     $("#deleteBacklogBtn").onclick = deleteCurrentBacklogItem;
+    $("#toggleDroppedBtn").onclick = toggleDropped;
     $("#bTitle").oninput = renderBacklogTitleSuggestions;
     $("#bCategory").onchange = () => updateSyncBtnVisibility("b", $("#bCategory").value);
     $("#bSyncBtn").onclick = syncBacklogTitle;

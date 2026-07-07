@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.51.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.51.1" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -258,25 +258,17 @@
         <label>Category
           <select id="bCategory" required></select>
         </label>
-        <label>Priority
-          <div class="rating-input" id="bPriority" data-value="0">
-            <button type="button" class="star" data-star="1" aria-label="1 star">★</button>
-            <button type="button" class="star" data-star="2" aria-label="2 stars">★</button>
-            <button type="button" class="star" data-star="3" aria-label="3 stars">★</button>
-            <button type="button" class="star" data-star="4" aria-label="4 stars">★</button>
-            <button type="button" class="star" data-star="5" aria-label="5 stars">★</button>
-          </div>
-          <p class="hint">How badly you want to get to this — higher priority sits at the top of its category.</p>
-        </label>
         <label class="toggle-label">
-          <input type="checkbox" id="bDropped" />
-          Dropped — no longer plan to finish this
+          <input type="checkbox" id="bPriority" />
+          ★ Prioritize — bumps this to the top of its category
         </label>
+        <input type="checkbox" id="bDropped" hidden />
         <label>Notes
           <textarea id="bNotes" rows="3" placeholder="Optional thoughts, why it's on your list…"></textarea>
         </label>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteBacklogBtn" hidden>Delete</button>
+          <button type="button" class="btn" id="toggleDroppedBtn">Mark as dropped</button>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelBacklogBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
@@ -753,9 +745,9 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.51.0"></script>
-  <script src="src/media.js?v=0.51.0"></script>
-  <script src="src/storage.js?v=0.51.0"></script>
-  <script src="src/app.js?v=0.51.0"></script>
+  <script src="src/qr.js?v=0.51.1"></script>
+  <script src="src/media.js?v=0.51.1"></script>
+  <script src="src/storage.js?v=0.51.1"></script>
+  <script src="src/app.js?v=0.51.1"></script>
 </body>
 </html>

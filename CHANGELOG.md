@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.51.1] - 2026-07-07
+
+### Changed
+- Backlog priority is now a single "★ Prioritize" toggle instead of a
+  1-5 star rating — items are either prioritized or not, no levels.
+- The backlog "Dropped" checkbox is now a "Mark as dropped"/"Restore"
+  button next to Delete in the backlog editor, instead of a checkbox
+  further up the form.
+- The bulk-sync button no longer changes its own label to "Syncing…"
+  while running — that extra width was pushing the Cancel button onto
+  its own line on narrower screens. Live progress ("N/M synced") now
+  shows next to the selected-item count instead.
+
+### Fixed
+- Bulk sync's Cancel button dropping to its own row on mobile once a
+  sync was in progress.
+
 ## [0.51.0] - 2026-07-07
 
 ### Added

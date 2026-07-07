@@ -513,6 +513,8 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
   display: flex; align-items: center; gap: 10px; font-size: 13px; max-width: calc(100vw - 32px);
 }
 .bulk-count { font-weight: 600; white-space: nowrap; }
+.bulk-progress { color: var(--text-dim); white-space: nowrap; }
+.bulk-progress:empty { display: none; }
 .bulk-move-select {
   background: var(--bg); border: 1px solid var(--border); color: var(--text);
   padding: 6px 8px; border-radius: 8px; font-size: 12px;
@@ -574,10 +576,6 @@ body.modal-open { overflow: hidden; }
 .rating-input .star.filled { color: var(--accent); }
 .rating-input .star:hover { color: var(--accent-hover); }
 
-/* Priority (backlog) uses the same amber as its .bpriority badge, so the
-   picker and the star count shown on backlog rows read as the same signal. */
-#bPriority.rating-input .star.filled { color: var(--priority); }
-#bPriority.rating-input .star:hover { color: var(--priority-hover); }
 .modal-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 .modal-actions .spacer { flex: 1; }
 

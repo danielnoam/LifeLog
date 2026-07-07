@@ -12,6 +12,12 @@ todo:
 
 done:
 
+- simplified backlog priority to a single "★ Prioritize" toggle instead
+  of a 1-5 star rating; moved the "Dropped" checkbox into a "Mark as
+  dropped"/"Restore" button next to Delete; bulk sync now shows live
+  "N/M synced" progress next to the selected count instead of changing
+  the Sync button's own label (which was pushing Cancel onto its own
+  row on mobile)
 - added length metadata for backlog items and journal entries: playtime
   (games), runtime (movies), season/episode counts (shows), page count
   (books) — synced via RAWG/TMDB/Open Library/Google Books
