@@ -19,14 +19,17 @@
 //     endpoint this originally targeted has been retired by Valve — it
 //     now just serves the store homepage. This is the endpoint that
 //     replaced it; no API key needed. Returns only {appid, priority,
-//     date_added} per item, no title — see /steam-applist below.
+//     date_added} per item, no title — see /steam-appdetails below.
 //
-//   GET /steam-applist
-//     -> https://api.steampowered.com/ISteamApps/GetAppList/v2/
-//     The full id->name list for every app on Steam (a few MB, one
-//     request), used to resolve wishlist app IDs to titles client-side
-//     instead of one request per game (which would be slow and likely
-//     rate-limited).
+//   GET /steam-appdetails/<appid>
+//     -> https://store.steampowered.com/api/appdetails?appids=<appid>&filters=basic
+//     Resolves one app ID to its name. A bulk id->name list would be
+//     one request instead of hundreds, but Steam's only bulk options
+//     turned out to be a dead end: ISteamApps/GetAppList is retired,
+//     and its replacement (IStoreService/GetAppList) needs a Steam
+//     Partner key regular users don't have. So this is called once per
+//     new wishlist item instead, throttled client-side to avoid
+//     Steam's rate limit.
 //
 //   GET /steamgriddb/<anything>
 //     -> https://www.steamgriddb.com/api/v2/<anything>
@@ -54,8 +57,10 @@ export default {
       return proxyJson(target);
     }
 
-    if (url.pathname === "/steam-applist") {
-      return proxyJson("https://api.steampowered.com/ISteamApps/GetAppList/v2/");
+    const appDetailsMatch = url.pathname.match(/^\/steam-appdetails\/(\d+)$/);
+    if (appDetailsMatch) {
+      const target = `https://store.steampowered.com/api/appdetails?appids=${appDetailsMatch[1]}&filters=basic`;
+      return proxyJson(target);
     }
 
     if (url.pathname.startsWith("/steamgriddb/")) {

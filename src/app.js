@@ -41,7 +41,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.59.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.59.2"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -3637,33 +3637,39 @@
   }
 
   // The wishlist endpoint (IWishlistService/GetWishlist) only returns
-  // {appid, priority, date_added} per item, no title — resolving names
-  // needs Steam's full app id->name list (ISteamApps/GetAppList), a
-  // several-MB one-shot fetch. Cached in memory for the page session
-  // (not persisted) since re-downloading it on every sync would be
-  // wasteful but it's cheap to redo after a reload.
-  let steamAppListCache = null;
-  async function fetchSteamAppNames(proxyUrl) {
-    if (steamAppListCache) return steamAppListCache;
-    const res = await fetch(`${proxyUrl}/steam-applist`);
-    if (!res.ok) throw new Error(`app list fetch failed (HTTP ${res.status})`);
-    const data = await res.json();
-    const apps = (data && data.applist && data.applist.apps) || [];
-    const map = new Map();
-    for (const a of apps) if (a && a.appid != null) map.set(String(a.appid), a.name || "");
-    steamAppListCache = map;
-    return map;
+  // {appid, priority, date_added} per item, no title. Steam's bulk
+  // id->name list turned out to be a dead end (ISteamApps/GetAppList is
+  // retired, its replacement IStoreService/GetAppList needs a
+  // Steam Partner key regular users don't have), so titles are resolved
+  // one game at a time via the storefront's appdetails endpoint instead
+  // — slower, but the only option left that doesn't need special access.
+  // A null return (bad response, or Steam rate-limiting this IP) just
+  // falls back to a placeholder title rather than failing the whole sync.
+  function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+  async function fetchSteamAppName(proxyUrl, appid) {
+    try {
+      const res = await fetch(`${proxyUrl}/steam-appdetails/${appid}`);
+      if (!res.ok) return null;
+      const data = await res.json();
+      const entry = data && data[appid];
+      return (entry && entry.success && entry.data && entry.data.name) || null;
+    } catch (e) {
+      return null;
+    }
   }
 
   // Pulls the whole wishlist in one request via the user's own CORS proxy
   // (Steam's wishlist endpoint has no Access-Control-Allow-Origin, see
-  // proxy/worker.js), resolves titles via the app list above, then routes
-  // it through the same review picker used for every other import —
-  // dup-checked against the existing backlog by title+category, nothing
-  // added until confirmed. Each item is tagged mediaSource: "steam" +
-  // mediaId: <appid>, the same shape a manually entered Steam App ID
-  // produces, so cover art and GG.deals pricing (both already wired to
-  // that shape) pick it up with no further work.
+  // proxy/worker.js), skips anything already imported (matched by Steam
+  // app ID, so no wasted lookups on a repeat sync), resolves titles for
+  // what's left one at a time with a small delay between requests to
+  // stay under Steam's rate limit, then routes the result through the
+  // same review picker used for every other import — dup-checked by
+  // title+category too, nothing added until confirmed. Each item is
+  // tagged mediaSource: "steam" + mediaId: <appid>, the same shape a
+  // manually entered Steam App ID produces, so cover art and GG.deals
+  // pricing (both already wired to that shape) pick it up with no
+  // further work.
   async function syncSteamWishlist() {
     const cfg = state.data.settings.steam || DEFAULT_SETTINGS.steam;
     const proxyUrl = (cfg.proxyUrl || "").trim().replace(/\/+$/, "");
@@ -3683,15 +3689,28 @@
         toast("Wishlist came back empty — check it's set to Public in your Steam privacy settings", true);
         return;
       }
-      if (btn) btn.textContent = "Fetching titles…";
-      const names = await fetchSteamAppNames(proxyUrl);
-      const games = items.map(({ appid }) => ({
-        title: names.get(String(appid)) || `Steam app ${appid}`,
-        category,
-        mediaSource: "steam",
-        mediaId: String(appid),
-        coverUrl: window.LifeLogMedia ? window.LifeLogMedia.steamCoverUrl(appid) : "",
-      }));
+      const existingSteamIds = new Set(
+        state.data.backlog.filter((b) => b.mediaSource === "steam" && b.mediaId).map((b) => b.mediaId)
+      );
+      const newItems = items.filter((it) => !existingSteamIds.has(String(it.appid)));
+      if (!newItems.length) {
+        toast("Nothing new — every wishlisted game is already in your backlog");
+        return;
+      }
+      const games = [];
+      for (let i = 0; i < newItems.length; i++) {
+        const appid = newItems[i].appid;
+        if (btn) btn.textContent = `Fetching titles… ${i + 1}/${newItems.length}`;
+        const name = await fetchSteamAppName(proxyUrl, appid);
+        games.push({
+          title: name || `Steam app ${appid}`,
+          category,
+          mediaSource: "steam",
+          mediaId: String(appid),
+          coverUrl: window.LifeLogMedia ? window.LifeLogMedia.steamCoverUrl(appid) : "",
+        });
+        if (i < newItems.length - 1) await sleep(350);
+      }
       const built = buildImportItems({ backlog: games, categories: [] });
       reviewAndImport(
         "Steam Wishlist",

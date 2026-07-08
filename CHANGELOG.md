@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.59.2] - 2026-07-08
+
+### Fixed
+- Steam Wishlist import: the bulk id->name lookup (`ISteamApps/GetAppList`)
+  used to resolve titles turned out to be retired by Valve, and its
+  replacement (`IStoreService/GetAppList`) needs a Steam Partner key
+  regular users don't have — both dead ends. Titles are now resolved one
+  game at a time via the storefront's `appdetails` endpoint instead, with
+  a throttled delay between requests to stay under Steam's rate limit and
+  a progress readout on the sync button ("Fetching titles… 12/347"). Games
+  already in your backlog are now skipped before this lookup runs at all
+  (matched by Steam app ID), so repeat syncs only pay this cost for
+  genuinely new wishlist additions. A failed individual lookup falls back
+  to a placeholder title instead of failing the whole sync. If you already
+  deployed the Worker, redeploy it with the updated `proxy/worker.js`.
+
 ## [0.59.1] - 2026-07-08
 
 ### Fixed
