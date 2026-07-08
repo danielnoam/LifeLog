@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.58.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.59.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -717,6 +717,22 @@
         <p class="hint">Choose which API to use for each of your categories, plus an optional fallback that's only tried when the primary source finds no matches. Categories set to "None" won't fetch metadata. These assignments sync across your devices. Categories set to "Steam" show a manual Steam App ID field instead of search (Steam has no browser-callable search API) — paste the ID from the game's store URL to get cover art and, once a GG.deals key is set above, current lowest prices.</p>
         <div id="mediaCatRows"></div>
       </section>
+
+      <section class="settings-section">
+        <h3>Steam Wishlist import</h3>
+        <p class="hint">Pulls your whole Steam wishlist in one request and lets you review it before anything's added — nothing is added automatically, and re-syncing later won't re-add titles already in your backlog. Your Steam wishlist must be set to Public (Steam → Privacy Settings → Game details) or this comes back empty. Requires a small proxy of your own in front of Steam's endpoint — see <code>proxy/README.md</code> for the one-time setup.</p>
+        <label>Proxy URL
+          <input id="steamProxyUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://your-worker.workers.dev" />
+        </label>
+        <label>SteamID64
+          <input id="steamId64" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 76561198012345678" />
+        </label>
+        <p class="hint"><a href="https://steamid.io/" target="_blank" rel="noopener">Find your SteamID64 →</a></p>
+        <label>Add imported games to
+          <select id="steamWishlistCategory"></select>
+        </label>
+        <button id="steamWishlistSyncBtn" type="button" class="btn">🔄 Sync Steam Wishlist</button>
+      </section>
       </div><!-- /media panel -->
       </div><!-- /settings-panels -->
 
@@ -765,10 +781,10 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.58.1"></script>
-  <script src="src/media.js?v=0.58.1"></script>
-  <script src="src/merge.js?v=0.58.1"></script>
-  <script src="src/storage.js?v=0.58.1"></script>
-  <script src="src/app.js?v=0.58.1"></script>
+  <script src="src/qr.js?v=0.59.0"></script>
+  <script src="src/media.js?v=0.59.0"></script>
+  <script src="src/merge.js?v=0.59.0"></script>
+  <script src="src/storage.js?v=0.59.0"></script>
+  <script src="src/app.js?v=0.59.0"></script>
 </body>
 </html>

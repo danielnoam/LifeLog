@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.59.0] - 2026-07-08
+
+### Added
+- Steam Wishlist import: Settings → Media → "Steam Wishlist import" now
+  has a proxy URL + SteamID64 field (with a link to find yours) and a
+  "Sync Steam Wishlist" button. It pulls your whole wishlist in one
+  request through a small CORS proxy you deploy yourself (see
+  `proxy/worker.js` and `proxy/README.md`), then routes it through the
+  same review picker used everywhere else in the app — nothing is added
+  automatically, and titles already in your backlog are hidden by
+  default. Imported games get cover art and, once a GG.deals key is set,
+  current lowest prices, the same way a manually-entered Steam App ID
+  already did.
+
 ## [0.58.1] - 2026-07-08
 
 ### Fixed

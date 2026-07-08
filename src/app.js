@@ -6,7 +6,7 @@
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" } }; // monthOrder, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys — synced
+  const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" }, steam: { proxyUrl: "", steamId: "", wishlistCategory: "" } }; // monthOrder, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam — synced
   const CURRENCY_SYMBOLS = { ILS: "₪", USD: "$", EUR: "€", GBP: "£" };
   const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big" }; // maxWidth 0 = stretch — local to this device, not synced
   const THEMES = ["light", "nord", "dracula"]; // "default" has no class — it's the bare :root palette
@@ -41,7 +41,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.58.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.59.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -3288,11 +3288,27 @@
     }
   }
 
+  function renderSteamWishlistCategoryOptions() {
+    const sel = $("#steamWishlistCategory");
+    if (!sel) return;
+    const current = state.data.settings.steam?.wishlistCategory || sel.value;
+    sel.innerHTML = "";
+    state.data.categories.forEach((cat) => {
+      const opt = el("option", null, cat.name);
+      opt.value = cat.name;
+      sel.appendChild(opt);
+    });
+    if (current && state.data.categories.some((c) => c.name === current)) sel.value = current;
+  }
+
   function updateMediaSettings() {
     if (!$("#rawgKey")) return;
     $("#rawgKey").value = state.data.settings.mediaKeys?.rawg || "";
     $("#tmdbKey").value = state.data.settings.mediaKeys?.tmdb || "";
     $("#ggdealsKey").value = state.data.settings.mediaKeys?.ggdeals || "";
+    $("#steamProxyUrl").value = state.data.settings.steam?.proxyUrl || "";
+    $("#steamId64").value = state.data.settings.steam?.steamId || "";
+    renderSteamWishlistCategoryOptions();
     renderMediaCatRows();
   }
 
@@ -3561,13 +3577,20 @@
     const existingBacklogKeys = new Set(state.data.backlog.map(backlogKey));
     const existingFinanceKeys = new Set(state.data.financeEntries.map(financeKey));
     const existingRecurKeys = new Set(state.data.recurringExpenses.map(recurringKey));
+    // Steam app IDs are a stronger identity than title — catches a wishlist
+    // item whose title was edited locally after an earlier import (a plain
+    // title/category match would otherwise treat it as new again).
+    const existingSteamIds = new Set(
+      state.data.backlog.filter((b) => b.mediaSource === "steam" && b.mediaId).map((b) => b.mediaId)
+    );
 
     (entries || []).map(sanitizeEntry).forEach((e) => {
       const dup = existingEntryKeys.has(entryKey(e));
       items.push({ kind: "entry", entry: e, dup, checked: !dup });
     });
     (backlog || []).map(sanitizeBacklog).forEach((b) => {
-      const dup = existingBacklogKeys.has(backlogKey(b));
+      const dup = existingBacklogKeys.has(backlogKey(b)) ||
+        (b.mediaSource === "steam" && b.mediaId && existingSteamIds.has(b.mediaId));
       items.push({ kind: "backlog", entry: b, dup, checked: !dup });
     });
     (financeEntries || []).map(sanitizeFinanceEntry).forEach((f) => {
@@ -3611,6 +3634,53 @@
     if (byKind.finance.length) parts.push(`${byKind.finance.length} finance entries`);
     if (byKind.recurring.length) parts.push(`${byKind.recurring.length} recurring expenses`);
     toast(`Imported ${parts.join(", ")}`);
+  }
+
+  // Pulls the whole wishlist in one request via the user's own CORS proxy
+  // (Steam's wishlist endpoint has no Access-Control-Allow-Origin, see
+  // proxy/worker.js), then routes it through the same review picker used for
+  // every other import — dup-checked against the existing backlog by
+  // title+category, nothing added until confirmed. Each item is tagged
+  // mediaSource: "steam" + mediaId: <appid>, the same shape a manually
+  // entered Steam App ID produces, so cover art and GG.deals pricing (both
+  // already wired to that shape) pick it up with no further work.
+  async function syncSteamWishlist() {
+    const cfg = state.data.settings.steam || DEFAULT_SETTINGS.steam;
+    const proxyUrl = (cfg.proxyUrl || "").trim().replace(/\/+$/, "");
+    const steamId = (cfg.steamId || "").trim();
+    const category = cfg.wishlistCategory || "";
+    if (!proxyUrl || !steamId) { toast("Set your proxy URL and SteamID64 first", true); return; }
+    if (!category) { toast("Choose a category to import into first", true); return; }
+    const btn = $("#steamWishlistSyncBtn");
+    const label = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "Syncing…"; }
+    try {
+      const res = await fetch(`${proxyUrl}/steam-wishlist/${encodeURIComponent(steamId)}`);
+      if (!res.ok) { toast(`Steam wishlist fetch failed (HTTP ${res.status})`, true); return; }
+      const data = await res.json();
+      const appIds = Object.keys(data || {});
+      if (!appIds.length) {
+        toast("Wishlist came back empty — check it's set to Public in your Steam privacy settings", true);
+        return;
+      }
+      const games = appIds.map((appid) => ({
+        title: (data[appid] && data[appid].name) || `Steam app ${appid}`,
+        category,
+        mediaSource: "steam",
+        mediaId: appid,
+        coverUrl: window.LifeLogMedia ? window.LifeLogMedia.steamCoverUrl(appid) : "",
+      }));
+      const built = buildImportItems({ backlog: games, categories: [] });
+      reviewAndImport(
+        "Steam Wishlist",
+        "Review which wishlisted games to add to your backlog — titles already in your backlog are hidden by default.",
+        built
+      );
+    } catch (e) {
+      toast("Steam wishlist fetch failed (" + ((e && e.message) || "network error") + ")", true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = label; }
+    }
   }
   function mergeAccomplishments(accIn) {
     let added = 0;
@@ -4082,6 +4152,7 @@
       mediaCategorySources,
       mediaCategoryFallbackSources,
       mediaKeys,
+      steam: { ...DEFAULT_SETTINGS.steam, ...(incomingSettings.steam || {}) },
     };
     const accIn = data.accomplishments || {};
     data.accomplishments = {};
@@ -4347,6 +4418,16 @@
     $("#rawgKey").oninput = () => setMediaKey("rawg", $("#rawgKey").value);
     $("#tmdbKey").oninput = () => setMediaKey("tmdb", $("#tmdbKey").value);
     $("#ggdealsKey").oninput = () => setMediaKey("ggdeals", $("#ggdealsKey").value);
+
+    const setSteamSetting = async (field, value) => {
+      if (!state.data.settings.steam) state.data.settings.steam = { ...DEFAULT_SETTINGS.steam };
+      state.data.settings.steam[field] = value;
+      await persist();
+    };
+    $("#steamProxyUrl").oninput = () => setSteamSetting("proxyUrl", $("#steamProxyUrl").value.trim());
+    $("#steamId64").oninput = () => setSteamSetting("steamId", $("#steamId64").value.trim());
+    $("#steamWishlistCategory").onchange = () => setSteamSetting("wishlistCategory", $("#steamWishlistCategory").value);
+    $("#steamWishlistSyncBtn").onclick = syncSteamWishlist;
 
     $("#privacyEnabled").onchange = () => {
       const checked = $("#privacyEnabled").checked;

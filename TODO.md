@@ -1,33 +1,10 @@
 todo:
 
-- set up a small self-hosted CORS proxy (free Cloudflare Worker) in
-  front of the handful of endpoints that are confirmed CORS-blocked
-  directly from the browser — one proxy unblocks all of:
-  - Steam wishlist auto-import into the backlog, designed as:
-    - one-time setup: paste your SteamID64 into Settings (like the
-      GitHub token field) — wishlist must be set to Public in Steam's
-      privacy settings or the endpoint returns nothing, surfaced as a
-      clear inline note rather than a silent failure
-    - one "Sync Steam Wishlist" button pulls the whole wishlist in a
-      single request (never per-game)
-    - new games run through the existing shared import/export review
-      picker (app.js:3793, same component used for JSON/CSV import and
-      "Link past expenses") — matched by title against existing
-      backlog/timeline entries and flagged as `dup` (unchecked by
-      default) so nothing is added blindly; confirmed new items get
-      title, cover (existing steamCoverUrl() CDN trick), and their
-      Steam app ID stored on the backlog item
-    - later syncs match by the stored app ID instead of title, so
-      already-imported games never reappear in the review list
-    - removals from the Steam wishlist do NOT auto-remove the backlog
-      item — only additions sync automatically, removal/drop/done
-      stays a manual action like today
-  - GG.deals cost lookup for wishlist-imported games — fetchGgDealsPrices()
-    already exists in media.js and works standalone, just needs wiring
-    up to the new import flow, keyed off the app IDs stored above
-  - SteamGridDB back as a games cover-art source/fallback (removed
-    earlier for being CORS-blocked with no proxy in front of it — now
-    unblocked by the same Worker)
+- SteamGridDB back as a games cover-art source/fallback (removed earlier
+  for being CORS-blocked with no proxy in front of it) — the CORS proxy
+  (`proxy/worker.js`) already has a `/steamgriddb/<path>` route ready for
+  this, it just needs wiring back into media.js's source list and the
+  Settings API key field
 - Stats: trends over time — line/bar view of entries per month or per
   year, per category, using data Stats already has (no new fields needed)
 - Stats: auto-generated insight callouts — a few computed one-liners
@@ -42,6 +19,21 @@ todo:
 
 done:
 
+- Steam Wishlist import: a small self-hosted CORS proxy (free Cloudflare
+  Worker, see proxy/worker.js + proxy/README.md) unblocks Steam's
+  wishlist endpoint, which sends no CORS header. Settings → Media has a
+  new "Steam Wishlist import" section (proxy URL, SteamID64 with a
+  find-yours link, target category, sync button) that pulls the whole
+  wishlist in one request and routes it through the existing shared
+  import/export review picker — dup-checked against the backlog by
+  title+category and, for items already imported once, by Steam app ID
+  too (so a later local rename doesn't make it look new again); nothing
+  is added until confirmed. Imported items are tagged mediaSource:
+  "steam" + mediaId: <appid>, the same shape a manually-entered Steam
+  App ID already used, so cover art and GG.deals pricing (both already
+  wired to that shape) pick them up with no extra work. Wishlist
+  removals don't auto-remove the backlog item — only additions sync
+  automatically.
 - fix version history rows overflowing the panel on mobile — the
   summary now sits on its own line below the date instead of sharing
   a line with the date and Restore button
