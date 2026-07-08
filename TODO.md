@@ -1,10 +1,27 @@
 todo:
 
-- auto wishlist import for Steam, and GG.deals cost support for it
-- if SteamGridDB cover art is ever wanted for games, it needs a small
-  self-hosted proxy (e.g. a free Cloudflare Worker) in front of it —
-  confirmed CORS-blocked directly, so a pure client-side call will
-  never work no matter what the code here looks like
+- set up a small self-hosted CORS proxy (free Cloudflare Worker) in
+  front of the handful of endpoints that are confirmed CORS-blocked
+  directly from the browser — one proxy unblocks all of:
+  - Steam wishlist auto-import into the backlog (title + Steam app ID,
+    cover reused from the existing steamCoverUrl() CDN trick)
+  - GG.deals cost lookup for wishlist-imported games — fetchGgDealsPrices()
+    already exists in media.js and works standalone, just needs wiring
+    up to the new import flow
+  - SteamGridDB back as a games cover-art source/fallback (removed
+    earlier for being CORS-blocked with no proxy in front of it — now
+    unblocked by the same Worker)
+- Stats: trends over time — line/bar view of entries per month or per
+  year, per category, using data Stats already has (no new fields needed)
+- Stats: auto-generated insight callouts — a few computed one-liners
+  each time Stats opens (busiest month, longest active streak,
+  highest-rated category, year-over-year delta) — no new fields needed
+- Stats: genre/tag breakdown — add a genres[] field alongside the
+  existing coverUrl/length/rating fields each media source already
+  fills in (RAWG has genres, AniList has genres, TMDB needs one extra
+  genre-id lookup, Jikan has genres, Open Library/Google Books via
+  subjects where available); backfilled only on next sync, no
+  migration needed for existing entries; then a breakdown view in Stats
 
 done:
 
