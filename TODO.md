@@ -1,11 +1,5 @@
 todo:
 
-- rework version history so restoring works fully offline / without
-  GitHub connected — every action needs to be restorable, and restoring
-  needs to work perfectly regardless of connection
-- make sure sync correctly reconciles actions done while offline with
-  actions done on other devices during that same offline period, once
-  back online
 - auto wishlist import for Steam, and GG.deals cost support for it
 - if SteamGridDB cover art is ever wanted for games, it needs a small
   self-hosted proxy (e.g. a free Cloudflare Worker) in front of it —
@@ -14,6 +8,20 @@ todo:
 
 done:
 
+- reworked sync/version history to be robust offline and across devices:
+  every entry/backlog item/finance entry/recurring expense/accomplishment/
+  category now carries an updatedAt, deterministically backfilled for
+  existing data; version history moved into its own local-first store
+  (IndexedDB) with a human-readable summary per save ("+2 entries, edited
+  1 recurring expense"), so restoring works fully offline regardless of
+  GitHub connection, with GitHub's commit log filling in further back
+  when connected; two devices that both edit offline and reconnect now
+  get a real three-way merge (union of additions, newer-wins on true
+  conflicts, edits-over-deletes) instead of one whole snapshot silently
+  overwriting the other — the old "pick a version" picker only shows up
+  now for genuinely irreconcilable cases; also fixed two identity bugs
+  that would've broken merging: accomplishments had no stable id across
+  edits, and renaming a category regenerated its id
 - Finance Summary: "Recurring vs one-off" is now just "Recurring" —
   lists each recurring expense's own total for the period instead of
   one lumped total against all one-off spending

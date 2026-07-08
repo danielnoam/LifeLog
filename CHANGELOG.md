@@ -4,6 +4,32 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.58.0] - 2026-07-08
+
+### Added
+- Version history moved into its own Settings tab, and works fully
+  offline now — every save is recorded locally (not just as a GitHub
+  commit), with a plain-language summary of what changed ("+2 entries,
+  edited 1 recurring expense") instead of a bare timestamp. When GitHub
+  sync is connected, older saves beyond the local window still fill in
+  from its commit log, but it's no longer the only way version history
+  works at all.
+- Sync between devices now does a real merge instead of one whole
+  snapshot silently overwriting another: if you edit LifeLog offline on
+  two devices and reconnect, both sets of changes combine automatically
+  (new items from both, newer edit wins on anything genuinely
+  conflicting, an edit made elsewhere after a local delete is kept
+  rather than lost) — you just get a toast summarizing what merged in.
+  The old "pick a version to keep" screen still exists, but only for
+  genuinely irreconcilable cases now, not routine multi-device sync.
+
+### Fixed
+- Renaming a category used to regenerate its internal id, and editing
+  an achievement used to lose its original identity entirely (it was
+  removed and a new one added) — both were silently invisible before,
+  but would have broken the new sync merge, so both now keep a stable
+  identity across edits.
+
 ## [0.57.1] - 2026-07-07
 
 ### Changed

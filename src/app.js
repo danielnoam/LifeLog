@@ -41,7 +41,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.57.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.58.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -384,13 +384,22 @@
     toast._t = setTimeout(() => (t.hidden = true), isErr ? 6000 : 2600);
   }
 
+  // Snapshot of state.data as of the last successful save, used only to
+  // detect (via LifeLogMerge.stampChangedItems) which items changed since
+  // then — so every real edit gets an accurate updatedAt without threading
+  // a manual "touch" call through every mutation site in the app. Seeded
+  // once data first loads (see init()) and refreshed after every persist().
+  let lastPersistedSnapshot = null;
+
   async function persist() {
+    if (window.LifeLogMerge) window.LifeLogMerge.stampChangedItems(lastPersistedSnapshot, state.data);
     state.data.exportedAt = new Date().toISOString();
     setSyncing("Saving…");
     syncInFlight = true;
     try {
       const where = await Storage.save(state.data);
       refreshStorageStatus(where);
+      lastPersistedSnapshot = structuredClone(state.data);
     } finally {
       syncInFlight = false;
     }
@@ -2273,12 +2282,18 @@
     const accs = state.data.accomplishments;
     const orig = $("#achOrig").value;
     let createdAt = new Date().toISOString();
-    if (orig) { // editing: preserve original date, then remove the original
+    let id = uid();
+    if (orig) { // editing: preserve original date + identity, then remove the original
       const [oy, oi] = orig.split("|");
-      if (accs[oy] && accs[oy][+oi]) createdAt = accs[oy][+oi].createdAt; // may be null (imported)
+      if (accs[oy] && accs[oy][+oi]) {
+        createdAt = accs[oy][+oi].createdAt; // may be null (imported)
+        id = accs[oy][+oi].id || uid();
+      }
       if (accs[oy]) { accs[oy].splice(+oi, 1); if (!accs[oy].length) delete accs[oy]; }
     }
-    const ach = { text, createdAt };
+    // updatedAt isn't set here — persist() stamps it automatically for any
+    // item that changed since the last save (see stampChangedItems).
+    const ach = { id, text, createdAt };
     if (notes) ach.notes = notes;
     (accs[year] = accs[year] || []).push(ach);
     closeAchModal();
@@ -2333,7 +2348,7 @@
         toast("That category already exists", true);
         return;
       }
-      state.data.categories.push({ id: newName.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: newName, color });
+      state.data.categories.push({ id: newName.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: newName, color, createdAt: new Date().toISOString() });
       closeCategoryModal();
       rebuildColorMap(); buildCatFilter(); render();
       await persist();
@@ -2350,9 +2365,12 @@
     }
     cat.color = color;
     if (newName !== cat.name) {
+      // id stays put across a rename (it's the merge/sync identity for this
+      // category) — only the display name and the cascade below change.
+      // (updatedAt on cat/entries/backlog isn't set here — persist() stamps
+      // it automatically for anything that changed since the last save.)
       const old = cat.name;
       cat.name = newName;
-      cat.id = newName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
       state.data.entries.forEach((e) => { if (e.category === old) e.category = newName; });
       state.data.backlog.forEach((b) => { if (b.category === old) b.category = newName; });
       if (state.activeCats.has(old)) { state.activeCats.delete(old); state.activeCats.add(newName); }
@@ -2836,7 +2854,7 @@
         toast("That category already exists", true);
         return;
       }
-      state.data.financeCategories.push({ id: newName.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: newName, color });
+      state.data.financeCategories.push({ id: newName.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: newName, color, createdAt: new Date().toISOString() });
       closeFinanceCatModal();
       rebuildFinanceColorMap(); buildCatFilter(); render();
       await persist();
@@ -2853,9 +2871,12 @@
     }
     cat.color = color;
     if (newName !== cat.name) {
+      // id stays put across a rename (it's the merge/sync identity for this
+      // category) — only the display name and the cascade below change.
+      // (updatedAt isn't set here — persist() stamps it automatically for
+      // anything that changed since the last save.)
       const old = cat.name;
       cat.name = newName;
-      cat.id = newName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
       state.data.financeEntries.forEach((f) => { if (f.category === old) f.category = newName; });
       state.data.recurringExpenses.forEach((r) => { if (r.category === old) r.category = newName; });
       if (state.financeActiveCats.has(old)) { state.financeActiveCats.delete(old); state.financeActiveCats.add(newName); }
@@ -2974,11 +2995,24 @@
     if (res && res.changed) {
       // Re-check: a save may have started while checkRemote() was in flight.
       if (syncInFlight || isAnyModalOpen() || state.pendingSync) return;
-      state.data = normalize(res.data);
+      const remoteData = normalize(res.data);
+      // Merge rather than blindly adopting remote — cheap insurance against
+      // the narrow window where this device has local edits not yet marked
+      // "pending" (e.g. between a mutation and its persist() call landing).
+      let merged = remoteData, contributedLocally = false, summary = "";
+      if (window.LifeLogMerge) {
+        try {
+          merged = normalize(window.LifeLogMerge.mergeAllSources(Storage.getSyncBase(), state.data, remoteData));
+          summary = window.LifeLogMerge.diffSnapshots(state.data, merged);
+          contributedLocally = window.LifeLogMerge.diffSnapshots(remoteData, merged) !== "No changes";
+        } catch (e) { merged = remoteData; }
+      }
+      state.data = merged;
       Storage._cache(state.data);
       afterDataChange();
-      refreshStorageStatus();
-      toast("Updated from another device");
+      if (contributedLocally) await persist(); // push the reconciled result back so it durably converges
+      else refreshStorageStatus();
+      toast(summary && summary !== "No changes" ? "Merged " + summary + " from your other device" : "Updated from another device");
     }
   }
 
@@ -3054,57 +3088,78 @@
   }
 
   async function updateHistoryPanel() {
-    const empty = $("#historyEmptyState");
-    const controls = $("#historyControls");
-    if (!Storage.githubConnected) {
-      empty.hidden = false;
-      controls.hidden = true;
-      return;
-    }
-    empty.hidden = true;
-    controls.hidden = false;
     await refreshHistoryList();
   }
 
+  // Normalizes a local history entry ({id, savedAt, summary, snapshot}) and
+  // a GitHub commit ({sha, date, message}) into one common shape so they can
+  // share a single list and restore path.
+  function normalizeHistoryEntry(e, source) {
+    if (source === "local") return { id: e.id, savedAt: e.savedAt, summary: e.summary, source, snapshot: e.snapshot };
+    return { id: "gh-" + e.sha, savedAt: e.date, summary: e.message || "(no message)", source: "github", sha: e.sha };
+  }
+
   async function refreshHistoryList() {
+    const empty = $("#historyEmptyState");
+    const controls = $("#historyControls");
     const status = $("#historyStatus");
     const list = $("#historyList");
     status.textContent = "Loading…";
     list.innerHTML = "";
     try {
-      historyCache = await Storage.listHistory();
-      status.textContent = historyCache.length
-        ? `Showing the last ${historyCache.length} save${historyCache.length === 1 ? "" : "s"}.`
-        : "No history yet — make a save first.";
-      historyCache.forEach((c, i) => {
+      const local = (await Storage.listLocalHistory()).map((e) => normalizeHistoryEntry(e, "local"));
+      let combined = local;
+      // GitHub's deeper commit log fills in anything older than local's
+      // window (local history is capped locally; GitHub's isn't) — it's
+      // never the primary source anymore, just an extension of it.
+      if (Storage.githubConnected) {
+        try {
+          const oldestLocal = local.length ? local[local.length - 1].savedAt : null;
+          const ghExtra = (await Storage.listHistory())
+            .map((c) => normalizeHistoryEntry(c, "github"))
+            .filter((c) => !oldestLocal || c.savedAt < oldestLocal);
+          combined = local.concat(ghExtra);
+        } catch (e) { /* GitHub unreachable — local history still shown below */ }
+      }
+      combined.sort((a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""));
+      historyCache = combined;
+
+      empty.hidden = !!combined.length;
+      controls.hidden = !combined.length;
+      if (!combined.length) { status.textContent = ""; return; }
+
+      status.textContent = `Showing the last ${combined.length} save${combined.length === 1 ? "" : "s"}.`;
+      combined.forEach((c, i) => {
         const row = el("div", "history-row");
-        row.appendChild(el("span", "history-date", formatHistoryDate(c.date)));
-        row.appendChild(el("span", "history-msg", c.message || "(no message)"));
+        row.appendChild(el("span", "history-date", formatHistoryDate(c.savedAt)));
+        row.appendChild(el("span", "history-msg", c.summary || "(no summary)"));
         if (i === 0) row.appendChild(el("span", "history-badge", "Current"));
         const btn = el("button", "btn btn-small", i === 0 ? "Current" : "Restore");
         btn.type = "button";
         btn.disabled = i === 0;
-        btn.onclick = () => restoreHistoryVersion(c.sha, c.date);
+        btn.onclick = () => restoreHistoryVersion(c);
         row.appendChild(btn);
         list.appendChild(row);
       });
     } catch (e) {
+      empty.hidden = true;
+      controls.hidden = false;
       status.textContent = "";
       list.innerHTML = "";
       list.appendChild(el("p", "warn", "Couldn't load history: " + (e.message || e)));
     }
   }
 
-  async function restoreHistoryVersion(sha, date) {
-    const when = formatHistoryDate(date);
+  async function restoreHistoryVersion(entry) {
+    const when = formatHistoryDate(entry.savedAt);
     if (!confirm(
       "Restore the version from " + when + "?\n\n" +
       "This loads that version's data and saves it as your new current state " +
-      "(it becomes a new commit — nothing in GitHub's history is deleted)."
+      "(it becomes a new save — nothing already in your history is deleted)."
     )) return;
     try {
       setSyncing("Restoring…");
-      const data = await Storage.getVersion(sha);
+      const data = entry.snapshot ? structuredClone(entry.snapshot) : await Storage.getVersion(entry.sha);
       state.data = normalize(data);
       afterDataChange();
       await persist();
@@ -3878,6 +3933,15 @@
   }
 
   // ---------- data lifecycle ----------
+  // Deterministic per-item timestamp backfill for legacy data saved before
+  // updatedAt existed — falls back to createdAt (or, failing that, the
+  // epoch, so it's always "older than any real edit"). Must stay
+  // deterministic: two devices normalizing the same legacy document need to
+  // compute the identical value, or a routine reload would manufacture a
+  // spurious sync conflict on data that hasn't actually diverged.
+  function backfillUpdatedAt(item) {
+    return item.updatedAt || item.createdAt || "1970-01-01T00:00:00.000Z";
+  }
   function sanitizeEntry(e) {
     const out = {
       id: e.id || uid(),
@@ -3887,6 +3951,7 @@
       month: +e.month,
       date: e.date || `${e.year}-${String(e.month).padStart(2, "0")}`,
       createdAt: e.createdAt || null,
+      updatedAt: backfillUpdatedAt(e),
     };
     if (e.rating) out.rating = +e.rating;
     if (e.notes) out.notes = e.notes;
@@ -3902,6 +3967,7 @@
       title: b.title || "",
       category: b.category || "Other",
       createdAt: b.createdAt || null,
+      updatedAt: backfillUpdatedAt(b),
     };
     if (b.notes) out.notes = b.notes;
     if (b.coverUrl) out.coverUrl = b.coverUrl;
@@ -3922,6 +3988,7 @@
       amount: Math.abs(+f.amount) || 0,
       category: f.category || "Other",
       createdAt: f.createdAt || null,
+      updatedAt: backfillUpdatedAt(f),
     };
     if (f.yearly) {
       out.yearly = true;
@@ -3939,6 +4006,7 @@
       amount: Math.abs(+r.amount) || 0,
       category: r.category || "Other",
       createdAt: r.createdAt || null,
+      updatedAt: backfillUpdatedAt(r),
     };
     if (r.note) out.note = r.note;
     if (r.endDate) out.endDate = r.endDate;
@@ -3964,7 +4032,7 @@
     let pi = categories.length;
     for (const item of items) if (!known.has(item.category)) {
       known.add(item.category);
-      categories.push({ id: item.category.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: item.category, color: palette[pi++ % palette.length] });
+      categories.push({ id: item.category.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: item.category, color: palette[pi++ % palette.length], updatedAt: backfillUpdatedAt({}) });
     }
   }
   function normalize(data) {
@@ -4017,8 +4085,16 @@
     data.accomplishments = {};
     for (const y of Object.keys(accIn)) {
       data.accomplishments[y] = (accIn[y] || []).map((a) => {
-        if (typeof a === "string") return { text: a, createdAt: null };
-        const out = { text: a.text || "", createdAt: a.createdAt || null };
+        // Legacy accomplishments (or a plain string, the oldest shape) have
+        // no id — synthesize one deterministically from year+text (the same
+        // identity key mergeAccomplishments already uses for dedup) so two
+        // devices normalizing the same legacy data agree on it, instead of
+        // each minting a random one that would look like two different items.
+        if (typeof a === "string") {
+          return { id: "a-" + y + "-" + a.toLowerCase().replace(/[^a-z0-9]+/g, "-"), text: a, createdAt: null, updatedAt: "1970-01-01T00:00:00.000Z" };
+        }
+        const id = a.id || ("a-" + y + "-" + (a.text || "").toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+        const out = { id, text: a.text || "", createdAt: a.createdAt || null, updatedAt: backfillUpdatedAt(a) };
         if (a.notes) out.notes = a.notes;
         return out;
       });
@@ -4571,15 +4647,19 @@
     } else {
       state.data = result.data ? normalize(result.data) : emptyData();
       source = result.source;
-      githubReached = source === "github";
+      // "merged" only happens after successfully reaching a remote
+      // candidate (GitHub, when connected) to merge against.
+      githubReached = source === "github" || (source === "merged" && Storage.githubConnected);
     }
     afterDataChange();
+    lastPersistedSnapshot = structuredClone(state.data);
     if (savedUi?.scrollY) setTimeout(() => window.scrollTo(0, savedUi.scrollY), 0);
 
     refreshStorageStatus();
 
     if (setupMsg) toast(setupMsg, setupErr);
     else if (source === "seed") toast("Loaded " + state.data.entries.length + " entries from your sheet");
+    else if (source === "merged") toast("Merged changes from your other device");
     else if (Storage.githubConnected && !githubReached) {
       toast("Offline — showing last saved copy; will sync when GitHub is reachable", true);
     }

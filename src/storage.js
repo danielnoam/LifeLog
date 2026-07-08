@@ -11,18 +11,26 @@
 (function () {
   const CACHE_KEY = "lifelog-cache-v1";
   const GH_KEY = "lifelog-github-v1";        // { owner, repo, path, branch, token, sha }
+  const SYNC_BASE_KEY = "lifelog-sync-base-v1";
   const IDB_NAME = "lifelog";
   const IDB_STORE = "handles";
   const HANDLE_KEY = "dataFile";
+  const IDB_HISTORY_STORE = "history";
+  const HISTORY_CAP = 40; // a rollback aid, not a full audit log — oldest entries beyond this are pruned
 
   const fsSupported = "showSaveFilePicker" in window;
   const API = "https://api.github.com";
 
-  // ---- tiny IndexedDB helpers (persist the FileSystemFileHandle) ----
+  // ---- tiny IndexedDB helpers (persist the FileSystemFileHandle, and the
+  // local-first history log) ----
   function idb() {
     return new Promise((resolve, reject) => {
-      const req = indexedDB.open(IDB_NAME, 1);
-      req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+      const req = indexedDB.open(IDB_NAME, 2);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+        if (!db.objectStoreNames.contains(IDB_HISTORY_STORE)) db.createObjectStore(IDB_HISTORY_STORE, { keyPath: "id" });
+      };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });
@@ -53,6 +61,70 @@
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
+  }
+  async function idbAddHistory(entry) {
+    const db = await idb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_HISTORY_STORE, "readwrite");
+      tx.objectStore(IDB_HISTORY_STORE).put(entry);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+  async function idbGetAllHistory() {
+    const db = await idb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_HISTORY_STORE, "readonly");
+      const r = tx.objectStore(IDB_HISTORY_STORE).getAll();
+      r.onsuccess = () => resolve(r.result || []);
+      r.onerror = () => reject(r.error);
+    });
+  }
+  async function idbDeleteHistory(id) {
+    const db = await idb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_HISTORY_STORE, "readwrite");
+      tx.objectStore(IDB_HISTORY_STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  // ---- local-first version history ----
+  // Independent of GitHub: every successful save is recorded here too, with
+  // a full snapshot and a human-readable diff summary, so restoring recent
+  // history works offline and for Browser-only/local-file-only setups that
+  // have no GitHub commit log to fall back on at all.
+  let lastSavedSnapshot = null; // for diffing into history summaries — a plain in-memory copy, not synced
+  function historyId() { return "h" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  async function recordHistory(data, summary) {
+    try {
+      await idbAddHistory({ id: historyId(), savedAt: new Date().toISOString(), summary: summary || "Saved", snapshot: data });
+      const all = await idbGetAllHistory();
+      if (all.length > HISTORY_CAP) {
+        all.sort((a, b) => a.savedAt.localeCompare(b.savedAt)); // oldest first
+        for (const e of all.slice(0, all.length - HISTORY_CAP)) await idbDeleteHistory(e.id);
+      }
+    } catch (e) { /* history is a convenience — never block a save on it failing */ }
+  }
+
+  // ---- sync base (merge ancestor) ----
+  // The last data confirmed to match GitHub — the "we both had this" point a
+  // three-way merge diffs local/remote against, so it can tell an intentional
+  // deletion apart from an item the other side just hasn't seen yet. Set only
+  // when GitHub is actually reached (never on an offline/cache-only save,
+  // which would otherwise make the base drift ahead of what's really synced
+  // and cause unsynced local edits to look "unchanged" and get discarded).
+  // Local-only, never synced itself — a merge ancestor is inherently
+  // per-device bookkeeping, not shared data.
+  function _setSyncBase(data) {
+    try { localStorage.setItem(SYNC_BASE_KEY, JSON.stringify(data)); } catch (e) {}
+  }
+  function _getSyncBase() {
+    try {
+      const raw = localStorage.getItem(SYNC_BASE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
   }
 
   // ---- local-file backend state ----
@@ -217,7 +289,12 @@
     try {
       gh.sha = await ghPut(data, gh.sha);
     } catch (e) {
-      // Stale SHA (edited on another device) → refetch and overwrite (last write wins).
+      // Stale SHA — another device saved first. Overwrite here (this single
+      // HTTP write still resolves last-write-wins); nothing is actually
+      // lost, though, because this device's own edits stay in its local
+      // cache/sync-base comparison and the *next* load()/pollForUpdates()
+      // cycle (which both merge properly) reconciles the two for real —
+      // that's the layer this is deliberately kept simple in favor of.
       if (e.status === 409 || e.status === 422) {
         const cur = await ghGetFile();
         gh.sha = await ghPut(data, cur ? cur.sha : null);
@@ -288,9 +365,33 @@
         return { data: null, source: "empty" };
       }
 
-      // If the available sources were saved at different times, let the user pick.
+      // If the available sources were saved at different times, try to merge
+      // them automatically instead of asking the user to pick one and
+      // discard the rest — the common case here is simply "another device
+      // saved while this one was offline", not a genuine irreconcilable
+      // conflict. remote = GitHub (or the local file, if that's all that's
+      // connected); local = this device's own last-known cache.
       const stamped = candidates.filter((c) => c.data && c.data.exportedAt);
       if (new Set(stamped.map((c) => c.data.exportedAt)).size > 1) {
+        const remote = candidates.find((c) => c.source === "github") || candidates.find((c) => c.source === "file");
+        const local = candidates.find((c) => c.source === "cache");
+        if (window.LifeLogMerge && remote && local && remote !== local) {
+          try {
+            const merged = window.LifeLogMerge.mergeAllSources(_getSyncBase(), local.data, remote.data);
+            merged.exportedAt = new Date().toISOString();
+            this._cache(merged);
+            if (gh && gh.token) { try { await ghSave(merged); githubError = null; } catch (e) { githubError = e; } }
+            await backupToFile(merged);
+            _setSyncBase(merged);
+            lastSavedSnapshot = structuredClone(merged);
+            await recordHistory(merged, "Merged — " + window.LifeLogMerge.diffSnapshots(local.data, merged));
+            return { data: merged, source: "merged" };
+          } catch (e) {
+            // Merge itself failed (malformed data etc.) — fall back to the
+            // manual picker rather than guessing.
+            return { conflict: candidates };
+          }
+        }
         return { conflict: candidates };
       }
 
@@ -301,6 +402,7 @@
       if (winner.source === "github") {
         this._cache(winner.data);
         await backupToFile(winner.data); // keep the on-disk backup fresh
+        _setSyncBase(winner.data);
       } else if (winner.source === "file") {
         this._cache(winner.data);
       }
@@ -332,16 +434,36 @@
       let toGithub = false, toFile = false;
 
       if (gh && gh.token) {
-        try { await ghSave(data); githubError = null; toGithub = true; }
+        try { await ghSave(data); githubError = null; toGithub = true; _setSyncBase(data); }
         catch (e) { githubError = e; }
       }
       toFile = await backupToFile(data);
+
+      const summary = (window.LifeLogMerge && lastSavedSnapshot)
+        ? window.LifeLogMerge.diffSnapshots(lastSavedSnapshot, data)
+        : "Saved";
+      await recordHistory(data, summary);
+      lastSavedSnapshot = structuredClone(data);
 
       if (toGithub && toFile) return "github+file";
       if (toGithub) return "github";
       if (toFile) return "file";
       return "cache";
     },
+
+    // Local-first history: recent saves with a full snapshot + diff
+    // summary, newest first, capped at HISTORY_CAP — works fully offline
+    // and regardless of which backends (if any) are connected.
+    async listLocalHistory() {
+      try {
+        const all = await idbGetAllHistory();
+        return all.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+      } catch (e) { return []; }
+    },
+
+    // The last data confirmed to match GitHub — the merge ancestor a
+    // three-way merge diffs against. See _setSyncBase's comment above.
+    getSyncBase() { return _getSyncBase(); },
 
     // ---- Local-file backend controls ----
     async connectFile(currentData) {

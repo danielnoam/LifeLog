@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.57.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.58.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -416,6 +416,7 @@
 
       <nav class="settings-tabs" id="settingsTabs">
         <button class="stab active" data-stab="storage" type="button">Data</button>
+        <button class="stab" data-stab="history" type="button">History</button>
         <button class="stab" data-stab="backup" type="button">Import / Export</button>
         <button class="stab" data-stab="privacy" type="button">Privacy</button>
         <button class="stab" data-stab="appearance" type="button">Appearance</button>
@@ -498,11 +499,14 @@
         <p class="hint">When enabled, LifeLog periodically pulls changes saved from your other devices.</p>
       </section>
 
-      <section class="settings-section">
-        <h3>Version history <span class="muted">(GitHub sync only)</span></h3>
-        <p class="hint">A short rollback history, not a full audit log — keeps roughly your last 20 saves so you can undo a mistake. Restoring saves that version as your new current one; nothing in GitHub's history is ever deleted.</p>
+      </div><!-- /storage panel -->
 
-        <p class="muted" id="historyEmptyState" hidden>This needs GitHub sync. Connect it above — every save already becomes a commit there, this section just lets you browse and restore from them.</p>
+      <div class="settings-panel" data-panel="history">
+      <section class="settings-section">
+        <h3>Version history</h3>
+        <p class="hint">A short rollback history, not a full audit log — keeps roughly your last 40 saves so you can undo a mistake, works fully offline, and shows what actually changed in each one. Restoring saves that version as your new current one; nothing already in your history is ever deleted. When GitHub sync is connected, older saves beyond that local window fill in from its commit log too.</p>
+
+        <p class="muted" id="historyEmptyState" hidden>No saves yet — your history will appear here once you make your first change.</p>
 
         <div id="historyControls" hidden>
           <div class="btn-row">
@@ -512,8 +516,7 @@
           <div id="historyList"></div>
         </div>
       </section>
-
-      </div><!-- /storage panel -->
+      </div><!-- /history panel -->
 
       <div class="settings-panel" data-panel="backup">
       <section class="settings-section">
@@ -754,17 +757,18 @@
 
   <div class="modal-overlay" id="conflictModal" hidden>
     <div class="modal modal-wide">
-      <h2>Pick which version to keep</h2>
-      <p class="muted">Your data differs between where it's saved. Choose the version to keep — it'll be copied to the others.</p>
+      <h2>Couldn't automatically merge these versions</h2>
+      <p class="muted">This is unusual — normally differences between devices merge on their own. Pick the version to keep and it'll be copied to the others; nothing is deleted, so anything unique to the version you don't pick may still be recoverable from Settings → History afterward.</p>
       <div class="conflict-list" id="conflictList"></div>
     </div>
   </div>
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.57.1"></script>
-  <script src="src/media.js?v=0.57.1"></script>
-  <script src="src/storage.js?v=0.57.1"></script>
-  <script src="src/app.js?v=0.57.1"></script>
+  <script src="src/qr.js?v=0.58.0"></script>
+  <script src="src/media.js?v=0.58.0"></script>
+  <script src="src/merge.js?v=0.58.0"></script>
+  <script src="src/storage.js?v=0.58.0"></script>
+  <script src="src/app.js?v=0.58.0"></script>
 </body>
 </html>
