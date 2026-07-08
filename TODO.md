@@ -3,11 +3,28 @@ todo:
 - set up a small self-hosted CORS proxy (free Cloudflare Worker) in
   front of the handful of endpoints that are confirmed CORS-blocked
   directly from the browser — one proxy unblocks all of:
-  - Steam wishlist auto-import into the backlog (title + Steam app ID,
-    cover reused from the existing steamCoverUrl() CDN trick)
+  - Steam wishlist auto-import into the backlog, designed as:
+    - one-time setup: paste your SteamID64 into Settings (like the
+      GitHub token field) — wishlist must be set to Public in Steam's
+      privacy settings or the endpoint returns nothing, surfaced as a
+      clear inline note rather than a silent failure
+    - one "Sync Steam Wishlist" button pulls the whole wishlist in a
+      single request (never per-game)
+    - new games run through the existing shared import/export review
+      picker (app.js:3793, same component used for JSON/CSV import and
+      "Link past expenses") — matched by title against existing
+      backlog/timeline entries and flagged as `dup` (unchecked by
+      default) so nothing is added blindly; confirmed new items get
+      title, cover (existing steamCoverUrl() CDN trick), and their
+      Steam app ID stored on the backlog item
+    - later syncs match by the stored app ID instead of title, so
+      already-imported games never reappear in the review list
+    - removals from the Steam wishlist do NOT auto-remove the backlog
+      item — only additions sync automatically, removal/drop/done
+      stays a manual action like today
   - GG.deals cost lookup for wishlist-imported games — fetchGgDealsPrices()
     already exists in media.js and works standalone, just needs wiring
-    up to the new import flow
+    up to the new import flow, keyed off the app IDs stored above
   - SteamGridDB back as a games cover-art source/fallback (removed
     earlier for being CORS-blocked with no proxy in front of it — now
     unblocked by the same Worker)
