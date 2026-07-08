@@ -8,6 +8,9 @@ todo:
 
 done:
 
+- fix version history rows overflowing the panel on mobile — the
+  summary now sits on its own line below the date instead of sharing
+  a line with the date and Restore button
 - reworked sync/version history to be robust offline and across devices:
   every entry/backlog item/finance entry/recurring expense/accomplishment/
   category now carries an updatedAt, deterministically backfilled for

@@ -41,7 +41,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.58.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.58.1"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -3131,14 +3131,16 @@
       status.textContent = `Showing the last ${combined.length} save${combined.length === 1 ? "" : "s"}.`;
       combined.forEach((c, i) => {
         const row = el("div", "history-row");
-        row.appendChild(el("span", "history-date", formatHistoryDate(c.savedAt)));
-        row.appendChild(el("span", "history-msg", c.summary || "(no summary)"));
-        if (i === 0) row.appendChild(el("span", "history-badge", "Current"));
+        const head = el("div", "history-row-head");
+        head.appendChild(el("span", "history-date", formatHistoryDate(c.savedAt)));
+        if (i === 0) head.appendChild(el("span", "history-badge", "Current"));
         const btn = el("button", "btn btn-small", i === 0 ? "Current" : "Restore");
         btn.type = "button";
         btn.disabled = i === 0;
         btn.onclick = () => restoreHistoryVersion(c);
-        row.appendChild(btn);
+        head.appendChild(btn);
+        row.appendChild(head);
+        row.appendChild(el("div", "history-msg", c.summary || "(no summary)"));
         list.appendChild(row);
       });
     } catch (e) {

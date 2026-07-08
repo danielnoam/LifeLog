@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.58.1] - 2026-07-08
+
+### Fixed
+- Version history rows on mobile: the summary text used to sit on the
+  same line as the date and Restore button, truncated with an ellipsis
+  and wide enough to push the button off-screen. The summary now sits
+  on its own line below the date, fully readable, with the date/badge/
+  button staying together on one line above it.
+
 ## [0.58.0] - 2026-07-08
 
 ### Added
