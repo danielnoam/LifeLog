@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.59.1] - 2026-07-08
+
+### Fixed
+- Steam Wishlist import: the classic `wishlist/profiles/.../wishlistdata/`
+  JSON endpoint the proxy originally targeted turned out to be retired by
+  Valve — it now just serves the store homepage, which broke the sync
+  with a "not valid JSON" error. Switched to the endpoint that replaced
+  it (`IWishlistService/GetWishlist`, no API key needed), which only
+  returns app IDs — titles are now resolved via Steam's full app list
+  (`ISteamApps/GetAppList`, one request, cached in memory for the
+  session) instead. If you already deployed the Worker, redeploy it with
+  the updated `proxy/worker.js` for this to work.
+
 ## [0.59.0] - 2026-07-08
 
 ### Added

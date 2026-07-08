@@ -1,6 +1,6 @@
 // LifeLog CORS proxy — deploy as a Cloudflare Worker (free tier).
 //
-// Steam's wishlist endpoint and SteamGridDB's API don't send an
+// Steam's wishlist/app-list endpoints and SteamGridDB's API don't send an
 // Access-Control-Allow-Origin header, so the browser refuses to let
 // LifeLog call them directly (confirmed CORS-blocked; see TODO.md).
 // This Worker sits in front of both: it forwards the request
@@ -14,7 +14,19 @@
 // found the URL.
 //
 //   GET /steam-wishlist/<steamid64>
-//     -> https://store.steampowered.com/wishlist/profiles/<steamid64>/wishlistdata/
+//     -> https://api.steampowered.com/IWishlistService/GetWishlist/v1/?steamid=<steamid64>
+//     The classic store.steampowered.com/wishlist/.../wishlistdata/ JSON
+//     endpoint this originally targeted has been retired by Valve — it
+//     now just serves the store homepage. This is the endpoint that
+//     replaced it; no API key needed. Returns only {appid, priority,
+//     date_added} per item, no title — see /steam-applist below.
+//
+//   GET /steam-applist
+//     -> https://api.steampowered.com/ISteamApps/GetAppList/v2/
+//     The full id->name list for every app on Steam (a few MB, one
+//     request), used to resolve wishlist app IDs to titles client-side
+//     instead of one request per game (which would be slow and likely
+//     rate-limited).
 //
 //   GET /steamgriddb/<anything>
 //     -> https://www.steamgriddb.com/api/v2/<anything>
@@ -38,8 +50,12 @@ export default {
 
     const wishlistMatch = url.pathname.match(/^\/steam-wishlist\/(\d{17})$/);
     if (wishlistMatch) {
-      const target = `https://store.steampowered.com/wishlist/profiles/${wishlistMatch[1]}/wishlistdata/`;
+      const target = `https://api.steampowered.com/IWishlistService/GetWishlist/v1/?steamid=${wishlistMatch[1]}`;
       return proxyJson(target);
+    }
+
+    if (url.pathname === "/steam-applist") {
+      return proxyJson("https://api.steampowered.com/ISteamApps/GetAppList/v2/");
     }
 
     if (url.pathname.startsWith("/steamgriddb/")) {

@@ -41,7 +41,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.59.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.59.1"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -3636,14 +3636,34 @@
     toast(`Imported ${parts.join(", ")}`);
   }
 
+  // The wishlist endpoint (IWishlistService/GetWishlist) only returns
+  // {appid, priority, date_added} per item, no title — resolving names
+  // needs Steam's full app id->name list (ISteamApps/GetAppList), a
+  // several-MB one-shot fetch. Cached in memory for the page session
+  // (not persisted) since re-downloading it on every sync would be
+  // wasteful but it's cheap to redo after a reload.
+  let steamAppListCache = null;
+  async function fetchSteamAppNames(proxyUrl) {
+    if (steamAppListCache) return steamAppListCache;
+    const res = await fetch(`${proxyUrl}/steam-applist`);
+    if (!res.ok) throw new Error(`app list fetch failed (HTTP ${res.status})`);
+    const data = await res.json();
+    const apps = (data && data.applist && data.applist.apps) || [];
+    const map = new Map();
+    for (const a of apps) if (a && a.appid != null) map.set(String(a.appid), a.name || "");
+    steamAppListCache = map;
+    return map;
+  }
+
   // Pulls the whole wishlist in one request via the user's own CORS proxy
   // (Steam's wishlist endpoint has no Access-Control-Allow-Origin, see
-  // proxy/worker.js), then routes it through the same review picker used for
-  // every other import — dup-checked against the existing backlog by
-  // title+category, nothing added until confirmed. Each item is tagged
-  // mediaSource: "steam" + mediaId: <appid>, the same shape a manually
-  // entered Steam App ID produces, so cover art and GG.deals pricing (both
-  // already wired to that shape) pick it up with no further work.
+  // proxy/worker.js), resolves titles via the app list above, then routes
+  // it through the same review picker used for every other import —
+  // dup-checked against the existing backlog by title+category, nothing
+  // added until confirmed. Each item is tagged mediaSource: "steam" +
+  // mediaId: <appid>, the same shape a manually entered Steam App ID
+  // produces, so cover art and GG.deals pricing (both already wired to
+  // that shape) pick it up with no further work.
   async function syncSteamWishlist() {
     const cfg = state.data.settings.steam || DEFAULT_SETTINGS.steam;
     const proxyUrl = (cfg.proxyUrl || "").trim().replace(/\/+$/, "");
@@ -3658,16 +3678,18 @@
       const res = await fetch(`${proxyUrl}/steam-wishlist/${encodeURIComponent(steamId)}`);
       if (!res.ok) { toast(`Steam wishlist fetch failed (HTTP ${res.status})`, true); return; }
       const data = await res.json();
-      const appIds = Object.keys(data || {});
-      if (!appIds.length) {
+      const items = (data && data.response && data.response.items) || [];
+      if (!items.length) {
         toast("Wishlist came back empty — check it's set to Public in your Steam privacy settings", true);
         return;
       }
-      const games = appIds.map((appid) => ({
-        title: (data[appid] && data[appid].name) || `Steam app ${appid}`,
+      if (btn) btn.textContent = "Fetching titles…";
+      const names = await fetchSteamAppNames(proxyUrl);
+      const games = items.map(({ appid }) => ({
+        title: names.get(String(appid)) || `Steam app ${appid}`,
         category,
         mediaSource: "steam",
-        mediaId: appid,
+        mediaId: String(appid),
         coverUrl: window.LifeLogMedia ? window.LifeLogMedia.steamCoverUrl(appid) : "",
       }));
       const built = buildImportItems({ backlog: games, categories: [] });
