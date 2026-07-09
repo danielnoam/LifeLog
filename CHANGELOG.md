@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.67.1] - 2026-07-09
+
+### Fixed
+- Settings showed two scrollbars at once on the Data and Media tabs.
+  Every settings tab shares one grid cell so switching tabs doesn't jump
+  the layout, but only Data and Media had their own internal scroll —
+  the other tabs stayed in normal flow (just invisible), so their content
+  height still stretched the shared cell, and the outer panel had to
+  scroll to reach it on top of Data/Media's own internal scroll. Every
+  tab now scrolls internally the same way, so only one scrollbar ever
+  shows regardless of which tab is open or how tall its content is.
+
 ## [0.67.0] - 2026-07-09
 
 ### Changed
