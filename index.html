@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.65.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.66.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -101,7 +101,10 @@
   <div class="modal-overlay" id="entryModal" hidden>
     <div class="modal">
       <div id="entryCover" hidden>
-        <div class="modal-cover"><img id="entryCoverImg" src="" alt="Cover" /></div>
+        <div class="modal-cover">
+          <img id="entryCoverImg" src="" alt="Cover" />
+          <div class="modal-cover-links" id="entryCoverLinks"></div>
+        </div>
         <div class="modal-cover-meta" id="entryCoverMeta"></div>
       </div>
       <h2 id="entryModalTitle">Add entry</h2>
@@ -223,7 +226,10 @@
   <div class="modal-overlay" id="backlogModal" hidden>
     <div class="modal">
       <div id="backlogCover" hidden>
-        <div class="modal-cover"><img id="backlogCoverImg" src="" alt="Cover" /></div>
+        <div class="modal-cover">
+          <img id="backlogCoverImg" src="" alt="Cover" />
+          <div class="modal-cover-links" id="backlogCoverLinks"></div>
+        </div>
         <div class="modal-cover-meta" id="backlogCoverMeta"></div>
       </div>
       <h2 id="backlogModalTitle">Add to backlog</h2>
@@ -800,10 +806,10 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.65.0"></script>
-  <script src="src/media.js?v=0.65.0"></script>
-  <script src="src/merge.js?v=0.65.0"></script>
-  <script src="src/storage.js?v=0.65.0"></script>
-  <script src="src/app.js?v=0.65.0"></script>
+  <script src="src/qr.js?v=0.66.0"></script>
+  <script src="src/media.js?v=0.66.0"></script>
+  <script src="src/merge.js?v=0.66.0"></script>
+  <script src="src/storage.js?v=0.66.0"></script>
+  <script src="src/app.js?v=0.66.0"></script>
 </body>
 </html>

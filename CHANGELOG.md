@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.66.0] - 2026-07-09
+
+### Added
+- Synced Journal entries and backlog items now show quick-link buttons in
+  the bottom-right corner of the cover image, in their edit view: one to
+  the item's own page on wherever it's synced from (Steam, RAWG, TMDB,
+  AniList, Jikan/MyAnimeList, Open Library, Google Books, MusicBrainz),
+  and — Steam-synced items only, once resolved — one to GG.deals. Each
+  button only appears once an actual page is known; nothing shows for an
+  item with no media connection, or for a source/GG.deals link this
+  can't work out a URL for.
+
 ## [0.65.0] - 2026-07-09
 
 ### Added

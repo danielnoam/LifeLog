@@ -45,7 +45,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.65.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.66.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -914,6 +914,69 @@
       document.querySelectorAll(`.bl-price[data-appid="${b.mediaId}"]`).forEach((elm) => {
         elm.textContent = (elm.dataset.sep ? " · " : "") + "$" + best.toFixed(2);
       });
+    }
+  }
+
+  // The actual page for a synced item, so the cover overlay can link out to
+  // it — returns "" for anything not derivable (no mediaId, or a source
+  // this doesn't know), so the caller can skip showing a button rather
+  // than link to a URL that doesn't exist.
+  function mediaPageUrl(mediaSource, mediaId) {
+    if (!mediaSource || !mediaId) return "";
+    const enc = encodeURIComponent(mediaId);
+    switch (mediaSource) {
+      case "steam": return `https://store.steampowered.com/app/${enc}`;
+      case "rawg": return `https://rawg.io/games/${enc}`;
+      case "tmdb-movie": return `https://www.themoviedb.org/movie/${enc}`;
+      case "tmdb-tv": return `https://www.themoviedb.org/tv/${enc}`;
+      case "anilist-anime": return `https://anilist.co/anime/${enc}`;
+      case "anilist-manga": return `https://anilist.co/manga/${enc}`;
+      case "jikan-anime": return `https://myanimelist.net/anime/${enc}`;
+      case "jikan-manga": return `https://myanimelist.net/manga/${enc}`;
+      case "openlibrary": return `https://openlibrary.org${mediaId.startsWith("/") ? "" : "/"}${mediaId}`;
+      case "googlebooks": return `https://books.google.com/books?id=${enc}`;
+      case "musicbrainz": return `https://musicbrainz.org/release-group/${enc}`;
+      default: return "";
+    }
+  }
+
+  // GG.deals' price response may carry a link to the game's own page on
+  // their site — the exact field name is unconfirmed (can't be tested
+  // against the live API from here), so this checks a few plausible spots
+  // and returns "" if none match, rather than guessing at a URL shape that
+  // might 404.
+  function ggDealsPageUrl(mediaId) {
+    const cached = priceCache.get(mediaId);
+    const d = cached && cached.data;
+    return (d && (d.url || d.link || d.shop_url)) || "";
+  }
+
+  // Cover-overlay quick links (bottom-right of the image) for a synced
+  // item: one to the source's own page (Steam, RAWG, TMDB, etc.), and —
+  // only for Steam-sourced items, only once resolved — one to GG.deals.
+  // Each only ever appears once an actual URL is known; nothing renders
+  // for an item with no connection or a source this can't link out to.
+  function renderCoverLinkButtons(container, mediaSource, mediaId) {
+    if (!container) return;
+    container.innerHTML = "";
+    if (!mediaSource || !mediaId) return;
+    const addLink = (label, url) => {
+      if (!url) return;
+      const a = document.createElement("a");
+      a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
+      a.className = "cover-link-btn";
+      a.textContent = label;
+      a.onclick = (ev) => ev.stopPropagation();
+      container.appendChild(a);
+    };
+    addLink(MEDIA_SOURCE_LABELS[mediaSource] || mediaSource, mediaPageUrl(mediaSource, mediaId));
+    if (mediaSource === "steam") {
+      const cached = priceCache.get(mediaId);
+      if (cached) {
+        addLink("GG.deals", ggDealsPageUrl(mediaId));
+      } else {
+        loadBacklogPrices([{ mediaSource, mediaId }]).then(() => addLink("GG.deals", ggDealsPageUrl(mediaId)));
+      }
     }
   }
 
@@ -2101,6 +2164,7 @@
     coverImg.onerror = () => { coverDiv.hidden = true; };
     if (coverUrl) { coverImg.src = coverUrl; coverDiv.hidden = false; }
     else { coverDiv.hidden = true; coverImg.src = ""; }
+    renderCoverLinkButtons($("#entryCoverLinks"), mediaSource, mediaId);
     showSyncStatus("f", mediaSource);
   }
 
@@ -2111,7 +2175,7 @@
     const meta = $("#backlogCoverMeta");
     meta.innerHTML = "";
     showSyncStatus("b", $("#bMediaSource").value);
-    if (!coverUrl) { coverDiv.hidden = true; coverImg.src = ""; return; }
+    if (!coverUrl) { coverDiv.hidden = true; coverImg.src = ""; $("#backlogCoverLinks").innerHTML = ""; return; }
     coverImg.onerror = () => { coverDiv.hidden = true; };
     coverImg.src = coverUrl;
     const line = [];
@@ -2143,6 +2207,7 @@
       // price span above via the shared .bl-price[data-appid] selector.
       loadBacklogPrices([{ mediaSource, mediaId }]);
     }
+    renderCoverLinkButtons($("#backlogCoverLinks"), mediaSource, mediaId);
     coverDiv.hidden = false;
   }
 
