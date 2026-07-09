@@ -45,7 +45,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.62.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.63.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -751,6 +751,15 @@
     $("#bTitleSuggest").hidden = true;
   }
 
+  // Only releaseYear (a plain year, no month/day) is stored regardless of
+  // source, so this is necessarily year-granularity — a same-year release
+  // reads as "unreleased" all year, only dropping out of the group once
+  // the calendar year has fully passed. Applies to any backlog category
+  // with a release year set, not just games.
+  function isUnreleased(b) {
+    return !!b.releaseYear && +b.releaseYear >= new Date().getFullYear();
+  }
+
   function renderBacklog(root) {
     if (!state.data.backlog.length) {
       root.appendChild(emptyState({
@@ -800,12 +809,19 @@
       const list = el("div", "backlog-list");
       const sorted = catItems.slice().sort((a, b) => {
         if (!!a.dropped !== !!b.dropped) return a.dropped ? 1 : -1;
+        if (!a.dropped) {
+          const aUp = isUnreleased(a), bUp = isUnreleased(b);
+          if (aUp !== bUp) return aUp ? 1 : -1;
+        }
         return (b.priority || 0) - (a.priority || 0);
       });
-      let sawActive = false, sepAdded = false, sawPriority = false, prioritySepAdded = false;
+      let sawActive = false, sepAdded = false, sawPriority = false, prioritySepAdded = false, upcomingSepAdded = false;
       sorted.forEach((b) => {
         if (b.dropped) {
           if (sawActive && !sepAdded) { list.appendChild(el("div", "backlog-dropped-sep")); sepAdded = true; }
+        } else if (isUnreleased(b)) {
+          if (sawActive && !upcomingSepAdded) { list.appendChild(el("div", "backlog-upcoming-sep")); upcomingSepAdded = true; }
+          sawActive = true;
         } else {
           if (b.priority) sawPriority = true;
           else if (sawPriority && !prioritySepAdded) { list.appendChild(el("div", "backlog-priority-sep")); prioritySepAdded = true; }
@@ -880,7 +896,7 @@
       const best = bestCurrentPrice(cached.data.prices || {});
       if (best == null) continue;
       document.querySelectorAll(`.bl-price[data-appid="${b.mediaId}"]`).forEach((elm) => {
-        elm.textContent = "💰 $" + best.toFixed(2);
+        elm.textContent = (elm.dataset.sep ? " · " : "") + "$" + best.toFixed(2);
       });
     }
   }
@@ -1150,17 +1166,27 @@
     titleRow.appendChild(el("span", "bl-title", b.title));
     if (b.priority) titleRow.appendChild(priorityBadge());
     body.appendChild(titleRow);
-    const meta = [];
-    if (b.externalRating) meta.push("★ " + b.externalRating);
-    if (b.releaseYear) meta.push(String(b.releaseYear));
-    if (b.length) meta.push(b.length);
-    if (meta.length) body.appendChild(el("span", "bl-meta", meta.join(" · ")));
-    if (b.summary) body.appendChild(el("p", "bl-summary", b.summary));
-    if (b.mediaSource === "steam" && b.mediaId) {
-      const price = el("span", "bl-price");
-      price.dataset.appid = b.mediaId;
-      body.appendChild(price);
+    const metaParts = [];
+    if (b.externalRating) metaParts.push("★ " + b.externalRating);
+    if (b.releaseYear) metaParts.push(String(b.releaseYear));
+    if (b.length) metaParts.push(b.length);
+    const hasSteamPrice = b.mediaSource === "steam" && !!b.mediaId;
+    if (metaParts.length || hasSteamPrice) {
+      const metaLine = el("span", "bl-meta");
+      if (metaParts.length) metaLine.appendChild(document.createTextNode(metaParts.join(" · ")));
+      if (hasSteamPrice) {
+        // Price arrives later (async GG.deals fetch) and gets patched into
+        // this same span by applyCachedPrices — kept in one line with the
+        // rest of the meta instead of its own row, sep only added if there
+        // was other meta text before it, empty until a price resolves.
+        const price = el("span", "bl-price");
+        price.dataset.appid = b.mediaId;
+        if (metaParts.length) price.dataset.sep = "1";
+        metaLine.appendChild(price);
+      }
+      body.appendChild(metaLine);
     }
+    if (b.summary) body.appendChild(el("p", "bl-summary", b.summary));
     row.appendChild(body);
     // Done button at the right — same position as plain backlog rows
     if (!state.bulk.active) {
@@ -2058,18 +2084,26 @@
     if (rating) line.push("★ " + rating);
     if (year) line.push(year);
     if (length) line.push(length);
-    if (line.length) meta.appendChild(el("span", "bl-meta", line.join(" · ")));
-    const summary = $("#bSummary").value;
-    if (summary) meta.appendChild(el("p", "bl-summary", summary));
     const mediaSource = $("#bMediaSource").value;
     const mediaId = $("#bMediaId").value;
-    if (mediaSource === "steam" && mediaId) {
-      const priceEl = el("span", "bl-price");
-      priceEl.dataset.appid = mediaId;
-      meta.appendChild(priceEl);
+    const hasSteamPrice = mediaSource === "steam" && !!mediaId;
+    if (line.length || hasSteamPrice) {
+      const metaLine = el("span", "bl-meta");
+      if (line.length) metaLine.appendChild(document.createTextNode(line.join(" · ")));
+      if (hasSteamPrice) {
+        const priceEl = el("span", "bl-price");
+        priceEl.dataset.appid = mediaId;
+        if (line.length) priceEl.dataset.sep = "1";
+        metaLine.appendChild(priceEl);
+      }
+      meta.appendChild(metaLine);
+    }
+    const summary = $("#bSummary").value;
+    if (summary) meta.appendChild(el("p", "bl-summary", summary));
+    if (hasSteamPrice) {
       // Same lookup the backlog list uses — reuses its cache (instant if
-      // this item's price was already fetched there) and patches this
-      // exact element via the shared .bl-price[data-appid] selector.
+      // this item's price was already fetched there) and patches the
+      // price span above via the shared .bl-price[data-appid] selector.
       loadBacklogPrices([{ mediaSource, mediaId }]);
     }
     coverDiv.hidden = false;

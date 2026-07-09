@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.63.0] - 2026-07-09
+
+### Added
+- Backlog: items with a release year that hasn't passed yet (any
+  category, not just games) now get their own divider — "not yet
+  released" — sitting just above the dropped divider, same treatment as
+  the existing priority/dropped separators. Release info is only ever
+  stored as a year, so this is year-granularity: a same-year release
+  stays in this group for the rest of that year.
+
+### Changed
+- GG.deals price no longer has its own icon or line — it now sits in the
+  same row as rating/length/release year, in the same style, both in the
+  backlog list and the edit modal.
+
 ## [0.62.1] - 2026-07-09
 
 ### Fixed

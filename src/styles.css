@@ -504,7 +504,6 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
   font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .backlog-item-rich .bl-meta { font-size: 11px; color: var(--accent); }
-.backlog-item-rich .bl-price { font-size: 11px; color: var(--text-dim); }
 .backlog-item-rich .bl-price:empty { display: none; }
 .backlog-item-rich .bl-summary {
   font-size: 11.5px; color: var(--text-dim); overflow: hidden;
@@ -513,7 +512,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .backlog-item-rich .ecat { align-self: flex-start; margin-top: 3px; flex-shrink: 0; }
 .backlog-item-rich .btn-sm { align-self: flex-start; flex-shrink: 0; }
 
-.backlog-dropped-sep, .backlog-priority-sep { border-top: 1px dashed var(--border); margin: 6px 2px; }
+.backlog-dropped-sep, .backlog-priority-sep, .backlog-upcoming-sep { border-top: 1px dashed var(--border); margin: 6px 2px; }
 .entry.is-dropped, .backlog-item-rich.is-dropped { opacity: .55; }
 .entry.is-dropped .etitle, .backlog-item-rich.is-dropped .bl-title { text-decoration: line-through; }
 
@@ -567,7 +566,6 @@ body.modal-open { overflow: hidden; }
 .modal-cover-meta { margin: -4px 0 16px; }
 .modal-cover-meta .bl-meta { font-size: 12px; color: var(--text-faint); }
 .modal-cover-meta .bl-summary { font-size: 13px; color: var(--text-dim); margin: 4px 0 0; }
-.modal-cover-meta .bl-price { display: block; font-size: 12px; color: var(--text-dim); margin-top: 2px; }
 .modal-cover-meta .bl-price:empty { display: none; }
 .modal-wide { width: 560px; }
 .modal h2 { margin: 0 0 16px; font-size: 18px; }
