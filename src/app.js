@@ -45,7 +45,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.60.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.61.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -3313,6 +3313,7 @@
     $("#steamProxyUrl").value = state.data.settings.steam?.proxyUrl || "";
     $("#steamId64").value = state.data.settings.steam?.steamId || "";
     $("#steamAutoSyncDays").value = state.data.settings.steam?.autoSyncDays || "0";
+    updateSteamRetryUnresolvedButton();
     renderSteamWishlistCategoryOptions();
     renderMediaCatRows();
   }
@@ -3660,12 +3661,20 @@
   // Steam Partner key regular users don't have), so titles are resolved
   // one game at a time via the storefront's appdetails endpoint instead
   // — slower, but the only option left that doesn't need special access.
-  // A null return (bad response, or Steam rate-limiting this IP) just
-  // falls back to a placeholder title rather than failing the whole sync.
+  // A null return (bad response after retries, or a genuinely unknown app)
+  // just falls back to a placeholder title rather than failing the whole
+  // sync. A 429 specifically gets a few backed-off retries first, since on
+  // a large wishlist Steam starts rate-limiting partway through and every
+  // request after that point would otherwise fail identically.
   function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
-  async function fetchSteamAppName(proxyUrl, appid) {
+  async function fetchSteamAppName(proxyUrl, appid, attempt) {
+    attempt = attempt || 0;
     try {
       const res = await fetch(`${proxyUrl}/steam-appdetails/${appid}`);
+      if (res.status === 429 && attempt < 3) {
+        await sleep(1500 * (attempt + 1));
+        return fetchSteamAppName(proxyUrl, appid, attempt + 1);
+      }
       if (!res.ok) return null;
       const data = await res.json();
       const entry = data && data[appid];
@@ -3727,7 +3736,7 @@
           coverUrl: window.LifeLogMedia ? window.LifeLogMedia.steamCoverUrl(appid) : "",
           unresolved: !name,
         });
-        if (i < newItems.length - 1) await sleep(350);
+        if (i < newItems.length - 1) await sleep(500);
       }
       const built = buildImportItems({ backlog: games, categories: [] });
       reviewAndImport(
@@ -3740,6 +3749,62 @@
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = label; }
     }
+  }
+
+  // Backlog items still stuck on the "Steam app <id>" placeholder title —
+  // exact match against what syncSteamWishlist generates, so this can't
+  // false-positive on something a user genuinely titled that way.
+  function unresolvedSteamBacklogItems() {
+    return state.data.backlog.filter(
+      (b) => b.mediaSource === "steam" && b.mediaId && b.title === `Steam app ${b.mediaId}`
+    );
+  }
+
+  // Re-attempts the title lookup for backlog items already imported with a
+  // placeholder title (see unresolvedSteamBacklogItems) — a normal re-sync
+  // won't touch these since they're already in the backlog and thus no
+  // longer show up as "new" wishlist items. Updates titles in place; never
+  // adds, removes, or duplicates anything.
+  async function retryUnresolvedSteamTitles() {
+    const cfg = state.data.settings.steam || DEFAULT_SETTINGS.steam;
+    const proxyUrl = (cfg.proxyUrl || "").trim().replace(/\/+$/, "");
+    if (!proxyUrl) { toast("Set your proxy URL first", true); return; }
+    const targets = unresolvedSteamBacklogItems();
+    if (!targets.length) { toast("Nothing unresolved to retry"); return; }
+    const btn = $("#steamRetryUnresolvedBtn");
+    if (btn) { btn.disabled = true; }
+    let resolved = 0;
+    try {
+      for (let i = 0; i < targets.length; i++) {
+        if (btn) btn.textContent = `Retrying… ${i + 1}/${targets.length}`;
+        const name = await fetchSteamAppName(proxyUrl, targets[i].mediaId);
+        if (name) {
+          targets[i].title = name;
+          targets[i].updatedAt = new Date().toISOString();
+          resolved++;
+        }
+        if (i < targets.length - 1) await sleep(500);
+      }
+      afterDataChange();
+      await persist();
+      toast(`Resolved ${resolved} of ${targets.length} title${targets.length === 1 ? "" : "s"}`);
+    } finally {
+      // Recomputes text/visibility from the actual current count, whether
+      // the loop finished, partially finished, or threw — rather than
+      // restoring the pre-click label, which would be stale either way.
+      if (btn) btn.disabled = false;
+      updateSteamRetryUnresolvedButton();
+    }
+  }
+
+  function updateSteamRetryUnresolvedButton() {
+    const btn = $("#steamRetryUnresolvedBtn");
+    const hint = $("#steamRetryUnresolvedHint");
+    if (!btn) return;
+    const count = unresolvedSteamBacklogItems().length;
+    btn.hidden = !count;
+    hint.hidden = !count;
+    if (count) btn.textContent = `🔁 Retry unresolved Steam titles (${count})`;
   }
 
   // A quiet periodic check, paced by Settings → Media → "Check
@@ -4547,6 +4612,7 @@
     $("#steamWishlistCategory").onchange = () => setSteamSetting("wishlistCategory", $("#steamWishlistCategory").value);
     $("#steamAutoSyncDays").onchange = () => setSteamSetting("autoSyncDays", $("#steamAutoSyncDays").value);
     $("#steamWishlistSyncBtn").onclick = syncSteamWishlist;
+    $("#steamRetryUnresolvedBtn").onclick = retryUnresolvedSteamTitles;
 
     $("#privacyEnabled").onchange = () => {
       const checked = $("#privacyEnabled").checked;

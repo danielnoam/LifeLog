@@ -4,6 +4,24 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.61.0] - 2026-07-09
+
+### Added
+- Steam Wishlist import: a "🔁 Retry unresolved Steam titles" button in
+  Settings → Media re-attempts the title lookup for backlog items already
+  imported with a placeholder "Steam app <id>" title — a normal re-sync
+  can't fix these since they're already in the backlog and no longer show
+  up as "new." Updates titles in place, no re-importing or duplicating;
+  the button shows a live count and hides once nothing's left to retry.
+
+### Fixed
+- Steam Wishlist import: on a large first sync (hundreds of new games),
+  Steam's appdetails endpoint would start rate-limiting partway through,
+  and every title lookup after that point failed identically, landing as
+  a wall of unresolved placeholders. Rate-limited lookups now retry with
+  a backoff (up to 3 attempts) before giving up, instead of failing
+  immediately on the first 429.
+
 ## [0.60.0] - 2026-07-09
 
 ### Added

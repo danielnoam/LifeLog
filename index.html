@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.60.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.61.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -742,6 +742,8 @@
           </select>
         </label>
         <p class="hint">A quiet check when you open the app, at most this often — just looks for new wishlist additions and lets you know; it never adds anything or opens the review picker on its own.</p>
+        <button id="steamRetryUnresolvedBtn" type="button" class="btn" hidden>🔁 Retry unresolved Steam titles</button>
+        <p class="hint" id="steamRetryUnresolvedHint" hidden>For backlog items already added with a placeholder "Steam app &lt;id&gt;" title (usually from Steam rate-limiting a large first sync) — looks up just those again and updates the ones that resolve this time, without re-importing or duplicating anything.</p>
       </section>
       </div><!-- /media panel -->
       </div><!-- /settings-panels -->
@@ -795,10 +797,10 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.60.0"></script>
-  <script src="src/media.js?v=0.60.0"></script>
-  <script src="src/merge.js?v=0.60.0"></script>
-  <script src="src/storage.js?v=0.60.0"></script>
-  <script src="src/app.js?v=0.60.0"></script>
+  <script src="src/qr.js?v=0.61.0"></script>
+  <script src="src/media.js?v=0.61.0"></script>
+  <script src="src/merge.js?v=0.61.0"></script>
+  <script src="src/storage.js?v=0.61.0"></script>
+  <script src="src/app.js?v=0.61.0"></script>
 </body>
 </html>
