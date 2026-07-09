@@ -36,6 +36,12 @@
 //     Your SteamGridDB API key stays in LifeLog's Settings and is sent
 //     as an Authorization header on each request — this Worker never
 //     stores it, just passes it through to SteamGridDB.
+//
+//   GET /gg-deals?ids=...&key=...&region=...
+//     -> https://api.gg.deals/v1/prices/by-steam-app-id/?ids=...&key=...&region=...
+//     GG.deals' API also has no Access-Control-Allow-Origin, so calling it
+//     directly from the browser silently fails (a caught fetch error, not
+//     even a visible network error) — this relays the query string as-is.
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -68,6 +74,11 @@ export default {
       const target = `https://www.steamgriddb.com/api/v2/${subpath}${url.search}`;
       const auth = request.headers.get("Authorization");
       return proxyJson(target, auth ? { Authorization: auth } : {});
+    }
+
+    if (url.pathname === "/gg-deals") {
+      const target = `https://api.gg.deals/v1/prices/by-steam-app-id/${url.search}`;
+      return proxyJson(target);
     }
 
     return new Response("Not found", { status: 404, headers: CORS_HEADERS });

@@ -45,7 +45,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.61.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.62.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -845,6 +845,7 @@
   async function loadBacklogPrices(items) {
     const apiKey = state.data.settings.mediaKeys?.ggdeals;
     if (!apiKey || !window.LifeLogMedia) return;
+    const proxyUrl = (state.data.settings.steam?.proxyUrl || "").trim().replace(/\/+$/, "");
     const now = Date.now();
     const appIds = [...new Set(
       items.filter((b) => b.mediaSource === "steam" && b.mediaId).map((b) => b.mediaId)
@@ -858,7 +859,7 @@
     }
     for (let i = 0; i < appIds.length; i += 100) {
       const chunk = appIds.slice(i, i + 100);
-      const result = await window.LifeLogMedia.fetchPrices(chunk, apiKey);
+      const result = await window.LifeLogMedia.fetchPrices(chunk, apiKey, proxyUrl);
       const err = window.LifeLogMedia.getLastError();
       if (err && !priceErrorToasted) { priceErrorToasted = true; toast(err, true); }
       for (const id of chunk) priceCache.set(id, { ts: now, data: result[id] || null });
@@ -3314,6 +3315,7 @@
     $("#steamId64").value = state.data.settings.steam?.steamId || "";
     $("#steamAutoSyncDays").value = state.data.settings.steam?.autoSyncDays || "0";
     updateSteamRetryUnresolvedButton();
+    updateSteamBackfillRawgButton();
     renderSteamWishlistCategoryOptions();
     renderMediaCatRows();
   }
@@ -3684,6 +3686,24 @@
     }
   }
 
+  // Steam's appdetails only gives a name — no rating/length/release year,
+  // the stuff RAWG normally provides for a manually-added game. Games
+  // pulled in via wishlist import would otherwise be the only entries
+  // missing that data, so this does a best-effort RAWG search by the
+  // now-resolved title and takes the top match. Silent on any failure
+  // (no RAWG key set, no match, network error) — this is a nice-to-have
+  // on top of a game that's already been imported successfully.
+  async function fetchRawgInfo(title) {
+    const rawgKey = state.data.settings.mediaKeys?.rawg;
+    if (!rawgKey || !window.LifeLogMedia) return null;
+    try {
+      const results = await window.LifeLogMedia.search(title, "rawg", { rawg: rawgKey });
+      return (results && results[0]) || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // Pulls the whole wishlist in one request via the user's own CORS proxy
   // (Steam's wishlist endpoint has no Access-Control-Allow-Origin, see
   // proxy/worker.js), skips anything already imported (matched by Steam
@@ -3726,8 +3746,9 @@
       const games = [];
       for (let i = 0; i < newItems.length; i++) {
         const appid = newItems[i].appid;
-        if (btn) btn.textContent = `Fetching titles… ${i + 1}/${newItems.length}`;
+        if (btn) btn.textContent = `Fetching titles & info… ${i + 1}/${newItems.length}`;
         const name = await fetchSteamAppName(proxyUrl, appid);
+        const rawg = name ? await fetchRawgInfo(name) : null;
         games.push({
           title: name || `Steam app ${appid}`,
           category,
@@ -3735,6 +3756,9 @@
           mediaId: String(appid),
           coverUrl: window.LifeLogMedia ? window.LifeLogMedia.steamCoverUrl(appid) : "",
           unresolved: !name,
+          ...(rawg?.externalRating ? { externalRating: rawg.externalRating } : {}),
+          ...(rawg?.length ? { length: rawg.length } : {}),
+          ...(rawg?.year ? { releaseYear: rawg.year } : {}),
         });
         if (i < newItems.length - 1) await sleep(500);
       }
@@ -3794,6 +3818,7 @@
       // restoring the pre-click label, which would be stale either way.
       if (btn) btn.disabled = false;
       updateSteamRetryUnresolvedButton();
+      updateSteamBackfillRawgButton(); // a newly-resolved title is now eligible for RAWG backfill too
     }
   }
 
@@ -3805,6 +3830,65 @@
     btn.hidden = !count;
     hint.hidden = !count;
     if (count) btn.textContent = `🔁 Retry unresolved Steam titles (${count})`;
+  }
+
+  // Steam-sourced backlog items with a real title but none of RAWG's
+  // extra fields — either imported before RAWG enrichment was added to
+  // the sync, or a RAWG lookup that failed at the time. Deliberately
+  // requires all three fields blank, so a game with a partial manual
+  // edit isn't silently overwritten.
+  function steamGamesNeedingRawgInfo() {
+    return state.data.backlog.filter((b) =>
+      b.mediaSource === "steam" && b.mediaId &&
+      b.title !== `Steam app ${b.mediaId}` &&
+      !b.externalRating && !b.length && !b.releaseYear
+    );
+  }
+
+  // Retroactively fills in RAWG's rating/length/release year for
+  // Steam-sourced backlog items that don't have any of it yet — same
+  // best-effort top-match lookup the sync uses, just run afterward for
+  // whatever's missing it. Never touches title, cover, or mediaId.
+  async function backfillRawgForSteamGames() {
+    const rawgKey = state.data.settings.mediaKeys?.rawg;
+    if (!rawgKey) { toast("Set a RAWG API key first (Settings → Media)", true); return; }
+    const targets = steamGamesNeedingRawgInfo();
+    if (!targets.length) { toast("Nothing to backfill"); return; }
+    const btn = $("#steamBackfillRawgBtn");
+    if (btn) { btn.disabled = true; }
+    let filled = 0;
+    try {
+      for (let i = 0; i < targets.length; i++) {
+        if (btn) btn.textContent = `Backfilling… ${i + 1}/${targets.length}`;
+        const rawg = await fetchRawgInfo(targets[i].title);
+        if (rawg) {
+          if (rawg.externalRating) targets[i].externalRating = rawg.externalRating;
+          if (rawg.length) targets[i].length = rawg.length;
+          if (rawg.year) targets[i].releaseYear = rawg.year;
+          if (rawg.externalRating || rawg.length || rawg.year) {
+            targets[i].updatedAt = new Date().toISOString();
+            filled++;
+          }
+        }
+        if (i < targets.length - 1) await sleep(300);
+      }
+      afterDataChange();
+      await persist();
+      toast(`Filled in info for ${filled} of ${targets.length} game${targets.length === 1 ? "" : "s"}`);
+    } finally {
+      if (btn) btn.disabled = false;
+      updateSteamBackfillRawgButton();
+    }
+  }
+
+  function updateSteamBackfillRawgButton() {
+    const btn = $("#steamBackfillRawgBtn");
+    const hint = $("#steamBackfillRawgHint");
+    if (!btn) return;
+    const count = steamGamesNeedingRawgInfo().length;
+    btn.hidden = !count;
+    hint.hidden = !count;
+    if (count) btn.textContent = `🎮 Backfill game info from RAWG (${count})`;
   }
 
   // A quiet periodic check, paced by Settings → Media → "Check
@@ -4613,6 +4697,7 @@
     $("#steamAutoSyncDays").onchange = () => setSteamSetting("autoSyncDays", $("#steamAutoSyncDays").value);
     $("#steamWishlistSyncBtn").onclick = syncSteamWishlist;
     $("#steamRetryUnresolvedBtn").onclick = retryUnresolvedSteamTitles;
+    $("#steamBackfillRawgBtn").onclick = backfillRawgForSteamGames;
 
     $("#privacyEnabled").onchange = () => {
       const checked = $("#privacyEnabled").checked;

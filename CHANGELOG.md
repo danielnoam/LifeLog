@@ -4,6 +4,29 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.62.0] - 2026-07-09
+
+### Added
+- Steam Wishlist import now also enriches each new game with RAWG's
+  rating/length/release year (best-effort, top search match by the
+  resolved title) alongside the existing Steam cover art and app ID —
+  previously these games only ever got a name and cover, missing all the
+  metadata a manually-added game normally has.
+- A "🎮 Backfill game info from RAWG" button in Settings → Media
+  retroactively fills in that same metadata for Steam-sourced backlog
+  items that don't have any of it yet (from before this enrichment
+  existed, or a lookup that failed at the time) — never touches title,
+  cover, or the Steam app ID, and shows a live count of how many still
+  need it.
+
+### Fixed
+- GG.deals price lookups were calling `api.gg.deals` directly from the
+  browser, which — like Steam's own endpoints — has no
+  Access-Control-Allow-Origin, so every request silently failed via a
+  caught fetch error. Now routed through the same CORS proxy as the rest
+  of Steam Wishlist import (`proxy/worker.js` gets a new `/gg-deals`
+  route); falls back to a direct call if no proxy URL is configured.
+
 ## [0.61.0] - 2026-07-09
 
 ### Added

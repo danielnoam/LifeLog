@@ -203,10 +203,14 @@
 
   // Looks up current/historical lowest prices for Steam app IDs via the
   // GG.deals API. appIds are Steam app IDs (the same id searchSteam returns).
-  async function fetchGgDealsPrices(appIds, apiKey) {
+  // GG.deals has no Access-Control-Allow-Origin either, so this needs the
+  // same CORS proxy as Steam's own endpoints (see proxy/worker.js) — falls
+  // back to a direct call only if no proxy URL is configured.
+  async function fetchGgDealsPrices(appIds, apiKey, proxyUrl) {
     if (!apiKey || !appIds.length) return {};
     try {
-      const url = "https://api.gg.deals/v1/prices/by-steam-app-id/?ids=" +
+      const base = proxyUrl ? proxyUrl + "/gg-deals" : "https://api.gg.deals/v1/prices/by-steam-app-id/";
+      const url = base + "?ids=" +
         appIds.join(",") + "&key=" + encodeURIComponent(apiKey) + "&region=us";
       const res = await fetch(url);
       if (!res.ok) { lastError = "GG.deals price lookup failed (HTTP " + res.status + ")"; return {}; }
@@ -258,9 +262,9 @@
       if (source === "musicbrainz") return searchMusicBrainz(title);
       return [];
     },
-    async fetchPrices(appIds, apiKey) {
+    async fetchPrices(appIds, apiKey, proxyUrl) {
       lastError = "";
-      return fetchGgDealsPrices(appIds, apiKey);
+      return fetchGgDealsPrices(appIds, apiKey, proxyUrl);
     },
     async fetchLength(id, source, apiKey) {
       if (source === "tmdb-movie") return fetchTmdbDetails(id, "movie", apiKey);
