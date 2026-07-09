@@ -45,7 +45,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.66.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.67.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -864,11 +864,15 @@
   // cheap to re-fetch next session, so there's no need to store them.
   const priceCache = new Map();
 
-  function bestCurrentPrice(p) {
-    const vals = [p.currentRetail, p.currentKeyshops]
-      .map((v) => (v != null ? parseFloat(v) : null))
-      .filter((v) => v != null && !isNaN(v));
-    return vals.length ? Math.min(...vals) : null;
+  // Retail only — keyshops (third-party key resellers) deliberately excluded.
+  function currentRetailPrice(p) {
+    const v = p.currentRetail != null ? parseFloat(p.currentRetail) : null;
+    return v != null && !isNaN(v) ? v : null;
+  }
+
+  function historicalLowRetailPrice(p) {
+    const v = p.historicalRetail != null ? parseFloat(p.historicalRetail) : null;
+    return v != null && !isNaN(v) ? v : null;
   }
 
   // Fetches GG.deals prices for any visible backlog items synced via Steam,
@@ -909,10 +913,20 @@
       if (b.mediaSource !== "steam" || !b.mediaId) continue;
       const cached = priceCache.get(b.mediaId);
       if (!cached || !cached.data) continue;
-      const best = bestCurrentPrice(cached.data.prices || {});
-      if (best == null) continue;
+      const prices = cached.data.prices || {};
+      const current = currentRetailPrice(prices);
+      if (current == null) continue;
+      const low = historicalLowRetailPrice(prices);
+      // GG.deals gives current + historical-low retail, no discount % or
+      // original price — this is the closest thing to "is it on sale"
+      // derivable from that: at/near the all-time low reads as one, a
+      // current price still above it shows what the low actually was.
+      let text = "$" + current.toFixed(2);
+      if (low != null) {
+        text += current <= low + 0.01 ? " (all-time low)" : ` (low $${low.toFixed(2)})`;
+      }
       document.querySelectorAll(`.bl-price[data-appid="${b.mediaId}"]`).forEach((elm) => {
-        elm.textContent = (elm.dataset.sep ? " · " : "") + "$" + best.toFixed(2);
+        elm.textContent = (elm.dataset.sep ? " · " : "") + text;
       });
     }
   }

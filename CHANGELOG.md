@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.67.0] - 2026-07-09
+
+### Changed
+- GG.deals price now only ever shows the retail price — third-party
+  keyshop prices (currentKeyshops) are no longer considered at all.
+- Confirmed against a real API response that GG.deals gives no discount
+  percentage or original price, only current and historical-low retail —
+  so "on sale" is now shown as a comparison against that historical low:
+  "(all-time low)" when the current price is at or below it, "(low
+  $X.XX)" showing what the best price has been when it isn't.
+
 ## [0.66.0] - 2026-07-09
 
 ### Added
