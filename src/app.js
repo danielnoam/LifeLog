@@ -45,7 +45,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.63.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.64.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -611,7 +611,7 @@
     // only while adding: renaming an already-synced existing item shouldn't
     // silently drop its media link — that takes an explicit "✕ Unsync" now.
     if (isAdding && query !== lastSyncedBacklogTitle && $("#bMediaSource").value !== "steam") {
-      ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bExternalRating"]
+      ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bReleaseDate", "#bExternalRating"]
         .forEach((id) => { const f = $(id); if (f) f.value = ""; });
       setBacklogCover();
     }
@@ -703,6 +703,7 @@
       $("#bMediaId").value = id;
       $("#bMediaSource").value = id ? "steam" : "";
       $("#bReleaseYear").value = "";
+      $("#bReleaseDate").value = "";
       $("#bExternalRating").value = "";
       $("#bSummary").value = "";
       $("#bLength").value = "";
@@ -734,6 +735,7 @@
         $("#bMediaSource").value = r.source || "";
         $("#bSummary").value = r.summary || "";
         $("#bReleaseYear").value = r.year ? String(r.year) : "";
+        $("#bReleaseDate").value = r.releaseDate || "";
         $("#bExternalRating").value = r.externalRating || "";
         $("#bLength").value = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
         setBacklogCover();
@@ -744,19 +746,28 @@
   }
 
   function unsyncBacklogItem() {
-    ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bExternalRating", "#bLength"]
+    ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bReleaseDate", "#bExternalRating", "#bLength"]
       .forEach((id) => { const f = $(id); if (f) f.value = ""; });
     $("#bSteamAppId").value = "";
     setBacklogCover();
     $("#bTitleSuggest").hidden = true;
   }
 
-  // Only releaseYear (a plain year, no month/day) is stored regardless of
-  // source, so this is necessarily year-granularity — a same-year release
-  // reads as "unreleased" all year, only dropping out of the group once
-  // the calendar year has fully passed. Applies to any backlog category
-  // with a release year set, not just games.
+  // releaseDate (full date, whatever precision the source actually gave —
+  // see media.js) is used for an exact day-level check when available;
+  // only releaseYear (always just a plain year) is ever shown in the UI.
+  // Sources/manual entries without a full date fall back to year-only,
+  // which reads as "unreleased" for the whole calendar year. Applies to
+  // any backlog category with a release year set, not just games.
   function isUnreleased(b) {
+    if (b.releaseDate && /^\d{4}-\d{2}-\d{2}/.test(b.releaseDate)) {
+      const d = new Date(b.releaseDate.slice(0, 10));
+      if (!isNaN(d)) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return d >= today;
+      }
+    }
     return !!b.releaseYear && +b.releaseYear >= new Date().getFullYear();
   }
 
@@ -996,6 +1007,7 @@
           item.mediaSource = r.source || "";
           item.summary = r.summary || "";
           if (r.year) item.releaseYear = r.year; else delete item.releaseYear;
+          if (r.releaseDate) item.releaseDate = r.releaseDate; else delete item.releaseDate;
           item.externalRating = r.externalRating || "";
           // TMDB needs a second per-title call for runtime/season data — the
           // search endpoint doesn't include it (see fetchLength in media.js).
@@ -2477,6 +2489,7 @@
     $("#bMediaSource").value = editing ? (item.mediaSource || "") : "";
     $("#bSummary").value = editing ? (item.summary || "") : "";
     $("#bReleaseYear").value = editing && item.releaseYear ? String(item.releaseYear) : "";
+    $("#bReleaseDate").value = editing ? (item.releaseDate || "") : "";
     $("#bExternalRating").value = editing ? (item.externalRating || "") : "";
     $("#bLength").value = editing ? (item.length || "") : "";
     $("#bPriority").checked = editing ? !!item.priority : false;
@@ -2526,6 +2539,7 @@
     const mediaSource = $("#bMediaSource").value;
     const summary = $("#bSummary").value;
     const releaseYear = $("#bReleaseYear").value;
+    const releaseDate = $("#bReleaseDate").value;
     const externalRating = $("#bExternalRating").value;
     const length = $("#bLength").value;
     const priority = $("#bPriority").checked ? 1 : 0;
@@ -2540,6 +2554,7 @@
       if (mediaSource) b.mediaSource = mediaSource; else delete b.mediaSource;
       if (summary) b.summary = summary; else delete b.summary;
       if (releaseYear) b.releaseYear = parseInt(releaseYear, 10); else delete b.releaseYear;
+      if (releaseDate) b.releaseDate = releaseDate; else delete b.releaseDate;
       if (externalRating) b.externalRating = externalRating; else delete b.externalRating;
       if (length) b.length = length; else delete b.length;
       if (priority) b.priority = priority; else delete b.priority;
@@ -2552,6 +2567,7 @@
       if (mediaSource) item.mediaSource = mediaSource;
       if (summary) item.summary = summary;
       if (releaseYear) item.releaseYear = parseInt(releaseYear, 10);
+      if (releaseDate) item.releaseDate = releaseDate;
       if (externalRating) item.externalRating = externalRating;
       if (length) item.length = length;
       if (priority) item.priority = priority;
@@ -3804,6 +3820,7 @@
           ...(rawg?.externalRating ? { externalRating: rawg.externalRating } : {}),
           ...(rawg?.length ? { length: rawg.length } : {}),
           ...(rawg?.year ? { releaseYear: rawg.year } : {}),
+          ...(rawg?.releaseDate ? { releaseDate: rawg.releaseDate } : {}),
         });
         if (i < newItems.length - 1) await sleep(500);
       }
@@ -3910,6 +3927,7 @@
           if (rawg.externalRating) targets[i].externalRating = rawg.externalRating;
           if (rawg.length) targets[i].length = rawg.length;
           if (rawg.year) targets[i].releaseYear = rawg.year;
+          if (rawg.releaseDate) targets[i].releaseDate = rawg.releaseDate;
           if (rawg.externalRating || rawg.length || rawg.year) {
             targets[i].updatedAt = new Date().toISOString();
             filled++;
@@ -4359,6 +4377,7 @@
     if (b.mediaSource) out.mediaSource = b.mediaSource;
     if (b.summary) out.summary = b.summary;
     if (b.releaseYear) out.releaseYear = b.releaseYear;
+    if (b.releaseDate) out.releaseDate = b.releaseDate;
     if (b.externalRating) out.externalRating = b.externalRating;
     if (b.length) out.length = b.length;
     if (b.priority) out.priority = +b.priority;

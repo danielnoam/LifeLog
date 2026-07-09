@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.64.0] - 2026-07-09
+
+### Changed
+- Backlog's "not yet released" grouping now captures a full release date
+  from every source that provides one (RAWG, TMDB, Jikan, AniList,
+  MusicBrainz, Google Books — whatever precision each actually gives) and
+  uses it for an exact day-level check, instead of only ever knowing the
+  year. A game releasing yesterday and one releasing tomorrow, both this
+  year, now correctly land on opposite sides of the divider — previously
+  both would've been grouped as "unreleased" for the rest of the year.
+  Only the year is ever shown anywhere in the UI, same as before; the
+  full date is just backing data for this one check. Falls back to
+  year-only for manual entries or sources that don't give a full date
+  (Open Library).
+
 ## [0.63.0] - 2026-07-09
 
 ### Added

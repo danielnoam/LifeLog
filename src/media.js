@@ -23,6 +23,7 @@
         title: g.name || "",
         coverUrl: g.background_image || "",
         year: g.released ? parseInt(g.released, 10) : null,
+        releaseDate: g.released || "",
         summary: "",
         externalRating: g.metacritic
           ? g.metacritic + " Metacritic"
@@ -76,6 +77,7 @@
           title: t,
           coverUrl: r.poster_path ? imgBase + r.poster_path : "",
           year,
+          releaseDate: dateStr || "",
           summary: r.overview || "",
           externalRating: r.vote_average
             ? (Math.round(r.vote_average * 10) / 10) + " TMDB"
@@ -99,6 +101,8 @@
           ? "https://covers.openlibrary.org/b/id/" + d.cover_i + "-M.jpg"
           : "",
         year: d.first_publish_year || null,
+        // Open Library's search endpoint only ever gives a year, no full date.
+        releaseDate: d.first_publish_year ? String(d.first_publish_year) : "",
         summary: "",
         externalRating: d.ratings_average
           ? (Math.round(d.ratings_average * 10) / 10) + " OL"
@@ -111,7 +115,7 @@
 
   async function searchAniList(title, type) {
     try {
-      const query = "query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } startDate { year } coverImage { medium } description(asHtml: false) averageScore } } }";
+      const query = "query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } startDate { year month day } coverImage { medium } description(asHtml: false) averageScore } } }";
       const res = await fetch("https://graphql.anilist.co", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -120,15 +124,22 @@
       if (!res.ok) return [];
       const data = await res.json();
       const media = (data.data && data.data.Page && data.data.Page.media) || [];
-      return media.map((m) => ({
-        id: String(m.id),
-        title: (m.title && (m.title.english || m.title.romaji)) || "",
-        coverUrl: (m.coverImage && m.coverImage.medium) || "",
-        year: (m.startDate && m.startDate.year) || null,
-        summary: stripHtml(m.description),
-        externalRating: m.averageScore ? m.averageScore + "% AniList" : "",
-        source: type === "MANGA" ? "anilist-manga" : "anilist-anime",
-      }));
+      return media.map((m) => {
+        const sd = m.startDate;
+        const releaseDate = sd && sd.year
+          ? sd.year + (sd.month ? "-" + String(sd.month).padStart(2, "0") + (sd.day ? "-" + String(sd.day).padStart(2, "0") : "") : "")
+          : "";
+        return {
+          id: String(m.id),
+          title: (m.title && (m.title.english || m.title.romaji)) || "",
+          coverUrl: (m.coverImage && m.coverImage.medium) || "",
+          year: (sd && sd.year) || null,
+          releaseDate,
+          summary: stripHtml(m.description),
+          externalRating: m.averageScore ? m.averageScore + "% AniList" : "",
+          source: type === "MANGA" ? "anilist-manga" : "anilist-anime",
+        };
+      });
     } catch (e) { return []; }
   }
 
@@ -145,6 +156,9 @@
       return (data.data || []).map((d) => {
         const dateProp = type === "anime" ? d.aired : d.published;
         const year = (dateProp && dateProp.prop && dateProp.prop.from && dateProp.prop.from.year) || null;
+        // dateProp.from is a full ISO datetime ("2013-04-06T00:00:00+00:00")
+        // alongside the structured .prop breakdown used for `year` above.
+        const releaseDate = (dateProp && dateProp.from) ? dateProp.from.slice(0, 10) : "";
         let length = "";
         if (type === "anime") {
           length = d.episodes ? d.episodes + (d.episodes === 1 ? " episode" : " episodes") : "";
@@ -159,6 +173,7 @@
           title: d.title_english || d.title || "",
           coverUrl: (d.images && d.images.jpg && (d.images.jpg.image_url || d.images.jpg.small_image_url)) || "",
           year,
+          releaseDate,
           summary: d.synopsis || "",
           externalRating: d.score ? d.score + " Jikan" : "",
           length,
@@ -183,6 +198,8 @@
           title: v.title || "",
           coverUrl: thumb.replace(/^http:/, "https:"),
           year: v.publishedDate ? parseInt(v.publishedDate, 10) : null,
+          // Precision varies by book — "YYYY", "YYYY-MM", or "YYYY-MM-DD".
+          releaseDate: v.publishedDate || "",
           summary: v.description || "",
           externalRating: v.averageRating ? v.averageRating + " Google Books" : "",
           length: v.pageCount ? v.pageCount + " pages" : "",
@@ -238,6 +255,8 @@
           title: artist ? rg.title + " — " + artist : rg.title || "",
           coverUrl: rg.id ? "https://coverartarchive.org/release-group/" + rg.id + "/front-250" : "",
           year,
+          // Precision varies — sometimes just a year, sometimes a full date.
+          releaseDate: rg["first-release-date"] || "",
           summary: "",
           externalRating: "",
           source: "musicbrainz",
