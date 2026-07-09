@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.67.2] - 2026-07-09
+
+### Fixed
+- The search box rebuilt the entire Timeline/Backlog view on every single
+  keystroke (render() tears down and rebuilds the whole current view from
+  scratch, with no incremental patching) — noticeably laggy while typing
+  once there are a few hundred entries. Debounced to 200ms, so a fast
+  burst of keystrokes now triggers one render instead of one per
+  character.
+
 ## [0.67.1] - 2026-07-09
 
 ### Fixed

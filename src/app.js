@@ -45,7 +45,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.67.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.67.2"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -4733,7 +4733,16 @@
       clearTimeout(scrollSaveTimer);
       scrollSaveTimer = setTimeout(saveUiState, 300);
     }, { passive: true });
-    $("#search").oninput = (e) => { state.search = e.target.value; render(); };
+    // Debounced — render() rebuilds the whole current view from scratch, so
+    // re-running it on every keystroke gets noticeably laggy once there are
+    // a few hundred entries. 200ms feels instant while typing but collapses
+    // a fast burst of keystrokes into a single render.
+    let searchRenderTimer;
+    $("#search").oninput = (e) => {
+      state.search = e.target.value;
+      clearTimeout(searchRenderTimer);
+      searchRenderTimer = setTimeout(render, 200);
+    };
     $("#yearFilterLabel").onclick = toggleAllYears;
     $("#catFilterLabel").onclick = toggleAllCats;
 
