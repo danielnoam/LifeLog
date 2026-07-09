@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.59.3" />
+  <link rel="stylesheet" href="src/styles.css?v=0.60.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -732,6 +732,16 @@
           <select id="steamWishlistCategory"></select>
         </label>
         <button id="steamWishlistSyncBtn" type="button" class="btn">🔄 Sync Steam Wishlist</button>
+        <label>Check automatically
+          <select id="steamAutoSyncDays">
+            <option value="0">Never (manual only)</option>
+            <option value="1">Every day</option>
+            <option value="3">Every 3 days</option>
+            <option value="7">Every week</option>
+            <option value="30">Every month</option>
+          </select>
+        </label>
+        <p class="hint">A quiet check when you open the app, at most this often — just looks for new wishlist additions and lets you know; it never adds anything or opens the review picker on its own.</p>
       </section>
       </div><!-- /media panel -->
       </div><!-- /settings-panels -->
@@ -755,6 +765,10 @@
       <label class="toggle-label" id="financePickerDupRow" hidden>
         <input type="checkbox" id="financePickerShowDup" />
         Show entries already in your data
+      </label>
+      <label class="toggle-label" id="financePickerUnresolvedRow" hidden>
+        <input type="checkbox" id="financePickerHideUnresolved" />
+        Hide unresolved titles <span id="financePickerUnresolvedCount" class="muted"></span>
       </label>
       <div class="picker-toolbar">
         <button type="button" class="link-btn" id="financePickerSelectAll">Select all</button>
@@ -781,10 +795,10 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.59.3"></script>
-  <script src="src/media.js?v=0.59.3"></script>
-  <script src="src/merge.js?v=0.59.3"></script>
-  <script src="src/storage.js?v=0.59.3"></script>
-  <script src="src/app.js?v=0.59.3"></script>
+  <script src="src/qr.js?v=0.60.0"></script>
+  <script src="src/media.js?v=0.60.0"></script>
+  <script src="src/merge.js?v=0.60.0"></script>
+  <script src="src/storage.js?v=0.60.0"></script>
+  <script src="src/app.js?v=0.60.0"></script>
 </body>
 </html>

@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.60.0] - 2026-07-09
+
+### Added
+- Steam Wishlist import: a "Check automatically" setting (Never / Every
+  day / Every 3 days / Every week / Every month) runs a quiet check on
+  app open, at most that often — just a lightweight wishlist fetch
+  diffed against your backlog/Journal, no title lookups. If it finds
+  new games, a toast tells you how many; it never opens the review
+  picker or adds anything on its own, so Sync Steam Wishlist stays the
+  only way anything actually gets imported.
+- Steam Wishlist import: the review picker now has a "Hide unresolved
+  titles (N)" toggle for when a title lookup didn't resolve to a real
+  name and just shows "Steam app <id>" — turning it on hides those rows
+  and deselects them, so a large batch of unresolved placeholders
+  doesn't clutter the review or get imported by accident. They'll be
+  tried again on your next sync since they're not in the backlog yet.
+
 ## [0.59.3] - 2026-07-09
 
 ### Fixed

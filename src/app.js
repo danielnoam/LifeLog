@@ -6,7 +6,7 @@
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" }, steam: { proxyUrl: "", steamId: "", wishlistCategory: "" } }; // monthOrder, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam — synced
+  const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" }, steam: { proxyUrl: "", steamId: "", wishlistCategory: "", autoSyncDays: "0" } }; // monthOrder, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam — synced
   const CURRENCY_SYMBOLS = { ILS: "₪", USD: "$", EUR: "€", GBP: "£" };
   const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big" }; // maxWidth 0 = stretch — local to this device, not synced
   const THEMES = ["light", "nord", "dracula"]; // "default" has no class — it's the bare :root palette
@@ -20,6 +20,10 @@
   const PENDING_KEY = "lifelog-pending-sync-v1";
   const UI_KEY = "lifelog-ui-v1";
   const MEDIA_KEY = "lifelog-media-settings-v1";
+  // Local-only (per-device) — when this device last ran the quiet background
+  // wishlist check, so the cadence in Settings isn't re-evaluated on every
+  // app open. Deliberately not synced: each device paces its own checks.
+  const STEAM_SYNC_KEY = "lifelog-steam-autosync-v1";
   const DEFAULT_MEDIA = {}; // legacy local-only shape; rawgKey/tmdbKey migrated into synced settings on load (see normalize())
   const MEDIA_SOURCE_LABELS = {
     rawg: "RAWG", "tmdb-movie": "TMDB", "tmdb-tv": "TMDB",
@@ -41,7 +45,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.59.3"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.60.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -3308,6 +3312,7 @@
     $("#ggdealsKey").value = state.data.settings.mediaKeys?.ggdeals || "";
     $("#steamProxyUrl").value = state.data.settings.steam?.proxyUrl || "";
     $("#steamId64").value = state.data.settings.steam?.steamId || "";
+    $("#steamAutoSyncDays").value = state.data.settings.steam?.autoSyncDays || "0";
     renderSteamWishlistCategoryOptions();
     renderMediaCatRows();
   }
@@ -3598,11 +3603,12 @@
       const dup = existingEntryKeys.has(entryKey(e));
       items.push({ kind: "entry", entry: e, dup, checked: !dup });
     });
-    (backlog || []).map(sanitizeBacklog).forEach((b) => {
+    (backlog || []).forEach((raw) => {
+      const b = sanitizeBacklog(raw);
       const dup = existingBacklogKeys.has(backlogKey(b)) ||
         existingEntryTitleKeys.has(titleCatKey(b.title, b.category)) ||
         (b.mediaSource === "steam" && b.mediaId && existingSteamIds.has(b.mediaId));
-      items.push({ kind: "backlog", entry: b, dup, checked: !dup });
+      items.push({ kind: "backlog", entry: b, dup, checked: !dup, unresolved: !!raw.unresolved });
     });
     (financeEntries || []).map(sanitizeFinanceEntry).forEach((f) => {
       const dup = existingFinanceKeys.has(financeKey(f));
@@ -3719,6 +3725,7 @@
           mediaSource: "steam",
           mediaId: String(appid),
           coverUrl: window.LifeLogMedia ? window.LifeLogMedia.steamCoverUrl(appid) : "",
+          unresolved: !name,
         });
         if (i < newItems.length - 1) await sleep(350);
       }
@@ -3732,6 +3739,47 @@
       toast("Steam wishlist fetch failed (" + ((e && e.message) || "network error") + ")", true);
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = label; }
+    }
+  }
+
+  // A quiet periodic check, paced by Settings → Media → "Check
+  // automatically" (days between checks; 0 = never runs). Only counts how
+  // many wishlist games aren't in the backlog/Journal yet and toasts that
+  // count — never opens the review picker or adds anything on its own, and
+  // never fetches titles (that's the slow part, only worth it once you
+  // actually choose to sync). Failures are silent since this runs
+  // unattended on every app open; a real problem still surfaces the next
+  // time the user taps Sync Steam Wishlist manually.
+  async function maybeAutoCheckSteamWishlist() {
+    const cfg = state.data.settings.steam || DEFAULT_SETTINGS.steam;
+    const days = parseInt(cfg.autoSyncDays, 10) || 0;
+    if (!days) return;
+    const proxyUrl = (cfg.proxyUrl || "").trim().replace(/\/+$/, "");
+    const steamId = (cfg.steamId || "").trim();
+    if (!proxyUrl || !steamId) return;
+    let last = null;
+    try { last = JSON.parse(localStorage.getItem(STEAM_SYNC_KEY)); } catch (e) {}
+    const lastAt = (last && last.lastCheckedAt) ? new Date(last.lastCheckedAt).getTime() : 0;
+    if (Date.now() - lastAt < days * 24 * 60 * 60 * 1000) return;
+    try {
+      const res = await fetch(`${proxyUrl}/steam-wishlist/${encodeURIComponent(steamId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        const items = (data && data.response && data.response.items) || [];
+        const existingSteamIds = new Set(
+          [...state.data.backlog, ...state.data.entries]
+            .filter((x) => x.mediaSource === "steam" && x.mediaId)
+            .map((x) => x.mediaId)
+        );
+        const newCount = items.filter((it) => !existingSteamIds.has(String(it.appid))).length;
+        if (newCount > 0) {
+          toast(`🎮 ${newCount} new Steam wishlist game${newCount === 1 ? "" : "s"} — Settings → Media to sync`);
+        }
+      }
+    } catch (e) {
+      // quiet — this is an unattended background check, not a user action
+    } finally {
+      try { localStorage.setItem(STEAM_SYNC_KEY, JSON.stringify({ lastCheckedAt: new Date().toISOString() })); } catch (e) {}
     }
   }
   function mergeAccomplishments(accIn) {
@@ -3980,6 +4028,12 @@
     const showDupCb = $("#financePickerShowDup");
     dupRow.hidden = mode !== "import" || !items.some((i) => i.dup);
     showDupCb.checked = false;
+    const unresolvedRow = $("#financePickerUnresolvedRow");
+    const hideUnresolvedCb = $("#financePickerHideUnresolved");
+    const unresolvedCount = items.filter((i) => i.unresolved).length;
+    unresolvedRow.hidden = mode !== "import" || !unresolvedCount;
+    hideUnresolvedCb.checked = false;
+    $("#financePickerUnresolvedCount").textContent = unresolvedCount ? `(${unresolvedCount})` : "";
     const searchInput = $("#financePickerSearch");
     searchInput.hidden = !searchable;
     searchInput.value = "";
@@ -4011,7 +4065,13 @@
       const hay = [e.note, e.category, String(e.amount)].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(searchTerm);
     }
-    function visibleItems() { return items.filter((i) => (!i.dup || showDupCb.checked) && matchesSearch(i)); }
+    function visibleItems() {
+      return items.filter((i) =>
+        (!i.dup || showDupCb.checked) &&
+        (!i.unresolved || !hideUnresolvedCb.checked) &&
+        matchesSearch(i)
+      );
+    }
     function renderBuckets() {
       const map = new Map();
       visibleItems().forEach((i) => {
@@ -4041,6 +4101,12 @@
     }
 
     showDupCb.onchange = render;
+    hideUnresolvedCb.onchange = () => {
+      // Hiding also deselects — otherwise a checked-but-hidden item would
+      // still get imported despite looking "off" in the visible count.
+      if (hideUnresolvedCb.checked) items.forEach((i) => { if (i.unresolved) i.checked = false; });
+      render();
+    };
     searchInput.oninput = () => { searchTerm = searchInput.value.trim().toLowerCase(); render(); };
     $("#financePickerSelectAll").onclick = () => { visibleItems().forEach((i) => (i.checked = true)); render(); };
     $("#financePickerSelectNone").onclick = () => { visibleItems().forEach((i) => (i.checked = false)); render(); };
@@ -4479,6 +4545,7 @@
     $("#steamProxyUrl").oninput = () => setSteamSetting("proxyUrl", $("#steamProxyUrl").value.trim());
     $("#steamId64").oninput = () => setSteamSetting("steamId", $("#steamId64").value.trim());
     $("#steamWishlistCategory").onchange = () => setSteamSetting("wishlistCategory", $("#steamWishlistCategory").value);
+    $("#steamAutoSyncDays").onchange = () => setSteamSetting("autoSyncDays", $("#steamAutoSyncDays").value);
     $("#steamWishlistSyncBtn").onclick = syncSteamWishlist;
 
     $("#privacyEnabled").onchange = () => {
@@ -4801,6 +4868,7 @@
 
     if (state.pendingSync) retrySync();
     schedulePoll();
+    maybeAutoCheckSteamWishlist(); // fire-and-forget, doesn't block startup
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").catch(() => {});
