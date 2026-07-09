@@ -34,6 +34,39 @@
     } catch (e) { return []; }
   }
 
+  // "RAWG + Steam + GG.deals" combo source: same search as plain RAWG
+  // (cover/rating/length/date), just tagged so app.js knows to also try
+  // resolving a Steam App ID for whichever result gets picked — Steam
+  // itself has no search API, so fetchRawgSteamAppId below (RAWG's own
+  // per-game store links) is the only way to find one without asking the
+  // user to paste it in manually. Once found, a manually-added entry gets
+  // the same cover/price wiring a Steam Wishlist import already gets.
+  async function searchRawgSteamGg(title, apiKey) {
+    const results = await searchRawg(title, apiKey);
+    return results.map((r) => ({ ...r, source: "rawg-steam-gg" }));
+  }
+
+  // RAWG's /games/{id}/stores endpoint lists every storefront a game is
+  // sold on, each with its actual store URL — scanning those for a Steam
+  // one and pulling the app ID out of it is the only way to get a Steam
+  // App ID from a title search, since Steam's own search has no CORS
+  // allowance. Returns "" if RAWG has no Steam listing for this game.
+  async function fetchRawgSteamAppId(rawgId, apiKey) {
+    if (!apiKey || !rawgId) return "";
+    try {
+      const url = "https://api.rawg.io/api/games/" + encodeURIComponent(rawgId) +
+        "/stores?key=" + encodeURIComponent(apiKey);
+      const res = await fetch(url);
+      if (!res.ok) return "";
+      const data = await res.json();
+      for (const entry of data.results || []) {
+        const m = (entry.url || "").match(/store\.steampowered\.com\/app\/(\d+)/);
+        if (m) return m[1];
+      }
+      return "";
+    } catch (e) { return ""; }
+  }
+
   // TMDB's search endpoint has no runtime/season data — that only exists on
   // the per-title details endpoint, so it's a separate on-demand call (see
   // fetchTmdbDetails below), fired only when a specific title is picked.
@@ -270,6 +303,7 @@
       lastError = "";
       if (!title || !source) return [];
       if (source === "rawg") return searchRawg(title, keys.rawg || "");
+      if (source === "rawg-steam-gg") return searchRawgSteamGg(title, keys.rawg || "");
       if (source === "tmdb-movie") return searchTmdb(title, "movie", keys.tmdb || "");
       if (source === "tmdb-tv") return searchTmdb(title, "tv", keys.tmdb || "");
       if (source === "openlibrary") return searchOpenLibrary(title);
@@ -289,6 +323,9 @@
       if (source === "tmdb-movie") return fetchTmdbDetails(id, "movie", apiKey);
       if (source === "tmdb-tv") return fetchTmdbDetails(id, "tv", apiKey);
       return "";
+    },
+    async fetchRawgSteamAppId(rawgId, apiKey) {
+      return fetchRawgSteamAppId(rawgId, apiKey);
     },
     getLastError: () => lastError,
     steamCoverUrl,

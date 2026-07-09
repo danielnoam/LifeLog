@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.64.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.65.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -715,7 +715,7 @@
         <p class="hint">Open Library, AniList, Jikan, Google Books, and MusicBrainz all work without a key.</p>
 
         <h4>Source per category</h4>
-        <p class="hint">Choose which API to use for each of your categories, plus an optional fallback that's only tried when the primary source finds no matches. Categories set to "None" won't fetch metadata. These assignments sync across your devices. Categories set to "Steam" show a manual Steam App ID field instead of search (Steam has no browser-callable search API) — paste the ID from the game's store URL to get cover art and, once a GG.deals key is set above, current lowest prices.</p>
+        <p class="hint">Choose which API to use for each of your categories, plus an optional fallback that's only tried when the primary source finds no matches. Categories set to "None" won't fetch metadata. These assignments sync across your devices. Categories set to "Steam" show a manual Steam App ID field instead of search (Steam has no browser-callable search API) — paste the ID from the game's store URL to get cover art and, once a GG.deals key is set above, current lowest prices. "RAWG + Steam + GG.deals" searches RAWG as normal, but also looks up a Steam App ID via RAWG's own store links for whichever result you pick — when found, that entry gets cover, rating, length, and current price all at once, no manual App ID needed; when the game isn't on Steam, it falls back to a plain RAWG entry.</p>
         <div id="mediaCatRows"></div>
       </section>
 
@@ -800,10 +800,10 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.64.0"></script>
-  <script src="src/media.js?v=0.64.0"></script>
-  <script src="src/merge.js?v=0.64.0"></script>
-  <script src="src/storage.js?v=0.64.0"></script>
-  <script src="src/app.js?v=0.64.0"></script>
+  <script src="src/qr.js?v=0.65.0"></script>
+  <script src="src/media.js?v=0.65.0"></script>
+  <script src="src/merge.js?v=0.65.0"></script>
+  <script src="src/storage.js?v=0.65.0"></script>
+  <script src="src/app.js?v=0.65.0"></script>
 </body>
 </html>

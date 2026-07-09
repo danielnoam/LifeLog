@@ -45,7 +45,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.64.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.65.0"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -738,6 +738,11 @@
         $("#bReleaseDate").value = r.releaseDate || "";
         $("#bExternalRating").value = r.externalRating || "";
         $("#bLength").value = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+        if (r.source === "rawg-steam-gg") {
+          const resolved = await resolveRawgSteamAppId(r, keys.rawg);
+          $("#bMediaSource").value = resolved.mediaSource;
+          $("#bMediaId").value = resolved.mediaId;
+        }
         setBacklogCover();
         list.hidden = true;
       }));
@@ -1012,6 +1017,11 @@
           // TMDB needs a second per-title call for runtime/season data — the
           // search endpoint doesn't include it (see fetchLength in media.js).
           item.length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+          if (r.source === "rawg-steam-gg") {
+            const resolved = await resolveRawgSteamAppId(r, keys.rawg);
+            item.mediaSource = resolved.mediaSource;
+            item.mediaId = resolved.mediaId;
+          }
           synced++;
         }
       }
@@ -1101,6 +1111,11 @@
           // TMDB needs a second per-title call for runtime/season data — the
           // search endpoint doesn't include it (see fetchLength in media.js).
           item.length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+          if (r.source === "rawg-steam-gg") {
+            const resolved = await resolveRawgSteamAppId(r, keys.rawg);
+            item.mediaSource = resolved.mediaSource;
+            item.mediaId = resolved.mediaId;
+          }
           synced++;
         }
       }
@@ -1999,6 +2014,16 @@
     return stripped || title;
   }
 
+  // For a "rawg-steam-gg" combo result: Steam has no search API of its own
+  // (CORS-blocked, see media.js), so the only way to get an App ID without
+  // asking the user to paste one manually is via RAWG's own store-links
+  // data for this specific game. Falls back to the plain RAWG identity if
+  // RAWG has no Steam listing for it (not every game is on Steam).
+  async function resolveRawgSteamAppId(r, rawgKey) {
+    const appId = window.LifeLogMedia ? await window.LifeLogMedia.fetchRawgSteamAppId(r.id, rawgKey) : "";
+    return appId ? { mediaSource: "steam", mediaId: appId } : { mediaSource: "rawg", mediaId: r.id || "" };
+  }
+
   // Tries the category's primary media source first; only if that comes back
   // completely empty does it fall back to the category's configured fallback
   // source (if any) — the fallback never overrides a primary that actually
@@ -2224,7 +2249,13 @@
       list.appendChild(makeMediaAcItem(r, async () => {
         lastSyncedEntryTitle = $("#fTitle").value.trim();
         const length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
-        setEntryCover(r.coverUrl, r.id, r.source, length);
+        let mediaId = r.id, mediaSource = r.source;
+        if (r.source === "rawg-steam-gg") {
+          const resolved = await resolveRawgSteamAppId(r, keys.rawg);
+          mediaSource = resolved.mediaSource;
+          mediaId = resolved.mediaId;
+        }
+        setEntryCover(r.coverUrl, mediaId, mediaSource, length);
         list.hidden = true;
       }));
     });
@@ -3289,6 +3320,7 @@
     const sources = [
       { value: "", label: "None" },
       { value: "rawg", label: "RAWG (games)" },
+      { value: "rawg-steam-gg", label: "RAWG + Steam + GG.deals (games)" },
       { value: "steam", label: "Steam (manual App ID)" },
       { value: "tmdb-movie", label: "TMDB (movie)" },
       { value: "tmdb-tv", label: "TMDB (TV)" },
@@ -3305,7 +3337,7 @@
     // manual App ID only) — no restriction to "compatible" types, so it's
     // on you to leave it at "No fallback" for a category where a second
     // source doesn't make sense (e.g. Movies, until something else covers TMDB).
-    const fallbackSources = sources.filter((s) => s.value && s.value !== "steam");
+    const fallbackSources = sources.filter((s) => s.value && s.value !== "steam" && s.value !== "rawg-steam-gg");
     if (!state.data.categories.length) {
       container.appendChild(el("p", "muted", "No categories yet — add categories first."));
       return;

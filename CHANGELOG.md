@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.65.0] - 2026-07-09
+
+### Added
+- New "RAWG + Steam + GG.deals" media source for Settings → Media →
+  Source per category. Searches RAWG as normal, but for whichever result
+  you pick, also resolves a Steam App ID via RAWG's own store-link data
+  for that game (Steam has no search API of its own — this is the only
+  way to find an App ID without pasting one in by hand). When the game
+  is on Steam, the entry comes in complete in one search: cover, rating,
+  length, release date, Steam App ID, and current GG.deals price — the
+  same result a Steam Wishlist import gets, just from typing a title
+  instead of syncing a wishlist. Falls back to a plain RAWG entry when
+  the game isn't listed on Steam. Works for both backlog and Journal
+  entries, single-item and bulk sync alike.
+
 ## [0.64.0] - 2026-07-09
 
 ### Changed
