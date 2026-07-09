@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.59.3] - 2026-07-09
+
+### Fixed
+- Bulk import's duplicate check (used by Steam Wishlist import, and every
+  JSON/CSV import) only compared incoming backlog items against your
+  existing backlog, not your Journal timeline — so a game already logged
+  as finished could still show up as "new" in the review picker if it
+  happened to still be on your Steam wishlist. It now also checks the
+  Journal by title+category, and by Steam app ID for anything tagged
+  mediaSource: "steam", matching what the single-item add form already
+  checked for.
+
 ## [0.59.2] - 2026-07-08
 
 ### Fixed

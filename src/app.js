@@ -41,7 +41,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.59.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.59.3"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -3577,11 +3577,21 @@
     const existingBacklogKeys = new Set(state.data.backlog.map(backlogKey));
     const existingFinanceKeys = new Set(state.data.financeEntries.map(financeKey));
     const existingRecurKeys = new Set(state.data.recurringExpenses.map(recurringKey));
+    // A wishlisted game already logged as finished in the Journal (title
+    // match, ignoring year/month/date since a backlog item has none of
+    // those yet) is just as much a duplicate as one already sitting in
+    // the backlog — same check the single-item add form already does
+    // (updateBacklogDuplicateBanner) that bulk import was missing.
+    const titleCatKey = (t, c) => `${(t || "").toLowerCase()}|${(c || "").toLowerCase()}`;
+    const existingEntryTitleKeys = new Set(state.data.entries.map((e) => titleCatKey(e.title, e.category)));
     // Steam app IDs are a stronger identity than title — catches a wishlist
     // item whose title was edited locally after an earlier import (a plain
-    // title/category match would otherwise treat it as new again).
+    // title/category match would otherwise treat it as new again), checked
+    // against both the backlog and the Journal.
     const existingSteamIds = new Set(
-      state.data.backlog.filter((b) => b.mediaSource === "steam" && b.mediaId).map((b) => b.mediaId)
+      [...state.data.backlog, ...state.data.entries]
+        .filter((x) => x.mediaSource === "steam" && x.mediaId)
+        .map((x) => x.mediaId)
     );
 
     (entries || []).map(sanitizeEntry).forEach((e) => {
@@ -3590,6 +3600,7 @@
     });
     (backlog || []).map(sanitizeBacklog).forEach((b) => {
       const dup = existingBacklogKeys.has(backlogKey(b)) ||
+        existingEntryTitleKeys.has(titleCatKey(b.title, b.category)) ||
         (b.mediaSource === "steam" && b.mediaId && existingSteamIds.has(b.mediaId));
       items.push({ kind: "backlog", entry: b, dup, checked: !dup });
     });
