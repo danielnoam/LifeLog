@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.62.1] - 2026-07-09
+
+### Fixed
+- The backlog list already showed GG.deals price for Steam-synced games,
+  but the "Edit backlog item" modal never did, even though it already
+  showed rating/length/release year in the same spot — now shows price
+  there too, reusing the list's own cache so it's instant if already
+  fetched.
+
 ## [0.62.0] - 2026-07-09
 
 ### Added

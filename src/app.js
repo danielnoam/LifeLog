@@ -45,7 +45,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.62.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.62.1"; // bump with each shipped change so it's visible in Settings
 
   // Seeded so a first-time switch to the Finance tab starts from a familiar
   // set of categories instead of empty — fully editable/deletable afterward.
@@ -2061,6 +2061,17 @@
     if (line.length) meta.appendChild(el("span", "bl-meta", line.join(" · ")));
     const summary = $("#bSummary").value;
     if (summary) meta.appendChild(el("p", "bl-summary", summary));
+    const mediaSource = $("#bMediaSource").value;
+    const mediaId = $("#bMediaId").value;
+    if (mediaSource === "steam" && mediaId) {
+      const priceEl = el("span", "bl-price");
+      priceEl.dataset.appid = mediaId;
+      meta.appendChild(priceEl);
+      // Same lookup the backlog list uses — reuses its cache (instant if
+      // this item's price was already fetched there) and patches this
+      // exact element via the shared .bl-price[data-appid] selector.
+      loadBacklogPrices([{ mediaSource, mediaId }]);
+    }
     coverDiv.hidden = false;
   }
 
