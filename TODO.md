@@ -1,13 +1,11 @@
 todo:
 
-- continue breaking app.js into per-view modules, same init(ctx) +
-  window-global pattern as finance.js/backlog.js/settings.js, until app.js
-  is just the shell (boot/data load, tab routing, shared state + helpers):
-    1. src/journal.js — journal timeline + stats views, the entry modal,
-       achievements, category management, and the title-suggestion/media
-       cover machinery the entry+backlog modals share (what's left in
-       app.js is the shell: boot, storage/sync, filters, bulk-select
-       plumbing, import/export, data lifecycle)
+- app.js modularization is done (finance/settings/backlog/journal each in
+  their own file, app.js is a ~2,150-line shell). Possible follow-ups if it
+  ever feels warranted: pull the import/export + import-picker cluster into
+  src/io.js, and the Steam wishlist machinery into src/steam.js — but
+  neither is a per-view concern and app.js is no longer unwieldy, so leave
+  them unless they start growing again
 - extend test/merge.test.js's plain-node test pattern to the other
   data-touching code: finance recurringOccurrences (overrides, month
   clamping, end dates), the sanitizers, and normalize()'s migrations
@@ -30,6 +28,12 @@ todo:
 
 done:
 
+- split the Journal out of app.js into src/journal.js (~1,050 lines):
+  Timeline + Stats views (heatmap, Year in Review), the entry modal,
+  timeline bulk actions, achievements, category management, the entry
+  sanitizer, and the shared title-suggestion/media-cover machinery
+  (re-forwarded into backlog.js) — app.js is now a ~2,150-line shell,
+  completing the per-view modularization; no behavior change
 - split the Backlog out of app.js into src/backlog.js (~650 lines):
   view + rows, add/edit modal with sync, bulk move/delete/sync, and the
   backlog sanitizer — app.js down to ~3,100 lines, no behavior change

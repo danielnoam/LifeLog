@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.71.0] - 2026-07-10
+
+### Changed
+- The Journal moved out of `src/app.js` into a new `src/journal.js` module:
+  the Timeline and Stats views (heatmap + Year in Review), the entry
+  add/edit modal, timeline entry bulk actions, achievements, category
+  management, and the entry sanitizer — plus the shared title-suggestion
+  and media cover/sync machinery, which the backlog modal also uses and now
+  receives (re-forwarded through `app.js`) via `LifeLogBacklog.init(ctx)`.
+  This completes breaking app.js into per-view modules: it's now a ~2,150-line
+  shell (boot, storage/sync, the filter bar, shared bulk-select and modal
+  plumbing, import/export, and the data lifecycle) down from ~5,200 lines,
+  with finance/settings/backlog/journal each in their own file. No behavior
+  change.
+
 ## [0.70.0] - 2026-07-10
 
 ### Changed
