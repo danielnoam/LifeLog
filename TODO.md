@@ -1,12 +1,12 @@
 todo:
 
 - continue breaking app.js into per-view modules, same init(ctx) +
-  window-global pattern as finance.js/media.js/qr.js, until app.js is
-  just the shell (boot/data load, tab routing, shared state + helpers):
-    1. src/settings.js — settings modal rendering + all its tabs
-    2. src/backlog.js — backlog view (covers, priority, dropped,
+  window-global pattern as finance.js/settings.js/media.js/qr.js, until
+  app.js is just the shell (boot/data load, tab routing, shared state +
+  helpers):
+    1. src/backlog.js — backlog view (covers, priority, dropped,
        duplicate checks, wishlist import hooks)
-    3. src/journal.js — journal timeline, stats, and entry modal
+    2. src/journal.js — journal timeline, stats, and entry modal
        (what's left is the shell)
 - extend test/merge.test.js's plain-node test pattern to the other
   data-touching code: finance recurringOccurrences (overrides, month
@@ -30,6 +30,11 @@ todo:
 
 done:
 
+- split the Settings modal out of app.js into src/settings.js (~620
+  lines): tabs, Data panel (file/GitHub connections + version history),
+  Appearance, media source/key settings incl. Steam wishlist inputs,
+  and the privacy panel — app.js is down to ~3,700 lines, no behavior
+  change
 - split all finance code out of app.js into src/finance.js (~1,000
   lines): Ledger + Summary views, finance/recurring/finance-category
   modals (incl. per-occurrence overrides and link-past-expenses),

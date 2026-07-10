@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.69.0] - 2026-07-10
+
+### Changed
+- The Settings modal moved out of `src/app.js` into a new `src/settings.js`
+  module: tab switching, the Data panel (local file + GitHub connections,
+  backend info, version history with restore), Appearance controls, media
+  source/key settings including the Steam wishlist inputs, and the
+  privacy/app-lock panel. No behavior change — step two of breaking app.js
+  into per-view modules (finance.js was step one). The Steam wishlist
+  sync machinery and the PIN/biometric crypto helpers stay in app.js (the
+  lock screen shares them) and are handed in via `LifeLogSettings.init(ctx)`.
+
 ## [0.68.0] - 2026-07-10
 
 ### Changed
