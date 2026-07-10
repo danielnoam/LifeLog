@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.70.0] - 2026-07-10
+
+### Changed
+- The Backlog moved out of `src/app.js` into a new `src/backlog.js` module:
+  the view (category sections with priority/unreleased/dropped ordering and
+  separators), plain + rich rows, the add/edit modal with title suggestions
+  and media sync, backlog bulk actions (move/delete/sync), and the backlog
+  sanitizer. No behavior change — step three of breaking app.js into
+  per-view modules (finance.js, settings.js were the first two). The
+  GG.deals price cluster, cover-link buttons, and the shared
+  `applySteamAppId` stay in app.js (the journal entry modal uses them too)
+  and are handed in via `LifeLogBacklog.init(ctx)`. app.js is down to
+  ~3,100 lines, from ~5,200 before this modularization began.
+
 ## [0.69.0] - 2026-07-10
 
 ### Changed

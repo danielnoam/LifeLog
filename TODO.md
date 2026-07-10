@@ -1,13 +1,13 @@
 todo:
 
 - continue breaking app.js into per-view modules, same init(ctx) +
-  window-global pattern as finance.js/settings.js/media.js/qr.js, until
-  app.js is just the shell (boot/data load, tab routing, shared state +
-  helpers):
-    1. src/backlog.js — backlog view (covers, priority, dropped,
-       duplicate checks, wishlist import hooks)
-    2. src/journal.js — journal timeline, stats, and entry modal
-       (what's left is the shell)
+  window-global pattern as finance.js/backlog.js/settings.js, until app.js
+  is just the shell (boot/data load, tab routing, shared state + helpers):
+    1. src/journal.js — journal timeline + stats views, the entry modal,
+       achievements, category management, and the title-suggestion/media
+       cover machinery the entry+backlog modals share (what's left in
+       app.js is the shell: boot, storage/sync, filters, bulk-select
+       plumbing, import/export, data lifecycle)
 - extend test/merge.test.js's plain-node test pattern to the other
   data-touching code: finance recurringOccurrences (overrides, month
   clamping, end dates), the sanitizers, and normalize()'s migrations
@@ -30,6 +30,9 @@ todo:
 
 done:
 
+- split the Backlog out of app.js into src/backlog.js (~650 lines):
+  view + rows, add/edit modal with sync, bulk move/delete/sync, and the
+  backlog sanitizer — app.js down to ~3,100 lines, no behavior change
 - split the Settings modal out of app.js into src/settings.js (~620
   lines): tabs, Data panel (file/GitHub connections + version history),
   Appearance, media source/key settings incl. Steam wishlist inputs,
