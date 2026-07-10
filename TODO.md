@@ -1,5 +1,16 @@
 todo:
 
+- continue breaking app.js into per-view modules, same init(ctx) +
+  window-global pattern as finance.js/media.js/qr.js, until app.js is
+  just the shell (boot/data load, tab routing, shared state + helpers):
+    1. src/settings.js — settings modal rendering + all its tabs
+    2. src/backlog.js — backlog view (covers, priority, dropped,
+       duplicate checks, wishlist import hooks)
+    3. src/journal.js — journal timeline, stats, and entry modal
+       (what's left is the shell)
+- extend test/merge.test.js's plain-node test pattern to the other
+  data-touching code: finance recurringOccurrences (overrides, month
+  clamping, end dates), the sanitizers, and normalize()'s migrations
 - SteamGridDB back as a games cover-art source/fallback (removed earlier
   for being CORS-blocked with no proxy in front of it) — the CORS proxy
   (`proxy/worker.js`) already has a `/steamgriddb/<path>` route ready for
@@ -19,6 +30,12 @@ todo:
 
 done:
 
+- split all finance code out of app.js into src/finance.js (~1,000
+  lines): Ledger + Summary views, finance/recurring/finance-category
+  modals (incl. per-occurrence overrides and link-past-expenses),
+  finance import/export, and the finance sanitizers — app.js is down
+  to ~4,300 lines with no behavior change; also fixed the service
+  worker precache list missing merge.js
 - Steam Wishlist import: a small self-hosted CORS proxy (free Cloudflare
   Worker, see proxy/worker.js + proxy/README.md) unblocks Steam's
   wishlist endpoint, which sends no CORS header. Settings → Media has a

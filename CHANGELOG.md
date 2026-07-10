@@ -4,6 +4,26 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.68.0] - 2026-07-10
+
+### Changed
+- All finance code moved out of `src/app.js` into a new `src/finance.js`
+  module (the Ledger and Summary views, finance/recurring/finance-category
+  modals including per-occurrence overrides and the link-past-expenses
+  picker, finance import/export, and the finance sanitizers) — app.js
+  drops from ~5,200 to ~4,300 lines. No behavior change; this is the
+  first step of breaking app.js into per-view modules the way media.js
+  and qr.js already are. The module receives shared app helpers via
+  `LifeLogFinance.init(ctx)` and exposes what app.js still calls
+  (view renderers, modal openers, sanitizers) on `window.LifeLogFinance`.
+
+### Fixed
+- The service worker's offline precache list was missing `src/merge.js`
+  (loaded by index.html since the sync/merge rework), so a first visit
+  that went offline before ever re-fetching it could load an app shell
+  with no merge module. `src/finance.js` and `src/merge.js` are both
+  precached now.
+
 ## [0.67.2] - 2026-07-09
 
 ### Fixed
