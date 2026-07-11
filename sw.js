@@ -5,7 +5,7 @@
 // those and falling back to index.html on failure previously turned a real
 // network/CORS error into a fake 200 OK full of HTML, masking the actual
 // failure from the app's own error handling.
-const CACHE = "lifelog-v20";
+const CACHE = "lifelog-v21";
 // Note: lifelog.json is intentionally NOT precached — it isn't deployed (your
 // data is private). The app fetches it at runtime with a graceful fallback.
 const ASSETS = [

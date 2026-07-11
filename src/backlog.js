@@ -55,7 +55,7 @@
     // only while adding: renaming an already-synced existing item shouldn't
     // silently drop its media link — that takes an explicit "✕ Unsync" now.
     if (isAdding && query !== lastSyncedBacklogTitle && $("#bMediaSource").value !== "steam") {
-      ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bReleaseDate", "#bExternalRating"]
+      ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bReleaseDate", "#bExternalRating", "#bGenres"]
         .forEach((id) => { const f = $(id); if (f) f.value = ""; });
       setBacklogCover();
     }
@@ -76,6 +76,7 @@
           $("#bCoverUrl").value = b.coverUrl || "";
           $("#bMediaId").value = b.mediaId || "";
           $("#bMediaSource").value = b.mediaSource || "";
+          $("#bGenres").value = (b.genres || []).join("|");
           setBacklogCover();
           updateSyncBtnVisibility("b", $("#bCategory").value);
           list.hidden = true;
@@ -101,6 +102,7 @@
           $("#bCoverUrl").value = m.coverUrl || "";
           $("#bMediaId").value = m.mediaId || "";
           $("#bMediaSource").value = m.mediaSource || "";
+          $("#bGenres").value = (m.genres || []).join("|");
           setBacklogCover();
           updateSyncBtnVisibility("b", $("#bCategory").value);
           list.hidden = true;
@@ -161,6 +163,7 @@
         $("#bReleaseYear").value = r.year ? String(r.year) : "";
         $("#bReleaseDate").value = r.releaseDate || "";
         $("#bExternalRating").value = r.externalRating || "";
+        $("#bGenres").value = (r.genres || []).join("|");
         $("#bLength").value = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
         if (r.source === "rawg-steam-gg") {
           const resolved = await resolveRawgSteamAppId(r, keys.rawg);
@@ -175,7 +178,7 @@
   }
 
   function unsyncBacklogItem() {
-    ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bReleaseDate", "#bExternalRating", "#bLength"]
+    ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bReleaseDate", "#bExternalRating", "#bLength", "#bGenres"]
       .forEach((id) => { const f = $(id); if (f) f.value = ""; });
     $("#bSteamAppId").value = "";
     setBacklogCover();
@@ -394,6 +397,7 @@
           // TMDB needs a second per-title call for runtime/season data — the
           // search endpoint doesn't include it (see fetchLength in media.js).
           item.length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+          if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
           if (r.source === "rawg-steam-gg") {
             const resolved = await resolveRawgSteamAppId(r, keys.rawg);
             item.mediaSource = resolved.mediaSource;
@@ -495,6 +499,7 @@
     $("#bReleaseDate").value = editing ? (item.releaseDate || "") : "";
     $("#bExternalRating").value = editing ? (item.externalRating || "") : "";
     $("#bLength").value = editing ? (item.length || "") : "";
+    $("#bGenres").value = editing ? (item.genres || []).join("|") : "";
     $("#bPriority").checked = editing ? !!item.priority : false;
     updatePriorityBtn();
     $("#bDropped").checked = editing ? !!item.dropped : false;
@@ -545,6 +550,8 @@
     const releaseDate = $("#bReleaseDate").value;
     const externalRating = $("#bExternalRating").value;
     const length = $("#bLength").value;
+    const genresStr = $("#bGenres").value;
+    const genres = genresStr ? genresStr.split("|") : [];
     const priority = $("#bPriority").checked ? 1 : 0;
     const dropped = $("#bDropped").checked;
     if (!title) return;
@@ -560,6 +567,7 @@
       if (releaseDate) b.releaseDate = releaseDate; else delete b.releaseDate;
       if (externalRating) b.externalRating = externalRating; else delete b.externalRating;
       if (length) b.length = length; else delete b.length;
+      if (genres.length) b.genres = genres; else delete b.genres;
       if (priority) b.priority = priority; else delete b.priority;
       if (dropped) b.dropped = true; else delete b.dropped;
     } else {
@@ -573,6 +581,7 @@
       if (releaseDate) item.releaseDate = releaseDate;
       if (externalRating) item.externalRating = externalRating;
       if (length) item.length = length;
+      if (genres.length) item.genres = genres;
       if (priority) item.priority = priority;
       if (dropped) item.dropped = true;
       state.data.backlog.push(item);
@@ -612,6 +621,7 @@
     if (b.releaseDate) out.releaseDate = b.releaseDate;
     if (b.externalRating) out.externalRating = b.externalRating;
     if (b.length) out.length = b.length;
+    if (Array.isArray(b.genres) && b.genres.length) out.genres = b.genres.map((g) => String(g)).slice(0, 4);
     if (b.priority) out.priority = +b.priority;
     if (b.dropped) out.dropped = true;
     return out;

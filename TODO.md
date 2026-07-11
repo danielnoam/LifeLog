@@ -6,6 +6,16 @@ todo:
   src/io.js, and the Steam wishlist machinery into src/steam.js — but
   neither is a per-view concern and app.js is no longer unwieldy, so leave
   them unless they start growing again
+- AniList "Planning" list import into the backlog — same shape as the
+  existing Steam Wishlist import (Settings → Media section, target
+  category, sync button, routed through the shared import review picker,
+  dup-checked by title+category). AniList's GraphQL endpoint is already
+  called from the browser (searchAniList in media.js) with no CORS
+  problem and no proxy needed, and public lists need no auth — query
+  MediaListCollection by username with status PLANNING for ANIME (and
+  optionally MANGA → plan-to-read). Imported items carry
+  mediaSource: "anilist-anime"/"anilist-manga" + mediaId, the same shape
+  a normal AniList sync uses, so cover art picks them up for free
 - extend test/merge.test.js's plain-node test pattern to the other
   data-touching code: finance recurringOccurrences (overrides, month
   clamping, end dates), the sanitizers, and normalize()'s migrations
@@ -14,20 +24,18 @@ todo:
   (`proxy/worker.js`) already has a `/steamgriddb/<path>` route ready for
   this, it just needs wiring back into media.js's source list and the
   Settings API key field
-- Stats: trends over time — line/bar view of entries per month or per
-  year, per category, using data Stats already has (no new fields needed)
-- Stats: auto-generated insight callouts — a few computed one-liners
-  each time Stats opens (busiest month, longest active streak,
-  highest-rated category, year-over-year delta) — no new fields needed
-- Stats: genre/tag breakdown — add a genres[] field alongside the
-  existing coverUrl/length/rating fields each media source already
-  fills in (RAWG has genres, AniList has genres, TMDB needs one extra
-  genre-id lookup, Jikan has genres, Open Library/Google Books via
-  subjects where available); backfilled only on next sync, no
-  migration needed for existing entries; then a breakdown view in Stats
 
 done:
 
+- Stats: three new cards — Highlights (busiest month, longest month
+  streak, top category, year-over-year delta), Monthly pattern (entries
+  per calendar month across all years), and Genres (breakdown by a new
+  genres[] field the media sources now capture on sync — RAWG/TMDB via
+  its genre-id maps/AniList/Jikan/Open Library subjects/Google Books
+  categories, capped at 4; older entries stay blank until re-synced, and
+  the card hides itself when there's no genre data). Genres persist
+  through the sanitizers and ride along on re-entry suggestions and the
+  entry↔backlog transfer
 - split the Journal out of app.js into src/journal.js (~1,050 lines):
   Timeline + Stats views (heatmap, Year in Review), the entry modal,
   timeline bulk actions, achievements, category management, the entry

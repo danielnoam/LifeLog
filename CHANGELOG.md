@@ -4,6 +4,25 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.72.0] - 2026-07-11
+
+### Added
+- Stats → Highlights card: a few computed one-liners each time Stats opens
+  — busiest single month, longest run of consecutive months with at least
+  one entry, top category, and this year's count vs last year's — all from
+  data Stats already had.
+- Stats → Monthly pattern card: total entries per calendar month (Jan–Dec)
+  summed across every year, so seasonal habits stand out in a way the
+  per-year activity heatmap doesn't.
+- Stats → Genres card: a breakdown of entries by genre. Media sources now
+  capture a genres[] field on sync (RAWG, TMDB — via its documented genre-id
+  maps, no extra request — AniList, Jikan, Open Library subjects, and Google
+  Books categories; capped at 4 per item). Existing entries stay blank until
+  re-synced, and the card only appears once some entries have genres, so an
+  all-blank library shows nothing rather than an empty card. Genres ride
+  along through re-entry suggestions and the entry↔backlog transfer the same
+  way cover art and length already do.
+
 ## [0.71.0] - 2026-07-10
 
 ### Changed

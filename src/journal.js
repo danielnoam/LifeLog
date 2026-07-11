@@ -191,6 +191,7 @@
           // TMDB needs a second per-title call for runtime/season data — the
           // search endpoint doesn't include it (see fetchLength in media.js).
           item.length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+          if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
           if (r.source === "rawg-steam-gg") {
             const resolved = await resolveRawgSteamAppId(r, keys.rawg);
             item.mediaSource = resolved.mediaSource;
@@ -248,6 +249,7 @@
     grid.appendChild(catCard);
     grid.appendChild(yearCard);
     root.appendChild(big);
+    renderHighlights(root, entries);
     root.appendChild(grid);
 
     // most re-logged titles (rewatches/replays/rereads)
@@ -271,8 +273,81 @@
       root.appendChild(repCard);
     }
 
+    renderMonthlyPattern(root, entries);
+    renderGenreBreakdown(root, entries);
     renderHeatmap(root, entries);
     renderYearInReview(root, state.data.entries);
+  }
+
+  // A few computed one-liners: the single busiest month, the longest run of
+  // consecutive months with at least one entry, the most-logged category, and
+  // this year's count vs last year's. All derived from data Stats already has.
+  function renderHighlights(root, entries) {
+    if (entries.length < 2) return; // too little to say anything interesting
+
+    // month index = year*12 + (month-1), so consecutive calendar months are
+    // consecutive integers — used for both "busiest" and the streak below.
+    const monthCounts = {};
+    for (const e of entries) { const k = e.year * 12 + (e.month - 1); monthCounts[k] = (monthCounts[k] || 0) + 1; }
+    const keys = Object.keys(monthCounts).map(Number);
+    let bestK = keys[0];
+    for (const k of keys) if (monthCounts[k] > monthCounts[bestK]) bestK = k;
+
+    const sorted = [...keys].sort((a, b) => a - b);
+    let streak = 1, bestStreak = 1;
+    for (let i = 1; i < sorted.length; i++) {
+      if (sorted[i] === sorted[i - 1] + 1) { streak++; if (streak > bestStreak) bestStreak = streak; }
+      else streak = 1;
+    }
+
+    const catCounts = countBy(entries, (e) => e.category);
+    const topCat = Object.keys(catCounts).sort((a, b) => catCounts[b] - catCounts[a])[0];
+
+    const thisYear = new Date().getFullYear();
+    const delta = entries.filter((e) => e.year === thisYear).length
+      - entries.filter((e) => e.year === thisYear - 1).length;
+
+    const card = el("div", "card");
+    card.appendChild(el("h2", null, "Highlights"));
+    const row = el("div", "stat-big");
+    row.appendChild(statItem(`${MONTHS_SHORT[(bestK % 12) + 1]} ${Math.floor(bestK / 12)}`, `busiest month (${monthCounts[bestK]})`, "hl:busiest"));
+    row.appendChild(statItem(bestStreak, "month streak", "hl:streak"));
+    row.appendChild(statItem(topCat, "top category", "hl:cat"));
+    row.appendChild(statItem((delta > 0 ? "+" : "") + delta, `vs ${thisYear - 1}`, "hl:yoy"));
+    card.appendChild(row);
+    root.appendChild(card);
+  }
+
+  // Seasonality: total entries per calendar month (Jan–Dec) summed across
+  // every year, so recurring monthly patterns stand out in a way the
+  // per-year heatmap grid doesn't make obvious.
+  function renderMonthlyPattern(root, entries) {
+    if (entries.length < 2) return;
+    const counts = new Array(13).fill(0);
+    for (const e of entries) counts[e.month]++;
+    const max = Math.max(1, ...counts.slice(1));
+    const card = el("div", "card");
+    card.style.marginTop = "20px";
+    card.appendChild(el("h2", null, "Monthly pattern"));
+    for (let m = 1; m <= 12; m++) card.appendChild(barRow(MONTHS[m], counts[m], max, "var(--accent)"));
+    root.appendChild(card);
+  }
+
+  // Genre breakdown — only appears once some entries carry a genres[] field
+  // (media sources fill it in on sync; older entries stay blank until
+  // re-synced), so an all-blank library shows nothing rather than an empty card.
+  function renderGenreBreakdown(root, entries) {
+    const counts = {};
+    for (const e of entries) for (const g of (e.genres || [])) counts[g] = (counts[g] || 0) + 1;
+    const names = Object.keys(counts);
+    if (!names.length) return;
+    const card = el("div", "card");
+    card.style.marginTop = "20px";
+    card.appendChild(el("h2", null, "Genres"));
+    const max = Math.max(1, ...Object.values(counts));
+    names.sort((a, b) => counts[b] - counts[a]).slice(0, 12)
+      .forEach((n) => card.appendChild(barRow(n, counts[n], max, "var(--accent)")));
+    root.appendChild(card);
   }
 
   function heatColor(count, max) {
@@ -437,8 +512,9 @@
     const mediaSrc = editing ? (entry.mediaSource || "") : (fromBacklog ? (fromBacklog.mediaSource || "") : "");
     const mediaId = editing ? (entry.mediaId || "") : (fromBacklog ? (fromBacklog.mediaId || "") : "");
     const lengthSrc = editing ? (entry.length || "") : (fromBacklog ? (fromBacklog.length || "") : "");
+    const genresSrc = editing ? (entry.genres || []) : (fromBacklog ? (fromBacklog.genres || []) : []);
     lastSyncedEntryTitle = editing ? entry.title : (fromBacklog ? fromBacklog.title : "");
-    setEntryCover(coverSrc, mediaId, mediaSrc, lengthSrc);
+    setEntryCover(coverSrc, mediaId, mediaSrc, lengthSrc, genresSrc);
     $("#fSteamAppId").value = mediaSrc === "steam" ? mediaId : "";
     updateSyncBtnVisibility("f", $("#fCategory").value);
     $("#fTitleSuggest").hidden = true;
@@ -472,13 +548,13 @@
       let g = groups.get(key);
       if (!g) {
         g = { title: e.title, count: 0, category: e.category, year: e.year, month: e.month,
-              coverUrl: e.coverUrl || "", mediaId: e.mediaId || "", mediaSource: e.mediaSource || "", length: e.length || "" };
+              coverUrl: e.coverUrl || "", mediaId: e.mediaId || "", mediaSource: e.mediaSource || "", length: e.length || "", genres: e.genres || [] };
         groups.set(key, g);
       }
       g.count++;
       if (e.year > g.year || (e.year === g.year && e.month > g.month)) {
         g.title = e.title; g.category = e.category; g.year = e.year; g.month = e.month;
-        g.coverUrl = e.coverUrl || ""; g.mediaId = e.mediaId || ""; g.mediaSource = e.mediaSource || ""; g.length = e.length || "";
+        g.coverUrl = e.coverUrl || ""; g.mediaId = e.mediaId || ""; g.mediaSource = e.mediaSource || ""; g.length = e.length || ""; g.genres = e.genres || [];
       }
     }
     return [...groups.values()]
@@ -590,11 +666,12 @@
     if (steamField) steamField.hidden = !isSteam;
   }
 
-  function setEntryCover(coverUrl, mediaId, mediaSource, length) {
+  function setEntryCover(coverUrl, mediaId, mediaSource, length, genres) {
     $("#fCoverUrl").value = coverUrl || "";
     $("#fMediaId").value = mediaId || "";
     $("#fMediaSource").value = mediaSource || "";
     $("#fLength").value = length || "";
+    $("#fGenres").value = (genres || []).join("|");
     const coverDiv = $("#entryCover");
     const coverImg = $("#entryCoverImg");
     const meta = $("#entryCoverMeta");
@@ -617,7 +694,7 @@
     // Only while adding: renaming an already-synced existing entry shouldn't silently
     // drop its media link — that takes an explicit "✕ Unsync" now.
     if (isAdding && query !== lastSyncedEntryTitle && $("#fCoverUrl").value && $("#fMediaSource").value !== "steam") {
-      setEntryCover("", "", "", "");
+      setEntryCover("", "", "", "", []);
     }
 
     const localMatches = titleSuggestions(query, $("#entryId").value || null);
@@ -631,7 +708,7 @@
           lastSyncedEntryTitle = m.title;
           $("#fTitle").value = m.title;
           if (state.data.categories.some((c) => c.name === m.category)) $("#fCategory").value = m.category;
-          setEntryCover(m.coverUrl, m.mediaId, m.mediaSource, m.length || "");
+          setEntryCover(m.coverUrl, m.mediaId, m.mediaSource, m.length || "", m.genres || []);
           updateSyncBtnVisibility("f", $("#fCategory").value);
           list.hidden = true;
         }
@@ -653,7 +730,7 @@
           lastSyncedEntryTitle = b.title;
           $("#fTitle").value = b.title;
           if (state.data.categories.some((c) => c.name === b.category)) $("#fCategory").value = b.category;
-          setEntryCover(b.coverUrl || "", b.mediaId || "", b.mediaSource || "", b.length || "");
+          setEntryCover(b.coverUrl || "", b.mediaId || "", b.mediaSource || "", b.length || "", b.genres || []);
           updateSyncBtnVisibility("f", $("#fCategory").value);
           $("#entryFromBacklog").value = b.id;
           updateBacklogLinkBanner();
@@ -716,7 +793,7 @@
           mediaSource = resolved.mediaSource;
           mediaId = resolved.mediaId;
         }
-        setEntryCover(r.coverUrl, mediaId, mediaSource, length);
+        setEntryCover(r.coverUrl, mediaId, mediaSource, length, r.genres || []);
         list.hidden = true;
       }));
     });
@@ -724,7 +801,7 @@
   }
 
   function unsyncEntry() {
-    setEntryCover("", "", "", "");
+    setEntryCover("", "", "", "", []);
     $("#fSteamAppId").value = "";
     $("#fTitleSuggest").hidden = true;
   }
@@ -743,6 +820,8 @@
     const mediaId = $("#fMediaId").value;
     const mediaSource = $("#fMediaSource").value;
     const length = $("#fLength").value;
+    const genresStr = $("#fGenres").value;
+    const genres = genresStr ? genresStr.split("|") : [];
     if (!title) return;
     if (id) {
       const e = state.data.entries.find((x) => x.id === id);
@@ -753,6 +832,7 @@
       if (mediaId) e.mediaId = mediaId; else delete e.mediaId;
       if (mediaSource) e.mediaSource = mediaSource; else delete e.mediaSource;
       if (length) e.length = length; else delete e.length;
+      if (genres.length) e.genres = genres; else delete e.genres;
     } else {
       const newEntry = {
         id: uid(), title, category, year, month,
@@ -765,6 +845,7 @@
       if (mediaId) newEntry.mediaId = mediaId;
       if (mediaSource) newEntry.mediaSource = mediaSource;
       if (length) newEntry.length = length;
+      if (genres.length) newEntry.genres = genres;
       state.data.entries.push(newEntry);
     }
     if (fromBacklogId) state.data.backlog = state.data.backlog.filter((b) => b.id !== fromBacklogId);
@@ -799,6 +880,7 @@
     if (entry.mediaId) item.mediaId = entry.mediaId;
     if (entry.mediaSource) item.mediaSource = entry.mediaSource;
     if (entry.length) item.length = entry.length;
+    if (entry.genres && entry.genres.length) item.genres = entry.genres.slice();
     state.data.backlog.push(item);
     state.data.entries = state.data.entries.filter((e) => e.id !== id);
     closeEntryModal();
@@ -985,6 +1067,7 @@
     if (e.mediaId) out.mediaId = e.mediaId;
     if (e.mediaSource) out.mediaSource = e.mediaSource;
     if (e.length) out.length = e.length;
+    if (Array.isArray(e.genres) && e.genres.length) out.genres = e.genres.map((g) => String(g)).slice(0, 4);
     return out;
   }
 

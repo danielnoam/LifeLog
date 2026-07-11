@@ -10,6 +10,35 @@
   function stripHtml(s) {
     return (s || "").replace(/<[^>]*>/g, "");
   }
+
+  // Normalizes any source's raw genre list into a deduped array of up to 4
+  // trimmed name strings — keeps the Stats genre breakdown from drowning in
+  // a book's dozen Open Library subjects while still capturing the useful ones.
+  function normGenres(names) {
+    const out = [];
+    for (const n of names || []) {
+      const s = String(n || "").trim();
+      if (s && !out.some((x) => x.toLowerCase() === s.toLowerCase())) out.push(s);
+      if (out.length >= 4) break;
+    }
+    return out;
+  }
+
+  // TMDB search returns only genre_ids, not names — these are TMDB's stable,
+  // documented id→name maps (movie and TV lists differ), so no extra request
+  // is needed to resolve them.
+  const TMDB_MOVIE_GENRES = {
+    28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy", 80: "Crime",
+    99: "Documentary", 18: "Drama", 10751: "Family", 14: "Fantasy", 36: "History",
+    27: "Horror", 10402: "Music", 9648: "Mystery", 10749: "Romance",
+    878: "Science Fiction", 10770: "TV Movie", 53: "Thriller", 10752: "War", 37: "Western",
+  };
+  const TMDB_TV_GENRES = {
+    10759: "Action & Adventure", 16: "Animation", 35: "Comedy", 80: "Crime",
+    99: "Documentary", 18: "Drama", 10751: "Family", 10762: "Kids", 9648: "Mystery",
+    10763: "News", 10764: "Reality", 10765: "Sci-Fi & Fantasy", 10766: "Soap",
+    10767: "Talk", 10768: "War & Politics", 37: "Western",
+  };
   async function searchRawg(title, apiKey) {
     if (!apiKey) return [];
     try {
@@ -29,6 +58,7 @@
           ? g.metacritic + " Metacritic"
           : (g.rating ? (Math.round(g.rating * 20)) + "% users" : ""),
         length: g.playtime ? g.playtime + " hrs" : "",
+        genres: normGenres((g.genres || []).map((x) => x.name)),
         source: "rawg",
       }));
     } catch (e) { return []; }
@@ -101,6 +131,7 @@
       if (!res.ok) return [];
       const data = await res.json();
       const imgBase = "https://image.tmdb.org/t/p/w92";
+      const genreMap = type === "movie" ? TMDB_MOVIE_GENRES : TMDB_TV_GENRES;
       return (data.results || []).slice(0, 5).map((r) => {
         const t = r.title || r.name || "";
         const dateStr = r.release_date || r.first_air_date || "";
@@ -115,6 +146,7 @@
           externalRating: r.vote_average
             ? (Math.round(r.vote_average * 10) / 10) + " TMDB"
             : "",
+          genres: normGenres((r.genre_ids || []).map((id) => genreMap[id]).filter(Boolean)),
           source: type === "movie" ? "tmdb-movie" : "tmdb-tv",
         };
       });
@@ -141,6 +173,7 @@
           ? (Math.round(d.ratings_average * 10) / 10) + " OL"
           : "",
         length: d.number_of_pages_median ? d.number_of_pages_median + " pages" : "",
+        genres: normGenres(d.subject),
         source: "openlibrary",
       }));
     } catch (e) { return []; }
@@ -148,7 +181,7 @@
 
   async function searchAniList(title, type) {
     try {
-      const query = "query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } startDate { year month day } coverImage { medium } description(asHtml: false) averageScore } } }";
+      const query = "query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } startDate { year month day } coverImage { medium } description(asHtml: false) averageScore genres } } }";
       const res = await fetch("https://graphql.anilist.co", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -170,6 +203,7 @@
           releaseDate,
           summary: stripHtml(m.description),
           externalRating: m.averageScore ? m.averageScore + "% AniList" : "",
+          genres: normGenres(m.genres),
           source: type === "MANGA" ? "anilist-manga" : "anilist-anime",
         };
       });
@@ -210,6 +244,7 @@
           summary: d.synopsis || "",
           externalRating: d.score ? d.score + " Jikan" : "",
           length,
+          genres: normGenres((d.genres || []).map((x) => x.name)),
           source: type === "manga" ? "jikan-manga" : "jikan-anime",
         };
       });
@@ -236,6 +271,7 @@
           summary: v.description || "",
           externalRating: v.averageRating ? v.averageRating + " Google Books" : "",
           length: v.pageCount ? v.pageCount + " pages" : "",
+          genres: normGenres(v.categories),
           source: "googlebooks",
         };
       });
