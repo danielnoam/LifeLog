@@ -10,7 +10,7 @@
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" }, steam: { proxyUrl: "", steamId: "", wishlistCategory: "", autoSyncDays: "0" } }; // monthOrder, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam — synced
+  const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" }, steam: { proxyUrl: "", steamId: "", wishlistCategory: "", autoSyncDays: "0" }, anilist: { userName: "", animeCategory: "", mangaCategory: "" } }; // monthOrder, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist — synced
   const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big" }; // maxWidth 0 = stretch — local to this device, not synced
   const THEMES = ["light", "nord", "dracula"]; // "default" has no class — it's the bare :root palette
   const FONT_STACKS = {
@@ -48,7 +48,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.72.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.73.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1035,14 +1035,16 @@
     // (updateBacklogDuplicateBanner) that bulk import was missing.
     const titleCatKey = (t, c) => `${(t || "").toLowerCase()}|${(c || "").toLowerCase()}`;
     const existingEntryTitleKeys = new Set(state.data.entries.map((e) => titleCatKey(e.title, e.category)));
-    // Steam app IDs are a stronger identity than title — catches a wishlist
-    // item whose title was edited locally after an earlier import (a plain
-    // title/category match would otherwise treat it as new again), checked
-    // against both the backlog and the Journal.
-    const existingSteamIds = new Set(
+    // A synced item's media source+id is a stronger identity than its title —
+    // catches an imported item (Steam wishlist, AniList Planning) whose title
+    // was edited locally after an earlier import, which a plain title/category
+    // match would otherwise treat as new again. Keyed by "<source>:<id>" and
+    // checked against both the backlog and the Journal, so it works uniformly
+    // for every source, not just Steam.
+    const existingMediaIds = new Set(
       [...state.data.backlog, ...state.data.entries]
-        .filter((x) => x.mediaSource === "steam" && x.mediaId)
-        .map((x) => x.mediaId)
+        .filter((x) => x.mediaSource && x.mediaId)
+        .map((x) => x.mediaSource + ":" + x.mediaId)
     );
 
     (entries || []).map(Journal.sanitizeEntry).forEach((e) => {
@@ -1053,7 +1055,7 @@
       const b = Backlog.sanitizeBacklog(raw);
       const dup = existingBacklogKeys.has(backlogKey(b)) ||
         existingEntryTitleKeys.has(titleCatKey(b.title, b.category)) ||
-        (b.mediaSource === "steam" && b.mediaId && existingSteamIds.has(b.mediaId));
+        (b.mediaSource && b.mediaId && existingMediaIds.has(b.mediaSource + ":" + b.mediaId));
       items.push({ kind: "backlog", entry: b, dup, checked: !dup, unresolved: !!raw.unresolved });
     });
     (financeEntries || []).map(Finance.sanitizeFinanceEntry).forEach((f) => {
@@ -1214,6 +1216,79 @@
       );
     } catch (e) {
       toast("Steam wishlist fetch failed (" + ((e && e.message) || "network error") + ")", true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = label; }
+    }
+  }
+
+  // Pulls a public AniList user's Planning (plan-to-watch / plan-to-read)
+  // list — anime and manga separately, each into its own chosen category, so
+  // you can import one type, the other, or both. AniList sends CORS headers
+  // and public lists need no auth, so unlike Steam there's no proxy or title
+  // resolution step: one GraphQL request per type returns everything. The
+  // result is routed through the same review picker as every other import —
+  // dup-checked by title+category and by AniList media id (so a later local
+  // rename doesn't make an item look new again), against both the backlog and
+  // the Journal — and nothing is added until confirmed. Each item is tagged
+  // mediaSource: "anilist-anime"/"anilist-manga" + mediaId, the same shape a
+  // normal AniList sync produces, so cover art and the genre breakdown pick
+  // it up with no extra work.
+  async function syncAniListPlanning() {
+    const cfg = state.data.settings.anilist || DEFAULT_SETTINGS.anilist;
+    const userName = (cfg.userName || "").trim();
+    const animeCategory = cfg.animeCategory || "";
+    const mangaCategory = cfg.mangaCategory || "";
+    if (!userName) { toast("Enter your AniList username first", true); return; }
+    if (!animeCategory && !mangaCategory) { toast("Pick a category for anime and/or manga first", true); return; }
+    if (!window.LifeLogMedia) return;
+    const btn = $("#anilistSyncBtn");
+    const label = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "Syncing…"; }
+    try {
+      // Only the types with a category chosen are fetched. Each fetch returns
+      // null on a hard failure (network, private list, unknown user), which is
+      // kept distinct from an empty-but-reachable list.
+      let failed = false;
+      const backlogItems = [];
+      const pulls = [];
+      if (animeCategory) pulls.push(["ANIME", animeCategory]);
+      if (mangaCategory) pulls.push(["MANGA", mangaCategory]);
+      for (const [type, category] of pulls) {
+        const media = await window.LifeLogMedia.fetchAniListPlanning(userName, type);
+        if (media === null) { failed = true; continue; }
+        for (const m of media) {
+          backlogItems.push({
+            title: m.title || "",
+            category,
+            mediaSource: m.source,
+            mediaId: m.id,
+            coverUrl: m.coverUrl || "",
+            unresolved: !m.title,
+            ...(m.externalRating ? { externalRating: m.externalRating } : {}),
+            ...(m.length ? { length: m.length } : {}),
+            ...(m.year ? { releaseYear: m.year } : {}),
+            ...(m.releaseDate ? { releaseDate: m.releaseDate } : {}),
+            ...(m.genres && m.genres.length ? { genres: m.genres } : {}),
+          });
+        }
+      }
+      if (!backlogItems.length) {
+        if (failed) {
+          const err = window.LifeLogMedia.getLastError();
+          toast(err ? "AniList sync failed — " + err : "AniList sync failed", true);
+        } else {
+          toast("Planning list came back empty — check the username, and that your list is public");
+        }
+        return;
+      }
+      const built = buildImportItems({ backlog: backlogItems, categories: [] });
+      reviewAndImport(
+        "AniList Planning",
+        "Review which plan-to-watch/read titles to add to your backlog — anything already in your backlog or already logged is tagged and hidden by default.",
+        built
+      );
+    } catch (e) {
+      toast("AniList sync failed (" + ((e && e.message) || "network error") + ")", true);
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = label; }
     }
@@ -1693,6 +1768,7 @@
       mediaCategoryFallbackSources,
       mediaKeys,
       steam: { ...DEFAULT_SETTINGS.steam, ...(incomingSettings.steam || {}) },
+      anilist: { ...DEFAULT_SETTINGS.anilist, ...(incomingSettings.anilist || {}) },
     };
     const accIn = data.accomplishments || {};
     data.accomplishments = {};
@@ -2116,6 +2192,7 @@
     prefersReducedMotion, biometricAvailable, hashPin, randomHex, registerBiometric,
     updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
     syncSteamWishlist, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
+    syncAniListPlanning,
     DEFAULT_SETTINGS,
   });
   Journal.init({

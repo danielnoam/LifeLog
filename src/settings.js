@@ -17,6 +17,7 @@
     prefersReducedMotion, biometricAvailable, hashPin, randomHex, registerBiometric,
     updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
     syncSteamWishlist, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
+    syncAniListPlanning,
     DEFAULT_SETTINGS;
 
   function init(ctx) {
@@ -27,6 +28,7 @@
       prefersReducedMotion, biometricAvailable, hashPin, randomHex, registerBiometric,
       updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
       syncSteamWishlist, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
+      syncAniListPlanning,
       DEFAULT_SETTINGS } = ctx);
   }
 
@@ -308,6 +310,25 @@
     if (current && state.data.categories.some((c) => c.name === current)) sel.value = current;
   }
 
+  // Fills one of the two AniList category selects. Unlike the Steam picker,
+  // each leads with a "Don't import" blank option so a user can sync only
+  // anime, only manga, or both.
+  function renderAniListCategoryOptions(selId, current) {
+    const sel = $(selId);
+    if (!sel) return;
+    const cur = current || sel.value;
+    sel.innerHTML = "";
+    const none = el("option", null, "Don't import");
+    none.value = "";
+    sel.appendChild(none);
+    state.data.categories.forEach((cat) => {
+      const opt = el("option", null, cat.name);
+      opt.value = cat.name;
+      sel.appendChild(opt);
+    });
+    sel.value = (cur && state.data.categories.some((c) => c.name === cur)) ? cur : "";
+  }
+
   function updateMediaSettings() {
     if (!$("#rawgKey")) return;
     $("#rawgKey").value = state.data.settings.mediaKeys?.rawg || "";
@@ -316,9 +337,12 @@
     $("#steamProxyUrl").value = state.data.settings.steam?.proxyUrl || "";
     $("#steamId64").value = state.data.settings.steam?.steamId || "";
     $("#steamAutoSyncDays").value = state.data.settings.steam?.autoSyncDays || "0";
+    $("#anilistUserName").value = state.data.settings.anilist?.userName || "";
     updateSteamRetryUnresolvedButton();
     updateSteamBackfillRawgButton();
     renderSteamWishlistCategoryOptions();
+    renderAniListCategoryOptions("#anilistAnimeCategory", state.data.settings.anilist?.animeCategory);
+    renderAniListCategoryOptions("#anilistMangaCategory", state.data.settings.anilist?.mangaCategory);
     renderMediaCatRows();
   }
 
@@ -550,6 +574,16 @@
     $("#steamWishlistSyncBtn").onclick = syncSteamWishlist;
     $("#steamRetryUnresolvedBtn").onclick = retryUnresolvedSteamTitles;
     $("#steamBackfillRawgBtn").onclick = backfillRawgForSteamGames;
+
+    const setAniListSetting = async (field, value) => {
+      if (!state.data.settings.anilist) state.data.settings.anilist = { ...DEFAULT_SETTINGS.anilist };
+      state.data.settings.anilist[field] = value;
+      await persist();
+    };
+    $("#anilistUserName").oninput = () => setAniListSetting("userName", $("#anilistUserName").value.trim());
+    $("#anilistAnimeCategory").onchange = () => setAniListSetting("animeCategory", $("#anilistAnimeCategory").value);
+    $("#anilistMangaCategory").onchange = () => setAniListSetting("mangaCategory", $("#anilistMangaCategory").value);
+    $("#anilistSyncBtn").onclick = syncAniListPlanning;
 
     $("#privacyEnabled").onchange = () => {
       const checked = $("#privacyEnabled").checked;

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.72.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.73.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -756,6 +756,21 @@
         <button id="steamBackfillRawgBtn" type="button" class="btn" hidden>🎮 Backfill game info from RAWG</button>
         <p class="hint" id="steamBackfillRawgHint" hidden>Fills in rating/length/release year via RAWG for Steam-synced games that don't have any of it yet (a RAWG key must be set above) — never touches title, cover, or the Steam app ID.</p>
       </section>
+
+      <section class="settings-section">
+        <h3>AniList Planning import</h3>
+        <p class="hint">Pulls your AniList "Planning" (plan-to-watch / plan-to-read) list into your backlog and lets you review it before anything's added — nothing is added automatically, and re-syncing later won't re-add titles already in your backlog or Journal. No proxy or API key needed (AniList allows browser requests), but your list must be public: AniList → Settings → Lists → uncheck "Set anime/manga list to private". Anime and manga are pulled separately into whichever categories you choose below — leave one as "Don't import" to sync only the other.</p>
+        <label>AniList username
+          <input id="anilistUserName" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. YourAniListName" />
+        </label>
+        <label>Add planned anime to
+          <select id="anilistAnimeCategory"></select>
+        </label>
+        <label>Add planned manga to
+          <select id="anilistMangaCategory"></select>
+        </label>
+        <button id="anilistSyncBtn" type="button" class="btn">🔄 Sync AniList Planning</button>
+      </section>
       </div><!-- /media panel -->
       </div><!-- /settings-panels -->
 
@@ -808,14 +823,14 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.72.0"></script>
-  <script src="src/media.js?v=0.72.0"></script>
-  <script src="src/merge.js?v=0.72.0"></script>
-  <script src="src/storage.js?v=0.72.0"></script>
-  <script src="src/finance.js?v=0.72.0"></script>
-  <script src="src/settings.js?v=0.72.0"></script>
-  <script src="src/backlog.js?v=0.72.0"></script>
-  <script src="src/journal.js?v=0.72.0"></script>
-  <script src="src/app.js?v=0.72.0"></script>
+  <script src="src/qr.js?v=0.73.0"></script>
+  <script src="src/media.js?v=0.73.0"></script>
+  <script src="src/merge.js?v=0.73.0"></script>
+  <script src="src/storage.js?v=0.73.0"></script>
+  <script src="src/finance.js?v=0.73.0"></script>
+  <script src="src/settings.js?v=0.73.0"></script>
+  <script src="src/backlog.js?v=0.73.0"></script>
+  <script src="src/journal.js?v=0.73.0"></script>
+  <script src="src/app.js?v=0.73.0"></script>
 </body>
 </html>

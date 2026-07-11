@@ -6,16 +6,6 @@ todo:
   src/io.js, and the Steam wishlist machinery into src/steam.js — but
   neither is a per-view concern and app.js is no longer unwieldy, so leave
   them unless they start growing again
-- AniList "Planning" list import into the backlog — same shape as the
-  existing Steam Wishlist import (Settings → Media section, target
-  category, sync button, routed through the shared import review picker,
-  dup-checked by title+category). AniList's GraphQL endpoint is already
-  called from the browser (searchAniList in media.js) with no CORS
-  problem and no proxy needed, and public lists need no auth — query
-  MediaListCollection by username with status PLANNING for ANIME (and
-  optionally MANGA → plan-to-read). Imported items carry
-  mediaSource: "anilist-anime"/"anilist-manga" + mediaId, the same shape
-  a normal AniList sync uses, so cover art picks them up for free
 - extend test/merge.test.js's plain-node test pattern to the other
   data-touching code: finance recurringOccurrences (overrides, month
   clamping, end dates), the sanitizers, and normalize()'s migrations
@@ -27,6 +17,12 @@ todo:
 
 done:
 
+- AniList Planning import (Settings → Media): pulls plan-to-watch (anime)
+  and plan-to-read (manga) into the backlog, each into its own chosen
+  category, no proxy/key/auth needed. Routed through the shared review
+  picker; dup-checked against the backlog and the Journal by title+category
+  and by AniList media id. Generalized the picker's "already added" media-id
+  check from Steam-only to any source. Items carry cover/rating/length/genres
 - Stats: three new cards — Highlights (busiest month, longest month
   streak, top category, year-over-year delta), Monthly pattern (entries
   per calendar month across all years), and Genres (breakdown by a new

@@ -210,6 +210,67 @@
     } catch (e) { return []; }
   }
 
+  // Pulls a public AniList user's "Planning" (plan-to-watch/plan-to-read)
+  // list for one media type in a single GraphQL request — no auth needed for
+  // public lists, and AniList sends CORS headers, so no proxy is required
+  // (unlike the Steam wishlist). Returns items in the same normalized shape
+  // searchAniList produces (so cover art, rating, genres all wire up the same
+  // way), or null on a hard failure (network, private list, unknown user) so
+  // the caller can tell "empty list" from "couldn't reach it".
+  async function fetchAniListPlanning(userName, type) {
+    if (!userName) { lastError = "Enter your AniList username"; return null; }
+    try {
+      const query = "query ($userName: String, $type: MediaType) { MediaListCollection(userName: $userName, type: $type, status: PLANNING) { lists { entries { media { id title { romaji english } coverImage { medium } startDate { year month day } averageScore genres episodes chapters volumes } } } } }";
+      const res = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ query, variables: { userName, type } }),
+      });
+      if (!res.ok) { lastError = "AniList request failed (HTTP " + res.status + ")"; return null; }
+      const data = await res.json();
+      if (data.errors && data.errors.length) {
+        lastError = "AniList: " + (data.errors[0].message || "user not found or list is private");
+        return null;
+      }
+      const lists = (data.data && data.data.MediaListCollection && data.data.MediaListCollection.lists) || [];
+      const out = [];
+      for (const list of lists) {
+        for (const e of list.entries || []) {
+          const m = e.media;
+          if (!m) continue;
+          const sd = m.startDate;
+          const releaseDate = sd && sd.year
+            ? sd.year + (sd.month ? "-" + String(sd.month).padStart(2, "0") + (sd.day ? "-" + String(sd.day).padStart(2, "0") : "") : "")
+            : "";
+          let length = "";
+          if (type === "ANIME") {
+            length = m.episodes ? m.episodes + (m.episodes === 1 ? " episode" : " episodes") : "";
+          } else {
+            const parts = [];
+            if (m.volumes) parts.push(m.volumes + (m.volumes === 1 ? " volume" : " volumes"));
+            if (m.chapters) parts.push(m.chapters + (m.chapters === 1 ? " chapter" : " chapters"));
+            length = parts.join(" · ");
+          }
+          out.push({
+            id: String(m.id),
+            title: (m.title && (m.title.english || m.title.romaji)) || "",
+            coverUrl: (m.coverImage && m.coverImage.medium) || "",
+            year: (sd && sd.year) || null,
+            releaseDate,
+            externalRating: m.averageScore ? m.averageScore + "% AniList" : "",
+            length,
+            genres: normGenres(m.genres),
+            source: type === "MANGA" ? "anilist-manga" : "anilist-anime",
+          });
+        }
+      }
+      return out;
+    } catch (e) {
+      lastError = "AniList request failed (" + ((e && e.message) || "network error") + ")";
+      return null;
+    }
+  }
+
   // Fallback for AniList (anime/manga) — an unofficial MyAnimeList API proxy,
   // no auth needed. Kept stricter on rate limits than AniList (it throttles
   // hard since it's proxying MAL), so it's only ever queried as a fallback,
@@ -362,6 +423,10 @@
     },
     async fetchRawgSteamAppId(rawgId, apiKey) {
       return fetchRawgSteamAppId(rawgId, apiKey);
+    },
+    async fetchAniListPlanning(userName, type) {
+      lastError = "";
+      return fetchAniListPlanning(userName, type);
     },
     getLastError: () => lastError,
     steamCoverUrl,

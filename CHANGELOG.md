@@ -4,6 +4,28 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.73.0] - 2026-07-11
+
+### Added
+- AniList Planning import (Settings → Media): pulls your AniList
+  plan-to-watch (anime) and plan-to-read (manga) lists into your backlog.
+  No proxy or API key needed — AniList allows browser requests and public
+  lists need no auth. Anime and manga are pulled separately into whichever
+  categories you choose (leave one as "Don't import" to sync only the
+  other), and each imported item carries its cover, AniList rating,
+  episode/volume count, and genres. Routed through the same review picker
+  as every other import: nothing is added until you confirm, and items
+  already in your backlog or already logged in your Journal are tagged and
+  hidden by default. Re-syncing later won't re-add them — matched by
+  title+category and, more strongly, by AniList media id, so a title you
+  renamed locally after an earlier import still isn't treated as new.
+
+### Changed
+- The import review picker's "already added" duplicate check now matches on
+  media source+id for every source, not just Steam — so an AniList (or any
+  future ID-bearing source) item renamed locally is still recognized as a
+  duplicate on re-import.
+
 ## [0.72.0] - 2026-07-11
 
 ### Added
