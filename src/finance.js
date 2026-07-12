@@ -65,6 +65,17 @@
   // month — they get bucketed into a pseudo-month (0) rendered as "Yearly"
   function financeMonthOf(f) { return f.yearly ? 0 : +String(f.date).slice(5, 7); }
 
+  // "YYYY-MM-DD" from a Date's local calendar fields — never
+  // `.toISOString().slice(0, 10)`, which converts to UTC first and can
+  // silently shift the date by a day for any timezone that isn't exactly
+  // UTC (e.g. local midnight in a timezone ahead of UTC is still the
+  // previous day in UTC). Every date here is a plain calendar date, not a
+  // moment in time, so it must stay in local terms end to end.
+  function localDateStr(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function todayStr() { return localDateStr(new Date()); }
+
   // ---------- recurring expenses ----------
   // Recurring expenses are stored as a single template (start date, interval,
   // amount/category/note) rather than as individual finance entries. Their
@@ -99,7 +110,7 @@
     let d = start;
     let n = 0;
     while (d <= cutoff) {
-      const dateStr = d.toISOString().slice(0, 10);
+      const dateStr = localDateStr(d);
       const ov = (rec.overrides || {})[dateStr];
       out.push({
         id: `${rec.id}:${n}`, date: dateStr, type: "expense",
@@ -205,7 +216,15 @@
         card.appendChild(monthCardHeader(label, monthItems.length, monthItems.filter((f) => !f.virtual), {
           onAdd: () => openFinanceModal(null, { year: yy, month: mm }),
         }));
-        monthItems.slice().sort((a, b) => b.date.localeCompare(a.date)).forEach((f) => card.appendChild(financeRow(f)));
+        // Same-date entries need a real tiebreaker, not just array order —
+        // that order is stable within a session (new entries are always
+        // pushed to the end) but merge.js rebuilds the array from a Set of
+        // ids on every multi-device sync, reshuffling same-date entries
+        // arbitrarily. createdAt keeps the display order deterministic
+        // across renders and merges alike.
+        monthItems.slice()
+          .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || "").localeCompare(a.createdAt || ""))
+          .forEach((f) => card.appendChild(financeRow(f)));
         const total = monthItems.reduce((s, f) => s + f.amount, 0);
         const totalRow = el("div", "month-total");
         totalRow.appendChild(el("span", null, "Total"));
@@ -439,7 +458,7 @@
     $("#financeId").value = editing ? entry.id : "";
     $("#finYearly").checked = yearly;
     $("#finDate").value = (editing && !yearly) ? entry.date
-      : (!yearly && presetDate ? `${presetDate.year}-${String(presetDate.month).padStart(2, "0")}-01` : new Date().toISOString().slice(0, 10));
+      : (!yearly && presetDate ? `${presetDate.year}-${String(presetDate.month).padStart(2, "0")}-01` : todayStr());
     $("#finYear").value = yearly ? (editing ? entry.date : (presetDate ? String(presetDate.year) : "")) : "";
     $("#finAmount").value = editing ? entry.amount : "";
     fillCategorySelect($("#finCategory"), state.data.financeCategories,
@@ -496,7 +515,7 @@
     const editing = !!rec;
     $("#recurringModalTitle").textContent = editing ? "Edit recurring expense" : "Add recurring expense";
     $("#recId").value = editing ? rec.id : "";
-    $("#recStart").value = editing ? rec.startDate : new Date().toISOString().slice(0, 10);
+    $("#recStart").value = editing ? rec.startDate : todayStr();
     $("#recInterval").value = editing ? rec.interval : "monthly";
     $("#recAmount").value = editing ? rec.amount : "";
     fillCategorySelect($("#recCategory"), state.data.financeCategories,
@@ -697,7 +716,7 @@
   }
 
   function renderRecurringCard(root) {
-    const active = (state.data.recurringExpenses || []).filter((r) => !r.endDate || r.endDate >= new Date().toISOString().slice(0, 10));
+    const active = (state.data.recurringExpenses || []).filter((r) => !r.endDate || r.endDate >= todayStr());
     if (!active.length) return;
     const card = el("div", "recur-card");
     const head = el("div", "year-head");

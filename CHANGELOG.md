@@ -4,6 +4,28 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.76.1] - 2026-07-12
+
+### Fixed
+- Recurring expenses could land on the wrong day of the month for anyone in
+  a timezone ahead of UTC (most of Europe/Asia/Australia) — a expense
+  started on, say, the 12th could generate the 11th instead. The date
+  string for each occurrence was built by converting a local-time `Date`
+  through `.toISOString()`, which round-trips through UTC and can shift
+  local midnight back a calendar day. Occurrence dates (and a few related
+  "today" defaults — the finance-entry date field, a new recurring
+  expense's start date, and the recurring-card active/expired check) now
+  build their date strings from local calendar fields directly, with no UTC
+  conversion.
+- Finance entries logged on the same date could appear at the top or
+  bottom of the month's list inconsistently — the Ledger sorted by date
+  only, so same-date entries fell back to their position in the underlying
+  array. That position is stable during a session but gets reshuffled by
+  the multi-device merge (it rebuilds the array from a `Set` of ids, not
+  insertion order), so the display order would flip after a sync. Same-date
+  entries now break ties by `createdAt`, so the order stays deterministic
+  regardless of merges.
+
 ## [0.76.0] - 2026-07-12
 
 ### Changed

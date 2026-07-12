@@ -26,32 +26,6 @@ todo:
   Timeline. Desktop already has the sticky category/year headers for
   orientation while scrolling, but there's no fast way to jump on mobile
   without scrolling through everything in between
-- recurring expenses should land on the same day-of-month every time (e.g.
-  a recurring expense started on the 12th should generate the 12th every
-  month, clamped for short months) — recurringOccurrences() in finance.js
-  already tries to do this via an anchorDay captured from the start date,
-  but there's a likely timezone bug in how each occurrence's date string
-  gets built: `new Date(rec.startDate + "T00:00:00")` and
-  addMonthsClamped()'s `new Date(y, m, 1)` both construct local-time dates,
-  then `.toISOString().slice(0, 10)` converts to UTC — for any timezone
-  ahead of UTC (most of Europe/Asia/Australia), local midnight can fall on
-  the *previous* UTC day, silently shifting every generated occurrence back
-  by one date. Worth confirming against a non-UTC-behind timezone and
-  fixing the date-string construction to stay in local calendar terms
-  throughout, not round-trip through toISOString()
-- fix finance entries on the same day sometimes appearing at the top of the
-  month's list and sometimes the bottom — likely because Ledger sorts each
-  month's items by date only (`monthItems.slice().sort((a, b) =>
-  b.date.localeCompare(a.date))` in finance.js's renderFinanceEntries), so
-  same-date entries fall back to their position in the underlying
-  financeEntries array for order. That array position is stable within a
-  session (new entries are always pushed to the end), but merge.js's
-  mergeCollection() rebuilds the array by iterating a `Set` of ids
-  collected from base/local/remote — which reorders same-date entries
-  arbitrarily on every multi-device sync, not by when they were actually
-  added. Fix by giving the sort a real secondary key (e.g. fall back to
-  createdAt) instead of relying on array order, so display order stays
-  deterministic across merges
 
 - extend test/merge.test.js's plain-node test pattern to the other
   data-touching code: finance recurringOccurrences (overrides, month
@@ -59,6 +33,22 @@ todo:
 
 done:
 
+- fixed recurring expenses landing on the wrong day of the month for
+  anyone in a timezone ahead of UTC — recurringOccurrences() (and a few
+  related "today" spots: the finance-entry date field default, a new
+  recurring expense's start date, and the recurring-card active/expired
+  check) built date strings by converting a local-time Date through
+  .toISOString(), which round-trips through UTC and could shift local
+  midnight back a calendar day. Added a localDateStr()/todayStr() pair
+  that reads local calendar fields directly, no UTC conversion, and swapped
+  every call site over
+- fixed finance entries on the same date inconsistently appearing at the
+  top or bottom of the month's list — the Ledger sorted by date only, so
+  same-date entries fell back to their position in the underlying array,
+  which merge.js's mergeCollection() reshuffles on every multi-device sync
+  (it rebuilds the array from a Set of ids, not insertion order). The sort
+  now breaks same-date ties by createdAt, so display order stays
+  deterministic across merges
 - app.js modularization follow-up: pulled the import/export + import-picker
   cluster into src/io.js (download/export/import for JSON+CSV, the
   buildImportItems dup-checker, and the shared review picker modal), and
