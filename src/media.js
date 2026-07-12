@@ -1,5 +1,6 @@
-// LifeLog — media enrichment: fetch cover art and metadata from RAWG, TMDB,
-// Open Library, AniList, Jikan, Google Books, and MusicBrainz.
+// LifeLog — media enrichment: fetch cover art and metadata from RAWG,
+// SteamGridDB, TMDB, Open Library, AniList, Jikan, Google Books, and
+// MusicBrainz.
 (function () {
   // Set whenever a search/price fetch fails outright (network error, CORS
   // block, bad key, rate limit) so the UI can show *why* nothing came back
@@ -339,6 +340,58 @@
     } catch (e) { return []; }
   }
 
+  // Games fallback (behind RAWG) — cover-art focused, so results carry no
+  // year/rating, just a title match and a grid-style cover. SteamGridDB's API
+  // sends no Access-Control-Allow-Origin header, so a browser can't call it
+  // directly (confirmed CORS-blocked on a real device) — it goes through the
+  // same self-hosted CORS proxy as the Steam wishlist, whose /steamgriddb/<path>
+  // route forwards the request server-side and passes the Authorization header
+  // through. Without a proxy configured there's nothing to try, so it returns
+  // [] with a lastError explaining why rather than failing silently.
+  async function searchSteamGridDB(title, apiKey, proxyUrl) {
+    if (!apiKey) return [];
+    if (!proxyUrl) {
+      lastError = "SteamGridDB needs the Steam Wishlist proxy URL set (Settings → Media) — it's CORS-blocked without it";
+      return [];
+    }
+    const auth = { Authorization: "Bearer " + apiKey };
+    try {
+      const url = proxyUrl + "/steamgriddb/search/autocomplete/" + encodeURIComponent(title);
+      const res = await fetch(url, { headers: auth });
+      if (!res.ok) { lastError = "SteamGridDB lookup failed (HTTP " + res.status + ")"; return []; }
+      const data = await res.json();
+      if (!data || !data.success) { lastError = "SteamGridDB lookup failed (bad response)"; return []; }
+      const games = (data.data || []).slice(0, 5);
+      // The autocomplete endpoint returns name matches only; each pick's
+      // cover comes from a second per-game call to the grids endpoint, done
+      // lazily up front here (small batch, capped at 5) rather than only on
+      // pick, so the picker list itself shows real art like every other source.
+      const withCovers = await Promise.all(games.map(async (g) => {
+        let coverUrl = "";
+        try {
+          const gridRes = await fetch(proxyUrl + "/steamgriddb/grids/game/" + g.id, { headers: auth });
+          if (gridRes.ok) {
+            const gridData = await gridRes.json();
+            coverUrl = (gridData.success && gridData.data && gridData.data[0] && (gridData.data[0].thumb || gridData.data[0].url)) || "";
+          }
+        } catch (e) { /* missing cover isn't fatal — the title match still stands */ }
+        return {
+          id: String(g.id),
+          title: g.name || "",
+          coverUrl,
+          year: null,
+          summary: "",
+          externalRating: "",
+          source: "steamgriddb",
+        };
+      }));
+      return withCovers;
+    } catch (e) {
+      lastError = "SteamGridDB lookup failed (" + ((e && e.message) || "network/CORS error") + ")";
+      return [];
+    }
+  }
+
   // Steam's own storesearch API has no CORS allowance for third-party origins,
   // so it can never be called from a browser — there is no search here.
   // Instead the app asks for a Steam App ID directly (found in the game's
@@ -396,11 +449,12 @@
   }
 
   window.LifeLogMedia = {
-    async search(title, source, keys) {
+    async search(title, source, keys, proxyUrl) {
       lastError = "";
       if (!title || !source) return [];
       if (source === "rawg") return searchRawg(title, keys.rawg || "");
       if (source === "rawg-steam-gg") return searchRawgSteamGg(title, keys.rawg || "");
+      if (source === "steamgriddb") return searchSteamGridDB(title, keys.steamgriddb || "", proxyUrl || "");
       if (source === "tmdb-movie") return searchTmdb(title, "movie", keys.tmdb || "");
       if (source === "tmdb-tv") return searchTmdb(title, "tv", keys.tmdb || "");
       if (source === "openlibrary") return searchOpenLibrary(title);

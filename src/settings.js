@@ -232,6 +232,7 @@
       { value: "", label: "None" },
       { value: "rawg", label: "RAWG (games)" },
       { value: "rawg-steam-gg", label: "RAWG + Steam + GG.deals (games)" },
+      { value: "steamgriddb", label: "SteamGridDB (games)" },
       { value: "steam", label: "Steam (manual App ID)" },
       { value: "tmdb-movie", label: "TMDB (movie)" },
       { value: "tmdb-tv", label: "TMDB (TV)" },
@@ -334,10 +335,12 @@
     $("#rawgKey").value = state.data.settings.mediaKeys?.rawg || "";
     $("#tmdbKey").value = state.data.settings.mediaKeys?.tmdb || "";
     $("#ggdealsKey").value = state.data.settings.mediaKeys?.ggdeals || "";
+    $("#steamgriddbKey").value = state.data.settings.mediaKeys?.steamgriddb || "";
     $("#steamProxyUrl").value = state.data.settings.steam?.proxyUrl || "";
     $("#steamId64").value = state.data.settings.steam?.steamId || "";
     $("#steamAutoSyncDays").value = state.data.settings.steam?.autoSyncDays || "0";
     $("#anilistUserName").value = state.data.settings.anilist?.userName || "";
+    $("#anilistAutoSyncDays").value = state.data.settings.anilist?.autoSyncDays || "0";
     updateSteamRetryUnresolvedButton();
     updateSteamBackfillRawgButton();
     renderSteamWishlistCategoryOptions();
@@ -561,6 +564,7 @@
     $("#rawgKey").oninput = () => setMediaKey("rawg", $("#rawgKey").value);
     $("#tmdbKey").oninput = () => setMediaKey("tmdb", $("#tmdbKey").value);
     $("#ggdealsKey").oninput = () => setMediaKey("ggdeals", $("#ggdealsKey").value);
+    $("#steamgriddbKey").oninput = () => setMediaKey("steamgriddb", $("#steamgriddbKey").value);
 
     const setSteamSetting = async (field, value) => {
       if (!state.data.settings.steam) state.data.settings.steam = { ...DEFAULT_SETTINGS.steam };
@@ -583,6 +587,7 @@
     $("#anilistUserName").oninput = () => setAniListSetting("userName", $("#anilistUserName").value.trim());
     $("#anilistAnimeCategory").onchange = () => setAniListSetting("animeCategory", $("#anilistAnimeCategory").value);
     $("#anilistMangaCategory").onchange = () => setAniListSetting("mangaCategory", $("#anilistMangaCategory").value);
+    $("#anilistAutoSyncDays").onchange = () => setAniListSetting("autoSyncDays", $("#anilistAutoSyncDays").value);
     $("#anilistSyncBtn").onclick = syncAniListPlanning;
 
     $("#privacyEnabled").onchange = () => {

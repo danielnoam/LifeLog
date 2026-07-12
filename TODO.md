@@ -6,42 +6,29 @@ todo:
   src/io.js, and the Steam wishlist machinery into src/steam.js — but
   neither is a per-view concern and app.js is no longer unwieldy, so leave
   them unless they start growing again
-- AniList Planning: add an auto-check like the Steam wishlist has
-  (maybeAutoCheckSteamWishlist + the "Check automatically" dropdown) — a
-  quiet check on app open, at most every N days, that just counts how many
-  planned titles aren't in the backlog/Journal yet and toasts it, never
-  opening the picker or adding anything on its own. Needs: an autoSyncDays
-  field on settings.anilist (+ a dropdown in the AniList section), a
-  local-only last-checked timestamp key (mirror STEAM_SYNC_KEY), a
-  maybeAutoCheckAniList() called from init() alongside
-  maybeAutoCheckSteamWishlist(), and the same media-id/title dedup the
-  import already uses to decide what counts as "new"
-- AniList Planning auto-check — mirror the Steam wishlist's
-  maybeAutoCheckSteamWishlist: a quiet "check automatically" cadence
-  (Never/day/3 days/week/month, stored on settings.anilist.autoSyncDays)
-  that on app open, at most that often, counts how many planning titles
-  aren't in the backlog/Journal yet and just toasts the count — never
-  opens the picker or adds anything on its own. Needs: an autoSyncDays
-  field on the anilist settings + a "Check automatically" dropdown in the
-  AniList section, a local-only last-checked timestamp key (like
-  STEAM_SYNC_KEY), and a maybeAutoCheckAniList() fired from init()
-  alongside maybeAutoCheckSteamWishlist(). The count can reuse
-  fetchAniListPlanning + the same source+id/title dedup the import uses
-- Stats: fix spacing between the Overview card and the Highlights card
-  right below it — at small widths the two panels overlap / render with no
-  padding between them. Check the card margins in the Stats view (the
-  Highlights card was inserted between Overview and the stats-grid, so it
-  may be missing the top margin the other stacked cards have)
 - extend test/merge.test.js's plain-node test pattern to the other
   data-touching code: finance recurringOccurrences (overrides, month
   clamping, end dates), the sanitizers, and normalize()'s migrations
-- SteamGridDB back as a games cover-art source/fallback (removed earlier
-  for being CORS-blocked with no proxy in front of it) — the CORS proxy
-  (`proxy/worker.js`) already has a `/steamgriddb/<path>` route ready for
-  this, it just needs wiring back into media.js's source list and the
-  Settings API key field
 
 done:
+
+- AniList Planning auto-check (Settings → Media → AniList "Check
+  automatically") — mirrors maybeAutoCheckSteamWishlist: a quiet cadence
+  (Never/day/3 days/week/month, stored on settings.anilist.autoSyncDays)
+  that on app open, at most that often, fetches the Planning list(s) and
+  counts how many titles aren't already in the backlog/Journal yet, then
+  just toasts the count — never opens the picker or adds anything. Uses a
+  local-only last-checked key (ANILIST_SYNC_KEY, mirroring STEAM_SYNC_KEY),
+  a maybeAutoCheckAniList() fired from init() alongside the Steam one, and
+  the same source+id / title+category dedup the import uses
+- Stats: fixed the Highlights card butting against the Overview card above
+  it with no gap — it now gets the same 20px top margin the other stacked
+  cards have
+- SteamGridDB back as a games cover-art source/fallback — routed through the
+  Steam Wishlist CORS proxy's /steamgriddb/<path> route (it's CORS-blocked
+  direct), wired back into media.js's source list, the Settings source
+  dropdown, and a SteamGridDB API key field; needs both the key and the
+  proxy URL set to work
 
 - AniList Planning import (Settings → Media): pulls plan-to-watch (anime)
   and plan-to-read (manga) into the backlog, each into its own chosen

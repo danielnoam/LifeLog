@@ -4,6 +4,30 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.74.0] - 2026-07-12
+
+### Added
+- AniList Planning auto-check (Settings → Media → AniList "Check
+  automatically"): a quiet cadence (Never / daily / every 3 days / weekly /
+  monthly) that, at most that often when you open the app, fetches your
+  Planning list(s) and counts how many titles aren't already in your backlog
+  or Journal, then just toasts that count — it never opens the review picker
+  or adds anything on its own. Mirrors the existing Steam Wishlist
+  auto-check, uses the same source+id / title+category dedup as the import,
+  and paces each device independently (the last-checked timestamp is stored
+  locally, not synced).
+- SteamGridDB is back as a games cover-art source and fallback. It's
+  CORS-blocked from the browser, so it now routes through the same
+  self-hosted CORS proxy as the Steam Wishlist import (its
+  `/steamgriddb/<path>` route) — set the SteamGridDB API key and the proxy
+  URL in Settings → Media, then pick "SteamGridDB (games)" as a category's
+  source or fallback.
+
+### Fixed
+- Stats: the Highlights card sat flush against the Overview card above it
+  with no gap (they overlapped at small widths) — it now has the same top
+  margin as the other stacked cards.
+
 ## [0.73.0] - 2026-07-11
 
 ### Added

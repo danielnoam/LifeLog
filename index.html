@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.73.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.74.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -720,6 +720,9 @@
         <label>GG.deals key <span class="muted">(game prices — free at gg.deals/api)</span>
           <input id="ggdealsKey" type="password" placeholder="Paste your GG.deals API key…" autocomplete="off" spellcheck="false" />
         </label>
+        <label>SteamGridDB key <span class="muted">(games cover art — free at steamgriddb.com, Preferences → API; needs the Steam Wishlist proxy URL set below, since SteamGridDB is CORS-blocked without it)</span>
+          <input id="steamgriddbKey" type="password" placeholder="Paste your SteamGridDB API key…" autocomplete="off" spellcheck="false" />
+        </label>
         <p class="hint">Open Library, AniList, Jikan, Google Books, and MusicBrainz all work without a key.</p>
 
         <h4>Source per category</h4>
@@ -770,6 +773,16 @@
           <select id="anilistMangaCategory"></select>
         </label>
         <button id="anilistSyncBtn" type="button" class="btn">🔄 Sync AniList Planning</button>
+        <label>Check automatically
+          <select id="anilistAutoSyncDays">
+            <option value="0">Never (manual only)</option>
+            <option value="1">Every day</option>
+            <option value="3">Every 3 days</option>
+            <option value="7">Every week</option>
+            <option value="30">Every month</option>
+          </select>
+        </label>
+        <p class="hint">A quiet check when you open the app, at most this often — just counts planned titles not yet in your backlog or Journal and lets you know; it never adds anything or opens the review picker on its own.</p>
       </section>
       </div><!-- /media panel -->
       </div><!-- /settings-panels -->
@@ -823,14 +836,14 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.73.0"></script>
-  <script src="src/media.js?v=0.73.0"></script>
-  <script src="src/merge.js?v=0.73.0"></script>
-  <script src="src/storage.js?v=0.73.0"></script>
-  <script src="src/finance.js?v=0.73.0"></script>
-  <script src="src/settings.js?v=0.73.0"></script>
-  <script src="src/backlog.js?v=0.73.0"></script>
-  <script src="src/journal.js?v=0.73.0"></script>
-  <script src="src/app.js?v=0.73.0"></script>
+  <script src="src/qr.js?v=0.74.0"></script>
+  <script src="src/media.js?v=0.74.0"></script>
+  <script src="src/merge.js?v=0.74.0"></script>
+  <script src="src/storage.js?v=0.74.0"></script>
+  <script src="src/finance.js?v=0.74.0"></script>
+  <script src="src/settings.js?v=0.74.0"></script>
+  <script src="src/backlog.js?v=0.74.0"></script>
+  <script src="src/journal.js?v=0.74.0"></script>
+  <script src="src/app.js?v=0.74.0"></script>
 </body>
 </html>

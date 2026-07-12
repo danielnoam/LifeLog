@@ -308,6 +308,10 @@
       - entries.filter((e) => e.year === thisYear - 1).length;
 
     const card = el("div", "card");
+    // Sits directly below the Overview card (both plain .card, no grid gap
+    // between them), so it needs the same 20px top margin the other stacked
+    // cards get — without it the two panels butt together with no padding.
+    card.style.marginTop = "20px";
     card.appendChild(el("h2", null, "Highlights"));
     const row = el("div", "stat-big");
     row.appendChild(statItem(`${MONTHS_SHORT[(bestK % 12) + 1]} ${Math.floor(bestK / 12)}`, `busiest month (${monthCounts[bestK]})`, "hl:busiest"));
@@ -611,14 +615,17 @@
     if (!source || !window.LifeLogMedia) return [];
     const fallbackSource = (state.data.settings.mediaCategoryFallbackSources || {})[category];
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
+    // SteamGridDB is the only source that needs the CORS proxy for its own
+    // search (it's CORS-blocked direct); every other source ignores this arg.
+    const proxyUrl = (state.data.settings.steam?.proxyUrl || "").trim().replace(/\/+$/, "");
     const stripped = stripMediaSearchSuffix(title);
     async function trySource(src) {
       if (!src) return [];
       if (stripped !== title) {
-        const results = await window.LifeLogMedia.search(stripped, src, keys);
+        const results = await window.LifeLogMedia.search(stripped, src, keys, proxyUrl);
         if (results.length) return results;
       }
-      return window.LifeLogMedia.search(title, src, keys);
+      return window.LifeLogMedia.search(title, src, keys, proxyUrl);
     }
     try {
       const results = await trySource(source);

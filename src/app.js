@@ -10,7 +10,7 @@
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "" }, steam: { proxyUrl: "", steamId: "", wishlistCategory: "", autoSyncDays: "0" }, anilist: { userName: "", animeCategory: "", mangaCategory: "" } }; // monthOrder, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist — synced
+  const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "" }, steam: { proxyUrl: "", steamId: "", wishlistCategory: "", autoSyncDays: "0" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0" } }; // monthOrder, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist — synced
   const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big" }; // maxWidth 0 = stretch — local to this device, not synced
   const THEMES = ["light", "nord", "dracula"]; // "default" has no class — it's the bare :root palette
   const FONT_STACKS = {
@@ -27,9 +27,12 @@
   // wishlist check, so the cadence in Settings isn't re-evaluated on every
   // app open. Deliberately not synced: each device paces its own checks.
   const STEAM_SYNC_KEY = "lifelog-steam-autosync-v1";
+  // Same idea for the AniList Planning check — local-only, per-device, so each
+  // device paces its own quiet background check independently of the others.
+  const ANILIST_SYNC_KEY = "lifelog-anilist-autosync-v1";
   const DEFAULT_MEDIA = {}; // legacy local-only shape; rawgKey/tmdbKey migrated into synced settings on load (see normalize())
   const MEDIA_SOURCE_LABELS = {
-    rawg: "RAWG", "tmdb-movie": "TMDB", "tmdb-tv": "TMDB",
+    rawg: "RAWG", steamgriddb: "SteamGridDB", "tmdb-movie": "TMDB", "tmdb-tv": "TMDB",
     "anilist-anime": "AniList", "anilist-manga": "AniList",
     "jikan-anime": "Jikan", "jikan-manga": "Jikan",
     openlibrary: "Open Library", googlebooks: "Google Books", musicbrainz: "MusicBrainz",
@@ -48,7 +51,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.73.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.74.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -496,6 +499,7 @@
     switch (mediaSource) {
       case "steam": return `https://store.steampowered.com/app/${enc}`;
       case "rawg": return `https://rawg.io/games/${enc}`;
+      case "steamgriddb": return `https://www.steamgriddb.com/game/${enc}`;
       case "tmdb-movie": return `https://www.themoviedb.org/movie/${enc}`;
       case "tmdb-tv": return `https://www.themoviedb.org/tv/${enc}`;
       case "anilist-anime": return `https://anilist.co/anime/${enc}`;
@@ -1451,6 +1455,61 @@
       try { localStorage.setItem(STEAM_SYNC_KEY, JSON.stringify({ lastCheckedAt: new Date().toISOString() })); } catch (e) {}
     }
   }
+
+  // The AniList equivalent of maybeAutoCheckSteamWishlist, paced by Settings →
+  // Media → AniList "Check automatically" (days between checks; 0 = never).
+  // Fetches the Planning list(s) for whichever type(s) have a category chosen
+  // and just counts how many titles aren't already in the backlog/Journal,
+  // toasting that count — it never opens the review picker or adds anything on
+  // its own. Uses the same source+id / title+category dedup the import does, so
+  // an item renamed locally after an earlier import doesn't count as new again.
+  // Cheaper than the Steam check (one GraphQL request per type, no per-item
+  // title lookups), but still runs unattended, so failures stay silent.
+  async function maybeAutoCheckAniList() {
+    const cfg = state.data.settings.anilist || DEFAULT_SETTINGS.anilist;
+    const days = parseInt(cfg.autoSyncDays, 10) || 0;
+    if (!days) return;
+    const userName = (cfg.userName || "").trim();
+    const animeCategory = cfg.animeCategory || "";
+    const mangaCategory = cfg.mangaCategory || "";
+    if (!userName || (!animeCategory && !mangaCategory)) return;
+    if (!window.LifeLogMedia) return;
+    let last = null;
+    try { last = JSON.parse(localStorage.getItem(ANILIST_SYNC_KEY)); } catch (e) {}
+    const lastAt = (last && last.lastCheckedAt) ? new Date(last.lastCheckedAt).getTime() : 0;
+    if (Date.now() - lastAt < days * 24 * 60 * 60 * 1000) return;
+    try {
+      const existingMediaIds = new Set(
+        [...state.data.backlog, ...state.data.entries]
+          .filter((x) => x.mediaSource && x.mediaId)
+          .map((x) => x.mediaSource + ":" + x.mediaId)
+      );
+      const titleCatKey = (t, c) => `${(t || "").toLowerCase()}|${(c || "").toLowerCase()}`;
+      const existingTitleKeys = new Set(
+        [...state.data.backlog, ...state.data.entries].map((x) => titleCatKey(x.title, x.category))
+      );
+      const pulls = [];
+      if (animeCategory) pulls.push(["ANIME", animeCategory]);
+      if (mangaCategory) pulls.push(["MANGA", mangaCategory]);
+      let newCount = 0;
+      for (const [type, category] of pulls) {
+        const media = await window.LifeLogMedia.fetchAniListPlanning(userName, type);
+        if (media === null) continue; // hard failure on this type — skip, stay quiet
+        for (const m of media) {
+          if (existingMediaIds.has(m.source + ":" + m.id)) continue;
+          if (existingTitleKeys.has(titleCatKey(m.title, category))) continue;
+          newCount++;
+        }
+      }
+      if (newCount > 0) {
+        toast(`📺 ${newCount} new AniList planning title${newCount === 1 ? "" : "s"} — Settings → Media to sync`);
+      }
+    } catch (e) {
+      // quiet — this is an unattended background check, not a user action
+    } finally {
+      try { localStorage.setItem(ANILIST_SYNC_KEY, JSON.stringify({ lastCheckedAt: new Date().toISOString() })); } catch (e) {}
+    }
+  }
   function mergeAccomplishments(accIn) {
     let added = 0;
     for (const y of Object.keys(accIn || {})) {
@@ -2175,6 +2234,7 @@
     if (state.pendingSync) retrySync();
     schedulePoll();
     maybeAutoCheckSteamWishlist(); // fire-and-forget, doesn't block startup
+    maybeAutoCheckAniList(); // same — quiet background check, never blocks startup
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").catch(() => {});
