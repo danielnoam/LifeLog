@@ -6,6 +6,32 @@ todo:
   src/io.js, and the Steam wishlist machinery into src/steam.js — but
   neither is a per-view concern and app.js is no longer unwieldy, so leave
   them unless they start growing again
+- AniList Planning: add an auto-check like the Steam wishlist has
+  (maybeAutoCheckSteamWishlist + the "Check automatically" dropdown) — a
+  quiet check on app open, at most every N days, that just counts how many
+  planned titles aren't in the backlog/Journal yet and toasts it, never
+  opening the picker or adding anything on its own. Needs: an autoSyncDays
+  field on settings.anilist (+ a dropdown in the AniList section), a
+  local-only last-checked timestamp key (mirror STEAM_SYNC_KEY), a
+  maybeAutoCheckAniList() called from init() alongside
+  maybeAutoCheckSteamWishlist(), and the same media-id/title dedup the
+  import already uses to decide what counts as "new"
+- AniList Planning auto-check — mirror the Steam wishlist's
+  maybeAutoCheckSteamWishlist: a quiet "check automatically" cadence
+  (Never/day/3 days/week/month, stored on settings.anilist.autoSyncDays)
+  that on app open, at most that often, counts how many planning titles
+  aren't in the backlog/Journal yet and just toasts the count — never
+  opens the picker or adds anything on its own. Needs: an autoSyncDays
+  field on the anilist settings + a "Check automatically" dropdown in the
+  AniList section, a local-only last-checked timestamp key (like
+  STEAM_SYNC_KEY), and a maybeAutoCheckAniList() fired from init()
+  alongside maybeAutoCheckSteamWishlist(). The count can reuse
+  fetchAniListPlanning + the same source+id/title dedup the import uses
+- Stats: fix spacing between the Overview card and the Highlights card
+  right below it — at small widths the two panels overlap / render with no
+  padding between them. Check the card margins in the Stats view (the
+  Highlights card was inserted between Overview and the stats-grid, so it
+  may be missing the top margin the other stacked cards have)
 - extend test/merge.test.js's plain-node test pattern to the other
   data-touching code: finance recurringOccurrences (overrides, month
   clamping, end dates), the sanitizers, and normalize()'s migrations
