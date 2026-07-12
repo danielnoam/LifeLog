@@ -8,14 +8,16 @@ done:
 
 - app.js modularization follow-up: pulled the import/export + import-picker
   cluster into src/io.js (download/export/import for JSON+CSV, the
-  buildImportItems dup-checker, and the shared review picker modal), and the
-  Steam wishlist machinery into src/steam.js (manual Steam App ID cover
-  helper, GG.deals price cache, wishlist sync, unresolved-title retry, RAWG
-  backfill, and the auto-check) — both follow the same init(ctx) pattern as
-  finance/settings/backlog/journal, cross-module sanitizers and cover
-  setters arrive via ctx rather than reaching for other modules' window
-  globals directly. app.js is down to ~1,500 lines from ~2,290. No behavior
-  change
+  buildImportItems dup-checker, and the shared review picker modal), and
+  the Steam wishlist + AniList Planning sync machinery into src/sync.js —
+  both follow the same fetch/dedupe/review-picker/auto-check shape, so they
+  share one module instead of each getting a thin file of its own (manual
+  Steam App ID cover helper, GG.deals price cache, wishlist sync,
+  unresolved-title retry, RAWG backfill, and both auto-checks). Both new
+  modules follow the same init(ctx) pattern as finance/settings/backlog/
+  journal, cross-module sanitizers and cover setters arrive via ctx rather
+  than reaching for other modules' window globals directly. app.js is down
+  to ~1,385 lines from ~2,290. No behavior change
 - AniList Planning auto-check (Settings → Media → AniList "Check
   automatically") — mirrors maybeAutoCheckSteamWishlist: a quiet cadence
   (Never/day/3 days/week/month, stored on settings.anilist.autoSyncDays)

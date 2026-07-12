@@ -1,15 +1,20 @@
-// LifeLog — Steam wishlist machinery: the manual Steam App ID cover-art
-// helper shared by the backlog/journal modals, GG.deals price lookups +
-// caching, the wishlist sync (via the user's own CORS proxy), the
-// unresolved-title retry and RAWG-backfill follow-ups, and the quiet
-// background auto-check. Extracted from app.js; shared app plumbing and the
-// cross-module cover setters it needs arrive via init(ctx), and everything
-// app.js/settings.js still call directly is exposed on window.LifeLogSteam.
+// LifeLog — external wishlist/planning-list sync: the Steam wishlist and
+// AniList Planning imports, which both follow the same shape (fetch an
+// external list, dedupe against the backlog/Journal, route through the
+// shared review picker, plus a quiet background auto-check) so they share
+// one module rather than each getting a thin file of their own. Also holds
+// the manual Steam App ID cover-art helper shared by the backlog/journal
+// modals, and GG.deals price lookups/caching. Extracted from app.js; shared
+// app plumbing and the cross-module cover setters it needs arrive via
+// init(ctx), and everything app.js/settings.js still call directly is
+// exposed on window.LifeLogSync.
 (function () {
-  // Local-only (per-device) — when this device last ran the quiet background
-  // wishlist check, so the cadence in Settings isn't re-evaluated on every
-  // app open. Deliberately not synced: each device paces its own checks.
+  // Local-only (per-device) — when this device last ran each quiet
+  // background check, so the cadence in Settings isn't re-evaluated on
+  // every app open. Deliberately not synced: each device paces its own
+  // checks, and Steam/AniList are paced independently of each other.
   const STEAM_SYNC_KEY = "lifelog-steam-autosync-v1";
+  const ANILIST_SYNC_KEY = "lifelog-anilist-autosync-v1";
   // How long a fetched GG.deals price stays valid before a backlog re-render
   // re-fetches it; avoids re-querying the rate-limited API on every render.
   const PRICE_CACHE_MS = 15 * 60 * 1000;
@@ -413,7 +418,135 @@
     }
   }
 
-  window.LifeLogSteam = {
+  // Pulls a public AniList user's Planning (plan-to-watch / plan-to-read)
+  // list — anime and manga separately, each into its own chosen category, so
+  // you can import one type, the other, or both. AniList sends CORS headers
+  // and public lists need no auth, so unlike Steam there's no proxy or title
+  // resolution step: one GraphQL request per type returns everything. The
+  // result is routed through the same review picker as every other import —
+  // dup-checked by title+category and by AniList media id (so a later local
+  // rename doesn't make an item look new again), against both the backlog and
+  // the Journal — and nothing is added until confirmed. Each item is tagged
+  // mediaSource: "anilist-anime"/"anilist-manga" + mediaId, the same shape a
+  // normal AniList sync produces, so cover art and the genre breakdown pick
+  // it up with no extra work.
+  async function syncAniListPlanning() {
+    const cfg = state.data.settings.anilist || DEFAULT_SETTINGS.anilist;
+    const userName = (cfg.userName || "").trim();
+    const animeCategory = cfg.animeCategory || "";
+    const mangaCategory = cfg.mangaCategory || "";
+    if (!userName) { toast("Enter your AniList username first", true); return; }
+    if (!animeCategory && !mangaCategory) { toast("Pick a category for anime and/or manga first", true); return; }
+    if (!window.LifeLogMedia) return;
+    const btn = $("#anilistSyncBtn");
+    const label = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "Syncing…"; }
+    try {
+      // Only the types with a category chosen are fetched. Each fetch returns
+      // null on a hard failure (network, private list, unknown user), which is
+      // kept distinct from an empty-but-reachable list.
+      let failed = false;
+      const backlogItems = [];
+      const pulls = [];
+      if (animeCategory) pulls.push(["ANIME", animeCategory]);
+      if (mangaCategory) pulls.push(["MANGA", mangaCategory]);
+      for (const [type, category] of pulls) {
+        const media = await window.LifeLogMedia.fetchAniListPlanning(userName, type);
+        if (media === null) { failed = true; continue; }
+        for (const m of media) {
+          backlogItems.push({
+            title: m.title || "",
+            category,
+            mediaSource: m.source,
+            mediaId: m.id,
+            coverUrl: m.coverUrl || "",
+            unresolved: !m.title,
+            ...(m.externalRating ? { externalRating: m.externalRating } : {}),
+            ...(m.length ? { length: m.length } : {}),
+            ...(m.year ? { releaseYear: m.year } : {}),
+            ...(m.releaseDate ? { releaseDate: m.releaseDate } : {}),
+            ...(m.genres && m.genres.length ? { genres: m.genres } : {}),
+          });
+        }
+      }
+      if (!backlogItems.length) {
+        if (failed) {
+          const err = window.LifeLogMedia.getLastError();
+          toast(err ? "AniList sync failed — " + err : "AniList sync failed", true);
+        } else {
+          toast("Planning list came back empty — check the username, and that your list is public");
+        }
+        return;
+      }
+      const built = buildImportItems({ backlog: backlogItems, categories: [] });
+      reviewAndImport(
+        "AniList Planning",
+        "Review which plan-to-watch/read titles to add to your backlog — anything already in your backlog or already logged is tagged and hidden by default.",
+        built
+      );
+    } catch (e) {
+      toast("AniList sync failed (" + ((e && e.message) || "network error") + ")", true);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = label; }
+    }
+  }
+
+  // The AniList equivalent of maybeAutoCheckSteamWishlist, paced by Settings →
+  // Media → AniList "Check automatically" (days between checks; 0 = never).
+  // Fetches the Planning list(s) for whichever type(s) have a category chosen
+  // and just counts how many titles aren't already in the backlog/Journal,
+  // toasting that count — it never opens the review picker or adds anything on
+  // its own. Uses the same source+id / title+category dedup the import does, so
+  // an item renamed locally after an earlier import doesn't count as new again.
+  // Cheaper than the Steam check (one GraphQL request per type, no per-item
+  // title lookups), but still runs unattended, so failures stay silent.
+  async function maybeAutoCheckAniList() {
+    const cfg = state.data.settings.anilist || DEFAULT_SETTINGS.anilist;
+    const days = parseInt(cfg.autoSyncDays, 10) || 0;
+    if (!days) return;
+    const userName = (cfg.userName || "").trim();
+    const animeCategory = cfg.animeCategory || "";
+    const mangaCategory = cfg.mangaCategory || "";
+    if (!userName || (!animeCategory && !mangaCategory)) return;
+    if (!window.LifeLogMedia) return;
+    let last = null;
+    try { last = JSON.parse(localStorage.getItem(ANILIST_SYNC_KEY)); } catch (e) {}
+    const lastAt = (last && last.lastCheckedAt) ? new Date(last.lastCheckedAt).getTime() : 0;
+    if (Date.now() - lastAt < days * 24 * 60 * 60 * 1000) return;
+    try {
+      const existingMediaIds = new Set(
+        [...state.data.backlog, ...state.data.entries]
+          .filter((x) => x.mediaSource && x.mediaId)
+          .map((x) => x.mediaSource + ":" + x.mediaId)
+      );
+      const titleCatKey = (t, c) => `${(t || "").toLowerCase()}|${(c || "").toLowerCase()}`;
+      const existingTitleKeys = new Set(
+        [...state.data.backlog, ...state.data.entries].map((x) => titleCatKey(x.title, x.category))
+      );
+      const pulls = [];
+      if (animeCategory) pulls.push(["ANIME", animeCategory]);
+      if (mangaCategory) pulls.push(["MANGA", mangaCategory]);
+      let newCount = 0;
+      for (const [type, category] of pulls) {
+        const media = await window.LifeLogMedia.fetchAniListPlanning(userName, type);
+        if (media === null) continue; // hard failure on this type — skip, stay quiet
+        for (const m of media) {
+          if (existingMediaIds.has(m.source + ":" + m.id)) continue;
+          if (existingTitleKeys.has(titleCatKey(m.title, category))) continue;
+          newCount++;
+        }
+      }
+      if (newCount > 0) {
+        toast(`📺 ${newCount} new AniList planning title${newCount === 1 ? "" : "s"} — Settings → Media to sync`);
+      }
+    } catch (e) {
+      // quiet — this is an unattended background check, not a user action
+    } finally {
+      try { localStorage.setItem(ANILIST_SYNC_KEY, JSON.stringify({ lastCheckedAt: new Date().toISOString() })); } catch (e) {}
+    }
+  }
+
+  window.LifeLogSync = {
     init,
     applySteamAppId,
     loadBacklogPrices,
@@ -425,5 +558,7 @@
     backfillRawgForSteamGames,
     updateSteamBackfillRawgButton,
     maybeAutoCheckSteamWishlist,
+    syncAniListPlanning,
+    maybeAutoCheckAniList,
   };
 })();

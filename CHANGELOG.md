@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.76.0] - 2026-07-12
+
+### Changed
+- Renamed `src/steam.js` to `src/sync.js` and folded the AniList Planning
+  sync (`syncAniListPlanning`, `maybeAutoCheckAniList`) into it alongside
+  the Steam wishlist sync — both follow the same shape (fetch an external
+  list, dedupe against the backlog/Journal, route through the shared review
+  picker, plus a quiet background auto-check), so they share one module
+  instead of AniList getting a thin file of its own. `window.LifeLogSteam`
+  is now `window.LifeLogSync`. No behavior change.
+
 ## [0.75.0] - 2026-07-12
 
 ### Changed
