@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.75.0] - 2026-07-12
+
+### Changed
+- Two more pieces moved out of `src/app.js` into their own modules, the
+  optional follow-up noted after the finance/settings/backlog/journal
+  modularization: `src/io.js` (JSON/CSV export and import for the full
+  backup and the journal, the dup-checked import-item builder, and the
+  shared import/export review picker used everywhere — including finance's
+  own CSV flow) and `src/steam.js` (the manual Steam App ID cover helper
+  shared with the backlog/journal modals, GG.deals price lookups/caching,
+  the wishlist sync, the unresolved-title retry and RAWG-backfill
+  follow-ups, and the quiet background auto-check). Both follow the same
+  `init(ctx)` pattern as the earlier extractions — cross-module sanitizers
+  and cover setters arrive via `ctx` rather than reaching for another
+  module's `window` global directly. `app.js` is down to ~1,500 lines, from
+  ~2,290 before this change. No behavior change.
+
 ## [0.74.0] - 2026-07-12
 
 ### Added

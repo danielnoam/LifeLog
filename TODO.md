@@ -1,17 +1,21 @@
 todo:
 
-- app.js modularization is done (finance/settings/backlog/journal each in
-  their own file, app.js is a ~2,150-line shell). Possible follow-ups if it
-  ever feels warranted: pull the import/export + import-picker cluster into
-  src/io.js, and the Steam wishlist machinery into src/steam.js — but
-  neither is a per-view concern and app.js is no longer unwieldy, so leave
-  them unless they start growing again
 - extend test/merge.test.js's plain-node test pattern to the other
   data-touching code: finance recurringOccurrences (overrides, month
   clamping, end dates), the sanitizers, and normalize()'s migrations
 
 done:
 
+- app.js modularization follow-up: pulled the import/export + import-picker
+  cluster into src/io.js (download/export/import for JSON+CSV, the
+  buildImportItems dup-checker, and the shared review picker modal), and the
+  Steam wishlist machinery into src/steam.js (manual Steam App ID cover
+  helper, GG.deals price cache, wishlist sync, unresolved-title retry, RAWG
+  backfill, and the auto-check) — both follow the same init(ctx) pattern as
+  finance/settings/backlog/journal, cross-module sanitizers and cover
+  setters arrive via ctx rather than reaching for other modules' window
+  globals directly. app.js is down to ~1,500 lines from ~2,290. No behavior
+  change
 - AniList Planning auto-check (Settings → Media → AniList "Check
   automatically") — mirrors maybeAutoCheckSteamWishlist: a quiet cadence
   (Never/day/3 days/week/month, stored on settings.anilist.autoSyncDays)
