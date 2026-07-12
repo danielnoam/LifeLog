@@ -1,5 +1,32 @@
 todo:
 
+- clean up Settings → Media naming: the proxy URL field (`#steamProxyUrl`,
+  stored at `settings.steam.proxyUrl`) lives inside the "Steam Wishlist
+  import" section and is named/labeled as Steam-only, but it's actually
+  shared CORS-proxy infrastructure — SteamGridDB cover art and GG.deals
+  price lookups both already route through it too (see proxy/worker.js's
+  /steamgriddb and /gg-deals routes), and the SteamGridDB key's own hint
+  text has to awkwardly point back at "the Steam Wishlist proxy URL set
+  below" to explain this. Pull proxy setup into its own section/heading
+  (e.g. "CORS proxy" with the proxy URL field and a link to
+  proxy/README.md) ahead of the per-source stuff, and rename the Steam
+  Wishlist section to just cover the wishlist-specific fields (SteamID64,
+  target category, auto-sync, retry/backfill). Keep `settings.steam.proxyUrl`
+  as the storage key for now (rethink/migrate only if it becomes worth a
+  data-shape change) — this is a UI/labeling cleanup, not a schema change.
+  While in there, note what else could use the proxy going forward as APIs
+  get added that don't send CORS headers, so it's clear this one field
+  isn't Steam-specific
+- mobile: quick jump navigation for long lists — in Backlog, a category
+  with a lot of items means a long scroll to reach the next one; Timeline
+  has the same problem across years/months. Add a second row to the mobile
+  bottom bar (below the view tabs, `.topbar-bottom`/`.views` in
+  styles.css) that's context-sensitive per active tab: prev/next category
+  buttons while on Backlog, prev/next year (and maybe month) while on
+  Timeline. Desktop already has the sticky category/year headers for
+  orientation while scrolling, but there's no fast way to jump on mobile
+  without scrolling through everything in between
+
 - extend test/merge.test.js's plain-node test pattern to the other
   data-touching code: finance recurringOccurrences (overrides, month
   clamping, end dates), the sanitizers, and normalize()'s migrations
