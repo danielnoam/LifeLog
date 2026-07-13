@@ -4,6 +4,24 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.80.1] - 2026-07-13
+
+### Added
+- The jump-nav carousel's dimmed neighbor slots are now tappable, not
+  just ◀/▶ — tap "2025" to jump straight to it instead of pressing next.
+
+### Changed
+- More breathing room around the jump-nav's ◀/▶ buttons so they're not
+  flush against the screen edges.
+
+### Fixed
+- The tab bar's swipe underline could overshoot past the tab it was
+  sliding toward, or run off-screen entirely, if you dragged further
+  than the distance between tabs. It's now clamped to travel exactly
+  from the current tab's box to the target's and no further.
+- Pressing a tab or a jump-nav item could flash a stray text-selection
+  highlight and a beat of lag before responding.
+
 ## [0.80.0] - 2026-07-13
 
 ### Changed

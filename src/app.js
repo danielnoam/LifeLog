@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.80.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.80.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -431,15 +431,37 @@
     underline.style.width = active.offsetWidth + "px";
     underline.hidden = false;
   }
-  // Drags an underline by dx pixels with transitions suspended, so it
-  // tracks the finger 1:1 during a swipe instead of only jumping to its
-  // final spot once the gesture ends. baseLeft is captured once at the
-  // start of the drag (see wire()) rather than re-read from the live style
-  // on every move, so repeated calls don't compound.
-  function dragUnderline(underline, baseLeft, dx) {
-    if (!underline || underline.hidden) return;
-    underline.style.transition = "none";
-    underline.style.left = baseLeft + dx + "px";
+  // Live drag-follow for the tab underline. Rather than tracking the
+  // finger 1:1 in raw pixels (which let it overshoot past the target tab,
+  // or run off the edge of the screen at the first/last tab), this
+  // measures the actual target tab's box up front and morphs the
+  // underline's left/width from the active tab's box toward it as a 0–1
+  // progress fraction — so it can never travel further than the target
+  // and always lands exactly on it. tabDrag caches that target (and the
+  // starting box) for the rest of the gesture; null means either no drag
+  // is in progress yet, or one started at a boundary with no tab to head
+  // toward (in which case the underline just doesn't move).
+  let tabDrag = null;
+  function tabDragMove(dx) {
+    const underline = $("#tabUnderline");
+    if (!underline) return;
+    if (!tabDrag) {
+      const active = document.querySelector("#viewTabs .tab.active");
+      if (!active) return;
+      const idx = VIEW_ORDER.indexOf(state.view);
+      const targetView = dx < 0 ? VIEW_ORDER[idx + 1] : VIEW_ORDER[idx - 1];
+      const targetEl = targetView ? document.querySelector('#viewTabs .tab[data-view="' + targetView + '"]') : null;
+      if (!targetEl) return; // at a boundary — nothing to drag toward
+      tabDrag = {
+        baseLeft: active.offsetLeft, baseWidth: active.offsetWidth,
+        targetLeft: targetEl.offsetLeft, targetWidth: targetEl.offsetWidth,
+      };
+      underline.style.transition = "none";
+    }
+    const span = tabDrag.targetLeft - tabDrag.baseLeft;
+    const progress = span === 0 ? 0 : Math.max(0, Math.min(1, -dx / span));
+    underline.style.left = (tabDrag.baseLeft + span * progress) + "px";
+    underline.style.width = (tabDrag.baseWidth + (tabDrag.targetWidth - tabDrag.baseWidth) * progress) + "px";
   }
   // Builds one slot of the jump-nav carousel — blank (but still occupying
   // a slot) past either end of jumpSections, so a slide toward a
@@ -532,7 +554,7 @@
     jumpScrollTo(jumpCurrentIndex + delta);
   }
   // Live drag-follow for the carousel, mirroring the tab underline's
-  // dragUnderline/onSettle pattern but sliding actual content instead of
+  // tabDragMove/onSettle pattern but sliding actual content instead of
   // an indicator. jumpDrag caches which direction the DOM was prepared
   // for (see jumpAnimateStep) so later moves in the same gesture keep
   // offsetting from that fixed baseline rather than re-deriving it.
@@ -606,10 +628,11 @@
   // are untouched. Vertical drift disqualifies a swipe too, so an
   // accidental diagonal touch doesn't fire either side.
   // onMove(dx), if given, fires continuously once a real drag starts (see
-  // dragUnderline) so an underline can track the finger instead of only
-  // moving once the gesture completes. onSettle, if given, fires when a
-  // drag ends without crossing the threshold (or is cancelled) so the
-  // caller can animate whatever onMove displaced back to rest.
+  // tabDragMove/jumpDragMove) so the underline/carousel can track the
+  // finger instead of only moving once the gesture completes. onSettle,
+  // if given, fires when a drag ends without crossing the threshold (or
+  // is cancelled) so the caller can animate whatever onMove displaced
+  // back to rest.
   function attachSwipe(el, { onLeft, onRight, onMove, onSettle, threshold = 40 }) {
     let startX = null, startY = null, captured = false;
     el.addEventListener("pointerdown", (e) => {
@@ -622,7 +645,16 @@
         if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) {
           el.setPointerCapture(e.pointerId);
           captured = true;
+          // Once it's a real horizontal drag (not a tap, not vertical
+          // scroll), stop the browser's own touch handling from also
+          // reacting to the same gesture — left unchecked it could start
+          // a text selection or show a press-and-hold highlight partway
+          // through, which read as a stray flash/lag on the tab you
+          // ended up landing on.
+          e.preventDefault();
         } else return;
+      } else {
+        e.preventDefault();
       }
       if (onMove) onMove(e.clientX - startX);
     });
@@ -1305,6 +1337,23 @@
 
     $("#jumpPrevBtn").onclick = () => jumpTo(jumpCurrentIndex - 1);
     $("#jumpNextBtn").onclick = () => jumpTo(jumpCurrentIndex + 1);
+    // Tapping either dimmed neighbor slot jumps straight to it, same as
+    // ◀/▶ — delegated on the track since its slots are rebuilt on every
+    // render (renderJumpCarousel/jumpAnimateStep/jumpDragSettle all
+    // replace them). A tap that lands on the currently-active (centered)
+    // slot is a no-op. jumpDrag being set means a real swipe is/was in
+    // progress on this same pointer sequence, not a plain tap — several
+    // touch browsers still fire a trailing click after a drag despite the
+    // movement, so this skips acting on that synthetic one too.
+    $("#jumpTrack").addEventListener("click", (e) => {
+      if (jumpDrag) return;
+      const item = e.target.closest(".jump-item");
+      if (!item || item.classList.contains("is-active")) return;
+      const items = [...$("#jumpTrack").children];
+      const slot = items.indexOf(item); // 0 = prev, 1 = current, 2 = next in the resting 3-slot state
+      if (slot === 0) jumpTo(jumpCurrentIndex - 1);
+      else if (slot === 2) jumpTo(jumpCurrentIndex + 1);
+    });
     attachSwipe($("#jumpNav"), {
       // A drag's committed direction is decided by jumpDragMove from the
       // gesture's first move (see jumpDrag.delta) — if the finger reverses
@@ -1317,26 +1366,19 @@
       onMove: (dx) => jumpDragMove(dx),
       onSettle: () => jumpDragSettle(false),
     });
-    let tabDragBase = null;
     attachSwipe($("#viewTabs"), {
       onLeft: () => {
-        tabDragBase = null;
+        tabDrag = null;
         const next = VIEW_ORDER[VIEW_ORDER.indexOf(state.view) + 1];
         if (next) switchToView(next); else updateTabUnderline();
       },
       onRight: () => {
-        tabDragBase = null;
+        tabDrag = null;
         const prev = VIEW_ORDER[VIEW_ORDER.indexOf(state.view) - 1];
         if (prev) switchToView(prev); else updateTabUnderline();
       },
-      onMove: (dx) => {
-        const underline = $("#tabUnderline");
-        if (tabDragBase == null) tabDragBase = parseFloat(underline.style.left) || 0;
-        // Same reasoning as the jump-nav's onMove above: move toward the
-        // tab it's headed to, not literally along with the finger.
-        dragUnderline(underline, tabDragBase, -dx);
-      },
-      onSettle: () => { tabDragBase = null; updateTabUnderline(); },
+      onMove: (dx) => tabDragMove(dx),
+      onSettle: () => { tabDrag = null; updateTabUnderline(); },
     });
 
     // Bulk-select drag-paint: while dragPaint is set (started by a
