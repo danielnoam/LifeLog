@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.79.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.79.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -429,17 +429,34 @@
     const underline = $("#tabUnderline");
     const active = document.querySelector("#viewTabs .tab.active");
     if (!underline || !active) return;
+    underline.style.transition = "";
     underline.style.left = active.offsetLeft + "px";
     underline.style.width = active.offsetWidth + "px";
     underline.hidden = false;
   }
+  // Positioned from the label's own measured box (offsetTop/offsetHeight)
+  // rather than a fixed CSS offset, so the gap below the text stays
+  // consistent even if the row's height or the label's line-height ever
+  // changes, instead of two numbers that have to be kept in sync by hand.
   function updateJumpUnderline() {
     const underline = $("#jumpUnderline");
     const label = $("#jumpLabel");
     if (!underline || !label || !label.textContent) { if (underline) underline.hidden = true; return; }
+    underline.style.transition = "";
     underline.style.left = label.offsetLeft + "px";
     underline.style.width = label.offsetWidth + "px";
+    underline.style.top = (label.offsetTop + label.offsetHeight + 8) + "px";
     underline.hidden = false;
+  }
+  // Drags an underline by dx pixels with transitions suspended, so it
+  // tracks the finger 1:1 during a swipe instead of only jumping to its
+  // final spot once the gesture ends. baseLeft is captured once at the
+  // start of the drag (see wire()) rather than re-read from the live style
+  // on every move, so repeated calls don't compound.
+  function dragUnderline(underline, baseLeft, dx) {
+    if (!underline || underline.hidden) return;
+    underline.style.transition = "none";
+    underline.style.left = baseLeft + dx + "px";
   }
   // Scrolls so the target section's sticky header lands right below the
   // topbar — plain scrollIntoView would align it to the very top of the
@@ -487,25 +504,40 @@
   // is seen; a plain tap never crosses that threshold, so button clicks
   // are untouched. Vertical drift disqualifies a swipe too, so an
   // accidental diagonal touch doesn't fire either side.
-  function attachSwipe(el, { onLeft, onRight, threshold = 40 }) {
+  // onMove(dx), if given, fires continuously once a real drag starts (see
+  // dragUnderline) so an underline can track the finger instead of only
+  // moving once the gesture completes. onSettle, if given, fires when a
+  // drag ends without crossing the threshold (or is cancelled) so the
+  // caller can animate whatever onMove displaced back to rest.
+  function attachSwipe(el, { onLeft, onRight, onMove, onSettle, threshold = 40 }) {
     let startX = null, startY = null, captured = false;
     el.addEventListener("pointerdown", (e) => {
       if (!isMobileLayout()) return;
       startX = e.clientX; startY = e.clientY; captured = false;
     });
     el.addEventListener("pointermove", (e) => {
-      if (startX == null || captured) return;
-      if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) {
-        el.setPointerCapture(e.pointerId);
-        captured = true;
+      if (startX == null) return;
+      if (!captured) {
+        if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) {
+          el.setPointerCapture(e.pointerId);
+          captured = true;
+        } else return;
       }
+      if (onMove) onMove(e.clientX - startX);
     });
     el.addEventListener("pointerup", (e) => {
       if (startX == null) return;
       const dx = e.clientX - startX, dy = e.clientY - startY;
-      startX = null;
-      if (Math.abs(dx) < threshold || Math.abs(dx) < Math.abs(dy)) return;
-      (dx < 0 ? onLeft : onRight)();
+      const dragged = captured;
+      startX = null; captured = false;
+      const swiped = Math.abs(dx) >= threshold && Math.abs(dx) >= Math.abs(dy);
+      if (swiped) (dx < 0 ? onLeft : onRight)();
+      else if (dragged && onSettle) onSettle();
+    });
+    el.addEventListener("pointercancel", () => {
+      const dragged = captured;
+      startX = null; captured = false;
+      if (dragged && onSettle) onSettle();
     });
   }
 
@@ -1172,13 +1204,40 @@
 
     $("#jumpPrevBtn").onclick = () => jumpTo(jumpCurrentIndex - 1);
     $("#jumpNextBtn").onclick = () => jumpTo(jumpCurrentIndex + 1);
+    // dragBase caches each underline's resting `left` at the start of a
+    // drag (re-read lazily on the first onMove, not on pointerdown, since
+    // that's the first moment we know it's a real drag and not a tap) so
+    // onMove can offset from a fixed point instead of the value it's
+    // itself been mutating all gesture long.
+    let jumpDragBase = null;
     attachSwipe($("#jumpNav"), {
-      onLeft: () => jumpTo(jumpCurrentIndex + 1),
-      onRight: () => jumpTo(jumpCurrentIndex - 1),
+      onLeft: () => { jumpDragBase = null; jumpTo(jumpCurrentIndex + 1); },
+      onRight: () => { jumpDragBase = null; jumpTo(jumpCurrentIndex - 1); },
+      onMove: (dx) => {
+        const underline = $("#jumpUnderline");
+        if (jumpDragBase == null) jumpDragBase = parseFloat(underline.style.left) || 0;
+        dragUnderline(underline, jumpDragBase, dx);
+      },
+      onSettle: () => { jumpDragBase = null; updateJumpUnderline(); },
     });
+    let tabDragBase = null;
     attachSwipe($("#viewTabs"), {
-      onLeft: () => switchToView(VIEW_ORDER[VIEW_ORDER.indexOf(state.view) + 1]),
-      onRight: () => switchToView(VIEW_ORDER[VIEW_ORDER.indexOf(state.view) - 1]),
+      onLeft: () => {
+        tabDragBase = null;
+        const next = VIEW_ORDER[VIEW_ORDER.indexOf(state.view) + 1];
+        if (next) switchToView(next); else updateTabUnderline();
+      },
+      onRight: () => {
+        tabDragBase = null;
+        const prev = VIEW_ORDER[VIEW_ORDER.indexOf(state.view) - 1];
+        if (prev) switchToView(prev); else updateTabUnderline();
+      },
+      onMove: (dx) => {
+        const underline = $("#tabUnderline");
+        if (tabDragBase == null) tabDragBase = parseFloat(underline.style.left) || 0;
+        dragUnderline(underline, tabDragBase, dx);
+      },
+      onSettle: () => { tabDragBase = null; updateTabUnderline(); },
     });
 
     // Bulk-select drag-paint: while dragPaint is set (started by a

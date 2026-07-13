@@ -852,7 +852,7 @@ body.modal-open { overflow: hidden; }
     height: 0; overflow: hidden; transition: height .18s ease;
     touch-action: pan-y; order: 0; position: relative;
   }
-  html:not(.force-pc) .jump-nav.is-active { height: 34px; border-bottom: 1px solid var(--border); }
+  html:not(.force-pc) .jump-nav.is-active { height: 42px; border-bottom: 1px solid var(--border); }
   html:not(.force-pc) .jump-btn {
     background: transparent; border: none; color: var(--text-dim);
     font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
@@ -863,14 +863,16 @@ body.modal-open { overflow: hidden; }
   /* Same sliding-indicator idea as .tab-underline, tracking the label's
      own width/position instead of a tab — width changes along with the
      text (e.g. "2026" vs "Movies"), so a jump reads as motion even
-     though there's only ever one label on screen. */
+     though there's only ever one label on screen. top is set from JS
+     (updateJumpUnderline in app.js), measured off the label's own box, so
+     the gap below the text stays consistent regardless of row height. */
   html:not(.force-pc) .jump-underline {
-    position: absolute; bottom: 8px; height: 2px; border-radius: 2px;
+    position: absolute; height: 2px; border-radius: 2px;
     background: var(--accent); pointer-events: none;
-    transition: left var(--dur) var(--ease), width var(--dur) var(--ease);
+    transition: left var(--dur) var(--ease), width var(--dur) var(--ease), top var(--dur) var(--ease);
   }
 
-  html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) - 6px); }
+  html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
   html:not(.force-pc) .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: var(--bottombar-h, 88px); }
   html:not(.force-pc) .toast { bottom: var(--bottombar-h, 88px); }
   html:not(.force-pc) .bulk-bar { bottom: var(--bottombar-h, 88px); flex-wrap: wrap; }
@@ -939,7 +941,7 @@ html.force-mobile .jump-nav {
   height: 0; overflow: hidden; transition: height .18s ease;
   touch-action: pan-y; order: 0; position: relative;
 }
-html.force-mobile .jump-nav.is-active { height: 34px; border-bottom: 1px solid var(--border); }
+html.force-mobile .jump-nav.is-active { height: 42px; border-bottom: 1px solid var(--border); }
 html.force-mobile .jump-btn {
   background: transparent; border: none; color: var(--text-dim);
   font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
@@ -948,12 +950,12 @@ html.force-mobile .jump-btn:hover:not(:disabled) { background: var(--bg-elev-2);
 html.force-mobile .jump-btn:disabled { color: var(--text-faint); opacity: .4; cursor: default; }
 html.force-mobile .jump-label { font-size: 12.5px; font-weight: 600; color: var(--text-dim); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 html.force-mobile .jump-underline {
-  position: absolute; bottom: 8px; height: 2px; border-radius: 2px;
+  position: absolute; height: 2px; border-radius: 2px;
   background: var(--accent); pointer-events: none;
-  transition: left var(--dur) var(--ease), width var(--dur) var(--ease);
+  transition: left var(--dur) var(--ease), width var(--dur) var(--ease), top var(--dur) var(--ease);
 }
 
-html.force-mobile .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) - 6px); }
+html.force-mobile .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
 html.force-mobile .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: var(--bottombar-h, 88px); }
 html.force-mobile .toast { bottom: var(--bottombar-h, 88px); }
 html.force-mobile .bulk-bar { bottom: var(--bottombar-h, 88px); flex-wrap: wrap; }

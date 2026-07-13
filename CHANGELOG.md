@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.79.1] - 2026-07-13
+
+### Changed
+- The mobile jump-nav row is taller, and its sliding underline now sits
+  with a clear, consistent gap below the label instead of nearly
+  touching it.
+- On mobile, the tab bar and jump-nav underlines now track your finger
+  in real time while swiping, instead of only jumping to their new spot
+  once the gesture ends — and they snap smoothly back to rest if a swipe
+  doesn't go far enough to switch.
+
+### Fixed
+- The "+" add button overlapped the jump-nav row on mobile Timeline/
+  Ledger/Backlog instead of floating clear above it.
+
 ## [0.79.0] - 2026-07-13
 
 ### Added
