@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.79.2] - 2026-07-13
+
+### Fixed
+- The tab bar and jump-nav underlines moved the wrong way while dragging
+  — following the raw finger direction instead of sliding toward the tab
+  or section the swipe was actually heading to (e.g. swiping left toward
+  the next tab moved the underline left, away from it, since the next
+  tab sits to the right).
+
 ## [0.79.1] - 2026-07-13
 
 ### Changed

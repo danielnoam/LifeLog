@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.79.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.79.2"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1216,7 +1216,11 @@
       onMove: (dx) => {
         const underline = $("#jumpUnderline");
         if (jumpDragBase == null) jumpDragBase = parseFloat(underline.style.left) || 0;
-        dragUnderline(underline, jumpDragBase, dx);
+        // Swiping left (dx < 0) advances to the *next* section, which sits
+        // further right in the bar's left-to-right order — so the
+        // underline moves opposite the raw drag, toward where it's
+        // headed, not literally along with the finger.
+        dragUnderline(underline, jumpDragBase, -dx);
       },
       onSettle: () => { jumpDragBase = null; updateJumpUnderline(); },
     });
@@ -1235,7 +1239,9 @@
       onMove: (dx) => {
         const underline = $("#tabUnderline");
         if (tabDragBase == null) tabDragBase = parseFloat(underline.style.left) || 0;
-        dragUnderline(underline, tabDragBase, dx);
+        // Same reasoning as the jump-nav's onMove above: move toward the
+        // tab it's headed to, not literally along with the finger.
+        dragUnderline(underline, tabDragBase, -dx);
       },
       onSettle: () => { tabDragBase = null; updateTabUnderline(); },
     });
