@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.80.0] - 2026-07-13
+
+### Changed
+- The mobile jump-nav row now shows a 3-up carousel — the current year/
+  category centered between its neighbors — instead of a single label
+  with an underline. Swiping (or tapping ◀/▶) slides it like a real
+  carousel: the neighbor slides into the center as the current one slides
+  out, following your finger during the drag and snapping back to rest
+  if the swipe doesn't go far enough to switch.
+
 ## [0.79.2] - 2026-07-13
 
 ### Fixed

@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.79.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.80.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -414,17 +414,14 @@
   }
   function setJumpIndex(index) {
     jumpCurrentIndex = Math.max(0, Math.min(jumpSections.length - 1, index));
-    const el = jumpSections[jumpCurrentIndex];
-    $("#jumpLabel").textContent = el ? jumpLabelFor(el) : "";
     $("#jumpPrevBtn").disabled = jumpCurrentIndex <= 0;
     $("#jumpNextBtn").disabled = jumpCurrentIndex >= jumpSections.length - 1;
-    updateJumpUnderline();
+    renderJumpCarousel();
   }
-  // Sliding accent-colored indicators under the active tab and the
-  // jump-nav's current label — both animate to their new position/width
-  // (see the CSS transitions on .tab-underline/.jump-underline) whenever
-  // the active tab or section changes, whether by tap or by swipe, so the
-  // motion itself reads as confirmation something moved.
+  // Sliding accent-colored indicator under the active tab, tracking its
+  // position/width (see the CSS transition on .tab-underline) whenever the
+  // active tab changes, whether by tap or by swipe, so the motion itself
+  // reads as confirmation something moved.
   function updateTabUnderline() {
     const underline = $("#tabUnderline");
     const active = document.querySelector("#viewTabs .tab.active");
@@ -432,20 +429,6 @@
     underline.style.transition = "";
     underline.style.left = active.offsetLeft + "px";
     underline.style.width = active.offsetWidth + "px";
-    underline.hidden = false;
-  }
-  // Positioned from the label's own measured box (offsetTop/offsetHeight)
-  // rather than a fixed CSS offset, so the gap below the text stays
-  // consistent even if the row's height or the label's line-height ever
-  // changes, instead of two numbers that have to be kept in sync by hand.
-  function updateJumpUnderline() {
-    const underline = $("#jumpUnderline");
-    const label = $("#jumpLabel");
-    if (!underline || !label || !label.textContent) { if (underline) underline.hidden = true; return; }
-    underline.style.transition = "";
-    underline.style.left = label.offsetLeft + "px";
-    underline.style.width = label.offsetWidth + "px";
-    underline.style.top = (label.offsetTop + label.offsetHeight + 8) + "px";
     underline.hidden = false;
   }
   // Drags an underline by dx pixels with transitions suspended, so it
@@ -458,6 +441,33 @@
     underline.style.transition = "none";
     underline.style.left = baseLeft + dx + "px";
   }
+  // Builds one slot of the jump-nav carousel — blank (but still occupying
+  // a slot) past either end of jumpSections, so a slide toward a
+  // boundary shows an empty neighbor instead of nothing.
+  function jumpItemEl(index, isActive) {
+    const div = document.createElement("div");
+    div.className = "jump-item" + (isActive ? " is-active" : "");
+    const el = jumpSections[index];
+    div.textContent = el ? jumpLabelFor(el) : "";
+    return div;
+  }
+  // Resets the carousel track to its resting 3-slot state (prev/current/
+  // next around jumpCurrentIndex) with no transition — the instantaneous
+  // "landed" frame that both a completed slide and a cancelled drag
+  // converge back to.
+  function renderJumpCarousel() {
+    const track = $("#jumpTrack");
+    if (!track) return;
+    track.style.transition = "none";
+    track.replaceChildren(
+      jumpItemEl(jumpCurrentIndex - 1, false),
+      jumpItemEl(jumpCurrentIndex, true),
+      jumpItemEl(jumpCurrentIndex + 1, false)
+    );
+    track.style.transform = "translateX(0px)";
+    void track.offsetWidth; // flush the transition:none before re-enabling it
+    track.style.transition = "";
+  }
   // Scrolls so the target section's sticky header lands right below the
   // topbar — plain scrollIntoView would align it to the very top of the
   // viewport, tucking it behind the topbar instead.
@@ -468,20 +478,111 @@
   // while it hasn't started sticking yet (i.e. still below the viewport,
   // not yet reached) — once you've scrolled past it, the browser reports
   // its current sticky-pushed position instead, which isn't the same
-  // number and made jumpTo land partway into the section rather than at
+  // number and made this land partway into the section rather than at
   // its start whenever the target was above the current scroll position
   // (jumping backward). The header's plain, non-sticky parent doesn't
   // have that problem — its rect is always the element's real position,
   // approaching from either direction — and the header sits flush at its
   // top either way, so aligning to the parent's top lands in the same spot.
-  function jumpTo(index) {
-    setJumpIndex(index);
-    const el = jumpSections[jumpCurrentIndex];
+  function jumpScrollTo(index) {
+    const el = jumpSections[index];
     if (!el) return;
     const offset = $(".topbar").getBoundingClientRect().height;
     const anchor = el.parentElement || el;
     const top = anchor.getBoundingClientRect().top + window.scrollY - offset;
     window.scrollTo({ top, behavior: "smooth" });
+  }
+  // Prepares the track for a one-slot carousel slide in `delta`'s direction
+  // (+1 = next, appended past the right edge; -1 = prev, prepended past
+  // the left edge) and animates it to completion, landing on
+  // jumpCurrentIndex + delta. Shared by ◀/▶ taps and a completed swipe
+  // (see jumpDragSettle) — a tap just skips straight to the animated slide
+  // instead of following a finger there first.
+  function jumpAnimateStep(delta) {
+    if (delta > 0 && jumpCurrentIndex >= jumpSections.length - 1) return;
+    if (delta < 0 && jumpCurrentIndex <= 0) return;
+    const track = $("#jumpTrack");
+    const carousel = $("#jumpCarousel");
+    if (!track || !carousel) return;
+    const slotWidth = carousel.clientWidth / 3;
+    track.style.transition = "none";
+    if (delta > 0) {
+      track.appendChild(jumpItemEl(jumpCurrentIndex + 2, false));
+      track.style.transform = "translateX(0px)";
+    } else {
+      track.insertBefore(jumpItemEl(jumpCurrentIndex - 2, false), track.firstChild);
+      track.style.transform = "translateX(" + -slotWidth + "px)";
+    }
+    void track.offsetWidth;
+    track.style.transition = "";
+    track.style.transform = "translateX(" + (delta > 0 ? -slotWidth : 0) + "px)";
+    const finish = () => {
+      track.removeEventListener("transitionend", finish);
+      jumpCurrentIndex += delta;
+      $("#jumpPrevBtn").disabled = jumpCurrentIndex <= 0;
+      $("#jumpNextBtn").disabled = jumpCurrentIndex >= jumpSections.length - 1;
+      renderJumpCarousel();
+    };
+    track.addEventListener("transitionend", finish);
+  }
+  function jumpTo(index) {
+    const delta = Math.sign(Math.max(0, Math.min(jumpSections.length - 1, index)) - jumpCurrentIndex);
+    if (delta === 0) return;
+    jumpAnimateStep(delta);
+    jumpScrollTo(jumpCurrentIndex + delta);
+  }
+  // Live drag-follow for the carousel, mirroring the tab underline's
+  // dragUnderline/onSettle pattern but sliding actual content instead of
+  // an indicator. jumpDrag caches which direction the DOM was prepared
+  // for (see jumpAnimateStep) so later moves in the same gesture keep
+  // offsetting from that fixed baseline rather than re-deriving it.
+  let jumpDrag = null;
+  function jumpDragMove(dx) {
+    const track = $("#jumpTrack");
+    const carousel = $("#jumpCarousel");
+    if (!track || !carousel) return;
+    if (!jumpDrag) {
+      const delta = dx < 0 ? 1 : -1;
+      if (delta > 0 && jumpCurrentIndex >= jumpSections.length - 1) return;
+      if (delta < 0 && jumpCurrentIndex <= 0) return;
+      const slotWidth = carousel.clientWidth / 3;
+      track.style.transition = "none";
+      if (delta > 0) {
+        track.appendChild(jumpItemEl(jumpCurrentIndex + 2, false));
+        jumpDrag = { delta, slotWidth, baseline: 0 };
+      } else {
+        track.insertBefore(jumpItemEl(jumpCurrentIndex - 2, false), track.firstChild);
+        jumpDrag = { delta, slotWidth, baseline: -slotWidth };
+      }
+      track.style.transform = "translateX(" + jumpDrag.baseline + "px)";
+    }
+    const clamped = Math.max(-jumpDrag.slotWidth, Math.min(0, jumpDrag.baseline + dx));
+    track.style.transform = "translateX(" + clamped + "px)";
+  }
+  // committed: whether the swipe crossed the threshold in the direction
+  // the carousel was actually prepared for (see the mismatch guard in
+  // wire() — a reversed drag settles back instead of committing the wrong
+  // way). Finishes the slide (or reverses it) with a real transition, then
+  // rebuilds the resting 3-slot state once it lands.
+  function jumpDragSettle(committed) {
+    const track = $("#jumpTrack");
+    const drag = jumpDrag;
+    if (!track || !drag) { jumpDrag = null; return; }
+    const target = committed ? (drag.delta > 0 ? -drag.slotWidth : 0) : drag.baseline;
+    track.style.transition = "";
+    track.style.transform = "translateX(" + target + "px)";
+    const finish = () => {
+      track.removeEventListener("transitionend", finish);
+      if (committed) {
+        jumpCurrentIndex += drag.delta;
+        $("#jumpPrevBtn").disabled = jumpCurrentIndex <= 0;
+        $("#jumpNextBtn").disabled = jumpCurrentIndex >= jumpSections.length - 1;
+        jumpScrollTo(jumpCurrentIndex);
+      }
+      renderJumpCarousel();
+      jumpDrag = null;
+    };
+    track.addEventListener("transitionend", finish);
   }
 
   // Mirrors the CSS mobile-detection rules (html:not(.force-pc) under the
@@ -1204,25 +1305,17 @@
 
     $("#jumpPrevBtn").onclick = () => jumpTo(jumpCurrentIndex - 1);
     $("#jumpNextBtn").onclick = () => jumpTo(jumpCurrentIndex + 1);
-    // dragBase caches each underline's resting `left` at the start of a
-    // drag (re-read lazily on the first onMove, not on pointerdown, since
-    // that's the first moment we know it's a real drag and not a tap) so
-    // onMove can offset from a fixed point instead of the value it's
-    // itself been mutating all gesture long.
-    let jumpDragBase = null;
     attachSwipe($("#jumpNav"), {
-      onLeft: () => { jumpDragBase = null; jumpTo(jumpCurrentIndex + 1); },
-      onRight: () => { jumpDragBase = null; jumpTo(jumpCurrentIndex - 1); },
-      onMove: (dx) => {
-        const underline = $("#jumpUnderline");
-        if (jumpDragBase == null) jumpDragBase = parseFloat(underline.style.left) || 0;
-        // Swiping left (dx < 0) advances to the *next* section, which sits
-        // further right in the bar's left-to-right order — so the
-        // underline moves opposite the raw drag, toward where it's
-        // headed, not literally along with the finger.
-        dragUnderline(underline, jumpDragBase, -dx);
-      },
-      onSettle: () => { jumpDragBase = null; updateJumpUnderline(); },
+      // A drag's committed direction is decided by jumpDragMove from the
+      // gesture's first move (see jumpDrag.delta) — if the finger reverses
+      // enough late in the gesture to flip which threshold attachSwipe
+      // sees crossed, that no longer matches what the carousel was
+      // prepared to slide to, so treat it as a cancel rather than commit
+      // the wrong direction.
+      onLeft: () => jumpDragSettle(!!jumpDrag && jumpDrag.delta === 1),
+      onRight: () => jumpDragSettle(!!jumpDrag && jumpDrag.delta === -1),
+      onMove: (dx) => jumpDragMove(dx),
+      onSettle: () => jumpDragSettle(false),
     });
     let tabDragBase = null;
     attachSwipe($("#viewTabs"), {
