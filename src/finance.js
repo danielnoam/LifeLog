@@ -451,6 +451,15 @@
     $("#finDate").required = !yearly;
     $("#finYear").required = yearly;
   }
+  // Quick-adding into a month card should default to today's actual date
+  // when that card is the current month (matches what the plain "+" button
+  // already does) — only falls back to the 1st of the month when the
+  // preset month isn't the current one, since "today" wouldn't be in it.
+  function presetDateStr(presetDate) {
+    const now = new Date();
+    if (presetDate.year === now.getFullYear() && presetDate.month === now.getMonth() + 1) return todayStr();
+    return `${presetDate.year}-${String(presetDate.month).padStart(2, "0")}-01`;
+  }
   function openFinanceModal(entry, presetDate) {
     const editing = !!entry;
     const yearly = editing ? !!entry.yearly : (presetDate && presetDate.month === 0);
@@ -458,7 +467,7 @@
     $("#financeId").value = editing ? entry.id : "";
     $("#finYearly").checked = yearly;
     $("#finDate").value = (editing && !yearly) ? entry.date
-      : (!yearly && presetDate ? `${presetDate.year}-${String(presetDate.month).padStart(2, "0")}-01` : todayStr());
+      : (!yearly && presetDate ? presetDateStr(presetDate) : todayStr());
     $("#finYear").value = yearly ? (editing ? entry.date : (presetDate ? String(presetDate.year) : "")) : "";
     $("#finAmount").value = editing ? entry.amount : "";
     fillCategorySelect($("#finCategory"), state.data.financeCategories,

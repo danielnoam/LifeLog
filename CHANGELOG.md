@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.76.2] - 2026-07-13
+
+### Fixed
+- Quick-adding a finance entry via a month card's "+" button always
+  defaulted the date field to the 1st of that month, even when the card
+  was the current month — it now defaults to today's actual date when the
+  quick-add month matches the current month, and only falls back to the
+  1st when adding into a different (past) month.
+
 ## [0.76.1] - 2026-07-12
 
 ### Fixed
