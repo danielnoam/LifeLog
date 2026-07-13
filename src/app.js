@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.78.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.78.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -421,12 +421,26 @@
   // Scrolls so the target section's sticky header lands right below the
   // topbar — plain scrollIntoView would align it to the very top of the
   // viewport, tucking it behind the topbar instead.
+  //
+  // Measures the section's *container* (.year-block / .backlog-section),
+  // not the sticky header itself: a position:sticky element's own
+  // getBoundingClientRect() only reflects its true document position
+  // while it hasn't started sticking yet (i.e. still below the viewport,
+  // not yet reached) — once you've scrolled past it, the browser reports
+  // its current sticky-pushed position instead, which isn't the same
+  // number and made jumpTo land partway into the section rather than at
+  // its start whenever the target was above the current scroll position
+  // (jumping backward). The header's plain, non-sticky parent doesn't
+  // have that problem — its rect is always the element's real position,
+  // approaching from either direction — and the header sits flush at its
+  // top either way, so aligning to the parent's top lands in the same spot.
   function jumpTo(index) {
     setJumpIndex(index);
     const el = jumpSections[jumpCurrentIndex];
     if (!el) return;
     const offset = $(".topbar").getBoundingClientRect().height;
-    const top = el.getBoundingClientRect().top + window.scrollY - offset;
+    const anchor = el.parentElement || el;
+    const top = anchor.getBoundingClientRect().top + window.scrollY - offset;
     window.scrollTo({ top, behavior: "smooth" });
   }
 

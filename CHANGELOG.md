@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.78.1] - 2026-07-13
+
+### Fixed
+- The mobile jump-nav's ◀ Prev button landed partway into the previous
+  section instead of at its start (Next always landed correctly). The
+  scroll target was measured from the section's own sticky header, whose
+  `getBoundingClientRect()` only reflects its true position before it's
+  started sticking — once you've scrolled past a section, the browser
+  reports its current sticky-pushed position instead, which isn't the
+  same number. Now measures from the section's plain (non-sticky) parent
+  container, whose position is consistent approaching from either
+  direction.
+
 ## [0.78.0] - 2026-07-13
 
 ### Added
