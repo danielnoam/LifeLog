@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.77.0] - 2026-07-13
+
+### Added
+- Mobile: a quick-jump row (◀ prev / current / next ▶) below the bottom
+  tab bar on Timeline and Ledger (jump by year) and Backlog (jump by
+  category) — a long category or year otherwise meant scrolling through
+  everything to reach the next one. Stats and Summary don't get it, since
+  they're fixed card layouts with nothing to page through. The row's
+  space is always reserved in the bottom bar so switching tabs never
+  shifts the bar's height; it just goes visually inactive on tabs that
+  don't use it. Desktop never shows it — it already has a multi-column
+  layout and visible sticky headers, so paging isn't needed there.
+
 ## [0.76.2] - 2026-07-13
 
 ### Fixed

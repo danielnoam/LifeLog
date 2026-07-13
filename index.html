@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.76.2" />
+  <link rel="stylesheet" href="src/styles.css?v=0.77.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -67,6 +67,16 @@
         <button class="tab" data-view="finance" data-icon="₪">Ledger</button>
         <button class="tab" data-view="finance-stats" data-icon="◑">Summary</button>
       </nav>
+      <!-- Mobile-only quick-jump row: prev/next between the sticky year/category
+           headers a long Timeline/Ledger/Backlog scroll would otherwise bury.
+           Reserved space stays present (see .jump-nav in styles.css) even on
+           tabs that don't use it, so the bottom bar's height never shifts
+           when switching tabs. -->
+      <div class="jump-nav" id="jumpNav">
+        <button type="button" class="jump-btn" id="jumpPrevBtn" aria-label="Previous">◀</button>
+        <span class="jump-label" id="jumpLabel"></span>
+        <button type="button" class="jump-btn" id="jumpNextBtn" aria-label="Next">▶</button>
+      </div>
     </div>
 
     <button id="settingsBtn" class="btn btn-icon" title="Settings">⚙</button>
@@ -836,16 +846,16 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.76.2"></script>
-  <script src="src/media.js?v=0.76.2"></script>
-  <script src="src/merge.js?v=0.76.2"></script>
-  <script src="src/storage.js?v=0.76.2"></script>
-  <script src="src/finance.js?v=0.76.2"></script>
-  <script src="src/settings.js?v=0.76.2"></script>
-  <script src="src/backlog.js?v=0.76.2"></script>
-  <script src="src/journal.js?v=0.76.2"></script>
-  <script src="src/io.js?v=0.76.2"></script>
-  <script src="src/sync.js?v=0.76.2"></script>
-  <script src="src/app.js?v=0.76.2"></script>
+  <script src="src/qr.js?v=0.77.0"></script>
+  <script src="src/media.js?v=0.77.0"></script>
+  <script src="src/merge.js?v=0.77.0"></script>
+  <script src="src/storage.js?v=0.77.0"></script>
+  <script src="src/finance.js?v=0.77.0"></script>
+  <script src="src/settings.js?v=0.77.0"></script>
+  <script src="src/backlog.js?v=0.77.0"></script>
+  <script src="src/journal.js?v=0.77.0"></script>
+  <script src="src/io.js?v=0.77.0"></script>
+  <script src="src/sync.js?v=0.77.0"></script>
+  <script src="src/app.js?v=0.77.0"></script>
 </body>
 </html>

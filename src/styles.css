@@ -169,6 +169,12 @@ html, body {
    on mobile it becomes the fixed bottom nav bar */
 .topbar-bottom { display: contents; }
 
+/* Mobile-only second bottom-bar row (see the mobile media queries below for
+   its actual layout) — desktop never shows it regardless of the JS-toggled
+   .is-active class, since Desktop already has multi-column layouts and
+   visible sticky headers, so paging by year/category isn't needed there. */
+.jump-nav { display: none; }
+
 .views { display: flex; gap: 4px; order: 2; }
 .tab {
   background: transparent; border: none; color: var(--text-dim);
@@ -779,7 +785,7 @@ body.modal-open { overflow: hidden; }
      system's mobile bottom-nav pattern: icon-over-label tabs, a thin
      divider between the Journal/Finance groups, no collapse step. */
   html:not(.force-pc) .topbar-bottom {
-    display: flex; align-items: stretch;
+    display: flex; flex-direction: column; align-items: stretch;
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
     padding-bottom: env(safe-area-inset-bottom);
     background: var(--bg-elev); border-top: 1px solid var(--border);
@@ -811,10 +817,30 @@ body.modal-open { overflow: hidden; }
   html:not(.force-pc) .tab[data-view="finance"] { order: 5; }
   html:not(.force-pc) .tab[data-view="finance-stats"] { order: 6; }
 
-  html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(82px + env(safe-area-inset-bottom)); }
-  html:not(.force-pc) .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: 88px; }
-  html:not(.force-pc) .toast { bottom: 88px; }
-  html:not(.force-pc) .bulk-bar { bottom: 88px; flex-wrap: wrap; }
+  /* Second bottom-bar row — prev/next between the sticky year/category
+     headers on Timeline/Ledger/Backlog, since a long list there otherwise
+     means scrolling through everything to reach the next one. Its space is
+     always reserved (own fixed height below) even when empty/inactive, so
+     the bar's total height — and everything anchored above it — never
+     shifts when switching tabs; toggling .is-active only changes
+     visibility, never layout. See updateJumpNav() in app.js. */
+  html:not(.force-pc) .jump-nav {
+    display: flex; align-items: center; justify-content: center; gap: 16px;
+    height: 34px; visibility: hidden;
+  }
+  html:not(.force-pc) .jump-nav.is-active { visibility: visible; }
+  html:not(.force-pc) .jump-btn {
+    background: transparent; border: none; color: var(--text-dim);
+    font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
+  }
+  html:not(.force-pc) .jump-btn:hover:not(:disabled) { background: var(--bg-elev-2); color: var(--text); }
+  html:not(.force-pc) .jump-btn:disabled { color: var(--text-faint); opacity: .4; cursor: default; }
+  html:not(.force-pc) .jump-label { font-size: 12.5px; font-weight: 600; color: var(--text-dim); min-width: 70px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(116px + env(safe-area-inset-bottom)); }
+  html:not(.force-pc) .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: 122px; }
+  html:not(.force-pc) .toast { bottom: 122px; }
+  html:not(.force-pc) .bulk-bar { bottom: 122px; flex-wrap: wrap; }
   html:not(.force-pc) .month-add-btn { width: 20px; height: 20px; font-size: 14px; }
 
   /* Timeline is a single column at this width, so the year/month you're
@@ -838,7 +864,7 @@ html.force-mobile .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 23px;
 html.force-mobile .search { order: 2; margin-left: 0; width: auto; flex: 1 1 auto; min-width: 0; }
 
 html.force-mobile .topbar-bottom {
-  display: flex; align-items: stretch;
+  display: flex; flex-direction: column; align-items: stretch;
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
   padding-bottom: env(safe-area-inset-bottom);
   background: var(--bg-elev); border-top: 1px solid var(--border);
@@ -866,10 +892,23 @@ html.force-mobile .tab-group-label:not(:first-of-type) { order: 4; }
 html.force-mobile .tab[data-view="finance"] { order: 5; }
 html.force-mobile .tab[data-view="finance-stats"] { order: 6; }
 
-html.force-mobile .fab-wrap { right: 16px; bottom: calc(82px + env(safe-area-inset-bottom)); }
-html.force-mobile .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: 88px; }
-html.force-mobile .toast { bottom: 88px; }
-html.force-mobile .bulk-bar { bottom: 88px; flex-wrap: wrap; }
+html.force-mobile .jump-nav {
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  height: 34px; visibility: hidden;
+}
+html.force-mobile .jump-nav.is-active { visibility: visible; }
+html.force-mobile .jump-btn {
+  background: transparent; border: none; color: var(--text-dim);
+  font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
+}
+html.force-mobile .jump-btn:hover:not(:disabled) { background: var(--bg-elev-2); color: var(--text); }
+html.force-mobile .jump-btn:disabled { color: var(--text-faint); opacity: .4; cursor: default; }
+html.force-mobile .jump-label { font-size: 12.5px; font-weight: 600; color: var(--text-dim); min-width: 70px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+html.force-mobile .fab-wrap { right: 16px; bottom: calc(116px + env(safe-area-inset-bottom)); }
+html.force-mobile .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: 122px; }
+html.force-mobile .toast { bottom: 122px; }
+html.force-mobile .bulk-bar { bottom: 122px; flex-wrap: wrap; }
 html.force-mobile .month-add-btn { width: 20px; height: 20px; font-size: 14px; }
 
 html.force-mobile .year-head { position: sticky; top: var(--topbar-h, 0px); z-index: 6; background: var(--bg); }

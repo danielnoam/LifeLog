@@ -17,22 +17,27 @@ todo:
   While in there, note what else could use the proxy going forward as APIs
   get added that don't send CORS headers, so it's clear this one field
   isn't Steam-specific
-- mobile: quick jump navigation for long lists — in Backlog, a category
-  with a lot of items means a long scroll to reach the next one; Timeline
-  has the same problem across years/months. Add a second row to the mobile
-  bottom bar (below the view tabs, `.topbar-bottom`/`.views` in
-  styles.css) that's context-sensitive per active tab: prev/next category
-  buttons while on Backlog, prev/next year (and maybe month) while on
-  Timeline. Desktop already has the sticky category/year headers for
-  orientation while scrolling, but there's no fast way to jump on mobile
-  without scrolling through everything in between
-
 - extend test/merge.test.js's plain-node test pattern to the other
   data-touching code: finance recurringOccurrences (overrides, month
   clamping, end dates), the sanitizers, and normalize()'s migrations
 
 done:
 
+- mobile: quick-jump row (◀ current ▶) below the bottom tab bar — jump by
+  year on Timeline/Ledger, by category on Backlog, so a long list doesn't
+  mean scrolling through everything to reach the next section. Section
+  list rebuilds on every render() (via updateJumpNav() in app.js) and gets
+  tagged with data-jump-index; the current position is tracked as state
+  (jumpCurrentIndex) rather than re-derived from scroll position on every
+  click, since window.scrollTo's smooth animation is async and a quick
+  second tap would otherwise measure an animation still in flight. Jumping
+  computes the scroll target manually (topbar height offset) rather than
+  relying on scrollIntoView, which would tuck the sticky header behind the
+  fixed topbar. The row's space is always reserved in the bottom bar
+  (visibility, not display, toggles) so switching to Stats/Summary (which
+  don't use it) never shifts the bar's height. Mobile-only; not shown on
+  desktop since it already has multi-column layouts and visible sticky
+  headers
 - fixed recurring expenses landing on the wrong day of the month for
   anyone in a timezone ahead of UTC — recurringOccurrences() (and a few
   related "today" spots: the finance-entry date field default, a new

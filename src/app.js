@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.76.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.77.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -215,6 +215,15 @@
   }
 
   let lastRenderedView = null;
+  // Mobile quick-jump nav's current section list and position (see
+  // updateJumpNav below) — the list is rebuilt on every render() so it
+  // always matches what's actually on screen. The index is tracked as
+  // state rather than re-derived from scroll position on every click:
+  // window.scrollTo({behavior:"smooth"}) is async, so a quick second tap
+  // would otherwise re-measure a scroll animation that hasn't caught up
+  // yet and appear to do nothing.
+  let jumpSections = [];
+  let jumpCurrentIndex = 0;
   // Replays the view-fade-in animation on `root` only when the active view
   // actually changed (not on every in-view re-render, e.g. after an edit).
   function fadeInOnViewChange(root) {
@@ -335,7 +344,71 @@
       else Journal.renderStats(c, entries);
     } finally {
       if (sameView && prevScrollY) window.scrollTo(0, prevScrollY);
+      updateJumpNav();
     }
+  }
+
+  // ---------- mobile quick-jump nav ----------
+  // A second row in the mobile bottom bar (see .jump-nav in styles.css) for
+  // paging between the sticky year headers (Timeline/Ledger) or category
+  // headers (Backlog) a long scroll would otherwise bury — Stats/Summary
+  // are fixed card layouts with nothing to page through, so they get none.
+  // Rebuilt on every render() so it always matches what's actually on
+  // screen; the label only updates on tap/render, not while scrolling.
+  function jumpSectionSelector() {
+    if (state.view === "backlog") return ".backlog-section-head";
+    if (state.view === "timeline" || state.view === "finance") return ".year-head";
+    return null;
+  }
+  function jumpLabelFor(sectionEl) {
+    const el = state.view === "backlog"
+      ? sectionEl.querySelector(".backlog-section-name")
+      : sectionEl.querySelector("h2");
+    return el ? el.textContent : "";
+  }
+  function updateJumpNav() {
+    const nav = $("#jumpNav");
+    if (!nav) return;
+    const selector = jumpSectionSelector();
+    jumpSections = selector ? [...document.querySelectorAll("#content " + selector)] : [];
+    if (jumpSections.length < 2) { nav.classList.remove("is-active"); return; }
+    jumpSections.forEach((el, i) => { el.dataset.jumpIndex = i; });
+    nav.classList.add("is-active");
+    setJumpIndex(jumpIndexFromScroll());
+  }
+  // Which section has scrolled up to (or past) the sticky topbar right now
+  // — the last one whose top is at or above that line, defaulting to the
+  // very first section if we haven't scrolled that far yet (e.g. right
+  // after a view switch). Only called at render time to (re)sync
+  // jumpCurrentIndex with reality — ◀/▶ clicks use that tracked value
+  // instead, not this, so a quick second tap isn't measuring a scroll
+  // animation still in flight from the first.
+  function jumpIndexFromScroll() {
+    const offset = $(".topbar").getBoundingClientRect().height + 4;
+    let idx = 0;
+    for (const el of jumpSections) {
+      if (el.getBoundingClientRect().top <= offset) idx = +el.dataset.jumpIndex;
+      else break;
+    }
+    return idx;
+  }
+  function setJumpIndex(index) {
+    jumpCurrentIndex = Math.max(0, Math.min(jumpSections.length - 1, index));
+    const el = jumpSections[jumpCurrentIndex];
+    $("#jumpLabel").textContent = el ? jumpLabelFor(el) : "";
+    $("#jumpPrevBtn").disabled = jumpCurrentIndex <= 0;
+    $("#jumpNextBtn").disabled = jumpCurrentIndex >= jumpSections.length - 1;
+  }
+  // Scrolls so the target section's sticky header lands right below the
+  // topbar — plain scrollIntoView would align it to the very top of the
+  // viewport, tucking it behind the topbar instead.
+  function jumpTo(index) {
+    setJumpIndex(index);
+    const el = jumpSections[jumpCurrentIndex];
+    if (!el) return;
+    const offset = $(".topbar").getBoundingClientRect().height;
+    const top = el.getBoundingClientRect().top + window.scrollY - offset;
+    window.scrollTo({ top, behavior: "smooth" });
   }
 
   // Plain string → the old faint one-liner (used for "nothing matches your
@@ -989,6 +1062,9 @@
     const setTopbarH = () => document.documentElement.style.setProperty("--topbar-h", topbar.getBoundingClientRect().height + "px");
     new ResizeObserver(setTopbarH).observe(topbar);
     setTopbarH();
+
+    $("#jumpPrevBtn").onclick = () => jumpTo(jumpCurrentIndex - 1);
+    $("#jumpNextBtn").onclick = () => jumpTo(jumpCurrentIndex + 1);
 
     // Bulk-select drag-paint: while dragPaint is set (started by a
     // checkbox's pointerdown), moving over other checkboxes paints them to
