@@ -1,5 +1,20 @@
 todo:
 
+- Timeline/Backlog render everything at once (Journal.renderTimeline in
+  journal.js, Backlog.renderBacklog in backlog.js) — fine for a normal-size
+  collection, but a tab with lots of entries means building every year's
+  (or every category's) DOM up front on every render() call, even for
+  years/categories nowhere near the current scroll position. Load/render
+  incrementally instead — year by year for Timeline, category by category
+  for Backlog — e.g. render just the first section (or the one matching
+  the current jump-nav position) plus a bit of lookahead, and lazily
+  build/insert the rest as the user scrolls near them (IntersectionObserver
+  on a placeholder, or hooked into the existing jump-nav prev/next). Needs
+  to keep working with: the sticky year/category headers (.year-head /
+  .backlog-section-head), the mobile jump-nav's section list (jumpSections
+  in app.js, built via querySelectorAll over the rendered headers — would
+  need to account for sections not yet in the DOM), and in-place edits
+  (adding/editing an entry currently re-renders the whole view).
 - clean up Settings → Media naming: the proxy URL field (`#steamProxyUrl`,
   stored at `settings.steam.proxyUrl`) lives inside the "Steam Wishlist
   import" section and is named/labeled as Steam-only, but it's actually
