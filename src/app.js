@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.78.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.79.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -337,6 +337,7 @@
       document.querySelectorAll(".tab").forEach((t) => {
         t.classList.toggle("active", t.dataset.view === state.view);
       });
+      updateTabUnderline();
       const c = $("#content");
       c.innerHTML = "";
       fadeInOnViewChange(c);
@@ -417,6 +418,28 @@
     $("#jumpLabel").textContent = el ? jumpLabelFor(el) : "";
     $("#jumpPrevBtn").disabled = jumpCurrentIndex <= 0;
     $("#jumpNextBtn").disabled = jumpCurrentIndex >= jumpSections.length - 1;
+    updateJumpUnderline();
+  }
+  // Sliding accent-colored indicators under the active tab and the
+  // jump-nav's current label — both animate to their new position/width
+  // (see the CSS transitions on .tab-underline/.jump-underline) whenever
+  // the active tab or section changes, whether by tap or by swipe, so the
+  // motion itself reads as confirmation something moved.
+  function updateTabUnderline() {
+    const underline = $("#tabUnderline");
+    const active = document.querySelector("#viewTabs .tab.active");
+    if (!underline || !active) return;
+    underline.style.left = active.offsetLeft + "px";
+    underline.style.width = active.offsetWidth + "px";
+    underline.hidden = false;
+  }
+  function updateJumpUnderline() {
+    const underline = $("#jumpUnderline");
+    const label = $("#jumpLabel");
+    if (!underline || !label || !label.textContent) { if (underline) underline.hidden = true; return; }
+    underline.style.left = label.offsetLeft + "px";
+    underline.style.width = label.offsetWidth + "px";
+    underline.hidden = false;
   }
   // Scrolls so the target section's sticky header lands right below the
   // topbar — plain scrollIntoView would align it to the very top of the

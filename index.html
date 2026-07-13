@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.78.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.79.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -66,6 +66,7 @@
         <span class="tab-group-label">Finance</span>
         <button class="tab" data-view="finance" data-icon="₪">Ledger</button>
         <button class="tab" data-view="finance-stats" data-icon="◑">Summary</button>
+        <span class="tab-underline" id="tabUnderline" hidden></span>
       </nav>
       <!-- Mobile-only quick-jump row: prev/next between the sticky year/category
            headers a long Timeline/Ledger/Backlog scroll would otherwise bury.
@@ -76,6 +77,7 @@
         <button type="button" class="jump-btn" id="jumpPrevBtn" aria-label="Previous">◀</button>
         <span class="jump-label" id="jumpLabel"></span>
         <button type="button" class="jump-btn" id="jumpNextBtn" aria-label="Next">▶</button>
+        <span class="jump-underline" id="jumpUnderline" hidden></span>
       </div>
     </div>
 
@@ -846,16 +848,16 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.78.1"></script>
-  <script src="src/media.js?v=0.78.1"></script>
-  <script src="src/merge.js?v=0.78.1"></script>
-  <script src="src/storage.js?v=0.78.1"></script>
-  <script src="src/finance.js?v=0.78.1"></script>
-  <script src="src/settings.js?v=0.78.1"></script>
-  <script src="src/backlog.js?v=0.78.1"></script>
-  <script src="src/journal.js?v=0.78.1"></script>
-  <script src="src/io.js?v=0.78.1"></script>
-  <script src="src/sync.js?v=0.78.1"></script>
-  <script src="src/app.js?v=0.78.1"></script>
+  <script src="src/qr.js?v=0.79.0"></script>
+  <script src="src/media.js?v=0.79.0"></script>
+  <script src="src/merge.js?v=0.79.0"></script>
+  <script src="src/storage.js?v=0.79.0"></script>
+  <script src="src/finance.js?v=0.79.0"></script>
+  <script src="src/settings.js?v=0.79.0"></script>
+  <script src="src/backlog.js?v=0.79.0"></script>
+  <script src="src/journal.js?v=0.79.0"></script>
+  <script src="src/io.js?v=0.79.0"></script>
+  <script src="src/sync.js?v=0.79.0"></script>
+  <script src="src/app.js?v=0.79.0"></script>
 </body>
 </html>

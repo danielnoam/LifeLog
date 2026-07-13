@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.79.0] - 2026-07-13
+
+### Added
+- A sliding accent-colored underline under the active tab, and another
+  under the jump-nav's current year/category label, so switching by swipe
+  reads as motion instead of an instant, silent change.
+
+### Fixed
+- On mobile, the jump-nav row and the tab bar had no visible separator
+  between them, and the jump-nav briefly rendered above the tabs instead
+  of below (a desktop-only flex `order` rule was leaking into the mobile
+  layout). The jump-nav row now consistently sits above the tab row with
+  a clear divider between them.
+
 ## [0.78.1] - 2026-07-13
 
 ### Fixed

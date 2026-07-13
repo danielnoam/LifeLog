@@ -792,7 +792,13 @@ body.modal-open { overflow: hidden; }
     box-shadow: 0 -2px 10px var(--nav-shadow);
   }
   html:not(.force-pc) .view-current { display: none; }
-  html:not(.force-pc) .views { flex: 1; display: flex; align-items: stretch; }
+  /* .views carries order:2 from its desktop role (positioning it among
+     .brand/.search/#settingsBtn in the top header) — irrelevant here, but
+     since #topbar-bottom is now itself a flex column, that leaks into
+     this layout too. Pin both explicitly instead of relying on it: the
+     jump-nav row sits above the tabs (order:0), tabs stay the bottom-most
+     row, closest to the screen edge (order:1). */
+  html:not(.force-pc) .views { flex: 1; display: flex; align-items: stretch; order: 1; }
   html:not(.force-pc) .tab {
     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
     padding: 12px 2px 11px; font-size: 10px; color: var(--text-faint);
@@ -816,6 +822,19 @@ body.modal-open { overflow: hidden; }
   html:not(.force-pc) .tab-group-label:not(:first-of-type) { order: 4; }
   html:not(.force-pc) .tab[data-view="finance"] { order: 5; }
   html:not(.force-pc) .tab[data-view="finance-stats"] { order: 6; }
+  html:not(.force-pc) .views { position: relative; }
+  /* Slides under whichever tab is active — tapping a tab or swiping the
+     bar both animate it there, so a swipe reads as "the indicator moved
+     to the next tab" rather than the view just silently changing behind
+     it. Position/width are set from JS (updateTabUnderline in app.js),
+     which measures the active tab's actual rendered box; being absolutely
+     positioned takes it out of the flex layout entirely, so it can't
+     affect the tabs' own spacing. */
+  html:not(.force-pc) .tab-underline {
+    position: absolute; bottom: 0; height: 2px; border-radius: 2px 2px 0 0;
+    background: var(--accent); pointer-events: none;
+    transition: left var(--dur) var(--ease), width var(--dur) var(--ease);
+  }
 
   /* Second bottom-bar row — prev/next between the sticky year/category
      headers on Timeline/Ledger/Backlog, since a long list there otherwise
@@ -831,16 +850,25 @@ body.modal-open { overflow: hidden; }
   html:not(.force-pc) .jump-nav {
     display: flex; align-items: center; justify-content: center; gap: 16px;
     height: 0; overflow: hidden; transition: height .18s ease;
-    touch-action: pan-y;
+    touch-action: pan-y; order: 0; position: relative;
   }
-  html:not(.force-pc) .jump-nav.is-active { height: 34px; border-top: 1px solid var(--border); }
+  html:not(.force-pc) .jump-nav.is-active { height: 34px; border-bottom: 1px solid var(--border); }
   html:not(.force-pc) .jump-btn {
     background: transparent; border: none; color: var(--text-dim);
     font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
   }
   html:not(.force-pc) .jump-btn:hover:not(:disabled) { background: var(--bg-elev-2); color: var(--text); }
   html:not(.force-pc) .jump-btn:disabled { color: var(--text-faint); opacity: .4; cursor: default; }
-  html:not(.force-pc) .jump-label { font-size: 12.5px; font-weight: 600; color: var(--text-dim); min-width: 70px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  html:not(.force-pc) .jump-label { font-size: 12.5px; font-weight: 600; color: var(--text-dim); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* Same sliding-indicator idea as .tab-underline, tracking the label's
+     own width/position instead of a tab — width changes along with the
+     text (e.g. "2026" vs "Movies"), so a jump reads as motion even
+     though there's only ever one label on screen. */
+  html:not(.force-pc) .jump-underline {
+    position: absolute; bottom: 8px; height: 2px; border-radius: 2px;
+    background: var(--accent); pointer-events: none;
+    transition: left var(--dur) var(--ease), width var(--dur) var(--ease);
+  }
 
   html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) - 6px); }
   html:not(.force-pc) .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: var(--bottombar-h, 88px); }
@@ -877,7 +905,9 @@ html.force-mobile .topbar-bottom {
   box-shadow: 0 -2px 10px var(--nav-shadow);
 }
 html.force-mobile .view-current { display: none; }
-html.force-mobile .views { flex: 1; display: flex; align-items: stretch; }
+/* See the matching comment in the @media block above — the jump-nav row
+   sits above the tabs (order:0), tabs stay bottom-most (order:1). */
+html.force-mobile .views { flex: 1; display: flex; align-items: stretch; order: 1; }
 html.force-mobile .tab {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
   padding: 12px 2px 11px; font-size: 10px; color: var(--text-faint);
@@ -897,20 +927,31 @@ html.force-mobile .tab[data-view="backlog"] { order: 3; }
 html.force-mobile .tab-group-label:not(:first-of-type) { order: 4; }
 html.force-mobile .tab[data-view="finance"] { order: 5; }
 html.force-mobile .tab[data-view="finance-stats"] { order: 6; }
+html.force-mobile .views { position: relative; }
+html.force-mobile .tab-underline {
+  position: absolute; bottom: 0; height: 2px; border-radius: 2px 2px 0 0;
+  background: var(--accent); pointer-events: none;
+  transition: left var(--dur) var(--ease), width var(--dur) var(--ease);
+}
 
 html.force-mobile .jump-nav {
   display: flex; align-items: center; justify-content: center; gap: 16px;
   height: 0; overflow: hidden; transition: height .18s ease;
-  touch-action: pan-y;
+  touch-action: pan-y; order: 0; position: relative;
 }
-html.force-mobile .jump-nav.is-active { height: 34px; border-top: 1px solid var(--border); }
+html.force-mobile .jump-nav.is-active { height: 34px; border-bottom: 1px solid var(--border); }
 html.force-mobile .jump-btn {
   background: transparent; border: none; color: var(--text-dim);
   font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
 }
 html.force-mobile .jump-btn:hover:not(:disabled) { background: var(--bg-elev-2); color: var(--text); }
 html.force-mobile .jump-btn:disabled { color: var(--text-faint); opacity: .4; cursor: default; }
-html.force-mobile .jump-label { font-size: 12.5px; font-weight: 600; color: var(--text-dim); min-width: 70px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.force-mobile .jump-label { font-size: 12.5px; font-weight: 600; color: var(--text-dim); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.force-mobile .jump-underline {
+  position: absolute; bottom: 8px; height: 2px; border-radius: 2px;
+  background: var(--accent); pointer-events: none;
+  transition: left var(--dur) var(--ease), width var(--dur) var(--ease);
+}
 
 html.force-mobile .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) - 6px); }
 html.force-mobile .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: var(--bottombar-h, 88px); }
