@@ -181,7 +181,13 @@ html, body {
   padding: 7px 14px; border-radius: 8px; cursor: pointer; font-size: 13.5px;
   font-weight: 550; transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
-.tab:hover { background: var(--bg-elev-2); color: var(--text); }
+/* (hover: hover) keeps this off touchscreens — without it, tapping a tab
+   on mobile could leave its hover background "stuck" showing (a known
+   mobile Safari/Chrome quirk: touch doesn't fire the leave event a mouse
+   would), leaving a highlighted box on a tab you'd already left. */
+@media (hover: hover) {
+  .tab:hover { background: var(--bg-elev-2); color: var(--text); }
+}
 .tab.active { background: var(--accent); color: var(--text-on-accent); }
 
 /* "Journal" / "Finance" group headers inside .views — labels, not buttons.
@@ -864,7 +870,9 @@ body.modal-open { overflow: hidden; }
     font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
     flex: 0 0 auto; z-index: 1; -webkit-tap-highlight-color: transparent;
   }
-  html:not(.force-pc) .jump-btn:hover:not(:disabled) { background: var(--bg-elev-2); color: var(--text); }
+  @media (hover: hover) {
+    html:not(.force-pc) .jump-btn:hover:not(:disabled) { background: var(--bg-elev-2); color: var(--text); }
+  }
   html:not(.force-pc) .jump-btn:disabled { color: var(--text-faint); opacity: .4; cursor: default; }
   /* Always shows 3 slots — the current section centered between its
      neighbors — so a swipe reads as content sliding past rather than a
@@ -966,7 +974,9 @@ html.force-mobile .jump-btn {
   font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
   flex: 0 0 auto; z-index: 1; -webkit-tap-highlight-color: transparent;
 }
-html.force-mobile .jump-btn:hover:not(:disabled) { background: var(--bg-elev-2); color: var(--text); }
+@media (hover: hover) {
+  html.force-mobile .jump-btn:hover:not(:disabled) { background: var(--bg-elev-2); color: var(--text); }
+}
 html.force-mobile .jump-btn:disabled { color: var(--text-faint); opacity: .4; cursor: default; }
 html.force-mobile .jump-carousel { flex: 1; overflow: hidden; position: relative; height: 100%; }
 html.force-mobile .jump-track { display: flex; height: 100%; transition: transform var(--dur) var(--ease); }

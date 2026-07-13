@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.80.2] - 2026-07-13
+
+### Fixed
+- Tapping the jump-nav's ◀/▶ or a carousel neighbor while it was already
+  mid-slide could get dropped, feel delayed, or (on a deep swipe) leave
+  it permanently stuck and unresponsive. Presses now queue up correctly
+  and always land, and a swipe that drags all the way to its target no
+  longer wedges the carousel.
+- On mobile, tapping a tab could leave a stray highlighted box stuck on
+  it — a known mobile-browser quirk where a `:hover` style meant for a
+  mouse gets "stuck" after a touch, since touch never fires the leave
+  event that would normally clear it.
+
 ## [0.80.1] - 2026-07-13
 
 ### Added

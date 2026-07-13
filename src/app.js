@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.80.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.80.2"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -228,7 +228,10 @@
   // would otherwise re-measure a scroll animation that hasn't caught up
   // yet and appear to do nothing.
   let jumpSections = [];
-  let jumpCurrentIndex = 0;
+  let jumpCurrentIndex = 0; // last settled index — matches what's rendered whenever nothing is animating
+  let jumpTargetIndex = 0; // where a tap/swipe has committed to head, even mid-animation — equals jumpCurrentIndex when idle
+  let jumpBusy = false; // true while the track is actively transitioning (a step or a drag settling)
+  let jumpQueuedDelta = null; // one pending ±1 step to run the instant the current animation finishes
   // Replays the view-fade-in animation on `root` only when the active view
   // actually changed (not on every in-view re-render, e.g. after an edit).
   function fadeInOnViewChange(root) {
@@ -412,10 +415,23 @@
     }
     return idx;
   }
+  // Driven by jumpTargetIndex, not jumpCurrentIndex — jumpTargetIndex
+  // updates the instant a tap/swipe commits (see jumpTo), while
+  // jumpCurrentIndex only catches up once its animation finishes. Gating
+  // on the latter left ◀/▶ briefly, wrongly disabled right after a tap
+  // moved off a boundary — e.g. tapping ▶ from the very first section
+  // should immediately allow ◀ again, not ~180ms later once the slide
+  // visually lands.
+  function updateJumpButtons() {
+    $("#jumpPrevBtn").disabled = jumpTargetIndex <= 0;
+    $("#jumpNextBtn").disabled = jumpTargetIndex >= jumpSections.length - 1;
+  }
   function setJumpIndex(index) {
     jumpCurrentIndex = Math.max(0, Math.min(jumpSections.length - 1, index));
-    $("#jumpPrevBtn").disabled = jumpCurrentIndex <= 0;
-    $("#jumpNextBtn").disabled = jumpCurrentIndex >= jumpSections.length - 1;
+    jumpTargetIndex = jumpCurrentIndex;
+    jumpBusy = false;
+    jumpQueuedDelta = null;
+    updateJumpButtons();
     renderJumpCarousel();
   }
   // Sliding accent-colored indicator under the active tab, tracking its
@@ -520,12 +536,18 @@
   // jumpCurrentIndex + delta. Shared by ◀/▶ taps and a completed swipe
   // (see jumpDragSettle) — a tap just skips straight to the animated slide
   // instead of following a finger there first.
+  //
+  // Assumes the caller (jumpRequestStep) has already confirmed nothing
+  // else is animating — jumpBusy guards the whole thing, since starting a
+  // second slide while the track still has the previous one's extra slot
+  // and in-flight transform would corrupt both (this is what caused taps
+  // during an animation to sometimes appear to do nothing, or land on the
+  // wrong section, before this guard existed).
   function jumpAnimateStep(delta) {
-    if (delta > 0 && jumpCurrentIndex >= jumpSections.length - 1) return;
-    if (delta < 0 && jumpCurrentIndex <= 0) return;
     const track = $("#jumpTrack");
     const carousel = $("#jumpCarousel");
-    if (!track || !carousel) return;
+    if (!track || !carousel) { jumpCurrentIndex += delta; jumpTargetIndex = jumpCurrentIndex; return; }
+    jumpBusy = true;
     const slotWidth = carousel.clientWidth / 3;
     track.style.transition = "none";
     if (delta > 0) {
@@ -541,44 +563,77 @@
     const finish = () => {
       track.removeEventListener("transitionend", finish);
       jumpCurrentIndex += delta;
-      $("#jumpPrevBtn").disabled = jumpCurrentIndex <= 0;
-      $("#jumpNextBtn").disabled = jumpCurrentIndex >= jumpSections.length - 1;
       renderJumpCarousel();
+      jumpBusy = false;
+      jumpDrainQueue();
     };
     track.addEventListener("transitionend", finish);
   }
-  function jumpTo(index) {
-    const delta = Math.sign(Math.max(0, Math.min(jumpSections.length - 1, index)) - jumpCurrentIndex);
-    if (delta === 0) return;
+  // Runs the next queued step, if any, once the track is free. Called from
+  // both animation-finish paths (a completed tap-step and a completed
+  // drag-settle) so either kind of animation can hand off to a queued tap.
+  function jumpDrainQueue() {
+    if (!jumpQueuedDelta) return;
+    const next = Math.sign(jumpQueuedDelta);
+    jumpQueuedDelta -= next;
+    if (jumpQueuedDelta === 0) jumpQueuedDelta = null;
+    jumpAnimateStep(next);
+  }
+  // Entry point for a single programmatic step (◀/▶ tap or a carousel-item
+  // tap) — queues instead of firing immediately if the track is already
+  // mid-animation, so a fast run of taps all eventually land instead of
+  // later ones overwriting/dropping earlier ones (or, worse, corrupting
+  // the in-flight animation by touching the track at the same time — see
+  // jumpAnimateStep). Queued amounts accumulate (jumpQueuedDelta is a
+  // running total, not just the latest tap) and are drained one slot-step
+  // at a time as each animation finishes, so opposite-direction taps
+  // (next then prev) net out instead of both being honored as separate
+  // overshoot-then-correct steps.
+  function jumpRequestStep(delta) {
+    if (jumpBusy) { jumpQueuedDelta = (jumpQueuedDelta || 0) + delta; return; }
     jumpAnimateStep(delta);
-    jumpScrollTo(jumpCurrentIndex + delta);
+  }
+  function jumpTo(index) {
+    const clamped = Math.max(0, Math.min(jumpSections.length - 1, index));
+    const delta = Math.sign(clamped - jumpTargetIndex);
+    if (delta === 0) return;
+    jumpTargetIndex += delta;
+    updateJumpButtons();
+    jumpScrollTo(jumpTargetIndex);
+    jumpRequestStep(delta);
   }
   // Live drag-follow for the carousel, mirroring the tab underline's
   // tabDragMove/onSettle pattern but sliding actual content instead of
   // an indicator. jumpDrag caches which direction the DOM was prepared
   // for (see jumpAnimateStep) so later moves in the same gesture keep
-  // offsetting from that fixed baseline rather than re-deriving it.
+  // offsetting from that fixed baseline rather than re-deriving it. A
+  // drag can't begin while jumpBusy (a tap-triggered step, or a previous
+  // drag's settle, is still animating) — the next pointermove after that
+  // clears will pick it up cleanly instead of racing the in-flight one.
   let jumpDrag = null;
   function jumpDragMove(dx) {
     const track = $("#jumpTrack");
     const carousel = $("#jumpCarousel");
     if (!track || !carousel) return;
     if (!jumpDrag) {
+      if (jumpBusy) return;
       const delta = dx < 0 ? 1 : -1;
       if (delta > 0 && jumpCurrentIndex >= jumpSections.length - 1) return;
       if (delta < 0 && jumpCurrentIndex <= 0) return;
       const slotWidth = carousel.clientWidth / 3;
+      jumpBusy = true;
       track.style.transition = "none";
       if (delta > 0) {
         track.appendChild(jumpItemEl(jumpCurrentIndex + 2, false));
-        jumpDrag = { delta, slotWidth, baseline: 0 };
+        jumpDrag = { delta, slotWidth, baseline: 0, current: 0 };
       } else {
         track.insertBefore(jumpItemEl(jumpCurrentIndex - 2, false), track.firstChild);
-        jumpDrag = { delta, slotWidth, baseline: -slotWidth };
+        jumpDrag = { delta, slotWidth, baseline: -slotWidth, current: -slotWidth };
       }
       track.style.transform = "translateX(" + jumpDrag.baseline + "px)";
     }
     const clamped = Math.max(-jumpDrag.slotWidth, Math.min(0, jumpDrag.baseline + dx));
+    jumpDrag.current = clamped;
     track.style.transform = "translateX(" + clamped + "px)";
   }
   // committed: whether the swipe crossed the threshold in the direction
@@ -591,20 +646,33 @@
     const drag = jumpDrag;
     if (!track || !drag) { jumpDrag = null; return; }
     const target = committed ? (drag.delta > 0 ? -drag.slotWidth : 0) : drag.baseline;
-    track.style.transition = "";
-    track.style.transform = "translateX(" + target + "px)";
     const finish = () => {
       track.removeEventListener("transitionend", finish);
       if (committed) {
         jumpCurrentIndex += drag.delta;
-        $("#jumpPrevBtn").disabled = jumpCurrentIndex <= 0;
-        $("#jumpNextBtn").disabled = jumpCurrentIndex >= jumpSections.length - 1;
+        // Drags bypass jumpTo (the only other place jumpTargetIndex moves),
+        // so it needs an explicit resync here — folding in any delta a
+        // concurrent tap queued mid-drag rather than just overwriting it,
+        // in case a second finger tapped ◀/▶ while this one was dragging.
+        jumpTargetIndex = jumpCurrentIndex + (jumpQueuedDelta || 0);
+        updateJumpButtons();
         jumpScrollTo(jumpCurrentIndex);
       }
       renderJumpCarousel();
       jumpDrag = null;
+      jumpBusy = false;
+      jumpDrainQueue();
     };
-    track.addEventListener("transitionend", finish);
+    track.style.transition = "";
+    track.style.transform = "translateX(" + target + "px)";
+    // A deep enough drag can already be sitting exactly at the target by
+    // release time (the live drag clamps at the same boundary this
+    // settles to) — re-setting an unchanged transform fires no
+    // transitionend, so without this, finish() would never run: jumpBusy
+    // stays wedged true and the extra slot never gets cleaned out of the
+    // track, silently breaking every jump-nav interaction after it.
+    if (drag.current === target) finish();
+    else track.addEventListener("transitionend", finish);
   }
 
   // Mirrors the CSS mobile-detection rules (html:not(.force-pc) under the
@@ -1335,8 +1403,13 @@
     new ResizeObserver(setBottomBarH).observe(bottomBar);
     setBottomBarH();
 
-    $("#jumpPrevBtn").onclick = () => jumpTo(jumpCurrentIndex - 1);
-    $("#jumpNextBtn").onclick = () => jumpTo(jumpCurrentIndex + 1);
+    // ◀/▶ and item taps all target jumpTargetIndex, not jumpCurrentIndex —
+    // mid-animation those differ (target is where a queued step is
+    // headed; current is where the track visually still is), and going
+    // off target is what makes a fast second tap land correctly instead
+    // of being measured against a not-yet-settled position.
+    $("#jumpPrevBtn").onclick = () => jumpTo(jumpTargetIndex - 1);
+    $("#jumpNextBtn").onclick = () => jumpTo(jumpTargetIndex + 1);
     // Tapping either dimmed neighbor slot jumps straight to it, same as
     // ◀/▶ — delegated on the track since its slots are rebuilt on every
     // render (renderJumpCarousel/jumpAnimateStep/jumpDragSettle all
@@ -1344,15 +1417,19 @@
     // slot is a no-op. jumpDrag being set means a real swipe is/was in
     // progress on this same pointer sequence, not a plain tap — several
     // touch browsers still fire a trailing click after a drag despite the
-    // movement, so this skips acting on that synthetic one too.
+    // movement, so this skips acting on that synthetic one too. jumpBusy
+    // means the track doesn't currently hold the plain 3-slot layout this
+    // handler's slot-index math assumes (a 4th slot is in there mid-
+    // animation), so a tap during that window is ignored rather than
+    // acted on against the wrong slot.
     $("#jumpTrack").addEventListener("click", (e) => {
-      if (jumpDrag) return;
+      if (jumpDrag || jumpBusy) return;
       const item = e.target.closest(".jump-item");
       if (!item || item.classList.contains("is-active")) return;
       const items = [...$("#jumpTrack").children];
       const slot = items.indexOf(item); // 0 = prev, 1 = current, 2 = next in the resting 3-slot state
-      if (slot === 0) jumpTo(jumpCurrentIndex - 1);
-      else if (slot === 2) jumpTo(jumpCurrentIndex + 1);
+      if (slot === 0) jumpTo(jumpTargetIndex - 1);
+      else if (slot === 2) jumpTo(jumpTargetIndex + 1);
     });
     attachSwipe($("#jumpNav"), {
       // A drag's committed direction is decided by jumpDragMove from the
