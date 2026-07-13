@@ -43,9 +43,14 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.77.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.78.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
+
+  // Left-to-right order of the mobile bottom tab bar (see the `order:`
+  // values on .tab in styles.css) — used for swipe-to-switch, so a swipe
+  // moves to the visually adjacent tab, not just the next one in DOM order.
+  const VIEW_ORDER = ["stats", "timeline", "backlog", "finance", "finance-stats"];
 
   function loadVisualSettings() {
     try {
@@ -241,6 +246,20 @@
     root.addEventListener("animationend", () => root.classList.remove("view-fade-in"), { once: true });
   }
 
+  // Shared by the tab click handler and the mobile tab-bar swipe gesture.
+  // Silently ignores an invalid/out-of-range view (e.g. swiping past the
+  // first or last tab) instead of switching to nothing.
+  function switchToView(view) {
+    if (!view || !VIEW_ORDER.includes(view)) return;
+    state.view = view;
+    state.bulk.active = false;
+    state.bulk.selected.clear();
+    buildYearFilter();
+    buildCatFilter();
+    render();
+    saveUiState();
+  }
+
   function rebuildColorMap() {
     catColor = {};
     for (const c of state.data.categories) catColor[c.name] = c.color;
@@ -409,6 +428,48 @@
     const offset = $(".topbar").getBoundingClientRect().height;
     const top = el.getBoundingClientRect().top + window.scrollY - offset;
     window.scrollTo({ top, behavior: "smooth" });
+  }
+
+  // Mirrors the CSS mobile-detection rules (html:not(.force-pc) under the
+  // 720px breakpoint, or html.force-mobile unconditionally) — swiping to
+  // navigate isn't a desktop mouse convention, so the gesture handlers
+  // below only engage in the same layout the bottom bar itself appears in.
+  function isMobileLayout() {
+    const root = document.documentElement;
+    if (root.classList.contains("force-mobile")) return true;
+    if (root.classList.contains("force-pc")) return false;
+    return window.innerWidth <= 720;
+  }
+  // Horizontal swipe-to-navigate for a fixed (non-scrolling) bar — pointer
+  // events cover touch and mouse alike. A swipe naturally ends with the
+  // finger over a different child than it started on (e.g. sliding onto
+  // the jump-nav's own ◀/▶, or onto a neighboring tab), and pointerup
+  // fires on whatever's actually underneath at release — not on `el` —
+  // so without capture the gesture's end would be silently missed.
+  // setPointerCapture redirects it back to `el` once real drag movement
+  // is seen; a plain tap never crosses that threshold, so button clicks
+  // are untouched. Vertical drift disqualifies a swipe too, so an
+  // accidental diagonal touch doesn't fire either side.
+  function attachSwipe(el, { onLeft, onRight, threshold = 40 }) {
+    let startX = null, startY = null, captured = false;
+    el.addEventListener("pointerdown", (e) => {
+      if (!isMobileLayout()) return;
+      startX = e.clientX; startY = e.clientY; captured = false;
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (startX == null || captured) return;
+      if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) {
+        el.setPointerCapture(e.pointerId);
+        captured = true;
+      }
+    });
+    el.addEventListener("pointerup", (e) => {
+      if (startX == null) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      startX = null;
+      if (Math.abs(dx) < threshold || Math.abs(dx) < Math.abs(dy)) return;
+      (dx < 0 ? onLeft : onRight)();
+    });
   }
 
   // Plain string → the old faint one-liner (used for "nothing matches your
@@ -1063,8 +1124,25 @@
     new ResizeObserver(setTopbarH).observe(topbar);
     setTopbarH();
 
+    // Same idea for the mobile bottom bar — its height changes as the
+    // jump-nav row (see updateJumpNav) animates open/closed, and .content's
+    // bottom padding / the FAB / toast / bulk-bar all anchor off it so none
+    // of them pop when that happens.
+    const bottomBar = $("#topbarBottom");
+    const setBottomBarH = () => document.documentElement.style.setProperty("--bottombar-h", bottomBar.getBoundingClientRect().height + "px");
+    new ResizeObserver(setBottomBarH).observe(bottomBar);
+    setBottomBarH();
+
     $("#jumpPrevBtn").onclick = () => jumpTo(jumpCurrentIndex - 1);
     $("#jumpNextBtn").onclick = () => jumpTo(jumpCurrentIndex + 1);
+    attachSwipe($("#jumpNav"), {
+      onLeft: () => jumpTo(jumpCurrentIndex + 1),
+      onRight: () => jumpTo(jumpCurrentIndex - 1),
+    });
+    attachSwipe($("#viewTabs"), {
+      onLeft: () => switchToView(VIEW_ORDER[VIEW_ORDER.indexOf(state.view) + 1]),
+      onRight: () => switchToView(VIEW_ORDER[VIEW_ORDER.indexOf(state.view) - 1]),
+    });
 
     // Bulk-select drag-paint: while dragPaint is set (started by a
     // checkbox's pointerdown), moving over other checkboxes paints them to
@@ -1081,16 +1159,7 @@
     document.addEventListener("pointerup", endDragPaint);
     document.addEventListener("pointercancel", endDragPaint);
     document.querySelectorAll(".tab").forEach((t) =>
-      t.onclick = (e) => {
-        e.stopPropagation();
-        state.view = t.dataset.view;
-        state.bulk.active = false;
-        state.bulk.selected.clear();
-        buildYearFilter();
-        buildCatFilter();
-        render();
-        saveUiState();
-      });
+      t.onclick = (e) => { e.stopPropagation(); switchToView(t.dataset.view); });
     let scrollSaveTimer;
     window.addEventListener("scroll", () => {
       clearTimeout(scrollSaveTimer);

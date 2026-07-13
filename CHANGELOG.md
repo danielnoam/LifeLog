@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.78.0] - 2026-07-13
+
+### Added
+- Swipe left/right to navigate on mobile: on the jump-nav row, swipe to
+  move between years/categories instead of only tapping ◀/▶; on the tab
+  bar itself, swipe to switch views (Timeline ↔ Stats ↔ Backlog ↔ Ledger
+  ↔ Summary), stopping at the first/last tab rather than wrapping around.
+
+### Changed
+- The mobile jump-nav row now genuinely collapses (with a short, ~180ms
+  transition) on tabs that don't use it — Stats and Summary — instead of
+  always reserving its space; the bottom bar, the FAB, toast, and
+  bulk-edit bar all shrink back to their original height there rather than
+  staying padded for a row that isn't shown. Added a thin separator line
+  between the tab row and the jump-nav row while it's open.
+
 ## [0.77.0] - 2026-07-13
 
 ### Added
