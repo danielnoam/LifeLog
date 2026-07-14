@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.81.3] - 2026-07-14
+
+### Changed
+- Backlog items within each group (prioritized, regular, upcoming/unreleased,
+  dropped) now sort alphabetically by title instead of by when they were
+  added.
+
 ## [0.81.2] - 2026-07-14
 
 ### Fixed

@@ -263,7 +263,7 @@
               const aUp = isUnreleased(a), bUp = isUnreleased(b);
               if (aUp !== bUp) return aUp ? 1 : -1;
             }
-            return (b.priority || 0) - (a.priority || 0);
+            return (b.priority || 0) - (a.priority || 0) || a.title.localeCompare(b.title);
           });
           let sawActive = false, sepAdded = false, sawPriority = false, prioritySepAdded = false, upcomingSepAdded = false;
           sorted.forEach((b) => {

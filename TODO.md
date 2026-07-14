@@ -19,6 +19,11 @@ todo:
   isn't Steam-specific
 done:
 
+- backlog items within each group (prioritized, regular, upcoming/unreleased,
+  dropped) now sort alphabetically by title within that group instead of by
+  createdAt — the final tiebreaker in renderBacklog's sort comparator
+  (backlog.js) went from an implicit stable-sort fallback on insertion order
+  to an explicit `a.title.localeCompare(b.title)`
 - fixed journal.js's stripMediaSearchSuffix leaving a dangling colon behind
   for a title written as "Foo: Book 3" (stripped to "Foo:" instead of
   "Foo") — the separator-char group only matched a "-"/":" that came after
