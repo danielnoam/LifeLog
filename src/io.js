@@ -435,5 +435,7 @@
     exportJson, exportJournalJson, exportJournalCsv,
     importJsonAll, importJournalJson, importJournalCsv,
     buildImportItems, reviewAndImport, openImportPicker,
+    // pure helpers (exported for test/io.test.js)
+    importItemDateStr, importBucketKey,
   };
 })();

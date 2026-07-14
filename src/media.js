@@ -484,5 +484,8 @@
     },
     getLastError: () => lastError,
     steamCoverUrl,
+    // pure helpers (exported for test/media.test.js)
+    normGenres,
+    stripHtml,
   };
 })();

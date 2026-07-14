@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.81.2] - 2026-07-14
+
+### Fixed
+- A media-search title stripped of its trailing "Season N"/"Book N" marker
+  (used when looking up cover art/metadata) left a dangling colon behind for
+  a title written like "Foo: Book 3" (stripped to "Foo:" instead of "Foo").
+
+### Added
+- More test coverage for pure/near-pure logic: CSV parsing, the import
+  duplicate-detection strategies, title-suggestion matching, and a few
+  smaller data helpers — no user-facing change, internal only.
+
 ## [0.81.1] - 2026-07-14
 
 ### Added

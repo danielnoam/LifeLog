@@ -1053,6 +1053,9 @@
     nextRecurringDate,
     addMonthsClamped,
     localDateStr,
+    closestOccurrenceDate,
+    parseMoneyCell,
+    monthSortAsc,
     // shared lookups/formatting (used by the shared import picker rows)
     rebuildFinanceColorMap,
     financeColorOf,

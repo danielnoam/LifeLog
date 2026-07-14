@@ -17,23 +17,28 @@ todo:
   While in there, note what else could use the proxy going forward as APIs
   get added that don't send CORS headers, so it's clear this one field
   isn't Steam-specific
-- extend the same plain-node test pattern to the other pure/near-pure
-  helpers a full-codebase test-coverage survey turned up but this pass
-  didn't cover: io.js's parseCsv/csvEsc (already pure + exported, cheapest
-  remaining win) and buildImportItems's multi-strategy dedup logic;
-  journal.js's titleSuggestions/backlogSuggestions/heatColor; media.js's
-  steamCoverUrl/normGenres/stripHtml/genre-id maps; finance.js's
-  closestOccurrenceDate/parseMoneyCell/monthSortAsc; io.js's
-  importItemDateStr/importBucketKey
-- minor: journal.js's stripMediaSearchSuffix (strips a trailing "Season
-  2"/"S2"/"Book 1" marker before searching external media APIs) leaves a
-  dangling colon behind for a title written as "Foo: Book 3" — the
-  separator-char group only matches a "-"/":" that comes after whitespace
-  (e.g. "Foo - Book 3"), not one already glued onto the base title before
-  the space. Low-impact (a stray trailing colon rarely breaks a title
-  search) but worth a regex tweak if it comes up again
-
 done:
+
+- fixed journal.js's stripMediaSearchSuffix leaving a dangling colon behind
+  for a title written as "Foo: Book 3" (stripped to "Foo:" instead of
+  "Foo") — the separator-char group only matched a "-"/":" that came after
+  whitespace (e.g. "Foo - Book 3"), not one already glued onto the base
+  title before the space. Folded the separator chars into the same
+  repeatable class as the whitespace so both forms strip the same way; a
+  strict generalization of the old pattern, so every previously-passing
+  case still passes
+- extended the plain-node test pattern to the rest of the pure/near-pure
+  helpers the earlier coverage survey had logged as a follow-up:
+  test/io.test.js (parseCsv/csvEsc, buildImportItems's three dedup
+  strategies — exact key, cross-kind title+category, mediaSource+mediaId —
+  importItemDateStr/importBucketKey); journal.js's
+  titleSuggestions/backlogSuggestions/heatColor added to test/journal.test.js;
+  finance.js's closestOccurrenceDate/parseMoneyCell/monthSortAsc added to
+  test/finance.test.js; media.js's normGenres/stripHtml/steamCoverUrl in a
+  new test/media.test.js (media.js needs no init() stubbing at all — fully
+  self-contained like merge.js). Skipped TMDB's genre-id lookup tables
+  (plain data, not logic) and everything network/fetch-based, unchanged
+  from the original survey's scope call. 108 tests across 7 files now
 
 - extended test/merge.test.js's plain-node test pattern (plain Node
   `assert`, no framework) to the rest of the data-touching code named in

@@ -18,6 +18,7 @@ Finance.init({
 const {
   recurringOccurrences, nextRecurringDate, addMonthsClamped, localDateStr,
   sanitizeFinanceEntry, sanitizeRecurring, financeKey, recurringKey, seedFinanceCategories,
+  closestOccurrenceDate, parseMoneyCell, monthSortAsc,
 } = Finance;
 
 let passed = 0;
@@ -188,6 +189,52 @@ test("seedFinanceCategories returns a non-empty, deterministic default list", ()
   const cats = seedFinanceCategories();
   assert.ok(cats.length > 0);
   assert.ok(cats.every((c) => c.id && c.name && c.color));
+});
+
+// ---------- closestOccurrenceDate ----------
+test("closestOccurrenceDate picks the occurrence nearest the target date", () => {
+  const occs = [{ date: "2026-01-01" }, { date: "2026-01-15" }, { date: "2026-02-01" }];
+  assert.strictEqual(closestOccurrenceDate(occs, "2026-01-20"), "2026-01-15");
+});
+
+test("closestOccurrenceDate breaks a tie in favor of the first occurrence encountered", () => {
+  const occs = [{ date: "2026-01-10" }, { date: "2026-01-20" }];
+  assert.strictEqual(closestOccurrenceDate(occs, "2026-01-15"), "2026-01-10"); // both 5 days away
+});
+
+test("closestOccurrenceDate returns null for an empty list", () => {
+  assert.strictEqual(closestOccurrenceDate([], "2026-01-01"), null);
+});
+
+// ---------- parseMoneyCell ----------
+test("parseMoneyCell strips currency symbols and thousands separators", () => {
+  assert.strictEqual(parseMoneyCell("₪1,302.00"), 1302);
+  assert.strictEqual(parseMoneyCell("$42.50"), 42.5);
+});
+
+test("parseMoneyCell returns 0 for empty/garbage input", () => {
+  assert.strictEqual(parseMoneyCell(""), 0);
+  assert.strictEqual(parseMoneyCell(null), 0);
+  assert.strictEqual(parseMoneyCell("abc"), 0);
+});
+
+test("parseMoneyCell's naive character-class strip keeps every '.'/'-' character, not just the first", () => {
+  // Documents current behavior rather than asserting it's ideal — the regex
+  // is `[^0-9.\-]` (strip anything that ISN'T a digit/dot/minus), so a
+  // multi-dot or trailing-minus input parses through parseFloat as-is,
+  // which stops at the first invalid numeric token it hits.
+  assert.strictEqual(parseMoneyCell("1.302.00-"), 1.302);
+});
+
+// ---------- monthSortAsc ----------
+test("monthSortAsc sorts numerically ascending", () => {
+  assert.ok(monthSortAsc(1, 2) < 0);
+  assert.ok(monthSortAsc(3, 2) > 0);
+});
+
+test("monthSortAsc always sorts the pseudo-month 0 ('Yearly' bucket) last", () => {
+  assert.ok(monthSortAsc(0, 12) > 0); // 0 sorts after even December
+  assert.ok(monthSortAsc(1, 0) < 0); // any real month sorts before 0
 });
 
 console.log(`\n${passed} test(s) passed.`);

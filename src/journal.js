@@ -601,8 +601,12 @@
   // append to entry titles to tell apart e.g. individual seasons or books of
   // the same show/series — a media source's search has no idea what to do
   // with that suffix, so it's dropped before searching (the entry's own
-  // title, and what gets saved, are never touched).
-  const MEDIA_SEARCH_SUFFIX_RE = /\s+[-–—:]?\s*(?:season|s|book|b)\s*\.?\s*\d+\s*$/i;
+  // title, and what gets saved, are never touched). The separator chars
+  // share one repeatable class with the whitespace so a separator glued
+  // directly onto the title (e.g. "Foo: Book 3") strips as cleanly as a
+  // spaced one (e.g. "Foo - Book 3") — a version requiring whitespace
+  // strictly before the separator left a dangling colon in the former case.
+  const MEDIA_SEARCH_SUFFIX_RE = /[-–—:\s]+(?:season|s|book|b)\s*\.?\s*\d+\s*$/i;
   function stripMediaSearchSuffix(title) {
     const stripped = title.replace(MEDIA_SEARCH_SUFFIX_RE, "").trim();
     return stripped || title;
@@ -1148,7 +1152,8 @@
     setEntryCover, // app.js's applySteamAppId repaints the entry cover through this
     // data lifecycle (app.js's normalize)
     sanitizeEntry,
-    // pure title-matching helper (exported for test/journal.test.js)
+    // pure helpers (exported for test/journal.test.js)
     stripMediaSearchSuffix,
+    heatColor,
   };
 })();
