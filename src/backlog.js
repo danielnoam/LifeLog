@@ -675,5 +675,7 @@
     setBacklogCover,
     // data lifecycle (app.js's normalize/import infra)
     sanitizeBacklog,
+    // pure release-date check (exported for test/backlog.test.js)
+    isUnreleased,
   };
 })();

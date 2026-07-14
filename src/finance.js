@@ -1048,6 +1048,11 @@
     sanitizeRecurring,
     financeKey,
     recurringKey,
+    // pure date/recurrence math (exported for test/finance.test.js)
+    recurringOccurrences,
+    nextRecurringDate,
+    addMonthsClamped,
+    localDateStr,
     // shared lookups/formatting (used by the shared import picker rows)
     rebuildFinanceColorMap,
     financeColorOf,

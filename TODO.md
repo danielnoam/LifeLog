@@ -17,11 +17,43 @@ todo:
   While in there, note what else could use the proxy going forward as APIs
   get added that don't send CORS headers, so it's clear this one field
   isn't Steam-specific
-- extend test/merge.test.js's plain-node test pattern to the other
-  data-touching code: finance recurringOccurrences (overrides, month
-  clamping, end dates), the sanitizers, and normalize()'s migrations
+- extend the same plain-node test pattern to the other pure/near-pure
+  helpers a full-codebase test-coverage survey turned up but this pass
+  didn't cover: io.js's parseCsv/csvEsc (already pure + exported, cheapest
+  remaining win) and buildImportItems's multi-strategy dedup logic;
+  journal.js's titleSuggestions/backlogSuggestions/heatColor; media.js's
+  steamCoverUrl/normGenres/stripHtml/genre-id maps; finance.js's
+  closestOccurrenceDate/parseMoneyCell/monthSortAsc; io.js's
+  importItemDateStr/importBucketKey
+- minor: journal.js's stripMediaSearchSuffix (strips a trailing "Season
+  2"/"S2"/"Book 1" marker before searching external media APIs) leaves a
+  dangling colon behind for a title written as "Foo: Book 3" — the
+  separator-char group only matches a "-"/":" that comes after whitespace
+  (e.g. "Foo - Book 3"), not one already glued onto the base title before
+  the space. Low-impact (a stray trailing colon rarely breaks a title
+  search) but worth a regex tweak if it comes up again
 
 done:
+
+- extended test/merge.test.js's plain-node test pattern (plain Node
+  `assert`, no framework) to the rest of the data-touching code named in
+  the TODO: finance recurringOccurrences (overrides, month/leap-year
+  clamping, endDate cutoffs) plus its date-math helpers in
+  test/finance.test.js; the entry/backlog/finance sanitizers in
+  test/finance.test.js, test/journal.test.js, and test/backlog.test.js;
+  and normalize()'s migrations (visual-settings one-time migration,
+  accomplishments legacy-string→id backfill, category backfill) in
+  test/app.test.js — the hardest of the three since app.js runs its real
+  bootstrap (Storage.load, wire()'s DOM wiring) unconditionally at the
+  bottom of its IIFE; a `module`-only guard (mirroring merge.js's own
+  `module.exports` check) skips that under a Node `require()` without
+  changing anything for a real browser load. Folded in a few equally
+  self-contained pure functions the coverage survey surfaced right next to
+  these (stripMediaSearchSuffix, isUnreleased). Added test/run-all.js to
+  run all five test files in one shot (each spawned as its own process —
+  they all reset `global.window` and re-require their src files, which
+  Node's require() cache would silently no-op on a second in-process
+  require)
 
 - Timeline, Ledger, and Backlog now render lazily instead of building
   every year/category up front on every render() call — a shared

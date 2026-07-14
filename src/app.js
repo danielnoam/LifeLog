@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.81.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.81.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1959,5 +1959,17 @@
     buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport, openImportPicker: IO.openImportPicker,
     backfillUpdatedAt, MONTHS,
   });
-  init();
+
+  // Test-support export (mirrors every other module's window.LifeLogXxx
+  // pattern) — lets test/app.test.js exercise normalize()'s migrations and
+  // its small pure helpers directly via require(), without needing this
+  // whole file's real bootstrap (Storage.load, wire()'s DOM wiring, etc).
+  window.LifeLogApp = { normalize, backfillUpdatedAt, emptyData, ensureCategories };
+  if (typeof module !== "undefined" && module.exports) module.exports = window.LifeLogApp;
+
+  // `module` only exists under CommonJS (a Node `require()`, e.g. from a
+  // test file) — never in a plain <script> browser load, so this only skips
+  // the real bootstrap during a test require and changes nothing for the
+  // actual app.
+  if (typeof module === "undefined") init();
 })();

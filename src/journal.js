@@ -1148,5 +1148,7 @@
     setEntryCover, // app.js's applySteamAppId repaints the entry cover through this
     // data lifecycle (app.js's normalize)
     sanitizeEntry,
+    // pure title-matching helper (exported for test/journal.test.js)
+    stripMediaSearchSuffix,
   };
 })();

@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.81.1] - 2026-07-14
+
+### Added
+- Test coverage for finance recurring-expense math (overrides, month/leap-year
+  clamping, endDate cutoffs), the entry/backlog/finance sanitizers, and
+  `normalize()`'s data migrations — no user-facing change, internal only.
+
 ## [0.81.0] - 2026-07-14
 
 ### Changed
