@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.80.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.81.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -232,6 +232,18 @@
   let jumpTargetIndex = 0; // where a tap/swipe has committed to head, even mid-animation — equals jumpCurrentIndex when idle
   let jumpBusy = false; // true while the track is actively transitioning (a step or a drag settling)
   let jumpQueuedDelta = null; // one pending ±1 step to run the instant the current animation finishes
+
+  // Lazy section rendering (see renderLazySections below) — the controller
+  // for whichever view is currently on screen, so render() can tear down
+  // the previous one before building a new one, and jumpScrollTo can force
+  // a not-yet-built section to build before scrolling to it.
+  let activeLazySections = null;
+  // Set by render() right before dispatching to a view: null on a real tab
+  // switch (the lazy top section should be index 0), or the pre-clear
+  // window.scrollY on an in-view re-render (add/edit/filter), so the
+  // section nearest where the user actually is gets built eagerly instead
+  // of whatever happens to be first.
+  let lazyAnchorScrollY = null;
   // Replays the view-fade-in animation on `root` only when the active view
   // actually changed (not on every in-view re-render, e.g. after an edit).
   function fadeInOnViewChange(root) {
@@ -326,6 +338,107 @@
     }
   }
 
+  // ---------- lazy section rendering ----------
+  // Shared by Timeline/Ledger (year sections) and Backlog (category
+  // sections): each caller builds every section's header synchronously (so
+  // sticky headers and the jump-nav's querySelectorAll keep working exactly
+  // as before) but defers building the body — the actual rows/cover art —
+  // until it's actually needed: the one section that matters right now,
+  // whichever section scrolls near the viewport, or a slow background
+  // trickle through whatever's left otherwise.
+  //
+  // sections: [{ key, header: HTMLElement, node: HTMLElement,
+  //              bodyEl: HTMLElement, build: () => void }]
+  //   node is already fully built and appended to root by the caller loop,
+  //   holding header + an empty bodyEl; build() fills bodyEl in place and
+  //   is only ever invoked once per section (guarded here, callers don't
+  //   need to worry about being called twice).
+  //
+  // Deliberately does NOT reserve an estimated min-height on unbuilt
+  // bodyEls (e.g. from an item count): Timeline/Ledger's body is a CSS grid
+  // of month-cards (entries wrap into columns, so "N entries" isn't "N
+  // rows" — a count-based estimate badly overshoots), while Backlog's is a
+  // plain vertical list where it'd be closer but still off (rows vary in
+  // height, plus divider elements). An inaccurate reserved height is worse
+  // than none: it leaves a stale gap/overlap once the real content replaces
+  // it and can throw off jump-nav's scroll-target math for sections beyond
+  // it. Unbuilt sections instead just collapse to their header's height,
+  // which is fine — it means a few extra sections may fall inside the
+  // IntersectionObserver's lookahead band on first layout, not a
+  // correctness problem.
+  function renderLazySections(root, sections) {
+    sections.forEach((s) => root.appendChild(s.node));
+
+    const built = new Array(sections.length).fill(false);
+    const buildAt = (i) => {
+      if (built[i]) return;
+      built[i] = true;
+      sections[i].build();
+    };
+
+    // Small collections and bulk mode (where "select all"/drag-paint need
+    // every row live in the DOM right away) skip the machinery entirely.
+    if (state.bulk.active || sections.length < 2) {
+      sections.forEach((_, i) => buildAt(i));
+      activeLazySections = { ensureBuilt() {}, destroy() {} };
+      return activeLazySections;
+    }
+
+    let eagerIndex = 0;
+    if (lazyAnchorScrollY) {
+      const topbar = $(".topbar");
+      const offset = (topbar ? topbar.getBoundingClientRect().height : 0) + 4;
+      // Headers are all real, positioned DOM already (built above), so this
+      // mirrors jumpIndexFromScroll's own logic — just measured against the
+      // pre-clear scroll position instead of the (currently zeroed) live one.
+      sections.forEach((s, i) => {
+        if (s.header.getBoundingClientRect().top <= offset) eagerIndex = i;
+      });
+    }
+    buildAt(eagerIndex);
+
+    const io = new IntersectionObserver((observedEntries) => {
+      for (const oe of observedEntries) {
+        if (!oe.isIntersecting) continue;
+        const i = sections.findIndex((s) => s.node === oe.target);
+        if (i >= 0) { buildAt(i); io.unobserve(oe.target); }
+      }
+    }, { rootMargin: "100% 0px 100% 0px" }); // ~1 viewport of lookahead/lookbehind
+    sections.forEach((s, i) => { if (i !== eagerIndex) io.observe(s.node); });
+
+    // Background trickle so ordinary use (and jump-nav Next/Prev) converges
+    // to fully-built within a couple seconds even without scrolling —
+    // radiates outward from eagerIndex (forward first, then backward)
+    // rather than strictly left-to-right, since forward is the common
+    // browsing direction and this way a backward jump also heals quickly.
+    let fwd = eagerIndex + 1, back = eagerIndex - 1, idleHandle = null;
+    const idleTick = () => {
+      idleHandle = null;
+      while (fwd < sections.length && built[fwd]) fwd++;
+      while (back >= 0 && built[back]) back--;
+      if (fwd < sections.length) buildAt(fwd++);
+      else if (back >= 0) buildAt(back--);
+      if (fwd < sections.length || back >= 0) scheduleIdle();
+    };
+    function scheduleIdle() {
+      idleHandle = window.requestIdleCallback
+        ? window.requestIdleCallback(idleTick, { timeout: 500 })
+        : setTimeout(idleTick, 200);
+    }
+    scheduleIdle();
+
+    activeLazySections = {
+      ensureBuilt(i) { if (sections[i]) buildAt(i); },
+      destroy() {
+        io.disconnect();
+        if (idleHandle == null) return;
+        if (window.cancelIdleCallback) window.cancelIdleCallback(idleHandle);
+        else clearTimeout(idleHandle);
+      },
+    };
+    return activeLazySections;
+  }
+
   // ---------- rendering ----------
   function render() {
     // Clearing #content below momentarily collapses the page to whatever
@@ -336,6 +449,7 @@
     // where landing at the top is the expected behavior.
     const sameView = state.view === lastRenderedView;
     const prevScrollY = window.scrollY;
+    if (activeLazySections) { activeLazySections.destroy(); activeLazySections = null; }
     try {
       document.querySelectorAll(".tab").forEach((t) => {
         t.classList.toggle("active", t.dataset.view === state.view);
@@ -344,6 +458,7 @@
       const c = $("#content");
       c.innerHTML = "";
       fadeInOnViewChange(c);
+      lazyAnchorScrollY = sameView ? prevScrollY : null;
       if (state.view === "backlog") { Backlog.renderBacklog(c); return; }
       if (state.view === "finance") { Finance.renderFinanceEntries(c); return; }
       if (state.view === "finance-stats") { Finance.renderFinanceStats(c); return; }
@@ -525,6 +640,10 @@
   function jumpScrollTo(index) {
     const el = jumpSections[index];
     if (!el) return;
+    // Force the target section's rows to exist before measuring/scrolling —
+    // otherwise a jump straight to a section the lazy IO/idle loop hasn't
+    // reached yet would land on an (at best under-measured) empty shell.
+    if (activeLazySections) activeLazySections.ensureBuilt(index);
     const offset = $(".topbar").getBoundingClientRect().height;
     const anchor = el.parentElement || el;
     const top = anchor.getBoundingClientRect().top + window.scrollY - offset;
@@ -1807,7 +1926,7 @@
     DEFAULT_SETTINGS,
   });
   Journal.init({
-    state, $, el, uid, toast, persist, render, groupBy, countBy, colorOf,
+    state, $, el, uid, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
     emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
@@ -1816,7 +1935,7 @@
     DEFAULT_SETTINGS,
   });
   Backlog.init({
-    state, $, el, uid, toast, persist, render, groupBy, colorOf,
+    state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
     emptyState, emptyCoverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect,
     openEntryModal: Journal.openEntryModal,
@@ -1832,7 +1951,7 @@
     backfillUpdatedAt, MONTHS_SHORT, DEFAULT_SETTINGS,
   });
   Finance.init({
-    state, $, el, uid, groupBy, countBy, toast, persist, render,
+    state, $, el, uid, groupBy, countBy, toast, persist, render, renderLazySections,
     buildYearFilter, buildCatFilter, monthCardHeader, emptyState,
     bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
     animatedNumberText, barRow, fillCategorySelect, wireCategorySelect,

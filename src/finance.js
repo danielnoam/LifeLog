@@ -21,7 +21,7 @@
   // Shared app plumbing, provided by app.js via init(ctx). Everything below
   // (except seedFinanceCategories and the pure date/key helpers) assumes
   // init() has run.
-  let state, $, el, uid, groupBy, countBy, toast, persist, render,
+  let state, $, el, uid, groupBy, countBy, toast, persist, render, renderLazySections,
     buildYearFilter, buildCatFilter, monthCardHeader, emptyState,
     bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
     animatedNumberText, barRow, fillCategorySelect, wireCategorySelect,
@@ -30,7 +30,7 @@
     backfillUpdatedAt, MONTHS;
 
   function init(ctx) {
-    ({ state, $, el, uid, groupBy, countBy, toast, persist, render,
+    ({ state, $, el, uid, groupBy, countBy, toast, persist, render, renderLazySections,
       buildYearFilter, buildCatFilter, monthCardHeader, emptyState,
       bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
       animatedNumberText, barRow, fillCategorySelect, wireCategorySelect,
@@ -192,6 +192,7 @@
       return;
     }
     const byYear = groupBy(items, financeYearOf);
+    const sections = [];
     for (const y of Object.keys(byYear).sort((a, b) => b - a)) {
       const block = el("div", "year-block");
       const head = el("div", "year-head");
@@ -201,45 +202,55 @@
 
       const grid = el("div", "month-grid");
       grid.style.setProperty("--month-min", "260px"); // finance rows need more room (date + amount columns)
-      const byMonth = groupBy(byYear[y], financeMonthOf);
-      const monthSort = (a, b) => {
-        a = +a; b = +b;
-        if (a === 0) return 1; // yearly ad-hoc bucket always last
-        if (b === 0) return -1;
-        return state.data.settings.monthOrder === "desc" ? b - a : a - b;
-      };
-      for (const m of Object.keys(byMonth).sort(monthSort)) {
-        const card = el("div", "month-card");
-        const yy = +y, mm = +m;
-        const monthItems = byMonth[m];
-        const label = mm === 0 ? "Yearly" : MONTHS[m];
-        card.appendChild(monthCardHeader(label, monthItems.length, monthItems.filter((f) => !f.virtual), {
-          onAdd: () => openFinanceModal(null, { year: yy, month: mm }),
-        }));
-        // Same-date entries need a real tiebreaker, not just array order —
-        // that order is stable within a session (new entries are always
-        // pushed to the end) but merge.js rebuilds the array from a Set of
-        // ids on every multi-device sync, reshuffling same-date entries
-        // arbitrarily. createdAt keeps the display order deterministic
-        // across renders and merges alike.
-        monthItems.slice()
-          .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || "").localeCompare(a.createdAt || ""))
-          .forEach((f) => card.appendChild(financeRow(f)));
-        const total = monthItems.reduce((s, f) => s + f.amount, 0);
-        const totalRow = el("div", "month-total");
-        totalRow.appendChild(el("span", null, "Total"));
-        const totalAmt = el("span", "famount fnegative");
-        animatedNumberText(totalAmt, "fin-month-total:" + yy + "-" + mm, total, formatMoney);
-        totalRow.appendChild(totalAmt);
-        card.appendChild(totalRow);
-        grid.appendChild(card);
-      }
       block.appendChild(grid);
-      root.appendChild(block); // attach now, fully built, so its real layout can be measured
-      // getBoundingClientRect (not offsetHeight) keeps the sub-pixel remainder,
-      // which otherwise rounds away and leaves a hairline gap under the sticky header.
-      block.style.setProperty("--year-head-h", head.getBoundingClientRect().height + "px");
+
+      sections.push({
+        key: y, header: head, node: block, bodyEl: grid,
+        build: () => {
+          const byMonth = groupBy(byYear[y], financeMonthOf);
+          const monthSort = (a, b) => {
+            a = +a; b = +b;
+            if (a === 0) return 1; // yearly ad-hoc bucket always last
+            if (b === 0) return -1;
+            return state.data.settings.monthOrder === "desc" ? b - a : a - b;
+          };
+          for (const m of Object.keys(byMonth).sort(monthSort)) {
+            const card = el("div", "month-card");
+            const yy = +y, mm = +m;
+            const monthItems = byMonth[m];
+            const label = mm === 0 ? "Yearly" : MONTHS[m];
+            card.appendChild(monthCardHeader(label, monthItems.length, monthItems.filter((f) => !f.virtual), {
+              onAdd: () => openFinanceModal(null, { year: yy, month: mm }),
+            }));
+            // Same-date entries need a real tiebreaker, not just array order —
+            // that order is stable within a session (new entries are always
+            // pushed to the end) but merge.js rebuilds the array from a Set of
+            // ids on every multi-device sync, reshuffling same-date entries
+            // arbitrarily. createdAt keeps the display order deterministic
+            // across renders and merges alike.
+            monthItems.slice()
+              .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || "").localeCompare(a.createdAt || ""))
+              .forEach((f) => card.appendChild(financeRow(f)));
+            const total = monthItems.reduce((s, f) => s + f.amount, 0);
+            const totalRow = el("div", "month-total");
+            totalRow.appendChild(el("span", null, "Total"));
+            const totalAmt = el("span", "famount fnegative");
+            animatedNumberText(totalAmt, "fin-month-total:" + yy + "-" + mm, total, formatMoney);
+            totalRow.appendChild(totalAmt);
+            card.appendChild(totalRow);
+            grid.appendChild(card);
+          }
+        },
+      });
     }
+    renderLazySections(root, sections);
+    // All sections are attached to the document by now (renderLazySections
+    // appends every node up front, before building any bodies), so headers
+    // can be measured here regardless of which sections have built their
+    // rows yet. getBoundingClientRect (not offsetHeight) keeps the
+    // sub-pixel remainder, which otherwise rounds away and leaves a
+    // hairline gap under the sticky header.
+    sections.forEach((s) => s.node.style.setProperty("--year-head-h", s.header.getBoundingClientRect().height + "px"));
     if (state.bulk.active) {
       root.appendChild(bulkActionBar({
         categories: state.data.financeCategories,

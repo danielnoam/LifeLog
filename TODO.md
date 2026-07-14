@@ -1,20 +1,5 @@
 todo:
 
-- Timeline/Backlog render everything at once (Journal.renderTimeline in
-  journal.js, Backlog.renderBacklog in backlog.js) — fine for a normal-size
-  collection, but a tab with lots of entries means building every year's
-  (or every category's) DOM up front on every render() call, even for
-  years/categories nowhere near the current scroll position. Load/render
-  incrementally instead — year by year for Timeline, category by category
-  for Backlog — e.g. render just the first section (or the one matching
-  the current jump-nav position) plus a bit of lookahead, and lazily
-  build/insert the rest as the user scrolls near them (IntersectionObserver
-  on a placeholder, or hooked into the existing jump-nav prev/next). Needs
-  to keep working with: the sticky year/category headers (.year-head /
-  .backlog-section-head), the mobile jump-nav's section list (jumpSections
-  in app.js, built via querySelectorAll over the rendered headers — would
-  need to account for sections not yet in the DOM), and in-place edits
-  (adding/editing an entry currently re-renders the whole view).
 - clean up Settings → Media naming: the proxy URL field (`#steamProxyUrl`,
   stored at `settings.steam.proxyUrl`) lives inside the "Steam Wishlist
   import" section and is named/labeled as Steam-only, but it's actually
@@ -37,6 +22,20 @@ todo:
   clamping, end dates), the sanitizers, and normalize()'s migrations
 
 done:
+
+- Timeline, Ledger, and Backlog now render lazily instead of building
+  every year/category up front on every render() call — a shared
+  renderLazySections() helper (app.js) builds every section's header
+  synchronously (so sticky headers and the jump-nav's querySelectorAll
+  keep working unchanged) but defers each section's body until it's
+  needed: the one nearest the current scroll position builds immediately,
+  the rest build via IntersectionObserver as they scroll near, or a
+  background requestIdleCallback trickle otherwise. jump-nav ◀/▶ forces
+  its target section to build before scrolling to it; bulk mode (where
+  select-all/drag-paint need every row live) skips the lazy path and
+  builds everything up front, same as before. Cover art `<img>`s also
+  got `loading="lazy"` so they don't all fire their network request the
+  moment a section builds.
 
 - mobile: quick-jump row (◀ current ▶) below the bottom tab bar — jump by
   year on Timeline/Ledger, by category on Backlog, so a long list doesn't

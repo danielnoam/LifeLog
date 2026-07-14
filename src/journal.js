@@ -7,7 +7,7 @@
 // setEntryCover) live here and are re-forwarded into backlog.js by app.js.
 (function () {
   // Shared app plumbing, provided by app.js via init(ctx).
-  let state, $, el, uid, toast, persist, render, groupBy, countBy, colorOf,
+  let state, $, el, uid, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
     emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
@@ -16,7 +16,7 @@
     DEFAULT_SETTINGS;
 
   function init(ctx) {
-    ({ state, $, el, uid, toast, persist, render, groupBy, countBy, colorOf,
+    ({ state, $, el, uid, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
       emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
       attachLongPressSelect, animatedNumberText, barRow, fillSelect,
       fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
@@ -30,6 +30,7 @@
     root.appendChild(timelineToolbar());
 
     const byYear = groupBy(entries, (e) => e.year);
+    const sections = [];
     for (const y of Object.keys(byYear).sort((a, b) => b - a)) {
       const block = el("div", "year-block");
       const head = el("div", "year-head");
@@ -50,23 +51,33 @@
       block.appendChild(head);
 
       const grid = el("div", "month-grid");
-      const byMonth = groupBy(byYear[y], (e) => e.month);
-      const monthSort = state.data.settings.monthOrder === "desc" ? (a, b) => b - a : (a, b) => a - b;
-      for (const m of Object.keys(byMonth).sort(monthSort)) {
-        const card = el("div", "month-card");
-        const yy = +y, mm = +m;
-        card.appendChild(monthCardHeader(MONTHS[m], byMonth[m].length, byMonth[m], {
-          onAdd: () => openEntryModal(null, null, { year: yy, month: mm }),
-        }));
-        byMonth[m].forEach((e) => card.appendChild(entryRow(e)));
-        grid.appendChild(card);
-      }
       block.appendChild(grid);
-      root.appendChild(block); // attach now, fully built, so its real layout can be measured
-      // getBoundingClientRect (not offsetHeight) keeps the sub-pixel remainder,
-      // which otherwise rounds away and leaves a hairline gap under the sticky header.
-      block.style.setProperty("--year-head-h", head.getBoundingClientRect().height + "px");
+
+      sections.push({
+        key: y, header: head, node: block, bodyEl: grid,
+        build: () => {
+          const byMonth = groupBy(byYear[y], (e) => e.month);
+          const monthSort = state.data.settings.monthOrder === "desc" ? (a, b) => b - a : (a, b) => a - b;
+          for (const m of Object.keys(byMonth).sort(monthSort)) {
+            const card = el("div", "month-card");
+            const yy = +y, mm = +m;
+            card.appendChild(monthCardHeader(MONTHS[m], byMonth[m].length, byMonth[m], {
+              onAdd: () => openEntryModal(null, null, { year: yy, month: mm }),
+            }));
+            byMonth[m].forEach((e) => card.appendChild(entryRow(e)));
+            grid.appendChild(card);
+          }
+        },
+      });
     }
+    renderLazySections(root, sections);
+    // All sections are attached to the document by now (renderLazySections
+    // appends every node up front, before building any bodies), so headers
+    // can be measured here regardless of which sections have built their
+    // rows yet. getBoundingClientRect (not offsetHeight) keeps the
+    // sub-pixel remainder, which otherwise rounds away and leaves a
+    // hairline gap under the sticky header.
+    sections.forEach((s) => s.node.style.setProperty("--year-head-h", s.header.getBoundingClientRect().height + "px"));
     if (state.bulk.active) {
       root.appendChild(bulkActionBar({
         categories: state.data.categories,
@@ -84,6 +95,7 @@
       const sizeClass = state.visual.timelineCoverSize === "big" ? "cover-lg" : "cover-sm";
       if (e.coverUrl) {
         const img = document.createElement("img");
+        img.loading = "lazy";
         img.src = e.coverUrl; img.alt = "";
         img.className = "etn-cover " + sizeClass;
         // On a broken URL, swap in the same empty placeholder used for entries

@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.81.0] - 2026-07-14
+
+### Changed
+- Timeline, Ledger, and Backlog now render lazily instead of building
+  every year/category up front on every switch: only the section you land
+  on builds immediately, the rest stream in shortly after (as you scroll
+  near them, or quietly in the background), so switching tabs or making
+  an edit stays fast regardless of how much history you've logged.
+  Sticky year/category headers, the mobile jump-nav, and bulk editing all
+  keep working the same as before — jump-nav forces a section to build on
+  demand if you jump straight to it, and bulk mode still builds everything
+  up front so select-all and drag-select keep working.
+- Cover art images now load lazily (`loading="lazy"`) instead of every
+  image on screen firing its request at once.
+
 ## [0.80.2] - 2026-07-13
 
 ### Fixed

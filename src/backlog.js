@@ -7,7 +7,7 @@
 // uses them too — and are handed in through ctx.
 (function () {
   // Shared app plumbing, provided by app.js via init(ctx).
-  let state, $, el, uid, toast, persist, render, groupBy, colorOf,
+  let state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
     emptyState, emptyCoverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect, openEntryModal,
     fillCategorySelect, wireCategorySelect, titleSuggestions,
@@ -17,7 +17,7 @@
     backfillUpdatedAt, MONTHS_SHORT, DEFAULT_SETTINGS;
 
   function init(ctx) {
-    ({ state, $, el, uid, toast, persist, render, groupBy, colorOf,
+    ({ state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
       emptyState, emptyCoverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
       toggleBulkCategoryAll, attachLongPressSelect, openEntryModal,
       fillCategorySelect, wireCategorySelect, titleSuggestions,
@@ -226,6 +226,7 @@
     const order = state.data.categories.map((c) => c.name).filter((n) => byCat[n]);
     for (const n of Object.keys(byCat)) if (!order.includes(n)) order.push(n);
     const grid = el("div", "backlog-grid");
+    const sections = [];
     for (const catName of order) {
       const catItems = byCat[catName];
       const section = el("div", "backlog-section");
@@ -251,32 +252,44 @@
       }
       section.appendChild(head);
       const list = el("div", "backlog-list");
-      const sorted = catItems.slice().sort((a, b) => {
-        if (!!a.dropped !== !!b.dropped) return a.dropped ? 1 : -1;
-        if (!a.dropped) {
-          const aUp = isUnreleased(a), bUp = isUnreleased(b);
-          if (aUp !== bUp) return aUp ? 1 : -1;
-        }
-        return (b.priority || 0) - (a.priority || 0);
-      });
-      let sawActive = false, sepAdded = false, sawPriority = false, prioritySepAdded = false, upcomingSepAdded = false;
-      sorted.forEach((b) => {
-        if (b.dropped) {
-          if (sawActive && !sepAdded) { list.appendChild(el("div", "backlog-dropped-sep")); sepAdded = true; }
-        } else if (isUnreleased(b)) {
-          if (sawActive && !upcomingSepAdded) { list.appendChild(el("div", "backlog-upcoming-sep")); upcomingSepAdded = true; }
-          sawActive = true;
-        } else {
-          if (b.priority) sawPriority = true;
-          else if (sawPriority && !prioritySepAdded) { list.appendChild(el("div", "backlog-priority-sep")); prioritySepAdded = true; }
-          sawActive = true;
-        }
-        list.appendChild(backlogRow(b));
-      });
       section.appendChild(list);
-      grid.appendChild(section);
+
+      sections.push({
+        key: catName, header: head, node: section, bodyEl: list,
+        build: () => {
+          const sorted = catItems.slice().sort((a, b) => {
+            if (!!a.dropped !== !!b.dropped) return a.dropped ? 1 : -1;
+            if (!a.dropped) {
+              const aUp = isUnreleased(a), bUp = isUnreleased(b);
+              if (aUp !== bUp) return aUp ? 1 : -1;
+            }
+            return (b.priority || 0) - (a.priority || 0);
+          });
+          let sawActive = false, sepAdded = false, sawPriority = false, prioritySepAdded = false, upcomingSepAdded = false;
+          sorted.forEach((b) => {
+            if (b.dropped) {
+              if (sawActive && !sepAdded) { list.appendChild(el("div", "backlog-dropped-sep")); sepAdded = true; }
+            } else if (isUnreleased(b)) {
+              if (sawActive && !upcomingSepAdded) { list.appendChild(el("div", "backlog-upcoming-sep")); upcomingSepAdded = true; }
+              sawActive = true;
+            } else {
+              if (b.priority) sawPriority = true;
+              else if (sawPriority && !prioritySepAdded) { list.appendChild(el("div", "backlog-priority-sep")); prioritySepAdded = true; }
+              sawActive = true;
+            }
+            list.appendChild(backlogRow(b));
+          });
+          // Scoped to just this category's items — the old single call over
+          // everything patched .bl-price spans that, under lazy sections,
+          // mostly don't exist in the DOM yet. priceCache is shared/keyed by
+          // mediaId, so sections that build later resolve through its cached
+          // fast path instead of re-fetching.
+          loadBacklogPrices(catItems);
+        },
+      });
     }
     root.appendChild(grid);
+    renderLazySections(grid, sections);
     if (state.bulk.active) {
       root.appendChild(bulkActionBar({
         categories: state.data.categories,
@@ -285,7 +298,6 @@
         onSync: bulkSyncSelected,
       }));
     }
-    loadBacklogPrices(items);
   }
 
   function backlogRow(b) {
@@ -315,6 +327,7 @@
     const sizeClass = state.visual.backlogCoverSize === "small" ? "cover-sm" : "cover-lg";
     if (b.coverUrl) {
       const img = document.createElement("img");
+      img.loading = "lazy";
       img.src = b.coverUrl; img.alt = b.title;
       img.className = "bl-cover " + sizeClass;
       // On a broken URL, swap in the same empty placeholder used for items
