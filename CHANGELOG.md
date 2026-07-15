@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.83.0] - 2026-07-15
+
+### Added
+- PWA app shortcuts — long-press (or right-click) the installed app's icon
+  for "Add entry" / "Add expense" shortcuts straight into the matching add
+  modal, skipping the open-then-navigate step. Backed by a `?action=…`
+  query param the app checks once on load and strips from the URL right
+  after.
+
 ## [0.82.0] - 2026-07-15
 
 ### Added

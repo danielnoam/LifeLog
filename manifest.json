@@ -9,5 +9,19 @@
   "theme_color": "#11141a",
   "icons": [
     { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Add entry",
+      "short_name": "Add entry",
+      "url": "./?action=add-entry",
+      "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Add expense",
+      "short_name": "Add expense",
+      "url": "./?action=add-expense",
+      "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
   ]
 }

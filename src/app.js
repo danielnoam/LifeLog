@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.82.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.83.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1881,6 +1881,17 @@
     else if (source === "merged") toast("Merged changes from your other device");
     else if (Storage.githubConnected && !githubReached) {
       toast("Offline — showing last saved copy; will sync when GitHub is reachable", true);
+    }
+
+    // PWA app shortcuts (manifest.json's `shortcuts`, long-press the
+    // home-screen icon): ?action=… opens the matching add modal straight
+    // away, skipping the open-then-navigate step. Stripped from the URL
+    // immediately so a refresh/back-nav doesn't reopen it.
+    const action = new URLSearchParams(location.search).get("action");
+    if (action) {
+      history.replaceState(null, "", location.pathname + location.hash);
+      if (action === "add-entry") Journal.openEntryModal(null);
+      else if (action === "add-expense") Finance.openFinanceModal(null);
     }
 
     if (state.pendingSync) retrySync();

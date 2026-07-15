@@ -15,10 +15,6 @@ todo:
   conflicting edits, reusing the version-history's human-readable-summary
   approach rather than inventing a new format
 
-- PWA app shortcuts (manifest.json `shortcuts`) — long-press the
-  home-screen icon to jump straight to "Add entry" / "Add expense"
-  instead of opening the app then navigating
-
 - "skip this month" shortcut directly on a recurring expense's Ledger row
   (one tap), instead of only reachable through opening the modal to add a
   per-occurrence override
@@ -59,6 +55,12 @@ todo:
   isn't Steam-specific
 done:
 
+- PWA app shortcuts (manifest.json `shortcuts`) — long-press/right-click
+  the installed app's icon for "Add entry" / "Add expense", each pointing
+  at `?action=add-entry` / `?action=add-expense`; app.js's init() checks
+  that query param once after data loads, opens the matching add modal,
+  and strips it from the URL right after. Service worker cache bumped
+  (v33 → v34) since manifest.json's content changed
 - "pick something for me" on the Backlog (a button above the list, scoped
   to the active category/search filters and skipping dropped/unreleased
   items, opening a small modal with a re-roll button and a way into that
