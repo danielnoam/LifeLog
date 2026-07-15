@@ -1,5 +1,16 @@
 todo:
 
+- keyboard shortcuts for common actions — quick-add entry, jump between
+  views (Timeline/Backlog/Ledger/Stats), maybe focus the title search.
+  Should stay out of the way of typing in inputs/textareas (only fire when
+  no field is focused, or use a modifier), and probably want a small
+  cheat-sheet (e.g. a "?" overlay) since they're not discoverable otherwise
+
+- "pick something for me" on the Backlog — a button that randomly picks
+  one item, scoped to the current category filter (and maybe priority
+  group) so it's not just uniform across the whole backlog. Could show
+  the pick in a small modal/toast with a re-roll option
+
 - clean up Settings → Media naming: the proxy URL field (`#steamProxyUrl`,
   stored at `settings.steam.proxyUrl`) lives inside the "Steam Wishlist
   import" section and is named/labeled as Steam-only, but it's actually
