@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.84.1] - 2026-07-15
+
+### Changed
+- Removed the quick "Skip" button from a recurring expense's Ledger row —
+  skipping an occurrence is now only done through the occurrence-edit
+  modal's checkbox. A skipped occurrence no longer disappears from the
+  Ledger entirely; it still shows as a row (faded, labeled "Skipped") so
+  it stays visible and easy to click back open, while still being
+  excluded from every count/total.
+
 ## [0.84.0] - 2026-07-15
 
 ### Added

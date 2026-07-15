@@ -48,13 +48,15 @@ todo:
   isn't Steam-specific
 done:
 
-- "skip this occurrence" one-tap button on a recurring expense's Ledger
-  row — sets a `skip` flag on that date's rec.overrides patch, filtered
-  out of getEffectiveFinanceEntries so it's excluded from the Ledger and
-  Stats entirely rather than just hidden. Reversible from the recurring
-  template's own occurrence list (now labels skipped ones) or the
-  occurrence-edit modal, which got the same toggle for parity/symmetry
-  with the quick-skip path
+- "skip this occurrence" for a recurring expense — sets a `skip` flag on
+  that date's rec.overrides patch via a checkbox in the occurrence-edit
+  modal (no separate quick-skip button on the Ledger row; toggling only
+  happens through that one modal). A skipped occurrence still shows as a
+  row in the Ledger (faded out, "Skipped" label, click to reopen the
+  modal and toggle it back) rather than disappearing outright, but is
+  excluded from every count/total — month/year entry counts and totals in
+  the Ledger, and all of Stats. Also shown/toggleable from the recurring
+  template's own occurrence list, which labels skipped ones
 - global search — Timeline and Backlog's search now also matches notes
   text (Ledger already did). Since the search box is shared across every
   view already (state.search persists across tab switches), added a small

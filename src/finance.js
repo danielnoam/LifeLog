@@ -130,10 +130,13 @@
   // real finance entries plus every recurring template's occurrences through
   // today — the merged list everything else (list view, stats, filters)
   // should read instead of state.data.financeEntries directly
+  // Skipped occurrences are still returned here (so the Ledger can show
+  // them, faded out, rather than making them vanish outright) — every
+  // total/sum downstream filters them out itself; see renderFinanceEntries'
+  // month/year counts and renderFinanceStats' `items`.
   function getEffectiveFinanceEntries() {
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const virtual = (state.data.recurringExpenses || []).flatMap((r) => recurringOccurrences(r, today))
-      .filter((v) => !v.skipped);
+    const virtual = (state.data.recurringExpenses || []).flatMap((r) => recurringOccurrences(r, today));
     return [...state.data.financeEntries, ...virtual];
   }
   function financeYears() {
@@ -175,23 +178,6 @@
     toast(`Deleted ${n} entr${n === 1 ? "y" : "ies"}`);
   }
 
-  // One-tap skip/unskip from the Ledger row, without opening the
-  // occurrence modal — same rec.overrides[date].skip patch the modal's
-  // checkbox writes, so either path stays in sync with the other.
-  async function toggleSkipOccurrence(rec, dateStr, skip) {
-    if (skip) {
-      if (!rec.overrides) rec.overrides = {};
-      rec.overrides[dateStr] = { ...(rec.overrides[dateStr] || {}), skip: true };
-    } else if (rec.overrides && rec.overrides[dateStr]) {
-      delete rec.overrides[dateStr].skip;
-      if (!Object.keys(rec.overrides[dateStr]).length) delete rec.overrides[dateStr];
-      if (!Object.keys(rec.overrides).length) delete rec.overrides;
-    }
-    render();
-    await persist();
-    toast(skip ? "Skipped this month" : "Restored to Ledger");
-  }
-
   // ---------- Ledger view ----------
   function renderFinanceEntries(root) {
     renderRecurringCard(root);
@@ -217,7 +203,7 @@
       const block = el("div", "year-block");
       const head = el("div", "year-head");
       head.appendChild(el("h2", null, y));
-      head.appendChild(el("span", "ycount", `${byYear[y].length} entries`));
+      head.appendChild(el("span", "ycount", `${byYear[y].filter((f) => !f.skipped).length} entries`));
       block.appendChild(head);
 
       const grid = el("div", "month-grid");
@@ -238,8 +224,9 @@
             const card = el("div", "month-card");
             const yy = +y, mm = +m;
             const monthItems = byMonth[m];
+            const countedItems = monthItems.filter((f) => !f.skipped);
             const label = mm === 0 ? "Yearly" : MONTHS[m];
-            card.appendChild(monthCardHeader(label, monthItems.length, monthItems.filter((f) => !f.virtual), {
+            card.appendChild(monthCardHeader(label, countedItems.length, monthItems.filter((f) => !f.virtual), {
               onAdd: () => openFinanceModal(null, { year: yy, month: mm }),
             }));
             // Same-date entries need a real tiebreaker, not just array order —
@@ -251,7 +238,7 @@
             monthItems.slice()
               .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || "").localeCompare(a.createdAt || ""))
               .forEach((f) => card.appendChild(financeRow(f)));
-            const total = monthItems.reduce((s, f) => s + f.amount, 0);
+            const total = countedItems.reduce((s, f) => s + f.amount, 0);
             const totalRow = el("div", "month-total");
             totalRow.appendChild(el("span", null, "Total"));
             const totalAmt = el("span", "famount fnegative");
@@ -281,7 +268,7 @@
   }
 
   function financeRow(f) {
-    const row = el("div", "entry finance-entry" + (f.yearly ? " yearly-expense" : ""));
+    const row = el("div", "entry finance-entry" + (f.yearly ? " yearly-expense" : "") + (f.skipped ? " is-skipped" : ""));
     if (state.bulk.active && !f.virtual) row.appendChild(bulkCheckbox(f));
     const color = financeColorOf(f.category);
     const chip = el("span", "entry-cat");
@@ -300,19 +287,9 @@
       badge.title = f.overridden ? "Recurring — custom amount/note for this date" : "Recurring";
       row.appendChild(badge);
     }
+    if (f.skipped) row.appendChild(el("span", "skipped-badge", "Skipped"));
     const amt = el("span", "famount fnegative", formatMoney(f.amount));
     row.appendChild(amt);
-    if (f.virtual) {
-      const skipBtn = el("button", "btn btn-sm skip-occ-btn", "Skip");
-      skipBtn.type = "button";
-      skipBtn.title = "Skip this occurrence — won't count as an expense";
-      skipBtn.onclick = (ev) => {
-        ev.stopPropagation();
-        const rec = state.data.recurringExpenses.find((r) => r.id === f.recurringId);
-        if (rec) toggleSkipOccurrence(rec, f.date, true);
-      };
-      row.appendChild(skipBtn);
-    }
     row.onclick = f.virtual
       ? () => {
           const rec = state.data.recurringExpenses.find((r) => r.id === f.recurringId);
@@ -336,7 +313,10 @@
       }));
       return;
     }
-    const items = getFilteredFinance();
+    // Skipped occurrences are excluded here (unlike the Ledger, which still
+    // lists them faded out) — Stats has no per-row list, only aggregates,
+    // and a skipped month was never really spent.
+    const items = getFilteredFinance().filter((f) => !f.skipped);
     if (!items.length) {
       root.appendChild(emptyState("No finance entries match your filters."));
       return;

@@ -416,8 +416,10 @@ select:focus { outline: none; border-color: var(--accent); }
 .rec-occ-row.is-skipped { opacity: 0.55; }
 .rec-occ-row.is-skipped .rec-occ-amount { font-style: italic; }
 .rec-occ-date { color: var(--text-dim); }
-.skip-occ-btn { flex: 0 0 auto; }
 .rec-occ-amount { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--danger); }
+.finance-entry.is-skipped { opacity: 0.5; }
+.finance-entry.is-skipped .famount { text-decoration: line-through; }
+.skipped-badge { font-size: 11px; color: var(--text-faint); font-style: italic; flex: 0 0 auto; }
 
 .picker-search {
   display: block; width: 100%; background: var(--bg); border: 1px solid var(--border);
