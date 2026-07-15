@@ -177,9 +177,21 @@ html, body {
 
 .views { display: flex; gap: 4px; order: 2; }
 .tab {
+  position: relative;
   background: transparent; border: none; color: var(--text-dim);
   padding: 7px 14px; border-radius: 8px; cursor: pointer; font-size: 13.5px;
   font-weight: 550; transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+/* Search-match count on a tab other than the one you're looking at — lets
+   a search typed on one view surface that it also matches things in
+   another, without switching to check. Never shown on the active tab
+   (you're already looking at its own filtered count). */
+.tab-match-badge {
+  position: absolute; top: 2px; right: 2px;
+  min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px;
+  background: var(--accent); color: var(--text-on-accent);
+  font-size: 10px; font-weight: 700; line-height: 15px; text-align: center;
+  pointer-events: none;
 }
 /* (hover: hover) keeps this off touchscreens — without it, tapping a tab
    on mobile could leave its hover background "stuck" showing (a known
@@ -401,7 +413,10 @@ select:focus { outline: none; border-color: var(--accent); }
 .rec-occ-row:not(:last-child) { border-bottom: 1px solid var(--border); }
 .rec-occ-row:hover { background: var(--bg-elev-2); }
 .rec-occ-row.is-overridden .rec-occ-date { color: var(--accent); }
+.rec-occ-row.is-skipped { opacity: 0.55; }
+.rec-occ-row.is-skipped .rec-occ-amount { font-style: italic; }
 .rec-occ-date { color: var(--text-dim); }
+.skip-occ-btn { flex: 0 0 auto; }
 .rec-occ-amount { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--danger); }
 
 .picker-search {

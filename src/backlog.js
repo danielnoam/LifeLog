@@ -50,7 +50,7 @@
     const cf = state.activeCats;
     return state.data.backlog.filter((b) => {
       if (cf.size && !cf.has(b.category)) return false;
-      if (q && !b.title.toLowerCase().includes(q)) return false;
+      if (q && !b.title.toLowerCase().includes(q) && !(b.notes || "").toLowerCase().includes(q)) return false;
       return true;
     });
   }
@@ -729,6 +729,8 @@
     wire,
     // view (dispatched from app.js's render())
     renderBacklog,
+    // cross-view search match count (app.js's tab match badges)
+    getFilteredBacklog,
     // modal (add menu, "✓ Done" flow, Escape close)
     openBacklogModal,
     closeBacklogModal,

@@ -84,9 +84,10 @@
   // state.data.financeEntries for them. This keeps the template the single
   // source of truth: editing it changes every past and future occurrence,
   // and there's no per-occurrence row to clean up if it's stopped or edited.
-  // rec.overrides (optional) keys a sparse { amount?, note? } patch by
-  // occurrence date, for the rare month that genuinely differed (a price
-  // change, a one-off note) without dragging every other occurrence along.
+  // rec.overrides (optional) keys a sparse { amount?, note?, skip? } patch
+  // by occurrence date, for the rare month that genuinely differed (a
+  // price change, a one-off note, or a month skipped entirely) without
+  // dragging every other occurrence along.
   function addMonthsClamped(date, n, day) {
     const d = new Date(date.getFullYear(), date.getMonth() + n, 1);
     const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
@@ -119,6 +120,7 @@
         note: ov && ov.note != null ? ov.note : rec.note,
         createdAt: rec.createdAt,
         recurringId: rec.id, virtual: true, overridden: !!ov,
+        skipped: !!(ov && ov.skip),
       });
       n++;
       d = nextRecurringDate(d, rec.interval, anchorDay);
@@ -130,7 +132,8 @@
   // should read instead of state.data.financeEntries directly
   function getEffectiveFinanceEntries() {
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const virtual = (state.data.recurringExpenses || []).flatMap((r) => recurringOccurrences(r, today));
+    const virtual = (state.data.recurringExpenses || []).flatMap((r) => recurringOccurrences(r, today))
+      .filter((v) => !v.skipped);
     return [...state.data.financeEntries, ...virtual];
   }
   function financeYears() {
@@ -170,6 +173,23 @@
     render();
     await persist();
     toast(`Deleted ${n} entr${n === 1 ? "y" : "ies"}`);
+  }
+
+  // One-tap skip/unskip from the Ledger row, without opening the
+  // occurrence modal — same rec.overrides[date].skip patch the modal's
+  // checkbox writes, so either path stays in sync with the other.
+  async function toggleSkipOccurrence(rec, dateStr, skip) {
+    if (skip) {
+      if (!rec.overrides) rec.overrides = {};
+      rec.overrides[dateStr] = { ...(rec.overrides[dateStr] || {}), skip: true };
+    } else if (rec.overrides && rec.overrides[dateStr]) {
+      delete rec.overrides[dateStr].skip;
+      if (!Object.keys(rec.overrides[dateStr]).length) delete rec.overrides[dateStr];
+      if (!Object.keys(rec.overrides).length) delete rec.overrides;
+    }
+    render();
+    await persist();
+    toast(skip ? "Skipped this month" : "Restored to Ledger");
   }
 
   // ---------- Ledger view ----------
@@ -282,6 +302,17 @@
     }
     const amt = el("span", "famount fnegative", formatMoney(f.amount));
     row.appendChild(amt);
+    if (f.virtual) {
+      const skipBtn = el("button", "btn btn-sm skip-occ-btn", "Skip");
+      skipBtn.type = "button";
+      skipBtn.title = "Skip this occurrence — won't count as an expense";
+      skipBtn.onclick = (ev) => {
+        ev.stopPropagation();
+        const rec = state.data.recurringExpenses.find((r) => r.id === f.recurringId);
+        if (rec) toggleSkipOccurrence(rec, f.date, true);
+      };
+      row.appendChild(skipBtn);
+    }
     row.onclick = f.virtual
       ? () => {
           const rec = state.data.recurringExpenses.find((r) => r.id === f.recurringId);
@@ -549,10 +580,10 @@
       const list = $("#recOccList");
       list.innerHTML = "";
       occ.forEach((o) => {
-        const row = el("div", "rec-occ-row" + (o.overridden ? " is-overridden" : ""));
+        const row = el("div", "rec-occ-row" + (o.overridden ? " is-overridden" : "") + (o.skipped ? " is-skipped" : ""));
         row.appendChild(el("span", "rec-occ-date", o.date + (o.overridden ? " *" : "")));
-        row.appendChild(el("span", "rec-occ-amount", "-" + formatMoney(o.amount)));
-        row.title = "Edit this occurrence";
+        row.appendChild(el("span", "rec-occ-amount", o.skipped ? "Skipped" : "-" + formatMoney(o.amount)));
+        row.title = o.skipped ? "Skipped — click to restore or edit" : "Edit this occurrence";
         row.onclick = () => openRecurringOccModal(rec, o);
         list.appendChild(row);
       });
@@ -573,6 +604,7 @@
     $("#recOccDate").value = occ.date;
     $("#recOccAmount").value = occ.amount;
     $("#recOccNote").value = occ.note || "";
+    $("#recOccSkip").checked = !!occ.skipped;
     $("#resetRecOccBtn").hidden = !occ.overridden;
     $("#recurringOccModal").hidden = false;
   }
@@ -585,7 +617,9 @@
     const date = $("#recOccDate").value;
     const amount = Math.abs(parseFloat($("#recOccAmount").value)) || 0;
     const note = $("#recOccNote").value.trim();
+    const skip = $("#recOccSkip").checked;
     const ov = {};
+    if (skip) ov.skip = true;
     if (amount !== rec.amount) ov.amount = amount;
     if (note !== (rec.note || "")) ov.note = note;
     if (Object.keys(ov).length) {
@@ -992,6 +1026,7 @@
         const clean = {};
         if (ov.amount != null) clean.amount = Math.abs(+ov.amount) || 0;
         if (ov.note != null) clean.note = String(ov.note);
+        if (ov.skip) clean.skip = true;
         if (Object.keys(clean).length) overrides[date] = clean;
       }
       if (Object.keys(overrides).length) out.overrides = overrides;
@@ -1064,6 +1099,8 @@
     // views (dispatched from app.js's render())
     renderFinanceEntries,
     renderFinanceStats,
+    // cross-view search match count (app.js's tab match badges)
+    getFilteredFinance,
     // modals (add menu, filter-chip edit, Escape/overlay close)
     openFinanceModal,
     closeFinanceModal,

@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.83.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.84.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -303,7 +303,7 @@
     return state.data.entries.filter((e) => {
       if (yf.size && !yf.has(e.year)) return false;
       if (cf.size && !cf.has(e.category)) return false;
-      if (q && !e.title.toLowerCase().includes(q)) return false;
+      if (q && !e.title.toLowerCase().includes(q) && !(e.notes || "").toLowerCase().includes(q)) return false;
       return true;
     });
   }
@@ -483,6 +483,31 @@
     } finally {
       if (sameView && prevScrollY) window.scrollTo(0, prevScrollY);
       updateJumpNav();
+      updateSearchMatchBadges();
+    }
+  }
+
+  // While actively searching, badges the tabs you're NOT currently looking
+  // at with how many of their own items also match — the search box is
+  // shared across views (state.search persists across tab switches), but
+  // without this there's no way to tell a search also hits Backlog/Ledger
+  // items short of clicking over to check.
+  function updateSearchMatchBadges() {
+    const q = state.search.trim();
+    const counts = q ? {
+      timeline: getFiltered().length,
+      backlog: Backlog.getFilteredBacklog().length,
+      finance: Finance.getFilteredFinance().length,
+    } : null;
+    for (const key of ["timeline", "backlog", "finance"]) {
+      const tab = document.querySelector(`.tab[data-view="${key}"]`);
+      if (!tab) continue;
+      let badge = tab.querySelector(".tab-match-badge");
+      const n = counts && key !== state.view ? counts[key] : 0;
+      if (n > 0) {
+        if (!badge) { badge = el("span", "tab-match-badge"); tab.appendChild(badge); }
+        badge.textContent = String(n);
+      } else if (badge) badge.remove();
     }
   }
 

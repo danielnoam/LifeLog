@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.84.0] - 2026-07-15
+
+### Added
+- "Skip this occurrence" on a recurring expense — a one-tap "Skip" button
+  right on its Ledger row excludes that month from the Ledger and Stats
+  entirely (no expense recorded), without opening any modal. Reversible
+  from the recurring template's own occurrence list, which now also shows
+  which ones are skipped; the occurrence-edit modal gained the same
+  toggle for parity.
+- Search now also matches notes text, not just titles, on Timeline and
+  Backlog (Ledger already searched notes). Since the search box is shared
+  across every view, switching tabs while a search is active now shows a
+  small badge on the other tabs with how many of their own items also
+  match — previously you had to click over to each one to check.
+
 ## [0.83.0] - 2026-07-15
 
 ### Added

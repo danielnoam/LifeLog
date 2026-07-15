@@ -15,13 +15,6 @@ todo:
   conflicting edits, reusing the version-history's human-readable-summary
   approach rather than inventing a new format
 
-- "skip this month" shortcut directly on a recurring expense's Ledger row
-  (one tap), instead of only reachable through opening the modal to add a
-  per-occurrence override
-
-- global search across Journal + Backlog + Finance (title/tag/note text)
-  from one input, instead of each view having its own separate filter
-
 - accessibility pass — focus states and ARIA labels on icon-only buttons
   (jump-nav arrows, cover-link buttons, etc.), given how icon-heavy the UI
   is
@@ -55,6 +48,19 @@ todo:
   isn't Steam-specific
 done:
 
+- "skip this occurrence" one-tap button on a recurring expense's Ledger
+  row — sets a `skip` flag on that date's rec.overrides patch, filtered
+  out of getEffectiveFinanceEntries so it's excluded from the Ledger and
+  Stats entirely rather than just hidden. Reversible from the recurring
+  template's own occurrence list (now labels skipped ones) or the
+  occurrence-edit modal, which got the same toggle for parity/symmetry
+  with the quick-skip path
+- global search — Timeline and Backlog's search now also matches notes
+  text (Ledger already did). Since the search box is shared across every
+  view already (state.search persists across tab switches), added a small
+  match-count badge on the tabs you're not currently looking at whenever
+  a search is active, so you can tell it also hits Backlog/Ledger/Timeline
+  items without clicking over to check each one
 - PWA app shortcuts (manifest.json `shortcuts`) — long-press/right-click
   the installed app's icon for "Add entry" / "Add expense", each pointing
   at `?action=add-entry` / `?action=add-expense`; app.js's init() checks
