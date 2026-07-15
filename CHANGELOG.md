@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.82.0] - 2026-07-15
+
+### Added
+- "Pick something for me" on the Backlog — a button above the list
+  randomly picks one item (scoped to the active category/search filters,
+  and skipping dropped/not-yet-released items), shown in a small modal
+  with a re-roll button and a shortcut into that item's own edit modal.
+- Backlog item edit modal now shows how long it's been sitting there
+  ("Added Jan 3, 2026 — 3 months ago").
+- Stats' Overview card now counts how many logged entries originated from
+  the backlog ("completed from backlog") — entries moved over via the
+  Backlog's "✓ Done" flow (or an auto-linked title match) now carry the
+  backlog item's original add date (`backlogAddedAt`) so this, and future
+  aging-over-time stats, can be computed.
+
 ## [0.81.3] - 2026-07-14
 
 ### Changed

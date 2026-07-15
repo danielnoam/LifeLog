@@ -232,6 +232,7 @@
     bigRow.appendChild(statItem(entries.filter((e) => e.year === thisYear).length, `in ${thisYear}`));
     bigRow.appendChild(statItem(ys.length, "years"));
     bigRow.appendChild(statItem(new Set(entries.map((e) => e.category)).size, "categories"));
+    bigRow.appendChild(statItem(entries.filter((e) => e.backlogAddedAt).length, "completed from backlog"));
     big.appendChild(el("h2", null, "Overview"));
     big.appendChild(bigRow);
 
@@ -833,6 +834,7 @@
     ev.preventDefault();
     const id = $("#entryId").value;
     const fromBacklogId = $("#entryFromBacklog").value;
+    const backlogItem = fromBacklogId ? state.data.backlog.find((b) => b.id === fromBacklogId) : null;
     const title = $("#fTitle").value.trim();
     const category = $("#fCategory").value;
     const year = parseInt($("#fYear").value, 10);
@@ -856,6 +858,7 @@
       if (mediaSource) e.mediaSource = mediaSource; else delete e.mediaSource;
       if (length) e.length = length; else delete e.length;
       if (genres.length) e.genres = genres; else delete e.genres;
+      if (backlogItem) e.backlogAddedAt = backlogItem.createdAt || null;
     } else {
       const newEntry = {
         id: uid(), title, category, year, month,
@@ -869,6 +872,7 @@
       if (mediaSource) newEntry.mediaSource = mediaSource;
       if (length) newEntry.length = length;
       if (genres.length) newEntry.genres = genres;
+      if (backlogItem) newEntry.backlogAddedAt = backlogItem.createdAt || null;
       state.data.entries.push(newEntry);
     }
     if (fromBacklogId) state.data.backlog = state.data.backlog.filter((b) => b.id !== fromBacklogId);
@@ -1091,6 +1095,7 @@
     if (e.mediaSource) out.mediaSource = e.mediaSource;
     if (e.length) out.length = e.length;
     if (Array.isArray(e.genres) && e.genres.length) out.genres = e.genres.map((g) => String(g)).slice(0, 4);
+    if (e.backlogAddedAt) out.backlogAddedAt = e.backlogAddedAt;
     return out;
   }
 

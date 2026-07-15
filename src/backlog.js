@@ -27,6 +27,18 @@
       backfillUpdatedAt, MONTHS_SHORT, DEFAULT_SETTINGS } = ctx);
   }
 
+  // Coarse "N days/months/years ago" for the backlog edit modal's aging line.
+  function agingText(iso) {
+    const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+    if (days < 1) return "today";
+    if (days === 1) return "1 day ago";
+    if (days < 30) return days + " days ago";
+    const months = Math.floor(days / 30);
+    if (months < 12) return months === 1 ? "1 month ago" : months + " months ago";
+    const years = Math.floor(months / 12);
+    return years === 1 ? "1 year ago" : years + " years ago";
+  }
+
   function priorityBadge() {
     const span = el("span", "bpriority", "★");
     span.title = "Prioritized";
@@ -204,6 +216,45 @@
   }
 
   // ---------- backlog view ----------
+  // ---------- "pick something for me" ----------
+  // Pool the modal's reroll draws from — set once when opened, from
+  // whatever's currently eligible (scoped to the active category/search
+  // filters, same as the view itself).
+  let pickPool = [];
+
+  function eligibleForPick(items) {
+    return items.filter((b) => !b.dropped && !isUnreleased(b));
+  }
+
+  function renderPickBar(items) {
+    const eligible = eligibleForPick(items);
+    if (!eligible.length) return null;
+    const bar = el("div", "backlog-pick-bar");
+    const btn = el("button", "btn btn-sm", "🎲 Pick something for me");
+    btn.type = "button";
+    btn.onclick = () => openPickModal(eligible);
+    bar.appendChild(btn);
+    return bar;
+  }
+
+  function openPickModal(pool) {
+    pickPool = pool;
+    rerollPick();
+    $("#pickModal").hidden = false;
+  }
+  function closePickModal() { $("#pickModal").hidden = true; }
+
+  function rerollPick() {
+    if (!pickPool.length) return;
+    const b = pickPool[Math.floor(Math.random() * pickPool.length)];
+    $("#pickModalTitle").textContent = b.title;
+    $("#pickModalCategory").textContent = b.category;
+    const cover = $("#pickCover");
+    if (b.coverUrl) { $("#pickCoverImg").src = b.coverUrl; cover.hidden = false; }
+    else cover.hidden = true;
+    $("#pickOpenBtn").onclick = () => { closePickModal(); openBacklogModal(b); };
+  }
+
   function renderBacklog(root) {
     if (!state.data.backlog.length) {
       root.appendChild(emptyState({
@@ -222,6 +273,8 @@
       root.appendChild(emptyState("No backlog items match your filters."));
       return;
     }
+    const pickBar = renderPickBar(items);
+    if (pickBar) root.appendChild(pickBar);
     const byCat = groupBy(items, (b) => b.category);
     const order = state.data.categories.map((c) => c.name).filter((n) => byCat[n]);
     for (const n of Object.keys(byCat)) if (!order.includes(n)) order.push(n);
@@ -517,6 +570,12 @@
     updatePriorityBtn();
     $("#bDropped").checked = editing ? !!item.dropped : false;
     updateDroppedBtnLabel();
+    const aging = $("#backlogAgingLine");
+    if (editing && item.createdAt) {
+      aging.textContent = "Added " + new Date(item.createdAt).toLocaleDateString(undefined,
+        { year: "numeric", month: "short", day: "numeric" }) + " — " + agingText(item.createdAt);
+      aging.hidden = false;
+    } else aging.hidden = true;
     lastSyncedBacklogTitle = editing ? item.title : "";
     $("#bSteamAppId").value = editing && item.mediaSource === "steam" ? (item.mediaId || "") : "";
     $("#bTitleSuggest").innerHTML = "";
@@ -655,6 +714,8 @@
     $("#bSyncBtn").onclick = syncBacklogTitle;
     $("#bUnsyncBtn").onclick = unsyncBacklogItem;
     $("#bSteamAppId").oninput = () => applySteamAppId("b");
+    $("#pickRerollBtn").onclick = rerollPick;
+    $("#pickCloseBtn").onclick = closePickModal;
     document.addEventListener("click", (e) => {
       if (!e.target.closest("#backlogModal .ac-wrap")) {
         const bs = $("#bTitleSuggest");
@@ -671,6 +732,8 @@
     // modal (add menu, "✓ Done" flow, Escape close)
     openBacklogModal,
     closeBacklogModal,
+    // "pick something for me" modal (Escape close)
+    closePickModal,
     // cover panel (applySteamAppId in app.js writes the fields, then repaints)
     setBacklogCover,
     // data lifecycle (app.js's normalize/import infra)

@@ -19,13 +19,6 @@ todo:
   home-screen icon to jump straight to "Add entry" / "Add expense"
   instead of opening the app then navigating
 
-- backlog aging — surface "added N months ago, still not started" inside
-  the entry (item detail/edit modal), not as a standalone list/card on the
-  Backlog view itself. Also consider tracking backlog→Journal transitions
-  (when an item moves from backlog to completed) so aging can be measured
-  against how long things typically sit before getting done, not just how
-  long the still-open ones have been sitting
-
 - "skip this month" shortcut directly on a recurring expense's Ledger row
   (one tap), instead of only reachable through opening the modal to add a
   per-occurrence override
@@ -47,11 +40,6 @@ todo:
   no field is focused, or use a modifier), and probably want a small
   cheat-sheet (e.g. a "?" overlay) since they're not discoverable otherwise
 
-- "pick something for me" on the Backlog — a button that randomly picks
-  one item, scoped to the current category filter (and maybe priority
-  group) so it's not just uniform across the whole backlog. Could show
-  the pick in a small modal/toast with a re-roll option
-
 - clean up Settings → Media naming: the proxy URL field (`#steamProxyUrl`,
   stored at `settings.steam.proxyUrl`) lives inside the "Steam Wishlist
   import" section and is named/labeled as Steam-only, but it's actually
@@ -71,6 +59,15 @@ todo:
   isn't Steam-specific
 done:
 
+- "pick something for me" on the Backlog (a button above the list, scoped
+  to the active category/search filters and skipping dropped/unreleased
+  items, opening a small modal with a re-roll button and a way into that
+  item's own edit modal) and a backlog-aging line in the backlog item edit
+  modal ("Added Jan 3, 2026 — 3 months ago"). Entries moved over via the
+  Backlog's "✓ Done" flow (or an auto-linked title match) now also carry
+  the backlog item's original add date as `backlogAddedAt`, which Stats'
+  Overview card surfaces as a new "completed from backlog" count — and
+  which future aging-over-time stats can build on
 - backlog items within each group (prioritized, regular, upcoming/unreleased,
   dropped) now sort alphabetically by title within that group instead of by
   createdAt — the final tiebreaker in renderBacklog's sort comparator

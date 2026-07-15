@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.81.3" />
+  <link rel="stylesheet" href="src/styles.css?v=0.82.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -282,6 +282,7 @@
         <label>Category
           <select id="bCategory" required></select>
         </label>
+        <p class="muted added-line" id="backlogAgingLine" hidden></p>
         <input type="checkbox" id="bPriority" hidden />
         <input type="checkbox" id="bDropped" hidden />
         <label>Notes
@@ -295,6 +296,25 @@
           <button type="submit" class="btn btn-primary">Save</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Random backlog pick modal ("pick something for me") -->
+  <div class="modal-overlay" id="pickModal" hidden>
+    <div class="modal">
+      <div id="pickCover" hidden>
+        <div class="modal-cover">
+          <img id="pickCoverImg" src="" alt="Cover" />
+        </div>
+      </div>
+      <h2 id="pickModalTitle"></h2>
+      <p class="muted" id="pickModalCategory"></p>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="pickCloseBtn">Close</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="pickOpenBtn">Open</button>
+        <button type="button" class="btn btn-primary" id="pickRerollBtn">🎲 Pick again</button>
+      </div>
     </div>
   </div>
 
@@ -849,16 +869,16 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.81.3"></script>
-  <script src="src/media.js?v=0.81.3"></script>
-  <script src="src/merge.js?v=0.81.3"></script>
-  <script src="src/storage.js?v=0.81.3"></script>
-  <script src="src/finance.js?v=0.81.3"></script>
-  <script src="src/settings.js?v=0.81.3"></script>
-  <script src="src/backlog.js?v=0.81.3"></script>
-  <script src="src/journal.js?v=0.81.3"></script>
-  <script src="src/io.js?v=0.81.3"></script>
-  <script src="src/sync.js?v=0.81.3"></script>
-  <script src="src/app.js?v=0.81.3"></script>
+  <script src="src/qr.js?v=0.82.0"></script>
+  <script src="src/media.js?v=0.82.0"></script>
+  <script src="src/merge.js?v=0.82.0"></script>
+  <script src="src/storage.js?v=0.82.0"></script>
+  <script src="src/finance.js?v=0.82.0"></script>
+  <script src="src/settings.js?v=0.82.0"></script>
+  <script src="src/backlog.js?v=0.82.0"></script>
+  <script src="src/journal.js?v=0.82.0"></script>
+  <script src="src/io.js?v=0.82.0"></script>
+  <script src="src/sync.js?v=0.82.0"></script>
+  <script src="src/app.js?v=0.82.0"></script>
 </body>
 </html>
