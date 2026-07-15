@@ -1,5 +1,15 @@
 todo:
 
+- merge conflict visibility — merge.js resolves multi-device sync
+  conflicts silently right now; surface a small "here's what got
+  merged/dropped" summary when a merge actually had to resolve
+  conflicting edits, reusing the version-history's human-readable-summary
+  approach rather than inventing a new format
+
+- PWA app shortcuts (manifest.json `shortcuts`) — long-press the
+  home-screen icon to jump straight to "Add entry" / "Add expense"
+  instead of opening the app then navigating
+
 - backlog aging — surface "added N months ago, still not started" inside
   the entry (item detail/edit modal), not as a standalone list/card on the
   Backlog view itself. Also consider tracking backlog→Journal transitions
