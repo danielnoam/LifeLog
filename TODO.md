@@ -1,5 +1,14 @@
 todo:
 
+- trash/undo for deletes — a short-lived "Recently deleted" list (entries,
+  backlog items, finance/recurring expenses) surfaced in Settings → Data's
+  version history tab rather than as a whole separate UI, since that panel
+  already lists saves with restore buttons — a deleted item could show up
+  there as its own restorable row (or restoring the save right before the
+  delete could double as the recovery path) instead of duplicating that
+  list/restore machinery. Needs a retention window (e.g. purge after N
+  days or N saves) so it doesn't grow forever
+
 - merge conflict visibility — merge.js resolves multi-device sync
   conflicts silently right now; surface a small "here's what got
   merged/dropped" summary when a merge actually had to resolve
