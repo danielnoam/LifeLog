@@ -1,5 +1,27 @@
 todo:
 
+- backlog aging — surface "added N months ago, still not started" inside
+  the entry (item detail/edit modal), not as a standalone list/card on the
+  Backlog view itself. Also consider tracking backlog→Journal transitions
+  (when an item moves from backlog to completed) so aging can be measured
+  against how long things typically sit before getting done, not just how
+  long the still-open ones have been sitting
+
+- "skip this month" shortcut directly on a recurring expense's Ledger row
+  (one tap), instead of only reachable through opening the modal to add a
+  per-occurrence override
+
+- global search across Journal + Backlog + Finance (title/tag/note text)
+  from one input, instead of each view having its own separate filter
+
+- accessibility pass — focus states and ARIA labels on icon-only buttons
+  (jump-nav arrows, cover-link buttons, etc.), given how icon-heavy the UI
+  is
+
+- import/export test coverage for CSV round-trips specifically (export
+  then re-import and diff) — io.js's dedup logic already has solid test
+  coverage but the CSV round-trip itself doesn't seem to be
+
 - keyboard shortcuts for common actions — quick-add entry, jump between
   views (Timeline/Backlog/Ledger/Stats), maybe focus the title search.
   Should stay out of the way of typing in inputs/textareas (only fire when
