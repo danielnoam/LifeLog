@@ -377,15 +377,19 @@
         const local = candidates.find((c) => c.source === "cache");
         if (window.LifeLogMerge && remote && local && remote !== local) {
           try {
-            const merged = window.LifeLogMerge.mergeAllSources(_getSyncBase(), local.data, remote.data);
+            const syncBase = _getSyncBase();
+            const merged = window.LifeLogMerge.mergeAllSources(syncBase, local.data, remote.data);
             merged.exportedAt = new Date().toISOString();
             this._cache(merged);
             if (gh && gh.token) { try { await ghSave(merged); githubError = null; } catch (e) { githubError = e; } }
             await backupToFile(merged);
             _setSyncBase(merged);
             lastSavedSnapshot = structuredClone(merged);
-            await recordHistory(merged, "Merged — " + window.LifeLogMerge.diffSnapshots(local.data, merged));
-            return { data: merged, source: "merged" };
+            const conflictSummary = window.LifeLogMerge.summarizeConflicts(syncBase, local.data, remote.data);
+            let historySummary = "Merged — " + window.LifeLogMerge.diffSnapshots(local.data, merged);
+            if (conflictSummary) historySummary += " (" + conflictSummary + ")";
+            await recordHistory(merged, historySummary);
+            return { data: merged, source: "merged", conflictSummary };
           } catch (e) {
             // Merge itself failed (malformed data etc.) — fall back to the
             // manual picker rather than guessing.

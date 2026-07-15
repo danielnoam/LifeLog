@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.85.0] - 2026-07-15
+
+### Added
+- "Recently deleted" in Settings → History — entries, backlog items, and
+  finance/recurring expenses deleted within your last ~40 local saves now
+  show up there individually, each restorable on its own without
+  reverting anything else. Derived entirely from the existing local save
+  history (no separate trash store, no new retention window to manage).
+- Multi-device sync conflicts are no longer silent. When a merge actually
+  has to override one side's edit or resurrect something it deleted (the
+  other side had touched it since), that's now called out specifically —
+  in the merge toast (on load and on background sync) and in the version
+  history entry it produces — instead of only showing a generic
+  added/removed/edited count that couldn't tell a real conflict apart
+  from an ordinary one-sided change.
+
 ## [0.84.1] - 2026-07-15
 
 ### Changed

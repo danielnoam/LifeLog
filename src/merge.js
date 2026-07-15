@@ -108,6 +108,28 @@
     return parts.length ? parts.join(", ") : "No changes";
   }
 
+  // Human-readable summary of real conflicts a merge had to resolve — where
+  // one side's own edit or deletion was silently overridden by the other —
+  // as opposed to diffSnapshots' plain added/removed/edited counts, which
+  // don't distinguish a conflict from an ordinary one-sided change. Recomputes
+  // mergeCollection per collection (cheap for personal-log-sized data) rather
+  // than threading extra fields through mergeAllSources' returned document,
+  // which is written verbatim to disk and shouldn't carry a non-data field.
+  function summarizeConflicts(base, local, remote) {
+    base = base || {}; local = local || {}; remote = remote || {};
+    const editParts = [], deleteParts = [];
+    for (const key of COLLECTION_KEYS) {
+      const [singular, plural] = COLLECTION_LABELS[key];
+      const r = mergeCollection(base[key] || [], local[key] || [], remote[key] || []);
+      if (r.editConflicts.length) editParts.push(`${r.editConflicts.length} ${r.editConflicts.length === 1 ? singular : plural}`);
+      if (r.deleteOverridden.length) deleteParts.push(`${r.deleteOverridden.length} ${r.deleteOverridden.length === 1 ? singular : plural}`);
+    }
+    const out = [];
+    if (editParts.length) out.push(`kept the newer edit for ${editParts.join(", ")}`);
+    if (deleteParts.length) out.push(`restored ${deleteParts.join(", ")} deleted on one side but edited on the other`);
+    return out.join("; ");
+  }
+
   // Three-way merge of one id-keyed collection. base = last commonly-synced
   // state (may be empty/undefined on a device's first-ever sync — see the
   // no-base fallback this naturally produces below); local/remote = the two
@@ -116,6 +138,13 @@
     const baseMap = byId(baseArr), localMap = byId(localArr), remoteMap = byId(remoteArr);
     const allIds = new Set([...baseMap.keys(), ...localMap.keys(), ...remoteMap.keys()]);
     const merged = [], added = [], removed = [], updatedFromRemote = [], updatedFromLocal = [];
+    // Real conflicts only: cases where a side's own change was silently
+    // discarded rather than cleanly combined — editConflicts (both sides
+    // edited the same item; the older edit is dropped) and deleteOverridden
+    // (one side deleted it, but the other edited it since, so the deletion
+    // is discarded and the item resurrected). Plain one-sided updates above
+    // (only one side changed anything) lose nothing and aren't conflicts.
+    const editConflicts = [], deleteOverridden = [];
 
     for (const id of allIds) {
       const b = baseMap.get(id), l = localMap.get(id), r = remoteMap.get(id);
@@ -133,13 +162,13 @@
       if (!l && r) {
         // local deleted it — did remote change it since base?
         if (sameContent(r, b)) { removed.push(id); continue; } // remote unchanged → deletion wins
-        merged.push(r); updatedFromRemote.push(id);            // edit-wins-over-delete (resurrect)
+        merged.push(r); updatedFromRemote.push(id); deleteOverridden.push(id); // edit-wins-over-delete (resurrect)
         continue;
       }
       if (l && !r) {
         // remote deleted it — did local change it since base?
         if (sameContent(l, b)) { removed.push(id); continue; } // local unchanged → deletion wins
-        merged.push(l);                                         // edit-wins-over-delete (keep local)
+        merged.push(l); deleteOverridden.push(id);              // edit-wins-over-delete (keep local)
         continue;
       }
       // present in all three
@@ -153,9 +182,10 @@
         const winner = (l.updatedAt || "") >= (r.updatedAt || "") ? l : r;
         merged.push(winner);
         (winner === r ? updatedFromRemote : updatedFromLocal).push(id);
+        editConflicts.push(id);
       }
     }
-    return { merged, added, removed, updatedFromRemote, updatedFromLocal };
+    return { merged, added, removed, updatedFromRemote, updatedFromLocal, editConflicts, deleteOverridden };
   }
 
   function mergeAccomplishmentYears(base, local, remote) {
@@ -187,7 +217,7 @@
 
   const api = {
     COLLECTION_KEYS, byId, sameContent, flattenAccomplishments, unflattenAccomplishments,
-    stampChangedItems, diffCollection, diffSnapshots,
+    stampChangedItems, diffCollection, diffSnapshots, summarizeConflicts,
     mergeCollection, mergeAccomplishmentYears, mergeSettings, mergeAllSources,
   };
 

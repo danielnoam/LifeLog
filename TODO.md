@@ -1,20 +1,5 @@
 todo:
 
-- trash/undo for deletes — a short-lived "Recently deleted" list (entries,
-  backlog items, finance/recurring expenses) surfaced in Settings → Data's
-  version history tab rather than as a whole separate UI, since that panel
-  already lists saves with restore buttons — a deleted item could show up
-  there as its own restorable row (or restoring the save right before the
-  delete could double as the recovery path) instead of duplicating that
-  list/restore machinery. Needs a retention window (e.g. purge after N
-  days or N saves) so it doesn't grow forever
-
-- merge conflict visibility — merge.js resolves multi-device sync
-  conflicts silently right now; surface a small "here's what got
-  merged/dropped" summary when a merge actually had to resolve
-  conflicting edits, reusing the version-history's human-readable-summary
-  approach rather than inventing a new format
-
 - accessibility pass — focus states and ARIA labels on icon-only buttons
   (jump-nav arrows, cover-link buttons, etc.), given how icon-heavy the UI
   is
@@ -48,6 +33,25 @@ todo:
   isn't Steam-specific
 done:
 
+- trash/undo for deletes — "Recently deleted" in Settings → History,
+  derived entirely from the existing local save-history log (no separate
+  trash store or retention window): walks adjacent local history
+  snapshots to spot ids present in one save and gone in the next, keeps
+  whichever's still absent from the live data, and offers a per-item
+  Restore that pushes just that one item back rather than reverting a
+  whole snapshot. Covers entries, backlog items, and finance/recurring
+  expenses (not categories — their removal usually cascades/reassigns
+  rather than being a simple undo case)
+- merge conflict visibility — mergeCollection (merge.js) now flags real
+  conflicts specifically: editConflicts (both sides edited the same item;
+  the older edit is discarded) and deleteOverridden (one side deleted an
+  item the other side edited since, so the deletion is discarded and the
+  item resurrected) — as opposed to a plain one-sided change, which loses
+  nothing. A new summarizeConflicts() turns those into a short
+  human-readable phrase, surfaced in the merge toast (on load and on
+  background poll) and folded into the version-history entry a merge
+  produces, instead of only the generic added/removed/edited count that
+  couldn't tell a conflict apart from an ordinary merge
 - "skip this occurrence" for a recurring expense — sets a `skip` flag on
   that date's rec.overrides patch via a checkbox in the occurrence-edit
   modal (no separate quick-skip button on the Ledger row; toggling only

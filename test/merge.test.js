@@ -5,7 +5,7 @@ const assert = require("assert");
 global.window = {};
 require("../src/merge.js");
 const {
-  byId, sameContent, stampChangedItems, diffCollection, diffSnapshots,
+  byId, sameContent, stampChangedItems, diffCollection, diffSnapshots, summarizeConflicts,
   mergeCollection, mergeAllSources, mergeSettings, flattenAccomplishments,
 } = global.window.LifeLogMerge;
 
@@ -108,6 +108,17 @@ test("deletion vs edit-elsewhere: edit wins (resurrected)", () => {
   assert.strictEqual(r.merged.length, 1);
   assert.strictEqual(r.merged[0].title, "A-edited");
   assert.deepStrictEqual(r.updatedFromRemote, ["1"]);
+  assert.deepStrictEqual(r.deleteOverridden, ["1"]); // flagged as a real conflict, not a plain update
+  assert.deepStrictEqual(r.editConflicts, []);
+});
+
+test("deletion vs no change: not flagged as a conflict", () => {
+  const base = [item("1", "A", "t1")];
+  const local = []; // deleted locally
+  const remote = [item("1", "A", "t1")]; // untouched remotely
+  const r = mergeCollection(base, local, remote);
+  assert.deepStrictEqual(r.removed, ["1"]);
+  assert.deepStrictEqual(r.deleteOverridden, []);
 });
 
 test("symmetric: local edit survives a remote deletion", () => {
@@ -134,6 +145,33 @@ test("true conflict: both sides changed the same item since base -> newer update
   assert.strictEqual(r.merged[0].title, "A-remote"); // t2 > t1
   assert.strictEqual(r.merged[0].extra, "remote-field"); // whole item, no field bleed from local
   assert.deepStrictEqual(r.updatedFromRemote, ["1"]);
+  assert.deepStrictEqual(r.editConflicts, ["1"]);
+  assert.deepStrictEqual(r.deleteOverridden, []);
+});
+
+test("one-sided update is not flagged as a conflict", () => {
+  const base = [item("1", "A", "t0")];
+  const local = [item("1", "A", "t0")]; // unchanged locally
+  const remote = [item("1", "A-remote", "t1")]; // only remote changed
+  const r = mergeCollection(base, local, remote);
+  assert.deepStrictEqual(r.updatedFromRemote, ["1"]);
+  assert.deepStrictEqual(r.editConflicts, []);
+});
+
+test("summarizeConflicts describes edit-edit and delete-vs-edit conflicts by collection", () => {
+  const base = { entries: [item("1", "A", "t0")], backlog: [item("2", "B", "t0")] };
+  const local = { entries: [item("1", "A-local", "t1")], backlog: [] };
+  const remote = { entries: [item("1", "A-remote", "t2")], backlog: [item("2", "B-edited", "t1")] };
+  const s = summarizeConflicts(base, local, remote);
+  assert.match(s, /kept the newer edit for 1 entry/);
+  assert.match(s, /restored 1 backlog item deleted on one side but edited on the other/);
+});
+
+test("summarizeConflicts reports nothing for a conflict-free merge", () => {
+  const base = { entries: [item("1", "A", "t0")] };
+  const local = { entries: [item("1", "A", "t0")] };
+  const remote = { entries: [item("1", "A", "t0"), item("2", "B", "t0")] };
+  assert.strictEqual(summarizeConflicts(base, local, remote), "");
 });
 
 test("no-base fallback: union semantics, no deletions inferred", () => {

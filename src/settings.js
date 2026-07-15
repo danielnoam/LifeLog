@@ -97,6 +97,85 @@
 
   async function updateHistoryPanel() {
     await refreshHistoryList();
+    refreshTrashList();
+  }
+
+  // ---------- recently deleted (derived from local history, not a separate store) ----------
+  // Only collections a "delete" is a normal, everyday action on — not
+  // categories, whose removal usually reassigns/cascades into other items
+  // rather than being a simple "oops, undo" case.
+  const TRASH_COLLECTIONS = {
+    entries: { kind: "Entry", label: (e) => e.title },
+    backlog: { kind: "Backlog item", label: (b) => b.title },
+    financeEntries: { kind: "Finance entry", label: (f) => f.note || f.category },
+    recurringExpenses: { kind: "Recurring expense", label: (r) => r.note || r.category },
+  };
+
+  // Walks adjacent pairs of local history snapshots (oldest→newest) to spot
+  // ids present in one save and gone in the next — that's a deletion, and
+  // the previous snapshot still has the item's full data. Anything since
+  // re-added (its id is back in the live state.data) is dropped from the
+  // list; no separate trash store, no separate retention window — it rides
+  // on the same capped local history everything else here already uses.
+  function computeRecentlyDeleted() {
+    const local = historyCache
+      .filter((e) => e.source === "local" && e.snapshot)
+      .slice()
+      .sort((a, b) => a.savedAt.localeCompare(b.savedAt));
+    const deleted = new Map(); // "key:id" -> { key, item, deletedAt }
+    for (let i = 1; i < local.length; i++) {
+      const prev = local[i - 1].snapshot, next = local[i].snapshot;
+      for (const key of Object.keys(TRASH_COLLECTIONS)) {
+        const nextIds = new Set((next[key] || []).map((x) => x.id));
+        for (const item of prev[key] || []) {
+          if (!nextIds.has(item.id)) deleted.set(key + ":" + item.id, { key, item, deletedAt: local[i].savedAt });
+        }
+      }
+    }
+    const out = [];
+    for (const d of deleted.values()) {
+      if (!(state.data[d.key] || []).some((x) => x.id === d.item.id)) out.push(d);
+    }
+    out.sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
+    return out;
+  }
+
+  function refreshTrashList() {
+    const empty = $("#trashEmptyState");
+    const list = $("#trashList");
+    list.innerHTML = "";
+    const items = computeRecentlyDeleted();
+    empty.hidden = !!items.length;
+    items.forEach((d) => {
+      const meta = TRASH_COLLECTIONS[d.key];
+      const row = el("div", "history-row");
+      const head = el("div", "history-row-head");
+      head.appendChild(el("span", "history-date", meta.kind + " · " + formatHistoryDate(d.deletedAt)));
+      const btn = el("button", "btn btn-small", "Restore");
+      btn.type = "button";
+      btn.onclick = () => restoreDeletedItem(d);
+      head.appendChild(btn);
+      row.appendChild(head);
+      row.appendChild(el("div", "history-msg", meta.label(d.item) || "(untitled)"));
+      list.appendChild(row);
+    });
+  }
+
+  async function restoreDeletedItem(d) {
+    const meta = TRASH_COLLECTIONS[d.key];
+    const label = meta.label(d.item) || "(untitled)";
+    if (!confirm(`Restore "${label}"?`)) return;
+    if ((state.data[d.key] || []).some((x) => x.id === d.item.id)) {
+      toast("Already restored", true);
+      refreshTrashList();
+      return;
+    }
+    state.data[d.key] = state.data[d.key] || [];
+    state.data[d.key].push({ ...d.item, updatedAt: new Date().toISOString() });
+    render();
+    await persist();
+    refreshTrashList();
+    toast("Restored " + label);
   }
 
   // Normalizes a local history entry ({id, savedAt, summary, snapshot}) and
@@ -174,6 +253,7 @@
       afterDataChange();
       await persist();
       await refreshHistoryList();
+      refreshTrashList();
       toast("Restored version from " + when);
     } catch (e) {
       toast("Restore failed: " + (e.message || e), true);
@@ -537,7 +617,7 @@
     $("#disconnectFileBtn").onclick = disconnectFile;
     $("#ghConnectBtn").onclick = connectGithub;
     $("#ghDisconnectBtn").onclick = disconnectGithub;
-    $("#historyRefreshBtn").onclick = refreshHistoryList;
+    $("#historyRefreshBtn").onclick = updateHistoryPanel;
     $("#ghPollInterval").onchange = onPollIntervalChange;
     $("#ghCopyLinkBtn").onclick = async () => {
       const v = $("#ghSetupLink").value;

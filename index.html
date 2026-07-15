@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.84.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.85.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -549,6 +549,13 @@
 
       <div class="settings-panel" data-panel="history">
       <section class="settings-section">
+        <h3>Recently deleted</h3>
+        <p class="hint">Entries, backlog items, and finance/recurring expenses deleted within your local save history below — restoring pulls back just that one item, without touching anything else. Bounded by the same ~40-save window as Version history, so nothing needs separate cleanup.</p>
+        <p class="muted" id="trashEmptyState" hidden>Nothing recently deleted.</p>
+        <div id="trashList"></div>
+      </section>
+
+      <section class="settings-section">
         <h3>Version history</h3>
         <p class="hint">A short rollback history, not a full audit log — keeps roughly your last 40 saves so you can undo a mistake, works fully offline, and shows what actually changed in each one. Restoring saves that version as your new current one; nothing already in your history is ever deleted. When GitHub sync is connected, older saves beyond that local window fill in from its commit log too.</p>
 
@@ -873,16 +880,16 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.84.1"></script>
-  <script src="src/media.js?v=0.84.1"></script>
-  <script src="src/merge.js?v=0.84.1"></script>
-  <script src="src/storage.js?v=0.84.1"></script>
-  <script src="src/finance.js?v=0.84.1"></script>
-  <script src="src/settings.js?v=0.84.1"></script>
-  <script src="src/backlog.js?v=0.84.1"></script>
-  <script src="src/journal.js?v=0.84.1"></script>
-  <script src="src/io.js?v=0.84.1"></script>
-  <script src="src/sync.js?v=0.84.1"></script>
-  <script src="src/app.js?v=0.84.1"></script>
+  <script src="src/qr.js?v=0.85.0"></script>
+  <script src="src/media.js?v=0.85.0"></script>
+  <script src="src/merge.js?v=0.85.0"></script>
+  <script src="src/storage.js?v=0.85.0"></script>
+  <script src="src/finance.js?v=0.85.0"></script>
+  <script src="src/settings.js?v=0.85.0"></script>
+  <script src="src/backlog.js?v=0.85.0"></script>
+  <script src="src/journal.js?v=0.85.0"></script>
+  <script src="src/io.js?v=0.85.0"></script>
+  <script src="src/sync.js?v=0.85.0"></script>
+  <script src="src/app.js?v=0.85.0"></script>
 </body>
 </html>

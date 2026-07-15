@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.84.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.85.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1356,12 +1356,14 @@
       // Merge rather than blindly adopting remote — cheap insurance against
       // the narrow window where this device has local edits not yet marked
       // "pending" (e.g. between a mutation and its persist() call landing).
-      let merged = remoteData, contributedLocally = false, summary = "";
+      let merged = remoteData, contributedLocally = false, summary = "", conflictSummary = "";
       if (window.LifeLogMerge) {
         try {
-          merged = normalize(window.LifeLogMerge.mergeAllSources(Storage.getSyncBase(), state.data, remoteData));
+          const syncBase = Storage.getSyncBase();
+          merged = normalize(window.LifeLogMerge.mergeAllSources(syncBase, state.data, remoteData));
           summary = window.LifeLogMerge.diffSnapshots(state.data, merged);
           contributedLocally = window.LifeLogMerge.diffSnapshots(remoteData, merged) !== "No changes";
+          conflictSummary = window.LifeLogMerge.summarizeConflicts(syncBase, state.data, remoteData);
         } catch (e) { merged = remoteData; }
       }
       state.data = merged;
@@ -1369,7 +1371,9 @@
       afterDataChange();
       if (contributedLocally) await persist(); // push the reconciled result back so it durably converges
       else refreshStorageStatus();
-      toast(summary && summary !== "No changes" ? "Merged " + summary + " from your other device" : "Updated from another device");
+      let msg = summary && summary !== "No changes" ? "Merged " + summary + " from your other device" : "Updated from another device";
+      if (conflictSummary) msg += " — " + conflictSummary;
+      toast(msg, !!conflictSummary);
     }
   }
 
@@ -1903,7 +1907,11 @@
 
     if (setupMsg) toast(setupMsg, setupErr);
     else if (source === "seed") toast("Loaded " + state.data.entries.length + " entries from your sheet");
-    else if (source === "merged") toast("Merged changes from your other device");
+    else if (source === "merged") {
+      toast(result.conflictSummary
+        ? "Merged from your other device — " + result.conflictSummary
+        : "Merged changes from your other device", !!result.conflictSummary);
+    }
     else if (Storage.githubConnected && !githubReached) {
       toast("Offline — showing last saved copy; will sync when GitHub is reachable", true);
     }
