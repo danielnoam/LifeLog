@@ -39,18 +39,27 @@
     download("lifelog-journal.json", JSON.stringify(payload, null, 2), "application/json");
   }
   // journal CSV covers both Timeline entries (dated, Year+Month) and Backlog
-  // items (undated) — the Kind column tells them apart on re-import
-  function exportJournalCsv() {
+  // items (undated) — the Kind column tells them apart on re-import. Row-
+  // building is split out from the actual download() call so the export
+  // side of the CSV round-trip (paired with parseJournalCsv below) can be
+  // exercised directly in tests, without a browser Blob/URL.
+  function journalCsvRows(entries, backlog) {
     const rows = [["Kind", "Year", "Month", "Category", "Title", "Added"]];
-    state.data.entries.slice()
+    entries.slice()
       .sort((a, b) => (a.year - b.year) || (a.month - b.month))
       .forEach((e) => rows.push(["Entry", e.year, MONTHS[e.month], e.category, e.title,
         e.createdAt ? e.createdAt.slice(0, 10) : ""]));
-    state.data.backlog.slice()
+    backlog.slice()
       .sort((a, b) => (a.title || "").localeCompare(b.title || ""))
       .forEach((b) => rows.push(["Backlog", "", "", b.category, b.title,
         b.createdAt ? b.createdAt.slice(0, 10) : ""]));
-    download("lifelog-journal.csv", rows.map((r) => r.map(csvEsc).join(",")).join("\n"), "text/csv");
+    return rows;
+  }
+  function journalCsvText(entries, backlog) {
+    return journalCsvRows(entries, backlog).map((r) => r.map(csvEsc).join(",")).join("\n");
+  }
+  function exportJournalCsv() {
+    download("lifelog-journal.csv", journalCsvText(state.data.entries, state.data.backlog), "text/csv");
   }
   let MONTH_NAME_TO_NUM;
   function parseJournalCsv(text) {
@@ -436,6 +445,6 @@
     importJsonAll, importJournalJson, importJournalCsv,
     buildImportItems, reviewAndImport, openImportPicker,
     // pure helpers (exported for test/io.test.js)
-    importItemDateStr, importBucketKey,
+    importItemDateStr, importBucketKey, journalCsvText, parseJournalCsv,
   };
 })();

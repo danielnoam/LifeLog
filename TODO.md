@@ -1,18 +1,13 @@
 todo:
 
-- accessibility pass — focus states and ARIA labels on icon-only buttons
-  (jump-nav arrows, cover-link buttons, etc.), given how icon-heavy the UI
-  is
-
-- import/export test coverage for CSV round-trips specifically (export
-  then re-import and diff) — io.js's dedup logic already has solid test
-  coverage but the CSV round-trip itself doesn't seem to be
-
-- keyboard shortcuts for common actions — quick-add entry, jump between
-  views (Timeline/Backlog/Ledger/Stats), maybe focus the title search.
-  Should stay out of the way of typing in inputs/textareas (only fire when
-  no field is focused, or use a modifier), and probably want a small
-  cheat-sheet (e.g. a "?" overlay) since they're not discoverable otherwise
+- keyboard-reachability for the app's clickable-but-not-<button> controls
+  (category filter chips, the chip-edit "✎" pencil, the "+" add-category
+  chip, achievement chips) — surfaced while doing the icon-only-buttons
+  accessibility pass below: these are onclick spans with no tabindex/
+  role/keydown handling, so they're mouse/touch-only right now. Bigger
+  than the button pass (needs a keyboard-activation pattern applied
+  consistently across several chip-like widgets), so left for its own
+  pass rather than folded in here.
 
 - clean up Settings → Media naming: the proxy URL field (`#steamProxyUrl`,
   stored at `settings.steam.proxyUrl`) lives inside the "Steam Wishlist
@@ -33,6 +28,26 @@ todo:
   isn't Steam-specific
 done:
 
+- keyboard shortcuts — N to quick-add an entry, 1–5 to jump between
+  Timeline/Stats/Backlog/Ledger/Summary, / to focus search, and ? to open
+  a small cheat-sheet listing them all (also noted in Settings, since
+  otherwise there's no on-screen hint they exist). Skipped while typing
+  in a field, while a modal is open, or with a modifier held, so they
+  never fight with entering a title/note/search term
+- accessibility pass on icon-only buttons — ARIA labels added wherever a
+  button's only content was a glyph and it didn't already have one
+  (Settings gear, close-Settings, the cover-sync buttons, the backlog
+  priority toggle incl. aria-pressed, each section's "+" quick-add), plus
+  an app-wide :focus-visible outline (buttons/links/inputs had none
+  beyond the browser's bare default before this). cover-link-btn and
+  mobile jump-nav buttons get an inset offset instead, since both sit
+  inside an overflow:hidden ancestor that would've clipped the ring
+- CSV round-trip test coverage for Journal import/export — journalCsvText
+  (a pure function split out of exportJournalCsv, which previously only
+  built rows inline before handing them to download()) piped through
+  parseJournalCsv and diffed against the original entries/backlog,
+  covering exact-value preservation, embedded commas/quotes/newlines, and
+  a mixed entries+backlog export
 - trash/undo for deletes — "Recently deleted" in Settings → History,
   derived entirely from the existing local save-history log (no separate
   trash store or retention window): walks adjacent local history

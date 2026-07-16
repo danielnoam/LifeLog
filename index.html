@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.85.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.86.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -82,7 +82,7 @@
       </div>
     </div>
 
-    <button id="settingsBtn" class="btn btn-icon" title="Settings">⚙</button>
+    <button id="settingsBtn" class="btn btn-icon" title="Settings" aria-label="Settings">⚙</button>
   </header>
 
   <div class="fab-wrap" id="fabWrap">
@@ -132,7 +132,7 @@
         <label>Title
           <div class="ac-wrap">
             <input id="fTitle" type="text" required autocomplete="off" />
-            <button type="button" class="btn btn-sm sync-btn" id="fSyncBtn" title="Look up cover, year &amp; rating" hidden>🔄</button>
+            <button type="button" class="btn btn-sm sync-btn" id="fSyncBtn" title="Look up cover, year &amp; rating" aria-label="Look up cover, year &amp; rating" hidden>🔄</button>
             <div class="ac-list" id="fTitleSuggest" hidden></div>
           </div>
           <div class="sync-status" id="fSyncStatus" hidden>
@@ -261,8 +261,8 @@
         <label>Title
           <div class="ac-wrap">
             <input id="bTitle" type="text" required autocomplete="off" placeholder="e.g. The Last of Us Part II" />
-            <button type="button" class="btn btn-sm priority-star" id="bPriorityBtn" title="Prioritize">☆</button>
-            <button type="button" class="btn btn-sm sync-btn" id="bSyncBtn" title="Look up cover, year &amp; rating" hidden>🔄</button>
+            <button type="button" class="btn btn-sm priority-star" id="bPriorityBtn" title="Prioritize" aria-label="Prioritize" aria-pressed="false">☆</button>
+            <button type="button" class="btn btn-sm sync-btn" id="bSyncBtn" title="Look up cover, year &amp; rating" aria-label="Look up cover, year &amp; rating" hidden>🔄</button>
             <div class="ac-list" id="bTitleSuggest" hidden></div>
           </div>
           <div class="sync-status" id="bSyncStatus" hidden>
@@ -457,7 +457,7 @@
     <div class="modal modal-wide settings-modal">
       <div class="modal-head">
         <h2>Settings</h2>
-        <button class="btn btn-icon" id="closeSettingsBtn" title="Close">✕</button>
+        <button class="btn btn-icon" id="closeSettingsBtn" title="Close" aria-label="Close settings">✕</button>
       </div>
 
       <nav class="settings-tabs" id="settingsTabs">
@@ -831,6 +831,7 @@
       </div><!-- /media panel -->
       </div><!-- /settings-panels -->
 
+      <p class="hint">Press <kbd>?</kbd> anywhere in the app for a list of keyboard shortcuts.</p>
       <p class="version-tag" id="appVersion"></p>
     </div>
   </div>
@@ -870,6 +871,30 @@
     </div>
   </div>
 
+  <!-- Keyboard shortcuts cheat-sheet, opened via "?" (see wire() in app.js) —
+       the shortcuts themselves have no other on-screen hint, so this is the
+       only way to discover them besides the note in Settings. -->
+  <div class="modal-overlay" id="shortcutsModal" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h2>Keyboard shortcuts</h2>
+        <button class="btn btn-icon" id="closeShortcutsBtn" title="Close" aria-label="Close keyboard shortcuts">✕</button>
+      </div>
+      <dl class="shortcuts-list">
+        <div><dt><kbd>N</kbd></dt><dd>Add entry</dd></div>
+        <div><dt><kbd>/</kbd></dt><dd>Focus search</dd></div>
+        <div><dt><kbd>1</kbd></dt><dd>Timeline</dd></div>
+        <div><dt><kbd>2</kbd></dt><dd>Stats</dd></div>
+        <div><dt><kbd>3</kbd></dt><dd>Backlog</dd></div>
+        <div><dt><kbd>4</kbd></dt><dd>Ledger</dd></div>
+        <div><dt><kbd>5</kbd></dt><dd>Summary</dd></div>
+        <div><dt><kbd>Esc</kbd></dt><dd>Close a dialog / menu</dd></div>
+        <div><dt><kbd>?</kbd></dt><dd>Show this list</dd></div>
+      </dl>
+      <p class="hint">Only fire when you're not typing in a field, so they stay out of the way of titles, notes, and search.</p>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="conflictModal" hidden>
     <div class="modal modal-wide">
       <h2>Couldn't automatically merge these versions</h2>
@@ -880,16 +905,16 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.85.0"></script>
-  <script src="src/media.js?v=0.85.0"></script>
-  <script src="src/merge.js?v=0.85.0"></script>
-  <script src="src/storage.js?v=0.85.0"></script>
-  <script src="src/finance.js?v=0.85.0"></script>
-  <script src="src/settings.js?v=0.85.0"></script>
-  <script src="src/backlog.js?v=0.85.0"></script>
-  <script src="src/journal.js?v=0.85.0"></script>
-  <script src="src/io.js?v=0.85.0"></script>
-  <script src="src/sync.js?v=0.85.0"></script>
-  <script src="src/app.js?v=0.85.0"></script>
+  <script src="src/qr.js?v=0.86.0"></script>
+  <script src="src/media.js?v=0.86.0"></script>
+  <script src="src/merge.js?v=0.86.0"></script>
+  <script src="src/storage.js?v=0.86.0"></script>
+  <script src="src/finance.js?v=0.86.0"></script>
+  <script src="src/settings.js?v=0.86.0"></script>
+  <script src="src/backlog.js?v=0.86.0"></script>
+  <script src="src/journal.js?v=0.86.0"></script>
+  <script src="src/io.js?v=0.86.0"></script>
+  <script src="src/sync.js?v=0.86.0"></script>
+  <script src="src/app.js?v=0.86.0"></script>
 </body>
 </html>

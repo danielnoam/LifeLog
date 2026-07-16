@@ -300,6 +300,7 @@
         const addBtn = el("button", "month-add-btn", "+");
         addBtn.type = "button";
         addBtn.title = "Add to " + catName;
+        addBtn.setAttribute("aria-label", addBtn.title);
         addBtn.onclick = (ev) => { ev.stopPropagation(); openBacklogModal(null, catName); };
         head.appendChild(addBtn);
       }
@@ -602,6 +603,8 @@
     btn.textContent = on ? "★" : "☆";
     btn.classList.toggle("active", on);
     btn.title = on ? "Prioritized — click to remove" : "Prioritize";
+    btn.setAttribute("aria-label", btn.title);
+    btn.setAttribute("aria-pressed", String(on));
   }
   function togglePriority() {
     $("#bPriority").checked = !$("#bPriority").checked;

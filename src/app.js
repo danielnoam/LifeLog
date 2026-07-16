@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.85.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.86.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -51,6 +51,11 @@
   // values on .tab in styles.css) — used for swipe-to-switch, so a swipe
   // moves to the visually adjacent tab, not just the next one in DOM order.
   const VIEW_ORDER = ["stats", "timeline", "backlog", "finance", "finance-stats"];
+  // Number-key shortcuts (see wire()'s keydown handler) — deliberately the
+  // on-screen tab order (left-to-right in #viewTabs), not VIEW_ORDER above,
+  // since that's what the shortcuts cheat-sheet shows and what a user
+  // scanning the tab bar would expect "3" etc. to mean.
+  const SHORTCUT_VIEWS = { 1: "timeline", 2: "stats", 3: "backlog", 4: "finance", 5: "finance-stats" };
 
   function loadVisualSettings() {
     try {
@@ -928,6 +933,7 @@
       const addBtn = el("button", "month-add-btn", "+");
       addBtn.type = "button";
       addBtn.title = "Add to " + label;
+      addBtn.setAttribute("aria-label", addBtn.title);
       addBtn.onclick = (ev) => { ev.stopPropagation(); opts.onAdd(); };
       right.appendChild(addBtn);
     }
@@ -1343,6 +1349,17 @@
     return !!document.querySelector(".modal-overlay:not([hidden])");
   }
 
+  // Global one-key shortcuts (see wire()'s keydown handler) only fire
+  // outside of text entry — otherwise typing a title/note/search term
+  // starting with "n" or a digit would trigger one instead of being typed.
+  function isTypingTarget(node) {
+    if (!node) return false;
+    const tag = node.tagName;
+    return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || node.isContentEditable;
+  }
+  function openShortcutsModal() { $("#shortcutsModal").hidden = false; }
+  function closeShortcutsModal() { $("#shortcutsModal").hidden = true; }
+
   // Periodic check for changes made on another device. If we have unsynced
   // local edits, push those first; otherwise pull in a newer remote copy.
   async function pollForUpdates() {
@@ -1695,13 +1712,26 @@
     });
     syncModalOpenState();
 
+    $("#closeShortcutsBtn").onclick = closeShortcutsModal;
+
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         Journal.closeEntryModal(); Journal.closeAchModal(); Journal.cancelCategoryModal(); Backlog.closeBacklogModal();
         Backlog.closePickModal();
         Finance.closeFinanceModal(); Finance.cancelFinanceCatModal(); SettingsUI.closeSettings();
+        closeShortcutsModal();
         $("#addMenu").hidden = true;
+        return;
       }
+      // Everything below is a bare, unmodified key — skip while typing in a
+      // field, a modal's already open (its own form fields aside — e.g. a
+      // button inside one could still be focused), or a modifier is held,
+      // so Ctrl/Cmd/Alt combos pass straight through to the browser.
+      if (isTypingTarget(document.activeElement) || isAnyModalOpen() || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === "?") { e.preventDefault(); openShortcutsModal(); return; }
+      if (e.key === "/") { e.preventDefault(); $("#search").focus(); return; }
+      if (e.key === "n" || e.key === "N") { e.preventDefault(); Journal.openEntryModal(null); return; }
+      if (SHORTCUT_VIEWS[e.key]) { e.preventDefault(); switchToView(SHORTCUT_VIEWS[e.key]); return; }
     });
 
     // Retry a pending save and check for remote updates as soon as the

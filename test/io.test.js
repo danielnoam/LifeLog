@@ -29,9 +29,11 @@ const state = {
   },
 };
 const CATEGORY_PALETTE = ["#aaa", "#bbb", "#ccc"];
+const MONTHS = ["", "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"];
 const IO = global.window.LifeLogIO;
 IO.init({
-  state, CATEGORY_PALETTE,
+  state, CATEGORY_PALETTE, MONTHS,
   financeKey: global.window.LifeLogFinance.financeKey,
   recurringKey: global.window.LifeLogFinance.recurringKey,
   sanitizeEntry: global.window.LifeLogJournal.sanitizeEntry,
@@ -40,7 +42,7 @@ IO.init({
   sanitizeRecurring: global.window.LifeLogFinance.sanitizeRecurring,
 });
 
-const { parseCsv, csvEsc, buildImportItems, importItemDateStr, importBucketKey } = IO;
+const { parseCsv, csvEsc, buildImportItems, importItemDateStr, importBucketKey, journalCsvText, parseJournalCsv } = IO;
 
 let passed = 0;
 function test(name, fn) {
@@ -140,6 +142,65 @@ test("buildImportItems collects new category names not already known, tagged by 
   assert.deepStrictEqual(names, ["NewFinanceCat", "NewJournalCat"]);
   assert.strictEqual(newCategories.find((c) => c.name === "NewJournalCat").scope, "journal");
   assert.strictEqual(newCategories.find((c) => c.name === "NewFinanceCat").scope, "finance");
+});
+
+// ---------- journal CSV round-trip (export then re-import) ----------
+// journalCsvText/parseJournalCsv are the two ends of Settings → Import/Export
+// → Journal data → CSV — exercising them back-to-back is what buildImportItems's
+// existing dedup-key tests above don't cover: they start from already-parsed
+// objects, never from CSV text that was itself produced by the exporter.
+test("journal CSV round-trip preserves entries (title, category, year, month, createdAt)", () => {
+  const entries = [
+    { title: "Foo", category: "Games", year: 2026, month: 1, createdAt: "2026-01-03T00:00:00.000Z" },
+    { title: "Bar", category: "Games", year: 2025, month: 12, createdAt: "2025-12-25T00:00:00.000Z" },
+  ];
+  const text = journalCsvText(entries, []);
+  const { entries: reimported, backlog } = parseJournalCsv(text);
+  assert.strictEqual(backlog.length, 0);
+  assert.strictEqual(reimported.length, entries.length);
+  const byTitle = (list) => Object.fromEntries(list.map((e) => [e.title, e]));
+  const before = byTitle(entries), after = byTitle(reimported);
+  for (const title of Object.keys(before)) {
+    assert.strictEqual(after[title].category, before[title].category);
+    assert.strictEqual(after[title].year, before[title].year);
+    assert.strictEqual(after[title].month, before[title].month);
+    assert.strictEqual(after[title].createdAt, before[title].createdAt);
+  }
+});
+
+test("journal CSV round-trip preserves backlog items (title, category, createdAt)", () => {
+  const backlogIn = [
+    { title: "Someday Game", category: "Games", createdAt: "2026-02-14T00:00:00.000Z" },
+    { title: "No Date Item", category: "Games", createdAt: null },
+  ];
+  const text = journalCsvText([], backlogIn);
+  const { entries, backlog } = parseJournalCsv(text);
+  assert.strictEqual(entries.length, 0);
+  assert.strictEqual(backlog.length, backlogIn.length);
+  const byTitle = Object.fromEntries(backlog.map((b) => [b.title, b]));
+  assert.strictEqual(byTitle["Someday Game"].category, "Games");
+  assert.strictEqual(byTitle["Someday Game"].createdAt, "2026-02-14T00:00:00.000Z");
+  assert.strictEqual(byTitle["No Date Item"].createdAt, null);
+});
+
+test("journal CSV round-trip survives titles/categories with commas, quotes, and newlines", () => {
+  const entries = [
+    { title: 'Foo, Bar: "The Game"', category: "Games", year: 2026, month: 6, createdAt: null },
+    { title: "Multi\nLine Title", category: "Games", year: 2026, month: 7, createdAt: null },
+  ];
+  const text = journalCsvText(entries, []);
+  const { entries: reimported } = parseJournalCsv(text);
+  const titles = reimported.map((e) => e.title).sort();
+  assert.deepStrictEqual(titles, entries.map((e) => e.title).sort());
+});
+
+test("journal CSV round-trip on a mixed entries+backlog export recovers both kinds fully", () => {
+  const entries = [{ title: "Played It", category: "Games", year: 2026, month: 3, createdAt: null }];
+  const backlogIn = [{ title: "Will Play It", category: "Games", createdAt: null }];
+  const text = journalCsvText(entries, backlogIn);
+  const { entries: reEntries, backlog: reBacklog } = parseJournalCsv(text);
+  assert.deepStrictEqual(reEntries.map((e) => e.title), ["Played It"]);
+  assert.deepStrictEqual(reBacklog.map((b) => b.title), ["Will Play It"]);
 });
 
 // ---------- importItemDateStr / importBucketKey ----------

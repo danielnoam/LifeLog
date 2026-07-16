@@ -4,6 +4,26 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.86.0] - 2026-07-16
+
+### Added
+- Keyboard shortcuts — <kbd>N</kbd> to quick-add an entry, <kbd>1</kbd>–<kbd>5</kbd>
+  to jump between Timeline/Stats/Backlog/Ledger/Summary, <kbd>/</kbd> to
+  focus search, and <kbd>?</kbd> to open a cheat-sheet listing them all
+  (also noted in Settings). They only fire when you're not typing in a
+  field and no modal is already open, so they stay out of the way of
+  titles, notes, and search text.
+- Accessibility pass on icon-only buttons — added missing ARIA labels
+  (Settings, close Settings, the cover-sync and backlog-priority buttons,
+  each section's "+" quick-add) and a visible focus ring on every
+  button/link/input, which previously had none beyond the browser's bare
+  default.
+
+### Changed
+- Added CSV round-trip test coverage for Journal import/export (export
+  then re-import and diff) — io.js's dedup logic already had solid
+  coverage but the CSV round-trip itself didn't.
+
 ## [0.85.0] - 2026-07-15
 
 ### Added
