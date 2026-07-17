@@ -7,7 +7,7 @@
 // setEntryCover) live here and are re-forwarded into backlog.js by app.js.
 (function () {
   // Shared app plumbing, provided by app.js via init(ctx).
-  let state, $, el, uid, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
+  let state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
     emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
@@ -16,7 +16,7 @@
     DEFAULT_SETTINGS;
 
   function init(ctx) {
-    ({ state, $, el, uid, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
+    ({ state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
       emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
       attachLongPressSelect, animatedNumberText, barRow, fillSelect,
       fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
@@ -43,7 +43,7 @@
         accs.forEach((acc, i) => {
           const chip = el("span", "acc", acc.text);
           chip.title = "Edit achievement";
-          chip.onclick = () => openAchModal({ year: +y, index: i, text: acc.text, createdAt: acc.createdAt, notes: acc.notes });
+          activatable(chip, () => openAchModal({ year: +y, index: i, text: acc.text, createdAt: acc.createdAt, notes: acc.notes }), "Edit achievement: " + acc.text);
           a.appendChild(chip);
         });
         head.appendChild(a);
@@ -531,6 +531,7 @@
     const lengthSrc = editing ? (entry.length || "") : (fromBacklog ? (fromBacklog.length || "") : "");
     const genresSrc = editing ? (entry.genres || []) : (fromBacklog ? (fromBacklog.genres || []) : []);
     lastSyncedEntryTitle = editing ? entry.title : (fromBacklog ? fromBacklog.title : "");
+    entrySyncLocked = !!mediaSrc;
     setEntryCover(coverSrc, mediaId, mediaSrc, lengthSrc, genresSrc);
     $("#fSteamAppId").value = mediaSrc === "steam" ? mediaId : "";
     updateSyncBtnVisibility("f", $("#fCategory").value);
@@ -593,6 +594,12 @@
   // Title last attached to synced media metadata, so a manual edit (vs. a
   // local-match or sync pick) is detected and clears the now-stale cover.
   let lastSyncedEntryTitle = "";
+  // True once the entry's media link came from an explicit pick (a Sync-button
+  // match, or a local/backlog suggestion) or was already set on an opened
+  // entry. While it's set, renaming the title won't silently drop the link —
+  // only the "✕ Unsync" button clears it. Mirrors how editing an existing
+  // synced entry already behaves; see the guard in renderTitleSuggestions.
+  let entrySyncLocked = false;
 
   function hasMediaSourceFor(category) {
     return !!((state.data.settings.mediaCategorySources || {})[category]);
@@ -623,11 +630,19 @@
     return appId ? { mediaSource: "steam", mediaId: appId } : { mediaSource: "rawg", mediaId: r.id || "" };
   }
 
-  // Tries the category's primary media source first; only if that comes back
-  // completely empty does it fall back to the category's configured fallback
-  // source (if any) — the fallback never overrides a primary that actually
-  // found something, it just fills the gap when the primary has nothing.
-  async function fetchMediaSuggestions(title, category) {
+  // Looks up a category's media source(s) for `title`.
+  //
+  // Default (bulk sync / auto-checks, which just auto-take the first result):
+  // tries the primary source, and only if it comes back completely empty falls
+  // back to the category's configured fallback source — the fallback fills a
+  // gap, it never overrides a primary that found something.
+  //
+  // With { combineFallback: true } (the manual "🔄 Sync" button): returns the
+  // primary's matches AND the fallback's, primary first, so you can pick from
+  // either source in one list. The primary still leads, so callers that take
+  // the first result are unaffected either way.
+  async function fetchMediaSuggestions(title, category, opts) {
+    const combineFallback = !!(opts && opts.combineFallback);
     const source = (state.data.settings.mediaCategorySources || {})[category];
     if (!source || !window.LifeLogMedia) return [];
     const fallbackSource = (state.data.settings.mediaCategoryFallbackSources || {})[category];
@@ -646,6 +661,9 @@
     }
     try {
       const results = await trySource(source);
+      if (combineFallback && fallbackSource && fallbackSource !== source) {
+        return results.concat(await trySource(fallbackSource));
+      }
       if (results.length) return results;
       return await trySource(fallbackSource);
     } catch (e) { return []; }
@@ -715,9 +733,10 @@
 
     // If user is typing new content (not just after a local-match pick), clear cover —
     // unless it's a manually-entered Steam App ID, which isn't derived from the title.
-    // Only while adding: renaming an already-synced existing entry shouldn't silently
-    // drop its media link — that takes an explicit "✕ Unsync" now.
-    if (isAdding && query !== lastSyncedEntryTitle && $("#fCoverUrl").value && $("#fMediaSource").value !== "steam") {
+    // Only while adding, and only if the link isn't locked by an explicit sync:
+    // renaming an already-synced entry shouldn't silently drop its media link —
+    // that takes an explicit "✕ Unsync" now, whether adding or editing.
+    if (isAdding && !entrySyncLocked && query !== lastSyncedEntryTitle && $("#fCoverUrl").value && $("#fMediaSource").value !== "steam") {
       setEntryCover("", "", "", "", []);
     }
 
@@ -730,6 +749,7 @@
         { title: m.title, coverUrl: m.coverUrl, year: null, externalRating: null },
         () => {
           lastSyncedEntryTitle = m.title;
+          entrySyncLocked = true;
           $("#fTitle").value = m.title;
           if (state.data.categories.some((c) => c.name === m.category)) $("#fCategory").value = m.category;
           setEntryCover(m.coverUrl, m.mediaId, m.mediaSource, m.length || "", m.genres || []);
@@ -752,6 +772,7 @@
         { title: b.title, coverUrl: b.coverUrl || "", year: null, externalRating: null },
         () => {
           lastSyncedEntryTitle = b.title;
+          entrySyncLocked = true;
           $("#fTitle").value = b.title;
           if (state.data.categories.some((c) => c.name === b.category)) $("#fCategory").value = b.category;
           setEntryCover(b.coverUrl || "", b.mediaId || "", b.mediaSource || "", b.length || "", b.genres || []);
@@ -798,7 +819,7 @@
     const category = $("#fCategory").value;
     if (!title) return;
     const list = $("#fTitleSuggest");
-    const results = await fetchMediaSuggestions(title, category);
+    const results = await fetchMediaSuggestions(title, category, { combineFallback: true });
     list.innerHTML = "";
     if (!results.length) {
       list.hidden = true;
@@ -809,7 +830,11 @@
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     results.forEach((r) => {
       list.appendChild(makeMediaAcItem(r, async () => {
-        lastSyncedEntryTitle = $("#fTitle").value.trim();
+        // Picking a match adopts that media's title, and locks the link so a
+        // later title edit won't drop it (only "✕ Unsync" does).
+        $("#fTitle").value = r.title;
+        lastSyncedEntryTitle = r.title;
+        entrySyncLocked = true;
         const length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
         let mediaId = r.id, mediaSource = r.source;
         if (r.source === "rawg-steam-gg") {
@@ -827,6 +852,7 @@
   function unsyncEntry() {
     setEntryCover("", "", "", "", []);
     $("#fSteamAppId").value = "";
+    entrySyncLocked = false;
     $("#fTitleSuggest").hidden = true;
   }
 

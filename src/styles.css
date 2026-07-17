@@ -240,7 +240,16 @@ html, body {
 
 /* Settings lives in the header corner, separate from the Add FAB, so the
    two don't compete for attention as if they were equally weighted actions. */
-#settingsBtn { order: 5; }
+/* Settings ⚙ sits at the far-right of the header; the version number rides
+   directly under it — absolutely positioned (against .settings-corner) so its
+   width never affects the header's flex layout, mirroring how the sync status
+   line hangs under the logo on the left. The topbar's extra bottom padding
+   reserves room for both. */
+.settings-corner { order: 5; position: relative; display: flex; align-items: center; }
+.version-badge {
+  position: absolute; top: 100%; right: 0; margin-top: 10px;
+  font-size: 11px; color: var(--text-faint); white-space: nowrap; pointer-events: none;
+}
 
 /* Sync status sits directly under the logo — absolutely positioned (against
    .brand) so its text width, often much wider than "LifeLog", never affects

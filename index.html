@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.86.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.88.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -82,7 +82,10 @@
       </div>
     </div>
 
-    <button id="settingsBtn" class="btn btn-icon" title="Settings" aria-label="Settings">⚙</button>
+    <div class="settings-corner">
+      <button id="settingsBtn" class="btn btn-icon" title="Settings" aria-label="Settings">⚙</button>
+      <span class="version-badge" id="appVersion"></span>
+    </div>
   </header>
 
   <div class="fab-wrap" id="fabWrap">
@@ -832,7 +835,6 @@
       </div><!-- /settings-panels -->
 
       <p class="hint">Press <kbd>?</kbd> anywhere in the app for a list of keyboard shortcuts.</p>
-      <p class="version-tag" id="appVersion"></p>
     </div>
   </div>
 
@@ -905,16 +907,16 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.86.0"></script>
-  <script src="src/media.js?v=0.86.0"></script>
-  <script src="src/merge.js?v=0.86.0"></script>
-  <script src="src/storage.js?v=0.86.0"></script>
-  <script src="src/finance.js?v=0.86.0"></script>
-  <script src="src/settings.js?v=0.86.0"></script>
-  <script src="src/backlog.js?v=0.86.0"></script>
-  <script src="src/journal.js?v=0.86.0"></script>
-  <script src="src/io.js?v=0.86.0"></script>
-  <script src="src/sync.js?v=0.86.0"></script>
-  <script src="src/app.js?v=0.86.0"></script>
+  <script src="src/qr.js?v=0.88.0"></script>
+  <script src="src/media.js?v=0.88.0"></script>
+  <script src="src/merge.js?v=0.88.0"></script>
+  <script src="src/storage.js?v=0.88.0"></script>
+  <script src="src/finance.js?v=0.88.0"></script>
+  <script src="src/settings.js?v=0.88.0"></script>
+  <script src="src/backlog.js?v=0.88.0"></script>
+  <script src="src/journal.js?v=0.88.0"></script>
+  <script src="src/io.js?v=0.88.0"></script>
+  <script src="src/sync.js?v=0.88.0"></script>
+  <script src="src/app.js?v=0.88.0"></script>
 </body>
 </html>

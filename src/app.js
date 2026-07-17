@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.86.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.88.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -196,6 +196,27 @@
     return e;
   };
   const uid = () => "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+  // Makes a non-<button> element keyboard-operable the way a real button is:
+  // focusable, announced as a button, and fired by Enter or Space (Space
+  // otherwise scrolls the page). Used on the chip-like spans that can't be
+  // plain <button>s — the filter chips nest an edit control inside the toggle,
+  // so both need to be independently focusable. `handler` runs for a pointer
+  // click and for keyboard activation alike; the keyboard path passes the
+  // keydown event through, so handlers that stopPropagation() (e.g. the nested
+  // ✎ pencil, keeping Enter off the surrounding chip) keep working. `label`
+  // sets an aria-label for glyph-only controls whose visible text isn't a name.
+  // The [tabindex]:focus-visible rule in styles.css draws the focus ring.
+  function activatable(node, handler, label) {
+    node.tabIndex = 0;
+    node.setAttribute("role", "button");
+    if (label) node.setAttribute("aria-label", label);
+    node.addEventListener("click", handler);
+    node.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); handler(ev); }
+    });
+    return node;
+  }
 
   // ---------- motion: count-up numbers + view fade-in ----------
   // Mirrors the design system's AnimatedNumber/FadeIn: short, eased-out,
@@ -1160,12 +1181,12 @@
     for (const y of activeYears) if (!ys.includes(y)) activeYears.delete(y);
     ys.forEach((y) => {
       const chip = el("span", "cat-chip year-chip" + (activeYears.has(y) ? " on" : ""), String(y));
-      chip.onclick = () => {
+      activatable(chip, () => {
         if (activeYears.has(y)) activeYears.delete(y);
         else activeYears.add(y);
         buildYearFilter();
         render();
-      };
+      });
       wrap.appendChild(chip);
     });
     equalizeChipWidths(wrap);
@@ -1195,23 +1216,24 @@
       chip.appendChild(document.createTextNode(c.name));
       const edit = el("span", "chip-edit", "✎");
       edit.title = "Edit category";
-      edit.onclick = (ev) => { ev.stopPropagation(); finance ? Finance.openFinanceCatModal(c) : Journal.openCategoryModal(c); };
+      activatable(edit, (ev) => { ev.stopPropagation(); finance ? Finance.openFinanceCatModal(c) : Journal.openCategoryModal(c); }, "Edit category " + c.name);
       chip.appendChild(edit);
-      chip.onclick = () => {
+      activatable(chip, () => {
         if (activeCats.has(c.name)) activeCats.delete(c.name);
         else activeCats.add(c.name);
         buildCatFilter();
         render();
-      };
+      });
       wrap.appendChild(chip);
     });
     equalizeChipWidths(wrap);
     const addChip = el("span", "cat-chip add-chip", "+");
-    addChip.title = finance ? "Add finance category" : "Add category";
-    addChip.onclick = (ev) => {
+    const addLabel = finance ? "Add finance category" : "Add category";
+    addChip.title = addLabel;
+    activatable(addChip, (ev) => {
       ev.stopPropagation();
       finance ? Finance.openFinanceCatModal(null) : Journal.openCategoryModal(null);
-    };
+    }, addLabel);
     wrap.appendChild(addChip);
   }
 
@@ -1549,7 +1571,10 @@
 
   // ---------- events ----------
   function wire() {
-    $("#appVersion").textContent = "LifeLog v" + APP_VERSION;
+    // Rendered under the ⚙ button in the top bar; the brand already says
+    // "LifeLog" right there, so just the version reads cleaner.
+    $("#appVersion").textContent = "v" + APP_VERSION;
+    $("#appVersion").title = "LifeLog v" + APP_VERSION;
 
     // Sticky timeline year/month headers (see .year-head / .month-card h3 in
     // styles.css) anchor below the topbar — its height changes with wrapping,
@@ -2001,7 +2026,7 @@
     DEFAULT_SETTINGS,
   });
   Journal.init({
-    state, $, el, uid, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
+    state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
     emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,

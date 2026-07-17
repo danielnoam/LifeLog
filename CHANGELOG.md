@@ -4,6 +4,38 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.88.0] - 2026-07-17
+
+### Changed
+- The app version moved out of the bottom of Settings and up into the top
+  bar, sitting directly under the ⚙ Settings button (shown as "v0.88.0",
+  with the full "LifeLog v0.88.0" on hover) — so a deploy is visible at a
+  glance without opening Settings.
+- Picking a match from the "🔄 Sync" button now updates the title to the
+  chosen media's name, so a roughly-typed title (e.g. "celest") becomes the
+  proper one ("Celeste"). Editing the title afterwards no longer drops the
+  media link — that only happens via the "✕ Unsync" button now, matching how
+  an already-synced entry already behaved. Applies to both timeline entries
+  and backlog items.
+- The "🔄 Sync" button now shows matches from both the category's primary
+  media source and its configured fallback (if any) in one list, so you can
+  pick from either — instead of only seeing the fallback's results when the
+  primary found nothing. Bulk sync and the background auto-checks are
+  unchanged (they still take the primary's first result, fallback only when
+  the primary is empty).
+
+## [0.87.0] - 2026-07-17
+
+### Added
+- Keyboard reachability for the chip-style controls that were mouse/touch-only
+  — the year and category filter chips, the "✎" edit-category pencil, the "+"
+  add-category chip, and the per-year achievement chips. Each is now
+  focusable, announced as a button (with a label on the glyph-only ✎/+
+  controls), and activated with <kbd>Enter</kbd> or <kbd>Space</kbd>, using
+  the same focus ring as the rest of the app. Tabbing onto a filter chip and
+  pressing <kbd>Enter</kbd> toggles that filter; the ✎ inside a chip opens the
+  edit modal without also toggling the filter.
+
 ## [0.86.0] - 2026-07-16
 
 ### Added

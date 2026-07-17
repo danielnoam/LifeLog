@@ -58,15 +58,21 @@
   // Title last attached to synced media metadata, so a manual edit (vs. a
   // sync pick) is detected and clears the now-stale cover/metadata.
   let lastSyncedBacklogTitle = "";
+  // True once the item's media link came from an explicit pick (a Sync-button
+  // match, or a backlog/journal suggestion) or was already set on an opened
+  // item. While set, renaming the title won't drop the link — only "✕ Unsync"
+  // does. Mirrors the entry modal's entrySyncLocked.
+  let backlogSyncLocked = false;
 
   function renderBacklogTitleSuggestions() {
     const query = $("#bTitle").value;
     const isAdding = !$("#backlogId").value;
     // A manually-entered Steam App ID isn't derived from the title, so editing
     // the title shouldn't clear it the way it clears a search-based sync. And
-    // only while adding: renaming an already-synced existing item shouldn't
-    // silently drop its media link — that takes an explicit "✕ Unsync" now.
-    if (isAdding && query !== lastSyncedBacklogTitle && $("#bMediaSource").value !== "steam") {
+    // only while adding, and only if the link isn't locked by an explicit sync:
+    // renaming an already-synced item shouldn't silently drop its media link —
+    // that takes an explicit "✕ Unsync" now.
+    if (isAdding && !backlogSyncLocked && query !== lastSyncedBacklogTitle && $("#bMediaSource").value !== "steam") {
       ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bReleaseDate", "#bExternalRating", "#bGenres"]
         .forEach((id) => { const f = $(id); if (f) f.value = ""; });
       setBacklogCover();
@@ -83,6 +89,7 @@
         { title: b.title, coverUrl: b.coverUrl || "", year: null, externalRating: null },
         () => {
           lastSyncedBacklogTitle = b.title;
+          backlogSyncLocked = true;
           $("#bTitle").value = b.title;
           if (state.data.categories.some((c) => c.name === b.category)) $("#bCategory").value = b.category;
           $("#bCoverUrl").value = b.coverUrl || "";
@@ -109,6 +116,7 @@
         { title: m.title, coverUrl: m.coverUrl, year: null, externalRating: null },
         () => {
           lastSyncedBacklogTitle = m.title;
+          backlogSyncLocked = true;
           $("#bTitle").value = m.title;
           if (state.data.categories.some((c) => c.name === m.category)) $("#bCategory").value = m.category;
           $("#bCoverUrl").value = m.coverUrl || "";
@@ -156,7 +164,7 @@
     const category = $("#bCategory").value;
     if (!title) return;
     const list = $("#bTitleSuggest");
-    const results = await fetchMediaSuggestions(title, category);
+    const results = await fetchMediaSuggestions(title, category, { combineFallback: true });
     list.innerHTML = "";
     if (!results.length) {
       list.hidden = true;
@@ -167,7 +175,11 @@
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     results.forEach((r) => {
       list.appendChild(makeMediaAcItem(r, async () => {
-        lastSyncedBacklogTitle = $("#bTitle").value;
+        // Adopt the picked media's title, and lock the link so a later title
+        // edit won't drop it (only "✕ Unsync" does).
+        $("#bTitle").value = r.title;
+        lastSyncedBacklogTitle = r.title;
+        backlogSyncLocked = true;
         $("#bCoverUrl").value = r.coverUrl || "";
         $("#bMediaId").value = r.id || "";
         $("#bMediaSource").value = r.source || "";
@@ -183,6 +195,7 @@
           $("#bMediaId").value = resolved.mediaId;
         }
         setBacklogCover();
+        updateBacklogDuplicateBanner();
         list.hidden = true;
       }));
     });
@@ -193,6 +206,7 @@
     ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bReleaseDate", "#bExternalRating", "#bLength", "#bGenres"]
       .forEach((id) => { const f = $(id); if (f) f.value = ""; });
     $("#bSteamAppId").value = "";
+    backlogSyncLocked = false;
     setBacklogCover();
     $("#bTitleSuggest").hidden = true;
   }
@@ -578,6 +592,7 @@
       aging.hidden = false;
     } else aging.hidden = true;
     lastSyncedBacklogTitle = editing ? item.title : "";
+    backlogSyncLocked = editing ? !!item.mediaSource : false;
     $("#bSteamAppId").value = editing && item.mediaSource === "steam" ? (item.mediaId || "") : "";
     $("#bTitleSuggest").innerHTML = "";
     $("#bTitleSuggest").hidden = true;

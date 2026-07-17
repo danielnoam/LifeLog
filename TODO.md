@@ -1,14 +1,5 @@
 todo:
 
-- keyboard-reachability for the app's clickable-but-not-<button> controls
-  (category filter chips, the chip-edit "✎" pencil, the "+" add-category
-  chip, achievement chips) — surfaced while doing the icon-only-buttons
-  accessibility pass below: these are onclick spans with no tabindex/
-  role/keydown handling, so they're mouse/touch-only right now. Bigger
-  than the button pass (needs a keyboard-activation pattern applied
-  consistently across several chip-like widgets), so left for its own
-  pass rather than folded in here.
-
 - clean up Settings → Media naming: the proxy URL field (`#steamProxyUrl`,
   stored at `settings.steam.proxyUrl`) lives inside the "Steam Wishlist
   import" section and is named/labeled as Steam-only, but it's actually
@@ -28,6 +19,32 @@ todo:
   isn't Steam-specific
 done:
 
+- moved the app version out of the bottom of Settings into the top bar,
+  under the ⚙ button (a .settings-corner wrapper + absolutely-positioned
+  .version-badge, mirroring how the sync-status line hangs under the logo);
+  shows "vX.Y.Z" with the full "LifeLog vX.Y.Z" as its hover title
+- "🔄 Sync" pick now adopts the matched media's title on both entries and
+  backlog items (so a sloppy typed title becomes the canonical one), and a
+  later title edit no longer drops the media link — only "✕ Unsync" does.
+  Added an entrySyncLocked/backlogSyncLocked flag set on any explicit media
+  pick (Sync-button match, local/backlog suggestion) or when opening an
+  already-synced item, gating the add-flow's rename-clears-cover behavior;
+  cleared on unsync
+- "🔄 Sync" now returns matches from the category's primary source AND its
+  configured fallback in one list (fetchMediaSuggestions gained a
+  { combineFallback: true } opt, passed only by the two manual Sync buttons)
+  instead of showing the fallback's results only when the primary was empty;
+  bulk/auto-check callers keep the cheaper primary-first-then-gap-fill path
+- keyboard-reachability for the app's clickable-but-not-<button> controls
+  (year + category filter chips, the chip-edit "✎" pencil, the "+"
+  add-category chip, achievement chips) — a shared activatable() helper
+  (app.js) gives each a tabindex, role="button", an aria-label on the
+  glyph-only ✎/+ controls, and Enter/Space activation firing the same
+  handler as a pointer click; the existing [tabindex]:focus-visible rule
+  draws the focus ring. The keyboard path passes the keydown event
+  through, so the ✎ pencil's stopPropagation() still keeps Enter off the
+  surrounding filter chip. Wired into journal.js via ctx for the
+  achievement chips
 - keyboard shortcuts — N to quick-add an entry, 1–5 to jump between
   Timeline/Stats/Backlog/Ledger/Summary, / to focus search, and ? to open
   a small cheat-sheet listing them all (also noted in Settings, since
