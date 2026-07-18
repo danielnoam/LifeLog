@@ -1,5 +1,21 @@
 todo:
 
+- adding a new entry or editing one snaps the scroll back to the top on
+  mobile/desktop. render() already tries to hold position on a same-view
+  rebuild (lazyAnchorScrollY picks the eager section, and the finally block
+  does window.scrollTo(0, prevScrollY)), but on add/edit it still lands at
+  the top — the restore isn't sticking. Work out why (likely the lazily
+  built sections above the anchor collapse to just their headers, so the
+  document isn't tall enough when scrollTo runs and the position gets
+  clamped) and keep the user where they were.
+
+- mobile: the jump-nav secondary bar should track the current scroll
+  position, not just tap/render. updateJumpNav only re-syncs
+  jumpCurrentIndex at render time, so the year/category label it shows goes
+  stale as you scroll past the sticky headers — add a (throttled) scroll
+  listener that runs jumpIndexFromScroll and keeps the active jump-nav slot
+  in sync with whichever section is currently under the topbar.
+
 - clean up Settings → Media naming: the proxy URL field (`#steamProxyUrl`,
   stored at `settings.steam.proxyUrl`) lives inside the "Steam Wishlist
   import" section and is named/labeled as Steam-only, but it's actually
