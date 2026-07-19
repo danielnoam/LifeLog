@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.89.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.90.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -258,6 +258,8 @@
   let jumpTargetIndex = 0; // where a tap/swipe has committed to head, even mid-animation — equals jumpCurrentIndex when idle
   let jumpBusy = false; // true while the track is actively transitioning (a step or a drag settling)
   let jumpQueuedDelta = null; // one pending ±1 step to run the instant the current animation finishes
+  let jumpScrollRaf = 0; // rAF handle coalescing scroll events into one jump-nav sync per frame
+  let jumpProgrammaticScrollUntil = 0; // performance.now() ceiling: ignore scroll-sync while a ◀/▶ jump's own smooth scroll is still settling
 
   // Lazy section rendering (see renderLazySections below) — the controller
   // for whichever view is currently on screen, so render() can tear down
@@ -265,11 +267,15 @@
   // a not-yet-built section to build before scrolling to it.
   let activeLazySections = null;
   // Set by render() right before dispatching to a view: null on a real tab
-  // switch (the lazy top section should be index 0), or the pre-clear
-  // window.scrollY on an in-view re-render (add/edit/filter), so the
-  // section nearest where the user actually is gets built eagerly instead
-  // of whatever happens to be first.
-  let lazyAnchorScrollY = null;
+  // switch (the lazy top section should be index 0), or — on an in-view
+  // re-render (add/edit/filter) — a { index, top } snapshot of the section
+  // the user is currently parked on (its header's viewport offset before the
+  // rebuild). render() force-builds that section eagerly and afterward
+  // scrolls it back to the same offset, so the user stays put. A plain
+  // absolute-scrollY restore doesn't work here: the lazily-built sections
+  // above the anchor collapse to header height on rebuild, so the old
+  // scrollY no longer lines up with the same content and gets clamped.
+  let scrollAnchor = null;
   // Replays the view-fade-in animation on `root` only when the active view
   // actually changed (not on every in-view re-render, e.g. after an edit).
   function fadeInOnViewChange(root) {
@@ -410,17 +416,13 @@
       return activeLazySections;
     }
 
+    // Build the section the user is parked on first (see scrollAnchor), so
+    // render()'s post-rebuild scroll restore lands on real rows instead of
+    // an empty header-only shell. Its index was captured from the live DOM
+    // before the clear (captureScrollAnchor) — more reliable than
+    // re-measuring here against a scroll position the clear already clamped.
     let eagerIndex = 0;
-    if (lazyAnchorScrollY) {
-      const topbar = $(".topbar");
-      const offset = (topbar ? topbar.getBoundingClientRect().height : 0) + 4;
-      // Headers are all real, positioned DOM already (built above), so this
-      // mirrors jumpIndexFromScroll's own logic — just measured against the
-      // pre-clear scroll position instead of the (currently zeroed) live one.
-      sections.forEach((s, i) => {
-        if (s.header.getBoundingClientRect().top <= offset) eagerIndex = i;
-      });
-    }
+    if (scrollAnchor) eagerIndex = Math.max(0, Math.min(sections.length - 1, scrollAnchor.index));
     buildAt(eagerIndex);
 
     const io = new IntersectionObserver((observedEntries) => {
@@ -470,11 +472,15 @@
     // Clearing #content below momentarily collapses the page to whatever
     // height the topbar/nav alone take up, and browsers clamp window.scrollY
     // down to fit — permanently, even once the full content is rebuilt right
-    // after. Restore it afterward for an in-view re-render (add/edit/filter),
-    // where the user expects to stay put; skip it on a real view switch,
-    // where landing at the top is the expected behavior.
+    // after. Restore position afterward for an in-view re-render
+    // (add/edit/filter), where the user expects to stay put; skip it on a
+    // real view switch, where landing at the top is the expected behavior.
+    // scrollAnchor is captured here from the *live* (pre-clear) DOM so the
+    // restore has an accurate section to pin to; prevScrollY is the fallback
+    // for fixed-layout views (Stats/Summary) that have no lazy sections.
     const sameView = state.view === lastRenderedView;
     const prevScrollY = window.scrollY;
+    scrollAnchor = sameView ? captureScrollAnchor() : null;
     if (activeLazySections) { activeLazySections.destroy(); activeLazySections = null; }
     try {
       document.querySelectorAll(".tab").forEach((t) => {
@@ -484,7 +490,6 @@
       const c = $("#content");
       c.innerHTML = "";
       fadeInOnViewChange(c);
-      lazyAnchorScrollY = sameView ? prevScrollY : null;
       if (state.view === "backlog") { Backlog.renderBacklog(c); return; }
       if (state.view === "finance") { Finance.renderFinanceEntries(c); return; }
       if (state.view === "finance-stats") { Finance.renderFinanceStats(c); return; }
@@ -507,7 +512,12 @@
       if (state.view === "timeline") Journal.renderTimeline(c, entries);
       else Journal.renderStats(c, entries);
     } finally {
-      if (sameView && prevScrollY) window.scrollTo(0, prevScrollY);
+      // Anchor-relative restore where we have one (Timeline/Backlog/Ledger);
+      // fall back to the plain scrollY for fixed-layout views, or if the
+      // anchored section vanished (e.g. a filter change dropped it).
+      if (sameView && !(scrollAnchor && restoreScrollAnchor(scrollAnchor)) && prevScrollY) {
+        window.scrollTo(0, prevScrollY);
+      }
       updateJumpNav();
       updateSearchMatchBadges();
     }
@@ -543,7 +553,8 @@
   // headers (Backlog) a long scroll would otherwise bury — Stats/Summary
   // are fixed card layouts with nothing to page through, so they get none.
   // Rebuilt on every render() so it always matches what's actually on
-  // screen; the label only updates on tap/render, not while scrolling.
+  // screen; the shown label also tracks a manual scroll via
+  // syncJumpNavToScroll below.
   function jumpSectionSelector() {
     if (state.view === "backlog") return ".backlog-section-head";
     if (state.view === "timeline" || state.view === "finance") return ".year-head";
@@ -554,6 +565,54 @@
       ? sectionEl.querySelector(".backlog-section-name")
       : sectionEl.querySelector("h2");
     return el ? el.textContent : "";
+  }
+  // Snapshot the section the viewport is currently anchored on, for render()
+  // to restore after an in-view rebuild — the last section header at or
+  // above the topbar line, plus that header's viewport offset. Returns null
+  // for fixed-layout views (Stats/Summary have no lazy sections; render()
+  // falls back to the plain scrollY there).
+  function captureScrollAnchor() {
+    const selector = jumpSectionSelector();
+    if (!selector) return null;
+    const heads = [...document.querySelectorAll("#content " + selector)];
+    if (!heads.length) return null;
+    const offset = $(".topbar").getBoundingClientRect().height + 4;
+    let index = 0;
+    for (let i = 0; i < heads.length; i++) {
+      if (heads[i].getBoundingClientRect().top <= offset) index = i; else break;
+    }
+    return { index, top: heads[index].getBoundingClientRect().top };
+  }
+  // Undo the scroll clamp a content rebuild causes: put the anchored section
+  // header back at the same viewport offset it held before. Positions
+  // relative to the (eagerly-built) anchor section rather than an absolute
+  // scrollY, so it holds even though the sections above it collapsed to
+  // header height. Returns false if the section is gone (e.g. a filter
+  // change dropped it), letting render() fall back to the old scrollY.
+  function restoreScrollAnchor(anchor) {
+    const selector = jumpSectionSelector();
+    if (!selector) return false;
+    const head = document.querySelectorAll("#content " + selector)[anchor.index];
+    if (!head) return false;
+    window.scrollBy(0, head.getBoundingClientRect().top - anchor.top);
+    return true;
+  }
+  // Keeps the jump-nav's shown section label in step with a manual scroll
+  // (it used to only re-sync on tap/render, so it went stale scrolling past
+  // the sticky headers). rAF-throttled, and a no-op while a tap/swipe
+  // animation owns the carousel (jumpBusy/jumpDrag) or while a ◀/▶ jump's
+  // own smooth scroll is still settling, so it never fights those.
+  function syncJumpNavToScroll() {
+    if (jumpScrollRaf) return;
+    jumpScrollRaf = requestAnimationFrame(() => {
+      jumpScrollRaf = 0;
+      if (performance.now() < jumpProgrammaticScrollUntil) return;
+      const nav = $("#jumpNav");
+      if (!nav || !nav.classList.contains("is-active")) return;
+      if (jumpBusy || jumpDrag || jumpSections.length < 2) return;
+      const idx = jumpIndexFromScroll();
+      if (idx !== jumpCurrentIndex) setJumpIndex(idx);
+    });
   }
   function updateJumpNav() {
     const nav = $("#jumpNav");
@@ -699,6 +758,9 @@
     const anchor = el.parentElement || el;
     const top = anchor.getBoundingClientRect().top + window.scrollY - offset;
     window.scrollTo({ top, behavior: "smooth" });
+    // Let this jump's own smooth scroll settle before scroll-sync resumes,
+    // so it doesn't briefly rewind the label to a section being scrolled past.
+    jumpProgrammaticScrollUntil = performance.now() + 800;
   }
   // Jump from a Stats heatmap cell straight to that month in the Timeline:
   // switch views, then scroll the matching .month-card just below the
@@ -1689,6 +1751,7 @@
     window.addEventListener("scroll", () => {
       clearTimeout(scrollSaveTimer);
       scrollSaveTimer = setTimeout(saveUiState, 300);
+      syncJumpNavToScroll();
     }, { passive: true });
     // Debounced — render() rebuilds the whole current view from scratch, so
     // re-running it on every keystroke gets noticeably laggy once there are

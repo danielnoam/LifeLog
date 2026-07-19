@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.90.0] - 2026-07-19
+
+### Fixed
+- Adding or editing an entry (or any other in-view re-render) no longer
+  jumps the page back to the top — you stay parked on the same spot. The
+  restore now pins the section you were looking at back to its exact
+  on-screen position instead of a raw scroll offset, which the browser was
+  clamping away whenever the lazily-built sections above it had collapsed
+  during the rebuild.
+
+### Changed
+- On mobile, the jump-nav's section label (the year/category shown in the
+  bottom bar) now updates live as you scroll, instead of only when you tap
+  ◀/▶ or the view re-renders — so it always names whichever section is
+  currently under the top bar.
+
 ## [0.89.0] - 2026-07-19
 
 ### Added

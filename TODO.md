@@ -1,21 +1,5 @@
 todo:
 
-- adding a new entry or editing one snaps the scroll back to the top on
-  mobile/desktop. render() already tries to hold position on a same-view
-  rebuild (lazyAnchorScrollY picks the eager section, and the finally block
-  does window.scrollTo(0, prevScrollY)), but on add/edit it still lands at
-  the top — the restore isn't sticking. Work out why (likely the lazily
-  built sections above the anchor collapse to just their headers, so the
-  document isn't tall enough when scrollTo runs and the position gets
-  clamped) and keep the user where they were.
-
-- mobile: the jump-nav secondary bar should track the current scroll
-  position, not just tap/render. updateJumpNav only re-syncs
-  jumpCurrentIndex at render time, so the year/category label it shows goes
-  stale as you scroll past the sticky headers — add a (throttled) scroll
-  listener that runs jumpIndexFromScroll and keeps the active jump-nav slot
-  in sync with whichever section is currently under the topbar.
-
 - clean up Settings → Media naming: the proxy URL field (`#steamProxyUrl`,
   stored at `settings.steam.proxyUrl`) lives inside the "Steam Wishlist
   import" section and is named/labeled as Steam-only, but it's actually
@@ -35,6 +19,17 @@ todo:
   isn't Steam-specific
 done:
 
+- adding/editing an entry no longer snaps the page to the top — an in-view
+  re-render now pins the section you were parked on back to its exact
+  on-screen offset (captureScrollAnchor/restoreScrollAnchor in app.js,
+  scrolling relative to the eagerly-built anchor section) instead of a raw
+  scrollY the browser was clamping away once the lazy sections above it
+  collapsed to header height during the rebuild
+- mobile jump-nav label now tracks the scroll position live, not just on
+  tap/render — an rAF-throttled scroll handler (syncJumpNavToScroll) runs
+  jumpIndexFromScroll and keeps the active carousel slot on whichever
+  section is under the top bar, suppressed while a ◀/▶ jump's own smooth
+  scroll is still settling so it doesn't fight it
 - moved the app version out of the bottom of Settings into the top bar,
   under the ⚙ button (a .settings-corner wrapper + absolutely-positioned
   .version-badge, mirroring how the sync-status line hangs under the logo);
