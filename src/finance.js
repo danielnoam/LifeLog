@@ -330,6 +330,7 @@
     bigRow.appendChild(moneyStatItem(expense, "total", "var(--expense)"));
     big.appendChild(bigRow);
     root.appendChild(big);
+    renderFinanceHighlights(root, items);
 
     const grid = el("div", "stats-grid");
     grid.appendChild(financeCategoryCard("By category", items));
@@ -349,8 +350,98 @@
     root.appendChild(grid);
 
     renderFinanceMonthCard(root, items);
+    renderFinanceTrendCard(root, items);
     renderRecurringSplitCard(root, items);
     renderTopExpensesCard(root, items);
+  }
+
+  // Monthly spend totals keyed by year*12+(month-1) so consecutive calendar
+  // months are consecutive integers. Yearly ad-hoc entries carry no month
+  // (financeMonthOf → 0) and are left out — they'd distort a per-month view.
+  function financeMonthlyTotals(items) {
+    const totals = {};
+    for (const f of items) {
+      if (f.yearly) continue;
+      const k = financeYearOf(f) * 12 + (financeMonthOf(f) - 1);
+      totals[k] = (totals[k] || 0) + f.amount;
+    }
+    return totals;
+  }
+  function monthKeyLabel(k, shortYear) {
+    const y = Math.floor(k / 12);
+    return MONTHS[(k % 12) + 1].slice(0, 3) + " " + (shortYear ? "'" + String(y).slice(2) : y);
+  }
+
+  // At-a-glance Ledger insights, mirroring the Journal Stats "Highlights"
+  // card: real average over the months you actually spent (not total/12),
+  // the single biggest month, the top spending category, and this calendar
+  // year vs last. Monthly figures skip yearly ad-hoc entries; the
+  // year-over-year delta counts everything.
+  function renderFinanceHighlights(root, items) {
+    if (items.length < 2) return;
+    const monthTotals = financeMonthlyTotals(items);
+    const monthKeys = Object.keys(monthTotals).map(Number);
+
+    const catTotals = {};
+    for (const f of items) catTotals[f.category] = (catTotals[f.category] || 0) + f.amount;
+    const topCat = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a])[0];
+
+    const thisYear = new Date().getFullYear();
+    const yearTotal = (y) => items.filter((f) => financeYearOf(f) === y).reduce((s, f) => s + f.amount, 0);
+    const delta = yearTotal(thisYear) - yearTotal(thisYear - 1);
+
+    const card = el("div", "card");
+    card.style.marginTop = "20px";
+    card.appendChild(el("h2", null, "Highlights"));
+    const row = el("div", "stat-big");
+
+    if (monthKeys.length) {
+      const avg = monthKeys.reduce((s, k) => s + monthTotals[k], 0) / monthKeys.length;
+      row.appendChild(moneyStatItem(avg, "avg / month", "var(--expense)"));
+      let bigK = monthKeys[0];
+      for (const k of monthKeys) if (monthTotals[k] > monthTotals[bigK]) bigK = k;
+      row.appendChild(moneyStatItem(monthTotals[bigK], "biggest (" + monthKeyLabel(bigK, false) + ")", "var(--expense)"));
+    }
+
+    // Top category — a text (not money) stat, tinted to the category.
+    const catItem = el("div", "item");
+    const catN = el("div", "n", topCat);
+    catN.style.color = financeColorOf(topCat);
+    catItem.appendChild(catN);
+    catItem.appendChild(el("div", "l", "top category"));
+    row.appendChild(catItem);
+
+    // This calendar year vs last — a signed money delta (formatMoney already
+    // prefixes "-" for negatives; add a leading "+" when spend went up).
+    const dItem = el("div", "item");
+    dItem.appendChild(el("div", "n", (delta > 0 ? "+" : "") + formatMoney(delta)));
+    dItem.appendChild(el("div", "l", "vs " + (thisYear - 1)));
+    row.appendChild(dItem);
+
+    card.appendChild(row);
+    root.appendChild(card);
+  }
+
+  // Recent spend trend — the last up to 12 calendar months on one continuous
+  // timeline (unlike "By month", which is a single year), so the trajectory
+  // is visible at a glance. Empty months inside the window show a zero bar so
+  // gaps read as gaps rather than being silently skipped.
+  function renderFinanceTrendCard(root, items) {
+    const monthTotals = financeMonthlyTotals(items);
+    const keys = Object.keys(monthTotals).map(Number);
+    if (keys.length < 2) return; // a single month isn't a trend
+    const end = Math.max(...keys);
+    const start = Math.max(Math.min(...keys), end - 11);
+    const card = el("div", "card");
+    card.style.marginTop = "20px";
+    card.appendChild(el("h2", null, "Spend trend"));
+    const window = [];
+    for (let k = start; k <= end; k++) window.push(k);
+    const max = Math.max(1, ...window.map((k) => monthTotals[k] || 0));
+    for (const k of window) {
+      card.appendChild(barRow(monthKeyLabel(k, true), monthTotals[k] || 0, max, "var(--expense)", null, formatMoney));
+    }
+    root.appendChild(card);
   }
 
   // Builds the "By category" breakdown card (bar per category, sorted by total).

@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.91.0] - 2026-07-19
+
+### Added
+- The Ledger's **Summary** view gained two insight cards. A **Highlights**
+  strip (mirroring the Journal Stats one) shows your real average spend per
+  active month, the single biggest month, your top spending category, and
+  this calendar year's total versus last year's. And a **Spend trend** card
+  charts the last twelve calendar months on one continuous timeline — with
+  empty months shown as zero bars — so the direction of your spending is
+  visible at a glance rather than one year at a time. Yearly ad-hoc entries
+  (which carry no month) are left out of the monthly figures but still count
+  toward category and year-over-year totals.
+
 ## [0.90.0] - 2026-07-19
 
 ### Fixed

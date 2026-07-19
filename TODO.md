@@ -19,6 +19,13 @@ todo:
   isn't Steam-specific
 done:
 
+- Ledger Summary insights — a "Highlights" card (real avg spend per active
+  month, biggest month, top category, this-year-vs-last delta) and a "Spend
+  trend" card charting the last up-to-12 calendar months on one continuous
+  timeline (zero bars for empty months). Monthly figures skip yearly ad-hoc
+  entries; category/year totals still include them. Reuses the existing
+  moneyStatItem/barRow helpers (renderFinanceHighlights/renderFinanceTrendCard
+  in finance.js)
 - adding/editing an entry no longer snaps the page to the top — an in-view
   re-render now pins the section you were parked on back to its exact
   on-screen offset (captureScrollAnchor/restoreScrollAnchor in app.js,
