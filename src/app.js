@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.88.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.89.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -698,6 +698,27 @@
     const offset = $(".topbar").getBoundingClientRect().height;
     const anchor = el.parentElement || el;
     const top = anchor.getBoundingClientRect().top + window.scrollY - offset;
+    window.scrollTo({ top, behavior: "smooth" });
+  }
+  // Jump from a Stats heatmap cell straight to that month in the Timeline:
+  // switch views, then scroll the matching .month-card just below the
+  // topbar. The Timeline shares the same active filters as the Stats view
+  // the heatmap was drawn from, so any month with a lit (clickable) cell is
+  // guaranteed to have a card here. The target year's rows are lazily
+  // built, so force that section's build first (its index = its position
+  // among the year blocks, which renderLazySections appends in order),
+  // otherwise we'd measure an unbuilt, header-only shell. Passed into
+  // Journal via init(ctx) since the heatmap lives there.
+  function jumpToTimelineMonth(year, month) {
+    if (state.view !== "timeline") switchToView("timeline");
+    const block = document.querySelector(`#content .year-block[data-year="${year}"]`);
+    if (!block) return;
+    const blocks = [...document.querySelectorAll("#content .year-block")];
+    const idx = blocks.indexOf(block);
+    if (idx >= 0 && activeLazySections) activeLazySections.ensureBuilt(idx);
+    const target = block.querySelector(`.month-card[data-month="${month}"]`) || block;
+    const offset = $(".topbar").getBoundingClientRect().height;
+    const top = target.getBoundingClientRect().top + window.scrollY - offset - 4;
     window.scrollTo({ top, behavior: "smooth" });
   }
   // Prepares the track for a one-slot carousel slide in `delta`'s direction
@@ -2032,7 +2053,7 @@
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
     rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons,
     applySteamAppId: Sync.applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
-    DEFAULT_SETTINGS,
+    DEFAULT_SETTINGS, jumpToTimelineMonth,
   });
   Backlog.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,

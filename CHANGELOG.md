@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.89.0] - 2026-07-19
+
+### Added
+- The Stats **Activity** heatmap is now interactive — clicking (or
+  keyboard-activating) any lit month cell jumps straight to that month in
+  the Timeline, scrolling it just below the top bar. Cells with no entries
+  stay inert. The Timeline it lands on keeps whatever filters the Stats view
+  was showing, so a lit cell always has a matching month card to land on.
+- **Year in Review** gained more at-a-glance detail: an **avg rating**
+  highlight (shown to one decimal) and a **from backlog** count (entries
+  completed from the backlog that year) alongside the existing entries /
+  unique-titles / best-month stats, plus a new **Top rated** section listing
+  the year's highest-rated titles (deduped by title, keeping the best rating)
+  with their category dot and star badge.
+
 ## [0.88.0] - 2026-07-17
 
 ### Changed

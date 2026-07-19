@@ -505,8 +505,9 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .heatmap-month-lbl { font-size: 9px; color: var(--text-faint); text-align: center; letter-spacing: .2px; }
 .heatmap-year-lbl { font-size: 11px; color: var(--text-dim); }
 .heatmap-cell { height: 18px; border-radius: 3px; background: var(--bg-elev-2); }
-.heatmap-cell[title] { cursor: default; }
-.heatmap-cell[title]:hover { opacity: .75; }
+.heatmap-cell.is-clickable { cursor: pointer; }
+.heatmap-cell.is-clickable:hover { opacity: .8; box-shadow: 0 0 0 2px var(--accent) inset; }
+.heatmap-cell.is-clickable:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* year in review */
 .yir-card { border-top: 3px solid var(--accent); }
@@ -524,6 +525,10 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .yir-section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-faint); margin: 0 0 8px; font-weight: 600; }
 .yir-ach { display: flex; gap: 8px; align-items: baseline; margin-bottom: 6px; font-size: 13px; }
 .yir-ach-bullet { color: var(--accent); font-size: 10px; flex-shrink: 0; }
+.yir-rated { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; font-size: 13px; }
+.yir-rated-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.yir-rated-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.yir-rated .erating { margin-left: auto; flex-shrink: 0; font-size: 11px; color: var(--accent); letter-spacing: 1px; }
 
 /* backlog */
 .backlog-pick-bar { display: flex; justify-content: flex-end; margin-bottom: 14px; }

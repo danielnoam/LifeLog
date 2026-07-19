@@ -13,7 +13,7 @@
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
     rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons,
     applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
-    DEFAULT_SETTINGS;
+    DEFAULT_SETTINGS, jumpToTimelineMonth;
 
   function init(ctx) {
     ({ state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
@@ -22,7 +22,7 @@
       fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
       rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons,
       applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
-      DEFAULT_SETTINGS } = ctx);
+      DEFAULT_SETTINGS, jumpToTimelineMonth } = ctx);
   }
 
   // ---------- timeline view ----------
@@ -33,6 +33,7 @@
     const sections = [];
     for (const y of Object.keys(byYear).sort((a, b) => b - a)) {
       const block = el("div", "year-block");
+      block.dataset.year = y; // lets the Stats heatmap scroll straight to this year
       const head = el("div", "year-head");
       head.appendChild(el("h2", null, y));
       head.appendChild(el("span", "ycount", `${byYear[y].length} entries`));
@@ -61,6 +62,7 @@
           for (const m of Object.keys(byMonth).sort(monthSort)) {
             const card = el("div", "month-card");
             const yy = +y, mm = +m;
+            card.dataset.year = yy; card.dataset.month = mm; // heatmap-cell jump target
             card.appendChild(monthCardHeader(MONTHS[m], byMonth[m].length, byMonth[m], {
               onAdd: () => openEntryModal(null, null, { year: yy, month: mm }),
             }));
@@ -402,7 +404,12 @@
         const cell = el("div", "heatmap-cell");
         if (count) {
           cell.style.background = heatColor(count, maxCount);
-          cell.title = `${count} ${count === 1 ? "entry" : "entries"} · ${MONTHS_SHORT[m]} ${year}`;
+          const label = `${count} ${count === 1 ? "entry" : "entries"} · ${MONTHS_SHORT[m]} ${year}`;
+          cell.title = label;
+          // A lit cell jumps to that month in the Timeline (see
+          // jumpToTimelineMonth). activatable makes it keyboard-reachable too.
+          cell.classList.add("is-clickable");
+          activatable(cell, () => jumpToTimelineMonth(year, m), "Show " + label + " in Timeline");
         }
         row.appendChild(cell);
       }
@@ -442,10 +449,18 @@
     const uniqueTitles = new Set(yearEntries.map((e) => e.title.trim().toLowerCase())).size;
     const monthCounts = countBy(yearEntries, (e) => e.month);
     const topMonth = Object.entries(monthCounts).sort((a, b) => b[1] - a[1])[0];
+    const ratedYear = yearEntries.filter((e) => e.rating);
+    const fromBacklog = yearEntries.filter((e) => e.backlogAddedAt).length;
     const highlights = el("div", "yir-highlights");
     highlights.appendChild(statItem(yearEntries.length, "entries", "yir:entries"));
     highlights.appendChild(statItem(uniqueTitles, "unique titles", "yir:unique"));
     if (topMonth) highlights.appendChild(statItem(MONTHS_SHORT[+topMonth[0]], "best month", "yir:month"));
+    // avg rating as a fixed-1-decimal string so 4.2 doesn't round to 4
+    if (ratedYear.length) {
+      const avg = ratedYear.reduce((s, e) => s + e.rating, 0) / ratedYear.length;
+      highlights.appendChild(statItem(avg.toFixed(1) + "★", "avg rating", "yir:avg"));
+    }
+    if (fromBacklog) highlights.appendChild(statItem(fromBacklog, "from backlog", "yir:backlog"));
     card.appendChild(highlights);
 
     if (yearEntries.length) {
@@ -455,6 +470,32 @@
       const sec = el("div", "yir-section");
       sec.appendChild(el("h3", null, "Top categories"));
       for (const [name, count] of topCats) sec.appendChild(barRow(name, count, catMax, colorOf(name)));
+      card.appendChild(sec);
+    }
+
+    // Top rated — best-loved titles of the year. Dedupe by title (a replay
+    // logged twice shouldn't take two slots), keeping the highest rating seen.
+    if (ratedYear.length) {
+      const bestByTitle = new Map();
+      for (const e of ratedYear) {
+        const key = e.title.trim().toLowerCase();
+        const cur = bestByTitle.get(key);
+        if (!cur || e.rating > cur.rating) bestByTitle.set(key, { title: e.title, rating: e.rating, category: e.category });
+      }
+      const top = [...bestByTitle.values()].sort((a, b) => b.rating - a.rating).slice(0, 5);
+      const sec = el("div", "yir-section");
+      sec.appendChild(el("h3", null, "Top rated"));
+      for (const r of top) {
+        const item = el("div", "yir-rated");
+        const dot = el("span", "yir-rated-dot");
+        dot.style.background = colorOf(r.category);
+        item.appendChild(dot);
+        const t = el("span", "yir-rated-title", r.title);
+        t.title = r.title;
+        item.appendChild(t);
+        item.appendChild(ratingBadge(r.rating));
+        sec.appendChild(item);
+      }
       card.appendChild(sec);
     }
 
