@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.91.1] - 2026-07-19
+
+### Changed
+- Settings → Media: the proxy URL field moved out of the "Steam Wishlist
+  import" section into its own **CORS proxy** heading at the top of Media
+  sources, since it isn't Steam-specific — SteamGridDB cover art, GG.deals
+  prices, and the Steam Wishlist import all route through the same proxy.
+  Its explainer now says as much (and that any future CORS-blocked source
+  will use it too), the SteamGridDB and GG.deals key hints point at the
+  shared proxy above instead of a Steam-only field below, and the Steam
+  Wishlist section now just references it. Storage is unchanged — the value
+  still lives at `settings.steam.proxyUrl`, so nothing needs re-entering.
+
 ## [0.91.0] - 2026-07-19
 
 ### Added

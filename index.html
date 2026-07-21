@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.91.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.91.1" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -756,6 +756,12 @@
       <section class="settings-section">
         <h3>Media sources</h3>
 
+        <h4>CORS proxy</h4>
+        <p class="hint">A small proxy of your own that the metadata sources which don't send CORS headers get routed through, since a browser can't call them directly. Right now that's SteamGridDB cover art, GG.deals prices, and the Steam Wishlist import further down — all three share this one URL. One-time setup: see <code>proxy/README.md</code>. Leave it blank if you don't use any of those; RAWG, TMDB, Open Library, AniList, Jikan, Google Books, and MusicBrainz all work without it. Any source added later that's CORS-blocked will route through here too.</p>
+        <label>Proxy URL
+          <input id="steamProxyUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://your-worker.workers.dev" />
+        </label>
+
         <h4>API keys</h4>
         <p class="hint">Synced across your devices like the rest of your data — paste a key once and it's available everywhere.</p>
         <label>RAWG key <span class="muted">(games — free at rawg.io/apidocs)</span>
@@ -764,10 +770,10 @@
         <label>TMDB key <span class="muted">(movies &amp; shows — free at themoviedb.org)</span>
           <input id="tmdbKey" type="password" placeholder="Paste your TMDB API key…" autocomplete="off" spellcheck="false" />
         </label>
-        <label>GG.deals key <span class="muted">(game prices — free at gg.deals/api)</span>
+        <label>GG.deals key <span class="muted">(game prices — free at gg.deals/api; fetched through the CORS proxy set above)</span>
           <input id="ggdealsKey" type="password" placeholder="Paste your GG.deals API key…" autocomplete="off" spellcheck="false" />
         </label>
-        <label>SteamGridDB key <span class="muted">(games cover art — free at steamgriddb.com, Preferences → API; needs the Steam Wishlist proxy URL set below, since SteamGridDB is CORS-blocked without it)</span>
+        <label>SteamGridDB key <span class="muted">(games cover art — free at steamgriddb.com, Preferences → API; needs the CORS proxy URL set above, since SteamGridDB is CORS-blocked without it)</span>
           <input id="steamgriddbKey" type="password" placeholder="Paste your SteamGridDB API key…" autocomplete="off" spellcheck="false" />
         </label>
         <p class="hint">Open Library, AniList, Jikan, Google Books, and MusicBrainz all work without a key.</p>
@@ -779,10 +785,7 @@
 
       <section class="settings-section">
         <h3>Steam Wishlist import</h3>
-        <p class="hint">Pulls your whole Steam wishlist in one request and lets you review it before anything's added — nothing is added automatically, and re-syncing later won't re-add titles already in your backlog. Your Steam wishlist must be set to Public (Steam → Privacy Settings → Game details) or this comes back empty. Requires a small proxy of your own in front of Steam's endpoint — see <code>proxy/README.md</code> for the one-time setup.</p>
-        <label>Proxy URL
-          <input id="steamProxyUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://your-worker.workers.dev" />
-        </label>
+        <p class="hint">Pulls your whole Steam wishlist in one request and lets you review it before anything's added — nothing is added automatically, and re-syncing later won't re-add titles already in your backlog. Your Steam wishlist must be set to Public (Steam → Privacy Settings → Game details) or this comes back empty. Goes through the CORS proxy set above (Steam's endpoint isn't browser-callable), so set that first if you haven't.</p>
         <label>SteamID64
           <input id="steamId64" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 76561198012345678" />
         </label>
@@ -907,16 +910,16 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="src/qr.js?v=0.91.0"></script>
-  <script src="src/media.js?v=0.91.0"></script>
-  <script src="src/merge.js?v=0.91.0"></script>
-  <script src="src/storage.js?v=0.91.0"></script>
-  <script src="src/finance.js?v=0.91.0"></script>
-  <script src="src/settings.js?v=0.91.0"></script>
-  <script src="src/backlog.js?v=0.91.0"></script>
-  <script src="src/journal.js?v=0.91.0"></script>
-  <script src="src/io.js?v=0.91.0"></script>
-  <script src="src/sync.js?v=0.91.0"></script>
-  <script src="src/app.js?v=0.91.0"></script>
+  <script src="src/qr.js?v=0.91.1"></script>
+  <script src="src/media.js?v=0.91.1"></script>
+  <script src="src/merge.js?v=0.91.1"></script>
+  <script src="src/storage.js?v=0.91.1"></script>
+  <script src="src/finance.js?v=0.91.1"></script>
+  <script src="src/settings.js?v=0.91.1"></script>
+  <script src="src/backlog.js?v=0.91.1"></script>
+  <script src="src/journal.js?v=0.91.1"></script>
+  <script src="src/io.js?v=0.91.1"></script>
+  <script src="src/sync.js?v=0.91.1"></script>
+  <script src="src/app.js?v=0.91.1"></script>
 </body>
 </html>

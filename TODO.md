@@ -1,24 +1,17 @@
 todo:
 
-- clean up Settings → Media naming: the proxy URL field (`#steamProxyUrl`,
-  stored at `settings.steam.proxyUrl`) lives inside the "Steam Wishlist
-  import" section and is named/labeled as Steam-only, but it's actually
-  shared CORS-proxy infrastructure — SteamGridDB cover art and GG.deals
-  price lookups both already route through it too (see proxy/worker.js's
-  /steamgriddb and /gg-deals routes), and the SteamGridDB key's own hint
-  text has to awkwardly point back at "the Steam Wishlist proxy URL set
-  below" to explain this. Pull proxy setup into its own section/heading
-  (e.g. "CORS proxy" with the proxy URL field and a link to
-  proxy/README.md) ahead of the per-source stuff, and rename the Steam
-  Wishlist section to just cover the wishlist-specific fields (SteamID64,
-  target category, auto-sync, retry/backfill). Keep `settings.steam.proxyUrl`
-  as the storage key for now (rethink/migrate only if it becomes worth a
-  data-shape change) — this is a UI/labeling cleanup, not a schema change.
-  While in there, note what else could use the proxy going forward as APIs
-  get added that don't send CORS headers, so it's clear this one field
-  isn't Steam-specific
 done:
 
+- Settings → Media naming cleanup: pulled the proxy URL field out of the
+  "Steam Wishlist import" section into its own "CORS proxy" heading at the
+  top of Media sources, since SteamGridDB cover art, GG.deals prices, and
+  the Steam Wishlist import all route through it (proxy/worker.js's
+  /steamgriddb + /gg-deals routes). Reworded its explainer (incl. that
+  future CORS-blocked sources will use it too), pointed the SteamGridDB /
+  GG.deals key hints and the Steam Wishlist section at the shared proxy
+  above, and updated the SteamGridDB "needs the proxy" error string. Kept
+  `settings.steam.proxyUrl` as the storage key (id unchanged) — pure
+  UI/labeling, no schema change
 - Ledger Summary insights — a "Highlights" card (real avg spend per active
   month, biggest month, top category, this-year-vs-last delta) and a "Spend
   trend" card charting the last up-to-12 calendar months on one continuous
