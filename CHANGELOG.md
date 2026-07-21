@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.92.1] - 2026-07-19
+
+### Added
+- The backlog random-picker card now includes the source/store link buttons
+  too — Steam, RAWG, TMDB, AniList, and so on (plus GG.deals for Steam
+  games), the same links the edit modal overlays on the cover, shown here as
+  a standalone row so they're there even when an item has no cover art.
+
 ## [0.92.0] - 2026-07-19
 
 ### Changed

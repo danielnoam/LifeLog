@@ -319,6 +319,11 @@
     if (b.notes) meta.appendChild(el("p", "pick-note", b.notes));
     if (hasSteamPrice) loadBacklogPrices([{ mediaSource: b.mediaSource, mediaId: b.mediaId }]);
 
+    // Source/store links (Steam · RAWG · TMDB · AniList · …, plus GG.deals
+    // for Steam games) — the same buttons the edit modal overlays on the
+    // cover, but as a standalone row here so they show even without a cover.
+    renderCoverLinkButtons($("#pickLinks"), b.mediaSource, b.mediaId);
+
     $("#pickOpenBtn").onclick = () => { closePickModal(); openBacklogModal(b); };
   }
 

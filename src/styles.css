@@ -644,6 +644,11 @@ body.modal-open { overflow: hidden; }
 .pick-genres { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .pick-genre { font-size: 11px; padding: 2px 8px; border-radius: 20px; background: var(--bg-elev-2); color: var(--text-dim); }
 .pick-note { font-size: 12px; color: var(--text-faint); font-style: italic; margin: 8px 0 0; }
+/* Source/store links as a standalone row (not overlaying a cover), so they
+   need a border to read against the card instead of an image. */
+.pick-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.pick-links:empty { display: none; }
+.pick-links .cover-link-btn { border: 1px solid var(--border); }
 .modal-wide { width: 560px; }
 .modal h2 { margin: 0 0 16px; font-size: 18px; }
 .modal-head { display:flex; align-items:center; justify-content: space-between; margin-bottom: 14px; }
