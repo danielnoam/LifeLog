@@ -45,6 +45,34 @@
     return span;
   }
 
+  // Shared media-metadata block for a backlog item — "★ rating · year ·
+  // length · price" on one line, then the summary paragraph. Used by the
+  // rich list row, the edit-modal cover, and the "pick something for me"
+  // modal so all three stay in sync. Fields are read off a plain object so
+  // callers can pass either a stored item or live form values. The GG.deals
+  // price span fills in later (async); returns whether there is one so the
+  // caller can kick off the fetch — this helper only builds DOM.
+  function appendBacklogMeta(container, item) {
+    const parts = [];
+    if (item.externalRating) parts.push("★ " + item.externalRating);
+    if (item.releaseYear) parts.push(String(item.releaseYear));
+    if (item.length) parts.push(item.length);
+    const hasSteamPrice = item.mediaSource === "steam" && !!item.mediaId;
+    if (parts.length || hasSteamPrice) {
+      const metaLine = el("span", "bl-meta");
+      if (parts.length) metaLine.appendChild(document.createTextNode(parts.join(" · ")));
+      if (hasSteamPrice) {
+        const price = el("span", "bl-price");
+        price.dataset.appid = item.mediaId;
+        if (parts.length) price.dataset.sep = "1";
+        metaLine.appendChild(price);
+      }
+      container.appendChild(metaLine);
+    }
+    if (item.summary) container.appendChild(el("p", "bl-summary", item.summary));
+    return hasSteamPrice;
+  }
+
   function getFilteredBacklog() {
     const q = state.search.trim().toLowerCase();
     const cf = state.activeCats;
@@ -261,11 +289,36 @@
   function rerollPick() {
     if (!pickPool.length) return;
     const b = pickPool[Math.floor(Math.random() * pickPool.length)];
-    $("#pickModalTitle").textContent = b.title;
+
+    // Title, with a ★ favorite marker when the item is prioritized.
+    const titleEl = $("#pickModalTitle");
+    titleEl.textContent = b.title;
+    if (b.priority) {
+      titleEl.appendChild(document.createTextNode(" "));
+      const fav = priorityBadge();
+      fav.title = "Favorite (prioritized)";
+      titleEl.appendChild(fav);
+    }
     $("#pickModalCategory").textContent = b.category;
+
     const cover = $("#pickCover");
     if (b.coverUrl) { $("#pickCoverImg").src = b.coverUrl; cover.hidden = false; }
     else cover.hidden = true;
+
+    // The full pulled metadata — rating/year/length/price + summary (shared
+    // with the list row and edit modal), plus genres and your own note,
+    // so a pick shows everything we know about it, not just the title.
+    const meta = $("#pickMeta");
+    meta.textContent = "";
+    const hasSteamPrice = appendBacklogMeta(meta, b);
+    if (b.genres && b.genres.length) {
+      const genres = el("div", "pick-genres");
+      b.genres.forEach((g) => genres.appendChild(el("span", "pick-genre", g)));
+      meta.appendChild(genres);
+    }
+    if (b.notes) meta.appendChild(el("p", "pick-note", b.notes));
+    if (hasSteamPrice) loadBacklogPrices([{ mediaSource: b.mediaSource, mediaId: b.mediaId }]);
+
     $("#pickOpenBtn").onclick = () => { closePickModal(); openBacklogModal(b); };
   }
 
@@ -410,27 +463,9 @@
     titleRow.appendChild(el("span", "bl-title", b.title));
     if (b.priority) titleRow.appendChild(priorityBadge());
     body.appendChild(titleRow);
-    const metaParts = [];
-    if (b.externalRating) metaParts.push("★ " + b.externalRating);
-    if (b.releaseYear) metaParts.push(String(b.releaseYear));
-    if (b.length) metaParts.push(b.length);
-    const hasSteamPrice = b.mediaSource === "steam" && !!b.mediaId;
-    if (metaParts.length || hasSteamPrice) {
-      const metaLine = el("span", "bl-meta");
-      if (metaParts.length) metaLine.appendChild(document.createTextNode(metaParts.join(" · ")));
-      if (hasSteamPrice) {
-        // Price arrives later (async GG.deals fetch) and gets patched into
-        // this same span by applyCachedPrices — kept in one line with the
-        // rest of the meta instead of its own row, sep only added if there
-        // was other meta text before it, empty until a price resolves.
-        const price = el("span", "bl-price");
-        price.dataset.appid = b.mediaId;
-        if (metaParts.length) price.dataset.sep = "1";
-        metaLine.appendChild(price);
-      }
-      body.appendChild(metaLine);
-    }
-    if (b.summary) body.appendChild(el("p", "bl-summary", b.summary));
+    // Price (if any) arrives later via the batched loadBacklogPrices() in
+    // renderBacklog and gets patched into the .bl-price span this builds.
+    appendBacklogMeta(body, b);
     row.appendChild(body);
     // Done button at the right — same position as plain backlog rows
     if (!state.bulk.active) {
@@ -531,29 +566,15 @@
     if (!coverUrl) { coverDiv.hidden = true; coverImg.src = ""; $("#backlogCoverLinks").innerHTML = ""; return; }
     coverImg.onerror = () => { coverDiv.hidden = true; };
     coverImg.src = coverUrl;
-    const line = [];
-    const rating = $("#bExternalRating").value;
-    const year = $("#bReleaseYear").value;
-    const length = $("#bLength").value;
-    if (rating) line.push("★ " + rating);
-    if (year) line.push(year);
-    if (length) line.push(length);
     const mediaSource = $("#bMediaSource").value;
     const mediaId = $("#bMediaId").value;
-    const hasSteamPrice = mediaSource === "steam" && !!mediaId;
-    if (line.length || hasSteamPrice) {
-      const metaLine = el("span", "bl-meta");
-      if (line.length) metaLine.appendChild(document.createTextNode(line.join(" · ")));
-      if (hasSteamPrice) {
-        const priceEl = el("span", "bl-price");
-        priceEl.dataset.appid = mediaId;
-        if (line.length) priceEl.dataset.sep = "1";
-        metaLine.appendChild(priceEl);
-      }
-      meta.appendChild(metaLine);
-    }
-    const summary = $("#bSummary").value;
-    if (summary) meta.appendChild(el("p", "bl-summary", summary));
+    const hasSteamPrice = appendBacklogMeta(meta, {
+      externalRating: $("#bExternalRating").value,
+      releaseYear: $("#bReleaseYear").value,
+      length: $("#bLength").value,
+      mediaSource, mediaId,
+      summary: $("#bSummary").value,
+    });
     if (hasSteamPrice) {
       // Same lookup the backlog list uses — reuses its cache (instant if
       // this item's price was already fetched there) and patches the

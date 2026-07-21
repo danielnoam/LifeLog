@@ -2,6 +2,12 @@ todo:
 
 done:
 
+- richer backlog random picker — the "🎲 Pick something for me" card now
+  shows a ★ favorite marker (priority), the rating/year/length line, the
+  GG.deals price (Steam items), the description/summary, genres, and your
+  own note, instead of just title + cover. Factored the rating/price/summary
+  block into a shared appendBacklogMeta() helper reused by the rich list
+  row, the edit-modal cover, and the pick modal so they stay in sync
 - Settings → Media naming cleanup: pulled the proxy URL field out of the
   "Steam Wishlist import" section into its own "CORS proxy" heading at the
   top of Media sources, since SteamGridDB cover art, GG.deals prices, and

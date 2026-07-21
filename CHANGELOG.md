@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.92.0] - 2026-07-19
+
+### Changed
+- The backlog's "🎲 Pick something for me" card now shows the full picture
+  for whatever it lands on, not just the title and cover: a ★ marker when
+  the item is a favorite (prioritized), the rating · release year · length
+  line, the current GG.deals price (for Steam-linked games), the
+  description, its genres, and your own note. The rating/price/summary block
+  is the same one the backlog list rows and edit modal already use, so it
+  stays consistent everywhere (factored into a shared helper).
+
 ## [0.91.1] - 2026-07-19
 
 ### Changed
