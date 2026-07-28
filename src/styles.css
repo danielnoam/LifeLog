@@ -259,14 +259,19 @@ html, body {
 .storage-status {
   position: absolute; top: 100%; left: 0; margin-top: 10px;
   font-size: 11px; color: var(--text-faint); display: flex; align-items: center; gap: 6px;
-  max-width: 260px; white-space: nowrap;
+  max-width: 260px; white-space: nowrap; cursor: pointer;
 }
+.storage-status:hover { color: var(--text-dim); }
 .storage-status .led { width: 8px; height: 8px; border-radius: 50%; background: var(--text-faint); flex-shrink: 0; }
 .storage-status .stxt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .storage-status.connected .led { background: var(--led-connected); }
 .storage-status.local .led { background: var(--led-local); }
 .storage-status.syncing .led { background: var(--led-syncing); animation: led-pulse 1s ease-in-out infinite; }
 .storage-status.pending .led { background: var(--led-local); animation: led-pulse 1.6s ease-in-out infinite; }
+/* Persistent failure (e.g. GitHub rejected the token) — steady red, not the
+   pulsing "will retry" look, since it won't fix itself without user action. */
+.storage-status.error { color: var(--danger-text); }
+.storage-status.error .led { background: var(--danger); }
 @keyframes led-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
 
 /* Brief highlight when an amount field's math expression auto-resolves. */

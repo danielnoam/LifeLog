@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.93.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.94.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1426,7 +1426,17 @@
     else if (fileOn) txt = "Saved to " + (Storage.fileName || "file");
     else if (Storage.fileName && Storage.needsReconnect) { cls = "storage-status local"; txt = "File needs reconnect — open Settings"; }
     else { cls = "storage-status local"; txt = Storage.fsSupported ? "Browser only — set up Data in Settings" : "Browser storage (this browser only)"; }
-    if (state.pendingSync && (ghOn || fileOn)) {
+    // A 401/403 from GitHub is a *persistent* failure (revoked/expired token,
+    // or one missing the `repo` scope) — "will sync when online" is misleading
+    // there, because it never will until the token is fixed, leaving the user
+    // to believe their data is safely synced when it only lives in this browser.
+    // Any other failure (offline, 5xx, network) stays transient/retryable.
+    const ghErr = ghOn ? Storage.githubError : null;
+    const ghAuthFailed = ghErr && (ghErr.status === 401 || ghErr.status === 403);
+    if (ghAuthFailed) {
+      cls = "storage-status error";
+      txt = "GitHub rejected your token — saved to this browser only. Reconnect in Settings.";
+    } else if (state.pendingSync && (ghOn || fileOn)) {
       cls = "storage-status pending";
       txt += " — unsynced changes, will sync when online";
     }
@@ -1747,6 +1757,11 @@
     document.addEventListener("pointercancel", endDragPaint);
     document.querySelectorAll(".tab").forEach((t) =>
       t.onclick = (e) => { e.stopPropagation(); switchToView(t.dataset.view); });
+    // The storage status doubles as a shortcut into Settings → Data, so its
+    // hints ("Reconnect in Settings", "set up Data in Settings", "GitHub
+    // rejected your token…") are one tap away from where you'd act on them.
+    $("#storageStatus").onclick = () => SettingsUI.openSettings();
+
     let scrollSaveTimer;
     window.addEventListener("scroll", () => {
       clearTimeout(scrollSaveTimer);

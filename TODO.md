@@ -2,6 +2,16 @@ todo:
 
 done:
 
+- faster launches + clearer sync failures — the service worker now uses
+  stale-while-revalidate for the app's own files (instant repeat load from
+  cache, background refresh for next time; the ?v= query on scripts/styles
+  keeps versioned assets fresh, HTML propagates within one extra load).
+  Scripts load in parallel via `defer`. A 401/403 from GitHub (bad/expired/
+  under-scoped token) now surfaces as a distinct red storage status —
+  "GitHub rejected your token — saved to this browser only. Reconnect in
+  Settings." — instead of the misleading "will sync when online" pending
+  state, and the storage-status line is now clickable to open Settings → Data
+
 - math in the Ledger amount fields — the Amount input in the finance entry,
   recurring expense, and per-occurrence override modals now accepts a basic
   arithmetic expression ("50-25", "12.5*3", "(10+5)/2") as well as a plain

@@ -4,6 +4,27 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.94.0] - 2026-07-28
+
+### Changed
+- Faster launches. Repeat visits now paint instantly from the offline cache
+  and quietly refresh in the background (stale-while-revalidate), instead of
+  waiting on the network every time. A version bump still propagates within
+  one extra load, so you're never stuck on an old build. The app's scripts
+  also load in parallel now (via `defer`) rather than one after another,
+  shaving the first-load time.
+- The storage-status line under the logo is now clickable — tapping it opens
+  Settings → Data, where you connect or reconnect sync, so its hints are one
+  tap from where you'd act on them.
+
+### Fixed
+- A rejected GitHub token (revoked, expired, or missing the `repo` scope) no
+  longer masquerades as a temporary "unsynced changes, will sync when online"
+  state. It now shows a distinct red "GitHub rejected your token — saved to
+  this browser only. Reconnect in Settings." so you know your data is only in
+  this browser and that action is needed, rather than believing it's safely
+  synced.
+
 ## [0.93.0] - 2026-07-28
 
 ### Added
