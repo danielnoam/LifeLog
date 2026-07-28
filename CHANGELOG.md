@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.93.0] - 2026-07-28
+
+### Added
+- The Amount field when adding a finance entry, a recurring expense, or
+  editing a single recurring occurrence now understands basic math, so you
+  can type an expression like `50-25`, `12.5*3`, or `(10+5)/2` instead of
+  working the sum out yourself. It waits about a second after you stop
+  typing (and also when you leave the field or save) and replaces what you
+  typed with the result, rounded to the nearest cent, with a brief
+  highlight. Plain numbers are left exactly as-is.
+
 ## [0.92.1] - 2026-07-19
 
 ### Added

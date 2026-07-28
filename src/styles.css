@@ -269,6 +269,13 @@ html, body {
 .storage-status.pending .led { background: var(--led-local); animation: led-pulse 1.6s ease-in-out infinite; }
 @keyframes led-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .25; } }
 
+/* Brief highlight when an amount field's math expression auto-resolves. */
+.math-eval-flash { animation: math-eval-flash .45s ease-out; }
+@keyframes math-eval-flash {
+  0% { background: var(--accent-soft); border-color: var(--accent); }
+  100% { background: none; }
+}
+
 /* Add floats free of the header/tabs entirely — a single fixed FAB in the
    bottom-right corner on every layout, so it's never crowded next to
    Settings or the view tabs. */

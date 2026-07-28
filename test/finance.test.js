@@ -18,7 +18,7 @@ Finance.init({
 const {
   recurringOccurrences, nextRecurringDate, addMonthsClamped, localDateStr,
   sanitizeFinanceEntry, sanitizeRecurring, financeKey, recurringKey, seedFinanceCategories,
-  closestOccurrenceDate, parseMoneyCell, monthSortAsc,
+  closestOccurrenceDate, parseMoneyCell, monthSortAsc, evalMathExpr,
 } = Finance;
 
 let passed = 0;
@@ -235,6 +235,44 @@ test("monthSortAsc sorts numerically ascending", () => {
 test("monthSortAsc always sorts the pseudo-month 0 ('Yearly' bucket) last", () => {
   assert.ok(monthSortAsc(0, 12) > 0); // 0 sorts after even December
   assert.ok(monthSortAsc(1, 0) < 0); // any real month sorts before 0
+});
+
+// ---------- evalMathExpr ----------
+test("evalMathExpr resolves plain subtraction like the user's 50-25", () => {
+  assert.strictEqual(evalMathExpr("50-25"), 25);
+});
+
+test("evalMathExpr honors operator precedence and parentheses", () => {
+  assert.strictEqual(evalMathExpr("2+3*4"), 14);
+  assert.strictEqual(evalMathExpr("(2+3)*4"), 20);
+  assert.strictEqual(evalMathExpr("12.5*3"), 37.5);
+  assert.strictEqual(evalMathExpr("10/4"), 2.5);
+});
+
+test("evalMathExpr passes a plain number through unchanged", () => {
+  assert.strictEqual(evalMathExpr("42"), 42);
+  assert.strictEqual(evalMathExpr(" 12.50 "), 12.5);
+});
+
+test("evalMathExpr rounds the result to cents", () => {
+  assert.strictEqual(evalMathExpr("10/3"), 3.33);
+});
+
+test("evalMathExpr ignores thousands-separator commas", () => {
+  assert.strictEqual(evalMathExpr("1,000-1"), 999);
+});
+
+test("evalMathExpr returns null for incomplete or invalid input", () => {
+  assert.strictEqual(evalMathExpr("50-"), null); // half-typed: don't resolve
+  assert.strictEqual(evalMathExpr(""), null);
+  assert.strictEqual(evalMathExpr("   "), null);
+  assert.strictEqual(evalMathExpr("(1+2"), null); // unbalanced paren
+  assert.strictEqual(evalMathExpr("abc"), null); // no code execution surface
+  assert.strictEqual(evalMathExpr("2**"), null);
+});
+
+test("evalMathExpr guards against division by zero (non-finite)", () => {
+  assert.strictEqual(evalMathExpr("1/0"), null);
 });
 
 console.log(`\n${passed} test(s) passed.`);

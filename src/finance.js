@@ -39,6 +39,106 @@
       backfillUpdatedAt, MONTHS } = ctx);
   }
 
+  // ---------- amount math expressions ----------
+  // The amount fields accept a plain number or a basic arithmetic expression
+  // ("50-25", "12.5*3", "(10+5)/2") so quick sums/splits can be entered
+  // inline. evalMathExpr is a tiny self-contained recursive-descent evaluator
+  // (no eval()/Function — CSP-safe and can't run arbitrary code) supporting
+  // + - * / and parentheses over decimal numbers. Returns a finite number, or
+  // null for empty/invalid/incomplete input (e.g. a trailing "50-").
+  function evalMathExpr(raw) {
+    if (typeof raw !== "string") return null;
+    const s = raw.trim();
+    if (!s || !/^[0-9+\-*/().,\s]+$/.test(s)) return null;
+    const expr = s.replace(/,/g, ""); // ignore thousands separators
+    let i = 0;
+    const skip = () => { while (expr[i] === " ") i++; };
+    function parseExpr() {
+      let v = parseTerm();
+      if (v === null) return null;
+      for (skip(); expr[i] === "+" || expr[i] === "-"; skip()) {
+        const op = expr[i++];
+        const r = parseTerm();
+        if (r === null) return null;
+        v = op === "+" ? v + r : v - r;
+      }
+      return v;
+    }
+    function parseTerm() {
+      let v = parseFactor();
+      if (v === null) return null;
+      for (skip(); expr[i] === "*" || expr[i] === "/"; skip()) {
+        const op = expr[i++];
+        const r = parseFactor();
+        if (r === null) return null;
+        v = op === "*" ? v * r : v / r;
+      }
+      return v;
+    }
+    function parseFactor() {
+      skip();
+      if (expr[i] === "+") { i++; return parseFactor(); }
+      if (expr[i] === "-") { i++; const r = parseFactor(); return r === null ? null : -r; }
+      if (expr[i] === "(") {
+        i++;
+        const v = parseExpr();
+        skip();
+        if (v === null || expr[i] !== ")") return null;
+        i++;
+        return v;
+      }
+      const start = i;
+      while (i < expr.length && /[0-9.]/.test(expr[i])) i++;
+      if (i === start) return null;
+      const num = parseFloat(expr.slice(start, i));
+      return isNaN(num) ? null : num;
+    }
+    const val = parseExpr();
+    skip();
+    if (i !== expr.length || val === null || !isFinite(val)) return null;
+    return Math.round(val * 100) / 100; // clamp to cents
+  }
+
+  // Reads an amount input, resolving any math expression, as a non-negative
+  // number of cents (expenses are stored positive). Falls back to parseFloat
+  // for a plain number the evaluator rejects; returns 0 when unparseable, so
+  // callers keep their existing "amount falsy → don't save" guard.
+  function readAmount(sel) {
+    const raw = $(sel).value;
+    const evaled = evalMathExpr(raw);
+    const n = evaled != null ? evaled : parseFloat(raw);
+    const v = Math.abs(n);
+    return isFinite(v) ? Math.round(v * 100) / 100 : 0;
+  }
+
+  // Wires an amount input so a completed math expression auto-resolves to its
+  // result: ~800ms after typing stops, and immediately on blur. Plain numbers
+  // (and half-typed expressions like "50-") are left untouched.
+  function attachMathInput(sel) {
+    const input = $(sel);
+    if (!input || input._mathWired) return;
+    input._mathWired = true;
+    let timer = null;
+    const resolve = () => {
+      const raw = input.value;
+      // Only touch values that actually contain an operator — a leading unary
+      // minus ("-25") on its own isn't a computation, so strip it before the check.
+      if (!/[+*/()]|\d\s*-/.test(raw)) return;
+      const val = evalMathExpr(raw);
+      if (val === null) return;
+      const out = String(val);
+      if (out === raw.trim()) return;
+      input.value = out;
+      input.classList.add("math-eval-flash");
+      setTimeout(() => input.classList.remove("math-eval-flash"), 450);
+    };
+    input.addEventListener("input", () => {
+      clearTimeout(timer);
+      timer = setTimeout(resolve, 800);
+    });
+    input.addEventListener("blur", () => { clearTimeout(timer); resolve(); });
+  }
+
   let financeCatColor = {}; // name -> color
 
   function rebuildFinanceColorMap() {
@@ -597,7 +697,7 @@
     const id = $("#financeId").value;
     const yearly = $("#finYearly").checked;
     const date = yearly ? $("#finYear").value : $("#finDate").value;
-    const amount = Math.abs(parseFloat($("#finAmount").value)) || 0;
+    const amount = readAmount("#finAmount");
     const category = $("#finCategory").value;
     const note = $("#finNote").value.trim();
     if (!date || !amount) return;
@@ -686,7 +786,7 @@
     const rec = state.data.recurringExpenses.find((x) => x.id === $("#recOccRecId").value);
     if (!rec) return;
     const date = $("#recOccDate").value;
-    const amount = Math.abs(parseFloat($("#recOccAmount").value)) || 0;
+    const amount = readAmount("#recOccAmount");
     const note = $("#recOccNote").value.trim();
     const skip = $("#recOccSkip").checked;
     const ov = {};
@@ -727,7 +827,7 @@
     const id = $("#recId").value;
     const startDate = $("#recStart").value;
     const interval = $("#recInterval").value;
-    const amount = Math.abs(parseFloat($("#recAmount").value)) || 0;
+    const amount = readAmount("#recAmount");
     const category = $("#recCategory").value;
     const note = $("#recNote").value.trim();
     if (!startDate || !amount) return;
@@ -1112,6 +1212,11 @@
     wireCategorySelect("#finCategory", "#financeModal", true);
     wireCategorySelect("#recCategory", "#recurringModal", true);
 
+    // Basic math in the amount fields: "50-25" auto-resolves to 25.
+    attachMathInput("#finAmount");
+    attachMathInput("#recAmount");
+    attachMathInput("#recOccAmount");
+
     $("#cancelFinanceBtn").onclick = closeFinanceModal;
     $("#financeForm").onsubmit = saveFinanceFromForm;
     $("#deleteFinanceBtn").onclick = deleteCurrentFinanceEntry;
@@ -1162,6 +1267,7 @@
     closestOccurrenceDate,
     parseMoneyCell,
     monthSortAsc,
+    evalMathExpr,
     // shared lookups/formatting (used by the shared import picker rows)
     rebuildFinanceColorMap,
     financeColorOf,

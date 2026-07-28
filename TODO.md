@@ -2,6 +2,15 @@ todo:
 
 done:
 
+- math in the Ledger amount fields — the Amount input in the finance entry,
+  recurring expense, and per-occurrence override modals now accepts a basic
+  arithmetic expression ("50-25", "12.5*3", "(10+5)/2") as well as a plain
+  number. It auto-resolves to the result ~800ms after you stop typing (and on
+  blur/submit), rounded to cents. Added a small CSP-safe recursive-descent
+  evaluator (evalMathExpr) and a readAmount() helper in finance.js — no eval()/
+  Function — plus a math-eval-flash highlight; the inputs became
+  type="text" inputmode="decimal" so operators are typeable. Tests cover
+  precedence, parentheses, incomplete/invalid input, and division by zero
 - richer backlog random picker — the "🎲 Pick something for me" card now
   shows a ★ favorite marker (priority), the rating/year/length line, the
   GG.deals price (Steam items), the description/summary, genres, your own
