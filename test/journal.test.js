@@ -14,10 +14,11 @@ const state = { data: { entries: [], backlog: [] } };
 Journal.init({
   uid: () => "test-id-" + (idCounter++),
   backfillUpdatedAt: (item) => item.updatedAt || item.createdAt || "1970-01-01T00:00:00.000Z",
+  MONTHS_SHORT: ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
   state,
 });
 
-const { sanitizeEntry, stripMediaSearchSuffix, heatColor, titleSuggestions, backlogSuggestions } = Journal;
+const { sanitizeEntry, stripMediaSearchSuffix, heatColor, titleSuggestions, backlogSuggestions, spanLabel } = Journal;
 
 let passed = 0;
 function test(name, fn) {
@@ -62,6 +63,46 @@ test("sanitizeEntry keeps a truthy rating and defaults a missing category", () =
   const out = sanitizeEntry({ title: "Foo", year: 2026, month: 1, rating: 4 });
   assert.strictEqual(out.rating, 4);
   assert.strictEqual(out.category, "Other");
+});
+
+// ---------- multi-month span ----------
+test("sanitizeEntry keeps a start strictly earlier than the anchor month", () => {
+  const out = sanitizeEntry({ title: "Elden Ring", category: "Games", year: 2025, month: 8, startYear: 2025, startMonth: 6 });
+  assert.strictEqual(out.startYear, 2025);
+  assert.strictEqual(out.startMonth, 6);
+});
+
+test("sanitizeEntry drops a start equal to or after the anchor (single-month entry)", () => {
+  const same = sanitizeEntry({ title: "X", category: "Games", year: 2025, month: 8, startYear: 2025, startMonth: 8 });
+  assert.ok(!("startMonth" in same) && !("startYear" in same));
+  const after = sanitizeEntry({ title: "X", category: "Games", year: 2025, month: 8, startYear: 2025, startMonth: 9 });
+  assert.ok(!("startMonth" in after) && !("startYear" in after));
+});
+
+test("sanitizeEntry drops a partial/invalid span (missing year or out-of-range month)", () => {
+  const noYear = sanitizeEntry({ title: "X", category: "Games", year: 2025, month: 8, startMonth: 6 });
+  assert.ok(!("startMonth" in noYear));
+  const badMonth = sanitizeEntry({ title: "X", category: "Games", year: 2025, month: 8, startYear: 2025, startMonth: 0 });
+  assert.ok(!("startMonth" in badMonth));
+});
+
+test("sanitizeEntry keeps a cross-year span (started the previous year)", () => {
+  const out = sanitizeEntry({ title: "BG3", category: "Games", year: 2025, month: 2, startYear: 2024, startMonth: 11 });
+  assert.strictEqual(out.startYear, 2024);
+  assert.strictEqual(out.startMonth, 11);
+});
+
+test("spanLabel formats a same-year span without the year", () => {
+  assert.strictEqual(spanLabel({ year: 2025, month: 8, startYear: 2025, startMonth: 6 }), "Jun–Aug");
+});
+
+test("spanLabel includes years on a cross-year span", () => {
+  assert.strictEqual(spanLabel({ year: 2025, month: 2, startYear: 2024, startMonth: 11 }), "Nov 2024–Feb 2025");
+});
+
+test("spanLabel returns empty for a single-month or missing-start entry", () => {
+  assert.strictEqual(spanLabel({ year: 2025, month: 8 }), "");
+  assert.strictEqual(spanLabel({ year: 2025, month: 8, startYear: 2025, startMonth: 8 }), "");
 });
 
 // ---------- stripMediaSearchSuffix ----------

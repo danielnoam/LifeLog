@@ -2,6 +2,18 @@ todo:
 
 done:
 
+- multi-month entries (Option A) — entries gained an optional startMonth/startYear
+  ("Started" month + year in the add/edit sheet). When it's strictly before the
+  anchor {year, month}, the Timeline row renders a faint span chip via a new pure
+  spanLabel() helper ("Jun–Aug" same-year, "Nov 2024–Feb 2025" cross-year);
+  otherwise nothing is stored/shown. sanitizeEntry validates + drops any
+  missing/equal/after/out-of-range span so the rest of the app can trust the
+  invariant. The entry still lives in one card and counts once — stats/heatmap/
+  streaks/merge untouched. Added .espan chip CSS and journal.test.js coverage
+  (retention, drop cases, cross-year, label formatting). CSV stays the lean
+  summary it already was (JSON export carries the span). Follow-up ideas: a
+  Stats surface for "longest spans"; optional span display in the backlog picker
+
 - faster launches + clearer sync failures — the service worker now uses
   stale-while-revalidate for the app's own files (instant repeat load from
   cache, background refresh for next time; the ?v= query on scripts/styles

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.94.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.95.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -164,6 +164,15 @@
             <select id="fMonth" required></select>
           </label>
         </div>
+        <div class="row">
+          <label>Started year
+            <input id="fStartYear" type="number" min="1900" max="2100" />
+          </label>
+          <label>Started month
+            <select id="fStartMonth"></select>
+          </label>
+        </div>
+        <p class="hint">Optional — set a <strong>Started month</strong> only if this spanned several months; the timeline then shows a “start–finish” span (e.g. Jun–Aug) on the row. It still counts once, under the Year/Month above. Leave it blank for a single month.</p>
         <p class="muted added-line" id="addedLine" hidden></p>
         <div class="entry-extra" id="entryExtra">
           <label>Rating
@@ -915,16 +924,16 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.94.0"></script>
-  <script defer src="src/media.js?v=0.94.0"></script>
-  <script defer src="src/merge.js?v=0.94.0"></script>
-  <script defer src="src/storage.js?v=0.94.0"></script>
-  <script defer src="src/finance.js?v=0.94.0"></script>
-  <script defer src="src/settings.js?v=0.94.0"></script>
-  <script defer src="src/backlog.js?v=0.94.0"></script>
-  <script defer src="src/journal.js?v=0.94.0"></script>
-  <script defer src="src/io.js?v=0.94.0"></script>
-  <script defer src="src/sync.js?v=0.94.0"></script>
-  <script defer src="src/app.js?v=0.94.0"></script>
+  <script defer src="src/qr.js?v=0.95.0"></script>
+  <script defer src="src/media.js?v=0.95.0"></script>
+  <script defer src="src/merge.js?v=0.95.0"></script>
+  <script defer src="src/storage.js?v=0.95.0"></script>
+  <script defer src="src/finance.js?v=0.95.0"></script>
+  <script defer src="src/settings.js?v=0.95.0"></script>
+  <script defer src="src/backlog.js?v=0.95.0"></script>
+  <script defer src="src/journal.js?v=0.95.0"></script>
+  <script defer src="src/io.js?v=0.95.0"></script>
+  <script defer src="src/sync.js?v=0.95.0"></script>
+  <script defer src="src/app.js?v=0.95.0"></script>
 </body>
 </html>

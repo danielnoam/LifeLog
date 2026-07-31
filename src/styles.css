@@ -407,6 +407,13 @@ select:focus { outline: none; border-color: var(--accent); }
 .entry .etitle { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entry .ecat { font-size: 11px; color: var(--text-faint); }
 .entry .erating { font-size: 11px; color: var(--accent); letter-spacing: 1px; }
+/* Multi-month span chip (e.g. "Jun–Aug") — a quiet, faint pill so it reads as
+   metadata, next to but not competing with the category chip and rating. */
+.entry .espan {
+  flex-shrink: 0; font-size: 11px; color: var(--text-faint); background: var(--bg-elev-2);
+  border: 1px solid var(--border); padding: 1px 7px; border-radius: 999px;
+  white-space: nowrap; font-variant-numeric: tabular-nums;
+}
 .bpriority { font-size: 11px; color: var(--priority); letter-spacing: 1px; flex-shrink: 0; }
 .entry .entry-cat {
   display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;

@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.95.0] - 2026-07-31
+
+### Added
+- Multi-month entries. An entry that spanned several months — a long game, a
+  trip, a book read over a while — can now carry an optional **Started month**
+  in the add/edit sheet, in addition to the month it finished. When the two
+  differ, its Timeline row shows a quiet span chip like **Jun–Aug** (or
+  **Nov 2024–Feb 2025** across a year boundary). The entry still lives in one
+  month card — the month it finished — and still counts exactly once, so every
+  total, streak, "busiest month", and the activity heatmap are unchanged.
+  Leave Started blank for an ordinary single-month entry and no chip appears.
+
 ## [0.94.0] - 2026-07-28
 
 ### Changed

@@ -120,6 +120,12 @@
     const t = el("span", "etitle", e.title);
     t.title = e.title;
     row.appendChild(t);
+    const sp = spanLabel(e);
+    if (sp) {
+      const chip = el("span", "espan", sp);
+      chip.title = "Spanned " + sp;
+      row.appendChild(chip);
+    }
     if (e.rating) row.appendChild(ratingBadge(e.rating));
     row.onclick = () => state.bulk.active ? toggleBulkItem(e.id) : openEntryModal(e);
     attachLongPressSelect(row, e);
@@ -556,6 +562,14 @@
       MONTHS.slice(1).map((m, i) => ({ value: i + 1, label: m })),
       editing ? entry.month : (presetDate ? presetDate.month : (new Date().getMonth() + 1)));
     $("#fYear").value = editing ? entry.year : (presetDate ? presetDate.year : new Date().getFullYear());
+    // Optional "Started" month for a multi-month span — a blank "— none —" by
+    // default (single month). Start year defaults to the finish year, so the
+    // common case (spanned within one year) is a single tap on the month.
+    fillSelect($("#fStartMonth"),
+      [{ value: "", label: "— none —" }].concat(MONTHS.slice(1).map((m, i) => ({ value: i + 1, label: m }))),
+      editing && entry.startMonth ? entry.startMonth : "");
+    $("#fStartYear").value = editing && entry.startYear ? entry.startYear
+      : (editing ? entry.year : (presetDate ? presetDate.year : new Date().getFullYear()));
     $("#deleteEntryBtn").hidden = !editing;
     $("#moveToBacklogBtn").hidden = !editing;
     const added = $("#addedLine");
@@ -906,6 +920,12 @@
     const category = $("#fCategory").value;
     const year = parseInt($("#fYear").value, 10);
     const month = parseInt($("#fMonth").value, 10);
+    // Optional multi-month span. Only an actually-earlier start counts; a start
+    // at or after the anchor month is a single-month entry, so we store nothing
+    // (and clear any prior span when editing).
+    const startMonth = $("#fStartMonth").value ? parseInt($("#fStartMonth").value, 10) : null;
+    const startYear = startMonth ? (parseInt($("#fStartYear").value, 10) || year) : null;
+    const isSpan = !!(startMonth && (startYear * 12 + startMonth) < (year * 12 + month));
     const rating = parseInt($("#fRating").dataset.value, 10) || 0;
     const notes = $("#fNotes").value.trim();
     const coverUrl = $("#fCoverUrl").value;
@@ -918,6 +938,7 @@
     if (id) {
       const e = state.data.entries.find((x) => x.id === id);
       Object.assign(e, { title, category, year, month, date: `${year}-${String(month).padStart(2, "0")}` });
+      if (isSpan) { e.startMonth = startMonth; e.startYear = startYear; } else { delete e.startMonth; delete e.startYear; }
       if (rating) e.rating = rating; else delete e.rating;
       if (notes) e.notes = notes; else delete e.notes;
       if (coverUrl) e.coverUrl = coverUrl; else delete e.coverUrl;
@@ -932,6 +953,7 @@
         date: `${year}-${String(month).padStart(2, "0")}`,
         createdAt: new Date().toISOString(),
       };
+      if (isSpan) { newEntry.startMonth = startMonth; newEntry.startYear = startYear; }
       if (rating) newEntry.rating = rating;
       if (notes) newEntry.notes = notes;
       if (coverUrl) newEntry.coverUrl = coverUrl;
@@ -1163,7 +1185,28 @@
     if (e.length) out.length = e.length;
     if (Array.isArray(e.genres) && e.genres.length) out.genres = e.genres.map((g) => String(g)).slice(0, 4);
     if (e.backlogAddedAt) out.backlogAddedAt = e.backlogAddedAt;
+    // Optional multi-month span: a start earlier than the anchor {year, month}
+    // (the month the entry is filed under — where it finished). Kept only when
+    // both parts are present and strictly before the anchor; missing, equal, or
+    // later starts mean a single-month entry, so they're dropped here so the
+    // rest of the app (spanLabel, etc.) can trust the invariant.
+    const sm = +e.startMonth, sy = +e.startYear;
+    if (sm >= 1 && sm <= 12 && sy && (sy * 12 + sm) < (out.year * 12 + out.month)) {
+      out.startMonth = sm; out.startYear = sy;
+    }
     return out;
+  }
+
+  // Compact "start–finish" label for a multi-month entry — "Jun–Aug" within a
+  // year, "Nov 2024–Feb 2025" across a year boundary. Empty string when the
+  // entry has no earlier start, so single-month entries render no chip.
+  function spanLabel(e) {
+    if (!e || !e.startMonth || !e.startYear) return "";
+    if (!(e.startYear * 12 + e.startMonth < e.year * 12 + e.month)) return "";
+    const sameYear = +e.startYear === +e.year;
+    const s = MONTHS_SHORT[e.startMonth] + (sameYear ? "" : " " + e.startYear);
+    const f = MONTHS_SHORT[e.month] + (sameYear ? "" : " " + e.year);
+    return s + "–" + f;
   }
 
   // ---------- events ----------
@@ -1227,5 +1270,6 @@
     // pure helpers (exported for test/journal.test.js)
     stripMediaSearchSuffix,
     heatColor,
+    spanLabel,
   };
 })();
