@@ -4,6 +4,39 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.96.0] - 2026-08-11
+
+### Added
+- **Change plan** for recurring expenses. When a bill's terms actually change —
+  a price rise, a monthly subscription going yearly, a move to a different
+  category — you no longer have to rewrite its whole history to record it.
+  "↻ Change plan…" in the edit sheet asks when the new terms take effect
+  (defaulting to the next billing date) and starts a fresh plan from there.
+  Everything before that date keeps the amount, schedule, category and
+  per-occurrence edits it was actually paid at. Both plans stay linked as one
+  bill, shown as a **Plan history** strip you can click through.
+- A **Stops on** date for recurring expenses, so a cancelled subscription can
+  simply stop generating occurrences instead of having to be deleted.
+- **↻ Make recurring** on an existing finance entry — turns a one-off expense
+  you've been logging by hand into a recurring one, prefilled from that entry,
+  which becomes its first occurrence.
+- **⇄ Convert to entries** on a recurring expense — the reverse trip: every
+  occurrence it generated becomes an ordinary, individually editable entry and
+  the template goes away. Skipped occurrences are left out.
+- Stopped and superseded plans now appear in an **Ended** group under the
+  Recurring expenses card, so their history stays one click away.
+
+### Changed
+- **Delete** on a recurring expense now removes it along with the occurrences
+  it generated, and says how many that is. Keeping the history is what
+  "Convert to entries" is for — previously Delete did both jobs at once and
+  there was no way to remove a recurring expense added by mistake.
+
+### Fixed
+- Converting a recurring expense to one-off entries no longer resurrects
+  occurrences you'd marked as skipped, which had been excluded from every
+  total.
+
 ## [0.95.0] - 2026-07-31
 
 ### Added

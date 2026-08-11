@@ -2,6 +2,25 @@ todo:
 
 done:
 
+- recurring expense plan changes — a recurring expense's terms can now change
+  without rewriting what came before. "Change plan" splits the template: the
+  old one gets an endDate the day before the change and keeps generating its
+  history verbatim (including its overrides), a new one takes over from that
+  date and links back via a new `prevId` field, and planChain() walks that
+  link in both directions to render the Plan history strip. Overrides on/after
+  the split move to the new plan only if its schedule still lands on that exact
+  date — otherwise they're dropped and the count is reported, since an override
+  for a date nothing generates is invisible. Also exposed the endDate the data
+  model already supported as a "Stops on" field; added one-off → recurring
+  ("Make recurring", prefilled from the entry, which is only removed once the
+  template saves) and recurring → one-off ("Convert to entries"); split Delete
+  off from that conversion so a mistakenly-added recurring expense can actually
+  be removed; and listed ended/superseded plans in the recurring card so they
+  stay reachable. splitRecurring/planChain/addDaysStr/nextOccurrenceDateAfter
+  are pure and covered in finance.test.js. Follow-up ideas: show a plan change
+  as a marker in the Summary trend; let a plan change also move the anchor day
+  (it currently inherits the new start date's day, which is usually right)
+
 - multi-month entries (Option A) — entries gained an optional startMonth/startYear
   ("Started" month + year in the add/edit sheet). When it's strictly before the
   anchor {year, month}, the Timeline row renders a faint span chip via a new pure

@@ -442,13 +442,35 @@ select:focus { outline: none; border-color: var(--accent); }
 .recur-row { display: flex; align-items: center; gap: 8px; padding: 5px 7px; border-radius: 7px; font-size: 13px; color: var(--text); }
 .recur-row:hover { background: var(--bg-elev-2); }
 .recur-row .recur-stop { margin-left: auto; }
+/* Stopped or superseded plans — still listed (and openable) so their
+   history stays reachable, but visibly out of force. */
+.recur-row.is-ended { opacity: .58; }
+.recur-subhead { font-size: 11.5px; color: var(--text-faint); margin: 8px 0 2px; padding: 0 7px; }
 .rec-occurrences { margin-top: 8px; }
 .rec-occ-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .rec-occ-head .hint { margin: 0; }
+.rec-tools { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; }
+.rec-tools[hidden] { display: none; }
+.rec-tools .link-btn,
 .rec-occ-head .link-btn {
   background: none; border: none; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0;
 }
+.rec-tools .link-btn:hover,
 .rec-occ-head .link-btn:hover { text-decoration: underline; }
+/* Plan history: one row per template this bill has been through, current
+   one highlighted. Only shown once a plan change has actually happened. */
+.plan-trail { margin-top: 10px; }
+.plan-trail[hidden] { display: none; }
+.plan-trail .hint { margin: 0 0 4px; }
+.plan-trail-list { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.plan-trail-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 5px 10px; font-size: 12.5px; color: var(--text-dim); cursor: pointer;
+}
+.plan-trail-row:not(:last-child) { border-bottom: 1px solid var(--border); }
+.plan-trail-row:hover { background: var(--bg-elev-2); }
+.plan-trail-row.is-current { color: var(--text); cursor: default; background: var(--accent-soft); }
+.plan-trail-terms { font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .rec-occ-list { max-height: 160px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); }
 .rec-occ-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 10px; font-size: 12.5px; cursor: pointer; }
 .rec-occ-row:not(:last-child) { border-bottom: 1px solid var(--border); }

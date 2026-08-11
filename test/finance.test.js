@@ -17,6 +17,7 @@ Finance.init({
 
 const {
   recurringOccurrences, nextRecurringDate, addMonthsClamped, localDateStr,
+  addDaysStr, nextOccurrenceDateAfter, splitRecurring, planChain,
   sanitizeFinanceEntry, sanitizeRecurring, financeKey, recurringKey, seedFinanceCategories,
   closestOccurrenceDate, parseMoneyCell, monthSortAsc, evalMathExpr,
 } = Finance;
@@ -130,6 +131,105 @@ test("recurringOccurrences ignores endDate when it's later than the requested cu
     new Date(2026, 1, 1) // until Feb 1, well before the endDate
   );
   assert.deepStrictEqual(occs.map((o) => o.date), ["2026-01-01", "2026-02-01"]);
+});
+
+// ---------- addDaysStr / nextOccurrenceDateAfter ----------
+test("addDaysStr steps a calendar date without a UTC round-trip", () => {
+  assert.strictEqual(addDaysStr("2026-03-01", -1), "2026-02-28");
+  assert.strictEqual(addDaysStr("2024-03-01", -1), "2024-02-29"); // leap year
+  assert.strictEqual(addDaysStr("2026-12-31", 1), "2027-01-01");
+});
+
+test("nextOccurrenceDateAfter lands on the schedule's own next date, not the day after", () => {
+  const rec = { id: "r1", startDate: "2026-01-05", interval: "monthly", amount: 50 };
+  assert.strictEqual(nextOccurrenceDateAfter(rec, "2026-03-20"), "2026-04-05");
+  // exactly on an occurrence date -> the following one (strictly after)
+  assert.strictEqual(nextOccurrenceDateAfter(rec, "2026-03-05"), "2026-04-05");
+});
+
+test("nextOccurrenceDateAfter ignores endDate — it answers where the next period would start", () => {
+  const rec = { id: "r1", startDate: "2026-01-05", interval: "monthly", amount: 50, endDate: "2026-02-05" };
+  assert.strictEqual(nextOccurrenceDateAfter(rec, "2026-03-20"), "2026-04-05");
+});
+
+// ---------- splitRecurring / planChain ----------
+test("splitRecurring ends the old plan the day before the new one starts, with no gap or overlap", () => {
+  const rec = { id: "r1", startDate: "2026-01-01", interval: "monthly", amount: 50, category: "Fun", createdAt: "t0" };
+  const { prev, created } = splitRecurring(rec, "2026-04-01", { interval: "yearly", amount: 500, category: "Fun" }, "r2", "t1");
+  assert.strictEqual(prev.endDate, "2026-03-31");
+  assert.strictEqual(created.startDate, "2026-04-01");
+  assert.strictEqual(created.prevId, "r1");
+  // the old plan's occurrences are exactly the ones before the change
+  const before = recurringOccurrences(prev, new Date(2026, 11, 31));
+  assert.deepStrictEqual(before.map((o) => o.date), ["2026-01-01", "2026-02-01", "2026-03-01"]);
+  assert.ok(before.every((o) => o.amount === 50));
+  // and the new plan picks up from the change date on the new terms
+  const after = recurringOccurrences(created, new Date(2027, 11, 31));
+  assert.deepStrictEqual(after.map((o) => o.date), ["2026-04-01", "2027-04-01"]);
+  assert.ok(after.every((o) => o.amount === 500));
+});
+
+test("splitRecurring hands a stop date over to the new plan — the bill still ends when it was set to", () => {
+  const rec = { id: "r1", startDate: "2026-01-01", interval: "monthly", amount: 50, category: "Fun", endDate: "2026-06-30" };
+  const { prev, created } = splitRecurring(rec, "2026-04-01", { interval: "monthly", amount: 60, category: "Fun" }, "r2", "t1");
+  assert.strictEqual(prev.endDate, "2026-03-31");
+  assert.strictEqual(created.endDate, "2026-06-30");
+  assert.deepStrictEqual(
+    recurringOccurrences(created, new Date(2027, 11, 31)).map((o) => o.date),
+    ["2026-04-01", "2026-05-01", "2026-06-01"] // stops at the inherited end date, not run on forever
+  );
+});
+
+test("splitRecurring leaves the original object untouched (callers get new records to splice in)", () => {
+  const rec = { id: "r1", startDate: "2026-01-01", interval: "monthly", amount: 50, category: "Fun" };
+  splitRecurring(rec, "2026-04-01", { interval: "monthly", amount: 60, category: "Fun" }, "r2", "t1");
+  assert.strictEqual(rec.endDate, undefined);
+  assert.strictEqual(rec.amount, 50);
+});
+
+test("splitRecurring keeps pre-split overrides on the old plan and carries later ones over", () => {
+  const rec = {
+    id: "r1", startDate: "2026-01-01", interval: "monthly", amount: 50, category: "Fun",
+    overrides: { "2026-02-01": { amount: 55 }, "2026-05-01": { skip: true } },
+  };
+  const { prev, created, dropped } = splitRecurring(rec, "2026-04-01", { interval: "monthly", amount: 60, category: "Fun" }, "r2", "t1");
+  assert.deepStrictEqual(Object.keys(prev.overrides), ["2026-02-01"]);
+  assert.deepStrictEqual(Object.keys(created.overrides), ["2026-05-01"]); // same schedule still hits May 1
+  assert.deepStrictEqual(dropped, []);
+});
+
+test("splitRecurring drops (and reports) a carried override the new schedule never lands on", () => {
+  const rec = {
+    id: "r1", startDate: "2026-01-01", interval: "monthly", amount: 50, category: "Fun",
+    overrides: { "2026-05-01": { amount: 55 } },
+  };
+  // going yearly from April means the only later occurrence is 2027-04-01 — May 1 no longer exists
+  const { prev, created, dropped } = splitRecurring(rec, "2026-04-01", { interval: "yearly", amount: 500, category: "Fun" }, "r2", "t1");
+  assert.strictEqual(prev.overrides, undefined);
+  assert.strictEqual(created.overrides, undefined);
+  assert.deepStrictEqual(dropped, ["2026-05-01"]);
+});
+
+test("planChain walks both directions and orders a bill's plans oldest first", () => {
+  const a = { id: "a", startDate: "2025-01-01", interval: "monthly", amount: 40 };
+  const b = { id: "b", startDate: "2026-01-01", interval: "monthly", amount: 50, prevId: "a" };
+  const c = { id: "c", startDate: "2027-01-01", interval: "yearly", amount: 500, prevId: "b" };
+  const other = { id: "z", startDate: "2026-06-01", interval: "monthly", amount: 9 };
+  const all = [c, other, a, b];
+  assert.deepStrictEqual(planChain(all, b).map((r) => r.id), ["a", "b", "c"]);
+  assert.deepStrictEqual(planChain(all, a).map((r) => r.id), ["a", "b", "c"]);
+  assert.deepStrictEqual(planChain(all, other).map((r) => r.id), ["z"]);
+});
+
+test("planChain survives a prevId cycle instead of looping forever", () => {
+  const a = { id: "a", startDate: "2025-01-01", prevId: "b" };
+  const b = { id: "b", startDate: "2026-01-01", prevId: "a" };
+  assert.strictEqual(planChain([a, b], a).length, 2);
+});
+
+test("sanitizeRecurring preserves prevId so a plan chain survives an import round-trip", () => {
+  const out = sanitizeRecurring({ id: "r2", startDate: "2026-04-01", interval: "monthly", amount: 60, category: "Fun", prevId: "r1" });
+  assert.strictEqual(out.prevId, "r1");
 });
 
 // ---------- sanitizeFinanceEntry / sanitizeRecurring ----------

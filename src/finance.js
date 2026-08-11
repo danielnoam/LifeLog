@@ -1,6 +1,7 @@
 // LifeLog — finance: expenses, recurring expenses (with per-occurrence
-// overrides and the link-past-expenses picker), finance categories, the
-// Ledger + Summary views, and finance import/export. Extracted from app.js;
+// overrides, plan changes, and the link-past-expenses picker), finance
+// categories, the Ledger + Summary views, and finance import/export.
+// Extracted from app.js;
 // shared app plumbing (state, DOM helpers, render/persist, the import
 // picker, …) is handed in via init(ctx), and everything app.js still needs
 // (view renderers, modal openers, sanitizers for the shared import
@@ -184,6 +185,10 @@
   // state.data.financeEntries for them. This keeps the template the single
   // source of truth: editing it changes every past and future occurrence,
   // and there's no per-occurrence row to clean up if it's stopped or edited.
+  // That retroactive reach is deliberate for a correction ("this was always
+  // 50, I typed 40") but wrong for a real change in terms — for those, see
+  // splitRecurring, which ends this template and starts a linked successor
+  // so the past keeps the terms it was actually paid at.
   // rec.overrides (optional) keys a sparse { amount?, note?, skip? } patch
   // by occurrence date, for the rare month that genuinely differed (a
   // price change, a one-off note, or a month skipped entirely) without
@@ -226,6 +231,105 @@
       d = nextRecurringDate(d, rec.interval, anchorDay);
     }
     return out;
+  }
+
+  function addDaysStr(dateStr, n) {
+    const d = new Date(dateStr + "T00:00:00");
+    if (isNaN(d.getTime())) return dateStr;
+    d.setDate(d.getDate() + n);
+    return localDateStr(d);
+  }
+
+  // The first date the template's own schedule lands on strictly after
+  // `fromDateStr` — the natural default for "when does the new plan take
+  // over", so a plan change falls on a real billing date instead of
+  // mid-period. Ignores endDate on purpose: this answers "where would the
+  // next period start", which is exactly the date you'd stop at.
+  function nextOccurrenceDateAfter(rec, fromDateStr) {
+    const start = new Date(rec.startDate + "T00:00:00");
+    if (isNaN(start.getTime())) return fromDateStr;
+    const anchorDay = start.getDate();
+    let d = start;
+    let guard = 0;
+    while (localDateStr(d) <= fromDateStr && guard++ < 5000) d = nextRecurringDate(d, rec.interval, anchorDay);
+    return localDateStr(d);
+  }
+
+  // ---------- plan changes ----------
+  // A bill whose price/schedule/category changes isn't the same plan any
+  // more — but its past occurrences really did happen at the old terms.
+  // Editing the template in place would retroactively rewrite them (and,
+  // when the interval or start date moves, silently orphan every override,
+  // since those are keyed by an occurrence date that no longer exists).
+  // So a plan change *splits*: the old template gets an end date one day
+  // before the change takes effect and keeps generating its history exactly
+  // as it was; a new template takes over from that date, linked back via
+  // prevId so the two read as one bill's history (see planChain).
+  function splitRecurring(rec, effectiveFrom, next, newId, now) {
+    const prev = { ...rec, endDate: addDaysStr(effectiveFrom, -1) };
+    const created = {
+      id: newId,
+      startDate: effectiveFrom,
+      interval: next.interval,
+      amount: next.amount,
+      category: next.category,
+      createdAt: now,
+      prevId: rec.id,
+    };
+    if (next.note) created.note = next.note;
+    // A stop date is about the bill, not the terms — the tail after the
+    // split still ends when the old plan said it would, so it moves to
+    // whichever plan now owns that stretch. (Callers reject a split past
+    // the stop date, so there's always a tail to hand over.)
+    if (rec.endDate) created.endDate = rec.endDate;
+
+    // Overrides belong to whichever plan actually generates that date.
+    // Anything before the split stays behind; anything on/after moves over —
+    // but only if the new schedule still lands on that exact date. A plan
+    // that changed interval usually doesn't, and an override for a date
+    // nothing generates is invisible dead weight, so it's dropped and
+    // reported back to the caller rather than left to rot in the file.
+    const kept = {}, carried = {};
+    for (const [date, ov] of Object.entries(rec.overrides || {})) {
+      if (date < effectiveFrom) kept[date] = ov; else carried[date] = ov;
+    }
+    const dropped = [];
+    const carriedDates = Object.keys(carried);
+    if (carriedDates.length) {
+      const last = carriedDates.slice().sort().pop();
+      const generated = new Set(recurringOccurrences(created, new Date(last + "T00:00:00")).map((o) => o.date));
+      for (const date of carriedDates) if (!generated.has(date)) { dropped.push(date); delete carried[date]; }
+    }
+    if (Object.keys(kept).length) prev.overrides = kept; else delete prev.overrides;
+    if (Object.keys(carried).length) created.overrides = carried;
+
+    return { prev, created, dropped };
+  }
+
+  // Every plan one bill has been through, oldest first, walked in both
+  // directions from `rec` along prevId. Guards against a cycle (a corrupted
+  // or hand-edited file) so this can never spin forever.
+  function planChain(all, rec) {
+    if (!rec) return [];
+    const list = all || [];
+    const byId = new Map(list.map((r) => [r.id, r]));
+    const seen = new Set([rec.id]);
+    const chain = [rec];
+    let cur = rec;
+    while (cur.prevId && byId.has(cur.prevId) && !seen.has(cur.prevId)) {
+      cur = byId.get(cur.prevId);
+      seen.add(cur.id);
+      chain.unshift(cur);
+    }
+    cur = rec;
+    for (;;) {
+      const nx = list.find((x) => x.prevId === cur.id && !seen.has(x.id));
+      if (!nx) break;
+      seen.add(nx.id);
+      chain.push(nx);
+      cur = nx;
+    }
+    return chain;
   }
   // real finance entries plus every recurring template's occurrences through
   // today — the merged list everything else (list view, stats, filters)
@@ -663,6 +767,9 @@
     $("#finYearLabel").hidden = !yearly;
     $("#finDate").required = !yearly;
     $("#finYear").required = yearly;
+    // Only an existing, dated entry can seed a recurring template — a yearly
+    // entry carries no month/day for the schedule to anchor to.
+    $("#makeRecurringBtn").hidden = yearly || !$("#financeId").value;
   }
   // Quick-adding into a month card should default to today's actual date
   // when that card is the current month (matches what the plain "+" button
@@ -733,17 +840,37 @@
   }
 
   // ---------- recurring expenses (modals + card) ----------
-  function openRecurringModal(rec) {
+  // Set when the recurring modal was opened to convert an existing one-off
+  // finance entry (see makeEntryRecurring): the entry is only removed once
+  // the template is actually saved, so cancelling leaves it untouched.
+  let pendingConvertEntryId = null;
+
+  function openRecurringModal(rec, prefill) {
     const editing = !!rec;
-    $("#recurringModalTitle").textContent = editing ? "Edit recurring expense" : "Add recurring expense";
+    const p = prefill || {};
+    $("#recurringModalTitle").textContent = editing ? "Edit recurring expense"
+      : (p.convertFromId ? "Make recurring" : "Add recurring expense");
+    pendingConvertEntryId = editing ? null : (p.convertFromId || null);
+    $("#recConvertHint").hidden = !pendingConvertEntryId;
     $("#recId").value = editing ? rec.id : "";
-    $("#recStart").value = editing ? rec.startDate : todayStr();
+    $("#recStart").value = editing ? rec.startDate : (p.startDate || todayStr());
+    $("#recEnd").value = editing ? (rec.endDate || "") : "";
     $("#recInterval").value = editing ? rec.interval : "monthly";
-    $("#recAmount").value = editing ? rec.amount : "";
+    $("#recAmount").value = editing ? rec.amount : (p.amount != null ? p.amount : "");
     fillCategorySelect($("#recCategory"), state.data.financeCategories,
-      editing ? rec.category : (state.data.financeCategories[0] && state.data.financeCategories[0].name));
-    $("#recNote").value = editing ? (rec.note || "") : "";
+      editing ? rec.category : (p.category || (state.data.financeCategories[0] && state.data.financeCategories[0].name)));
+    $("#recNote").value = editing ? (rec.note || "") : (p.note || "");
     $("#deleteRecurringBtn").hidden = !editing;
+    $("#recTools").hidden = !editing;
+
+    // A plan that's already been superseded can't be split again — the
+    // change belongs on whichever plan is currently in force, so point at
+    // that one instead of quietly forking the chain.
+    const chain = editing ? planChain(state.data.recurringExpenses, rec) : [];
+    const superseded = editing && chain[chain.length - 1] !== rec;
+    $("#changePlanBtn").hidden = superseded;
+    renderPlanTrail(rec, chain);
+
     const occWrap = $("#recOccurrences");
     if (editing) {
       const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -764,7 +891,31 @@
     }
     $("#recurringModal").hidden = false;
   }
-  function closeRecurringModal() { $("#recurringModal").hidden = true; }
+  function closeRecurringModal() { $("#recurringModal").hidden = true; pendingConvertEntryId = null; }
+
+  // The plan history strip: every template this bill has been through,
+  // oldest first. Only rendered once a plan change has actually happened —
+  // a bill that's never changed is just itself, and a one-row trail is noise.
+  function renderPlanTrail(rec, chain) {
+    const wrap = $("#recPlanTrail");
+    const list = $("#recPlanTrailList");
+    list.innerHTML = "";
+    if (!rec || chain.length < 2) { wrap.hidden = true; return; }
+    chain.forEach((r) => {
+      const isCurrent = r.id === rec.id;
+      const row = el("div", "plan-trail-row" + (isCurrent ? " is-current" : ""));
+      row.appendChild(el("span", "plan-trail-range", r.startDate + " → " + (r.endDate || "now")));
+      row.appendChild(el("span", "plan-trail-terms", formatMoney(r.amount) + " · " + r.interval));
+      if (isCurrent) {
+        row.title = "This plan";
+      } else {
+        row.title = "Open this plan";
+        row.onclick = () => openRecurringModal(r);
+      }
+      list.appendChild(row);
+    });
+    wrap.hidden = false;
+  }
 
   // Edits one generated occurrence's amount/note without touching the
   // template or any other occurrence — stored as a sparse patch on
@@ -826,49 +977,151 @@
     ev.preventDefault();
     const id = $("#recId").value;
     const startDate = $("#recStart").value;
+    const endDate = $("#recEnd").value;
     const interval = $("#recInterval").value;
     const amount = readAmount("#recAmount");
     const category = $("#recCategory").value;
     const note = $("#recNote").value.trim();
     if (!startDate || !amount) return;
+    if (endDate && endDate < startDate) { toast("The stop date can't be before the start date", true); return; }
+    const converted = pendingConvertEntryId;
     if (id) {
       const r = state.data.recurringExpenses.find((x) => x.id === id);
       Object.assign(r, { startDate, interval, amount, category });
       if (note) r.note = note; else delete r.note;
+      if (endDate) r.endDate = endDate; else delete r.endDate;
     } else {
       const item = { id: uid(), startDate, interval, amount, category, createdAt: new Date().toISOString() };
       if (note) item.note = note;
+      if (endDate) item.endDate = endDate;
       state.data.recurringExpenses.push(item);
+      // The entry this was converted from is only dropped now that the
+      // template exists — the template regenerates it as its first occurrence.
+      if (converted) state.data.financeEntries = state.data.financeEntries.filter((x) => x.id !== converted);
     }
     closeRecurringModal();
     buildYearFilter();
     render();
     await persist();
-    toast(id ? "Recurring expense updated" : "Recurring expense added");
+    toast(id ? "Recurring expense updated" : (converted ? "Converted to a recurring expense" : "Recurring expense added"));
   }
 
-  // Deleting a recurring expense removes the template (so no new occurrences
-  // get generated) but first materializes every occurrence it already
-  // produced into real finance entries, so none of that history disappears.
+  // ---------- changing a plan ----------
+  // Edits that should apply from a date forward rather than rewriting
+  // history — a price rise, a monthly bill going yearly, a re-categorised
+  // subscription. See splitRecurring for what that actually does to the data.
+  function openChangePlanModal(rec) {
+    if (!rec) return;
+    $("#planRecId").value = rec.id;
+    $("#planCurrent").textContent =
+      `Currently ${formatMoney(rec.amount)} ${rec.interval}, ${rec.category}, since ${rec.startDate}.`;
+    $("#planFrom").value = nextOccurrenceDateAfter(rec, todayStr());
+    $("#planFrom").min = addDaysStr(rec.startDate, 1);
+    $("#planInterval").value = rec.interval;
+    $("#planAmount").value = rec.amount;
+    fillCategorySelect($("#planCategory"), state.data.financeCategories, rec.category);
+    $("#planNote").value = rec.note || "";
+    $("#changePlanModal").hidden = false;
+  }
+  function closeChangePlanModal() { $("#changePlanModal").hidden = true; }
+
+  async function saveChangePlanFromForm(ev) {
+    ev.preventDefault();
+    const rec = state.data.recurringExpenses.find((x) => x.id === $("#planRecId").value);
+    if (!rec) return;
+    const effectiveFrom = $("#planFrom").value;
+    const amount = readAmount("#planAmount");
+    if (!effectiveFrom || !amount) return;
+    if (effectiveFrom <= rec.startDate) {
+      toast("That's on or before this plan's start date — edit the plan itself instead", true);
+      return;
+    }
+    if (rec.endDate && effectiveFrom > rec.endDate) {
+      toast(`This plan already stops on ${rec.endDate} — pick an earlier date`, true);
+      return;
+    }
+    const next = {
+      interval: $("#planInterval").value,
+      amount,
+      category: $("#planCategory").value,
+      note: $("#planNote").value.trim(),
+    };
+    const { prev, created, dropped } = splitRecurring(rec, effectiveFrom, next, uid(), new Date().toISOString());
+    const i = state.data.recurringExpenses.indexOf(rec);
+    state.data.recurringExpenses.splice(i, 1, prev, created);
+
+    closeChangePlanModal();
+    closeRecurringModal();
+    buildYearFilter();
+    render();
+    await persist();
+    toast(`New plan from ${effectiveFrom} — earlier occurrences keep the old one`
+      + (dropped.length ? `. ${dropped.length} per-occurrence edit${dropped.length === 1 ? "" : "s"} dropped (the new schedule doesn't land on those dates)` : ""));
+    openRecurringModal(created);
+  }
+
+  // Turns a recurring expense into ordinary one-off finance entries: every
+  // occurrence it generated becomes a real, individually editable entry and
+  // the template goes away. Skipped occurrences are left out — they were
+  // excluded from every total, so materializing them would resurrect spend
+  // that never happened.
+  async function convertRecurringToEntries() {
+    const id = $("#recId").value;
+    const r = state.data.recurringExpenses.find((x) => x.id === id);
+    if (!r) return;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const occs = recurringOccurrences(r, today).filter((o) => !o.skipped);
+    if (!confirm(`Convert this recurring expense into ${occs.length} one-off entr${occs.length === 1 ? "y" : "ies"}? It stops generating new ones, and each entry becomes editable on its own.`)) return;
+    const now = new Date().toISOString();
+    occs.forEach((o) => {
+      const entry = { id: uid(), date: o.date, type: "expense", amount: o.amount, category: o.category, createdAt: now };
+      if (o.note) entry.note = o.note;
+      state.data.financeEntries.push(entry);
+    });
+    state.data.recurringExpenses = state.data.recurringExpenses.filter((x) => x.id !== id);
+    closeRecurringModal();
+    buildYearFilter();
+    render();
+    await persist();
+    toast(`Converted to ${occs.length} one-off entr${occs.length === 1 ? "y" : "ies"}`);
+  }
+
+  // Removes the template outright. Its occurrences are generated on the fly,
+  // never stored, so they simply stop existing — which is the point when a
+  // recurring expense was a mistake, but is *not* what you want for a bill
+  // you actually paid, hence the pointer to "Convert to entries".
   async function deleteCurrentRecurring() {
     const id = $("#recId").value;
     if (!id) return;
-    if (!confirm("Delete this recurring expense? It will stop generating new occurrences, but everything it already created stays in your history.")) return;
     const r = state.data.recurringExpenses.find((x) => x.id === id);
-    if (r) {
-      const today = new Date(); today.setHours(0, 0, 0, 0);
-      recurringOccurrences(r, today).forEach((o) => {
-        const entry = { id: uid(), date: o.date, type: "expense", amount: o.amount, category: o.category, createdAt: new Date().toISOString() };
-        if (o.note) entry.note = o.note;
-        state.data.financeEntries.push(entry);
-      });
-      state.data.recurringExpenses = state.data.recurringExpenses.filter((x) => x.id !== id);
-    }
+    if (!r) return;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const n = recurringOccurrences(r, today).length;
+    if (!confirm(`Delete this recurring expense and the ${n} occurrence${n === 1 ? "" : "s"} it generated? To keep that history, cancel and use “Convert to entries” instead.`)) return;
+    state.data.recurringExpenses = state.data.recurringExpenses.filter((x) => x.id !== id);
     closeRecurringModal();
     buildYearFilter();
     render();
     await persist();
     toast("Recurring expense deleted");
+  }
+
+  // One-off → recurring: opens the recurring modal prefilled from an
+  // existing entry rather than converting on the spot, so the interval can
+  // be picked before the template starts backfilling occurrences from the
+  // entry's date. The entry itself is only removed once that's saved.
+  function makeEntryRecurring() {
+    const entry = state.data.financeEntries.find((x) => x.id === $("#financeId").value);
+    if (!entry) return;
+    if (entry.yearly) { toast("Yearly entries have no month or day to repeat from", true); return; }
+    closeFinanceModal();
+    openRecurringModal(null, {
+      convertFromId: entry.id,
+      startDate: entry.date,
+      amount: entry.amount,
+      category: entry.category,
+      note: entry.note || "",
+    });
   }
 
   // Finds, among a template's generated occurrences, the one closest in
@@ -941,15 +1194,22 @@
   }
 
   function renderRecurringCard(root) {
-    const active = (state.data.recurringExpenses || []).filter((r) => !r.endDate || r.endDate >= todayStr());
-    if (!active.length) return;
+    const all = state.data.recurringExpenses || [];
+    const today = todayStr();
+    const active = all.filter((r) => !r.endDate || r.endDate >= today);
+    // Ended plans (stopped, or superseded by a plan change) still generate
+    // the history in the Ledger, so they need to stay openable — otherwise
+    // the only way back to one is hunting down one of its occurrences.
+    const ended = all.filter((r) => r.endDate && r.endDate < today);
+    if (!active.length && !ended.length) return;
     const card = el("div", "recur-card");
     const head = el("div", "year-head");
     head.appendChild(el("h2", null, "Recurring expenses"));
     head.appendChild(el("span", "ycount", `${active.length} active`));
     card.appendChild(head);
-    active.slice().sort((a, b) => a.startDate.localeCompare(b.startDate)).forEach((r) => {
-      const row = el("div", "recur-row");
+
+    const addRow = (r, isEnded) => {
+      const row = el("div", "recur-row" + (isEnded ? " is-ended" : ""));
       const bar = el("div", "bar");
       bar.style.background = financeColorOf(r.category);
       row.appendChild(bar);
@@ -958,10 +1218,19 @@
       t.title = r.note || r.category;
       row.appendChild(t);
       row.appendChild(el("span", "ecat", r.category));
+      if (isEnded) row.appendChild(el("span", "recur-badge", "ended " + r.endDate));
       row.appendChild(el("span", "famount fnegative", "-" + formatMoney(r.amount)));
       row.onclick = () => openRecurringModal(r);
       card.appendChild(row);
-    });
+    };
+
+    active.slice().sort((a, b) => a.startDate.localeCompare(b.startDate)).forEach((r) => addRow(r, false));
+    if (ended.length) {
+      const sub = el("div", "recur-subhead");
+      sub.appendChild(el("span", null, `Ended (${ended.length})`));
+      card.appendChild(sub);
+      ended.slice().sort((a, b) => b.endDate.localeCompare(a.endDate)).forEach((r) => addRow(r, true));
+    }
     root.appendChild(card);
   }
 
@@ -1190,6 +1459,9 @@
     };
     if (r.note) out.note = r.note;
     if (r.endDate) out.endDate = r.endDate;
+    // The plan this one took over from — kept so a bill's history still
+    // reads as one chain after an import/sync round-trip (see planChain).
+    if (r.prevId) out.prevId = r.prevId;
     if (r.overrides && typeof r.overrides === "object") {
       const overrides = {};
       for (const [date, ov] of Object.entries(r.overrides)) {
@@ -1211,20 +1483,30 @@
   function wire() {
     wireCategorySelect("#finCategory", "#financeModal", true);
     wireCategorySelect("#recCategory", "#recurringModal", true);
+    wireCategorySelect("#planCategory", "#changePlanModal", true);
 
     // Basic math in the amount fields: "50-25" auto-resolves to 25.
     attachMathInput("#finAmount");
     attachMathInput("#recAmount");
     attachMathInput("#recOccAmount");
+    attachMathInput("#planAmount");
 
     $("#cancelFinanceBtn").onclick = closeFinanceModal;
     $("#financeForm").onsubmit = saveFinanceFromForm;
     $("#deleteFinanceBtn").onclick = deleteCurrentFinanceEntry;
     $("#finYearly").onchange = applyFinanceYearlyUI;
+    $("#makeRecurringBtn").onclick = makeEntryRecurring;
 
     $("#cancelRecurringBtn").onclick = closeRecurringModal;
     $("#recurringForm").onsubmit = saveRecurringFromForm;
     $("#deleteRecurringBtn").onclick = deleteCurrentRecurring;
+    $("#convertRecurringBtn").onclick = convertRecurringToEntries;
+    $("#changePlanBtn").onclick = () => {
+      const rec = state.data.recurringExpenses.find((x) => x.id === $("#recId").value);
+      if (rec) openChangePlanModal(rec);
+    };
+    $("#cancelChangePlanBtn").onclick = closeChangePlanModal;
+    $("#changePlanForm").onsubmit = saveChangePlanFromForm;
     $("#linkPastExpensesBtn").onclick = () => {
       const rec = state.data.recurringExpenses.find((x) => x.id === $("#recId").value);
       if (rec) openLinkPastExpensesPicker(rec);
@@ -1263,6 +1545,10 @@
     recurringOccurrences,
     nextRecurringDate,
     addMonthsClamped,
+    addDaysStr,
+    nextOccurrenceDateAfter,
+    splitRecurring,
+    planChain,
     localDateStr,
     closestOccurrenceDate,
     parseMoneyCell,
@@ -1282,6 +1568,8 @@
     openFinanceModal,
     closeFinanceModal,
     openRecurringModal,
+    closeRecurringModal,
+    closeChangePlanModal,
     openFinanceCatModal,
     cancelFinanceCatModal,
   };

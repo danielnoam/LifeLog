@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.95.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.96.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -359,6 +359,7 @@
         </label>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteFinanceBtn" hidden>Delete</button>
+          <button type="button" class="link-btn" id="makeRecurringBtn" hidden>↻ Make recurring</button>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelFinanceBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
@@ -373,9 +374,15 @@
       <h2 id="recurringModalTitle">Add recurring expense</h2>
       <form id="recurringForm">
         <input type="hidden" id="recId" />
-        <label id="recStartLabel">Start date
-          <input id="recStart" type="date" required />
-        </label>
+        <p class="hint" id="recConvertHint" hidden>Converting an existing entry — it's replaced by this expense's first occurrence once you save.</p>
+        <div class="row">
+          <label id="recStartLabel">Start date
+            <input id="recStart" type="date" required />
+          </label>
+          <label id="recEndLabel">Stops on (optional)
+            <input id="recEnd" type="date" />
+          </label>
+        </div>
         <div class="row">
           <label>Repeats
             <select id="recInterval">
@@ -394,11 +401,19 @@
         <label>Note
           <input id="recNote" type="text" autocomplete="off" placeholder="Optional description…" />
         </label>
-        <p class="hint" id="recHint">Generates an expense entry on this date every period, up to today. Editing this later changes every past and future occurrence.</p>
+        <p class="hint" id="recHint">Generates an expense entry on this date every period, up to today (or the stop date). Saving here rewrites every past and future occurrence — to change the terms from a date onward instead, use “Change plan”.</p>
+        <div class="plan-trail" id="recPlanTrail" hidden>
+          <p class="hint">Plan history</p>
+          <div class="plan-trail-list" id="recPlanTrailList"></div>
+        </div>
+        <div class="rec-tools" id="recTools" hidden>
+          <button type="button" class="link-btn" id="changePlanBtn">↻ Change plan…</button>
+          <button type="button" class="link-btn" id="convertRecurringBtn">⇄ Convert to entries</button>
+          <button type="button" class="link-btn" id="linkPastExpensesBtn">🔗 Link past expenses</button>
+        </div>
         <div class="rec-occurrences" id="recOccurrences" hidden>
           <div class="rec-occ-head">
             <p class="hint">Generated occurrences</p>
-            <button type="button" class="link-btn" id="linkPastExpensesBtn">🔗 Link past expenses</button>
           </div>
           <div class="rec-occ-list" id="recOccList"></div>
         </div>
@@ -407,6 +422,46 @@
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelRecurringBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Change a recurring expense's terms from a date forward: ends the
+       current plan the day before and starts a new one, so occurrences
+       before that date keep the terms they were actually paid at. -->
+  <div class="modal-overlay" id="changePlanModal" hidden>
+    <div class="modal">
+      <h2>Change plan</h2>
+      <form id="changePlanForm">
+        <input type="hidden" id="planRecId" />
+        <p class="hint" id="planCurrent"></p>
+        <label>New terms take effect from
+          <input id="planFrom" type="date" required />
+        </label>
+        <div class="row">
+          <label>Repeats
+            <select id="planInterval">
+              <option value="weekly">Weekly</option>
+              <option value="monthly" selected>Monthly</option>
+              <option value="yearly">Yearly</option>
+            </select>
+          </label>
+          <label>Amount
+            <input id="planAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 12.50 or 50-25" required />
+          </label>
+        </div>
+        <label>Category
+          <select id="planCategory" required></select>
+        </label>
+        <label>Note
+          <input id="planNote" type="text" autocomplete="off" placeholder="Optional description…" />
+        </label>
+        <p class="hint">Everything before this date keeps the old plan — same dates, same amounts, same per-occurrence edits. Both plans stay linked as one bill's history.</p>
+        <div class="modal-actions">
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelChangePlanBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Change plan</button>
         </div>
       </form>
     </div>
@@ -924,16 +979,16 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.95.0"></script>
-  <script defer src="src/media.js?v=0.95.0"></script>
-  <script defer src="src/merge.js?v=0.95.0"></script>
-  <script defer src="src/storage.js?v=0.95.0"></script>
-  <script defer src="src/finance.js?v=0.95.0"></script>
-  <script defer src="src/settings.js?v=0.95.0"></script>
-  <script defer src="src/backlog.js?v=0.95.0"></script>
-  <script defer src="src/journal.js?v=0.95.0"></script>
-  <script defer src="src/io.js?v=0.95.0"></script>
-  <script defer src="src/sync.js?v=0.95.0"></script>
-  <script defer src="src/app.js?v=0.95.0"></script>
+  <script defer src="src/qr.js?v=0.96.0"></script>
+  <script defer src="src/media.js?v=0.96.0"></script>
+  <script defer src="src/merge.js?v=0.96.0"></script>
+  <script defer src="src/storage.js?v=0.96.0"></script>
+  <script defer src="src/finance.js?v=0.96.0"></script>
+  <script defer src="src/settings.js?v=0.96.0"></script>
+  <script defer src="src/backlog.js?v=0.96.0"></script>
+  <script defer src="src/journal.js?v=0.96.0"></script>
+  <script defer src="src/io.js?v=0.96.0"></script>
+  <script defer src="src/sync.js?v=0.96.0"></script>
+  <script defer src="src/app.js?v=0.96.0"></script>
 </body>
 </html>
