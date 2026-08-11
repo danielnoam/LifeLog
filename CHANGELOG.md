@@ -4,6 +4,33 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.97.0] - 2026-08-11
+
+### Added
+- **Pause a recurring expense** over a stretch of time — a gym membership on
+  hold, a subscription frozen for the summer. "⏸ Pause…" in the edit sheet
+  takes a *from* date and an optional *until*; occurrences in that range stop
+  being generated and drop out of every total, while staying visible in the
+  Ledger marked **Paused**. Previously the only option was skipping one
+  occurrence at a time.
+- Leaving *Until* blank pauses **indefinitely** — the case per-occurrence
+  skipping couldn't express at all, since the occurrences you'd need to skip
+  haven't happened yet. The button then becomes **▶ Resume now**, which ends
+  the pause and picks the schedule back up.
+- Pausing never re-anchors the schedule: a bill on the 5th resumes on the 5th,
+  not on whatever day you happened to resume.
+- Paused stretches are listed in the edit sheet and can be edited or removed
+  at any time — removing one brings its occurrences straight back. A currently
+  paused expense is tagged **paused** (or **paused until …**) in the Recurring
+  expenses card.
+- Pauses survive a plan change: one that straddles the change date is split
+  across both plans rather than lost.
+
+### Fixed
+- The two-date rows in the recurring and pause sheets no longer overflow their
+  modal on a narrow phone — native date inputs refuse to shrink below their
+  natural width, which pushed the row about 20px past the edge.
+
 ## [0.96.0] - 2026-08-11
 
 ### Added

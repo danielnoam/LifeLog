@@ -17,7 +17,7 @@ Finance.init({
 
 const {
   recurringOccurrences, nextRecurringDate, addMonthsClamped, localDateStr,
-  addDaysStr, nextOccurrenceDateAfter, splitRecurring, planChain,
+  addDaysStr, nextOccurrenceDateAfter, splitRecurring, planChain, isPausedOn, normalizePauses,
   sanitizeFinanceEntry, sanitizeRecurring, financeKey, recurringKey, seedFinanceCategories,
   closestOccurrenceDate, parseMoneyCell, monthSortAsc, evalMathExpr,
 } = Finance;
@@ -131,6 +131,125 @@ test("recurringOccurrences ignores endDate when it's later than the requested cu
     new Date(2026, 1, 1) // until Feb 1, well before the endDate
   );
   assert.deepStrictEqual(occs.map((o) => o.date), ["2026-01-01", "2026-02-01"]);
+});
+
+// ---------- pauses ----------
+test("isPausedOn treats both ends of a pause as inclusive", () => {
+  const rec = { pauses: [{ from: "2026-06-01", to: "2026-08-31" }] };
+  assert.strictEqual(isPausedOn(rec, "2026-05-31"), false);
+  assert.strictEqual(isPausedOn(rec, "2026-06-01"), true);  // first day
+  assert.strictEqual(isPausedOn(rec, "2026-08-31"), true);  // last day
+  assert.strictEqual(isPausedOn(rec, "2026-09-01"), false);
+});
+
+test("isPausedOn treats a pause with no end date as still running", () => {
+  const rec = { pauses: [{ from: "2026-06-01" }] };
+  assert.strictEqual(isPausedOn(rec, "2026-05-31"), false);
+  assert.strictEqual(isPausedOn(rec, "2030-01-01"), true);
+});
+
+test("recurringOccurrences suppresses paused occurrences but still returns them for the Ledger", () => {
+  const occs = recurringOccurrences(
+    { id: "r1", startDate: "2026-01-05", interval: "monthly", amount: 45,
+      pauses: [{ from: "2026-03-01", to: "2026-04-30" }] },
+    new Date(2026, 4, 31)
+  );
+  assert.deepStrictEqual(occs.map((o) => o.date), ["2026-01-05", "2026-02-05", "2026-03-05", "2026-04-05", "2026-05-05"]);
+  assert.deepStrictEqual(occs.map((o) => o.skipped), [false, false, true, true, false]);
+  assert.deepStrictEqual(occs.map((o) => o.paused), [false, false, true, true, false]);
+});
+
+test("a pause does not re-anchor the schedule — billing resumes on its original day", () => {
+  const occs = recurringOccurrences(
+    { id: "r1", startDate: "2026-01-05", interval: "monthly", amount: 45,
+      pauses: [{ from: "2026-02-10", to: "2026-04-12" }] },
+    new Date(2026, 5, 30)
+  );
+  const live = occs.filter((o) => !o.skipped).map((o) => o.date);
+  assert.deepStrictEqual(live, ["2026-01-05", "2026-02-05", "2026-05-05", "2026-06-05"]); // still the 5th
+});
+
+test("a paused occurrence stays skipped even without a per-occurrence skip override", () => {
+  const occs = recurringOccurrences(
+    { id: "r1", startDate: "2026-01-05", interval: "monthly", amount: 45,
+      pauses: [{ from: "2026-02-01" }], overrides: { "2026-02-05": { amount: 99 } } },
+    new Date(2026, 1, 28)
+  );
+  const feb = occs.find((o) => o.date === "2026-02-05");
+  assert.strictEqual(feb.skipped, true);
+  assert.strictEqual(feb.paused, true);
+  assert.strictEqual(feb.overridden, true); // the amount override is still recorded, just not counted
+});
+
+test("normalizePauses sorts, fuses overlapping ranges, and closes the gap between adjacent ones", () => {
+  assert.deepStrictEqual(
+    normalizePauses([{ from: "2026-06-01", to: "2026-06-30" }, { from: "2026-01-01", to: "2026-02-01" }]),
+    [{ from: "2026-01-01", to: "2026-02-01" }, { from: "2026-06-01", to: "2026-06-30" }]
+  );
+  assert.deepStrictEqual(
+    normalizePauses([{ from: "2026-01-01", to: "2026-03-01" }, { from: "2026-02-01", to: "2026-05-01" }]),
+    [{ from: "2026-01-01", to: "2026-05-01" }] // overlapping
+  );
+  assert.deepStrictEqual(
+    normalizePauses([{ from: "2026-01-01", to: "2026-01-31" }, { from: "2026-02-01", to: "2026-02-28" }]),
+    [{ from: "2026-01-01", to: "2026-02-28" }] // back-to-back, no day between them
+  );
+});
+
+test("normalizePauses lets an open-ended range absorb everything after it", () => {
+  assert.deepStrictEqual(
+    normalizePauses([{ from: "2026-01-01" }, { from: "2026-06-01", to: "2026-07-01" }]),
+    [{ from: "2026-01-01" }]
+  );
+  // and an open end wins when it's the one being merged in
+  assert.deepStrictEqual(
+    normalizePauses([{ from: "2026-01-01", to: "2026-03-01" }, { from: "2026-02-01" }]),
+    [{ from: "2026-01-01" }]
+  );
+});
+
+test("normalizePauses drops entries with no start date and rights a backwards range", () => {
+  assert.deepStrictEqual(normalizePauses([{ to: "2026-01-01" }, null]), []);
+  assert.deepStrictEqual(
+    normalizePauses([{ from: "2026-06-30", to: "2026-06-01" }]),
+    [{ from: "2026-06-01", to: "2026-06-30" }]
+  );
+});
+
+test("splitRecurring clips a pause that straddles the split across both plans", () => {
+  const rec = {
+    id: "r1", startDate: "2026-01-01", interval: "monthly", amount: 50, category: "Fun",
+    pauses: [{ from: "2026-02-01", to: "2026-02-28" }, { from: "2026-03-15", to: "2026-05-15" }],
+  };
+  const { prev, created } = splitRecurring(rec, "2026-04-01", { interval: "monthly", amount: 60, category: "Fun" }, "r2", "t1");
+  assert.deepStrictEqual(prev.pauses, [
+    { from: "2026-02-01", to: "2026-02-28" },  // entirely before, untouched
+    { from: "2026-03-15", to: "2026-03-31" },  // clipped at the split
+  ]);
+  assert.deepStrictEqual(created.pauses, [{ from: "2026-04-01", to: "2026-05-15" }]); // the other half
+});
+
+test("splitRecurring keeps an open-ended pause open on the new plan", () => {
+  const rec = { id: "r1", startDate: "2026-01-01", interval: "monthly", amount: 50, category: "Fun", pauses: [{ from: "2026-02-01" }] };
+  const { prev, created } = splitRecurring(rec, "2026-04-01", { interval: "monthly", amount: 60, category: "Fun" }, "r2", "t1");
+  assert.deepStrictEqual(prev.pauses, [{ from: "2026-02-01", to: "2026-03-31" }]);
+  assert.deepStrictEqual(created.pauses, [{ from: "2026-04-01" }]);
+});
+
+test("sanitizeRecurring normalizes pauses and drops malformed ones", () => {
+  const out = sanitizeRecurring({
+    startDate: "2026-01-01", interval: "monthly", amount: 10, category: "Food",
+    pauses: [{ from: "2026-06-01", to: "2026-06-30" }, { to: "2026-09-01" }, "nope", { from: "2026-02-01", to: "2026-03-01" }],
+  });
+  assert.deepStrictEqual(out.pauses, [
+    { from: "2026-02-01", to: "2026-03-01" },
+    { from: "2026-06-01", to: "2026-06-30" },
+  ]);
+});
+
+test("sanitizeRecurring omits pauses entirely when there are none left", () => {
+  const out = sanitizeRecurring({ startDate: "2026-01-01", interval: "monthly", amount: 10, category: "Food", pauses: [] });
+  assert.strictEqual(out.pauses, undefined);
 });
 
 // ---------- addDaysStr / nextOccurrenceDateAfter ----------

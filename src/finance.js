@@ -204,6 +204,40 @@
     if (interval === "yearly") { const d = new Date(date); d.setFullYear(d.getFullYear() + 1); return d; }
     return addMonthsClamped(date, 1, anchorDay);
   }
+  // ---------- pauses ----------
+  // rec.pauses (optional) is a list of { from, to? } inclusive date ranges
+  // the bill was suspended for — a subscription frozen over the summer, a
+  // gym membership on hold. An absent `to` means "still paused, no end
+  // decided yet", which is the case a per-occurrence skip can't express at
+  // all: the occurrences it would need to skip haven't been generated yet.
+  // The schedule itself keeps ticking underneath (same anchor day), so
+  // resuming picks the billing date back up where it always was rather
+  // than re-anchoring to the resume date.
+  function isPausedOn(rec, dateStr) {
+    return (rec.pauses || []).some((p) => p && p.from && dateStr >= p.from && (!p.to || dateStr <= p.to));
+  }
+  // Sorted, with overlapping/adjacent ranges fused — so the list stays
+  // readable after a few edits and "is this date paused" can't depend on
+  // which of two overlapping entries it happened to hit first.
+  function normalizePauses(pauses) {
+    const clean = (pauses || [])
+      .filter((p) => p && p.from)
+      .map((p) => (p.to && p.to < p.from ? { from: p.to, to: p.from } : { from: p.from, to: p.to })) // tolerate a backwards range
+      .sort((a, b) => a.from.localeCompare(b.from));
+    const out = [];
+    for (const p of clean) {
+      const last = out[out.length - 1];
+      // an open-ended range swallows everything after it, so nothing can follow one
+      if (last && !last.to) break;
+      if (last && p.from <= addDaysStr(last.to, 1)) {
+        if (!p.to) delete last.to; else if (p.to > last.to) last.to = p.to;
+        continue;
+      }
+      out.push(p.to ? { from: p.from, to: p.to } : { from: p.from });
+    }
+    return out;
+  }
+
   // generates every occurrence of a recurring template from its start date
   // up to (and including) `until`, capped at the template's stop date if set
   function recurringOccurrences(rec, until) {
@@ -218,6 +252,11 @@
     while (d <= cutoff) {
       const dateStr = localDateStr(d);
       const ov = (rec.overrides || {})[dateStr];
+      // A paused occurrence rides on the same `skipped` flag a one-off skip
+      // uses, so every total/count downstream already excludes it — `paused`
+      // only changes how it's labelled and whether it's individually
+      // un-skippable (it isn't; that's the pause's job).
+      const paused = isPausedOn(rec, dateStr);
       out.push({
         id: `${rec.id}:${n}`, date: dateStr, type: "expense",
         amount: ov && ov.amount != null ? ov.amount : rec.amount,
@@ -225,7 +264,8 @@
         note: ov && ov.note != null ? ov.note : rec.note,
         createdAt: rec.createdAt,
         recurringId: rec.id, virtual: true, overridden: !!ov,
-        skipped: !!(ov && ov.skip),
+        skipped: paused || !!(ov && ov.skip),
+        paused,
       });
       n++;
       d = nextRecurringDate(d, rec.interval, anchorDay);
@@ -302,6 +342,22 @@
     }
     if (Object.keys(kept).length) prev.overrides = kept; else delete prev.overrides;
     if (Object.keys(carried).length) created.overrides = carried;
+
+    // A pause is a stretch of calendar, not a set of dates, so one straddling
+    // the split is clipped in two rather than assigned to a single side —
+    // the bill was suspended across the change, and both plans have to know
+    // it. (Unlike overrides, no pause is ever dropped: a range doesn't need
+    // the schedule to land on it to mean something.)
+    const keptPauses = [], carriedPauses = [];
+    for (const p of rec.pauses || []) {
+      const endsBefore = p.to && p.to < effectiveFrom;
+      if (endsBefore) { keptPauses.push({ ...p }); continue; }
+      if (p.from >= effectiveFrom) { carriedPauses.push({ ...p }); continue; }
+      keptPauses.push({ from: p.from, to: addDaysStr(effectiveFrom, -1) });
+      carriedPauses.push(p.to ? { from: effectiveFrom, to: p.to } : { from: effectiveFrom });
+    }
+    if (keptPauses.length) prev.pauses = keptPauses; else delete prev.pauses;
+    if (carriedPauses.length) created.pauses = carriedPauses;
 
     return { prev, created, dropped };
   }
@@ -491,7 +547,7 @@
       badge.title = f.overridden ? "Recurring — custom amount/note for this date" : "Recurring";
       row.appendChild(badge);
     }
-    if (f.skipped) row.appendChild(el("span", "skipped-badge", "Skipped"));
+    if (f.skipped) row.appendChild(el("span", "skipped-badge", f.paused ? "Paused" : "Skipped"));
     const amt = el("span", "famount fnegative", formatMoney(f.amount));
     row.appendChild(amt);
     row.onclick = f.virtual
@@ -870,6 +926,16 @@
     const superseded = editing && chain[chain.length - 1] !== rec;
     $("#changePlanBtn").hidden = superseded;
     renderPlanTrail(rec, chain);
+    renderPauses(rec);
+    // The pause button doubles as the resume button while a pause is in
+    // force — resuming is the only thing you'd want from it right then, and
+    // stacking a second button for it just to sit greyed out most of the
+    // time isn't worth the row.
+    const pausedNow = editing && isPausedOn(rec, todayStr());
+    $("#pauseBtn").textContent = pausedNow ? "▶ Resume now" : "⏸ Pause…";
+    $("#pauseBtn").title = pausedNow
+      ? "End the current pause so this bill starts generating occurrences again"
+      : "Suspend this bill for a stretch of time without deleting it";
 
     const occWrap = $("#recOccurrences");
     if (editing) {
@@ -880,8 +946,9 @@
       occ.forEach((o) => {
         const row = el("div", "rec-occ-row" + (o.overridden ? " is-overridden" : "") + (o.skipped ? " is-skipped" : ""));
         row.appendChild(el("span", "rec-occ-date", o.date + (o.overridden ? " *" : "")));
-        row.appendChild(el("span", "rec-occ-amount", o.skipped ? "Skipped" : "-" + formatMoney(o.amount)));
-        row.title = o.skipped ? "Skipped — click to restore or edit" : "Edit this occurrence";
+        row.appendChild(el("span", "rec-occ-amount", o.paused ? "Paused" : (o.skipped ? "Skipped" : "-" + formatMoney(o.amount))));
+        row.title = o.paused ? "Paused — edit the pause above to change this"
+          : (o.skipped ? "Skipped — click to restore or edit" : "Edit this occurrence");
         row.onclick = () => openRecurringOccModal(rec, o);
         list.appendChild(row);
       });
@@ -917,6 +984,101 @@
     wrap.hidden = false;
   }
 
+  // ---------- pauses (list + modal) ----------
+  function pauseLabel(p) {
+    return p.from + " → " + (p.to || "still paused");
+  }
+  function renderPauses(rec) {
+    const wrap = $("#recPauses");
+    const list = $("#recPauseList");
+    list.innerHTML = "";
+    const pauses = (rec && rec.pauses) || [];
+    if (!pauses.length) { wrap.hidden = true; return; }
+    const today = todayStr();
+    pauses.forEach((p, i) => {
+      const live = today >= p.from && (!p.to || today <= p.to);
+      const row = el("div", "pause-row" + (live ? " is-live" : ""));
+      row.appendChild(el("span", "pause-range", pauseLabel(p)));
+      if (live) row.appendChild(el("span", "pause-tag", "now"));
+      row.title = "Edit this pause";
+      row.onclick = () => openPauseModal(rec, i);
+      list.appendChild(row);
+    });
+    wrap.hidden = false;
+  }
+
+  // The pause currently in force, if any — what "Resume now" acts on.
+  function livePauseIndex(rec, dateStr) {
+    return (rec.pauses || []).findIndex((p) => dateStr >= p.from && (!p.to || dateStr <= p.to));
+  }
+
+  function openPauseModal(rec, index) {
+    const editing = index != null && index >= 0;
+    const p = editing ? rec.pauses[index] : null;
+    $("#pauseModalTitle").textContent = editing ? "Edit pause" : "Pause this expense";
+    $("#pauseRecId").value = rec.id;
+    $("#pauseIndex").value = editing ? String(index) : "";
+    $("#pauseFrom").value = editing ? p.from : todayStr();
+    $("#pauseTo").value = editing ? (p.to || "") : "";
+    $("#deletePauseBtn").hidden = !editing;
+    $("#pauseModal").hidden = false;
+  }
+  function closePauseModal() { $("#pauseModal").hidden = true; }
+
+  async function savePauseFromForm(ev) {
+    ev.preventDefault();
+    const rec = state.data.recurringExpenses.find((x) => x.id === $("#pauseRecId").value);
+    if (!rec) return;
+    const from = $("#pauseFrom").value;
+    const to = $("#pauseTo").value;
+    if (!from) return;
+    if (to && to < from) { toast("A pause can't end before it starts", true); return; }
+    const idxRaw = $("#pauseIndex").value;
+    const entry = to ? { from, to } : { from };
+    const pauses = (rec.pauses || []).slice();
+    if (idxRaw === "") pauses.push(entry); else pauses.splice(+idxRaw, 1, entry);
+    rec.pauses = normalizePauses(pauses);
+    closePauseModal();
+    render();
+    await persist();
+    toast(to ? `Paused ${from} → ${to}` : `Paused from ${from} — resume whenever`);
+    openRecurringModal(rec);
+  }
+
+  async function deleteCurrentPause() {
+    const rec = state.data.recurringExpenses.find((x) => x.id === $("#pauseRecId").value);
+    const idxRaw = $("#pauseIndex").value;
+    if (!rec || idxRaw === "") return;
+    const pauses = (rec.pauses || []).slice();
+    pauses.splice(+idxRaw, 1);
+    if (pauses.length) rec.pauses = pauses; else delete rec.pauses;
+    closePauseModal();
+    render();
+    await persist();
+    toast("Pause removed — those occurrences are back");
+    openRecurringModal(rec);
+  }
+
+  // Ends whichever pause covers today, so the bill picks its schedule back
+  // up from tomorrow. A pause that hadn't started yet is left alone — you
+  // can't resume from something you're not in.
+  async function resumeCurrentRecurring(rec) {
+    const today = todayStr();
+    const i = livePauseIndex(rec, today);
+    if (i < 0) return;
+    const p = rec.pauses[i];
+    const pauses = rec.pauses.slice();
+    // A pause that began today never suppressed anything — drop it outright
+    // rather than leaving a zero-length range behind.
+    if (p.from >= today) pauses.splice(i, 1);
+    else pauses.splice(i, 1, { from: p.from, to: addDaysStr(today, -1) });
+    if (pauses.length) rec.pauses = normalizePauses(pauses); else delete rec.pauses;
+    render();
+    await persist();
+    toast("Resumed — this bill is generating occurrences again");
+    openRecurringModal(rec);
+  }
+
   // Edits one generated occurrence's amount/note without touching the
   // template or any other occurrence — stored as a sparse patch on
   // rec.overrides, keyed by that occurrence's date.
@@ -926,7 +1088,12 @@
     $("#recOccDate").value = occ.date;
     $("#recOccAmount").value = occ.amount;
     $("#recOccNote").value = occ.note || "";
+    // While a pause covers this date the skip checkbox has nothing to say —
+    // unticking it wouldn't bring the occurrence back, since the pause is
+    // what's suppressing it. Lock it and point at where to actually fix it.
     $("#recOccSkip").checked = !!occ.skipped;
+    $("#recOccSkip").disabled = !!occ.paused;
+    $("#recOccPausedHint").hidden = !occ.paused;
     $("#resetRecOccBtn").hidden = !occ.overridden;
     $("#recurringOccModal").hidden = false;
   }
@@ -939,7 +1106,10 @@
     const date = $("#recOccDate").value;
     const amount = readAmount("#recOccAmount");
     const note = $("#recOccNote").value.trim();
-    const skip = $("#recOccSkip").checked;
+    // A paused date's checkbox is ticked and locked purely to reflect the
+    // pause, so reading it here would bake a skip override in that outlives
+    // the pause. The pause is already the reason it's suppressed.
+    const skip = !isPausedOn(rec, date) && $("#recOccSkip").checked;
     const ov = {};
     if (skip) ov.skip = true;
     if (amount !== rec.amount) ov.amount = amount;
@@ -1219,6 +1389,10 @@
       row.appendChild(t);
       row.appendChild(el("span", "ecat", r.category));
       if (isEnded) row.appendChild(el("span", "recur-badge", "ended " + r.endDate));
+      else if (isPausedOn(r, today)) {
+        const p = r.pauses[livePauseIndex(r, today)];
+        row.appendChild(el("span", "pause-tag", p.to ? "paused until " + p.to : "paused"));
+      }
       row.appendChild(el("span", "famount fnegative", "-" + formatMoney(r.amount)));
       row.onclick = () => openRecurringModal(r);
       card.appendChild(row);
@@ -1474,6 +1648,15 @@
       }
       if (Object.keys(overrides).length) out.overrides = overrides;
     }
+    if (Array.isArray(r.pauses)) {
+      const pauses = normalizePauses(r.pauses.map((p) => {
+        if (!p || typeof p !== "object" || !p.from) return null;
+        const clean = { from: String(p.from) };
+        if (p.to) clean.to = String(p.to);
+        return clean;
+      }).filter(Boolean));
+      if (pauses.length) out.pauses = pauses;
+    }
     return out;
   }
   const recurringKey = (r) => `${r.startDate}|${r.interval}|${+r.amount}|${(r.category || "").toLowerCase()}|${(r.note || "").toLowerCase()}`;
@@ -1507,6 +1690,14 @@
     };
     $("#cancelChangePlanBtn").onclick = closeChangePlanModal;
     $("#changePlanForm").onsubmit = saveChangePlanFromForm;
+    $("#pauseBtn").onclick = () => {
+      const rec = state.data.recurringExpenses.find((x) => x.id === $("#recId").value);
+      if (!rec) return;
+      if (isPausedOn(rec, todayStr())) resumeCurrentRecurring(rec); else openPauseModal(rec, null);
+    };
+    $("#cancelPauseBtn").onclick = closePauseModal;
+    $("#pauseForm").onsubmit = savePauseFromForm;
+    $("#deletePauseBtn").onclick = deleteCurrentPause;
     $("#linkPastExpensesBtn").onclick = () => {
       const rec = state.data.recurringExpenses.find((x) => x.id === $("#recId").value);
       if (rec) openLinkPastExpensesPicker(rec);
@@ -1549,6 +1740,8 @@
     nextOccurrenceDateAfter,
     splitRecurring,
     planChain,
+    isPausedOn,
+    normalizePauses,
     localDateStr,
     closestOccurrenceDate,
     parseMoneyCell,
@@ -1570,6 +1763,7 @@
     openRecurringModal,
     closeRecurringModal,
     closeChangePlanModal,
+    closePauseModal,
     openFinanceCatModal,
     cancelFinanceCatModal,
   };

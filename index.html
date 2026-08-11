@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.96.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.97.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -406,8 +406,13 @@
           <p class="hint">Plan history</p>
           <div class="plan-trail-list" id="recPlanTrailList"></div>
         </div>
+        <div class="plan-trail" id="recPauses" hidden>
+          <p class="hint">Paused</p>
+          <div class="plan-trail-list" id="recPauseList"></div>
+        </div>
         <div class="rec-tools" id="recTools" hidden>
           <button type="button" class="link-btn" id="changePlanBtn">↻ Change plan…</button>
+          <button type="button" class="link-btn" id="pauseBtn">⏸ Pause…</button>
           <button type="button" class="link-btn" id="convertRecurringBtn">⇄ Convert to entries</button>
           <button type="button" class="link-btn" id="linkPastExpensesBtn">🔗 Link past expenses</button>
         </div>
@@ -467,6 +472,35 @@
     </div>
   </div>
 
+  <!-- Suspend a recurring expense over a stretch of time. Occurrences
+       inside the range stop being generated; the schedule underneath keeps
+       its anchor day, so resuming picks the normal billing date back up.
+       Leaving "Until" blank pauses indefinitely. -->
+  <div class="modal-overlay" id="pauseModal" hidden>
+    <div class="modal">
+      <h2 id="pauseModalTitle">Pause this expense</h2>
+      <form id="pauseForm">
+        <input type="hidden" id="pauseRecId" />
+        <input type="hidden" id="pauseIndex" />
+        <div class="row">
+          <label>Paused from
+            <input id="pauseFrom" type="date" required />
+          </label>
+          <label>Until (optional)
+            <input id="pauseTo" type="date" />
+          </label>
+        </div>
+        <p class="hint">Occurrences in this range stop being generated and drop out of every total, but stay visible in the Ledger marked “Paused”. Leave <em>Until</em> blank to pause indefinitely — “Resume now” ends it whenever you're ready.</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="deletePauseBtn" hidden>Remove</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelPauseBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Edit a single recurring occurrence (amount/note only — everything
        else, including which dates exist at all, still comes from the
        template) -->
@@ -480,6 +514,7 @@
           <input type="checkbox" id="recOccSkip" />
           Skip this occurrence (excluded from Ledger &amp; Stats)
         </label>
+        <p class="hint" id="recOccPausedHint" hidden>This date falls inside a pause, so it's already excluded. Edit the pause on the template to change that.</p>
         <label>Amount
           <input id="recOccAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 12.50 or 50-25" required />
         </label>
@@ -979,16 +1014,16 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.96.0"></script>
-  <script defer src="src/media.js?v=0.96.0"></script>
-  <script defer src="src/merge.js?v=0.96.0"></script>
-  <script defer src="src/storage.js?v=0.96.0"></script>
-  <script defer src="src/finance.js?v=0.96.0"></script>
-  <script defer src="src/settings.js?v=0.96.0"></script>
-  <script defer src="src/backlog.js?v=0.96.0"></script>
-  <script defer src="src/journal.js?v=0.96.0"></script>
-  <script defer src="src/io.js?v=0.96.0"></script>
-  <script defer src="src/sync.js?v=0.96.0"></script>
-  <script defer src="src/app.js?v=0.96.0"></script>
+  <script defer src="src/qr.js?v=0.97.0"></script>
+  <script defer src="src/media.js?v=0.97.0"></script>
+  <script defer src="src/merge.js?v=0.97.0"></script>
+  <script defer src="src/storage.js?v=0.97.0"></script>
+  <script defer src="src/finance.js?v=0.97.0"></script>
+  <script defer src="src/settings.js?v=0.97.0"></script>
+  <script defer src="src/backlog.js?v=0.97.0"></script>
+  <script defer src="src/journal.js?v=0.97.0"></script>
+  <script defer src="src/io.js?v=0.97.0"></script>
+  <script defer src="src/sync.js?v=0.97.0"></script>
+  <script defer src="src/app.js?v=0.97.0"></script>
 </body>
 </html>

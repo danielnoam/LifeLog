@@ -2,6 +2,29 @@ todo:
 
 done:
 
+- pausing a recurring expense — new optional `rec.pauses`, a list of
+  { from, to? } inclusive ranges. recurringOccurrences() marks occurrences
+  inside one `paused: true` and rides them on the existing `skipped` flag, so
+  every total/count downstream already excluded them with no changes. An
+  absent `to` means "still paused" — the case a per-occurrence skip can't
+  express, since those occurrences don't exist yet — and flips the tool button
+  to "Resume now", which closes the range at yesterday. The schedule keeps its
+  anchor day underneath, so resuming lands on the normal billing date rather
+  than re-anchoring. normalizePauses() sorts/fuses overlapping and adjacent
+  ranges (an open-ended one absorbs everything after it) and runs in
+  sanitizeRecurring too, so an imported file can't carry a tangle. Pauses are
+  clipped across a plan change instead of dropped, unlike overrides — a range
+  doesn't need the schedule to land on it to mean something. The occurrence
+  modal locks its skip checkbox on a paused date and refuses to read it, which
+  would otherwise bake in a skip override that outlived the pause. Follow-up
+  ideas: show paused stretches as gaps in the Summary trend; a "pause for N
+  months" shortcut instead of picking the end date by hand
+
+- fixed the two-date rows (start/stop, pause from/until) overflowing their
+  modal by ~20px on a narrow phone — flex items default to min-width:auto and
+  a native date input reports a wide intrinsic width, so neither would shrink;
+  `.modal .row label` now sets min-width:0
+
 - recurring expense plan changes — a recurring expense's terms can now change
   without rewriting what came before. "Change plan" splits the template: the
   old one gets an endDate the day before the change and keeps generating its
