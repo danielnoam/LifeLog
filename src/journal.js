@@ -732,48 +732,69 @@
   // follow when its (often slower, rate-limited) request finishes, instead of
   // making every lookup as slow as the worse of the two APIs.
   //
-  // onBatch(results, sourceKey, nextSource) fires once per source queried, in
-  // order; nextSource names the one still to come, or is null when that batch
-  // was the last. Resolves with the total number of matches found.
-  async function streamMediaSuggestions(title, category, onBatch) {
+  // handlers.onStart(sourceKey, nextSource) fires synchronously, before any
+  // request is awaited, so the list can say what it's doing straight away.
+  // handlers.onBatch(results, sourceKey, nextSource) then fires once per source
+  // queried, in order; nextSource names the one still to come, or is null when
+  // that batch was the last. Resolves with the total number of matches found.
+  async function streamMediaSuggestions(title, category, handlers) {
     const search = mediaSearchFor(title, category);
     if (!search) return 0;
+    const next = search.fallbackSource || null;
+    handlers.onStart(search.source, next);
+    // Both requests go out at once. The fallback used to sit idle until the
+    // primary came back, so a lookup cost the two APIs *added together* — and
+    // they vary wildly (Open Library takes ~2.5s where most take ~250ms).
+    // Rendering is still strictly primary-first; only the waiting overlaps.
+    // Each is caught on its own so one source failing can't take out the other.
+    const primaryReq = search.trySource(search.source).catch(() => []);
+    const fallbackReq = next ? search.trySource(next).catch(() => []) : null;
     let total = 0;
-    try {
-      const primary = await search.trySource(search.source);
-      total += primary.length;
-      onBatch(primary, search.source, search.fallbackSource || null);
-      if (search.fallbackSource) {
-        const extra = await search.trySource(search.fallbackSource);
-        total += extra.length;
-        onBatch(extra, search.fallbackSource, null);
-      }
-    } catch (e) { /* whatever already landed stays on screen */ }
+    const primary = await primaryReq;
+    total += primary.length;
+    handlers.onBatch(primary, search.source, next);
+    if (fallbackReq) {
+      const extra = await fallbackReq;
+      total += extra.length;
+      handlers.onBatch(extra, next, null);
+    }
     return total;
   }
 
-  // Fills a suggestion list from a streamed lookup. The primary's matches show
-  // up first; a "Searching …" line holds the place of the source still in
-  // flight and is replaced by its matches when they arrive.
-  async function renderStreamedSuggestions(list, title, category, onPick) {
+  // Fills a suggestion list from a streamed lookup. A "Searching …" line goes
+  // up the instant the button is pressed — a click with no visible response
+  // reads as slower than it is — then the primary's matches replace it, and
+  // the fallback's slot in underneath when they arrive.
+  async function renderStreamedSuggestions(list, title, category, onPick, btn) {
+    const label = (key) => "Searching " + (MEDIA_SOURCE_LABELS[key] || key) + "…";
     list.innerHTML = "";
     let pendingRow = null;
-    const total = await streamMediaSuggestions(title, category, (results, sourceKey, nextSource) => {
-      if (pendingRow) { pendingRow.remove(); pendingRow = null; }
-      results.forEach((r) => list.appendChild(makeMediaAcItem(r, () => onPick(r))));
-      if (nextSource) {
-        pendingRow = el("div", "ac-pending", "Searching " + (MEDIA_SOURCE_LABELS[nextSource] || nextSource) + "…");
-        list.appendChild(pendingRow);
-      }
+    const setPending = (key) => {
+      if (pendingRow) pendingRow.remove();
+      pendingRow = key ? el("div", "ac-pending", label(key)) : null;
+      if (pendingRow) list.appendChild(pendingRow);
       list.hidden = !list.children.length;
-    });
-    if (pendingRow) pendingRow.remove();
-    if (!total) {
-      list.hidden = true;
-      const err = window.LifeLogMedia && window.LifeLogMedia.getLastError();
-      toast(err ? "No matches found — " + err : "No matches found", !!err);
+    };
+    if (btn) btn.classList.add("busy");
+    try {
+      const total = await streamMediaSuggestions(title, category, {
+        onStart: (sourceKey) => setPending(sourceKey),
+        onBatch: (results, sourceKey, nextSource) => {
+          if (pendingRow) { pendingRow.remove(); pendingRow = null; }
+          results.forEach((r) => list.appendChild(makeMediaAcItem(r, () => onPick(r))));
+          setPending(nextSource);
+        },
+      });
+      setPending(null);
+      if (!total) {
+        list.hidden = true;
+        const err = window.LifeLogMedia && window.LifeLogMedia.getLastError();
+        toast(err ? "No matches found — " + err : "No matches found", !!err);
+      }
+      return total;
+    } finally {
+      if (btn) btn.classList.remove("busy");
     }
-    return total;
   }
 
   function makeMediaAcItem(r, onPick) {
@@ -949,7 +970,7 @@
       }
       setEntryCover(r.coverUrl, mediaId, mediaSource, length, r.genres || []);
       list.hidden = true;
-    });
+    }, $("#fSyncBtn"));
   }
 
   function unsyncEntry() {

@@ -1,6 +1,28 @@
 todo:
 
+- sync latency, remaining: when the *primary* source is the slow one, the first
+  result still can't appear before it answers — the fallback is held back to
+  keep primary-first ordering. Rendering whichever lands first would fix it but
+  reorders the list. Also unmeasured: SteamGridDB does an autocomplete request
+  then a second round of per-game cover fetches, both through the user's CORS
+  proxy, so it's two proxy round-trips deep before it can return anything
+
 done:
+
+- sync button latency — measured the real APIs first rather than guessing:
+  AniList/Jikan/MusicBrainz ~250ms, Google Books ~670ms, Open Library ~2500ms.
+  Two fixes. (1) Perceived: renderStreamedSuggestions now paints a "Searching
+  <source>…" row synchronously, before anything is awaited, and puts the sync
+  button in a .busy spin — previously the click had no visible effect at all
+  until the first API answered. (2) Actual: streamMediaSuggestions fires the
+  primary and fallback requests together instead of starting the fallback only
+  after the primary resolved, so a lookup costs max(a,b) rather than a+b.
+  Rendering order is unchanged (still strictly primary-first) — only the
+  waiting overlaps. Measured with stubs at the real latencies: two typical
+  sources 500ms → 264ms; fast primary + Open Library fallback 2750ms → 2507ms
+  with the first result on screen at 260ms. Each request also gets its own
+  .catch now, so one source failing no longer aborts the other (the old shared
+  try/catch dropped both).
 
 - sync button source labelling + streaming — the combined primary/fallback list
   (added v0.87.0) gave no way to tell the two sources apart, which matters

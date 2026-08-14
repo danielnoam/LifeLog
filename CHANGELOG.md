@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.99.2] - 2026-08-14
+
+### Fixed
+- **The 🔄 Sync button responds the instant you press it.** It used to sit
+  there doing nothing visible until the first API answered, which made every
+  lookup feel slower than it was. The list now opens immediately with
+  "Searching RAWG…", and the button itself spins while the lookup runs.
+- **Both sources are now queried at the same time.** The fallback used to wait
+  for the primary to finish before it even started, so a lookup cost the two
+  APIs *added together* — and they vary a lot in speed (Open Library takes
+  around 2.5 seconds where most take a quarter of that). Results are still
+  listed primary-first; only the waiting overlaps. With two typical sources a
+  full lookup went from about half a second to a quarter.
+- One source failing no longer abandons the other — each is handled on its
+  own, so a rate-limited or unreachable API just contributes no matches
+  instead of emptying the list.
+
 ## [0.99.1] - 2026-08-14
 
 ### Fixed

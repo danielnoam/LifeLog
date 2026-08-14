@@ -242,7 +242,7 @@
       setBacklogCover();
       updateBacklogDuplicateBanner();
       list.hidden = true;
-    });
+    }, $("#bSyncBtn"));
   }
 
   function unsyncBacklogItem() {
