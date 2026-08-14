@@ -11,7 +11,7 @@
     emptyState, emptyCoverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect, openEntryModal,
     fillCategorySelect, wireCategorySelect, titleSuggestions,
-    backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions,
+    backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
     resolveRawgSteamAppId, updateSyncBtnVisibility, showSyncStatus,
     renderCoverLinkButtons, loadBacklogPrices, applySteamAppId,
     backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS;
@@ -21,7 +21,7 @@
       emptyState, emptyCoverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
       toggleBulkCategoryAll, attachLongPressSelect, openEntryModal,
       fillCategorySelect, wireCategorySelect, titleSuggestions,
-      backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions,
+      backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
       resolveRawgSteamAppId, updateSyncBtnVisibility, showSyncStatus,
       renderCoverLinkButtons, loadBacklogPrices, applySteamAppId,
       backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS } = ctx);
@@ -214,46 +214,35 @@
     const category = $("#bCategory").value;
     if (!title) return;
     const list = $("#bTitleSuggest");
-    const results = await fetchMediaSuggestions(title, category, { combineFallback: true });
-    list.innerHTML = "";
-    if (!results.length) {
-      list.hidden = true;
-      const err = window.LifeLogMedia && window.LifeLogMedia.getLastError();
-      toast(err ? "No matches found — " + err : "No matches found", !!err);
-      return;
-    }
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
-    results.forEach((r) => {
-      list.appendChild(makeMediaAcItem(r, async () => {
-        // Adopt the picked media's title, and lock the link so a later title
-        // edit won't drop it (only "✕ Unsync" does).
-        $("#bTitle").value = r.title;
-        lastSyncedBacklogTitle = r.title;
-        backlogSyncLocked = true;
-        $("#bCoverUrl").value = r.coverUrl || "";
-        $("#bMediaId").value = r.id || "";
-        $("#bMediaSource").value = r.source || "";
-        $("#bSummary").value = r.summary || "";
-        $("#bReleaseYear").value = r.year ? String(r.year) : "";
-        $("#bExternalRating").value = r.externalRating || "";
-        $("#bGenres").value = (r.genres || []).join("|");
-        // TMDB's details endpoint is the only source of runtime/season counts,
-        // and carries the show's status and next episode air date with them —
-        // so the pick lands with everything the Next Releases list needs.
-        const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys.tmdb);
-        $("#bLength").value = details.length || r.length || "";
-        setReleaseFields(window.LifeLogMedia.mergeRelease(r, details));
-        if (r.source === "rawg-steam-gg") {
-          const resolved = await resolveRawgSteamAppId(r, keys.rawg);
-          $("#bMediaSource").value = resolved.mediaSource;
-          $("#bMediaId").value = resolved.mediaId;
-        }
-        setBacklogCover();
-        updateBacklogDuplicateBanner();
-        list.hidden = true;
-      }));
+    await renderStreamedSuggestions(list, title, category, async (r) => {
+      // Adopt the picked media's title, and lock the link so a later title
+      // edit won't drop it (only "✕ Unsync" does).
+      $("#bTitle").value = r.title;
+      lastSyncedBacklogTitle = r.title;
+      backlogSyncLocked = true;
+      $("#bCoverUrl").value = r.coverUrl || "";
+      $("#bMediaId").value = r.id || "";
+      $("#bMediaSource").value = r.source || "";
+      $("#bSummary").value = r.summary || "";
+      $("#bReleaseYear").value = r.year ? String(r.year) : "";
+      $("#bExternalRating").value = r.externalRating || "";
+      $("#bGenres").value = (r.genres || []).join("|");
+      // TMDB's details endpoint is the only source of runtime/season counts,
+      // and carries the show's status and next episode air date with them —
+      // so the pick lands with everything the Next Releases list needs.
+      const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys.tmdb);
+      $("#bLength").value = details.length || r.length || "";
+      setReleaseFields(window.LifeLogMedia.mergeRelease(r, details));
+      if (r.source === "rawg-steam-gg") {
+        const resolved = await resolveRawgSteamAppId(r, keys.rawg);
+        $("#bMediaSource").value = resolved.mediaSource;
+        $("#bMediaId").value = resolved.mediaId;
+      }
+      setBacklogCover();
+      updateBacklogDuplicateBanner();
+      list.hidden = true;
     });
-    list.hidden = false;
   }
 
   function unsyncBacklogItem() {

@@ -2,6 +2,23 @@ todo:
 
 done:
 
+- sync button source labelling + streaming — the combined primary/fallback list
+  (added v0.87.0) gave no way to tell the two sources apart, which matters
+  because the pick sets mediaSource and that drives cover art, the source/store
+  link buttons, and GG.deals pricing. makeMediaAcItem now tags each row with
+  MEDIA_SOURCE_LABELS[r.source], right-aligned so row height is unchanged
+  (added "rawg-steam-gg" to that map, which was missing). Deliberately no dedup
+  across sources: SteamGridDB exists precisely to offer *different* art for a
+  title RAWG also has, so collapsing them would remove the choice the combined
+  list is for. Replaced the combineFallback flag with streamMediaSuggestions(),
+  which emits one batch per source, plus renderStreamedSuggestions() shared by
+  both Sync buttons — primary results paint immediately and an .ac-pending row
+  holds the fallback's place, instead of the whole lookup waiting on the slower
+  API. Extracted mediaSearchFor() as the shared setup, which also fixed a
+  fallback set to the same source as the primary being searched twice. Bulk
+  sync and the auto-checks still use fetchMediaSuggestions (fallback only when
+  the primary is empty) and are untouched.
+
 - next releases view — a second Backlog layout (`state.backlogMode`, remembered
   in the UI localStorage key next to `view`) rather than a sixth tab: same
   items either way, and the phone's bottom nav has no room. Grouped into one

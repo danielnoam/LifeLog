@@ -27,7 +27,8 @@
   const MEDIA_KEY = "lifelog-media-settings-v1";
   const DEFAULT_MEDIA = {}; // legacy local-only shape; rawgKey/tmdbKey migrated into synced settings on load (see normalize())
   const MEDIA_SOURCE_LABELS = {
-    rawg: "RAWG", steamgriddb: "SteamGridDB", "tmdb-movie": "TMDB", "tmdb-tv": "TMDB",
+    rawg: "RAWG", "rawg-steam-gg": "RAWG", steamgriddb: "SteamGridDB",
+    "tmdb-movie": "TMDB", "tmdb-tv": "TMDB",
     "anilist-anime": "AniList", "anilist-manga": "AniList",
     "jikan-anime": "Jikan", "jikan-manga": "Jikan",
     openlibrary: "Open Library", googlebooks: "Google Books", musicbrainz: "MusicBrainz",
@@ -43,7 +44,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.99.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.99.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2153,6 +2154,7 @@
     backlogSuggestions: Journal.backlogSuggestions,
     makeMediaAcItem: Journal.makeMediaAcItem,
     fetchMediaSuggestions: Journal.fetchMediaSuggestions,
+    renderStreamedSuggestions: Journal.renderStreamedSuggestions,
     resolveRawgSteamAppId: Journal.resolveRawgSteamAppId,
     updateSyncBtnVisibility: Journal.updateSyncBtnVisibility,
     showSyncStatus: Journal.showSyncStatus,

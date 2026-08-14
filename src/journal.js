@@ -685,21 +685,12 @@
     return appId ? { mediaSource: "steam", mediaId: appId } : { mediaSource: "rawg", mediaId: r.id || "" };
   }
 
-  // Looks up a category's media source(s) for `title`.
-  //
-  // Default (bulk sync / auto-checks, which just auto-take the first result):
-  // tries the primary source, and only if it comes back completely empty falls
-  // back to the category's configured fallback source — the fallback fills a
-  // gap, it never overrides a primary that found something.
-  //
-  // With { combineFallback: true } (the manual "🔄 Sync" button): returns the
-  // primary's matches AND the fallback's, primary first, so you can pick from
-  // either source in one list. The primary still leads, so callers that take
-  // the first result are unaffected either way.
-  async function fetchMediaSuggestions(title, category, opts) {
-    const combineFallback = !!(opts && opts.combineFallback);
+  // Shared setup for both lookup paths below: which sources a category is
+  // configured to use, and a search closure that first retries the title with
+  // any trailing "(2019)"-style suffix stripped.
+  function mediaSearchFor(title, category) {
     const source = (state.data.settings.mediaCategorySources || {})[category];
-    if (!source || !window.LifeLogMedia) return [];
+    if (!source || !window.LifeLogMedia) return null;
     const fallbackSource = (state.data.settings.mediaCategoryFallbackSources || {})[category];
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     // SteamGridDB is the only source that needs the CORS proxy for its own
@@ -714,14 +705,75 @@
       }
       return window.LifeLogMedia.search(title, src, keys, proxyUrl);
     }
+    // A fallback set to the same source as the primary is nothing to fall back
+    // to — searching it again would just repeat the request.
+    const hasFallback = !!fallbackSource && fallbackSource !== source;
+    return { source, fallbackSource: hasFallback ? fallbackSource : "", trySource };
+  }
+
+  // Looks up a category's media source for `title`, used by bulk sync and the
+  // background auto-checks, which just auto-take the first result. Only if the
+  // primary comes back completely empty does it fall back to the category's
+  // configured fallback — the fallback fills a gap, it never overrides a
+  // primary that found something.
+  async function fetchMediaSuggestions(title, category) {
+    const search = mediaSearchFor(title, category);
+    if (!search) return [];
     try {
-      const results = await trySource(source);
-      if (combineFallback && fallbackSource && fallbackSource !== source) {
-        return results.concat(await trySource(fallbackSource));
-      }
-      if (results.length) return results;
-      return await trySource(fallbackSource);
+      const results = await search.trySource(search.source);
+      if (results.length || !search.fallbackSource) return results;
+      return await search.trySource(search.fallbackSource);
     } catch (e) { return []; }
+  }
+
+  // The manual "🔄 Sync" button's lookup: both sources, so you can pick from
+  // either in one list — but streamed rather than awaited together. The
+  // primary's matches are handed over the moment they land and the fallback's
+  // follow when its (often slower, rate-limited) request finishes, instead of
+  // making every lookup as slow as the worse of the two APIs.
+  //
+  // onBatch(results, sourceKey, nextSource) fires once per source queried, in
+  // order; nextSource names the one still to come, or is null when that batch
+  // was the last. Resolves with the total number of matches found.
+  async function streamMediaSuggestions(title, category, onBatch) {
+    const search = mediaSearchFor(title, category);
+    if (!search) return 0;
+    let total = 0;
+    try {
+      const primary = await search.trySource(search.source);
+      total += primary.length;
+      onBatch(primary, search.source, search.fallbackSource || null);
+      if (search.fallbackSource) {
+        const extra = await search.trySource(search.fallbackSource);
+        total += extra.length;
+        onBatch(extra, search.fallbackSource, null);
+      }
+    } catch (e) { /* whatever already landed stays on screen */ }
+    return total;
+  }
+
+  // Fills a suggestion list from a streamed lookup. The primary's matches show
+  // up first; a "Searching …" line holds the place of the source still in
+  // flight and is replaced by its matches when they arrive.
+  async function renderStreamedSuggestions(list, title, category, onPick) {
+    list.innerHTML = "";
+    let pendingRow = null;
+    const total = await streamMediaSuggestions(title, category, (results, sourceKey, nextSource) => {
+      if (pendingRow) { pendingRow.remove(); pendingRow = null; }
+      results.forEach((r) => list.appendChild(makeMediaAcItem(r, () => onPick(r))));
+      if (nextSource) {
+        pendingRow = el("div", "ac-pending", "Searching " + (MEDIA_SOURCE_LABELS[nextSource] || nextSource) + "…");
+        list.appendChild(pendingRow);
+      }
+      list.hidden = !list.children.length;
+    });
+    if (pendingRow) pendingRow.remove();
+    if (!total) {
+      list.hidden = true;
+      const err = window.LifeLogMedia && window.LifeLogMedia.getLastError();
+      toast(err ? "No matches found — " + err : "No matches found", !!err);
+    }
+    return total;
   }
 
   function makeMediaAcItem(r, onPick) {
@@ -739,6 +791,13 @@
     if (r.externalRating) meta.push("★ " + r.externalRating);
     if (meta.length) info.appendChild(el("span", "ac-meta", meta.join(" · ")));
     item.appendChild(info);
+    // Which API this match came from, tagged on the right. The Sync button
+    // lists a category's primary and fallback sources together, and picking
+    // one silently decides the item's mediaSource — which drives its cover,
+    // its store/source links, and (for Steam) its price — so the list has to
+    // say which is which. Absent on the backlog/journal title suggestions,
+    // whose entries carry no source.
+    if (r.source) item.appendChild(el("span", "ac-source", MEDIA_SOURCE_LABELS[r.source] || r.source));
     item.onclick = onPick;
     return item;
   }
@@ -874,34 +933,23 @@
     const category = $("#fCategory").value;
     if (!title) return;
     const list = $("#fTitleSuggest");
-    const results = await fetchMediaSuggestions(title, category, { combineFallback: true });
-    list.innerHTML = "";
-    if (!results.length) {
-      list.hidden = true;
-      const err = window.LifeLogMedia && window.LifeLogMedia.getLastError();
-      toast(err ? "No matches found — " + err : "No matches found", !!err);
-      return;
-    }
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
-    results.forEach((r) => {
-      list.appendChild(makeMediaAcItem(r, async () => {
-        // Picking a match adopts that media's title, and locks the link so a
-        // later title edit won't drop it (only "✕ Unsync" does).
-        $("#fTitle").value = r.title;
-        lastSyncedEntryTitle = r.title;
-        entrySyncLocked = true;
-        const length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
-        let mediaId = r.id, mediaSource = r.source;
-        if (r.source === "rawg-steam-gg") {
-          const resolved = await resolveRawgSteamAppId(r, keys.rawg);
-          mediaSource = resolved.mediaSource;
-          mediaId = resolved.mediaId;
-        }
-        setEntryCover(r.coverUrl, mediaId, mediaSource, length, r.genres || []);
-        list.hidden = true;
-      }));
+    await renderStreamedSuggestions(list, title, category, async (r) => {
+      // Picking a match adopts that media's title, and locks the link so a
+      // later title edit won't drop it (only "✕ Unsync" does).
+      $("#fTitle").value = r.title;
+      lastSyncedEntryTitle = r.title;
+      entrySyncLocked = true;
+      const length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+      let mediaId = r.id, mediaSource = r.source;
+      if (r.source === "rawg-steam-gg") {
+        const resolved = await resolveRawgSteamAppId(r, keys.rawg);
+        mediaSource = resolved.mediaSource;
+        mediaId = resolved.mediaId;
+      }
+      setEntryCover(r.coverUrl, mediaId, mediaSource, length, r.genres || []);
+      list.hidden = true;
     });
-    list.hidden = false;
   }
 
   function unsyncEntry() {
@@ -1261,6 +1309,7 @@
     backlogSuggestions,
     makeMediaAcItem,
     fetchMediaSuggestions,
+    renderStreamedSuggestions,
     resolveRawgSteamAppId,
     updateSyncBtnVisibility,
     showSyncStatus,

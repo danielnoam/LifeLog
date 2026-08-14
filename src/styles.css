@@ -803,6 +803,18 @@ kbd {
 .ac-item.ac-media { gap: 8px; }
 .ac-item .ac-thumb { width: 32px; height: 46px; object-fit: cover; border-radius: 3px; flex: 0 0 auto; }
 .ac-item .ac-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+/* Which API a match came from — the Sync button lists the category's primary
+   and fallback sources in one list, and the choice sets the item's
+   mediaSource. */
+.ac-item .ac-source {
+  flex: 0 0 auto; font-size: 10px; font-weight: 600; letter-spacing: .3px;
+  color: var(--text-faint); background: var(--bg-elev-2); border: 1px solid var(--border);
+  border-radius: 4px; padding: 2px 5px; white-space: nowrap;
+}
+/* Placeholder for the source still being searched, replaced by its results. */
+.ac-pending {
+  padding: 8px 11px; font-size: 12px; color: var(--text-faint); font-style: italic;
+}
 .ac-divider { border-top: 1px solid var(--border); margin: 2px 0; }
 
 .conflict-list { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }

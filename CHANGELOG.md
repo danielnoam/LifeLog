@@ -4,6 +4,28 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.99.1] - 2026-08-14
+
+### Fixed
+- **The 🔄 Sync button now says where each match came from.** Since v0.87.0 it
+  has listed the category's primary *and* fallback sources together, but with
+  nothing to tell them apart — so two results for the same title were
+  indistinguishable, even though picking one silently decides the item's
+  source, and with it the cover art, the store/source link buttons, and (for
+  Steam) the price. Each match is now tagged with its source.
+- **Matches appear as they arrive instead of all at once at the end.** The
+  primary source's results render the moment they land, with a "Searching
+  SteamGridDB…" line holding the place of the one still in flight — rather
+  than every lookup taking as long as the slower of the two APIs.
+- A fallback set to the same source as the primary no longer causes that
+  source to be searched twice.
+
+### Changed
+- Settings' description of the fallback ("only tried when the primary finds no
+  matches") now covers only bulk sync and the background auto-checks, which is
+  all it ever actually described; the manual Sync button's behaviour of showing
+  both is spelled out separately.
+
 ## [0.99.0] - 2026-08-14
 
 ### Added
