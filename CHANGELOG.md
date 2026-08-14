@@ -4,6 +4,42 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.98.0] - 2026-08-14
+
+### Added
+- **Release dates now record how much of the date is actually known.** Every
+  source knows a different amount — TMDB has an exact day, Open Library only a
+  year, Steam sometimes only "Q1 2026" — and all of it used to be squashed
+  into one date string. Items now carry a precision of day / month / quarter /
+  year / TBA alongside the date, so an approximate date can be shown as
+  approximate instead of pretending to be a specific day.
+- Where a source says outright whether something is out yet, that's recorded
+  too and trusted over the date. Steam's "coming soon" flag, AniList's and
+  Jikan's status, TMDB's production status.
+- **Steam wishlist imports get their release date from Steam itself**, read
+  from the same request that resolves the title. Previously the only date a
+  wishlisted game could get came from a fuzzy RAWG search on its name.
+- **Currently-airing shows record their next episode**, from AniList and from
+  TMDB's per-title details — for something already airing, the next episode is
+  the date that means anything; when it first aired years ago doesn't.
+- **Settings → Media → Upcoming releases**: a re-check that re-asks each
+  waiting backlog item's own source, by the media ID already stored on it, and
+  updates only its release date. Optionally runs quietly when you open the
+  app, at most once every N days. It never renames, re-covers, adds, or
+  removes anything, and only checks items still waiting on a release.
+
+### Fixed
+- A game released in January no longer counts as "unreleased" for the rest of
+  the year. Anything with only a year to go on used to be treated as upcoming
+  until December 31st; now a source that states its status settles it, and the
+  rest is judged on the last day the release window could still be open.
+- RAWG's placeholder dates for unannounced games (usually December 31st of the
+  target year) are no longer taken at face value — RAWG's own "TBA" flag wins.
+- Jikan dates that only ever specified a month or year are no longer padded
+  out to a fake exact day.
+- Dropping a backlog item's media link now clears its stale length along with
+  the rest of the fetched metadata.
+
 ## [0.97.0] - 2026-08-11
 
 ### Added

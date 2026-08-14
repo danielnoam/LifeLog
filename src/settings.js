@@ -18,6 +18,7 @@
     updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
     syncSteamWishlist, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
     syncAniListPlanning,
+    refreshUpcomingReleases, updateRefreshReleasesButton,
     DEFAULT_SETTINGS;
 
   function init(ctx) {
@@ -29,6 +30,7 @@
       updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
       syncSteamWishlist, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
       syncAniListPlanning,
+      refreshUpcomingReleases, updateRefreshReleasesButton,
       DEFAULT_SETTINGS } = ctx);
   }
 
@@ -421,8 +423,10 @@
     $("#steamAutoSyncDays").value = state.data.settings.steam?.autoSyncDays || "0";
     $("#anilistUserName").value = state.data.settings.anilist?.userName || "";
     $("#anilistAutoSyncDays").value = state.data.settings.anilist?.autoSyncDays || "0";
+    $("#releasesAutoRefreshDays").value = state.data.settings.releases?.autoRefreshDays || "0";
     updateSteamRetryUnresolvedButton();
     updateSteamBackfillRawgButton();
+    updateRefreshReleasesButton();
     renderSteamWishlistCategoryOptions();
     renderAniListCategoryOptions("#anilistAnimeCategory", state.data.settings.anilist?.animeCategory);
     renderAniListCategoryOptions("#anilistMangaCategory", state.data.settings.anilist?.mangaCategory);
@@ -669,6 +673,13 @@
     $("#anilistMangaCategory").onchange = () => setAniListSetting("mangaCategory", $("#anilistMangaCategory").value);
     $("#anilistAutoSyncDays").onchange = () => setAniListSetting("autoSyncDays", $("#anilistAutoSyncDays").value);
     $("#anilistSyncBtn").onclick = syncAniListPlanning;
+
+    $("#releasesAutoRefreshDays").onchange = async () => {
+      if (!state.data.settings.releases) state.data.settings.releases = { ...DEFAULT_SETTINGS.releases };
+      state.data.settings.releases.autoRefreshDays = $("#releasesAutoRefreshDays").value;
+      await persist();
+    };
+    $("#refreshReleasesBtn").onclick = refreshUpcomingReleases;
 
     $("#privacyEnabled").onchange = () => {
       const checked = $("#privacyEnabled").checked;

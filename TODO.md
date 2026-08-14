@@ -1,6 +1,41 @@
 todo:
 
+- next releases view — a chronological "what's coming" list over the backlog's
+  unreleased items, built on the new release precision
+
 done:
+
+- release-date precision — every media source knows a different amount about a
+  release, so items now carry `releasePrecision` (day/month/quarter/year/tba)
+  next to `releaseDate`, plus `releaseStatus` ("upcoming"/"released") wherever
+  a source states it outright, and `nextAt`/`nextLabel` for a currently-airing
+  show's next episode. Precision is derived from the source's own shape, not
+  sniffed from a string: AniList/Jikan expose nullable year/month/day parts,
+  Steam's free-text date is parsed (parseSteamReleaseDate handles both day
+  orderings, "Q1 2026", month-only, and the "Coming soon"/TBA placeholders),
+  RAWG's `tba` flag overrides its Dec-31 placeholder date. isUnreleased() now
+  reads "the last day the window could still be open hasn't passed", with an
+  explicit status overruling the date entirely — which is what finally fixes a
+  January release reading as upcoming until December. No migration: items
+  saved before this re-derive their precision from the date's shape, which
+  reproduces the old behavior exactly. mergeRelease() folds several sources
+  together keeping the most precise date (Steam wishlist items are described
+  by both Steam and a RAWG name match). Steam's appdetails `coming_soon` +
+  `date` are now read in the same request that resolves the title, replacing
+  the fuzzy RAWG-by-name date. Follow-up ideas: surface precision in the
+  backlog row meta line ("Q1 2026" rather than just the year); let a manual
+  edit set an approximate date without inventing a day
+
+- re-check upcoming release dates — Settings → Media → Upcoming releases.
+  Re-asks each still-unreleased backlog item's source by its stored media id
+  (never by title, so nothing drifts onto a different work); RAWG/AniList get
+  new by-id endpoints, TMDB reuses the details endpoint, Steam reuses
+  appdetails. Sources with no id lookup worth making (Open Library, Google
+  Books, MusicBrainz, Jikan) are skipped rather than title-searched. Only
+  stamps updatedAt when something actually moved, so a no-op re-check leaves
+  nothing for the GitHub sync to merge. Optional quiet auto-run on app open,
+  paced per-device in localStorage like the Steam/AniList checks. Follow-up
+  idea: a per-item "last checked" so a stale entry can be spotted
 
 - pausing a recurring expense — new optional `rec.pauses`, a list of
   { from, to? } inclusive ranges. recurringOccurrences() marks occurrences

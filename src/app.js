@@ -12,7 +12,7 @@
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "" }, steam: { proxyUrl: "", steamId: "", wishlistCategory: "", autoSyncDays: "0" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0" } }; // monthOrder, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist — synced
+  const DEFAULT_SETTINGS = { monthOrder: "asc", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "" }, steam: { proxyUrl: "", steamId: "", wishlistCategory: "", autoSyncDays: "0" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0" }, releases: { autoRefreshDays: "0" } }; // monthOrder, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
   const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big" }; // maxWidth 0 = stretch — local to this device, not synced
   const THEMES = ["light", "nord", "dracula"]; // "default" has no class — it's the bare :root palette
   const FONT_STACKS = {
@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.97.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.98.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1585,6 +1585,7 @@
       mediaKeys,
       steam: { ...DEFAULT_SETTINGS.steam, ...(incomingSettings.steam || {}) },
       anilist: { ...DEFAULT_SETTINGS.anilist, ...(incomingSettings.anilist || {}) },
+      releases: { ...DEFAULT_SETTINGS.releases, ...(incomingSettings.releases || {}) },
     };
     const accIn = data.accomplishments || {};
     data.accomplishments = {};
@@ -2086,6 +2087,7 @@
     schedulePoll();
     Sync.maybeAutoCheckSteamWishlist(); // fire-and-forget, doesn't block startup
     Sync.maybeAutoCheckAniList(); // same — quiet background check, never blocks startup
+    Sync.maybeAutoRefreshReleases(); // same — keeps upcoming release dates current in the background
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").catch(() => {});
@@ -2107,7 +2109,7 @@
     sanitizeEntry: Journal.sanitizeEntry, sanitizeBacklog: Backlog.sanitizeBacklog,
   });
   Sync.init({
-    state, $, toast, persist, afterDataChange, DEFAULT_SETTINGS,
+    state, $, toast, persist, render, afterDataChange, DEFAULT_SETTINGS,
     buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport,
     setBacklogCover: Backlog.setBacklogCover, setEntryCover: Journal.setEntryCover,
   });
@@ -2123,6 +2125,8 @@
     retryUnresolvedSteamTitles: Sync.retryUnresolvedSteamTitles,
     backfillRawgForSteamGames: Sync.backfillRawgForSteamGames,
     syncAniListPlanning: Sync.syncAniListPlanning,
+    refreshUpcomingReleases: Sync.refreshUpcomingReleases,
+    updateRefreshReleasesButton: Sync.updateRefreshReleasesButton,
     DEFAULT_SETTINGS,
   });
   Journal.init({

@@ -12,7 +12,15 @@ Backlog.init({
   backfillUpdatedAt: (item) => item.updatedAt || item.createdAt || "1970-01-01T00:00:00.000Z",
 });
 
-const { sanitizeBacklog, isUnreleased } = Backlog;
+const { sanitizeBacklog, isUnreleased, upcomingAt } = Backlog;
+
+// Dates relative to today, so these stay true whenever they're run.
+function shift(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+const TODAY = shift(0);
 
 let passed = 0;
 function test(name, fn) {
@@ -84,6 +92,75 @@ test("isUnreleased year-only fallback treats the current year as still unrelease
 
 test("isUnreleased is false with no release info at all", () => {
   assert.strictEqual(isUnreleased({}), false);
+});
+
+// ---------- isUnreleased: precision + status ----------
+test("isUnreleased trusts an explicit status over the date", () => {
+  // The case a year-only date can't decide on its own: out since January,
+  // but the year hasn't ended.
+  const thisYear = new Date().getFullYear();
+  assert.strictEqual(isUnreleased({ releaseYear: thisYear, releaseStatus: "released" }), false);
+  assert.strictEqual(isUnreleased({ releaseDate: "1999-01-01", releasePrecision: "day", releaseStatus: "upcoming" }), true);
+});
+
+test("isUnreleased treats a month as unreleased until the month is over", () => {
+  const soon = shift(20), gone = shift(-400);
+  assert.strictEqual(isUnreleased({ releaseDate: soon.slice(0, 7), releasePrecision: "month" }), true);
+  assert.strictEqual(isUnreleased({ releaseDate: gone.slice(0, 7), releasePrecision: "month" }), false);
+});
+
+test("isUnreleased runs a quarter three months from its stored first month", () => {
+  // Q4 of last year ended in December, so it has passed; Q1 of next year hasn't.
+  const year = new Date().getFullYear();
+  assert.strictEqual(isUnreleased({ releaseDate: (year - 1) + "-10", releasePrecision: "quarter" }), false);
+  assert.strictEqual(isUnreleased({ releaseDate: (year + 1) + "-01", releasePrecision: "quarter" }), true);
+});
+
+test("isUnreleased is true for tba, which is announced-but-undated", () => {
+  assert.strictEqual(isUnreleased({ releasePrecision: "tba" }), true);
+  assert.strictEqual(isUnreleased({ releasePrecision: "tba", releaseStatus: "released" }), false);
+});
+
+// ---------- upcomingAt ----------
+test("upcomingAt returns the release day for a dated future item", () => {
+  const day = shift(30);
+  assert.strictEqual(upcomingAt({ releaseDate: day, releasePrecision: "day" }), day);
+});
+
+test("upcomingAt clamps a window already underway to today", () => {
+  // A month-precision release for the current month started before today.
+  assert.strictEqual(upcomingAt({ releaseDate: TODAY.slice(0, 7), releasePrecision: "month" }), TODAY);
+});
+
+test("upcomingAt prefers a scheduled next episode over the original release", () => {
+  const next = shift(3);
+  assert.strictEqual(
+    upcomingAt({ releaseDate: "2013-04-06", releasePrecision: "day", nextAt: next }),
+    next
+  );
+});
+
+test("upcomingAt ignores a next episode that has already aired", () => {
+  const day = shift(10);
+  assert.strictEqual(upcomingAt({ releaseDate: day, releasePrecision: "day", nextAt: shift(-5) }), day);
+});
+
+test("upcomingAt returns nothing for year-only, tba, or past items", () => {
+  assert.strictEqual(upcomingAt({ releaseDate: "2099", releasePrecision: "year" }), "");
+  assert.strictEqual(upcomingAt({ releasePrecision: "tba" }), "");
+  assert.strictEqual(upcomingAt({ releaseDate: shift(-10), releasePrecision: "day" }), "");
+  assert.strictEqual(upcomingAt({}), "");
+});
+
+// ---------- sanitizeBacklog: release fields ----------
+test("sanitizeBacklog carries the release fields through untouched", () => {
+  const out = sanitizeBacklog({
+    title: "Foo", category: "Games", releaseDate: "2026-01", releasePrecision: "quarter",
+    releaseStatus: "upcoming", nextAt: "2026-02-01", nextLabel: "Episode 3",
+  });
+  assert.strictEqual(out.releasePrecision, "quarter");
+  assert.strictEqual(out.releaseStatus, "upcoming");
+  assert.strictEqual(out.nextLabel, "Episode 3");
 });
 
 console.log(`\n${passed} test(s) passed.`);

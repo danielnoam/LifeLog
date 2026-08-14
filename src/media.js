@@ -25,6 +25,117 @@
     return out;
   }
 
+  // ---------- release dates ----------
+  // Every source knows a different *amount* about when something comes out:
+  // TMDB has an exact day, Open Library only a year, Steam sometimes only
+  // "Q1 2026". Squashing all of that into one date string loses the part
+  // that matters most for an upcoming-releases list — how much of the date
+  // is real. So each adapter emits `releasePrecision` alongside the date:
+  //
+  //   day     "2026-03-15" — exact
+  //   month   "2026-03"    — sometime that month
+  //   quarter "2026-01"    — stored as the quarter's FIRST month
+  //   year    "2026"       — sometime that year
+  //   tba     ""           — announced, no date at all
+  //
+  // and, where a source says so outright, `releaseStatus` ("upcoming" or
+  // "released") — always more trustworthy than comparing a fuzzy date to
+  // today, and the only way to know a bare "2026" has already happened.
+  function datePrecision(s) {
+    if (/^\d{4}-\d{2}-\d{2}/.test(s)) return "day";
+    if (/^\d{4}-\d{2}$/.test(s)) return "month";
+    if (/^\d{4}$/.test(s)) return "year";
+    return "";
+  }
+
+  // Normalizes a source's free-form date string to { releaseDate,
+  // releasePrecision }, trimming anything past the day (Jikan hands over a
+  // full ISO datetime) and downgrading to "tba" when it isn't a date at all.
+  function releaseFromString(s) {
+    const str = String(s || "").trim();
+    const precision = datePrecision(str);
+    if (!precision) return { releaseDate: "", releasePrecision: "tba" };
+    return { releaseDate: precision === "day" ? str.slice(0, 10) : str, releasePrecision: precision };
+  }
+
+  // Same, from the separate year/month/day fields AniList and Jikan expose —
+  // no string sniffing needed, they state the precision by which parts are null.
+  function releaseFromParts(y, m, d) {
+    if (!y) return { releaseDate: "", releasePrecision: "tba" };
+    if (!m) return { releaseDate: String(y), releasePrecision: "year" };
+    const ym = y + "-" + String(m).padStart(2, "0");
+    if (!d) return { releaseDate: ym, releasePrecision: "month" };
+    return { releaseDate: ym + "-" + String(d).padStart(2, "0"), releasePrecision: "day" };
+  }
+
+  const PRECISION_RANK = { tba: 0, year: 1, quarter: 2, month: 3, day: 4 };
+
+  // Folds several sources' release info into one set of fields, keeping the
+  // most precise date on offer — a Steam wishlist game, for instance, is
+  // described by both Steam itself and a RAWG name match, and neither is
+  // reliably better than the other. Later arguments win ties, so callers
+  // pass their most trusted source last. Empty values are left out entirely
+  // rather than written as "", matching how items are stored elsewhere.
+  function mergeRelease(...sources) {
+    const out = {};
+    let bestRank = -1;
+    for (const s of sources) {
+      if (!s) continue;
+      if (s.releaseStatus) out.releaseStatus = s.releaseStatus;
+      if (s.nextAt) { out.nextAt = s.nextAt; if (s.nextLabel) out.nextLabel = s.nextLabel; }
+      const rank = PRECISION_RANK[s.releasePrecision];
+      if (rank === undefined || rank < bestRank) continue;
+      bestRank = rank;
+      out.releasePrecision = s.releasePrecision;
+      if (s.releaseDate) out.releaseDate = s.releaseDate; else delete out.releaseDate;
+    }
+    return out;
+  }
+
+  // AniList times airings as a unix timestamp; read back through local
+  // calendar fields (not toISOString) so an evening airing doesn't land on
+  // the previous day for anyone west of UTC.
+  function unixToDateStr(sec) {
+    if (!sec) return "";
+    const d = new Date(sec * 1000);
+    if (isNaN(d)) return "";
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
+      "-" + String(d.getDate()).padStart(2, "0");
+  }
+
+  const MONTH_NUM = {
+    jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6,
+    jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12,
+  };
+
+  // Steam's appdetails `release_date.date` is free text, not a date field, and
+  // it's the *only* place a wishlisted game's date can come from without a
+  // fuzzy title match against RAWG. Handles the shapes Steam actually ships in
+  // English: "12 Mar, 2026", "Mar 12, 2026", "March 2026", "Q1 2026", "2026",
+  // and the various no-date placeholders ("Coming soon", "TBA", "To be
+  // announced"), which fall through to tba rather than guessing.
+  function parseSteamReleaseDate(raw) {
+    const s = String(raw || "").trim();
+    if (!s) return { releaseDate: "", releasePrecision: "tba" };
+    const q = s.match(/Q([1-4])\s*,?\s*(\d{4})/i) || (() => {
+      const alt = s.match(/(\d{4})\s*Q([1-4])/i);
+      return alt ? [alt[0], alt[2], alt[1]] : null;
+    })();
+    if (q) {
+      const month = (parseInt(q[1], 10) - 1) * 3 + 1;
+      return { releaseDate: q[2] + "-" + String(month).padStart(2, "0"), releasePrecision: "quarter" };
+    }
+    const mon = s.match(/([A-Za-z]{3})[a-z]*/);
+    const month = mon ? MONTH_NUM[mon[1].toLowerCase()] : null;
+    const year = (s.match(/\b(\d{4})\b/) || [])[1];
+    if (!year) return { releaseDate: "", releasePrecision: "tba" };
+    if (!month) return { releaseDate: year, releasePrecision: "year" };
+    // The day, if present, is the standalone 1–2 digit number — either side of
+    // the month name depending on Steam's regional ordering.
+    const day = (s.replace(/\b\d{4}\b/, "").match(/\b(\d{1,2})\b/) || [])[1];
+    return releaseFromParts(+year, month, day ? +day : null);
+  }
+
   // TMDB search returns only genre_ids, not names — these are TMDB's stable,
   // documented id→name maps (movie and TV lists differ), so no extra request
   // is needed to resolve them.
@@ -53,7 +164,13 @@
         title: g.name || "",
         coverUrl: g.background_image || "",
         year: g.released ? parseInt(g.released, 10) : null,
-        releaseDate: g.released || "",
+        // RAWG flags undated games with `tba` and then still hands back a
+        // placeholder date for them (usually Dec 31 of the target year) —
+        // taking that at face value would put unannounced games on a
+        // specific day. The flag wins.
+        ...(g.tba
+          ? { releaseDate: "", releasePrecision: "tba", releaseStatus: "upcoming" }
+          : releaseFromString(g.released)),
         summary: "",
         externalRating: g.metacritic
           ? g.metacritic + " Metacritic"
@@ -101,26 +218,49 @@
   // TMDB's search endpoint has no runtime/season data — that only exists on
   // the per-title details endpoint, so it's a separate on-demand call (see
   // fetchTmdbDetails below), fired only when a specific title is picked.
+  // The same response also carries the two things a "what's next" list needs
+  // and search can't give: the show's production status, and the air date of
+  // the next episode — which, for anything already airing, is the date you
+  // actually care about (first_air_date is just when it premiered, years ago).
+  const EMPTY_DETAILS = { length: "", releaseStatus: "", nextAt: "", nextLabel: "", releaseDate: "", releasePrecision: "" };
   async function fetchTmdbDetails(id, type, apiKey) {
-    if (!apiKey || !id) return "";
+    if (!apiKey || !id) return { ...EMPTY_DETAILS };
     try {
       const url = "https://api.themoviedb.org/3/" + type + "/" + encodeURIComponent(id) +
         "?api_key=" + encodeURIComponent(apiKey);
       const res = await fetch(url);
-      if (!res.ok) return "";
+      if (!res.ok) return { ...EMPTY_DETAILS };
       const data = await res.json();
+      // The date is re-read here, not just in search, so a re-check months
+      // later picks up a delay or a firmed-up date.
+      const out = { ...EMPTY_DETAILS, ...releaseFromString(data.release_date || data.first_air_date) };
       if (type === "movie") {
-        if (!data.runtime) return "";
-        const h = Math.floor(data.runtime / 60), m = data.runtime % 60;
-        return (h ? h + "h " : "") + (m || !h ? m + "m" : "");
+        // TMDB movie status: Rumored / Planned / In Production / Post
+        // Production / Released / Canceled.
+        if (data.status) out.releaseStatus = data.status === "Released" ? "released" : "upcoming";
+        if (data.runtime) {
+          const h = Math.floor(data.runtime / 60), m = data.runtime % 60;
+          out.length = (h ? h + "h " : "") + (m || !h ? m + "m" : "");
+        }
+        return out;
+      }
+      // TV status: Returning Series / Planned / In Production / Ended /
+      // Canceled / Pilot. Only "Planned" means nothing has aired yet.
+      if (data.status) out.releaseStatus = data.status === "Planned" ? "upcoming" : "released";
+      const next = data.next_episode_to_air;
+      if (next && next.air_date) {
+        out.nextAt = String(next.air_date).slice(0, 10);
+        out.nextLabel = next.season_number
+          ? "S" + next.season_number + "E" + next.episode_number
+          : "Episode " + next.episode_number;
       }
       const seasons = data.number_of_seasons, episodes = data.number_of_episodes;
-      if (!seasons && !episodes) return "";
       const parts = [];
       if (seasons) parts.push(seasons + (seasons === 1 ? " season" : " seasons"));
       if (episodes) parts.push(episodes + (episodes === 1 ? " episode" : " episodes"));
-      return parts.join(" · ");
-    } catch (e) { return ""; }
+      out.length = parts.join(" · ");
+      return out;
+    } catch (e) { return { ...EMPTY_DETAILS }; }
   }
 
   async function searchTmdb(title, type, apiKey) {
@@ -142,7 +282,7 @@
           title: t,
           coverUrl: r.poster_path ? imgBase + r.poster_path : "",
           year,
-          releaseDate: dateStr || "",
+          ...releaseFromString(dateStr),
           summary: r.overview || "",
           externalRating: r.vote_average
             ? (Math.round(r.vote_average * 10) / 10) + " TMDB"
@@ -168,7 +308,7 @@
           : "",
         year: d.first_publish_year || null,
         // Open Library's search endpoint only ever gives a year, no full date.
-        releaseDate: d.first_publish_year ? String(d.first_publish_year) : "",
+        ...releaseFromParts(d.first_publish_year, null, null),
         summary: "",
         externalRating: d.ratings_average
           ? (Math.round(d.ratings_average * 10) / 10) + " OL"
@@ -180,9 +320,26 @@
     } catch (e) { return []; }
   }
 
+  // AniList status is FINISHED / RELEASING / NOT_YET_RELEASED / CANCELLED /
+  // HIATUS — only the first of those means "hasn't started". For anything
+  // mid-run, nextAiringEpisode is the date worth listing.
+  function aniListStatus(m) {
+    const out = {};
+    if (m.status) out.releaseStatus = m.status === "NOT_YET_RELEASED" ? "upcoming" : "released";
+    const next = m.nextAiringEpisode;
+    if (next && next.airingAt) {
+      const at = unixToDateStr(next.airingAt);
+      if (at) { out.nextAt = at; out.nextLabel = "Episode " + next.episode; }
+    }
+    return out;
+  }
+
   async function searchAniList(title, type) {
     try {
-      const query = "query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } startDate { year month day } coverImage { medium } description(asHtml: false) averageScore genres } } }";
+      // status + nextAiringEpisode ride along on the search request at no
+      // extra cost, and say outright what a date comparison can only guess:
+      // whether it's out yet, and when the next episode lands.
+      const query = "query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } startDate { year month day } status nextAiringEpisode { airingAt episode } coverImage { medium } description(asHtml: false) averageScore genres } } }";
       const res = await fetch("https://graphql.anilist.co", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -192,16 +349,14 @@
       const data = await res.json();
       const media = (data.data && data.data.Page && data.data.Page.media) || [];
       return media.map((m) => {
-        const sd = m.startDate;
-        const releaseDate = sd && sd.year
-          ? sd.year + (sd.month ? "-" + String(sd.month).padStart(2, "0") + (sd.day ? "-" + String(sd.day).padStart(2, "0") : "") : "")
-          : "";
+        const sd = m.startDate || {};
         return {
           id: String(m.id),
           title: (m.title && (m.title.english || m.title.romaji)) || "",
           coverUrl: (m.coverImage && m.coverImage.medium) || "",
-          year: (sd && sd.year) || null,
-          releaseDate,
+          year: sd.year || null,
+          ...releaseFromParts(sd.year, sd.month, sd.day),
+          ...aniListStatus(m),
           summary: stripHtml(m.description),
           externalRating: m.averageScore ? m.averageScore + "% AniList" : "",
           genres: normGenres(m.genres),
@@ -221,7 +376,7 @@
   async function fetchAniListPlanning(userName, type) {
     if (!userName) { lastError = "Enter your AniList username"; return null; }
     try {
-      const query = "query ($userName: String, $type: MediaType) { MediaListCollection(userName: $userName, type: $type, status: PLANNING) { lists { entries { media { id title { romaji english } coverImage { medium } startDate { year month day } averageScore genres episodes chapters volumes } } } } }";
+      const query = "query ($userName: String, $type: MediaType) { MediaListCollection(userName: $userName, type: $type, status: PLANNING) { lists { entries { media { id title { romaji english } coverImage { medium } startDate { year month day } status nextAiringEpisode { airingAt episode } averageScore genres episodes chapters volumes } } } } }";
       const res = await fetch("https://graphql.anilist.co", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -239,10 +394,7 @@
         for (const e of list.entries || []) {
           const m = e.media;
           if (!m) continue;
-          const sd = m.startDate;
-          const releaseDate = sd && sd.year
-            ? sd.year + (sd.month ? "-" + String(sd.month).padStart(2, "0") + (sd.day ? "-" + String(sd.day).padStart(2, "0") : "") : "")
-            : "";
+          const sd = m.startDate || {};
           let length = "";
           if (type === "ANIME") {
             length = m.episodes ? m.episodes + (m.episodes === 1 ? " episode" : " episodes") : "";
@@ -256,8 +408,9 @@
             id: String(m.id),
             title: (m.title && (m.title.english || m.title.romaji)) || "",
             coverUrl: (m.coverImage && m.coverImage.medium) || "",
-            year: (sd && sd.year) || null,
-            releaseDate,
+            year: sd.year || null,
+            ...releaseFromParts(sd.year, sd.month, sd.day),
+            ...aniListStatus(m),
             externalRating: m.averageScore ? m.averageScore + "% AniList" : "",
             length,
             genres: normGenres(m.genres),
@@ -284,10 +437,11 @@
       const data = await res.json();
       return (data.data || []).map((d) => {
         const dateProp = type === "anime" ? d.aired : d.published;
-        const year = (dateProp && dateProp.prop && dateProp.prop.from && dateProp.prop.from.year) || null;
-        // dateProp.from is a full ISO datetime ("2013-04-06T00:00:00+00:00")
-        // alongside the structured .prop breakdown used for `year` above.
-        const releaseDate = (dateProp && dateProp.from) ? dateProp.from.slice(0, 10) : "";
+        // .prop.from breaks the date into nullable year/month/day parts, so
+        // precision comes straight from the source — better than slicing
+        // dateProp.from, which pads a month-only date out to a fake day.
+        const from = (dateProp && dateProp.prop && dateProp.prop.from) || {};
+        const year = from.year || null;
         let length = "";
         if (type === "anime") {
           length = d.episodes ? d.episodes + (d.episodes === 1 ? " episode" : " episodes") : "";
@@ -302,7 +456,13 @@
           title: d.title_english || d.title || "",
           coverUrl: (d.images && d.images.jpg && (d.images.jpg.image_url || d.images.jpg.small_image_url)) || "",
           year,
-          releaseDate,
+          ...releaseFromParts(from.year, from.month, from.day),
+          // Jikan status is free text — "Not yet aired", "Currently Airing",
+          // "Finished Airing" for anime; "Upcoming", "Publishing", "Finished"
+          // for manga.
+          ...(d.status
+            ? { releaseStatus: /^(not yet|upcoming)/i.test(d.status) ? "upcoming" : "released" }
+            : {}),
           summary: d.synopsis || "",
           externalRating: d.score ? d.score + " Jikan" : "",
           length,
@@ -329,7 +489,7 @@
           coverUrl: thumb.replace(/^http:/, "https:"),
           year: v.publishedDate ? parseInt(v.publishedDate, 10) : null,
           // Precision varies by book — "YYYY", "YYYY-MM", or "YYYY-MM-DD".
-          releaseDate: v.publishedDate || "",
+          ...releaseFromString(v.publishedDate),
           summary: v.description || "",
           externalRating: v.averageRating ? v.averageRating + " Google Books" : "",
           length: v.pageCount ? v.pageCount + " pages" : "",
@@ -423,6 +583,43 @@
     }
   }
 
+  // ---------- re-checking an already-linked title ----------
+  // A backlog item that's waiting on a release is the one thing in the app
+  // that goes stale on its own: a TBA gets a date, a date slips a quarter, a
+  // season starts airing. These re-ask the source by the id already stored on
+  // the item — no title matching, so nothing can drift onto a different work
+  // — and return just the release fields, or null if the source can't say.
+  async function fetchRawgRelease(id, apiKey) {
+    if (!apiKey || !id) return null;
+    try {
+      const url = "https://api.rawg.io/api/games/" + encodeURIComponent(id) +
+        "?key=" + encodeURIComponent(apiKey);
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const g = await res.json();
+      if (g.tba) return { releaseDate: "", releasePrecision: "tba", releaseStatus: "upcoming" };
+      return releaseFromString(g.released);
+    } catch (e) { return null; }
+  }
+
+  async function fetchAniListRelease(id) {
+    if (!id) return null;
+    try {
+      const query = "query ($id: Int) { Media(id: $id) { startDate { year month day } status nextAiringEpisode { airingAt episode } } }";
+      const res = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ query, variables: { id: parseInt(id, 10) } }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const m = data && data.data && data.data.Media;
+      if (!m) return null;
+      const sd = m.startDate || {};
+      return { ...releaseFromParts(sd.year, sd.month, sd.day), ...aniListStatus(m) };
+    } catch (e) { return null; }
+  }
+
   async function searchMusicBrainz(title) {
     try {
       const url = "https://musicbrainz.org/ws/2/release-group/?query=" +
@@ -439,7 +636,7 @@
           coverUrl: rg.id ? "https://coverartarchive.org/release-group/" + rg.id + "/front-250" : "",
           year,
           // Precision varies — sometimes just a year, sometimes a full date.
-          releaseDate: rg["first-release-date"] || "",
+          ...releaseFromString(rg["first-release-date"]),
           summary: "",
           externalRating: "",
           source: "musicbrainz",
@@ -470,10 +667,32 @@
       lastError = "";
       return fetchGgDealsPrices(appIds, apiKey, proxyUrl);
     },
-    async fetchLength(id, source, apiKey) {
+    // Per-title extras that a search response can't include: runtime/season
+    // counts, production status, next episode. Only TMDB has a details
+    // endpoint worth a second request; every other source already said
+    // everything it knows during the search.
+    async fetchDetails(id, source, apiKey) {
       if (source === "tmdb-movie") return fetchTmdbDetails(id, "movie", apiKey);
       if (source === "tmdb-tv") return fetchTmdbDetails(id, "tv", apiKey);
-      return "";
+      return { ...EMPTY_DETAILS };
+    },
+    // Length only — for the journal, which has no use for release status.
+    async fetchLength(id, source, apiKey) {
+      return (await this.fetchDetails(id, source, apiKey)).length;
+    },
+    // Re-checks one item's release info by its stored media id. Returns null
+    // for sources with no id-based lookup worth making — books and music
+    // effectively never sit in a backlog waiting to come out, and re-running
+    // a title search for them risks matching a different edition entirely.
+    async fetchRelease(id, source, keys) {
+      lastError = "";
+      if (source === "rawg" || source === "rawg-steam-gg") return fetchRawgRelease(id, (keys && keys.rawg) || "");
+      if (source === "anilist-anime" || source === "anilist-manga") return fetchAniListRelease(id);
+      if (source === "tmdb-movie" || source === "tmdb-tv") {
+        const d = await fetchTmdbDetails(id, source === "tmdb-movie" ? "movie" : "tv", (keys && keys.tmdb) || "");
+        return d.releasePrecision || d.releaseStatus || d.nextAt ? d : null;
+      }
+      return null;
     },
     async fetchRawgSteamAppId(rawgId, apiKey) {
       return fetchRawgSteamAppId(rawgId, apiKey);
@@ -484,7 +703,11 @@
     },
     getLastError: () => lastError,
     steamCoverUrl,
-    // pure helpers (exported for test/media.test.js)
+    // pure helpers (used by sync.js/backlog.js, and by test/media.test.js)
+    parseSteamReleaseDate,
+    releaseFromString,
+    releaseFromParts,
+    mergeRelease,
     normGenres,
     stripHtml,
   };

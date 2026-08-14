@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.97.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.98.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -267,6 +267,10 @@
         <input type="hidden" id="bSummary" />
         <input type="hidden" id="bReleaseYear" />
         <input type="hidden" id="bReleaseDate" />
+        <input type="hidden" id="bReleasePrecision" />
+        <input type="hidden" id="bReleaseStatus" />
+        <input type="hidden" id="bNextAt" />
+        <input type="hidden" id="bNextLabel" />
         <input type="hidden" id="bExternalRating" />
         <input type="hidden" id="bLength" />
         <input type="hidden" id="bGenres" />
@@ -885,6 +889,22 @@
       </section>
 
       <section class="settings-section">
+        <h3>Upcoming releases</h3>
+        <p class="hint">Backlog items that haven't come out yet are the only thing here that goes out of date on its own — a "TBA" gets a date, a date slips, a season starts airing. This re-asks each waiting item's own source using the media ID already stored on it, and updates just its release date. It never renames, re-covers, adds, or removes anything. Only items still waiting are checked, so it's a handful of requests even on a large backlog. Steam, RAWG, TMDB, and AniList items can be re-checked; Open Library, Google Books, MusicBrainz, and Jikan items are skipped (no reliable lookup by ID, and books and albums rarely sit in a backlog unreleased).</p>
+        <button id="refreshReleasesBtn" type="button" class="btn">🔭 Re-check upcoming release dates</button>
+        <label>Check automatically
+          <select id="releasesAutoRefreshDays">
+            <option value="0">Never (manual only)</option>
+            <option value="1">Every day</option>
+            <option value="3">Every 3 days</option>
+            <option value="7">Every week</option>
+            <option value="30">Every month</option>
+          </select>
+        </label>
+        <p class="hint">Runs quietly when you open the app, at most this often, so the Next Releases list is current without you asking. It only ever changes release dates on items you already have.</p>
+      </section>
+
+      <section class="settings-section">
         <h3>Steam Wishlist import</h3>
         <p class="hint">Pulls your whole Steam wishlist in one request and lets you review it before anything's added — nothing is added automatically, and re-syncing later won't re-add titles already in your backlog. Your Steam wishlist must be set to Public (Steam → Privacy Settings → Game details) or this comes back empty. Goes through the CORS proxy set above (Steam's endpoint isn't browser-callable), so set that first if you haven't.</p>
         <label>SteamID64
@@ -1014,16 +1034,16 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.97.0"></script>
-  <script defer src="src/media.js?v=0.97.0"></script>
-  <script defer src="src/merge.js?v=0.97.0"></script>
-  <script defer src="src/storage.js?v=0.97.0"></script>
-  <script defer src="src/finance.js?v=0.97.0"></script>
-  <script defer src="src/settings.js?v=0.97.0"></script>
-  <script defer src="src/backlog.js?v=0.97.0"></script>
-  <script defer src="src/journal.js?v=0.97.0"></script>
-  <script defer src="src/io.js?v=0.97.0"></script>
-  <script defer src="src/sync.js?v=0.97.0"></script>
-  <script defer src="src/app.js?v=0.97.0"></script>
+  <script defer src="src/qr.js?v=0.98.0"></script>
+  <script defer src="src/media.js?v=0.98.0"></script>
+  <script defer src="src/merge.js?v=0.98.0"></script>
+  <script defer src="src/storage.js?v=0.98.0"></script>
+  <script defer src="src/finance.js?v=0.98.0"></script>
+  <script defer src="src/settings.js?v=0.98.0"></script>
+  <script defer src="src/backlog.js?v=0.98.0"></script>
+  <script defer src="src/journal.js?v=0.98.0"></script>
+  <script defer src="src/io.js?v=0.98.0"></script>
+  <script defer src="src/sync.js?v=0.98.0"></script>
+  <script defer src="src/app.js?v=0.98.0"></script>
 </body>
 </html>

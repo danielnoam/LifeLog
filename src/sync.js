@@ -15,16 +15,17 @@
   // checks, and Steam/AniList are paced independently of each other.
   const STEAM_SYNC_KEY = "lifelog-steam-autosync-v1";
   const ANILIST_SYNC_KEY = "lifelog-anilist-autosync-v1";
+  const RELEASE_REFRESH_KEY = "lifelog-release-refresh-v1";
   // How long a fetched GG.deals price stays valid before a backlog re-render
   // re-fetches it; avoids re-querying the rate-limited API on every render.
   const PRICE_CACHE_MS = 15 * 60 * 1000;
 
   // Shared app plumbing, provided by app.js via init(ctx).
-  let state, $, toast, persist, afterDataChange, DEFAULT_SETTINGS,
+  let state, $, toast, persist, render, afterDataChange, DEFAULT_SETTINGS,
     buildImportItems, reviewAndImport, setBacklogCover, setEntryCover;
 
   function init(ctx) {
-    ({ state, $, toast, persist, afterDataChange, DEFAULT_SETTINGS,
+    ({ state, $, toast, persist, render, afterDataChange, DEFAULT_SETTINGS,
       buildImportItems, reviewAndImport, setBacklogCover, setEntryCover } = ctx);
   }
 
@@ -152,19 +153,43 @@
   // sync. A 429 specifically gets a few backed-off retries first, since on
   // a large wishlist Steam starts rate-limiting partway through and every
   // request after that point would otherwise fail identically.
+  //
+  // The same response also carries release_date: { coming_soon, date } —
+  // Steam saying in its own words whether a game is out yet, and often in
+  // the coarse form it genuinely knows ("Q1 2026"). That beats the fuzzy
+  // RAWG title match this used to lean on for dates, so it's read here and
+  // returned alongside the name. Returns null only when the whole lookup
+  // failed; { name: null, ... } is a successful response for an app Steam
+  // doesn't recognize.
   function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
-  async function fetchSteamAppName(proxyUrl, appid, attempt) {
+  async function fetchSteamAppInfo(proxyUrl, appid, attempt) {
     attempt = attempt || 0;
     try {
       const res = await fetch(`${proxyUrl}/steam-appdetails/${appid}`);
       if (res.status === 429 && attempt < 3) {
         await sleep(1500 * (attempt + 1));
-        return fetchSteamAppName(proxyUrl, appid, attempt + 1);
+        return fetchSteamAppInfo(proxyUrl, appid, attempt + 1);
       }
       if (!res.ok) return null;
       const data = await res.json();
       const entry = data && data[appid];
-      return (entry && entry.success && entry.data && entry.data.name) || null;
+      if (!entry || !entry.success || !entry.data) return null;
+      const rd = entry.data.release_date || {};
+      const parsed = window.LifeLogMedia
+        ? window.LifeLogMedia.parseSteamReleaseDate(rd.date)
+        : { releaseDate: "", releasePrecision: "tba" };
+      return {
+        name: entry.data.name || null,
+        release: {
+          ...parsed,
+          // Only when Steam actually stated it — a missing release_date block
+          // is "we don't know", not "it's out", and shouldn't overrule a
+          // date another source did manage to find.
+          ...(typeof rd.coming_soon === "boolean"
+            ? { releaseStatus: rd.coming_soon ? "upcoming" : "released" }
+            : {}),
+        },
+      };
     } catch (e) {
       return null;
     }
@@ -177,6 +202,13 @@
   // now-resolved title and takes the top match. Silent on any failure
   // (no RAWG key set, no match, network error) — this is a nice-to-have
   // on top of a game that's already been imported successfully.
+  // Thin wrapper so the release-field merge degrades gracefully if media.js
+  // somehow isn't loaded (same defensive shape as the rest of this file's
+  // window.LifeLogMedia use).
+  function mergeRelease(...sources) {
+    return window.LifeLogMedia ? window.LifeLogMedia.mergeRelease(...sources) : {};
+  }
+
   async function fetchRawgInfo(title) {
     const rawgKey = state.data.settings.mediaKeys?.rawg;
     if (!rawgKey || !window.LifeLogMedia) return null;
@@ -231,7 +263,8 @@
       for (let i = 0; i < newItems.length; i++) {
         const appid = newItems[i].appid;
         if (btn) btn.textContent = `Fetching titles & info… ${i + 1}/${newItems.length}`;
-        const name = await fetchSteamAppName(proxyUrl, appid);
+        const info = await fetchSteamAppInfo(proxyUrl, appid);
+        const name = info && info.name;
         const rawg = name ? await fetchRawgInfo(name) : null;
         games.push({
           title: name || `Steam app ${appid}`,
@@ -243,7 +276,9 @@
           ...(rawg?.externalRating ? { externalRating: rawg.externalRating } : {}),
           ...(rawg?.length ? { length: rawg.length } : {}),
           ...(rawg?.year ? { releaseYear: rawg.year } : {}),
-          ...(rawg?.releaseDate ? { releaseDate: rawg.releaseDate } : {}),
+          // Steam's own release info wins over RAWG's — it's the store this
+          // game came from, not a name-matched guess (see mergeRelease).
+          ...mergeRelease(rawg, info && info.release),
         });
         if (i < newItems.length - 1) await sleep(500);
       }
@@ -286,9 +321,12 @@
     try {
       for (let i = 0; i < targets.length; i++) {
         if (btn) btn.textContent = `Retrying… ${i + 1}/${targets.length}`;
-        const name = await fetchSteamAppName(proxyUrl, targets[i].mediaId);
-        if (name) {
-          targets[i].title = name;
+        const info = await fetchSteamAppInfo(proxyUrl, targets[i].mediaId);
+        if (info && info.name) {
+          targets[i].title = info.name;
+          // The lookup that resolves the title carries the release info too,
+          // so a retried item lands with the same data a fresh import gets.
+          Object.assign(targets[i], mergeRelease(targets[i], info.release));
           targets[i].updatedAt = new Date().toISOString();
           resolved++;
         }
@@ -350,7 +388,7 @@
           if (rawg.externalRating) targets[i].externalRating = rawg.externalRating;
           if (rawg.length) targets[i].length = rawg.length;
           if (rawg.year) targets[i].releaseYear = rawg.year;
-          if (rawg.releaseDate) targets[i].releaseDate = rawg.releaseDate;
+          Object.assign(targets[i], mergeRelease(targets[i], rawg));
           if (rawg.externalRating || rawg.length || rawg.year) {
             targets[i].updatedAt = new Date().toISOString();
             filled++;
@@ -418,6 +456,127 @@
     }
   }
 
+  // ---------- upcoming release re-check ----------
+  // Backlog items waiting on a release are the one thing here that goes stale
+  // by itself — a TBA gets a date, a date slips, a season starts airing — and
+  // a "what's next" list is only worth reading if it's current. So this
+  // re-asks each waiting item's own source, by the media id already stored on
+  // it (never by title, so nothing can drift onto a different work).
+  // Deliberately narrow: only items that are still unreleased, so a backlog of
+  // hundreds costs a handful of requests.
+  function backlogAwaitingRelease() {
+    const Backlog = window.LifeLogBacklog;
+    if (!Backlog) return [];
+    return state.data.backlog.filter(
+      (b) => !b.dropped && b.mediaId && b.mediaSource && Backlog.isUnreleased(b)
+    );
+  }
+
+  // One item's fresh release info, or null if its source can't be re-asked
+  // (no lookup by id, missing key/proxy, or the request failed).
+  async function fetchItemRelease(item, keys, proxyUrl) {
+    if (item.mediaSource === "steam") {
+      if (!proxyUrl) return null;
+      const info = await fetchSteamAppInfo(proxyUrl, item.mediaId);
+      return info ? info.release : null;
+    }
+    if (!window.LifeLogMedia) return null;
+    return window.LifeLogMedia.fetchRelease(item.mediaId, item.mediaSource, keys);
+  }
+
+  // Writes fresh release info onto an item, returning whether anything
+  // actually moved. updatedAt is only stamped on a real change — every
+  // stamped item is a merge candidate for the GitHub sync, so a re-check that
+  // found nothing new must leave no trace.
+  function applyItemRelease(item, fresh) {
+    const merged = mergeRelease(item, fresh);
+    const keys = ["releaseDate", "releasePrecision", "releaseStatus", "nextAt", "nextLabel"];
+    let changed = false;
+    for (const k of keys) {
+      const next = merged[k] || "";
+      if ((item[k] || "") === next) continue;
+      changed = true;
+      if (next) item[k] = next; else delete item[k];
+    }
+    if (changed) item.updatedAt = new Date().toISOString();
+    return changed;
+  }
+
+  async function refreshUpcomingReleases() {
+    const targets = backlogAwaitingRelease();
+    if (!targets.length) { toast("Nothing in your backlog is waiting on a release"); return; }
+    const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
+    const proxyUrl = ((state.data.settings.steam || {}).proxyUrl || "").trim().replace(/\/+$/, "");
+    const btn = $("#refreshReleasesBtn");
+    if (btn) btn.disabled = true;
+    let updated = 0, checked = 0;
+    try {
+      for (let i = 0; i < targets.length; i++) {
+        if (btn) btn.textContent = `Checking… ${i + 1}/${targets.length}`;
+        const fresh = await fetchItemRelease(targets[i], keys, proxyUrl);
+        if (fresh) {
+          checked++;
+          if (applyItemRelease(targets[i], fresh)) updated++;
+        }
+        if (i < targets.length - 1) await sleep(300);
+      }
+      if (updated) { afterDataChange(); await persist(); }
+      markReleasesChecked();
+      if (!checked) toast("None of these sources can be re-checked — they have no lookup by id", true);
+      else toast(updated
+        ? `Updated ${updated} release date${updated === 1 ? "" : "s"} of ${checked} checked`
+        : `Checked ${checked} — nothing has changed`);
+    } finally {
+      if (btn) btn.disabled = false;
+      updateRefreshReleasesButton();
+    }
+  }
+
+  function updateRefreshReleasesButton() {
+    const btn = $("#refreshReleasesBtn");
+    if (!btn) return;
+    const count = backlogAwaitingRelease().length;
+    btn.disabled = !count;
+    btn.textContent = count
+      ? `🔭 Re-check upcoming release dates (${count})`
+      : "🔭 Re-check upcoming release dates";
+  }
+
+  function markReleasesChecked() {
+    try { localStorage.setItem(RELEASE_REFRESH_KEY, JSON.stringify({ lastCheckedAt: new Date().toISOString() })); } catch (e) {}
+  }
+
+  // Unlike the Steam/AniList auto-checks, which only count and toast, this one
+  // does update items — but it only ever refreshes dates on things already in
+  // the backlog, never adds or removes anything, so there's nothing to review.
+  // Silent either way: no toast on success, since the point is that the list
+  // is simply correct when you open it.
+  async function maybeAutoRefreshReleases() {
+    const days = parseInt((state.data.settings.releases || {}).autoRefreshDays, 10) || 0;
+    if (!days) return;
+    let last = null;
+    try { last = JSON.parse(localStorage.getItem(RELEASE_REFRESH_KEY)); } catch (e) {}
+    const lastAt = (last && last.lastCheckedAt) ? new Date(last.lastCheckedAt).getTime() : 0;
+    if (Date.now() - lastAt < days * 24 * 60 * 60 * 1000) return;
+    const targets = backlogAwaitingRelease();
+    if (!targets.length) { markReleasesChecked(); return; }
+    const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
+    const proxyUrl = ((state.data.settings.steam || {}).proxyUrl || "").trim().replace(/\/+$/, "");
+    let updated = 0;
+    try {
+      for (let i = 0; i < targets.length; i++) {
+        const fresh = await fetchItemRelease(targets[i], keys, proxyUrl);
+        if (fresh && applyItemRelease(targets[i], fresh)) updated++;
+        if (i < targets.length - 1) await sleep(300);
+      }
+      if (updated) { afterDataChange(); await persist(); render(); }
+    } catch (e) {
+      // quiet — unattended background work, not a user action
+    } finally {
+      markReleasesChecked();
+    }
+  }
+
   // Pulls a public AniList user's Planning (plan-to-watch / plan-to-read)
   // list — anime and manga separately, each into its own chosen category, so
   // you can import one type, the other, or both. AniList sends CORS headers
@@ -464,7 +623,7 @@
             ...(m.externalRating ? { externalRating: m.externalRating } : {}),
             ...(m.length ? { length: m.length } : {}),
             ...(m.year ? { releaseYear: m.year } : {}),
-            ...(m.releaseDate ? { releaseDate: m.releaseDate } : {}),
+            ...mergeRelease(m),
             ...(m.genres && m.genres.length ? { genres: m.genres } : {}),
           });
         }
@@ -560,5 +719,8 @@
     maybeAutoCheckSteamWishlist,
     syncAniListPlanning,
     maybeAutoCheckAniList,
+    refreshUpcomingReleases,
+    updateRefreshReleasesButton,
+    maybeAutoRefreshReleases,
   };
 })();

@@ -83,6 +83,29 @@
     });
   }
 
+  // Every media-derived field on the backlog form. They're cleared as a set
+  // whenever the media link is dropped, so no stale metadata — a release
+  // date especially — outlives the sync it came from.
+  const MEDIA_FIELD_IDS = [
+    "#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear",
+    "#bReleaseDate", "#bReleasePrecision", "#bReleaseStatus", "#bNextAt",
+    "#bNextLabel", "#bExternalRating", "#bLength", "#bGenres",
+  ];
+  function clearMediaFields() {
+    MEDIA_FIELD_IDS.forEach((id) => { const f = $(id); if (f) f.value = ""; });
+  }
+
+  // Writes a merged release object (see media.js's mergeRelease) into the
+  // form's hidden fields, blanking whatever it doesn't carry so a re-sync
+  // can't leave half of the previous match's dates behind.
+  function setReleaseFields(rel) {
+    $("#bReleaseDate").value = (rel && rel.releaseDate) || "";
+    $("#bReleasePrecision").value = (rel && rel.releasePrecision) || "";
+    $("#bReleaseStatus").value = (rel && rel.releaseStatus) || "";
+    $("#bNextAt").value = (rel && rel.nextAt) || "";
+    $("#bNextLabel").value = (rel && rel.nextLabel) || "";
+  }
+
   // Title last attached to synced media metadata, so a manual edit (vs. a
   // sync pick) is detected and clears the now-stale cover/metadata.
   let lastSyncedBacklogTitle = "";
@@ -101,8 +124,7 @@
     // renaming an already-synced item shouldn't silently drop its media link —
     // that takes an explicit "✕ Unsync" now.
     if (isAdding && !backlogSyncLocked && query !== lastSyncedBacklogTitle && $("#bMediaSource").value !== "steam") {
-      ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bReleaseDate", "#bExternalRating", "#bGenres"]
-        .forEach((id) => { const f = $(id); if (f) f.value = ""; });
+      clearMediaFields();
       setBacklogCover();
     }
 
@@ -213,10 +235,14 @@
         $("#bMediaSource").value = r.source || "";
         $("#bSummary").value = r.summary || "";
         $("#bReleaseYear").value = r.year ? String(r.year) : "";
-        $("#bReleaseDate").value = r.releaseDate || "";
         $("#bExternalRating").value = r.externalRating || "";
         $("#bGenres").value = (r.genres || []).join("|");
-        $("#bLength").value = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+        // TMDB's details endpoint is the only source of runtime/season counts,
+        // and carries the show's status and next episode air date with them —
+        // so the pick lands with everything the Next Releases list needs.
+        const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys.tmdb);
+        $("#bLength").value = details.length || r.length || "";
+        setReleaseFields(window.LifeLogMedia.mergeRelease(r, details));
         if (r.source === "rawg-steam-gg") {
           const resolved = await resolveRawgSteamAppId(r, keys.rawg);
           $("#bMediaSource").value = resolved.mediaSource;
@@ -231,30 +257,115 @@
   }
 
   function unsyncBacklogItem() {
-    ["#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear", "#bReleaseDate", "#bExternalRating", "#bLength", "#bGenres"]
-      .forEach((id) => { const f = $(id); if (f) f.value = ""; });
+    clearMediaFields();
     $("#bSteamAppId").value = "";
     backlogSyncLocked = false;
     setBacklogCover();
     $("#bTitleSuggest").hidden = true;
   }
 
-  // releaseDate (full date, whatever precision the source actually gave —
-  // see media.js) is used for an exact day-level check when available;
-  // only releaseYear (always just a plain year) is ever shown in the UI.
-  // Sources/manual entries without a full date fall back to year-only,
-  // which reads as "unreleased" for the whole calendar year. Applies to
-  // any backlog category with a release year set, not just games.
-  function isUnreleased(b) {
-    if (b.releaseDate && /^\d{4}-\d{2}-\d{2}/.test(b.releaseDate)) {
-      const d = new Date(b.releaseDate.slice(0, 10));
-      if (!isNaN(d)) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        return d >= today;
+  // ---------- release dates ----------
+  // Items carry as much of a release date as their source actually knew:
+  // `releaseDate` plus a `releasePrecision` of day/month/quarter/year/tba,
+  // and — where the source said so outright — a `releaseStatus` of
+  // "upcoming" or "released" (see media.js for how each source fills these).
+  // Items saved before precision existed have none, so it's re-derived from
+  // the date's shape; that reproduces the old behavior exactly, which is why
+  // nothing needs migrating.
+  function precisionOf(b) {
+    if (b.releasePrecision) return b.releasePrecision;
+    if (b.releaseDate) {
+      if (/^\d{4}-\d{2}-\d{2}/.test(b.releaseDate)) return "day";
+      if (/^\d{4}-\d{2}$/.test(b.releaseDate)) return "month";
+      if (/^\d{4}$/.test(b.releaseDate)) return "year";
+    }
+    return b.releaseYear ? "year" : "";
+  }
+
+  function localDateStr(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
+      "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function todayStr() { return localDateStr(new Date()); }
+  // Day 0 of the *next* month is the last day of this one.
+  function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+  function isRealDate(s) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || "");
+    if (!m) return false;
+    const mo = +m[2];
+    return mo >= 1 && mo <= 12 && +m[3] >= 1 && +m[3] <= daysInMonth(+m[1], mo);
+  }
+
+  // The span of days the release could fall in, as { start, end } — a single
+  // day for exact dates, the whole month/quarter/year otherwise. Everything
+  // downstream compares plain YYYY-MM-DD strings rather than Date objects,
+  // so no timezone shift can drag a release across midnight. Returns null
+  // when there's no usable date at all (TBA, or nothing recorded).
+  function releaseWindow(b) {
+    const precision = precisionOf(b);
+    if (!precision || precision === "tba") return null;
+    const raw = b.releaseDate || (b.releaseYear ? String(b.releaseYear) : "");
+    const year = parseInt(raw, 10) || +b.releaseYear || 0;
+    if (!year) return null;
+    if (precision === "day" && isRealDate(raw.slice(0, 10))) {
+      const day = raw.slice(0, 10);
+      return { start: day, end: day };
+    }
+    if (precision === "month" || precision === "quarter") {
+      const month = parseInt(raw.slice(5, 7), 10);
+      if (month >= 1 && month <= 12) {
+        // Quarter dates are stored as the quarter's first month, so a
+        // quarter simply runs two months longer than a month does.
+        const last = Math.min(12, month + (precision === "quarter" ? 2 : 0));
+        return {
+          start: raw.slice(0, 7) + "-01",
+          end: year + "-" + String(last).padStart(2, "0") + "-" + daysInMonth(year, last),
+        };
       }
     }
-    return !!b.releaseYear && +b.releaseYear >= new Date().getFullYear();
+    // Year precision, and the fallback for a date whose month/day turned out
+    // not to be a real calendar date — in which case a separately recorded
+    // releaseYear is the more trustworthy of the two.
+    const y = precision === "year" ? year : (+b.releaseYear || year);
+    return { start: y + "-01-01", end: y + "-12-31" };
+  }
+
+  // The stored counterpart to setReleaseFields: copies the release fields
+  // onto an item, deleting rather than blanking the empty ones so items stay
+  // free of "" keys (matching how every other optional field is stored).
+  const RELEASE_FIELDS = ["releaseDate", "releasePrecision", "releaseStatus", "nextAt", "nextLabel"];
+  function applyRelease(item, rel) {
+    for (const key of RELEASE_FIELDS) {
+      if (rel && rel[key]) item[key] = rel[key]; else delete item[key];
+    }
+  }
+
+  // Unreleased = the last day it could still be coming hasn't passed yet.
+  // A source that stated its status outright overrules the date entirely —
+  // that's the only way to know a bare "2026" has already happened, and it's
+  // what stops a January release from reading as upcoming until December.
+  function isUnreleased(b) {
+    if (b.releaseStatus === "released") return false;
+    if (b.releaseStatus === "upcoming") return true;
+    const window = releaseWindow(b);
+    if (!window) return precisionOf(b) === "tba";
+    return window.end >= todayStr();
+  }
+
+  // The day this item is actually waiting on, for sorting and grouping the
+  // Next Releases list: the next episode where one is scheduled (for
+  // something already airing, that's the only date that means anything),
+  // otherwise the start of its release window — clamped to today, so an item
+  // partway through its month/quarter sorts as imminent rather than overdue.
+  // "" for anything with no day-level footing (year-only, TBA).
+  function upcomingAt(b) {
+    const today = todayStr();
+    if (b.nextAt && isRealDate(b.nextAt) && b.nextAt >= today) return b.nextAt;
+    const precision = precisionOf(b);
+    if (precision !== "day" && precision !== "month" && precision !== "quarter") return "";
+    const window = releaseWindow(b);
+    if (!window || window.end < today) return "";
+    return window.start > today ? window.start : today;
   }
 
   // ---------- backlog view ----------
@@ -513,11 +624,13 @@
           item.mediaSource = r.source || "";
           item.summary = r.summary || "";
           if (r.year) item.releaseYear = r.year; else delete item.releaseYear;
-          if (r.releaseDate) item.releaseDate = r.releaseDate; else delete item.releaseDate;
           item.externalRating = r.externalRating || "";
           // TMDB needs a second per-title call for runtime/season data — the
-          // search endpoint doesn't include it (see fetchLength in media.js).
-          item.length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+          // search endpoint doesn't include it (see fetchDetails in media.js),
+          // and the same response carries the status/next-episode dates.
+          const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys.tmdb);
+          item.length = details.length || r.length || "";
+          applyRelease(item, window.LifeLogMedia.mergeRelease(r, details));
           if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
           if (r.source === "rawg-steam-gg") {
             const resolved = await resolveRawgSteamAppId(r, keys.rawg);
@@ -603,7 +716,7 @@
     $("#bMediaSource").value = editing ? (item.mediaSource || "") : "";
     $("#bSummary").value = editing ? (item.summary || "") : "";
     $("#bReleaseYear").value = editing && item.releaseYear ? String(item.releaseYear) : "";
-    $("#bReleaseDate").value = editing ? (item.releaseDate || "") : "";
+    setReleaseFields(editing ? item : null);
     $("#bExternalRating").value = editing ? (item.externalRating || "") : "";
     $("#bLength").value = editing ? (item.length || "") : "";
     $("#bGenres").value = editing ? (item.genres || []).join("|") : "";
@@ -663,7 +776,13 @@
     const mediaSource = $("#bMediaSource").value;
     const summary = $("#bSummary").value;
     const releaseYear = $("#bReleaseYear").value;
-    const releaseDate = $("#bReleaseDate").value;
+    const release = {
+      releaseDate: $("#bReleaseDate").value,
+      releasePrecision: $("#bReleasePrecision").value,
+      releaseStatus: $("#bReleaseStatus").value,
+      nextAt: $("#bNextAt").value,
+      nextLabel: $("#bNextLabel").value,
+    };
     const externalRating = $("#bExternalRating").value;
     const length = $("#bLength").value;
     const genresStr = $("#bGenres").value;
@@ -680,7 +799,7 @@
       if (mediaSource) b.mediaSource = mediaSource; else delete b.mediaSource;
       if (summary) b.summary = summary; else delete b.summary;
       if (releaseYear) b.releaseYear = parseInt(releaseYear, 10); else delete b.releaseYear;
-      if (releaseDate) b.releaseDate = releaseDate; else delete b.releaseDate;
+      applyRelease(b, release);
       if (externalRating) b.externalRating = externalRating; else delete b.externalRating;
       if (length) b.length = length; else delete b.length;
       if (genres.length) b.genres = genres; else delete b.genres;
@@ -694,7 +813,7 @@
       if (mediaSource) item.mediaSource = mediaSource;
       if (summary) item.summary = summary;
       if (releaseYear) item.releaseYear = parseInt(releaseYear, 10);
-      if (releaseDate) item.releaseDate = releaseDate;
+      applyRelease(item, release);
       if (externalRating) item.externalRating = externalRating;
       if (length) item.length = length;
       if (genres.length) item.genres = genres;
@@ -734,7 +853,7 @@
     if (b.mediaSource) out.mediaSource = b.mediaSource;
     if (b.summary) out.summary = b.summary;
     if (b.releaseYear) out.releaseYear = b.releaseYear;
-    if (b.releaseDate) out.releaseDate = b.releaseDate;
+    for (const key of RELEASE_FIELDS) if (b[key]) out[key] = String(b[key]);
     if (b.externalRating) out.externalRating = b.externalRating;
     if (b.length) out.length = b.length;
     if (Array.isArray(b.genres) && b.genres.length) out.genres = b.genres.map((g) => String(g)).slice(0, 4);
@@ -784,7 +903,8 @@
     setBacklogCover,
     // data lifecycle (app.js's normalize/import infra)
     sanitizeBacklog,
-    // pure release-date check (exported for test/backlog.test.js)
+    // pure release-date logic (exported for test/backlog.test.js)
     isUnreleased,
+    upcomingAt,
   };
 })();
