@@ -43,7 +43,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.98.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.99.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -68,7 +68,7 @@
     try { localStorage.setItem(VISUAL_KEY, JSON.stringify(v)); } catch (e) {}
   }
   function saveUiState() {
-    try { localStorage.setItem(UI_KEY, JSON.stringify({ view: state.view, scrollY: window.scrollY })); } catch (e) {}
+    try { localStorage.setItem(UI_KEY, JSON.stringify({ view: state.view, backlogMode: state.backlogMode, scrollY: window.scrollY })); } catch (e) {}
   }
 
   function loadMediaSettings() {
@@ -158,6 +158,10 @@
     privacy: loadPrivacySettings(),
     pendingSync: loadPendingSync(),
     view: "timeline",
+    // Which of the Backlog view's two layouts is showing: "category" (the
+    // default — everything grouped by category) or "upcoming" (only what
+    // hasn't come out yet, in date order). Remembered per device like `view`.
+    backlogMode: "category",
     search: "",
     activeYears: new Set(),
     activeCats: new Set(),
@@ -2039,6 +2043,7 @@
     let savedUi = null;
     try { savedUi = JSON.parse(localStorage.getItem(UI_KEY)); } catch (e) {}
     if (savedUi?.view) state.view = savedUi.view;
+    if (savedUi?.backlogMode) state.backlogMode = savedUi.backlogMode;
 
     const result = await Storage.load();
     let source, githubReached;
@@ -2152,7 +2157,7 @@
     updateSyncBtnVisibility: Journal.updateSyncBtnVisibility,
     showSyncStatus: Journal.showSyncStatus,
     renderCoverLinkButtons, loadBacklogPrices: Sync.loadBacklogPrices, applySteamAppId: Sync.applySteamAppId,
-    backfillUpdatedAt, MONTHS_SHORT, DEFAULT_SETTINGS,
+    backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS,
   });
   Finance.init({
     state, $, el, uid, groupBy, countBy, toast, persist, render, renderLazySections,

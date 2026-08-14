@@ -467,8 +467,11 @@
   function backlogAwaitingRelease() {
     const Backlog = window.LifeLogBacklog;
     if (!Backlog) return [];
+    // isAwaitingRelease covers an already-airing show with an episode still
+    // ahead, not just things that haven't come out — a next-episode date is
+    // the fastest-staling thing here, going out of date every week.
     return state.data.backlog.filter(
-      (b) => !b.dropped && b.mediaId && b.mediaSource && Backlog.isUnreleased(b)
+      (b) => b.mediaId && b.mediaSource && Backlog.isAwaitingRelease(b)
     );
   }
 

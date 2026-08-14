@@ -1,9 +1,25 @@
 todo:
 
-- next releases view — a chronological "what's coming" list over the backlog's
-  unreleased items, built on the new release precision
-
 done:
+
+- next releases view — a second Backlog layout (`state.backlogMode`, remembered
+  in the UI localStorage key next to `view`) rather than a sixth tab: same
+  items either way, and the phone's bottom nav has no room. Grouped into one
+  card per month keyed on upcomingAt() — the day the item is actually waiting
+  on, which is the next episode for anything mid-season, so an airing show
+  lands on next Tuesday rather than the year it premiered. isAwaitingRelease()
+  is therefore broader than isUnreleased(): a released-but-airing show belongs
+  here too, and sync.js's re-check uses the same predicate (a next-episode
+  date is the fastest-staling thing in the app). Within a month, exact dates
+  sort first in day order and coarser ones settle underneath, instead of
+  interleaving at the arbitrary day their window opens; countdowns are only
+  ever shown against a real day. Year-only/TBA items collect in a trailing "No
+  date yet" card. Reuses .backlog-section/.backlog-grid, so the sticky headers
+  and the mobile jump-nav carousel picked it up for free. Deliberately no bulk
+  select here (read-only view; switching modes clears any selection). The dice
+  button moved into the mode bar to keep one strip above the list rather than
+  two. Follow-up ideas: a "notify me" / calendar export for a dated row; fold
+  released-since-last-visit items into a "just out" card at the top
 
 - release-date precision — every media source knows a different amount about a
   release, so items now carry `releasePrecision` (day/month/quarter/year/tba)

@@ -14,7 +14,7 @@
     backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions,
     resolveRawgSteamAppId, updateSyncBtnVisibility, showSyncStatus,
     renderCoverLinkButtons, loadBacklogPrices, applySteamAppId,
-    backfillUpdatedAt, MONTHS_SHORT, DEFAULT_SETTINGS;
+    backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS;
 
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
@@ -24,7 +24,7 @@
       backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions,
       resolveRawgSteamAppId, updateSyncBtnVisibility, showSyncStatus,
       renderCoverLinkButtons, loadBacklogPrices, applySteamAppId,
-      backfillUpdatedAt, MONTHS_SHORT, DEFAULT_SETTINGS } = ctx);
+      backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS } = ctx);
   }
 
   // Coarse "N days/months/years ago" for the backlog edit modal's aging line.
@@ -379,15 +379,15 @@
     return items.filter((b) => !b.dropped && !isUnreleased(b));
   }
 
-  function renderPickBar(items) {
+  // Lives in the mode bar's right-hand slot rather than a row of its own —
+  // one strip above the list instead of two, which matters most on a phone.
+  function makePickButton(items) {
     const eligible = eligibleForPick(items);
     if (!eligible.length) return null;
-    const bar = el("div", "backlog-pick-bar");
     const btn = el("button", "btn btn-sm", "🎲 Pick something for me");
     btn.type = "button";
     btn.onclick = () => openPickModal(eligible);
-    bar.appendChild(btn);
-    return bar;
+    return btn;
   }
 
   function openPickModal(pool) {
@@ -438,6 +438,224 @@
     $("#pickOpenBtn").onclick = () => { closePickModal(); openBacklogModal(b); };
   }
 
+  // ---------- Next Releases ----------
+  // Precision ordering for the tie-break below: on the same day, an exact
+  // date should sit above something merely narrowed to that month.
+  const PRECISION_ORDER = { day: 0, month: 1, quarter: 2, year: 3, tba: 4 };
+
+  // A show that started airing years ago is "released", but its next episode
+  // is still ahead — and that's exactly what a "what's next" list is for. So
+  // waiting-on-something is broader than unreleased.
+  function hasUpcomingEpisode(b) {
+    return !!b.nextAt && isRealDate(b.nextAt) && b.nextAt >= todayStr();
+  }
+  function isAwaitingRelease(b) {
+    return !b.dropped && (isUnreleased(b) || hasUpcomingEpisode(b));
+  }
+
+  function upcomingItems() {
+    return getFilteredBacklog().filter(isAwaitingRelease);
+  }
+
+  // "Fri 12 Sep" — the year is deliberately left off, since every row sits
+  // under a month heading that already carries it.
+  function formatDay(dateStr) {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const date = new Date(y, m - 1, d);
+    return date.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  }
+
+  // Whole days from today, on the calendar rather than the clock — both ends
+  // are read at local midday, so a DST shift in between can't round the gap
+  // to the wrong day.
+  function daysUntil(dateStr) {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const then = new Date(y, m - 1, d, 12);
+    const now = new Date();
+    now.setHours(12, 0, 0, 0);
+    return Math.round((then - now) / 86400000);
+  }
+
+  function countdownText(dateStr) {
+    const days = daysUntil(dateStr);
+    if (days <= 0) return "today";
+    if (days === 1) return "tomorrow";
+    if (days < 21) return "in " + days + " days";
+    if (days < 60) return "in " + Math.round(days / 7) + " weeks";
+    return "";
+  }
+
+  // What a row says about its date, phrased to match how much is actually
+  // known — never a specific day for something only pinned to a quarter.
+  function releaseLabel(b) {
+    const today = todayStr();
+    if (b.nextAt && isRealDate(b.nextAt) && b.nextAt >= today) {
+      return (b.nextLabel ? b.nextLabel + " · " : "") + formatDay(b.nextAt);
+    }
+    const precision = precisionOf(b);
+    const raw = b.releaseDate || "";
+    if (precision === "day" && isRealDate(raw.slice(0, 10))) return formatDay(raw.slice(0, 10));
+    const month = parseInt(raw.slice(5, 7), 10);
+    if (precision === "quarter" && month >= 1 && month <= 12) {
+      return "Q" + (Math.floor((month - 1) / 3) + 1) + " " + raw.slice(0, 4);
+    }
+    if (precision === "month" && month >= 1 && month <= 12) {
+      return "Sometime in " + MONTHS_SHORT[month] + " " + raw.slice(0, 4);
+    }
+    const year = parseInt(raw, 10) || b.releaseYear;
+    return year ? "Sometime in " + year : "No date announced";
+  }
+
+  function upcomingRow(b) {
+    const rich = state.visual.backlogCoverSize !== "none";
+    const row = el("div", rich ? "backlog-item-rich up-row" : "entry up-row");
+    if (rich && b.coverUrl) {
+      const img = document.createElement("img");
+      img.loading = "lazy";
+      img.src = b.coverUrl; img.alt = b.title;
+      img.className = "bl-cover cover-sm";
+      img.onerror = () => { img.replaceWith(emptyCoverEl("bl-cover cover-empty cover-sm", b.category)); };
+      row.appendChild(img);
+    } else if (rich) {
+      row.appendChild(emptyCoverEl("bl-cover cover-empty cover-sm", b.category));
+    }
+    const body = el("div", "bl-body");
+    const titleRow = el("div", "bl-title-row");
+    const dot = el("span", "up-cat-dot"); dot.style.background = colorOf(b.category);
+    dot.title = b.category;
+    titleRow.appendChild(dot);
+    const title = el("span", "bl-title", b.title); title.title = b.title;
+    titleRow.appendChild(title);
+    if (b.priority) titleRow.appendChild(priorityBadge());
+    body.appendChild(titleRow);
+    const meta = el("div", "up-when");
+    meta.appendChild(el("span", "up-date", releaseLabel(b)));
+    // Only ever counts down to a real day — "in 2 days" against a date known
+    // no better than its month would be inventing precision.
+    const at = upcomingAt(b);
+    const countdown = at && (hasUpcomingEpisode(b) || precisionOf(b) === "day") ? countdownText(at) : "";
+    if (countdown) meta.appendChild(el("span", "up-countdown", countdown));
+    body.appendChild(meta);
+    row.appendChild(body);
+    // No bulk selection here, unlike the category list: this is a read-only
+    // "what's coming" view, and moving/deleting by category is what the other
+    // layout is for. Switching modes clears any selection in progress.
+    row.onclick = () => openBacklogModal(b);
+    return row;
+  }
+
+  // One card per month, in date order, then a single trailing card for
+  // everything with no month to put it in. Items are grouped by the day
+  // they're actually waiting on (see upcomingAt), so a show mid-season lands
+  // on its next episode rather than the month it premiered years ago.
+  function renderUpcoming(root) {
+    const items = upcomingItems();
+    if (!items.length) {
+      // Distinguish "nothing is coming" from "your filters hid it" — the
+      // advice below only makes sense for the former.
+      if (state.data.backlog.some(isAwaitingRelease)) {
+        root.appendChild(emptyState("Nothing upcoming matches your filters."));
+        return;
+      }
+      root.appendChild(emptyState({
+        glyph: "🔭",
+        title: "Nothing on the horizon",
+        body: "Backlog items that haven't come out yet show up here in date order — the next episode of something airing, a game with a release date, a film still months away.",
+        hint: "Release dates arrive with the cover art when you sync an item to a media source. Settings → Media → Upcoming releases keeps them current.",
+      }));
+      return;
+    }
+    const dated = [], undated = [];
+    for (const b of items) (upcomingAt(b) ? dated : undated).push(b);
+    // Month first, then exactness: within a month card, the days you can
+    // circle on a calendar come first in date order, and the "sometime in
+    // August" ones settle underneath rather than interleaving on the
+    // arbitrary day their window happens to open.
+    dated.sort((a, b) => {
+      const at = upcomingAt(a), bt = upcomingAt(b);
+      const am = at.slice(0, 7), bm = bt.slice(0, 7);
+      if (am !== bm) return am < bm ? -1 : 1;
+      const ap = hasUpcomingEpisode(a) ? 0 : (PRECISION_ORDER[precisionOf(a)] ?? 9);
+      const bp = hasUpcomingEpisode(b) ? 0 : (PRECISION_ORDER[precisionOf(b)] ?? 9);
+      if (ap !== bp) return ap - bp;
+      if (at !== bt) return at < bt ? -1 : 1;
+      return a.title.localeCompare(b.title);
+    });
+    undated.sort((a, b) =>
+      ((parseInt(a.releaseDate, 10) || a.releaseYear || 9999) - (parseInt(b.releaseDate, 10) || b.releaseYear || 9999))
+      || a.title.localeCompare(b.title));
+
+    const byMonth = groupBy(dated, (b) => upcomingAt(b).slice(0, 7));
+    const grid = el("div", "backlog-grid");
+    const sections = [];
+    const thisMonth = todayStr().slice(0, 7);
+    for (const key of Object.keys(byMonth)) {
+      const monthItems = byMonth[key];
+      const [year, month] = key.split("-");
+      sections.push(makeUpcomingSection(
+        key,
+        key === thisMonth ? "This month" : MONTHS_SHORT[+month] + " " + year,
+        key === thisMonth ? MONTHS_SHORT[+month] + " " + year : "",
+        monthItems
+      ));
+    }
+    if (undated.length) {
+      sections.push(makeUpcomingSection("undated", "No date yet",
+        "Announced, but nothing firmer than a year", undated));
+    }
+    root.appendChild(grid);
+    renderLazySections(grid, sections);
+  }
+
+  function makeUpcomingSection(key, title, subtitle, items) {
+    const section = el("div", "backlog-section");
+    const head = el("div", "backlog-section-head");
+    head.appendChild(el("span", "backlog-section-name", title));
+    if (subtitle) head.appendChild(el("span", "up-section-sub", subtitle));
+    head.appendChild(el("span", "backlog-section-count", String(items.length)));
+    section.appendChild(head);
+    const list = el("div", "backlog-list");
+    section.appendChild(list);
+    return {
+      key, header: head, node: section, bodyEl: list,
+      build: () => { items.forEach((b) => list.appendChild(upcomingRow(b))); },
+    };
+  }
+
+  // The Backlog view's two layouts. Kept as a mode switch rather than a sixth
+  // tab: it's the same items either way, and the bottom nav on a phone has no
+  // room to spare.
+  function renderBacklogModeBar(root, items) {
+    const bar = el("div", "backlog-mode-bar");
+    const group = el("div", "seg");
+    const modes = [["category", "By category"], ["upcoming", "Next releases"]];
+    for (const [mode, label] of modes) {
+      const btn = el("button", "seg-btn", label);
+      btn.type = "button";
+      const active = state.backlogMode === mode;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", String(active));
+      btn.onclick = () => {
+        if (state.backlogMode === mode) return;
+        state.backlogMode = mode;
+        state.bulk.active = false;
+        state.bulk.selected.clear();
+        render();
+        saveUiState();
+      };
+      group.appendChild(btn);
+    }
+    bar.appendChild(group);
+    if (state.backlogMode === "upcoming") {
+      const n = upcomingItems().length;
+      if (n) bar.appendChild(el("span", "backlog-mode-count", n + (n === 1 ? " title" : " titles") + " waiting"));
+    } else {
+      const pick = makePickButton(items);
+      if (pick) bar.appendChild(pick);
+    }
+    root.appendChild(bar);
+  }
+
   function renderBacklog(root) {
     if (!state.data.backlog.length) {
       root.appendChild(emptyState({
@@ -452,12 +670,12 @@
     }
     const items = getFilteredBacklog()
       .slice().sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+    renderBacklogModeBar(root, items);
+    if (state.backlogMode === "upcoming") { renderUpcoming(root); return; }
     if (!items.length) {
       root.appendChild(emptyState("No backlog items match your filters."));
       return;
     }
-    const pickBar = renderPickBar(items);
-    if (pickBar) root.appendChild(pickBar);
     const byCat = groupBy(items, (b) => b.category);
     const order = state.data.categories.map((c) => c.name).filter((n) => byCat[n]);
     for (const n of Object.keys(byCat)) if (!order.includes(n)) order.push(n);
@@ -903,8 +1121,9 @@
     setBacklogCover,
     // data lifecycle (app.js's normalize/import infra)
     sanitizeBacklog,
-    // pure release-date logic (exported for test/backlog.test.js)
+    // pure release-date logic (sync.js's re-check, and test/backlog.test.js)
     isUnreleased,
+    isAwaitingRelease,
     upcomingAt,
   };
 })();

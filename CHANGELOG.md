@@ -4,6 +4,30 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.99.0] - 2026-08-14
+
+### Added
+- **Next Releases** — a second layout for the Backlog, holding just the things
+  you're still waiting on, in date order. Switch with the toggle at the top of
+  the Backlog; the choice is remembered per device.
+- One card per month, so what's landing this month sits together and the rest
+  reads forward from there. Exact dates come first inside a month, in day
+  order, with the vaguer "sometime in August" ones settled underneath — never
+  interleaved on a day nobody actually promised.
+- Each row says exactly as much as is known: a weekday and date, "Q1 2027",
+  "Sometime in September", or "No date announced". Exact dates also get a
+  countdown — today, tomorrow, in 9 days, in 6 weeks.
+- Shows that are already airing appear under their **next episode** ("S2E7 ·
+  Tue, Aug 18"), not the year they premiered.
+- Anything announced with nothing firmer than a year collects in a trailing
+  "No date yet" card rather than being filed under a month it may never hit.
+- Search and the category filters apply here too, and the mobile quick-jump
+  row pages through the months.
+
+### Changed
+- The "🎲 Pick something for me" button moved into the new toggle strip,
+  putting one row above the backlog instead of two.
+
 ## [0.98.0] - 2026-08-14
 
 ### Added
