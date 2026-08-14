@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.99.2" />
+  <link rel="stylesheet" href="src/styles.css?v=0.99.3" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -884,7 +884,7 @@
         <p class="hint">Open Library, AniList, Jikan, Google Books, and MusicBrainz all work without a key.</p>
 
         <h4>Source per category</h4>
-        <p class="hint">Choose which API to use for each of your categories, plus an optional fallback. Bulk sync and the background checks only try the fallback when the primary finds no matches; the manual "🔄 Sync" button searches both and lists the matches together, each tagged with the source it came from, so you can pick from either — the primary's appear first, the fallback's fill in when its request finishes. Categories set to "None" won't fetch metadata. These assignments sync across your devices. Categories set to "Steam" show a manual Steam App ID field instead of search (Steam has no browser-callable search API) — paste the ID from the game's store URL to get cover art and, once a GG.deals key is set above, current lowest prices. "RAWG + Steam + GG.deals" searches RAWG as normal, but also looks up a Steam App ID via RAWG's own store links for whichever result you pick — when found, that entry gets cover, rating, length, and current price all at once, no manual App ID needed; when the game isn't on Steam, it falls back to a plain RAWG entry.</p>
+        <p class="hint">Choose which API to use for each of your categories, plus an optional fallback. Bulk sync and the background checks only try the fallback when the primary finds no matches; the manual "🔄 Sync" button searches both at once and lists the matches together, each tagged with the source it came from, so you can pick from either — whichever source answers first appears first, and the other's fill in underneath when they arrive. Categories set to "None" won't fetch metadata. These assignments sync across your devices. Categories set to "Steam" show a manual Steam App ID field instead of search (Steam has no browser-callable search API) — paste the ID from the game's store URL to get cover art and, once a GG.deals key is set above, current lowest prices. "RAWG + Steam + GG.deals" searches RAWG as normal, but also looks up a Steam App ID via RAWG's own store links for whichever result you pick — when found, that entry gets cover, rating, length, and current price all at once, no manual App ID needed; when the game isn't on Steam, it falls back to a plain RAWG entry.</p>
         <div id="mediaCatRows"></div>
       </section>
 
@@ -1034,16 +1034,16 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.99.2"></script>
-  <script defer src="src/media.js?v=0.99.2"></script>
-  <script defer src="src/merge.js?v=0.99.2"></script>
-  <script defer src="src/storage.js?v=0.99.2"></script>
-  <script defer src="src/finance.js?v=0.99.2"></script>
-  <script defer src="src/settings.js?v=0.99.2"></script>
-  <script defer src="src/backlog.js?v=0.99.2"></script>
-  <script defer src="src/journal.js?v=0.99.2"></script>
-  <script defer src="src/io.js?v=0.99.2"></script>
-  <script defer src="src/sync.js?v=0.99.2"></script>
-  <script defer src="src/app.js?v=0.99.2"></script>
+  <script defer src="src/qr.js?v=0.99.3"></script>
+  <script defer src="src/media.js?v=0.99.3"></script>
+  <script defer src="src/merge.js?v=0.99.3"></script>
+  <script defer src="src/storage.js?v=0.99.3"></script>
+  <script defer src="src/finance.js?v=0.99.3"></script>
+  <script defer src="src/settings.js?v=0.99.3"></script>
+  <script defer src="src/backlog.js?v=0.99.3"></script>
+  <script defer src="src/journal.js?v=0.99.3"></script>
+  <script defer src="src/io.js?v=0.99.3"></script>
+  <script defer src="src/sync.js?v=0.99.3"></script>
+  <script defer src="src/app.js?v=0.99.3"></script>
 </body>
 </html>

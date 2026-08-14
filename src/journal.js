@@ -732,60 +732,64 @@
   // follow when its (often slower, rate-limited) request finishes, instead of
   // making every lookup as slow as the worse of the two APIs.
   //
-  // handlers.onStart(sourceKey, nextSource) fires synchronously, before any
-  // request is awaited, so the list can say what it's doing straight away.
-  // handlers.onBatch(results, sourceKey, nextSource) then fires once per source
-  // queried, in order; nextSource names the one still to come, or is null when
-  // that batch was the last. Resolves with the total number of matches found.
+  // handlers.onStart(sourceKeys) fires synchronously, before any request is
+  // awaited, so the list can say what it's doing straight away.
+  // handlers.onBatch(results, sourceKey) then fires once per source, in
+  // whichever order they answer. Resolves with the total number of matches.
   async function streamMediaSuggestions(title, category, handlers) {
     const search = mediaSearchFor(title, category);
     if (!search) return 0;
-    const next = search.fallbackSource || null;
-    handlers.onStart(search.source, next);
-    // Both requests go out at once. The fallback used to sit idle until the
-    // primary came back, so a lookup cost the two APIs *added together* — and
-    // they vary wildly (Open Library takes ~2.5s where most take ~250ms).
-    // Rendering is still strictly primary-first; only the waiting overlaps.
-    // Each is caught on its own so one source failing can't take out the other.
-    const primaryReq = search.trySource(search.source).catch(() => []);
-    const fallbackReq = next ? search.trySource(next).catch(() => []) : null;
+    const sources = [search.source];
+    if (search.fallbackSource) sources.push(search.fallbackSource);
+    handlers.onStart(sources);
+    // Both requests go out at once and each renders the moment it lands —
+    // nothing is held back to preserve an order. The APIs vary wildly (Open
+    // Library takes ~2.5s where most take ~250ms), so making the quicker one
+    // wait its turn just meant staring at an empty list for no reason. Each
+    // is caught on its own so one source failing can't take out the other.
     let total = 0;
-    const primary = await primaryReq;
-    total += primary.length;
-    handlers.onBatch(primary, search.source, next);
-    if (fallbackReq) {
-      const extra = await fallbackReq;
-      total += extra.length;
-      handlers.onBatch(extra, next, null);
-    }
+    await Promise.all(sources.map((src) =>
+      search.trySource(src)
+        .catch(() => [])
+        .then((results) => {
+          total += results.length;
+          handlers.onBatch(results, src);
+        })
+    ));
     return total;
   }
 
-  // Fills a suggestion list from a streamed lookup. A "Searching …" line goes
-  // up the instant the button is pressed — a click with no visible response
-  // reads as slower than it is — then the primary's matches replace it, and
-  // the fallback's slot in underneath when they arrive.
+  // Fills a suggestion list from a streamed lookup. A "Searching …" line naming
+  // every source still in flight goes up the instant the button is pressed — a
+  // click with no visible response reads as slower than it is — and each
+  // source's matches are appended as it answers. Rows are only ever appended
+  // above that line, so nothing already on screen moves under the pointer.
   async function renderStreamedSuggestions(list, title, category, onPick, btn) {
-    const label = (key) => "Searching " + (MEDIA_SOURCE_LABELS[key] || key) + "…";
     list.innerHTML = "";
+    const waiting = new Set();
     let pendingRow = null;
-    const setPending = (key) => {
-      if (pendingRow) pendingRow.remove();
-      pendingRow = key ? el("div", "ac-pending", label(key)) : null;
-      if (pendingRow) list.appendChild(pendingRow);
+    const syncPending = () => {
+      if (pendingRow) { pendingRow.remove(); pendingRow = null; }
+      if (waiting.size) {
+        // Deduped: a primary and fallback can share a display name (TMDB
+        // covers both movies and TV), and "Searching TMDB, TMDB…" reads as a bug.
+        const names = [...new Set([...waiting].map((k) => MEDIA_SOURCE_LABELS[k] || k))].join(", ");
+        pendingRow = el("div", "ac-pending", "Searching " + names + "…");
+        list.appendChild(pendingRow);
+      }
       list.hidden = !list.children.length;
     };
     if (btn) btn.classList.add("busy");
     try {
       const total = await streamMediaSuggestions(title, category, {
-        onStart: (sourceKey) => setPending(sourceKey),
-        onBatch: (results, sourceKey, nextSource) => {
+        onStart: (sources) => { sources.forEach((s) => waiting.add(s)); syncPending(); },
+        onBatch: (results, sourceKey) => {
           if (pendingRow) { pendingRow.remove(); pendingRow = null; }
           results.forEach((r) => list.appendChild(makeMediaAcItem(r, () => onPick(r))));
-          setPending(nextSource);
+          waiting.delete(sourceKey);
+          syncPending();
         },
       });
-      setPending(null);
       if (!total) {
         list.hidden = true;
         const err = window.LifeLogMedia && window.LifeLogMedia.getLastError();

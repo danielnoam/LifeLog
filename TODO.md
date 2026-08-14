@@ -1,13 +1,24 @@
 todo:
 
-- sync latency, remaining: when the *primary* source is the slow one, the first
-  result still can't appear before it answers — the fallback is held back to
-  keep primary-first ordering. Rendering whichever lands first would fix it but
-  reorders the list. Also unmeasured: SteamGridDB does an autocomplete request
-  then a second round of per-game cover fetches, both through the user's CORS
-  proxy, so it's two proxy round-trips deep before it can return anything
+- sync latency, remaining: SteamGridDB does an autocomplete request and then a
+  second round of per-game cover fetches, both through the user's CORS proxy —
+  two proxy round-trips deep before it can return anything. Could emit the
+  name matches immediately and fill covers in progressively. Unmeasured (needs
+  a key + proxy to test)
 
 done:
+
+- sync results render in arrival order — dropped the primary-first ordering
+  added a version earlier. Holding a finished fallback back to preserve the
+  order cost the whole difference between the two APIs whenever the primary was
+  the slower one (measured: first result 2506ms → 259ms with a 2.5s primary and
+  a 250ms fallback). streamMediaSuggestions now maps both sources through
+  Promise.all and emits each batch in its own .then, so nothing waits its turn;
+  the source tags are what keep an arrival-ordered list legible. The pending row
+  became a Set of outstanding sources rather than a single "next" one, deduped
+  by display name (tmdb-movie + tmdb-tv would otherwise read "TMDB, TMDB"), and
+  narrows as each source answers. Rows are only ever appended above it, so
+  nothing already on screen moves under the pointer mid-lookup.
 
 - sync button latency — measured the real APIs first rather than guessing:
   AniList/Jikan/MusicBrainz ~250ms, Google Books ~670ms, Open Library ~2500ms.

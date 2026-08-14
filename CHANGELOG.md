@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.99.3] - 2026-08-14
+
+### Changed
+- **Sync matches now appear the moment their source answers**, rather than the
+  fallback's being held back until the primary had finished. Nothing waits its
+  turn, so whichever source is quicker shows up first — when the primary is the
+  slow one, the first match now lands in about a quarter of a second instead of
+  two and a half. Every match is tagged with its source, so the order it
+  arrived in doesn't cost you anything.
+- The "Searching…" line names every source still outstanding and narrows as
+  each answers ("Searching RAWG, Open Library…" → "Searching RAWG…").
+
 ## [0.99.2] - 2026-08-14
 
 ### Fixed
