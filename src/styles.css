@@ -778,13 +778,16 @@ kbd {
 .ac-wrap input { flex: 1; margin-top: 0; width: auto; }
 .sync-btn { flex: 0 0 auto; padding: 8px 10px; font-size: 14px; line-height: 1; }
 /* Spins the 🔄 while a lookup is in flight, so the press registers instantly
-   even when the API behind it takes a second. Pointer events stay on: the
-   button is safe to press again, and a re-press just restarts the search. */
+   even when the API behind it takes a second. Only the glyph turns — the
+   button's own box stays put, which is why the emoji is wrapped in a span
+   (transforms don't apply to a bare inline text node). Pointer events stay on:
+   the button is safe to press again, and a re-press just restarts the search. */
+.sync-icon { display: inline-block; }
 .sync-btn.busy { opacity: .7; }
-.sync-btn.busy > * , .sync-btn.busy { animation: sync-spin 1s linear infinite; }
+.sync-btn.busy .sync-icon { animation: sync-spin 1s linear infinite; }
 @keyframes sync-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) {
-  .sync-btn.busy, .sync-btn.busy > * { animation: none; }
+  .sync-btn.busy .sync-icon { animation: none; }
 }
 .priority-star { flex: 0 0 auto; padding: 8px 10px; font-size: 14px; line-height: 1; color: var(--text-dim); }
 .priority-star.active { color: var(--priority); border-color: var(--priority); }

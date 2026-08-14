@@ -4,6 +4,12 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.99.4] - 2026-08-14
+
+### Fixed
+- The 🔄 Sync button's busy animation now spins the icon rather than the whole
+  button, so its border and background stay still while a lookup runs.
+
 ## [0.99.3] - 2026-08-14
 
 ### Changed
