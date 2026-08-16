@@ -206,17 +206,13 @@
         } else {
           const r = results[0];
           item.coverUrl = r.coverUrl || "";
-          item.mediaId = r.id || "";
-          item.mediaSource = r.source || "";
           // TMDB needs a second per-title call for runtime/season data — the
           // search endpoint doesn't include it (see fetchLength in media.js).
           item.length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
           if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
-          if (r.source === "rawg-steam-gg") {
-            const resolved = await resolveRawgSteamAppId(r, keys.rawg);
-            item.mediaSource = resolved.mediaSource;
-            item.mediaId = resolved.mediaId;
-          }
+          const resolved = await resolveMediaIdentity(r, keys);
+          item.mediaSource = resolved.mediaSource;
+          item.mediaId = resolved.mediaId;
           synced++;
         }
       }
@@ -675,14 +671,33 @@
     return stripped || title;
   }
 
-  // For a "rawg-steam-gg" combo result: Steam has no search API of its own
-  // (CORS-blocked, see media.js), so the only way to get an App ID without
-  // asking the user to paste one manually is via RAWG's own store-links
-  // data for this specific game. Falls back to the plain RAWG identity if
-  // RAWG has no Steam listing for it (not every game is on Steam).
-  async function resolveRawgSteamAppId(r, rawgKey) {
-    const appId = window.LifeLogMedia ? await window.LifeLogMedia.fetchRawgSteamAppId(r.id, rawgKey) : "";
-    return appId ? { mediaSource: "steam", mediaId: appId } : { mediaSource: "rawg", mediaId: r.id || "" };
+  // What {mediaSource, mediaId} a picked search result should be stored as.
+  // For most sources that's just the result as-is, but the two game sources
+  // both want to land on a Steam App ID where one exists — that id is what
+  // drives the Steam store link, the Steam CDN cover and the GG.deals price
+  // lookup, and neither source's own id can stand in for it. Steam has no
+  // search API of its own (CORS-blocked, see media.js), so each source is
+  // asked for its Steam mapping separately:
+  //   rawg-steam-gg → RAWG's per-game store links, scanned for a Steam one
+  //   steamgriddb   → SGDB's own external_platform_data for the game
+  // Either can come back empty (not every game is on Steam), in which case
+  // the item keeps the source's plain identity — RAWG results drop the combo
+  // tag, since without an App ID that's all they are.
+  async function resolveMediaIdentity(r, keys) {
+    const plain = { mediaSource: r.source || "", mediaId: r.id || "" };
+    if (!window.LifeLogMedia) return plain;
+    if (r.source === "rawg-steam-gg") {
+      const appId = await window.LifeLogMedia.fetchRawgSteamAppId(r.id, keys.rawg);
+      return appId ? { mediaSource: "steam", mediaId: appId } : { mediaSource: "rawg", mediaId: r.id || "" };
+    }
+    if (r.source === "steamgriddb") {
+      const proxyUrl = (state.data.settings.steam?.proxyUrl || "").trim().replace(/\/+$/, "");
+      const appId = await window.LifeLogMedia.fetchSteamGridDbSteamAppId(r.id, keys.steamgriddb, proxyUrl);
+      // The SGDB cover already on the result is kept either way — it's the
+      // better art, and it's stored on the item independently of the id.
+      if (appId) return { mediaSource: "steam", mediaId: appId };
+    }
+    return plain;
   }
 
   // Shared setup for both lookup paths below: which sources a category is
@@ -966,12 +981,7 @@
       lastSyncedEntryTitle = r.title;
       entrySyncLocked = true;
       const length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
-      let mediaId = r.id, mediaSource = r.source;
-      if (r.source === "rawg-steam-gg") {
-        const resolved = await resolveRawgSteamAppId(r, keys.rawg);
-        mediaSource = resolved.mediaSource;
-        mediaId = resolved.mediaId;
-      }
+      const { mediaId, mediaSource } = await resolveMediaIdentity(r, keys);
       setEntryCover(r.coverUrl, mediaId, mediaSource, length, r.genres || []);
       list.hidden = true;
     }, $("#fSyncBtn"));
@@ -1335,7 +1345,7 @@
     makeMediaAcItem,
     fetchMediaSuggestions,
     renderStreamedSuggestions,
-    resolveRawgSteamAppId,
+    resolveMediaIdentity,
     updateSyncBtnVisibility,
     showSyncStatus,
     setEntryCover, // app.js's applySteamAppId repaints the entry cover through this

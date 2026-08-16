@@ -8,6 +8,19 @@ todo:
 
 done:
 
+- a SteamGridDB pick now resolves a Steam App ID, like the RAWG combo source
+  already did. SGDB's game id drives neither the store link nor GG.deals
+  pricing (both key on the App ID), so a game matched through it landed with
+  no price and a link to SGDB's own page. SGDB does know the mapping — the
+  per-game endpoint returns it under external_platform_data given
+  ?platformdata=steam (the proxy already relays query strings), so it's one
+  extra request on the picked game only, not on every row in the list. Folded
+  the four copies of the old `if (r.source === "rawg-steam-gg")` block into one
+  resolveMediaIdentity(r, keys) that every pick path calls unconditionally, so
+  a third source needing the same treatment is one branch, not four. Games
+  with no Steam listing keep their plain SGDB identity, and the SGDB cover art
+  is kept regardless — it's stored on the item, not derived from mediaSource.
+
 - sync results render in arrival order — dropped the primary-first ordering
   added a version earlier. Holding a finished fallback back to preserve the
   order cost the whole difference between the two APIs whenever the primary was

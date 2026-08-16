@@ -552,6 +552,31 @@
     }
   }
 
+  // A SteamGridDB pick is only half an identity: its game id is SGDB's own,
+  // so an item tagged with it gets no Steam store link and no GG.deals price
+  // (both are keyed on a Steam App ID). SGDB knows the mapping though — the
+  // per-game endpoint returns each storefront's id under external_platform_data
+  // when asked for it via ?platformdata=steam. Same CORS proxy as the search.
+  // Returns "" for games SGDB has no Steam listing for (plenty are itch.io or
+  // console-only), which leaves the item on its plain SteamGridDB identity.
+  async function fetchSteamGridDbSteamAppId(sgdbId, apiKey, proxyUrl) {
+    if (!apiKey || !proxyUrl || !sgdbId) return "";
+    try {
+      const url = proxyUrl + "/steamgriddb/games/id/" + encodeURIComponent(sgdbId) + "?platformdata=steam";
+      const res = await fetch(url, { headers: { Authorization: "Bearer " + apiKey } });
+      if (!res.ok) return "";
+      const data = await res.json();
+      if (!data || !data.success) return "";
+      // `data.data` is documented as the game object, but the endpoint has
+      // also been seen answering with a single-element array — both shapes
+      // are cheap to accept, and guessing wrong just silently loses the id.
+      const game = Array.isArray(data.data) ? data.data[0] : data.data;
+      const steam = game && game.external_platform_data && game.external_platform_data.steam;
+      const appId = steam && steam[0] && steam[0].id;
+      return appId ? String(appId) : "";
+    } catch (e) { return ""; }
+  }
+
   // Steam's own storesearch API has no CORS allowance for third-party origins,
   // so it can never be called from a browser — there is no search here.
   // Instead the app asks for a Steam App ID directly (found in the game's
@@ -696,6 +721,9 @@
     },
     async fetchRawgSteamAppId(rawgId, apiKey) {
       return fetchRawgSteamAppId(rawgId, apiKey);
+    },
+    async fetchSteamGridDbSteamAppId(sgdbId, apiKey, proxyUrl) {
+      return fetchSteamGridDbSteamAppId(sgdbId, apiKey, proxyUrl);
     },
     async fetchAniListPlanning(userName, type) {
       lastError = "";

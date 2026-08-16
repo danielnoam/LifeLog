@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.99.5] - 2026-08-16
+
+### Fixed
+- **A game matched through SteamGridDB now gets its Steam App ID too**, so it
+  links to the Steam store page and shows a GG.deals price like a
+  wishlist-imported game does. SteamGridDB's own game id can't drive either of
+  those, and nothing was asking it for the Steam one — it's now looked up (via
+  the same CORS proxy) the moment you pick a match. Games SteamGridDB has no
+  Steam listing for are unaffected, and the SteamGridDB cover art is kept
+  either way. Existing SteamGridDB-matched items pick this up when you re-run
+  🔄 Sync on them.
+
 ## [0.99.4] - 2026-08-14
 
 ### Fixed

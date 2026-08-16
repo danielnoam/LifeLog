@@ -12,7 +12,7 @@
     toggleBulkCategoryAll, attachLongPressSelect, openEntryModal,
     fillCategorySelect, wireCategorySelect, titleSuggestions,
     backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
-    resolveRawgSteamAppId, updateSyncBtnVisibility, showSyncStatus,
+    resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
     renderCoverLinkButtons, loadBacklogPrices, applySteamAppId,
     backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS;
 
@@ -22,7 +22,7 @@
       toggleBulkCategoryAll, attachLongPressSelect, openEntryModal,
       fillCategorySelect, wireCategorySelect, titleSuggestions,
       backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
-      resolveRawgSteamAppId, updateSyncBtnVisibility, showSyncStatus,
+      resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
       renderCoverLinkButtons, loadBacklogPrices, applySteamAppId,
       backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS } = ctx);
   }
@@ -222,8 +222,6 @@
       lastSyncedBacklogTitle = r.title;
       backlogSyncLocked = true;
       $("#bCoverUrl").value = r.coverUrl || "";
-      $("#bMediaId").value = r.id || "";
-      $("#bMediaSource").value = r.source || "";
       $("#bSummary").value = r.summary || "";
       $("#bReleaseYear").value = r.year ? String(r.year) : "";
       $("#bExternalRating").value = r.externalRating || "";
@@ -234,11 +232,9 @@
       const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys.tmdb);
       $("#bLength").value = details.length || r.length || "";
       setReleaseFields(window.LifeLogMedia.mergeRelease(r, details));
-      if (r.source === "rawg-steam-gg") {
-        const resolved = await resolveRawgSteamAppId(r, keys.rawg);
-        $("#bMediaSource").value = resolved.mediaSource;
-        $("#bMediaId").value = resolved.mediaId;
-      }
+      const resolved = await resolveMediaIdentity(r, keys);
+      $("#bMediaSource").value = resolved.mediaSource;
+      $("#bMediaId").value = resolved.mediaId;
       setBacklogCover();
       updateBacklogDuplicateBanner();
       list.hidden = true;
@@ -827,8 +823,6 @@
         } else {
           const r = results[0];
           item.coverUrl = r.coverUrl || "";
-          item.mediaId = r.id || "";
-          item.mediaSource = r.source || "";
           item.summary = r.summary || "";
           if (r.year) item.releaseYear = r.year; else delete item.releaseYear;
           item.externalRating = r.externalRating || "";
@@ -839,11 +833,9 @@
           item.length = details.length || r.length || "";
           applyRelease(item, window.LifeLogMedia.mergeRelease(r, details));
           if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
-          if (r.source === "rawg-steam-gg") {
-            const resolved = await resolveRawgSteamAppId(r, keys.rawg);
-            item.mediaSource = resolved.mediaSource;
-            item.mediaId = resolved.mediaId;
-          }
+          const resolved = await resolveMediaIdentity(r, keys);
+          item.mediaSource = resolved.mediaSource;
+          item.mediaId = resolved.mediaId;
           synced++;
         }
       }
