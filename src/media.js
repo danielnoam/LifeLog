@@ -552,6 +552,16 @@
     }
   }
 
+  // "SteamGridDB + Steam + GG.deals" combo source: same search as plain
+  // SteamGridDB (its grid art is the reason to pick it over RAWG), just
+  // tagged so the pick also resolves a Steam App ID — the direct equivalent
+  // of the RAWG combo above, and the same trade: one extra request on the
+  // picked game in exchange for a store link and a price.
+  async function searchSteamGridDbSteamGg(title, apiKey, proxyUrl) {
+    const results = await searchSteamGridDB(title, apiKey, proxyUrl);
+    return results.map((r) => ({ ...r, source: "steamgriddb-steam-gg" }));
+  }
+
   // A SteamGridDB pick is only half an identity: its game id is SGDB's own,
   // so an item tagged with it gets no Steam store link and no GG.deals price
   // (both are keyed on a Steam App ID). SGDB knows the mapping though — the
@@ -677,6 +687,7 @@
       if (source === "rawg") return searchRawg(title, keys.rawg || "");
       if (source === "rawg-steam-gg") return searchRawgSteamGg(title, keys.rawg || "");
       if (source === "steamgriddb") return searchSteamGridDB(title, keys.steamgriddb || "", proxyUrl || "");
+      if (source === "steamgriddb-steam-gg") return searchSteamGridDbSteamGg(title, keys.steamgriddb || "", proxyUrl || "");
       if (source === "tmdb-movie") return searchTmdb(title, "movie", keys.tmdb || "");
       if (source === "tmdb-tv") return searchTmdb(title, "tv", keys.tmdb || "");
       if (source === "openlibrary") return searchOpenLibrary(title);

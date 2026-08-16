@@ -315,6 +315,7 @@
       { value: "rawg", label: "RAWG (games)" },
       { value: "rawg-steam-gg", label: "RAWG + Steam + GG.deals (games)" },
       { value: "steamgriddb", label: "SteamGridDB (games)" },
+      { value: "steamgriddb-steam-gg", label: "SteamGridDB + Steam + GG.deals (games)" },
       { value: "steam", label: "Steam (manual App ID)" },
       { value: "tmdb-movie", label: "TMDB (movie)" },
       { value: "tmdb-tv", label: "TMDB (TV)" },
@@ -331,7 +332,11 @@
     // manual App ID only) — no restriction to "compatible" types, so it's
     // on you to leave it at "No fallback" for a category where a second
     // source doesn't make sense (e.g. Movies, until something else covers TMDB).
-    const fallbackSources = sources.filter((s) => s.value && s.value !== "steam" && s.value !== "rawg-steam-gg");
+    // The "+ Steam + GG.deals" combos are offered here too: a match found by
+    // the fallback wants a Steam App ID just as much as one found by the
+    // primary, and excluding them only meant a games fallback quietly
+    // produced items with no store link and no price.
+    const fallbackSources = sources.filter((s) => s.value && s.value !== "steam");
     if (!state.data.categories.length) {
       container.appendChild(el("p", "muted", "No categories yet — add categories first."));
       return;

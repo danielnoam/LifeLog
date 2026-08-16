@@ -8,6 +8,19 @@ todo:
 
 done:
 
+- "SteamGridDB + Steam + GG.deals" as its own source, mirroring the RAWG
+  combo, + the same bulk-sync silent-failure fix. v0.99.5 had made *every*
+  SteamGridDB match resolve an App ID, which left no way to ask for just the
+  grid art — a combo source keyed "steamgriddb-steam-gg" is the shape this
+  app already had for exactly this, so plain "steamgriddb" went back to being
+  cover-art-only. Also dropped the fallback dropdown's exclusion of the combo
+  sources: a fallback match wants an App ID as much as a primary one does,
+  and excluding them meant a RAWG-primary/SGDB-fallback games setup quietly
+  produced items with no price. Separately, both bulk syncs now wrap their
+  loop in try/catch — a throw used to leave the button disabled and the bar
+  untouched, which is indistinguishable from a button that does nothing
+  (which is exactly how it was reported).
+
 - a SteamGridDB pick now resolves a Steam App ID, like the RAWG combo source
   already did. SGDB's game id drives neither the store link nor GG.deals
   pricing (both key on the App ID), so a game matched through it landed with

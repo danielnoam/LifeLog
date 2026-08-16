@@ -808,38 +808,50 @@
     const progress = $(".bulk-progress");
     btn.disabled = true;
     let synced = 0, skipped = 0, lastErr = "";
-    for (const id of ids) {
-      const item = state.data.backlog.find((b) => b.id === id);
-      // Steam has no search (CORS-blocked) — its App ID can only be entered
-      // manually per item, so it's skipped here rather than attempted.
-      const source = item && (state.data.settings.mediaCategorySources || {})[item.category];
-      if (!item || !source || source === "steam") {
-        skipped++;
-      } else {
-        const results = await fetchMediaSuggestions(item.title, item.category);
-        if (!results.length) {
+    try {
+      for (const id of ids) {
+        const item = state.data.backlog.find((b) => b.id === id);
+        // Steam has no search (CORS-blocked) — its App ID can only be entered
+        // manually per item, so it's skipped here rather than attempted.
+        const source = item && (state.data.settings.mediaCategorySources || {})[item.category];
+        if (!item || !source || source === "steam") {
           skipped++;
-          lastErr = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || lastErr;
         } else {
-          const r = results[0];
-          item.coverUrl = r.coverUrl || "";
-          item.summary = r.summary || "";
-          if (r.year) item.releaseYear = r.year; else delete item.releaseYear;
-          item.externalRating = r.externalRating || "";
-          // TMDB needs a second per-title call for runtime/season data — the
-          // search endpoint doesn't include it (see fetchDetails in media.js),
-          // and the same response carries the status/next-episode dates.
-          const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys.tmdb);
-          item.length = details.length || r.length || "";
-          applyRelease(item, window.LifeLogMedia.mergeRelease(r, details));
-          if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
-          const resolved = await resolveMediaIdentity(r, keys);
-          item.mediaSource = resolved.mediaSource;
-          item.mediaId = resolved.mediaId;
-          synced++;
+          const results = await fetchMediaSuggestions(item.title, item.category);
+          if (!results.length) {
+            skipped++;
+            lastErr = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || lastErr;
+          } else {
+            const r = results[0];
+            item.coverUrl = r.coverUrl || "";
+            item.summary = r.summary || "";
+            if (r.year) item.releaseYear = r.year; else delete item.releaseYear;
+            item.externalRating = r.externalRating || "";
+            // TMDB needs a second per-title call for runtime/season data — the
+            // search endpoint doesn't include it (see fetchDetails in media.js),
+            // and the same response carries the status/next-episode dates.
+            const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys.tmdb);
+            item.length = details.length || r.length || "";
+            applyRelease(item, window.LifeLogMedia.mergeRelease(r, details));
+            if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
+            const resolved = await resolveMediaIdentity(r, keys);
+            item.mediaSource = resolved.mediaSource;
+            item.mediaId = resolved.mediaId;
+            synced++;
+          }
         }
+        if (progress) progress.textContent = `${synced + skipped}/${ids.length} synced`;
       }
-      if (progress) progress.textContent = `${synced + skipped}/${ids.length} synced`;
+    } catch (e) {
+      // Anything thrown in here used to leave the button disabled and the bar
+      // sitting there unchanged — from the outside, indistinguishable from the
+      // button doing nothing at all. Whatever it was, say so and hand the
+      // button back; items already synced above keep their metadata.
+      btn.disabled = false;
+      if (progress) progress.textContent = "";
+      toast("Bulk sync failed" + ((e && e.message) ? " — " + e.message : ""), true);
+      await persist();
+      return;
     }
     state.bulk.active = false;
     state.bulk.selected.clear();

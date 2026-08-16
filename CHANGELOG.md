@@ -4,6 +4,28 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.99.6] - 2026-08-16
+
+### Added
+- **"SteamGridDB + Steam + GG.deals" is now its own media source**, alongside
+  the RAWG combo it mirrors: SteamGridDB's grid art plus a resolved Steam App
+  ID, so the item gets a Steam store link and a GG.deals price. Plain
+  "SteamGridDB" goes back to being cover art only — v0.99.5 made every
+  SteamGridDB match resolve an App ID, which left no way to ask for just the
+  art. Pick the combo in Settings → Media for the categories you want prices
+  on.
+- Both "+ Steam + GG.deals" sources can now be chosen as a category's
+  *fallback*, not just its primary. A match found by the fallback wants a
+  Steam App ID as much as one found by the primary; excluding them only meant
+  a games fallback quietly produced items with no store link and no price.
+
+### Fixed
+- **The bulk 🔄 Sync button no longer dies silently.** If anything threw
+  part-way through — a source erroring, a network drop — the button stayed
+  greyed out and the bar sat there unchanged, which from the outside looked
+  exactly like a button that does nothing. It now says what went wrong,
+  keeps whatever it had already synced, and hands the button back.
+
 ## [0.99.5] - 2026-08-16
 
 ### Fixed

@@ -191,32 +191,44 @@
     const progress = $(".bulk-progress");
     btn.disabled = true;
     let synced = 0, skipped = 0, lastErr = "";
-    for (const id of ids) {
-      const item = state.data.entries.find((e) => e.id === id);
-      // Steam has no search (CORS-blocked) — its App ID can only be entered
-      // manually per item, so it's skipped here rather than attempted.
-      const source = item && (state.data.settings.mediaCategorySources || {})[item.category];
-      if (!item || !source || source === "steam") {
-        skipped++;
-      } else {
-        const results = await fetchMediaSuggestions(item.title, item.category);
-        if (!results.length) {
+    try {
+      for (const id of ids) {
+        const item = state.data.entries.find((e) => e.id === id);
+        // Steam has no search (CORS-blocked) — its App ID can only be entered
+        // manually per item, so it's skipped here rather than attempted.
+        const source = item && (state.data.settings.mediaCategorySources || {})[item.category];
+        if (!item || !source || source === "steam") {
           skipped++;
-          lastErr = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || lastErr;
         } else {
-          const r = results[0];
-          item.coverUrl = r.coverUrl || "";
-          // TMDB needs a second per-title call for runtime/season data — the
-          // search endpoint doesn't include it (see fetchLength in media.js).
-          item.length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
-          if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
-          const resolved = await resolveMediaIdentity(r, keys);
-          item.mediaSource = resolved.mediaSource;
-          item.mediaId = resolved.mediaId;
-          synced++;
+          const results = await fetchMediaSuggestions(item.title, item.category);
+          if (!results.length) {
+            skipped++;
+            lastErr = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || lastErr;
+          } else {
+            const r = results[0];
+            item.coverUrl = r.coverUrl || "";
+            // TMDB needs a second per-title call for runtime/season data — the
+            // search endpoint doesn't include it (see fetchLength in media.js).
+            item.length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+            if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
+            const resolved = await resolveMediaIdentity(r, keys);
+            item.mediaSource = resolved.mediaSource;
+            item.mediaId = resolved.mediaId;
+            synced++;
+          }
         }
+        if (progress) progress.textContent = `${synced + skipped}/${ids.length} synced`;
       }
-      if (progress) progress.textContent = `${synced + skipped}/${ids.length} synced`;
+    } catch (e) {
+      // Anything thrown in here used to leave the button disabled and the bar
+      // sitting there unchanged — from the outside, indistinguishable from the
+      // button doing nothing at all. Whatever it was, say so and hand the
+      // button back; entries already synced above keep their metadata.
+      btn.disabled = false;
+      if (progress) progress.textContent = "";
+      toast("Bulk sync failed" + ((e && e.message) ? " — " + e.message : ""), true);
+      await persist();
+      return;
     }
     state.bulk.active = false;
     state.bulk.selected.clear();
@@ -672,17 +684,19 @@
   }
 
   // What {mediaSource, mediaId} a picked search result should be stored as.
-  // For most sources that's just the result as-is, but the two game sources
-  // both want to land on a Steam App ID where one exists — that id is what
-  // drives the Steam store link, the Steam CDN cover and the GG.deals price
-  // lookup, and neither source's own id can stand in for it. Steam has no
-  // search API of its own (CORS-blocked, see media.js), so each source is
-  // asked for its Steam mapping separately:
-  //   rawg-steam-gg → RAWG's per-game store links, scanned for a Steam one
-  //   steamgriddb   → SGDB's own external_platform_data for the game
-  // Either can come back empty (not every game is on Steam), in which case
-  // the item keeps the source's plain identity — RAWG results drop the combo
-  // tag, since without an App ID that's all they are.
+  // For most sources that's just the result as-is. The two "+ Steam +
+  // GG.deals" combo sources are the exception: both want to land on a Steam
+  // App ID where one exists, since that id — not either source's own — is
+  // what drives the Steam store link and the GG.deals price lookup. Steam
+  // has no search API of its own (CORS-blocked, see media.js), so each combo
+  // asks its own source for the mapping:
+  //   rawg-steam-gg        → RAWG's per-game store links, scanned for a Steam one
+  //   steamgriddb-steam-gg → SGDB's external_platform_data for the game
+  // Either can come back empty (plenty of games aren't on Steam), and then
+  // the item falls back to that source's plain identity — without an App ID
+  // a combo result is just a RAWG or a SteamGridDB match, and storing it
+  // under the combo key would only give the rest of the app a mediaSource it
+  // has no page URL for.
   async function resolveMediaIdentity(r, keys) {
     const plain = { mediaSource: r.source || "", mediaId: r.id || "" };
     if (!window.LifeLogMedia) return plain;
@@ -690,12 +704,13 @@
       const appId = await window.LifeLogMedia.fetchRawgSteamAppId(r.id, keys.rawg);
       return appId ? { mediaSource: "steam", mediaId: appId } : { mediaSource: "rawg", mediaId: r.id || "" };
     }
-    if (r.source === "steamgriddb") {
+    if (r.source === "steamgriddb-steam-gg") {
       const proxyUrl = (state.data.settings.steam?.proxyUrl || "").trim().replace(/\/+$/, "");
       const appId = await window.LifeLogMedia.fetchSteamGridDbSteamAppId(r.id, keys.steamgriddb, proxyUrl);
-      // The SGDB cover already on the result is kept either way — it's the
-      // better art, and it's stored on the item independently of the id.
-      if (appId) return { mediaSource: "steam", mediaId: appId };
+      // The SGDB grid art already on the result is kept either way — it's the
+      // reason to use this source at all, and it's stored on the item
+      // independently of which id ends up identifying it.
+      return appId ? { mediaSource: "steam", mediaId: appId } : { mediaSource: "steamgriddb", mediaId: r.id || "" };
     }
     return plain;
   }
