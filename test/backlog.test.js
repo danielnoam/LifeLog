@@ -20,7 +20,7 @@ Backlog.init({
   },
 });
 
-const { sanitizeBacklog, isUnreleased, upcomingAt, parseReleaseInput, formatReleaseInput } = Backlog;
+const { sanitizeBacklog, isUnreleased, upcomingAt, parseReleaseInput, formatReleaseInput, bandOf } = Backlog;
 
 // Dates relative to today, so these stay true whenever they're run.
 function shift(days) {
@@ -213,6 +213,26 @@ test("sanitize drops override keys this item has no field for", () => {
   const out = sanitizeBacklog({ title: "Made up", overrides: { release: true, nonsense: true } });
   assert.deepStrictEqual(out.overrides, { release: true });
 });
+
+// ---------- which block of a category a row lands in ----------
+
+test("a starred item sits in the starred block whether or not it's out yet", () => {
+  const unreleased = { priority: 1, releaseDate: shift(400).slice(0, 7), releasePrecision: "month" };
+  assert.strictEqual(isUnreleased(unreleased), true, "precondition: this one hasn't come out");
+  assert.strictEqual(bandOf(unreleased), 0);
+  assert.strictEqual(bandOf({ priority: 1, releaseDate: "2019-03-04", releasePrecision: "day" }), 0);
+});
+
+test("unstarred items split into released and still-to-come, in that order", () => {
+  assert.strictEqual(bandOf({ releaseDate: "2019-03-04", releasePrecision: "day" }), 1);
+  assert.strictEqual(bandOf({ releaseDate: shift(400).slice(0, 7), releasePrecision: "month" }), 2);
+});
+
+test("dropped stays last, star or no star", () => {
+  assert.strictEqual(bandOf({ dropped: true }), 3);
+  assert.strictEqual(bandOf({ dropped: true, priority: 1 }), 3);
+});
+
 
 
 console.log(`\n${passed} test(s) passed.`);

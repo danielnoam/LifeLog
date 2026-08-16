@@ -339,6 +339,19 @@
     return { start: y + "-01-01", end: y + "-12-31" };
   }
 
+  // Which block of a category a row sits in, in render order. A star is a
+  // deliberate "this one matters", so it outranks the released/unreleased
+  // split rather than sorting underneath it: a starred game you're waiting
+  // on belongs at the top with the rest of your starred things, not buried
+  // in the upcoming block halfway down. Dropped stays last either way —
+  // that's an item you've given up on, star or no star.
+  const BAND_SEPARATORS = ["", "backlog-priority-sep", "backlog-upcoming-sep", "backlog-dropped-sep"];
+  function bandOf(b) {
+    if (b.dropped) return 3;
+    if (b.priority) return 0;
+    return isUnreleased(b) ? 2 : 1;
+  }
+
   // ---------- manual release overrides ----------
   // What the Advanced foldout's date box accepts, turned into the same
   // { releaseDate, releasePrecision } shape every source adapter emits — so
@@ -807,25 +820,18 @@
         key: catName, header: head, node: section, bodyEl: list,
         build: () => {
           const sorted = catItems.slice().sort((a, b) => {
-            if (!!a.dropped !== !!b.dropped) return a.dropped ? 1 : -1;
-            if (!a.dropped) {
-              const aUp = isUnreleased(a), bUp = isUnreleased(b);
-              if (aUp !== bUp) return aUp ? 1 : -1;
-            }
+            const bandDiff = bandOf(a) - bandOf(b);
+            if (bandDiff) return bandDiff;
             return (b.priority || 0) - (a.priority || 0) || a.title.localeCompare(b.title);
           });
-          let sawActive = false, sepAdded = false, sawPriority = false, prioritySepAdded = false, upcomingSepAdded = false;
+          // One dashed separator per boundary the category actually has —
+          // named for the band being entered, so a list missing a band in
+          // the middle still reads correctly.
+          let lastBand = -1;
           sorted.forEach((b) => {
-            if (b.dropped) {
-              if (sawActive && !sepAdded) { list.appendChild(el("div", "backlog-dropped-sep")); sepAdded = true; }
-            } else if (isUnreleased(b)) {
-              if (sawActive && !upcomingSepAdded) { list.appendChild(el("div", "backlog-upcoming-sep")); upcomingSepAdded = true; }
-              sawActive = true;
-            } else {
-              if (b.priority) sawPriority = true;
-              else if (sawPriority && !prioritySepAdded) { list.appendChild(el("div", "backlog-priority-sep")); prioritySepAdded = true; }
-              sawActive = true;
-            }
+            const band = bandOf(b);
+            if (lastBand !== -1 && band !== lastBand) list.appendChild(el("div", BAND_SEPARATORS[band]));
+            lastBand = band;
             list.appendChild(backlogRow(b));
           });
           // Scoped to just this category's items — the old single call over
@@ -1270,5 +1276,7 @@
     // manual release-date overrides (test/backlog.test.js)
     parseReleaseInput,
     formatReleaseInput,
+    // which block of a category a row lands in (test/backlog.test.js)
+    bandOf,
   };
 })();

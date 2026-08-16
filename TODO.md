@@ -8,6 +8,14 @@ todo:
 
 done:
 
+- starred backlog items were sorted below the released/unreleased split, so
+  starring an unreleased item pushed it into the upcoming block instead of up
+  with the other starred ones. Replaced the ad-hoc separator bookkeeping in
+  renderBacklog's build with a single bandOf() (starred / ready / upcoming /
+  dropped) driving both the sort and the separators — the old three-flag
+  version could also emit two separators at one boundary when a category was
+  missing a middle band.
+
 - per-item sync overrides + store links without a cover. The links lived in
   an overlay inside the cover block, so anything without artwork (or with a
   cover URL that 404s, which hides the block via onerror) lost them; they now

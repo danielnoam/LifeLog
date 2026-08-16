@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.100.1] - 2026-08-16
+
+### Fixed
+- **A starred backlog item now sits in the starred block even when it hasn't
+  come out yet.** Starring something says "this one matters", but the
+  released/still-to-come split was applied first, so starring a game you were
+  waiting on moved it *down* — into the upcoming block halfway down its
+  category, away from everything else you'd starred. The star now outranks
+  that split. Dropped items stay last either way: that's something you've
+  given up on, star or no star.
+
 ## [0.100.0] - 2026-08-16
 
 ### Added
