@@ -21,11 +21,11 @@
   const PRICE_CACHE_MS = 15 * 60 * 1000;
 
   // Shared app plumbing, provided by app.js via init(ctx).
-  let state, $, toast, persist, render, afterDataChange, DEFAULT_SETTINGS,
+  let state, $, toast, persist, render, afterDataChange, DEFAULT_SETTINGS, isOverridden,
     buildImportItems, reviewAndImport, setBacklogCover, setEntryCover;
 
   function init(ctx) {
-    ({ state, $, toast, persist, render, afterDataChange, DEFAULT_SETTINGS,
+    ({ state, $, toast, persist, render, afterDataChange, DEFAULT_SETTINGS, isOverridden,
       buildImportItems, reviewAndImport, setBacklogCover, setEntryCover } = ctx);
   }
 
@@ -36,15 +36,22 @@
   function applySteamAppId(prefix) {
     const id = $("#" + prefix + "SteamAppId").value.trim();
     const coverUrl = id ? window.LifeLogMedia.steamCoverUrl(id) : "";
+    // Pointing an item at a different App ID clears the metadata the old one
+    // brought with it — except for anything pinned in Advanced, which is
+    // yours and survives every sync path, this one included. (setEntryCover
+    // applies the same rule itself for the journal branch.)
+    const pinned = (key) => { const box = $("#" + prefix + "Ovr" + key); return !!(box && box.checked); };
     if (prefix === "b") {
-      $("#bCoverUrl").value = coverUrl;
+      if (!pinned("Cover")) $("#bCoverUrl").value = coverUrl;
       $("#bMediaId").value = id;
       $("#bMediaSource").value = id ? "steam" : "";
-      $("#bReleaseYear").value = "";
-      $("#bReleaseDate").value = "";
-      $("#bExternalRating").value = "";
+      if (!pinned("Release")) {
+        $("#bReleaseYear").value = "";
+        $("#bReleaseDate").value = "";
+      }
+      if (!pinned("Rating")) $("#bExternalRating").value = "";
       $("#bSummary").value = "";
-      $("#bLength").value = "";
+      if (!pinned("Length")) $("#bLength").value = "";
       $("#bGenres").value = "";
       setBacklogCover();
     } else {
@@ -470,8 +477,11 @@
     // isAwaitingRelease covers an already-airing show with an episode still
     // ahead, not just things that haven't come out — a next-episode date is
     // the fastest-staling thing here, going out of date every week.
+    // A pinned release date is excluded outright rather than fetched and
+    // discarded: it keeps the button's count honest about how many items
+    // this would actually re-check, and saves the requests.
     return state.data.backlog.filter(
-      (b) => b.mediaId && b.mediaSource && Backlog.isAwaitingRelease(b)
+      (b) => b.mediaId && b.mediaSource && !isOverridden(b, "release") && Backlog.isAwaitingRelease(b)
     );
   }
 
@@ -494,6 +504,7 @@
   // stamped item is a merge candidate for the GitHub sync, so a re-check that
   // found nothing new must leave no trace.
   function applyItemRelease(item, fresh) {
+    if (isOverridden(item, "release")) return false;
     const merged = mergeRelease(item, fresh);
     const keys = ["releaseDate", "releasePrecision", "releaseStatus", "nextAt", "nextLabel"];
     let changed = false;

@@ -15,6 +15,14 @@ Journal.init({
   uid: () => "test-id-" + (idCounter++),
   backfillUpdatedAt: (item) => item.updatedAt || item.createdAt || "1970-01-01T00:00:00.000Z",
   MONTHS_SHORT: ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  // Stubbed like uid/backfillUpdatedAt above — the real one lives in app.js,
+  // which needs a DOM. Same contract: keep the ticked keys, drop the key
+  // entirely when nothing is ticked.
+  sanitizeOverrides: (overrides, keys) => {
+    const out = {};
+    for (const key of keys) if (overrides && overrides[key]) out[key] = true;
+    return Object.keys(out).length ? out : null;
+  },
   state,
 });
 
@@ -196,6 +204,21 @@ test("backlogSuggestions matches case-insensitively and excludes a given id, wit
   assert.strictEqual(results.length, 2); // unlike titleSuggestions, no grouping/merge
   assert.deepStrictEqual(backlogSuggestions("foo", "1").map((b) => b.id), ["2"]);
 });
+
+test("a pinned entry field survives sanitize; an entry with none stays clean", () => {
+  const pinned = sanitizeEntry({ title: "Dune", category: "Movies", year: 2026, month: 3, overrides: { cover: true } });
+  assert.deepStrictEqual(pinned.overrides, { cover: true });
+  const plain = sanitizeEntry({ title: "Dune", category: "Movies", year: 2026, month: 3 });
+  assert.strictEqual("overrides" in plain, false);
+});
+
+test("sanitize drops entry override keys with no field behind them", () => {
+  // release lives on backlog items only — an entry is dated by when you
+  // finished it, which no sync ever writes.
+  const out = sanitizeEntry({ title: "Dune", category: "Movies", year: 2026, month: 3, overrides: { length: true, release: true } });
+  assert.deepStrictEqual(out.overrides, { length: true });
+});
+
 
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

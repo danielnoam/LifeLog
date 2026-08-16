@@ -13,7 +13,9 @@
     fillCategorySelect, wireCategorySelect, titleSuggestions,
     backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
     resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
-    renderCoverLinkButtons, loadBacklogPrices, applySteamAppId,
+    renderCoverLinkButtons, renderMediaLinks, isOverridden, sanitizeOverrides,
+    initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
+    loadBacklogPrices, applySteamAppId,
     backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS;
 
   function init(ctx) {
@@ -23,7 +25,9 @@
       fillCategorySelect, wireCategorySelect, titleSuggestions,
       backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
       resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
-      renderCoverLinkButtons, loadBacklogPrices, applySteamAppId,
+      renderCoverLinkButtons, renderMediaLinks, isOverridden, sanitizeOverrides,
+    initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
+    loadBacklogPrices, applySteamAppId,
       backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS } = ctx);
   }
 
@@ -91,8 +95,21 @@
     "#bReleaseDate", "#bReleasePrecision", "#bReleaseStatus", "#bNextAt",
     "#bNextLabel", "#bExternalRating", "#bLength", "#bGenres",
   ];
+  // Which pin, if any, protects each of those fields from being cleared —
+  // unsyncing drops the source, but a value you pinned by hand is yours and
+  // outlives the link it originally came from.
+  const MEDIA_FIELD_PINS = {
+    "#bCoverUrl": "cover", "#bReleaseYear": "release", "#bReleaseDate": "release",
+    "#bReleasePrecision": "release", "#bReleaseStatus": "release", "#bNextAt": "release",
+    "#bNextLabel": "release", "#bExternalRating": "rating", "#bLength": "length",
+  };
   function clearMediaFields() {
-    MEDIA_FIELD_IDS.forEach((id) => { const f = $(id); if (f) f.value = ""; });
+    MEDIA_FIELD_IDS.forEach((id) => {
+      const pin = MEDIA_FIELD_PINS[id];
+      if (pin && isPinned(pin)) return;
+      const f = $(id);
+      if (f) f.value = "";
+    });
   }
 
   // Writes a merged release object (see media.js's mergeRelease) into the
@@ -221,16 +238,19 @@
       $("#bTitle").value = r.title;
       lastSyncedBacklogTitle = r.title;
       backlogSyncLocked = true;
-      $("#bCoverUrl").value = r.coverUrl || "";
+      // Fields pinned in Advanced are skipped here and below: a pick is
+      // still a sync, and the whole point of pinning is that no sync
+      // overwrites it.
+      if (!isPinned("cover")) $("#bCoverUrl").value = r.coverUrl || "";
       $("#bSummary").value = r.summary || "";
-      $("#bReleaseYear").value = r.year ? String(r.year) : "";
-      $("#bExternalRating").value = r.externalRating || "";
+      if (!isPinned("release")) $("#bReleaseYear").value = r.year ? String(r.year) : "";
+      if (!isPinned("rating")) $("#bExternalRating").value = r.externalRating || "";
       $("#bGenres").value = (r.genres || []).join("|");
       // TMDB's details endpoint is the only source of runtime/season counts,
       // and carries the show's status and next episode air date with them —
       // so the pick lands with everything the Next Releases list needs.
       const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys.tmdb);
-      $("#bLength").value = details.length || r.length || "";
+      if (!isPinned("length")) $("#bLength").value = details.length || r.length || "";
       const resolved = await resolveMediaIdentity(r, keys);
       $("#bMediaSource").value = resolved.mediaSource;
       $("#bMediaId").value = resolved.mediaId;
@@ -238,7 +258,7 @@
       // Steam's own date beats what the search source guessed (see
       // resolveMediaIdentity). It's null for everything else, and mergeRelease
       // ignores nulls.
-      setReleaseFields(window.LifeLogMedia.mergeRelease(r, details, resolved.release));
+      if (!isPinned("release")) setReleaseFields(window.LifeLogMedia.mergeRelease(r, details, resolved.release));
       setBacklogCover();
       updateBacklogDuplicateBanner();
       list.hidden = true;
@@ -317,6 +337,91 @@
     // releaseYear is the more trustworthy of the two.
     const y = precision === "year" ? year : (+b.releaseYear || year);
     return { start: y + "-01-01", end: y + "-12-31" };
+  }
+
+  // ---------- manual release overrides ----------
+  // What the Advanced foldout's date box accepts, turned into the same
+  // { releaseDate, releasePrecision } shape every source adapter emits — so
+  // a date you typed is indistinguishable downstream from a synced one, and
+  // "2027" stays a year rather than becoming the 1st of January. Anything
+  // unparseable, blank included, is TBA: that's already how the release
+  // views render "no date known".
+  function parseReleaseInput(str) {
+    const s = (str || "").trim();
+    let m;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return { releaseDate: s, releasePrecision: "day" };
+    if (/^\d{4}-\d{2}$/.test(s)) return { releaseDate: s, releasePrecision: "month" };
+    // Quarters are stored as the quarter's first month (see releaseWindow),
+    // which is also how Steam's own vague dates arrive.
+    if ((m = /^(\d{4})-?[Qq]([1-4])$/.exec(s))) {
+      return { releaseDate: m[1] + "-" + String((+m[2] - 1) * 3 + 1).padStart(2, "0"), releasePrecision: "quarter" };
+    }
+    if (/^\d{4}$/.test(s)) return { releaseDate: s, releasePrecision: "year" };
+    return { releaseDate: "", releasePrecision: "tba" };
+  }
+
+  // The inverse, for showing what's currently stored in that same box.
+  function formatReleaseInput(b) {
+    const precision = precisionOf(b);
+    const raw = b.releaseDate || (b.releaseYear ? String(b.releaseYear) : "");
+    if (precision === "tba") return "";
+    if (precision === "quarter" && /^\d{4}-\d{2}/.test(raw)) {
+      return raw.slice(0, 4) + "-Q" + (Math.floor((parseInt(raw.slice(5, 7), 10) - 1) / 3) + 1);
+    }
+    return raw;
+  }
+
+  // The backlog item fields you can pin against sync, and how each moves
+  // between the foldout and the form's hidden fields. `release` covers the
+  // whole set of dates behind one tick — date, precision, status, the year
+  // shown in the metadata line, and the next-episode fields — because they
+  // are only ever meaningful together.
+  const OVERRIDE_KEYS = ["release", "cover", "rating", "length"];
+  const OVERRIDE_FIELDS = [
+    {
+      key: "release", check: "#bOvrRelease", inputs: ["#bOvrReleaseDate", "#bOvrReleaseStatus"],
+      pull() {
+        $("#bOvrReleaseDate").value = formatReleaseInput({
+          releaseDate: $("#bReleaseDate").value,
+          releasePrecision: $("#bReleasePrecision").value,
+          releaseYear: $("#bReleaseYear").value,
+        });
+        $("#bOvrReleaseStatus").value = $("#bReleaseStatus").value;
+      },
+      push() {
+        const parsed = parseReleaseInput($("#bOvrReleaseDate").value);
+        $("#bReleaseDate").value = parsed.releaseDate;
+        $("#bReleasePrecision").value = parsed.releasePrecision;
+        $("#bReleaseStatus").value = $("#bOvrReleaseStatus").value;
+        // releaseYear is what the metadata line shows and what releaseWindow
+        // falls back on, so it has to move with the date rather than keep
+        // pointing at whatever the source last said.
+        $("#bReleaseYear").value = parsed.releaseDate ? parsed.releaseDate.slice(0, 4) : "";
+      },
+    },
+    {
+      key: "cover", check: "#bOvrCover", inputs: ["#bOvrCoverUrl"],
+      pull() { $("#bOvrCoverUrl").value = $("#bCoverUrl").value; },
+      push() { $("#bCoverUrl").value = $("#bOvrCoverUrl").value.trim(); },
+    },
+    {
+      key: "rating", check: "#bOvrRating", inputs: ["#bOvrRatingValue"],
+      pull() { $("#bOvrRatingValue").value = $("#bExternalRating").value; },
+      push() { $("#bExternalRating").value = $("#bOvrRatingValue").value.trim(); },
+    },
+    {
+      key: "length", check: "#bOvrLength", inputs: ["#bOvrLengthValue"],
+      pull() { $("#bOvrLengthValue").value = $("#bLength").value; },
+      push() { $("#bLength").value = $("#bOvrLengthValue").value.trim(); },
+    },
+  ];
+
+  // Whether a field is pinned right now in the open modal, as opposed to on
+  // a stored item (isOverridden) — the two sync paths that run against the
+  // form rather than against saved items need this one.
+  function isPinned(key) {
+    const box = $("#bOvr" + key.charAt(0).toUpperCase() + key.slice(1));
+    return !!(box && box.checked);
   }
 
   // The stored counterpart to setReleaseFields: copies the release fields
@@ -827,22 +932,28 @@
             lastErr = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || lastErr;
           } else {
             const r = results[0];
-            item.coverUrl = r.coverUrl || "";
+            // Same rule as the single-item sync: a field pinned in the item's
+            // Advanced foldout is left exactly as it is.
+            if (!isOverridden(item, "cover")) item.coverUrl = r.coverUrl || "";
             item.summary = r.summary || "";
-            if (r.year) item.releaseYear = r.year; else delete item.releaseYear;
-            item.externalRating = r.externalRating || "";
+            if (!isOverridden(item, "release")) {
+              if (r.year) item.releaseYear = r.year; else delete item.releaseYear;
+            }
+            if (!isOverridden(item, "rating")) item.externalRating = r.externalRating || "";
             // TMDB needs a second per-title call for runtime/season data — the
             // search endpoint doesn't include it (see fetchDetails in media.js),
             // and the same response carries the status/next-episode dates.
             const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys.tmdb);
-            item.length = details.length || r.length || "";
+            if (!isOverridden(item, "length")) item.length = details.length || r.length || "";
             if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
             const resolved = await resolveMediaIdentity(r, keys);
             item.mediaSource = resolved.mediaSource;
             item.mediaId = resolved.mediaId;
             // Steam's own date last, where the game turned out to be on Steam
             // — same ordering as the single-item pick above.
-            applyRelease(item, window.LifeLogMedia.mergeRelease(r, details, resolved.release));
+            if (!isOverridden(item, "release")) {
+              applyRelease(item, window.LifeLogMedia.mergeRelease(r, details, resolved.release));
+            }
             synced++;
           }
         }
@@ -895,29 +1006,36 @@
     const coverUrl = $("#bCoverUrl").value;
     const coverDiv = $("#backlogCover");
     const coverImg = $("#backlogCoverImg");
-    const meta = $("#backlogCoverMeta");
-    meta.innerHTML = "";
-    showSyncStatus("b", $("#bMediaSource").value);
-    if (!coverUrl) { coverDiv.hidden = true; coverImg.src = ""; $("#backlogCoverLinks").innerHTML = ""; return; }
-    coverImg.onerror = () => { coverDiv.hidden = true; };
-    coverImg.src = coverUrl;
     const mediaSource = $("#bMediaSource").value;
     const mediaId = $("#bMediaId").value;
-    const hasSteamPrice = appendBacklogMeta(meta, {
-      externalRating: $("#bExternalRating").value,
-      releaseYear: $("#bReleaseYear").value,
-      length: $("#bLength").value,
-      mediaSource, mediaId,
-      summary: $("#bSummary").value,
-    });
-    if (hasSteamPrice) {
-      // Same lookup the backlog list uses — reuses its cache (instant if
-      // this item's price was already fetched there) and patches the
-      // price span above via the shared .bl-price[data-appid] selector.
-      loadBacklogPrices([{ mediaSource, mediaId }]);
-    }
-    renderCoverLinkButtons($("#backlogCoverLinks"), mediaSource, mediaId);
-    coverDiv.hidden = false;
+    showSyncStatus("b", mediaSource);
+    refreshOverrideFields(OVERRIDE_FIELDS);
+    // The rating/year/length/price line, the summary and the store links all
+    // describe the item rather than its artwork, so they render either way:
+    // under the cover when there is one, in a plain row under the title when
+    // there isn't — which includes a cover URL that turns out to be a dead
+    // image, since that hides the whole block from under them.
+    const paint = (hasCover) => {
+      const coverMeta = $("#backlogCoverMeta"), rowMeta = $("#backlogMetaRow");
+      coverMeta.innerHTML = ""; rowMeta.innerHTML = "";
+      const hasSteamPrice = appendBacklogMeta(hasCover ? coverMeta : rowMeta, {
+        externalRating: $("#bExternalRating").value,
+        releaseYear: $("#bReleaseYear").value,
+        length: $("#bLength").value,
+        mediaSource, mediaId,
+        summary: $("#bSummary").value,
+      });
+      if (hasSteamPrice) {
+        // Same lookup the backlog list uses — reuses its cache (instant if
+        // this item's price was already fetched there) and patches the
+        // price span above via the shared .bl-price[data-appid] selector.
+        loadBacklogPrices([{ mediaSource, mediaId }]);
+      }
+      renderMediaLinks($("#backlogCoverLinks"), $("#backlogLinks"), hasCover, mediaSource, mediaId);
+    };
+    coverImg.onerror = () => { coverDiv.hidden = true; paint(false); };
+    if (coverUrl) { coverImg.src = coverUrl; coverDiv.hidden = false; paint(true); }
+    else { coverDiv.hidden = true; coverImg.src = ""; paint(false); }
   }
 
   function openBacklogModal(item, presetCategory) {
@@ -953,6 +1071,13 @@
     $("#bTitleSuggest").innerHTML = "";
     $("#bTitleSuggest").hidden = true;
     $("#deleteBacklogBtn").hidden = !editing;
+    // After every hidden field above is populated — the foldout shows what
+    // they currently hold, so ticking a box pins the value you can see.
+    initOverrideFields(OVERRIDE_FIELDS, editing ? item : null);
+    // Opened only for an item that has something pinned — otherwise a pin is
+    // invisible until you go looking for it, which is a poor way to find out
+    // why a sync isn't updating a field.
+    $("#bAdvanced").open = !!(editing && item.overrides);
     setBacklogCover();
     updateSyncBtnVisibility("b", $("#bCategory").value);
     updateBacklogDuplicateBanner();
@@ -984,6 +1109,11 @@
 
   async function saveBacklogFromForm(ev) {
     ev.preventDefault();
+    // Ticked overrides are written into the hidden fields first, so
+    // everything below reads one set of values and neither knows nor cares
+    // which of them came from a sync and which you typed.
+    pushOverrideValues(OVERRIDE_FIELDS);
+    const overrides = readOverrideChecks(OVERRIDE_FIELDS);
     const id = $("#backlogId").value;
     const title = $("#bTitle").value.trim();
     const category = $("#bCategory").value;
@@ -1022,6 +1152,7 @@
       if (genres.length) b.genres = genres; else delete b.genres;
       if (priority) b.priority = priority; else delete b.priority;
       if (dropped) b.dropped = true; else delete b.dropped;
+      if (overrides) b.overrides = overrides; else delete b.overrides;
     } else {
       const item = { id: uid(), title, category, createdAt: new Date().toISOString() };
       if (notes) item.notes = notes;
@@ -1036,6 +1167,7 @@
       if (genres.length) item.genres = genres;
       if (priority) item.priority = priority;
       if (dropped) item.dropped = true;
+      if (overrides) item.overrides = overrides;
       state.data.backlog.push(item);
     }
     closeBacklogModal();
@@ -1076,6 +1208,8 @@
     if (Array.isArray(b.genres) && b.genres.length) out.genres = b.genres.map((g) => String(g)).slice(0, 4);
     if (b.priority) out.priority = +b.priority;
     if (b.dropped) out.dropped = true;
+    const overrides = sanitizeOverrides(b.overrides, OVERRIDE_KEYS);
+    if (overrides) out.overrides = overrides;
     return out;
   }
 
@@ -1094,6 +1228,15 @@
     $("#bSyncBtn").onclick = syncBacklogTitle;
     $("#bUnsyncBtn").onclick = unsyncBacklogItem;
     $("#bSteamAppId").oninput = () => applySteamAppId("b");
+    OVERRIDE_FIELDS.forEach((f) => { $(f.check).onchange = () => refreshOverrideFields(OVERRIDE_FIELDS); });
+    // Live preview: a pinned cover URL is usually being pasted precisely
+    // because the synced one was wrong, so show what you typed straight away
+    // rather than only after a save-and-reopen.
+    $("#bOvrCoverUrl").oninput = () => {
+      if (!isPinned("cover")) return;
+      $("#bCoverUrl").value = $("#bOvrCoverUrl").value.trim();
+      setBacklogCover();
+    };
     $("#pickRerollBtn").onclick = rerollPick;
     $("#pickCloseBtn").onclick = closePickModal;
     document.addEventListener("click", (e) => {
@@ -1124,5 +1267,8 @@
     isUnreleased,
     isAwaitingRelease,
     upcomingAt,
+    // manual release-date overrides (test/backlog.test.js)
+    parseReleaseInput,
+    formatReleaseInput,
   };
 })();

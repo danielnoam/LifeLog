@@ -10,9 +10,17 @@ let idCounter = 0;
 Backlog.init({
   uid: () => "test-id-" + (idCounter++),
   backfillUpdatedAt: (item) => item.updatedAt || item.createdAt || "1970-01-01T00:00:00.000Z",
+  // Stubbed like the two above — the real one lives in app.js, which needs a
+  // DOM. Same contract: keep the ticked keys, drop the key entirely when
+  // nothing is ticked.
+  sanitizeOverrides: (overrides, keys) => {
+    const out = {};
+    for (const key of keys) if (overrides && overrides[key]) out[key] = true;
+    return Object.keys(out).length ? out : null;
+  },
 });
 
-const { sanitizeBacklog, isUnreleased, upcomingAt } = Backlog;
+const { sanitizeBacklog, isUnreleased, upcomingAt, parseReleaseInput, formatReleaseInput } = Backlog;
 
 // Dates relative to today, so these stay true whenever they're run.
 function shift(days) {
@@ -162,6 +170,50 @@ test("sanitizeBacklog carries the release fields through untouched", () => {
   assert.strictEqual(out.releaseStatus, "upcoming");
   assert.strictEqual(out.nextLabel, "Episode 3");
 });
+
+// ---------- manual release overrides ----------
+
+test("parseReleaseInput reads each precision back out of what you typed", () => {
+  assert.deepStrictEqual(parseReleaseInput("2027-05-14"), { releaseDate: "2027-05-14", releasePrecision: "day" });
+  assert.deepStrictEqual(parseReleaseInput("2027-05"), { releaseDate: "2027-05", releasePrecision: "month" });
+  assert.deepStrictEqual(parseReleaseInput("2027"), { releaseDate: "2027", releasePrecision: "year" });
+});
+
+test("parseReleaseInput stores a quarter as its first month", () => {
+  assert.deepStrictEqual(parseReleaseInput("2027-Q1"), { releaseDate: "2027-01", releasePrecision: "quarter" });
+  assert.deepStrictEqual(parseReleaseInput("2027-Q4"), { releaseDate: "2027-10", releasePrecision: "quarter" });
+  assert.deepStrictEqual(parseReleaseInput("2027q2"), { releaseDate: "2027-04", releasePrecision: "quarter" });
+});
+
+test("parseReleaseInput treats blank and nonsense alike as TBA", () => {
+  for (const input of ["", "   ", "soon", "14/05/2027", "27-05"]) {
+    assert.deepStrictEqual(parseReleaseInput(input), { releaseDate: "", releasePrecision: "tba" }, input);
+  }
+});
+
+test("a typed date survives a round trip through the form", () => {
+  for (const input of ["2027-05-14", "2027-05", "2027", "2027-Q3"]) {
+    assert.strictEqual(formatReleaseInput(parseReleaseInput(input)), input, input);
+  }
+});
+
+test("formatReleaseInput falls back to a bare releaseYear, and shows TBA as blank", () => {
+  assert.strictEqual(formatReleaseInput({ releaseYear: 2027 }), "2027");
+  assert.strictEqual(formatReleaseInput({ releaseDate: "2027-05", releasePrecision: "tba" }), "");
+});
+
+test("a pinned field survives sanitize; an item with none stays clean", () => {
+  const pinned = sanitizeBacklog({ title: "Hollow Knight: Silksong", overrides: { release: true, cover: true } });
+  assert.deepStrictEqual(pinned.overrides, { release: true, cover: true });
+  assert.strictEqual("overrides" in sanitizeBacklog({ title: "Nothing pinned" }), false);
+  assert.strictEqual("overrides" in sanitizeBacklog({ title: "Empty", overrides: {} }), false);
+});
+
+test("sanitize drops override keys this item has no field for", () => {
+  const out = sanitizeBacklog({ title: "Made up", overrides: { release: true, nonsense: true } });
+  assert.deepStrictEqual(out.overrides, { release: true });
+});
+
 
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

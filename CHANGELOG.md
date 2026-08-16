@@ -4,6 +4,39 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.100.0] - 2026-08-16
+
+### Added
+- **Advanced → keep my own value**, a foldout at the bottom of the entry and
+  backlog modals. Tick a field and it becomes yours: every sync path — a
+  re-pick, a bulk sync, a pasted Steam App ID, and the 🔭 release re-check —
+  writes around it instead of overwriting it. Useful wherever a source is
+  simply wrong and keeps insisting on it.
+  - Backlog items can pin the **release date**, **cover image**, **rating**
+    and **length**. The date box takes whatever precision you actually know
+    — `2027-05-14`, `2027-05`, `2027-Q1` or `2027`, blank for TBA — and a
+    vague date stays vague rather than being rounded into a specific day.
+    You can also state outright whether it's out yet, which is the one thing
+    a bare year can't say for itself.
+  - Timeline entries can pin the **cover image** and **length**. They have no
+    release date to pin: an entry is dated by when you finished the thing,
+    which no sync has ever touched.
+  - An item with a pinned release date is skipped by the 🔭 re-check
+    entirely, so its count is honest about how much it would actually check.
+  - Unsyncing an item now keeps its pinned values. They're yours, so they
+    outlive the media link they originally arrived through.
+  - Opening an item that has something pinned opens the foldout with it, so
+    a pin can't quietly explain why a field never updates.
+
+### Fixed
+- **Store and source links now show on items with no cover art.** The
+  Steam / RAWG / TMDB / GG.deals buttons live over the cover image, and the
+  cover block is hidden when there's no picture — so an item that had a
+  perfectly good Steam link but no artwork showed no links at all. They now
+  fall back to a row under the title, which also covers the case that hid
+  them most often: a cover URL that 404s, taking the whole block with it.
+  The rating/year/length line and the summary come along for the same ride.
+
 ## [0.99.7] - 2026-08-16
 
 ### Fixed

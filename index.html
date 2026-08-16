@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.99.4" />
+  <link rel="stylesheet" href="src/styles.css?v=0.100.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -124,6 +124,10 @@
         <div class="modal-cover-meta" id="entryCoverMeta"></div>
       </div>
       <h2 id="entryModalTitle">Add entry</h2>
+      <!-- Where the cover's metadata line and source/store links go when
+           there is no cover to sit under (see renderMediaLinks in app.js). -->
+      <div class="pick-meta" id="entryMetaRow"></div>
+      <div class="pick-links" id="entryLinks"></div>
       <form id="entryForm">
         <input type="hidden" id="entryId" />
         <input type="hidden" id="entryFromBacklog" />
@@ -188,6 +192,18 @@
             <textarea id="fNotes" rows="3" placeholder="Optional thoughts, review…"></textarea>
           </label>
         </div>
+        <details class="advanced" id="fAdvanced">
+          <summary>Advanced</summary>
+          <p class="hint">Tick a field to keep your own value. Syncing this entry again will then leave it alone instead of overwriting it.</p>
+          <div class="ovr">
+            <label class="ovr-head"><input type="checkbox" id="fOvrCover" /> Cover image URL</label>
+            <input id="fOvrCoverUrl" type="url" placeholder="https://…" autocomplete="off" spellcheck="false" disabled />
+          </div>
+          <div class="ovr">
+            <label class="ovr-head"><input type="checkbox" id="fOvrLength" /> Length</label>
+            <input id="fOvrLengthValue" type="text" placeholder="e.g. 12 h, 3 seasons" autocomplete="off" disabled />
+          </div>
+        </details>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteEntryBtn" hidden>Delete</button>
           <button type="button" class="btn" id="moveToBacklogBtn" hidden>Move to backlog</button>
@@ -259,6 +275,10 @@
         <div class="modal-cover-meta" id="backlogCoverMeta"></div>
       </div>
       <h2 id="backlogModalTitle">Add to backlog</h2>
+      <!-- Where the cover's metadata line and source/store links go when
+           there is no cover to sit under (see renderMediaLinks in app.js). -->
+      <div class="pick-meta" id="backlogMetaRow"></div>
+      <div class="pick-links" id="backlogLinks"></div>
       <form id="backlogForm">
         <input type="hidden" id="backlogId" />
         <input type="hidden" id="bCoverUrl" />
@@ -304,6 +324,34 @@
         <label>Notes
           <textarea id="bNotes" rows="3" placeholder="Optional thoughts, why it's on your list…"></textarea>
         </label>
+        <details class="advanced" id="bAdvanced">
+          <summary>Advanced</summary>
+          <p class="hint">Tick a field to keep your own value. Syncing this item, a bulk sync, and the 🔭 release re-check will then all leave it alone instead of overwriting it.</p>
+          <div class="ovr">
+            <label class="ovr-head"><input type="checkbox" id="bOvrRelease" /> Release date</label>
+            <div class="ovr-row">
+              <input id="bOvrReleaseDate" type="text" placeholder="2027-05-14" autocomplete="off" disabled />
+              <select id="bOvrReleaseStatus" disabled>
+                <option value="">Status: auto</option>
+                <option value="upcoming">Upcoming</option>
+                <option value="released">Released</option>
+              </select>
+            </div>
+            <p class="hint">Precision follows what you type — <code>2027-05-14</code>, <code>2027-05</code>, <code>2027-Q1</code> or <code>2027</code>. Blank means TBA.</p>
+          </div>
+          <div class="ovr">
+            <label class="ovr-head"><input type="checkbox" id="bOvrCover" /> Cover image URL</label>
+            <input id="bOvrCoverUrl" type="url" placeholder="https://…" autocomplete="off" spellcheck="false" disabled />
+          </div>
+          <div class="ovr">
+            <label class="ovr-head"><input type="checkbox" id="bOvrRating" /> Rating</label>
+            <input id="bOvrRatingValue" type="text" placeholder="e.g. 8.4" autocomplete="off" disabled />
+          </div>
+          <div class="ovr">
+            <label class="ovr-head"><input type="checkbox" id="bOvrLength" /> Length</label>
+            <input id="bOvrLengthValue" type="text" placeholder="e.g. 12 h, 3 seasons" autocomplete="off" disabled />
+          </div>
+        </details>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteBacklogBtn" hidden>Delete</button>
           <button type="button" class="btn" id="toggleDroppedBtn">Mark as dropped</button>
@@ -1034,16 +1082,16 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.99.4"></script>
-  <script defer src="src/media.js?v=0.99.4"></script>
-  <script defer src="src/merge.js?v=0.99.4"></script>
-  <script defer src="src/storage.js?v=0.99.4"></script>
-  <script defer src="src/finance.js?v=0.99.4"></script>
-  <script defer src="src/settings.js?v=0.99.4"></script>
-  <script defer src="src/backlog.js?v=0.99.4"></script>
-  <script defer src="src/journal.js?v=0.99.4"></script>
-  <script defer src="src/io.js?v=0.99.4"></script>
-  <script defer src="src/sync.js?v=0.99.4"></script>
-  <script defer src="src/app.js?v=0.99.4"></script>
+  <script defer src="src/qr.js?v=0.100.0"></script>
+  <script defer src="src/media.js?v=0.100.0"></script>
+  <script defer src="src/merge.js?v=0.100.0"></script>
+  <script defer src="src/storage.js?v=0.100.0"></script>
+  <script defer src="src/finance.js?v=0.100.0"></script>
+  <script defer src="src/settings.js?v=0.100.0"></script>
+  <script defer src="src/backlog.js?v=0.100.0"></script>
+  <script defer src="src/journal.js?v=0.100.0"></script>
+  <script defer src="src/io.js?v=0.100.0"></script>
+  <script defer src="src/sync.js?v=0.100.0"></script>
+  <script defer src="src/app.js?v=0.100.0"></script>
 </body>
 </html>

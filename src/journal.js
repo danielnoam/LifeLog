@@ -11,7 +11,9 @@
     emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
-    rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons,
+    rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
+    isOverridden, sanitizeOverrides, initOverrideFields, refreshOverrideFields,
+    pushOverrideValues, readOverrideChecks,
     applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
     DEFAULT_SETTINGS, jumpToTimelineMonth;
 
@@ -20,7 +22,9 @@
       emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
       attachLongPressSelect, animatedNumberText, barRow, fillSelect,
       fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
-      rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons,
+      rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
+    isOverridden, sanitizeOverrides, initOverrideFields, refreshOverrideFields,
+    pushOverrideValues, readOverrideChecks,
       applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
       DEFAULT_SETTINGS, jumpToTimelineMonth } = ctx);
   }
@@ -206,10 +210,12 @@
             lastErr = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || lastErr;
           } else {
             const r = results[0];
-            item.coverUrl = r.coverUrl || "";
+            // Fields pinned in the entry's Advanced foldout are left alone.
+            if (!isOverridden(item, "cover")) item.coverUrl = r.coverUrl || "";
             // TMDB needs a second per-title call for runtime/season data — the
             // search endpoint doesn't include it (see fetchLength in media.js).
-            item.length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+            const syncedLength = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+            if (!isOverridden(item, "length")) item.length = syncedLength;
             if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
             const resolved = await resolveMediaIdentity(r, keys);
             item.mediaSource = resolved.mediaSource;
@@ -595,7 +601,16 @@
     const genresSrc = editing ? (entry.genres || []) : (fromBacklog ? (fromBacklog.genres || []) : []);
     lastSyncedEntryTitle = editing ? entry.title : (fromBacklog ? fromBacklog.title : "");
     entrySyncLocked = !!mediaSrc;
+    // Seeded before setEntryCover, which honours whatever is pinned here —
+    // an entry being opened fresh has nothing pinned until its own ticks are
+    // read back below.
+    $("#fOvrCover").checked = false;
+    $("#fOvrLength").checked = false;
     setEntryCover(coverSrc, mediaId, mediaSrc, lengthSrc, genresSrc);
+    initOverrideFields(OVERRIDE_FIELDS, editing ? entry : null);
+    // Open when something is pinned, so it isn't invisible — see the same
+    // call in openBacklogModal.
+    $("#fAdvanced").open = !!(editing && entry.overrides);
     $("#fSteamAppId").value = mediaSrc === "steam" ? mediaId : "";
     updateSyncBtnVisibility("f", $("#fCategory").value);
     $("#fTitleSuggest").hidden = true;
@@ -889,21 +904,55 @@
     if (steamField) steamField.hidden = !isSteam;
   }
 
+  // An entry has no release date of its own — it's dated by when you
+  // finished the thing, which you set by hand and no sync ever touches — so
+  // only the two fields a sync does rewrite are pinnable here. Same shape
+  // as the backlog's spec; see app.js for what pull/push are for.
+  const OVERRIDE_KEYS = ["cover", "length"];
+  const OVERRIDE_FIELDS = [
+    {
+      key: "cover", check: "#fOvrCover", inputs: ["#fOvrCoverUrl"],
+      pull() { $("#fOvrCoverUrl").value = $("#fCoverUrl").value; },
+      push() { $("#fCoverUrl").value = $("#fOvrCoverUrl").value.trim(); },
+    },
+    {
+      key: "length", check: "#fOvrLength", inputs: ["#fOvrLengthValue"],
+      pull() { $("#fOvrLengthValue").value = $("#fLength").value; },
+      push() { $("#fLength").value = $("#fOvrLengthValue").value.trim(); },
+    },
+  ];
+
+  function isPinned(key) {
+    const box = $("#fOvr" + key.charAt(0).toUpperCase() + key.slice(1));
+    return !!(box && box.checked);
+  }
+
   function setEntryCover(coverUrl, mediaId, mediaSource, length, genres) {
-    $("#fCoverUrl").value = coverUrl || "";
+    // A pinned field ignores whatever is being set here — this is the one
+    // place every sync path in this module funnels its results through.
+    if (!isPinned("cover")) $("#fCoverUrl").value = coverUrl || "";
     $("#fMediaId").value = mediaId || "";
     $("#fMediaSource").value = mediaSource || "";
-    $("#fLength").value = length || "";
+    if (!isPinned("length")) $("#fLength").value = length || "";
     $("#fGenres").value = (genres || []).join("|");
     const coverDiv = $("#entryCover");
     const coverImg = $("#entryCoverImg");
-    const meta = $("#entryCoverMeta");
-    meta.innerHTML = "";
-    if (length) meta.appendChild(el("span", "bl-meta", length));
-    coverImg.onerror = () => { coverDiv.hidden = true; };
-    if (coverUrl) { coverImg.src = coverUrl; coverDiv.hidden = false; }
-    else { coverDiv.hidden = true; coverImg.src = ""; }
-    renderCoverLinkButtons($("#entryCoverLinks"), mediaSource, mediaId);
+    const shownCover = $("#fCoverUrl").value;
+    const shownLength = $("#fLength").value;
+    refreshOverrideFields(OVERRIDE_FIELDS);
+    // The length line and the store links describe the entry, not its
+    // artwork, so they move to a plain row under the title when there's no
+    // cover to sit under — including when the cover URL is a dead image and
+    // the block below hides itself.
+    const paint = (hasCover) => {
+      const coverMeta = $("#entryCoverMeta"), rowMeta = $("#entryMetaRow");
+      coverMeta.innerHTML = ""; rowMeta.innerHTML = "";
+      if (shownLength) (hasCover ? coverMeta : rowMeta).appendChild(el("span", "bl-meta", shownLength));
+      renderMediaLinks($("#entryCoverLinks"), $("#entryLinks"), hasCover, mediaSource, mediaId);
+    };
+    coverImg.onerror = () => { coverDiv.hidden = true; paint(false); };
+    if (shownCover) { coverImg.src = shownCover; coverDiv.hidden = false; paint(true); }
+    else { coverDiv.hidden = true; coverImg.src = ""; paint(false); }
     showSyncStatus("f", mediaSource);
   }
 
@@ -1023,6 +1072,10 @@
 
   async function saveEntryFromForm(ev) {
     ev.preventDefault();
+    // Ticked overrides land in the hidden fields first, so everything below
+    // reads one set of values (see saveBacklogFromForm for the same move).
+    pushOverrideValues(OVERRIDE_FIELDS);
+    const overrides = readOverrideChecks(OVERRIDE_FIELDS);
     const id = $("#entryId").value;
     const fromBacklogId = $("#entryFromBacklog").value;
     const backlogItem = fromBacklogId ? state.data.backlog.find((b) => b.id === fromBacklogId) : null;
@@ -1056,6 +1109,7 @@
       if (mediaSource) e.mediaSource = mediaSource; else delete e.mediaSource;
       if (length) e.length = length; else delete e.length;
       if (genres.length) e.genres = genres; else delete e.genres;
+      if (overrides) e.overrides = overrides; else delete e.overrides;
       if (backlogItem) e.backlogAddedAt = backlogItem.createdAt || null;
     } else {
       const newEntry = {
@@ -1071,6 +1125,7 @@
       if (mediaSource) newEntry.mediaSource = mediaSource;
       if (length) newEntry.length = length;
       if (genres.length) newEntry.genres = genres;
+      if (overrides) newEntry.overrides = overrides;
       if (backlogItem) newEntry.backlogAddedAt = backlogItem.createdAt || null;
       state.data.entries.push(newEntry);
     }
@@ -1295,6 +1350,8 @@
     if (e.length) out.length = e.length;
     if (Array.isArray(e.genres) && e.genres.length) out.genres = e.genres.map((g) => String(g)).slice(0, 4);
     if (e.backlogAddedAt) out.backlogAddedAt = e.backlogAddedAt;
+    const overrides = sanitizeOverrides(e.overrides, OVERRIDE_KEYS);
+    if (overrides) out.overrides = overrides;
     // Optional multi-month span: a start earlier than the anchor {year, month}
     // (the month the entry is filed under — where it finished). Kept only when
     // both parts are present and strictly before the anchor; missing, equal, or
@@ -1334,6 +1391,16 @@
     $("#fUnsyncBtn").onclick = unsyncEntry;
     $("#fBacklogUnlinkBtn").onclick = () => { $("#entryFromBacklog").value = ""; updateBacklogLinkBanner(); };
     $("#fSteamAppId").oninput = () => applySteamAppId("f");
+    OVERRIDE_FIELDS.forEach((f) => { $(f.check).onchange = () => refreshOverrideFields(OVERRIDE_FIELDS); });
+    // Live preview for a pasted cover, same as the backlog modal's.
+    $("#fOvrCoverUrl").oninput = () => {
+      if (!isPinned("cover")) return;
+      // Written straight to the form field, since setEntryCover deliberately
+      // refuses to write a pinned one from its argument.
+      $("#fCoverUrl").value = $("#fOvrCoverUrl").value.trim();
+      setEntryCover($("#fCoverUrl").value, $("#fMediaId").value, $("#fMediaSource").value,
+        $("#fLength").value, $("#fGenres").value ? $("#fGenres").value.split("|") : []);
+    };
     $("#fRating").querySelectorAll(".star").forEach((s) => {
       s.onclick = () => {
         const v = parseInt(s.dataset.star, 10);

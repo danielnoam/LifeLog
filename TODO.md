@@ -8,6 +8,18 @@ todo:
 
 done:
 
+- per-item sync overrides + store links without a cover. The links lived in
+  an overlay inside the cover block, so anything without artwork (or with a
+  cover URL that 404s, which hides the block via onerror) lost them; they now
+  fall back to a row under the modal title, metadata included. The Advanced
+  foldout stores `overrides: { release: true, … }` on the item and every sync
+  path checks it — the two in-modal ones read the checkboxes directly, the
+  bulk syncs and the 🔭 re-check read the saved item. The generic pull/push
+  plumbing is in app.js; each modal supplies its own field spec so compound
+  fields (a release date is a date + precision + status + year behind one
+  tick) stay next to the parsing they need.
+
+
 - game release dates, three holes at once. (1) searchSteamGridDB never read
   the `release_date` SGDB returns on every search hit, so every SteamGridDB
   match landed with no date and no year — releaseFromSgdb() now parses it,

@@ -45,7 +45,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.99.7"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.100.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1080,12 +1080,19 @@
   // only for Steam-sourced items, only once resolved — one to GG.deals.
   // Each only ever appears once an actual URL is known; nothing renders
   // for an item with no connection or a source this can't link out to.
+  let linkRenderSeq = 0;
   function renderCoverLinkButtons(container, mediaSource, mediaId) {
     if (!container) return;
     container.innerHTML = "";
     if (!mediaSource || !mediaId) return;
+    // The GG.deals button can only be added once a price lookup comes back,
+    // by which time this container may have been re-rendered for a different
+    // item (or moved, below) — so a late arrival checks it is still filling
+    // the render it was started for rather than appending a stray button.
+    const stamp = String(++linkRenderSeq);
+    container.dataset.linkRender = stamp;
     const addLink = (label, url) => {
-      if (!url) return;
+      if (!url || container.dataset.linkRender !== stamp) return;
       const a = document.createElement("a");
       a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
       a.className = "cover-link-btn";
@@ -1101,6 +1108,78 @@
         Sync.loadBacklogPrices([{ mediaSource, mediaId }]).then(() => addLink("GG.deals", Sync.ggDealsPageUrl(mediaId)));
       }
     }
+  }
+
+  // Which of a modal's two link rows gets filled. The overlay row sits inside
+  // the cover block, which is hidden for an item with no artwork — and for
+  // one whose cover URL turns out to be a dead image — so the links used to
+  // disappear along with a picture they have nothing to do with. They fall
+  // back to a plain row under the modal title instead. Only one row is ever
+  // filled; the other is emptied, so nothing shows twice.
+  function renderMediaLinks(overlayEl, rowEl, hasCover, mediaSource, mediaId) {
+    const other = hasCover ? rowEl : overlayEl;
+    if (other) other.innerHTML = "";
+    renderCoverLinkButtons(hasCover ? overlayEl : rowEl, mediaSource, mediaId);
+  }
+
+  // ---------- per-item sync overrides ----------
+  // Media metadata is re-fetched freely — a bulk sync, a re-pick, the 🔭
+  // release re-check — and every refresh rewrites whatever it finds. That is
+  // the point, right up until a source is simply wrong about something and
+  // you want your own value to stick. Ticking a field in a modal's Advanced
+  // foldout records it here as `overrides: { release: true, … }`, and every
+  // sync path writes around the ticked ones. Absent on items that never use
+  // it, so nothing changes for anything that doesn't.
+  function isOverridden(item, key) {
+    return !!(item && item.overrides && item.overrides[key]);
+  }
+
+  // Kept as an object rather than a list so it reads the same as it stores;
+  // dropped entirely when nothing is ticked, so an item that has never used
+  // the foldout stays byte-identical to how it saved before this existed.
+  function sanitizeOverrides(overrides, keys) {
+    const out = {};
+    for (const key of keys) if (overrides && overrides[key]) out[key] = true;
+    return Object.keys(out).length ? out : null;
+  }
+
+  // The four functions below drive a modal's foldout from a spec its own
+  // module supplies — one entry per overridable field, each naming its
+  // checkbox and value inputs plus a `pull` (copy the current synced value
+  // into the foldout) and a `push` (copy the ticked value back into the form
+  // the save reads). Keeping pull/push with the module means a compound
+  // field like a release date — a date, a precision and a status behind one
+  // tick — stays where its parsing lives, and this stays generic.
+
+  // Modal open: show every field's current value, tick what the item has
+  // pinned. Pulls even the ticked ones, since on open the stored value *is*
+  // the pinned value.
+  function initOverrideFields(spec, item) {
+    spec.forEach((f) => { f.pull(); $(f.check).checked = isOverridden(item, f.key); });
+    refreshOverrideFields(spec);
+  }
+
+  // After anything repaints the form (a sync landing, a tick changing): an
+  // unticked field follows whatever the sync now says, a ticked one is left
+  // showing what you typed.
+  function refreshOverrideFields(spec) {
+    spec.forEach((f) => {
+      const on = $(f.check).checked;
+      f.inputs.forEach((id) => { const input = $(id); if (input) input.disabled = !on; });
+      if (!on) f.pull();
+    });
+  }
+
+  // Save: ticked fields overwrite the form's synced values, so the rest of
+  // the save path reads them without knowing any of this happened.
+  function pushOverrideValues(spec) {
+    spec.forEach((f) => { if ($(f.check).checked) f.push(); });
+  }
+
+  function readOverrideChecks(spec) {
+    const out = {};
+    spec.forEach((f) => { if ($(f.check).checked) out[f.key] = true; });
+    return Object.keys(out).length ? out : null;
   }
 
   function toggleBulkMode() {
@@ -2128,7 +2207,7 @@
     sanitizeEntry: Journal.sanitizeEntry, sanitizeBacklog: Backlog.sanitizeBacklog,
   });
   Sync.init({
-    state, $, toast, persist, render, afterDataChange, DEFAULT_SETTINGS,
+    state, $, toast, persist, render, afterDataChange, DEFAULT_SETTINGS, isOverridden,
     buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport,
     setBacklogCover: Backlog.setBacklogCover, setEntryCover: Journal.setEntryCover,
   });
@@ -2153,7 +2232,9 @@
     emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
-    rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons,
+    rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
+    isOverridden, sanitizeOverrides, initOverrideFields, refreshOverrideFields,
+    pushOverrideValues, readOverrideChecks,
     applySteamAppId: Sync.applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
     DEFAULT_SETTINGS, jumpToTimelineMonth,
   });
@@ -2171,7 +2252,9 @@
     resolveMediaIdentity: Journal.resolveMediaIdentity,
     updateSyncBtnVisibility: Journal.updateSyncBtnVisibility,
     showSyncStatus: Journal.showSyncStatus,
-    renderCoverLinkButtons, loadBacklogPrices: Sync.loadBacklogPrices, applySteamAppId: Sync.applySteamAppId,
+    renderCoverLinkButtons, renderMediaLinks, isOverridden, sanitizeOverrides,
+    initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
+    loadBacklogPrices: Sync.loadBacklogPrices, applySteamAppId: Sync.applySteamAppId,
     backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS,
   });
   Finance.init({
