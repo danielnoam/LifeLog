@@ -10,7 +10,7 @@ const Media = global.window.LifeLogMedia;
 
 const {
   steamCoverUrl, normGenres, stripHtml,
-  parseSteamReleaseDate, releaseFromString, releaseFromParts, mergeRelease,
+  parseSteamReleaseDate, releaseFromString, releaseFromParts, releaseFromSgdb, mergeRelease,
 } = Media;
 
 let passed = 0;
@@ -95,6 +95,31 @@ test("releaseFromParts takes precision from which parts are present", () => {
   assert.deepStrictEqual(releaseFromParts(2026, 3, null), { releaseDate: "2026-03", releasePrecision: "month" });
   assert.deepStrictEqual(releaseFromParts(2026, null, null), { releaseDate: "2026", releasePrecision: "year" });
   assert.deepStrictEqual(releaseFromParts(null, null, null), { releaseDate: "", releasePrecision: "tba" });
+});
+
+// ---------- releaseFromSgdb ----------
+// SteamGridDB dates a game with one `release_date` field. It's documented as
+// unix seconds, but the parser also has to survive a milliseconds value and
+// the odd plain string without turning either into a 1970 release.
+test("releaseFromSgdb reads a unix-seconds timestamp as a day", () => {
+  // 2022-08-11 in local time, whatever zone the test runs in
+  const sec = Math.floor(new Date(2022, 7, 11, 12, 0, 0).getTime() / 1000);
+  assert.deepStrictEqual(releaseFromSgdb(sec), { releaseDate: "2022-08-11", releasePrecision: "day" });
+});
+
+test("releaseFromSgdb treats an out-of-range value as milliseconds", () => {
+  const ms = new Date(2022, 7, 11, 12, 0, 0).getTime();
+  assert.deepStrictEqual(releaseFromSgdb(ms), { releaseDate: "2022-08-11", releasePrecision: "day" });
+});
+
+test("releaseFromSgdb falls back to string parsing, and to tba for the rest", () => {
+  assert.deepStrictEqual(releaseFromSgdb("2026-03"), { releaseDate: "2026-03", releasePrecision: "month" });
+  const tba = { releaseDate: "", releasePrecision: "tba" };
+  assert.deepStrictEqual(releaseFromSgdb(null), tba);
+  assert.deepStrictEqual(releaseFromSgdb(undefined), tba);
+  assert.deepStrictEqual(releaseFromSgdb(0), tba);
+  assert.deepStrictEqual(releaseFromSgdb(-1), tba);
+  assert.deepStrictEqual(releaseFromSgdb("soon"), tba);
 });
 
 // ---------- parseSteamReleaseDate ----------

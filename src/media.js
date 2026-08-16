@@ -92,6 +92,23 @@
     return out;
   }
 
+  // SteamGridDB dates a game with a single `release_date` field, documented
+  // as a unix timestamp in seconds — but a value that large is easy to ship
+  // in milliseconds by mistake, and some entries carry a plain date string
+  // instead, so all three shapes are accepted and anything else is treated
+  // as "no date" rather than turned into 1970. SGDB only ever knows the day
+  // a game came out, never a coarser "Q1 2026", so a timestamp is always
+  // day precision.
+  function releaseFromSgdb(raw) {
+    if (typeof raw === "string") return releaseFromString(raw);
+    const n = Number(raw);
+    if (!n || !isFinite(n) || n <= 0) return { releaseDate: "", releasePrecision: "tba" };
+    // Anything past the year ~2286 in seconds is really milliseconds.
+    const sec = n > 1e11 ? Math.floor(n / 1000) : n;
+    const dateStr = unixToDateStr(sec);
+    return dateStr ? { releaseDate: dateStr, releasePrecision: "day" } : { releaseDate: "", releasePrecision: "tba" };
+  }
+
   // AniList times airings as a unix timestamp; read back through local
   // calendar fields (not toISOString) so an evening airing doesn't land on
   // the previous day for anyone west of UTC.
@@ -535,11 +552,15 @@
             coverUrl = (gridData.success && gridData.data && gridData.data[0] && (gridData.data[0].thumb || gridData.data[0].url)) || "";
           }
         } catch (e) { /* missing cover isn't fatal — the title match still stands */ }
+        // SGDB's autocomplete does date each game — it just wasn't being
+        // read, so every SteamGridDB match used to land with no date at all.
+        const release = releaseFromSgdb(g.release_date);
         return {
           id: String(g.id),
           title: g.name || "",
           coverUrl,
-          year: null,
+          year: release.releaseDate ? parseInt(release.releaseDate, 10) : null,
+          ...release,
           summary: "",
           externalRating: "",
           source: "steamgriddb",
@@ -562,29 +583,75 @@
     return results.map((r) => ({ ...r, source: "steamgriddb-steam-gg" }));
   }
 
-  // A SteamGridDB pick is only half an identity: its game id is SGDB's own,
-  // so an item tagged with it gets no Steam store link and no GG.deals price
-  // (both are keyed on a Steam App ID). SGDB knows the mapping though — the
-  // per-game endpoint returns each storefront's id under external_platform_data
-  // when asked for it via ?platformdata=steam. Same CORS proxy as the search.
-  // Returns "" for games SGDB has no Steam listing for (plenty are itch.io or
-  // console-only), which leaves the item on its plain SteamGridDB identity.
-  async function fetchSteamGridDbSteamAppId(sgdbId, apiKey, proxyUrl) {
-    if (!apiKey || !proxyUrl || !sgdbId) return "";
+  // One SteamGridDB game by its SGDB id, asked for with its storefront ids
+  // attached (?platformdata=steam). Same CORS proxy as the search. Returns
+  // null if it can't be fetched — every caller treats that as "SGDB has
+  // nothing more to say", never as an error worth surfacing.
+  async function fetchSteamGridDbGame(sgdbId, apiKey, proxyUrl) {
+    if (!apiKey || !proxyUrl || !sgdbId) return null;
     try {
       const url = proxyUrl + "/steamgriddb/games/id/" + encodeURIComponent(sgdbId) + "?platformdata=steam";
       const res = await fetch(url, { headers: { Authorization: "Bearer " + apiKey } });
-      if (!res.ok) return "";
+      if (!res.ok) return null;
       const data = await res.json();
-      if (!data || !data.success) return "";
+      if (!data || !data.success) return null;
       // `data.data` is documented as the game object, but the endpoint has
       // also been seen answering with a single-element array — both shapes
       // are cheap to accept, and guessing wrong just silently loses the id.
-      const game = Array.isArray(data.data) ? data.data[0] : data.data;
-      const steam = game && game.external_platform_data && game.external_platform_data.steam;
-      const appId = steam && steam[0] && steam[0].id;
-      return appId ? String(appId) : "";
-    } catch (e) { return ""; }
+      return (Array.isArray(data.data) ? data.data[0] : data.data) || null;
+    } catch (e) { return null; }
+  }
+
+  // A SteamGridDB pick is only half an identity: its game id is SGDB's own,
+  // so an item tagged with it gets no Steam store link and no GG.deals price
+  // (both are keyed on a Steam App ID). SGDB knows the mapping though, and
+  // returns it under external_platform_data. Returns "" for games SGDB has
+  // no Steam listing for (plenty are itch.io or console-only), which leaves
+  // the item on its plain SteamGridDB identity.
+  async function fetchSteamGridDbSteamAppId(sgdbId, apiKey, proxyUrl) {
+    const game = await fetchSteamGridDbGame(sgdbId, apiKey, proxyUrl);
+    const steam = game && game.external_platform_data && game.external_platform_data.steam;
+    const appId = steam && steam[0] && steam[0].id;
+    return appId ? String(appId) : "";
+  }
+
+  // Re-check by SGDB id, for a backlog item still waiting on a release (see
+  // fetchRelease below). Without this, a SteamGridDB-sourced item was one of
+  // the ones the 🔭 re-check had to skip for having "no lookup by id".
+  async function fetchSteamGridDbRelease(sgdbId, apiKey, proxyUrl) {
+    const game = await fetchSteamGridDbGame(sgdbId, apiKey, proxyUrl);
+    if (!game) return null;
+    const rel = releaseFromSgdb(game.release_date);
+    return rel.releaseDate ? rel : null;
+  }
+
+  // Once a game has a Steam App ID, Steam itself is the best source for when
+  // it comes out — RAWG dates a game by its *earliest* platform release
+  // (often a console version years before the PC one), and SteamGridDB dates
+  // it by whatever its own entry says. Steam also states outright whether a
+  // game is out yet (coming_soon) and is happy to be vague in the honest way
+  // ("Q1 2026") where the others invent a specific day. Deliberately no 429
+  // retry loop, unlike the wishlist import's copy of this in sync.js: that
+  // one walks a whole wishlist and gets rate-limited partway through, this is
+  // a single lookup behind one pick. Returns null if it can't say.
+  async function fetchSteamRelease(appId, proxyUrl) {
+    if (!appId || !proxyUrl) return null;
+    try {
+      const res = await fetch(proxyUrl + "/steam-appdetails/" + encodeURIComponent(appId));
+      if (!res.ok) return null;
+      const data = await res.json();
+      const entry = data && data[appId];
+      if (!entry || !entry.success || !entry.data) return null;
+      const rd = entry.data.release_date || {};
+      return {
+        ...parseSteamReleaseDate(rd.date),
+        // Only when Steam actually stated it — a missing release_date block
+        // is "we don't know", not "it's out".
+        ...(typeof rd.coming_soon === "boolean"
+          ? { releaseStatus: rd.coming_soon ? "upcoming" : "released" }
+          : {}),
+      };
+    } catch (e) { return null; }
   }
 
   // Steam's own storesearch API has no CORS allowance for third-party origins,
@@ -720,10 +787,13 @@
     // for sources with no id-based lookup worth making — books and music
     // effectively never sit in a backlog waiting to come out, and re-running
     // a title search for them risks matching a different edition entirely.
-    async fetchRelease(id, source, keys) {
+    async fetchRelease(id, source, keys, proxyUrl) {
       lastError = "";
       if (source === "rawg" || source === "rawg-steam-gg") return fetchRawgRelease(id, (keys && keys.rawg) || "");
       if (source === "anilist-anime" || source === "anilist-manga") return fetchAniListRelease(id);
+      if (source === "steamgriddb" || source === "steamgriddb-steam-gg") {
+        return fetchSteamGridDbRelease(id, (keys && keys.steamgriddb) || "", proxyUrl || "");
+      }
       if (source === "tmdb-movie" || source === "tmdb-tv") {
         const d = await fetchTmdbDetails(id, source === "tmdb-movie" ? "movie" : "tv", (keys && keys.tmdb) || "");
         return d.releasePrecision || d.releaseStatus || d.nextAt ? d : null;
@@ -736,6 +806,9 @@
     async fetchSteamGridDbSteamAppId(sgdbId, apiKey, proxyUrl) {
       return fetchSteamGridDbSteamAppId(sgdbId, apiKey, proxyUrl);
     },
+    async fetchSteamRelease(appId, proxyUrl) {
+      return fetchSteamRelease(appId, proxyUrl);
+    },
     async fetchAniListPlanning(userName, type) {
       lastError = "";
       return fetchAniListPlanning(userName, type);
@@ -746,6 +819,7 @@
     parseSteamReleaseDate,
     releaseFromString,
     releaseFromParts,
+    releaseFromSgdb,
     mergeRelease,
     normGenres,
     stripHtml,

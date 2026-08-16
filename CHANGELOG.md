@@ -4,6 +4,29 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.99.7] - 2026-08-16
+
+### Fixed
+- **Games get their release date right.** Three separate holes, all of which
+  showed up as a game with a missing or wrong date:
+  - A SteamGridDB match arrived with **no date at all** — SGDB dates every
+    game in its search response and the app simply wasn't reading the field.
+    It is now, so a SteamGridDB pick lands with a real release date and year.
+  - A game that resolves to a Steam App ID now takes **Steam's own date**.
+    RAWG dates a game by its *earliest* platform release — often a console
+    version years before the PC one — which is where most of the wrong years
+    came from. Steam also says outright whether a game is out yet, and is
+    honestly vague ("Q1 2026") where the other sources invent a specific day.
+  - 🔭 **Re-check upcoming release dates** now covers SteamGridDB items.
+    They were previously among the ones it had to skip for having "no lookup
+    by id", so a SteamGridDB game's date never refreshed once set.
+
+### Changed
+- **Tapping the tab you're already on scrolls back to the top**, the way every
+  mobile app's tab bar does. It previously re-rendered the view in place and,
+  because a same-view rebuild deliberately restores your scroll position, the
+  tap looked like it did nothing.
+
 ## [0.99.6] - 2026-08-16
 
 ### Added

@@ -484,7 +484,9 @@
       return info ? info.release : null;
     }
     if (!window.LifeLogMedia) return null;
-    return window.LifeLogMedia.fetchRelease(item.mediaId, item.mediaSource, keys);
+    // proxyUrl matters for SteamGridDB too — it's CORS-blocked direct, so
+    // without one there's nothing its re-check can call.
+    return window.LifeLogMedia.fetchRelease(item.mediaId, item.mediaSource, keys, proxyUrl);
   }
 
   // Writes fresh release info onto an item, returning whether anything

@@ -231,10 +231,14 @@
       // so the pick lands with everything the Next Releases list needs.
       const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys.tmdb);
       $("#bLength").value = details.length || r.length || "";
-      setReleaseFields(window.LifeLogMedia.mergeRelease(r, details));
       const resolved = await resolveMediaIdentity(r, keys);
       $("#bMediaSource").value = resolved.mediaSource;
       $("#bMediaId").value = resolved.mediaId;
+      // resolved.release goes last: for a game that turned out to be on Steam,
+      // Steam's own date beats what the search source guessed (see
+      // resolveMediaIdentity). It's null for everything else, and mergeRelease
+      // ignores nulls.
+      setReleaseFields(window.LifeLogMedia.mergeRelease(r, details, resolved.release));
       setBacklogCover();
       updateBacklogDuplicateBanner();
       list.hidden = true;
@@ -832,11 +836,13 @@
             // and the same response carries the status/next-episode dates.
             const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys.tmdb);
             item.length = details.length || r.length || "";
-            applyRelease(item, window.LifeLogMedia.mergeRelease(r, details));
             if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
             const resolved = await resolveMediaIdentity(r, keys);
             item.mediaSource = resolved.mediaSource;
             item.mediaId = resolved.mediaId;
+            // Steam's own date last, where the game turned out to be on Steam
+            // — same ordering as the single-item pick above.
+            applyRelease(item, window.LifeLogMedia.mergeRelease(r, details, resolved.release));
             synced++;
           }
         }

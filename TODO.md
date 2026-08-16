@@ -8,6 +8,26 @@ todo:
 
 done:
 
+- game release dates, three holes at once. (1) searchSteamGridDB never read
+  the `release_date` SGDB returns on every search hit, so every SteamGridDB
+  match landed with no date and no year — releaseFromSgdb() now parses it,
+  defensively (unix seconds, a milliseconds value, or a plain string; anything
+  else is tba rather than a 1970 release). (2) A game that resolves to a Steam
+  App ID now takes Steam's own date via appdetails: RAWG dates by *earliest
+  platform*, which is where the wrong years came from, and Steam is the only
+  one of the three that admits to "Q1 2026" instead of inventing a day.
+  resolveMediaIdentity returns it as `release` and the backlog merges it last
+  so it wins ties; the journal ignores it (an entry is dated by when you
+  finished the thing). (3) fetchRelease now handles steamgriddb, so those
+  items stop being skipped by the 🔭 re-check — needed a proxyUrl arg, since
+  SGDB is CORS-blocked direct. fetchSteamGridDbSteamAppId and the new
+  release lookup share one fetchSteamGridDbGame().
+
+- tapping the active tab scrolls to top. It used to call switchToView with the
+  view it was already on, and render() restores scroll on a same-view rebuild
+  by design, so the tap was a visible no-op. Handled in the tab click handler
+  rather than inside switchToView, which the swipe gesture also calls.
+
 - "SteamGridDB + Steam + GG.deals" as its own source, mirroring the RAWG
   combo, + the same bulk-sync silent-failure fix. v0.99.5 had made *every*
   SteamGridDB match resolve an App ID, which left no way to ask for just the

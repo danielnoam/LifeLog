@@ -697,20 +697,32 @@
   // a combo result is just a RAWG or a SteamGridDB match, and storing it
   // under the combo key would only give the rest of the app a mediaSource it
   // has no page URL for.
+  // Also returns `release` — Steam's own release info for whatever App ID it
+  // landed on, or null. A game's date is the one field these sources are
+  // worst at: RAWG dates by earliest platform (a console release years before
+  // the PC one), SGDB by whatever its entry says, and neither will admit to a
+  // vague "Q1 2026" the way Steam does. Callers that store release fields
+  // (the backlog) merge it last so it wins; the journal ignores it, since a
+  // timeline entry is dated by when *you* finished the thing.
   async function resolveMediaIdentity(r, keys) {
-    const plain = { mediaSource: r.source || "", mediaId: r.id || "" };
+    const plain = { mediaSource: r.source || "", mediaId: r.id || "", release: null };
     if (!window.LifeLogMedia) return plain;
+    const proxyUrl = (state.data.settings.steam?.proxyUrl || "").trim().replace(/\/+$/, "");
+    const onSteam = async (appId) => ({
+      mediaSource: "steam",
+      mediaId: appId,
+      release: await window.LifeLogMedia.fetchSteamRelease(appId, proxyUrl),
+    });
     if (r.source === "rawg-steam-gg") {
       const appId = await window.LifeLogMedia.fetchRawgSteamAppId(r.id, keys.rawg);
-      return appId ? { mediaSource: "steam", mediaId: appId } : { mediaSource: "rawg", mediaId: r.id || "" };
+      return appId ? onSteam(appId) : { mediaSource: "rawg", mediaId: r.id || "", release: null };
     }
     if (r.source === "steamgriddb-steam-gg") {
-      const proxyUrl = (state.data.settings.steam?.proxyUrl || "").trim().replace(/\/+$/, "");
       const appId = await window.LifeLogMedia.fetchSteamGridDbSteamAppId(r.id, keys.steamgriddb, proxyUrl);
       // The SGDB grid art already on the result is kept either way — it's the
       // reason to use this source at all, and it's stored on the item
       // independently of which id ends up identifying it.
-      return appId ? { mediaSource: "steam", mediaId: appId } : { mediaSource: "steamgriddb", mediaId: r.id || "" };
+      return appId ? onSteam(appId) : { mediaSource: "steamgriddb", mediaId: r.id || "", release: null };
     }
     return plain;
   }

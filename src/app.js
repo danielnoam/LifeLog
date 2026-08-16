@@ -45,7 +45,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.99.6"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.99.7"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1763,7 +1763,19 @@
     document.addEventListener("pointerup", endDragPaint);
     document.addEventListener("pointercancel", endDragPaint);
     document.querySelectorAll(".tab").forEach((t) =>
-      t.onclick = (e) => { e.stopPropagation(); switchToView(t.dataset.view); });
+      t.onclick = (e) => {
+        e.stopPropagation();
+        // Tapping the tab you're already on scrolls back to the top, the way
+        // every mobile app's tab bar does. Without this it ran a full
+        // switchToView to the same view, and since render() deliberately
+        // restores scroll position on a same-view rebuild, the tap looked
+        // like it did nothing at all.
+        if (t.dataset.view === state.view) {
+          window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+          return;
+        }
+        switchToView(t.dataset.view);
+      });
     // The storage status doubles as a shortcut into Settings → Data, so its
     // hints ("Reconnect in Settings", "set up Data in Settings", "GitHub
     // rejected your token…") are one tap away from where you'd act on them.
