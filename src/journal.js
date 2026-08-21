@@ -214,7 +214,7 @@
             if (!isOverridden(item, "cover")) item.coverUrl = r.coverUrl || "";
             // TMDB needs a second per-title call for runtime/season data — the
             // search endpoint doesn't include it (see fetchLength in media.js).
-            const syncedLength = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+            const syncedLength = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys)) || r.length || "";
             if (!isOverridden(item, "length")) item.length = syncedLength;
             if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
             const resolved = await resolveMediaIdentity(r, keys);
@@ -713,31 +713,33 @@
   // under the combo key would only give the rest of the app a mediaSource it
   // has no page URL for.
   // Also returns `release` — Steam's own release info for whatever App ID it
-  // landed on, or null. A game's date is the one field these sources are
+  // landed on, or null — and `summary`, the store blurb from the same
+  // response (backlog items show it; the journal has no field for it). A game's date is the one field these sources are
   // worst at: RAWG dates by earliest platform (a console release years before
   // the PC one), SGDB by whatever its entry says, and neither will admit to a
   // vague "Q1 2026" the way Steam does. Callers that store release fields
   // (the backlog) merge it last so it wins; the journal ignores it, since a
   // timeline entry is dated by when *you* finished the thing.
   async function resolveMediaIdentity(r, keys) {
-    const plain = { mediaSource: r.source || "", mediaId: r.id || "", release: null };
+    const plain = { mediaSource: r.source || "", mediaId: r.id || "", release: null, summary: "" };
     if (!window.LifeLogMedia) return plain;
     const proxyUrl = (state.data.settings.steam?.proxyUrl || "").trim().replace(/\/+$/, "");
-    const onSteam = async (appId) => ({
-      mediaSource: "steam",
-      mediaId: appId,
-      release: await window.LifeLogMedia.fetchSteamRelease(appId, proxyUrl),
-    });
+    const onSteam = async (appId) => {
+      // One response, two answers: mergeRelease reads only the release keys
+      // off it, the summary is pulled out separately.
+      const details = await window.LifeLogMedia.fetchSteamDetails(appId, proxyUrl);
+      return { mediaSource: "steam", mediaId: appId, release: details, summary: (details && details.summary) || "" };
+    };
     if (r.source === "rawg-steam-gg") {
       const appId = await window.LifeLogMedia.fetchRawgSteamAppId(r.id, keys.rawg);
-      return appId ? onSteam(appId) : { mediaSource: "rawg", mediaId: r.id || "", release: null };
+      return appId ? onSteam(appId) : { mediaSource: "rawg", mediaId: r.id || "", release: null, summary: "" };
     }
     if (r.source === "steamgriddb-steam-gg") {
       const appId = await window.LifeLogMedia.fetchSteamGridDbSteamAppId(r.id, keys.steamgriddb, proxyUrl);
       // The SGDB grid art already on the result is kept either way — it's the
       // reason to use this source at all, and it's stored on the item
       // independently of which id ends up identifying it.
-      return appId ? onSteam(appId) : { mediaSource: "steamgriddb", mediaId: r.id || "", release: null };
+      return appId ? onSteam(appId) : { mediaSource: "steamgriddb", mediaId: r.id || "", release: null, summary: "" };
     }
     return plain;
   }
@@ -1056,7 +1058,7 @@
       $("#fTitle").value = r.title;
       lastSyncedEntryTitle = r.title;
       entrySyncLocked = true;
-      const length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys.tmdb)) || r.length || "";
+      const length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys)) || r.length || "";
       const { mediaId, mediaSource } = await resolveMediaIdentity(r, keys);
       setEntryCover(r.coverUrl, mediaId, mediaSource, length, r.genres || []);
       list.hidden = true;

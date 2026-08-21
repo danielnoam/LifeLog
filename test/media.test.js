@@ -9,7 +9,7 @@ require("../src/media.js");
 const Media = global.window.LifeLogMedia;
 
 const {
-  steamCoverUrl, normGenres, stripHtml,
+  steamCoverUrl, normGenres, stripHtml, firstParagraph, rawgMeta,
   parseSteamReleaseDate, releaseFromString, releaseFromParts, releaseFromSgdb, mergeRelease,
 } = Media;
 
@@ -68,6 +68,50 @@ test("stripHtml removes tags but keeps the text content", () => {
 test("stripHtml handles null/undefined input without throwing", () => {
   assert.strictEqual(stripHtml(null), "");
   assert.strictEqual(stripHtml(undefined), "");
+});
+
+test("stripHtml decodes the entities escaped text leaves behind", () => {
+  assert.strictEqual(stripHtml("<p>Baldur&#39;s Gate &amp; friends</p>"), "Baldur's Gate & friends");
+  assert.strictEqual(stripHtml("&lt;b&gt; stays text"), "<b> stays text");
+});
+
+// ---------- firstParagraph ----------
+test("firstParagraph keeps a short blurb as-is, collapsing whitespace", () => {
+  assert.strictEqual(firstParagraph("A short   blurb.\nSame paragraph."), "A short blurb. Same paragraph.");
+});
+
+test("firstParagraph stops at the first blank line", () => {
+  assert.strictEqual(firstParagraph("The blurb.\n\nAbout the game\n\nCredits"), "The blurb.");
+});
+
+test("firstParagraph cuts a long paragraph at a word boundary", () => {
+  const out = firstParagraph("word ".repeat(50), 40);
+  assert.ok(out.length <= 41, "stays within the cap: " + out.length);
+  assert.ok(out.endsWith("…"), "marks the cut: " + out);
+  assert.ok(!out.includes("wor…"), "doesn't cut mid-word: " + out);
+});
+
+test("firstParagraph handles empty/null input", () => {
+  assert.strictEqual(firstParagraph(null), "");
+  assert.strictEqual(firstParagraph(""), "");
+});
+
+// ---------- rawgMeta ----------
+test("rawgMeta prefers a Metacritic score over RAWG's own user rating", () => {
+  assert.deepStrictEqual(rawgMeta({ metacritic: 84, rating: 4.2, playtime: 12 }), {
+    externalRating: "84 Metacritic", length: "12 hrs",
+  });
+});
+
+test("rawgMeta falls back to the user rating as a percentage", () => {
+  assert.strictEqual(rawgMeta({ metacritic: null, rating: 3.8 }).externalRating, "76% users");
+});
+
+test("rawgMeta leaves rating and length empty when RAWG knows neither", () => {
+  // The usual state of an unreleased game — nobody has reviewed or played it.
+  assert.deepStrictEqual(rawgMeta({ metacritic: null, rating: 0, playtime: 0 }), {
+    externalRating: "", length: "",
+  });
 });
 
 // ---------- releaseFromString / releaseFromParts ----------

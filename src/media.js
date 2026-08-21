@@ -8,8 +8,27 @@
   // browser-side CORS rejections that never reach devtools-less users.
   let lastError = "";
 
+  // Tags out, then the handful of entities a source's escaped text can
+  // leave behind — Steam's short_description and AniList's description are both
+  // HTML, so "Baldur&#39;s Gate" would otherwise reach a backlog row verbatim.
+  const ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', "#39": "'", apos: "'", nbsp: " " };
   function stripHtml(s) {
-    return (s || "").replace(/<[^>]*>/g, "");
+    return (s || "")
+      .replace(/<[^>]*>/g, "")
+      .replace(/&(amp|lt|gt|quot|#39|apos|nbsp);/g, (m, name) => ENTITIES[name]);
+  }
+
+  // A store-page description is several paragraphs long; a backlog blurb is
+  // two clamped lines in the list and a short paragraph in the modals. This
+  // keeps the opening paragraph, cut at a word boundary, so a game item
+  // doesn't carry kilobytes of marketing copy through every GitHub sync.
+  function firstParagraph(text, max) {
+    const para = String(text || "").trim().split(/\n\s*\n/)[0].replace(/\s+/g, " ").trim();
+    const limit = max || 600;
+    if (para.length <= limit) return para;
+    const cut = para.slice(0, limit);
+    const sp = cut.lastIndexOf(" ");
+    return (sp > limit * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s.,;:—-]+$/, "") + "…";
   }
 
   // Normalizes any source's raw genre list into a deduped array of up to 4
@@ -168,6 +187,23 @@
     10763: "News", 10764: "Reality", 10765: "Sci-Fi & Fantasy", 10766: "Soap",
     10767: "Talk", 10768: "War & Politics", 37: "Western",
   };
+  // RAWG states a game's score in two different places and promises
+  // neither: `metacritic` exists only for games Metacritic actually
+  // reviewed, and `rating` only once RAWG's own users have scored one — an
+  // unannounced indie has neither, which is why a games backlog shows a mix
+  // of "84 Metacritic", "76% users" and nothing at all. `playtime` is the
+  // same story: an average of player-reported hours, 0 until enough people
+  // have logged one. Shared by the search and the per-game endpoints, which
+  // report all three identically.
+  function rawgMeta(g) {
+    return {
+      externalRating: g.metacritic
+        ? g.metacritic + " Metacritic"
+        : (g.rating ? Math.round(g.rating * 20) + "% users" : ""),
+      length: g.playtime ? g.playtime + " hrs" : "",
+    };
+  }
+
   async function searchRawg(title, apiKey) {
     if (!apiKey) return [];
     try {
@@ -188,11 +224,10 @@
         ...(g.tba
           ? { releaseDate: "", releasePrecision: "tba", releaseStatus: "upcoming" }
           : releaseFromString(g.released)),
+        // RAWG's search endpoint carries no description — only the per-game
+        // endpoint does, so the blurb arrives later via fetchRawgDetails.
         summary: "",
-        externalRating: g.metacritic
-          ? g.metacritic + " Metacritic"
-          : (g.rating ? (Math.round(g.rating * 20)) + "% users" : ""),
-        length: g.playtime ? g.playtime + " hrs" : "",
+        ...rawgMeta(g),
         genres: normGenres((g.genres || []).map((x) => x.name)),
         source: "rawg",
       }));
@@ -232,6 +267,36 @@
     } catch (e) { return ""; }
   }
 
+  // The games' equivalent of fetchTmdbDetails below: one extra request on
+  // the picked title, because RAWG's search endpoint is missing the one
+  // field it can't fake — the description. That's why a game used to be the
+  // only thing in the backlog that never landed with a blurb, however
+  // complete the rest of its data looked. The same response re-states the
+  // rating, playtime and date, so a game that got reviewed (or dated) since
+  // the last sync fills those in on a re-sync too.
+  async function fetchRawgDetails(id, apiKey) {
+    if (!apiKey || !id) return { ...EMPTY_DETAILS };
+    try {
+      const url = "https://api.rawg.io/api/games/" + encodeURIComponent(id) +
+        "?key=" + encodeURIComponent(apiKey);
+      const res = await fetch(url);
+      if (!res.ok) return { ...EMPTY_DETAILS };
+      const g = await res.json();
+      return {
+        ...EMPTY_DETAILS,
+        ...rawgMeta(g),
+        // description_raw is the plain-text twin of `description`; a few
+        // entries only carry the HTML one.
+        summary: firstParagraph(g.description_raw || stripHtml(g.description)),
+        // Same `tba` trap as the search (see searchRawg) — the flag wins over
+        // the placeholder date RAWG ships alongside it.
+        ...(g.tba
+          ? { releaseDate: "", releasePrecision: "tba", releaseStatus: "upcoming" }
+          : releaseFromString(g.released)),
+      };
+    } catch (e) { return { ...EMPTY_DETAILS }; }
+  }
+
   // TMDB's search endpoint has no runtime/season data — that only exists on
   // the per-title details endpoint, so it's a separate on-demand call (see
   // fetchTmdbDetails below), fired only when a specific title is picked.
@@ -239,7 +304,11 @@
   // and search can't give: the show's production status, and the air date of
   // the next episode — which, for anything already airing, is the date you
   // actually care about (first_air_date is just when it premiered, years ago).
-  const EMPTY_DETAILS = { length: "", releaseStatus: "", nextAt: "", nextLabel: "", releaseDate: "", releasePrecision: "" };
+  // summary/externalRating are here because RAWG's details endpoint fills
+  // them too (see fetchRawgDetails) — every caller reads them as
+  // `details.summary || r.summary`, so a source that has nothing to add just
+  // leaves them empty.
+  const EMPTY_DETAILS = { length: "", releaseStatus: "", nextAt: "", nextLabel: "", releaseDate: "", releasePrecision: "", summary: "", externalRating: "" };
   async function fetchTmdbDetails(id, type, apiKey) {
     if (!apiKey || !id) return { ...EMPTY_DETAILS };
     try {
@@ -626,15 +695,18 @@
   }
 
   // Once a game has a Steam App ID, Steam itself is the best source for when
-  // it comes out — RAWG dates a game by its *earliest* platform release
-  // (often a console version years before the PC one), and SteamGridDB dates
-  // it by whatever its own entry says. Steam also states outright whether a
-  // game is out yet (coming_soon) and is happy to be vague in the honest way
-  // ("Q1 2026") where the others invent a specific day. Deliberately no 429
-  // retry loop, unlike the wishlist import's copy of this in sync.js: that
-  // one walks a whole wishlist and gets rate-limited partway through, this is
-  // a single lookup behind one pick. Returns null if it can't say.
-  async function fetchSteamRelease(appId, proxyUrl) {
+  // it comes out, and for what it is — RAWG dates a game by its *earliest*
+  // platform release (often a console version years before the PC one), and
+  // SteamGridDB dates it by whatever its own entry says. Steam also states
+  // outright whether a game is out yet (coming_soon) and is happy to be vague
+  // in the honest way ("Q1 2026") where the others invent a specific day.
+  // Deliberately no 429 retry loop, unlike the wishlist import's copy of this
+  // in sync.js: that one walks a whole wishlist and gets rate-limited partway
+  // through, this is a single lookup behind one pick. short_description comes along for the
+  // ride: it's Steam's own one-paragraph blurb, and for a game that resolved
+  // to an App ID it beats anything a name-matched source could offer.
+  // Returns null if it can't say.
+  async function fetchSteamDetails(appId, proxyUrl) {
     if (!appId || !proxyUrl) return null;
     try {
       const res = await fetch(proxyUrl + "/steam-appdetails/" + encodeURIComponent(appId));
@@ -645,6 +717,7 @@
       const rd = entry.data.release_date || {};
       return {
         ...parseSteamReleaseDate(rd.date),
+        summary: firstParagraph(stripHtml(entry.data.short_description)),
         // Only when Steam actually stated it — a missing release_date block
         // is "we don't know", not "it's out".
         ...(typeof rd.coming_soon === "boolean"
@@ -691,17 +764,12 @@
   // season starts airing. These re-ask the source by the id already stored on
   // the item — no title matching, so nothing can drift onto a different work
   // — and return just the release fields, or null if the source can't say.
+  // Same per-game request as fetchRawgDetails — the re-check only reads the
+  // release fields off it (applyItemRelease in sync.js copies those and
+  // nothing else), and an empty precision is how a failed lookup reads.
   async function fetchRawgRelease(id, apiKey) {
-    if (!apiKey || !id) return null;
-    try {
-      const url = "https://api.rawg.io/api/games/" + encodeURIComponent(id) +
-        "?key=" + encodeURIComponent(apiKey);
-      const res = await fetch(url);
-      if (!res.ok) return null;
-      const g = await res.json();
-      if (g.tba) return { releaseDate: "", releasePrecision: "tba", releaseStatus: "upcoming" };
-      return releaseFromString(g.released);
-    } catch (e) { return null; }
+    const d = await fetchRawgDetails(id, apiKey);
+    return d.releasePrecision ? d : null;
   }
 
   async function fetchAniListRelease(id) {
@@ -770,18 +838,25 @@
       lastError = "";
       return fetchGgDealsPrices(appIds, apiKey, proxyUrl);
     },
-    // Per-title extras that a search response can't include: runtime/season
-    // counts, production status, next episode. Only TMDB has a details
-    // endpoint worth a second request; every other source already said
+    // Per-title extras that a search response can't include: TMDB's
+    // runtime/season counts, production status and next episode, RAWG's
+    // description. Takes the whole mediaKeys object, since which key it
+    // needs depends on the source. Every other source already said
     // everything it knows during the search.
-    async fetchDetails(id, source, apiKey) {
-      if (source === "tmdb-movie") return fetchTmdbDetails(id, "movie", apiKey);
-      if (source === "tmdb-tv") return fetchTmdbDetails(id, "tv", apiKey);
+    async fetchDetails(id, source, keys) {
+      const k = keys || {};
+      if (source === "tmdb-movie") return fetchTmdbDetails(id, "movie", k.tmdb || "");
+      if (source === "tmdb-tv") return fetchTmdbDetails(id, "tv", k.tmdb || "");
+      if (source === "rawg" || source === "rawg-steam-gg") return fetchRawgDetails(id, k.rawg || "");
       return { ...EMPTY_DETAILS };
     },
-    // Length only — for the journal, which has no use for release status.
-    async fetchLength(id, source, apiKey) {
-      return (await this.fetchDetails(id, source, apiKey)).length;
+    // Length only — for the journal, which has no use for a description or a
+    // release date. RAWG is deliberately skipped: its playtime is the same
+    // number the search already returned, so the extra request would buy a
+    // timeline entry nothing.
+    async fetchLength(id, source, keys) {
+      if (source === "rawg" || source === "rawg-steam-gg") return "";
+      return (await this.fetchDetails(id, source, keys)).length;
     },
     // Re-checks one item's release info by its stored media id. Returns null
     // for sources with no id-based lookup worth making — books and music
@@ -806,8 +881,8 @@
     async fetchSteamGridDbSteamAppId(sgdbId, apiKey, proxyUrl) {
       return fetchSteamGridDbSteamAppId(sgdbId, apiKey, proxyUrl);
     },
-    async fetchSteamRelease(appId, proxyUrl) {
-      return fetchSteamRelease(appId, proxyUrl);
+    async fetchSteamDetails(appId, proxyUrl) {
+      return fetchSteamDetails(appId, proxyUrl);
     },
     async fetchAniListPlanning(userName, type) {
       lastError = "";
@@ -823,5 +898,7 @@
     mergeRelease,
     normGenres,
     stripHtml,
+    firstParagraph,
+    rawgMeta,
   };
 })();

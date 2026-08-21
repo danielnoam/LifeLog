@@ -17,9 +17,18 @@ require("../src/io.js");
 let idCounter = 0;
 const uid = () => "test-id-" + (idCounter++);
 const backfillUpdatedAt = (item) => item.updatedAt || item.createdAt || "1970-01-01T00:00:00.000Z";
+// The real sanitizeOverrides lives in app.js, which needs a DOM — stubbed to
+// the same contract test/backlog.test.js uses (keep the ticked keys, drop the
+// key entirely when nothing is ticked). Without it sanitizeBacklog/
+// sanitizeEntry throw the moment an import item reaches them.
+const sanitizeOverrides = (overrides, keys) => {
+  const out = {};
+  for (const key of keys) if (overrides && overrides[key]) out[key] = true;
+  return Object.keys(out).length ? out : null;
+};
 global.window.LifeLogFinance.init({ uid, backfillUpdatedAt });
-global.window.LifeLogJournal.init({ uid, backfillUpdatedAt });
-global.window.LifeLogBacklog.init({ uid, backfillUpdatedAt });
+global.window.LifeLogJournal.init({ uid, backfillUpdatedAt, sanitizeOverrides });
+global.window.LifeLogBacklog.init({ uid, backfillUpdatedAt, sanitizeOverrides });
 
 const state = {
   data: {

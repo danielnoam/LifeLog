@@ -6,7 +6,22 @@ todo:
   name matches immediately and fill covers in progressively. Unmeasured (needs
   a key + proxy to test)
 
+- SteamGridDB results still carry nothing but a title, a cover and a date —
+  no rating, no length, no description, since its API has none of that. A
+  game picked from it is the last kind of backlog item that lands bare.
+  Could cross-fill from RAWG by title the way the Steam wishlist import
+  already does, if that's worth an extra request per pick
+
 done:
+
+- games were the only backlog items that never got a description, and the
+  metascore/length on the ones that did have data came and went: RAWG's
+  search endpoint has no description at all, and its `metacritic`/`playtime`
+  are null and 0 for anything unreviewed or unplayed. Added a per-game RAWG
+  details call on pick (the games' fetchTmdbDetails), read Steam's own
+  short_description wherever an App ID is known, stopped every sync path
+  from blanking a description it had nothing to replace with, and put a
+  show/hide switch for descriptions in the backlog list under Appearance
 
 - starred backlog items were sorted below the released/unreleased split, so
   starring an unreleased item pushed it into the upcoming block instead of up

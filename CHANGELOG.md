@@ -4,6 +4,46 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.101.0] - 2026-08-21
+
+### Added
+- **Games get a description now.** A game was the one thing in the backlog
+  that could never land with a blurb, however complete the rest of its data
+  looked — RAWG's search endpoint simply doesn't carry one, and SteamGridDB
+  carries nothing but a name, a cover and a date. Picking a RAWG match now
+  makes the same kind of second per-title call the app already made for
+  TMDB, which is where the description lives (and re-reads the rating and
+  playtime while it's there, so a game reviewed since your last sync fills
+  those in too). The blurb is trimmed to its opening paragraph — the list
+  shows two lines of it and the store-page boilerplate helps nobody.
+- **A Steam-linked game uses Steam's own blurb.** Steam's app details
+  response has always carried `short_description`; only the name and the
+  release date were being read off it. Now a wishlist import lands with a
+  description with no RAWG key involved at all, and so does any game a pick
+  resolves to a Steam App ID — its store paragraph beats a name-matched
+  source's take on the same game.
+- **Settings → Appearance → Backlog descriptions.** Set it to Hide and the
+  backlog list goes back to one tight line per item. Nothing is deleted —
+  open the item, or "Pick something for me", and the description is right
+  there. Per device, like the cover-size settings above it.
+
+### Changed
+- **"Backfill game info from RAWG" is now "Backfill missing game info"**, and
+  fills in descriptions as well: RAWG's rating/length/release year for
+  Steam-synced games with none of it (needs a RAWG key), and Steam's own
+  description for the ones with none (needs your proxy URL). Either half runs
+  on its own, so a proxy with no RAWG key is now enough to use it.
+
+### Fixed
+- **A re-sync no longer wipes the description it can't replace.** Every sync
+  path wrote the matched source's summary over whatever was there, and most
+  sources have no summary at all — so re-syncing a game, or bulk-syncing a
+  shelf of them, quietly deleted blurbs and anything you'd written yourself.
+  Only real text overwrites now.
+- **Escaped text in a description reads as text.** `Baldur&#39;s Gate` and a
+  stray `<i>` from Steam's and AniList's HTML now come out as the characters
+  they stand for.
+
 ## [0.100.1] - 2026-08-16
 
 ### Fixed

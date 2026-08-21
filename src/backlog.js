@@ -56,7 +56,11 @@
   // callers can pass either a stored item or live form values. The GG.deals
   // price span fills in later (async); returns whether there is one so the
   // caller can kick off the fetch — this helper only builds DOM.
-  function appendBacklogMeta(container, item) {
+  // opts.summary === false drops the description paragraph — the backlog
+  // list passes it for anyone who'd rather keep the rows compact (Settings →
+  // Backlog descriptions). The modals and the pick card always show it:
+  // that's the "open it and read it" half of that setting.
+  function appendBacklogMeta(container, item, opts) {
     const parts = [];
     if (item.externalRating) parts.push("★ " + item.externalRating);
     if (item.releaseYear) parts.push(String(item.releaseYear));
@@ -73,7 +77,9 @@
       }
       container.appendChild(metaLine);
     }
-    if (item.summary) container.appendChild(el("p", "bl-summary", item.summary));
+    if (item.summary && (!opts || opts.summary !== false)) {
+      container.appendChild(el("p", "bl-summary", item.summary));
+    }
     return hasSteamPrice;
   }
 
@@ -242,16 +248,27 @@
       // still a sync, and the whole point of pinning is that no sync
       // overwrites it.
       if (!isPinned("cover")) $("#bCoverUrl").value = r.coverUrl || "";
-      $("#bSummary").value = r.summary || "";
+      // Only real text overwrites a description: several sources (every
+      // search endpoint, SteamGridDB entirely) simply have none, and blanking
+      // the field for them meant a re-sync silently deleted the blurb — or
+      // your own words — that was already there.
+      if (r.summary) $("#bSummary").value = r.summary;
       if (!isPinned("release")) $("#bReleaseYear").value = r.year ? String(r.year) : "";
       if (!isPinned("rating")) $("#bExternalRating").value = r.externalRating || "";
       $("#bGenres").value = (r.genres || []).join("|");
-      // TMDB's details endpoint is the only source of runtime/season counts,
-      // and carries the show's status and next episode air date with them —
-      // so the pick lands with everything the Next Releases list needs.
-      const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys.tmdb);
+      // The per-title second call: TMDB's runtime/season counts plus the
+      // show's status and next episode air date — everything the Next
+      // Releases list needs — and, for a game, RAWG's description and a
+      // re-read of its rating (see fetchDetails in media.js).
+      const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys);
       if (!isPinned("length")) $("#bLength").value = details.length || r.length || "";
+      if (!isPinned("rating") && details.externalRating) $("#bExternalRating").value = details.externalRating;
       const resolved = await resolveMediaIdentity(r, keys);
+      // Steam's own blurb wins for a game that turned out to be on Steam: one
+      // paragraph written for its store page, against the opening paragraph
+      // of RAWG's much longer article.
+      const summary = resolved.summary || details.summary;
+      if (summary) $("#bSummary").value = summary;
       $("#bMediaSource").value = resolved.mediaSource;
       $("#bMediaId").value = resolved.mediaId;
       // resolved.release goes last: for a game that turned out to be on Steam,
@@ -899,7 +916,7 @@
     body.appendChild(titleRow);
     // Price (if any) arrives later via the batched loadBacklogPrices() in
     // renderBacklog and gets patched into the .bl-price span this builds.
-    appendBacklogMeta(body, b);
+    appendBacklogMeta(body, b, { summary: state.visual.backlogSummaries !== "hide" });
     row.appendChild(body);
     // Done button at the right — same position as plain backlog rows
     if (!state.bulk.active) {
@@ -941,18 +958,23 @@
             // Same rule as the single-item sync: a field pinned in the item's
             // Advanced foldout is left exactly as it is.
             if (!isOverridden(item, "cover")) item.coverUrl = r.coverUrl || "";
-            item.summary = r.summary || "";
             if (!isOverridden(item, "release")) {
               if (r.year) item.releaseYear = r.year; else delete item.releaseYear;
             }
             if (!isOverridden(item, "rating")) item.externalRating = r.externalRating || "";
             // TMDB needs a second per-title call for runtime/season data — the
             // search endpoint doesn't include it (see fetchDetails in media.js),
-            // and the same response carries the status/next-episode dates.
-            const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys.tmdb);
+            // and the same response carries the status/next-episode dates. For
+            // a game it's where the description comes from.
+            const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys);
             if (!isOverridden(item, "length")) item.length = details.length || r.length || "";
+            if (!isOverridden(item, "rating") && details.externalRating) item.externalRating = details.externalRating;
             if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
             const resolved = await resolveMediaIdentity(r, keys);
+            // Same rule as the single-item pick: a source with no description
+            // of its own leaves the existing one alone instead of wiping it.
+            const summary = resolved.summary || details.summary || r.summary;
+            if (summary) item.summary = summary;
             item.mediaSource = resolved.mediaSource;
             item.mediaId = resolved.mediaId;
             // Steam's own date last, where the game turned out to be on Steam

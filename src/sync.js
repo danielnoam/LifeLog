@@ -165,7 +165,9 @@
   // Steam saying in its own words whether a game is out yet, and often in
   // the coarse form it genuinely knows ("Q1 2026"). That beats the fuzzy
   // RAWG title match this used to lean on for dates, so it's read here and
-  // returned alongside the name. Returns null only when the whole lookup
+  // returned alongside the name. short_description comes back too: it's the
+  // only description a wishlisted game can get without a RAWG key, and
+  // wishlist imports were the largest block of backlog items with none. Returns null only when the whole lookup
   // failed; { name: null, ... } is a successful response for an app Steam
   // doesn't recognize.
   function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
@@ -187,6 +189,9 @@
         : { releaseDate: "", releasePrecision: "tba" };
       return {
         name: entry.data.name || null,
+        summary: window.LifeLogMedia
+          ? window.LifeLogMedia.firstParagraph(window.LifeLogMedia.stripHtml(entry.data.short_description))
+          : "",
         release: {
           ...parsed,
           // Only when Steam actually stated it — a missing release_date block
@@ -280,6 +285,7 @@
           mediaId: String(appid),
           coverUrl: window.LifeLogMedia ? window.LifeLogMedia.steamCoverUrl(appid) : "",
           unresolved: !name,
+          ...(info?.summary ? { summary: info.summary } : {}),
           ...(rawg?.externalRating ? { externalRating: rawg.externalRating } : {}),
           ...(rawg?.length ? { length: rawg.length } : {}),
           ...(rawg?.year ? { releaseYear: rawg.year } : {}),
@@ -367,22 +373,31 @@
   // the sync, or a RAWG lookup that failed at the time. Deliberately
   // requires all three fields blank, so a game with a partial manual
   // edit isn't silently overwritten.
-  function steamGamesNeedingRawgInfo() {
+  function steamGameNeedsRawgInfo(b) {
+    return !b.externalRating && !b.length && !b.releaseYear;
+  }
+
+  // Anything imported before Steam's own blurb was read (see
+  // fetchSteamAppInfo) has no description at all, whatever else it has.
+  function steamGamesNeedingInfo() {
     return state.data.backlog.filter((b) =>
       b.mediaSource === "steam" && b.mediaId &&
       b.title !== `Steam app ${b.mediaId}` &&
-      !b.externalRating && !b.length && !b.releaseYear
+      (steamGameNeedsRawgInfo(b) || !b.summary)
     );
   }
 
-  // Retroactively fills in RAWG's rating/length/release year for
-  // Steam-sourced backlog items that don't have any of it yet — same
-  // best-effort top-match lookup the sync uses, just run afterward for
-  // whatever's missing it. Never touches title, cover, or mediaId.
+  // Retroactively fills in what a Steam-sourced backlog item is missing:
+  // RAWG's rating/length/release year (same best-effort top-match lookup the
+  // sync uses) and Steam's own description, straight off the App ID the item
+  // already carries. Each half needs its own credential — a RAWG key, the
+  // CORS proxy — and runs only for the items actually missing that half.
+  // Never touches title, cover, or mediaId.
   async function backfillRawgForSteamGames() {
     const rawgKey = state.data.settings.mediaKeys?.rawg;
-    if (!rawgKey) { toast("Set a RAWG API key first (Settings → Media)", true); return; }
-    const targets = steamGamesNeedingRawgInfo();
+    const proxyUrl = ((state.data.settings.steam || {}).proxyUrl || "").trim().replace(/\/+$/, "");
+    if (!rawgKey && !proxyUrl) { toast("Set a RAWG API key or your proxy URL first (Settings → Media)", true); return; }
+    const targets = steamGamesNeedingInfo();
     if (!targets.length) { toast("Nothing to backfill"); return; }
     const btn = $("#steamBackfillRawgBtn");
     if (btn) { btn.disabled = true; }
@@ -390,16 +405,22 @@
     try {
       for (let i = 0; i < targets.length; i++) {
         if (btn) btn.textContent = `Backfilling… ${i + 1}/${targets.length}`;
-        const rawg = await fetchRawgInfo(targets[i].title);
+        let touched = false;
+        const rawg = rawgKey && steamGameNeedsRawgInfo(targets[i]) ? await fetchRawgInfo(targets[i].title) : null;
         if (rawg) {
           if (rawg.externalRating) targets[i].externalRating = rawg.externalRating;
           if (rawg.length) targets[i].length = rawg.length;
           if (rawg.year) targets[i].releaseYear = rawg.year;
           Object.assign(targets[i], mergeRelease(targets[i], rawg));
-          if (rawg.externalRating || rawg.length || rawg.year) {
-            targets[i].updatedAt = new Date().toISOString();
-            filled++;
-          }
+          touched = !!(rawg.externalRating || rawg.length || rawg.year);
+        }
+        if (!targets[i].summary && proxyUrl && window.LifeLogMedia) {
+          const details = await window.LifeLogMedia.fetchSteamDetails(targets[i].mediaId, proxyUrl);
+          if (details && details.summary) { targets[i].summary = details.summary; touched = true; }
+        }
+        if (touched) {
+          targets[i].updatedAt = new Date().toISOString();
+          filled++;
         }
         if (i < targets.length - 1) await sleep(300);
       }
@@ -416,10 +437,10 @@
     const btn = $("#steamBackfillRawgBtn");
     const hint = $("#steamBackfillRawgHint");
     if (!btn) return;
-    const count = steamGamesNeedingRawgInfo().length;
+    const count = steamGamesNeedingInfo().length;
     btn.hidden = !count;
     hint.hidden = !count;
-    if (count) btn.textContent = `🎮 Backfill game info from RAWG (${count})`;
+    if (count) btn.textContent = `🎮 Backfill missing game info (${count})`;
   }
 
   // A quiet periodic check, paced by Settings → Media → "Check
