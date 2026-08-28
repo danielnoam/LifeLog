@@ -4,6 +4,33 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.102.0] - 2026-08-28
+
+### Added
+- **The random picker shows what it's drawing from.** A strip at the top of
+  the card lists every category in play as a chip you can switch off, so a
+  draw can be narrowed to "just games" without closing the modal and
+  re-filtering the whole backlog behind it. Beside it, a **Favorites only**
+  switch limits the draw to starred items, and a count says how many titles
+  are in scope. Switch everything off and the card says so rather than
+  leaving the last pick on screen looking like a fresh one. The scope resets
+  each time you open the picker; the favorites switch keeps its position
+  while the app stays open. The chip row hides itself when there is only one
+  category to draw from.
+
+### Changed
+- **"Open" is back on the right**, with "Close" beside it and "Pick again"
+  on the left.
+- **Genres now sit above the description** rather than under it.
+
+### Fixed
+- **The picker could offer you something that hasn't started yet.** A title
+  with no release date of its own but a first episode already scheduled —
+  an announced show, typically — had no release window to be judged by, so
+  it read as out and could come up in a draw. It's ruled out now. Something
+  already airing, with a past release and a next episode ahead, still counts
+  as pickable.
+
 ## [0.101.2] - 2026-08-28
 
 ### Changed

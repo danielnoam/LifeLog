@@ -309,9 +309,12 @@ html, body {
   padding: 7px 13px; border-radius: 8px; cursor: pointer; font-size: 13px;
   font-weight: 550; transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
-.btn:hover { background: var(--hover-bg); }
+.btn:hover:not(:disabled) { background: var(--hover-bg); }
+/* A .btn had no disabled look at all until the picker got one it can turn
+   off (Open/Pick again, with nothing left in scope to draw). */
+.btn:disabled { opacity: .45; cursor: default; }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
-.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
 .btn-danger { background: transparent; border-color: var(--danger); color: var(--danger); }
 .btn-danger:hover { background: var(--danger-bg); }
 .btn-icon { padding: 7px 10px; font-size: 15px; line-height: 1; }
@@ -716,6 +719,31 @@ body.modal-open { overflow: hidden; }
 .modal-cover-meta .bl-meta { font-size: 12px; color: var(--text-faint); }
 .modal-cover-meta .bl-summary { font-size: 13px; color: var(--text-dim); margin: 4px 0 0; }
 .modal-cover-meta .bl-price:empty { display: none; }
+/* "Pick random" scope strip — the categories a draw is rolling on (each a
+   toggle, same chip idiom as the filter bar) and the favorites switch. It
+   owns the modal's top edge, so the cover below it can't bleed the way the
+   edit modal's does. */
+.pick-scope { margin: -4px 0 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.pick-scope-cats { display: flex; flex-wrap: wrap; gap: 6px; }
+.pick-scope-cats[hidden] { display: none; }
+/* A button, not the filter bar's span — it needs the family the UA won't
+   inherit for it, and the padding of a chip rather than a control. */
+.pick-cat { font-family: inherit; padding: 3px 10px; font-size: 12px; }
+.pick-scope-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.pick-scope-cats:empty + .pick-scope-foot, .pick-scope-cats[hidden] + .pick-scope-foot { margin-top: 0; }
+.modal label.pick-fav {
+  display: inline-flex; align-items: center; gap: 7px; margin: 0;
+  font-size: 12.5px; color: var(--text-dim); cursor: pointer; user-select: none;
+}
+.modal .pick-fav input {
+  display: inline-block; width: 15px; height: 15px; margin: 0; padding: 0;
+  accent-color: var(--accent); cursor: pointer; flex: 0 0 auto;
+}
+.pick-scope-count { font-size: 11.5px; color: var(--text-faint); }
+/* Inset and fully rounded — this cover sits under the scope strip rather
+   than against the modal's own top corners. */
+.pick-cover { margin: 0 0 14px; border-radius: 12px; max-height: 160px; }
+.pick-cover img { height: 160px; border-radius: 12px; }
 /* "Pick random" metadata block — same look as the edit-modal
    cover meta, reused for the richer random-picker card. */
 .pick-meta { margin: 2px 0 4px; }

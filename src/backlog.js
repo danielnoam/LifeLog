@@ -496,11 +496,34 @@
   // ---------- "Pick random" ----------
   // Pool the modal's reroll draws from — set once when opened, from
   // whatever's currently eligible (scoped to the active category/search
-  // filters, same as the view itself).
+  // filters, same as the view itself). The scope strip at the top of the
+  // modal narrows it further without reopening: pickCats is the set of
+  // categories still switched on, pickFavOnly limits the draw to starred
+  // items. Neither is saved — a scope set for one sitting shouldn't outlive
+  // the modal — except that the favorites switch keeps its position while
+  // the app stays open, since it's a mood rather than a filter.
   let pickPool = [];
+  let pickCats = new Set();
+  let pickFavOnly = false;
+
+  // Nothing you can't start yet. isUnreleased() covers everything with a
+  // date to judge, but an announced show can arrive with no release date of
+  // its own and only a first episode scheduled — no window, so it reads as
+  // released. A source that explicitly calls an item released is taken at
+  // its word either way.
+  function notOutYet(b) {
+    if (isUnreleased(b)) return true;
+    if (b.releaseStatus === "released") return false;
+    return !releaseWindow(b) && hasUpcomingEpisode(b);
+  }
 
   function eligibleForPick(items) {
-    return items.filter((b) => !b.dropped && !isUnreleased(b));
+    return items.filter((b) => !b.dropped && !notOutYet(b));
+  }
+
+  // The pool as narrowed by the scope strip — what a draw actually rolls on.
+  function pickCandidates() {
+    return pickPool.filter((b) => pickCats.has(b.category) && (!pickFavOnly || b.priority));
   }
 
   // Lives in the mode bar's right-hand slot rather than a row of its own —
@@ -516,14 +539,71 @@
 
   function openPickModal(pool) {
     pickPool = pool;
+    // Every category the pool has, on: the view's own filters already said
+    // what's in play, and the strip is for narrowing from there.
+    pickCats = new Set(pool.map((b) => b.category));
+    $("#pickFavOnly").checked = pickFavOnly;
+    renderPickCats();
     rerollPick();
     $("#pickModal").hidden = false;
   }
   function closePickModal() { $("#pickModal").hidden = true; }
 
+  // One chip per category present in the pool, in the app's own category
+  // order so it reads like the filter bar it echoes. A single category is
+  // the whole pool, and a chip that can only be switched off to leave
+  // nothing is no use, so the row hides itself.
+  function renderPickCats() {
+    const wrap = $("#pickCats");
+    wrap.textContent = "";
+    const inPool = new Set(pickPool.map((b) => b.category));
+    const names = state.data.categories.map((c) => c.name).filter((n) => inPool.has(n));
+    for (const name of inPool) if (!names.includes(name)) names.push(name);
+    wrap.hidden = names.length < 2;
+    if (wrap.hidden) return;
+    for (const name of names) {
+      const on = pickCats.has(name);
+      const chip = el("button", "cat-chip pick-cat" + (on ? " on" : ""));
+      chip.type = "button";
+      chip.setAttribute("aria-pressed", String(on));
+      const dot = el("span", "dot");
+      dot.style.background = colorOf(name);
+      chip.appendChild(dot);
+      chip.appendChild(document.createTextNode(name));
+      chip.onclick = () => {
+        if (pickCats.has(name)) pickCats.delete(name);
+        else pickCats.add(name);
+        renderPickCats();
+        rerollPick();
+      };
+      wrap.appendChild(chip);
+    }
+  }
+
+  // Every category switched off, or "favorites only" with nothing starred
+  // left in scope — say so in the card, rather than leaving the last draw on
+  // screen where it reads as a fresh one.
+  function showEmptyPick() {
+    $("#pickModalTitle").textContent = "Nothing to pick from";
+    $("#pickModalCategory").textContent = pickFavOnly
+      ? "No favorites in the categories you have on."
+      : "Switch a category back on to draw from it.";
+    $("#pickCover").hidden = true;
+    $("#pickCoverImg").src = "";
+    $("#pickMeta").textContent = "";
+    $("#pickCoverLinks").innerHTML = "";
+    $("#pickLinks").innerHTML = "";
+    $("#pickOpenBtn").onclick = null;
+  }
+
   function rerollPick() {
-    if (!pickPool.length) return;
-    const b = pickPool[Math.floor(Math.random() * pickPool.length)];
+    const pool = pickCandidates();
+    $("#pickCount").textContent = pool.length
+      ? "Drawing from " + pool.length + (pool.length === 1 ? " title" : " titles") : "";
+    $("#pickOpenBtn").disabled = !pool.length;
+    $("#pickRerollBtn").disabled = !pool.length;
+    if (!pool.length) { showEmptyPick(); return; }
+    const b = pool[Math.floor(Math.random() * pool.length)];
 
     // Title, with a ★ favorite marker when the item is prioritized.
     const titleEl = $("#pickModalTitle");
@@ -553,10 +633,12 @@
     const meta = $("#pickMeta");
     meta.textContent = "";
     const hasSteamPrice = appendBacklogMeta(meta, b);
+    // Genres go above the summary — a row of one-word tags belongs with the
+    // header lines, where a paragraph of blurb ends the block.
     if (b.genres && b.genres.length) {
       const genres = el("div", "pick-genres");
       b.genres.forEach((g) => genres.appendChild(el("span", "pick-genre", g)));
-      meta.appendChild(genres);
+      meta.insertBefore(genres, meta.querySelector(".bl-summary"));
     }
     if (b.notes) meta.appendChild(el("p", "pick-note", b.notes));
     if (hasSteamPrice) loadBacklogPrices([{ mediaSource: b.mediaSource, mediaId: b.mediaId }]);
@@ -1268,6 +1350,7 @@
       setBacklogCover();
     };
     $("#pickRerollBtn").onclick = rerollPick;
+    $("#pickFavOnly").onchange = (ev) => { pickFavOnly = ev.target.checked; rerollPick(); };
     $("#pickCloseBtn").onclick = closePickModal;
     document.addEventListener("click", (e) => {
       if (!e.target.closest("#backlogModal .ac-wrap")) {

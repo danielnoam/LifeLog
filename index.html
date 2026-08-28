@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.101.2" />
+  <link rel="stylesheet" href="src/styles.css?v=0.102.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -366,8 +366,23 @@
   <!-- Random backlog pick modal ("Pick random") -->
   <div class="modal-overlay" id="pickModal" hidden>
     <div class="modal">
+      <!-- What the draw is scoped to: a chip per category in the pool (each
+           one a toggle) and a favorites-only switch, so the scope can be
+           narrowed without closing the modal and re-filtering the view. -->
+      <div class="pick-scope">
+        <div class="pick-scope-cats" id="pickCats"></div>
+        <div class="pick-scope-foot">
+          <label class="pick-fav">
+            <input type="checkbox" id="pickFavOnly" />
+            Favorites only
+          </label>
+          <span class="pick-scope-count" id="pickCount"></span>
+        </div>
+      </div>
       <div id="pickCover" hidden>
-        <div class="modal-cover">
+        <!-- .pick-cover, not the edit modal's full-bleed cover: the scope
+             strip above it owns the top edge here. -->
+        <div class="modal-cover pick-cover">
           <img id="pickCoverImg" src="" alt="Cover" />
           <div class="modal-cover-links" id="pickCoverLinks"></div>
         </div>
@@ -381,8 +396,8 @@
       <div class="modal-actions">
         <button type="button" class="btn" id="pickRerollBtn">Pick again</button>
         <span class="spacer"></span>
-        <button type="button" class="btn btn-primary" id="pickOpenBtn">Open</button>
         <button type="button" class="btn" id="pickCloseBtn">Close</button>
+        <button type="button" class="btn btn-primary" id="pickOpenBtn">Open</button>
       </div>
     </div>
   </div>
@@ -1096,16 +1111,16 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.101.2"></script>
-  <script defer src="src/media.js?v=0.101.2"></script>
-  <script defer src="src/merge.js?v=0.101.2"></script>
-  <script defer src="src/storage.js?v=0.101.2"></script>
-  <script defer src="src/finance.js?v=0.101.2"></script>
-  <script defer src="src/settings.js?v=0.101.2"></script>
-  <script defer src="src/backlog.js?v=0.101.2"></script>
-  <script defer src="src/journal.js?v=0.101.2"></script>
-  <script defer src="src/io.js?v=0.101.2"></script>
-  <script defer src="src/sync.js?v=0.101.2"></script>
-  <script defer src="src/app.js?v=0.101.2"></script>
+  <script defer src="src/qr.js?v=0.102.0"></script>
+  <script defer src="src/media.js?v=0.102.0"></script>
+  <script defer src="src/merge.js?v=0.102.0"></script>
+  <script defer src="src/storage.js?v=0.102.0"></script>
+  <script defer src="src/finance.js?v=0.102.0"></script>
+  <script defer src="src/settings.js?v=0.102.0"></script>
+  <script defer src="src/backlog.js?v=0.102.0"></script>
+  <script defer src="src/journal.js?v=0.102.0"></script>
+  <script defer src="src/io.js?v=0.102.0"></script>
+  <script defer src="src/sync.js?v=0.102.0"></script>
+  <script defer src="src/app.js?v=0.102.0"></script>
 </body>
 </html>
