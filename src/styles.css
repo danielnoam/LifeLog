@@ -716,7 +716,7 @@ body.modal-open { overflow: hidden; }
 .modal-cover-meta .bl-meta { font-size: 12px; color: var(--text-faint); }
 .modal-cover-meta .bl-summary { font-size: 13px; color: var(--text-dim); margin: 4px 0 0; }
 .modal-cover-meta .bl-price:empty { display: none; }
-/* "pick something for me" metadata block — same look as the edit-modal
+/* "Pick random" metadata block — same look as the edit-modal
    cover meta, reused for the richer random-picker card. */
 .pick-meta { margin: 2px 0 4px; }
 .pick-meta:empty { display: none; }

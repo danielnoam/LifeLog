@@ -51,7 +51,7 @@
 
   // Shared media-metadata block for a backlog item — "★ rating · year ·
   // length · price" on one line, then the summary paragraph. Used by the
-  // rich list row, the edit-modal cover, and the "pick something for me"
+  // rich list row, the edit-modal cover, and the "Pick random"
   // modal so all three stay in sync. Fields are read off a plain object so
   // callers can pass either a stored item or live form values. The GG.deals
   // price span fills in later (async); returns whether there is one so the
@@ -493,7 +493,7 @@
   }
 
   // ---------- backlog view ----------
-  // ---------- "pick something for me" ----------
+  // ---------- "Pick random" ----------
   // Pool the modal's reroll draws from — set once when opened, from
   // whatever's currently eligible (scoped to the active category/search
   // filters, same as the view itself).
@@ -508,7 +508,7 @@
   function makePickButton(items) {
     const eligible = eligibleForPick(items);
     if (!eligible.length) return null;
-    const btn = el("button", "btn btn-sm", "🎲 Pick something for me");
+    const btn = el("button", "btn btn-sm", "Pick random");
     btn.type = "button";
     btn.onclick = () => openPickModal(eligible);
     return btn;
@@ -1285,7 +1285,7 @@
     // modal (add menu, "✓ Done" flow, Escape close)
     openBacklogModal,
     closeBacklogModal,
-    // "pick something for me" modal (Escape close)
+    // "Pick random" modal (Escape close)
     closePickModal,
     // cover panel (applySteamAppId in app.js writes the fields, then repaints)
     setBacklogCover,

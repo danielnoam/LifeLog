@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.101.1] - 2026-08-28
+
+### Changed
+- **The backlog's random picker is plainer.** The button above the list now
+  reads "Pick random" instead of "🎲 Pick something for me" — shorter, and
+  without the dice, which the rest of the toggle strip doesn't use either.
+- **"Open" is the picker modal's main action.** It sits at the far right in
+  the accent colour, where every other modal puts the button you actually
+  came to press; "Pick again" (also un-diced) steps back to a plain button
+  beside it.
+
 ## [0.101.0] - 2026-08-21
 
 ### Added
