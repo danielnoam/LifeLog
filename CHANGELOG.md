@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.101.2] - 2026-08-28
+
+### Changed
+- **The random picker's buttons moved again.** "Pick again" is now on the
+  left, with "Open" (still the accent one) and "Close" on the right.
+- **A pick's store links sit on its cover.** Steam · RAWG · TMDB · AniList ·
+  GG.deals now overlay the cover art the way they do in the edit modal,
+  rather than always taking a row of their own under the title. An item with
+  no cover — or one whose cover URL turns out to be a dead image — still
+  falls back to that row, so the links never disappear with the picture.
+
 ## [0.101.1] - 2026-08-28
 
 ### Changed

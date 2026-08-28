@@ -13,7 +13,7 @@
     fillCategorySelect, wireCategorySelect, titleSuggestions,
     backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
     resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
-    renderCoverLinkButtons, renderMediaLinks, isOverridden, sanitizeOverrides,
+    renderMediaLinks, isOverridden, sanitizeOverrides,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, applySteamAppId,
     backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS;
@@ -25,7 +25,7 @@
       fillCategorySelect, wireCategorySelect, titleSuggestions,
       backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
       resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
-      renderCoverLinkButtons, renderMediaLinks, isOverridden, sanitizeOverrides,
+      renderMediaLinks, isOverridden, sanitizeOverrides,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, applySteamAppId,
       backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS } = ctx);
@@ -536,9 +536,16 @@
     }
     $("#pickModalCategory").textContent = b.category;
 
+    // Cover art, with the source/store links overlaid on it the way the edit
+    // modal does — falling back to the plain row under the title when there
+    // is no cover, or when its URL turns out to be a dead image.
     const cover = $("#pickCover");
-    if (b.coverUrl) { $("#pickCoverImg").src = b.coverUrl; cover.hidden = false; }
-    else cover.hidden = true;
+    const coverImg = $("#pickCoverImg");
+    const paintLinks = (hasCover) =>
+      renderMediaLinks($("#pickCoverLinks"), $("#pickLinks"), hasCover, b.mediaSource, b.mediaId);
+    coverImg.onerror = () => { cover.hidden = true; paintLinks(false); };
+    if (b.coverUrl) { coverImg.src = b.coverUrl; cover.hidden = false; paintLinks(true); }
+    else { cover.hidden = true; coverImg.src = ""; paintLinks(false); }
 
     // The full pulled metadata — rating/year/length/price + summary (shared
     // with the list row and edit modal), plus genres and your own note,
@@ -553,11 +560,6 @@
     }
     if (b.notes) meta.appendChild(el("p", "pick-note", b.notes));
     if (hasSteamPrice) loadBacklogPrices([{ mediaSource: b.mediaSource, mediaId: b.mediaId }]);
-
-    // Source/store links (Steam · RAWG · TMDB · AniList · …, plus GG.deals
-    // for Steam games) — the same buttons the edit modal overlays on the
-    // cover, but as a standalone row here so they show even without a cover.
-    renderCoverLinkButtons($("#pickLinks"), b.mediaSource, b.mediaId);
 
     $("#pickOpenBtn").onclick = () => { closePickModal(); openBacklogModal(b); };
   }

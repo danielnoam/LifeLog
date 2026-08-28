@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.101.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.101.2" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -369,17 +369,20 @@
       <div id="pickCover" hidden>
         <div class="modal-cover">
           <img id="pickCoverImg" src="" alt="Cover" />
+          <div class="modal-cover-links" id="pickCoverLinks"></div>
         </div>
       </div>
       <h2 id="pickModalTitle"></h2>
       <p class="muted" id="pickModalCategory"></p>
       <div id="pickMeta" class="pick-meta"></div>
+      <!-- Where the source/store links go when there is no cover to sit on
+           (see renderMediaLinks in app.js). -->
       <div id="pickLinks" class="pick-links"></div>
       <div class="modal-actions">
-        <button type="button" class="btn" id="pickCloseBtn">Close</button>
-        <span class="spacer"></span>
         <button type="button" class="btn" id="pickRerollBtn">Pick again</button>
+        <span class="spacer"></span>
         <button type="button" class="btn btn-primary" id="pickOpenBtn">Open</button>
+        <button type="button" class="btn" id="pickCloseBtn">Close</button>
       </div>
     </div>
   </div>
@@ -1093,16 +1096,16 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.101.1"></script>
-  <script defer src="src/media.js?v=0.101.1"></script>
-  <script defer src="src/merge.js?v=0.101.1"></script>
-  <script defer src="src/storage.js?v=0.101.1"></script>
-  <script defer src="src/finance.js?v=0.101.1"></script>
-  <script defer src="src/settings.js?v=0.101.1"></script>
-  <script defer src="src/backlog.js?v=0.101.1"></script>
-  <script defer src="src/journal.js?v=0.101.1"></script>
-  <script defer src="src/io.js?v=0.101.1"></script>
-  <script defer src="src/sync.js?v=0.101.1"></script>
-  <script defer src="src/app.js?v=0.101.1"></script>
+  <script defer src="src/qr.js?v=0.101.2"></script>
+  <script defer src="src/media.js?v=0.101.2"></script>
+  <script defer src="src/merge.js?v=0.101.2"></script>
+  <script defer src="src/storage.js?v=0.101.2"></script>
+  <script defer src="src/finance.js?v=0.101.2"></script>
+  <script defer src="src/settings.js?v=0.101.2"></script>
+  <script defer src="src/backlog.js?v=0.101.2"></script>
+  <script defer src="src/journal.js?v=0.101.2"></script>
+  <script defer src="src/io.js?v=0.101.2"></script>
+  <script defer src="src/sync.js?v=0.101.2"></script>
+  <script defer src="src/app.js?v=0.101.2"></script>
 </body>
 </html>
