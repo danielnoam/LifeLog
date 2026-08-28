@@ -717,6 +717,7 @@
   function upcomingRow(b) {
     const rich = state.visual.backlogCoverSize !== "none";
     const row = el("div", rich ? "backlog-item-rich up-row" : "entry up-row");
+    if (state.bulk.active) row.appendChild(bulkCheckbox(b));
     if (rich && b.coverUrl) {
       const img = document.createElement("img");
       img.loading = "lazy";
@@ -745,10 +746,13 @@
     if (countdown) meta.appendChild(el("span", "up-countdown", countdown));
     body.appendChild(meta);
     row.appendChild(body);
-    // No bulk selection here, unlike the category list: this is a read-only
-    // "what's coming" view, and moving/deleting by category is what the other
-    // layout is for. Switching modes clears any selection in progress.
-    row.onclick = () => openBacklogModal(b);
+    // Same selection gesture as the category list — long-press a row to enter
+    // bulk mode, then tap to add. A run of upcoming titles usually wants the
+    // same treatment (a re-sync for dates that have firmed up, a move, a
+    // clear-out), and that's exactly the run this view groups for you.
+    // Switching modes clears any selection in progress.
+    row.onclick = () => state.bulk.active ? toggleBulkItem(b.id) : openBacklogModal(b);
+    attachLongPressSelect(row, b);
     return row;
   }
 
@@ -813,11 +817,27 @@
     }
     root.appendChild(grid);
     renderLazySections(grid, sections);
+    if (state.bulk.active) {
+      root.appendChild(bulkActionBar({
+        categories: state.data.categories,
+        onMove: bulkMoveSelected,
+        onDelete: bulkDeleteSelected,
+        onSync: bulkSyncSelected,
+      }));
+    }
   }
 
   function makeUpcomingSection(key, title, subtitle, items) {
     const section = el("div", "backlog-section");
     const head = el("div", "backlog-section-head");
+    if (state.bulk.active) {
+      const allSelected = items.every((b) => state.bulk.selected.has(b.id));
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.className = "bulk-check"; cb.checked = allSelected;
+      cb.title = "Select all in " + title;
+      cb.onclick = (ev) => { ev.stopPropagation(); toggleBulkCategoryAll(items); };
+      head.appendChild(cb);
+    }
     head.appendChild(el("span", "backlog-section-name", title));
     if (subtitle) head.appendChild(el("span", "up-section-sub", subtitle));
     head.appendChild(el("span", "backlog-section-count", String(items.length)));

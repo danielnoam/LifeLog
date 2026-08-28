@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.103.0] - 2026-08-28
+
+### Added
+- **Next Releases can be multi-edited too.** The upcoming view was
+  select-free — the only way to act on a run of titles was to switch back to
+  By category and find them again, scattered across their categories. It now
+  takes the same selection gesture as the rest of the app: long-press a row
+  to enter bulk mode, tap to add more, or tick a month card's header
+  checkbox to take everything releasing that month at once. The action bar
+  offers the same three it always has — move to a category, re-sync, or
+  delete — which is the point, since a month's worth of upcoming titles is
+  exactly the run whose dates you want to re-check together. Switching
+  layouts still clears a selection in progress.
+
 ## [0.102.0] - 2026-08-28
 
 ### Added
