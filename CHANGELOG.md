@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.104.0] - 2026-08-28
+
+### Added
+- **Every Ledger month now shows where its money went.** Above the month's
+  total sits a line per category with what it came to — largest first, and
+  only categories that actually have entries that month, so a card stays as
+  short as the month was varied. A skipped or paused occurrence counts
+  towards neither the lines nor the total, so the breakdown always adds up
+  to the figure under it. The "Yearly" bucket gets the same treatment.
+
 ## [0.103.0] - 2026-08-28
 
 ### Added

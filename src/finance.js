@@ -498,6 +498,29 @@
             monthItems.slice()
               .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || "").localeCompare(a.createdAt || ""))
               .forEach((f) => card.appendChild(financeRow(f)));
+            // Where the month's money went, above its total: one line per
+            // category that actually has entries this month, largest first.
+            // Counted items only, so the lines add up to the total under them
+            // (a skipped or paused occurrence is in neither).
+            const byCat = groupBy(countedItems, (f) => f.category);
+            const catRows = Object.keys(byCat)
+              .map((name) => ({ name, total: byCat[name].reduce((s, f) => s + f.amount, 0) }))
+              .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+            if (catRows.length) {
+              const cats = el("div", "month-cats");
+              for (const c of catRows) {
+                const row = el("div", "month-cat");
+                const dot = el("span", "dot");
+                dot.style.background = financeColorOf(c.name);
+                row.appendChild(dot);
+                const name = el("span", "month-cat-name", c.name);
+                name.title = c.name;
+                row.appendChild(name);
+                row.appendChild(el("span", "famount", formatMoney(c.total)));
+                cats.appendChild(row);
+              }
+              card.appendChild(cats);
+            }
             const total = countedItems.reduce((s, f) => s + f.amount, 0);
             const totalRow = el("div", "month-total");
             totalRow.appendChild(el("span", null, "Total"));
