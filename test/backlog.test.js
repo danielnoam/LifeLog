@@ -20,7 +20,8 @@ Backlog.init({
   },
 });
 
-const { sanitizeBacklog, isUnreleased, upcomingAt, parseReleaseInput, formatReleaseInput, bandOf } = Backlog;
+const { sanitizeBacklog, isUnreleased, upcomingAt, parseReleaseInput, formatReleaseInput, bandOf,
+  peekPickBag, spendPick } = Backlog;
 
 // Dates relative to today, so these stay true whenever they're run.
 function shift(days) {
@@ -234,6 +235,52 @@ test("dropped stays last, star or no star", () => {
 });
 
 
+
+// ---------- "Pick random" draw order ----------
+// The bag is what stops a reroll handing you the same three titles all
+// evening — every candidate has to come up before any of them comes up twice.
+const pool = (n) => Array.from({ length: n }, (_, i) => ({ id: "p" + i, title: "T" + i }));
+
+test("every candidate is drawn once before any repeats", () => {
+  const items = pool(8);
+  const drawn = [];
+  for (let i = 0; i < 8; i++) {
+    const b = peekPickBag(items, 1)[0];
+    spendPick(b.id);
+    drawn.push(b.id);
+  }
+  assert.deepStrictEqual([...new Set(drawn)].length, 8);
+});
+
+test("the bag refills once it runs out", () => {
+  const items = pool(3);
+  for (let i = 0; i < 7; i++) {
+    const b = peekPickBag(items, 1)[0];
+    assert.ok(b, "a draw is always available");
+    spendPick(b.id);
+  }
+});
+
+test("peeking does not spend the draw", () => {
+  const items = pool(5);
+  const first = peekPickBag(items, 1)[0].id;
+  assert.strictEqual(peekPickBag(items, 1)[0].id, first);
+});
+
+test("a peek returns at most what is in scope", () => {
+  assert.strictEqual(peekPickBag(pool(4), 12).length, 4);
+  assert.strictEqual(peekPickBag(pool(20), 12).length, 12);
+  assert.strictEqual(peekPickBag([], 12).length, 0);
+});
+
+test("narrowing the scope drops what left it, widening picks up what came back", () => {
+  const items = pool(6);
+  peekPickBag(items, 6);
+  const narrowed = peekPickBag(items.slice(0, 2), 6);
+  assert.deepStrictEqual(narrowed.map((b) => b.id).sort(), ["p0", "p1"]);
+  const widened = peekPickBag(items, 6).map((b) => b.id).sort();
+  assert.deepStrictEqual(widened, ["p0", "p1", "p2", "p3", "p4", "p5"]);
+});
 
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

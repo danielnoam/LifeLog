@@ -12,12 +12,12 @@
 // touched — intercepting those and falling back to index.html on failure
 // previously turned a real network/CORS error into a fake 200 OK full of HTML,
 // masking the actual failure from the app's own error handling.
-const CACHE = "lifelog-v38";
+const CACHE = "lifelog-v39";
 // Note: lifelog.json is intentionally NOT precached — it isn't deployed (your
 // data is private). The app fetches it at runtime with a graceful fallback.
 const ASSETS = [
   "./", "./index.html",
-  "./src/styles.css", "./src/app.js", "./src/finance.js", "./src/settings.js", "./src/backlog.js", "./src/journal.js", "./src/io.js", "./src/sync.js", "./src/merge.js", "./src/storage.js", "./src/media.js", "./src/qr.js",
+  "./src/styles.css", "./src/app.js", "./src/finance.js", "./src/settings.js", "./src/backlog.js", "./src/wheel.js", "./src/journal.js", "./src/io.js", "./src/sync.js", "./src/merge.js", "./src/storage.js", "./src/media.js", "./src/qr.js",
   "./manifest.json", "./icon.svg",
 ];
 

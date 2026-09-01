@@ -6,6 +6,8 @@
 // buttons, and applySteamAppId stay in app.js — the journal entry modal
 // uses them too — and are handed in through ctx.
 (function () {
+  const Wheel = window.LifeLogWheel;
+
   // Shared app plumbing, provided by app.js via init(ctx).
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
     emptyState, emptyCoverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
@@ -506,6 +508,79 @@
   let pickCats = new Set();
   let pickFavOnly = false;
 
+  // Draws come out of a bag rather than off a fresh coin flip each time:
+  // independent draws on a 40-title backlog will happily hand you the same
+  // three titles all evening while most of the list never shows up at all.
+  // The bag holds every candidate id in draw order and is popped from the
+  // front, so nothing repeats until everything has had its turn.
+  //
+  // pickHistory is that memory outliving the modal (device-local, not part
+  // of the synced data — which of your own titles you shrugged at last night
+  // is not worth a sync). It only ever reorders the bag: everything you
+  // haven't seen recently is drawn first, then the rest oldest-first. A pick
+  // is never excluded outright, so a short list still works.
+  const PICK_HISTORY_KEY = "lifelog-pick-history-v1";
+  const PICK_HISTORY_MAX = 60;
+  let pickBag = [];
+  let pickHistory = null;
+
+  function loadPickHistory() {
+    if (pickHistory) return pickHistory;
+    try {
+      const raw = JSON.parse(localStorage.getItem(PICK_HISTORY_KEY));
+      pickHistory = Array.isArray(raw) ? raw.map(String) : [];
+    } catch (e) { pickHistory = []; }
+    return pickHistory;
+  }
+  function notePicked(id) {
+    const hist = loadPickHistory().filter((x) => x !== id);
+    hist.unshift(id);
+    pickHistory = hist.slice(0, PICK_HISTORY_MAX);
+    try { localStorage.setItem(PICK_HISTORY_KEY, JSON.stringify(pickHistory)); } catch (e) {}
+  }
+
+  // Bag order: shuffled, then sorted so anything in the history sinks to the
+  // back, most-recently-picked last. Sort is stable, so the shuffle survives
+  // as the tie-break inside each group.
+  function orderForBag(ids) {
+    const hist = loadPickHistory();
+    const seen = new Map(hist.map((id, i) => [id, hist.length - i])); // 1 = oldest seen
+    const out = ids.slice();
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out.sort((a, b) => (seen.get(a) || 0) - (seen.get(b) || 0));
+  }
+
+  // The next n candidates in bag order, without spending them — what the
+  // wheel puts on its slices, and where a single reroll takes its draw from.
+  // Anything that left the scope strip drops out on the way past and anything
+  // that came back joins in, so a chip toggled off and on again doesn't have
+  // to wait out the rest of the bag.
+  function peekPickBag(pool, n) {
+    const byId = new Map(pool.map((b) => [b.id, b]));
+    const kept = pickBag.filter((id) => byId.has(id));
+    const keptIds = new Set(kept);
+    const missing = pool.filter((b) => !keptIds.has(b.id)).map((b) => b.id);
+    if (!kept.length) pickBag = orderForBag(missing);
+    else if (missing.length) pickBag = orderForBag(kept.concat(missing));
+    else pickBag = kept;
+    return pickBag.slice(0, n).map((id) => byId.get(id));
+  }
+
+  function drawPick(pool) {
+    const next = peekPickBag(pool, 1)[0];
+    if (!next) return null;
+    spendPick(next.id);
+    return next;
+  }
+
+  function spendPick(id) {
+    pickBag = pickBag.filter((x) => x !== id);
+    notePicked(id);
+  }
+
   // Nothing you can't start yet. isUnreleased() covers everything with a
   // date to judge, but an announced show can arrive with no release date of
   // its own and only a first episode scheduled — no window, so it reads as
@@ -602,9 +677,31 @@
       ? "Drawing from " + pool.length + (pool.length === 1 ? " title" : " titles") : "";
     $("#pickOpenBtn").disabled = !pool.length;
     $("#pickRerollBtn").disabled = !pool.length;
+    $("#pickWheelBtn").disabled = pool.length < 2;
     if (!pool.length) { showEmptyPick(); return; }
-    const b = pool[Math.floor(Math.random() * pool.length)];
+    showPick(drawPick(pool));
+  }
 
+  // The same draw dealt out as a wheel: the titles the bag was about to hand
+  // you become the slices, and whichever one it lands on is the pick — so the
+  // suspense is real without the odds changing. A pool bigger than the wheel
+  // holds is cut to the front of the bag, which is the least-recently-seen
+  // end of it.
+  function openPickWheel() {
+    const pool = pickCandidates();
+    if (pool.length < 2) return;
+    const contenders = peekPickBag(pool, Wheel.MAX_SEGMENTS);
+    Wheel.openWheel({
+      title: "Spin for it",
+      hint: pool.length > contenders.length
+        ? contenders.length + " of " + pool.length + " titles on the wheel" : "",
+      items: contenders.map((b) => ({ label: b.title, color: colorOf(b.category), data: b })),
+      actionLabel: "That's the pick",
+      onResult: (seg) => { spendPick(seg.data.id); showPick(seg.data); },
+    });
+  }
+
+  function showPick(b) {
     // Title, with a ★ favorite marker when the item is prioritized.
     const titleEl = $("#pickModalTitle");
     titleEl.textContent = b.title;
@@ -1370,6 +1467,7 @@
       setBacklogCover();
     };
     $("#pickRerollBtn").onclick = rerollPick;
+    $("#pickWheelBtn").onclick = openPickWheel;
     $("#pickFavOnly").onchange = (ev) => { pickFavOnly = ev.target.checked; rerollPick(); };
     $("#pickCloseBtn").onclick = closePickModal;
     document.addEventListener("click", (e) => {
@@ -1405,5 +1503,8 @@
     formatReleaseInput,
     // which block of a category a row lands in (test/backlog.test.js)
     bandOf,
+    // random-pick draw order (test/backlog.test.js)
+    peekPickBag,
+    spendPick,
   };
 })();

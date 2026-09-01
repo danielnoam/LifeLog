@@ -12,7 +12,28 @@ todo:
   Could cross-fill from RAWG by title the way the Steam wishlist import
   already does, if that's worth an extra request per pick
 
+- the random pick weights nothing: a starred title is either the only kind
+  you can draw ("Favorites only") or exactly as likely as everything else.
+  Weighting stars up instead of filtering everything else out would let the
+  draw lean towards what you actually want without cutting the pool
+
+- nothing about a pick knows how long you have. `length` is free text off
+  whichever media source filled it in ("12 hours", "2h 15m", "8 episodes"),
+  so a "what fits in an evening" filter would need parsing that first
+
 done:
+
+- a random wheel, in the + menu and beside the Backlog's random pick. Feed
+  it your own options (kept on the device) or let the picker feed it the
+  titles it was about to draw — either way the spin is only the reveal: the
+  winner is drawn first and the animation aimed at it, so the odds stay flat
+  however the easing lands. Twelve slices max, since more than that stops
+  being readable at phone width
+
+- backlog picks come out of a bag instead of a fresh coin flip each reroll,
+  so nothing repeats until everything in scope has had a turn, and the bag
+  carries a device-local memory of what it drew last time so a fresh sitting
+  doesn't lead with last night's rejects
 
 - games were the only backlog items that never got a description, and the
   metascore/length on the ones that did have data came and went: RAWG's

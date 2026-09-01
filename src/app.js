@@ -7,6 +7,7 @@
   const Journal = window.LifeLogJournal;
   const IO = window.LifeLogIO;
   const Sync = window.LifeLogSync;
+  const Wheel = window.LifeLogWheel;
   const MONTHS = ["", "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"];
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -45,7 +46,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.104.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.105.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1889,6 +1890,11 @@
       else if (b.dataset.add === "backlog") Backlog.openBacklogModal(null);
       else if (b.dataset.add === "finance") Finance.openFinanceModal(null);
       else if (b.dataset.add === "recurring") Finance.openRecurringModal(null);
+      else if (b.dataset.add === "wheel") {
+        // No pool of its own: the + menu's wheel is the list you typed, which
+        // is why it opens straight into its editor when there isn't one yet.
+        Wheel.openWheel({ custom: true, title: "Spin a wheel", hint: "Your own options — spin to let it decide." });
+      }
     });
     document.addEventListener("click", closeAddMenu);
 
@@ -1897,6 +1903,7 @@
     Journal.wire(); // timeline entry modal, achievements, category management
     Finance.wire(); // finance/recurring/finance-category modals + finance import/export
     Backlog.wire(); // backlog modal: sync, priority/dropped, title suggestions
+    Wheel.wire(); // the random wheel modal (Backlog "🎡 Spin" + the + menu)
     SettingsUI.wire(); // the Settings modal: tabs, data/storage, appearance, media, privacy
 
     $("#exportJsonBtn").onclick = IO.exportJson;
@@ -1939,7 +1946,7 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         Journal.closeEntryModal(); Journal.closeAchModal(); Journal.cancelCategoryModal(); Backlog.closeBacklogModal();
-        Backlog.closePickModal();
+        Backlog.closePickModal(); Wheel.closeWheel();
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
         Finance.closePauseModal(); Finance.cancelFinanceCatModal(); SettingsUI.closeSettings();
         closeShortcutsModal();
@@ -2257,6 +2264,7 @@
     loadBacklogPrices: Sync.loadBacklogPrices, applySteamAppId: Sync.applySteamAppId,
     backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS,
   });
+  Wheel.init({ $, toast, prefersReducedMotion, palette: CATEGORY_PALETTE });
   Finance.init({
     state, $, el, uid, groupBy, countBy, toast, persist, render, renderLazySections,
     buildYearFilter, buildCatFilter, monthCardHeader, emptyState,

@@ -4,6 +4,32 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.105.0] - 2026-09-01
+
+### Added
+- **A wheel to spin.** New in the **+** menu: type in a set of options —
+  what to eat, which chore, who goes first — and spin for one. The list is
+  kept on this device, so the wheel you spin every week is still there next
+  time. **Remove & spin** drops whatever it landed on and goes again, which
+  turns it into an elimination round when what you actually want is an
+  order. Under reduced-motion it lands straight on its answer, no spin.
+- **The Backlog's random pick can be spun for too.** "Pick random" has a
+  **🎡 Spin** button beside "Pick again": the titles the picker was about to
+  hand you go on the wheel — coloured by category, and narrowed by the same
+  scope strip — and the one it lands on becomes the pick card, metadata,
+  links and all. The wheel holds twelve slices; a bigger pool puts its
+  least-recently-seen twelve up.
+
+### Changed
+- **The random picker stopped repeating itself.** Every "Pick again" was an
+  independent coin flip, so on a 40-title backlog it would hand you the same
+  three titles all evening while most of the list never came up at all.
+  Draws now come out of a bag: nothing repeats until everything in scope has
+  had its turn. The bag also remembers what it drew across sittings (on this
+  device — it isn't synced), so re-opening the picker doesn't lead with the
+  title you shrugged at last night. Narrowing the scope drops what left it
+  and switching a category back on puts it straight back in the running.
+
 ## [0.104.0] - 2026-08-28
 
 ### Added

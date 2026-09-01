@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.104.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.105.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -96,6 +96,8 @@
       <div class="add-menu-divider" role="separator"></div>
       <button type="button" data-add="finance">Add finance entry</button>
       <button type="button" data-add="recurring">Add recurring expense</button>
+      <div class="add-menu-divider" role="separator"></div>
+      <button type="button" data-add="wheel">Spin a wheel</button>
     </div>
     <button id="addBtn" class="btn btn-primary fab" aria-label="Add">+</button>
   </div>
@@ -395,9 +397,43 @@
       <div id="pickLinks" class="pick-links"></div>
       <div class="modal-actions">
         <button type="button" class="btn" id="pickRerollBtn">Pick again</button>
+        <button type="button" class="btn" id="pickWheelBtn" title="Spin for it instead">🎡 Spin</button>
         <span class="spacer"></span>
         <button type="button" class="btn" id="pickCloseBtn">Close</button>
         <button type="button" class="btn btn-primary" id="pickOpenBtn">Open</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Random wheel: the spin-for-it alternative to the pick card. Opened
+       either on the Backlog's current pick candidates ("🎡 Spin") or, from
+       the + menu, on a list of options you type yourself. -->
+  <div class="modal-overlay" id="wheelModal" hidden>
+    <div class="modal">
+      <h2 id="wheelTitle">Spin the wheel</h2>
+      <p class="muted wheel-hint" id="wheelHint" hidden></p>
+      <div class="wheel-stage">
+        <div class="wheel-pointer" aria-hidden="true"></div>
+        <canvas id="wheelCanvas" role="img" aria-label="Random wheel"></canvas>
+        <button type="button" class="wheel-hub" id="wheelSpinBtn">Spin</button>
+      </div>
+      <p class="wheel-empty muted" id="wheelEmpty" hidden>Nothing on the wheel yet — add some options below.</p>
+      <p class="wheel-result" id="wheelResult" role="status" aria-live="polite" hidden>
+        <span class="wheel-result-eyebrow">It landed on</span>
+        <span class="wheel-result-text" id="wheelResultText"></span>
+      </p>
+      <div class="wheel-edit" id="wheelEdit" hidden>
+        <label>Options — one per line
+          <textarea id="wheelOptions" rows="6" placeholder="Pizza&#10;Ramen&#10;Whatever is in the fridge"></textarea>
+        </label>
+        <button type="button" class="btn btn-sm" id="wheelApplyBtn">Use these</button>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn" id="wheelEditBtn" aria-expanded="false" hidden>Edit options</button>
+        <button type="button" class="btn" id="wheelRemoveBtn" hidden>Remove &amp; spin</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="wheelCloseBtn">Close</button>
+        <button type="button" class="btn btn-primary" id="wheelActionBtn" hidden>Open</button>
       </div>
     </div>
   </div>
@@ -1111,16 +1147,17 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.104.0"></script>
-  <script defer src="src/media.js?v=0.104.0"></script>
-  <script defer src="src/merge.js?v=0.104.0"></script>
-  <script defer src="src/storage.js?v=0.104.0"></script>
-  <script defer src="src/finance.js?v=0.104.0"></script>
-  <script defer src="src/settings.js?v=0.104.0"></script>
-  <script defer src="src/backlog.js?v=0.104.0"></script>
-  <script defer src="src/journal.js?v=0.104.0"></script>
-  <script defer src="src/io.js?v=0.104.0"></script>
-  <script defer src="src/sync.js?v=0.104.0"></script>
-  <script defer src="src/app.js?v=0.104.0"></script>
+  <script defer src="src/qr.js?v=0.105.0"></script>
+  <script defer src="src/media.js?v=0.105.0"></script>
+  <script defer src="src/merge.js?v=0.105.0"></script>
+  <script defer src="src/storage.js?v=0.105.0"></script>
+  <script defer src="src/finance.js?v=0.105.0"></script>
+  <script defer src="src/settings.js?v=0.105.0"></script>
+  <script defer src="src/wheel.js?v=0.105.0"></script>
+  <script defer src="src/backlog.js?v=0.105.0"></script>
+  <script defer src="src/journal.js?v=0.105.0"></script>
+  <script defer src="src/io.js?v=0.105.0"></script>
+  <script defer src="src/sync.js?v=0.105.0"></script>
+  <script defer src="src/app.js?v=0.105.0"></script>
 </body>
 </html>
