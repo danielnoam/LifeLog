@@ -307,8 +307,11 @@
   // summary/externalRating are here because RAWG's details endpoint fills
   // them too (see fetchRawgDetails) — every caller reads them as
   // `details.summary || r.summary`, so a source that has nothing to add just
-  // leaves them empty.
-  const EMPTY_DETAILS = { length: "", releaseStatus: "", nextAt: "", nextLabel: "", releaseDate: "", releasePrecision: "", summary: "", externalRating: "" };
+  // leaves them empty. `genres` is filled only by the SteamGridDB cross-fill
+  // (see fetchSteamGridDbCrossFill): every other source states its genres
+  // during the search, so for them it stays the empty array and callers keep
+  // the ones already on the result.
+  const EMPTY_DETAILS = { length: "", releaseStatus: "", nextAt: "", nextLabel: "", releaseDate: "", releasePrecision: "", summary: "", externalRating: "", genres: [] };
   async function fetchTmdbDetails(id, type, apiKey) {
     if (!apiKey || !id) return { ...EMPTY_DETAILS };
     try {
@@ -652,6 +655,40 @@
     return results.map((r) => ({ ...r, source: "steamgriddb-steam-gg" }));
   }
 
+  // SteamGridDB is a cover-art database, so a match off it is a title, a grid
+  // image and a date and nothing else — no rating, no length, no genres, no
+  // description, because its API carries none of that. That made a game
+  // picked from it the last kind of backlog item to land bare. This fills the
+  // gap from RAWG by title, exactly the way the Steam wishlist import already
+  // does (fetchRawgInfo in sync.js): one search, top match, and only the
+  // fields SGDB left empty are taken.
+  // Deliberately not the date: RAWG dates a game by its *earliest* platform
+  // release (see searchRawg), often a console version years before the PC
+  // one, while SGDB dates the entry you actually picked — so a cross-filled
+  // date would be a downgrade, not a gap being filled.
+  // The description costs a second request, RAWG's search endpoint having
+  // none (see fetchRawgDetails), so it's spent only when the caller says
+  // nothing better is coming: a steamgriddb-steam-gg pick that resolves to a
+  // Steam App ID is already fetching Steam's own store blurb, which wins over
+  // RAWG's anyway, and the journal has no description field at all.
+  // Silent on every failure — no RAWG key, no match, a network error — since
+  // both calls below already answer with empties rather than throwing. This
+  // is a nice-to-have on top of a pick that has otherwise succeeded.
+  async function fetchSteamGridDbCrossFill(title, apiKey, wantSummary) {
+    if (!apiKey || !title) return { ...EMPTY_DETAILS };
+    const top = (await searchRawg(title, apiKey))[0];
+    if (!top) return { ...EMPTY_DETAILS };
+    const out = {
+      ...EMPTY_DETAILS,
+      externalRating: top.externalRating || "",
+      length: top.length || "",
+      genres: top.genres || [],
+    };
+    if (!wantSummary) return out;
+    const details = await fetchRawgDetails(top.id, apiKey);
+    return { ...out, summary: details.summary || "" };
+  }
+
   // One SteamGridDB game by its SGDB id, asked for with its storefront ids
   // attached (?platformdata=steam). Same CORS proxy as the search. Returns
   // null if it can't be fetched — every caller treats that as "SGDB has
@@ -840,23 +877,39 @@
     },
     // Per-title extras that a search response can't include: TMDB's
     // runtime/season counts, production status and next episode, RAWG's
-    // description. Takes the whole mediaKeys object, since which key it
-    // needs depends on the source. Every other source already said
-    // everything it knows during the search.
-    async fetchDetails(id, source, keys) {
+    // description, and for SteamGridDB — which states none of it — a RAWG
+    // cross-fill of the lot. Takes the whole mediaKeys object, since which
+    // key it needs depends on the source. `opts.title` is what that
+    // cross-fill matches on (an SGDB id means nothing to RAWG) and
+    // `opts.wantSummary` is the caller saying whether it has a better
+    // description already coming, defaulting to yes for a caller that
+    // doesn't say. Every other source already said everything it knows
+    // during the search.
+    async fetchDetails(id, source, keys, opts) {
       const k = keys || {};
+      const o = opts || {};
       if (source === "tmdb-movie") return fetchTmdbDetails(id, "movie", k.tmdb || "");
       if (source === "tmdb-tv") return fetchTmdbDetails(id, "tv", k.tmdb || "");
       if (source === "rawg" || source === "rawg-steam-gg") return fetchRawgDetails(id, k.rawg || "");
+      if (source === "steamgriddb" || source === "steamgriddb-steam-gg") {
+        return fetchSteamGridDbCrossFill(o.title || "", k.rawg || "", o.wantSummary !== false);
+      }
       return { ...EMPTY_DETAILS };
     },
-    // Length only — for the journal, which has no use for a description or a
-    // release date. RAWG is deliberately skipped: its playtime is the same
-    // number the search already returned, so the extra request would buy a
-    // timeline entry nothing.
-    async fetchLength(id, source, keys) {
-      if (source === "rawg" || source === "rawg-steam-gg") return "";
-      return (await this.fetchDetails(id, source, keys)).length;
+    // The subset of the per-title extras a *journal* entry has fields for:
+    // a length and genres, never a description or a release date — a
+    // timeline entry is dated by when you finished the thing, not by when it
+    // came out. RAWG is skipped outright: its playtime and its genres are
+    // both exactly what the search already returned, so the request would
+    // buy a timeline entry nothing. SteamGridDB is the opposite case, its
+    // search stating neither, so it cross-fills — and one RAWG search
+    // answers both fields at once, which is why this is a single call and
+    // not a length lookup with a genre lookup behind it. Never the second
+    // request a description would cost: there's nowhere here to put one.
+    async fetchEntryExtras(id, source, keys, title) {
+      if (source === "rawg" || source === "rawg-steam-gg") return { length: "", genres: [] };
+      const d = await this.fetchDetails(id, source, keys, { title, wantSummary: false });
+      return { length: d.length, genres: d.genres };
     },
     // Re-checks one item's release info by its stored media id. Returns null
     // for sources with no id-based lookup worth making — books and music

@@ -36,13 +36,17 @@ global.document = {
 };
 
 global.window = {};
+// Stubbed before the requires below, not after: backlog.js reads
+// window.LifeLogWheel at its own top level, so a stub added later would
+// leave its captured reference undefined.
+global.window.LifeLogWheel = { init: () => {} };
 // Real modules — normalize() calls their actual sanitizers, already
 // covered by their own test files; requiring them for real here gives
 // genuine integration coverage instead of re-stubbing what they do.
 require("../src/finance.js");
 require("../src/journal.js");
 require("../src/backlog.js");
-// app.js calls .init(ctx) on these three unconditionally at its own top
+// app.js calls .init(ctx) on these unconditionally at its own top
 // level; normalize() doesn't depend on their behavior, so no-op stubs.
 global.window.LifeLogIO = { init: () => {} };
 global.window.LifeLogSync = { init: () => {} };

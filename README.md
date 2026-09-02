@@ -1,8 +1,12 @@
 # LifeLog
 
-A standalone web app to view, edit, and count your media/experience log
-(Games, Shows, Movies, Books, Trips, …) — imported from your Google Sheet,
-stored in a plain JSON file you own.
+A standalone web app for the log of what you've done and what you mean to do
+next — the games, shows, movies, books and trips you've finished, the backlog
+you haven't, and what you've been spending. Originally imported from a Google
+Sheet; now stored in a plain JSON file you own.
+
+No build step, no dependencies, no framework: it's vanilla HTML, CSS and JS
+served as static files.
 
 ## Run it
 
@@ -58,27 +62,108 @@ browser's *Add to Home Screen* / *Install app*.
 
 ## Features
 
-- **Timeline** – entries grouped by year → month, with per-year accomplishments.
-- **By Category** – collapsible lists with counts per type.
-- **Stats** – totals per category and per year, with bar charts.
-- **Filters** – year dropdown, category chips, and title search.
-- **Category management** – add / rename / recolor / reorder / delete types
-  (Settings).
+Five views, in two groups.
+
+**Journal**
+
+- **Timeline** – what you've finished, grouped by year → month, with per-year
+  accomplishments. An entry can carry a rating, notes, cover art, genres, a
+  length, and a start month for anything that took more than one.
+- **Stats** – totals by category and year, a highlights strip (busiest month,
+  longest streak, this year vs last), seasonality, genres, an activity
+  heatmap, most-repeated titles, and a year-in-review card.
+- **Backlog** – what you mean to get to, as **By category** or **Next
+  releases**. Items sort into starred → ready → unreleased → dropped bands,
+  and **Pick random** draws one for you out of a bag, so nothing repeats
+  until everything in scope has had a turn.
+
+**Finance**
+
+- **Ledger** – expenses by year → month, each month broken down by category.
+- **Summary** – total spend, average and biggest month, top category, a
+  12-month trend, one-off vs recurring, and your largest expenses.
+- **Recurring expenses** – with pauses, per-occurrence overrides, plan
+  changes over time, and a picker for linking past expenses to a plan.
+
+**Throughout**
+
+- **Media sync** – fill in cover art, ratings, release dates, genres,
+  descriptions and lengths from RAWG, SteamGridDB, TMDB, Open Library,
+  AniList, Jikan, Google Books and MusicBrainz. Set a primary and a fallback
+  source per category in **Settings → Media**; the "+ Steam + GG.deals"
+  combo sources also resolve a Steam App ID for a store link and a price.
+- **List imports** – pull your **Steam wishlist** or your **AniList
+  Planning** list straight into the backlog, dup-checked against what's
+  already there. A quiet background check keeps release dates current.
+- **A wheel to spin** – in the **+** menu for a list you type yourself, and
+  beside the backlog's random pick.
+- **Filters** – year and category chips, plus a search across titles and
+  notes.
+- **Bulk actions** – long-press to select, then edit, sync, or delete many
+  items at once.
+- **Category management** – add / rename / recolour / reorder / delete, for
+  both journal and finance categories.
+- **Import / export** – JSON and CSV, both directions, each routed through a
+  review screen so you see what will land before it does.
+- **App lock** – an optional PIN, with fingerprint / Face ID where the
+  device offers it.
+- **Offline** – an installable PWA with a service worker, so it works with
+  no connection and syncs when there is one.
 
 ## Project layout
 
 ```
-index.html        app shell
-src/styles.css    styling (dark theme)
-src/storage.js    persistence: local-file / GitHub / localStorage backends
-src/app.js        app logic & views
-server.js         tiny static server
-manifest.json     PWA manifest (installable)
-sw.js             service worker (offline cache)
-icon.svg          app icon
-lifelog.json      your data (seed = imported sheet)
-data/             one-time import: raw CSV + parse.js (kept for reference)
+index.html          app shell + every modal
+src/styles.css      styling (dark theme)
+src/app.js          shell: state, routing, filters, shared helpers
+src/journal.js      Timeline + Stats views, entry modal, achievements
+src/backlog.js      Backlog view, backlog modal, the random picker
+src/finance.js      Ledger + Summary views, expenses, recurring expenses
+src/media.js        cover art + metadata from the eight media sources
+src/sync.js         Steam wishlist / AniList Planning imports, GG.deals prices
+src/wheel.js        the canvas spin wheel
+src/storage.js      persistence: local-file / GitHub / localStorage backends
+src/merge.js        pure three-way merge for reconciling two devices' edits
+src/io.js           JSON/CSV import + export, and the shared review picker
+src/settings.js     the Settings modal
+src/qr.js           self-contained QR encoder for the device setup link
+server.js           tiny static server
+proxy/              optional Cloudflare Worker: CORS proxy for Steam/SteamGridDB
+test/               zero-dependency Node tests — `node test/run-all.js`
+manifest.json       PWA manifest (installable)
+sw.js               service worker (offline cache)
+icon.svg            app icon
+lifelog.json        your data (seed = imported sheet)
+data/               one-time import: raw CSV + parse.js (kept for reference)
 ```
+
+## Media sources and keys
+
+Everything works without a key; the sources that need one just stay quiet
+until you add it in **Settings → Media**.
+
+| Source | Key needed | Good for |
+| --- | --- | --- |
+| RAWG | yes (free) | games — ratings, playtime, genres, descriptions |
+| SteamGridDB | yes (free) + CORS proxy | games — much better cover art |
+| TMDB | yes (free) | movies and TV, incl. next-episode dates |
+| GG.deals | yes (free); proxy if CORS-blocked | current game prices |
+| Open Library, AniList, Jikan, Google Books, MusicBrainz | no | books, anime/manga, music |
+
+Steam's own endpoints and SteamGridDB send no CORS headers, so the wishlist
+import, Steam release dates and prices need a proxy you host yourself —
+`proxy/` is a Cloudflare Worker that does it in a free account. See
+[`proxy/README.md`](proxy/README.md).
+
+## Tests
+
+```bash
+node test/run-all.js
+```
+
+Plain Node `assert`, no framework and no install step. They cover the pure
+data logic — sanitizers, the three-way merge, release-date parsing, finance
+maths — plus the media layer's request routing, against a stubbed `fetch`.
 
 ## Re-importing from the sheet
 

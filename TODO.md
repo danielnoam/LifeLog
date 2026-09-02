@@ -6,12 +6,6 @@ todo:
   name matches immediately and fill covers in progressively. Unmeasured (needs
   a key + proxy to test)
 
-- SteamGridDB results still carry nothing but a title, a cover and a date —
-  no rating, no length, no description, since its API has none of that. A
-  game picked from it is the last kind of backlog item that lands bare.
-  Could cross-fill from RAWG by title the way the Steam wishlist import
-  already does, if that's worth an extra request per pick
-
 - the random pick weights nothing: a starred title is either the only kind
   you can draw ("Favorites only") or exactly as likely as everything else.
   Weighting stars up instead of filtering everything else out would let the
@@ -22,6 +16,32 @@ todo:
   so a "what fits in an evening" filter would need parsing that first
 
 done:
+
+- SteamGridDB picks cross-fill their rating, length, genres and description
+  from RAWG by title, so a game off it no longer lands bare. The extra
+  request is really two — RAWG's search has no description, only its
+  per-game endpoint does — so the second one is spent only when nothing
+  better is coming: resolveMediaIdentity now runs *before* fetchDetails at
+  both pick sites, and a steamgriddb-steam-gg pick that resolves to a Steam
+  App ID says wantSummary:false, since Steam's own store blurb is already
+  on its way and wins anyway. RAWG's date is deliberately dropped (it dates
+  by earliest platform release, SGDB dates the entry you picked).
+  The journal gets the same treatment: media.js's fetchLength returned a
+  bare string and threw away the genres the same RAWG search had already
+  fetched, so a SteamGridDB-synced timeline entry went into the Stats
+  "Genres" card counting for nothing. Replaced by fetchEntryExtras, which
+  returns { length, genres } — the two fields a timeline entry actually
+  has, still off one request, and still skipping RAWG outright since its
+  search already stated both
+
+- the README's feature list had stopped at Timeline/By Category/Stats/
+  Filters, and its project layout named four files out of fourteen —
+  rewritten against what the app actually does now
+
+- test/app.test.js had been dead since the wheel landed: app.js calls
+  Wheel.init() at its top level and the test stubbed every other module
+  but that one, so the file threw on require before its first assertion
+  and run-all.js had been reporting a red suite
 
 - a random wheel, in the + menu and beside the Backlog's random pick. Feed
   it your own options (kept on the device) or let the picker feed it the

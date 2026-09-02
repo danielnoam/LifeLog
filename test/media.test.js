@@ -229,5 +229,120 @@ test("mergeRelease ignores null sources and emits no empty keys", () => {
   assert.deepStrictEqual(mergeRelease(null, { releaseDate: "", releasePrecision: "tba" }), { releasePrecision: "tba" });
 });
 
-console.log(`\n${passed} test(s) passed.`);
-if (process.exitCode) console.log("Some tests FAILED — see above.");
+// ---------- SteamGridDB → RAWG cross-fill ----------
+// The only network-touching code covered in this file; everything above is
+// pure. It earns the exception because what's under test isn't RAWG's
+// response shape but the routing around it — which sources cross-fill, how
+// many requests that costs, and which of RAWG's fields are deliberately
+// dropped. `fetch` is stubbed, so nothing leaves the machine.
+const RAWG_SEARCH_GAME = {
+  slug: "hades-ii", name: "Hades II", background_image: "https://img/hades2.jpg",
+  released: "2024-05-06", metacritic: 91, playtime: 30,
+  genres: [{ name: "Action" }, { name: "Roguelike" }],
+};
+
+// Answers RAWG's search and per-game endpoints, and hands back the array of
+// URLs asked for so a test can assert on the request count as well as the
+// result — the whole point of the wantSummary flag is the second request it
+// avoids, which is invisible in the returned fields.
+function stubRawg({ search = [RAWG_SEARCH_GAME], details = {} } = {}) {
+  const calls = [];
+  global.fetch = async (url) => {
+    calls.push(url);
+    const body = url.includes("/api/games?search=")
+      ? { results: search }
+      : { ...RAWG_SEARCH_GAME, ...details };
+    return { ok: true, json: async () => body };
+  };
+  return calls;
+}
+
+// Async twin of test() above, run sequentially at the bottom of the file —
+// each case installs its own `fetch` stub, so letting them overlap would
+// have them fighting over the global.
+const asyncTests = [];
+function atest(name, fn) { asyncTests.push([name, fn]); }
+
+atest("a SteamGridDB pick cross-fills rating, length, genres and a blurb", async () => {
+  const calls = stubRawg({ details: { description_raw: "A rogue-lite." } });
+  const d = await Media.fetchDetails("sgdb-1", "steamgriddb", { rawg: "k" }, { title: "Hades II" });
+  assert.strictEqual(d.externalRating, "91 Metacritic");
+  assert.strictEqual(d.length, "30 hrs");
+  assert.deepStrictEqual(d.genres, ["Action", "Roguelike"]);
+  assert.strictEqual(d.summary, "A rogue-lite.");
+  assert.strictEqual(calls.length, 2); // the search, then the blurb
+  assert.ok(calls[0].includes("search=Hades%20II"));
+});
+
+atest("the cross-fill never takes RAWG's date, so SteamGridDB's own survives", async () => {
+  // RAWG dates by earliest platform release; the per-game endpoint stubbed
+  // here does return `released`, so this guards the field being ignored
+  // rather than merely absent.
+  const calls = stubRawg();
+  const d = await Media.fetchDetails("sgdb-1", "steamgriddb", { rawg: "k" }, { title: "Hades II" });
+  assert.strictEqual(calls.length, 2);
+  assert.strictEqual(d.releaseDate, "");
+  assert.strictEqual(d.releasePrecision, "");
+  const merged = mergeRelease({ releaseDate: "2025-11-20", releasePrecision: "day" }, d);
+  assert.strictEqual(merged.releaseDate, "2025-11-20");
+});
+
+atest("wantSummary:false keeps the cross-fill to a single request", async () => {
+  const calls = stubRawg();
+  const d = await Media.fetchDetails("sgdb-1", "steamgriddb-steam-gg", { rawg: "k" },
+    { title: "Hades II", wantSummary: false });
+  assert.strictEqual(d.length, "30 hrs");
+  assert.strictEqual(d.summary, "");
+  assert.strictEqual(calls.length, 1);
+});
+
+atest("no RAWG key means no cross-fill and no request at all", async () => {
+  const calls = stubRawg();
+  const d = await Media.fetchDetails("sgdb-1", "steamgriddb", {}, { title: "Hades II" });
+  assert.strictEqual(d.externalRating, "");
+  assert.deepStrictEqual(d.genres, []);
+  assert.strictEqual(calls.length, 0);
+});
+
+atest("a title RAWG can't match cross-fills nothing, and skips the blurb", async () => {
+  const calls = stubRawg({ search: [] });
+  const d = await Media.fetchDetails("sgdb-1", "steamgriddb", { rawg: "k" }, { title: "Nonesuch" });
+  assert.strictEqual(d.length, "");
+  assert.strictEqual(d.summary, "");
+  assert.strictEqual(calls.length, 1);
+});
+
+atest("fetchEntryExtras cross-fills SteamGridDB's length and genres in one call", async () => {
+  const calls = stubRawg();
+  const e = await Media.fetchEntryExtras("sgdb-1", "steamgriddb", { rawg: "k" }, "Hades II");
+  assert.strictEqual(e.length, "30 hrs");
+  assert.deepStrictEqual(e.genres, ["Action", "Roguelike"]);
+  // One search answers both fields; never the second request a description
+  // would cost, since a timeline entry has nowhere to put one.
+  assert.strictEqual(calls.length, 1);
+});
+
+atest("fetchEntryExtras still skips RAWG, whose search already said both", async () => {
+  const calls = stubRawg();
+  const e = await Media.fetchEntryExtras("hades-ii", "rawg", { rawg: "k" }, "Hades II");
+  assert.deepStrictEqual(e, { length: "", genres: [] });
+  assert.strictEqual(calls.length, 0);
+});
+
+// The sync cases above have all run by now; the async ones are only queued,
+// so the tally waits on them rather than reporting a count six short.
+(async () => {
+  for (const [name, fn] of asyncTests) {
+    try {
+      await fn();
+      passed++;
+      console.log("  ok - " + name);
+    } catch (e) {
+      console.error("  FAIL - " + name);
+      console.error("    " + e.message);
+      process.exitCode = 1;
+    }
+  }
+  console.log(`\n${passed} test(s) passed.`);
+  if (process.exitCode) console.log("Some tests FAILED — see above.");
+})();

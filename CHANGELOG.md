@@ -4,6 +4,35 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.106.0] - 2026-09-02
+
+### Added
+- **Games picked from SteamGridDB stop landing bare.** SteamGridDB is a
+  cover-art database: a match off it is a title, a grid image and a date,
+  and nothing else — no rating, no length, no genres, no description,
+  because its API carries none of that. That made a game picked from it the
+  last thing in the backlog to arrive with an empty card. Picking one now
+  cross-fills those four fields from RAWG by title, the same way the Steam
+  wishlist import already does. The date stays SteamGridDB's own: RAWG
+  dates a game by its earliest platform release, often a console version
+  years before the PC one, so there was nothing to gain there.
+- **Timeline entries synced from SteamGridDB get a length and genres too.**
+  They had been getting neither, so anything logged from SteamGridDB counted
+  for nothing in the Stats "Genres" card. Both now come from the same single
+  RAWG lookup.
+- **A README that matches the app.** Its feature list had stopped at
+  Timeline, By Category, Stats and Filters — no Backlog, no Ledger or
+  Summary, no media sync, list imports, wheel, bulk actions, app lock or
+  offline support, and a project layout naming four files out of fourteen.
+  Rewritten, plus a table of which media sources need a key and which need
+  the CORS proxy, and how to run the tests.
+
+### Fixed
+- **The test suite ran red.** `test/app.test.js` had stopped loading
+  entirely when the wheel shipped in 0.105.0 — app.js calls `Wheel.init()`
+  at its top level, and the test's stubs didn't include one, so the file
+  threw before reaching its first assertion.
+
 ## [0.105.0] - 2026-09-01
 
 ### Added

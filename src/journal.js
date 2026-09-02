@@ -213,10 +213,17 @@
             // Fields pinned in the entry's Advanced foldout are left alone.
             if (!isOverridden(item, "cover")) item.coverUrl = r.coverUrl || "";
             // TMDB needs a second per-title call for runtime/season data — the
-            // search endpoint doesn't include it (see fetchLength in media.js).
-            const syncedLength = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys)) || r.length || "";
-            if (!isOverridden(item, "length")) item.length = syncedLength;
-            if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
+            // search endpoint doesn't include it (see fetchEntryExtras in
+            // media.js) — and a SteamGridDB match has neither a length nor
+            // genres until RAWG is asked by title, which is what the title
+            // argument is for.
+            const extras = await window.LifeLogMedia.fetchEntryExtras(r.id, r.source, keys, r.title);
+            if (!isOverridden(item, "length")) item.length = extras.length || r.length || "";
+            // extras.genres is filled only by the SteamGridDB cross-fill, and
+            // only for a source that stated none of its own — so a search
+            // result that did come with genres still wins.
+            const genres = extras.genres.length ? extras.genres : r.genres;
+            if (genres && genres.length) item.genres = genres.slice(); else delete item.genres;
             const resolved = await resolveMediaIdentity(r, keys);
             item.mediaSource = resolved.mediaSource;
             item.mediaId = resolved.mediaId;
@@ -1058,9 +1065,10 @@
       $("#fTitle").value = r.title;
       lastSyncedEntryTitle = r.title;
       entrySyncLocked = true;
-      const length = (await window.LifeLogMedia.fetchLength(r.id, r.source, keys)) || r.length || "";
+      const extras = await window.LifeLogMedia.fetchEntryExtras(r.id, r.source, keys, r.title);
       const { mediaId, mediaSource } = await resolveMediaIdentity(r, keys);
-      setEntryCover(r.coverUrl, mediaId, mediaSource, length, r.genres || []);
+      setEntryCover(r.coverUrl, mediaId, mediaSource, extras.length || r.length || "",
+        extras.genres.length ? extras.genres : (r.genres || []));
       list.hidden = true;
     }, $("#fSyncBtn"));
   }

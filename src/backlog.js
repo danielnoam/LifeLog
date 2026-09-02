@@ -258,14 +258,26 @@
       if (!isPinned("release")) $("#bReleaseYear").value = r.year ? String(r.year) : "";
       if (!isPinned("rating")) $("#bExternalRating").value = r.externalRating || "";
       $("#bGenres").value = (r.genres || []).join("|");
+      // Identity before details, because the answer feeds into them: a
+      // SteamGridDB pick that turns out to be on Steam already has Steam's
+      // own store blurb in hand, and knowing that here saves the RAWG
+      // cross-fill below a second request for a description that would lose
+      // to it anyway.
+      const resolved = await resolveMediaIdentity(r, keys);
       // The per-title second call: TMDB's runtime/season counts plus the
       // show's status and next episode air date — everything the Next
-      // Releases list needs — and, for a game, RAWG's description and a
-      // re-read of its rating (see fetchDetails in media.js).
-      const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys);
+      // Releases list needs — for a game on RAWG its description and a
+      // re-read of its rating, and for one off SteamGridDB (which states no
+      // rating, length, genres or description at all) a RAWG cross-fill of
+      // all four (see fetchDetails in media.js).
+      const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys,
+        { title: r.title, wantSummary: !resolved.summary });
       if (!isPinned("length")) $("#bLength").value = details.length || r.length || "";
       if (!isPinned("rating") && details.externalRating) $("#bExternalRating").value = details.externalRating;
-      const resolved = await resolveMediaIdentity(r, keys);
+      // Only the cross-fill fills details.genres, and only for a source that
+      // had none of its own — so this never overwrites genres the search
+      // already stated just above.
+      if (details.genres && details.genres.length) $("#bGenres").value = details.genres.join("|");
       // Steam's own blurb wins for a game that turned out to be on Steam: one
       // paragraph written for its store page, against the opening paragraph
       // of RAWG's much longer article.
@@ -1163,15 +1175,25 @@
               if (r.year) item.releaseYear = r.year; else delete item.releaseYear;
             }
             if (!isOverridden(item, "rating")) item.externalRating = r.externalRating || "";
+            // Identity first, for the same reason as the single-item pick
+            // above: it decides whether the cross-fill has to go and find a
+            // description, or whether Steam's is already on its way.
+            const resolved = await resolveMediaIdentity(r, keys);
             // TMDB needs a second per-title call for runtime/season data — the
             // search endpoint doesn't include it (see fetchDetails in media.js),
             // and the same response carries the status/next-episode dates. For
-            // a game it's where the description comes from.
-            const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys);
+            // a game it's where the description comes from, and for a
+            // SteamGridDB one where its rating, length and genres come from
+            // too, cross-filled off RAWG.
+            const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys,
+              { title: r.title, wantSummary: !resolved.summary });
             if (!isOverridden(item, "length")) item.length = details.length || r.length || "";
             if (!isOverridden(item, "rating") && details.externalRating) item.externalRating = details.externalRating;
-            if (r.genres && r.genres.length) item.genres = r.genres.slice(); else delete item.genres;
-            const resolved = await resolveMediaIdentity(r, keys);
+            // details.genres is filled only by the cross-fill, and only for a
+            // source that stated none — so the search result still wins
+            // wherever it had something to say.
+            const genres = (details.genres && details.genres.length) ? details.genres : r.genres;
+            if (genres && genres.length) item.genres = genres.slice(); else delete item.genres;
             // Same rule as the single-item pick: a source with no description
             // of its own leaves the existing one alone instead of wiping it.
             const summary = resolved.summary || details.summary || r.summary;
