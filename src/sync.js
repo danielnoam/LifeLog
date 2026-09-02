@@ -82,8 +82,15 @@
     if (!apiKey || !window.LifeLogMedia) return;
     const proxyUrl = (state.data.settings.steam?.proxyUrl || "").trim().replace(/\/+$/, "");
     const now = Date.now();
+    // Items you've marked as bought are skipped: their price is no longer
+    // rendered anywhere (see appendBacklogMeta in backlog.js), so fetching it
+    // would spend GG.deals quota on a number with nowhere to go. The whole
+    // backlog goes through here a category at a time, so on a list with a
+    // lot of owned games that's most of the batch. Callers that only want
+    // the cache warmed for a GG.deals *link* pass a bare { mediaSource,
+    // mediaId } with no `bought` on it, so they're unaffected.
     const appIds = [...new Set(
-      items.filter((b) => b.mediaSource === "steam" && b.mediaId).map((b) => b.mediaId)
+      items.filter((b) => b.mediaSource === "steam" && b.mediaId && !b.bought).map((b) => b.mediaId)
     )].filter((id) => {
       const cached = priceCache.get(id);
       return !cached || now - cached.ts > PRICE_CACHE_MS;

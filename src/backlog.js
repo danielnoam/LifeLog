@@ -51,11 +51,11 @@
     return span;
   }
 
-  // Sits beside the star, never instead of it — "bought" is a sub-state of
-  // starred (see sanitizeBacklog), so a row carrying this always carries a
-  // ★ too, and the pair reads as "wanted, and already paid for".
-  function boughtBadge() {
-    const span = el("span", "bbought", "✓");
+  // For the plain row only. Every other layout says "Bought" in its metadata
+  // line, in the slot the price used to occupy (see appendBacklogMeta) — the
+  // plain row is the one with no metadata line to say it in.
+  function boughtTag() {
+    const span = el("span", "bl-bought", "Bought");
     span.title = "Already bought";
     return span;
   }
@@ -76,11 +76,20 @@
     if (item.externalRating) parts.push("★ " + item.externalRating);
     if (item.releaseYear) parts.push(String(item.releaseYear));
     if (item.length) parts.push(item.length);
-    const hasSteamPrice = item.mediaSource === "steam" && !!item.mediaId;
-    if (parts.length || hasSteamPrice) {
+    // Owning it doesn't just hide the price, it takes the price's place:
+    // what a shop is charging today is a number about a purchase you've
+    // already made, and "Bought" is what you actually wanted that slot to
+    // tell you. Gating it here covers every price in the app at once — the
+    // list rows, the edit modal's cover and the random pick card all build
+    // their meta line through this — and the `false` this then returns stops
+    // each of them kicking off the lookup that would have filled it in.
+    const hasSteamPrice = item.mediaSource === "steam" && !!item.mediaId && !item.bought;
+    if (parts.length || hasSteamPrice || item.bought) {
       const metaLine = el("span", "bl-meta");
       if (parts.length) metaLine.appendChild(document.createTextNode(parts.join(" · ")));
-      if (hasSteamPrice) {
+      if (item.bought) {
+        metaLine.appendChild(el("span", "bl-bought", (parts.length ? " · " : "") + "Bought"));
+      } else if (hasSteamPrice) {
         const price = el("span", "bl-price");
         price.dataset.appid = item.mediaId;
         if (parts.length) price.dataset.sep = "1";
@@ -392,17 +401,22 @@
     return isUnreleased(b) ? 2 : 1;
   }
 
-  // Render order within a category. Bands first (above), then — inside the
-  // starred band — whatever you've already bought, since that's the shortest
-  // distance between "I want to" and actually doing it: no purchase to make
-  // first, and money already spent that isn't buying you anything until you
-  // do. `bought` only ever exists alongside `priority` (sanitizeBacklog
-  // enforces it), so this reorders nothing outside the starred block.
+  // Render order within a category. Bands first (above), then — in the
+  // starred band only — whatever you've already bought, since among the
+  // things you've said matter most, the ones already paid for are the
+  // shortest distance to actually doing them.
+  // Outside that band `bought` is deliberately ignored: it can be set on
+  // anything, but it's a fact about your wallet, not a statement that the
+  // item matters, and letting it reorder the unstarred list would quietly
+  // promote things you never asked to see first.
   function compareBacklog(a, b) {
-    const bandDiff = bandOf(a) - bandOf(b);
+    const band = bandOf(a);
+    const bandDiff = band - bandOf(b);
     if (bandDiff) return bandDiff;
-    const boughtDiff = (b.bought ? 1 : 0) - (a.bought ? 1 : 0);
-    if (boughtDiff) return boughtDiff;
+    if (band === 0) {
+      const boughtDiff = (b.bought ? 1 : 0) - (a.bought ? 1 : 0);
+      if (boughtDiff) return boughtDiff;
+    }
     return (b.priority || 0) - (a.priority || 0) || a.title.localeCompare(b.title);
   }
 
@@ -746,10 +760,6 @@
       fav.title = "Favorite (prioritized)";
       titleEl.appendChild(fav);
     }
-    if (b.bought) {
-      titleEl.appendChild(document.createTextNode(" "));
-      titleEl.appendChild(boughtBadge());
-    }
     $("#pickModalCategory").textContent = b.category;
 
     // Cover art, with the source/store links overlaid on it the way the edit
@@ -872,7 +882,10 @@
     const title = el("span", "bl-title", b.title); title.title = b.title;
     titleRow.appendChild(title);
     if (b.priority) titleRow.appendChild(priorityBadge());
-    if (b.bought) titleRow.appendChild(boughtBadge());
+    // Next Releases builds its own date-led meta line rather than
+    // appendBacklogMeta's, so this row says it on the title like the plain
+    // one does.
+    if (b.bought) titleRow.appendChild(boughtTag());
     body.appendChild(titleRow);
     const meta = el("div", "up-when");
     meta.appendChild(el("span", "up-date", releaseLabel(b)));
@@ -1117,7 +1130,7 @@
     const t = el("span", "etitle", b.title); t.title = b.title;
     row.appendChild(t);
     if (b.priority) row.appendChild(priorityBadge());
-    if (b.bought) row.appendChild(boughtBadge());
+    if (b.bought) row.appendChild(boughtTag());
     if (!state.bulk.active) {
       const doneBtn = el("button", "btn btn-sm", "✓ Done");
       doneBtn.type = "button";
@@ -1151,7 +1164,6 @@
     const titleRow = el("div", "bl-title-row");
     titleRow.appendChild(el("span", "bl-title", b.title));
     if (b.priority) titleRow.appendChild(priorityBadge());
-    if (b.bought) titleRow.appendChild(boughtBadge());
     body.appendChild(titleRow);
     // Price (if any) arrives later via the batched loadBacklogPrices() in
     // renderBacklog and gets patched into the .bl-price span this builds.
@@ -1301,6 +1313,10 @@
         length: $("#bLength").value,
         mediaSource, mediaId,
         summary: $("#bSummary").value,
+        // Read off the live checkbox, so ticking ✓ swaps the price for
+        // "Bought" in the cover meta straight away rather than only after a
+        // save-and-reopen.
+        bought: $("#bBought").checked,
       });
       if (hasSteamPrice) {
         // Same lookup the backlog list uses — reuses its cache (instant if
@@ -1383,20 +1399,11 @@
   }
   function togglePriority() {
     $("#bPriority").checked = !$("#bPriority").checked;
-    // Unstarring takes the purchase mark with it — same rule sanitizeBacklog
-    // enforces on save, applied here so the button can't be left showing a
-    // state that wouldn't survive one.
-    if (!$("#bPriority").checked) $("#bBought").checked = false;
     updatePriorityBtn();
-    updateBoughtBtn();
   }
 
-  // Hidden entirely until the item is starred, rather than disabled: an
-  // unstarred item can't be bought (see sanitizeBacklog), and a permanently
-  // dead third button crowds the title row on a phone for no reason.
   function updateBoughtBtn() {
     const btn = $("#bBoughtBtn");
-    btn.hidden = !$("#bPriority").checked;
     const on = $("#bBought").checked;
     btn.classList.toggle("active", on);
     btn.title = on ? "Already bought — click to unmark" : "Mark as already bought";
@@ -1406,6 +1413,9 @@
   function toggleBought() {
     $("#bBought").checked = !$("#bBought").checked;
     updateBoughtBtn();
+    // Repaint the cover block: its meta line is where the price/"Bought"
+    // swap shows, and nothing else would redraw it until a save-and-reopen.
+    setBacklogCover();
   }
 
   async function saveBacklogFromForm(ev) {
@@ -1436,9 +1446,7 @@
     const genresStr = $("#bGenres").value;
     const genres = genresStr ? genresStr.split("|") : [];
     const priority = $("#bPriority").checked ? 1 : 0;
-    // Guarded by priority for the same reason sanitizeBacklog is — the two
-    // only ever get saved together.
-    const bought = priority && $("#bBought").checked;
+    const bought = $("#bBought").checked;
     const dropped = $("#bDropped").checked;
     if (!title) return;
     if (id) {
@@ -1513,12 +1521,10 @@
     if (b.length) out.length = b.length;
     if (Array.isArray(b.genres) && b.genres.length) out.genres = b.genres.map((g) => String(g)).slice(0, 4);
     if (b.priority) out.priority = +b.priority;
-    // Only kept alongside a star. "Bought" exists to float a thing to the top
-    // of your favorites, so an unstarred one has nowhere to float to — and
-    // letting the pair come apart would mean every sort, badge and filter
-    // downstream having to decide what a bought-but-unstarred item means.
-    // Unstarring therefore drops it, here rather than at each call site.
-    if (b.bought && b.priority) out.bought = true;
+    // Independent of the star — anything can be marked bought. It only
+    // changes the order inside the starred block (see compareBacklog);
+    // elsewhere it just shows the badge and drops the price.
+    if (b.bought) out.bought = true;
     if (b.dropped) out.dropped = true;
     const overrides = sanitizeOverrides(b.overrides, OVERRIDE_KEYS);
     if (overrides) out.overrides = overrides;

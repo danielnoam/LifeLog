@@ -4,6 +4,24 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.108.0] - 2026-09-02
+
+### Added
+- **Anything can be marked bought, not just favorites.** The ✓ beside the
+  star is now always available. On a starred item it still floats the row to
+  the top of its block; anywhere else it's simply a note that the money is
+  already spent, and it leaves the order alone — a purchase says something
+  about your wallet, not about what you want to get to next.
+
+### Changed
+- **A bought item says "Bought" where its price used to be.** What a shop is
+  charging today is a number about a purchase you've already made, so the
+  GG.deals price is replaced by the word in the row, the edit modal and the
+  random pick card — and no longer looked up at all, which keeps your
+  GG.deals quota for the games you might still buy. The ✓ badge that
+  0.107.0 put beside the title is gone with it: the word says the same
+  thing, in the place you were already looking for the price.
+
 ## [0.107.0] - 2026-09-02
 
 ### Added

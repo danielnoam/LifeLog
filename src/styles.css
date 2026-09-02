@@ -430,9 +430,10 @@ select:focus { outline: none; border-color: var(--accent); }
   white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .bpriority { font-size: 11px; color: var(--priority); letter-spacing: 1px; flex-shrink: 0; }
-/* Always sits next to a .bpriority, never alone — green against the star's
-   gold so the two read as separate facts at a glance. */
-.bbought { font-size: 11px; color: var(--success); letter-spacing: 1px; flex-shrink: 0; }
+/* Either in the metadata line where the price would have been, or — in the
+   two layouts that have no such line — beside the title. Green so it reads
+   as its own fact next to the star's gold. */
+.bl-bought { font-size: 11px; color: var(--success); flex-shrink: 0; white-space: nowrap; }
 .entry .entry-cat {
   display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
   padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;
@@ -868,11 +869,10 @@ kbd {
 .priority-star { flex: 0 0 auto; padding: 8px 10px; font-size: 14px; line-height: 1; color: var(--text-dim); }
 .priority-star.active { color: var(--priority); border-color: var(--priority); }
 .priority-star:hover { color: var(--priority-hover); }
-/* Same shape as the star it sits beside; only revealed once that star is on. */
+/* Same shape as the star it sits beside. */
 .bought-toggle { flex: 0 0 auto; padding: 8px 10px; font-size: 14px; line-height: 1; color: var(--text-dim); }
 .bought-toggle.active { color: var(--success); border-color: var(--success); }
 .bought-toggle:hover { color: var(--success); }
-.bought-toggle[hidden] { display: none; }
 .sync-status { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--accent); }
 .sync-status[hidden] { display: none; }
 .sync-status .link-btn {

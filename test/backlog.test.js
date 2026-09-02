@@ -61,13 +61,11 @@ test("sanitizeBacklog keeps a truthy priority coerced to a number", () => {
   assert.strictEqual(out.priority, 3);
 });
 
-test("sanitizeBacklog keeps bought only alongside a star", () => {
+test("sanitizeBacklog keeps bought with or without a star", () => {
   const starred = sanitizeBacklog({ title: "Foo", category: "Games", priority: 1, bought: true });
   assert.strictEqual(starred.bought, true);
-  // Unstarring has to take the purchase mark with it, or the sort, the badge
-  // and every filter downstream inherit a state none of them has a rule for.
   const unstarred = sanitizeBacklog({ title: "Foo", category: "Games", bought: true });
-  assert.ok(!("bought" in unstarred));
+  assert.strictEqual(unstarred.bought, true);
 });
 
 test("sanitizeBacklog drops bought:false instead of keeping the field", () => {
@@ -261,14 +259,27 @@ test("already-bought favorites sort to the top of the starred block", () => {
 });
 
 test("bought never lifts an item out of its band", () => {
-  // The bands still win: a bought favorite can't outrank nothing, but a
-  // dropped item stays last however it was marked, and an unstarred one
-  // can't carry `bought` at all (see sanitizeBacklog).
   assert.deepStrictEqual(order([
     { title: "Dropped", priority: 1, bought: true, dropped: true },
     { title: "Plain" },
     { title: "Bought", priority: 1, bought: true },
   ]), ["Bought", "Plain", "Dropped"]);
+});
+
+test("bought reorders nothing outside the starred block", () => {
+  // It can be set on anything, but only the starred band reads it: here the
+  // unstarred rows stay in title order rather than the bought ones jumping
+  // the queue, and the same holds among the still-to-come and the dropped.
+  assert.deepStrictEqual(order([
+    { title: "Zulu" },
+    { title: "Alpha", bought: true },
+    { title: "Mike", bought: true },
+    { title: "Bravo" },
+  ]), ["Alpha", "Bravo", "Mike", "Zulu"]);
+  assert.deepStrictEqual(order([
+    { title: "Yankee", dropped: true },
+    { title: "Xray", dropped: true, bought: true },
+  ]), ["Xray", "Yankee"]);
 });
 
 test("titles still break the tie once band and bought agree", () => {

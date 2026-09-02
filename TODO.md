@@ -17,15 +17,24 @@ todo:
 
 done:
 
-- a starred backlog item can be marked "already bought", which floats it to
-  the top of its category's starred block and puts a green ✓ beside the
-  star. Deliberately a sub-state of starred rather than a flag of its own:
-  the whole point is ordering your favorites, so an unstarred item has
-  nowhere to float to — sanitizeBacklog drops `bought` without `priority`,
-  so no sort, badge or filter downstream ever has to decide what a
-  bought-but-unstarred item means. The inline sort comparator in
-  renderBacklog's build came out as compareBacklog() so the ordering is
-  testable rather than trapped in a closure
+- a backlog item can be marked "already bought", which puts a green ✓ beside
+  the title and, on a starred item, floats it to the top of its category's
+  starred block. The flag is independent of the star (it shipped tied to it
+  in 0.107.0 and came loose again in 0.108.0), but the *ordering* is not:
+  compareBacklog only reads `bought` inside band 0, so marking an unstarred
+  item doesn't quietly promote it up a list you never asked to reorder.
+  The inline sort comparator in renderBacklog's build came out as
+  compareBacklog() so that rule is testable rather than trapped in a closure
+
+- a bought item says "Bought" in the slot its price occupied, and doesn't
+  get a price fetched. Both gates are single points: appendBacklogMeta
+  builds every .bl-price span in the app and returns whether it made one
+  (so its callers skip the lookup), and loadBacklogPrices filters `bought`
+  out of the batched per-category fetch the list kicks off. The two layouts
+  with no metadata line of their own — the plain row and Next Releases —
+  get the word beside the title instead, via boughtTag(). The GG.deals
+  *link* is deliberately left alone: it's a store link like the Steam one,
+  not a price
 
 - SteamGridDB picks cross-fill their rating, length, genres and description
   from RAWG by title, so a game off it no longer lands bare. The extra
