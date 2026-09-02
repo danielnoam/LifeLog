@@ -51,6 +51,15 @@
     return span;
   }
 
+  // Sits beside the star, never instead of it — "bought" is a sub-state of
+  // starred (see sanitizeBacklog), so a row carrying this always carries a
+  // ★ too, and the pair reads as "wanted, and already paid for".
+  function boughtBadge() {
+    const span = el("span", "bbought", "✓");
+    span.title = "Already bought";
+    return span;
+  }
+
   // Shared media-metadata block for a backlog item — "★ rating · year ·
   // length · price" on one line, then the summary paragraph. Used by the
   // rich list row, the edit-modal cover, and the "Pick random"
@@ -381,6 +390,20 @@
     if (b.dropped) return 3;
     if (b.priority) return 0;
     return isUnreleased(b) ? 2 : 1;
+  }
+
+  // Render order within a category. Bands first (above), then — inside the
+  // starred band — whatever you've already bought, since that's the shortest
+  // distance between "I want to" and actually doing it: no purchase to make
+  // first, and money already spent that isn't buying you anything until you
+  // do. `bought` only ever exists alongside `priority` (sanitizeBacklog
+  // enforces it), so this reorders nothing outside the starred block.
+  function compareBacklog(a, b) {
+    const bandDiff = bandOf(a) - bandOf(b);
+    if (bandDiff) return bandDiff;
+    const boughtDiff = (b.bought ? 1 : 0) - (a.bought ? 1 : 0);
+    if (boughtDiff) return boughtDiff;
+    return (b.priority || 0) - (a.priority || 0) || a.title.localeCompare(b.title);
   }
 
   // ---------- manual release overrides ----------
@@ -723,6 +746,10 @@
       fav.title = "Favorite (prioritized)";
       titleEl.appendChild(fav);
     }
+    if (b.bought) {
+      titleEl.appendChild(document.createTextNode(" "));
+      titleEl.appendChild(boughtBadge());
+    }
     $("#pickModalCategory").textContent = b.category;
 
     // Cover art, with the source/store links overlaid on it the way the edit
@@ -845,6 +872,7 @@
     const title = el("span", "bl-title", b.title); title.title = b.title;
     titleRow.appendChild(title);
     if (b.priority) titleRow.appendChild(priorityBadge());
+    if (b.bought) titleRow.appendChild(boughtBadge());
     body.appendChild(titleRow);
     const meta = el("div", "up-when");
     meta.appendChild(el("span", "up-date", releaseLabel(b)));
@@ -1049,11 +1077,7 @@
       sections.push({
         key: catName, header: head, node: section, bodyEl: list,
         build: () => {
-          const sorted = catItems.slice().sort((a, b) => {
-            const bandDiff = bandOf(a) - bandOf(b);
-            if (bandDiff) return bandDiff;
-            return (b.priority || 0) - (a.priority || 0) || a.title.localeCompare(b.title);
-          });
+          const sorted = catItems.slice().sort(compareBacklog);
           // One dashed separator per boundary the category actually has —
           // named for the band being entered, so a list missing a band in
           // the middle still reads correctly.
@@ -1093,6 +1117,7 @@
     const t = el("span", "etitle", b.title); t.title = b.title;
     row.appendChild(t);
     if (b.priority) row.appendChild(priorityBadge());
+    if (b.bought) row.appendChild(boughtBadge());
     if (!state.bulk.active) {
       const doneBtn = el("button", "btn btn-sm", "✓ Done");
       doneBtn.type = "button";
@@ -1126,6 +1151,7 @@
     const titleRow = el("div", "bl-title-row");
     titleRow.appendChild(el("span", "bl-title", b.title));
     if (b.priority) titleRow.appendChild(priorityBadge());
+    if (b.bought) titleRow.appendChild(boughtBadge());
     body.appendChild(titleRow);
     // Price (if any) arrives later via the batched loadBacklogPrices() in
     // renderBacklog and gets patched into the .bl-price span this builds.
@@ -1308,6 +1334,8 @@
     $("#bGenres").value = editing ? (item.genres || []).join("|") : "";
     $("#bPriority").checked = editing ? !!item.priority : false;
     updatePriorityBtn();
+    $("#bBought").checked = editing ? !!item.bought : false;
+    updateBoughtBtn();
     $("#bDropped").checked = editing ? !!item.dropped : false;
     updateDroppedBtnLabel();
     const aging = $("#backlogAgingLine");
@@ -1355,7 +1383,29 @@
   }
   function togglePriority() {
     $("#bPriority").checked = !$("#bPriority").checked;
+    // Unstarring takes the purchase mark with it — same rule sanitizeBacklog
+    // enforces on save, applied here so the button can't be left showing a
+    // state that wouldn't survive one.
+    if (!$("#bPriority").checked) $("#bBought").checked = false;
     updatePriorityBtn();
+    updateBoughtBtn();
+  }
+
+  // Hidden entirely until the item is starred, rather than disabled: an
+  // unstarred item can't be bought (see sanitizeBacklog), and a permanently
+  // dead third button crowds the title row on a phone for no reason.
+  function updateBoughtBtn() {
+    const btn = $("#bBoughtBtn");
+    btn.hidden = !$("#bPriority").checked;
+    const on = $("#bBought").checked;
+    btn.classList.toggle("active", on);
+    btn.title = on ? "Already bought — click to unmark" : "Mark as already bought";
+    btn.setAttribute("aria-label", btn.title);
+    btn.setAttribute("aria-pressed", String(on));
+  }
+  function toggleBought() {
+    $("#bBought").checked = !$("#bBought").checked;
+    updateBoughtBtn();
   }
 
   async function saveBacklogFromForm(ev) {
@@ -1386,6 +1436,9 @@
     const genresStr = $("#bGenres").value;
     const genres = genresStr ? genresStr.split("|") : [];
     const priority = $("#bPriority").checked ? 1 : 0;
+    // Guarded by priority for the same reason sanitizeBacklog is — the two
+    // only ever get saved together.
+    const bought = priority && $("#bBought").checked;
     const dropped = $("#bDropped").checked;
     if (!title) return;
     if (id) {
@@ -1402,6 +1455,7 @@
       if (length) b.length = length; else delete b.length;
       if (genres.length) b.genres = genres; else delete b.genres;
       if (priority) b.priority = priority; else delete b.priority;
+      if (bought) b.bought = true; else delete b.bought;
       if (dropped) b.dropped = true; else delete b.dropped;
       if (overrides) b.overrides = overrides; else delete b.overrides;
     } else {
@@ -1417,6 +1471,7 @@
       if (length) item.length = length;
       if (genres.length) item.genres = genres;
       if (priority) item.priority = priority;
+      if (bought) item.bought = true;
       if (dropped) item.dropped = true;
       if (overrides) item.overrides = overrides;
       state.data.backlog.push(item);
@@ -1458,6 +1513,12 @@
     if (b.length) out.length = b.length;
     if (Array.isArray(b.genres) && b.genres.length) out.genres = b.genres.map((g) => String(g)).slice(0, 4);
     if (b.priority) out.priority = +b.priority;
+    // Only kept alongside a star. "Bought" exists to float a thing to the top
+    // of your favorites, so an unstarred one has nowhere to float to — and
+    // letting the pair come apart would mean every sort, badge and filter
+    // downstream having to decide what a bought-but-unstarred item means.
+    // Unstarring therefore drops it, here rather than at each call site.
+    if (b.bought && b.priority) out.bought = true;
     if (b.dropped) out.dropped = true;
     const overrides = sanitizeOverrides(b.overrides, OVERRIDE_KEYS);
     if (overrides) out.overrides = overrides;
@@ -1474,6 +1535,7 @@
     $("#deleteBacklogBtn").onclick = deleteCurrentBacklogItem;
     $("#toggleDroppedBtn").onclick = toggleDropped;
     $("#bPriorityBtn").onclick = togglePriority;
+    $("#bBoughtBtn").onclick = toggleBought;
     $("#bTitle").oninput = renderBacklogTitleSuggestions;
     $("#bCategory").onchange = () => updateSyncBtnVisibility("b", $("#bCategory").value);
     $("#bSyncBtn").onclick = syncBacklogTitle;
@@ -1523,8 +1585,10 @@
     // manual release-date overrides (test/backlog.test.js)
     parseReleaseInput,
     formatReleaseInput,
-    // which block of a category a row lands in (test/backlog.test.js)
+    // which block of a category a row lands in, and the full render order
+    // within one (test/backlog.test.js)
     bandOf,
+    compareBacklog,
     // random-pick draw order (test/backlog.test.js)
     peekPickBag,
     spendPick,

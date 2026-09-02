@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.107.0] - 2026-09-02
+
+### Added
+- **Mark a favorite as already bought.** Star an item in the backlog and a
+  **✓** button appears beside the star: use it for the things you've already
+  paid for but haven't got to yet. Bought items sort to the top of their
+  category's starred block and carry a green ✓ next to the star in the list
+  and on a random pick, so the shortest path from "I want to" to actually
+  doing it is the first thing you see. It only applies to favorites —
+  unstarring an item clears the mark, since there'd be nowhere for it to
+  float to.
+
 ## [0.106.0] - 2026-09-02
 
 ### Added

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.106.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.107.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -300,6 +300,9 @@
           <div class="ac-wrap">
             <input id="bTitle" type="text" required autocomplete="off" placeholder="e.g. The Last of Us Part II" />
             <button type="button" class="btn btn-sm priority-star" id="bPriorityBtn" title="Prioritize" aria-label="Prioritize" aria-pressed="false">☆</button>
+            <!-- Only shown once the item is starred: "bought" exists to order
+                 your favorites, so it has no meaning on anything else. -->
+            <button type="button" class="btn btn-sm bought-toggle" id="bBoughtBtn" title="Mark as already bought" aria-label="Mark as already bought" aria-pressed="false" hidden>✓</button>
             <button type="button" class="btn btn-sm sync-btn" id="bSyncBtn" title="Look up cover, year &amp; rating" aria-label="Look up cover, year &amp; rating" hidden><span class="sync-icon">🔄</span></button>
             <div class="ac-list" id="bTitleSuggest" hidden></div>
           </div>
@@ -322,6 +325,7 @@
         </label>
         <p class="muted added-line" id="backlogAgingLine" hidden></p>
         <input type="checkbox" id="bPriority" hidden />
+        <input type="checkbox" id="bBought" hidden />
         <input type="checkbox" id="bDropped" hidden />
         <label>Notes
           <textarea id="bNotes" rows="3" placeholder="Optional thoughts, why it's on your list…"></textarea>
@@ -1147,17 +1151,17 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.106.0"></script>
-  <script defer src="src/media.js?v=0.106.0"></script>
-  <script defer src="src/merge.js?v=0.106.0"></script>
-  <script defer src="src/storage.js?v=0.106.0"></script>
-  <script defer src="src/finance.js?v=0.106.0"></script>
-  <script defer src="src/settings.js?v=0.106.0"></script>
-  <script defer src="src/wheel.js?v=0.106.0"></script>
-  <script defer src="src/backlog.js?v=0.106.0"></script>
-  <script defer src="src/journal.js?v=0.106.0"></script>
-  <script defer src="src/io.js?v=0.106.0"></script>
-  <script defer src="src/sync.js?v=0.106.0"></script>
-  <script defer src="src/app.js?v=0.106.0"></script>
+  <script defer src="src/qr.js?v=0.107.0"></script>
+  <script defer src="src/media.js?v=0.107.0"></script>
+  <script defer src="src/merge.js?v=0.107.0"></script>
+  <script defer src="src/storage.js?v=0.107.0"></script>
+  <script defer src="src/finance.js?v=0.107.0"></script>
+  <script defer src="src/settings.js?v=0.107.0"></script>
+  <script defer src="src/wheel.js?v=0.107.0"></script>
+  <script defer src="src/backlog.js?v=0.107.0"></script>
+  <script defer src="src/journal.js?v=0.107.0"></script>
+  <script defer src="src/io.js?v=0.107.0"></script>
+  <script defer src="src/sync.js?v=0.107.0"></script>
+  <script defer src="src/app.js?v=0.107.0"></script>
 </body>
 </html>

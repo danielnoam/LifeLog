@@ -21,7 +21,7 @@ Backlog.init({
 });
 
 const { sanitizeBacklog, isUnreleased, upcomingAt, parseReleaseInput, formatReleaseInput, bandOf,
-  peekPickBag, spendPick } = Backlog;
+  compareBacklog, peekPickBag, spendPick } = Backlog;
 
 // Dates relative to today, so these stay true whenever they're run.
 function shift(days) {
@@ -59,6 +59,20 @@ test("sanitizeBacklog drops a falsy priority instead of keeping it as 0", () => 
 test("sanitizeBacklog keeps a truthy priority coerced to a number", () => {
   const out = sanitizeBacklog({ title: "Foo", category: "Games", priority: "3" });
   assert.strictEqual(out.priority, 3);
+});
+
+test("sanitizeBacklog keeps bought only alongside a star", () => {
+  const starred = sanitizeBacklog({ title: "Foo", category: "Games", priority: 1, bought: true });
+  assert.strictEqual(starred.bought, true);
+  // Unstarring has to take the purchase mark with it, or the sort, the badge
+  // and every filter downstream inherit a state none of them has a rule for.
+  const unstarred = sanitizeBacklog({ title: "Foo", category: "Games", bought: true });
+  assert.ok(!("bought" in unstarred));
+});
+
+test("sanitizeBacklog drops bought:false instead of keeping the field", () => {
+  const out = sanitizeBacklog({ title: "Foo", category: "Games", priority: 1, bought: false });
+  assert.ok(!("bought" in out));
 });
 
 test("sanitizeBacklog drops dropped:false instead of keeping the field", () => {
@@ -232,6 +246,38 @@ test("unstarred items split into released and still-to-come, in that order", () 
 test("dropped stays last, star or no star", () => {
   assert.strictEqual(bandOf({ dropped: true }), 3);
   assert.strictEqual(bandOf({ dropped: true, priority: 1 }), 3);
+});
+
+// ---------- render order within a category ----------
+const order = (items) => items.slice().sort(compareBacklog).map((b) => b.title);
+
+test("already-bought favorites sort to the top of the starred block", () => {
+  assert.deepStrictEqual(order([
+    { title: "Astro", priority: 1 },
+    { title: "Bought B", priority: 1, bought: true },
+    { title: "Bought A", priority: 1, bought: true },
+    { title: "Zelda", priority: 1 },
+  ]), ["Bought A", "Bought B", "Astro", "Zelda"]);
+});
+
+test("bought never lifts an item out of its band", () => {
+  // The bands still win: a bought favorite can't outrank nothing, but a
+  // dropped item stays last however it was marked, and an unstarred one
+  // can't carry `bought` at all (see sanitizeBacklog).
+  assert.deepStrictEqual(order([
+    { title: "Dropped", priority: 1, bought: true, dropped: true },
+    { title: "Plain" },
+    { title: "Bought", priority: 1, bought: true },
+  ]), ["Bought", "Plain", "Dropped"]);
+});
+
+test("titles still break the tie once band and bought agree", () => {
+  assert.deepStrictEqual(order([
+    { title: "Beta", priority: 1, bought: true },
+    { title: "Alpha", priority: 1, bought: true },
+    { title: "Delta" },
+    { title: "Charlie" },
+  ]), ["Alpha", "Beta", "Charlie", "Delta"]);
 });
 
 
