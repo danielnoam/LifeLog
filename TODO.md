@@ -44,6 +44,10 @@ done:
   can't both be declared. Both sit behind `(hover: hover) and (pointer:
   fine)` — asking for a width on a touch browser converts its transient
   overlay bar into a permanent one that eats layout width
+  (0.110.1: the global rule needs an `input[type="checkbox"][hidden]`
+  companion — an author `display` outranks the UA stylesheet’s
+  `[hidden] { display: none }`, which surfaced the three state-holding
+  checkboxes behind the backlog modal’s ★/✓/dropped buttons)
 
 - a backlog item can be marked "already bought", which puts a green ✓ beside
   the title and, on a starred item, floats it to the top of its category's

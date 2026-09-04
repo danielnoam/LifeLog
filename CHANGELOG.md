@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.110.1] - 2026-09-04
+
+### Fixed
+- **Three stray checkboxes above Notes in the backlog add/edit form.** The
+  ★, ✓ and dropped buttons keep their state in hidden checkboxes, and
+  0.109.0's custom checkbox gave every one of them a `display` that
+  outranked the browser's own rule for hiding them. They're hidden again.
+
 ## [0.110.0] - 2026-09-04
 
 ### Added
