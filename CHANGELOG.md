@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.110.0] - 2026-09-04
+
+### Added
+- **"Bought only" in the random pick.** A second switch beside "Favorites
+  only" in the pick modal's scope strip, for the evening you'd rather not
+  spend anything: it draws only from titles you've already marked bought.
+  The two stack, so both on means starred *and* paid for. Like the
+  favorites switch it holds its position while the app is open but isn't
+  saved, and the wheel spins the same narrowed pool.
+
 ## [0.109.0] - 2026-09-04
 
 ### Added

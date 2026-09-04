@@ -825,9 +825,16 @@ body.modal-open { overflow: hidden; }
 /* A button, not the filter bar's span — it needs the family the UA won't
    inherit for it, and the padding of a chip rather than a control. */
 .pick-cat { font-family: inherit; padding: 3px 10px; font-size: 12px; }
-.pick-scope-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.pick-scope-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 6px 12px; margin-top: 10px; flex-wrap: wrap;
+}
 .pick-scope-cats:empty + .pick-scope-foot, .pick-scope-cats[hidden] + .pick-scope-foot { margin-top: 0; }
-.modal label.pick-fav {
+/* Both mood switches sit together on the left with the draw count opposite,
+   and the foot wraps rather than squeezing: two of these plus the count
+   don't fit on one line in a phone-width modal. */
+.pick-scope-toggles { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.modal label.pick-scope-toggle {
   display: inline-flex; align-items: center; gap: 7px; margin: 0;
   font-size: 12.5px; color: var(--text-dim); cursor: pointer; user-select: none;
 }

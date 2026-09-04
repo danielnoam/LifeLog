@@ -549,13 +549,17 @@
   // whatever's currently eligible (scoped to the active category/search
   // filters, same as the view itself). The scope strip at the top of the
   // modal narrows it further without reopening: pickCats is the set of
-  // categories still switched on, pickFavOnly limits the draw to starred
-  // items. Neither is saved — a scope set for one sitting shouldn't outlive
-  // the modal — except that the favorites switch keeps its position while
-  // the app stays open, since it's a mood rather than a filter.
+  // categories still switched on, and the two mood switches narrow it to
+  // starred items (pickFavOnly) and to ones already paid for
+  // (pickBoughtOnly). They stack: both on draws only from titles that are
+  // starred *and* bought. The categories aren't saved — a scope set for one
+  // sitting shouldn't outlive the modal — but the switches keep their
+  // position while the app stays open, since they're a mood rather than a
+  // filter.
   let pickPool = [];
   let pickCats = new Set();
   let pickFavOnly = false;
+  let pickBoughtOnly = false;
 
   // Draws come out of a bag rather than off a fresh coin flip each time:
   // independent draws on a 40-title backlog will happily hand you the same
@@ -647,7 +651,9 @@
 
   // The pool as narrowed by the scope strip — what a draw actually rolls on.
   function pickCandidates() {
-    return pickPool.filter((b) => pickCats.has(b.category) && (!pickFavOnly || b.priority));
+    return pickPool.filter((b) => pickCats.has(b.category)
+      && (!pickFavOnly || b.priority)
+      && (!pickBoughtOnly || b.bought));
   }
 
   // Lives in the mode bar's right-hand slot rather than a row of its own —
@@ -667,6 +673,7 @@
     // what's in play, and the strip is for narrowing from there.
     pickCats = new Set(pool.map((b) => b.category));
     $("#pickFavOnly").checked = pickFavOnly;
+    $("#pickBoughtOnly").checked = pickBoughtOnly;
     renderPickCats();
     rerollPick();
     $("#pickModal").hidden = false;
@@ -704,13 +711,17 @@
     }
   }
 
-  // Every category switched off, or "favorites only" with nothing starred
-  // left in scope — say so in the card, rather than leaving the last draw on
-  // screen where it reads as a fresh one.
+  // Every category switched off, or a mood switch with nothing left in scope
+  // that answers to it — say so in the card, rather than leaving the last
+  // draw on screen where it reads as a fresh one. With no category on at all
+  // that's the thing to fix first, whatever the switches are set to.
   function showEmptyPick() {
     $("#pickModalTitle").textContent = "Nothing to pick from";
-    $("#pickModalCategory").textContent = pickFavOnly
-      ? "No favorites in the categories you have on."
+    const wanted = [];
+    if (pickFavOnly) wanted.push("starred");
+    if (pickBoughtOnly) wanted.push("already bought");
+    $("#pickModalCategory").textContent = pickCats.size && wanted.length
+      ? "Nothing in the categories you have on is " + wanted.join(" and ") + "."
       : "Switch a category back on to draw from it.";
     $("#pickCover").hidden = true;
     $("#pickCoverImg").src = "";
@@ -1561,6 +1572,7 @@
     $("#pickRerollBtn").onclick = rerollPick;
     $("#pickWheelBtn").onclick = openPickWheel;
     $("#pickFavOnly").onchange = (ev) => { pickFavOnly = ev.target.checked; rerollPick(); };
+    $("#pickBoughtOnly").onchange = (ev) => { pickBoughtOnly = ev.target.checked; rerollPick(); };
     $("#pickCloseBtn").onclick = closePickModal;
     document.addEventListener("click", (e) => {
       if (!e.target.closest("#backlogModal .ac-wrap")) {

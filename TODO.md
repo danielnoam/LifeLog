@@ -17,6 +17,16 @@ todo:
 
 done:
 
+- the random pick's scope strip has a "Bought only" switch next to
+  "Favorites only". Both are one `&&` clause each in pickCandidates(), which
+  is the single place a draw is narrowed — the reroll, the empty-state card
+  and the wheel all read from it, so nothing else had to learn about the new
+  switch. The empty-state line now names whichever switches are on
+  ("Nothing in the categories you have on is starred and already bought"),
+  with no-categories-at-all still taking precedence since that's the thing
+  to fix first. `.pick-fav` became `.pick-scope-toggle` now that two of them
+  share the row
+
 - the app's checkboxes and scrollbars are its own now, drawn from the same
   tokens as everything else rather than by the OS. The checkbox is a single
   global `input[type="checkbox"]` rule — the per-screen width/height/
