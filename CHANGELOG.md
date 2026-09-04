@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.110.2] - 2026-09-04
+
+### Removed
+- **The paragraph explaining "Started month" in the entry form.** The field
+  sits under a "Started year" beside it and defaults to "— none —", which
+  says the same thing in less space.
+
 ## [0.110.1] - 2026-09-04
 
 ### Fixed

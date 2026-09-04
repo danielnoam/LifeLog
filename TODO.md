@@ -17,6 +17,9 @@ todo:
 
 done:
 
+- the entry form's "Started month" explainer paragraph is gone; the labelled
+  pair and its "— none —" default carry it
+
 - the random pick's scope strip has a "Bought only" switch next to
   "Favorites only". Both are one `&&` clause each in pickCandidates(), which
   is the single place a draw is narrowed — the reroll, the empty-state card
