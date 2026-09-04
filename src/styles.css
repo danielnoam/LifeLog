@@ -37,6 +37,10 @@
   --priority: #e2b23b;
   --priority-hover: #f3ca6b;
   --warning: #e2b23b;
+  /* Scrollbar thumb — an alias pair rather than per-theme values, since
+     every theme already defines the two text tones it points at. */
+  --scroll-thumb: var(--text-faint);
+  --scroll-thumb-hover: var(--text-dim);
   --radius: 10px;
   --shadow: 0 8px 30px rgba(0,0,0,.45);
   --nav-shadow: rgba(0,0,0,.35);
@@ -159,6 +163,81 @@ html, body {
 }
 
 ::selection { background: var(--accent-soft); color: var(--text); }
+
+/* ---------- checkbox ---------- */
+/* The native control is drawn by the OS — a grey Windows square here, a
+   blue rounded iOS one there — and `accent-color` only ever repaints its
+   fill; the box, the tick, the corner radius and the size stay whatever
+   the machine feels like. This draws all of it from the same tokens as
+   the rest of the app, so a checkbox belongs to its theme instead of to
+   the platform. One size (16px) app-wide: the per-context width/height/
+   accent-color declarations that used to vary between 15 and 16px are
+   gone, and the full-width rules for text fields (.modal label input,
+   .ovr input) now exclude checkboxes rather than being un-done by an
+   !important further down. */
+input[type="checkbox"] {
+  appearance: none; -webkit-appearance: none;
+  flex: 0 0 auto; width: 16px; height: 16px; margin: 0; padding: 0;
+  display: inline-grid; place-content: center;
+  background: var(--bg); border: 1.5px solid var(--border-strong);
+  border-radius: 5px; cursor: pointer;
+  transition: background-color var(--dur-fast) var(--ease),
+              border-color var(--dur-fast) var(--ease);
+}
+/* The tick is a clipped block rather than a background image, so it can
+   take var(--text-on-accent) — Nord and Dracula put dark ink on their
+   light accent, and a baked-in white SVG would be invisible there. */
+input[type="checkbox"]::before {
+  content: ""; width: 10px; height: 10px;
+  background: var(--text-on-accent);
+  clip-path: polygon(14% 44%, 0 65%, 40% 100%, 100% 16%, 85% 0, 38% 70%);
+  transform: scale(0);
+  transition: transform var(--dur-fast) var(--ease);
+}
+input[type="checkbox"]:hover:not(:disabled) { border-color: var(--accent); }
+input[type="checkbox"]:checked,
+input[type="checkbox"]:indeterminate { background: var(--accent); border-color: var(--accent); }
+input[type="checkbox"]:checked::before { transform: scale(1); }
+/* Some but not all of a "select all" set is ticked: a bar, not a tick. */
+input[type="checkbox"]:indeterminate::before {
+  clip-path: inset(43% 13% 43% 13% round 1px); transform: scale(1);
+}
+input[type="checkbox"]:disabled { cursor: default; opacity: .45; }
+/* The app-wide focus ring sets border-radius:4px on whatever it lands on,
+   which would square the box off mid-focus; and 2px of offset crowds a
+   control this small. */
+input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) {
+  input[type="checkbox"], input[type="checkbox"]::before { transition: none; }
+}
+
+/* ---------- scrollbars ---------- */
+/* Gated on a real pointer: touch browsers draw a transient overlay bar
+   that already gets out of the way, and asking for a width there would
+   pin a permanent one into the layout instead. scrollbar-width/-color are
+   inherited, so `html` covers every scroll container (Firefox); the
+   ::-webkit- rules are unscoped and do the same for Chrome/Edge/Safari.
+   The thumb is inset by a transparent border rather than sized down, so
+   the hit target stays the full width of the track. */
+@media (hover: hover) and (pointer: fine) {
+  /* Chromium ignores every ::-webkit- rule below the moment scrollbar-width
+     is anything but auto, so the standard property is handed only to the
+     browsers that have nothing else — Firefox, which in turn has no
+     ::-webkit-scrollbar to test for. */
+  @supports not selector(::-webkit-scrollbar) {
+    html { scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) transparent; }
+  }
+  ::-webkit-scrollbar { width: 12px; height: 12px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--scroll-thumb); background-clip: padding-box;
+    border: 3px solid transparent; border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active {
+    background: var(--scroll-thumb-hover); background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-corner { background: transparent; }
+}
 
 /* ---------- top bar ---------- */
 .topbar {
@@ -530,7 +609,6 @@ select:focus { outline: none; border-color: var(--accent); }
 .picker-list { display: flex; flex-direction: column; gap: 2px; max-height: 320px; overflow-y: auto; margin-bottom: 4px; }
 .modal label.picker-row { display: flex; align-items: center; gap: 8px; margin-bottom: 0; padding: 5px 7px; border-radius: 7px; font-size: 13px; color: var(--text); }
 .modal label.picker-row:hover { background: var(--bg-elev-2); }
-.picker-row input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; flex: 0 0 auto; }
 .picker-row.is-dup { opacity: .55; }
 .dup-tag {
   font-size: 10.5px; color: var(--text-faint); flex: 0 0 auto;
@@ -673,7 +751,9 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .entry.is-dropped, .backlog-item-rich.is-dropped { opacity: .55; }
 .entry.is-dropped .etitle, .backlog-item-rich.is-dropped .bl-title { text-decoration: line-through; }
 
-.bulk-check { width: 16px; height: 16px; flex: 0 0 auto; cursor: pointer; accent-color: var(--accent); touch-action: none; }
+/* touch-action so a press-and-drag across a run of them paints a selection
+   instead of scrolling the list (see bulkCheckbox in app.js). */
+.bulk-check { touch-action: none; }
 .backlog-section-head .bulk-check { margin-right: 2px; }
 .backlog-item-rich .bulk-check { margin-top: 4px; }
 .bulk-bar {
@@ -751,10 +831,6 @@ body.modal-open { overflow: hidden; }
   display: inline-flex; align-items: center; gap: 7px; margin: 0;
   font-size: 12.5px; color: var(--text-dim); cursor: pointer; user-select: none;
 }
-.modal .pick-fav input {
-  display: inline-block; width: 15px; height: 15px; margin: 0; padding: 0;
-  accent-color: var(--accent); cursor: pointer; flex: 0 0 auto;
-}
 .pick-scope-count { font-size: 11.5px; color: var(--text-faint); }
 /* Inset and fully rounded — this cover sits under the scope strip rather
    than against the modal's own top corners. */
@@ -812,7 +888,7 @@ body.modal-open { overflow: hidden; }
 .modal-head { display:flex; align-items:center; justify-content: space-between; margin-bottom: 14px; }
 .modal-head h2 { margin: 0; }
 .modal label { display: block; font-size: 12.5px; color: var(--text-dim); margin-bottom: 12px; }
-.modal label input, .modal label select, .modal label textarea {
+.modal label input:not([type=checkbox]), .modal label select, .modal label textarea {
   display: block; width: 100%; margin-top: 5px; background: var(--bg);
   border: 1px solid var(--border); color: var(--text); padding: 9px 11px;
   border-radius: 8px; font-size: 14px;
@@ -974,8 +1050,7 @@ kbd {
   display: flex !important; align-items: center; gap: 8px;
   margin-bottom: 6px !important; color: var(--text-dim); font-size: 12.5px;
 }
-.ovr-head input[type=checkbox] { width: auto !important; margin: 0 !important; display: inline-block !important; }
-.ovr input, .ovr select {
+.ovr input:not([type=checkbox]), .ovr select {
   display: block; width: 100%; background: var(--bg);
   border: 1px solid var(--border); color: var(--text); padding: 9px 11px;
   border-radius: 8px; font-size: 14px;
@@ -1008,7 +1083,6 @@ kbd {
   text-align: center; color: var(--text-faint); font-size: 11px;
 }
 .toggle-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text); }
-.toggle-label input[type="checkbox"] { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
 .media-cat-row {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px;

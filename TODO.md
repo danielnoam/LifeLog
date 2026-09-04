@@ -17,6 +17,24 @@ todo:
 
 done:
 
+- the app's checkboxes and scrollbars are its own now, drawn from the same
+  tokens as everything else rather than by the OS. The checkbox is a single
+  global `input[type="checkbox"]` rule — the per-screen width/height/
+  accent-color declarations that used to disagree by a pixel are gone, and
+  the full-width rules for text fields (`.modal label input`, `.ovr input`)
+  exclude it rather than being undone by an `!important` further down. The
+  tick is a clipped block, not a background SVG, so it can take
+  `--text-on-accent` and stay legible on Nord's and Dracula's pale accents.
+  A partly-selected "select all" header now sets `.indeterminate` (three
+  sites: the month card header, and the backlog's category and upcoming
+  sections), which is what the tri-state bar is for.
+  Scrollbars are `::-webkit-scrollbar` on Chromium/Safari with the standard
+  `scrollbar-width`/`-color` handed only to Firefox: Chromium drops every
+  `::-webkit-` rule the moment `scrollbar-width` isn't `auto`, so the two
+  can't both be declared. Both sit behind `(hover: hover) and (pointer:
+  fine)` — asking for a width on a touch browser converts its transient
+  overlay bar into a permanent one that eats layout width
+
 - a backlog item can be marked "already bought", which puts a green ✓ beside
   the title and, on a starred item, floats it to the top of its category's
   starred block. The flag is independent of the star (it shipped tied to it

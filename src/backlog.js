@@ -984,6 +984,7 @@
       const allSelected = items.every((b) => state.bulk.selected.has(b.id));
       const cb = document.createElement("input");
       cb.type = "checkbox"; cb.className = "bulk-check"; cb.checked = allSelected;
+      cb.indeterminate = !allSelected && items.some((b) => state.bulk.selected.has(b.id));
       cb.title = "Select all in " + title;
       cb.onclick = (ev) => { ev.stopPropagation(); toggleBulkCategoryAll(items); };
       head.appendChild(cb);
@@ -1067,6 +1068,7 @@
         const allSelected = catItems.every((b) => state.bulk.selected.has(b.id));
         const cb = document.createElement("input");
         cb.type = "checkbox"; cb.className = "bulk-check"; cb.checked = allSelected;
+        cb.indeterminate = !allSelected && catItems.some((b) => state.bulk.selected.has(b.id));
         cb.title = "Select all in " + catName;
         cb.onclick = (ev) => { ev.stopPropagation(); toggleBulkCategoryAll(catItems); };
         head.appendChild(cb);

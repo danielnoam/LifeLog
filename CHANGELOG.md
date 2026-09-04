@@ -4,6 +4,27 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.109.0] - 2026-09-04
+
+### Added
+- **LifeLog draws its own scrollbars.** A thin rounded thumb on a
+  transparent track, in the same greys as the text beside it, so a long
+  Settings panel or import list no longer ends in a strip of Windows grey.
+  Only where there's a mouse — phones and tablets keep the overlay bar that
+  already gets out of the way on its own.
+- **A half-ticked "select all" now looks half-ticked.** Select some of a
+  month's or a category's items in bulk mode and its header box shows a bar
+  instead of sitting there looking untouched.
+
+### Changed
+- **Checkboxes are ours now.** Every tick box in the app — bulk select, the
+  import pickers, "Favorites only", the sync override fields, the app-lock
+  toggle — is drawn from the app's own colors rather than by the operating
+  system, so it moves with your theme instead of staying whatever grey
+  Windows or iOS felt like. That also fixes them on Nord and Dracula, whose
+  pale accents need a dark tick rather than a white one. One size
+  everywhere, too: they used to differ by a pixel between screens.
+
 ## [0.108.0] - 2026-09-02
 
 ### Added

@@ -46,7 +46,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.108.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.109.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1032,6 +1032,9 @@
       const cb = document.createElement("input");
       cb.type = "checkbox"; cb.className = "bulk-check";
       cb.checked = allSelected;
+      // Some-but-not-all shows the tri-state bar instead of an empty box,
+      // so a partly-selected group doesn't read as untouched.
+      cb.indeterminate = !allSelected && selectableItems.some((b) => state.bulk.selected.has(b.id));
       cb.title = "Select all in " + label;
       cb.onclick = (ev) => { ev.stopPropagation(); toggleBulkCategoryAll(selectableItems); };
       left.appendChild(cb);
