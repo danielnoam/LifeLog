@@ -46,7 +46,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.110.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.111.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1875,10 +1875,24 @@
     // a few hundred entries. 200ms feels instant while typing but collapses
     // a fast burst of keystrokes into a single render.
     let searchRenderTimer;
+    // The ✕ tracks the value, not the focus, so a search you've clicked away
+    // from is still one press from gone. Clearing renders straight away
+    // rather than through the debounce below — that delay is there to
+    // collapse a burst of keystrokes, and a single click isn't one.
+    const syncSearchClear = () => { $("#searchClear").hidden = !$("#search").value; };
     $("#search").oninput = (e) => {
       state.search = e.target.value;
+      syncSearchClear();
       clearTimeout(searchRenderTimer);
       searchRenderTimer = setTimeout(render, 200);
+    };
+    $("#searchClear").onclick = () => {
+      $("#search").value = "";
+      state.search = "";
+      syncSearchClear();
+      clearTimeout(searchRenderTimer);
+      render();
+      $("#search").focus();
     };
     $("#yearFilterLabel").onclick = toggleAllYears;
     $("#catFilterLabel").onclick = toggleAllCats;

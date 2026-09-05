@@ -909,8 +909,19 @@
     const isSteam = (state.data.settings.mediaCategorySources || {})[category] === "steam";
     const btn = $("#" + prefix + "SyncBtn");
     if (btn) btn.hidden = isSteam || !hasMediaSourceFor(category);
+    // The App ID field used to exist only for a Steam-sourced category, which
+    // left every other one with no way to name a Steam app by hand — no store
+    // link and no GG.deals price for anything a search couldn't map to one.
+    // It's always available now; what changes is where it sits. A Steam
+    // category identifies its items by App ID and nothing else, so there it
+    // stays in the form proper; anywhere else it's a manual override and
+    // belongs in Advanced, beside the pins that protect your own values from
+    // it.
     const steamField = $("#" + prefix + "SteamField");
-    if (steamField) steamField.hidden = !isSteam;
+    if (!steamField) return;
+    const slot = $("#" + prefix + (isSteam ? "SteamTop" : "SteamAdv"));
+    if (slot && steamField.parentNode !== slot) slot.appendChild(steamField);
+    steamField.hidden = false;
   }
 
   // An entry has no release date of its own — it's dated by when you

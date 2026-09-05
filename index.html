@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.110.2" />
+  <link rel="stylesheet" href="src/styles.css?v=0.111.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -55,7 +55,13 @@
       <div class="storage-status" id="storageStatus"></div>
     </div>
 
-    <input id="search" class="search" type="search" placeholder="Search titles &amp; notes…" />
+    <!-- The ✕ is ours, not the browser's: Chrome only draws its native
+         search-cancel button while the field has focus, so clearing a search
+         you'd clicked away from meant clicking back into it first. -->
+    <div class="search-wrap">
+      <input id="search" class="search" type="search" placeholder="Search titles &amp; notes…" />
+      <button type="button" class="search-clear" id="searchClear" aria-label="Clear search" title="Clear search" hidden>✕</button>
+    </div>
 
     <div class="topbar-bottom" id="topbarBottom">
       <nav class="views" id="viewTabs">
@@ -153,11 +159,19 @@
             <button type="button" class="link-btn" id="fBacklogUnlinkBtn">✕ Don't remove</button>
           </div>
         </label>
-        <div id="fSteamField" hidden>
-          <label>Steam App ID
-            <input id="fSteamAppId" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 1245620" />
-          </label>
-          <p class="hint">Steam's search can't be called from a browser, so paste the ID from the game's store URL (store.steampowered.com/app/<em>1245620</em>/…) — used for cover art and GG.deals prices.</p>
+        <!-- Home for the App ID field while the category's own source is
+             Steam, where it is the item's whole identity. For every other
+             category updateSyncBtnVisibility moves this same node down into
+             the Advanced panel's slot, since there it's a manual override
+             rather than the main way to identify anything. One field that
+             moves, not two to keep in step. -->
+        <div id="fSteamTop">
+          <div id="fSteamField" class="steam-field" hidden>
+            <label>Steam App ID
+              <input id="fSteamAppId" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 1245620" />
+            </label>
+            <p class="hint">Steam's search can't be called from a browser, so paste the ID from the game's store URL (store.steampowered.com/app/<em>1245620</em>/…) — it's what drives the cover, the store link and the GG.deals price. Setting one re-identifies the item as that Steam app, so whatever a sync filled in is replaced; pin a field in Advanced first to keep your own value.</p>
+          </div>
         </div>
         <label>Category
           <select id="fCategory" required></select>
@@ -204,6 +218,7 @@
             <label class="ovr-head"><input type="checkbox" id="fOvrLength" /> Length</label>
             <input id="fOvrLengthValue" type="text" placeholder="e.g. 12 h, 3 seasons" autocomplete="off" disabled />
           </div>
+          <div id="fSteamAdv"></div>
         </details>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteEntryBtn" hidden>Delete</button>
@@ -311,11 +326,13 @@
             <span id="bDuplicateStatusText"></span>
           </div>
         </label>
-        <div id="bSteamField" hidden>
-          <label>Steam App ID
-            <input id="bSteamAppId" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 1245620" />
-          </label>
-          <p class="hint">Steam's search can't be called from a browser, so paste the ID from the game's store URL (store.steampowered.com/app/<em>1245620</em>/…) — used for cover art and GG.deals prices.</p>
+        <div id="bSteamTop">
+          <div id="bSteamField" class="steam-field" hidden>
+            <label>Steam App ID
+              <input id="bSteamAppId" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 1245620" />
+            </label>
+            <p class="hint">Steam's search can't be called from a browser, so paste the ID from the game's store URL (store.steampowered.com/app/<em>1245620</em>/…) — it's what drives the cover, the store link and the GG.deals price. Setting one re-identifies the item as that Steam app, so whatever a sync filled in is replaced; pin a field in Advanced first to keep your own value.</p>
+          </div>
         </div>
         <label>Category
           <select id="bCategory" required></select>
@@ -354,6 +371,7 @@
             <label class="ovr-head"><input type="checkbox" id="bOvrLength" /> Length</label>
             <input id="bOvrLengthValue" type="text" placeholder="e.g. 12 h, 3 seasons" autocomplete="off" disabled />
           </div>
+          <div id="bSteamAdv"></div>
         </details>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteBacklogBtn" hidden>Delete</button>
@@ -1155,17 +1173,17 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.110.2"></script>
-  <script defer src="src/media.js?v=0.110.2"></script>
-  <script defer src="src/merge.js?v=0.110.2"></script>
-  <script defer src="src/storage.js?v=0.110.2"></script>
-  <script defer src="src/finance.js?v=0.110.2"></script>
-  <script defer src="src/settings.js?v=0.110.2"></script>
-  <script defer src="src/wheel.js?v=0.110.2"></script>
-  <script defer src="src/backlog.js?v=0.110.2"></script>
-  <script defer src="src/journal.js?v=0.110.2"></script>
-  <script defer src="src/io.js?v=0.110.2"></script>
-  <script defer src="src/sync.js?v=0.110.2"></script>
-  <script defer src="src/app.js?v=0.110.2"></script>
+  <script defer src="src/qr.js?v=0.111.0"></script>
+  <script defer src="src/media.js?v=0.111.0"></script>
+  <script defer src="src/merge.js?v=0.111.0"></script>
+  <script defer src="src/storage.js?v=0.111.0"></script>
+  <script defer src="src/finance.js?v=0.111.0"></script>
+  <script defer src="src/settings.js?v=0.111.0"></script>
+  <script defer src="src/wheel.js?v=0.111.0"></script>
+  <script defer src="src/backlog.js?v=0.111.0"></script>
+  <script defer src="src/journal.js?v=0.111.0"></script>
+  <script defer src="src/io.js?v=0.111.0"></script>
+  <script defer src="src/sync.js?v=0.111.0"></script>
+  <script defer src="src/app.js?v=0.111.0"></script>
 </body>
 </html>

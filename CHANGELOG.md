@@ -4,6 +4,37 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.111.0] - 2026-09-05
+
+### Added
+- **A Steam App ID can be set on anything now, from Advanced.** The field
+  used to appear only for categories whose media source was set to Steam,
+  which left everything else with no way to name a Steam app by hand — no
+  store link and no GG.deals price for a game a search couldn't map to one.
+  It's always there now: still up in the form for a Steam category, where
+  the App ID is the item's whole identity, and down in Advanced everywhere
+  else, next to the pins that keep your own values safe from it. Both the
+  backlog and the timeline entry form.
+
+### Changed
+- **Next Releases gives each year its own card.** "Sometime in 2027" and
+  "no date announced at all" used to share one card at the end of the list,
+  which threw away the difference. Now the month cards are followed by a
+  card per year, then a last one for the titles with nothing announced yet.
+- **The search box keeps its ✕.** It's ours rather than the browser's own,
+  which Chrome only draws while the field has focus — so clearing a search
+  you'd clicked away from meant clicking back into it first. It now stays
+  for as long as there's something to clear, and it's a bigger target on a
+  phone.
+
+### Fixed
+- **Adding a backlog item from a title you already have brings its metadata
+  with it.** Picking an existing backlog item or a logged entry from the
+  suggestion list copied the cover, the media link and the genres and
+  stopped there, so the new item arrived with no rating, no release date,
+  no length and no description — and, counting as synced, nothing to
+  prompt fetching them either. It now copies everything the match knows.
+
 ## [0.110.2] - 2026-09-04
 
 ### Removed

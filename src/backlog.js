@@ -138,6 +138,28 @@
     });
   }
 
+  // The other half of clearMediaFields: copy one item's media metadata onto
+  // the form as a set, honouring the same pins. Picking a title you already
+  // have used to hand over the cover, the two ids and the genres and nothing
+  // else, so a second copy of a fully synced item arrived with no rating, no
+  // release date, no length and no description — and, being "synced" as far
+  // as the form was concerned, nothing to prompt a fetch of them either.
+  // Every field id is its item key with the "#b" cut off, so one list drives
+  // both directions. A key the source doesn't carry blanks its field, which
+  // is the right answer rather than a gap: a timeline entry genuinely has no
+  // rating or description, and leaving the previous match's behind would be
+  // worse than an empty one.
+  function fillMediaFields(src) {
+    MEDIA_FIELD_IDS.forEach((id) => {
+      const pin = MEDIA_FIELD_PINS[id];
+      if (pin && isPinned(pin)) return;
+      const f = $(id);
+      if (!f) return;
+      const v = src[id.charAt(2).toLowerCase() + id.slice(3)];
+      f.value = Array.isArray(v) ? v.join("|") : (v == null ? "" : String(v));
+    });
+  }
+
   // Writes a merged release object (see media.js's mergeRelease) into the
   // form's hidden fields, blanking whatever it doesn't carry so a re-sync
   // can't leave half of the previous match's dates behind.
@@ -185,10 +207,7 @@
           backlogSyncLocked = true;
           $("#bTitle").value = b.title;
           if (state.data.categories.some((c) => c.name === b.category)) $("#bCategory").value = b.category;
-          $("#bCoverUrl").value = b.coverUrl || "";
-          $("#bMediaId").value = b.mediaId || "";
-          $("#bMediaSource").value = b.mediaSource || "";
-          $("#bGenres").value = (b.genres || []).join("|");
+          fillMediaFields(b);
           setBacklogCover();
           updateSyncBtnVisibility("b", $("#bCategory").value);
           list.hidden = true;
@@ -212,10 +231,7 @@
           backlogSyncLocked = true;
           $("#bTitle").value = m.title;
           if (state.data.categories.some((c) => c.name === m.category)) $("#bCategory").value = m.category;
-          $("#bCoverUrl").value = m.coverUrl || "";
-          $("#bMediaId").value = m.mediaId || "";
-          $("#bMediaSource").value = m.mediaSource || "";
-          $("#bGenres").value = (m.genres || []).join("|");
+          fillMediaFields(m);
           setBacklogCover();
           updateSyncBtnVisibility("b", $("#bCategory").value);
           list.hidden = true;
@@ -818,6 +834,14 @@
     return !b.dropped && (isUnreleased(b) || hasUpcomingEpisode(b));
   }
 
+  // The year an item is pinned to when that's all anyone has said — a bare
+  // "2027" releaseDate, or the releaseYear an older item carries instead.
+  // Null means nothing at all was announced, which is a different thing from
+  // a vague year and is grouped separately in Next Releases.
+  function yearOf(b) {
+    return parseInt(b.releaseDate, 10) || b.releaseYear || null;
+  }
+
   function upcomingItems() {
     return getFilteredBacklog().filter(isAwaitingRelease);
   }
@@ -917,10 +941,11 @@
     return row;
   }
 
-  // One card per month, in date order, then a single trailing card for
-  // everything with no month to put it in. Items are grouped by the day
-  // they're actually waiting on (see upcomingAt), so a show mid-season lands
-  // on its next episode rather than the month it premiered years ago.
+  // One card per month, in date order, then a card per year for the ones
+  // narrowed no further than that, then a last card for the ones with
+  // nothing announced at all. Items are grouped by the day they're actually
+  // waiting on (see upcomingAt), so a show mid-season lands on its next
+  // episode rather than the month it premiered years ago.
   function renderUpcoming(root) {
     const items = upcomingItems();
     if (!items.length) {
@@ -955,8 +980,7 @@
       return a.title.localeCompare(b.title);
     });
     undated.sort((a, b) =>
-      ((parseInt(a.releaseDate, 10) || a.releaseYear || 9999) - (parseInt(b.releaseDate, 10) || b.releaseYear || 9999))
-      || a.title.localeCompare(b.title));
+      ((yearOf(a) || 9999) - (yearOf(b) || 9999)) || a.title.localeCompare(b.title));
 
     const byMonth = groupBy(dated, (b) => upcomingAt(b).slice(0, 7));
     const grid = el("div", "backlog-grid");
@@ -972,9 +996,19 @@
         monthItems
       ));
     }
-    if (undated.length) {
+    // A year on its own is real information and gets cards of its own: a
+    // title known to be landing in 2027 tells you something, and filing it
+    // under the same heading as one with nothing announced at all threw that
+    // away. Years sort ascending for free — Object.keys puts integer-like
+    // keys in numeric order — and the .sort() says so out loud.
+    const byYear = groupBy(undated.filter(yearOf), (b) => String(yearOf(b)));
+    for (const year of Object.keys(byYear).sort()) {
+      sections.push(makeUpcomingSection("year-" + year, year, "No month announced", byYear[year]));
+    }
+    const noDate = undated.filter((b) => !yearOf(b));
+    if (noDate.length) {
       sections.push(makeUpcomingSection("undated", "No date yet",
-        "Announced, but nothing firmer than a year", undated));
+        "Announced, but nothing dated yet", noDate));
     }
     root.appendChild(grid);
     renderLazySections(grid, sections);

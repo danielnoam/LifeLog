@@ -17,6 +17,29 @@ todo:
 
 done:
 
+- the Steam App ID field is available for every category, not just the ones
+  whose source is "steam". It's one node that moves: #b/#fSteamTop in the
+  form for a Steam category (where the App ID is the item's whole identity)
+  and #b/#fSteamAdv inside Advanced everywhere else, swapped by
+  updateSyncBtnVisibility. Two slots rather than two fields, so there's
+  still one input, one id and one applySteamAppId wiring to keep straight
+
+- picking a title you already have now copies every media field, via
+  fillMediaFields — the mirror of clearMediaFields, walking the same
+  MEDIA_FIELD_IDS list and honouring the same pins (each id is its item key
+  with "#b" cut off). It used to set cover/mediaId/mediaSource/genres by
+  hand and drop rating, release, length and summary on the floor
+
+- Next Releases splits the old "No date yet" card: a card per year for the
+  ones narrowed no further than that (yearOf), then a last card for the ones
+  with nothing announced at all
+
+- the search box's ✕ is ours (.search-clear over a .search-wrap) rather than
+  ::-webkit-search-cancel-button, which Chrome only draws while the field
+  has focus and can't be talked out of it from author CSS. The mobile
+  layout rules moved from .search to .search-wrap, since the wrapper is what
+  the topbar lays out now
+
 - the entry form's "Started month" explainer paragraph is gone; the labelled
   pair and its "— none —" default carry it
 

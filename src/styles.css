@@ -316,12 +316,28 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 /* mobile-only "current view" trigger; see .views.open below */
 .view-current { display: none; }
 
+/* The wrapper is what the topbar lays out; the input fills it. */
+.search-wrap { position: relative; display: flex; width: 200px; order: 3; margin-left: auto; }
 .search {
   background: var(--bg); border: 1px solid var(--border); color: var(--text);
-  padding: 7px 12px; border-radius: 8px; width: 200px; font-size: 13px;
-  order: 3; margin-left: auto;
+  padding: 7px 30px 7px 12px; border-radius: 8px; width: 100%; font-size: 13px;
 }
 .search:focus { outline: none; border-color: var(--accent); }
+/* Chrome's own cancel button only exists while the field has focus, and
+   can't be talked out of that from here — so it's dropped for one of ours
+   that stays for as long as there's something to clear. */
+.search::-webkit-search-cancel-button, .search::-webkit-search-decoration {
+  -webkit-appearance: none; appearance: none;
+}
+.search-clear {
+  position: absolute; right: 1px; top: 1px; bottom: 1px; width: 26px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: 0; border-radius: 0 7px 7px 0; padding: 0;
+  color: var(--text-faint); font-size: 12px; line-height: 1; cursor: pointer;
+  transition: color var(--dur-fast) var(--ease);
+}
+.search-clear:hover { color: var(--text); }
+.search-clear[hidden] { display: none; }
 
 /* Settings lives in the header corner, separate from the Add FAB, so the
    two don't compete for attention as if they were equally weighted actions. */
@@ -1076,6 +1092,12 @@ kbd {
 .ovr-row input { flex: 1 1 60%; min-width: 0; }
 .ovr-row select { flex: 1 1 40%; min-width: 0; }
 .ovr .hint code { font-size: 11px; background: var(--bg-elev-2); padding: 1px 4px; border-radius: 4px; white-space: nowrap; }
+/* The Steam App ID field while it's living in the Advanced panel rather than
+   up in the form (see updateSyncBtnVisibility) — ruled off from the pins
+   above it, which are a different kind of control. */
+.advanced .steam-field {
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);
+}
 .gh-advanced { font-size: 12px; color: var(--text-faint); }
 .gh-advanced summary { cursor: pointer; margin-bottom: 10px; color: var(--text-dim); }
 .gh-advanced label { margin-bottom: 0; }
@@ -1163,7 +1185,9 @@ kbd {
    class is the only thing that works in that direction). */
 @media (max-width: 720px) {
   html:not(.force-pc) .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 23px; }
-  html:not(.force-pc) .search { order: 2; margin-left: 0; width: auto; flex: 1 1 auto; min-width: 0; }
+  html:not(.force-pc) .search-wrap { order: 2; margin-left: 0; width: auto; flex: 1 1 auto; min-width: 0; }
+  /* Thumb-sized on a phone, where the native one was smallest of all. */
+  html:not(.force-pc) .search-clear { width: 34px; font-size: 13px; }
 
   /* Persistent bottom nav — every view is one tap away instead of two
      (tap the collapsed pill, then tap the view). Matches the design
@@ -1304,7 +1328,8 @@ kbd {
 }
 
 html.force-mobile .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 23px; }
-html.force-mobile .search { order: 2; margin-left: 0; width: auto; flex: 1 1 auto; min-width: 0; }
+html.force-mobile .search-wrap { order: 2; margin-left: 0; width: auto; flex: 1 1 auto; min-width: 0; }
+html.force-mobile .search-clear { width: 34px; font-size: 13px; }
 
 html.force-mobile .topbar-bottom {
   display: flex; flex-direction: column; align-items: stretch;
