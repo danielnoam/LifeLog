@@ -92,15 +92,21 @@
     // their meta line through this — and the `false` this then returns stops
     // each of them kicking off the lookup that would have filled it in.
     const hasSteamPrice = item.mediaSource === "steam" && !!item.mediaId && !item.bought;
-    if (parts.length || hasSteamPrice || item.bought) {
+    if (parts.length || hasSteamPrice || item.bought || item.earlyAccess) {
       const metaLine = el("span", "bl-meta");
       if (parts.length) metaLine.appendChild(document.createTextNode(parts.join(" · ")));
+      const sep = () => (metaLine.childNodes.length ? " · " : "");
+      // Out and playable but not finished — a state neither the year nor TBA
+      // can express, so it's marked rather than folded into the plain run.
+      if (item.earlyAccess) {
+        metaLine.appendChild(el("span", "bl-ea", sep() + "Early Access"));
+      }
       if (item.bought) {
-        metaLine.appendChild(el("span", "bl-bought", (parts.length ? " · " : "") + "Bought"));
+        metaLine.appendChild(el("span", "bl-bought", sep() + "Bought"));
       } else if (hasSteamPrice) {
         const price = el("span", "bl-price");
         price.dataset.appid = item.mediaId;
-        if (parts.length) price.dataset.sep = "1";
+        if (metaLine.childNodes.length) price.dataset.sep = "1";
         metaLine.appendChild(price);
       }
       container.appendChild(metaLine);
@@ -127,7 +133,7 @@
   const MEDIA_FIELD_IDS = [
     "#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear",
     "#bReleaseDate", "#bReleasePrecision", "#bReleaseStatus", "#bNextAt",
-    "#bNextLabel", "#bExternalRating", "#bLength", "#bGenres",
+    "#bNextLabel", "#bEarlyAccess", "#bExternalRating", "#bLength", "#bGenres",
   ];
   // Which pin, if any, protects each of those fields from being cleared —
   // unsyncing drops the source, but a value you pinned by hand is yours and
@@ -135,7 +141,8 @@
   const MEDIA_FIELD_PINS = {
     "#bCoverUrl": "cover", "#bReleaseYear": "release", "#bReleaseDate": "release",
     "#bReleasePrecision": "release", "#bReleaseStatus": "release", "#bNextAt": "release",
-    "#bNextLabel": "release", "#bExternalRating": "rating", "#bLength": "length",
+    "#bNextLabel": "release", "#bEarlyAccess": "release",
+    "#bExternalRating": "rating", "#bLength": "length",
   };
   function clearMediaFields() {
     MEDIA_FIELD_IDS.forEach((id) => {
@@ -164,7 +171,9 @@
       const f = $(id);
       if (!f) return;
       const v = src[id.charAt(2).toLowerCase() + id.slice(3)];
-      f.value = Array.isArray(v) ? v.join("|") : (v == null ? "" : String(v));
+      // `false` blanks its field rather than becoming the truthy "false" —
+      // matters for the boolean fields (earlyAccess), harmless for the rest.
+      f.value = Array.isArray(v) ? v.join("|") : (v == null || v === false ? "" : String(v));
     });
   }
 
@@ -177,6 +186,10 @@
     $("#bReleaseStatus").value = (rel && rel.releaseStatus) || "";
     $("#bNextAt").value = (rel && rel.nextAt) || "";
     $("#bNextLabel").value = (rel && rel.nextLabel) || "";
+    // Boolean on the item, a truthy string in the form like every other
+    // hidden field — read back by truthiness, since fillMediaFields copies
+    // the item's own `true` in as "true" rather than through here.
+    $("#bEarlyAccess").value = rel && rel.earlyAccess ? "1" : "";
   }
 
   // Title last attached to synced media metadata, so a manual edit (vs. a
@@ -539,7 +552,7 @@
   // The stored counterpart to setReleaseFields: copies the release fields
   // onto an item, deleting rather than blanking the empty ones so items stay
   // free of "" keys (matching how every other optional field is stored).
-  const RELEASE_FIELDS = ["releaseDate", "releasePrecision", "releaseStatus", "nextAt", "nextLabel"];
+  const RELEASE_FIELDS = ["releaseDate", "releasePrecision", "releaseStatus", "nextAt", "nextLabel", "earlyAccess"];
   function applyRelease(item, rel) {
     for (const key of RELEASE_FIELDS) {
       if (rel && rel[key]) item[key] = rel[key]; else delete item[key];
@@ -1716,6 +1729,7 @@
         releaseDate: $("#bReleaseDate").value,
         releasePrecision: $("#bReleasePrecision").value,
         releaseStatus: $("#bReleaseStatus").value,
+        earlyAccess: !!$("#bEarlyAccess").value,
         length: $("#bLength").value,
         mediaSource, mediaId,
         summary: $("#bSummary").value,
@@ -1846,6 +1860,7 @@
       releaseStatus: $("#bReleaseStatus").value,
       nextAt: $("#bNextAt").value,
       nextLabel: $("#bNextLabel").value,
+      earlyAccess: !!$("#bEarlyAccess").value,
     };
     const externalRating = $("#bExternalRating").value;
     const length = $("#bLength").value;
@@ -1922,7 +1937,14 @@
     if (b.mediaSource) out.mediaSource = b.mediaSource;
     if (b.summary) out.summary = b.summary;
     if (b.releaseYear) out.releaseYear = b.releaseYear;
-    for (const key of RELEASE_FIELDS) if (b[key]) out[key] = String(b[key]);
+    for (const key of RELEASE_FIELDS) {
+      if (!b[key]) continue;
+      // earlyAccess is the one boolean in that set, and String()ing it would
+      // store "true" — which still reads as set everywhere, but defeats the
+      // `typeof === "boolean"` test mergeRelease uses to tell a source that
+      // stated an answer from one that said nothing.
+      out[key] = key === "earlyAccess" ? true : String(b[key]);
+    }
     if (b.externalRating) out.externalRating = b.externalRating;
     if (b.length) out.length = b.length;
     if (Array.isArray(b.genres) && b.genres.length) out.genres = b.genres.map((g) => String(g)).slice(0, 4);

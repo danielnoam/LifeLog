@@ -22,8 +22,11 @@
 //     date_added} per item, no title — see /steam-appdetails below.
 //
 //   GET /steam-appdetails/<appid>
-//     -> https://store.steampowered.com/api/appdetails?appids=<appid>&filters=basic
-//     Resolves one app ID to its name. A bulk id->name list would be
+//     -> https://store.steampowered.com/api/appdetails?appids=<appid>&filters=basic,genres
+//     Resolves one app ID to its name. `genres` is asked for on top of the
+//     basic set because Steam files Early Access as a genre (id 70) rather
+//     than a flag of its own, and that's the only place it's stated.
+//     A bulk id->name list would be
 //     one request instead of hundreds, but Steam's only bulk options
 //     turned out to be a dead end: ISteamApps/GetAppList is retired,
 //     and its replacement (IStoreService/GetAppList) needs a Steam
@@ -65,7 +68,7 @@ export default {
 
     const appDetailsMatch = url.pathname.match(/^\/steam-appdetails\/(\d+)$/);
     if (appDetailsMatch) {
-      const target = `https://store.steampowered.com/api/appdetails?appids=${appDetailsMatch[1]}&filters=basic`;
+      const target = `https://store.steampowered.com/api/appdetails?appids=${appDetailsMatch[1]}&filters=basic,genres`;
       return proxyJson(target);
     }
 

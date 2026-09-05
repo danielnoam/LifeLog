@@ -174,7 +174,10 @@
   // RAWG title match this used to lean on for dates, so it's read here and
   // returned alongside the name. short_description comes back too: it's the
   // only description a wishlisted game can get without a RAWG key, and
-  // wishlist imports were the largest block of backlog items with none. Returns null only when the whole lookup
+  // wishlist imports were the largest block of backlog items with none.
+  // And the genres list, which is where Steam states Early Access — a
+  // wishlisted game that turns out to be unfinished says so on its row
+  // (see steamEarlyAccess in media.js). Returns null only when the whole lookup
   // failed; { name: null, ... } is a successful response for an app Steam
   // doesn't recognize.
   function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
@@ -207,6 +210,7 @@
           ...(typeof rd.coming_soon === "boolean"
             ? { releaseStatus: rd.coming_soon ? "upcoming" : "released" }
             : {}),
+          ...(window.LifeLogMedia ? window.LifeLogMedia.steamEarlyAccess(entry.data) : {}),
         },
       };
     } catch (e) {
@@ -508,8 +512,14 @@
     // A pinned release date is excluded outright rather than fetched and
     // discarded: it keeps the button's count honest about how many items
     // this would actually re-check, and saves the requests.
+    // Early Access items are already "released" as far as isAwaitingRelease
+    // is concerned, but they're the whole reason the flag has to be
+    // re-asked: Steam drops the marker at 1.0 and nothing else would notice.
+    // They're included here rather than in isAwaitingRelease itself, which
+    // drives the Next Releases list — an EA game has no 1.0 date to list.
     return state.data.backlog.filter(
-      (b) => b.mediaId && b.mediaSource && !isOverridden(b, "release") && Backlog.isAwaitingRelease(b)
+      (b) => b.mediaId && b.mediaSource && !isOverridden(b, "release")
+        && (Backlog.isAwaitingRelease(b) || !!b.earlyAccess)
     );
   }
 
@@ -534,7 +544,10 @@
   function applyItemRelease(item, fresh) {
     if (isOverridden(item, "release")) return false;
     const merged = mergeRelease(item, fresh);
-    const keys = ["releaseDate", "releasePrecision", "releaseStatus", "nextAt", "nextLabel"];
+    // earlyAccess rides along in that merge: Steam stating the game has left
+    // Early Access drops the key, and the loop below turns a dropped key
+    // into a deleted field — so the flag clears itself at 1.0.
+    const keys = ["releaseDate", "releasePrecision", "releaseStatus", "nextAt", "nextLabel", "earlyAccess"];
     let changed = false;
     for (const k of keys) {
       const next = merged[k] || "";

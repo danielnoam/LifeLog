@@ -60,6 +60,8 @@
   // and, where a source says so outright, `releaseStatus` ("upcoming" or
   // "released") — always more trustworthy than comparing a fuzzy date to
   // today, and the only way to know a bare "2026" has already happened.
+  // Steam alone adds `earlyAccess`: a game that's out and playable but not
+  // finished, which is a state neither a date nor releaseStatus can express.
   function datePrecision(s) {
     if (/^\d{4}-\d{2}-\d{2}/.test(s)) return "day";
     if (/^\d{4}-\d{2}$/.test(s)) return "month";
@@ -101,6 +103,15 @@
     for (const s of sources) {
       if (!s) continue;
       if (s.releaseStatus) out.releaseStatus = s.releaseStatus;
+      // The one field a source can meaningfully state as false: Steam drops
+      // the Early Access marker the day a game ships 1.0, and the later
+      // source has to win that the same way it wins a date. It's dropped
+      // rather than written as false, matching how every other empty value
+      // here is left out — which is also what makes a re-check clear the
+      // flag off an item (see applyItemRelease in sync.js).
+      if (typeof s.earlyAccess === "boolean") {
+        if (s.earlyAccess) out.earlyAccess = true; else delete out.earlyAccess;
+      }
       if (s.nextAt) { out.nextAt = s.nextAt; if (s.nextLabel) out.nextLabel = s.nextLabel; }
       const rank = PRECISION_RANK[s.releasePrecision];
       if (rank === undefined || rank < bestRank) continue;
@@ -745,6 +756,19 @@
     return rel.releaseDate ? rel : null;
   }
 
+  // Steam files Early Access as a genre (id 70) rather than a flag, and
+  // removes it the day a game ships 1.0 — so the marker's absence says as
+  // much as its presence, but only on a response that carried the genres
+  // list at all (the proxy has to ask for it; see proxy/worker.js). An
+  // older proxy that doesn't states nothing either way, which is why this
+  // returns an empty object rather than `false` in that case. Matching on
+  // the id, not `description`: that string is localized.
+  function steamEarlyAccess(data) {
+    const genres = data && data.genres;
+    if (!Array.isArray(genres)) return {};
+    return { earlyAccess: genres.some((g) => String(g && g.id) === "70") };
+  }
+
   // Once a game has a Steam App ID, Steam itself is the best source for when
   // it comes out, and for what it is — RAWG dates a game by its *earliest*
   // platform release (often a console version years before the PC one), and
@@ -755,7 +779,8 @@
   // in sync.js: that one walks a whole wishlist and gets rate-limited partway
   // through, this is a single lookup behind one pick. short_description comes along for the
   // ride: it's Steam's own one-paragraph blurb, and for a game that resolved
-  // to an App ID it beats anything a name-matched source could offer.
+  // to an App ID it beats anything a name-matched source could offer, and
+  // the genres list is where Steam states Early Access (see above).
   // Returns null if it can't say.
   async function fetchSteamDetails(appId, proxyUrl) {
     if (!appId || !proxyUrl) return null;
@@ -774,6 +799,7 @@
         ...(typeof rd.coming_soon === "boolean"
           ? { releaseStatus: rd.coming_soon ? "upcoming" : "released" }
           : {}),
+        ...steamEarlyAccess(entry.data),
       };
     } catch (e) { return null; }
   }
@@ -1107,6 +1133,7 @@
     steamCoverUrl,
     // pure helpers (used by sync.js/backlog.js, and by test/media.test.js)
     parseSteamReleaseDate,
+    steamEarlyAccess,
     releaseFromString,
     releaseFromParts,
     releaseFromSgdb,

@@ -537,6 +537,7 @@ select:focus { outline: none; border-color: var(--accent); }
    two layouts that have no such line — beside the title. Green so it reads
    as its own fact next to the star's gold. */
 .bl-bought { font-size: 11px; color: var(--success); flex-shrink: 0; white-space: nowrap; }
+.bl-ea { font-size: 11px; color: var(--warning); flex-shrink: 0; white-space: nowrap; }
 .entry .entry-cat {
   display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
   padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;

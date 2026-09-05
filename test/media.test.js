@@ -10,7 +10,8 @@ const Media = global.window.LifeLogMedia;
 
 const {
   steamCoverUrl, normGenres, titleKey, stripHtml, firstParagraph, rawgMeta,
-  parseSteamReleaseDate, releaseFromString, releaseFromParts, releaseFromSgdb, mergeRelease,
+  parseSteamReleaseDate, steamEarlyAccess, releaseFromString, releaseFromParts,
+  releaseFromSgdb, mergeRelease,
 } = Media;
 
 let passed = 0;
@@ -237,6 +238,23 @@ test("parseSteamReleaseDate refuses to guess at a placeholder", () => {
   assert.deepStrictEqual(parseSteamReleaseDate(""), tba);
 });
 
+// ---------- steamEarlyAccess ----------
+test("steamEarlyAccess reads Steam's genre id 70, not its localized label", () => {
+  assert.deepStrictEqual(
+    steamEarlyAccess({ genres: [{ id: "70", description: "Accès anticipé" }, { id: "1", description: "Action" }] }),
+    { earlyAccess: true }
+  );
+  assert.deepStrictEqual(
+    steamEarlyAccess({ genres: [{ id: "23", description: "Early Access-ish" }] }),
+    { earlyAccess: false }
+  );
+});
+
+test("steamEarlyAccess says nothing at all when the response carried no genres", () => {
+  assert.deepStrictEqual(steamEarlyAccess({ name: "Some Game" }), {});
+  assert.deepStrictEqual(steamEarlyAccess(null), {});
+});
+
 // ---------- mergeRelease ----------
 test("mergeRelease keeps the most precise date regardless of argument order", () => {
   const vague = { releaseDate: "2026", releasePrecision: "year" };
@@ -268,6 +286,16 @@ test("mergeRelease drops the date when the winning source has none", () => {
   assert.strictEqual(out.releaseDate, "2026");
   const out2 = mergeRelease({ releaseDate: "", releasePrecision: "tba" }, { releaseDate: "2026", releasePrecision: "year" });
   assert.strictEqual(out2.releaseDate, "2026");
+});
+
+test("mergeRelease carries an Early Access flag but never a false one", () => {
+  assert.strictEqual(mergeRelease({ earlyAccess: false }, { earlyAccess: true }).earlyAccess, true);
+  // A stated `false` is a real answer — the later source drops the key, and
+  // an absent key is what deletes the field off an item (see sync.js).
+  assert.strictEqual("earlyAccess" in mergeRelease({ earlyAccess: true }, { earlyAccess: false }), false);
+  // A source that said nothing leaves an earlier one's answer alone.
+  assert.strictEqual(mergeRelease({ earlyAccess: true }, { releaseDate: "2026" }).earlyAccess, true);
+  assert.strictEqual("earlyAccess" in mergeRelease({ releaseDate: "2026" }), false);
 });
 
 test("mergeRelease ignores null sources and emits no empty keys", () => {

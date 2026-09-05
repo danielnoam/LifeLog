@@ -4,6 +4,27 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.115.0] - 2026-09-05
+
+### Added
+- **Games in Early Access are marked as such.** Steam files Early Access as
+  a genre rather than a flag, and a game in it is "released" as far as
+  every date field is concerned — so an unfinished game read exactly like a
+  finished one. Anything Steam knows (a wishlist import, a manually entered
+  App ID, or a RAWG/SteamGridDB match that resolved to a Steam page) now
+  carries an Early Access mark on its backlog row, in the edit modal and on
+  a random pick.
+- **The mark clears itself when a game ships 1.0.** Steam drops the marker
+  the day a game leaves Early Access, so "🔭 Re-check upcoming release
+  dates" now includes your Early Access games in what it re-asks — they
+  aren't waiting on a date, but they are waiting on 1.0. They stay out of
+  the Next Releases list, which has no date to sort them by.
+
+### Changed
+- The CORS proxy now asks Steam for `genres` alongside the basic app
+  details. **Re-deploy `proxy/worker.js` for the Early Access mark to
+  appear** — until then nothing breaks, Steam just never says either way.
+
 ## [0.114.2] - 2026-09-05
 
 ### Fixed

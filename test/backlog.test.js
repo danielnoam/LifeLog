@@ -61,6 +61,16 @@ test("sanitizeBacklog keeps a truthy priority coerced to a number", () => {
   assert.strictEqual(out.priority, 3);
 });
 
+test("sanitizeBacklog stores earlyAccess as a boolean, not the string \"true\"", () => {
+  // mergeRelease tells a stated answer from silence with typeof === "boolean",
+  // so a String()'d flag would make a re-check clear a game still in EA.
+  assert.strictEqual(sanitizeBacklog({ title: "Foo", earlyAccess: true }).earlyAccess, true);
+  // Including one already saved as a string by an older build.
+  assert.strictEqual(sanitizeBacklog({ title: "Foo", earlyAccess: "true" }).earlyAccess, true);
+  assert.strictEqual("earlyAccess" in sanitizeBacklog({ title: "Foo" }), false);
+  assert.strictEqual("earlyAccess" in sanitizeBacklog({ title: "Foo", earlyAccess: false }), false);
+});
+
 test("sanitizeBacklog keeps bought with or without a star", () => {
   const starred = sanitizeBacklog({ title: "Foo", category: "Games", priority: 1, bought: true });
   assert.strictEqual(starred.bought, true);

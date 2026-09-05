@@ -15,7 +15,26 @@ todo:
   whichever media source filled it in ("12 hours", "2h 15m", "8 episodes"),
   so a "what fits in an evening" filter would need parsing that first
 
+- an Early Access game is only recognisable through Steam. A RAWG- or
+  SteamGridDB-only game has no way to say so: RAWG has no field for it (its
+  `early-access` tag is a stale mirror of Steam's and never clears at 1.0),
+  and SteamGridDB states nothing but artwork and a date. IGDB has a real
+  `status` enum, but wiring it means a whole new source behind Twitch OAuth
+  for one boolean
+
 done:
+
+- Early Access, off Steam's genre id 70 (steamEarlyAccess in media.js) — a
+  genre, not a flag, and matched by id because `description` is localized.
+  Its *absence* is the meaningful half: Steam removes the marker at 1.0, so
+  mergeRelease lets a later source drop the key and applyItemRelease (sync.js)
+  turns a dropped key into a deleted field, which is what makes the flag
+  clear itself. Requires the proxy to ask for `genres` — an older deploy
+  states nothing either way, which steamEarlyAccess returns as {} rather
+  than false so it can't wrongly clear a flag.
+  Early Access items were added to the re-check set in sync.js but
+  deliberately not to isAwaitingRelease: they'd land in Next Releases with
+  no 1.0 date to sort or group them by.
 
 - Discover's "you already have this" check compares titleKey(), a new pure
   helper in media.js: case/accents/punctuation/spacing/& folded away, "3rd
