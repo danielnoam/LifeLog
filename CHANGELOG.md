@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.114.2] - 2026-09-05
+
+### Fixed
+- **Discover recognises a title you already have when it's spelled a little
+  differently.** The check compared titles exactly, so "Mushoku Tensei -
+  Season 3" in your timeline didn't match "Mushoku Tensei Season 3" in the
+  list, and an "S4" of your own didn't match a "Season 4" of theirs. Case,
+  accents, punctuation, spacing and `&` vs "and" are now all folded away
+  before comparing, and the two ways of writing a season number are treated
+  as one.
+- **A season you own no longer hides a season you don't.** The season number
+  is deliberately kept in the comparison rather than stripped out: having
+  watched a first season should never take a fourth off the list. Six tests
+  pin that down.
+
 ## [0.114.1] - 2026-09-05
 
 ### Changed

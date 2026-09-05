@@ -17,6 +17,25 @@ todo:
 
 done:
 
+- Discover's "you already have this" check compares titleKey(), a new pure
+  helper in media.js: case/accents/punctuation/spacing/& folded away, "3rd
+  Season" folded into "Season 3", and a trailing season/book/part marker
+  turned into a *number* rather than dropped — no marker counting as 1, so
+  "Attack on Titan S1" keys the same as "Attack on Titan" while "Slime
+  Season 4" keys differently from "Slime". That last part is the whole
+  point and is easy to get wrong: stripMediaSearchSuffix in journal.js drops
+  the number, which is right for feeding a search and would be wrong here,
+  since an owned first season would then hide an unseen fourth. Tested in
+  test/media.test.js (6 cases, including the differ() ones).
+  The owned set is built once per render (discoverOwnedIndex) rather than
+  rescanned per row.
+
+- titleKey is deliberately not fuzzy: "Re:ZERO -Starting Life in Another
+  World-" and "ReZero Starting Life in Another World" still key apart,
+  because "re zero" and "rezero" differ once punctuation goes. Edit-distance
+  matching would catch it and would also start hiding things that only look
+  similar — not worth it unless the misses pile up
+
 - Discover draws a card only where there is something in it or something the
   reader can act on: discoverSourceMap's second map is `needsKey` (sources a
   RAWG key away from a list) rather than "everything that can't answer".

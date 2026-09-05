@@ -1184,23 +1184,41 @@
     if (adopted) repaintDiscoverSoon();
   }
 
-  // Whether this title is already somewhere in your data — a discover list
-  // that keeps offering you things you've already logged is noise. The tag
-  // is the mild answer to that; "Hide what I have" is the blunt one, and it
-  // reads the same test so the two can't disagree.
-  function discoverOwnedTag(title) {
-    const t = title.trim().toLowerCase();
-    if (!t) return "";
-    if (state.data.backlog.some((b) => b.title.trim().toLowerCase() === t)) return "📋 In backlog";
-    if (state.data.entries.some((e) => e.title.trim().toLowerCase() === t)) return "✓ Logged";
+  // Everything you already have, keyed by titleKey rather than by the raw
+  // string: a source writing "Slime Season 4" and an entry of yours reading
+  // "Slime S4" are the same thing, and comparing the text as typed missed
+  // every one of those. Built once per render — 40 rows against every entry
+  // you own is a lot of scanning to redo per row.
+  function discoverOwnedIndex() {
+    const inBacklog = new Set(), logged = new Set();
+    for (const b of state.data.backlog) {
+      const k = window.LifeLogMedia.titleKey(b.title);
+      if (k) inBacklog.add(k);
+    }
+    for (const e of state.data.entries) {
+      const k = window.LifeLogMedia.titleKey(e.title);
+      if (k) logged.add(k);
+    }
+    return { inBacklog, logged };
+  }
+
+  // The tag is the mild answer to "you already have this"; "Hide what I
+  // have" is the blunt one, and both read this so the two can't disagree.
+  function discoverOwnedTag(title, owned) {
+    const k = window.LifeLogMedia.titleKey(title);
+    if (!k) return "";
+    if (owned.inBacklog.has(k)) return "📋 In backlog";
+    if (owned.logged.has(k)) return "✓ Logged";
     return "";
   }
 
-  function discoverVisibleRows(rows) {
-    return state.visual.discoverHideOwned ? rows.filter((r) => !discoverOwnedTag(r.title)) : rows;
+  function discoverVisibleRows(rows, owned) {
+    return state.visual.discoverHideOwned
+      ? rows.filter((r) => !discoverOwnedTag(r.title, owned))
+      : rows;
   }
 
-  function discoverRow(r, catName, keys) {
+  function discoverRow(r, catName, keys, owned) {
     const rich = state.visual.backlogCoverSize !== "none";
     const row = el("div", rich ? "backlog-item-rich dsc-row" : "entry dsc-row");
     if (rich && r.coverUrl) {
@@ -1217,8 +1235,8 @@
     const titleRow = el("div", "bl-title-row");
     const title = el("span", "bl-title", r.title); title.title = r.title;
     titleRow.appendChild(title);
-    const owned = discoverOwnedTag(r.title);
-    if (owned) titleRow.appendChild(el("span", "dsc-tag", owned));
+    const tag = discoverOwnedTag(r.title, owned);
+    if (tag) titleRow.appendChild(el("span", "dsc-tag", tag));
     body.appendChild(titleRow);
     // Same meta line a backlog row gets, off the same builder — a discovered
     // title reads exactly like the one it becomes. The keys it doesn't carry
@@ -1323,11 +1341,12 @@
     const sources = [...lists.keys()];
     root.appendChild(discoverKindBar(sources));
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
+    const owned = discoverOwnedIndex();
     const grid = el("div", "backlog-grid");
     for (const [source, cats] of lists) {
       grid.appendChild(discoverCard(cats.join(" · "), MEDIA_SOURCE_LABELS[source] || source, (list) => {
         const run = discoverRuns.get(source + "|" + discoverKind);
-        const rows = run ? discoverVisibleRows(run.rows) : [];
+        const rows = run ? discoverVisibleRows(run.rows, owned) : [];
         const hidden = run ? run.rows.length - rows.length : 0;
         if (!run || run.status === "loading") {
           list.appendChild(el("p", "dsc-note", "Loading…"));
@@ -1338,7 +1357,7 @@
           list.appendChild(el("p", "dsc-note",
             "You already have all " + run.rows.length + " of these."));
         } else {
-          rows.forEach((r) => list.appendChild(discoverRow(r, cats[0], keys)));
+          rows.forEach((r) => list.appendChild(discoverRow(r, cats[0], keys, owned)));
           // Says the filter did something, so a short list doesn't read as a
           // thin one from the source.
           if (hidden) list.appendChild(el("p", "dsc-note", hidden + " already yours, hidden"));

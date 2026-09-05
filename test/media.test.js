@@ -9,7 +9,7 @@ require("../src/media.js");
 const Media = global.window.LifeLogMedia;
 
 const {
-  steamCoverUrl, normGenres, stripHtml, firstParagraph, rawgMeta,
+  steamCoverUrl, normGenres, titleKey, stripHtml, firstParagraph, rawgMeta,
   parseSteamReleaseDate, releaseFromString, releaseFromParts, releaseFromSgdb, mergeRelease,
 } = Media;
 
@@ -58,6 +58,52 @@ test("normGenres caps the result at 4", () => {
 test("normGenres returns [] for no input", () => {
   assert.deepStrictEqual(normGenres(undefined), []);
   assert.deepStrictEqual(normGenres([]), []);
+});
+
+// ---------- titleKey ----------
+// What Discover's "you already have this" check compares. Two rules pull
+// against each other here: fold away everything two spellings of the same
+// title disagree about, but never fold away the season number, or owning a
+// first season would hide a fourth you have not seen.
+const same = (a, b) => assert.strictEqual(titleKey(a), titleKey(b), `${a} != ${b}`);
+const differ = (a, b) => assert.notStrictEqual(titleKey(a), titleKey(b), `${a} == ${b}`);
+
+test("titleKey: a trailing season marker reads as season 1's absence", () => {
+  same("Attack on Titan S1", "Attack on Titan");
+  same("Attack on Titan - Season 1", "Attack on Titan");
+  same("Foo: Book 1", "Foo");
+});
+
+test("titleKey: case, accents, punctuation and & are folded away", () => {
+  same("ATTACK ON TITAN!", "Attack on Titan");
+  same("Pokémon", "Pokemon");
+  same("Rick & Morty", "Rick and Morty");
+  same("  Spaced   Out  ", "Spaced Out");
+});
+
+test("titleKey: the same season said two ways is one key", () => {
+  same("Dandadan 3rd Season", "Dandadan S3");
+  same("Slime Season 4", "Slime S4");
+  same("Slime - Season 4", "Slime: S4");
+});
+
+test("titleKey: a season you own does NOT match a season you don't", () => {
+  differ("That Time I Got Reincarnated as a Slime", "That Time I Got Reincarnated as a Slime Season 4");
+  differ("Attack on Titan S1", "Attack on Titan S4");
+  differ("Dandadan", "Dandadan 3rd Season");
+  differ("Foo: Book 1", "Foo: Book 2");
+});
+
+test("titleKey: a number that isn't a season marker stays in the title", () => {
+  differ("Portal 2", "Portal");
+  differ("Se7en", "Seven");
+});
+
+test("titleKey: nothing to key on gives an empty string, not a bare marker", () => {
+  assert.strictEqual(titleKey(""), "");
+  assert.strictEqual(titleKey("   "), "");
+  assert.strictEqual(titleKey(null), "");
+  assert.strictEqual(titleKey(undefined), "");
 });
 
 // ---------- stripHtml ----------

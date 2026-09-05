@@ -866,6 +866,33 @@
     } catch (e) { return []; }
   }
 
+  // A title reduced to something two spellings of the same thing agree on:
+  // case, accents, punctuation and spacing folded away, and any trailing
+  // season/book marker turned into a number rather than dropped.
+  //
+  // Keeping the number is the whole point. Dropping it — which is what
+  // stripMediaSearchSuffix does, correctly, for a *search* — would make
+  // "Slime S1" and "Slime Season 4" the same title, and an owned first
+  // season would hide a fourth nobody has seen. No marker at all counts as
+  // 1, which is what lets "Attack on Titan S1" recognise plain "Attack on
+  // Titan". "3rd Season" is folded into "Season 3" first, since AniList
+  // writes it both ways.
+  const TITLE_ORDINAL_RE = /(\d+)(?:st|nd|rd|th)\s+(season|part)\s*$/i;
+  const TITLE_PART_RE = /[-–—:\s]+(?:season|s|book|b|part|p|vol|volume)\s*\.?\s*(\d+)\s*$/i;
+  function titleKey(title) {
+    let t = String(title == null ? "" : title).trim().replace(TITLE_ORDINAL_RE, "$2 $1");
+    const m = t.match(TITLE_PART_RE);
+    const part = m ? parseInt(m[1], 10) : 1;
+    if (m) t = t.slice(0, m.index);
+    const base = t
+      .normalize("NFKD").replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .replace(/&/g, " and ")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+    return base ? base + "|" + part : "";
+  }
+
   // ---------- discover ----------
   // The lists behind the Backlog's Discover mode: what's big right now, and
   // what's coming. Every one of them returns the same normalized rows a
@@ -1085,6 +1112,7 @@
     releaseFromSgdb,
     mergeRelease,
     normGenres,
+    titleKey,
     stripHtml,
     firstParagraph,
     rawgMeta,
