@@ -17,6 +17,14 @@ todo:
 
 done:
 
+- Discover draws a card only where there is something in it or something the
+  reader can act on: discoverSourceMap's second map is `needsKey` (sources a
+  RAWG key away from a list) rather than "everything that can't answer".
+  Open Library / Google Books / MusicBrainz fall out of both maps and get no
+  card — there is nothing to be done about books having no charts, so the
+  note was pure clutter. The all-empty message had to change with it: a
+  source can now be set and still produce nothing
+
 - Discover covers every category that has a source set, not just the ones
   that can answer. discoverSourceMap returns two maps — the sources with a
   list, and the configured ones without — so an unsupported source gets a

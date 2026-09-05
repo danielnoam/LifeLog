@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.114.1] - 2026-09-05
+
+### Changed
+- **Books, audiobooks and music no longer get an empty Discover card.**
+  Open Library, Google Books and MusicBrainz publish no popularity list and
+  never will, so saying so on every visit was just a dead tile in the grid.
+  A card is now only drawn where there's either something in it or something
+  you could do — a SteamGridDB category still says a RAWG key would fill it
+  in, because that one names the fix.
+
 ## [0.114.0] - 2026-09-05
 
 ### Added

@@ -1103,30 +1103,34 @@
     return standIn && (keys.rawg || "") ? standIn : "";
   }
 
-  // Two maps: the sources that can answer, and the configured ones that
-  // can't. The second is the point — a category set to a source with no such
-  // list gets a card saying so, rather than silently not being here at all.
+  // Two maps: the sources that can answer, and the ones a key away from it.
+  // A source with no such list anywhere — Open Library, Google Books,
+  // MusicBrainz — is in neither, and gets no card: there is nothing you
+  // could do about books having no charts, and saying so on every visit is
+  // just a dead tile in the grid. Only the fixable case earns a card, since
+  // that one names the key that would fill it.
   function discoverSourceMap() {
     const cfg = state.data.settings.mediaCategorySources || {};
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
-    const lists = new Map(), noList = new Map();
+    const lists = new Map(), needsKey = new Map();
     for (const c of state.data.categories) {
       const configured = cfg[c.name];
       if (!configured) continue;
       const listSource = discoverSourceFor(configured, keys);
-      const target = listSource ? lists : noList;
-      const key = listSource || configured;
-      if (!target.has(key)) target.set(key, []);
-      target.get(key).push(c.name);
+      if (listSource) {
+        if (!lists.has(listSource)) lists.set(listSource, []);
+        lists.get(listSource).push(c.name);
+      } else if (DISCOVER_STANDIN[configured]) {
+        if (!needsKey.has(configured)) needsKey.set(configured, []);
+        needsKey.get(configured).push(c.name);
+      }
     }
-    return { lists, noList };
+    return { lists, needsKey };
   }
 
   function discoverUnavailableNote(source) {
-    const label = MEDIA_SOURCE_LABELS[source] || source;
-    return DISCOVER_STANDIN[source]
-      ? label + " publishes no popularity list of its own. Set a RAWG key in Settings → Media and this fills in from RAWG instead."
-      : label + " publishes no popularity or upcoming list, so there's nothing to show here.";
+    return (MEDIA_SOURCE_LABELS[source] || source) +
+      " publishes no popularity list of its own. Set a RAWG key in Settings → Media and this fills in from RAWG instead.";
   }
 
   function discoverCache() {
@@ -1309,11 +1313,11 @@
   }
 
   function renderDiscover(root) {
-    const { lists, noList } = discoverSourceMap();
-    if (!lists.size && !noList.size) {
+    const { lists, needsKey } = discoverSourceMap();
+    if (!lists.size && !needsKey.size) {
       root.appendChild(emptyState(
-        "Discover follows the media sources your categories already use, and none of them has one set. " +
-        "Pick a source for a category in Settings → Media to fill this in."));
+        "Discover follows the media sources your categories use, and none of the ones you've set publishes a popularity list. " +
+        "RAWG, TMDB, AniList and Jikan do — set one for a category in Settings → Media."));
       return;
     }
     const sources = [...lists.keys()];
@@ -1341,7 +1345,7 @@
         }
       }));
     }
-    for (const [source, cats] of noList) {
+    for (const [source, cats] of needsKey) {
       grid.appendChild(discoverCard(cats.join(" · "), MEDIA_SOURCE_LABELS[source] || source, (list) => {
         list.appendChild(el("p", "dsc-note", discoverUnavailableNote(source)));
       }));
