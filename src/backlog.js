@@ -74,7 +74,15 @@
   function appendBacklogMeta(container, item, opts) {
     const parts = [];
     if (item.externalRating) parts.push("★ " + item.externalRating);
-    if (item.releaseYear) parts.push(String(item.releaseYear));
+    // A title still ahead of you says so in the slot the year would have
+    // used, rather than leaving a gap that reads like nothing is known about
+    // it. TBA is the word the rest of the app already uses for this (see the
+    // release-date field in Advanced, and precisionOf). yearOf rather than
+    // releaseYear on its own, so an item carrying only a releaseDate still
+    // shows the year that date states.
+    const year = yearOf(item);
+    if (year) parts.push(String(year));
+    else if (isUnreleased(item)) parts.push("TBA");
     if (item.length) parts.push(item.length);
     // Owning it doesn't just hide the price, it takes the price's place:
     // what a shop is charging today is a number about a purchase you've
@@ -1375,6 +1383,14 @@
       const hasSteamPrice = appendBacklogMeta(hasCover ? coverMeta : rowMeta, {
         externalRating: $("#bExternalRating").value,
         releaseYear: $("#bReleaseYear").value,
+        // The release trio comes along so the modal reads its date the same
+        // way a list row does — the year off a bare releaseDate, and TBA for
+        // something still ahead of you. Off the live fields, so pinning a
+        // date in Advanced repaints the line instead of waiting for a
+        // save-and-reopen, same as the ✓ above.
+        releaseDate: $("#bReleaseDate").value,
+        releasePrecision: $("#bReleasePrecision").value,
+        releaseStatus: $("#bReleaseStatus").value,
         length: $("#bLength").value,
         mediaSource, mediaId,
         summary: $("#bSummary").value,

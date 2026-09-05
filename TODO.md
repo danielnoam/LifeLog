@@ -17,6 +17,15 @@ todo:
 
 done:
 
+- a backlog card's meta line fills the release slot for an item still ahead
+  of you: yearOf first (so a bare releaseDate still yields its year), then
+  "TBA" when isUnreleased says it's coming but nothing dates it. An item with
+  no release info at all and no upcoming status stays blank on purpose —
+  that's an unknown rather than a TBA. setBacklogCover now passes
+  releaseDate/releasePrecision/releaseStatus into appendBacklogMeta too,
+  since it builds its synthetic item from the live form fields and was
+  leaving the release trio out, so the modal and the list row disagreed
+
 - a backlog category card's count splits into "12 (+7 unreleased)" via
   backlogCountEl, gated on state.visual.backlogCounts (Settings → Appearance,
   device-local, defaults to "split"). It reuses notOutYet — the random pick's

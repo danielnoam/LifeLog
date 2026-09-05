@@ -4,6 +4,25 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.112.1] - 2026-09-05
+
+### Changed
+- **A backlog card says TBA where the release year would go.** Something
+  you're still waiting on but that has no date announced used to leave that
+  slot empty, which read as "nothing is known about this" rather than "the
+  date isn't out yet". Items that simply have no release information and
+  aren't marked as upcoming still show nothing — that's an unknown, not a
+  TBA.
+
+### Fixed
+- **A card shows the year even when it only has a full release date.** An
+  item carrying a `2027-05-14` but no separate year field showed no date at
+  all; it now reads the year off the date, the way Next Releases already
+  did.
+- **The edit modal's meta line matches the list row.** It was built from the
+  form's live fields, which left the release date out entirely, so the same
+  item read differently in the list and in its own modal.
+
 ## [0.112.0] - 2026-09-05
 
 ### Added
