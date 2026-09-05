@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.115.2] - 2026-09-05
+
+### Changed
+- **A category's count sets Early Access aside too** — <em>3 (+2 EA, +1
+  unreleased)</em> rather than folding the unfinished games in with the
+  ones you could sit down and finish tonight. It's counted off the
+  startable half, since you can play an Early Access game today; a game
+  whose Early Access launch is itself still ahead stays counted as
+  unreleased, not both. Settings → Backlog counts still turns the whole
+  split off.
+
 ## [0.115.1] - 2026-09-05
 
 ### Changed

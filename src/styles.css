@@ -749,8 +749,8 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
   min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .backlog-section-count { margin-left: auto; font-size: 13px; color: var(--text-dim); font-weight: 600; white-space: nowrap; }
-/* The "+N unreleased" half of a split count — quieter than the number it
-   qualifies, since it is the aside and not the headline. */
+/* The "+N EA, +N unreleased" half of a split count — quieter than the number
+   it qualifies, since it is the aside and not the headline. */
 .bl-count-pending { margin-left: 5px; font-size: 11px; font-weight: 500; color: var(--text-faint); }
 .backlog-list { display: flex; flex-direction: column; gap: 2px; }
 .backlog-item-rich {

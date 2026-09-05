@@ -1427,21 +1427,39 @@
     root.appendChild(bar);
   }
 
-  // A category's count, split by default into what you could actually start
-  // today and what simply isn't out yet — one flat number counted a shelf of
-  // things you're waiting on as if they were things you'd been putting off.
-  // The split uses the same "can't start it yet" test the random pick draws
-  // on, so the two never disagree about what's waiting. Settings →
-  // Appearance turns it off for anyone who'd rather have the plain total.
+  // A category's count, split by default into what you could actually sit
+  // down with today and what you couldn't — one flat number counted a shelf
+  // of things you're waiting on as if they were things you'd been putting
+  // off. Two things are set aside, in the order the list itself puts them:
+  // what's playable but unfinished, then what isn't out at all. The pending
+  // half uses the same "can't start it yet" test the random pick draws on,
+  // so the two never disagree about what's waiting. Settings → Appearance
+  // turns it off for anyone who'd rather have the plain total.
   function backlogCountEl(items) {
     const span = el("span", "backlog-section-count", String(items.length));
     if ((state.visual.backlogCounts || "split") !== "split") return span;
     const pending = items.filter(notOutYet).length;
-    // Nothing pending, or nothing but: either way the split would be one
-    // number and a parenthesis saying the same thing twice.
-    if (!pending || pending === items.length) return span;
-    span.textContent = String(items.length - pending);
-    span.appendChild(el("span", "bl-count-pending", "(+" + pending + " unreleased)"));
+    // Off the startable half, not the pending one: an Early Access game can
+    // be played today, it just isn't the finished thing yet. An announced EA
+    // release still ahead of you is already counted as pending, and mustn't
+    // be counted twice.
+    const ea = items.filter((b) => b.earlyAccess && !notOutYet(b)).length;
+    const rest = items.length - pending - ea;
+    // Nothing set aside, or a single aside that accounts for the whole
+    // category: either way the split would be one number and a parenthesis
+    // saying the same thing twice.
+    if (!pending && !ea) return span;
+    if (!rest && (!pending || !ea)) return span;
+    span.textContent = String(rest);
+    // "EA" rather than the full words: spelled out, a three-digit count with
+    // both asides is long enough to push a category name to "G…" on a phone
+    // (the name is what shrinks — see .backlog-section-name). The row badge
+    // below says "Early Access" in full, and it reads unambiguously next to
+    // "unreleased".
+    const asides = [];
+    if (ea) asides.push("+" + ea + " EA");
+    if (pending) asides.push("+" + pending + " unreleased");
+    span.appendChild(el("span", "bl-count-pending", "(" + asides.join(", ") + ")"));
     return span;
   }
 

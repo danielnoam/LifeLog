@@ -38,7 +38,9 @@ done:
   They also get their own band in bandOf, between released and unreleased.
   An EA game whose EA launch is still ahead of it stays in the unreleased
   band — isUnreleased is checked first, since you can't start that one
-  today either.
+  today either. backlogCountEl splits the same way and in the same order,
+  counting EA off the startable half so an announced-but-unreleased EA game
+  isn't counted in both asides.
 
 - Discover's "you already have this" check compares titleKey(), a new pure
   helper in media.js: case/accents/punctuation/spacing/& folded away, "3rd
