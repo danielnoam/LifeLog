@@ -76,6 +76,10 @@ Five views, in two groups.
   releases**. Items sort into starred → ready → unreleased → dropped bands,
   and **Pick random** draws one for you out of a bag, so nothing repeats
   until everything in scope has had a turn.
+- **Discover** – the third Backlog mode, and the only screen that looks
+  outward: what is popular right now and what is coming, read from the same
+  media sources your categories already use. Adding from it fills the item
+  in exactly as a manual sync would.
 
 **Finance**
 

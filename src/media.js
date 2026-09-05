@@ -212,26 +212,31 @@
       const res = await fetch(url);
       if (!res.ok) return [];
       const data = await res.json();
-      return (data.results || []).map((g) => ({
-        id: g.slug || "",
-        title: g.name || "",
-        coverUrl: g.background_image || "",
-        year: g.released ? parseInt(g.released, 10) : null,
-        // RAWG flags undated games with `tba` and then still hands back a
-        // placeholder date for them (usually Dec 31 of the target year) —
-        // taking that at face value would put unannounced games on a
-        // specific day. The flag wins.
-        ...(g.tba
-          ? { releaseDate: "", releasePrecision: "tba", releaseStatus: "upcoming" }
-          : releaseFromString(g.released)),
-        // RAWG's search endpoint carries no description — only the per-game
-        // endpoint does, so the blurb arrives later via fetchRawgDetails.
-        summary: "",
-        ...rawgMeta(g),
-        genres: normGenres((g.genres || []).map((x) => x.name)),
-        source: "rawg",
-      }));
+      return (data.results || []).map(mapRawgResult);
     } catch (e) { return []; }
+  }
+
+  // One row of a RAWG list, search or discover.
+  function mapRawgResult(g) {
+    return {
+      id: g.slug || "",
+      title: g.name || "",
+      coverUrl: g.background_image || "",
+      year: g.released ? parseInt(g.released, 10) : null,
+      // RAWG flags undated games with `tba` and then still hands back a
+      // placeholder date for them (usually Dec 31 of the target year) —
+      // taking that at face value would put unannounced games on a
+      // specific day. The flag wins.
+      ...(g.tba
+        ? { releaseDate: "", releasePrecision: "tba", releaseStatus: "upcoming" }
+        : releaseFromString(g.released)),
+      // RAWG's search endpoint carries no description — only the per-game
+      // endpoint does, so the blurb arrives later via fetchRawgDetails.
+      summary: "",
+      ...rawgMeta(g),
+      genres: normGenres((g.genres || []).map((x) => x.name)),
+      source: "rawg",
+    };
   }
 
   // "RAWG + Steam + GG.deals" combo source: same search as plain RAWG
@@ -360,27 +365,28 @@
       const res = await fetch(url);
       if (!res.ok) return [];
       const data = await res.json();
-      const imgBase = "https://image.tmdb.org/t/p/w92";
-      const genreMap = type === "movie" ? TMDB_MOVIE_GENRES : TMDB_TV_GENRES;
-      return (data.results || []).slice(0, 5).map((r) => {
-        const t = r.title || r.name || "";
-        const dateStr = r.release_date || r.first_air_date || "";
-        const year = dateStr ? parseInt(dateStr, 10) : null;
-        return {
-          id: String(r.id),
-          title: t,
-          coverUrl: r.poster_path ? imgBase + r.poster_path : "",
-          year,
-          ...releaseFromString(dateStr),
-          summary: r.overview || "",
-          externalRating: r.vote_average
-            ? (Math.round(r.vote_average * 10) / 10) + " TMDB"
-            : "",
-          genres: normGenres((r.genre_ids || []).map((id) => genreMap[id]).filter(Boolean)),
-          source: type === "movie" ? "tmdb-movie" : "tmdb-tv",
-        };
-      });
+      return (data.results || []).slice(0, 5).map((r) => mapTmdbResult(r, type));
     } catch (e) { return []; }
+  }
+
+  // One row of a TMDB list, search or discover — both endpoints hand back
+  // the same object, so the shape only needs describing once.
+  function mapTmdbResult(r, type) {
+    const genreMap = type === "movie" ? TMDB_MOVIE_GENRES : TMDB_TV_GENRES;
+    const dateStr = r.release_date || r.first_air_date || "";
+    return {
+      id: String(r.id),
+      title: r.title || r.name || "",
+      coverUrl: r.poster_path ? "https://image.tmdb.org/t/p/w92" + r.poster_path : "",
+      year: dateStr ? parseInt(dateStr, 10) : null,
+      ...releaseFromString(dateStr),
+      summary: r.overview || "",
+      externalRating: r.vote_average
+        ? (Math.round(r.vote_average * 10) / 10) + " TMDB"
+        : "",
+      genres: normGenres((r.genre_ids || []).map((id) => genreMap[id]).filter(Boolean)),
+      source: type === "movie" ? "tmdb-movie" : "tmdb-tv",
+    };
   }
 
   async function searchOpenLibrary(title) {
@@ -428,7 +434,7 @@
       // status + nextAiringEpisode ride along on the search request at no
       // extra cost, and say outright what a date comparison can only guess:
       // whether it's out yet, and when the next episode lands.
-      const query = "query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { id title { romaji english } startDate { year month day } status nextAiringEpisode { airingAt episode } coverImage { medium } description(asHtml: false) averageScore genres } } }";
+      const query = "query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { " + ANILIST_FIELDS + " } } }";
       const res = await fetch("https://graphql.anilist.co", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -437,22 +443,28 @@
       if (!res.ok) return [];
       const data = await res.json();
       const media = (data.data && data.data.Page && data.data.Page.media) || [];
-      return media.map((m) => {
-        const sd = m.startDate || {};
-        return {
-          id: String(m.id),
-          title: (m.title && (m.title.english || m.title.romaji)) || "",
-          coverUrl: (m.coverImage && m.coverImage.medium) || "",
-          year: sd.year || null,
-          ...releaseFromParts(sd.year, sd.month, sd.day),
-          ...aniListStatus(m),
-          summary: stripHtml(m.description),
-          externalRating: m.averageScore ? m.averageScore + "% AniList" : "",
-          genres: normGenres(m.genres),
-          source: type === "MANGA" ? "anilist-manga" : "anilist-anime",
-        };
-      });
+      return media.map((m) => mapAniListResult(m, type));
     } catch (e) { return []; }
+  }
+
+  // The fields every AniList media query asks for. Shared so a discover
+  // query can't drift from the search one and hand back a half-filled row.
+  const ANILIST_FIELDS = "id title { romaji english } startDate { year month day } status nextAiringEpisode { airingAt episode } coverImage { medium } description(asHtml: false) averageScore genres";
+
+  function mapAniListResult(m, type) {
+    const sd = m.startDate || {};
+    return {
+      id: String(m.id),
+      title: (m.title && (m.title.english || m.title.romaji)) || "",
+      coverUrl: (m.coverImage && m.coverImage.medium) || "",
+      year: sd.year || null,
+      ...releaseFromParts(sd.year, sd.month, sd.day),
+      ...aniListStatus(m),
+      summary: stripHtml(m.description),
+      externalRating: m.averageScore ? m.averageScore + "% AniList" : "",
+      genres: normGenres(m.genres),
+      source: type === "MANGA" ? "anilist-manga" : "anilist-anime",
+    };
   }
 
   // Pulls a public AniList user's "Planning" (plan-to-watch/plan-to-read)
@@ -524,42 +536,44 @@
       const res = await fetch(url);
       if (!res.ok) return [];
       const data = await res.json();
-      return (data.data || []).map((d) => {
-        const dateProp = type === "anime" ? d.aired : d.published;
-        // .prop.from breaks the date into nullable year/month/day parts, so
-        // precision comes straight from the source — better than slicing
-        // dateProp.from, which pads a month-only date out to a fake day.
-        const from = (dateProp && dateProp.prop && dateProp.prop.from) || {};
-        const year = from.year || null;
-        let length = "";
-        if (type === "anime") {
-          length = d.episodes ? d.episodes + (d.episodes === 1 ? " episode" : " episodes") : "";
-        } else {
-          const parts = [];
-          if (d.volumes) parts.push(d.volumes + (d.volumes === 1 ? " volume" : " volumes"));
-          if (d.chapters) parts.push(d.chapters + (d.chapters === 1 ? " chapter" : " chapters"));
-          length = parts.join(" · ");
-        }
-        return {
-          id: String(d.mal_id || ""),
-          title: d.title_english || d.title || "",
-          coverUrl: (d.images && d.images.jpg && (d.images.jpg.image_url || d.images.jpg.small_image_url)) || "",
-          year,
-          ...releaseFromParts(from.year, from.month, from.day),
-          // Jikan status is free text — "Not yet aired", "Currently Airing",
-          // "Finished Airing" for anime; "Upcoming", "Publishing", "Finished"
-          // for manga.
-          ...(d.status
-            ? { releaseStatus: /^(not yet|upcoming)/i.test(d.status) ? "upcoming" : "released" }
-            : {}),
-          summary: d.synopsis || "",
-          externalRating: d.score ? d.score + " Jikan" : "",
-          length,
-          genres: normGenres((d.genres || []).map((x) => x.name)),
-          source: type === "manga" ? "jikan-manga" : "jikan-anime",
-        };
-      });
+      return (data.data || []).map((d) => mapJikanResult(d, type));
     } catch (e) { return []; }
+  }
+
+  // One row of a Jikan list, search or discover.
+  function mapJikanResult(d, type) {
+    const dateProp = type === "anime" ? d.aired : d.published;
+    // .prop.from breaks the date into nullable year/month/day parts, so
+    // precision comes straight from the source — better than slicing
+    // dateProp.from, which pads a month-only date out to a fake day.
+    const from = (dateProp && dateProp.prop && dateProp.prop.from) || {};
+    let length = "";
+    if (type === "anime") {
+      length = d.episodes ? d.episodes + (d.episodes === 1 ? " episode" : " episodes") : "";
+    } else {
+      const parts = [];
+      if (d.volumes) parts.push(d.volumes + (d.volumes === 1 ? " volume" : " volumes"));
+      if (d.chapters) parts.push(d.chapters + (d.chapters === 1 ? " chapter" : " chapters"));
+      length = parts.join(" · ");
+    }
+    return {
+      id: String(d.mal_id || ""),
+      title: d.title_english || d.title || "",
+      coverUrl: (d.images && d.images.jpg && (d.images.jpg.image_url || d.images.jpg.small_image_url)) || "",
+      year: from.year || null,
+      ...releaseFromParts(from.year, from.month, from.day),
+      // Jikan status is free text — "Not yet aired", "Currently Airing",
+      // "Finished Airing" for anime; "Upcoming", "Publishing", "Finished"
+      // for manga.
+      ...(d.status
+        ? { releaseStatus: /^(not yet|upcoming)/i.test(d.status) ? "upcoming" : "released" }
+        : {}),
+      summary: d.synopsis || "",
+      externalRating: d.score ? d.score + " Jikan" : "",
+      length,
+      genres: normGenres((d.genres || []).map((x) => x.name)),
+      source: type === "manga" ? "jikan-manga" : "jikan-anime",
+    };
   }
 
   async function searchGoogleBooks(title) {
@@ -852,6 +866,108 @@
     } catch (e) { return []; }
   }
 
+  // ---------- discover ----------
+  // The lists behind the Backlog's Discover mode: what's big right now, and
+  // what's coming. Every one of them returns the same normalized rows a
+  // search does, so a discovered title is added through exactly the path a
+  // picked search match takes — no second code path, and nothing new stored
+  // on an item to say where it was found.
+  //
+  // Only sources that publish such a list are here. Open Library, Google
+  // Books and MusicBrainz have no popularity data at all, SteamGridDB is an
+  // artwork database, and Steam's charts are CORS-blocked like the rest of
+  // its API. Those return nothing rather than something misleading.
+  const DISCOVER_SOURCES = [
+    "rawg", "rawg-steam-gg", "tmdb-movie", "tmdb-tv",
+    "anilist-anime", "anilist-manga", "jikan-anime", "jikan-manga",
+  ];
+
+  function ymd(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
+      "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function shiftedDate(years, days) {
+    const d = new Date();
+    if (years) d.setFullYear(d.getFullYear() + years);
+    if (days) d.setDate(d.getDate() + days);
+    return d;
+  }
+
+  // RAWG has no "trending" of its own, so popularity is "how many people
+  // added it recently, among things actually out" — a year-wide window
+  // ordered by adds, which is what its own front page does. Upcoming is the
+  // same ordering over a forward window, so it's the anticipated ones rather
+  // than everything with a future date on it.
+  async function discoverRawg(kind, apiKey) {
+    if (!apiKey) return [];
+    const dates = kind === "upcoming"
+      ? ymd(shiftedDate(0, 1)) + "," + ymd(shiftedDate(2, 0))
+      : ymd(shiftedDate(-1, 0)) + "," + ymd(new Date());
+    try {
+      const url = "https://api.rawg.io/api/games?key=" + encodeURIComponent(apiKey) +
+        "&dates=" + dates + "&ordering=-added&page_size=20";
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.results || []).map(mapRawgResult);
+    } catch (e) { return []; }
+  }
+
+  // TMDB's own /trending is the "hot right now" list. For what's coming it
+  // has /movie/upcoming but no TV equivalent, so both use /discover instead:
+  // one shape, sorted by popularity, dated from today forward.
+  async function discoverTmdb(kind, type, apiKey) {
+    if (!apiKey) return [];
+    const key = "api_key=" + encodeURIComponent(apiKey);
+    const base = "https://api.themoviedb.org/3/";
+    const url = kind === "upcoming"
+      ? base + "discover/" + type + "?sort_by=popularity.desc&" +
+        (type === "movie" ? "primary_release_date.gte=" : "first_air_date.gte=") +
+        ymd(new Date()) + "&" + key
+      : base + "trending/" + type + "/week?" + key;
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.results || []).slice(0, 20).map((r) => mapTmdbResult(r, type));
+    } catch (e) { return []; }
+  }
+
+  // AniList's TRENDING_DESC is a real "being talked about this week" signal
+  // rather than an all-time popularity ranking, which is the difference
+  // between a discover list and a hall of fame.
+  async function discoverAniList(kind, type) {
+    const filter = kind === "upcoming"
+      ? "status: NOT_YET_RELEASED, sort: POPULARITY_DESC"
+      : "sort: TRENDING_DESC";
+    const query = "query ($type: MediaType) { Page(perPage: 20) { media(type: $type, " +
+      filter + ") { " + ANILIST_FIELDS + " } } }";
+    try {
+      const res = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ query, variables: { type } }),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const media = (data.data && data.data.Page && data.data.Page.media) || [];
+      return media.map((m) => mapAniListResult(m, type));
+    } catch (e) { return []; }
+  }
+
+  // Jikan's top lists take a filter, so both kinds are the same endpoint —
+  // "airing"/"publishing" for what's running now, "upcoming" for what isn't.
+  async function discoverJikan(kind, type) {
+    const filter = kind === "upcoming" ? "upcoming" : (type === "anime" ? "airing" : "publishing");
+    try {
+      const url = "https://api.jikan.moe/v4/top/" + type + "?filter=" + filter + "&limit=20";
+      const res = await fetch(url);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return (data.data || []).map((d) => mapJikanResult(d, type));
+    } catch (e) { return []; }
+  }
+
   window.LifeLogMedia = {
     async search(title, source, keys, proxyUrl) {
       lastError = "";
@@ -871,6 +987,25 @@
       if (source === "musicbrainz") return searchMusicBrainz(title);
       return [];
     },
+    // The Discover mode’s two lists. `source` is the one the category is
+    // configured with, and it is stamped back onto every row: a category set
+    // to "RAWG + Steam + GG.deals" wants its discovered games resolved to a
+    // Steam App ID on the way in, exactly as a searched one would be, and
+    // the mappers only ever know their own bare source.
+    async discover(source, kind, keys) {
+      lastError = "";
+      const k = keys || {};
+      let rows = [];
+      if (source === "rawg" || source === "rawg-steam-gg") rows = await discoverRawg(kind, k.rawg || "");
+      else if (source === "tmdb-movie") rows = await discoverTmdb(kind, "movie", k.tmdb || "");
+      else if (source === "tmdb-tv") rows = await discoverTmdb(kind, "tv", k.tmdb || "");
+      else if (source === "anilist-anime") rows = await discoverAniList(kind, "ANIME");
+      else if (source === "anilist-manga") rows = await discoverAniList(kind, "MANGA");
+      else if (source === "jikan-anime") rows = await discoverJikan(kind, "anime");
+      else if (source === "jikan-manga") rows = await discoverJikan(kind, "manga");
+      return rows.map((r) => ({ ...r, source }));
+    },
+    supportsDiscover(source) { return DISCOVER_SOURCES.includes(source); },
     async fetchPrices(appIds, apiKey, proxyUrl) {
       lastError = "";
       return fetchGgDealsPrices(appIds, apiKey, proxyUrl);

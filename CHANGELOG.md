@@ -4,6 +4,29 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.113.0] - 2026-09-05
+
+### Added
+- **Discover, a third Backlog mode.** Beside By category and Next releases:
+  what's popular right now, and what's coming, for the media sources your
+  categories already use. A category set to AniList gets AniList's trending
+  list; one set to TMDB gets TMDB's. There's nothing new to configure — it
+  reads Settings → Media as it stands.
+- **Adding from Discover fills the item in properly.** Tapping a row opens
+  the add form already carrying the cover, description, rating, release date
+  and genres, resolved through exactly the same path a title you searched
+  for by hand takes — including the Steam App ID lookup, if the category is
+  set to one of the "+ Steam + GG.deals" sources. Rows for things already in
+  your backlog or already logged say so.
+- **Two lists per source: Popular now and Coming soon.** RAWG, TMDB, AniList
+  and Jikan each publish both. Sources that publish neither — Open Library,
+  Google Books, MusicBrainz, SteamGridDB — are left out rather than shown
+  empty, and Steam's charts are as CORS-blocked as the rest of its API.
+
+Nothing is fetched until you open the mode, and answers are kept for six
+hours on the device, so opening the Backlog doesn't call four APIs. ↻ Refresh
+ignores that cache.
+
 ## [0.112.1] - 2026-09-05
 
 ### Changed

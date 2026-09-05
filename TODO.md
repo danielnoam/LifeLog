@@ -17,6 +17,34 @@ todo:
 
 done:
 
+- Discover is the Backlog's third mode: per-source "Popular now" / "Coming
+  soon" lists, driven off mediaCategorySources so there's no second place to
+  configure sources. media.js grew a `discover(source, kind, keys)` beside
+  `search`, returning the same normalized rows — which is what lets an added
+  row go through applyMediaResult, the block extracted out of
+  syncBacklogTitle's callback, so a discovered title gets the same identity
+  resolution, the same details second call and the same respect for pinned
+  fields as a searched one. The four search result mappers were extracted
+  (mapRawgResult/mapTmdbResult/mapAniListResult/mapJikanResult) and the
+  AniList field selection pulled into ANILIST_FIELDS, so a discover query
+  can't drift from the search one and hand back a half-filled row.
+  Answers cache in localStorage for 6h under lifelog-discover-v1, device
+  local. discoverRuns doubles as the "already asked" set, which is what
+  stops render→ensureDiscover→render looping; the cache-hit branch has to
+  schedule a repaint of its own, or a warm load sits on "Loading…" forever
+  over a full set of rows.
+
+- still no source for "hot books" or "hot music": Open Library and Google
+  Books publish no popularity data and MusicBrainz none at all. The NYT
+  Books API (free key, bestseller lists) is the only candidate that would
+  actually add something, and it'd be a new key to set up
+
+- Rotten Tomatoes, Metacritic and Netflix were asked for and are not
+  possible: none has a public API. The Netflix half is better served by
+  TMDB's watch-provider filter (/discover with with_watch_providers +
+  watch_region), which would make Discover answer "what's hot on the
+  services I actually have" — not built, but it's the natural next step
+
 - a backlog card's meta line fills the release slot for an item still ahead
   of you: yearOf first (so a bare releaseDate still yields its year), then
   "TBA" when isUnreleased says it's coming but nothing dates it. An item with

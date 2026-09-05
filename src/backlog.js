@@ -18,7 +18,7 @@
     renderMediaLinks, isOverridden, sanitizeOverrides,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, applySteamAppId,
-    backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS;
+    backfillUpdatedAt, saveUiState, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS;
 
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
@@ -30,7 +30,7 @@
       renderMediaLinks, isOverridden, sanitizeOverrides,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, applySteamAppId,
-      backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS } = ctx);
+      backfillUpdatedAt, saveUiState, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS } = ctx);
   }
 
   // Coarse "N days/months/years ago" for the backlog edit modal's aging line.
@@ -276,6 +276,63 @@
     status.hidden = false;
   }
 
+  // Everything a picked media result does to the form. Shared by the 🔄
+  // sync button and by Discover, so a title added from a trending list
+  // lands with the same identity resolution, the same second-call details
+  // and the same respect for pinned fields as one you searched for by hand.
+  async function applyMediaResult(r, keys) {
+    // Adopt the picked media's title, and lock the link so a later title
+    // edit won't drop it (only "✕ Unsync" does).
+    $("#bTitle").value = r.title;
+    lastSyncedBacklogTitle = r.title;
+    backlogSyncLocked = true;
+    // Fields pinned in Advanced are skipped here and below: a pick is
+    // still a sync, and the whole point of pinning is that no sync
+    // overwrites it.
+    if (!isPinned("cover")) $("#bCoverUrl").value = r.coverUrl || "";
+    // Only real text overwrites a description: several sources (every
+    // search endpoint, SteamGridDB entirely) simply have none, and blanking
+    // the field for them meant a re-sync silently deleted the blurb — or
+    // your own words — that was already there.
+    if (r.summary) $("#bSummary").value = r.summary;
+    if (!isPinned("release")) $("#bReleaseYear").value = r.year ? String(r.year) : "";
+    if (!isPinned("rating")) $("#bExternalRating").value = r.externalRating || "";
+    $("#bGenres").value = (r.genres || []).join("|");
+    // Identity before details, because the answer feeds into them: a
+    // SteamGridDB pick that turns out to be on Steam already has Steam's
+    // own store blurb in hand, and knowing that here saves the RAWG
+    // cross-fill below a second request for a description that would lose
+    // to it anyway.
+    const resolved = await resolveMediaIdentity(r, keys);
+    // The per-title second call: TMDB's runtime/season counts plus the
+    // show's status and next episode air date — everything the Next
+    // Releases list needs — for a game on RAWG its description and a
+    // re-read of its rating, and for one off SteamGridDB (which states no
+    // rating, length, genres or description at all) a RAWG cross-fill of
+    // all four (see fetchDetails in media.js).
+    const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys,
+      { title: r.title, wantSummary: !resolved.summary });
+    if (!isPinned("length")) $("#bLength").value = details.length || r.length || "";
+    if (!isPinned("rating") && details.externalRating) $("#bExternalRating").value = details.externalRating;
+    // Only the cross-fill fills details.genres, and only for a source that
+    // had none of its own — so this never overwrites genres the search
+    // already stated just above.
+    if (details.genres && details.genres.length) $("#bGenres").value = details.genres.join("|");
+    // Steam's own blurb wins for a game that turned out to be on Steam: one
+    // paragraph written for its store page, against the opening paragraph
+    // of RAWG's much longer article.
+    const summary = resolved.summary || details.summary;
+    if (summary) $("#bSummary").value = summary;
+    $("#bMediaSource").value = resolved.mediaSource;
+    $("#bMediaId").value = resolved.mediaId;
+    // resolved.release goes last: for a game that turned out to be on Steam,
+    // Steam's own date beats what the search source guessed (see
+    // resolveMediaIdentity). It's null for everything else, and mergeRelease
+    // ignores nulls.
+    if (!isPinned("release")) setReleaseFields(window.LifeLogMedia.mergeRelease(r, details, resolved.release));
+    setBacklogCover();
+    updateBacklogDuplicateBanner();
+  }
   async function syncBacklogTitle() {
     const title = $("#bTitle").value.trim();
     const category = $("#bCategory").value;
@@ -283,57 +340,7 @@
     const list = $("#bTitleSuggest");
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     await renderStreamedSuggestions(list, title, category, async (r) => {
-      // Adopt the picked media's title, and lock the link so a later title
-      // edit won't drop it (only "✕ Unsync" does).
-      $("#bTitle").value = r.title;
-      lastSyncedBacklogTitle = r.title;
-      backlogSyncLocked = true;
-      // Fields pinned in Advanced are skipped here and below: a pick is
-      // still a sync, and the whole point of pinning is that no sync
-      // overwrites it.
-      if (!isPinned("cover")) $("#bCoverUrl").value = r.coverUrl || "";
-      // Only real text overwrites a description: several sources (every
-      // search endpoint, SteamGridDB entirely) simply have none, and blanking
-      // the field for them meant a re-sync silently deleted the blurb — or
-      // your own words — that was already there.
-      if (r.summary) $("#bSummary").value = r.summary;
-      if (!isPinned("release")) $("#bReleaseYear").value = r.year ? String(r.year) : "";
-      if (!isPinned("rating")) $("#bExternalRating").value = r.externalRating || "";
-      $("#bGenres").value = (r.genres || []).join("|");
-      // Identity before details, because the answer feeds into them: a
-      // SteamGridDB pick that turns out to be on Steam already has Steam's
-      // own store blurb in hand, and knowing that here saves the RAWG
-      // cross-fill below a second request for a description that would lose
-      // to it anyway.
-      const resolved = await resolveMediaIdentity(r, keys);
-      // The per-title second call: TMDB's runtime/season counts plus the
-      // show's status and next episode air date — everything the Next
-      // Releases list needs — for a game on RAWG its description and a
-      // re-read of its rating, and for one off SteamGridDB (which states no
-      // rating, length, genres or description at all) a RAWG cross-fill of
-      // all four (see fetchDetails in media.js).
-      const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys,
-        { title: r.title, wantSummary: !resolved.summary });
-      if (!isPinned("length")) $("#bLength").value = details.length || r.length || "";
-      if (!isPinned("rating") && details.externalRating) $("#bExternalRating").value = details.externalRating;
-      // Only the cross-fill fills details.genres, and only for a source that
-      // had none of its own — so this never overwrites genres the search
-      // already stated just above.
-      if (details.genres && details.genres.length) $("#bGenres").value = details.genres.join("|");
-      // Steam's own blurb wins for a game that turned out to be on Steam: one
-      // paragraph written for its store page, against the opening paragraph
-      // of RAWG's much longer article.
-      const summary = resolved.summary || details.summary;
-      if (summary) $("#bSummary").value = summary;
-      $("#bMediaSource").value = resolved.mediaSource;
-      $("#bMediaId").value = resolved.mediaId;
-      // resolved.release goes last: for a game that turned out to be on Steam,
-      // Steam's own date beats what the search source guessed (see
-      // resolveMediaIdentity). It's null for everything else, and mergeRelease
-      // ignores nulls.
-      if (!isPinned("release")) setReleaseFields(window.LifeLogMedia.mergeRelease(r, details, resolved.release));
-      setBacklogCover();
-      updateBacklogDuplicateBanner();
+      await applyMediaResult(r, keys);
       list.hidden = true;
     }, $("#bSyncBtn"));
   }
@@ -1054,13 +1061,215 @@
     };
   }
 
-  // The Backlog view's two layouts. Kept as a mode switch rather than a sixth
-  // tab: it's the same items either way, and the bottom nav on a phone has no
-  // room to spare.
+  // ---------- Discover ----------
+  // The one part of the Backlog that isn't about things you already have:
+  // what's big right now, and what's coming, per source. It reads the media
+  // sources your categories are already set to rather than adding a second
+  // place to configure them — so a category set to TMDB gets TMDB's trending
+  // list, and a category set to a source with no popularity list at all
+  // (books, music) simply isn't here.
+  //
+  // Nothing is fetched until you open the mode, and answers are cached for
+  // six hours device-side: these lists move daily at most, and the app has
+  // no business calling four APIs every time you glance at the Backlog.
+  const DISCOVER_KINDS = [["popular", "Popular now"], ["upcoming", "Coming soon"]];
+  const DISCOVER_CACHE_KEY = "lifelog-discover-v1";
+  const DISCOVER_TTL_MS = 6 * 60 * 60 * 1000;
+  let discoverKind = "popular";
+  // "<source>|<kind>" -> { status: "loading" | "ok", rows }. Doubles as the
+  // "already asked for this" set, which is what stops the render/fetch pair
+  // below from looping: by the time a render sees a key here it won't start
+  // another request for it.
+  const discoverRuns = new Map();
+  let discoverRenderTimer = null;
+
+  function discoverSourceMap() {
+    const cfg = state.data.settings.mediaCategorySources || {};
+    const map = new Map();
+    for (const c of state.data.categories) {
+      const src = cfg[c.name];
+      if (!src || !window.LifeLogMedia.supportsDiscover(src)) continue;
+      if (!map.has(src)) map.set(src, []);
+      map.get(src).push(c.name);
+    }
+    return map;
+  }
+
+  function discoverCache() {
+    try { return JSON.parse(localStorage.getItem(DISCOVER_CACHE_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  function discoverCacheRead(key) {
+    const hit = discoverCache()[key];
+    return hit && Array.isArray(hit.rows) && Date.now() - hit.at < DISCOVER_TTL_MS ? hit.rows : null;
+  }
+  function discoverCacheWrite(key, rows) {
+    const all = discoverCache();
+    all[key] = { at: Date.now(), rows };
+    try { localStorage.setItem(DISCOVER_CACHE_KEY, JSON.stringify(all)); } catch (e) {}
+  }
+
+  // Starts whatever hasn't been asked for yet and repaints once the answers
+  // land — debounced, so four sources finishing a few hundred ms apart don't
+  // each redraw the grid underneath you.
+  // Terminates because discoverRuns doubles as the "already handled" set:
+  // the repaint this schedules runs an ensureDiscover that finds every key
+  // present and schedules nothing further.
+  function repaintDiscoverSoon() {
+    clearTimeout(discoverRenderTimer);
+    discoverRenderTimer = setTimeout(() => {
+      if (state.view === "backlog" && state.backlogMode === "discover") render();
+    }, 200);
+  }
+
+  function ensureDiscover(sources, opts) {
+    const force = !!(opts && opts.force);
+    const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
+    let adopted = false;
+    for (const source of sources) {
+      const key = source + "|" + discoverKind;
+      if (!force && discoverRuns.has(key)) continue;
+      const cached = force ? null : discoverCacheRead(key);
+      // A cache hit has to repaint too, not just fill the map: on a fresh
+      // load the render that called this had already drawn "Loading…", and
+      // without a second pass it would sit there over a full set of rows.
+      if (cached) { discoverRuns.set(key, { status: "ok", rows: cached }); adopted = true; continue; }
+      discoverRuns.set(key, { status: "loading", rows: [] });
+      window.LifeLogMedia.discover(source, discoverKind, keys)
+        .catch(() => [])
+        .then((rows) => {
+          discoverRuns.set(key, { status: "ok", rows: rows || [] });
+          if (rows && rows.length) discoverCacheWrite(key, rows);
+          repaintDiscoverSoon();
+        });
+    }
+    if (adopted) repaintDiscoverSoon();
+  }
+
+  // Whether this title is already somewhere in your data — a discover list
+  // that keeps offering you things you've already logged is noise.
+  function discoverOwnedTag(title) {
+    const t = title.trim().toLowerCase();
+    if (!t) return "";
+    if (state.data.backlog.some((b) => b.title.trim().toLowerCase() === t)) return "📋 In backlog";
+    if (state.data.entries.some((e) => e.title.trim().toLowerCase() === t)) return "✓ Logged";
+    return "";
+  }
+
+  function discoverRow(r, catName, keys) {
+    const rich = state.visual.backlogCoverSize !== "none";
+    const row = el("div", rich ? "backlog-item-rich dsc-row" : "entry dsc-row");
+    if (rich && r.coverUrl) {
+      const img = document.createElement("img");
+      img.loading = "lazy";
+      img.src = r.coverUrl; img.alt = r.title;
+      img.className = "bl-cover " + (state.visual.backlogCoverSize === "small" ? "cover-sm" : "cover-lg");
+      img.onerror = () => { img.replaceWith(emptyCoverEl("bl-cover cover-empty", catName)); };
+      row.appendChild(img);
+    } else if (rich) {
+      row.appendChild(emptyCoverEl("bl-cover cover-empty", catName));
+    }
+    const body = el("div", "bl-body");
+    const titleRow = el("div", "bl-title-row");
+    const title = el("span", "bl-title", r.title); title.title = r.title;
+    titleRow.appendChild(title);
+    const owned = discoverOwnedTag(r.title);
+    if (owned) titleRow.appendChild(el("span", "dsc-tag", owned));
+    body.appendChild(titleRow);
+    // Same meta line a backlog row gets, off the same builder — a discovered
+    // title reads exactly like the one it becomes. The keys it doesn't carry
+    // (mediaSource/mediaId) are the price lookup's, and a row you don't own
+    // has no price to show.
+    appendBacklogMeta(body, {
+      externalRating: r.externalRating,
+      releaseYear: r.year,
+      releaseDate: r.releaseDate,
+      releasePrecision: r.releasePrecision,
+      releaseStatus: r.releaseStatus,
+      length: r.length,
+      summary: r.summary,
+    }, { summary: state.visual.backlogSummaries !== "hide" });
+    row.appendChild(body);
+    const add = el("button", "btn btn-sm dsc-add", "+");
+    add.type = "button";
+    add.title = "Add to " + catName;
+    add.setAttribute("aria-label", add.title);
+    row.appendChild(add);
+    // The modal opens rather than the item being filed silently: the
+    // category is a guess (a source can cover several), and the details call
+    // below lands a beat later, so there's something to watch fill in before
+    // you commit it.
+    row.onclick = () => {
+      openBacklogModal(null, catName);
+      applyMediaResult(r, keys).catch(() => toast("Couldn't fetch the full details for that one"));
+    };
+    return row;
+  }
+
+  function discoverKindBar(sources) {
+    const bar = el("div", "backlog-mode-bar");
+    const group = el("div", "seg");
+    for (const [kind, label] of DISCOVER_KINDS) {
+      const btn = el("button", "seg-btn", label);
+      btn.type = "button";
+      const active = discoverKind === kind;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", String(active));
+      btn.onclick = () => { if (discoverKind !== kind) { discoverKind = kind; render(); } };
+      group.appendChild(btn);
+    }
+    bar.appendChild(group);
+    const refresh = el("button", "btn btn-sm", "↻ Refresh");
+    refresh.type = "button";
+    refresh.title = "Fetch these lists again, ignoring the six-hour cache";
+    refresh.onclick = () => { ensureDiscover(sources, { force: true }); render(); };
+    bar.appendChild(refresh);
+    return bar;
+  }
+
+  function renderDiscover(root) {
+    const map = discoverSourceMap();
+    if (!map.size) {
+      root.appendChild(emptyState(
+        "Discover follows the media sources your categories already use, and none of them publishes a popularity list. " +
+        "Set a category to RAWG, TMDB, AniList or Jikan in Settings → Media to fill this in."));
+      return;
+    }
+    const sources = [...map.keys()];
+    root.appendChild(discoverKindBar(sources));
+    const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
+    const grid = el("div", "backlog-grid");
+    for (const [source, cats] of map) {
+      const section = el("div", "backlog-section");
+      const head = el("div", "backlog-section-head");
+      head.appendChild(el("span", "backlog-section-name", cats.join(" · ")));
+      head.appendChild(el("span", "backlog-section-count dsc-source",
+        MEDIA_SOURCE_LABELS[source] || source));
+      section.appendChild(head);
+      const list = el("div", "backlog-list");
+      const run = discoverRuns.get(source + "|" + discoverKind);
+      if (!run || run.status === "loading") {
+        list.appendChild(el("p", "dsc-note", "Loading…"));
+      } else if (!run.rows.length) {
+        list.appendChild(el("p", "dsc-note",
+          "Nothing came back. Check this source's API key in Settings → Media."));
+      } else {
+        run.rows.forEach((r) => list.appendChild(discoverRow(r, cats[0], keys)));
+      }
+      section.appendChild(list);
+      grid.appendChild(section);
+    }
+    root.appendChild(grid);
+    ensureDiscover(sources);
+  }
+
+  // The Backlog view's three layouts. Kept as a mode switch rather than a
+  // sixth tab: the first two are the same items either way, and the bottom
+  // nav on a phone has no room to spare.
   function renderBacklogModeBar(root, items) {
     const bar = el("div", "backlog-mode-bar");
     const group = el("div", "seg");
-    const modes = [["category", "By category"], ["upcoming", "Next releases"]];
+    const modes = [["category", "By category"], ["upcoming", "Next releases"], ["discover", "Discover"]];
     for (const [mode, label] of modes) {
       const btn = el("button", "seg-btn", label);
       btn.type = "button";
@@ -1081,7 +1290,9 @@
     if (state.backlogMode === "upcoming") {
       const n = upcomingItems().length;
       if (n) bar.appendChild(el("span", "backlog-mode-count", n + (n === 1 ? " title" : " titles") + " waiting"));
-    } else {
+    } else if (state.backlogMode === "category") {
+      // Not in Discover: the draw is from your own list, and offering it
+      // beside a wall of things you do not own reads as if it might pick one.
       const pick = makePickButton(items);
       if (pick) bar.appendChild(pick);
     }
@@ -1107,6 +1318,13 @@
   }
 
   function renderBacklog(root) {
+    const items = getFilteredBacklog()
+      .slice().sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+    // The mode bar goes up before the first-run empty state rather than
+    // after it: Discover is the one mode that has something to show when the
+    // backlog is empty, and that's exactly when it's most worth reaching.
+    renderBacklogModeBar(root, items);
+    if (state.backlogMode === "discover") { renderDiscover(root); return; }
     if (!state.data.backlog.length) {
       root.appendChild(emptyState({
         glyph: "★",
@@ -1118,9 +1336,6 @@
       }));
       return;
     }
-    const items = getFilteredBacklog()
-      .slice().sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
-    renderBacklogModeBar(root, items);
     if (state.backlogMode === "upcoming") { renderUpcoming(root); return; }
     if (!items.length) {
       root.appendChild(emptyState("No backlog items match your filters."));
