@@ -433,16 +433,21 @@
   }
 
   // Which block of a category a row sits in, in render order. A star is a
-  // deliberate "this one matters", so it outranks the released/unreleased
-  // split rather than sorting underneath it: a starred game you're waiting
-  // on belongs at the top with the rest of your starred things, not buried
-  // in the upcoming block halfway down. Dropped stays last either way —
-  // that's an item you've given up on, star or no star.
-  const BAND_SEPARATORS = ["", "backlog-priority-sep", "backlog-upcoming-sep", "backlog-dropped-sep"];
+  // deliberate "this one matters", so it outranks every split below it
+  // rather than sorting underneath one: a starred game you're waiting on
+  // belongs at the top with the rest of your starred things, not buried in
+  // the upcoming block halfway down. Dropped stays last either way — that's
+  // an item you've given up on, star or no star.
+  // Early Access sits between the two halves of that split, because it is
+  // between them: you can start it today, so it doesn't belong down with
+  // things that don't exist yet, but it isn't the game it's going to be, so
+  // it shouldn't sit among the finished ones you could just play.
+  const BAND_SEPARATORS = ["", "backlog-priority-sep", "backlog-ea-sep", "backlog-upcoming-sep", "backlog-dropped-sep"];
   function bandOf(b) {
-    if (b.dropped) return 3;
+    if (b.dropped) return 4;
     if (b.priority) return 0;
-    return isUnreleased(b) ? 2 : 1;
+    if (isUnreleased(b)) return 3;
+    return b.earlyAccess ? 2 : 1;
   }
 
   // Render order within a category. Bands first (above), then — in the

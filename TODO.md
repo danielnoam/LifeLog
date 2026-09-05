@@ -35,6 +35,10 @@ done:
   Early Access items were added to the re-check set in sync.js but
   deliberately not to isAwaitingRelease: they'd land in Next Releases with
   no 1.0 date to sort or group them by.
+  They also get their own band in bandOf, between released and unreleased.
+  An EA game whose EA launch is still ahead of it stays in the unreleased
+  band — isUnreleased is checked first, since you can't start that one
+  today either.
 
 - Discover's "you already have this" check compares titleKey(), a new pure
   helper in media.js: case/accents/punctuation/spacing/& folded away, "3rd

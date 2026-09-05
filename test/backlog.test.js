@@ -246,14 +246,27 @@ test("a starred item sits in the starred block whether or not it's out yet", () 
   assert.strictEqual(bandOf({ priority: 1, releaseDate: "2019-03-04", releasePrecision: "day" }), 0);
 });
 
-test("unstarred items split into released and still-to-come, in that order", () => {
-  assert.strictEqual(bandOf({ releaseDate: "2019-03-04", releasePrecision: "day" }), 1);
-  assert.strictEqual(bandOf({ releaseDate: shift(400).slice(0, 7), releasePrecision: "month" }), 2);
+test("unstarred items split into out, in Early Access and still-to-come, in that order", () => {
+  const out = { releaseDate: "2019-03-04", releasePrecision: "day" };
+  assert.strictEqual(bandOf(out), 1);
+  assert.strictEqual(bandOf({ ...out, earlyAccess: true }), 2);
+  assert.strictEqual(bandOf({ releaseDate: shift(400).slice(0, 7), releasePrecision: "month" }), 3);
+});
+
+test("an Early Access game that hasn't come out at all still sorts as unreleased", () => {
+  // Steam says both for a game with an announced EA date still ahead of it,
+  // and the later block is the honest one: you can't start it today.
+  assert.strictEqual(bandOf({ releaseDate: shift(400).slice(0, 7), releasePrecision: "month", earlyAccess: true }), 3);
+});
+
+test("a starred Early Access game stays in the starred block", () => {
+  assert.strictEqual(bandOf({ priority: 1, earlyAccess: true, releaseDate: "2019-03-04", releasePrecision: "day" }), 0);
 });
 
 test("dropped stays last, star or no star", () => {
-  assert.strictEqual(bandOf({ dropped: true }), 3);
-  assert.strictEqual(bandOf({ dropped: true, priority: 1 }), 3);
+  assert.strictEqual(bandOf({ dropped: true }), 4);
+  assert.strictEqual(bandOf({ dropped: true, priority: 1 }), 4);
+  assert.strictEqual(bandOf({ dropped: true, earlyAccess: true }), 4);
 });
 
 // ---------- render order within a category ----------
@@ -290,6 +303,16 @@ test("bought reorders nothing outside the starred block", () => {
     { title: "Yankee", dropped: true },
     { title: "Xray", dropped: true, bought: true },
   ]), ["Xray", "Yankee"]);
+});
+
+test("Early Access rows land between the finished ones and the unannounced", () => {
+  assert.deepStrictEqual(order([
+    { title: "Unreleased", releaseDate: shift(400).slice(0, 7), releasePrecision: "month" },
+    { title: "Dropped", dropped: true },
+    { title: "In EA", releaseDate: "2021-02-02", releasePrecision: "day", earlyAccess: true },
+    { title: "Finished", releaseDate: "2019-03-04", releasePrecision: "day" },
+    { title: "Starred EA", priority: 1, releaseDate: "2021-02-02", releasePrecision: "day", earlyAccess: true },
+  ]), ["Starred EA", "Finished", "In EA", "Unreleased", "Dropped"]);
 });
 
 test("titles still break the tie once band and bought agree", () => {

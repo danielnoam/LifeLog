@@ -778,7 +778,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .backlog-item-rich .ecat { align-self: flex-start; margin-top: 3px; flex-shrink: 0; }
 .backlog-item-rich .btn-sm { align-self: flex-start; flex-shrink: 0; }
 
-.backlog-dropped-sep, .backlog-priority-sep, .backlog-upcoming-sep { border-top: 1px dashed var(--border); margin: 6px 2px; }
+.backlog-dropped-sep, .backlog-priority-sep, .backlog-ea-sep, .backlog-upcoming-sep { border-top: 1px dashed var(--border); margin: 6px 2px; }
 .entry.is-dropped, .backlog-item-rich.is-dropped { opacity: .55; }
 .entry.is-dropped .etitle, .backlog-item-rich.is-dropped .bl-title { text-decoration: line-through; }
 

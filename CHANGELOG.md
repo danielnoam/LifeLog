@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.115.1] - 2026-09-05
+
+### Changed
+- **Early Access games sort into their own block**, between the finished
+  games and the ones that haven't come out — which is where they actually
+  sit. You can start one today, so it doesn't belong down with things that
+  don't exist yet; it also isn't the game it's going to be, so it shouldn't
+  sit among the ones you could just play. A starred Early Access game stays
+  in the starred block, same as a starred unreleased one always has.
+
 ## [0.115.0] - 2026-09-05
 
 ### Added
