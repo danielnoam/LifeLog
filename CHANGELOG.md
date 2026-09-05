@@ -4,6 +4,28 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.114.0] - 2026-09-05
+
+### Added
+- **"Hide what I have" in Discover.** Leaves out anything already in your
+  backlog or already logged, so the list is only things you haven't got. It
+  says how many it dropped rather than just showing you a shorter list, and
+  it sticks between sessions (this device only).
+
+### Fixed
+- **Games were missing from Discover entirely.** A category set to
+  SteamGridDB or to a manual Steam App ID got no card at all, because
+  neither publishes a popularity list — and nothing said so. RAWG stands in
+  for them now when you have a RAWG key: it's already the database
+  SteamGridDB cross-fills its ratings and genres from, and a game added off
+  a stood-in list still resolves to a Steam App ID and still gets its
+  GG.deals price, so nothing about the item changes.
+- **Every category with a source now gets a card, even when there's nothing
+  to show in it.** Open Library says it publishes no such list; a
+  SteamGridDB category with no RAWG key says a RAWG key would fill it in.
+  Silence was the real bug — there was no way to tell "unsupported" from
+  "broken".
+
 ## [0.113.0] - 2026-09-05
 
 ### Added

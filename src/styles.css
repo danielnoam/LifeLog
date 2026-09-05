@@ -831,6 +831,11 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 }
 .dsc-row:hover .dsc-add { color: var(--accent); border-color: var(--accent); }
 .dsc-note { margin: 8px 2px; font-size: 12.5px; color: var(--text-faint); }
+.dsc-bar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.dsc-toggle {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12.5px; color: var(--text-dim); cursor: pointer; user-select: none;
+}
 
 /* ---------- modals ---------- */
 .modal-overlay {

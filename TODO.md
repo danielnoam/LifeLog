@@ -17,6 +17,29 @@ todo:
 
 done:
 
+- Discover covers every category that has a source set, not just the ones
+  that can answer. discoverSourceMap returns two maps — the sources with a
+  list, and the configured ones without — so an unsupported source gets a
+  card explaining itself instead of silently not being there. DISCOVER_STANDIN
+  maps steamgriddb/steamgriddb-steam-gg/steam onto RAWG when a RAWG key is
+  set, carrying the "-steam-gg" tail over so an added game still resolves to
+  a Steam App ID and still gets its price
+
+- "Hide what I have" (state.visual.discoverHideOwned, device-local) filters
+  Discover rows through the same discoverOwnedTag test the tag uses, so the
+  two can't disagree, and reports the count it dropped
+
+- the kind bar's toggle and Refresh live in one .dsc-bar-right group: the bar
+  is justify-content:space-between, and hanging a third item off margin-left
+  auto pushed Refresh off the edge of a phone instead of wrapping
+
+- RAWG could not be reached from the dev sandbox at all (api.rawg.io fails
+  DNS/CORS there while TMDB, AniList and Open Library are fine), so the RAWG
+  discover URLs — /api/games with dates + ordering=-added — are written from
+  the docs and have never run against the live API. TMDB and AniList are
+  confirmed working. If a RAWG-backed card ever comes back empty with a key
+  set, that URL is the first thing to check
+
 - Discover is the Backlog's third mode: per-source "Popular now" / "Coming
   soon" lists, driven off mediaCategorySources so there's no second place to
   configure sources. media.js grew a `discover(source, kind, keys)` beside

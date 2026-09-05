@@ -18,7 +18,7 @@
     renderMediaLinks, isOverridden, sanitizeOverrides,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, applySteamAppId,
-    backfillUpdatedAt, saveUiState, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS;
+    backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS;
 
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
@@ -30,7 +30,7 @@
       renderMediaLinks, isOverridden, sanitizeOverrides,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, applySteamAppId,
-      backfillUpdatedAt, saveUiState, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS } = ctx);
+      backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS } = ctx);
   }
 
   // Coarse "N days/months/years ago" for the backlog edit modal's aging line.
@@ -1083,16 +1083,50 @@
   const discoverRuns = new Map();
   let discoverRenderTimer = null;
 
+  // The games sources that exist for artwork or for prices rather than as a
+  // catalogue — SteamGridDB, and a manual Steam App ID — publish no
+  // popularity list at all, which left a games category with no Discover
+  // card and nothing saying why. RAWG stands in for them: it's already the
+  // database SteamGridDB cross-fills its rating, length and genres from, so
+  // it isn't a foreign source being smuggled in. The "-steam-gg" tail
+  // carries over, so a game added from a stood-in list still resolves to a
+  // Steam App ID and still gets its GG.deals price.
+  const DISCOVER_STANDIN = {
+    steamgriddb: "rawg",
+    "steamgriddb-steam-gg": "rawg-steam-gg",
+    steam: "rawg",
+  };
+
+  function discoverSourceFor(configured, keys) {
+    if (window.LifeLogMedia.supportsDiscover(configured)) return configured;
+    const standIn = DISCOVER_STANDIN[configured];
+    return standIn && (keys.rawg || "") ? standIn : "";
+  }
+
+  // Two maps: the sources that can answer, and the configured ones that
+  // can't. The second is the point — a category set to a source with no such
+  // list gets a card saying so, rather than silently not being here at all.
   function discoverSourceMap() {
     const cfg = state.data.settings.mediaCategorySources || {};
-    const map = new Map();
+    const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
+    const lists = new Map(), noList = new Map();
     for (const c of state.data.categories) {
-      const src = cfg[c.name];
-      if (!src || !window.LifeLogMedia.supportsDiscover(src)) continue;
-      if (!map.has(src)) map.set(src, []);
-      map.get(src).push(c.name);
+      const configured = cfg[c.name];
+      if (!configured) continue;
+      const listSource = discoverSourceFor(configured, keys);
+      const target = listSource ? lists : noList;
+      const key = listSource || configured;
+      if (!target.has(key)) target.set(key, []);
+      target.get(key).push(c.name);
     }
-    return map;
+    return { lists, noList };
+  }
+
+  function discoverUnavailableNote(source) {
+    const label = MEDIA_SOURCE_LABELS[source] || source;
+    return DISCOVER_STANDIN[source]
+      ? label + " publishes no popularity list of its own. Set a RAWG key in Settings → Media and this fills in from RAWG instead."
+      : label + " publishes no popularity or upcoming list, so there's nothing to show here.";
   }
 
   function discoverCache() {
@@ -1147,13 +1181,19 @@
   }
 
   // Whether this title is already somewhere in your data — a discover list
-  // that keeps offering you things you've already logged is noise.
+  // that keeps offering you things you've already logged is noise. The tag
+  // is the mild answer to that; "Hide what I have" is the blunt one, and it
+  // reads the same test so the two can't disagree.
   function discoverOwnedTag(title) {
     const t = title.trim().toLowerCase();
     if (!t) return "";
     if (state.data.backlog.some((b) => b.title.trim().toLowerCase() === t)) return "📋 In backlog";
     if (state.data.entries.some((e) => e.title.trim().toLowerCase() === t)) return "✓ Logged";
     return "";
+  }
+
+  function discoverVisibleRows(rows) {
+    return state.visual.discoverHideOwned ? rows.filter((r) => !discoverOwnedTag(r.title)) : rows;
   }
 
   function discoverRow(r, catName, keys) {
@@ -1219,45 +1259,92 @@
       group.appendChild(btn);
     }
     bar.appendChild(group);
+    // The toggle and the refresh travel together as one right-hand group, so
+    // a phone drops the pair onto its own line instead of pushing the button
+    // off the edge.
+    const right = el("div", "dsc-bar-right");
+    right.appendChild(discoverHideOwnedToggle());
     const refresh = el("button", "btn btn-sm", "↻ Refresh");
     refresh.type = "button";
     refresh.title = "Fetch these lists again, ignoring the six-hour cache";
+    refresh.hidden = !sources.length;
     refresh.onclick = () => { ensureDiscover(sources, { force: true }); render(); };
-    bar.appendChild(refresh);
+    right.appendChild(refresh);
+    bar.appendChild(right);
     return bar;
   }
 
+  // Lives in the bar rather than Settings: it's a knob you reach for while
+  // reading the list, and the answer changes the moment you add something.
+  function discoverHideOwnedToggle() {
+    const label = el("label", "dsc-toggle");
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = !!state.visual.discoverHideOwned;
+    cb.onchange = () => {
+      state.visual.discoverHideOwned = cb.checked;
+      saveVisualSettings(state.visual);
+      render();
+    };
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode("Hide what I have"));
+    label.title = "Leave out anything already in your backlog or already logged";
+    return label;
+  }
+
+  // One card per source, with the category names it covers as the heading —
+  // the source label opposite is what says where the list came from, which
+  // matters most when RAWG is standing in for a category set to something
+  // else.
+  function discoverCard(title, sourceLabel, fill) {
+    const section = el("div", "backlog-section");
+    const head = el("div", "backlog-section-head");
+    head.appendChild(el("span", "backlog-section-name", title));
+    head.appendChild(el("span", "backlog-section-count dsc-source", sourceLabel));
+    section.appendChild(head);
+    const list = el("div", "backlog-list");
+    fill(list);
+    section.appendChild(list);
+    return section;
+  }
+
   function renderDiscover(root) {
-    const map = discoverSourceMap();
-    if (!map.size) {
+    const { lists, noList } = discoverSourceMap();
+    if (!lists.size && !noList.size) {
       root.appendChild(emptyState(
-        "Discover follows the media sources your categories already use, and none of them publishes a popularity list. " +
-        "Set a category to RAWG, TMDB, AniList or Jikan in Settings → Media to fill this in."));
+        "Discover follows the media sources your categories already use, and none of them has one set. " +
+        "Pick a source for a category in Settings → Media to fill this in."));
       return;
     }
-    const sources = [...map.keys()];
+    const sources = [...lists.keys()];
     root.appendChild(discoverKindBar(sources));
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     const grid = el("div", "backlog-grid");
-    for (const [source, cats] of map) {
-      const section = el("div", "backlog-section");
-      const head = el("div", "backlog-section-head");
-      head.appendChild(el("span", "backlog-section-name", cats.join(" · ")));
-      head.appendChild(el("span", "backlog-section-count dsc-source",
-        MEDIA_SOURCE_LABELS[source] || source));
-      section.appendChild(head);
-      const list = el("div", "backlog-list");
-      const run = discoverRuns.get(source + "|" + discoverKind);
-      if (!run || run.status === "loading") {
-        list.appendChild(el("p", "dsc-note", "Loading…"));
-      } else if (!run.rows.length) {
-        list.appendChild(el("p", "dsc-note",
-          "Nothing came back. Check this source's API key in Settings → Media."));
-      } else {
-        run.rows.forEach((r) => list.appendChild(discoverRow(r, cats[0], keys)));
-      }
-      section.appendChild(list);
-      grid.appendChild(section);
+    for (const [source, cats] of lists) {
+      grid.appendChild(discoverCard(cats.join(" · "), MEDIA_SOURCE_LABELS[source] || source, (list) => {
+        const run = discoverRuns.get(source + "|" + discoverKind);
+        const rows = run ? discoverVisibleRows(run.rows) : [];
+        const hidden = run ? run.rows.length - rows.length : 0;
+        if (!run || run.status === "loading") {
+          list.appendChild(el("p", "dsc-note", "Loading…"));
+        } else if (!run.rows.length) {
+          list.appendChild(el("p", "dsc-note",
+            "Nothing came back. Check this source's API key in Settings → Media."));
+        } else if (!rows.length) {
+          list.appendChild(el("p", "dsc-note",
+            "You already have all " + run.rows.length + " of these."));
+        } else {
+          rows.forEach((r) => list.appendChild(discoverRow(r, cats[0], keys)));
+          // Says the filter did something, so a short list doesn't read as a
+          // thin one from the source.
+          if (hidden) list.appendChild(el("p", "dsc-note", hidden + " already yours, hidden"));
+        }
+      }));
+    }
+    for (const [source, cats] of noList) {
+      grid.appendChild(discoverCard(cats.join(" · "), MEDIA_SOURCE_LABELS[source] || source, (list) => {
+        list.appendChild(el("p", "dsc-note", discoverUnavailableNote(source)));
+      }));
     }
     root.appendChild(grid);
     ensureDiscover(sources);
