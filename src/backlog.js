@@ -1080,6 +1080,24 @@
     root.appendChild(bar);
   }
 
+  // A category's count, split by default into what you could actually start
+  // today and what simply isn't out yet — one flat number counted a shelf of
+  // things you're waiting on as if they were things you'd been putting off.
+  // The split uses the same "can't start it yet" test the random pick draws
+  // on, so the two never disagree about what's waiting. Settings →
+  // Appearance turns it off for anyone who'd rather have the plain total.
+  function backlogCountEl(items) {
+    const span = el("span", "backlog-section-count", String(items.length));
+    if ((state.visual.backlogCounts || "split") !== "split") return span;
+    const pending = items.filter(notOutYet).length;
+    // Nothing pending, or nothing but: either way the split would be one
+    // number and a parenthesis saying the same thing twice.
+    if (!pending || pending === items.length) return span;
+    span.textContent = String(items.length - pending);
+    span.appendChild(el("span", "bl-count-pending", "(+" + pending + " unreleased)"));
+    return span;
+  }
+
   function renderBacklog(root) {
     if (!state.data.backlog.length) {
       root.appendChild(emptyState({
@@ -1121,7 +1139,7 @@
       const dot = el("span", "dot"); dot.style.background = colorOf(catName);
       head.appendChild(dot);
       head.appendChild(el("span", "backlog-section-name", catName));
-      head.appendChild(el("span", "backlog-section-count", String(catItems.length)));
+      head.appendChild(backlogCountEl(catItems));
       if (!state.bulk.active) {
         const addBtn = el("button", "month-add-btn", "+");
         addBtn.type = "button";

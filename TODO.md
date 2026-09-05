@@ -17,6 +17,20 @@ todo:
 
 done:
 
+- a backlog category card's count splits into "12 (+7 unreleased)" via
+  backlogCountEl, gated on state.visual.backlogCounts (Settings → Appearance,
+  device-local, defaults to "split"). It reuses notOutYet — the random pick's
+  own "can't start it yet" test — rather than isUnreleased, so the two views
+  can't disagree about what's waiting, and it falls back to the plain total
+  when everything or nothing in a category is pending, since the split would
+  otherwise say the same number twice
+
+- the topbar's search wrapper takes flex-basis 0 on mobile, not auto: a flex
+  row picks what wraps from hypothetical sizes before it shrinks anything, so
+  a basis of "as wide as the input wants" put the ⚙ on a second row as soon
+  as the ✕'s padding widened the field. Worth remembering if anything else
+  is ever added to that row
+
 - the Steam App ID field is available for every category, not just the ones
   whose source is "steam". It's one node that moves: #b/#fSteamTop in the
   form for a Steam category (where the App ID is the item's whole identity)

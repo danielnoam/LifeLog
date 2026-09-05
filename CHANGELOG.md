@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.112.0] - 2026-09-05
+
+### Added
+- **A category's backlog count sets aside what isn't out yet.** The number
+  on a card now reads "12 (+7 unreleased)" rather than a flat 19 — a shelf
+  of things you're waiting on isn't the same as a pile you've been putting
+  off, and one number counted them as if they were. Categories where
+  everything is out, or nothing is, keep the plain number; the split uses
+  the same "can't start it yet" test the random pick draws on, so the two
+  never disagree. Settings → Appearance → Backlog counts turns it off.
+
+### Fixed
+- **The ⚙ no longer wraps to a second row on a phone.** The search box's new
+  ✕ made the field wide enough to push it down, since a flex row decides
+  what wraps before it decides what shrinks.
+
 ## [0.111.0] - 2026-09-05
 
 ### Added

@@ -454,6 +454,7 @@
     $("#timelineCoverSize").value = state.visual.timelineCoverSize || "small";
     $("#backlogCoverSize").value = state.visual.backlogCoverSize || "big";
     $("#backlogSummaries").value = state.visual.backlogSummaries || "show";
+    $("#backlogCounts").value = state.visual.backlogCounts || "split";
     updateMediaSettings();
     updatePrivacySettings();
     $("#settingsModal").hidden = false;
@@ -537,6 +538,11 @@
   }
   function onBacklogSummariesChange() {
     state.visual.backlogSummaries = $("#backlogSummaries").value;
+    saveVisualSettings(state.visual);
+    render();
+  }
+  function onBacklogCountsChange() {
+    state.visual.backlogCounts = $("#backlogCounts").value;
     saveVisualSettings(state.visual);
     render();
   }
@@ -647,6 +653,7 @@
     $("#timelineCoverSize").onchange = onTimelineCoverSizeChange;
     $("#backlogCoverSize").onchange = onBacklogCoverSizeChange;
     $("#backlogSummaries").onchange = onBacklogSummariesChange;
+    $("#backlogCounts").onchange = onBacklogCountsChange;
     $("#currency").onchange = async () => {
       state.data.settings.currency = $("#currency").value;
       render();
