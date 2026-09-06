@@ -1,5 +1,13 @@
 todo:
 
+Ideas that turned out not to be worth doing, or not to be possible, live in
+DROPPED.md rather than sitting here unread.
+
+- Discover could answer "what's hot on the services I actually have" via
+  TMDB's watch-provider filter (/discover with with_watch_providers +
+  watch_region). The nearest thing to the Netflix browsing this was
+  originally asked for (see DROPPED.md)
+
 - sync latency, remaining: SteamGridDB does an autocomplete request and then a
   second round of per-game cover fetches, both through the user's CORS proxy —
   two proxy round-trips deep before it can return anything. Could emit the
@@ -14,13 +22,6 @@ todo:
 - nothing about a pick knows how long you have. `length` is free text off
   whichever media source filled it in ("12 hours", "2h 15m", "8 episodes"),
   so a "what fits in an evening" filter would need parsing that first
-
-- an Early Access game is only recognisable through Steam. A RAWG- or
-  SteamGridDB-only game has no way to say so: RAWG has no field for it (its
-  `early-access` tag is a stale mirror of Steam's and never clears at 1.0),
-  and SteamGridDB states nothing but artwork and a date. IGDB has a real
-  `status` enum, but wiring it means a whole new source behind Twitch OAuth
-  for one boolean
 
 done:
 
@@ -82,12 +83,6 @@ done:
   The owned set is built once per render (discoverOwnedIndex) rather than
   rescanned per row.
 
-- titleKey is deliberately not fuzzy: "Re:ZERO -Starting Life in Another
-  World-" and "ReZero Starting Life in Another World" still key apart,
-  because "re zero" and "rezero" differ once punctuation goes. Edit-distance
-  matching would catch it and would also start hiding things that only look
-  similar — not worth it unless the misses pile up
-
 - Discover draws a card only where there is something in it or something the
   reader can act on: discoverSourceMap's second map is `needsKey` (sources a
   RAWG key away from a list) rather than "everything that can't answer".
@@ -136,16 +131,9 @@ done:
   schedule a repaint of its own, or a warm load sits on "Loading…" forever
   over a full set of rows.
 
-- still no source for "hot books" or "hot music": Open Library and Google
-  Books publish no popularity data and MusicBrainz none at all. The NYT
-  Books API (free key, bestseller lists) is the only candidate that would
-  actually add something, and it'd be a new key to set up
-
-- Rotten Tomatoes, Metacritic and Netflix were asked for and are not
-  possible: none has a public API. The Netflix half is better served by
-  TMDB's watch-provider filter (/discover with with_watch_providers +
-  watch_region), which would make Discover answer "what's hot on the
-  services I actually have" — not built, but it's the natural next step
+- the NYT Books API (free key, bestseller lists) is the only candidate that
+  would give Discover a "hot books" list. Another key to set up. Why the
+  other book/music sources can't: see DROPPED.md
 
 - a backlog card's meta line fills the release slot for an item still ahead
   of you: yearOf first (so a bare releaseDate still yields its year), then

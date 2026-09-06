@@ -73,9 +73,10 @@ Five views, in two groups.
   longest streak, this year vs last), seasonality, genres, an activity
   heatmap, most-repeated titles, and a year-in-review card.
 - **Backlog** – what you mean to get to, as **By category** or **Next
-  releases**. Items sort into starred → ready → unreleased → dropped bands,
-  and **Pick random** draws one for you out of a bag, so nothing repeats
-  until everything in scope has had a turn.
+  releases**. Items sort into starred → ready → Early Access → unreleased →
+  dropped bands, and the category count sets the last three aside so it reads
+  as things you could actually finish. **Pick random** draws one for you out
+  of a bag, so nothing repeats until everything in scope has had a turn.
 - **Discover** – the third Backlog mode, and the only screen that looks
   outward: what is popular right now and what is coming, read from the same
   media sources your categories already use. Adding from it fills the item
