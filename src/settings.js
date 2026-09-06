@@ -11,7 +11,7 @@
 
   // Shared app plumbing, provided by app.js via init(ctx).
   let state, $, el, toast, persist, render, normalize, afterDataChange,
-    setSyncing, refreshStorageStatus, schedulePoll,
+    setSyncing, refreshStorageStatus, versionBehind, APP_VERSION, schedulePoll,
     saveVisualSettings, savePrivacySettings,
     applyMonthLayout, applyFont, applyTheme, applyForceLayout,
     prefersReducedMotion, biometricAvailable, hashPin, randomHex, registerBiometric,
@@ -23,7 +23,7 @@
 
   function init(ctx) {
     ({ state, $, el, toast, persist, render, normalize, afterDataChange,
-      setSyncing, refreshStorageStatus, schedulePoll,
+      setSyncing, refreshStorageStatus, schedulePoll, versionBehind, APP_VERSION,
       saveVisualSettings, savePrivacySettings,
       applyMonthLayout, applyFont, applyTheme, applyForceLayout,
       prefersReducedMotion, biometricAvailable, hashPin, randomHex, registerBiometric,
@@ -438,8 +438,20 @@
     renderMediaCatRows();
   }
 
+  // Shown only while this device is behind the data — the storage line in
+  // the topbar ellipses on a phone, and tapping it lands here, so this is
+  // where the whole story goes.
+  function updateVersionSkew() {
+    const behind = versionBehind ? versionBehind() : "";
+    $("#versionSkew").hidden = !behind;
+    if (!behind) return;
+    $("#versionSkewInfo").textContent =
+      `This device is running LifeLog v${APP_VERSION}, but your data has already been saved by v${behind} on another device.`;
+  }
+
   function openSettings() {
     setSettingsTab("storage");
+    updateVersionSkew();
     updateBackendInfo();
     updateFileInfo();
     updateGithubInfo();

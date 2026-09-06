@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.116.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.117.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -708,6 +708,11 @@
 
       <div class="settings-panels">
       <div class="settings-panel active" data-panel="storage">
+      <section class="settings-section version-skew" id="versionSkew" hidden>
+        <h3>This device is out of date</h3>
+        <p class="muted" id="versionSkewInfo"></p>
+        <p class="hint">Nothing is being blocked or dropped — this device still loads, merges and saves normally, and it won't delete anything it doesn't recognise. It just can't show or edit whatever the newer version added. If this is a phone or tablet, close the app fully and reopen it twice: the first launch fetches the new version, the second runs it.</p>
+      </section>
       <section class="settings-section">
         <h3>Storage backend</h3>
         <p class="muted" id="backendInfo"></p>
@@ -1185,17 +1190,17 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.116.0"></script>
-  <script defer src="src/media.js?v=0.116.0"></script>
-  <script defer src="src/merge.js?v=0.116.0"></script>
-  <script defer src="src/storage.js?v=0.116.0"></script>
-  <script defer src="src/finance.js?v=0.116.0"></script>
-  <script defer src="src/settings.js?v=0.116.0"></script>
-  <script defer src="src/wheel.js?v=0.116.0"></script>
-  <script defer src="src/backlog.js?v=0.116.0"></script>
-  <script defer src="src/journal.js?v=0.116.0"></script>
-  <script defer src="src/io.js?v=0.116.0"></script>
-  <script defer src="src/sync.js?v=0.116.0"></script>
-  <script defer src="src/app.js?v=0.116.0"></script>
+  <script defer src="src/qr.js?v=0.117.0"></script>
+  <script defer src="src/media.js?v=0.117.0"></script>
+  <script defer src="src/merge.js?v=0.117.0"></script>
+  <script defer src="src/storage.js?v=0.117.0"></script>
+  <script defer src="src/finance.js?v=0.117.0"></script>
+  <script defer src="src/settings.js?v=0.117.0"></script>
+  <script defer src="src/wheel.js?v=0.117.0"></script>
+  <script defer src="src/backlog.js?v=0.117.0"></script>
+  <script defer src="src/journal.js?v=0.117.0"></script>
+  <script defer src="src/io.js?v=0.117.0"></script>
+  <script defer src="src/sync.js?v=0.117.0"></script>
+  <script defer src="src/app.js?v=0.117.0"></script>
 </body>
 </html>

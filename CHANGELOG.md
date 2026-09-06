@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.117.0] - 2026-09-06
+
+### Added
+- **Your data now remembers the newest version of LifeLog that has written
+  it**, and a device running behind that says so — in the storage line under
+  the logo, and once as a message when it first notices. That's the thing
+  that would have caught the Early Access flags going missing on the phone
+  at the moment it happened, rather than days later.
+- It is a **warning and nothing else**. The device still loads, still
+  merges, still saves, exactly as before — being behind isn't destructive
+  any more (0.116.0 made every sanitizer carry unknown fields through), it
+  just means that device can't show or edit whatever the newer one added.
+  Nothing is refused and no merge is skipped.
+- The recorded version is a high-water mark rather than whoever saved last,
+  so a device that's behind can't quietly lower it and stop warning itself.
+
 ## [0.116.0] - 2026-09-06
 
 ### Fixed

@@ -42,14 +42,27 @@ done:
   (dropped, then unreleased, then EA off what's left), so nothing lands in
   two asides at once.
 
+- data.appVersion is the newest build that has ever written the file —
+  maxVersion in merge.js, raised in persist() and carried across
+  mergeAllSources (which builds a fresh object, so a root key not copied
+  there is a root key lost). versionBehind() in app.js compares it to
+  APP_VERSION; the storage line says so for as long as it's true and
+  noticeVersionSkew toasts once per version noticed.
+  Deliberately advisory: it refuses no load, drops no merge and blocks no
+  save. keepUnknown is what actually protects the data now, so the guard's
+  only job is telling you a device needs updating. A blocking mode would
+  have to be worth losing offline edits for, and it isn't.
+  compareVersions parses parts as numbers because "0.9.0" sorts above
+  "0.116.0" as a string, and treats junk as 0 so a hand-edited file can't
+  claim to be from the future and lock a device out of its own warning.
+
 - every sanitizer now ends in keepUnknown (app.js): the whitelists stay, but
   anything they don't name is copied through instead of dropped. They were
   the reason a phone left on a cached older build deleted the earlyAccess
   flags — and mergeCollection compares content, not timestamps, so that
   deletion won on every device. Only protects fields added from 0.116.0 on;
   nothing can retroactively teach an older build about a newer field, which
-  is the argument for a "this file was written by a newer version" guard
-  before saving, if it ever happens again.
+  is what the version guard below is for.
 
 - the category header wraps the count onto a second line rather than
   ellipsing the name. Dot and name live in .backlog-section-title so the dot

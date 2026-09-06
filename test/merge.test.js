@@ -7,6 +7,7 @@ require("../src/merge.js");
 const {
   byId, sameContent, stampChangedItems, diffCollection, diffSnapshots, summarizeConflicts,
   mergeCollection, mergeAllSources, mergeSettings, flattenAccomplishments,
+  compareVersions, maxVersion,
 } = global.window.LifeLogMerge;
 
 let passed = 0;
@@ -25,6 +26,40 @@ function test(name, fn) {
 function item(id, title, updatedAt, extra) {
   return { id, title, updatedAt, ...extra };
 }
+
+// ---------- version comparison ----------
+test("compareVersions orders by numeric part, not string order", () => {
+  assert.strictEqual(compareVersions("0.116.0", "0.117.0"), -1);
+  // The one string comparison gets wrong: "0.9.0" > "0.116.0" alphabetically.
+  assert.strictEqual(compareVersions("0.116.0", "0.9.0"), 1);
+  assert.strictEqual(compareVersions("1.0.0", "0.999.9"), 1);
+  assert.strictEqual(compareVersions("0.116.0", "0.116.0"), 0);
+  assert.strictEqual(compareVersions("0.116", "0.116.0"), 0); // missing parts are 0
+});
+
+test("compareVersions treats junk as 0 rather than as from the future", () => {
+  assert.strictEqual(compareVersions("banana", "0.1.0"), -1);
+  assert.strictEqual(compareVersions("", "0.0.0"), 0);
+  assert.strictEqual(compareVersions(undefined, "0.116.0"), -1);
+});
+
+test("maxVersion keeps the newer, and either one when the other is missing", () => {
+  assert.strictEqual(maxVersion("0.116.0", "0.117.0"), "0.117.0");
+  assert.strictEqual(maxVersion("0.117.0", "0.116.0"), "0.117.0");
+  assert.strictEqual(maxVersion("", "0.116.0"), "0.116.0");
+  assert.strictEqual(maxVersion("0.116.0", ""), "0.116.0");
+  assert.strictEqual(maxVersion("", ""), "");
+});
+
+test("a merge carries the newest writer version, so a device behind can't lower it", () => {
+  const behind = { backlog: [], appVersion: "0.116.0" };
+  const ahead = { backlog: [], appVersion: "0.117.0" };
+  assert.strictEqual(mergeAllSources({}, behind, ahead).appVersion, "0.117.0");
+  assert.strictEqual(mergeAllSources({}, ahead, behind).appVersion, "0.117.0");
+  // Nothing to carry: no key rather than an empty one, like every other
+  // optional field in this file.
+  assert.strictEqual("appVersion" in mergeAllSources({}, { backlog: [] }, { backlog: [] }), false);
+});
 
 // ---------- sameContent / byId ----------
 test("sameContent ignores updatedAt but catches real field changes", () => {

@@ -38,6 +38,22 @@
     return out;
   }
 
+  // Version strings compared part by part as numbers, so "0.116.0" sorts
+  // below "0.117.0" and both below "1.0.0". A part that isn't a number counts
+  // as 0, so junk in a hand-edited file can't claim to come from the future.
+  function compareVersions(a, b) {
+    const parts = (v) => String(v || "").split(".").map((n) => parseInt(n, 10) || 0);
+    const pa = parts(a), pb = parts(b);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      const d = (pa[i] || 0) - (pb[i] || 0);
+      if (d) return d < 0 ? -1 : 1;
+    }
+    return 0;
+  }
+  function maxVersion(a, b) {
+    return compareVersions(a, b) >= 0 ? (a || b || "") : (b || "");
+  }
+
   // Stamps updatedAt = now on anything in `next` that's new or changed
   // relative to `prev`, mutating `next`'s items in place. Called right
   // before a save so every real edit carries an accurate timestamp without
@@ -212,11 +228,19 @@
     out.accomplishments = mergeAccomplishmentYears(base.accomplishments, local.accomplishments, remote.accomplishments);
     out.settings = mergeSettings(base.settings, local.settings, remote.settings);
     out.version = local.version || remote.version || 1;
+    // The newest build that has ever written this document, carried across
+    // the merge as a high-water mark rather than "whoever saved last" — a
+    // device running behind must not be able to lower it, or the device that
+    // is up to date would stop being able to tell. It describes the file, not
+    // any item, which is why it sits out here rather than in a collection.
+    const writer = maxVersion(local.appVersion, remote.appVersion);
+    if (writer) out.appVersion = writer;
     return out;
   }
 
   const api = {
     COLLECTION_KEYS, byId, sameContent, flattenAccomplishments, unflattenAccomplishments,
+    compareVersions, maxVersion,
     stampChangedItems, diffCollection, diffSnapshots, summarizeConflicts,
     mergeCollection, mergeAccomplishmentYears, mergeSettings, mergeAllSources,
   };

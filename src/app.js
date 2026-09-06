@@ -46,7 +46,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.116.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.117.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -366,6 +366,12 @@
   async function persist() {
     if (window.LifeLogMerge) window.LifeLogMerge.stampChangedItems(lastPersistedSnapshot, state.data);
     state.data.exportedAt = new Date().toISOString();
+    // The newest build that has ever written this file — a high-water mark,
+    // not "who saved last", so a device running behind can't lower it and
+    // hide the skew from itself. See versionBehind below for what reads it.
+    if (window.LifeLogMerge) {
+      state.data.appVersion = window.LifeLogMerge.maxVersion(state.data.appVersion, APP_VERSION);
+    }
     setSyncing("Saving…");
     syncInFlight = true;
     try {
@@ -1496,6 +1502,33 @@
   }
 
   // ---------- settings / storage ----------
+  // Whether this device is running behind the data it's looking at: the file
+  // records the newest build that has ever written it (see persist), and a
+  // newer one there than APP_VERSION means another device is ahead. Returns
+  // that version, or "" when this device is current.
+  //
+  // Advisory only, and deliberately so — nothing here refuses a load, drops a
+  // merge or blocks a save. Every sanitizer carries unknown fields through
+  // now (keepUnknown), so being behind is no longer destructive; it just
+  // means this device can't show or edit whatever the newer one added, which
+  // is worth saying out loud rather than acting on.
+  function versionBehind() {
+    if (!window.LifeLogMerge) return "";
+    const writer = (state.data && state.data.appVersion) || "";
+    return writer && window.LifeLogMerge.compareVersions(writer, APP_VERSION) > 0 ? writer : "";
+  }
+
+  // The status line says it for as long as it's true; this says it once, on
+  // the load or the sync that first noticed, so it isn't only in a line
+  // you've stopped reading.
+  let versionBehindNoticed = "";
+  function noticeVersionSkew() {
+    const behind = versionBehind();
+    if (!behind || behind === versionBehindNoticed) return;
+    versionBehindNoticed = behind;
+    toast(`Another device is on v${behind}; this one is on v${APP_VERSION}. Update this device — until you do it can't show anything the newer version added.`, true);
+  }
+
   function setStorageStatus(cls, txt) {
     const s = $("#storageStatus");
     s.innerHTML = "";
@@ -1541,9 +1574,21 @@
     // Any other failure (offline, 5xx, network) stays transient/retryable.
     const ghErr = ghOn ? Storage.githubError : null;
     const ghAuthFailed = ghErr && (ghErr.status === 401 || ghErr.status === 403);
+    // Order is by how badly each one is failing right now: a rejected token
+    // means nothing is reaching GitHub at all, which beats being a version
+    // behind (still saving, still merging, just can't render what it doesn't
+    // know), which in turn beats an ordinary unsynced-changes wait.
+    const behind = versionBehind();
     if (ghAuthFailed) {
       cls = "storage-status error";
       txt = "GitHub rejected your token — saved to this browser only. Reconnect in Settings.";
+    } else if (behind) {
+      cls = "storage-status error";
+      // Action first: this line ellipses on a phone, which is the device most
+      // likely to be the one behind, and "update this device" is the half
+      // that has to survive the cut. The full story is in the toast and in
+      // Settings, which tapping the line opens.
+      txt = `Update this device — your data is on v${behind}`;
     } else if (state.pendingSync && (ghOn || fileOn)) {
       cls = "storage-status pending";
       txt += " — unsynced changes, will sync when online";
@@ -1609,6 +1654,7 @@
       state.data = merged;
       Storage._cache(state.data);
       afterDataChange();
+      noticeVersionSkew();
       if (contributedLocally) await persist(); // push the reconciled result back so it durably converges
       else refreshStorageStatus();
       let msg = summary && summary !== "No changes" ? "Merged " + summary + " from your other device" : "Updated from another device";
@@ -2211,6 +2257,7 @@
     lastPersistedSnapshot = structuredClone(state.data);
     if (savedUi?.scrollY) setTimeout(() => window.scrollTo(0, savedUi.scrollY), 0);
 
+    noticeVersionSkew();
     refreshStorageStatus();
 
     if (setupMsg) toast(setupMsg, setupErr);
@@ -2267,7 +2314,7 @@
   });
   SettingsUI.init({
     state, $, el, toast, persist, render, normalize, afterDataChange,
-    setSyncing, refreshStorageStatus, schedulePoll,
+    setSyncing, refreshStorageStatus, schedulePoll, versionBehind, APP_VERSION,
     saveVisualSettings, savePrivacySettings,
     applyMonthLayout, applyFont, applyTheme, applyForceLayout,
     prefersReducedMotion, biometricAvailable, hashPin, randomHex, registerBiometric,
