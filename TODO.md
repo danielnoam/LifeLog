@@ -65,6 +65,20 @@ done:
   nothing can retroactively teach an older build about a newer field, which
   is what the version guard below is for.
 
+- the service worker's update is announced rather than waited for:
+  watchForUpdate (app.js) listens for a worker reaching `installed` while
+  another already controls the page — an update, not a first install — and
+  shows #updateBar. By then the new shell is already cached, so a plain
+  location.reload() picks it up. Deliberately never automatic.
+
+- Discover's Early Access badge costs two requests per title (RAWG's store
+  links, then Steam's genres), so it's cached per RAWG slug for a week in
+  lifelog-discover-ea-v1 and only runs for rawg-steam-gg with a proxy set.
+  A game with no Steam page is cached as `false` on purpose — without that
+  every repaint would re-ask a question that has no answer. Only the
+  *visible* rows are enriched: a title you already own is filtered out, and
+  asking about it would buy a badge nobody sees.
+
 - releaseStateOf (backlog.js) is the single answer to "what state is this
   in": ready / early-access / waiting. bandOf, backlogCountEl and
   eligibleForPick all read it instead of each asking their own version —

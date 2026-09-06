@@ -51,7 +51,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.117.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.118.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1840,6 +1840,11 @@
     $("#appVersion").textContent = "v" + APP_VERSION;
     $("#appVersion").title = "LifeLog v" + APP_VERSION;
 
+    // location.reload() rather than anything cleverer: the new build is
+    // already in the cache by the time this bar appears (see watchForUpdate),
+    // so a plain reload is what picks it up.
+    $("#updateReloadBtn").onclick = () => location.reload();
+
     // Sticky timeline year/month headers (see .year-head / .month-card h3 in
     // styles.css) anchor below the topbar — its height changes with wrapping,
     // so track it live rather than hardcoding a pixel value.
@@ -2294,8 +2299,33 @@
     Sync.maybeAutoRefreshReleases(); // same — keeps upcoming release dates current in the background
 
     if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("sw.js").catch(() => {});
+      navigator.serviceWorker.register("sw.js").then(watchForUpdate).catch(() => {});
     }
+  }
+
+  // The service worker serves this app's own files from cache first and
+  // refreshes them in the background (see sw.js), which is what makes a
+  // repeat launch instant — and also what used to make a new build arrive on
+  // some later launch nobody could predict. A phone that never gets swiped
+  // out of the app switcher could sit on months-old code, which is how one
+  // ended up quietly stripping fields it didn't know about from newer data.
+  //
+  // A worker reaching `installed` while another already controls this page is
+  // an update rather than a first install — that's the moment the new build
+  // is downloaded and one reload away, and the only moment worth saying so.
+  // Nothing here reloads on its own: an unsaved modal or a half-typed entry
+  // is worth more than getting the new version thirty seconds sooner.
+  function watchForUpdate(reg) {
+    if (!reg) return;
+    reg.addEventListener("updatefound", () => {
+      const incoming = reg.installing;
+      if (!incoming) return;
+      incoming.addEventListener("statechange", () => {
+        if (incoming.state === "installed" && navigator.serviceWorker.controller) {
+          $("#updateBar").hidden = false;
+        }
+      });
+    });
   }
 
   // Hand each extracted module the shared app plumbing it renders/saves

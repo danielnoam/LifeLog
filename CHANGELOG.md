@@ -4,6 +4,24 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.118.0] - 2026-09-06
+
+### Added
+- **"New version ready" now says so, with a Reload button.** The app serves
+  its own files from cache first, which is what makes a repeat launch
+  instant — and also what meant a new build arrived on some later launch
+  nobody could predict. A phone that never gets swiped out of the app
+  switcher could sit on months-old code. Now the moment a new build has
+  finished downloading in the background, a bar says so and one tap picks
+  it up. Nothing reloads on its own: an unsaved entry is worth more than
+  getting the new version thirty seconds sooner.
+- **Discover marks games that are in Early Access**, so you can see it
+  before you add one rather than after. Discover reads RAWG, which has no
+  field for it, so each title costs a Steam lookup — it runs once per game
+  and is remembered for a week, and only for a games category whose source
+  resolves Steam App IDs anyway (RAWG + Steam + GG.deals) with your proxy
+  set. A game with no Steam page is simply not in Early Access.
+
 ## [0.117.2] - 2026-09-06
 
 ### Fixed

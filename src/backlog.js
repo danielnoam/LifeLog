@@ -1186,6 +1186,65 @@
     try { localStorage.setItem(DISCOVER_CACHE_KEY, JSON.stringify(all)); } catch (e) {}
   }
 
+  // Discover rows come from RAWG, which has no Early Access field: the only
+  // source that states it is Steam (see steamEarlyAccess in media.js). So a
+  // row's flag costs two requests — RAWG's store links for the App ID, then
+  // Steam's app details for the genres — which is far too much to spend on
+  // every glance at the mode. Each title is therefore asked once and
+  // remembered for a week: a game leaves Early Access exactly once, and
+  // hearing about it a day late costs nothing.
+  //
+  // Only for rawg-steam-gg, the source whose "+" resolves a Steam App ID
+  // anyway. Elsewhere the answer would have nowhere to go once you added the
+  // row, and the requests would buy the list a badge and the item nothing.
+  const DISCOVER_EA_KEY = "lifelog-discover-ea-v1";
+  const DISCOVER_EA_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+  const discoverEaRuns = new Set(); // "<source>|<kind>" already enriched this session
+
+  function discoverEaCache() {
+    try { return JSON.parse(localStorage.getItem(DISCOVER_EA_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  function discoverEaWrite(cache) {
+    try { localStorage.setItem(DISCOVER_EA_KEY, JSON.stringify(cache)); } catch (e) {}
+  }
+  // Stamps what's already known onto the rows themselves, so discoverRow can
+  // read it the same way a backlog item carries the flag.
+  function applyDiscoverEarlyAccess(rows, cache) {
+    const now = Date.now();
+    for (const r of rows) {
+      const hit = r.id && cache[r.id];
+      if (hit && now - hit.at < DISCOVER_EA_TTL_MS) r.earlyAccess = hit.earlyAccess;
+    }
+  }
+
+  async function loadDiscoverEarlyAccess(source, kind, rows, keys) {
+    if (source !== "rawg-steam-gg" || !keys.rawg || !window.LifeLogMedia) return;
+    const proxyUrl = (state.data.settings.steam?.proxyUrl || "").trim().replace(/\/+$/, "");
+    if (!proxyUrl) return;
+    const runKey = source + "|" + kind;
+    if (discoverEaRuns.has(runKey)) return;
+    discoverEaRuns.add(runKey);
+    const cache = discoverEaCache();
+    const now = Date.now();
+    const pending = rows.filter((r) => r.id && !(cache[r.id] && now - cache[r.id].at < DISCOVER_EA_TTL_MS));
+    if (!pending.length) return;
+    for (const r of pending) {
+      const appId = await window.LifeLogMedia.fetchRawgSteamAppId(r.id, keys.rawg);
+      const details = appId ? await window.LifeLogMedia.fetchSteamAppDetails(appId, proxyUrl) : null;
+      // A game with no Steam page is cached as "not in Early Access" rather
+      // than left pending: the answer is as final as a Steam "no", and
+      // without it every repaint would re-ask a question with no answer.
+      cache[r.id] = { at: Date.now(), earlyAccess: !!(details && details.release && details.release.earlyAccess) };
+      await sleep(300);
+    }
+    discoverEaWrite(cache);
+    applyDiscoverEarlyAccess(rows, cache);
+    repaintDiscoverSoon();
+  }
+
+  function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
   // Starts whatever hasn't been asked for yet and repaints once the answers
   // land — debounced, so four sources finishing a few hundred ms apart don't
   // each redraw the grid underneath you.
@@ -1287,6 +1346,7 @@
       releaseDate: r.releaseDate,
       releasePrecision: r.releasePrecision,
       releaseStatus: r.releaseStatus,
+      earlyAccess: r.earlyAccess,
       length: r.length,
       summary: r.summary,
     }, { summary: state.visual.backlogSummaries !== "hide" });
@@ -1396,7 +1456,12 @@
           list.appendChild(el("p", "dsc-note",
             "You already have all " + run.rows.length + " of these."));
         } else {
+          applyDiscoverEarlyAccess(rows, discoverEaCache());
           rows.forEach((r) => list.appendChild(discoverRow(r, cats[0], keys, owned)));
+          // The visible rows, not run.rows: a title you already have is
+          // filtered out of the list, and asking Steam about it would spend
+          // two requests on a badge nobody sees.
+          loadDiscoverEarlyAccess(source, discoverKind, rows, keys);
           // Says the filter did something, so a short list doesn't read as a
           // thin one from the source.
           if (hidden) list.appendChild(el("p", "dsc-note", hidden + " already yours, hidden"));

@@ -1219,6 +1219,17 @@ kbd {
   font-size: 13px;
 }
 .toast[hidden] { display: none; }
+/* Sits where a toast does but doesn't leave on its own: there is nothing to
+   do about it except reload, and the whole point is that it waits until you
+   do. Above the toast, since a transient message must not cover it. */
+.update-bar {
+  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px;
+  background: var(--bg-elev-2); border: 1px solid var(--accent); color: var(--text);
+  padding: 9px 12px 9px 16px; border-radius: 10px; box-shadow: var(--shadow); z-index: 90;
+  font-size: 13px; max-width: calc(100vw - 32px); white-space: nowrap;
+}
+.update-bar[hidden] { display: none; }
 .toast.err { border-color: var(--danger); }
 
 /* ---------- mobile ---------- */
@@ -1356,6 +1367,7 @@ kbd {
   html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
   html:not(.force-pc) .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: var(--bottombar-h, 88px); }
   html:not(.force-pc) .toast { bottom: var(--bottombar-h, 88px); }
+  html:not(.force-pc) .update-bar { bottom: var(--bottombar-h, 88px); }
   html:not(.force-pc) .bulk-bar { bottom: var(--bottombar-h, 88px); flex-wrap: wrap; }
   html:not(.force-pc) .month-add-btn { width: 20px; height: 20px; font-size: 14px; }
   html:not(.force-pc) .views { touch-action: pan-y; }
@@ -1450,6 +1462,7 @@ html.force-mobile .jump-item.is-active { color: var(--accent); font-size: 13.5px
 html.force-mobile .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
 html.force-mobile .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: var(--bottombar-h, 88px); }
 html.force-mobile .toast { bottom: var(--bottombar-h, 88px); }
+html.force-mobile .update-bar { bottom: var(--bottombar-h, 88px); }
 html.force-mobile .bulk-bar { bottom: var(--bottombar-h, 88px); flex-wrap: wrap; }
 html.force-mobile .month-add-btn { width: 20px; height: 20px; font-size: 14px; }
 html.force-mobile .views { touch-action: pan-y; }
