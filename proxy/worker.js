@@ -2,7 +2,7 @@
 //
 // Steam's wishlist/app-list endpoints and SteamGridDB's API don't send an
 // Access-Control-Allow-Origin header, so the browser refuses to let
-// LifeLog call them directly (confirmed CORS-blocked; see TODO.md).
+// LifeLog call them directly (confirmed CORS-blocked; see NOTES.md).
 // This Worker sits in front of both: it forwards the request
 // server-to-server (not subject to CORS) and adds the missing header
 // on the way back. It doesn't store or look at any of your data —

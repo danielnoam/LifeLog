@@ -135,6 +135,10 @@ src/qr.js           self-contained QR encoder for the device setup link
 server.js           tiny static server
 proxy/              optional Cloudflare Worker: CORS proxy for Steam/SteamGridDB
 test/               zero-dependency Node tests — `node test/run-all.js`
+TODO.md             work still worth doing
+NOTES.md            why what shipped is the way it is — read before changing
+                    something that looks arbitrary
+DROPPED.md          decided against, and why, so it isn't re-litigated
 manifest.json       PWA manifest (installable)
 sw.js               service worker (offline cache)
 icon.svg            app icon
@@ -167,8 +171,9 @@ node test/run-all.js
 ```
 
 Plain Node `assert`, no framework and no install step. They cover the pure
-data logic — sanitizers, the three-way merge, release-date parsing, finance
-maths — plus the media layer's request routing, against a stubbed `fetch`.
+data logic — sanitizers, the three-way merge, release-date parsing, release
+states, finance maths, which items a sync pass touches — plus the media
+layer's request routing, against a stubbed `fetch`.
 
 ## Re-importing from the sheet
 
