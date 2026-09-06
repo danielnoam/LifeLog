@@ -46,7 +46,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.115.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.116.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1147,6 +1147,25 @@
     return Object.keys(out).length ? out : null;
   }
 
+  // Forward compatibility, and the reason every sanitizer takes a set of the
+  // keys it knows. Each of them is a whitelist — it copies the fields it
+  // recognizes and drops the rest, which is what keeps junk out of an
+  // imported file. The cost used to be paid by whichever device was behind:
+  // a build older than the data silently deleted every field newer than
+  // itself, and because the merge decides by content rather than by
+  // timestamp (see mergeCollection in merge.js), that deletion then won on
+  // every other device too. One phone left on a stale build could wipe a new
+  // field off the whole backlog.
+  // So anything the sanitizer doesn't name rides along untouched instead. It
+  // can't collide with a field the app does use — those are all named — and
+  // an old build now carries a newer one's data through load → merge → save
+  // intact. Junk from a hand-edited import rides along too, which is the
+  // trade: inert extra keys in the file, against silent data loss.
+  function keepUnknown(src, out, known) {
+    for (const key of Object.keys(src || {})) if (!known.has(key)) out[key] = src[key];
+    return out;
+  }
+
   // The four functions below drive a modal's foldout from a spec its own
   // module supplies — one entry per overridable field, each naming its
   // checkbox and value inputs plus a `pull` (copy the current synced value
@@ -1627,6 +1646,16 @@
       categories.push({ id: item.category.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: item.category, color: palette[pi++ % palette.length], updatedAt: backfillUpdatedAt({}) });
     }
   }
+  const KNOWN_ACCOMPLISHMENT_KEYS = new Set(["id", "text", "createdAt", "updatedAt", "notes", "__year"]);
+  // monthMinWidth/monthMaxWidth are named so they stay dropped: they're the
+  // legacy synced layout prefs the migration above moves to this device's
+  // local settings, and carrying them forward would undo that.
+  const KNOWN_SETTINGS_KEYS = new Set([
+    "monthOrder", "currency", "mediaCategorySources", "mediaCategoryFallbackSources",
+    "mediaKeys", "steam", "anilist", "releases", "updatedAt",
+    "monthMinWidth", "monthMaxWidth",
+  ]);
+
   function normalize(data) {
     data = data || emptyData();
     data.categories = data.categories || [];
@@ -1676,6 +1705,7 @@
       anilist: { ...DEFAULT_SETTINGS.anilist, ...(incomingSettings.anilist || {}) },
       releases: { ...DEFAULT_SETTINGS.releases, ...(incomingSettings.releases || {}) },
     };
+    keepUnknown(incomingSettings, data.settings, KNOWN_SETTINGS_KEYS);
     const accIn = data.accomplishments || {};
     data.accomplishments = {};
     for (const y of Object.keys(accIn)) {
@@ -1691,7 +1721,7 @@
         const id = a.id || ("a-" + y + "-" + (a.text || "").toLowerCase().replace(/[^a-z0-9]+/g, "-"));
         const out = { id, text: a.text || "", createdAt: a.createdAt || null, updatedAt: backfillUpdatedAt(a) };
         if (a.notes) out.notes = a.notes;
-        return out;
+        return keepUnknown(a, out, KNOWN_ACCOMPLISHMENT_KEYS);
       });
     }
     // ensure every used category exists
@@ -2257,7 +2287,7 @@
     attachLongPressSelect, animatedNumberText, barRow, fillSelect,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
     rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
-    isOverridden, sanitizeOverrides, initOverrideFields, refreshOverrideFields,
+    isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
     pushOverrideValues, readOverrideChecks,
     applySteamAppId: Sync.applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
     DEFAULT_SETTINGS, jumpToTimelineMonth,
@@ -2277,7 +2307,7 @@
     resolveMediaIdentity: Journal.resolveMediaIdentity,
     updateSyncBtnVisibility: Journal.updateSyncBtnVisibility,
     showSyncStatus: Journal.showSyncStatus,
-    renderCoverLinkButtons, renderMediaLinks, isOverridden, sanitizeOverrides,
+    renderCoverLinkButtons, renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices: Sync.loadBacklogPrices, applySteamAppId: Sync.applySteamAppId,
     backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS,
@@ -2288,7 +2318,7 @@
     buildYearFilter, buildCatFilter, monthCardHeader, emptyState,
     bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
     animatedNumberText, barRow, fillCategorySelect, wireCategorySelect,
-    resolvePendingCatSelect, download: IO.download, csvEsc: IO.csvEsc, parseCsv: IO.parseCsv,
+    resolvePendingCatSelect, keepUnknown, download: IO.download, csvEsc: IO.csvEsc, parseCsv: IO.parseCsv,
     buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport, openImportPicker: IO.openImportPicker,
     backfillUpdatedAt, MONTHS,
   });

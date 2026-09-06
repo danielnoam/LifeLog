@@ -4,6 +4,30 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.116.0] - 2026-09-06
+
+### Fixed
+- **A device on an old build no longer wipes fields it doesn't know about.**
+  Every sanitizer was a whitelist: it kept the fields that build recognised
+  and quietly dropped the rest. So a phone still serving a cached older
+  version deleted anything newer — Early Access flags, in this case — and
+  because a sync merge compares content rather than timestamps, that
+  deletion then won on every other device too. One stale device could strip
+  a new field off the whole backlog. Unknown fields now ride through
+  untouched, so this can't happen again to the next field added. It can't
+  retroactively help a device still on an older build, so let each device
+  reach this version at least once.
+
+### Changed
+- **Dropped items get their own aside in a category's count** —
+  <em>3 (+2 EA, +1 unreleased, +1 dropped)</em>. The asides are now exactly
+  the blocks the list sorts into, in the same order and by the same tests,
+  so the header and the rows under it can't disagree. Something dropped
+  *and* unreleased counts once, under dropped.
+- A category header now wraps its count onto a second line when there isn't
+  room for both, instead of squeezing the category name down to an ellipsis
+  — three asides beside a name didn't fit on a phone.
+
 ## [0.115.2] - 2026-09-05
 
 ### Changed

@@ -35,7 +35,7 @@
       buildYearFilter, buildCatFilter, monthCardHeader, emptyState,
       bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
       animatedNumberText, barRow, fillCategorySelect, wireCategorySelect,
-      resolvePendingCatSelect, download, csvEsc, parseCsv,
+      resolvePendingCatSelect, keepUnknown, download, csvEsc, parseCsv,
       buildImportItems, reviewAndImport, openImportPicker,
       backfillUpdatedAt, MONTHS } = ctx);
   }
@@ -1627,6 +1627,16 @@
   }
 
   // ---------- data lifecycle ----------
+  // See keepUnknown in app.js: fields this build doesn't know about are
+  // carried through rather than dropped, so a device on an older build can't
+  // silently delete a newer one's data.
+  const KNOWN_FINANCE_ENTRY_KEYS = new Set([
+    "id", "date", "amount", "category", "createdAt", "updatedAt", "yearly", "note",
+  ]);
+  const KNOWN_RECURRING_KEYS = new Set([
+    "id", "startDate", "interval", "amount", "category", "createdAt", "updatedAt",
+    "note", "endDate", "prevId", "overrides", "pauses",
+  ]);
   function sanitizeFinanceEntry(f) {
     const out = {
       id: f.id || uid(),
@@ -1641,7 +1651,7 @@
       out.date = String(out.date).slice(0, 4);
     }
     if (f.note) out.note = f.note;
-    return out;
+    return keepUnknown(f, out, KNOWN_FINANCE_ENTRY_KEYS);
   }
   const financeKey = (f) => `${(f.date || "").toLowerCase()}|${+f.amount}|${(f.category || "").toLowerCase()}|${(f.note || "").toLowerCase()}|${f.yearly ? 1 : 0}`;
   function sanitizeRecurring(r) {
@@ -1680,7 +1690,7 @@
       }).filter(Boolean));
       if (pauses.length) out.pauses = pauses;
     }
-    return out;
+    return keepUnknown(r, out, KNOWN_RECURRING_KEYS);
   }
   const recurringKey = (r) => `${r.startDate}|${r.interval}|${+r.amount}|${(r.category || "").toLowerCase()}|${(r.note || "").toLowerCase()}`;
 

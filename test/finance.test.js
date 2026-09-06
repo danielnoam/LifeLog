@@ -13,6 +13,12 @@ let idCounter = 0;
 Finance.init({
   uid: () => "test-id-" + (idCounter++),
   backfillUpdatedAt: (item) => item.updatedAt || item.createdAt || "1970-01-01T00:00:00.000Z",
+  // Same contract as the real one in app.js: copy anything the sanitizer
+  // didn't name, so a build older than the data can't silently drop it.
+  keepUnknown: (src, out, known) => {
+    for (const key of Object.keys(src || {})) if (!known.has(key)) out[key] = src[key];
+    return out;
+  },
 });
 
 const {

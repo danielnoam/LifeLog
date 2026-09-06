@@ -13,6 +13,12 @@ Backlog.init({
   // Stubbed like the two above — the real one lives in app.js, which needs a
   // DOM. Same contract: keep the ticked keys, drop the key entirely when
   // nothing is ticked.
+  // Same contract as the real one in app.js: copy anything the sanitizer
+  // didn't name, so a build older than the data can't silently drop it.
+  keepUnknown: (src, out, known) => {
+    for (const key of Object.keys(src || {})) if (!known.has(key)) out[key] = src[key];
+    return out;
+  },
   sanitizeOverrides: (overrides, keys) => {
     const out = {};
     for (const key of keys) if (overrides && overrides[key]) out[key] = true;
@@ -69,6 +75,24 @@ test("sanitizeBacklog stores earlyAccess as a boolean, not the string \"true\"",
   assert.strictEqual(sanitizeBacklog({ title: "Foo", earlyAccess: "true" }).earlyAccess, true);
   assert.strictEqual("earlyAccess" in sanitizeBacklog({ title: "Foo" }), false);
   assert.strictEqual("earlyAccess" in sanitizeBacklog({ title: "Foo", earlyAccess: false }), false);
+});
+
+test("sanitizeBacklog carries through a field it doesn't know about", () => {
+  // The whole point: a build older than the data must not delete a field
+  // newer than itself. The merge decides by content, so a device that
+  // dropped it would win and the field would be gone everywhere.
+  const out = sanitizeBacklog({ title: "Foo", somethingShippedLater: { a: 1 }, alsoNew: "x" });
+  assert.deepStrictEqual(out.somethingShippedLater, { a: 1 });
+  assert.strictEqual(out.alsoNew, "x");
+});
+
+test("carrying unknown fields through never resurrects a known falsy one", () => {
+  // A known field the sanitizer deliberately drops (a false flag, a 0
+  // priority) must stay dropped rather than come back via the passthrough.
+  const out = sanitizeBacklog({ title: "Foo", earlyAccess: false, priority: 0, dropped: false });
+  assert.strictEqual("earlyAccess" in out, false);
+  assert.strictEqual("priority" in out, false);
+  assert.strictEqual("dropped" in out, false);
 });
 
 test("sanitizeBacklog keeps bought with or without a star", () => {

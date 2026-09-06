@@ -26,9 +26,15 @@ const sanitizeOverrides = (overrides, keys) => {
   for (const key of keys) if (overrides && overrides[key]) out[key] = true;
   return Object.keys(out).length ? out : null;
 };
-global.window.LifeLogFinance.init({ uid, backfillUpdatedAt });
-global.window.LifeLogJournal.init({ uid, backfillUpdatedAt, sanitizeOverrides });
-global.window.LifeLogBacklog.init({ uid, backfillUpdatedAt, sanitizeOverrides });
+// Same, for the other app.js helper every sanitizer takes: copy anything the
+// sanitizer didn't name, so a build older than the data can't silently drop it.
+const keepUnknown = (src, out, known) => {
+  for (const key of Object.keys(src || {})) if (!known.has(key)) out[key] = src[key];
+  return out;
+};
+global.window.LifeLogFinance.init({ uid, backfillUpdatedAt, keepUnknown });
+global.window.LifeLogJournal.init({ uid, backfillUpdatedAt, sanitizeOverrides, keepUnknown });
+global.window.LifeLogBacklog.init({ uid, backfillUpdatedAt, sanitizeOverrides, keepUnknown });
 
 const state = {
   data: {

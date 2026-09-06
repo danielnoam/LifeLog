@@ -12,7 +12,7 @@
     attachLongPressSelect, animatedNumberText, barRow, fillSelect,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
     rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
-    isOverridden, sanitizeOverrides, initOverrideFields, refreshOverrideFields,
+    isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
     pushOverrideValues, readOverrideChecks,
     applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
     DEFAULT_SETTINGS, jumpToTimelineMonth;
@@ -23,7 +23,7 @@
       attachLongPressSelect, animatedNumberText, barRow, fillSelect,
       fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
       rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
-    isOverridden, sanitizeOverrides, initOverrideFields, refreshOverrideFields,
+    isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
     pushOverrideValues, readOverrideChecks,
       applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
       DEFAULT_SETTINGS, jumpToTimelineMonth } = ctx);
@@ -1352,6 +1352,11 @@
   }
 
   // ---------- data lifecycle ----------
+  const KNOWN_ENTRY_KEYS = new Set([
+    "id", "title", "category", "year", "month", "date", "createdAt", "updatedAt",
+    "rating", "notes", "coverUrl", "mediaId", "mediaSource", "length", "genres",
+    "backlogAddedAt", "overrides", "startMonth", "startYear",
+  ]);
   function sanitizeEntry(e) {
     const out = {
       id: e.id || uid(),
@@ -1382,7 +1387,9 @@
     if (sm >= 1 && sm <= 12 && sy && (sy * 12 + sm) < (out.year * 12 + out.month)) {
       out.startMonth = sm; out.startYear = sy;
     }
-    return out;
+    // Anything this build doesn't know about is carried through rather than
+    // dropped — see keepUnknown in app.js for why that matters across devices.
+    return keepUnknown(e, out, KNOWN_ENTRY_KEYS);
   }
 
   // Compact "start–finish" label for a multi-month entry — "Jun–Aug" within a

@@ -38,9 +38,23 @@ done:
   They also get their own band in bandOf, between released and unreleased.
   An EA game whose EA launch is still ahead of it stays in the unreleased
   band — isUnreleased is checked first, since you can't start that one
-  today either. backlogCountEl splits the same way and in the same order,
-  counting EA off the startable half so an announced-but-unreleased EA game
-  isn't counted in both asides.
+  today either. backlogCountEl splits into the same bands in the same order
+  (dropped, then unreleased, then EA off what's left), so nothing lands in
+  two asides at once.
+
+- every sanitizer now ends in keepUnknown (app.js): the whitelists stay, but
+  anything they don't name is copied through instead of dropped. They were
+  the reason a phone left on a cached older build deleted the earlyAccess
+  flags — and mergeCollection compares content, not timestamps, so that
+  deletion won on every device. Only protects fields added from 0.116.0 on;
+  nothing can retroactively teach an older build about a newer field, which
+  is the argument for a "this file was written by a newer version" guard
+  before saving, if it ever happens again.
+
+- the category header wraps the count onto a second line rather than
+  ellipsing the name. Dot and name live in .backlog-section-title so the dot
+  can't wrap away from the name when that happens; the floor that triggers
+  the wrap is .backlog-section-title's min-width.
 
 - Discover's "you already have this" check compares titleKey(), a new pure
   helper in media.js: case/accents/punctuation/spacing/& folded away, "3rd

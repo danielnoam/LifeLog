@@ -18,6 +18,12 @@ Journal.init({
   // Stubbed like uid/backfillUpdatedAt above — the real one lives in app.js,
   // which needs a DOM. Same contract: keep the ticked keys, drop the key
   // entirely when nothing is ticked.
+  // Same contract as the real one in app.js: copy anything the sanitizer
+  // didn't name, so a build older than the data can't silently drop it.
+  keepUnknown: (src, out, known) => {
+    for (const key of Object.keys(src || {})) if (!known.has(key)) out[key] = src[key];
+    return out;
+  },
   sanitizeOverrides: (overrides, keys) => {
     const out = {};
     for (const key of keys) if (overrides && overrides[key]) out[key] = true;
@@ -42,6 +48,13 @@ function test(name, fn) {
 }
 
 // ---------- sanitizeEntry ----------
+test("sanitizeEntry carries through a field it doesn't know about", () => {
+  const out = sanitizeEntry({ title: "Foo", year: 2026, month: 3, somethingShippedLater: 7 });
+  assert.strictEqual(out.somethingShippedLater, 7);
+  // A known field the sanitizer drops stays dropped, not resurrected.
+  assert.strictEqual("rating" in sanitizeEntry({ title: "Foo", year: 2026, month: 3, rating: 0 }), false);
+});
+
 test("sanitizeEntry coerces year/month to numbers and assigns an id if missing", () => {
   const out = sanitizeEntry({ title: "Foo", category: "Games", year: "2026", month: "3" });
   assert.strictEqual(out.year, 2026);

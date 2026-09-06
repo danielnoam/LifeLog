@@ -15,7 +15,7 @@
     fillCategorySelect, wireCategorySelect, titleSuggestions,
     backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
     resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
-    renderMediaLinks, isOverridden, sanitizeOverrides,
+    renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, applySteamAppId,
     backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS;
@@ -27,7 +27,7 @@
       fillCategorySelect, wireCategorySelect, titleSuggestions,
       backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
       resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
-      renderMediaLinks, isOverridden, sanitizeOverrides,
+      renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, applySteamAppId,
       backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS } = ctx);
@@ -1428,38 +1428,38 @@
   }
 
   // A category's count, split by default into what you could actually sit
-  // down with today and what you couldn't — one flat number counted a shelf
-  // of things you're waiting on as if they were things you'd been putting
-  // off. Two things are set aside, in the order the list itself puts them:
-  // what's playable but unfinished, then what isn't out at all. The pending
-  // half uses the same "can't start it yet" test the random pick draws on,
-  // so the two never disagree about what's waiting. Settings → Appearance
-  // turns it off for anyone who'd rather have the plain total.
+  // down with today and everything you couldn't — one flat number counted a
+  // shelf of things you're waiting on, or gave up on, as if they were things
+  // you'd been putting off. The asides are the same bands the list sorts
+  // into, taken in the same order and by the same tests, so the header and
+  // the rows under it can never disagree about what's what. Settings →
+  // Appearance turns the whole split off.
   function backlogCountEl(items) {
     const span = el("span", "backlog-section-count", String(items.length));
     if ((state.visual.backlogCounts || "split") !== "split") return span;
-    const pending = items.filter(notOutYet).length;
-    // Off the startable half, not the pending one: an Early Access game can
-    // be played today, it just isn't the finished thing yet. An announced EA
-    // release still ahead of you is already counted as pending, and mustn't
-    // be counted twice.
-    const ea = items.filter((b) => b.earlyAccess && !notOutYet(b)).length;
-    const rest = items.length - pending - ea;
+    // Same precedence bandOf uses, so nothing lands in two asides at once:
+    // dropped first (you've given up on it whatever state it's in), then
+    // what isn't out, and only then Early Access — which is counted off the
+    // startable half, since an EA game can be played today, it just isn't
+    // the finished thing yet.
+    const dropped = items.filter((b) => b.dropped).length;
+    const pending = items.filter((b) => !b.dropped && notOutYet(b)).length;
+    const ea = items.filter((b) => !b.dropped && !notOutYet(b) && b.earlyAccess).length;
+    const rest = items.length - dropped - pending - ea;
+    // "EA" rather than the full words: spelled out, a three-digit count with
+    // several asides is long enough to push a category name to "G…" on a
+    // phone (the name is what shrinks — see .backlog-section-name). The row
+    // badge below says "Early Access" in full, and it reads unambiguously
+    // among the others.
+    const asides = [[ea, "EA"], [pending, "unreleased"], [dropped, "dropped"]].filter(([n]) => n);
     // Nothing set aside, or a single aside that accounts for the whole
     // category: either way the split would be one number and a parenthesis
     // saying the same thing twice.
-    if (!pending && !ea) return span;
-    if (!rest && (!pending || !ea)) return span;
+    if (!asides.length) return span;
+    if (!rest && asides.length === 1) return span;
     span.textContent = String(rest);
-    // "EA" rather than the full words: spelled out, a three-digit count with
-    // both asides is long enough to push a category name to "G…" on a phone
-    // (the name is what shrinks — see .backlog-section-name). The row badge
-    // below says "Early Access" in full, and it reads unambiguously next to
-    // "unreleased".
-    const asides = [];
-    if (ea) asides.push("+" + ea + " EA");
-    if (pending) asides.push("+" + pending + " unreleased");
-    span.appendChild(el("span", "bl-count-pending", "(" + asides.join(", ") + ")"));
+    span.appendChild(el("span", "bl-count-pending",
+      "(" + asides.map(([n, label]) => "+" + n + " " + label).join(", ") + ")"));
     return span;
   }
 
@@ -1505,9 +1505,15 @@
         cb.onclick = (ev) => { ev.stopPropagation(); toggleBulkCategoryAll(catItems); };
         head.appendChild(cb);
       }
+      // Dot and name in one box so the header can wrap the count onto a
+      // second line (a split count naming three asides doesn't fit beside a
+      // name on a phone) without the dot ever parting from the name it
+      // colours. The box is also what the name ellipses against.
+      const title = el("div", "backlog-section-title");
       const dot = el("span", "dot"); dot.style.background = colorOf(catName);
-      head.appendChild(dot);
-      head.appendChild(el("span", "backlog-section-name", catName));
+      title.appendChild(dot);
+      title.appendChild(el("span", "backlog-section-name", catName));
+      head.appendChild(title);
       head.appendChild(backlogCountEl(catItems));
       if (!state.bulk.active) {
         const addBtn = el("button", "month-add-btn", "+");
@@ -1946,6 +1952,11 @@
   }
 
   // ---------- data lifecycle ----------
+  const KNOWN_BACKLOG_KEYS = new Set([
+    "id", "title", "category", "createdAt", "updatedAt", "notes", "coverUrl",
+    "mediaId", "mediaSource", "summary", "releaseYear", ...RELEASE_FIELDS,
+    "externalRating", "length", "genres", "priority", "bought", "dropped", "overrides",
+  ]);
   function sanitizeBacklog(b) {
     const out = {
       id: b.id || uid(),
@@ -1979,7 +1990,9 @@
     if (b.dropped) out.dropped = true;
     const overrides = sanitizeOverrides(b.overrides, OVERRIDE_KEYS);
     if (overrides) out.overrides = overrides;
-    return out;
+    // Anything this build doesn't know about is carried through rather than
+    // dropped — see keepUnknown in app.js for why that matters across devices.
+    return keepUnknown(b, out, KNOWN_BACKLOG_KEYS);
   }
 
   // ---------- events ----------
