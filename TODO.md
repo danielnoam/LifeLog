@@ -65,6 +65,14 @@ done:
   nothing can retroactively teach an older build about a newer field, which
   is what the version guard below is for.
 
+- releaseStateOf (backlog.js) is the single answer to "what state is this
+  in": ready / early-access / waiting. bandOf, backlogCountEl and
+  eligibleForPick all read it instead of each asking their own version —
+  which is how an announced show with only a nextAt ended up in the ready
+  band while the header counted it unreleased. isAwaitingRelease stays
+  separate on purpose: "worth re-asking" is a different question from "can
+  I start it", and a mid-season show answers them differently.
+
 - the category header wraps the count onto a second line rather than
   ellipsing the name. Dot and name live in .backlog-section-title so the dot
   can't wrap away from the name when that happens; the floor that triggers

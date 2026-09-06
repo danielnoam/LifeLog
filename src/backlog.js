@@ -443,11 +443,11 @@
   // things that don't exist yet, but it isn't the game it's going to be, so
   // it shouldn't sit among the finished ones you could just play.
   const BAND_SEPARATORS = ["", "backlog-priority-sep", "backlog-ea-sep", "backlog-upcoming-sep", "backlog-dropped-sep"];
+  const RELEASE_STATE_BAND = { ready: 1, "early-access": 2, waiting: 3 };
   function bandOf(b) {
     if (b.dropped) return 4;
     if (b.priority) return 0;
-    if (isUnreleased(b)) return 3;
-    return b.earlyAccess ? 2 : 1;
+    return RELEASE_STATE_BAND[releaseStateOf(b)];
   }
 
   // Render order within a category. Bands first (above), then — in the
@@ -576,6 +576,30 @@
     return window.end >= todayStr();
   }
 
+  // The one place an item's release state is decided, and what every view
+  // that cares reads: the band a row sorts into, the separator above it, the
+  // asides in a category's count, and whether the random pick may draw it.
+  // They each used to ask their own version of the question and had drifted —
+  // an announced show with only a first-episode date sat in the ready band
+  // while the header counted it as unreleased and the pick refused to draw
+  // it. Three answers, one item.
+  //
+  // Star and dropped are deliberately not in here: they're facts about you,
+  // not about whether the thing is out, and bandOf layers them on top.
+  //
+  //   waiting       nothing you can start. isUnreleased covers everything
+  //                 with a date to judge; the second test is the show above,
+  //                 which has no release window of its own and so reads as
+  //                 released. A source that says "released" outright is taken
+  //                 at its word either way.
+  //   early-access  out and playable, but not the finished thing.
+  //   ready         out, and what it's going to be.
+  function releaseStateOf(b) {
+    if (isUnreleased(b)) return "waiting";
+    if (b.releaseStatus !== "released" && !releaseWindow(b) && hasUpcomingEpisode(b)) return "waiting";
+    return b.earlyAccess ? "early-access" : "ready";
+  }
+
   // The day this item is actually waiting on, for sorting and grouping the
   // Next Releases list: the next episode where one is scheduled (for
   // something already airing, that's the only date that means anything),
@@ -683,16 +707,8 @@
     notePicked(id);
   }
 
-  // Nothing you can't start yet. isUnreleased() covers everything with a
-  // date to judge, but an announced show can arrive with no release date of
-  // its own and only a first episode scheduled — no window, so it reads as
-  // released. A source that explicitly calls an item released is taken at
-  // its word either way.
-  function notOutYet(b) {
-    if (isUnreleased(b)) return true;
-    if (b.releaseStatus === "released") return false;
-    return !releaseWindow(b) && hasUpcomingEpisode(b);
-  }
+  // Nothing you can't start yet — the pick's half of releaseStateOf.
+  const notOutYet = (b) => releaseStateOf(b) === "waiting";
 
   function eligibleForPick(items) {
     return items.filter((b) => !b.dropped && !notOutYet(b));
@@ -860,6 +876,11 @@
   // A show that started airing years ago is "released", but its next episode
   // is still ahead — and that's exactly what a "what's next" list is for. So
   // waiting-on-something is broader than unreleased.
+  //
+  // Deliberately a different question from releaseStateOf: that one answers
+  // "can I start this today", this one "is there a date here still worth
+  // re-asking". A mid-season show is `ready` by the first and awaiting by the
+  // second, which is why both exist.
   function hasUpcomingEpisode(b) {
     return !!b.nextAt && isRealDate(b.nextAt) && b.nextAt >= todayStr();
   }
@@ -1437,14 +1458,13 @@
   function backlogCountEl(items) {
     const span = el("span", "backlog-section-count", String(items.length));
     if (state.visual.backlogCounts !== "split") return span;
-    // Same precedence bandOf uses, so nothing lands in two asides at once:
-    // dropped first (you've given up on it whatever state it's in), then
-    // what isn't out, and only then Early Access — which is counted off the
-    // startable half, since an EA game can be played today, it just isn't
-    // the finished thing yet.
-    const dropped = items.filter((b) => b.dropped).length;
-    const pending = items.filter((b) => !b.dropped && notOutYet(b)).length;
-    const ea = items.filter((b) => !b.dropped && !notOutYet(b) && b.earlyAccess).length;
+    // Dropped first — you've given up on it whatever state it's in — and
+    // then straight off releaseStateOf, so an aside can't disagree with the
+    // band its rows sort into and nothing lands in two asides at once.
+    const kept = items.filter((b) => !b.dropped);
+    const dropped = items.length - kept.length;
+    const pending = kept.filter((b) => releaseStateOf(b) === "waiting").length;
+    const ea = kept.filter((b) => releaseStateOf(b) === "early-access").length;
     const rest = items.length - dropped - pending - ea;
     // "EA" rather than the full words: spelled out, a three-digit count with
     // several asides is long enough to push a category name to "G…" on a
@@ -2051,6 +2071,7 @@
     sanitizeBacklog,
     // pure release-date logic (sync.js's re-check, and test/backlog.test.js)
     isUnreleased,
+    releaseStateOf,
     isAwaitingRelease,
     upcomingAt,
     // manual release-date overrides (test/backlog.test.js)

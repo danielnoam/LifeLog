@@ -26,8 +26,8 @@ Backlog.init({
   },
 });
 
-const { sanitizeBacklog, isUnreleased, upcomingAt, parseReleaseInput, formatReleaseInput, bandOf,
-  compareBacklog, peekPickBag, spendPick } = Backlog;
+const { sanitizeBacklog, isUnreleased, releaseStateOf, upcomingAt, parseReleaseInput,
+  formatReleaseInput, bandOf, compareBacklog, peekPickBag, spendPick } = Backlog;
 
 // Dates relative to today, so these stay true whenever they're run.
 function shift(days) {
@@ -259,6 +259,38 @@ test("a pinned field survives sanitize; an item with none stays clean", () => {
 test("sanitize drops override keys this item has no field for", () => {
   const out = sanitizeBacklog({ title: "Made up", overrides: { release: true, nonsense: true } });
   assert.deepStrictEqual(out.overrides, { release: true });
+});
+
+// ---------- the one release-state classifier ----------
+test("releaseStateOf splits out, in Early Access and can't-start-yet", () => {
+  assert.strictEqual(releaseStateOf({ releaseDate: "2019-03-04", releasePrecision: "day" }), "ready");
+  assert.strictEqual(releaseStateOf({ releaseDate: "2019-03-04", releasePrecision: "day", earlyAccess: true }), "early-access");
+  assert.strictEqual(releaseStateOf({ releaseDate: shift(400).slice(0, 7), releasePrecision: "month" }), "waiting");
+  // Announced, nothing dated: still waiting.
+  assert.strictEqual(releaseStateOf({ releasePrecision: "tba" }), "waiting");
+});
+
+test("an announced show with only a first-episode date is waiting, everywhere", () => {
+  // It has no release window of its own, so a plain date test reads it as
+  // released. The band, the count and the pick each used to answer this
+  // differently — the row sat in the ready band while the header counted it
+  // as unreleased and the pick refused to draw it.
+  const show = { title: "Announced", nextAt: shift(20) };
+  assert.strictEqual(isUnreleased(show), false, "precondition: no date of its own to judge");
+  assert.strictEqual(releaseStateOf(show), "waiting");
+  assert.strictEqual(bandOf(show), 3);
+});
+
+test("a source saying released outright beats a stale next-episode date", () => {
+  assert.strictEqual(releaseStateOf({ releaseStatus: "released", nextAt: shift(20) }), "ready");
+});
+
+test("releaseStateOf ignores the star and the dropped flag", () => {
+  // Those are facts about you, not about whether the thing is out; bandOf
+  // layers them on top.
+  const ea = { releaseDate: "2019-03-04", releasePrecision: "day", earlyAccess: true };
+  assert.strictEqual(releaseStateOf({ ...ea, priority: 1 }), "early-access");
+  assert.strictEqual(releaseStateOf({ ...ea, dropped: true }), "early-access");
 });
 
 // ---------- which block of a category a row lands in ----------

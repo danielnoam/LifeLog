@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.117.2] - 2026-09-06
+
+### Fixed
+- **An announced show with only a first-episode date now reads the same
+  everywhere.** It had no release date of its own, so the list sorted it
+  into the ready band while the category count called it unreleased and the
+  random pick refused to draw it — three answers for one row. There's one
+  classifier now, and the band, the count and the pick all read it, so that
+  kind of disagreement can't come back. The show sits in the unreleased
+  band, which is the honest answer: you can't start it yet.
+
 ## [0.117.1] - 2026-09-06
 
 ### Changed
