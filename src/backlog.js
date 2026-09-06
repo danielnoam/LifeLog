@@ -1320,7 +1320,7 @@
     const label = el("label", "dsc-toggle");
     const cb = document.createElement("input");
     cb.type = "checkbox";
-    cb.checked = !!state.visual.discoverHideOwned;
+    cb.checked = state.visual.discoverHideOwned;
     cb.onchange = () => {
       state.visual.discoverHideOwned = cb.checked;
       saveVisualSettings(state.visual);
@@ -1436,7 +1436,7 @@
   // Appearance turns the whole split off.
   function backlogCountEl(items) {
     const span = el("span", "backlog-section-count", String(items.length));
-    if ((state.visual.backlogCounts || "split") !== "split") return span;
+    if (state.visual.backlogCounts !== "split") return span;
     // Same precedence bandOf uses, so nothing lands in two asides at once:
     // dropped first (you've given up on it whatever state it's in), then
     // what isn't out, and only then Early Access — which is counted off the

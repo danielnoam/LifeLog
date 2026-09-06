@@ -163,59 +163,19 @@
   // one game at a time via the storefront's appdetails endpoint instead
   // — slower, but the only option left that doesn't need special access.
   // A null return (bad response after retries, or a genuinely unknown app)
-  // just falls back to a placeholder title rather than failing the whole
-  // sync. A 429 specifically gets a few backed-off retries first, since on
-  // a large wishlist Steam starts rate-limiting partway through and every
-  // request after that point would otherwise fail identically.
+  // just falls back to a placeholder title rather than failing the whole sync.
   //
-  // The same response also carries release_date: { coming_soon, date } —
-  // Steam saying in its own words whether a game is out yet, and often in
-  // the coarse form it genuinely knows ("Q1 2026"). That beats the fuzzy
-  // RAWG title match this used to lean on for dates, so it's read here and
-  // returned alongside the name. short_description comes back too: it's the
-  // only description a wishlisted game can get without a RAWG key, and
-  // wishlist imports were the largest block of backlog items with none.
-  // And the genres list, which is where Steam states Early Access — a
-  // wishlisted game that turns out to be unfinished says so on its row
-  // (see steamEarlyAccess in media.js). Returns null only when the whole lookup
-  // failed; { name: null, ... } is a successful response for an app Steam
-  // doesn't recognize.
+  // Parsing that response is media.js's job (fetchSteamAppDetails), which is
+  // also where the release fields, the blurb and the Early Access marker are
+  // read off it — this used to be a second copy of all of that, and a field
+  // added to one was a field missing from the other. The retry count is the
+  // one thing that belongs here rather than there: an import walks a whole
+  // wishlist, Steam starts rate-limiting partway through, and every request
+  // after that point would otherwise fail identically.
   function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
-  async function fetchSteamAppInfo(proxyUrl, appid, attempt) {
-    attempt = attempt || 0;
-    try {
-      const res = await fetch(`${proxyUrl}/steam-appdetails/${appid}`);
-      if (res.status === 429 && attempt < 3) {
-        await sleep(1500 * (attempt + 1));
-        return fetchSteamAppInfo(proxyUrl, appid, attempt + 1);
-      }
-      if (!res.ok) return null;
-      const data = await res.json();
-      const entry = data && data[appid];
-      if (!entry || !entry.success || !entry.data) return null;
-      const rd = entry.data.release_date || {};
-      const parsed = window.LifeLogMedia
-        ? window.LifeLogMedia.parseSteamReleaseDate(rd.date)
-        : { releaseDate: "", releasePrecision: "tba" };
-      return {
-        name: entry.data.name || null,
-        summary: window.LifeLogMedia
-          ? window.LifeLogMedia.firstParagraph(window.LifeLogMedia.stripHtml(entry.data.short_description))
-          : "",
-        release: {
-          ...parsed,
-          // Only when Steam actually stated it — a missing release_date block
-          // is "we don't know", not "it's out", and shouldn't overrule a
-          // date another source did manage to find.
-          ...(typeof rd.coming_soon === "boolean"
-            ? { releaseStatus: rd.coming_soon ? "upcoming" : "released" }
-            : {}),
-          ...(window.LifeLogMedia ? window.LifeLogMedia.steamEarlyAccess(entry.data) : {}),
-        },
-      };
-    } catch (e) {
-      return null;
-    }
+  async function fetchSteamAppInfo(proxyUrl, appid) {
+    if (!window.LifeLogMedia) return null;
+    return window.LifeLogMedia.fetchSteamAppDetails(appid, proxyUrl, 3);
   }
 
   // Steam's appdetails only gives a name — no rating/length/release year,
@@ -323,9 +283,16 @@
   // exact match against what syncSteamWishlist generates, so this can't
   // false-positive on something a user genuinely titled that way.
   function unresolvedSteamBacklogItems() {
-    return state.data.backlog.filter(
-      (b) => b.mediaSource === "steam" && b.mediaId && b.title === `Steam app ${b.mediaId}`
-    );
+    return state.data.backlog.filter(isUnresolvedSteamItem);
+  }
+
+  // The per-item halves of the three "which items does this pass touch?"
+  // questions below, split out from the state.data.backlog filters so they
+  // can be reasoned about — and tested — one item at a time. See
+  // test/sync.test.js; the filters themselves need a whole app to exist.
+  const steamPlaceholderTitle = (b) => b.title === `Steam app ${b.mediaId}`;
+  function isUnresolvedSteamItem(b) {
+    return b.mediaSource === "steam" && !!b.mediaId && steamPlaceholderTitle(b);
   }
 
   // Re-attempts the title lookup for backlog items already imported with a
@@ -390,12 +357,12 @@
 
   // Anything imported before Steam's own blurb was read (see
   // fetchSteamAppInfo) has no description at all, whatever else it has.
+  function steamGameNeedsInfo(b) {
+    return b.mediaSource === "steam" && !!b.mediaId && !steamPlaceholderTitle(b) &&
+      (steamGameNeedsRawgInfo(b) || !b.summary);
+  }
   function steamGamesNeedingInfo() {
-    return state.data.backlog.filter((b) =>
-      b.mediaSource === "steam" && b.mediaId &&
-      b.title !== `Steam app ${b.mediaId}` &&
-      (steamGameNeedsRawgInfo(b) || !b.summary)
-    );
+    return state.data.backlog.filter(steamGameNeedsInfo);
   }
 
   // Retroactively fills in what a Steam-sourced backlog item is missing:
@@ -504,23 +471,32 @@
   // Deliberately narrow: only items that are still unreleased, so a backlog of
   // hundreds costs a handful of requests.
   function backlogAwaitingRelease() {
+    return state.data.backlog.filter(needsReleaseRecheck);
+  }
+
+  // Whether one item is worth re-asking.
+  //
+  // isAwaitingRelease covers an already-airing show with an episode still
+  // ahead, not just things that haven't come out — a next-episode date is the
+  // fastest-staling thing here, going out of date every week. It's read off
+  // window.LifeLogBacklog rather than taken as an argument, so there is one
+  // definition of "awaiting a release" in the app and this can't drift from
+  // the list it's supposed to agree with.
+  //
+  // A pinned release date is excluded outright rather than fetched and
+  // discarded: it keeps the button's count honest about how many items this
+  // would actually re-check, and saves the requests.
+  //
+  // Early Access items are already "released" as far as isAwaitingRelease is
+  // concerned, but they're the whole reason the flag has to be re-asked:
+  // Steam drops the marker at 1.0 and nothing else would notice. They're
+  // included here rather than in isAwaitingRelease itself, which drives the
+  // Next Releases list — an EA game has no 1.0 date to list.
+  function needsReleaseRecheck(b) {
     const Backlog = window.LifeLogBacklog;
-    if (!Backlog) return [];
-    // isAwaitingRelease covers an already-airing show with an episode still
-    // ahead, not just things that haven't come out — a next-episode date is
-    // the fastest-staling thing here, going out of date every week.
-    // A pinned release date is excluded outright rather than fetched and
-    // discarded: it keeps the button's count honest about how many items
-    // this would actually re-check, and saves the requests.
-    // Early Access items are already "released" as far as isAwaitingRelease
-    // is concerned, but they're the whole reason the flag has to be
-    // re-asked: Steam drops the marker at 1.0 and nothing else would notice.
-    // They're included here rather than in isAwaitingRelease itself, which
-    // drives the Next Releases list — an EA game has no 1.0 date to list.
-    return state.data.backlog.filter(
-      (b) => b.mediaId && b.mediaSource && !isOverridden(b, "release")
-        && (Backlog.isAwaitingRelease(b) || !!b.earlyAccess)
-    );
+    if (!Backlog) return false;
+    return !!b.mediaId && !!b.mediaSource && !isOverridden(b, "release")
+      && (Backlog.isAwaitingRelease(b) || !!b.earlyAccess);
   }
 
   // One item's fresh release info, or null if its source can't be re-asked
@@ -764,6 +740,14 @@
 
   window.LifeLogSync = {
     init,
+    // pure per-item logic, for test/sync.test.js — the flows that use these
+    // need a browser, a proxy and a wishlist; these are the decisions inside
+    // them that don't.
+    needsReleaseRecheck,
+    applyItemRelease,
+    isUnresolvedSteamItem,
+    steamGameNeedsInfo,
+    steamGameNeedsRawgInfo,
     applySteamAppId,
     loadBacklogPrices,
     ggDealsPageUrl,

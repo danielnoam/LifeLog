@@ -466,7 +466,7 @@
     $("#timelineCoverSize").value = state.visual.timelineCoverSize || "small";
     $("#backlogCoverSize").value = state.visual.backlogCoverSize || "big";
     $("#backlogSummaries").value = state.visual.backlogSummaries || "show";
-    $("#backlogCounts").value = state.visual.backlogCounts || "split";
+    $("#backlogCounts").value = state.visual.backlogCounts;
     updateMediaSettings();
     updatePrivacySettings();
     $("#settingsModal").hidden = false;

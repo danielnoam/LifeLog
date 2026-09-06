@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.117.1] - 2026-09-06
+
+### Changed
+- Internal only, no visible change: the Steam store response is parsed in
+  one place instead of two (the second copy was why the Early Access marker
+  nearly shipped missing from wishlist imports), sync.js's per-item
+  decisions are now ordinary functions with tests behind them (16 of them,
+  where it had none), and the two Backlog display settings that had been
+  carrying their own defaults now declare them with the other nine.
+
 ## [0.117.0] - 2026-09-06
 
 ### Added

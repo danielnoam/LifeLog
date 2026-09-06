@@ -763,6 +763,8 @@
   // older proxy that doesn't states nothing either way, which is why this
   // returns an empty object rather than `false` in that case. Matching on
   // the id, not `description`: that string is localized.
+  function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
   function steamEarlyAccess(data) {
     const genres = data && data.genres;
     if (!Array.isArray(genres)) return {};
@@ -773,35 +775,61 @@
   // it comes out, and for what it is — RAWG dates a game by its *earliest*
   // platform release (often a console version years before the PC one), and
   // SteamGridDB dates it by whatever its own entry says. Steam also states
-  // outright whether a game is out yet (coming_soon) and is happy to be vague
-  // in the honest way ("Q1 2026") where the others invent a specific day.
-  // Deliberately no 429 retry loop, unlike the wishlist import's copy of this
-  // in sync.js: that one walks a whole wishlist and gets rate-limited partway
-  // through, this is a single lookup behind one pick. short_description comes along for the
-  // ride: it's Steam's own one-paragraph blurb, and for a game that resolved
-  // to an App ID it beats anything a name-matched source could offer, and
-  // the genres list is where Steam states Early Access (see above).
-  // Returns null if it can't say.
-  async function fetchSteamDetails(appId, proxyUrl) {
+  // outright whether a game is out yet (coming_soon), is happy to be vague in
+  // the honest way ("Q1 2026") where the others invent a specific day, and
+  // says in its genres list whether the game is in Early Access (see
+  // steamEarlyAccess above). short_description comes along for the ride: it's
+  // Steam's own one-paragraph blurb, and for a game that resolved to an App
+  // ID it beats anything a name-matched source could offer.
+  //
+  // This is the only place that response is read. It used to be written out
+  // twice — once here, once in sync.js for the wishlist import — which meant
+  // every field added to it had to be added in both, and the Early Access
+  // marker nearly wasn't. The one real difference between the two callers is
+  // `retries`: an import walks hundreds of app ids and gets rate-limited
+  // partway through, so it backs off and tries again, while a single lookup
+  // behind one pick has nothing to gain from waiting and fails fast.
+  //
+  // Returns null when the lookup itself failed. `{ name: null, … }` is a
+  // *successful* response for an app Steam doesn't recognize — a different
+  // thing, and the import distinguishes them.
+  async function fetchSteamAppDetails(appId, proxyUrl, retries, attempt) {
     if (!appId || !proxyUrl) return null;
+    retries = retries || 0;
+    attempt = attempt || 0;
     try {
       const res = await fetch(proxyUrl + "/steam-appdetails/" + encodeURIComponent(appId));
+      if (res.status === 429 && attempt < retries) {
+        await sleep(1500 * (attempt + 1));
+        return fetchSteamAppDetails(appId, proxyUrl, retries, attempt + 1);
+      }
       if (!res.ok) return null;
       const data = await res.json();
       const entry = data && data[appId];
       if (!entry || !entry.success || !entry.data) return null;
       const rd = entry.data.release_date || {};
       return {
-        ...parseSteamReleaseDate(rd.date),
+        name: entry.data.name || null,
         summary: firstParagraph(stripHtml(entry.data.short_description)),
-        // Only when Steam actually stated it — a missing release_date block
-        // is "we don't know", not "it's out".
-        ...(typeof rd.coming_soon === "boolean"
-          ? { releaseStatus: rd.coming_soon ? "upcoming" : "released" }
-          : {}),
-        ...steamEarlyAccess(entry.data),
+        release: {
+          ...parseSteamReleaseDate(rd.date),
+          // Only when Steam actually stated it — a missing release_date block
+          // is "we don't know", not "it's out", and shouldn't overrule a date
+          // another source did manage to find.
+          ...(typeof rd.coming_soon === "boolean"
+            ? { releaseStatus: rd.coming_soon ? "upcoming" : "released" }
+            : {}),
+          ...steamEarlyAccess(entry.data),
+        },
       };
     } catch (e) { return null; }
+  }
+
+  // The release fields plus the blurb, flattened — what a caller holding one
+  // App ID wants, with no name to resolve and no import to pace.
+  async function fetchSteamDetails(appId, proxyUrl) {
+    const info = await fetchSteamAppDetails(appId, proxyUrl);
+    return info ? { ...info.release, summary: info.summary } : null;
   }
 
   // Steam's own storesearch API has no CORS allowance for third-party origins,
@@ -1124,6 +1152,9 @@
     },
     async fetchSteamDetails(appId, proxyUrl) {
       return fetchSteamDetails(appId, proxyUrl);
+    },
+    async fetchSteamAppDetails(appId, proxyUrl, retries) {
+      return fetchSteamAppDetails(appId, proxyUrl, retries);
     },
     async fetchAniListPlanning(userName, type) {
       lastError = "";
