@@ -102,6 +102,28 @@ Filtering the pick by how much time you have needs a length in minutes.
 eight vocabularies, guessing at episode and page lengths, before the filter
 itself exists. The filter is the small half.
 
+## Images in notes
+
+Notes were going to take photos alongside the text. They can't, while the
+app stores everything the way it does.
+
+The whole document is one JSON file, base64-encoded and PUT to GitHub in
+full on *every* save. There is no binary anywhere in the app today — cover
+art is a remote URL, never a file. Embedding photos would mean:
+
+- every save re-uploads every photo (twenty of them is an ~80 MB upload to
+  fix a typo), and every commit stores another full copy;
+- the localStorage cache, which is the offline fallback, dies at ~5 MB —
+  and `_cache` swallows the quota error silently, so it would just stop
+  working with no message;
+- the 40-snapshot local history multiplies all of it again.
+
+The version that would work is one file per image in the same data repo
+(`notes/<id>/<uuid>.jpg`), with only the path in the JSON — same token,
+same repo, no new service — plus a client-side downscale, and an
+authenticated fetch into a blob URL because the repo is private. That's a
+real upload layer, and it isn't wanted enough to build one.
+
 ## Blocking saves when a device is behind
 
 The version guard (v0.117.0) warns and nothing more. A blocking mode — refuse
