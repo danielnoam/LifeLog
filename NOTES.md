@@ -50,6 +50,18 @@ what was decided against and why.
   render()'s finally rather than done in fadeInOnViewChange itself — and why
   it re-reads $("#content") there, since the `c` above is scoped to the try.
 
+- body has overflow-x: clip because the mode slide translates #content
+  sideways, and content past the right edge makes the *document* wider than
+  the viewport: the page becomes horizontally scrollable, the layout
+  viewport grows, and the fixed bottom bar — which is sized to that viewport
+  — grows and shifts with it. Measured at 395px wide on a 390px screen
+  mid-animation. `clip`, not `hidden`: hidden would make body a scroll
+  container and every sticky year/month header in the app sticks through
+  here.
+  Only reproducible with real touch events (CDP Input.dispatchTouchEvent)
+  and a screenshot — getBoundingClientRect on a mouse-driven drag showed
+  nothing wrong, which cost two rounds of chasing the wrong thing.
+
 - render()'s `inPlace` is view *and* mode: a mode change is a new page, not
   an in-place re-render, so it must not restore the scroll offset. It used
   to, and the offset meant nothing in the new mode — the browser clamped it

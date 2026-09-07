@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.123.2] - 2026-09-07
+
+### Fixed
+- **The bottom bar no longer shifts and sits slightly off-screen during a
+  mode slide.** Sliding the content sideways pushed it past the right edge,
+  which made the page itself wider than the screen; the page became
+  horizontally scrollable, the layout viewport grew with it, and the fixed
+  bottom bar — sized to that viewport — grew and moved too. It's clipped
+  now, so the slide can't widen the page. Affects Backlog as much as
+  Timeline, and both swiping and the buttons.
+
 ## [0.123.1] - 2026-09-07
 
 ### Fixed
