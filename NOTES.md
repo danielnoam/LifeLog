@@ -50,6 +50,23 @@ what was decided against and why.
   render()'s finally rather than done in fadeInOnViewChange itself — and why
   it re-reads $("#content") there, since the `c` above is scoped to the try.
 
+- to-do hand ordering is an `order` field, not array position: a sync merge
+  rebuilds every collection from an id set (mergeCollection), so array order
+  doesn't survive a round trip between devices. assignMissingOrder runs in
+  normalize and numbers anything from before the field by createdAt — the
+  order it was already displayed in, and a pure function of the data, so two
+  devices deriving it independently can't manufacture a conflict.
+  commitOrder renumbers sequentially from the DOM rather than fractionally.
+  It marks every moved row changed instead of one; on a list this size
+  that's a few hundred bytes of sync against a whole class of
+  drifting-float bugs.
+  The drag listens on `window`, deliberately not via setPointerCapture on
+  the row: insertBefore *moves* the row, which counts as a removal, and a
+  captured element that leaves the DOM loses its capture. The first version
+  did capture and the list shuffled by exactly one position and then went
+  dead — pointerup landed somewhere else and nothing was ever saved. It
+  looked like a geometry bug for a while; it wasn't.
+
 - To-do (src/todos.js) is Timeline's third mode, and deliberately not part
   of Backlog: a backlog item is something you mean to experience and it
   graduates into the log when you finish it, while a to-do is ticked and

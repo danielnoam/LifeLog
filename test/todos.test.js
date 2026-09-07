@@ -18,7 +18,7 @@ Todos.init({
   },
 });
 
-const { sanitizeTodo, getFilteredTodos, byOldest, byNewestDone } = Todos;
+const { sanitizeTodo, assignMissingOrder, getFilteredTodos, byOldest, byNewestDone, byOrder } = Todos;
 
 let passed = 0;
 function test(name, fn) {
@@ -90,6 +90,61 @@ test("Done sorts by when it was ticked, not when it was written", () => {
     { id: "written-later", createdAt: "2026-08-01T10:00:00.000Z", doneAt: "2026-09-01T10:00:00.000Z" },
   ];
   assert.deepStrictEqual(rows.sort(byNewestDone).map((t) => t.id), ["written-first", "written-later"]);
+});
+
+// ---------- hand-ordering ----------
+test("sanitizeTodo keeps a numeric order and ignores a junk one", () => {
+  assert.strictEqual(sanitizeTodo({ text: "x", order: 3 }).order, 3);
+  assert.strictEqual(sanitizeTodo({ text: "x", order: "2" }).order, 2);
+  assert.strictEqual(sanitizeTodo({ text: "x", order: 0 }).order, 0, "zero is a real position");
+  assert.strictEqual("order" in sanitizeTodo({ text: "x", order: "banana" }), false);
+  assert.strictEqual("order" in sanitizeTodo({ text: "x" }), false);
+});
+
+test("byOrder sorts by hand order, falling back to when it was written", () => {
+  const rows = [
+    { id: "c", order: 2, createdAt: "2026-01-01T00:00:00.000Z" },
+    { id: "a", order: 0, createdAt: "2026-03-01T00:00:00.000Z" },
+    { id: "b", order: 1, createdAt: "2026-02-01T00:00:00.000Z" },
+  ];
+  assert.deepStrictEqual(rows.sort(byOrder).map((t) => t.id), ["a", "b", "c"]);
+  // Same order value: oldest wins, so the sort is still total.
+  const tied = [
+    { id: "later", order: 1, createdAt: "2026-05-01T00:00:00.000Z" },
+    { id: "earlier", order: 1, createdAt: "2026-04-01T00:00:00.000Z" },
+  ];
+  assert.deepStrictEqual(tied.sort(byOrder).map((t) => t.id), ["earlier", "later"]);
+});
+
+test("assignMissingOrder numbers old data by when it was written", () => {
+  // The order it was already being shown in, so nothing appears to move the
+  // first time a device opens the list after the field existed.
+  const list = [
+    { id: "b", createdAt: "2026-02-01T00:00:00.000Z" },
+    { id: "a", createdAt: "2026-01-01T00:00:00.000Z" },
+    { id: "c", createdAt: "2026-03-01T00:00:00.000Z" },
+  ];
+  assignMissingOrder(list);
+  assert.deepStrictEqual(list.map((t) => [t.id, t.order]), [["b", 1], ["a", 0], ["c", 2]]);
+});
+
+test("assignMissingOrder is deterministic, so two devices can't disagree", () => {
+  // It runs in normalize on every device independently; if it weren't a pure
+  // function of the data it would manufacture sync conflicts out of nothing.
+  const seed = () => [
+    { id: "b", createdAt: "2026-02-01T00:00:00.000Z" },
+    { id: "a", createdAt: "2026-01-01T00:00:00.000Z" },
+  ];
+  const one = assignMissingOrder(seed()), two = assignMissingOrder(seed().reverse());
+  const orderOf = (list, id) => list.find((t) => t.id === id).order;
+  assert.strictEqual(orderOf(one, "a"), orderOf(two, "a"));
+  assert.strictEqual(orderOf(one, "b"), orderOf(two, "b"));
+});
+
+test("assignMissingOrder leaves an already-ordered list completely alone", () => {
+  const list = [{ id: "a", order: 5 }, { id: "b", order: 2 }];
+  assignMissingOrder(list);
+  assert.deepStrictEqual(list.map((t) => t.order), [5, 2]);
 });
 
 // ---------- filtering ----------

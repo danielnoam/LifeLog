@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.122.0] - 2026-09-07
+
+### Added
+- **Long-press a to-do and the list becomes draggable**, so the order stops
+  being "whenever I happened to think of it". Drag by the grip, and the list
+  rearranges under your finger rather than once you let go; **Done** puts it
+  back to normal. The order is saved and syncs to your other devices.
+- Not on the Done panel: that one is a record of when you finished things,
+  and rearranging it would be rearranging the past. While reordering, the
+  checkbox and ✕ are replaced by a grip — a drag that ticks something off or
+  deletes it on the way past is the one thing this must not do.
+
 ## [0.121.0] - 2026-09-07
 
 ### Changed

@@ -74,6 +74,7 @@ Five views, in two groups.
   so when you've edited it since.
 - **To-do** – Timeline's third mode: a plain checklist, one panel for what's
   left and one for what's done, and ticking something moves it across.
+  Long-press to reorder what's left by hand.
 - **Stats** – totals by category and year, a highlights strip (busiest month,
   longest streak, this year vs last), seasonality, genres, an activity
   heatmap, most-repeated titles, and a year-in-review card.

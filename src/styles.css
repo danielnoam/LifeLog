@@ -595,6 +595,20 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .todo-del:hover { color: var(--danger); }
 
+/* While reordering: touch-action none so the drag is ours rather than the
+   page's scroll, and no text selection to fight the gesture. */
+.month-card.is-reordering { border-color: var(--accent); }
+.todo-row.is-reorder {
+  touch-action: none; cursor: grab;
+  -webkit-user-select: none; user-select: none;
+}
+.todo-row.is-reorder .todo-text { cursor: inherit; }
+.todo-grip { flex: 0 0 auto; width: 16px; text-align: center; color: var(--text-faint); font-size: 13px; }
+.todo-row.is-dragging {
+  cursor: grabbing; background: var(--bg-elev-2);
+  border-radius: 7px; box-shadow: var(--shadow); opacity: .95;
+}
+
 /* A note is a panel rather than a row: it's a paragraph you wrote, not a
    title with metadata beside it, so it gets its own block and keeps the
    line breaks you typed (pre-wrap, with break-word so an unbroken URL can't
