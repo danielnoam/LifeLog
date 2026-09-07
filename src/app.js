@@ -6,6 +6,7 @@
   const Backlog = window.LifeLogBacklog;
   const Journal = window.LifeLogJournal;
   const Notes = window.LifeLogNotes;
+  const Todos = window.LifeLogTodos;
   const IO = window.LifeLogIO;
   const Sync = window.LifeLogSync;
   const Wheel = window.LifeLogWheel;
@@ -52,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.119.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.120.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -195,7 +196,7 @@
 
   function emptyData() {
     return {
-      version: 1, categories: [], entries: [], backlog: [], notes: [], accomplishments: {},
+      version: 1, categories: [], entries: [], backlog: [], notes: [], todos: [], accomplishments: {},
       financeCategories: Finance.seedFinanceCategories(), financeEntries: [], recurringExpenses: [],
       settings: { ...DEFAULT_SETTINGS },
     };
@@ -307,6 +308,78 @@
     root.addEventListener("animationend", () => root.classList.remove("view-fade-in"), { once: true });
   }
 
+  // The modes each view can be swiped between, listed in the order their own
+  // switch shows them so a swipe and a tap on the bar agree about what comes
+  // next. A view with no modes simply isn't here, and a swipe in it does
+  // nothing.
+  const TIMELINE_MODES = [["entries", "Entries"], ["notes", "Notes"], ["todo", "To-do"]];
+  const VIEW_MODES = {
+    timeline: {
+      modes: TIMELINE_MODES.map(([id]) => id),
+      get: () => state.timelineMode,
+      set: (m) => { state.timelineMode = m; },
+    },
+    backlog: {
+      // Read off backlog.js's own bar rather than restated here: two lists
+      // would be two orders waiting to disagree about what a swipe lands on.
+      modes: Backlog.MODE_IDS,
+      get: () => state.backlogMode,
+      set: (m) => { state.backlogMode = m; },
+    },
+  };
+
+  // Timeline's Entries / Notes / To-do switch. Rendered before any of the
+  // three draws, because the timeline's own empty state returns early — a
+  // switch drawn inside it would strand a new user in a mode with no way out.
+  function renderTimelineModeBar(root) {
+    const bar = el("div", "backlog-mode-bar");
+    const group = el("div", "seg");
+    for (const [mode, label] of TIMELINE_MODES) {
+      const btn = el("button", "seg-btn", label);
+      btn.type = "button";
+      const active = state.timelineMode === mode;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", String(active));
+      btn.onclick = () => { if (state.timelineMode !== mode) setTimelineMode(mode); };
+      group.appendChild(btn);
+    }
+    bar.appendChild(group);
+    const count = state.timelineMode === "notes" ? state.data.notes.length
+      : state.timelineMode === "todo" ? state.data.todos.filter((t) => !t.done).length : 0;
+    if (count) {
+      const word = state.timelineMode === "notes"
+        ? (count === 1 ? " note" : " notes")
+        : (count === 1 ? " to do" : " to do");
+      bar.appendChild(el("span", "backlog-mode-count", count + word));
+    }
+    root.appendChild(bar);
+  }
+
+  function setTimelineMode(mode) {
+    state.timelineMode = mode;
+    // Both chip rows describe whichever mode is on screen, so they're
+    // rebuilt before the render that reads them (see years()/buildCatFilter).
+    buildYearFilter();
+    buildCatFilter();
+    render();
+    saveUiState();
+  }
+  // No wrap-around, matching the tab swipe: the ends are the ends, so a
+  // swipe past the last mode does nothing rather than teleporting you back
+  // to the first one.
+  function cycleMode(delta) {
+    const spec = VIEW_MODES[state.view];
+    if (!spec) return;
+    const i = spec.modes.indexOf(spec.get());
+    const next = i < 0 ? null : spec.modes[i + delta];
+    if (!next) return;
+    spec.set(next);
+    buildYearFilter();
+    buildCatFilter();
+    render();
+    saveUiState();
+  }
+
   // Shared by the tab click handler and the mobile tab-bar swipe gesture.
   // Silently ignores an invalid/out-of-range view (e.g. swiping past the
   // first or last tab) instead of switching to nothing.
@@ -342,6 +415,9 @@
   // written in a year you logged nothing in would have no chip to survive.
   function years() {
     if (state.view === "timeline" && state.timelineMode === "notes") return Notes.noteYears();
+    // A checklist has no years worth filtering — hiding an undone to-do
+    // because you tapped a year chip would be a trap, not a filter.
+    if (state.view === "timeline" && state.timelineMode === "todo") return [];
     const ys = new Set(state.data.entries.map((e) => e.year));
     return [...ys].sort((a, b) => b - a);
   }
@@ -521,8 +597,9 @@
       // empty state returns early below, and a switch rendered inside it
       // would strand a new user in a mode with no way out of it.
       if (state.view === "timeline") {
-        Notes.renderModeBar(c);
+        renderTimelineModeBar(c);
         if (state.timelineMode === "notes") { Notes.renderNotes(c); return; }
+        if (state.timelineMode === "todo") { Todos.renderTodos(c); return; }
       }
       const entries = getFiltered();
       if (!state.data.entries.length) {
@@ -562,7 +639,7 @@
   function updateSearchMatchBadges() {
     const q = state.search.trim();
     const counts = q ? {
-      timeline: getFiltered().length + Notes.getFilteredNotes().length,
+      timeline: getFiltered().length + Notes.getFilteredNotes().length + Todos.getFilteredTodos().length,
       backlog: Backlog.getFilteredBacklog().length,
       finance: Finance.getFilteredFinance().length,
     } : null;
@@ -985,7 +1062,14 @@
   // if given, fires when a drag ends without crossing the threshold (or
   // is cancelled) so the caller can animate whatever onMove displaced
   // back to rest.
-  function attachSwipe(el, { onLeft, onRight, onMove, onSettle, threshold = 40 }) {
+  // requireHorizontal is for a surface that scrolls under the gesture (the
+  // content area, where a swipe switches mode): there, taking the pointer on
+  // any movement would swallow the page's own vertical scrolling, so the
+  // drag has to prove it's going sideways before it's allowed to become a
+  // swipe at all. A gesture that starts vertical is abandoned outright
+  // rather than watched — a scroll that happens to drift sideways halfway
+  // down the page is a scroll, not a change of mind.
+  function attachSwipe(el, { onLeft, onRight, onMove, onSettle, threshold = 40, requireHorizontal = false }) {
     let startX = null, startY = null, captured = false;
     el.addEventListener("pointerdown", (e) => {
       if (!isMobileLayout()) return;
@@ -994,9 +1078,21 @@
     el.addEventListener("pointermove", (e) => {
       if (startX == null) return;
       if (!captured) {
+        if (requireHorizontal) {
+          const adx = Math.abs(e.clientX - startX), ady = Math.abs(e.clientY - startY);
+          if (adx <= 10 && ady <= 10) return;
+          if (ady >= adx) { startX = null; return; }
+        }
         if (Math.abs(e.clientX - startX) > 10 || Math.abs(e.clientY - startY) > 10) {
           el.setPointerCapture(e.pointerId);
           captured = true;
+          // A drag across text leaves a selection behind, and a mousedown
+          // that lands on one is a drag of *that* rather than a new
+          // gesture — which ate every second swipe. Dropping it the moment
+          // a swipe is recognised costs nothing: on the layouts this
+          // gesture runs on, text is selected by long-press, not by drag.
+          const sel = window.getSelection && window.getSelection();
+          if (sel && !sel.isCollapsed) sel.removeAllRanges();
           // Once it's a real horizontal drag (not a tap, not vertical
           // scroll), stop the browser's own touch handling from also
           // reacting to the same gesture — left unchecked it could start
@@ -1392,6 +1488,10 @@
     wrap.innerHTML = "";
     const finance = isFinanceView();
     const ys = finance ? Finance.financeYears() : years();
+    // Nothing to filter by — an empty view, or a mode with no dates worth
+    // chipping (To-do) — so the row goes rather than sitting there as a
+    // label with nothing under it.
+    $("#yearFilterGroup").hidden = !ys.length;
     const activeYears = finance ? state.financeActiveYears : state.activeYears;
     for (const y of activeYears) if (!ys.includes(y)) activeYears.delete(y);
     ys.forEach((y) => {
@@ -1424,9 +1524,12 @@
     // A note carries no category, so in Notes mode these chips would be a
     // control that does nothing. Hidden rather than disabled — there's
     // nothing to explain and nothing you could do about it.
-    const notesMode = state.view === "timeline" && state.timelineMode === "notes";
-    $("#catFilterGroup").hidden = notesMode;
-    if (notesMode) return;
+    // Neither a note nor a to-do carries a category, so in those modes these
+    // chips would be a control that does nothing. Hidden rather than
+    // disabled — there's nothing to explain and nothing you could do about it.
+    const noCats = state.view === "timeline" && state.timelineMode !== "entries";
+    $("#catFilterGroup").hidden = noCats;
+    if (noCats) return;
     const finance = isFinanceView();
     const cats = finance ? state.data.financeCategories : state.data.categories;
     const activeCats = finance ? state.financeActiveCats : state.activeCats;
@@ -1732,6 +1835,7 @@
     data.entries = (data.entries || []).map(Journal.sanitizeEntry);
     data.backlog = (data.backlog || []).map(Backlog.sanitizeBacklog);
     data.notes = (data.notes || []).map(Notes.sanitizeNote);
+    data.todos = (data.todos || []).map(Todos.sanitizeTodo);
     const incomingSettings = data.settings || {};
     // One-time migration: visual layout prefs used to be synced as part of
     // data.settings. Pull them into this device's local-only settings if it
@@ -1935,6 +2039,17 @@
       },
       onMove: (dx) => tabDragMove(dx),
       onSettle: () => { tabDrag = null; updateTabUnderline(); },
+    });
+    // A swipe across the page itself moves between the modes of whichever
+    // view has them (Timeline's Entries/Notes/To-do, Backlog's three), so
+    // the switch at the top is a shortcut rather than the only way through.
+    // requireHorizontal is what keeps this off the vertical scroll it
+    // shares a surface with. Attached once: #content survives every render,
+    // only its children are replaced.
+    attachSwipe($("#content"), {
+      onLeft: () => cycleMode(1),
+      onRight: () => cycleMode(-1),
+      requireHorizontal: true,
     });
 
     // Bulk-select drag-paint: while dragPaint is set (started by a
@@ -2397,6 +2512,10 @@
     applySteamAppId: Sync.applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
     DEFAULT_SETTINGS, jumpToTimelineMonth,
   });
+  Todos.init({
+    state, $, el, uid, toast, persist, render, emptyState, backfillUpdatedAt, keepUnknown,
+  });
+
   Notes.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
     monthCardHeader, emptyState, buildYearFilter, buildCatFilter, saveUiState,

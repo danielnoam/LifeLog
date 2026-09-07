@@ -457,7 +457,16 @@ select:focus { outline: none; border-color: var(--accent); }
 .cat-chip.add-chip:hover { color: var(--text); border-color: var(--accent); }
 
 /* ---------- content ---------- */
-.content { padding: 22px 20px 80px; max-width: 2400px; margin: 0 auto; }
+/* pan-y hands horizontal gestures to JS (the swipe that switches mode —
+   see attachSwipe in app.js) while leaving vertical scrolling entirely to
+   the browser. Without it the browser claims the whole gesture and the
+   swipe only ever fires by accident. */
+/* min-height so the swipe surface is the page rather than just wherever the
+   content happens to reach: on a short view (an empty To-do, a Discover
+   card that fits in 300px) the handler is on .content, and without this a
+   swipe in the lower half of the screen lands on nothing and does nothing.
+   It adds no scrolling — 70vh is less than the viewport. */
+.content { padding: 22px 20px 80px; max-width: 2400px; margin: 0 auto; touch-action: pan-y; min-height: 70vh; }
 
 /* Replayed on view switches only (see fadeInOnViewChange in app.js) — a
    short fade + 6px rise, no bounce. Skipped under prefers-reduced-motion. */
@@ -512,6 +521,37 @@ select:focus { outline: none; border-color: var(--accent); }
 .month-cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .month-cat .famount { font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .month-cats + .month-total { border-top: none; margin-top: 5px; }
+/* The to-do box sits above both panels: press it, type, Enter. It's the
+   whole "add" affordance, so it's always open rather than hidden behind a
+   button — a checklist you have to unlock before writing in is a checklist
+   you stop using. */
+.todo-compose { display: flex; gap: 8px; margin-bottom: 12px; }
+/* Styled here rather than inherited: the app's field styling lives under
+   .modal label, and this is the one text input that isn't in a modal. */
+.todo-compose input {
+  flex: 1 1 auto; min-width: 0; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font-size: 14px;
+}
+.todo-compose .btn { flex: 0 0 auto; }
+
+.todo-row { display: flex; align-items: center; gap: 9px; padding: 6px 4px; font-size: 13px; }
+.todo-row + .todo-row { border-top: 1px solid var(--border); }
+.todo-check { flex: 0 0 auto; width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+/* Wraps rather than ellipses: a to-do is the whole instruction, and half of
+   one is no use. */
+.todo-text { flex: 1 1 auto; min-width: 0; cursor: text; overflow-wrap: break-word; }
+.todo-row.is-done .todo-text { color: var(--text-faint); text-decoration: line-through; }
+.todo-edit {
+  flex: 1 1 auto; min-width: 0; font-size: 13px; padding: 3px 7px;
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--accent); border-radius: 6px; font-family: inherit;
+}
+.todo-del {
+  flex: 0 0 auto; background: none; border: none; cursor: pointer;
+  color: var(--text-faint); font-size: 13px; padding: 2px 4px; line-height: 1;
+}
+.todo-del:hover { color: var(--danger); }
+
 /* A note is a panel rather than a row: it's a paragraph you wrote, not a
    title with metadata beside it, so it gets its own block and keeps the
    line breaks you typed (pre-wrap, with break-word so an unbroken URL can't

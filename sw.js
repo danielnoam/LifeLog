@@ -17,7 +17,7 @@ const CACHE = "lifelog-v42";
 // data is private). The app fetches it at runtime with a graceful fallback.
 const ASSETS = [
   "./", "./index.html",
-  "./src/styles.css", "./src/app.js", "./src/finance.js", "./src/settings.js", "./src/backlog.js", "./src/wheel.js", "./src/journal.js", "./src/notes.js", "./src/io.js", "./src/sync.js", "./src/merge.js", "./src/storage.js", "./src/media.js", "./src/qr.js",
+  "./src/styles.css", "./src/app.js", "./src/finance.js", "./src/settings.js", "./src/backlog.js", "./src/wheel.js", "./src/journal.js", "./src/notes.js", "./src/todos.js", "./src/io.js", "./src/sync.js", "./src/merge.js", "./src/storage.js", "./src/media.js", "./src/qr.js",
   "./manifest.json", "./icon.svg",
 ];
 

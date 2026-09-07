@@ -1480,11 +1480,14 @@
   // The Backlog view's three layouts. Kept as a mode switch rather than a
   // sixth tab: the first two are the same items either way, and the bottom
   // nav on a phone has no room to spare.
+  // Exported as ids so app.js's swipe-between-modes can read the same list
+  // this bar draws from — two copies would be two orders waiting to disagree
+  // about what a swipe left lands on.
+  const MODES = [["category", "By category"], ["upcoming", "Next releases"], ["discover", "Discover"]];
   function renderBacklogModeBar(root, items) {
     const bar = el("div", "backlog-mode-bar");
     const group = el("div", "seg");
-    const modes = [["category", "By category"], ["upcoming", "Next releases"], ["discover", "Discover"]];
-    for (const [mode, label] of modes) {
+    for (const [mode, label] of MODES) {
       const btn = el("button", "seg-btn", label);
       btn.type = "button";
       const active = state.backlogMode === mode;
@@ -2134,6 +2137,7 @@
     setBacklogCover,
     // data lifecycle (app.js's normalize/import infra)
     sanitizeBacklog,
+    MODE_IDS: MODES.map(([id]) => id),
     // pure release-date logic (sync.js's re-check, and test/backlog.test.js)
     isUnreleased,
     releaseStateOf,

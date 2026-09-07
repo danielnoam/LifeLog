@@ -16,6 +16,38 @@ what was decided against and why.
 
 ---
 
+- To-do (src/todos.js) is Timeline's third mode, and deliberately not part
+  of Backlog: a backlog item is something you mean to experience and it
+  graduates into the log when you finish it, while a to-do is ticked and
+  stops mattering. Different endings, different lists.
+  `done` is dropped rather than stored as false, like every other flag.
+  doneAt is separate from createdAt because the Done panel sorts by when you
+  ticked it — a to-do written first is easily finished last — and a to-do
+  ticked before doneAt existed falls back to its own updatedAt so it still
+  sorts somewhere. Editing is inline rather than a modal: a to-do is one
+  line, and a modal to fix a typo in one line is more ceremony than the line
+  is worth. An emptied edit box is a cancel, not a delete; deleting is the ✕,
+  which skips the confirm because Settings → Recently deleted has it.
+
+- swipe-between-modes (attachSwipe's requireHorizontal, app.js) shares a
+  surface with the page's own vertical scrolling, which is why the gesture
+  has to prove it's horizontal *before* it takes the pointer — capturing on
+  any movement, as the tab-bar swipe does, would swallow the scroll. A
+  gesture that starts vertical is abandoned outright rather than watched: a
+  scroll that drifts sideways halfway down the page is still a scroll.
+  Three things had to be true for it to work, and only the first is obvious:
+    - touch-action: pan-y on .content, or the browser claims the gesture and
+      the swipe fires only by accident;
+    - the selection is cleared when a swipe is recognised — a drag across
+      text leaves one behind, and the next pointerdown landing on it is a
+      drag of *that*, which ate every second swipe;
+    - .content has a min-height, because the handler is on .content and on a
+      short view (empty To-do, a Discover card 300px tall) a swipe in the
+      lower half of the screen was landing on <html> and doing nothing.
+  VIEW_MODES reads Backlog.MODE_IDS rather than restating the backlog's mode
+  list, so a swipe and its own bar can't disagree about what comes next.
+  No wrap at the ends, matching the tab swipe.
+
 - Notes (src/notes.js) is Timeline's second mode, not a sixth tab: the
   phone's bottom nav is full, same reason Discover became a mode of Backlog.
   The mode bar is rendered by app.js *before* either mode draws, because the

@@ -4,6 +4,24 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.120.0] - 2026-09-07
+
+### Added
+- **To-do** — Timeline's third mode. A box at the top you type into, Enter
+  to add, and two panels: **To do** and **Done**. Tick something and it
+  moves across on its own; untick it and it comes back. Click the text to
+  fix it in place, ✕ to delete it, and **Clear** on the Done panel to sweep
+  the finished ones out when looking at them stops being satisfying.
+- **Swipe between modes.** On a phone, swiping across the page moves
+  between the modes of whichever tab has them — Timeline's
+  Entries / Notes / To-do and the Backlog's three. Vertical scrolling is
+  untouched: a gesture has to prove it's going sideways before it counts,
+  and one that starts vertical is left alone entirely.
+
+### Changed
+- The Years row hides itself when there's nothing to filter by, instead of
+  sitting there as a label with no chips under it.
+
 ## [0.119.0] - 2026-09-07
 
 ### Added

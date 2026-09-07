@@ -72,6 +72,8 @@ Five views, in two groups.
 - **Notes** – Timeline's second mode: a running feed of things you write as
   you notice them, each keeping the date and time it was written, and saying
   so when you've edited it since.
+- **To-do** – Timeline's third mode: a plain checklist, one panel for what's
+  left and one for what's done, and ticking something moves it across.
 - **Stats** – totals by category and year, a highlights strip (busiest month,
   longest streak, this year vs last), seasonality, genres, an activity
   heatmap, most-repeated titles, and a year-in-review card.
@@ -109,6 +111,8 @@ Five views, in two groups.
   notes.
 - **Bulk actions** – long-press to select, then edit, sync, or delete many
   items at once.
+- **Swipe between modes** – on a phone, swipe across the page to move
+  between the modes of a tab that has them.
 - **Category management** – add / rename / recolour / reorder / delete, for
   both journal and finance categories.
 - **Import / export** – JSON and CSV, both directions, each routed through a
@@ -126,6 +130,7 @@ src/styles.css      styling (dark theme)
 src/app.js          shell: state, routing, filters, shared helpers
 src/journal.js      Timeline + Stats views, entry modal, achievements
 src/notes.js        Notes: Timeline's second mode, the note feed + modal
+src/todos.js        To-do: Timeline's third mode, the checklist
 src/backlog.js      Backlog view, backlog modal, the random picker
 src/finance.js      Ledger + Summary views, expenses, recurring expenses
 src/media.js        cover art + metadata from the eight media sources

@@ -7,13 +7,11 @@
 // view module.
 (function () {
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
-    monthCardHeader, emptyState, buildYearFilter, buildCatFilter, saveUiState,
-    backfillUpdatedAt, keepUnknown, MONTHS;
+    monthCardHeader, emptyState, backfillUpdatedAt, keepUnknown, MONTHS;
 
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
-      monthCardHeader, emptyState, buildYearFilter, buildCatFilter, saveUiState,
-      backfillUpdatedAt, keepUnknown, MONTHS } = ctx);
+      monthCardHeader, emptyState, backfillUpdatedAt, keepUnknown, MONTHS } = ctx);
   }
 
   // ---------- data ----------
@@ -69,40 +67,6 @@
   function formatEdited(iso) {
     const d = new Date(iso);
     return isNaN(d) ? "" : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
-  }
-
-  // Entries / Notes. Rendered by app.js before either mode draws, so the
-  // switch is reachable even from a mode with nothing in it — the timeline's
-  // own empty state returns early, and a mode bar drawn inside it would
-  // strand you there with no way back.
-  function renderModeBar(root) {
-    const bar = el("div", "backlog-mode-bar");
-    const group = el("div", "seg");
-    for (const [mode, label] of [["entries", "Entries"], ["notes", "Notes"]]) {
-      const btn = el("button", "seg-btn", label);
-      btn.type = "button";
-      const active = state.timelineMode === mode;
-      btn.classList.toggle("active", active);
-      btn.setAttribute("aria-pressed", String(active));
-      btn.onclick = () => {
-        if (state.timelineMode === mode) return;
-        state.timelineMode = mode;
-        // Both chip rows describe whichever mode is on screen (see years()
-        // and buildCatFilter in app.js), so they're rebuilt before the
-        // render that reads them.
-        buildYearFilter();
-        buildCatFilter();
-        render();
-        saveUiState();
-      };
-      group.appendChild(btn);
-    }
-    bar.appendChild(group);
-    const n = state.data.notes.length;
-    if (state.timelineMode === "notes" && n) {
-      bar.appendChild(el("span", "backlog-mode-count", n + (n === 1 ? " note" : " notes")));
-    }
-    root.appendChild(bar);
   }
 
   function noteCard(n) {
@@ -247,7 +211,7 @@
   window.LifeLogNotes = {
     init, wire,
     sanitizeNote, noteYears, getFilteredNotes,
-    renderModeBar, renderNotes,
+    renderNotes,
     openNoteModal, closeNoteModal,
     // pure helpers (test/notes.test.js)
     noteDate, noteYear,
