@@ -32,7 +32,7 @@ Journal.init({
   state,
 });
 
-const { sanitizeEntry, stripMediaSearchSuffix, heatColor, titleSuggestions, backlogSuggestions, spanLabel } = Journal;
+const { sanitizeEntry, byNewestAdded, stripMediaSearchSuffix, heatColor, titleSuggestions, backlogSuggestions, spanLabel } = Journal;
 
 let passed = 0;
 function test(name, fn) {
@@ -48,6 +48,27 @@ function test(name, fn) {
 }
 
 // ---------- sanitizeEntry ----------
+// ---------- display order within a month ----------
+test("a month lists what you added last at the top, like the Ledger", () => {
+  const rows = [
+    { id: "first", createdAt: "2026-01-01T10:00:00.000Z" },
+    { id: "third", createdAt: "2026-03-01T10:00:00.000Z" },
+    { id: "second", createdAt: "2026-02-01T10:00:00.000Z" },
+  ];
+  assert.deepStrictEqual(rows.sort(byNewestAdded).map((e) => e.id), ["third", "second", "first"]);
+});
+
+test("entries with no createdAt sort last and keep their relative order", () => {
+  // Everything imported from the original sheet has no createdAt. It has to
+  // land somewhere predictable rather than interleaving at random.
+  const rows = [
+    { id: "sheet-a" },
+    { id: "logged", createdAt: "2026-01-01T10:00:00.000Z" },
+    { id: "sheet-b" },
+  ];
+  assert.deepStrictEqual(rows.sort(byNewestAdded).map((e) => e.id), ["logged", "sheet-a", "sheet-b"]);
+});
+
 test("sanitizeEntry carries through a field it doesn't know about", () => {
   const out = sanitizeEntry({ title: "Foo", year: 2026, month: 3, somethingShippedLater: 7 });
   assert.strictEqual(out.somethingShippedLater, 7);

@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.122.1] - 2026-09-07
+
+### Fixed
+- **A month on the Timeline now lists what you added last at the top**, the
+  same way the Ledger does — an entry is dated only to a month, so when you
+  logged it is the only ordering signal there is, and the one you just added
+  should be where you're looking. It had no defined order at all before:
+  within a session new entries went to the end, but a sync rebuilds each
+  collection from a set of ids, which reshuffled a month arbitrarily.
+  Entries imported from the original sheet, which carry no added date, sort
+  last and keep their relative order.
+
 ## [0.122.0] - 2026-09-07
 
 ### Added

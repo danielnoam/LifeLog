@@ -50,6 +50,13 @@ what was decided against and why.
   render()'s finally rather than done in fadeInOnViewChange itself — and why
   it re-reads $("#content") there, since the `c` above is scoped to the try.
 
+- timeline entries sort byNewestAdded within a month (journal.js), matching
+  the Ledger. They previously had no explicit order, which looked stable —
+  new entries are pushed to the end — right up until a sync, because
+  merge.js rebuilds each collection from a Set of ids and reshuffled the
+  month. Same reasoning as the finance rows' createdAt tiebreaker, and the
+  same trap: array order is never durable in this app.
+
 - to-do hand ordering is an `order` field, not array position: a sync merge
   rebuilds every collection from an id set (mergeCollection), so array order
   doesn't survive a round trip between devices. assignMissingOrder runs in

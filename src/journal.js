@@ -70,7 +70,7 @@
             card.appendChild(monthCardHeader(MONTHS[m], byMonth[m].length, byMonth[m], {
               onAdd: () => openEntryModal(null, null, { year: yy, month: mm }),
             }));
-            byMonth[m].forEach((e) => card.appendChild(entryRow(e)));
+            byMonth[m].slice().sort(byNewestAdded).forEach((e) => card.appendChild(entryRow(e)));
             grid.appendChild(card);
           }
         },
@@ -93,6 +93,18 @@
       }));
     }
   }
+
+  // Newest-added first inside a month, matching the Ledger — an entry is
+  // dated only to a month, so when you logged it is the only ordering signal
+  // there is, and the thing you just added should be where you're looking.
+  //
+  // It also has to be *some* explicit order rather than the array's: that
+  // order is stable within a session, since new entries are pushed to the
+  // end, but merge.js rebuilds each collection from a Set of ids on every
+  // multi-device sync, which reshuffled a month's entries arbitrarily.
+  // Anything with no createdAt at all (imported from the original sheet)
+  // sorts last, keeping its relative order.
+  const byNewestAdded = (a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
 
   function entryRow(e) {
     const row = el("div", "entry");
@@ -1473,6 +1485,8 @@
     setEntryCover, // app.js's applySteamAppId repaints the entry cover through this
     // data lifecycle (app.js's normalize)
     sanitizeEntry,
+    // display order within a month (test/journal.test.js)
+    byNewestAdded,
     // pure helpers (exported for test/journal.test.js)
     stripMediaSearchSuffix,
     heatColor,
