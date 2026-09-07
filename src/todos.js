@@ -110,11 +110,21 @@
     input.autocomplete = "off";
     const add = el("button", "btn btn-primary btn-sm", "Add");
     add.type = "button";
-    const submit = () => { const v = input.value; input.value = ""; addTodo(v); };
+    add.disabled = true;
+    const submit = () => {
+      const v = input.value;
+      input.value = "";
+      add.disabled = true;
+      addTodo(v);
+    };
     add.onclick = submit;
+    // Enter is the fast path and the button is the discoverable one; it
+    // stays disabled until there's something to add, so it never invites a
+    // press that does nothing.
+    input.oninput = () => { add.disabled = !input.value.trim(); };
     input.onkeydown = (ev) => {
       if (ev.key === "Enter") { ev.preventDefault(); submit(); }
-      else if (ev.key === "Escape") input.value = "";
+      else if (ev.key === "Escape") { input.value = ""; add.disabled = true; }
     };
     wrap.appendChild(input);
     wrap.appendChild(add);

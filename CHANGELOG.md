@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.120.1] - 2026-09-07
+
+### Changed
+- **The box you write a to-do in is shaped like the panels under it** — same
+  card, same border, same corners — so the three read as one stack instead
+  of a form field parked above a list. The card is the input: the field
+  inside it is borderless, the whole box lights up when you're typing, and
+  it's a far bigger target than a text field on a phone. A **+** marks it
+  without spending a line on a label, and Add stays dimmed until there's
+  something to add rather than inviting a press that does nothing.
+
 ## [0.120.0] - 2026-09-07
 
 ### Added

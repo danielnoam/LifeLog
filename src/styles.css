@@ -525,14 +525,34 @@ select:focus { outline: none; border-color: var(--accent); }
    whole "add" affordance, so it's always open rather than hidden behind a
    button — a checklist you have to unlock before writing in is a checklist
    you stop using. */
-.todo-compose { display: flex; gap: 8px; margin-bottom: 12px; }
-/* Styled here rather than inherited: the app's field styling lives under
-   .modal label, and this is the one text input that isn't in a modal. */
-.todo-compose input {
-  flex: 1 1 auto; min-width: 0; background: var(--bg); color: var(--text);
-  border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font-size: 14px;
+/* Shaped like the panels below it rather than like a form field, so the
+   three read as one stack: same card surface, same border, same radius. The
+   card *is* the input — the field inside is borderless and transparent, and
+   the whole box lights up on focus — which also makes it a much bigger
+   target than a 14px-tall input on a phone. */
+.todo-compose {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+  background: var(--surface-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 5px 6px 5px 14px;
+  transition: border-color .15s ease, background .15s ease;
 }
-.todo-compose .btn { flex: 0 0 auto; }
+.todo-compose:focus-within { border-color: var(--accent); background: var(--bg-elev-2); }
+/* The affordance: says "start one here" without spending a line on a label. */
+.todo-compose::before {
+  content: "+"; flex: 0 0 auto; color: var(--text-faint);
+  font-size: 17px; line-height: 1; transition: color .15s ease;
+}
+.todo-compose:focus-within::before { color: var(--accent); }
+.todo-compose input {
+  flex: 1 1 auto; min-width: 0; background: none; border: none; color: var(--text);
+  padding: 11px 0; font-size: 14px; font-family: inherit;
+}
+.todo-compose input:focus { outline: none; }
+.todo-compose input::placeholder { color: var(--text-faint); }
+/* Quiet until there's something to add: an always-lit primary button on an
+   empty box is an invitation to press something that does nothing. */
+.todo-compose .btn { flex: 0 0 auto; transition: opacity .15s ease; }
+.todo-compose .btn:disabled { opacity: .35; cursor: default; }
 
 .todo-row { display: flex; align-items: center; gap: 9px; padding: 6px 4px; font-size: 13px; }
 .todo-row + .todo-row { border-top: 1px solid var(--border); }
