@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.122.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.123.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -695,14 +695,18 @@
         t.classList.toggle("active", t.dataset.view === state.view);
       });
       updateTabUnderline();
-      const c = $("#content");
+      // #viewBody, not #content: the filterbar is #content's other child and
+      // is rebuilt in place rather than thrown away with the view.
+      const c = $("#viewBody");
       c.innerHTML = "";
       // The mode switch is chrome, not content — cleared here and refilled by
       // whichever view owns one, so it can sit above the filters it governs.
       const slot = $("#modeSlot");
       slot.innerHTML = "";
       slot.hidden = !VIEW_MODES[state.view];
-      fadeInOnViewChange(c);
+      // Animations and the swipe act on #content, so the filters travel with
+      // the content they filter.
+      fadeInOnViewChange($("#content"));
       if (state.view === "backlog") { Backlog.renderBacklog(c); return; }
       if (state.view === "finance") { Finance.renderFinanceEntries(c); return; }
       if (state.view === "finance-stats") { Finance.renderFinanceStats(c); return; }
@@ -1609,6 +1613,7 @@
     // chipping (To-do) — so the row goes rather than sitting there as a
     // label with nothing under it.
     $("#yearFilterGroup").hidden = !ys.length;
+    updateFilterbarVisibility();
     const activeYears = finance ? state.financeActiveYears : state.activeYears;
     for (const y of activeYears) if (!ys.includes(y)) activeYears.delete(y);
     ys.forEach((y) => {
@@ -1635,6 +1640,15 @@
     chips.forEach((c) => { c.style.minWidth = max + "px"; });
   }
 
+  // The bar goes when neither row has anything in it — in To-do, where
+  // neither applies, the rule and its spacing would be a line under nothing.
+  // Called by both builders, since either can be the one that empties it.
+  function updateFilterbarVisibility() {
+    const bar = $("#filterbar");
+    if (!bar) return;
+    bar.hidden = $("#yearFilterGroup").hidden && $("#catFilterGroup").hidden;
+  }
+
   function buildCatFilter() {
     const wrap = $("#catFilter");
     wrap.innerHTML = "";
@@ -1646,6 +1660,7 @@
     // disabled — there's nothing to explain and nothing you could do about it.
     const noCats = state.view === "timeline" && state.timelineMode !== "entries";
     $("#catFilterGroup").hidden = noCats;
+    updateFilterbarVisibility();
     if (noCats) return;
     const finance = isFinanceView();
     const cats = finance ? state.data.financeCategories : state.data.categories;

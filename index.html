@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.122.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.123.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -117,18 +117,25 @@
        hidden, in a view with no modes. -->
   <div class="mode-slot" id="modeSlot" hidden></div>
 
-  <div class="filterbar">
-    <div class="filter-group" id="yearFilterGroup">
-      <label id="yearFilterLabel" class="filter-label" title="Click to select/deselect all">Years</label>
-      <div class="cats" id="yearFilter"></div>
+  <!-- The filters live inside #content, not above it as chrome: they belong
+       to whatever is on screen — which rows they even show depends on the
+       mode — so they slide, scroll and drag with it rather than sitting
+       still while it moves underneath them. #viewBody is what a render
+       clears; the filterbar is rebuilt in place by buildYearFilter /
+       buildCatFilter and survives. -->
+  <main id="content" class="content">
+    <div class="filterbar" id="filterbar">
+      <div class="filter-group" id="yearFilterGroup">
+        <label id="yearFilterLabel" class="filter-label" title="Click to select/deselect all">Years</label>
+        <div class="cats" id="yearFilter"></div>
+      </div>
+      <div class="filter-group" id="catFilterGroup">
+        <label id="catFilterLabel" class="filter-label" title="Click to select/deselect all">Categories</label>
+        <div class="cats" id="catFilter"></div>
+      </div>
     </div>
-    <div class="filter-group" id="catFilterGroup">
-      <label id="catFilterLabel" class="filter-label" title="Click to select/deselect all">Categories</label>
-      <div class="cats" id="catFilter"></div>
-    </div>
-  </div>
-
-  <main id="content" class="content"></main>
+    <div id="viewBody"></div>
+  </main>
 
   <!-- Entry add/edit modal -->
   <div class="modal-overlay" id="entryModal" hidden>
@@ -1226,19 +1233,19 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.122.1"></script>
-  <script defer src="src/media.js?v=0.122.1"></script>
-  <script defer src="src/merge.js?v=0.122.1"></script>
-  <script defer src="src/storage.js?v=0.122.1"></script>
-  <script defer src="src/finance.js?v=0.122.1"></script>
-  <script defer src="src/settings.js?v=0.122.1"></script>
-  <script defer src="src/wheel.js?v=0.122.1"></script>
-  <script defer src="src/backlog.js?v=0.122.1"></script>
-  <script defer src="src/journal.js?v=0.122.1"></script>
-  <script defer src="src/notes.js?v=0.122.1"></script>
-  <script defer src="src/todos.js?v=0.122.1"></script>
-  <script defer src="src/io.js?v=0.122.1"></script>
-  <script defer src="src/sync.js?v=0.122.1"></script>
-  <script defer src="src/app.js?v=0.122.1"></script>
+  <script defer src="src/qr.js?v=0.123.0"></script>
+  <script defer src="src/media.js?v=0.123.0"></script>
+  <script defer src="src/merge.js?v=0.123.0"></script>
+  <script defer src="src/storage.js?v=0.123.0"></script>
+  <script defer src="src/finance.js?v=0.123.0"></script>
+  <script defer src="src/settings.js?v=0.123.0"></script>
+  <script defer src="src/wheel.js?v=0.123.0"></script>
+  <script defer src="src/backlog.js?v=0.123.0"></script>
+  <script defer src="src/journal.js?v=0.123.0"></script>
+  <script defer src="src/notes.js?v=0.123.0"></script>
+  <script defer src="src/todos.js?v=0.123.0"></script>
+  <script defer src="src/io.js?v=0.123.0"></script>
+  <script defer src="src/sync.js?v=0.123.0"></script>
+  <script defer src="src/app.js?v=0.123.0"></script>
 </body>
 </html>

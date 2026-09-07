@@ -431,11 +431,18 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 .mode-slot[hidden] { display: none; }
 .mode-slot .backlog-mode-bar { margin-bottom: 0; }
 
+/* Inside #content now (see index.html), so no horizontal padding of its own
+   and no background — the content's padding places it, and the rule under it
+   is what separates it from the view rather than a full-bleed band. */
 .filterbar {
   display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
-  padding: 10px 20px; border-bottom: 1px solid var(--border);
-  background: var(--bg);
+  padding: 0 0 12px; margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
 }
+/* Both rows empty (To-do, where neither applies): the rule and its spacing
+   would be a line under nothing. Driven from JS rather than :has(), which
+   this codebase doesn't lean on anywhere else. */
+.filterbar[hidden] { display: none; }
 .filter-group { display: flex; align-items: center; gap: 10px; }
 /* The display above outranks the UA stylesheet's [hidden] rule, so hiding
    the category group (Notes mode, where a note has no category) needs this

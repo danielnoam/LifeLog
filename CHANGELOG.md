@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.123.0] - 2026-09-07
+
+### Changed
+- **The Years and Categories rows are part of the content now.** They belong
+  to whatever is on screen — which of them even appears depends on the mode
+  — so they slide, drag and scroll with it instead of sitting still while it
+  moves underneath them. In To-do, where neither applies, the whole row goes
+  rather than leaving a rule under nothing. The mode switch above stays put,
+  as before; it's the one thing that shouldn't move.
+
 ## [0.122.1] - 2026-09-07
 
 ### Fixed

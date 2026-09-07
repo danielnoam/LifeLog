@@ -50,6 +50,16 @@ what was decided against and why.
   render()'s finally rather than done in fadeInOnViewChange itself — and why
   it re-reads $("#content") there, since the `c` above is scoped to the try.
 
+- the filterbar lives inside #content, with #viewBody as the thing a render
+  actually clears. The filters belong to the content (which rows show at all
+  depends on the mode), so they have to travel with it — the animation and
+  the swipe both act on #content, and a filterbar outside it would have sat
+  still while everything it filters slid sideways. The mode slot stays
+  chrome above, since that's the one thing that shouldn't move.
+  Its own visibility is JS (updateFilterbarVisibility) rather than a :has()
+  rule; nothing else here leans on :has(), and both builders can be the one
+  that empties it.
+
 - timeline entries sort byNewestAdded within a month (journal.js), matching
   the Ledger. They previously had no explicit order, which looked stable —
   new entries are pushed to the end — right up until a sync, because
