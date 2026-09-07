@@ -16,6 +16,29 @@ what was decided against and why.
 
 ---
 
+- the mode switch lives in #modeSlot, chrome between the topbar and the
+  filterbar, rather than in #content. The filters are a consequence of the
+  mode (categories and years hide themselves in Notes and To-do), so a
+  switch below them moved 201 -> 125 -> 100px as you pressed it — measured,
+  not guessed. Both Timeline and Backlog render their whole bar into the
+  slot, Backlog's extras included; app.js clears it each render and hides it
+  for a view with no modes. It also simplified the animation: with the bar
+  outside #content, a mode change animates #content whole, exactly like a
+  view change, instead of per-child-except-the-bar.
+
+- the swipe drags #content with the finger (modeDragMove/Settle/Commit,
+  app.js) rather than animating after release — the page sitting still
+  through the gesture and then moving on its own read as two movements
+  where the hand made one. Commit carries on in the same direction for
+  130ms, then --mode-enter-x tells the incoming keyframes to start from
+  where the outgoing content left the screen, so the halves join up. A
+  button press leaves that property unset and gets the small 16px default:
+  there was no travel to continue. The property is cleared on animationend
+  so a swipe can't leak its distance into the next button press.
+  Resistance past the last mode is 0.25 rather than a hard stop, and the
+  commit threshold is 60px rather than the tab bar's 40 — this shares a
+  surface with the page's own scrolling.
+
 - the mode-change animation reads its direction from the mode indices
   (fadeInOnViewChange, app.js) rather than being told which way it went, so
   a swipe, a tap on the switch and the Backlog's own bar all animate

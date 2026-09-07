@@ -1554,10 +1554,11 @@
   function renderBacklog(root) {
     const items = getFilteredBacklog()
       .slice().sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
-    // The mode bar goes up before the first-run empty state rather than
-    // after it: Discover is the one mode that has something to show when the
-    // backlog is empty, and that's exactly when it's most worth reaching.
-    renderBacklogModeBar(root, items);
+    // Into the chrome slot above the filters, not into `root`: see the
+    // comment on #modeSlot in index.html. It's rendered before the first-run
+    // empty state below returns, so Discover — the one mode with something
+    // to show when the backlog is empty — stays reachable.
+    renderBacklogModeBar($("#modeSlot"), items);
     if (state.backlogMode === "discover") { renderDiscover(root); return; }
     if (!state.data.backlog.length) {
       root.appendChild(emptyState({

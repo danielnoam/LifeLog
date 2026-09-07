@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.120.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.121.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -329,20 +329,24 @@
       ? "mode-slide-back" : "mode-slide-fwd";
   }
 
-  // A mode change slides its content in from the side it came from — the
-  // same duration and easing as a view change, on the axis the gesture
-  // actually moved along. Applied per child rather than to #content, because
-  // the mode bar lives in there too and the switch you just pressed must not
-  // slide out from under your finger.
+  // A mode change slides its content in from the side it came from — same
+  // duration and easing as a view change, on the axis the gesture moved
+  // along. #content as a whole, now that the switch lives outside it.
   function playPendingModeAnim(root) {
     if (!pendingModeAnim) return;
     const cls = pendingModeAnim;
     pendingModeAnim = "";
-    for (const child of [...root.children]) {
-      if (child.classList.contains("backlog-mode-bar")) continue;
-      child.classList.add(cls);
-      child.addEventListener("animationend", () => child.classList.remove(cls), { once: true });
-    }
+    root.classList.remove(cls);
+    void root.offsetWidth; // force reflow so the animation restarts
+    root.classList.add(cls);
+    // Same reason as view-fade-in's cleanup: a held transform makes `root` a
+    // containing block for any fixed descendant.
+    root.addEventListener("animationend", () => {
+      root.classList.remove(cls);
+      // Per-gesture, so it can't leak into the next mode change: a button
+      // press after a swipe must get the small default travel again.
+      root.style.removeProperty("--mode-enter-x");
+    }, { once: true });
   }
 
   // The modes each view can be swiped between, listed in the order their own
@@ -415,6 +419,73 @@
     buildCatFilter();
     render();
     saveUiState();
+  }
+
+  // A swipe across the page drags it with the finger rather than waiting for
+  // release: the mode moves when you move it, and letting go finishes the
+  // travel it had already started. Without this the page sat still through
+  // the whole gesture and then animated from scratch — two separate
+  // movements where the hand only made one.
+  let modeDrag = null;
+  const MODE_EXIT_MS = 130;
+  const modeTravel = () => Math.min(180, Math.round(window.innerWidth * 0.4));
+
+  function modeNeighbour(delta) {
+    const spec = VIEW_MODES[state.view];
+    if (!spec) return null;
+    const i = spec.modes.indexOf(spec.get());
+    return i < 0 ? null : (spec.modes[i + delta] || null);
+  }
+
+  function clearModeDragStyle(c) {
+    c.style.transition = "";
+    c.style.transform = "";
+    c.style.opacity = "";
+  }
+
+  function modeDragMove(dx) {
+    if (!VIEW_MODES[state.view]) return;
+    const c = $("#content");
+    // Past the last mode there's nowhere to go, so the page gives a little
+    // and stops rather than sliding towards nothing.
+    const offset = dx * (modeNeighbour(dx < 0 ? 1 : -1) ? 1 : 0.25);
+    modeDrag = true;
+    c.style.transition = "none";
+    c.style.transform = "translateX(" + offset + "px)";
+    c.style.opacity = String(Math.max(0.4, 1 - Math.abs(offset) / 500));
+  }
+
+  // Didn't go far enough, or there was nothing on that side: back to rest.
+  function modeDragSettle() {
+    if (!modeDrag) return;
+    modeDrag = null;
+    const c = $("#content");
+    c.style.transition = "transform .18s cubic-bezier(.22,1,.36,1), opacity .18s ease-out";
+    c.style.transform = "";
+    c.style.opacity = "";
+    setTimeout(() => { if (!modeDrag) c.style.transition = ""; }, 220);
+  }
+
+  // Committed: carry on in the direction it was already going, and let the
+  // new mode come in from the far side at the same distance — so the two
+  // halves read as one travel rather than an exit and an unrelated entrance.
+  function modeDragCommit(delta) {
+    const c = $("#content");
+    if (!modeNeighbour(delta)) { modeDragSettle(); return; }
+    modeDrag = null;
+    const dir = delta > 0 ? -1 : 1;
+    const travel = modeTravel();
+    c.style.transition = "transform " + MODE_EXIT_MS + "ms ease-in, opacity " + MODE_EXIT_MS + "ms ease-in";
+    c.style.transform = "translateX(" + dir * travel + "px)";
+    c.style.opacity = "0";
+    setTimeout(() => {
+      // Where the incoming content starts, read by the keyframes in
+      // styles.css. A button press leaves it unset and gets the small
+      // default instead — there was no finger travel to continue.
+      c.style.setProperty("--mode-enter-x", -dir * travel + "px");
+      clearModeDragStyle(c);
+      cycleMode(delta);
+    }, MODE_EXIT_MS);
   }
 
   // Shared by the tab click handler and the mobile tab-bar swipe gesture.
@@ -626,6 +697,11 @@
       updateTabUnderline();
       const c = $("#content");
       c.innerHTML = "";
+      // The mode switch is chrome, not content — cleared here and refilled by
+      // whichever view owns one, so it can sit above the filters it governs.
+      const slot = $("#modeSlot");
+      slot.innerHTML = "";
+      slot.hidden = !VIEW_MODES[state.view];
       fadeInOnViewChange(c);
       if (state.view === "backlog") { Backlog.renderBacklog(c); return; }
       if (state.view === "finance") { Finance.renderFinanceEntries(c); return; }
@@ -634,7 +710,7 @@
       // empty state returns early below, and a switch rendered inside it
       // would strand a new user in a mode with no way out of it.
       if (state.view === "timeline") {
-        renderTimelineModeBar(c);
+        renderTimelineModeBar(slot);
         if (state.timelineMode === "notes") { Notes.renderNotes(c); return; }
         if (state.timelineMode === "todo") { Todos.renderTodos(c); return; }
       }
@@ -2088,8 +2164,13 @@
     // shares a surface with. Attached once: #content survives every render,
     // only its children are replaced.
     attachSwipe($("#content"), {
-      onLeft: () => cycleMode(1),
-      onRight: () => cycleMode(-1),
+      onLeft: () => modeDragCommit(1),
+      onRight: () => modeDragCommit(-1),
+      onMove: (dx) => modeDragMove(dx),
+      onSettle: () => modeDragSettle(),
+      // Longer than the tab bar's: this shares a surface with the page's own
+      // scrolling, and a mode change is a bigger thing to do by accident.
+      threshold: 60,
       requireHorizontal: true,
     });
 

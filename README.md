@@ -111,8 +111,9 @@ Five views, in two groups.
   notes.
 - **Bulk actions** – long-press to select, then edit, sync, or delete many
   items at once.
-- **Swipe between modes** – on a phone, swipe across the page to move
-  between the modes of a tab that has them.
+- **Swipe between modes** – on a phone, drag across the page to move between
+  the modes of a tab that has them; the page follows your finger and letting
+  go finishes the slide.
 - **Category management** – add / rename / recolour / reorder / delete, for
   both journal and finance categories.
 - **Import / export** – JSON and CSV, both directions, each routed through a

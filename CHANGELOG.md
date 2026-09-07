@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.121.0] - 2026-09-07
+
+### Changed
+- **The mode switch moved above the Years and Categories rows.** Those rows
+  are a consequence of the mode — categories and years hide themselves in
+  Notes and To-do — so a switch sitting below them jumped about 100px up
+  the screen every time you pressed it, out from under your finger, in the
+  same instant the new content arrived. It's now stationary and only what
+  it controls moves.
+- **A swipe drags the page with your finger** instead of waiting for you to
+  let go. The content tracks the gesture as you move, dims as it goes, and
+  letting go finishes the travel it had already started — the new mode
+  arriving from where the old one left the screen. A swipe that doesn't go
+  far enough springs back, and at the last mode the page gives a little and
+  stops rather than sliding towards nothing.
+
 ## [0.120.2] - 2026-09-07
 
 ### Changed

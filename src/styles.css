@@ -424,6 +424,13 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 .btn-sm { padding: 4px 8px; font-size: 12px; }
 
 /* ---------- filter bar ---------- */
+/* Sits between the topbar and the filters — see #modeSlot in index.html.
+   Same horizontal padding as the filterbar under it so the switch lines up
+   with the chips rather than floating over them. */
+.mode-slot { padding: 10px 20px 0; }
+.mode-slot[hidden] { display: none; }
+.mode-slot .backlog-mode-bar { margin-bottom: 0; }
+
 .filterbar {
   display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
   padding: 10px 20px; border-bottom: 1px solid var(--border);
@@ -478,8 +485,12 @@ select:focus { outline: none; border-color: var(--accent); }
    Backlog's three) slides in from the side it came from — same timing and
    easing as the view fade above, on the axis a swipe actually moves along,
    so the button and the gesture produce the same motion. */
-@keyframes mode-slide-fwd { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
-@keyframes mode-slide-back { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+/* --mode-enter-x is set by a swipe to the distance its travel ended at, so
+   the incoming half picks up exactly where the outgoing half left the
+   screen. A button press leaves it unset and gets the small default: there
+   was no travel to continue. */
+@keyframes mode-slide-fwd { from { opacity: 0; transform: translateX(var(--mode-enter-x, 16px)); } to { opacity: 1; transform: none; } }
+@keyframes mode-slide-back { from { opacity: 0; transform: translateX(calc(-1 * var(--mode-enter-x, 16px))); } to { opacity: 1; transform: none; } }
 .mode-slide-fwd { animation: mode-slide-fwd .22s cubic-bezier(.22,1,.36,1) both; }
 .mode-slide-back { animation: mode-slide-back .22s cubic-bezier(.22,1,.36,1) both; }
 @media (prefers-reduced-motion: reduce) {
