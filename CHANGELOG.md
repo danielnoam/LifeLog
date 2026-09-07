@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.120.2] - 2026-09-07
+
+### Changed
+- **Switching mode now animates**, the same way switching tabs does. The
+  content slides in from the side it came from — forward if you moved right
+  through the modes, back if you moved left — so a swipe and a tap on the
+  switch produce the same motion, on the axis the gesture actually moved
+  along. The switch itself stays put rather than sliding out from under
+  your finger. Same duration and easing as the view fade, and nothing moves
+  at all if your device asks for reduced motion.
+
 ## [0.120.1] - 2026-09-07
 
 ### Changed

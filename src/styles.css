@@ -474,6 +474,18 @@ select:focus { outline: none; border-color: var(--accent); }
 .view-fade-in { animation: view-fade-in .22s cubic-bezier(.22,1,.36,1) both; }
 @media (prefers-reduced-motion: reduce) { .view-fade-in { animation: none; } }
 
+/* Switching mode within a view (Timeline's Entries/Notes/To-do, the
+   Backlog's three) slides in from the side it came from — same timing and
+   easing as the view fade above, on the axis a swipe actually moves along,
+   so the button and the gesture produce the same motion. */
+@keyframes mode-slide-fwd { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }
+@keyframes mode-slide-back { from { opacity: 0; transform: translateX(-16px); } to { opacity: 1; transform: none; } }
+.mode-slide-fwd { animation: mode-slide-fwd .22s cubic-bezier(.22,1,.36,1) both; }
+.mode-slide-back { animation: mode-slide-back .22s cubic-bezier(.22,1,.36,1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .mode-slide-fwd, .mode-slide-back { animation: none; }
+}
+
 /* timeline */
 .timeline-toolbar { display: flex; justify-content: flex-end; margin-bottom: 16px; }
 .year-block { margin-bottom: 30px; }

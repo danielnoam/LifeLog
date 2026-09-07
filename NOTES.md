@@ -16,6 +16,17 @@ what was decided against and why.
 
 ---
 
+- the mode-change animation reads its direction from the mode indices
+  (fadeInOnViewChange, app.js) rather than being told which way it went, so
+  a swipe, a tap on the switch and the Backlog's own bar all animate
+  correctly without any of them knowing the animation exists.
+  It's applied per child of #content, skipping .backlog-mode-bar: the bar
+  lives inside #content, and animating the container would slide the switch
+  out from under the finger that just pressed it. That also means it has to
+  run after the content exists, which is why it's a pending class played in
+  render()'s finally rather than done in fadeInOnViewChange itself — and why
+  it re-reads $("#content") there, since the `c` above is scoped to the try.
+
 - To-do (src/todos.js) is Timeline's third mode, and deliberately not part
   of Backlog: a backlog item is something you mean to experience and it
   graduates into the log when you finish it, while a to-do is ticked and

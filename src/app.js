@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.120.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.120.2"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -293,19 +293,56 @@
   let scrollAnchor = null;
   // Replays the view-fade-in animation on `root` only when the active view
   // actually changed (not on every in-view re-render, e.g. after an edit).
+  let lastRenderedMode = null;
+  // The class a mode change has earned, held until the new content actually
+  // exists — fadeInOnViewChange runs against an empty container, and a mode
+  // change animates the panes rather than the whole of #content (see
+  // playPendingModeAnim).
+  let pendingModeAnim = "";
+
   function fadeInOnViewChange(root) {
-    if (state.view === lastRenderedView) return;
+    const spec = VIEW_MODES[state.view];
+    const mode = spec ? spec.get() : "";
+    const viewChanged = state.view !== lastRenderedView;
+    const prevMode = lastRenderedMode;
     lastRenderedView = state.view;
+    lastRenderedMode = mode;
+    pendingModeAnim = "";
     if (prefersReducedMotion()) return;
-    root.classList.remove("view-fade-in");
-    void root.offsetWidth; // force reflow so the animation restarts
-    root.classList.add("view-fade-in");
-    // The animation's fill-mode holds its final `transform` computed value on
-    // `root` indefinitely once it ends, which makes `root` a containing block
-    // for any `position: fixed` descendant (e.g. the bulk-edit bar) — pinning
-    // it to root's box instead of the viewport. Drop the class once the
-    // animation finishes so that stops.
-    root.addEventListener("animationend", () => root.classList.remove("view-fade-in"), { once: true });
+    if (viewChanged) {
+      root.classList.remove("view-fade-in");
+      void root.offsetWidth; // force reflow so the animation restarts
+      root.classList.add("view-fade-in");
+      // The animation's fill-mode holds its final `transform` computed value on
+      // `root` indefinitely once it ends, which makes `root` a containing block
+      // for any `position: fixed` descendant (e.g. the bulk-edit bar) — pinning
+      // it to root's box instead of the viewport. Drop the class once the
+      // animation finishes so that stops.
+      root.addEventListener("animationend", () => root.classList.remove("view-fade-in"), { once: true });
+      return;
+    }
+    if (!spec || mode === prevMode || prevMode == null) return;
+    // Direction is read from where you were to where you are, rather than
+    // told to us: that way a swipe, a tap on the switch and the Backlog's own
+    // mode bar all animate correctly without any of them knowing this exists.
+    pendingModeAnim = spec.modes.indexOf(mode) < spec.modes.indexOf(prevMode)
+      ? "mode-slide-back" : "mode-slide-fwd";
+  }
+
+  // A mode change slides its content in from the side it came from — the
+  // same duration and easing as a view change, on the axis the gesture
+  // actually moved along. Applied per child rather than to #content, because
+  // the mode bar lives in there too and the switch you just pressed must not
+  // slide out from under your finger.
+  function playPendingModeAnim(root) {
+    if (!pendingModeAnim) return;
+    const cls = pendingModeAnim;
+    pendingModeAnim = "";
+    for (const child of [...root.children]) {
+      if (child.classList.contains("backlog-mode-bar")) continue;
+      child.classList.add(cls);
+      child.addEventListener("animationend", () => child.classList.remove(cls), { once: true });
+    }
   }
 
   // The modes each view can be swiped between, listed in the order their own
@@ -620,6 +657,10 @@
       if (state.view === "timeline") Journal.renderTimeline(c, entries);
       else Journal.renderStats(c, entries);
     } finally {
+      // Re-read rather than closing over the `c` above: that one is scoped to
+      // the try block, and the mode animation has to run after the content
+      // it animates exists.
+      playPendingModeAnim($("#content"));
       // Anchor-relative restore where we have one (Timeline/Backlog/Ledger);
       // fall back to the plain scrollY for fixed-layout views, or if the
       // anchored section vanished (e.g. a filter change dropped it).
