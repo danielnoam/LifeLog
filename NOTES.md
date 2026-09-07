@@ -50,6 +50,19 @@ what was decided against and why.
   render()'s finally rather than done in fadeInOnViewChange itself — and why
   it re-reads $("#content") there, since the `c` above is scoped to the try.
 
+- render()'s `inPlace` is view *and* mode: a mode change is a new page, not
+  an in-place re-render, so it must not restore the scroll offset. It used
+  to, and the offset meant nothing in the new mode — the browser clamped it
+  to whatever fitted, which landed differently every time depending on the
+  two modes' heights, so the page appeared to lurch under the fixed bars by
+  a different amount each switch. It also no longer *leans* on that clamp
+  for landing at the top: a non-in-place render scrolls to 0 explicitly,
+  because the clamp stopped being reliable the moment #content had a
+  min-height and a filterbar of its own to stand on.
+  Worth remembering that "the navbar jumps" was the symptom and the scroll
+  restore was the cause; the jump-nav's height change is a real but separate
+  thing, and chasing it first cost a round trip.
+
 - the filterbar lives inside #content, with #viewBody as the thing a render
   actually clears. The filters belong to the content (which rows show at all
   depends on the mode), so they have to travel with it — the animation and

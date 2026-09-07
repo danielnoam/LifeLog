@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.123.1] - 2026-09-07
+
+### Fixed
+- **Switching mode now starts you at the top**, instead of dropping you
+  somewhere arbitrary partway down. A mode change was being treated as an
+  ordinary re-render, so it restored the scroll offset you were at — an
+  offset that means nothing in the new mode. The browser then clamped it to
+  whatever the new page could hold, which landed differently every time
+  depending on how tall the two modes happened to be, and the content
+  appeared to lurch under the bars. An in-place re-render — a filter, an
+  edit, the month-order toggle — still keeps your place exactly as before.
+
 ## [0.123.0] - 2026-09-07
 
 ### Changed

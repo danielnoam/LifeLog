@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.123.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.123.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -686,9 +686,18 @@
     // scrollAnchor is captured here from the *live* (pre-clear) DOM so the
     // restore has an accurate section to pin to; prevScrollY is the fallback
     // for fixed-layout views (Stats/Summary) that have no lazy sections.
-    const sameView = state.view === lastRenderedView;
+    //
+    // A mode change counts as a new page, not an in-place re-render: the
+    // offset you were at in Entries means nothing in Notes, so restoring it
+    // put you at a scroll position the new mode couldn't honour, the browser
+    // clamped it to whatever fit, and the page appeared to settle somewhere
+    // arbitrary — different every time, depending on how tall the two modes
+    // happened to be. Let the clear-and-rebuild land you at the top, the
+    // same as switching tab does.
+    const spec = VIEW_MODES[state.view];
+    const inPlace = state.view === lastRenderedView && (!spec || spec.get() === lastRenderedMode);
     const prevScrollY = window.scrollY;
-    scrollAnchor = sameView ? captureScrollAnchor() : null;
+    scrollAnchor = inPlace ? captureScrollAnchor() : null;
     if (activeLazySections) { activeLazySections.destroy(); activeLazySections = null; }
     try {
       document.querySelectorAll(".tab").forEach((t) => {
@@ -744,8 +753,18 @@
       // Anchor-relative restore where we have one (Timeline/Backlog/Ledger);
       // fall back to the plain scrollY for fixed-layout views, or if the
       // anchored section vanished (e.g. a filter change dropped it).
-      if (sameView && !(scrollAnchor && restoreScrollAnchor(scrollAnchor)) && prevScrollY) {
-        window.scrollTo(0, prevScrollY);
+      if (inPlace) {
+        if (!(scrollAnchor && restoreScrollAnchor(scrollAnchor)) && prevScrollY) {
+          window.scrollTo(0, prevScrollY);
+        }
+      } else if (prevScrollY) {
+        // A new view or mode starts at the top, explicitly. This used to
+        // lean on the browser clamping scrollY while the cleared page was
+        // briefly too short to hold it — which stopped being reliable the
+        // moment #content had a min-height and a filterbar of its own to
+        // stand on, and left you a few hundred pixels down a page you had
+        // never scrolled.
+        window.scrollTo(0, 0);
       }
       updateJumpNav();
       updateSearchMatchBadges();
