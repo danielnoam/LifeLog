@@ -69,6 +69,9 @@ Five views, in two groups.
 - **Timeline** – what you've finished, grouped by year → month, with per-year
   accomplishments. An entry can carry a rating, notes, cover art, genres, a
   length, and a start month for anything that took more than one.
+- **Notes** – Timeline's second mode: a running feed of things you write as
+  you notice them, each keeping the date and time it was written, and saying
+  so when you've edited it since.
 - **Stats** – totals by category and year, a highlights strip (busiest month,
   longest streak, this year vs last), seasonality, genres, an activity
   heatmap, most-repeated titles, and a year-in-review card.
@@ -122,6 +125,7 @@ index.html          app shell + every modal
 src/styles.css      styling (dark theme)
 src/app.js          shell: state, routing, filters, shared helpers
 src/journal.js      Timeline + Stats views, entry modal, achievements
+src/notes.js        Notes: Timeline's second mode, the note feed + modal
 src/backlog.js      Backlog view, backlog modal, the random picker
 src/finance.js      Ledger + Summary views, expenses, recurring expenses
 src/media.js        cover art + metadata from the eight media sources

@@ -16,6 +16,26 @@ what was decided against and why.
 
 ---
 
+- Notes (src/notes.js) is Timeline's second mode, not a sixth tab: the
+  phone's bottom nav is full, same reason Discover became a mode of Backlog.
+  The mode bar is rendered by app.js *before* either mode draws, because the
+  timeline's empty state returns early — drawn inside it, the switch would
+  strand a new user in a mode with no way out.
+  editedAt is deliberately not updatedAt: stampChangedItems touches
+  updatedAt on any content change at all, so "edited" would start meaning
+  "a migration ran". saveNoteFromForm sets editedAt only when the text
+  actually differs, so reopening a note and pressing Save leaves it alone.
+  noteDate falls back from createdAt to updatedAt because a hand-edited or
+  badly imported note still has to land in a year rather than vanish.
+  `notes` in COLLECTION_KEYS is what buys merge, conflict resolution and
+  undelete; there is no notes-specific sync code at all.
+  The category chips are hidden in this mode via .filter-group[hidden],
+  which has to be said explicitly — .filter-group sets display:flex, and
+  that outranks the UA stylesheet's [hidden] rule. Caught in the browser,
+  not by a test.
+  No bulk select and no per-month "+": a note is stamped with the moment
+  it's written, so there's no such thing as adding one to March.
+
 - Early Access, off Steam's genre id 70 (steamEarlyAccess in media.js) — a
   genre, not a flag, and matched by id because `description` is localized.
   Its *absence* is the meaningful half: Steam removes the marker at 1.0, so

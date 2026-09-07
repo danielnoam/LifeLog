@@ -109,6 +109,7 @@
   const TRASH_COLLECTIONS = {
     entries: { kind: "Entry", label: (e) => e.title },
     backlog: { kind: "Backlog item", label: (b) => b.title },
+    notes: { kind: "Note", label: (n) => (n.text || "").split("\n")[0].slice(0, 60) },
     financeEntries: { kind: "Finance entry", label: (f) => f.note || f.category },
     recurringExpenses: { kind: "Recurring expense", label: (r) => r.note || r.category },
   };

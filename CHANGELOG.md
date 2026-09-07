@@ -4,6 +4,25 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.119.0] - 2026-09-07
+
+### Added
+- **Notes** — a running feed of things you write down as you notice them,
+  as Timeline's second mode (the switch sits above the feed, next to
+  Entries). A note is text and nothing else: no title, no category, no
+  rating, because the point is that writing one costs nothing. The date and
+  time are kept automatically, you can edit a note later, and an edited one
+  says so — and only when you actually changed the text, so reopening one to
+  read it doesn't relabel it.
+- Notes sync, merge and undelete like everything else in the app: two
+  devices editing different notes both keep their edits, and one deleted by
+  mistake comes back from Settings → Data → Recently deleted.
+- The shared search reaches note text, and while you're on another tab the
+  Timeline badge counts note matches too. The year chips follow the mode;
+  the category chips hide in Notes, where they'd do nothing.
+- Write one from the **+** menu ("Write a note"), or from the empty state.
+  Ctrl/Cmd+Enter saves from inside the box.
+
 ## [0.118.0] - 2026-09-06
 
 ### Added

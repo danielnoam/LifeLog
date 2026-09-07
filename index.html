@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.118.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.119.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -97,6 +97,7 @@
   <div class="fab-wrap" id="fabWrap">
     <div class="add-menu" id="addMenu" hidden>
       <button type="button" data-add="entry">Add entry</button>
+      <button type="button" data-add="note">Write a note</button>
       <button type="button" data-add="achievement">Add achievement</button>
       <button type="button" data-add="backlog">Add to backlog</button>
       <div class="add-menu-divider" role="separator"></div>
@@ -113,7 +114,7 @@
       <label id="yearFilterLabel" class="filter-label" title="Click to select/deselect all">Years</label>
       <div class="cats" id="yearFilter"></div>
     </div>
-    <div class="filter-group">
+    <div class="filter-group" id="catFilterGroup">
       <label id="catFilterLabel" class="filter-label" title="Click to select/deselect all">Categories</label>
       <div class="cats" id="catFilter"></div>
     </div>
@@ -232,6 +233,24 @@
   </div>
 
   <!-- Achievement add/edit modal -->
+  <div class="modal-overlay" id="noteModal" hidden>
+    <div class="modal">
+      <h2 id="noteModalTitle">New note</h2>
+      <form id="noteForm">
+        <p class="muted added-line" id="noteStampLine" hidden></p>
+        <label>Note
+          <textarea id="nText" rows="8" required autocomplete="off" placeholder="What happened, what you noticed…"></textarea>
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="deleteNoteBtn" hidden>Delete</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelNoteBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="achModal" hidden>
     <div class="modal">
       <h2 id="achModalTitle">Add achievement</h2>
@@ -1199,17 +1218,18 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.118.0"></script>
-  <script defer src="src/media.js?v=0.118.0"></script>
-  <script defer src="src/merge.js?v=0.118.0"></script>
-  <script defer src="src/storage.js?v=0.118.0"></script>
-  <script defer src="src/finance.js?v=0.118.0"></script>
-  <script defer src="src/settings.js?v=0.118.0"></script>
-  <script defer src="src/wheel.js?v=0.118.0"></script>
-  <script defer src="src/backlog.js?v=0.118.0"></script>
-  <script defer src="src/journal.js?v=0.118.0"></script>
-  <script defer src="src/io.js?v=0.118.0"></script>
-  <script defer src="src/sync.js?v=0.118.0"></script>
-  <script defer src="src/app.js?v=0.118.0"></script>
+  <script defer src="src/qr.js?v=0.119.0"></script>
+  <script defer src="src/media.js?v=0.119.0"></script>
+  <script defer src="src/merge.js?v=0.119.0"></script>
+  <script defer src="src/storage.js?v=0.119.0"></script>
+  <script defer src="src/finance.js?v=0.119.0"></script>
+  <script defer src="src/settings.js?v=0.119.0"></script>
+  <script defer src="src/wheel.js?v=0.119.0"></script>
+  <script defer src="src/backlog.js?v=0.119.0"></script>
+  <script defer src="src/journal.js?v=0.119.0"></script>
+  <script defer src="src/notes.js?v=0.119.0"></script>
+  <script defer src="src/io.js?v=0.119.0"></script>
+  <script defer src="src/sync.js?v=0.119.0"></script>
+  <script defer src="src/app.js?v=0.119.0"></script>
 </body>
 </html>

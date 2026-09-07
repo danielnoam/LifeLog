@@ -46,6 +46,7 @@ global.window.LifeLogWheel = { init: () => {} };
 require("../src/finance.js");
 require("../src/journal.js");
 require("../src/backlog.js");
+require("../src/notes.js");
 // app.js calls .init(ctx) on these unconditionally at its own top
 // level; normalize() doesn't depend on their behavior, so no-op stubs.
 global.window.LifeLogIO = { init: () => {} };
@@ -59,6 +60,8 @@ const backfillUpdatedAt = (item) => item.updatedAt || item.createdAt || "1970-01
 global.window.LifeLogFinance.init({ uid, backfillUpdatedAt });
 global.window.LifeLogJournal.init({ uid, backfillUpdatedAt });
 global.window.LifeLogBacklog.init({ uid, backfillUpdatedAt });
+// notes.js needs nothing extra: app.js re-inits it with the real ctx (which
+// is where keepUnknown comes from) before normalize() is ever called.
 
 require("../src/app.js");
 const App = global.window.LifeLogApp;

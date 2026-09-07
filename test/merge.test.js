@@ -27,6 +27,29 @@ function item(id, title, updatedAt, extra) {
   return { id, title, updatedAt, ...extra };
 }
 
+// ---------- collections ----------
+test("notes merge like every other collection", () => {
+  // The whole reason notes went in COLLECTION_KEYS rather than getting their
+  // own path: three-way merge, conflict resolution and undelete for free.
+  const base = { notes: [item("1", "first", "t1")] };
+  const local = { notes: [item("1", "first", "t1"), item("2", "added here", "t2")] };
+  const remote = { notes: [item("1", "edited there", "t3")] };
+  const merged = mergeAllSources(base, local, remote);
+  assert.deepStrictEqual(merged.notes.map((n) => n.id).sort(), ["1", "2"]);
+  assert.strictEqual(merged.notes.find((n) => n.id === "1").title, "edited there");
+});
+
+test("a note deleted on one device stays deleted", () => {
+  const base = { notes: [item("1", "x", "t1")] };
+  const merged = mergeAllSources(base, { notes: [] }, { notes: [item("1", "x", "t1")] });
+  assert.deepStrictEqual(merged.notes, []);
+});
+
+test("diffSnapshots counts notes by name", () => {
+  const out = diffSnapshots({ notes: [] }, { notes: [item("1", "x", "t1")] });
+  assert.strictEqual(out, "+1 note");
+});
+
 // ---------- version comparison ----------
 test("compareVersions orders by numeric part, not string order", () => {
   assert.strictEqual(compareVersions("0.116.0", "0.117.0"), -1);

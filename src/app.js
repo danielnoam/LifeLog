@@ -5,6 +5,7 @@
   const SettingsUI = window.LifeLogSettings;
   const Backlog = window.LifeLogBacklog;
   const Journal = window.LifeLogJournal;
+  const Notes = window.LifeLogNotes;
   const IO = window.LifeLogIO;
   const Sync = window.LifeLogSync;
   const Wheel = window.LifeLogWheel;
@@ -51,7 +52,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.118.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.119.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -76,7 +77,7 @@
     try { localStorage.setItem(VISUAL_KEY, JSON.stringify(v)); } catch (e) {}
   }
   function saveUiState() {
-    try { localStorage.setItem(UI_KEY, JSON.stringify({ view: state.view, backlogMode: state.backlogMode, scrollY: window.scrollY })); } catch (e) {}
+    try { localStorage.setItem(UI_KEY, JSON.stringify({ view: state.view, backlogMode: state.backlogMode, timelineMode: state.timelineMode, scrollY: window.scrollY })); } catch (e) {}
   }
 
   function loadMediaSettings() {
@@ -170,6 +171,7 @@
     // default — everything grouped by category) or "upcoming" (only what
     // hasn't come out yet, in date order). Remembered per device like `view`.
     backlogMode: "category",
+    timelineMode: "entries",
     search: "",
     activeYears: new Set(),
     activeCats: new Set(),
@@ -193,7 +195,7 @@
 
   function emptyData() {
     return {
-      version: 1, categories: [], entries: [], backlog: [], accomplishments: {},
+      version: 1, categories: [], entries: [], backlog: [], notes: [], accomplishments: {},
       financeCategories: Finance.seedFinanceCategories(), financeEntries: [], recurringExpenses: [],
       settings: { ...DEFAULT_SETTINGS },
     };
@@ -335,7 +337,11 @@
     return span;
   }
 
+  // The year chips filter whatever the Journal side is currently showing, so
+  // in Notes mode they're the years the notes fall in — otherwise a note
+  // written in a year you logged nothing in would have no chip to survive.
   function years() {
+    if (state.view === "timeline" && state.timelineMode === "notes") return Notes.noteYears();
     const ys = new Set(state.data.entries.map((e) => e.year));
     return [...ys].sort((a, b) => b - a);
   }
@@ -511,6 +517,13 @@
       if (state.view === "backlog") { Backlog.renderBacklog(c); return; }
       if (state.view === "finance") { Finance.renderFinanceEntries(c); return; }
       if (state.view === "finance-stats") { Finance.renderFinanceStats(c); return; }
+      // The mode bar goes up before either mode draws: the timeline's own
+      // empty state returns early below, and a switch rendered inside it
+      // would strand a new user in a mode with no way out of it.
+      if (state.view === "timeline") {
+        Notes.renderModeBar(c);
+        if (state.timelineMode === "notes") { Notes.renderNotes(c); return; }
+      }
       const entries = getFiltered();
       if (!state.data.entries.length) {
         c.appendChild(emptyState({
@@ -549,7 +562,7 @@
   function updateSearchMatchBadges() {
     const q = state.search.trim();
     const counts = q ? {
-      timeline: getFiltered().length,
+      timeline: getFiltered().length + Notes.getFilteredNotes().length,
       backlog: Backlog.getFilteredBacklog().length,
       finance: Finance.getFilteredFinance().length,
     } : null;
@@ -1408,6 +1421,12 @@
   function buildCatFilter() {
     const wrap = $("#catFilter");
     wrap.innerHTML = "";
+    // A note carries no category, so in Notes mode these chips would be a
+    // control that does nothing. Hidden rather than disabled — there's
+    // nothing to explain and nothing you could do about it.
+    const notesMode = state.view === "timeline" && state.timelineMode === "notes";
+    $("#catFilterGroup").hidden = notesMode;
+    if (notesMode) return;
     const finance = isFinanceView();
     const cats = finance ? state.data.financeCategories : state.data.categories;
     const activeCats = finance ? state.financeActiveCats : state.activeCats;
@@ -1712,6 +1731,7 @@
     data.categories = data.categories || [];
     data.entries = (data.entries || []).map(Journal.sanitizeEntry);
     data.backlog = (data.backlog || []).map(Backlog.sanitizeBacklog);
+    data.notes = (data.notes || []).map(Notes.sanitizeNote);
     const incomingSettings = data.settings || {};
     // One-time migration: visual layout prefs used to be synced as part of
     // data.settings. Pull them into this device's local-only settings if it
@@ -1989,6 +2009,7 @@
     addMenu.querySelectorAll("button").forEach((b) => b.onclick = () => {
       closeAddMenu();
       if (b.dataset.add === "entry") Journal.openEntryModal(null);
+      else if (b.dataset.add === "note") Notes.openNoteModal(null);
       else if (b.dataset.add === "achievement") Journal.openAchModal(null);
       else if (b.dataset.add === "backlog") Backlog.openBacklogModal(null);
       else if (b.dataset.add === "finance") Finance.openFinanceModal(null);
@@ -2004,6 +2025,7 @@
     wireCategorySelect("#fCategory", "#entryModal", false);
 
     Journal.wire(); // timeline entry modal, achievements, category management
+    Notes.wire(); // the note modal (Timeline's Notes mode + the + menu)
     Finance.wire(); // finance/recurring/finance-category modals + finance import/export
     Backlog.wire(); // backlog modal: sync, priority/dropped, title suggestions
     Wheel.wire(); // the random wheel modal (Backlog "🎡 Spin" + the + menu)
@@ -2247,6 +2269,7 @@
     try { savedUi = JSON.parse(localStorage.getItem(UI_KEY)); } catch (e) {}
     if (savedUi?.view) state.view = savedUi.view;
     if (savedUi?.backlogMode) state.backlogMode = savedUi.backlogMode;
+    if (savedUi?.timelineMode) state.timelineMode = savedUi.timelineMode;
 
     const result = await Storage.load();
     let source, githubReached;
@@ -2374,6 +2397,12 @@
     applySteamAppId: Sync.applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
     DEFAULT_SETTINGS, jumpToTimelineMonth,
   });
+  Notes.init({
+    state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
+    monthCardHeader, emptyState, buildYearFilter, buildCatFilter, saveUiState,
+    backfillUpdatedAt, keepUnknown, MONTHS,
+  });
+
   Backlog.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
     MEDIA_SOURCE_LABELS, saveVisualSettings,
