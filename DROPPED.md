@@ -71,6 +71,37 @@ IGDB has a real `status` enum that includes it, but wiring IGDB means a whole
 new media source behind Twitch OAuth for one boolean. Not worth it. Games
 without a Steam App ID simply don't get the flag.
 
+## Progressive loading for SteamGridDB search
+
+SteamGridDB does an autocomplete request and then a second round of per-game
+cover fetches, both through the user's CORS proxy — two proxy round-trips
+deep before it can return anything. It could emit the name matches
+immediately and fill the covers in progressively.
+
+The cost was never measured, and can't be from the dev sandbox: it needs a
+SteamGridDB key and a live proxy. Rebuilding the search flow around a
+speculative win isn't worth it. If the wait ever feels long in real use,
+measure first and this comes back.
+
+## Weighting the random pick
+
+A star currently either filters everything else out ("Favorites only") or
+counts for nothing — nothing in between, so the draw can't lean towards what
+you want without cutting the pool.
+
+Weighting would trade away the thing the pick actually gives you: it draws
+from a bag, so nothing repeats until everything in scope has had a turn.
+Making some titles likelier means some come up rarely or never, which is the
+behaviour the bag was built to avoid.
+
+## "What fits in an evening"
+
+Filtering the pick by how much time you have needs a length in minutes.
+`length` is free text off whichever of eight media sources filled it in —
+"12 hours", "2h 15m", "8 episodes", "320 pages" — so this is a parser for
+eight vocabularies, guessing at episode and page lengths, before the filter
+itself exists. The filter is the small half.
+
 ## Blocking saves when a device is behind
 
 The version guard (v0.117.0) warns and nothing more. A blocking mode — refuse
