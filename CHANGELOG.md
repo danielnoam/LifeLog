@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.125.1] - 2026-09-08
+
+### Changed
+- **Tapping the tab you're on when you're already at the top now steps to
+  its next mode** instead of doing nothing. Scrolled down it still takes you
+  back to the top, so nothing was traded away — that tap only had a job when
+  there was somewhere to scroll. It wraps, unlike a swipe: a swipe has a
+  direction and the ends are the ends, but a tap doesn't, and stopping at
+  the last mode would make it go dead exactly where you'd tap again.
+- **Backing out of a mode fan on the tab you're already on now does
+  nothing**, rather than resetting to that tab's own mode. Deciding not to
+  pick is a decision not to move. Backing out onto a tab you weren't on
+  still takes you there, as before.
+
 ## [0.125.0] - 2026-09-08
 
 ### Added

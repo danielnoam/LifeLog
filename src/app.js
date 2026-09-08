@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.125.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.125.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -451,20 +451,33 @@
   let holdTimer = null, holdFrom = null;
   const cancelHold = () => { clearTimeout(holdTimer); holdTimer = null; holdFrom = null; };
 
-  // What pressing a tab means, wherever the press came from: that view, in
-  // its own mode — Timeline is Entries, the Backlog is By category. Anything
-  // else is what the fan is for. Returns false when there was nothing to do,
-  // which is the caller's cue that this was a tap on the tab you're already
-  // sitting on.
+  // Pressing a tab you aren't on takes you there in its own mode — Timeline
+  // is Entries, the Backlog is By category. Anything else is what the fan is
+  // for. Returns false when that tab is the one you're already on, which is
+  // the caller's cue that this press means something else.
   function activateTab(view) {
+    if (view === state.view) return false;
     const spec = VIEW_MODES[view];
-    const first = spec ? modeIds(spec)[0] : null;
-    const modeChanged = Boolean(spec) && spec.get() !== first;
-    if (modeChanged) spec.set(first);
-    if (view !== state.view) { switchToView(view); return true; }
-    if (modeChanged) { commitModeChange(); return true; }
-    return false;
+    if (spec) spec.set(modeIds(spec)[0]);
+    switchToView(view);
+    return true;
   }
+
+  // Tapping the tab you're already on, already at the top, steps to its next
+  // mode. Unlike a swipe this wraps: a swipe has a direction and the ends
+  // are the ends, but a tap doesn't, and stopping at the last mode would
+  // make the tap go dead exactly where you'd tap again.
+  function stepMode() {
+    const spec = VIEW_MODES[state.view];
+    if (!spec) return;
+    const ids = modeIds(spec);
+    const i = ids.indexOf(spec.get());
+    if (i < 0) return;
+    spec.set(ids[(i + 1) % ids.length]);
+    commitModeChange();
+  }
+  // Smooth scrolling means "at the top" is rarely exactly zero.
+  const AT_TOP_SLOP = 4;
 
   function openModeFan(tab, spec) {
     // Onto the whole bottom bar rather than the tab row, so the options rise
@@ -511,9 +524,10 @@
     fan.remove();
     fanConsumedClick = true;
     // Letting go without landing on an option still means you pressed the
-    // tab, so it does what a tap does — minus the scroll-to-top, which is a
-    // tap's own affordance and not somewhere an abandoned gesture should
-    // dump you.
+    // tab, so it goes there if it's a tab you weren't on. On the tab you
+    // were already on it does nothing at all: backing out of the fan is a
+    // decision not to move, and neither a tap's scroll-to-top nor its step
+    // through the modes is somewhere an abandoned gesture should dump you.
     if (!armed) { activateTab(view); return; }
     if (spec.get() === armed && view === state.view) return;
     spec.set(armed);
@@ -2367,14 +2381,19 @@
         // The click the browser synthesises after a long-press belongs to the
         // fan, which has already acted on it.
         if (fanConsumedClick) { fanConsumedClick = false; return; }
-        // Tapping the tab you're already on, already in its own mode, scrolls
-        // back to the top, the way every mobile app's tab bar does. Without
-        // this it ran a full switchToView to the same view, and since
-        // render() deliberately restores scroll position on a same-view
-        // rebuild, the tap looked like it did nothing at all.
-        if (!activateTab(t.dataset.view)) {
+        if (activateTab(t.dataset.view)) return;
+        // The tab you're already on. Scrolled down it takes you back to the
+        // top, the way every mobile tab bar does — without this it ran a full
+        // switchToView to the same view, and since render() deliberately
+        // restores scroll position on a same-view rebuild, the tap looked
+        // like it did nothing at all. Already at the top there's nowhere to
+        // scroll, so the tap steps through the modes instead: the whole set
+        // is reachable by tapping alone, without the fan.
+        if (window.scrollY > AT_TOP_SLOP) {
           window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
+          return;
         }
+        stepMode();
       };
 
       // Press and hold to raise the mode fan. Only where there are modes to

@@ -16,6 +16,14 @@ what was decided against and why.
 
 ---
 
+- a tab press has three meanings, resolved in one place (activateTab /
+  stepMode / the .tab onclick, app.js): another tab is that view in its own
+  mode; the current tab scrolled down is back to the top; the current tab
+  already at the top is the next mode. The third only exists because the
+  second had nothing to do there. stepMode wraps where a swipe doesn't — a
+  swipe has a direction, so its ends are ends, but a tap has none and would
+  go dead on the last mode, which is exactly where you'd tap again.
+
 - the mode dots under a tab are absolutely positioned, not another row in
   its flex column (.tab-modes, styles.css). The tabs stretch to a shared
   height and each centres its own contents, so an extra row in flow on two
