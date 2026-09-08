@@ -16,6 +16,25 @@ what was decided against and why.
 
 ---
 
+- four tabs, each pairing a list with a second reading of it (0.126.0):
+  Notes/To-do, Timeline/Stats, Backlog's three, Ledger/Summary. Stats and
+  Summary were tabs of their own, but render() already read
+  `const entries = getFiltered(); … renderTimeline(c, entries) : renderStats(c,
+  entries)` — same filtered set, same chips, same empty states, differing in
+  the final call. They were modes wearing tab buttons, so merging them was
+  mostly deleting an `if`. Notes/To-do went the other way for the same
+  reason: separate collections that carry no category, so Timeline's filter
+  bar appeared and disappeared as you swiped its modes. Now each tab's chrome
+  holds still across its own modes. It also makes the fan and the dots
+  universal rather than a gesture that works on two tabs out of five — and
+  gives Stats and Summary a swipe from the list they aggregate, which is the
+  whole point of them.
+  The cost, taken knowingly: Stats and Summary are a second tap rather than a
+  first. The migration in applySavedUi is the part that could have bitten —
+  `state.view` came straight off a stored string with no validation, so the
+  old "stats"/"finance-stats"/timelineMode:"notes" values had to become
+  (view, mode) pairs or those devices would have reopened onto nothing.
+
 - switchToView resets the mode of the view it is leaving, and is the only
   place that does. The dots under an inactive tab are a promise about what
   tapping it does, and a remembered mode broke that promise: Backlog's dots
@@ -159,7 +178,8 @@ what was decided against and why.
   dead — pointerup landed somewhere else and nothing was ever saved. It
   looked like a geometry bug for a while; it wasn't.
 
-- To-do (src/todos.js) is Timeline's third mode, and deliberately not part
+- To-do (src/todos.js) is the Notes tab's second mode (it was Timeline's
+  third until 0.126.0), and deliberately not part
   of Backlog: a backlog item is something you mean to experience and it
   graduates into the log when you finish it, while a to-do is ticked and
   stops mattering. Different endings, different lists.
@@ -191,11 +211,13 @@ what was decided against and why.
   list, so a swipe and its own bar can't disagree about what comes next.
   No wrap at the ends, matching the tab swipe.
 
-- Notes (src/notes.js) is Timeline's second mode, not a sixth tab: the
-  phone's bottom nav is full, same reason Discover became a mode of Backlog.
-  The mode bar is rendered by app.js *before* either mode draws, because the
-  timeline's empty state returns early — drawn inside it, the switch would
-  strand a new user in a mode with no way out.
+- Notes (src/notes.js) started as Timeline's second mode, on the reasoning
+  that the phone's bottom nav was full — the same reason Discover became a
+  mode of Backlog. 0.126.0 gave it a tab of its own once Stats and Summary
+  freed two slots; see the entry on the four-tab layout for why that pairing
+  was wrong. The mode bar is still rendered by app.js *before* any mode
+  draws, because a view's empty state returns early — drawn inside it, the
+  switch would strand a new user in a mode with no way out.
   editedAt is deliberately not updatedAt: stampChangedItems touches
   updatedAt on any content change at all, so "edited" would start meaning
   "a migration ran". saveNoteFromForm sets editedAt only when the text

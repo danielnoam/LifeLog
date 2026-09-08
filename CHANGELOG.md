@@ -4,6 +4,34 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.126.0] - 2026-09-08
+
+### Changed
+- **Five tabs became four, and every tab now has modes.** Left to right:
+  **Notes** (Notes / To-do), **Timeline** (Entries / Stats), **Backlog** (By
+  category / Next releases / Discover), **Ledger** (Entries / Summary). Each
+  tab pairs a list with another reading of the same thing, so swiping across
+  the page or holding the tab moves between them.
+- **Stats is the Timeline's second mode and Summary is the Ledger's.** They
+  were already sharing the filtered entries, the year and category chips and
+  the empty states with the lists they aggregate — the tab button was the
+  only thing making them separate. Filtering to 2024/Games and flicking to
+  the stats for exactly that is now one gesture.
+- **Notes and To-do moved out of the Timeline into their own tab.** They're
+  separate collections that carry no category, so Timeline's filter bar
+  appeared and disappeared as you swiped its modes. Each tab's chrome now
+  holds still across its own modes.
+- The dots and the press-and-hold fan work on every tab now, rather than on
+  two out of five.
+- Number keys are **1** Notes, **2** Timeline, **3** Backlog, **4** Ledger.
+
+### Fixed
+- A device that closed on the old Stats or Summary tab, or on the Timeline in
+  Notes or To-do, reopens on the same screen rather than falling back — those
+  saved values are migrated to their new (tab, mode) pair. A stored view that
+  no longer exists is now dropped rather than trusted; it used to reach
+  `state.view` unchecked, which would have rendered nothing at all.
+
 ## [0.125.2] - 2026-09-08
 
 ### Changed

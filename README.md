@@ -62,37 +62,40 @@ browser's *Add to Home Screen* / *Install app*.
 
 ## Features
 
-Five views, in two groups.
+Four tabs, in two groups. Each pairs a list with another way of reading the
+same thing — swipe across the page, or press and hold the tab, to move
+between them.
 
 **Journal**
 
+- **Notes** – a running feed of things you write as you notice them, each
+  keeping the date and time it was written, and saying so when you've edited
+  it since.
+  - **To-do** – a plain checklist, one panel for what's left and one for
+    what's done; ticking something moves it across. Long-press to reorder
+    what's left by hand.
 - **Timeline** – what you've finished, grouped by year → month, with per-year
   accomplishments. An entry can carry a rating, notes, cover art, genres, a
   length, and a start month for anything that took more than one.
-- **Notes** – Timeline's second mode: a running feed of things you write as
-  you notice them, each keeping the date and time it was written, and saying
-  so when you've edited it since.
-- **To-do** – Timeline's third mode: a plain checklist, one panel for what's
-  left and one for what's done, and ticking something moves it across.
-  Long-press to reorder what's left by hand.
-- **Stats** – totals by category and year, a highlights strip (busiest month,
-  longest streak, this year vs last), seasonality, genres, an activity
-  heatmap, most-repeated titles, and a year-in-review card.
+  - **Stats** – the same filtered entries, aggregated: totals by category and
+    year, a highlights strip (busiest month, longest streak, this year vs
+    last), seasonality, genres, an activity heatmap, most-repeated titles,
+    and a year-in-review card.
 - **Backlog** – what you mean to get to, as **By category** or **Next
   releases**. Items sort into starred → ready → Early Access → unreleased →
   dropped bands, and the category count sets the last three aside so it reads
   as things you could actually finish. **Pick random** draws one for you out
   of a bag, so nothing repeats until everything in scope has had a turn.
-- **Discover** – the third Backlog mode, and the only screen that looks
-  outward: what is popular right now and what is coming, read from the same
-  media sources your categories already use. Adding from it fills the item
-  in exactly as a manual sync would.
+  - **Discover** – the only screen that looks outward: what is popular right
+    now and what is coming, read from the same media sources your categories
+    already use. Adding from it fills the item in exactly as a manual sync
+    would.
 
 **Finance**
 
 - **Ledger** – expenses by year → month, each month broken down by category.
-- **Summary** – total spend, average and biggest month, top category, a
-  12-month trend, one-off vs recurring, and your largest expenses.
+  - **Summary** – total spend, average and biggest month, top category, a
+    12-month trend, one-off vs recurring, and your largest expenses.
 - **Recurring expenses** – with pauses, per-occurrence overrides, plan
   changes over time, and a picker for linking past expenses to a plan.
 
@@ -137,11 +140,11 @@ Five views, in two groups.
 index.html          app shell + every modal
 src/styles.css      styling (dark theme)
 src/app.js          shell: state, routing, filters, shared helpers
-src/journal.js      Timeline + Stats views, entry modal, achievements
-src/notes.js        Notes: Timeline's second mode, the note feed + modal
-src/todos.js        To-do: Timeline's third mode, the checklist
+src/journal.js      Timeline and its Stats mode, entry modal, achievements
+src/notes.js        Notes: the note feed + modal
+src/todos.js        To-do: the checklist, the Notes tab's second mode
 src/backlog.js      Backlog view, backlog modal, the random picker
-src/finance.js      Ledger + Summary views, expenses, recurring expenses
+src/finance.js      Ledger and its Summary mode, expenses, recurring
 src/media.js        cover art + metadata from the eight media sources
 src/sync.js         Steam wishlist / AniList Planning imports, GG.deals prices
 src/wheel.js        the canvas spin wheel

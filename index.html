@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.125.2" />
+  <link rel="stylesheet" href="src/styles.css?v=0.126.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -66,12 +66,11 @@
     <div class="topbar-bottom" id="topbarBottom">
       <nav class="views" id="viewTabs">
         <span class="tab-group-label">Journal</span>
+        <button class="tab" data-view="notes" data-icon="▤">Notes</button>
         <button class="tab active" data-view="timeline" data-icon="☰">Timeline</button>
-        <button class="tab" data-view="stats" data-icon="▤">Stats</button>
         <button class="tab" data-view="backlog" data-icon="★">Backlog</button>
         <span class="tab-group-label">Finance</span>
         <button class="tab" data-view="finance" data-icon="₪">Ledger</button>
-        <button class="tab" data-view="finance-stats" data-icon="◑">Summary</button>
         <span class="tab-underline" id="tabUnderline" hidden></span>
       </nav>
       <!-- Mobile-only quick-jump row: prev/next between the sticky year/category
@@ -679,7 +678,7 @@
         <input type="hidden" id="recOccDate" />
         <label class="toggle-label">
           <input type="checkbox" id="recOccSkip" />
-          Skip this occurrence (excluded from Ledger &amp; Stats)
+          Skip this occurrence (excluded from the Ledger and its Summary)
         </label>
         <p class="hint" id="recOccPausedHint" hidden>This date falls inside a pause, so it's already excluded. Edit the pause on the template to change that.</p>
         <label>Amount
@@ -1199,11 +1198,10 @@
       <dl class="shortcuts-list">
         <div><dt><kbd>N</kbd></dt><dd>Add entry</dd></div>
         <div><dt><kbd>/</kbd></dt><dd>Focus search</dd></div>
-        <div><dt><kbd>1</kbd></dt><dd>Timeline</dd></div>
-        <div><dt><kbd>2</kbd></dt><dd>Stats</dd></div>
+        <div><dt><kbd>1</kbd></dt><dd>Notes</dd></div>
+        <div><dt><kbd>2</kbd></dt><dd>Timeline</dd></div>
         <div><dt><kbd>3</kbd></dt><dd>Backlog</dd></div>
         <div><dt><kbd>4</kbd></dt><dd>Ledger</dd></div>
-        <div><dt><kbd>5</kbd></dt><dd>Summary</dd></div>
         <div><dt><kbd>Esc</kbd></dt><dd>Close a dialog / menu</dd></div>
         <div><dt><kbd>?</kbd></dt><dd>Show this list</dd></div>
       </dl>
@@ -1233,19 +1231,19 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.125.2"></script>
-  <script defer src="src/media.js?v=0.125.2"></script>
-  <script defer src="src/merge.js?v=0.125.2"></script>
-  <script defer src="src/storage.js?v=0.125.2"></script>
-  <script defer src="src/finance.js?v=0.125.2"></script>
-  <script defer src="src/settings.js?v=0.125.2"></script>
-  <script defer src="src/wheel.js?v=0.125.2"></script>
-  <script defer src="src/backlog.js?v=0.125.2"></script>
-  <script defer src="src/journal.js?v=0.125.2"></script>
-  <script defer src="src/notes.js?v=0.125.2"></script>
-  <script defer src="src/todos.js?v=0.125.2"></script>
-  <script defer src="src/io.js?v=0.125.2"></script>
-  <script defer src="src/sync.js?v=0.125.2"></script>
-  <script defer src="src/app.js?v=0.125.2"></script>
+  <script defer src="src/qr.js?v=0.126.0"></script>
+  <script defer src="src/media.js?v=0.126.0"></script>
+  <script defer src="src/merge.js?v=0.126.0"></script>
+  <script defer src="src/storage.js?v=0.126.0"></script>
+  <script defer src="src/finance.js?v=0.126.0"></script>
+  <script defer src="src/settings.js?v=0.126.0"></script>
+  <script defer src="src/wheel.js?v=0.126.0"></script>
+  <script defer src="src/backlog.js?v=0.126.0"></script>
+  <script defer src="src/journal.js?v=0.126.0"></script>
+  <script defer src="src/notes.js?v=0.126.0"></script>
+  <script defer src="src/todos.js?v=0.126.0"></script>
+  <script defer src="src/io.js?v=0.126.0"></script>
+  <script defer src="src/sync.js?v=0.126.0"></script>
+  <script defer src="src/app.js?v=0.126.0"></script>
 </body>
 </html>

@@ -1489,17 +1489,6 @@ kbd {
     background: var(--border); color: transparent; font-size: 0; overflow: hidden;
   }
   html:not(.force-pc) .tab-group-label::before { display: none; }
-  /* Journal Timeline swaps with Stats so it isn't the leftmost/edge tab —
-     everything else keeps its DOM order (order:0 by default would sort
-     these two ahead of untouched siblings, so every tab gets an explicit
-     value to keep the rest of the bar unchanged). */
-  html:not(.force-pc) .tab-group-label:first-of-type { order: 0; }
-  html:not(.force-pc) .tab[data-view="stats"] { order: 1; }
-  html:not(.force-pc) .tab[data-view="timeline"] { order: 2; }
-  html:not(.force-pc) .tab[data-view="backlog"] { order: 3; }
-  html:not(.force-pc) .tab-group-label:not(:first-of-type) { order: 4; }
-  html:not(.force-pc) .tab[data-view="finance"] { order: 5; }
-  html:not(.force-pc) .tab[data-view="finance-stats"] { order: 6; }
   html:not(.force-pc) .views { position: relative; }
   /* Slides under whichever tab is active — tapping a tab or swiping the
      bar both animate it there, so a swipe reads as "the indicator moved
@@ -1624,13 +1613,6 @@ html.force-mobile .tab-group-label {
   background: var(--border); color: transparent; font-size: 0; overflow: hidden;
 }
 html.force-mobile .tab-group-label::before { display: none; }
-html.force-mobile .tab-group-label:first-of-type { order: 0; }
-html.force-mobile .tab[data-view="stats"] { order: 1; }
-html.force-mobile .tab[data-view="timeline"] { order: 2; }
-html.force-mobile .tab[data-view="backlog"] { order: 3; }
-html.force-mobile .tab-group-label:not(:first-of-type) { order: 4; }
-html.force-mobile .tab[data-view="finance"] { order: 5; }
-html.force-mobile .tab[data-view="finance-stats"] { order: 6; }
 html.force-mobile .views { position: relative; }
 html.force-mobile .tab-modes { display: flex; }
 html.force-mobile .tab-underline {

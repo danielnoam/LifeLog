@@ -53,19 +53,19 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.125.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.126.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
   // Left-to-right order of the mobile bottom tab bar (see the `order:`
   // values on .tab in styles.css) — used for swipe-to-switch, so a swipe
   // moves to the visually adjacent tab, not just the next one in DOM order.
-  const VIEW_ORDER = ["stats", "timeline", "backlog", "finance", "finance-stats"];
+  const VIEW_ORDER = ["notes", "timeline", "backlog", "finance"];
   // Number-key shortcuts (see wire()'s keydown handler) — deliberately the
   // on-screen tab order (left-to-right in #viewTabs), not VIEW_ORDER above,
   // since that's what the shortcuts cheat-sheet shows and what a user
   // scanning the tab bar would expect "3" etc. to mean.
-  const SHORTCUT_VIEWS = { 1: "timeline", 2: "stats", 3: "backlog", 4: "finance", 5: "finance-stats" };
+  const SHORTCUT_VIEWS = { 1: "notes", 2: "timeline", 3: "backlog", 4: "finance" };
 
   function loadVisualSettings() {
     try {
@@ -78,7 +78,43 @@
     try { localStorage.setItem(VISUAL_KEY, JSON.stringify(v)); } catch (e) {}
   }
   function saveUiState() {
-    try { localStorage.setItem(UI_KEY, JSON.stringify({ view: state.view, backlogMode: state.backlogMode, timelineMode: state.timelineMode, scrollY: window.scrollY })); } catch (e) {}
+    try {
+      localStorage.setItem(UI_KEY, JSON.stringify({
+        view: state.view, notesMode: state.notesMode, timelineMode: state.timelineMode,
+        backlogMode: state.backlogMode, financeMode: state.financeMode, scrollY: window.scrollY,
+      }));
+    } catch (e) {}
+  }
+
+  // Restore where you were, translating anything a version before 0.126.0
+  // wrote. Stats and Summary were tabs of their own then, and Notes/To-do
+  // were modes of the Timeline; each of those is now a (view, mode) pair, so
+  // a device that closed on one reopens looking at the same screen rather
+  // than at whatever it fell back to. Unrecognised values are dropped rather
+  // than trusted — this is the one place a stored string reaches state.view,
+  // and a view that doesn't exist renders nothing at all.
+  const UI_MIGRATIONS = {
+    "stats": { view: "timeline", mode: "stats" },
+    "finance-stats": { view: "finance", mode: "summary" },
+  };
+  function applySavedUi(ui) {
+    if (!ui) return;
+    let view = ui.view;
+    const moved = UI_MIGRATIONS[view];
+    if (moved) { view = moved.view; VIEW_MODES[view].set(moved.mode); }
+    // Notes and To-do were the Timeline's second and third modes.
+    else if (view === "timeline" && (ui.timelineMode === "notes" || ui.timelineMode === "todo")) {
+      view = "notes";
+      state.notesMode = ui.timelineMode;
+    }
+    if (VIEW_ORDER.includes(view)) state.view = view;
+    for (const [key, spec] of Object.entries(VIEW_MODES)) {
+      const saved = ui[key === "finance" ? "financeMode" : key + "Mode"];
+      // Only where it's still one of that view's modes: "notes" sat in
+      // timelineMode until 0.126.0, and setting it now would be a mode the
+      // Timeline no longer has.
+      if (saved && modeIds(spec).includes(saved) && !(moved && key === moved.view)) spec.set(saved);
+    }
   }
 
   function loadMediaSettings() {
@@ -172,7 +208,13 @@
     // default — everything grouped by category) or "upcoming" (only what
     // hasn't come out yet, in date order). Remembered per device like `view`.
     backlogMode: "category",
+    // Which mode each of the other three views is in. Every view has them
+    // now, and each pairs a list with a second way of looking at the same
+    // thing — the entries and their stats, the ledger and its summary — or,
+    // for Notes, the two things you write yourself.
+    notesMode: "notes",
     timelineMode: "entries",
+    financeMode: "entries",
     search: "",
     activeYears: new Set(),
     activeCats: new Set(),
@@ -352,12 +394,17 @@
 
   // The modes each view can be swiped between, listed in the order their own
   // switch shows them so a swipe and a tap on the bar agree about what comes
-  // next. A view with no modes simply isn't here, and a swipe in it does
-  // nothing.
-  const TIMELINE_MODES = [["entries", "Entries"], ["notes", "Notes"], ["todo", "To-do"]];
+  // next. Every view is here now: each of the other three pairs a list with a
+  // second reading of the same data, and Notes pairs the two things you write
+  // yourself. The first of each pair is what the tab lands on.
   const VIEW_MODES = {
+    notes: {
+      modes: [["notes", "Notes"], ["todo", "To-do"]],
+      get: () => state.notesMode,
+      set: (m) => { state.notesMode = m; },
+    },
     timeline: {
-      modes: TIMELINE_MODES,
+      modes: [["entries", "Entries"], ["stats", "Stats"]],
       get: () => state.timelineMode,
       set: (m) => { state.timelineMode = m; },
     },
@@ -368,44 +415,53 @@
       get: () => state.backlogMode,
       set: (m) => { state.backlogMode = m; },
     },
+    finance: {
+      modes: [["entries", "Entries"], ["summary", "Summary"]],
+      get: () => state.financeMode,
+      set: (m) => { state.financeMode = m; },
+    },
   };
   const modeIds = (spec) => spec.modes.map(([id]) => id);
 
-  // Timeline's Entries / Notes / To-do switch. Rendered before any of the
-  // three draws, because the timeline's own empty state returns early — a
-  // switch drawn inside it would strand a new user in a mode with no way out.
-  function renderTimelineModeBar(root) {
+  // The mode switch for whichever view is showing. Rendered before that view
+  // draws, because a view's own empty state returns early — a switch rendered
+  // inside it would strand a new user in a mode with no way out of it. The
+  // Backlog keeps its own (renderBacklogModeBar), which carries the
+  // Pick-random button beside the switch.
+  function renderModeBar(root) {
     // On a phone the switch lives in the bottom bar instead: press and hold
     // the tab and the other modes fan out above it (see openModeFan). A row
     // of buttons here as well would be the same control twice, in the half
     // of the screen with the least room for it.
     if (isMobileLayout()) return;
+    const spec = VIEW_MODES[state.view];
+    if (!spec) return;
     const bar = el("div", "backlog-mode-bar");
     const group = el("div", "seg");
-    for (const [mode, label] of TIMELINE_MODES) {
+    for (const [mode, label] of spec.modes) {
       const btn = el("button", "seg-btn", label);
       btn.type = "button";
-      const active = state.timelineMode === mode;
+      const active = spec.get() === mode;
       btn.classList.toggle("active", active);
       btn.setAttribute("aria-pressed", String(active));
-      btn.onclick = () => { if (state.timelineMode !== mode) setTimelineMode(mode); };
+      btn.onclick = () => { if (spec.get() !== mode) { spec.set(mode); commitModeChange(); } };
       group.appendChild(btn);
     }
     bar.appendChild(group);
-    const count = state.timelineMode === "notes" ? state.data.notes.length
-      : state.timelineMode === "todo" ? state.data.todos.filter((t) => !t.done).length : 0;
-    if (count) {
-      const word = state.timelineMode === "notes"
-        ? (count === 1 ? " note" : " notes")
-        : (count === 1 ? " to do" : " to do");
-      bar.appendChild(el("span", "backlog-mode-count", count + word));
+    // Notes and to-dos have no year/category chips to say how many there
+    // are, so the count goes here. The other views' own headers already do.
+    if (state.view === "notes") {
+      const count = state.notesMode === "notes"
+        ? state.data.notes.length
+        : state.data.todos.filter((t) => !t.done).length;
+      if (count) {
+        const word = state.notesMode === "notes"
+          ? (count === 1 ? " note" : " notes")
+          : " to do";
+        bar.appendChild(el("span", "backlog-mode-count", count + word));
+      }
     }
     root.appendChild(bar);
-  }
-
-  function setTimelineMode(mode) {
-    state.timelineMode = mode;
-    commitModeChange();
   }
   // No wrap-around, matching the tab swipe: the ends are the ends, so a
   // swipe past the last mode does nothing rather than teleporting you back
@@ -647,10 +703,9 @@
   // in Notes mode they're the years the notes fall in — otherwise a note
   // written in a year you logged nothing in would have no chip to survive.
   function years() {
-    if (state.view === "timeline" && state.timelineMode === "notes") return Notes.noteYears();
     // A checklist has no years worth filtering — hiding an undone to-do
     // because you tapped a year chip would be a trap, not a filter.
-    if (state.view === "timeline" && state.timelineMode === "todo") return [];
+    if (state.view === "notes") return state.notesMode === "notes" ? Notes.noteYears() : [];
     const ys = new Set(state.data.entries.map((e) => e.year));
     return [...ys].sort((a, b) => b - a);
   }
@@ -838,20 +893,23 @@
       // whichever view owns one, so it can sit above the filters it governs.
       const slot = $("#modeSlot");
       slot.innerHTML = "";
-      slot.hidden = !VIEW_MODES[state.view];
       // Animations and the swipe act on #content, so the filters travel with
       // the content they filter.
       fadeInOnViewChange($("#content"));
       if (state.view === "backlog") { Backlog.renderBacklog(c); return; }
-      if (state.view === "finance") { Finance.renderFinanceEntries(c); return; }
-      if (state.view === "finance-stats") { Finance.renderFinanceStats(c); return; }
-      // The mode bar goes up before either mode draws: the timeline's own
-      // empty state returns early below, and a switch rendered inside it
-      // would strand a new user in a mode with no way out of it.
-      if (state.view === "timeline") {
-        renderTimelineModeBar(slot);
-        if (state.timelineMode === "notes") { Notes.renderNotes(c); return; }
-        if (state.timelineMode === "todo") { Todos.renderTodos(c); return; }
+      // The switch goes up before any mode draws: a view's own empty state
+      // returns early, and a switch rendered inside it would strand a new
+      // user in a mode with no way out of it.
+      renderModeBar(slot);
+      if (state.view === "notes") {
+        if (state.notesMode === "todo") Todos.renderTodos(c);
+        else Notes.renderNotes(c);
+        return;
+      }
+      if (state.view === "finance") {
+        if (state.financeMode === "summary") Finance.renderFinanceStats(c);
+        else Finance.renderFinanceEntries(c);
+        return;
       }
       const entries = getFiltered();
       if (!state.data.entries.length) {
@@ -869,8 +927,10 @@
         c.appendChild(emptyState("No entries match your filters."));
         return;
       }
-      if (state.view === "timeline") Journal.renderTimeline(c, entries);
-      else Journal.renderStats(c, entries);
+      // Two readings of one filtered set — same entries, same chips, same
+      // empty states above; only the last call differs.
+      if (state.timelineMode === "stats") Journal.renderStats(c, entries);
+      else Journal.renderTimeline(c, entries);
     } finally {
       // Whether the slot earned its space is only knowable once the view has
       // had its go at it: on a phone the switch isn't drawn there at all, and
@@ -910,11 +970,12 @@
   function updateSearchMatchBadges() {
     const q = state.search.trim();
     const counts = q ? {
-      timeline: getFiltered().length + Notes.getFilteredNotes().length + Todos.getFilteredTodos().length,
+      notes: Notes.getFilteredNotes().length + Todos.getFilteredTodos().length,
+      timeline: getFiltered().length,
       backlog: Backlog.getFilteredBacklog().length,
       finance: Finance.getFilteredFinance().length,
     } : null;
-    for (const key of ["timeline", "backlog", "finance"]) {
+    for (const key of VIEW_ORDER) {
       const tab = document.querySelector(`.tab[data-view="${key}"]`);
       if (!tab) continue;
       let badge = tab.querySelector(".tab-match-badge");
@@ -935,9 +996,13 @@
   // screen; the shown label also tracks a manual scroll via
   // syncJumpNavToScroll below.
   function jumpSectionSelector() {
+    const spec = VIEW_MODES[state.view];
+    // Stats, Summary and To-do are fixed layouts with no headers to page
+    // between, so the row goes — which is a per-mode question now that each
+    // of them shares a tab with a list that does have them.
+    if (spec && spec.get() !== modeIds(spec)[0]) return null;
     if (state.view === "backlog") return ".backlog-section-head";
-    if (state.view === "timeline" || state.view === "finance") return ".year-head";
-    return null;
+    return ".year-head";
   }
   function jumpLabelFor(sectionEl) {
     const el = state.view === "backlog"
@@ -1175,7 +1240,10 @@
   // otherwise we'd measure an unbuilt, header-only shell. Passed into
   // Journal via init(ctx) since the heatmap lives there.
   function jumpToTimelineMonth(year, month) {
-    if (state.view !== "timeline") switchToView("timeline");
+    // Stats is the Timeline's other mode now, so this is a mode change as
+    // much as a view change — the heatmap cell has to land on the month card.
+    state.timelineMode = "entries";
+    if (state.view !== "timeline") switchToView("timeline"); else commitModeChange();
     const block = document.querySelector(`#content .year-block[data-year="${year}"]`);
     if (!block) return;
     const blocks = [...document.querySelectorAll("#content .year-block")];
@@ -1776,7 +1844,7 @@
   // The same #yearFilter/#catFilter chip bar is shared by every view (it was
   // already loosely reused this way — e.g. backlog shows year chips it
   // doesn't filter by) — finance views swap in their own data/active-set.
-  function isFinanceView() { return state.view === "finance" || state.view === "finance-stats"; }
+  function isFinanceView() { return state.view === "finance"; }
 
   function buildYearFilter() {
     const wrap = $("#yearFilter");
@@ -1832,7 +1900,7 @@
     // Neither a note nor a to-do carries a category, so in those modes these
     // chips would be a control that does nothing. Hidden rather than
     // disabled — there's nothing to explain and nothing you could do about it.
-    const noCats = state.view === "timeline" && state.timelineMode !== "entries";
+    const noCats = state.view === "notes";
     $("#catFilterGroup").hidden = noCats;
     updateFilterbarVisibility();
     if (noCats) return;
@@ -2728,9 +2796,7 @@
 
     let savedUi = null;
     try { savedUi = JSON.parse(localStorage.getItem(UI_KEY)); } catch (e) {}
-    if (savedUi?.view) state.view = savedUi.view;
-    if (savedUi?.backlogMode) state.backlogMode = savedUi.backlogMode;
-    if (savedUi?.timelineMode) state.timelineMode = savedUi.timelineMode;
+    applySavedUi(savedUi);
 
     const result = await Storage.load();
     let source, githubReached;
