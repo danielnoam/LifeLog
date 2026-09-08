@@ -118,7 +118,8 @@ Five views, in two groups.
 - **The mode fan** – on a phone there is no mode switch on the page: press
   and hold a tab in the bottom bar and its other modes rise above it, then
   slide up and let go on the one you want. A plain tap is the tab's own
-  mode. On a desktop the switch sits above the content instead.
+  mode, and dots under each tab say how many modes it has and which one
+  it's in. On a desktop the switch sits above the content instead.
 - **Category management** – add / rename / recolour / reorder / delete, for
   both journal and finance categories.
 - **Import / export** – JSON and CSV, both directions, each routed through a

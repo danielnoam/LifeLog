@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.125.0] - 2026-09-08
+
+### Added
+- **A tab with modes now shows them under its label** — one dot per mode,
+  the one you're in drawn as a pill. Both halves of what the fan hid: that a
+  tab has other modes at all, and which one it's parked in. Visible on
+  inactive tabs too, in their own grey, so Backlog can say it's sitting in
+  Discover without you going there. Phone only; a desktop has the switch
+  above the content.
+
+### Changed
+- **Letting go of a mode fan without landing on an option now does what
+  tapping the tab does** — takes you to that view in its own mode — instead
+  of nothing. It stops short of a tap's scroll-to-top, which isn't somewhere
+  an abandoned gesture should dump you.
+
 ## [0.124.1] - 2026-09-08
 
 ### Fixed

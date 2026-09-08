@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.124.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.125.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -451,6 +451,21 @@
   let holdTimer = null, holdFrom = null;
   const cancelHold = () => { clearTimeout(holdTimer); holdTimer = null; holdFrom = null; };
 
+  // What pressing a tab means, wherever the press came from: that view, in
+  // its own mode — Timeline is Entries, the Backlog is By category. Anything
+  // else is what the fan is for. Returns false when there was nothing to do,
+  // which is the caller's cue that this was a tap on the tab you're already
+  // sitting on.
+  function activateTab(view) {
+    const spec = VIEW_MODES[view];
+    const first = spec ? modeIds(spec)[0] : null;
+    const modeChanged = Boolean(spec) && spec.get() !== first;
+    if (modeChanged) spec.set(first);
+    if (view !== state.view) { switchToView(view); return true; }
+    if (modeChanged) { commitModeChange(); return true; }
+    return false;
+  }
+
   function openModeFan(tab, spec) {
     // Onto the whole bottom bar rather than the tab row, so the options rise
     // clear of the jump-nav strip above it instead of landing on top of it.
@@ -495,7 +510,11 @@
     modeFan = null;
     fan.remove();
     fanConsumedClick = true;
-    if (!armed) return;
+    // Letting go without landing on an option still means you pressed the
+    // tab, so it does what a tap does — minus the scroll-to-top, which is a
+    // tap's own affordance and not somewhere an abandoned gesture should
+    // dump you.
+    if (!armed) { activateTab(view); return; }
     if (spec.get() === armed && view === state.view) return;
     spec.set(armed);
     // Picking a mode off another tab's fan means going there: switchToView
@@ -790,6 +809,7 @@
         t.classList.toggle("active", t.dataset.view === state.view);
       });
       updateTabUnderline();
+      updateTabModeDots();
       // #viewBody, not #content: the filterbar is #content's other child and
       // is rebuilt in place rather than thrown away with the view.
       const c = $("#viewBody");
@@ -1002,6 +1022,30 @@
   // position/width (see the CSS transition on .tab-underline) whenever the
   // active tab changes, whether by tap or by swipe, so the motion itself
   // reads as confirmation something moved.
+  // One dot per mode under a tab that has them, the current one drawn as a
+  // pill. Both halves of the question the fan raised — that a tab has other
+  // modes at all, and which one it's sitting in — answered without opening
+  // it. Built on every layout and hidden by CSS on a desktop (where the
+  // switch is on the page anyway), so toggling the forced layout can't leave
+  // a stale row behind.
+  function updateTabModeDots() {
+    for (const tab of document.querySelectorAll("#viewTabs .tab")) {
+      const spec = VIEW_MODES[tab.dataset.view];
+      let row = tab.querySelector(".tab-modes");
+      if (!spec) { if (row) row.remove(); continue; }
+      const ids = modeIds(spec);
+      if (!row) { row = el("span", "tab-modes"); tab.appendChild(row); }
+      // Rebuilt rather than diffed: three spans, once per render, against a
+      // list that only ever changes when the code does.
+      row.innerHTML = "";
+      for (const id of ids) {
+        const dot = el("span", "tab-mode-dot");
+        dot.classList.toggle("is-on", id === spec.get());
+        row.appendChild(dot);
+      }
+    }
+  }
+
   function updateTabUnderline() {
     const underline = $("#tabUnderline");
     const active = document.querySelector("#viewTabs .tab.active");
@@ -2323,24 +2367,14 @@
         // The click the browser synthesises after a long-press belongs to the
         // fan, which has already acted on it.
         if (fanConsumedClick) { fanConsumedClick = false; return; }
-        const spec = VIEW_MODES[t.dataset.view];
-        const first = spec ? modeIds(spec)[0] : null;
-        // A plain tap means the tab's own mode — Timeline is entries,
-        // Backlog is by category. Anything else is what the fan is for.
-        if (spec && spec.get() !== first) {
-          spec.set(first);
-          if (t.dataset.view === state.view) { commitModeChange(); return; }
-        }
-        // Tapping the tab you're already on scrolls back to the top, the way
-        // every mobile app's tab bar does. Without this it ran a full
-        // switchToView to the same view, and since render() deliberately
-        // restores scroll position on a same-view rebuild, the tap looked
-        // like it did nothing at all.
-        if (t.dataset.view === state.view) {
+        // Tapping the tab you're already on, already in its own mode, scrolls
+        // back to the top, the way every mobile app's tab bar does. Without
+        // this it ran a full switchToView to the same view, and since
+        // render() deliberately restores scroll position on a same-view
+        // rebuild, the tap looked like it did nothing at all.
+        if (!activateTab(t.dataset.view)) {
           window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? "auto" : "smooth" });
-          return;
         }
-        switchToView(t.dataset.view);
       };
 
       // Press and hold to raise the mode fan. Only where there are modes to

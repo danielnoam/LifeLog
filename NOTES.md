@@ -16,6 +16,16 @@ what was decided against and why.
 
 ---
 
+- the mode dots under a tab are absolutely positioned, not another row in
+  its flex column (.tab-modes, styles.css). The tabs stretch to a shared
+  height and each centres its own contents, so an extra row in flow on two
+  tabs out of five lifted their icon and label out of line with the other
+  three — measured, not guessed. They take currentColor, which is what makes
+  an inactive tab state its mode quietly and the active one state it in the
+  accent, with no second rule. Built on every layout by updateTabModeDots
+  and hidden by CSS off the phone, so toggling the forced layout can't leave
+  a stale row behind.
+
 - the fan carries the tab's view, not just its mode spec (closeModeFan,
   app.js). Long-pressing a tab you aren't on is ordinary, and the pick has
   to switch views as well as set the mode — commitModeChange alone rerenders

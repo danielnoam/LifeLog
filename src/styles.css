@@ -310,6 +310,32 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 }
 .tab.active { background: var(--accent); color: var(--text-on-accent); }
 
+/* One dot per mode under a tab that has them, the current one a pill. Both
+   halves of the question the fan raised — that a tab has other modes at
+   all, and which one it's in — answered without opening it. Out of the
+   tab's flex column and absolutely positioned, because the tabs stretch to
+   a shared height and centre their own contents: an extra row in flow on
+   two tabs out of five would lift their icon and label out of line with the
+   rest of the bar. Hidden by default and switched on only by the phone
+   layout below — a desktop has the switch above the content, so these would
+   answer a question already on screen. */
+.tab-modes {
+  display: none;
+  position: absolute; left: 0; right: 0; bottom: 6px;
+  justify-content: center; align-items: center; gap: 3px;
+  pointer-events: none;
+}
+.tab-mode-dot {
+  width: 3px; height: 3px; border-radius: 999px;
+  /* currentColor, so the row takes the tab's own accent when it's the active
+     one and the faint grey when it isn't — an inactive tab still says which
+     mode it's parked in, just more quietly. */
+  background: currentColor; opacity: .3;
+  transition: width var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+.tab-mode-dot.is-on { width: 9px; opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .tab-mode-dot { transition: none; } }
+
 /* "Journal" / "Finance" group headers inside .views — labels, not buttons.
    The divider lives on the label itself (::before), so each header carries
    its own separator instead of being a separate element. */
@@ -1482,6 +1508,7 @@ kbd {
      which measures the active tab's actual rendered box; being absolutely
      positioned takes it out of the flex layout entirely, so it can't
      affect the tabs' own spacing. */
+  html:not(.force-pc) .tab-modes { display: flex; }
   html:not(.force-pc) .tab-underline {
     position: absolute; bottom: 0; height: 2px; border-radius: 2px 2px 0 0;
     background: var(--accent); pointer-events: none;
@@ -1605,6 +1632,7 @@ html.force-mobile .tab-group-label:not(:first-of-type) { order: 4; }
 html.force-mobile .tab[data-view="finance"] { order: 5; }
 html.force-mobile .tab[data-view="finance-stats"] { order: 6; }
 html.force-mobile .views { position: relative; }
+html.force-mobile .tab-modes { display: flex; }
 html.force-mobile .tab-underline {
   position: absolute; bottom: 0; height: 2px; border-radius: 2px 2px 0 0;
   background: var(--accent); pointer-events: none;
