@@ -483,12 +483,10 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 .btn-sm { padding: 4px 8px; font-size: 12px; }
 
 /* ---------- filter bar ---------- */
-/* Sits between the topbar and the filters — see #modeSlot in index.html.
-   Same horizontal padding as the filterbar under it so the switch lines up
-   with the chips rather than floating over them. */
-.mode-slot { padding: 10px 20px 0; }
+/* Inside #content and under the filters now (see #modeSlot in index.html),
+   so the content's own padding places it and the bar keeps its own bottom
+   margin as the gap to the list. */
 .mode-slot[hidden] { display: none; }
-.mode-slot .backlog-mode-bar { margin-bottom: 0; }
 
 /* No horizontal padding or background of its own — whichever parent it is in
    places it, and the rule under it is what separates it from the view rather
@@ -952,6 +950,12 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
   display: flex; align-items: center; justify-content: space-between;
   gap: 10px; flex-wrap: wrap; margin-bottom: 14px;
 }
+/* The switch that used to hold the left-hand side moved onto the tab, so
+   what's left is often the bar's only child — and space-between puts a lone
+   child at the start. Whatever is alone here belongs on the right, where
+   Discover's Refresh sits and where these all were when the switch was
+   still holding the other end. */
+.backlog-mode-bar > :only-child { margin-left: auto; }
 .backlog-mode-count { font-size: 12px; color: var(--text-dim); }
 .seg {
   display: inline-flex; background: var(--bg-elev-2); border: 1px solid var(--border);

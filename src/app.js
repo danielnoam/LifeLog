@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.127.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.127.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -94,7 +94,7 @@
     } catch (e) {}
   }
 
-  // Restore where you were, translating anything a version before 0.127.0
+  // Restore where you were, translating anything a version before 0.127.1
   // wrote. Stats and Summary were tabs of their own then, and Notes/To-do
   // were modes of the Timeline; each of those is now a (view, mode) pair, so
   // a device that closed on one reopens looking at the same screen rather
@@ -119,7 +119,7 @@
     for (const [key, spec] of Object.entries(VIEW_MODES)) {
       const saved = ui[key === "finance" ? "financeMode" : key + "Mode"];
       // Only where it's still one of that view's modes: "notes" sat in
-      // timelineMode until 0.127.0, and setting it now would be a mode the
+      // timelineMode until 0.127.1, and setting it now would be a mode the
       // Timeline no longer has.
       if (saved && modeIds(spec).includes(saved) && !(moved && key === moved.view)) spec.set(saved);
     }
@@ -453,7 +453,7 @@
     const spec = VIEW_MODES[state.view];
     const inContent = Boolean(spec && spec.chipsVaryByMode);
     if (inContent) {
-      if (bar.parentNode !== content) content.insertBefore(bar, $("#viewBody"));
+      if (bar.parentNode !== content) content.insertBefore(bar, $("#modeSlot"));
     } else if (bar.parentNode !== $("#filterSlot")) {
       $("#filterSlot").appendChild(bar);
     }
@@ -980,17 +980,16 @@
       // is rebuilt in place rather than thrown away with the view.
       const c = $("#viewBody");
       c.innerHTML = "";
-      // The mode switch is chrome, not content — cleared here and refilled by
-      // whichever view owns one, so it can sit above the filters it governs.
+      // Cleared here and refilled by whichever view has something to put in
+      // it; it sits under the filters, above the list.
       const slot = $("#modeSlot");
       slot.innerHTML = "";
       // Animations and the swipe act on #content, so the filters travel with
       // the content they filter.
       fadeInOnViewChange($("#content"));
       if (state.view === "backlog") { Backlog.renderBacklog(c); return; }
-      // The switch goes up before any mode draws: a view's own empty state
-      // returns early, and a switch rendered inside it would strand a new
-      // user in a mode with no way out of it.
+      // Before the mode draws: a view's own empty state returns early, and
+      // anything rendered inside it would go missing with it.
       renderModeBar(slot);
       if (state.view === "notes") {
         if (state.notesMode === "todo") Todos.renderTodos(c);
@@ -1024,8 +1023,7 @@
       else Journal.renderTimeline(c, entries);
     } finally {
       // Whether the slot earned its space is only knowable once the view has
-      // had its go at it: on a phone the switch isn't drawn there at all, and
-      // a view can leave it empty either way.
+      // had its go at it — most views leave it empty.
       const modeSlot = $("#modeSlot");
       modeSlot.hidden = !modeSlot.firstChild;
       // Re-read rather than closing over the `c` above: that one is scoped to
@@ -2652,11 +2650,6 @@
       else if (b.dataset.add === "backlog") Backlog.openBacklogModal(null);
       else if (b.dataset.add === "finance") Finance.openFinanceModal(null);
       else if (b.dataset.add === "recurring") Finance.openRecurringModal(null);
-      else if (b.dataset.add === "wheel") {
-        // No pool of its own: the + menu's wheel is the list you typed, which
-        // is why it opens straight into its editor when there isn't one yet.
-        Wheel.openWheel({ custom: true, title: "Spin a wheel", hint: "Your own options — spin to let it decide." });
-      }
     });
     document.addEventListener("click", closeAddMenu);
 
@@ -2666,7 +2659,7 @@
     Notes.wire(); // the note modal (Timeline's Notes mode + the + menu)
     Finance.wire(); // finance/recurring/finance-category modals + finance import/export
     Backlog.wire(); // backlog modal: sync, priority/dropped, title suggestions
-    Wheel.wire(); // the random wheel modal (Backlog "🎡 Spin" + the + menu)
+    Wheel.wire(); // the random wheel modal (the Backlog's 🎡 Spin, in the bar and in the pick card)
     SettingsUI.wire(); // the Settings modal: tabs, data/storage, appearance, media, privacy
 
     $("#exportJsonBtn").onclick = IO.exportJson;

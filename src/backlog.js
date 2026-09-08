@@ -723,13 +723,26 @@
 
   // Lives in the mode bar's right-hand slot rather than a row of its own —
   // one strip above the list instead of two, which matters most on a phone.
-  function makePickButton(items) {
+  // The two ways of letting the list decide, as one right-hand group in the
+  // same place Discover puts its Refresh — they answer the same question
+  // ("just tell me what to play") and belong at the same end of the bar.
+  function makePickGroup(items) {
     const eligible = eligibleForPick(items);
     if (!eligible.length) return null;
+    const right = el("div", "dsc-bar-right");
+    // Two or more, or there is nothing for a wheel to be uncertain about.
+    if (eligible.length > 1) {
+      const spin = el("button", "btn btn-sm", "🎡 Spin");
+      spin.type = "button";
+      spin.title = "Spin a wheel of what's eligible instead";
+      spin.onclick = () => openWheelFor(eligible);
+      right.appendChild(spin);
+    }
     const btn = el("button", "btn btn-sm", "Pick random");
     btn.type = "button";
     btn.onclick = () => openPickModal(eligible);
-    return btn;
+    right.appendChild(btn);
+    return right;
   }
 
   function openPickModal(pool) {
@@ -812,8 +825,8 @@
   // suspense is real without the odds changing. A pool bigger than the wheel
   // holds is cut to the front of the bag, which is the least-recently-seen
   // end of it.
-  function openPickWheel() {
-    const pool = pickCandidates();
+  function openPickWheel() { openWheelFor(pickCandidates()); }
+  function openWheelFor(pool) {
     if (pool.length < 2) return;
     const contenders = peekPickBag(pool, Wheel.MAX_SEGMENTS);
     Wheel.openWheel({
@@ -1495,7 +1508,7 @@
     } else if (state.backlogMode === "category") {
       // Not in Discover: the draw is from your own list, and offering it
       // beside a wall of things you do not own reads as if it might pick one.
-      const pick = makePickButton(items);
+      const pick = makePickGroup(items);
       if (pick) bar.appendChild(pick);
     }
     if (bar.firstChild) root.appendChild(bar);
@@ -1539,10 +1552,9 @@
   function renderBacklog(root) {
     const items = getFilteredBacklog()
       .slice().sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
-    // Into the chrome slot above the filters, not into `root`: see the
-    // comment on #modeSlot in index.html. It's rendered before the first-run
-    // empty state below returns, so Discover — the one mode with something
-    // to show when the backlog is empty — stays reachable.
+    // Into the slot under the filters, not into `root`: see the comment on
+    // #modeSlot in index.html. It's rendered before the first-run empty state
+    // below returns, so what it carries survives an empty backlog.
     renderBacklogModeBar($("#modeSlot"), items);
     if (state.backlogMode === "discover") { renderDiscover(root); return; }
     if (!state.data.backlog.length) {

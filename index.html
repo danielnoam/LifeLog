@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.127.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.127.1" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -102,19 +102,9 @@
       <div class="add-menu-divider" role="separator"></div>
       <button type="button" data-add="finance">Add finance entry</button>
       <button type="button" data-add="recurring">Add recurring expense</button>
-      <div class="add-menu-divider" role="separator"></div>
-      <button type="button" data-add="wheel">Spin a wheel</button>
     </div>
     <button id="addBtn" class="btn btn-primary fab" aria-label="Add">+</button>
   </div>
-
-  <!-- The mode switch for whichever view has one (Timeline, Backlog). It
-       sits above the filters rather than in the content because the filters
-       are a consequence of the mode — categories and years hide themselves
-       in Notes and To-do — and a switch below its own effects jumped ~100px
-       out from under your finger every time you pressed it. Empty, and
-       hidden, in a view with no modes. -->
-  <div class="mode-slot" id="modeSlot" hidden></div>
 
   <!-- Where the filterbar lives is decided per view by placeFilterbar() in
        app.js: here, as chrome that holds still, in every view whose modes
@@ -136,6 +126,14 @@
         <div class="cats" id="catFilter"></div>
       </div>
     </div>
+    <!-- What a mode carries besides the list — the Notes count, the
+         Backlog's Spin and Pick random. Below the filters, and inside the
+         content so it travels with the mode it belongs to. It held the mode
+         switch until 0.127.0, which had to sit *above* the filters because
+         pressing it changed which chips showed and it jumped ~100px out from
+         under the pointer; the switch lives on the tab now, and nothing left
+         in here moves the filters. Empty and hidden in most views. -->
+    <div class="mode-slot" id="modeSlot" hidden></div>
     <div id="viewBody"></div>
   </main>
 
@@ -1235,19 +1233,19 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.127.0"></script>
-  <script defer src="src/media.js?v=0.127.0"></script>
-  <script defer src="src/merge.js?v=0.127.0"></script>
-  <script defer src="src/storage.js?v=0.127.0"></script>
-  <script defer src="src/finance.js?v=0.127.0"></script>
-  <script defer src="src/settings.js?v=0.127.0"></script>
-  <script defer src="src/wheel.js?v=0.127.0"></script>
-  <script defer src="src/backlog.js?v=0.127.0"></script>
-  <script defer src="src/journal.js?v=0.127.0"></script>
-  <script defer src="src/notes.js?v=0.127.0"></script>
-  <script defer src="src/todos.js?v=0.127.0"></script>
-  <script defer src="src/io.js?v=0.127.0"></script>
-  <script defer src="src/sync.js?v=0.127.0"></script>
-  <script defer src="src/app.js?v=0.127.0"></script>
+  <script defer src="src/qr.js?v=0.127.1"></script>
+  <script defer src="src/media.js?v=0.127.1"></script>
+  <script defer src="src/merge.js?v=0.127.1"></script>
+  <script defer src="src/storage.js?v=0.127.1"></script>
+  <script defer src="src/finance.js?v=0.127.1"></script>
+  <script defer src="src/settings.js?v=0.127.1"></script>
+  <script defer src="src/wheel.js?v=0.127.1"></script>
+  <script defer src="src/backlog.js?v=0.127.1"></script>
+  <script defer src="src/journal.js?v=0.127.1"></script>
+  <script defer src="src/notes.js?v=0.127.1"></script>
+  <script defer src="src/todos.js?v=0.127.1"></script>
+  <script defer src="src/io.js?v=0.127.1"></script>
+  <script defer src="src/sync.js?v=0.127.1"></script>
+  <script defer src="src/app.js?v=0.127.1"></script>
 </body>
 </html>

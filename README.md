@@ -109,8 +109,8 @@ between them.
 - **List imports** – pull your **Steam wishlist** or your **AniList
   Planning** list straight into the backlog, dup-checked against what's
   already there. A quiet background check keeps release dates current.
-- **A wheel to spin** – in the **+** menu for a list you type yourself, and
-  beside the backlog's random pick.
+- **A wheel to spin** – beside the backlog's random pick, and again inside
+  the pick card, over whatever is eligible.
 - **Filters** – year and category chips, plus a search across titles and
   notes.
 - **Bulk actions** – long-press to select, then edit, sync, or delete many

@@ -16,6 +16,25 @@ what was decided against and why.
 
 ---
 
+- #modeSlot moved inside #content, under the filterbar (0.127.1). It was
+  chrome above the filters for one reason: it held the mode switch, and the
+  switch decided which chips showed, so a press moved it ~100px out from
+  under the pointer. With the switch on the tab, what's left in the slot (the
+  Notes count, the Backlog's Spin and Pick random) changes no filters, so it
+  can sit where it belongs — under the chips, above the list, travelling with
+  the mode it describes. placeFilterbar inserts the filterbar before the
+  slot, not before #viewBody, or Notes would put its count above its years.
+
+- `.backlog-mode-bar > :only-child { margin-left: auto }` (0.127.1): the bar
+  is space-between, which held the switch at one end and the Pick random /
+  waiting count at the other. With the switch gone to the tab, the survivor
+  is usually the bar's only child, and space-between puts a lone child at the
+  *start* — so everything silently moved left. Discover is the exception that
+  still has two children, and it is the position the others are matching.
+  🎡 Spin joined Pick random there and left the + menu; the wheel's custom
+  mode (openWheel({custom:true}), the Edit button, loadSaved) has no caller
+  now — dead until it is given a home or removed.
+
 - the mode switch is on the tab on both layouts (0.127.0): held on a phone
   (openModeFan), hovered on a desktop (openTabMenu). Nothing above the
   content any more — the slot keeps only what isn't the switch, which is the

@@ -4,6 +4,25 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.127.1] - 2026-09-08
+
+### Changed
+- **Pick random moved to the right-hand end of the Backlog bar**, where
+  Discover's Refresh sits, and the bar itself moved below the Years and
+  Categories rows. It had drifted to the left when the mode switch that used
+  to hold that end moved onto the tab, and the bar only sat above the filters
+  because that switch changed which chips showed — pressing it moved it out
+  from under the pointer. Nothing left in the bar does that.
+- **🎡 Spin is a button beside it now**, and no longer in the + menu. It
+  spins a wheel of whatever is eligible for a pick — the same wheel the pick
+  card offers, one step earlier. It appears only with two or more eligible
+  items; a wheel of one has nothing to decide.
+
+### Removed
+- The + menu's **Spin a wheel** — the wheel of options you typed yourself.
+  The wheel's custom mode is now unreachable, and any options saved in it
+  with it. Say the word if it should have a home somewhere.
+
 ## [0.127.0] - 2026-09-08
 
 ### Added
