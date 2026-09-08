@@ -4,6 +4,26 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.128.0] - 2026-09-08
+
+### Changed
+- **🎡 Spin is the wheel of your own typed options again** — the thing that
+  used to live in the + menu, now in the Backlog bar beside Pick random. It
+  doesn't read the backlog, so it's offered whether or not anything is
+  eligible; Pick random is still the one that draws from your list, and the
+  pick card's own Spin still spins the pick pool.
+- **The wheel looks like part of the app now.** It was drawing filled wedges
+  out of the category ramp — a palette meant for 10px dots beside a name,
+  which as a wheel came out looking like a fairground prize wheel. Custom
+  wheels get their own family of muted colours at one lightness, so nothing
+  shouts and white type is readable on every slice. It's a ring rather than a
+  pie, with the hub sitting in the hole instead of on the point where every
+  wedge meets, a rim, a shadow, an accent pointer that overlaps the rim, and
+  the result in a panel of its own. Backlog spins keep their category
+  colours, which mean something there.
+- **The Backlog's first mode is `entries` internally too**, not just in the
+  label. A device that stored the old `category` is migrated.
+
 ## [0.127.2] - 2026-09-08
 
 ### Changed

@@ -16,6 +16,23 @@ what was decided against and why.
 
 ---
 
+- the wheel draws its own palette, not CATEGORY_PALETTE (0.128.0). That ramp
+  runs deep red to pale lime and is built for a 10px dot beside a name;
+  eight filled wedges of it read as a fairground prize wheel dropped into a
+  quiet dark app, and its lightness range meant the label ink flipped between
+  black and white slice to slice. OWN_COLORS in wheel.js is one family at a
+  shared lightness — every one dark enough for white type, so the labels stop
+  flickering between inks. Backlog spins still pass their own colours, which
+  carry category meaning. The wheel is a ring, not a pie: the hub used to sit
+  on the point where every wedge meets, which is the busiest part of the
+  drawing and the one place no label can go.
+
+- MODE_MIGRATIONS in app.js (0.128.0) is the mode-level twin of
+  UI_MIGRATIONS: `backlog.category -> entries`. Without it the stored value
+  fails the modeIds check and the view falls back to its first mode — the
+  same screen here, so it would have looked correct by luck rather than on
+  purpose, and the next rename would not be so lucky.
+
 - the Journal / Finance grouping is gone entirely (0.127.2), markup
   included. It survived one version as two `.tab-group-label` spans that the
   phone block restyled into a 1px divider, which is why the desktop rule read

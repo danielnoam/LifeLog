@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.127.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.128.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -94,7 +94,7 @@
     } catch (e) {}
   }
 
-  // Restore where you were, translating anything a version before 0.127.2
+  // Restore where you were, translating anything a version before 0.128.0
   // wrote. Stats and Summary were tabs of their own then, and Notes/To-do
   // were modes of the Timeline; each of those is now a (view, mode) pair, so
   // a device that closed on one reopens looking at the same screen rather
@@ -105,6 +105,10 @@
     "stats": { view: "timeline", mode: "stats" },
     "finance-stats": { view: "finance", mode: "summary" },
   };
+  // Modes renamed in place. Without this the stored value simply fails the
+  // check below and the view falls back to its first mode — which happens to
+  // be the same screen here, but on luck rather than on purpose.
+  const MODE_MIGRATIONS = { backlog: { category: "entries" } };
   function applySavedUi(ui) {
     if (!ui) return;
     let view = ui.view;
@@ -117,9 +121,11 @@
     }
     if (VIEW_ORDER.includes(view)) state.view = view;
     for (const [key, spec] of Object.entries(VIEW_MODES)) {
-      const saved = ui[key === "finance" ? "financeMode" : key + "Mode"];
+      const stored = ui[key === "finance" ? "financeMode" : key + "Mode"];
+      const renamed = MODE_MIGRATIONS[key];
+      const saved = (renamed && renamed[stored]) || stored;
       // Only where it's still one of that view's modes: "notes" sat in
-      // timelineMode until 0.127.2, and setting it now would be a mode the
+      // timelineMode until 0.128.0, and setting it now would be a mode the
       // Timeline no longer has.
       if (saved && modeIds(spec).includes(saved) && !(moved && key === moved.view)) spec.set(saved);
     }
@@ -212,10 +218,10 @@
     privacy: loadPrivacySettings(),
     pendingSync: loadPendingSync(),
     view: "timeline",
-    // Which of the Backlog view's two layouts is showing: "category" (the
-    // default — everything grouped by category) or "upcoming" (only what
-    // hasn't come out yet, in date order). Remembered per device like `view`.
-    backlogMode: "category",
+    // Which of the Backlog's three layouts is showing — "entries" (the
+    // default, everything grouped by category), "upcoming" or "discover".
+    // Remembered per device like `view`, and see Backlog.MODES for the list.
+    backlogMode: "entries",
     // Which mode each of the other three views is in. Every view has them
     // now, and each pairs a list with a second way of looking at the same
     // thing — the entries and their stats, the ledger and its summary — or,
@@ -3065,7 +3071,7 @@
     loadBacklogPrices: Sync.loadBacklogPrices, applySteamAppId: Sync.applySteamAppId,
     backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS,
   });
-  Wheel.init({ $, toast, prefersReducedMotion, palette: CATEGORY_PALETTE });
+  Wheel.init({ $, toast, prefersReducedMotion });
   Finance.init({
     state, $, el, uid, groupBy, countBy, toast, persist, render, renderLazySections,
     buildYearFilter, buildCatFilter, monthCardHeader, emptyState,

@@ -723,25 +723,28 @@
 
   // Lives in the mode bar's right-hand slot rather than a row of its own —
   // one strip above the list instead of two, which matters most on a phone.
-  // The two ways of letting the list decide, as one right-hand group in the
-  // same place Discover puts its Refresh — they answer the same question
-  // ("just tell me what to play") and belong at the same end of the bar.
+  // Both ways of letting something else decide, as one right-hand group in
+  // the place Discover puts its Refresh. Pick random draws from the backlog;
+  // Spin is the wheel of options you type yourself, which has nothing to do
+  // with the list and so is always offered.
   function makePickGroup(items) {
-    const eligible = eligibleForPick(items);
-    if (!eligible.length) return null;
     const right = el("div", "dsc-bar-right");
-    // Two or more, or there is nothing for a wheel to be uncertain about.
-    if (eligible.length > 1) {
-      const spin = el("button", "btn btn-sm", "🎡 Spin");
-      spin.type = "button";
-      spin.title = "Spin a wheel of what's eligible instead";
-      spin.onclick = () => openWheelFor(eligible);
-      right.appendChild(spin);
+    const spin = el("button", "btn btn-sm", "🎡 Spin");
+    spin.type = "button";
+    spin.title = "A wheel of your own options";
+    spin.onclick = () => Wheel.openWheel({
+      custom: true,
+      title: "Spin a wheel",
+      hint: "Your own options — spin to let it decide.",
+    });
+    right.appendChild(spin);
+    const eligible = eligibleForPick(items);
+    if (eligible.length) {
+      const btn = el("button", "btn btn-sm", "Pick random");
+      btn.type = "button";
+      btn.onclick = () => openPickModal(eligible);
+      right.appendChild(btn);
     }
-    const btn = el("button", "btn btn-sm", "Pick random");
-    btn.type = "button";
-    btn.onclick = () => openPickModal(eligible);
-    right.appendChild(btn);
     return right;
   }
 
@@ -825,8 +828,8 @@
   // suspense is real without the odds changing. A pool bigger than the wheel
   // holds is cut to the front of the bag, which is the least-recently-seen
   // end of it.
-  function openPickWheel() { openWheelFor(pickCandidates()); }
-  function openWheelFor(pool) {
+  function openPickWheel() {
+    const pool = pickCandidates();
     if (pool.length < 2) return;
     const contenders = peekPickBag(pool, Wheel.MAX_SEGMENTS);
     Wheel.openWheel({
@@ -1496,10 +1499,10 @@
   // Exported as ids so app.js's swipe-between-modes can read the same list
   // this bar draws from — two copies would be two orders waiting to disagree
   // about what a swipe left lands on.
-  // "Entries" rather than "By category", matching every other tab's first
-  // mode — the id stays "category" because it is persisted per device and
-  // renaming it would strand anyone mid-upgrade.
-  const MODES = [["category", "Entries"], ["upcoming", "Next releases"], ["discover", "Discover"]];
+  // "Entries", matching every other tab's first mode. It was "By category"
+  // with the id "category" until 0.128.0; applySavedUi in app.js translates
+  // the stored one.
+  const MODES = [["entries", "Entries"], ["upcoming", "Next releases"], ["discover", "Discover"]];
   // The switch itself lives on the tab now on both layouts — held on a phone,
   // hovered on a desktop (see the mode fan and the tab menu in app.js) — so
   // only what the bar carries besides it is drawn here.
@@ -1508,7 +1511,7 @@
     if (state.backlogMode === "upcoming") {
       const n = upcomingItems().length;
       if (n) bar.appendChild(el("span", "backlog-mode-count", n + (n === 1 ? " title" : " titles") + " waiting"));
-    } else if (state.backlogMode === "category") {
+    } else if (state.backlogMode === "entries") {
       // Not in Discover: the draw is from your own list, and offering it
       // beside a wall of things you do not own reads as if it might pick one.
       const pick = makePickGroup(items);

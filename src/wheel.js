@@ -4,10 +4,10 @@
 // this device, so the list you spin every week is still there next time).
 // Self-contained apart from the usual app plumbing handed in by init(ctx).
 (function () {
-  let $, toast, prefersReducedMotion, palette;
+  let $, toast, prefersReducedMotion;
 
   function init(ctx) {
-    ({ $, toast, prefersReducedMotion, palette } = ctx);
+    ({ $, toast, prefersReducedMotion } = ctx);
   }
 
   const WHEEL_KEY = "lifelog-wheel-v1";
@@ -41,7 +41,16 @@
     try { localStorage.setItem(WHEEL_KEY, JSON.stringify({ options })); } catch (e) {}
   }
 
-  function colorAt(i) { return palette[i % palette.length]; }
+  // The category ramp runs deep red to pale lime, which is right for a 10px
+  // dot beside a name and wrong for a wheel of filled wedges — it came out
+  // looking like a fairground prize wheel in the middle of a quiet dark app.
+  // These are one family at a shared lightness instead: distinguishable
+  // side by side, none of them shouting, and all dark enough that white type
+  // is readable on every one. Backlog spins keep their category colours,
+  // which mean something there; this is for the options you type yourself.
+  const OWN_COLORS = ["#4a72d6", "#3f9e8c", "#c08a3e", "#b5566e",
+                      "#7264bd", "#5f8a4c", "#a9673f", "#5d7385"];
+  function colorAt(i) { return OWN_COLORS[i % OWN_COLORS.length]; }
 
   // Label ink per slice: the category ramp runs from deep red to pale lime,
   // and white on the lime end is unreadable. `dim` accounts for the shade
@@ -88,7 +97,15 @@
     if (!cv) return;
     const { css, dpr } = canvasSize(cv);
     const ctx = cv.getContext("2d");
-    const r = (css / 2) - 4;
+    const r = (css / 2) - 5;
+    // A ring rather than a pie: the hub used to sit on top of the point where
+    // every wedge meets, which is the busiest part of the drawing and the one
+    // place a label can't go anyway.
+    const hole = Math.max(34, r * 0.30);
+    const varOf = (name, fallback) =>
+      getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+    const surface = varOf("--bg-elev", "#1a1f29");
+    const edge = varOf("--border-strong", "#39424f");
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, css, css);
     ctx.save();
@@ -98,43 +115,58 @@
     const n = segments.length;
     if (!n) { ctx.restore(); return; }
     const step = (Math.PI * 2) / n;
-    const rim = getComputedStyle(document.documentElement).getPropertyValue("--bg-elev").trim() || "#1a1f29";
 
     ctx.font = "600 " + Math.max(10, Math.min(15, Math.round(css / 22))) + "px system-ui, sans-serif";
     ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+    // Backlog slices are coloured by category, so a run of neighbours from
+    // one category would read as a single wedge; within such a run every
+    // other slice takes a shade. A run of one needs nothing, which is the
+    // custom wheel's case since its colours already alternate.
+    let shaded = false;
     for (let i = 0; i < n; i++) {
+      shaded = i > 0 && segments[i].color === segments[i - 1].color ? !shaded : false;
       const from = i * step;
       ctx.beginPath();
-      ctx.moveTo(0, 0);
       ctx.arc(0, 0, r, from, from + step);
+      ctx.arc(0, 0, hole, from + step, from, true);
       ctx.closePath();
       ctx.fillStyle = segments[i].color;
       ctx.fill();
-      // Backlog slices are colored by category, so neighbours from the same
-      // one would be a single wedge; every other slice gets a shade over it.
-      if (i % 2) { ctx.fillStyle = "rgba(0,0,0,.16)"; ctx.fill(); }
-      // Hairline so the boundary survives even between two shaded pairs.
-      ctx.strokeStyle = rim;
-      ctx.lineWidth = 1.5;
+      if (shaded) { ctx.fillStyle = "rgba(0,0,0,.18)"; ctx.fill(); }
+      // In the modal's own colour, so the boundary reads as a gap between
+      // wedges rather than as a line drawn over them.
+      ctx.strokeStyle = surface;
+      ctx.lineWidth = 2;
       ctx.stroke();
 
       ctx.save();
       // Labels run along the radius, but a slice on the left of the wheel
-      // would have its text upside-down — so that half is drawn flipped and
-      // anchored at the rim from the other side. Re-decided every frame off
-      // the slice's live angle, so the wheel is readable wherever it stops.
+      // would have its text upside-down — so that half is drawn flipped.
+      // Re-decided every frame off the slice's live angle, so the wheel is
+      // readable wherever it stops.
       const flipped = Math.cos(from + step / 2 + angle) < 0;
       ctx.rotate(from + step / 2);
       if (flipped) ctx.rotate(Math.PI);
-      const ink = labelInk(segments[i].color, i % 2 ? 0.84 : 1);
+      const ink = labelInk(segments[i].color, shaded ? 0.82 : 1);
       ctx.fillStyle = ink.fill;
       ctx.shadowColor = ink.shadow;
       ctx.shadowBlur = 3;
-      ctx.textAlign = flipped ? "left" : "right";
-      const label = fitLabel(ctx, segments[i].label, r - 46);
-      ctx.fillText(label, flipped ? -(r - 14) : r - 14, 0);
+      const mid = (hole + r) / 2;
+      const label = fitLabel(ctx, segments[i].label, r - hole - 14);
+      ctx.fillText(label, flipped ? -mid : mid, 0);
       ctx.restore();
     }
+    ctx.restore();
+
+    // A rim to sit on, drawn once outside the rotation.
+    ctx.save();
+    ctx.translate(css / 2, css / 2);
+    ctx.beginPath();
+    ctx.arc(0, 0, r + 1, 0, Math.PI * 2);
+    ctx.strokeStyle = edge;
+    ctx.lineWidth = 2;
+    ctx.stroke();
     ctx.restore();
   }
 
