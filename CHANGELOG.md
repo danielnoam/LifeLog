@@ -4,6 +4,32 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.127.0] - 2026-09-08
+
+### Added
+- **Shift and a digit goes straight to that tab's second mode** — Shift+2 is
+  the Timeline's Stats, Shift+1 To-do, Shift+3 Next releases, Shift+4
+  Summary. Keyed on the physical digit rather than the character, since
+  Shift+2 is "@" on a US layout.
+- **The mode fan now lists the tab's own mode too**, as the option nearest
+  your thumb, so the shortest slide gives you what a plain tap would have.
+
+### Changed
+- **On a desktop, hovering a tab drops its modes out of it** — the switch
+  above the content is gone on both layouts now. The modes belong to the
+  tab: held on a phone, hovered on a desktop.
+- **The Journal / Finance headers are gone on desktop.** At four tabs, three
+  of which are one group, a group of one stopped being a grouping. The thin
+  divider between Backlog and the Ledger stays on a phone.
+
+### Fixed
+- **The mode fan no longer runs off the right edge, or hides behind the +
+  button.** Holding the Ledger tab put half of "Summary" past the screen and
+  the rest under the floating +. The fan is clamped inside the viewport now,
+  and the bottom bar sits above the + — the fan rises out of it through
+  exactly the corner the + floats in, and no z-index on the fan itself could
+  lift it out of the bar's stacking context.
+
 ## [0.126.1] - 2026-09-08
 
 ### Changed

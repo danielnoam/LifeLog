@@ -16,6 +16,22 @@ what was decided against and why.
 
 ---
 
+- the mode switch is on the tab on both layouts (0.127.0): held on a phone
+  (openModeFan), hovered on a desktop (openTabMenu). Nothing above the
+  content any more — the slot keeps only what isn't the switch, which is the
+  Notes count and the Backlog's Pick random. Three things this needed:
+  the tab menu is appended to the .tab, not to #viewTabs, because .tab is
+  the positioned ancestor and `min-width: 100%` against the nav made every
+  menu span the whole bar; both the menu and the fan measure themselves after
+  append and pull back inside the window, since an edge tab would otherwise
+  push half a label off screen; and the phone's .topbar had to go to
+  z-index 40, not the bottom bar inside it — z-index: 20 on .topbar makes it
+  a stacking context, so the fan could not paint over .fab-wrap (35) no
+  matter what value the fan itself carried. That one only showed up in a
+  screenshot; every declared z-index looked right.
+  The fan lists the tab's own mode as well now, nearest the thumb, so the
+  shortest slide gives what a plain tap would have.
+
 - four tabs, each pairing a list with a second reading of it (0.126.0):
   Notes/To-do, Timeline/Stats, Backlog's three, Ledger/Summary. Stats and
   Summary were tabs of their own, but render() already read

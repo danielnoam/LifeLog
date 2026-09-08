@@ -123,8 +123,9 @@ between them.
   slide up and let go on the one you want. A plain tap is the tab's own
   mode, and dots under each tab say how many modes it has and which one
   it's in. Tapping the tab you're on takes you to the top of the list, or
-  steps to the next mode if you're already there. On a desktop the switch
-  sits above the content instead.
+  steps to the next mode if you're already there. On a desktop the same
+  modes drop out of the tab when you hover it, or Shift and the tab's digit
+  goes straight to its second one.
 - **Category management** – add / rename / recolour / reorder / delete, for
   both journal and finance categories.
 - **Import / export** – JSON and CSV, both directions, each routed through a

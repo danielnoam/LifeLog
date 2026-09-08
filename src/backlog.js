@@ -15,7 +15,7 @@
     fillCategorySelect, wireCategorySelect, titleSuggestions,
     backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
     resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
-    renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown, isMobileLayout,
+    renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, applySteamAppId,
     backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS;
@@ -27,7 +27,7 @@
       fillCategorySelect, wireCategorySelect, titleSuggestions,
       backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
       resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
-      renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown, isMobileLayout,
+      renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, applySteamAppId,
       backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS } = ctx);
@@ -1484,34 +1484,11 @@
   // this bar draws from — two copies would be two orders waiting to disagree
   // about what a swipe left lands on.
   const MODES = [["category", "By category"], ["upcoming", "Next releases"], ["discover", "Discover"]];
+  // The switch itself lives on the tab now on both layouts — held on a phone,
+  // hovered on a desktop (see the mode fan and the tab menu in app.js) — so
+  // only what the bar carries besides it is drawn here.
   function renderBacklogModeBar(root, items) {
     const bar = el("div", "backlog-mode-bar");
-    // On a phone the switch lives in the bottom bar instead — press and hold
-    // the tab (see the mode fan in app.js) — so only what the bar carries
-    // besides the switch is drawn here.
-    if (isMobileLayout()) {
-      const pick = state.backlogMode === "category" ? makePickButton(items) : null;
-      if (pick) { bar.appendChild(pick); root.appendChild(bar); }
-      return;
-    }
-    const group = el("div", "seg");
-    for (const [mode, label] of MODES) {
-      const btn = el("button", "seg-btn", label);
-      btn.type = "button";
-      const active = state.backlogMode === mode;
-      btn.classList.toggle("active", active);
-      btn.setAttribute("aria-pressed", String(active));
-      btn.onclick = () => {
-        if (state.backlogMode === mode) return;
-        state.backlogMode = mode;
-        state.bulk.active = false;
-        state.bulk.selected.clear();
-        render();
-        saveUiState();
-      };
-      group.appendChild(btn);
-    }
-    bar.appendChild(group);
     if (state.backlogMode === "upcoming") {
       const n = upcomingItems().length;
       if (n) bar.appendChild(el("span", "backlog-mode-count", n + (n === 1 ? " title" : " titles") + " waiting"));
@@ -1521,7 +1498,7 @@
       const pick = makePickButton(items);
       if (pick) bar.appendChild(pick);
     }
-    root.appendChild(bar);
+    if (bar.firstChild) root.appendChild(bar);
   }
 
   // A category's count, split by default into what you could actually sit

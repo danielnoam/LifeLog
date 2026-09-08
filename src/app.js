@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.126.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.127.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -66,6 +66,14 @@
   // since that's what the shortcuts cheat-sheet shows and what a user
   // scanning the tab bar would expect "3" etc. to mean.
   const SHORTCUT_VIEWS = { 1: "notes", 2: "timeline", 3: "backlog", 4: "finance" };
+  // Shift and the same digit goes to that tab's second mode — Shift+2 is the
+  // Timeline's Stats, which is what the merge into modes would otherwise have
+  // cost a keyboard. Keyed on e.code rather than e.key because Shift+2 is "@"
+  // on a US layout and something else again elsewhere; the physical digit is
+  // the thing the cheat-sheet is describing. A view with a third mode (the
+  // Backlog) doesn't get a key for it — two is where a digit row runs out of
+  // sensible meanings.
+  const SHORTCUT_CODES = { Digit1: "notes", Digit2: "timeline", Digit3: "backlog", Digit4: "finance" };
 
   function loadVisualSettings() {
     try {
@@ -86,7 +94,7 @@
     } catch (e) {}
   }
 
-  // Restore where you were, translating anything a version before 0.126.1
+  // Restore where you were, translating anything a version before 0.127.0
   // wrote. Stats and Summary were tabs of their own then, and Notes/To-do
   // were modes of the Timeline; each of those is now a (view, mode) pair, so
   // a device that closed on one reopens looking at the same screen rather
@@ -111,7 +119,7 @@
     for (const [key, spec] of Object.entries(VIEW_MODES)) {
       const saved = ui[key === "finance" ? "financeMode" : key + "Mode"];
       // Only where it's still one of that view's modes: "notes" sat in
-      // timelineMode until 0.126.1, and setting it now would be a mode the
+      // timelineMode until 0.127.0, and setting it now would be a mode the
       // Timeline no longer has.
       if (saved && modeIds(spec).includes(saved) && !(moved && key === moved.view)) spec.set(saved);
     }
@@ -453,29 +461,16 @@
     content.classList.toggle("no-filters", !inContent);
   }
 
+  // What the slot carries besides the switch — the switch itself lives on
+  // the tab now, whichever the layout: held on a phone, hovered on a desktop
+  // (see openModeFan and openTabMenu). A row of buttons here as well would be
+  // the same control twice.
   function renderModeBar(root) {
-    // On a phone the switch lives in the bottom bar instead: press and hold
-    // the tab and the other modes fan out above it (see openModeFan). A row
-    // of buttons here as well would be the same control twice, in the half
-    // of the screen with the least room for it.
-    if (isMobileLayout()) return;
-    const spec = VIEW_MODES[state.view];
-    if (!spec) return;
+    if (state.view !== "notes") return;
     const bar = el("div", "backlog-mode-bar");
-    const group = el("div", "seg");
-    for (const [mode, label] of spec.modes) {
-      const btn = el("button", "seg-btn", label);
-      btn.type = "button";
-      const active = spec.get() === mode;
-      btn.classList.toggle("active", active);
-      btn.setAttribute("aria-pressed", String(active));
-      btn.onclick = () => { if (spec.get() !== mode) { spec.set(mode); commitModeChange(); } };
-      group.appendChild(btn);
-    }
-    bar.appendChild(group);
     // Notes and to-dos have no year/category chips to say how many there
     // are, so the count goes here. The other views' own headers already do.
-    if (state.view === "notes") {
+    {
       const count = state.notesMode === "notes"
         ? state.data.notes.length
         : state.data.todos.filter((t) => !t.done).length;
@@ -486,7 +481,7 @@
         bar.appendChild(el("span", "backlog-mode-count", count + word));
       }
     }
-    root.appendChild(bar);
+    if (bar.firstChild) root.appendChild(bar);
   }
   // No wrap-around, matching the tab swipe: the ends are the ends, so a
   // swipe past the last mode does nothing rather than teleporting you back
@@ -566,20 +561,90 @@
     if (!bar) return;
     const fan = el("div", "mode-fan");
     // Centred on the tab: a label like "Next releases" needs more room than
-    // a fifth of the screen, and the finger is coming up the middle anyway.
-    fan.style.left = (tab.offsetLeft + tab.offsetWidth / 2) + "px";
-    // Column-reverse in CSS, so the first alternative sits nearest the tab:
-    // a short slide reaches it and a longer one reaches the next.
-    for (const [id, label] of spec.modes.slice(1)) {
+    // a quarter of the screen, and the finger is coming up the middle anyway.
+    const centre = tab.offsetLeft + tab.offsetWidth / 2;
+    // Column-reverse in CSS, so the first mode sits nearest the tab: the
+    // shortest slide reaches what a plain tap would have given you, and each
+    // longer one reaches the next.
+    for (const [id, label] of spec.modes) {
       const item = el("div", "mode-fan-item", label);
       item.dataset.mode = id;
       fan.appendChild(item);
     }
+    fan.style.left = centre + "px";
     bar.appendChild(fan);
+    // Centring on an edge tab would put half of "Summary" off the screen, so
+    // once it has been measured the fan slides back inside — still pointing
+    // at its tab, just no longer centred on it. Read after append and
+    // written before paint, so nothing shows in the wrong place first.
+    const room = bar.clientWidth, w = fan.offsetWidth, pad = 8;
+    const clamped = Math.min(Math.max(centre, w / 2 + pad), room - w / 2 - pad);
+    if (clamped !== centre) fan.style.left = clamped + "px";
     // The tab's view is kept too: long-pressing a tab you aren't on is a
     // perfectly ordinary thing to do, and it has to land you in that view.
     modeFan = { fan, spec, view: tab.dataset.view, armed: null };
     requestAnimationFrame(() => fan.classList.add("is-open"));
+  }
+
+  // ---------- the tab menu (desktop) ----------
+  // The desktop equivalent of the fan: hover a tab and its modes drop out of
+  // it. Same idea as the phone's — the modes belong to the tab, not to a row
+  // of buttons above the content — and it costs the page nothing when you
+  // aren't asking. Hover-only, so it never appears on a touch device, where
+  // the fan is the answer instead.
+  let tabMenu = null;
+  let tabMenuCloseTimer = null;
+  function closeTabMenu() {
+    clearTimeout(tabMenuCloseTimer);
+    tabMenuCloseTimer = null;
+    if (tabMenu) { tabMenu.remove(); tabMenu = null; }
+  }
+  // A beat's grace on the way out: the pointer crosses a hair of the tab's
+  // own padding travelling from the tab into the menu, and closing on that
+  // would make the menu unreachable.
+  function scheduleTabMenuClose() {
+    clearTimeout(tabMenuCloseTimer);
+    tabMenuCloseTimer = setTimeout(closeTabMenu, 160);
+  }
+  function openTabMenu(tab) {
+    const spec = VIEW_MODES[tab.dataset.view];
+    if (!spec || isMobileLayout()) return;
+    if (tabMenu && tabMenu.dataset.view === tab.dataset.view) {
+      clearTimeout(tabMenuCloseTimer);
+      tabMenuCloseTimer = null;
+      return;
+    }
+    closeTabMenu();
+    const menu = el("div", "tab-menu");
+    menu.dataset.view = tab.dataset.view;
+    for (const [id, label] of spec.modes) {
+      const item = el("button", "tab-menu-item", label);
+      item.type = "button";
+      // Only ever "the one you're in" on the tab you're on: the mark would
+      // otherwise claim a mode that opening the tab is about to reset.
+      const current = tab.dataset.view === state.view && spec.get() === id;
+      item.classList.toggle("is-on", current);
+      item.onclick = (ev) => {
+        ev.stopPropagation();
+        closeTabMenu();
+        spec.set(id);
+        if (tab.dataset.view !== state.view) switchToView(tab.dataset.view);
+        else commitModeChange();
+      };
+      menu.appendChild(item);
+    }
+    menu.addEventListener("pointerenter", () => { clearTimeout(tabMenuCloseTimer); tabMenuCloseTimer = null; });
+    menu.addEventListener("pointerleave", scheduleTabMenuClose);
+    // Into the tab, not the bar: .tab is the positioned ancestor here, so
+    // top/left land on the tab and min-width can mean "at least as wide as
+    // the tab" rather than as wide as the whole nav.
+    tab.appendChild(menu);
+    tabMenu = menu;
+    // Pulled back inside if the last tab's menu would run off the window —
+    // the same problem the fan has at the edge of a phone screen.
+    const over = menu.getBoundingClientRect().right - (window.innerWidth - 8);
+    if (over > 0) menu.style.left = -over + "px";
+    requestAnimationFrame(() => menu.classList.add("is-open"));
   }
 
   // Whichever option the finger is over right now, lit so you can see what
@@ -2511,6 +2576,18 @@
         holdFrom = { x: ev.clientX, y: ev.clientY };
         holdTimer = setTimeout(() => { holdTimer = null; openModeFan(t, spec); }, MODE_FAN_MS);
       });
+
+      // The desktop half of the same control. pointerenter fires for a touch
+      // too, so the mouse test is explicit rather than implied.
+      t.addEventListener("pointerenter", (ev) => {
+        if (ev.pointerType === "touch") return;
+        openTabMenu(t);
+      });
+      t.addEventListener("pointerleave", scheduleTabMenuClose);
+      // Deliberately not closed on the tab's own click: the pointer is still
+      // sitting on the tab afterwards, and a closed menu would stay closed
+      // until you moved away and came back. It survives the render (the tabs
+      // aren't rebuilt) and re-marks itself on the next hover.
     });
     // The rest of the gesture belongs to the window, not to any one tab: the
     // finger leaves the tab as soon as the fan is up, and it can be let go
@@ -2647,6 +2724,15 @@
       if (e.key === "?") { e.preventDefault(); openShortcutsModal(); return; }
       if (e.key === "/") { e.preventDefault(); $("#search").focus(); return; }
       if (e.key === "n" || e.key === "N") { e.preventDefault(); Journal.openEntryModal(null); return; }
+      // After ? and N, both of which are themselves shifted keys.
+      if (e.shiftKey && SHORTCUT_CODES[e.code]) {
+        e.preventDefault();
+        const view = SHORTCUT_CODES[e.code];
+        const spec = VIEW_MODES[view];
+        if (spec) spec.set(modeIds(spec)[1]);
+        if (view !== state.view) switchToView(view); else commitModeChange();
+        return;
+      }
       if (SHORTCUT_VIEWS[e.key]) { e.preventDefault(); switchToView(SHORTCUT_VIEWS[e.key]); return; }
     });
 
