@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.126.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.126.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -86,7 +86,7 @@
     } catch (e) {}
   }
 
-  // Restore where you were, translating anything a version before 0.126.0
+  // Restore where you were, translating anything a version before 0.126.1
   // wrote. Stats and Summary were tabs of their own then, and Notes/To-do
   // were modes of the Timeline; each of those is now a (view, mode) pair, so
   // a device that closed on one reopens looking at the same screen rather
@@ -111,7 +111,7 @@
     for (const [key, spec] of Object.entries(VIEW_MODES)) {
       const saved = ui[key === "finance" ? "financeMode" : key + "Mode"];
       // Only where it's still one of that view's modes: "notes" sat in
-      // timelineMode until 0.126.0, and setting it now would be a mode the
+      // timelineMode until 0.126.1, and setting it now would be a mode the
       // Timeline no longer has.
       if (saved && modeIds(spec).includes(saved) && !(moved && key === moved.view)) spec.set(saved);
     }
@@ -400,6 +400,11 @@
   const VIEW_MODES = {
     notes: {
       modes: [["notes", "Notes"], ["todo", "To-do"]],
+      // The only view whose two modes don't show the same chips: the years
+      // come from the notes themselves, and a to-do has neither a year worth
+      // filtering nor a category. So here the filterbar is part of the
+      // content and travels with it — see placeFilterbar.
+      chipsVaryByMode: true,
       get: () => state.notesMode,
       set: (m) => { state.notesMode = m; },
     },
@@ -428,6 +433,26 @@
   // inside it would strand a new user in a mode with no way out of it. The
   // Backlog keeps its own (renderBacklogModeBar), which carries the
   // Pick-random button beside the switch.
+  // Sliding the year and category chips sideways during a mode change only
+  // says something where the chips actually differ between the modes. They
+  // don't in Timeline, the Backlog or the Ledger — each of those filters both
+  // its modes by the same things — so there the bar is chrome above the
+  // content and holds still while the content moves under it. Notes is the
+  // exception (see chipsVaryByMode), and keeps it inside.
+  function placeFilterbar() {
+    const bar = $("#filterbar");
+    const content = $("#content");
+    const spec = VIEW_MODES[state.view];
+    const inContent = Boolean(spec && spec.chipsVaryByMode);
+    if (inContent) {
+      if (bar.parentNode !== content) content.insertBefore(bar, $("#viewBody"));
+    } else if (bar.parentNode !== $("#filterSlot")) {
+      $("#filterSlot").appendChild(bar);
+    }
+    bar.classList.toggle("is-chrome", !inContent);
+    content.classList.toggle("no-filters", !inContent);
+  }
+
   function renderModeBar(root) {
     // On a phone the switch lives in the bottom bar instead: press and hold
     // the tab and the other modes fan out above it (see openModeFan). A row
@@ -885,6 +910,7 @@
       });
       updateTabUnderline();
       updateTabModeDots();
+      placeFilterbar();
       // #viewBody, not #content: the filterbar is #content's other child and
       // is rebuilt in place rather than thrown away with the view.
       const c = $("#viewBody");
@@ -2424,7 +2450,11 @@
     // requireHorizontal is what keeps this off the vertical scroll it
     // shares a surface with. Attached once: #content survives every render,
     // only its children are replaced.
-    attachSwipe($("#content"), {
+    // Both surfaces the view occupies, since the filterbar sits outside
+    // #content in most views now and a swipe that starts on the chips should
+    // still drag what they filter. Attached once each: #content and
+    // #filterSlot both survive every render.
+    const modeSwipe = {
       onLeft: () => modeDragCommit(1),
       onRight: () => modeDragCommit(-1),
       onMove: (dx) => modeDragMove(dx),
@@ -2433,7 +2463,9 @@
       // scrolling, and a mode change is a bigger thing to do by accident.
       threshold: 60,
       requireHorizontal: true,
-    });
+    };
+    attachSwipe($("#content"), modeSwipe);
+    attachSwipe($("#filterSlot"), modeSwipe);
 
     // Bulk-select drag-paint: while dragPaint is set (started by a
     // checkbox's pointerdown), moving over other checkboxes paints them to

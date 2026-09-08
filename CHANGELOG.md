@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.126.1] - 2026-09-08
+
+### Changed
+- **The year and category chips hold still during a mode change** in
+  Timeline, Backlog and the Ledger. Each of those filters both of its modes
+  by the same chips, so sliding them sideways was movement that said
+  nothing — they're chrome above the content now, and only the content
+  moves. Notes keeps them inside the slide, since its years come from the
+  notes themselves and To-do has no chips at all. A swipe that starts on the
+  chips still drags the view.
+
 ## [0.126.0] - 2026-09-08
 
 ### Changed

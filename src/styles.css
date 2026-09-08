@@ -467,9 +467,9 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 .mode-slot[hidden] { display: none; }
 .mode-slot .backlog-mode-bar { margin-bottom: 0; }
 
-/* Inside #content now (see index.html), so no horizontal padding of its own
-   and no background — the content's padding places it, and the rule under it
-   is what separates it from the view rather than a full-bleed band. */
+/* No horizontal padding or background of its own — whichever parent it is in
+   places it, and the rule under it is what separates it from the view rather
+   than a full-bleed band. */
 .filterbar {
   display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
   padding: 0 0 12px; margin-bottom: 16px;
@@ -479,6 +479,16 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
    would be a line under nothing. Driven from JS rather than :has(), which
    this codebase doesn't lean on anywhere else. */
 .filterbar[hidden] { display: none; }
+/* Standing outside #content, the padding #content was giving it comes from
+   the slot instead — on the slot rather than the bar so the rule underneath
+   stays inset with the content rather than running edge to edge. pan-y for
+   the same reason #content has it: a swipe starting on the chips still drags
+   the view behind them. Empty whenever the bar is inside #content (Notes),
+   where its padding would be a band of nothing. */
+.filter-slot { padding: 22px 20px 0; touch-action: pan-y; }
+.filter-slot:empty { padding: 0; }
+/* ...and #content stops supplying a top gap the slot has already left. */
+.content.no-filters { padding-top: 0; }
 .filter-group { display: flex; align-items: center; gap: 10px; }
 /* The display above outranks the UA stylesheet's [hidden] rule, so hiding
    the category group (Notes mode, where a note has no category) needs this
@@ -1558,7 +1568,10 @@ kbd {
   html:not(.force-pc) .jump-item.is-active { color: var(--accent); font-size: 13.5px; cursor: default; }
 
   html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
+  html:not(.force-pc) .filter-slot { padding: 14px 14px 0; }
+  html:not(.force-pc) .filter-slot:empty { padding: 0; }
   html:not(.force-pc) .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: var(--bottombar-h, 88px); }
+  html:not(.force-pc) .content.no-filters { padding-top: 0; }
   html:not(.force-pc) .toast { bottom: var(--bottombar-h, 88px); }
   html:not(.force-pc) .update-bar { bottom: var(--bottombar-h, 88px); }
   html:not(.force-pc) .bulk-bar { bottom: var(--bottombar-h, 88px); flex-wrap: wrap; }
@@ -1650,7 +1663,10 @@ html.force-mobile .jump-item {
 html.force-mobile .jump-item.is-active { color: var(--accent); font-size: 13.5px; cursor: default; }
 
 html.force-mobile .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
+html.force-mobile .filter-slot { padding: 14px 14px 0; }
+html.force-mobile .filter-slot:empty { padding: 0; }
 html.force-mobile .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: var(--bottombar-h, 88px); }
+html.force-mobile .content.no-filters { padding-top: 0; }
 html.force-mobile .toast { bottom: var(--bottombar-h, 88px); }
 html.force-mobile .update-bar { bottom: var(--bottombar-h, 88px); }
 html.force-mobile .bulk-bar { bottom: var(--bottombar-h, 88px); flex-wrap: wrap; }

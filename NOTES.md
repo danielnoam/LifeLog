@@ -144,12 +144,21 @@ what was decided against and why.
   restore was the cause; the jump-nav's height change is a real but separate
   thing, and chasing it first cost a round trip.
 
-- the filterbar lives inside #content, with #viewBody as the thing a render
-  actually clears. The filters belong to the content (which rows show at all
-  depends on the mode), so they have to travel with it — the animation and
-  the swipe both act on #content, and a filterbar outside it would have sat
-  still while everything it filters slid sideways. The mode slot stays
-  chrome above, since that's the one thing that shouldn't move.
+- where the filterbar lives is decided per view by placeFilterbar()
+  (0.126.1); #viewBody is the thing a render actually clears either way. It
+  went inside #content in 0.123.0 because Timeline's chips changed between
+  its modes, so a bar outside would have sat still while everything it
+  filtered slid sideways. The four-tab layout took that reason away
+  everywhere but Notes: Timeline, the Backlog and the Ledger each filter
+  both their modes by the same things, so sliding those chips was movement
+  that said nothing. Notes keeps it inside (chipsVaryByMode on its spec) —
+  its years come from the notes and To-do has no chips at all.
+  Two specificity traps in doing it, both from the phone rules being
+  `html:not(.force-pc) .content`, which outranks a bare second class: both
+  `.content.no-filters` and `.filter-slot:empty` needed phone-scoped twins or
+  the padding stayed and the gap doubled. The mode swipe is attached to the
+  slot as well as #content, so a drag starting on the chips still moves the
+  view behind them.
   Its own visibility is JS (updateFilterbarVisibility) rather than a :has()
   rule; nothing else here leans on :has(), and both builders can be the one
   that empties it.
