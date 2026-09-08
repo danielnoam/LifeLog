@@ -81,8 +81,8 @@ between them.
     year, a highlights strip (busiest month, longest streak, this year vs
     last), seasonality, genres, an activity heatmap, most-repeated titles,
     and a year-in-review card.
-- **Backlog** – what you mean to get to, as **By category** or **Next
-  releases**. Items sort into starred → ready → Early Access → unreleased →
+- **Backlog** – what you mean to get to, as **Entries** (grouped by
+  category) or **Next releases**. Items sort into starred → ready → Early Access → unreleased →
   dropped bands, and the category count sets the last three aside so it reads
   as things you could actually finish. **Pick random** draws one for you out
   of a bag, so nothing repeats until everything in scope has had a turn.

@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.127.2] - 2026-09-08
+
+### Changed
+- **The Backlog's first mode is called Entries**, not By category — it's what
+  every other tab calls its list, and it still groups by category. Only the
+  label changed; the stored value is untouched.
+
+### Removed
+- **The divider between Backlog and Ledger.** With the Journal / Finance
+  headers already gone on desktop, the phone's thin line was the last of a
+  grouping that had stopped meaning anything — three tabs and one. The tabs
+  are evenly spaced now.
+
 ## [0.127.1] - 2026-09-08
 
 ### Changed

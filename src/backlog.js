@@ -1496,7 +1496,10 @@
   // Exported as ids so app.js's swipe-between-modes can read the same list
   // this bar draws from — two copies would be two orders waiting to disagree
   // about what a swipe left lands on.
-  const MODES = [["category", "By category"], ["upcoming", "Next releases"], ["discover", "Discover"]];
+  // "Entries" rather than "By category", matching every other tab's first
+  // mode — the id stays "category" because it is persisted per device and
+  // renaming it would strand anyone mid-upgrade.
+  const MODES = [["category", "Entries"], ["upcoming", "Next releases"], ["discover", "Discover"]];
   // The switch itself lives on the tab now on both layouts — held on a phone,
   // hovered on a desktop (see the mode fan and the tab menu in app.js) — so
   // only what the bar carries besides it is drawn here.

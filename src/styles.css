@@ -365,13 +365,6 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 .tab-mode-dot.is-on { width: 9px; opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .tab-mode-dot { transition: none; } }
 
-/* The "Journal" / "Finance" headers stopped earning their space at four
-   tabs, three of which are one group — a group of one is not a grouping. The
-   elements stay because the phone block turns the same two into the thin
-   divider between Backlog and the Ledger; on a desktop they are simply gone,
-   and the mobile rule below re-declares the display it needs. */
-.tab-group-label { display: none; }
-
 /* mobile-only "current view" trigger; see .views.open below */
 .view-current { display: none; }
 
@@ -1527,11 +1520,6 @@ kbd {
   }
   html:not(.force-pc) .tab::before { content: attr(data-icon); font-size: 17px; line-height: 1; }
   html:not(.force-pc) .tab.active { color: var(--accent); background: none; }
-  html:not(.force-pc) .tab-group-label {
-    display: block; flex: 0 0 auto; width: 1px; margin: 10px 3px; padding: 0;
-    background: var(--border); color: transparent; font-size: 0; overflow: hidden;
-  }
-  html:not(.force-pc) .tab-group-label::before { display: none; }
   html:not(.force-pc) .views { position: relative; }
   /* Slides under whichever tab is active — tapping a tab or swiping the
      bar both animate it there, so a swipe reads as "the indicator moved
@@ -1655,11 +1643,6 @@ html.force-mobile .tab {
 }
 html.force-mobile .tab::before { content: attr(data-icon); font-size: 17px; line-height: 1; }
 html.force-mobile .tab.active { color: var(--accent); background: none; }
-html.force-mobile .tab-group-label {
-  display: block; flex: 0 0 auto; width: 1px; margin: 10px 3px; padding: 0;
-  background: var(--border); color: transparent; font-size: 0; overflow: hidden;
-}
-html.force-mobile .tab-group-label::before { display: none; }
 html.force-mobile .views { position: relative; }
 html.force-mobile .tab-modes { display: flex; }
 html.force-mobile .tab-underline {

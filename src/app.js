@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.127.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.127.2"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -94,7 +94,7 @@
     } catch (e) {}
   }
 
-  // Restore where you were, translating anything a version before 0.127.1
+  // Restore where you were, translating anything a version before 0.127.2
   // wrote. Stats and Summary were tabs of their own then, and Notes/To-do
   // were modes of the Timeline; each of those is now a (view, mode) pair, so
   // a device that closed on one reopens looking at the same screen rather
@@ -119,7 +119,7 @@
     for (const [key, spec] of Object.entries(VIEW_MODES)) {
       const saved = ui[key === "finance" ? "financeMode" : key + "Mode"];
       // Only where it's still one of that view's modes: "notes" sat in
-      // timelineMode until 0.127.1, and setting it now would be a mode the
+      // timelineMode until 0.127.2, and setting it now would be a mode the
       // Timeline no longer has.
       if (saved && modeIds(spec).includes(saved) && !(moved && key === moved.view)) spec.set(saved);
     }

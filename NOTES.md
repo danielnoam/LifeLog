@@ -16,6 +16,12 @@ what was decided against and why.
 
 ---
 
+- the Journal / Finance grouping is gone entirely (0.127.2), markup
+  included. It survived one version as two `.tab-group-label` spans that the
+  phone block restyled into a 1px divider, which is why the desktop rule read
+  `display: none` rather than the elements simply not existing. At four tabs
+  split three and one there was nothing left to group.
+
 - #modeSlot moved inside #content, under the filterbar (0.127.1). It was
   chrome above the filters for one reason: it held the mode switch, and the
   switch decided which chips showed, so a press moved it ~100px out from
