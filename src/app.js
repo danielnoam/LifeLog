@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.125.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.125.2"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -451,14 +451,13 @@
   let holdTimer = null, holdFrom = null;
   const cancelHold = () => { clearTimeout(holdTimer); holdTimer = null; holdFrom = null; };
 
-  // Pressing a tab you aren't on takes you there in its own mode — Timeline
-  // is Entries, the Backlog is By category. Anything else is what the fan is
-  // for. Returns false when that tab is the one you're already on, which is
-  // the caller's cue that this press means something else.
+  // Pressing a tab you aren't on takes you there. No mode to set: an
+  // inactive tab is already sitting in its own mode, because switchToView
+  // put it back there on the way out. Returns false when that tab is the one
+  // you're already on, which is the caller's cue that this press means
+  // something else.
   function activateTab(view) {
     if (view === state.view) return false;
-    const spec = VIEW_MODES[view];
-    if (spec) spec.set(modeIds(spec)[0]);
     switchToView(view);
     return true;
   }
@@ -612,6 +611,13 @@
   // first or last tab) instead of switching to nothing.
   function switchToView(view) {
     if (!view || !VIEW_ORDER.includes(view)) return;
+    // Leaving a view puts it back in its own mode. That's what makes the
+    // dots under an inactive tab honest: they'd otherwise show the mode it
+    // was left in while a tap on it landed somewhere else. The one owner of
+    // that rule, so nothing else has to remember to reset anything — the fan
+    // sets the *incoming* view's mode and is untouched by this.
+    const leaving = VIEW_MODES[state.view];
+    if (leaving && view !== state.view) leaving.set(modeIds(leaving)[0]);
     state.view = view;
     state.bulk.active = false;
     state.bulk.selected.clear();

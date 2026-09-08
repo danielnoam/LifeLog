@@ -16,6 +16,15 @@ what was decided against and why.
 
 ---
 
+- switchToView resets the mode of the view it is leaving, and is the only
+  place that does. The dots under an inactive tab are a promise about what
+  tapping it does, and a remembered mode broke that promise: Backlog's dots
+  said Next releases while a tap landed in By category. Resetting on the way
+  out rather than on the way in is what lets activateTab stay a plain
+  switchToView, and leaves the fan alone — the fan sets the mode of the view
+  it is switching *into*, which this never touches. The cost, taken
+  knowingly: an inactive tab's dots now only say how many modes it has.
+
 - a tab press has three meanings, resolved in one place (activateTab /
   stepMode / the .tab onclick, app.js): another tab is that view in its own
   mode; the current tab scrolled down is back to the top; the current tab

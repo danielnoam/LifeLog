@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.125.2] - 2026-09-08
+
+### Changed
+- **Leaving a tab puts it back in its own mode**, so the dots under an
+  inactive tab always predict what tapping it does. Before this, leaving
+  Backlog in Next releases left its dots saying Next releases while a tap on
+  it landed you in By category — the dots described where the tab was, and
+  the tap didn't take you there. The trade is that an inactive tab now only
+  tells you how many modes it has, not which one you left it in; that half
+  was the half that lied. Picking a mode off another tab's fan still
+  overrides, since that sets the mode of the view it's switching into.
+
 ## [0.125.1] - 2026-09-08
 
 ### Changed
