@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.124.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.124.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -441,7 +441,10 @@
   let modeFan = null;
   // A long-press ends in a pointerup that the browser then turns into a
   // click on the tab. Without this the fan's own choice would be immediately
-  // overruled by the tab's tap behaviour.
+  // overruled by the tab's tap behaviour. It's cleared on the next press
+  // rather than only when a click arrives: releasing on a fan item is a
+  // release somewhere other than the tab, so no click follows it at all and
+  // the flag would sit latched and eat the next genuine tap.
   let fanConsumedClick = false;
   // The press that may become a fan: where it started, and the timer that
   // decides it held long enough.
@@ -465,7 +468,9 @@
       fan.appendChild(item);
     }
     bar.appendChild(fan);
-    modeFan = { fan, spec, armed: null };
+    // The tab's view is kept too: long-pressing a tab you aren't on is a
+    // perfectly ordinary thing to do, and it has to land you in that view.
+    modeFan = { fan, spec, view: tab.dataset.view, armed: null };
     requestAnimationFrame(() => fan.classList.add("is-open"));
   }
 
@@ -486,14 +491,19 @@
   // swallowed.
   function closeModeFan() {
     if (!modeFan) return;
-    const { fan, spec, armed } = modeFan;
+    const { fan, spec, view, armed } = modeFan;
     modeFan = null;
     fan.remove();
     fanConsumedClick = true;
-    if (armed && spec.get() !== armed) {
-      spec.set(armed);
-      commitModeChange();
-    }
+    if (!armed) return;
+    if (spec.get() === armed && view === state.view) return;
+    spec.set(armed);
+    // Picking a mode off another tab's fan means going there: switchToView
+    // does the same rebuild commitModeChange does, plus the view change
+    // itself, and the click that would normally have taken us has already
+    // been swallowed above.
+    if (view !== state.view) switchToView(view);
+    else commitModeChange();
   }
 
   // A swipe across the page drags it with the finger rather than waiting for
@@ -2354,6 +2364,7 @@
       if (!holdFrom) return;
       if (Math.abs(ev.clientX - holdFrom.x) > 10 || Math.abs(ev.clientY - holdFrom.y) > 10) cancelHold();
     });
+    window.addEventListener("pointerdown", () => { fanConsumedClick = false; }, true);
     window.addEventListener("pointerup", () => { cancelHold(); closeModeFan(); });
     window.addEventListener("pointercancel", () => { cancelHold(); closeModeFan(); });
     // The storage status doubles as a shortcut into Settings → Data, so its

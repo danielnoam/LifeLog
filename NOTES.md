@@ -16,6 +16,14 @@ what was decided against and why.
 
 ---
 
+- the fan carries the tab's view, not just its mode spec (closeModeFan,
+  app.js). Long-pressing a tab you aren't on is ordinary, and the pick has
+  to switch views as well as set the mode — commitModeChange alone rerenders
+  wherever you already were. Its sibling: fanConsumedClick is cleared on the
+  next pointerdown rather than only when a click arrives, because a release
+  on a fan item is a release off the tab and synthesises no click at all, so
+  the flag latched and swallowed the next real tap.
+
 - the phone's mode switch is a fan off the tab bar, not a row on the page
   (openModeFan/armModeFanAt/closeModeFan, app.js). A long-press on the tab
   raises the other modes above it; a slide arms whichever one is under the

@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.124.1] - 2026-09-08
+
+### Fixed
+- **Picking a mode off a tab you aren't on now takes you there.** Long-press
+  Backlog from inside Timeline, choose Discover, and the mode was set but
+  the screen stayed on Timeline. The fan now remembers whose tab it came out
+  of and switches to that view.
+- **The next tab tap after a fan pick no longer does nothing.** Releasing on
+  a fan item is a release somewhere other than the tab, so no click is
+  synthesised — the flag that swallows that click stayed latched and ate the
+  following genuine tap instead. It's cleared on the next press.
+
 ## [0.124.0] - 2026-09-08
 
 ### Changed
