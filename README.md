@@ -115,6 +115,10 @@ Five views, in two groups.
 - **Swipe between modes** – on a phone, drag across the page to move between
   the modes of a tab that has them; the page follows your finger and letting
   go finishes the slide.
+- **The mode fan** – on a phone there is no mode switch on the page: press
+  and hold a tab in the bottom bar and its other modes rise above it, then
+  slide up and let go on the one you want. A plain tap is the tab's own
+  mode. On a desktop the switch sits above the content instead.
 - **Category management** – add / rename / recolour / reorder / delete, for
   both journal and finance categories.
 - **Import / export** – JSON and CSV, both directions, each routed through a

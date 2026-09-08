@@ -498,6 +498,43 @@ select:focus { outline: none; border-color: var(--accent); }
 .view-fade-in { animation: view-fade-in .22s cubic-bezier(.22,1,.36,1) both; }
 @media (prefers-reduced-motion: reduce) { .view-fade-in { animation: none; } }
 
+/* The mode fan: press and hold a tab in the bottom bar and its other modes
+   rise out of it, stacked upward so the first alternative is the shortest
+   slide away. Only ever built on a phone layout (see openModeFan in
+   app.js), so these aren't scoped to one — the force-mobile override and
+   the real thing would otherwise need the same forty lines twice.
+   column-reverse is what puts the first option nearest the tab while
+   keeping DOM order the same as everywhere else the modes are listed. */
+.mode-fan {
+  position: absolute; bottom: 100%; margin-bottom: 10px; z-index: 30;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column-reverse; gap: 7px;
+  min-width: 108px; max-width: 46vw;
+}
+.mode-fan-item {
+  background: var(--bg-elev-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 12px; font-size: 12px; font-weight: 600; text-align: center;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  /* The shadow is what lifts these off the page — without it they read as
+     part of the bar rather than something raised out of it. */
+  box-shadow: var(--shadow);
+  opacity: 0; transform: translateY(10px) scale(.96);
+  transition: opacity .16s ease, transform .16s cubic-bezier(.22,1,.36,1),
+              background .1s ease, border-color .1s ease, color .1s ease;
+}
+/* Each one a beat after the one below it, so they read as rising out of the
+   tab rather than appearing all at once. */
+.mode-fan-item:nth-child(2) { transition-delay: .045s; }
+.mode-fan-item:nth-child(3) { transition-delay: .09s; }
+.mode-fan.is-open .mode-fan-item { opacity: 1; transform: none; }
+.mode-fan-item.is-armed {
+  background: var(--accent); border-color: var(--accent); color: var(--text-on-accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mode-fan-item { transition: none; transition-delay: 0s; opacity: 1; transform: none; }
+}
+
 /* Switching mode within a view (Timeline's Entries/Notes/To-do, the
    Backlog's three) slides in from the side it came from — same timing and
    easing as the view fade above, on the axis a swipe actually moves along,
@@ -1510,7 +1547,10 @@ kbd {
   html:not(.force-pc) .update-bar { bottom: var(--bottombar-h, 88px); }
   html:not(.force-pc) .bulk-bar { bottom: var(--bottombar-h, 88px); flex-wrap: wrap; }
   html:not(.force-pc) .month-add-btn { width: 20px; height: 20px; font-size: 14px; }
-  html:not(.force-pc) .views { touch-action: pan-y; }
+  /* Both gestures the bar carries are the app's: the sideways tab swipe and
+     the upward slide through a mode fan. pan-y would hand the second one to
+     the browser as a scroll. */
+  html:not(.force-pc) .views { touch-action: none; }
 
   /* Timeline is a single column at this width, so the year/month you're
      scrolled into can stick under the topbar like a sticky list header. */
@@ -1605,7 +1645,7 @@ html.force-mobile .toast { bottom: var(--bottombar-h, 88px); }
 html.force-mobile .update-bar { bottom: var(--bottombar-h, 88px); }
 html.force-mobile .bulk-bar { bottom: var(--bottombar-h, 88px); flex-wrap: wrap; }
 html.force-mobile .month-add-btn { width: 20px; height: 20px; font-size: 14px; }
-html.force-mobile .views { touch-action: pan-y; }
+html.force-mobile .views { touch-action: none; }
 
 html.force-mobile .year-head { position: sticky; top: var(--topbar-h, 0px); z-index: 6; background: var(--bg); }
 html.force-mobile .month-card h3 {

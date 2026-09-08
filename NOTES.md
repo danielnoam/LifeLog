@@ -16,6 +16,21 @@ what was decided against and why.
 
 ---
 
+- the phone's mode switch is a fan off the tab bar, not a row on the page
+  (openModeFan/armModeFanAt/closeModeFan, app.js). A long-press on the tab
+  raises the other modes above it; a slide arms whichever one is under the
+  finger via elementFromPoint, and release takes it. Four things this had to
+  get right: the fan is appended to #topbarBottom rather than the tab row,
+  so it clears the jump-nav strip instead of landing on it; the pointerup
+  that ends a long-press is followed by a synthesised click on the tab, so
+  fanConsumedClick swallows exactly one; the move/up listeners live on
+  window, registered once outside the per-tab loop, because the finger
+  leaves the tab as soon as the fan is up; and .views went from
+  touch-action: pan-y to none, since the upward slide would otherwise be
+  handed to the browser as a scroll. renderTimelineModeBar and
+  renderBacklogModeBar return early on a phone rather than the CSS hiding
+  them, so the same control is never built twice.
+
 - the mode switch lives in #modeSlot, chrome between the topbar and the
   filterbar, rather than in #content. The filters are a consequence of the
   mode (categories and years hide themselves in Notes and To-do), so a

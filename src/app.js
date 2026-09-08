@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.123.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.124.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -325,7 +325,8 @@
     // Direction is read from where you were to where you are, rather than
     // told to us: that way a swipe, a tap on the switch and the Backlog's own
     // mode bar all animate correctly without any of them knowing this exists.
-    pendingModeAnim = spec.modes.indexOf(mode) < spec.modes.indexOf(prevMode)
+    const ids = modeIds(spec);
+    pendingModeAnim = ids.indexOf(mode) < ids.indexOf(prevMode)
       ? "mode-slide-back" : "mode-slide-fwd";
   }
 
@@ -356,23 +357,29 @@
   const TIMELINE_MODES = [["entries", "Entries"], ["notes", "Notes"], ["todo", "To-do"]];
   const VIEW_MODES = {
     timeline: {
-      modes: TIMELINE_MODES.map(([id]) => id),
+      modes: TIMELINE_MODES,
       get: () => state.timelineMode,
       set: (m) => { state.timelineMode = m; },
     },
     backlog: {
       // Read off backlog.js's own bar rather than restated here: two lists
       // would be two orders waiting to disagree about what a swipe lands on.
-      modes: Backlog.MODE_IDS,
+      modes: Backlog.MODES,
       get: () => state.backlogMode,
       set: (m) => { state.backlogMode = m; },
     },
   };
+  const modeIds = (spec) => spec.modes.map(([id]) => id);
 
   // Timeline's Entries / Notes / To-do switch. Rendered before any of the
   // three draws, because the timeline's own empty state returns early — a
   // switch drawn inside it would strand a new user in a mode with no way out.
   function renderTimelineModeBar(root) {
+    // On a phone the switch lives in the bottom bar instead: press and hold
+    // the tab and the other modes fan out above it (see openModeFan). A row
+    // of buttons here as well would be the same control twice, in the half
+    // of the screen with the least room for it.
+    if (isMobileLayout()) return;
     const bar = el("div", "backlog-mode-bar");
     const group = el("div", "seg");
     for (const [mode, label] of TIMELINE_MODES) {
@@ -398,12 +405,7 @@
 
   function setTimelineMode(mode) {
     state.timelineMode = mode;
-    // Both chip rows describe whichever mode is on screen, so they're
-    // rebuilt before the render that reads them (see years()/buildCatFilter).
-    buildYearFilter();
-    buildCatFilter();
-    render();
-    saveUiState();
+    commitModeChange();
   }
   // No wrap-around, matching the tab swipe: the ends are the ends, so a
   // swipe past the last mode does nothing rather than teleporting you back
@@ -411,14 +413,87 @@
   function cycleMode(delta) {
     const spec = VIEW_MODES[state.view];
     if (!spec) return;
-    const i = spec.modes.indexOf(spec.get());
-    const next = i < 0 ? null : spec.modes[i + delta];
+    const ids = modeIds(spec);
+    const i = ids.indexOf(spec.get());
+    const next = i < 0 ? null : ids[i + delta];
     if (!next) return;
     spec.set(next);
+    commitModeChange();
+  }
+
+  // Everything a mode change has to refresh besides the content itself: both
+  // chip rows describe whichever mode is on screen (see years() and
+  // buildCatFilter), so they're rebuilt before the render that reads them.
+  function commitModeChange() {
     buildYearFilter();
     buildCatFilter();
     render();
     saveUiState();
+  }
+
+  // ---------- the mode fan ----------
+  // On a phone the mode switch isn't on the page at all: press and hold the
+  // tab and its other modes rise out of it, still under your thumb, and you
+  // slide up to the one you want and let go. A plain tap is the tab's
+  // default mode, so the common case costs nothing and the rest is one
+  // gesture in the place your hand already is.
+  const MODE_FAN_MS = 420;
+  let modeFan = null;
+  // A long-press ends in a pointerup that the browser then turns into a
+  // click on the tab. Without this the fan's own choice would be immediately
+  // overruled by the tab's tap behaviour.
+  let fanConsumedClick = false;
+  // The press that may become a fan: where it started, and the timer that
+  // decides it held long enough.
+  let holdTimer = null, holdFrom = null;
+  const cancelHold = () => { clearTimeout(holdTimer); holdTimer = null; holdFrom = null; };
+
+  function openModeFan(tab, spec) {
+    // Onto the whole bottom bar rather than the tab row, so the options rise
+    // clear of the jump-nav strip above it instead of landing on top of it.
+    const bar = $("#topbarBottom");
+    if (!bar) return;
+    const fan = el("div", "mode-fan");
+    // Centred on the tab: a label like "Next releases" needs more room than
+    // a fifth of the screen, and the finger is coming up the middle anyway.
+    fan.style.left = (tab.offsetLeft + tab.offsetWidth / 2) + "px";
+    // Column-reverse in CSS, so the first alternative sits nearest the tab:
+    // a short slide reaches it and a longer one reaches the next.
+    for (const [id, label] of spec.modes.slice(1)) {
+      const item = el("div", "mode-fan-item", label);
+      item.dataset.mode = id;
+      fan.appendChild(item);
+    }
+    bar.appendChild(fan);
+    modeFan = { fan, spec, armed: null };
+    requestAnimationFrame(() => fan.classList.add("is-open"));
+  }
+
+  // Whichever option the finger is over right now, lit so you can see what
+  // letting go would choose.
+  function armModeFanAt(x, y) {
+    if (!modeFan) return;
+    const under = document.elementFromPoint(x, y);
+    const item = under && under.closest ? under.closest(".mode-fan-item") : null;
+    modeFan.armed = item ? item.dataset.mode : null;
+    for (const child of modeFan.fan.children) {
+      child.classList.toggle("is-armed", child === item);
+    }
+  }
+
+  // Released: take whatever was armed, or nothing if the finger came back
+  // down to the tab. Either way the fan goes and the click that follows is
+  // swallowed.
+  function closeModeFan() {
+    if (!modeFan) return;
+    const { fan, spec, armed } = modeFan;
+    modeFan = null;
+    fan.remove();
+    fanConsumedClick = true;
+    if (armed && spec.get() !== armed) {
+      spec.set(armed);
+      commitModeChange();
+    }
   }
 
   // A swipe across the page drags it with the finger rather than waiting for
@@ -433,8 +508,9 @@
   function modeNeighbour(delta) {
     const spec = VIEW_MODES[state.view];
     if (!spec) return null;
-    const i = spec.modes.indexOf(spec.get());
-    return i < 0 ? null : (spec.modes[i + delta] || null);
+    const ids = modeIds(spec);
+    const i = ids.indexOf(spec.get());
+    return i < 0 ? null : (ids[i + delta] || null);
   }
 
   function clearModeDragStyle(c) {
@@ -746,6 +822,11 @@
       if (state.view === "timeline") Journal.renderTimeline(c, entries);
       else Journal.renderStats(c, entries);
     } finally {
+      // Whether the slot earned its space is only knowable once the view has
+      // had its go at it: on a phone the switch isn't drawn there at all, and
+      // a view can leave it empty either way.
+      const modeSlot = $("#modeSlot");
+      modeSlot.hidden = !modeSlot.firstChild;
       // Re-read rather than closing over the `c` above: that one is scoped to
       // the try block, and the mode animation has to run after the content
       // it animates exists.
@@ -2179,17 +2260,21 @@
     });
     attachSwipe($("#viewTabs"), {
       onLeft: () => {
+        if (modeFan) return;
         tabDrag = null;
         const next = VIEW_ORDER[VIEW_ORDER.indexOf(state.view) + 1];
         if (next) switchToView(next); else updateTabUnderline();
       },
       onRight: () => {
+        if (modeFan) return;
         tabDrag = null;
         const prev = VIEW_ORDER[VIEW_ORDER.indexOf(state.view) - 1];
         if (prev) switchToView(prev); else updateTabUnderline();
       },
-      onMove: (dx) => tabDragMove(dx),
-      onSettle: () => { tabDrag = null; updateTabUnderline(); },
+      // The fan owns the gesture once it's open: the finger is heading up
+      // its own options, not sideways along the bar.
+      onMove: (dx) => { if (!modeFan) tabDragMove(dx); },
+      onSettle: () => { if (modeFan) return; tabDrag = null; updateTabUnderline(); },
     });
     // A swipe across the page itself moves between the modes of whichever
     // view has them (Timeline's Entries/Notes/To-do, Backlog's three), so
@@ -2222,9 +2307,20 @@
     const endDragPaint = () => { if (dragPaint) { dragPaint = null; render(); } };
     document.addEventListener("pointerup", endDragPaint);
     document.addEventListener("pointercancel", endDragPaint);
-    document.querySelectorAll(".tab").forEach((t) =>
+    document.querySelectorAll(".tab").forEach((t) => {
       t.onclick = (e) => {
         e.stopPropagation();
+        // The click the browser synthesises after a long-press belongs to the
+        // fan, which has already acted on it.
+        if (fanConsumedClick) { fanConsumedClick = false; return; }
+        const spec = VIEW_MODES[t.dataset.view];
+        const first = spec ? modeIds(spec)[0] : null;
+        // A plain tap means the tab's own mode — Timeline is entries,
+        // Backlog is by category. Anything else is what the fan is for.
+        if (spec && spec.get() !== first) {
+          spec.set(first);
+          if (t.dataset.view === state.view) { commitModeChange(); return; }
+        }
         // Tapping the tab you're already on scrolls back to the top, the way
         // every mobile app's tab bar does. Without this it ran a full
         // switchToView to the same view, and since render() deliberately
@@ -2235,7 +2331,31 @@
           return;
         }
         switchToView(t.dataset.view);
+      };
+
+      // Press and hold to raise the mode fan. Only where there are modes to
+      // choose between, and only on the layout that has no switch on the
+      // page — on a desktop the bar above the content is right there.
+      t.addEventListener("pointerdown", (ev) => {
+        const spec = VIEW_MODES[t.dataset.view];
+        if (!spec || !isMobileLayout() || modeFan) return;
+        holdFrom = { x: ev.clientX, y: ev.clientY };
+        holdTimer = setTimeout(() => { holdTimer = null; openModeFan(t, spec); }, MODE_FAN_MS);
       });
+    });
+    // The rest of the gesture belongs to the window, not to any one tab: the
+    // finger leaves the tab as soon as the fan is up, and it can be let go
+    // anywhere. Registered once, outside the loop above.
+    // Movement before the fan is up means the gesture was a swipe along the
+    // bar, which is the tab switcher's; after it's up, movement is the
+    // choice being made.
+    window.addEventListener("pointermove", (ev) => {
+      if (modeFan) { armModeFanAt(ev.clientX, ev.clientY); return; }
+      if (!holdFrom) return;
+      if (Math.abs(ev.clientX - holdFrom.x) > 10 || Math.abs(ev.clientY - holdFrom.y) > 10) cancelHold();
+    });
+    window.addEventListener("pointerup", () => { cancelHold(); closeModeFan(); });
+    window.addEventListener("pointercancel", () => { cancelHold(); closeModeFan(); });
     // The storage status doubles as a shortcut into Settings → Data, so its
     // hints ("Reconnect in Settings", "set up Data in Settings", "GitHub
     // rejected your token…") are one tap away from where you'd act on them.
@@ -2680,7 +2800,7 @@
 
   Backlog.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
-    MEDIA_SOURCE_LABELS, saveVisualSettings,
+    MEDIA_SOURCE_LABELS, saveVisualSettings, isMobileLayout,
     emptyState, emptyCoverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect,
     openEntryModal: Journal.openEntryModal,

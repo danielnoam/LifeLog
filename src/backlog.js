@@ -15,7 +15,7 @@
     fillCategorySelect, wireCategorySelect, titleSuggestions,
     backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
     resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
-    renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
+    renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown, isMobileLayout,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, applySteamAppId,
     backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS;
@@ -27,7 +27,7 @@
       fillCategorySelect, wireCategorySelect, titleSuggestions,
       backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
       resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
-      renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
+      renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown, isMobileLayout,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, applySteamAppId,
       backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS } = ctx);
@@ -1486,6 +1486,14 @@
   const MODES = [["category", "By category"], ["upcoming", "Next releases"], ["discover", "Discover"]];
   function renderBacklogModeBar(root, items) {
     const bar = el("div", "backlog-mode-bar");
+    // On a phone the switch lives in the bottom bar instead — press and hold
+    // the tab (see the mode fan in app.js) — so only what the bar carries
+    // besides the switch is drawn here.
+    if (isMobileLayout()) {
+      const pick = state.backlogMode === "category" ? makePickButton(items) : null;
+      if (pick) { bar.appendChild(pick); root.appendChild(bar); }
+      return;
+    }
     const group = el("div", "seg");
     for (const [mode, label] of MODES) {
       const btn = el("button", "seg-btn", label);
@@ -2138,7 +2146,7 @@
     setBacklogCover,
     // data lifecycle (app.js's normalize/import infra)
     sanitizeBacklog,
-    MODE_IDS: MODES.map(([id]) => id),
+    MODES,
     // pure release-date logic (sync.js's re-check, and test/backlog.test.js)
     isUnreleased,
     releaseStateOf,

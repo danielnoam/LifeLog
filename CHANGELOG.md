@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.124.0] - 2026-09-08
+
+### Changed
+- **On a phone the mode switch is gone from the page.** Press and hold a tab
+  in the bottom bar instead: its other modes rise above it, you slide up and
+  let go on the one you want, and a light shadow lifts them off the page. A
+  plain tap on the tab is that tab's own mode — Timeline's Entries, the
+  Backlog's By category — so the common case is still one tap. Swiping
+  across the page still moves between modes, and a desktop keeps the switch
+  above the content. It buys back a row of the screen where there is least
+  of it, and puts the control where your thumb already is.
+- The Backlog's mobile mode bar now carries only the Pick-random button,
+  since the switch beside it moved into the fan.
+
 ## [0.123.2] - 2026-09-07
 
 ### Fixed
