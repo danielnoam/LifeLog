@@ -4,6 +4,30 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.128.1] - 2026-09-09
+
+### Added
+- **To-dos can have a category.** Give one a category and it gets a panel of
+  its own, using the same categories the rest of the app already has. There's
+  a picker beside the compose box, which remembers what you last used, and a
+  dot on every row that opens the same picker to move it.
+- **Icons on the mode buttons**, in the press-and-hold fan and the hover
+  menu alike. A tab's first mode carries the tab's own icon.
+
+### Changed
+- **Each panel keeps its own completed to-dos at the bottom**, under a rule,
+  instead of everything finished being swept into one Done panel. Clear is
+  per panel too — a single button that emptied every panel's tail would be
+  reaching past the list you were looking at.
+
+### Fixed
+- **Long-pressing a to-do to reorder now works.** It never could: the press
+  handler skipped `.todo-text`, `.todo-check` and `.todo-del`, and a row is
+  made of exactly those three, so every press landed on an exemption. Only
+  the checkbox and the ✕ opt out now, and a row no longer starts a text
+  selection under a held finger — selecting the words is what tapping into
+  the inline editor is for.
+
 ## [0.128.0] - 2026-09-08
 
 ### Changed

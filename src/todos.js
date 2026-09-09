@@ -6,11 +6,11 @@
 // view module.
 (function () {
   let state, $, el, uid, toast, persist, render, emptyState,
-    backfillUpdatedAt, keepUnknown;
+    backfillUpdatedAt, keepUnknown, colorOf;
 
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, render, emptyState,
-      backfillUpdatedAt, keepUnknown } = ctx);
+      backfillUpdatedAt, keepUnknown, colorOf } = ctx);
   }
 
   // ---------- data ----------
@@ -18,7 +18,12 @@
   // optional field in the file. doneAt is what the Done panel sorts by —
   // createdAt says when you wrote it, which is not the same thing and is the
   // wrong order for a list of things you just finished.
-  const KNOWN_TODO_KEYS = new Set(["id", "text", "done", "doneAt", "order", "createdAt", "updatedAt"]);
+  // `category` is optional and, when set, is one of the app's own category
+  // names — the same list the timeline and backlog use, rather than a second
+  // set to keep in step. A to-do that has one is listed under it; the rest
+  // share the general panel. Absent rather than empty when there is none,
+  // like every other optional field here.
+  const KNOWN_TODO_KEYS = new Set(["id", "text", "category", "done", "doneAt", "order", "createdAt", "updatedAt"]);
   function sanitizeTodo(t) {
     const out = {
       id: t.id || uid(),
@@ -26,6 +31,8 @@
       createdAt: t.createdAt || null,
       updatedAt: backfillUpdatedAt(t),
     };
+    const cat = String(t.category == null ? "" : t.category).trim();
+    if (cat) out.category = cat;
     if (t.done) {
       out.done = true;
       // A to-do ticked before doneAt existed, or by a hand edit, still has to
@@ -59,8 +66,9 @@
   const byOrder = (a, b) => (+a.order || 0) - (+b.order || 0) || byOldest(a, b);
   const byNewestDone = (a, b) => String(b.doneAt || "").localeCompare(String(a.doneAt || ""));
 
-  // Only the shared search narrows this: a to-do has no category, and
-  // filtering a checklist by year would hide the ones you haven't done.
+  // Only the shared search narrows this. The category chips deliberately
+  // don't: a to-do's category picks which panel it sits in, and filtering a
+  // checklist by year would hide the ones you haven't done.
   function getFilteredTodos() {
     const q = state.search.trim().toLowerCase();
     return q ? state.data.todos.filter((t) => t.text.toLowerCase().includes(q)) : state.data.todos;
@@ -71,15 +79,25 @@
   // typed straight through without reaching for the box again each time.
   let refocusCompose = false;
 
-  async function addTodo(text) {
+  async function addTodo(text, category) {
     text = text.trim();
     if (!text) return;
     const now = new Date().toISOString();
     // Onto the end of the list, which is where you were looking when you
     // typed it.
     const last = state.data.todos.reduce((n, t) => Math.max(n, +t.order || 0), -1);
-    state.data.todos.push(sanitizeTodo({ text, order: last + 1, createdAt: now, updatedAt: now }));
+    state.data.todos.push(sanitizeTodo({ text, category, order: last + 1, createdAt: now, updatedAt: now }));
     refocusCompose = true;
+    render();
+    await persist();
+  }
+
+  async function setTodoCategory(id, category) {
+    const t = state.data.todos.find((x) => x.id === id);
+    if (!t) return;
+    const next = String(category || "").trim();
+    if ((t.category || "") === next) { render(); return; }
+    if (next) t.category = next; else delete t.category;
     render();
     await persist();
   }
@@ -114,17 +132,49 @@
     await persist();
   }
 
-  async function clearCompleted() {
-    const n = state.data.todos.filter((t) => t.done).length;
+  // Per panel, since that's the only place the completed ones are now shown:
+  // a single button that emptied every panel's tail would be reaching past
+  // the list you were actually looking at.
+  async function clearCompleted(category) {
+    const inPanel = (t) => (t.category || "") === (category || "");
+    const n = state.data.todos.filter((t) => t.done && inPanel(t)).length;
     if (!n) return;
-    if (!confirm(`Clear ${n} completed to-do${n === 1 ? "" : "s"}?`)) return;
-    state.data.todos = state.data.todos.filter((t) => !t.done);
+    const where = category ? ` from ${category}` : "";
+    if (!confirm(`Clear ${n} completed to-do${n === 1 ? "" : "s"}${where}?`)) return;
+    state.data.todos = state.data.todos.filter((t) => !(t.done && inPanel(t)));
     render();
     await persist();
     toast(`Cleared ${n} completed`);
   }
 
   // ---------- rendering ----------
+  // The category the compose box is set to, kept across renders so a run of
+  // to-dos for the same thing can be typed without re-picking it each time.
+  let composeCat = "";
+
+  function categorySelect(value, onPick) {
+    const sel = document.createElement("select");
+    sel.className = "todo-cat-select";
+    const none = document.createElement("option");
+    none.value = ""; none.textContent = "No category";
+    sel.appendChild(none);
+    for (const c of state.data.categories) {
+      const opt = document.createElement("option");
+      opt.value = c.name; opt.textContent = c.name;
+      sel.appendChild(opt);
+    }
+    // A to-do can hold a category that has since been renamed or deleted;
+    // keep it selectable rather than silently moving the to-do somewhere else.
+    if (value && !state.data.categories.some((c) => c.name === value)) {
+      const opt = document.createElement("option");
+      opt.value = value; opt.textContent = value;
+      sel.appendChild(opt);
+    }
+    sel.value = value || "";
+    sel.onchange = () => onPick(sel.value);
+    return sel;
+  }
+
   function composeRow() {
     const wrap = el("div", "todo-compose");
     const input = document.createElement("input");
@@ -132,6 +182,9 @@
     input.id = "todoCompose";
     input.placeholder = "Add a to-do…";
     input.autocomplete = "off";
+    const cat = categorySelect(composeCat, (v) => { composeCat = v; });
+    cat.id = "todoComposeCat";
+    cat.title = "Which panel it lands in";
     const add = el("button", "btn btn-primary btn-sm", "Add");
     add.type = "button";
     add.disabled = true;
@@ -139,7 +192,7 @@
       const v = input.value;
       input.value = "";
       add.disabled = true;
-      addTodo(v);
+      addTodo(v, composeCat);
     };
     add.onclick = submit;
     // Enter is the fast path and the button is the discoverable one; it
@@ -151,6 +204,7 @@
       else if (ev.key === "Escape") { input.value = ""; add.disabled = true; }
     };
     wrap.appendChild(input);
+    wrap.appendChild(cat);
     wrap.appendChild(add);
     return wrap;
   }
@@ -168,9 +222,14 @@
     const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } start = null; };
     row.addEventListener("pointerdown", (ev) => {
       if (reorderMode) return;
-      // The text opts out so it can still be long-pressed to select or copy,
-      // the same exemption the timeline and backlog rows make.
-      if (ev.target.closest(".todo-text, .todo-check, .todo-del")) return;
+      // Only the two controls opt out — a press on either is aiming at it.
+      // The text used to opt out as well, "so it can still be long-pressed to
+      // select or copy", which left nowhere to press at all: a row is a
+      // checkbox, its text and a ✕, so every press landed on an exemption and
+      // the gesture could not fire. Selecting the text is what the inline
+      // editor is for (tap it), and .todo-row now says user-select: none so a
+      // long press doesn't start a selection instead.
+      if (ev.target.closest(".todo-check, .todo-del, .todo-edit")) return;
       start = { x: ev.clientX, y: ev.clientY };
       timer = setTimeout(() => { timer = null; reorderMode = true; render(); }, LONG_PRESS_MS);
     });
@@ -222,12 +281,19 @@
   // fractional: it marks every moved row as changed instead of one, which on
   // a list this size is a few hundred bytes of sync against a whole class of
   // drifting-float bugs.
+  //
+  // The panel's own order values are reused rather than renumbered 0..n:
+  // `order` is one field across every panel, so writing 0,1,2 into a category
+  // panel would collide with the general one's. Dealing the panel's existing
+  // slots back out in the new sequence keeps each panel's numbers to itself.
   async function commitOrder(list) {
-    const ids = [...list.querySelectorAll(".todo-row")].map((r) => r.dataset.id);
+    const rows = [...list.querySelectorAll(".todo-row")]
+      .map((r) => state.data.todos.find((x) => x.id === r.dataset.id))
+      .filter(Boolean);
+    const slots = rows.map((t) => +t.order || 0).sort((a, b) => a - b);
     let changed = false;
-    ids.forEach((id, i) => {
-      const t = state.data.todos.find((x) => x.id === id);
-      if (t && t.order !== i) { t.order = i; changed = true; }
+    rows.forEach((t, i) => {
+      if (t.order !== slots[i]) { t.order = slots[i]; changed = true; }
     });
     if (!changed) return;
     render();
@@ -267,6 +333,8 @@
     };
     row.appendChild(text);
 
+    row.appendChild(catChip(t));
+
     const del = el("button", "todo-del", "✕");
     del.type = "button";
     del.title = "Delete";
@@ -274,6 +342,36 @@
     del.onclick = () => deleteTodo(t.id);
     row.appendChild(del);
     return row;
+  }
+
+  // Which panel this one sits in, and the way to move it to another. Swapped
+  // for a select in place on click, the same idiom the text above uses —
+  // a dropdown per row rendered up front would be a lot of chrome for
+  // something most rows never change.
+  // Just the dot: the panel heading already says which category this is, so
+  // repeating the name on every row inside it was the same word twenty
+  // times. The dot keeps the control in the same column on every row, filled
+  // where there's a category and outlined where there isn't.
+  function catChip(t) {
+    const chip = el("button", "todo-cat" + (t.category ? "" : " is-none"));
+    chip.type = "button";
+    chip.title = t.category ? "In " + t.category : "No category";
+    chip.setAttribute("aria-label", chip.title + " — change");
+    const dot = el("span", "dot");
+    dot.style.background = t.category ? colorOf(t.category) : "transparent";
+    chip.appendChild(dot);
+    chip.onclick = () => {
+      let closed = false;
+      const sel = categorySelect(t.category || "", (v) => {
+        if (closed) return;
+        closed = true;
+        setTodoCategory(t.id, v);
+      });
+      sel.onblur = () => { if (!closed) { closed = true; render(); } };
+      chip.replaceWith(sel);
+      sel.focus();
+    };
+    return chip;
   }
 
   // The same row while the list is being reordered: a grip instead of the
@@ -290,40 +388,61 @@
     return row;
   }
 
-  function panel(title, rows, opts) {
-    opts = opts || {};
-    const reordering = !!opts.reorderable && reorderMode && rows.length > 1;
+  // One panel per category, plus the general one. Each carries its own
+  // completed to-dos at the bottom under a rule, rather than everything
+  // finished being swept into a Done panel of its own: what you ticked off
+  // belongs beside what you haven't, in the list it came from.
+  function panel(title, open, done, category) {
+    const reordering = reorderMode && open.length > 1;
     const card = el("div", "month-card" + (reordering ? " is-reordering" : ""));
     const h = el("h3");
     const left = el("span", "mc-left");
+    if (category) {
+      const dot = el("span", "dot");
+      dot.style.background = colorOf(category);
+      left.appendChild(dot);
+    }
     left.appendChild(el("span", null, reordering ? "Drag to reorder" : title));
     h.appendChild(left);
     const right = el("span", "mc-right");
     if (reordering) {
-      const done = el("button", "btn btn-sm btn-primary", "Done");
-      done.type = "button";
-      done.onclick = () => { reorderMode = false; render(); };
-      right.appendChild(done);
+      const btn = el("button", "btn btn-sm btn-primary", "Done");
+      btn.type = "button";
+      btn.onclick = () => { reorderMode = false; render(); };
+      right.appendChild(btn);
     } else {
-      right.appendChild(el("span", "mc", String(rows.length)));
-      if (opts.onClear && rows.length) {
+      right.appendChild(el("span", "mc", String(open.length)));
+      if (done.length) {
         const btn = el("button", "btn btn-sm", "Clear");
         btn.type = "button";
-        btn.title = "Delete every completed to-do";
-        btn.onclick = opts.onClear;
+        btn.title = "Delete this panel's completed to-dos";
+        btn.onclick = () => clearCompleted(category);
         right.appendChild(btn);
       }
     }
     h.appendChild(right);
     card.appendChild(h);
-    if (!rows.length) { card.appendChild(el("p", "dsc-note", opts.empty || "Nothing here.")); return card; }
-    rows.forEach((t) => {
+
+    if (!open.length && !done.length) {
+      card.appendChild(el("p", "dsc-note", "Nothing here."));
+      return card;
+    }
+    if (!open.length) card.appendChild(el("p", "dsc-note", "All done."));
+    open.forEach((t) => {
       const row = reordering ? reorderRow(t, card) : todoRow(t);
-      // Long-press is offered on the panel that can be reordered, and only
-      // while it isn't already being reordered.
-      if (opts.reorderable && !reordering) attachLongPressReorder(row);
+      // Only while it isn't already being reordered — and never on the
+      // finished ones below, which are a record of when you ticked things
+      // off, not a list to rearrange.
+      if (!reordering) attachLongPressReorder(row);
       card.appendChild(row);
     });
+    // Hidden while reordering: the drag walks .todo-row midpoints, and a
+    // finished row in the same card would be a place to drop something that
+    // then can't hold the order it was dropped into.
+    if (done.length && !reordering) {
+      card.appendChild(el("div", "todo-done-sep", done.length + " done"));
+      done.forEach((t) => card.appendChild(todoRow(t)));
+    }
     return card;
   }
 
@@ -333,7 +452,7 @@
       root.appendChild(emptyState({
         glyph: "☑",
         title: "Nothing to do",
-        body: "Anything you type above lands here. Tick it off and it moves to Done — which you can clear out whenever it stops being satisfying to look at.",
+        body: "Anything you type above lands here. Tick it off and it drops to the bottom of its panel, where you can clear it out whenever it stops being satisfying to look at. Give one a category and it gets a panel of its own.",
       }));
       focusComposeIfAsked();
       return;
@@ -345,16 +464,32 @@
       return;
     }
     const grid = el("div", "backlog-grid");
-    grid.appendChild(panel("To do", todos.filter((t) => !t.done).sort(byOrder), {
-      empty: "All done.",
-      reorderable: true,
-    }));
-    grid.appendChild(panel("Done", todos.filter((t) => t.done).sort(byNewestDone), {
-      empty: "Nothing ticked off yet.",
-      onClear: clearCompleted,
-    }));
+    for (const [name, group] of panelGroups(todos)) {
+      grid.appendChild(panel(
+        name || "To do",
+        group.filter((t) => !t.done).sort(byOrder),
+        group.filter((t) => t.done).sort(byNewestDone),
+        name,
+      ));
+    }
     root.appendChild(grid);
     focusComposeIfAsked();
+  }
+
+  // The general panel first — it's where anything you don't think about
+  // lands — then a panel per category in the app's own category order, so
+  // this reads in the same order as the chips everywhere else. Categories
+  // with nothing in them get no panel; one a to-do names but the app no
+  // longer has still does, or the to-do would have nowhere to be.
+  function panelGroups(todos) {
+    const groups = new Map([["", []]]);
+    for (const c of state.data.categories) groups.set(c.name, []);
+    for (const t of todos) {
+      const key = t.category || "";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(t);
+    }
+    return [...groups].filter(([name, list]) => list.length || name === "");
   }
 
   function focusComposeIfAsked() {
@@ -368,6 +503,6 @@
     init,
     sanitizeTodo, assignMissingOrder, getFilteredTodos, renderTodos,
     // pure helpers (test/todos.test.js)
-    byOldest, byNewestDone, byOrder,
+    byOldest, byNewestDone, byOrder, panelGroups,
   };
 })();

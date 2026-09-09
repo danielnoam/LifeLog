@@ -16,6 +16,26 @@ what was decided against and why.
 
 ---
 
+- the to-do long-press could never have fired (fixed 0.128.1). Its
+  pointerdown skipped `.todo-text, .todo-check, .todo-del` "so the text can
+  still be long-pressed to select or copy" — but a row *is* a checkbox, its
+  text and a ✕, so every press hit an exemption and only the few pixels of
+  row padding were live. The exemption list is the two controls now, and
+  .todo-row carries user-select: none so a held finger doesn't start a
+  selection instead. Worth remembering as a shape: an opt-out list that
+  covers every child is an opt-out of the whole feature.
+
+- to-do panels are per category, each with its own completed tail
+  (panelGroups + panel in todos.js, 0.128.1). Two things that needed care:
+  `order` is one field across every panel, so commitOrder deals the dragged
+  panel's *existing* order values back out in the new sequence rather than
+  renumbering 0..n, which would collide with another panel's; and the
+  completed rows are left out of the card while it is being reordered,
+  because the drag walks .todo-row midpoints and a finished row would be a
+  place to drop something that then can't hold where it was dropped.
+  A to-do naming a category the app no longer has still gets a panel — the
+  alternative is a to-do that exists but is on no screen.
+
 - the wheel draws its own palette, not CATEGORY_PALETTE (0.128.0). That ramp
   runs deep red to pale lime and is built for a 10px dot beside a name;
   eight filled wedges of it read as a fairground prize wheel dropped into a

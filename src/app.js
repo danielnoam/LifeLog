@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.128.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.128.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -94,7 +94,7 @@
     } catch (e) {}
   }
 
-  // Restore where you were, translating anything a version before 0.128.0
+  // Restore where you were, translating anything a version before 0.128.1
   // wrote. Stats and Summary were tabs of their own then, and Notes/To-do
   // were modes of the Timeline; each of those is now a (view, mode) pair, so
   // a device that closed on one reopens looking at the same screen rather
@@ -125,7 +125,7 @@
       const renamed = MODE_MIGRATIONS[key];
       const saved = (renamed && renamed[stored]) || stored;
       // Only where it's still one of that view's modes: "notes" sat in
-      // timelineMode until 0.128.0, and setting it now would be a mode the
+      // timelineMode until 0.128.1, and setting it now would be a mode the
       // Timeline no longer has.
       if (saved && modeIds(spec).includes(saved) && !(moved && key === moved.view)) spec.set(saved);
     }
@@ -411,9 +411,12 @@
   // next. Every view is here now: each of the other three pairs a list with a
   // second reading of the same data, and Notes pairs the two things you write
   // yourself. The first of each pair is what the tab lands on.
+  // Each mode is [id, label, icon]. A tab's first mode carries the tab's own
+  // icon, so the fan and the menu both read as "this tab, and its other ways
+  // of looking at the same thing".
   const VIEW_MODES = {
     notes: {
-      modes: [["notes", "Notes"], ["todo", "To-do"]],
+      modes: [["notes", "Notes", "▤"], ["todo", "To-do", "☑"]],
       // The only view whose two modes don't show the same chips: the years
       // come from the notes themselves, and a to-do has neither a year worth
       // filtering nor a category. So here the filterbar is part of the
@@ -423,7 +426,7 @@
       set: (m) => { state.notesMode = m; },
     },
     timeline: {
-      modes: [["entries", "Entries"], ["stats", "Stats"]],
+      modes: [["entries", "Entries", "☰"], ["stats", "Stats", "◑"]],
       get: () => state.timelineMode,
       set: (m) => { state.timelineMode = m; },
     },
@@ -435,7 +438,7 @@
       set: (m) => { state.backlogMode = m; },
     },
     finance: {
-      modes: [["entries", "Entries"], ["summary", "Summary"]],
+      modes: [["entries", "Entries", "₪"], ["summary", "Summary", "◑"]],
       get: () => state.financeMode,
       set: (m) => { state.financeMode = m; },
     },
@@ -572,9 +575,11 @@
     // Column-reverse in CSS, so the first mode sits nearest the tab: the
     // shortest slide reaches what a plain tap would have given you, and each
     // longer one reaches the next.
-    for (const [id, label] of spec.modes) {
-      const item = el("div", "mode-fan-item", label);
+    for (const [id, label, icon] of spec.modes) {
+      const item = el("div", "mode-fan-item");
       item.dataset.mode = id;
+      if (icon) item.appendChild(el("span", "mode-ico", icon));
+      item.appendChild(document.createTextNode(label));
       fan.appendChild(item);
     }
     fan.style.left = centre + "px";
@@ -623,9 +628,11 @@
     closeTabMenu();
     const menu = el("div", "tab-menu");
     menu.dataset.view = tab.dataset.view;
-    for (const [id, label] of spec.modes) {
-      const item = el("button", "tab-menu-item", label);
+    for (const [id, label, icon] of spec.modes) {
+      const item = el("button", "tab-menu-item");
       item.type = "button";
+      if (icon) item.appendChild(el("span", "mode-ico", icon));
+      item.appendChild(document.createTextNode(label));
       // Only ever "the one you're in" on the tab you're on: the mark would
       // otherwise claim a mode that opening the tab is about to reset.
       const current = tab.dataset.view === state.view && spec.get() === id;
@@ -3043,6 +3050,7 @@
   });
   Todos.init({
     state, $, el, uid, toast, persist, render, emptyState, backfillUpdatedAt, keepUnknown,
+    colorOf,
   });
 
   Notes.init({

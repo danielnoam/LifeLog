@@ -71,9 +71,10 @@ between them.
 - **Notes** – a running feed of things you write as you notice them, each
   keeping the date and time it was written, and saying so when you've edited
   it since.
-  - **To-do** – a plain checklist, one panel for what's left and one for
-    what's done; ticking something moves it across. Long-press to reorder
-    what's left by hand.
+  - **To-do** – a plain checklist. Give a to-do a category and it gets a
+    panel of its own; everything else shares the general one. Each panel
+    keeps its completed items at the bottom, and long-pressing one makes the
+    list draggable so you can order it by hand.
 - **Timeline** – what you've finished, grouped by year → month, with per-year
   accomplishments. An entry can carry a rating, notes, cover art, genres, a
   length, and a start month for anything that took more than one.

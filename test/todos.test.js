@@ -7,7 +7,7 @@ require("../src/todos.js");
 const Todos = global.window.LifeLogTodos;
 
 let idCounter = 0;
-const state = { data: { todos: [] }, search: "" };
+const state = { data: { todos: [], categories: [] }, search: "" };
 Todos.init({
   state,
   uid: () => "test-id-" + (idCounter++),
@@ -18,7 +18,8 @@ Todos.init({
   },
 });
 
-const { sanitizeTodo, assignMissingOrder, getFilteredTodos, byOldest, byNewestDone, byOrder } = Todos;
+const { sanitizeTodo, assignMissingOrder, getFilteredTodos, panelGroups,
+  byOldest, byNewestDone, byOrder } = Todos;
 
 let passed = 0;
 function test(name, fn) {
@@ -160,6 +161,40 @@ test("search matches the text, and nothing else narrows a checklist", () => {
   // A done to-do is still findable — it's in the Done panel, not gone.
   state.search = "milk";
   assert.deepStrictEqual(getFilteredTodos().map((t) => t.id), ["b"]);
+});
+
+// ---------- categories and panels ----------
+test("a category is kept when set and dropped when blank", () => {
+  assert.strictEqual(sanitizeTodo({ text: "a", category: " Games " }).category, "Games");
+  assert.ok(!("category" in sanitizeTodo({ text: "a", category: "   " })));
+  assert.ok(!("category" in sanitizeTodo({ text: "a" })));
+});
+
+test("panelGroups puts the uncategorised first, then categories in app order", () => {
+  state.data.categories = [{ name: "Games" }, { name: "House" }];
+  const todos = [
+    { id: "a", text: "plain" },
+    { id: "b", text: "g", category: "Games" },
+    { id: "c", text: "h", category: "House" },
+  ];
+  assert.deepStrictEqual(panelGroups(todos).map(([name]) => name), ["", "Games", "House"]);
+});
+
+test("a category with nothing in it gets no panel, but the general one always does", () => {
+  state.data.categories = [{ name: "Games" }, { name: "House" }];
+  assert.deepStrictEqual(panelGroups([{ id: "b", text: "g", category: "Games" }])
+    .map(([name]) => name), ["", "Games"]);
+  assert.deepStrictEqual(panelGroups([]).map(([name]) => name), [""],
+    "the general panel is where anything new lands, so it is never absent");
+});
+
+test("a category the app no longer has still gets a panel", () => {
+  state.data.categories = [{ name: "Games" }];
+  // Renamed or deleted out from under a to-do that still names it — without
+  // its own panel the to-do would simply not be on screen anywhere.
+  const groups = panelGroups([{ id: "x", text: "orphan", category: "Gone" }]);
+  assert.deepStrictEqual(groups.map(([name]) => name), ["", "Gone"]);
+  assert.deepStrictEqual(groups[1][1].map((t) => t.id), ["x"]);
 });
 
 console.log(`\n${passed} test(s) passed.`);

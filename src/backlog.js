@@ -1502,7 +1502,7 @@
   // "Entries", matching every other tab's first mode. It was "By category"
   // with the id "category" until 0.128.0; applySavedUi in app.js translates
   // the stored one.
-  const MODES = [["entries", "Entries"], ["upcoming", "Next releases"], ["discover", "Discover"]];
+  const MODES = [["entries", "Entries", "★"], ["upcoming", "Next releases", "◷"], ["discover", "Discover", "◎"]];
   // The switch itself lives on the tab now on both layouts — held on a phone,
   // hovered on a desktop (see the mode fan and the tab menu in app.js) — so
   // only what the bar carries besides it is drawn here.
