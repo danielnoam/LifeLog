@@ -736,7 +736,14 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .todo-cat:hover { border-color: var(--border-strong); }
 .todo-cat .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
-.todo-cat.is-none .dot { width: 7px; height: 7px; border: 1px dashed var(--border-strong); }
+/* A hollow ring rather than an almost-invisible dashed speck: with no
+   category there is no colour to show, and the control still has to look
+   like one you can press. */
+.todo-cat.is-none .dot {
+  width: 9px; height: 9px; background: none;
+  border: 1.5px solid var(--border-strong);
+}
+.todo-cat.is-none:hover .dot { border-color: var(--accent); }
 /* The panel's own category, beside its name in the heading. */
 .month-card .mc-left .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 .todo-row .todo-cat-select { max-width: 46%; padding: 3px 6px; }
@@ -757,6 +764,11 @@ select:focus { outline: none; border-color: var(--accent); }
   -webkit-user-select: none; user-select: none;
 }
 .todo-row.is-reorder .todo-text { cursor: inherit; }
+/* What slideDisplaced (todos.js) hands the transform back to. Short: it has
+   to finish before the finger reaches the next neighbour's midpoint, or the
+   list is animating one swap while you are asking for the next. */
+.todo-row.is-reorder { transition: transform .17s cubic-bezier(.22,1,.36,1); }
+@media (prefers-reduced-motion: reduce) { .todo-row.is-reorder { transition: none; } }
 .todo-grip { flex: 0 0 auto; width: 16px; text-align: center; color: var(--text-faint); font-size: 13px; }
 .todo-row.is-dragging {
   cursor: grabbing; background: var(--bg-elev-2);

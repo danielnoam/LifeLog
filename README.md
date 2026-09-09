@@ -71,8 +71,10 @@ between them.
 - **Notes** – a running feed of things you write as you notice them, each
   keeping the date and time it was written, and saying so when you've edited
   it since.
-  - **To-do** – a plain checklist. Give a to-do a category and it gets a
-    panel of its own; everything else shares the general one. Each panel
+  - **To-do** – a plain checklist. Give a to-do a category — the checklist
+    keeps its own, separate from the journal's — and it gets a panel of its
+    own; everything else shares the general one. A Categories row above the
+    list narrows it, and adds, renames and recolours from the same place. Each panel
     keeps its completed items at the bottom, and long-pressing one makes the
     list draggable so you can order it by hand.
 - **Timeline** – what you've finished, grouped by year → month, with per-year

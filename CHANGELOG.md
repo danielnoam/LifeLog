@@ -4,6 +4,34 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.128.2] - 2026-09-09
+
+### Added
+- **A Categories row above the To-do list**, the same chip row every other
+  mode has: tap to narrow to a category, ✎ to rename or recolour one, **+**
+  to add one. Renaming carries every to-do that used it; deleting one leaves
+  its to-dos in the general panel rather than taking them with it.
+
+### Changed
+- **To-do categories are their own list**, not the journal's. A checklist's
+  categories are things like Errands and Work, which have nothing to say
+  about what you watched or read. Create one from either picker with **+ New
+  category…**. Any to-do that named a journal category in 0.128.1 keeps
+  working — the name becomes a to-do category of its own on first load.
+
+### Added
+- **Reordering animates.** The row you're dragging snaps to its new slot —
+  it's the one under your finger — and whatever it displaced slides into the
+  space it left.
+
+### Fixed
+- **Setting a category on a to-do you already made now works on the first
+  click.** The dot turned into a dropdown but didn't open it — focusing a
+  `<select>` doesn't — so it read as doing nothing until you clicked a second
+  time. It opens now. The dot for a to-do with no category is a hollow ring
+  rather than a dashed speck, so there's something visible to aim at, and a
+  press on it can no longer be swallowed by the reorder long-press.
+
 ## [0.128.1] - 2026-09-09
 
 ### Added

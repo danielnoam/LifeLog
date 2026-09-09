@@ -16,6 +16,47 @@ what was decided against and why.
 
 ---
 
+- #todoCatModal is the third add/edit-category modal (0.128.2) — the
+  journal's, Finance's, and now this. It is deliberately the simplest of the
+  three: a to-do category cascades to one collection, and there is no "Other"
+  for orphaned to-dos to land in, so deleting one just clears the field and
+  they fall into the general panel. TODO.md carries the note that these three
+  want one parameterised modal; writing that abstraction across three modules
+  mid-change was the riskier move, so this is a knowing third copy.
+  buildCatFilter now picks between three (list, active set, edit handler)
+  triples rather than two. Todos.wire() is split from Todos.init() for the
+  same reason every other module splits them: init runs in the Node tests,
+  which have no DOM.
+
+- to-do categories are a third category collection, state.data.todoCategories
+  (0.128.2), alongside the journal's and finance's, in COLLECTION_KEYS like
+  both. They started out sharing the journal's list, which was wrong on its
+  own terms: "Errands" says nothing about what you watched. normalize runs
+  ensureCategories over the to-dos that carry a category, which both fills
+  the list on first load and carries across the to-dos that briefly named a
+  journal category. Unused ones aren't pruned — pruning on load is a write
+  that two devices can disagree about, and an unused category costs a line in
+  a picker and no panel at all.
+  Creating one from a picker needed a re-render, not just a push: the select's
+  options are built when it is, so it has no option to select for a category
+  that didn't exist a moment ago, and the value silently fell back to "".
+
+- the reorder slide is FLIP (slideDisplaced, todos.js, 0.128.2): measure
+  every row's top, do the insertBefore, put the moved ones back where they
+  were with a transform, then release it and let CSS carry them home. Two
+  requestAnimationFrames before releasing, not one — in a single frame the
+  style change coalesces with the move and nothing animates at all. The
+  dragged row is excluded on purpose: it is the one under the finger, and
+  animating it would be lying about where it is. The transition is .17s
+  because it has to finish before the finger reaches the next neighbour's
+  midpoint.
+
+- a `<select>` swapped in on click has to be told to open (catChip, 0.128.2).
+  focus() alone leaves it shut on both desktop and phone, so the category dot
+  read as a control that did nothing until you clicked it a second time;
+  showPicker() in a try/catch is the whole fix, and where it isn't available
+  the focused select is exactly where this started.
+
 - the to-do long-press could never have fired (fixed 0.128.1). Its
   pointerdown skipped `.todo-text, .todo-check, .todo-del` "so the text can
   still be long-pressed to select or copy" — but a row *is* a checkbox, its

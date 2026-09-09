@@ -7,7 +7,7 @@ require("../src/todos.js");
 const Todos = global.window.LifeLogTodos;
 
 let idCounter = 0;
-const state = { data: { todos: [], categories: [] }, search: "" };
+const state = { data: { todos: [], todoCategories: [] }, search: "", todoActiveCats: new Set() };
 Todos.init({
   state,
   uid: () => "test-id-" + (idCounter++),
@@ -170,8 +170,8 @@ test("a category is kept when set and dropped when blank", () => {
   assert.ok(!("category" in sanitizeTodo({ text: "a" })));
 });
 
-test("panelGroups puts the uncategorised first, then categories in app order", () => {
-  state.data.categories = [{ name: "Games" }, { name: "House" }];
+test("panelGroups puts the uncategorised first, then categories in list order", () => {
+  state.data.todoCategories = [{ name: "Games" }, { name: "House" }];
   const todos = [
     { id: "a", text: "plain" },
     { id: "b", text: "g", category: "Games" },
@@ -181,20 +181,48 @@ test("panelGroups puts the uncategorised first, then categories in app order", (
 });
 
 test("a category with nothing in it gets no panel, but the general one always does", () => {
-  state.data.categories = [{ name: "Games" }, { name: "House" }];
+  state.data.todoCategories = [{ name: "Games" }, { name: "House" }];
   assert.deepStrictEqual(panelGroups([{ id: "b", text: "g", category: "Games" }])
     .map(([name]) => name), ["", "Games"]);
   assert.deepStrictEqual(panelGroups([]).map(([name]) => name), [""],
     "the general panel is where anything new lands, so it is never absent");
 });
 
-test("a category the app no longer has still gets a panel", () => {
-  state.data.categories = [{ name: "Games" }];
-  // Renamed or deleted out from under a to-do that still names it — without
-  // its own panel the to-do would simply not be on screen anywhere.
+test("a category the list doesn't have still gets a panel", () => {
+  state.data.todoCategories = [{ name: "Games" }];
+  // A hand-edited file, or a sync that brought the to-do across before its
+  // category — without its own panel the to-do would be on no screen at all.
   const groups = panelGroups([{ id: "x", text: "orphan", category: "Gone" }]);
   assert.deepStrictEqual(groups.map(([name]) => name), ["", "Gone"]);
   assert.deepStrictEqual(groups[1][1].map((t) => t.id), ["x"]);
+});
+
+test("the general panel drops out while the chips are narrowing things", () => {
+  state.data.todoCategories = [{ name: "Errands" }];
+  const todos = [{ id: "b", text: "post", category: "Errands" }];
+  state.todoActiveCats = new Set();
+  assert.deepStrictEqual(panelGroups(todos).map(([n]) => n), ["", "Errands"],
+    "unfiltered, the general panel is there even with nothing in it");
+  state.todoActiveCats = new Set(["Errands"]);
+  assert.deepStrictEqual(panelGroups(todos).map(([n]) => n), ["Errands"],
+    "filtered to a category, an empty general panel is just noise");
+  state.todoActiveCats = new Set();
+});
+
+test("the chips narrow the list, and an empty set means everything", () => {
+  state.data.todos = [
+    { id: "a", text: "plain" },
+    { id: "b", text: "post", category: "Errands" },
+  ];
+  state.search = "";
+  state.todoActiveCats = new Set();
+  assert.deepStrictEqual(getFilteredTodos().map((t) => t.id), ["a", "b"]);
+  state.todoActiveCats = new Set(["Errands"]);
+  assert.deepStrictEqual(getFilteredTodos().map((t) => t.id), ["b"]);
+  // "" is the general panel — a real thing to filter to, not an absence.
+  state.todoActiveCats = new Set([""]);
+  assert.deepStrictEqual(getFilteredTodos().map((t) => t.id), ["a"]);
+  state.todoActiveCats = new Set();
 });
 
 console.log(`\n${passed} test(s) passed.`);

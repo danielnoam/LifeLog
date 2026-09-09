@@ -4,7 +4,7 @@
 // in plain Node (see test/merge.test.js) — the merge logic is exactly what
 // gets tested, not a simulation of it.
 (function () {
-  const COLLECTION_KEYS = ["entries", "backlog", "notes", "todos", "financeEntries", "recurringExpenses", "categories", "financeCategories"];
+  const COLLECTION_KEYS = ["entries", "backlog", "notes", "todos", "financeEntries", "recurringExpenses", "categories", "todoCategories", "financeCategories"];
 
   function byId(arr) {
     const m = new Map();
@@ -103,6 +103,7 @@
     financeEntries: ["finance entry", "finance entries"],
     recurringExpenses: ["recurring expense", "recurring expenses"],
     categories: ["category", "categories"],
+    todoCategories: ["to-do category", "to-do categories"],
     financeCategories: ["finance category", "finance categories"],
   };
 

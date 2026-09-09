@@ -1,5 +1,15 @@
 todo:
 
+- one parameterised add/edit-category modal instead of three. The journal's,
+  Finance's and the to-do list's are the same form over a different
+  collection, with different cascades on rename and delete. #todoCatModal was
+  written as a knowing third copy (0.128.2) rather than doing this refactor in
+  the middle of a feature.
+
+- a chip for the general to-do panel in the Categories row. You can narrow to
+  any category but not to "no category", because the row is built from the
+  category list and the general panel isn't in it.
+
 Ideas that turned out not to be worth doing, or not to be possible, live in
 DROPPED.md rather than sitting here unread.
 

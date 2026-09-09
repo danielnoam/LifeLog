@@ -6,23 +6,45 @@
 // view module.
 (function () {
   let state, $, el, uid, toast, persist, render, emptyState,
-    backfillUpdatedAt, keepUnknown, colorOf;
+    backfillUpdatedAt, keepUnknown, prefersReducedMotion, CATEGORY_PALETTE,
+    buildCatFilter, activatable;
 
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, render, emptyState,
-      backfillUpdatedAt, keepUnknown, colorOf } = ctx);
+      backfillUpdatedAt, keepUnknown, prefersReducedMotion, CATEGORY_PALETTE,
+      buildCatFilter, activatable } = ctx);
   }
+
+  // Separate from init because init runs in the Node tests, which have no
+  // DOM to wire — the same split every other module here makes.
+  function wire() {
+    $("#todoCatForm").onsubmit = saveTodoCatFromForm;
+    $("#cancelTodoCatBtn").onclick = closeTodoCatModal;
+    $("#deleteTodoCatBtn").onclick = deleteTodoCategory;
+  }
+
+  // state.data.todoCategories, not the journal's: a checklist's categories
+  // are its own ("Errands", "Work"), and they have nothing to say about what
+  // you watched or read. Looked up rather than cached in a map — the list is
+  // a handful of names and this runs once per row.
+  const todoCats = () => state.data.todoCategories || [];
+  // The one mode with categories: Notes have none, so the chip row belongs to
+  // this mode rather than to the tab.
+  const isTodoMode = () => state.view === "notes" && state.notesMode === "todo";
+  const colorOf = (name) => {
+    const c = todoCats().find((x) => x.name === name);
+    return (c && c.color) || "#7a8a99";
+  };
 
   // ---------- data ----------
   // `done` is dropped rather than stored as false, matching every other
   // optional field in the file. doneAt is what the Done panel sorts by —
   // createdAt says when you wrote it, which is not the same thing and is the
   // wrong order for a list of things you just finished.
-  // `category` is optional and, when set, is one of the app's own category
-  // names — the same list the timeline and backlog use, rather than a second
-  // set to keep in step. A to-do that has one is listed under it; the rest
-  // share the general panel. Absent rather than empty when there is none,
-  // like every other optional field here.
+  // `category` is optional and, when set, names one of the to-do list's own
+  // categories (state.data.todoCategories). A to-do that has one is listed
+  // under it; the rest share the general panel. Absent rather than empty when
+  // there is none, like every other optional field here.
   const KNOWN_TODO_KEYS = new Set(["id", "text", "category", "done", "doneAt", "order", "createdAt", "updatedAt"]);
   function sanitizeTodo(t) {
     const out = {
@@ -66,12 +88,18 @@
   const byOrder = (a, b) => (+a.order || 0) - (+b.order || 0) || byOldest(a, b);
   const byNewestDone = (a, b) => String(b.doneAt || "").localeCompare(String(a.doneAt || ""));
 
-  // Only the shared search narrows this. The category chips deliberately
-  // don't: a to-do's category picks which panel it sits in, and filtering a
-  // checklist by year would hide the ones you haven't done.
+  // The shared search and the category chips. Not years: hiding an undone
+  // to-do because you tapped a year chip would be a trap, not a filter.
+  //
+  // An empty chip set means "everything", not "nothing" — same as the rest of
+  // the app, and the only reading that makes an untouched filter invisible.
   function getFilteredTodos() {
     const q = state.search.trim().toLowerCase();
-    return q ? state.data.todos.filter((t) => t.text.toLowerCase().includes(q)) : state.data.todos;
+    const cats = state.todoActiveCats;
+    const all = !cats || !cats.size;
+    return state.data.todos.filter((t) =>
+      (!q || t.text.toLowerCase().includes(q)) &&
+      (all || cats.has(t.category || "")));
   }
 
   // ---------- actions ----------
@@ -88,6 +116,15 @@
     const last = state.data.todos.reduce((n, t) => Math.max(n, +t.order || 0), -1);
     state.data.todos.push(sanitizeTodo({ text, category, order: last + 1, createdAt: now, updatedAt: now }));
     refocusCompose = true;
+    render();
+    await persist();
+  }
+
+  // A category created from a picker lives in state.data.todoCategories like
+  // any other collection, so it saves the same way — this is only ever
+  // needed where the pick itself didn't already write something.
+  async function commitCategories() {
+    buildCatFilter();
     render();
     await persist();
   }
@@ -147,10 +184,99 @@
     toast(`Cleared ${n} completed`);
   }
 
+  // ---------- categories ----------
+  // The third add/edit-category modal in the app, after the journal's and
+  // Finance's — TODO.md has the note about folding all three into one. This
+  // is the simplest: a to-do category cascades to one collection, and there
+  // is no "Other" for its to-dos to fall back into, so deleting one just
+  // leaves them in the general panel.
+  function openTodoCatModal(cat) {
+    const editing = !!cat;
+    $("#todoCatModalTitle").textContent = editing ? "Edit to-do category" : "Add to-do category";
+    $("#todoCatOrigName").value = editing ? cat.name : "";
+    $("#todoCatName").value = editing ? cat.name : "";
+    $("#todoCatColorInput").value = editing ? cat.color : nextColor();
+    const uses = $("#todoCatUses");
+    if (editing) {
+      const n = state.data.todos.filter((t) => t.category === cat.name).length;
+      uses.textContent = n + (n === 1 ? " to-do uses this" : " to-dos use this");
+      uses.hidden = false;
+    } else uses.hidden = true;
+    $("#deleteTodoCatBtn").hidden = !editing;
+    $("#todoCatModal").hidden = false;
+    $("#todoCatName").focus();
+  }
+  function closeTodoCatModal() { $("#todoCatModal").hidden = true; }
+
+  const nextColor = () => CATEGORY_PALETTE[todoCats().length % CATEGORY_PALETTE.length];
+
+  async function saveTodoCatFromForm(ev) {
+    ev.preventDefault();
+    const orig = $("#todoCatOrigName").value;
+    const name = $("#todoCatName").value.trim();
+    const color = $("#todoCatColorInput").value;
+    if (!name) return;
+    const cats = state.data.todoCategories;
+    const clash = (c) => c.name.toLowerCase() === name.toLowerCase();
+
+    if (!orig) {
+      if (cats.some(clash)) { toast("That category already exists", true); return; }
+      cats.push({ id: uid(), name, color, updatedAt: new Date().toISOString() });
+      closeTodoCatModal();
+      await commitCategories();
+      toast("To-do category added");
+      return;
+    }
+
+    const cat = cats.find((c) => c.name === orig);
+    if (!cat) return;
+    if (name !== cat.name && cats.some((c) => c !== cat && clash(c))) {
+      toast("A category with that name already exists", true);
+      return;
+    }
+    cat.color = color;
+    if (name !== cat.name) {
+      // The id stays put across a rename — it's this category's sync
+      // identity. Only the name it's known by changes, and every to-do
+      // holding the old one follows it.
+      const old = cat.name;
+      cat.name = name;
+      state.data.todos.forEach((t) => { if (t.category === old) t.category = name; });
+      if (state.todoActiveCats.has(old)) {
+        state.todoActiveCats.delete(old);
+        state.todoActiveCats.add(name);
+      }
+      if (composeCat === old) composeCat = name;
+    }
+    closeTodoCatModal();
+    await commitCategories();
+    toast("To-do category saved");
+  }
+
+  async function deleteTodoCategory() {
+    const cats = state.data.todoCategories;
+    const cat = cats.find((c) => c.name === $("#todoCatOrigName").value);
+    if (!cat) return;
+    const using = state.data.todos.filter((t) => t.category === cat.name);
+    const ask = using.length
+      ? `“${cat.name}” is used by ${using.length} to-do${using.length === 1 ? "" : "s"}. Delete it and move them to the general list?`
+      : `Delete to-do category “${cat.name}”?`;
+    if (!confirm(ask)) return;
+    using.forEach((t) => { delete t.category; });
+    state.data.todoCategories = cats.filter((c) => c !== cat);
+    state.todoActiveCats.delete(cat.name);
+    if (composeCat === cat.name) composeCat = "";
+    closeTodoCatModal();
+    await commitCategories();
+    toast("To-do category deleted");
+  }
+
   // ---------- rendering ----------
   // The category the compose box is set to, kept across renders so a run of
   // to-dos for the same thing can be typed without re-picking it each time.
   let composeCat = "";
+
+  const NEW_CATEGORY = "\u0000new";
 
   function categorySelect(value, onPick) {
     const sel = document.createElement("select");
@@ -158,21 +284,50 @@
     const none = document.createElement("option");
     none.value = ""; none.textContent = "No category";
     sel.appendChild(none);
-    for (const c of state.data.categories) {
+    const names = todoCats().map((c) => c.name);
+    // A to-do can hold a name the list doesn't have (a hand-edited file, or a
+    // sync that brought the to-do before its category); keep it selectable
+    // rather than silently moving the to-do somewhere else.
+    if (value && !names.includes(value)) names.push(value);
+    for (const name of names) {
       const opt = document.createElement("option");
-      opt.value = c.name; opt.textContent = c.name;
+      opt.value = name; opt.textContent = name;
       sel.appendChild(opt);
     }
-    // A to-do can hold a category that has since been renamed or deleted;
-    // keep it selectable rather than silently moving the to-do somewhere else.
-    if (value && !state.data.categories.some((c) => c.name === value)) {
-      const opt = document.createElement("option");
-      opt.value = value; opt.textContent = value;
-      sel.appendChild(opt);
-    }
+    const add = document.createElement("option");
+    add.value = NEW_CATEGORY; add.textContent = "+ New category…";
+    sel.appendChild(add);
     sel.value = value || "";
-    sel.onchange = () => onPick(sel.value);
+    sel.onchange = () => {
+      if (sel.value !== NEW_CATEGORY) { onPick(sel.value, false); return; }
+      const name = newCategory();
+      // Back to what it was on a cancel, rather than leaving "+ New
+      // category…" showing as though it were a choice. On a create there is
+      // no point setting sel.value either: this select's options were built
+      // before the category existed, so it has none to select. The caller's
+      // re-render is what puts a picker on screen that knows about it.
+      if (!name) { sel.value = value || ""; onPick(value || "", false); return; }
+      onPick(name, true);
+    };
     return sel;
+  }
+
+  // Creating one is part of picking one: a checklist's categories appear as
+  // you need them, so a separate place to manage them first would be a
+  // detour. Renaming and recolouring are in TODO.md.
+  function newCategory() {
+    const name = (prompt("New to-do category") || "").trim();
+    if (!name) return "";
+    const cats = state.data.todoCategories;
+    const existing = cats.find((c) => c.name.toLowerCase() === name.toLowerCase());
+    if (existing) return existing.name;
+    cats.push({
+      id: uid(),
+      name,
+      color: CATEGORY_PALETTE[cats.length % CATEGORY_PALETTE.length],
+      updatedAt: new Date().toISOString(),
+    });
+    return name;
   }
 
   function composeRow() {
@@ -182,7 +337,13 @@
     input.id = "todoCompose";
     input.placeholder = "Add a to-do…";
     input.autocomplete = "off";
-    const cat = categorySelect(composeCat, (v) => { composeCat = v; });
+    const cat = categorySelect(composeCat, (v, created) => {
+      composeCat = v;
+      // A plain pick changes nothing on screen and nothing worth saving. A
+      // new category is both: the picker has to be rebuilt to contain it,
+      // and it has to survive a reload.
+      if (created) commitCategories();
+    });
     cat.id = "todoComposeCat";
     cat.title = "Which panel it lands in";
     const add = el("button", "btn btn-primary btn-sm", "Add");
@@ -229,7 +390,7 @@
       // the gesture could not fire. Selecting the text is what the inline
       // editor is for (tap it), and .todo-row now says user-select: none so a
       // long press doesn't start a selection instead.
-      if (ev.target.closest(".todo-check, .todo-del, .todo-edit")) return;
+      if (ev.target.closest(".todo-check, .todo-del, .todo-edit, .todo-cat")) return;
       start = { x: ev.clientX, y: ev.clientY };
       timer = setTimeout(() => { timer = null; reorderMode = true; render(); }, LONG_PRESS_MS);
     });
@@ -239,6 +400,33 @@
     });
     row.addEventListener("pointerup", cancel);
     row.addEventListener("pointercancel", cancel);
+  }
+
+  // The row being dragged snaps to its new slot — it's the one under your
+  // finger, and lagging it behind would be lying about where it is — while
+  // whatever it displaced slides into the space it left. FLIP: measure, move,
+  // put everything back where it was with a transform, then release the
+  // transform and let CSS carry it home.
+  function slideDisplaced(list, dragged, mutate) {
+    if (prefersReducedMotion()) { mutate(); return; }
+    const rows = [...list.querySelectorAll(".todo-row")].filter((r) => r !== dragged);
+    const before = new Map(rows.map((r) => [r, r.getBoundingClientRect().top]));
+    mutate();
+    const moved = [];
+    for (const r of rows) {
+      const delta = before.get(r) - r.getBoundingClientRect().top;
+      if (!delta) continue;
+      r.style.transition = "none";
+      r.style.transform = "translateY(" + delta + "px)";
+      moved.push(r);
+    }
+    if (!moved.length) return;
+    // Two frames: one for the browser to take the start position as given,
+    // the next to change it. In one, the style change coalesces with the
+    // move above and nothing animates at all.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      for (const r of moved) { r.style.transition = ""; r.style.transform = ""; }
+    }));
   }
 
   // Reorders the rows under the finger as it passes each neighbour's
@@ -254,8 +442,14 @@
         const box = other.getBoundingClientRect();
         const mid = box.top + box.height / 2;
         const rowIsAfter = !!(other.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING);
-        if (e.clientY < mid && rowIsAfter) { list.insertBefore(row, other); break; }
-        if (e.clientY > mid && !rowIsAfter) { list.insertBefore(row, other.nextSibling); break; }
+        if (e.clientY < mid && rowIsAfter) {
+          slideDisplaced(list, row, () => list.insertBefore(row, other));
+          break;
+        }
+        if (e.clientY > mid && !rowIsAfter) {
+          slideDisplaced(list, row, () => list.insertBefore(row, other.nextSibling));
+          break;
+        }
       }
     };
     const onUp = (e) => {
@@ -370,6 +564,12 @@
       sel.onblur = () => { if (!closed) { closed = true; render(); } };
       chip.replaceWith(sel);
       sel.focus();
+      // Focusing a select doesn't open it, on a desktop or a phone — the dot
+      // turned into a closed dropdown and the whole thing read as broken
+      // until you clicked a second time. showPicker is the one call that
+      // opens it; where it isn't available the focused select is still one
+      // press away, which is where this started.
+      try { sel.showPicker(); } catch (e) { /* older browser, or not user-initiated */ }
     };
     return chip;
   }
@@ -477,19 +677,24 @@
   }
 
   // The general panel first — it's where anything you don't think about
-  // lands — then a panel per category in the app's own category order, so
-  // this reads in the same order as the chips everywhere else. Categories
-  // with nothing in them get no panel; one a to-do names but the app no
-  // longer has still does, or the to-do would have nowhere to be.
+  // lands — then a panel per to-do category, in the order that list holds
+  // them. Categories with nothing in them get no panel; one a to-do names
+  // that the list doesn't have still does, or the to-do would have nowhere
+  // to be.
   function panelGroups(todos) {
     const groups = new Map([["", []]]);
-    for (const c of state.data.categories) groups.set(c.name, []);
+    for (const c of todoCats()) groups.set(c.name, []);
     for (const t of todos) {
       const key = t.category || "";
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(t);
     }
-    return [...groups].filter(([name, list]) => list.length || name === "");
+    // The general panel is kept even when empty — it's where anything new
+    // lands, so a checklist with nothing in it still has somewhere to look.
+    // Not while the chips are narrowing things, though: there it's a panel
+    // saying "Nothing here" about a category you didn't ask to see.
+    const filtering = state.todoActiveCats && state.todoActiveCats.size;
+    return [...groups].filter(([name, list]) => list.length || (name === "" && !filtering));
   }
 
   function focusComposeIfAsked() {
@@ -500,8 +705,10 @@
   }
 
   window.LifeLogTodos = {
-    init,
+    init, wire,
     sanitizeTodo, assignMissingOrder, getFilteredTodos, renderTodos,
+    // the Categories chip row (buildCatFilter in app.js) and its modal
+    todoCats, colorOf, openTodoCatModal, closeTodoCatModal, isTodoMode,
     // pure helpers (test/todos.test.js)
     byOldest, byNewestDone, byOrder, panelGroups,
   };

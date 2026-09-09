@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.128.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.128.2"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -94,7 +94,7 @@
     } catch (e) {}
   }
 
-  // Restore where you were, translating anything a version before 0.128.1
+  // Restore where you were, translating anything a version before 0.128.2
   // wrote. Stats and Summary were tabs of their own then, and Notes/To-do
   // were modes of the Timeline; each of those is now a (view, mode) pair, so
   // a device that closed on one reopens looking at the same screen rather
@@ -125,7 +125,7 @@
       const renamed = MODE_MIGRATIONS[key];
       const saved = (renamed && renamed[stored]) || stored;
       // Only where it's still one of that view's modes: "notes" sat in
-      // timelineMode until 0.128.1, and setting it now would be a mode the
+      // timelineMode until 0.128.2, and setting it now would be a mode the
       // Timeline no longer has.
       if (saved && modeIds(spec).includes(saved) && !(moved && key === moved.view)) spec.set(saved);
     }
@@ -234,6 +234,10 @@
     activeCats: new Set(),
     financeActiveYears: new Set(),
     financeActiveCats: new Set(),
+    // The To-do mode's own chips. "" is the general panel, which is a real
+    // thing to filter to and so is a real member of this set rather than an
+    // absence.
+    todoActiveCats: new Set(),
     statsYear: null,
     financeStatsYear: null,
     bulk: { active: false, selected: new Set() },
@@ -253,6 +257,7 @@
   function emptyData() {
     return {
       version: 1, categories: [], entries: [], backlog: [], notes: [], todos: [], accomplishments: {},
+      todoCategories: [],
       financeCategories: Finance.seedFinanceCategories(), financeEntries: [], recurringExpenses: [],
       settings: { ...DEFAULT_SETTINGS },
     };
@@ -1998,17 +2003,20 @@
     wrap.innerHTML = "";
     // A note carries no category, so in Notes mode these chips would be a
     // control that does nothing. Hidden rather than disabled — there's
-    // nothing to explain and nothing you could do about it.
-    // Neither a note nor a to-do carries a category, so in those modes these
-    // chips would be a control that does nothing. Hidden rather than
-    // disabled — there's nothing to explain and nothing you could do about it.
-    const noCats = state.view === "notes";
+    // nothing to explain and nothing you could do about it. To-dos do carry
+    // one, from their own list, so the row is theirs in that mode.
+    const todo = Todos.isTodoMode();
+    const noCats = state.view === "notes" && !todo;
     $("#catFilterGroup").hidden = noCats;
     updateFilterbarVisibility();
     if (noCats) return;
     const finance = isFinanceView();
-    const cats = finance ? state.data.financeCategories : state.data.categories;
-    const activeCats = finance ? state.financeActiveCats : state.activeCats;
+    const cats = todo ? Todos.todoCats()
+      : finance ? state.data.financeCategories : state.data.categories;
+    const activeCats = todo ? state.todoActiveCats
+      : finance ? state.financeActiveCats : state.activeCats;
+    const editCat = (c) => (todo ? Todos.openTodoCatModal(c)
+      : finance ? Finance.openFinanceCatModal(c) : Journal.openCategoryModal(c));
     cats.forEach((c) => {
       const chip = el("span", "cat-chip" + (activeCats.has(c.name) ? " on" : ""));
       const dot = el("span", "dot"); dot.style.background = c.color;
@@ -2016,7 +2024,7 @@
       chip.appendChild(document.createTextNode(c.name));
       const edit = el("span", "chip-edit", "✎");
       edit.title = "Edit category";
-      activatable(edit, (ev) => { ev.stopPropagation(); finance ? Finance.openFinanceCatModal(c) : Journal.openCategoryModal(c); }, "Edit category " + c.name);
+      activatable(edit, (ev) => { ev.stopPropagation(); editCat(c); }, "Edit category " + c.name);
       chip.appendChild(edit);
       activatable(chip, () => {
         if (activeCats.has(c.name)) activeCats.delete(c.name);
@@ -2028,12 +2036,10 @@
     });
     equalizeChipWidths(wrap);
     const addChip = el("span", "cat-chip add-chip", "+");
-    const addLabel = finance ? "Add finance category" : "Add category";
+    const addLabel = todo ? "Add to-do category"
+      : finance ? "Add finance category" : "Add category";
     addChip.title = addLabel;
-    activatable(addChip, (ev) => {
-      ev.stopPropagation();
-      finance ? Finance.openFinanceCatModal(null) : Journal.openCategoryModal(null);
-    }, addLabel);
+    activatable(addChip, (ev) => { ev.stopPropagation(); editCat(null); }, addLabel);
     wrap.appendChild(addChip);
   }
 
@@ -2312,6 +2318,13 @@
     data.backlog = (data.backlog || []).map(Backlog.sanitizeBacklog);
     data.notes = (data.notes || []).map(Notes.sanitizeNote);
     data.todos = Todos.assignMissingOrder((data.todos || []).map(Todos.sanitizeTodo));
+    // A checklist's categories are its own — "Errands", "Work" — and have
+    // nothing to say about what you've watched or bought, so they're a third
+    // list rather than a third use of the journal's. Anything a to-do names
+    // that isn't in it yet is added here, which is also what carries across
+    // the to-dos that briefly used journal categories in 0.128.1.
+    data.todoCategories = data.todoCategories || [];
+    ensureCategories(data.todoCategories, data.todos.filter((t) => t.category));
     const incomingSettings = data.settings || {};
     // One-time migration: visual layout prefs used to be synced as part of
     // data.settings. Pull them into this device's local-only settings if it
@@ -2673,6 +2686,7 @@
     Finance.wire(); // finance/recurring/finance-category modals + finance import/export
     Backlog.wire(); // backlog modal: sync, priority/dropped, title suggestions
     Wheel.wire(); // the random wheel modal (the Backlog's 🎡 Spin, in the bar and in the pick card)
+    Todos.wire(); // the to-do category modal
     SettingsUI.wire(); // the Settings modal: tabs, data/storage, appearance, media, privacy
 
     $("#exportJsonBtn").onclick = IO.exportJson;
@@ -2717,7 +2731,8 @@
         Journal.closeEntryModal(); Journal.closeAchModal(); Journal.cancelCategoryModal(); Backlog.closeBacklogModal();
         Backlog.closePickModal(); Wheel.closeWheel();
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
-        Finance.closePauseModal(); Finance.cancelFinanceCatModal(); SettingsUI.closeSettings();
+        Finance.closePauseModal(); Finance.cancelFinanceCatModal(); Todos.closeTodoCatModal();
+        SettingsUI.closeSettings();
         closeShortcutsModal();
         $("#addMenu").hidden = true;
         return;
@@ -3050,7 +3065,7 @@
   });
   Todos.init({
     state, $, el, uid, toast, persist, render, emptyState, backfillUpdatedAt, keepUnknown,
-    colorOf,
+    prefersReducedMotion, CATEGORY_PALETTE, buildCatFilter, activatable,
   });
 
   Notes.init({

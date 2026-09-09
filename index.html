@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.128.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.128.2" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -721,6 +721,32 @@
     </div>
   </div>
 
+  <!-- To-do category add/edit. A third of these, after the journal's and the
+       Finance one — see TODO.md: they want one parameterised modal, not a
+       fourth copy. This one is the simplest of the three: to-do categories
+       cascade to one collection and have no "Other" to fall back to. -->
+  <div class="modal-overlay" id="todoCatModal" hidden>
+    <div class="modal">
+      <h2 id="todoCatModalTitle">Edit to-do category</h2>
+      <form id="todoCatForm">
+        <input type="hidden" id="todoCatOrigName" />
+        <label>Name
+          <input id="todoCatName" type="text" required autocomplete="off" />
+        </label>
+        <label>Colour
+          <input id="todoCatColorInput" type="color" />
+        </label>
+        <p class="muted" id="todoCatUses"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="deleteTodoCatBtn">Delete</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelTodoCatBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Settings modal -->
   <div class="modal-overlay" id="settingsModal" hidden>
     <div class="modal modal-wide settings-modal">
@@ -1231,19 +1257,19 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/qr.js?v=0.128.1"></script>
-  <script defer src="src/media.js?v=0.128.1"></script>
-  <script defer src="src/merge.js?v=0.128.1"></script>
-  <script defer src="src/storage.js?v=0.128.1"></script>
-  <script defer src="src/finance.js?v=0.128.1"></script>
-  <script defer src="src/settings.js?v=0.128.1"></script>
-  <script defer src="src/wheel.js?v=0.128.1"></script>
-  <script defer src="src/backlog.js?v=0.128.1"></script>
-  <script defer src="src/journal.js?v=0.128.1"></script>
-  <script defer src="src/notes.js?v=0.128.1"></script>
-  <script defer src="src/todos.js?v=0.128.1"></script>
-  <script defer src="src/io.js?v=0.128.1"></script>
-  <script defer src="src/sync.js?v=0.128.1"></script>
-  <script defer src="src/app.js?v=0.128.1"></script>
+  <script defer src="src/qr.js?v=0.128.2"></script>
+  <script defer src="src/media.js?v=0.128.2"></script>
+  <script defer src="src/merge.js?v=0.128.2"></script>
+  <script defer src="src/storage.js?v=0.128.2"></script>
+  <script defer src="src/finance.js?v=0.128.2"></script>
+  <script defer src="src/settings.js?v=0.128.2"></script>
+  <script defer src="src/wheel.js?v=0.128.2"></script>
+  <script defer src="src/backlog.js?v=0.128.2"></script>
+  <script defer src="src/journal.js?v=0.128.2"></script>
+  <script defer src="src/notes.js?v=0.128.2"></script>
+  <script defer src="src/todos.js?v=0.128.2"></script>
+  <script defer src="src/io.js?v=0.128.2"></script>
+  <script defer src="src/sync.js?v=0.128.2"></script>
+  <script defer src="src/app.js?v=0.128.2"></script>
 </body>
 </html>
