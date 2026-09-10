@@ -700,6 +700,9 @@
       // are bound in create(), so the switch has to rebuild rather than
       // refill, which is exactly what a changed epoch does.
       epoch: reordering ? "reorder" : "normal",
+      // Ticking one is a move across the separator — the whole reason the
+      // rows are keyed by id rather than by which group they sit in.
+      animate: true,
       keyOf: (p) => p.key,
       create: (p) => createPart(p, card),
       update: (node, p) => updatePart(node, p, card),

@@ -118,6 +118,7 @@
     const parts = [{ key: "__head", kind: "head", label, count: notes.length }];
     for (const n of notes) parts.push({ key: n.id, kind: "note", note: n });
     reconcile(card, parts, {
+      animate: true,
       keyOf: (part) => part.key,
       create: (part) => (part.kind === "head" ? el("h3") : createNoteCard()),
       update: (node, part) => adopt(node, part.kind === "head"

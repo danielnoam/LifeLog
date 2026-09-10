@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.135.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.136.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1994,8 +1994,10 @@
   function isFinanceView() { return state.view === "finance"; }
 
   function buildYearFilter() {
+    // Not cleared: the chips are reconciled below, and clearing first would
+    // hand reconcile an empty container every time — which is precisely what
+    // its stale-node guard treats as "someone took these away, rebuild".
     const wrap = $("#yearFilter");
-    wrap.innerHTML = "";
     const finance = isFinanceView();
     const ys = finance ? Finance.financeYears() : years();
     // Nothing to filter by — an empty view, or a mode with no dates worth
@@ -2005,15 +2007,35 @@
     updateFilterbarVisibility();
     const activeYears = finance ? state.financeActiveYears : state.activeYears;
     for (const y of activeYears) if (!ys.includes(y)) activeYears.delete(y);
-    ys.forEach((y) => {
-      const chip = el("span", "cat-chip year-chip" + (activeYears.has(y) ? " on" : ""), String(y));
-      activatable(chip, () => {
-        if (activeYears.has(y)) activeYears.delete(y);
-        else activeYears.add(y);
-        buildYearFilter();
-        render();
-      });
-      wrap.appendChild(chip);
+    // Reconciled so a chip keeps its node while you type in the search box —
+    // this row used to be rebuilt on every keystroke.
+    //
+    // The epoch is which view's chips these are: Finance keeps its own year
+    // set, and 2026 means a different thing in each, so a node must never be
+    // reused across that boundary.
+    //
+    // The handler resolves the active set at click time rather than closing
+    // over it, for the same reason: the set a chip was built beside is not
+    // necessarily the one in force when it is clicked.
+    reconcile(wrap, ys, {
+      epoch: finance ? "finance" : "journal",
+      keyOf: (y) => String(y),
+      create: (y) => {
+        const chip = el("span", "cat-chip year-chip", String(y));
+        activatable(chip, () => {
+          const set = isFinanceView() ? state.financeActiveYears : state.activeYears;
+          if (set.has(y)) set.delete(y); else set.add(y);
+          buildYearFilter();
+          render();
+        });
+        return chip;
+      },
+      // Only the on/off class changes; the label is the key. Set directly
+      // rather than through adopt(), which syncs *every* attribute and would
+      // strip the tabindex and role activatable() put on the chip.
+      update: (chip, y) => {
+        chip.classList.toggle("on", activeYears.has(y));
+      },
     });
     equalizeChipWidths(wrap);
   }
@@ -2038,9 +2060,21 @@
     bar.hidden = $("#yearFilterGroup").hidden && $("#catFilterGroup").hidden;
   }
 
+  // Resolved when a chip is used, not when it is built: a chip node outlives
+  // the render that created it now, and the view may have changed under it.
+  function activeCatSetFor(which) {
+    if (which === "todo") return state.todoActiveCats;
+    if (which === "finance") return state.financeActiveCats;
+    return state.activeCats;
+  }
+  function editCatFor(which) {
+    if (which === "todo") return Todos.openTodoCatModal;
+    if (which === "finance") return Finance.openFinanceCatModal;
+    return Journal.openCategoryModal;
+  }
+
   function buildCatFilter() {
-    const wrap = $("#catFilter");
-    wrap.innerHTML = "";
+    const wrap = $("#catFilter"); // not cleared — see buildYearFilter
     // A note carries no category, so in Notes mode these chips would be a
     // control that does nothing. Hidden rather than disabled — there's
     // nothing to explain and nothing you could do about it. To-dos do carry
@@ -2055,32 +2089,49 @@
       : finance ? state.data.financeCategories : state.data.categories;
     const activeCats = todo ? state.todoActiveCats
       : finance ? state.financeActiveCats : state.activeCats;
-    const editCat = (c) => (todo ? Todos.openTodoCatModal(c)
-      : finance ? Finance.openFinanceCatModal(c) : Journal.openCategoryModal(c));
-    cats.forEach((c) => {
-      const chip = el("span", "cat-chip" + (activeCats.has(c.name) ? " on" : ""));
-      const dot = el("span", "dot"); dot.style.background = c.color;
-      chip.appendChild(dot);
-      chip.appendChild(document.createTextNode(c.name));
-      const edit = el("span", "chip-edit", "✎");
-      edit.title = "Edit category";
-      activatable(edit, (ev) => { ev.stopPropagation(); editCat(c); }, "Edit category " + c.name);
-      chip.appendChild(edit);
-      activatable(chip, () => {
-        if (activeCats.has(c.name)) activeCats.delete(c.name);
-        else activeCats.add(c.name);
-        buildCatFilter();
-        render();
-      });
-      wrap.appendChild(chip);
-    });
-    equalizeChipWidths(wrap);
-    const addChip = el("span", "cat-chip add-chip", "+");
+
     const addLabel = todo ? "Add to-do category"
       : finance ? "Add finance category" : "Add category";
-    addChip.title = addLabel;
-    activatable(addChip, (ev) => { ev.stopPropagation(); editCat(null); }, addLabel);
-    wrap.appendChild(addChip);
+    // The + rides in the same keyed list under a reserved key, so it keeps its
+    // place at the end without being rebuilt with the row.
+    const chips = [...cats.map((c) => ({ key: c.name, cat: c })), { key: "__add", add: true }];
+    // Which of the three category lists these chips are — the same name can
+    // exist in more than one, so a node must not be reused across the change.
+    const which = todo ? "todo" : finance ? "finance" : "journal";
+    reconcile(wrap, chips, {
+      epoch: which,
+      keyOf: (item) => item.key,
+      create: (item) => {
+        if (item.add) {
+          const addChip = el("span", "cat-chip add-chip", "+");
+          activatable(addChip, (ev) => { ev.stopPropagation(); editCatFor(which)(null); }, addLabel);
+          return addChip;
+        }
+        const chip = el("span", "cat-chip");
+        const name = item.cat.name;
+        activatable(chip, () => {
+          const set = activeCatSetFor(which);
+          if (set.has(name)) set.delete(name); else set.add(name);
+          buildCatFilter();
+          render();
+        });
+        return chip;
+      },
+      // Contents are replaced but the chip element itself is kept, so the
+      // tabindex and role activatable() gave it survive — which a blanket
+      // adopt() would not.
+      update: (chip, item) => {
+        if (item.add) { chip.title = addLabel; return; }
+        const c = item.cat;
+        chip.classList.toggle("on", activeCats.has(c.name));
+        const dot = el("span", "dot"); dot.style.background = c.color;
+        const edit = el("span", "chip-edit", "✎");
+        edit.title = "Edit category";
+        activatable(edit, (ev) => { ev.stopPropagation(); editCatFor(which)(c); }, "Edit category " + c.name);
+        chip.replaceChildren(dot, document.createTextNode(c.name), edit);
+      },
+    });
+    equalizeChipWidths(wrap);
   }
 
   // Clicking the "Years"/"Categories" label selects all chips; clicking again

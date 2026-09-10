@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.136.0] - 2026-09-10
+
+### Added
+- **Lists move instead of jumping.** Tick a to-do and its row travels down
+  past the done rule; star a backlog item and it slides up across the dashed
+  band; reorder a month and the rows that changed places are the ones you see
+  move. Everything before this release was the groundwork that makes it
+  possible — the row being animated has to be the same row afterwards.
+- **Rows fade in when they arrive.** Adding a to-do, an entry, an expense or a
+  backlog item settles it into the list instead of snapping it in.
+- All of it honours **Reduce motion**: with that on, nothing animates.
+
+### Changed
+- **The filter chips keep their place while you type.** The year and category
+  rows were rebuilt from scratch on every keystroke in the search box; they
+  now update in place.
+
 ## [0.135.0] - 2026-09-10
 
 ### Changed

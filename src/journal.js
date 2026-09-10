@@ -210,6 +210,7 @@
     const parts = [{ key: "__head", kind: "head", label, items: monthItems, onAdd }];
     for (const e of monthItems) parts.push({ key: e.id, kind: "row", entry: e });
     reconcile(card, parts, {
+      animate: true,
       keyOf: (part) => part.key,
       create: (part) => (part.kind === "head" ? el("h3") : createEntryRow(part.entry.id)),
       update: (node, part) => adopt(node, part.kind === "head"

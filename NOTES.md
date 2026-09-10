@@ -16,6 +16,46 @@ what was decided against and why.
 
 ---
 
+- the payoff, 0.136.0: reconcile() grew FLIP for moves and a fade for
+  arrivals. Notes on the shape of it, because several parts look optional and
+  are not:
+
+  It is opt-in per call (`animate: true`), not global. Measuring costs two
+  forced layouts per reconcile, and a container whose contents change
+  wholesale — a chip row switching between category lists, a section list
+  rebuilt after a filter — has nothing worth animating. Only the row-level
+  lists opt in.
+
+  It skips when the container is off-document. A view holds its root across a
+  render now, so reconcile runs while detached, where every rect reads zero
+  and the "movement" would be the whole list flying in from the corner.
+
+  A node already mid-animation has its FLIP cleared before being measured,
+  otherwise the second measurement reads a position part-way through the
+  first transition and inverts against its own transform.
+
+  Removals are deliberately not animated. Holding a node in the flow while it
+  leaves means the list doesn't close up until the animation ends, and every
+  caller's bookkeeping would be briefly out of step with the DOM. A row
+  vanishing is much less jarring than a row teleporting, which was the actual
+  complaint.
+
+  Two loose ends. The chip rows are reconciled but not animated — chips
+  jiggling as you type is noise, not feedback. And buildYearFilter and
+  buildCatFilter no longer clear their container: they used to open with
+  `wrap.innerHTML = ""`, which handed reconcile an empty container every time
+  and made its stale-node guard rebuild everything. That was the whole bug
+  behind "chips rebuild on every keystroke" surviving the first conversion
+  attempt.
+
+- the tab underline was going to move from animating left/width to a
+  transform, listed as a free win. It isn't one, and it is not being done.
+  updateTabUnderline sets left/width directly and the live drag-follow morphs
+  the same two properties as a 0-1 progress fraction toward a measured target
+  box, so both would have to be rewritten together — and scaleX on a 2px bar
+  with a border-radius distorts the radius as it stretches. Real work and a
+  visual risk, for a bar that animates on a tab switch.
+
 - the Ledger converted in 0.135.0, finishing the list views. Three things
   particular to it:
 

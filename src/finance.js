@@ -622,6 +622,7 @@
     });
 
     reconcile(card, parts, {
+      animate: true,
       keyOf: (part) => part.key,
       create: (part) => {
         if (part.kind === "head") return el("h3");

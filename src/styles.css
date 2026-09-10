@@ -45,6 +45,12 @@
   --shadow: 0 8px 30px rgba(0,0,0,.45);
   --nav-shadow: rgba(0,0,0,.35);
   --ease: cubic-bezier(.4,0,.2,1);
+  /* Movement, for lists reconciled with animate:true (see reconcile.js).
+     Slower and softer than --dur, which is for hover and press feedback:
+     a row crossing a rule is telling you where it went, not acknowledging
+     a tap. */
+  --ll-move-dur: .3s;
+  --ll-move-ease: cubic-bezier(.22, 1, .36, 1);
   --dur-fast: .12s;
   --dur: .18s;
   font-synthesis: none;
@@ -1865,3 +1871,18 @@ html.force-mobile .backlog-section-head {
   color: var(--text-faint); font-size: 11.5px; text-decoration: underline;
 }
 .lock-reset-btn:hover { color: var(--accent); }
+
+
+/* ---------- reconciled list movement ---------- */
+/* A row arriving in a list. Moves are handled in JS (FLIP, see
+   reconcile.js) because the distance isn't knowable from CSS; an arrival
+   always travels the same short way, so it stays here. */
+@keyframes ll-enter {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+.ll-enter { animation: ll-enter var(--ll-move-dur) var(--ll-move-ease); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ll-enter { animation: none; }
+}

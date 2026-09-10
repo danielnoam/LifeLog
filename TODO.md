@@ -27,20 +27,26 @@ todo:
 
 - the rendering rework, continued. reconcile.js (0.129.0), the shared section
   plumbing (0.131.0), To-do (0.130.0), Notes (0.132.0) and the Timeline
-  (0.133.0), the Backlog (0.134.0) and the Ledger (0.135.0) have landed —
-  every list view. What's left:
+  (0.133.0), the Backlog (0.134.0), the Ledger (0.135.0) and the movement it
+  was all for (0.136.0) have landed. What's left:
 
   1. Discover, on its own and last of the views. Its rows come from the
      network and turn over wholesale on each fetch, so reuse buys little —
      the win would be that the grid stops flashing on every refresh, which
      is worth having but is not what the rest of this was for. Key the cards
      by source and the rows by source + result id.
-  2. The chrome that still rebuilds wholesale — the year/category chip rows
-     (buildYearFilter/buildCatFilter), the jump-nav carousel, the bulk bar.
-     Small, but they're what you watch while typing in the search box.
-  3. Then the actual point: FLIP moves, enter/leave transitions, and View
-     Transitions kept to view/mode switches only.
-  4. Last, not first: render() drops `#viewBody.innerHTML = ""`, once no view
+  2. The jump-nav carousel and the bulk action bar, the last two bits of
+     chrome still rebuilt wholesale. The chip rows went in 0.136.0; these two
+     are smaller and less often on screen, which is why they waited.
+  3. Leave animations. Moves and arrivals shipped in 0.136.0; a row leaving
+     still vanishes. Doing it means holding the node in the flow while it
+     goes, which puts every caller's bookkeeping briefly out of step with the
+     DOM — see NOTES.md. Worth it only if a vanishing row starts to read as a
+     glitch.
+  4. View Transitions for view/mode switches, where the whole page really does
+     change. The existing view-fade-in and mode-slide-* keyframes may simply
+     be replaced by it. Feature-detect.
+  5. Last, not first: render() drops `#viewBody.innerHTML = ""`, once no view
      depends on being handed an empty root. See NOTES.md for why this moved
      from the front of the list to the back.
 

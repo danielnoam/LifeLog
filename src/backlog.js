@@ -1122,6 +1122,7 @@
         const shape = rowShapeFor("upcoming");
         reconcile(body, items, {
           epoch: shape,
+          animate: true,
           keyOf: (b) => b.id,
           create: (b) => createBacklogRow(b.id, shape),
           update: (node, b) => adopt(node, upcomingRow(b)),
@@ -1665,6 +1666,9 @@
           const shape = rowShapeFor("entries");
           reconcile(body, parts, {
             epoch: shape,
+            // Star something and its row crosses the band rule; drop it and
+            // it goes the other way. This is where that reads as movement.
+            animate: true,
             keyOf: (part) => part.key,
             create: (part) => (part.kind === "sep"
               ? el("div", part.cls)

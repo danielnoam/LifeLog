@@ -144,6 +144,52 @@
     return !!(a.matches && a.matches("input, select, textarea, [contenteditable]"));
   }
 
+  // ---------- movement ----------
+  // With node identity in place, a list that reorders can show it: measure
+  // where everything was, let the diff happen, then put each moved node back
+  // where it started with a transform and release it. FLIP, the same
+  // technique todos.js already uses for its drag — the difference is that
+  // this one runs off the op list, so it covers every reorder in the app
+  // rather than one gesture.
+  //
+  // Deliberately opt-in per call (`animate: true`): a container whose
+  // contents change wholesale has nothing worth animating, and measuring it
+  // costs two forced layouts.
+  const REDUCED = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+  function clearFlip(node) {
+    node.style.transition = "";
+    node.style.transform = "";
+    node.removeEventListener("transitionend", node.__llFlipEnd);
+    node.__llFlipEnd = null;
+  }
+
+  function playFlip(moved) {
+    if (!moved.length) return;
+    // Two frames: one for the browser to take the inverted position as given,
+    // the next to change it. In one, the style change coalesces with the move
+    // and nothing animates at all.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      for (const node of moved) {
+        node.style.transition = "transform var(--ll-move-dur) var(--ll-move-ease)";
+        node.style.transform = "";
+        node.__llFlipEnd = (e) => { if (e.target === node && e.propertyName === "transform") clearFlip(node); };
+        node.addEventListener("transitionend", node.__llFlipEnd);
+      }
+    }));
+  }
+
+  // A node arriving fades and slides the short distance in. Removals are
+  // deliberately not animated: holding a node in the flow while it leaves
+  // means the list doesn't close up until the animation ends, and every
+  // caller here would need to know that its own bookkeeping is momentarily
+  // out of step with the DOM.
+  function playEnter(node) {
+    node.classList.add("ll-enter");
+    const done = () => { node.classList.remove("ll-enter"); node.removeEventListener("animationend", done); };
+    node.addEventListener("animationend", done);
+  }
+
   // Brings `container`'s children into line with `items`.
   //
   //   keyOf(item)         -> a stable string. Item ids, not array positions.
@@ -155,6 +201,10 @@
   //                          reconcile the node's own children for a nested
   //                          list — which is how a panel keeps its rows'
   //                          identity while its header is rebuilt.
+  //   animate             -> optional. Moves are played as FLIP transitions
+  //                          and arrivals fade in. Off by default: it costs
+  //                          two forced layouts, and a list whose contents
+  //                          change wholesale has nothing worth animating.
   //   epoch               -> optional. When it differs from the last call's,
   //                          nothing is reused: every node is dropped and
   //                          rebuilt. This is the escape hatch for settings
@@ -168,6 +218,9 @@
     const create = opts.create;
     const update = opts.update;
     const epoch = opts.epoch === undefined ? null : opts.epoch;
+    // Nothing off-document is worth measuring: a view holding its root across
+    // a render reconciles while detached, where every rect is zero.
+    const animate = !!opts.animate && container.isConnected && !REDUCED();
 
     let prev = STATE.get(container);
     if (!prev || prev.epoch !== epoch) {
@@ -187,6 +240,17 @@
     }
 
     const ops = diffKeys(prev.keys, newKeys);
+
+    // Measured before anything moves, and only for nodes actually in place.
+    const before = animate ? new Map() : null;
+    if (animate) {
+      for (const [key, node] of prev.nodes) {
+        if (node.parentNode !== container) continue;
+        const r = node.getBoundingClientRect();
+        before.set(key, { left: r.left, top: r.top });
+      }
+    }
+
     for (const op of ops) {
       if (op.op !== "remove") continue;
       const node = prev.nodes.get(op.key);
@@ -200,6 +264,7 @@
     // nodes since the last call — the to-do drag reorders rows under the
     // finger and only then asks for a render.
     const nodes = new Map();
+    const entered = animate ? new Set() : null;
     let anchor = null;
     for (let j = newKeys.length - 1; j >= 0; j--) {
       const key = newKeys[j];
@@ -220,6 +285,7 @@
       } else {
         node = create(item);
         if (update) update(node, item);
+        if (animate) entered.add(key);
       }
       if (node.parentNode !== container || node.nextSibling !== anchor) {
         container.insertBefore(node, anchor);
@@ -229,6 +295,25 @@
     }
 
     STATE.set(container, { epoch, keys: newKeys, nodes });
+
+    if (animate) {
+      const moved = [];
+      for (const [key, node] of nodes) {
+        if (entered.has(key)) { playEnter(node); continue; }
+        const was = before.get(key);
+        if (!was) continue;
+        // An animation still running would otherwise be measured mid-flight
+        // and inverted against its own transform.
+        if (node.__llFlipEnd) clearFlip(node);
+        const now = node.getBoundingClientRect();
+        const dx = was.left - now.left, dy = was.top - now.top;
+        if (!dx && !dy) continue;
+        node.style.transition = "none";
+        node.style.transform = "translate(" + dx + "px, " + dy + "px)";
+        moved.push(node);
+      }
+      playFlip(moved);
+    }
     return ops;
   }
 
