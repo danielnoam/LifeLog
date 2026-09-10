@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.130.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.131.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -272,6 +272,14 @@
     return e;
   };
   const uid = () => "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const reconcile = (...a) => window.LifeLogReconcile.reconcile(...a);
+  const adopt = (...a) => window.LifeLogReconcile.adopt(...a);
+  // A reused section node has to be refilled through the header and body it
+  // was built with, not the ones on the freshly built section object — those
+  // belong to a node that is about to be thrown away. Remembered here rather
+  // than read back off the DOM so no view has to promise a particular child
+  // order.
+  const sectionParts = new WeakMap();
 
   // Makes a non-<button> element keyboard-operable the way a real button is:
   // focusable, announced as a button, and fired by Enter or Space (Space
@@ -876,7 +884,8 @@
   // trickle through whatever's left otherwise.
   //
   // sections: [{ key, header: HTMLElement, node: HTMLElement,
-  //              bodyEl: HTMLElement, build: () => void }]
+  //              bodyEl: HTMLElement, build: (bodyEl) => void,
+  //              keepBody?: boolean }]   // build() reconciles the body itself
   //   node is already fully built and appended to root by the caller loop,
   //   holding header + an empty bodyEl; build() fills bodyEl in place and
   //   is only ever invoked once per section (guarded here, callers don't
@@ -895,13 +904,44 @@
   // IntersectionObserver's lookahead band on first layout, not a
   // correctness problem.
   function renderLazySections(root, sections) {
-    sections.forEach((s) => root.appendChild(s.node));
+    // Reconciled rather than appended (0.131.0). Where `root` survives a
+    // render, a section already on screen keeps its node — and with it its
+    // height, so the page stops collapsing under its own rebuild. A view
+    // whose root is still cleared on the way in hands reconcile an empty
+    // container and gets exactly the old behaviour, one insert per section,
+    // which is what makes this safe to land before every view has converted.
+    reconcile(root, sections, {
+      keyOf: (s) => s.key,
+      create: (s) => {
+        sectionParts.set(s.node, { header: s.header, body: s.bodyEl });
+        return s.node;
+      },
+      update: (node, s) => {
+        const parts = sectionParts.get(node);
+        // Same object both sides means this node was just created above and
+        // is already correct; adopting a node from itself would be a
+        // needlessly destructive no-op.
+        if (!parts || parts.header === s.header) return;
+        adopt(parts.header, s.header);
+        // Rows are still rebuilt — that is each view's own conversion. What
+        // matters here is that they are rebuilt into the *surviving* body,
+        // so point the section at it before the lazy pass calls build().
+        //
+        // `keepBody` is how a converted view opts out: once its build()
+        // reconciles the body's children itself, clearing them first would
+        // throw away the very nodes it is trying to keep.
+        if (!s.keepBody) parts.body.replaceChildren();
+        s.node = node;
+        s.header = parts.header;
+        s.bodyEl = parts.body;
+      },
+    });
 
     const built = new Array(sections.length).fill(false);
     const buildAt = (i) => {
       if (built[i]) return;
       built[i] = true;
-      sections[i].build();
+      sections[i].build(sections[i].bodyEl);
     };
 
     // Small collections and bulk mode (where "select all"/drag-paint need

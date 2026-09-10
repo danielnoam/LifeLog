@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.131.0] - 2026-09-10
+
+### Changed
+- **Groundwork: a section can now keep its node across a render.** Nothing
+  looks or behaves differently — this is the shared plumbing the Timeline,
+  Notes, Backlog and Ledger each need before they can update in place the way
+  To-do already does. Views convert one at a time from here.
+
 ## [0.130.0] - 2026-09-10
 
 ### Changed

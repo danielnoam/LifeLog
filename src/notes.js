@@ -123,7 +123,7 @@
       block.appendChild(grid);
       sections.push({
         key: y, header: head, node: block, bodyEl: grid,
-        build: () => {
+        build: (body) => {
           const byMonth = groupBy(byYear[y], (n) => noteDate(n).getMonth() + 1);
           const months = Object.keys(byMonth).sort(desc ? (a, b) => b - a : (a, b) => a - b);
           for (const m of months) {
@@ -135,7 +135,7 @@
             const inMonth = byMonth[m].slice().sort((a, b) =>
               desc ? noteDate(b) - noteDate(a) : noteDate(a) - noteDate(b));
             inMonth.forEach((n) => card.appendChild(noteCard(n)));
-            grid.appendChild(card);
+            body.appendChild(card);
           }
         },
       });

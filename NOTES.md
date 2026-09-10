@@ -16,6 +16,47 @@ what was decided against and why.
 
 ---
 
+- the section contract changed shape in 0.131.0: build() now takes the body
+  element to fill, `build(bodyEl)`, instead of closing over the one it was
+  created beside. This looks like a pointless parameter — it is the whole
+  reason section reuse is possible.
+
+  A section used to be built as a fresh block/head/grid trio with
+  `build: () => { ...grid.appendChild(card) }` closing over that fresh grid.
+  Reuse means keeping the *previous* render's node, so its build() would have
+  been filling an element that had already been thrown away. Passing the body
+  in lets renderLazySections hand it the surviving one.
+
+  Two things fell out of this that are worth knowing before converting a view:
+
+  renderLazySections reconciles by section key now, but every view still hands
+  it a root that render() cleared on the way in, so reconcile finds an empty
+  container and does exactly what the old append loop did. That is deliberate
+  — it means this could land ahead of any view conversion. A view starts
+  benefiting the moment it holds its root across a render, the way To-do does.
+
+  reconcile() drops a remembered node whose parentNode is no longer the
+  container. Without that guard, a container that someone else cleared (which
+  is what render() still does to #viewBody) would have its old detached nodes
+  re-inserted, resurrecting stale content. Note the guard is about the
+  container being *emptied*, not about the container itself being detached: a
+  whole subtree parked off-document is still internally intact, which is
+  exactly what lets a view hold its root.
+
+  `keepBody` on a section is the opt-out for a converted view:
+  renderLazySections clears a reused body before build() refills it, which is
+  right while build() appends, and wrong the moment build() reconciles.
+
+- the rework's phase order was wrong, and this is where it was corrected.
+  render() dropping `#viewBody.innerHTML = ""` was planned as the keystone
+  every view conversion would build on. It is actually the *last* step, not
+  the first: views append a mix of things into that root (a toolbar, an empty
+  state, a bulk bar, the section container) with no keys, and their build()
+  closures pointed at fresh nodes. Nothing could reuse anything until each
+  view owned its own subtree. So each view converts independently — To-do
+  already has, via a root it holds across renders — and the clear comes out
+  at the end, when nothing is left relying on it.
+
 - To-do is the first view rendered through reconcile.js (0.130.0), and it went
   first because it is the smallest one whose interactions are the nastiest: a
   long-press that swaps every row for a different kind of row, and a drag that

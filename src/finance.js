@@ -472,7 +472,7 @@
 
       sections.push({
         key: y, header: head, node: block, bodyEl: grid,
-        build: () => {
+        build: (body) => {
           const byMonth = groupBy(byYear[y], financeMonthOf);
           const monthSort = (a, b) => {
             a = +a; b = +b;
@@ -528,7 +528,7 @@
             animatedNumberText(totalAmt, "fin-month-total:" + yy + "-" + mm, total, formatMoney);
             totalRow.appendChild(totalAmt);
             card.appendChild(totalRow);
-            grid.appendChild(card);
+            body.appendChild(card);
           }
         },
       });

@@ -205,6 +205,16 @@
       const key = newKeys[j];
       const item = byKey.get(key);
       let node = prev.nodes.get(key);
+      // A node that is no longer our child was taken out from under us —
+      // something cleared the container between renders, which is exactly
+      // what app.js still does to #viewBody for the views that haven't
+      // converted yet. Re-inserting the detached one would resurrect stale
+      // content, so forget it and build again. Note this is about the
+      // *container* being emptied, not about the container itself being
+      // detached: a whole subtree can be parked off-document and still be
+      // internally intact, which is what lets a view hold its root across a
+      // render.
+      if (node && node.parentNode !== container) node = null;
       if (node) {
         if (update && !holdsLiveInput(node)) update(node, item);
       } else {

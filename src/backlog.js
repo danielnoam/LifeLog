@@ -1112,7 +1112,7 @@
     section.appendChild(list);
     return {
       key, header: head, node: section, bodyEl: list,
-      build: () => { items.forEach((b) => list.appendChild(upcomingRow(b))); },
+      build: (body) => { items.forEach((b) => body.appendChild(upcomingRow(b))); },
     };
   }
 
@@ -1621,7 +1621,7 @@
 
       sections.push({
         key: catName, header: head, node: section, bodyEl: list,
-        build: () => {
+        build: (body) => {
           const sorted = catItems.slice().sort(compareBacklog);
           // One dashed separator per boundary the category actually has —
           // named for the band being entered, so a list missing a band in
@@ -1629,9 +1629,9 @@
           let lastBand = -1;
           sorted.forEach((b) => {
             const band = bandOf(b);
-            if (lastBand !== -1 && band !== lastBand) list.appendChild(el("div", BAND_SEPARATORS[band]));
+            if (lastBand !== -1 && band !== lastBand) body.appendChild(el("div", BAND_SEPARATORS[band]));
             lastBand = band;
-            list.appendChild(backlogRow(b));
+            body.appendChild(backlogRow(b));
           });
           // Scoped to just this category's items — the old single call over
           // everything patched .bl-price spans that, under lazy sections,

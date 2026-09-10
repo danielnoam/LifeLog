@@ -60,7 +60,7 @@
 
       sections.push({
         key: y, header: head, node: block, bodyEl: grid,
-        build: () => {
+        build: (body) => {
           const byMonth = groupBy(byYear[y], (e) => e.month);
           const monthSort = state.data.settings.monthOrder === "desc" ? (a, b) => b - a : (a, b) => a - b;
           for (const m of Object.keys(byMonth).sort(monthSort)) {
@@ -71,7 +71,7 @@
               onAdd: () => openEntryModal(null, null, { year: yy, month: mm }),
             }));
             byMonth[m].slice().sort(byNewestAdded).forEach((e) => card.appendChild(entryRow(e)));
-            grid.appendChild(card);
+            body.appendChild(card);
           }
         },
       });

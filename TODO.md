@@ -5,14 +5,14 @@ todo:
   convert on their own, in this order, because each one gets cheaper once the
   one before it lands:
 
-  1. render() in app.js stops clearing #viewBody and reconciles sections by
-     the { key, header, node, bodyEl, build } contract they already share.
-     This is the keystone — it also retires the todoRootEl prop noted in
-     NOTES.md, and eventually captureScrollAnchor/restoreScrollAnchor along
-     with it, since nothing collapses to zero height any more.
-  2. Notes, then Timeline entries: year block -> month card -> row, keyed by
-     year, year-month and item id. Keep the dataset.year/month the Stats
-     heatmap jumps to.
+  1. Notes, then Timeline entries: year block -> month card -> row, keyed by
+     year, year-month and item id. Each holds its root across a render (as
+     To-do does) and sets `keepBody` so its build() reconciles rather than
+     refills. Keep the dataset.year/month the Stats heatmap jumps to.
+     Watch for handlers bound to a row's *root* rather than its children —
+     noteCard does this — since adopt() copies attributes, not properties,
+     so a reused card keeps a handler closed over a stale item. Bind by id
+     and look the item up at click time.
   3. Backlog (all three modes). The intricate one: two row builders switched
      by state.visual.backlogCoverSize, band separators that need synthetic
      keys, and Discover's async fills.
@@ -23,6 +23,9 @@ todo:
      Small, but they're what you watch while typing in the search box.
   6. Then the actual point: FLIP moves, enter/leave transitions, and View
      Transitions kept to view/mode switches only.
+  7. Last, not first: render() drops `#viewBody.innerHTML = ""`, once no view
+     depends on being handed an empty root. See NOTES.md for why this moved
+     from the front of the list to the back.
 
   Anything that changes a row's *shape* rather than its content has to go
   through `epoch` — state.visual carries seven such settings.
