@@ -27,6 +27,12 @@
   // are its own ("Errands", "Work"), and they have nothing to say about what
   // you watched or read. Looked up rather than cached in a map — the list is
   // a handful of names and this runs once per row.
+  // Looked up at call time rather than captured: this file is required by the
+  // Node tests, which have no DOM and never render, so reconcile.js must not
+  // have to exist for the module to load.
+  const reconcile = (...a) => window.LifeLogReconcile.reconcile(...a);
+  const adopt = (...a) => window.LifeLogReconcile.adopt(...a);
+
   const todoCats = () => state.data.todoCategories || [];
   // The one mode with categories: Notes have none, so the chip row belongs to
   // this mode rather than to the tab.
@@ -337,15 +343,7 @@
     input.id = "todoCompose";
     input.placeholder = "Add a to-do…";
     input.autocomplete = "off";
-    const cat = categorySelect(composeCat, (v, created) => {
-      composeCat = v;
-      // A plain pick changes nothing on screen and nothing worth saving. A
-      // new category is both: the picker has to be rebuilt to contain it,
-      // and it has to survive a reload.
-      if (created) commitCategories();
-    });
-    cat.id = "todoComposeCat";
-    cat.title = "Which panel it lands in";
+    composeSel = buildComposeCat();
     const add = el("button", "btn btn-primary btn-sm", "Add");
     add.type = "button";
     add.disabled = true;
@@ -365,9 +363,22 @@
       else if (ev.key === "Escape") { input.value = ""; add.disabled = true; }
     };
     wrap.appendChild(input);
-    wrap.appendChild(cat);
+    wrap.appendChild(composeSel);
     wrap.appendChild(add);
     return wrap;
+  }
+
+  function buildComposeCat() {
+    const cat = categorySelect(composeCat, (v, created) => {
+      composeCat = v;
+      // A plain pick changes nothing on screen and nothing worth saving. A
+      // new category is both: the picker has to be rebuilt to contain it,
+      // and it has to survive a reload.
+      if (created) commitCategories();
+    });
+    cat.id = "todoComposeCat";
+    cat.title = "Which panel it lands in";
+    return cat;
   }
 
   // ---------- reordering ----------
@@ -588,13 +599,42 @@
     return row;
   }
 
+  // ---------- panels ----------
   // One panel per category, plus the general one. Each carries its own
   // completed to-dos at the bottom under a rule, rather than everything
   // finished being swept into a Done panel of its own: what you ticked off
   // belongs beside what you haven't, in the list it came from.
-  function panel(title, open, done, category) {
-    const reordering = reorderMode && open.length > 1;
-    const card = el("div", "month-card" + (reordering ? " is-reordering" : ""));
+  //
+  // Built through reconcile.js rather than assembled and appended (0.130.0):
+  // the card, its header and every row keep their nodes across a render, so
+  // ticking a to-do *moves* its row past the done separator instead of
+  // destroying one row above the rule and creating an unrelated one below.
+  //
+  // The header, the two notes and the separator ride in the same keyed list
+  // as the rows, under reserved keys. That keeps the card's DOM shape exactly
+  // what it was — no wrapper element, no CSS to chase — and it's the same
+  // trick the Backlog's band separators will need.
+  function panelParts(title, category, open, done, reordering) {
+    const parts = [{ key: "__head", kind: "head", title, category, open, done, reordering }];
+    if (!open.length && !done.length) {
+      parts.push({ key: "__note", kind: "note", text: "Nothing here." });
+      return parts;
+    }
+    if (!open.length) parts.push({ key: "__note", kind: "note", text: "All done." });
+    for (const t of open) parts.push({ key: t.id, kind: "row", todo: t, reordering });
+    // Hidden while reordering: the drag walks .todo-row midpoints, and a
+    // finished row in the same card would be a place to drop something that
+    // then can't hold the order it was dropped into.
+    if (done.length && !reordering) {
+      parts.push({ key: "__sep", kind: "sep", text: done.length + " done" });
+      // Keyed by the to-do's own id, the same as an open row, so ticking one
+      // is a move across the separator rather than a delete and an insert.
+      for (const t of done) parts.push({ key: t.id, kind: "row", todo: t, reordering: false });
+    }
+    return parts;
+  }
+
+  function panelHeader(title, category, open, done, reordering) {
     const h = el("h3");
     const left = el("span", "mc-left");
     if (category) {
@@ -621,35 +661,93 @@
       }
     }
     h.appendChild(right);
-    card.appendChild(h);
+    return h;
+  }
 
-    if (!open.length && !done.length) {
-      card.appendChild(el("p", "dsc-note", "Nothing here."));
-      return card;
-    }
-    if (!open.length) card.appendChild(el("p", "dsc-note", "All done."));
-    open.forEach((t) => {
-      const row = reordering ? reorderRow(t, card) : todoRow(t);
-      // Only while it isn't already being reordered — and never on the
-      // finished ones below, which are a record of when you ticked things
-      // off, not a list to rearrange.
-      if (!reordering) attachLongPressReorder(row);
-      card.appendChild(row);
+  // Element-level listeners belong here and only here: create() runs once per
+  // node, while update() runs on every render and works by adopting a freshly
+  // built node's contents — which drops that fresh node, and anything bound
+  // to it. Binding a listener in update() would bind it to the wrong element
+  // and leak one per render.
+  function createPart(p, card) {
+    if (p.kind === "head") return el("h3");
+    if (p.kind === "note") return el("p", "dsc-note");
+    if (p.kind === "sep") return el("div", "todo-done-sep");
+    const row = el("div", "todo-row");
+    // Only while it isn't already being reordered — and never on the finished
+    // ones below, which are a record of when you ticked things off, not a
+    // list to rearrange. Which of the two a row gets is settled by the
+    // panel's epoch, so a row never has to switch from one to the other.
+    if (p.reordering) row.addEventListener("pointerdown", (ev) => beginRowDrag(ev, row, card));
+    else attachLongPressReorder(row);
+    return row;
+  }
+
+  function updatePart(node, p, card) {
+    if (p.kind === "head") { adopt(node, panelHeader(p.title, p.category, p.open, p.done, p.reordering)); return; }
+    if (p.kind === "note" || p.kind === "sep") { node.textContent = p.text; return; }
+    adopt(node, p.reordering ? reorderRow(p.todo, card) : todoRow(p.todo));
+  }
+
+  function fillPanel(card, title, category, group) {
+    const open = group.filter((t) => !t.done).sort(byOrder);
+    const done = group.filter((t) => t.done).sort(byNewestDone);
+    const reordering = reorderMode && open.length > 1;
+    card.className = "month-card" + (reordering ? " is-reordering" : "");
+    reconcile(card, panelParts(title, category, open, done, reordering), {
+      // Reordering swaps every row for a different kind of row — a grip
+      // instead of a checkbox, a drag listener instead of a long-press. Those
+      // are bound in create(), so the switch has to rebuild rather than
+      // refill, which is exactly what a changed epoch does.
+      epoch: reordering ? "reorder" : "normal",
+      keyOf: (p) => p.key,
+      create: (p) => createPart(p, card),
+      update: (node, p) => updatePart(node, p, card),
     });
-    // Hidden while reordering: the drag walks .todo-row midpoints, and a
-    // finished row in the same card would be a place to drop something that
-    // then can't hold the order it was dropped into.
-    if (done.length && !reordering) {
-      card.appendChild(el("div", "todo-done-sep", done.length + " done"));
-      done.forEach((t) => card.appendChild(todoRow(t)));
+  }
+
+  // ---------- the view ----------
+  // The shell outlives a render. app.js still clears #viewBody on its way
+  // through (that changes in its own release), so holding a reference to this
+  // subtree is what lets it survive: clearing a parent detaches these nodes
+  // but does not destroy them, and appending the shell again re-attaches it
+  // with every panel, row and listener intact.
+  let todoRootEl = null, composeEl = null, composeSel = null, todoGridEl = null;
+
+  function todoShell() {
+    if (!todoRootEl) {
+      todoRootEl = document.createElement("div");
+      composeEl = composeRow();
+      todoRootEl.appendChild(composeEl);
     }
-    return card;
+    return todoRootEl;
+  }
+
+  // The compose box now persists, so what you had half-typed survives a
+  // render that arrives while you're typing (a sync landing, say). Its
+  // category picker still has to keep up with the category list, so that one
+  // element — and nothing around it — is swapped each time.
+  function refreshComposeCat() {
+    if (!composeSel || document.activeElement === composeSel) return;
+    const next = buildComposeCat();
+    composeSel.replaceWith(next);
+    composeSel = next;
+  }
+
+  function setTodoBody(shell, node) {
+    const current = composeEl.nextSibling;
+    if (current === node) return;
+    if (current) shell.replaceChild(node, current);
+    else shell.appendChild(node);
   }
 
   function renderTodos(root) {
-    root.appendChild(composeRow());
+    const shell = todoShell();
+    refreshComposeCat();
+    root.appendChild(shell);
+
     if (!state.data.todos.length) {
-      root.appendChild(emptyState({
+      setTodoBody(shell, emptyState({
         glyph: "☑",
         title: "Nothing to do",
         body: "Anything you type above lands here. Tick it off and it drops to the bottom of its panel, where you can clear it out whenever it stops being satisfying to look at. Give one a category and it gets a panel of its own.",
@@ -659,20 +757,17 @@
     }
     const todos = getFilteredTodos();
     if (!todos.length) {
-      root.appendChild(emptyState("No to-dos match your search."));
+      setTodoBody(shell, emptyState("No to-dos match your search."));
       focusComposeIfAsked();
       return;
     }
-    const grid = el("div", "backlog-grid");
-    for (const [name, group] of panelGroups(todos)) {
-      grid.appendChild(panel(
-        name || "To do",
-        group.filter((t) => !t.done).sort(byOrder),
-        group.filter((t) => t.done).sort(byNewestDone),
-        name,
-      ));
-    }
-    root.appendChild(grid);
+    if (!todoGridEl) todoGridEl = el("div", "backlog-grid");
+    setTodoBody(shell, todoGridEl);
+    reconcile(todoGridEl, panelGroups(todos), {
+      keyOf: ([name]) => "cat:" + name,
+      create: () => el("div", "month-card"),
+      update: (card, [name, group]) => fillPanel(card, name || "To do", name, group),
+    });
     focusComposeIfAsked();
   }
 

@@ -1,5 +1,32 @@
 todo:
 
+- the rendering rework, continued. reconcile.js (0.129.0) and To-do (0.130.0)
+  are the first two steps of a longer conversion; the remaining views each
+  convert on their own, in this order, because each one gets cheaper once the
+  one before it lands:
+
+  1. render() in app.js stops clearing #viewBody and reconciles sections by
+     the { key, header, node, bodyEl, build } contract they already share.
+     This is the keystone — it also retires the todoRootEl prop noted in
+     NOTES.md, and eventually captureScrollAnchor/restoreScrollAnchor along
+     with it, since nothing collapses to zero height any more.
+  2. Notes, then Timeline entries: year block -> month card -> row, keyed by
+     year, year-month and item id. Keep the dataset.year/month the Stats
+     heatmap jumps to.
+  3. Backlog (all three modes). The intricate one: two row builders switched
+     by state.visual.backlogCoverSize, band separators that need synthetic
+     keys, and Discover's async fills.
+  4. Ledger. Virtual recurring occurrences already key stably as
+     `${rec.id}:${n}`, so they reconcile like anything else.
+  5. The chrome that still rebuilds wholesale — the year/category chip rows
+     (buildYearFilter/buildCatFilter), the jump-nav carousel, the bulk bar.
+     Small, but they're what you watch while typing in the search box.
+  6. Then the actual point: FLIP moves, enter/leave transitions, and View
+     Transitions kept to view/mode switches only.
+
+  Anything that changes a row's *shape* rather than its content has to go
+  through `epoch` — state.visual carries seven such settings.
+
 - one parameterised add/edit-category modal instead of three. The journal's,
   Finance's and the to-do list's are the same form over a different
   collection, with different cascades on rename and delete. #todoCatModal was

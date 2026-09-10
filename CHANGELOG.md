@@ -4,6 +4,27 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.130.0] - 2026-09-10
+
+### Changed
+- **The To-do list updates in place instead of redrawing.** Tick something
+  and its row *moves* down past the done separator — it's the same row,
+  travelling — where before the list was thrown away and rebuilt, so the row
+  you ticked stopped existing and an unrelated one appeared below the rule.
+  Nothing is animated yet; this is what makes animating it possible at all.
+  The first view onto `reconcile()`; the rest follow one at a time.
+
+### Added
+- **What you had half-typed in the To-do box survives.** A render arriving
+  while you type — a sync landing from your phone, say — used to wipe the
+  compose box mid-sentence. It keeps your text now, and the category picker
+  beside it still keeps up with the category list.
+
+### Fixed
+- **The category dot on a row can no longer be caught mid-choice.** An open
+  picker, or any field you're actually typing in, is left alone by a render
+  instead of being rebuilt underneath you.
+
 ## [0.129.0] - 2026-09-10
 
 ### Added

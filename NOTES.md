@@ -16,6 +16,41 @@ what was decided against and why.
 
 ---
 
+- To-do is the first view rendered through reconcile.js (0.130.0), and it went
+  first because it is the smallest one whose interactions are the nastiest: a
+  long-press that swaps every row for a different kind of row, and a drag that
+  rearranges the DOM itself and only then asks for a render.
+
+  Four things in there that will read as arbitrary from the outside:
+
+  The card's header, its "Nothing here."/"All done." note and the done
+  separator ride in the *same* keyed list as the rows, under reserved keys
+  (__head, __note, __sep). The alternative was a wrapper element around just
+  the rows, which would have meant new CSS for a shape that already works.
+  Reserved keys keep the card's DOM exactly what it was. The Backlog's band
+  separators want the same trick when that view converts.
+
+  Open rows and done rows are keyed by the to-do's own id, not by which group
+  they are in. That is the whole point of the release: ticking one is then a
+  *move* across the separator rather than a delete above it and an insert
+  below, so there is a surviving node to animate later.
+
+  reordering is a per-panel epoch (reorderMode && open.length > 1), not a
+  global one. A panel with one open row has nothing to reorder and keeps its
+  nodes while its neighbours rebuild — which is correct, and is why a test
+  asserting "everything rebuilt on long-press" would be wrong.
+
+  todoRootEl is held across renders on purpose. app.js still clears #viewBody
+  on its way through, and clearing a parent detaches these nodes without
+  destroying them, so holding the reference and appending it again is what
+  lets the whole subtree survive. That prop goes away when render() stops
+  clearing; until then, removing it silently un-does this release.
+
+  One rule the module now depends on: element-level listeners live in
+  create(), never update(). update() works by adopting a freshly built node's
+  contents and dropping that node, so a listener bound there would be bound to
+  the discarded element and leak one per render.
+
 - src/reconcile.js (0.129.0) is deliberately two halves in one file. diffKeys
   is pure — key lists in, ops out — so it runs under the existing Node
   harness, which has no DOM; reconcile() is the thin part that applies those
