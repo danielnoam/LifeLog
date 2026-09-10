@@ -1,31 +1,46 @@
 todo:
 
-- the rendering rework, continued. reconcile.js (0.129.0) and To-do (0.130.0)
-  are the first two steps of a longer conversion; the remaining views each
-  convert on their own, in this order, because each one gets cheaper once the
-  one before it lands:
+- cover images are rebuilt on every row refill (adopt replaces children
+  wholesale), so a re-render costs a decode per visible cover. Cached, so no
+  download. Only worth special-casing if it shows up in a measurement — the
+  row surviving is what the rework was for, and preserving one child by src
+  means per-field patching that nothing else needs yet.
 
-  1. Timeline entries, following Notes (0.132.0) exactly: hold the view root,
-     mark sections `keepBody`, reconcile month cards by year-month and rows
-     by item id, and keep the dataset.year/month the Stats heatmap jumps to.
-     Check entryRow for handlers bound to the row's *root* rather than its
-     children — that was the one real bug the Notes conversion turned up.
-  3. Backlog (all three modes). The intricate one: two row builders switched
-     by state.visual.backlogCoverSize, band separators that need synthetic
-     keys, and Discover's async fills.
-  4. Ledger. Virtual recurring occurrences already key stably as
-     `${rec.id}:${n}`, so they reconcile like anything else.
-  5. The chrome that still rebuilds wholesale — the year/category chip rows
+- a **+** on each month panel in Notes, as a fast path to writing one. The
+  month card header takes an onAdd today (monthCardHeader's opts) and Notes
+  deliberately passes null, with the comment that a note is stamped with the
+  moment it's written so there is no such thing as adding one to March.
+  That reasoning still holds for *filing* — so the + should open the new-note
+  modal as it always does and let the note stamp itself now, rather than
+  backdating into the month whose header was clicked. Worth deciding whether
+  a + that ignores its own month reads as a bug from the outside, or whether
+  it should only appear on the current month's card.
+
+- the rendering rework, continued. reconcile.js (0.129.0), the shared section
+  plumbing (0.131.0), To-do (0.130.0), Notes (0.132.0) and the Timeline
+  (0.133.0) have landed; the rest convert on their own, in this order:
+
+  1. Backlog, all three modes — the intricate one. Two row builders switched
+     by state.visual.backlogCoverSize (that one *does* need an epoch: the
+     root element differs, unlike timelineCoverSize), band separators that
+     need synthetic keys the way To-do's header and rule got them, price
+     spans patched in after build, and Discover's async fills.
+  2. The Ledger. Virtual recurring occurrences already key stably as
+     `${rec.id}:${n}`. Watch the class-level state on rows — skipped, paused,
+     overridden, virtual — since a reused node keeps whatever it had.
+  3. The chrome that still rebuilds wholesale — the year/category chip rows
      (buildYearFilter/buildCatFilter), the jump-nav carousel, the bulk bar.
      Small, but they're what you watch while typing in the search box.
-  6. Then the actual point: FLIP moves, enter/leave transitions, and View
+  4. Then the actual point: FLIP moves, enter/leave transitions, and View
      Transitions kept to view/mode switches only.
-  7. Last, not first: render() drops `#viewBody.innerHTML = ""`, once no view
+  5. Last, not first: render() drops `#viewBody.innerHTML = ""`, once no view
      depends on being handed an empty root. See NOTES.md for why this moved
      from the front of the list to the back.
 
-  Anything that changes a row's *shape* rather than its content has to go
-  through `epoch` — state.visual carries seven such settings.
+  `epoch` is for a setting that changes a node's *root*, not its contents —
+  adopt() handles contents. timelineCoverSize turned out not to need one;
+  backlogCoverSize does, because it switches between two different root
+  elements. See NOTES.md (0.133.0).
 
 - one parameterised add/edit-category modal instead of three. The journal's,
   Finance's and the to-do list's are the same form over a different

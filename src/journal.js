@@ -17,6 +17,11 @@
     applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
     DEFAULT_SETTINGS, jumpToTimelineMonth;
 
+  // Looked up at call time rather than captured: this file is required by the
+  // Node tests, which have no DOM and never render.
+  const reconcile = (...a) => window.LifeLogReconcile.reconcile(...a);
+  const adopt = (...a) => window.LifeLogReconcile.adopt(...a);
+
   function init(ctx) {
     ({ state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
       emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
@@ -30,8 +35,26 @@
   }
 
   // ---------- timeline view ----------
+  // The shell outlives a render, so year blocks, month cards and rows survive
+  // app.js clearing #viewBody on its way through. Same shape as Notes: a
+  // toolbar that is refilled, and a section container that is reconciled.
+  // Both empty states live in app.js's render() and never reach here, so this
+  // function always has entries.
+  let tlRootEl = null, tlToolbarEl = null, tlSectionsEl = null, tlBulkEl = null;
+
   function renderTimeline(root, entries) {
-    root.appendChild(timelineToolbar());
+    if (!tlRootEl) {
+      tlRootEl = document.createElement("div");
+      tlToolbarEl = timelineToolbar();
+      tlSectionsEl = document.createElement("div");
+      tlRootEl.appendChild(tlToolbarEl);
+      tlRootEl.appendChild(tlSectionsEl);
+    } else {
+      // The button's label and title flip with monthOrder; its handler sits on
+      // the button, which is a child, so it travels with the refill.
+      adopt(tlToolbarEl, timelineToolbar());
+    }
+    root.appendChild(tlRootEl);
 
     const byYear = groupBy(entries, (e) => e.year);
     const sections = [];
@@ -60,37 +83,49 @@
 
       sections.push({
         key: y, header: head, node: block, bodyEl: grid,
+        // build() reconciles the body rather than appending to it.
+        keepBody: true,
         build: (body) => {
           const byMonth = groupBy(byYear[y], (e) => e.month);
           const monthSort = state.data.settings.monthOrder === "desc" ? (a, b) => b - a : (a, b) => a - b;
-          for (const m of Object.keys(byMonth).sort(monthSort)) {
-            const card = el("div", "month-card");
-            const yy = +y, mm = +m;
-            card.dataset.year = yy; card.dataset.month = mm; // heatmap-cell jump target
-            card.appendChild(monthCardHeader(MONTHS[m], byMonth[m].length, byMonth[m], {
-              onAdd: () => openEntryModal(null, null, { year: yy, month: mm }),
-            }));
-            byMonth[m].slice().sort(byNewestAdded).forEach((e) => card.appendChild(entryRow(e)));
-            body.appendChild(card);
-          }
+          const cards = Object.keys(byMonth).sort(monthSort).map((m) => ({
+            key: y + "-" + m,
+            year: +y,
+            month: +m,
+            items: byMonth[m].slice().sort(byNewestAdded),
+          }));
+          reconcile(body, cards, {
+            keyOf: (c) => c.key,
+            create: () => el("div", "month-card"),
+            update: (card, c) => {
+              card.dataset.year = c.year; card.dataset.month = c.month; // heatmap-cell jump target
+              fillMonthCard(card, MONTHS[c.month], c.items,
+                () => openEntryModal(null, null, { year: c.year, month: c.month }));
+            },
+          });
         },
       });
     }
-    renderLazySections(root, sections);
+    renderLazySections(tlSectionsEl, sections);
     // All sections are attached to the document by now (renderLazySections
-    // appends every node up front, before building any bodies), so headers
+    // places every node up front, before building any bodies), so headers
     // can be measured here regardless of which sections have built their
     // rows yet. getBoundingClientRect (not offsetHeight) keeps the
     // sub-pixel remainder, which otherwise rounds away and leaves a
     // hairline gap under the sticky header.
     sections.forEach((s) => s.node.style.setProperty("--year-head-h", s.header.getBoundingClientRect().height + "px"));
+
+    // Outside the shell: the bar belongs to the view, not to the list, and it
+    // comes and goes with bulk mode rather than being reconciled.
+    if (tlBulkEl) { tlBulkEl.remove(); tlBulkEl = null; }
     if (state.bulk.active) {
-      root.appendChild(bulkActionBar({
+      tlBulkEl = bulkActionBar({
         categories: state.data.categories,
         onMove: bulkMoveEntriesSelected,
         onDelete: bulkDeleteEntriesSelected,
         onSync: bulkSyncEntriesSelected,
-      }));
+      });
+      root.appendChild(tlBulkEl);
     }
   }
 
@@ -106,8 +141,10 @@
   // sorts last, keeping its relative order.
   const byNewestAdded = (a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
 
+  // The row's *contents*. Its click and long-press live in createEntryRow.
   function entryRow(e) {
     const row = el("div", "entry");
+    row.dataset.id = e.id;
     if (state.bulk.active) row.appendChild(bulkCheckbox(e));
     if (state.visual.timelineCoverSize !== "none") {
       const sizeClass = state.visual.timelineCoverSize === "big" ? "cover-lg" : "cover-sm";
@@ -143,9 +180,42 @@
       row.appendChild(chip);
     }
     if (e.rating) row.appendChild(ratingBadge(e.rating));
-    row.onclick = () => state.bulk.active ? toggleBulkItem(e.id) : openEntryModal(e);
-    attachLongPressSelect(row, e);
     return row;
+  }
+
+  // The row's click and long-press, bound once per node. openEntryModal takes
+  // the entry looked up at click time rather than the one captured when the
+  // row was built: adopt() carries attributes across a refill but not
+  // properties, so a captured entry would go stale the moment the row was
+  // refilled — the same trap noteCard fell into (see NOTES.md).
+  //
+  // attachLongPressSelect only ever reads .id, and a node's id is fixed by
+  // the key it is reconciled under, so handing it a bare { id } is safe.
+  function createEntryRow(id) {
+    const row = el("div", "entry");
+    row.dataset.id = id;
+    row.onclick = () => {
+      if (state.bulk.active) { toggleBulkItem(id); return; }
+      const e = (state.data.entries || []).find((x) => x.id === id);
+      if (e) openEntryModal(e);
+    };
+    attachLongPressSelect(row, { id });
+    return row;
+  }
+
+  // A month's header plus its entries, keyed so an entry keeps its row. The
+  // header rides in the same list under a reserved key, which leaves the
+  // card's DOM shape exactly as it was.
+  function fillMonthCard(card, label, monthItems, onAdd) {
+    const parts = [{ key: "__head", kind: "head", label, items: monthItems, onAdd }];
+    for (const e of monthItems) parts.push({ key: e.id, kind: "row", entry: e });
+    reconcile(card, parts, {
+      keyOf: (part) => part.key,
+      create: (part) => (part.kind === "head" ? el("h3") : createEntryRow(part.entry.id)),
+      update: (node, part) => adopt(node, part.kind === "head"
+        ? monthCardHeader(part.label, part.items.length, part.items, { onAdd: part.onAdd })
+        : entryRow(part.entry)),
+    });
   }
 
   function ratingBadge(rating) {

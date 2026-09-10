@@ -16,6 +16,32 @@ what was decided against and why.
 
 ---
 
+- Timeline converted in 0.133.0, to the Notes template exactly: view root held
+  across renders, `keepBody` sections, month cards keyed year-month, rows keyed
+  by entry id. Three things it settled that are worth not re-deriving:
+
+  entryRow had the same stale-handler bug noteCard did — `row.onclick` closed
+  over the entry — and it is fixed the same way, in createEntryRow, by id.
+  attachLongPressSelect, sitting right beside it, is *not* a bug: it only ever
+  reads `.id`, and a node's id is fixed by the key it is reconciled under, so
+  handing it a bare `{ id }` is correct. Don't "fix" it.
+
+  timelineCoverSize does NOT need an epoch, which the plan predicted it would.
+  An epoch is for a setting that changes a node's *shape*; this one changes
+  what is inside the row, and the row root is `div.entry` either way. adopt()
+  handles the contents. Same for bulk mode adding a checkbox child. The epoch
+  is still the right tool where the *root* differs — To-do's reorder rows are
+  the real case, since they carry different listeners.
+
+  Cover images are rebuilt on every refill, because adopt() replaces children
+  wholesale. The row surviving is what matters for animation, so this was left
+  alone rather than special-cased; a cached image costs a decode, not a
+  download. TODO.md carries it in case it ever shows up in a measurement.
+
+  One testing note: month-card counts are timing-dependent. Sections build
+  lazily, so a year below the fold arrives on the idle trickle a beat after
+  load — assert on the settled count, not the one immediately after render.
+
 - Notes converted in 0.132.0, and it is the template the remaining three
   views copy: hold the view root across a render, mark each section
   `keepBody`, and reconcile month cards by `year-month` and rows by item id.

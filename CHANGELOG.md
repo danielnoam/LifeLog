@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.133.0] - 2026-09-10
+
+### Changed
+- **The Timeline updates in place instead of redrawing.** Editing an entry,
+  flipping the month order, or entering bulk mode now moves the rows that
+  actually changed and leaves the rest alone. Third view onto `reconcile()`,
+  after To-do and Notes.
+
+### Fixed
+- **Clicking an entry you'd just edited could reopen the version from before
+  the edit** — the same stale-handler bug fixed for notes in 0.132.0, which
+  the Timeline had too.
+
 ## [0.132.0] - 2026-09-10
 
 ### Changed
