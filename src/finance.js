@@ -30,6 +30,11 @@
     buildImportItems, reviewAndImport, openImportPicker,
     backfillUpdatedAt, MONTHS;
 
+  // Looked up at call time rather than captured: this file is required by the
+  // Node tests, which have no DOM and never render.
+  const reconcile = (...a) => window.LifeLogReconcile.reconcile(...a);
+  const adopt = (...a) => window.LifeLogReconcile.adopt(...a);
+
   function init(ctx) {
     ({ state, $, el, uid, groupBy, countBy, toast, persist, render, renderLazySections,
       buildYearFilter, buildCatFilter, monthCardHeader, emptyState,
@@ -439,6 +444,11 @@
   }
 
   // ---------- Ledger view ----------
+  // Held across renders, so sections, month cards and rows survive app.js
+  // clearing #viewBody. The recurring card and the bulk bar sit outside it:
+  // both are small, both come and go with state rather than with the list.
+  let finRootEl = null;
+
   function renderFinanceEntries(root) {
     renderRecurringCard(root);
     if (!state.data.financeEntries.length && !state.data.recurringExpenses.length) {
@@ -472,6 +482,8 @@
 
       sections.push({
         key: y, header: head, node: block, bodyEl: grid,
+        // build() reconciles the body rather than appending to it.
+        keepBody: true,
         build: (body) => {
           const byMonth = groupBy(byYear[y], financeMonthOf);
           const monthSort = (a, b) => {
@@ -480,60 +492,41 @@
             if (b === 0) return -1;
             return state.data.settings.monthOrder === "desc" ? b - a : a - b;
           };
-          for (const m of Object.keys(byMonth).sort(monthSort)) {
-            const card = el("div", "month-card");
+          const cards = Object.keys(byMonth).sort(monthSort).map((m) => {
             const yy = +y, mm = +m;
             const monthItems = byMonth[m];
-            const countedItems = monthItems.filter((f) => !f.skipped);
-            const label = mm === 0 ? "Yearly" : MONTHS[m];
-            card.appendChild(monthCardHeader(label, countedItems.length, monthItems.filter((f) => !f.virtual), {
-              onAdd: () => openFinanceModal(null, { year: yy, month: mm }),
-            }));
-            // Same-date entries need a real tiebreaker, not just array order —
-            // that order is stable within a session (new entries are always
-            // pushed to the end) but merge.js rebuilds the array from a Set of
-            // ids on every multi-device sync, reshuffling same-date entries
-            // arbitrarily. createdAt keeps the display order deterministic
-            // across renders and merges alike.
-            monthItems.slice()
-              .sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || "").localeCompare(a.createdAt || ""))
-              .forEach((f) => card.appendChild(financeRow(f)));
-            // Where the month's money went, above its total: one line per
-            // category that actually has entries this month, largest first.
-            // Counted items only, so the lines add up to the total under them
-            // (a skipped or paused occurrence is in neither).
-            const byCat = groupBy(countedItems, (f) => f.category);
-            const catRows = Object.keys(byCat)
-              .map((name) => ({ name, total: byCat[name].reduce((s, f) => s + f.amount, 0) }))
-              .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
-            if (catRows.length) {
-              const cats = el("div", "month-cats");
-              for (const c of catRows) {
-                const row = el("div", "month-cat");
-                const dot = el("span", "dot");
-                dot.style.background = financeColorOf(c.name);
-                row.appendChild(dot);
-                const name = el("span", "month-cat-name", c.name);
-                name.title = c.name;
-                row.appendChild(name);
-                row.appendChild(el("span", "famount", formatMoney(c.total)));
-                cats.appendChild(row);
-              }
-              card.appendChild(cats);
-            }
-            const total = countedItems.reduce((s, f) => s + f.amount, 0);
-            const totalRow = el("div", "month-total");
-            totalRow.appendChild(el("span", null, "Total"));
-            const totalAmt = el("span", "famount fnegative");
-            animatedNumberText(totalAmt, "fin-month-total:" + yy + "-" + mm, total, formatMoney);
-            totalRow.appendChild(totalAmt);
-            card.appendChild(totalRow);
-            body.appendChild(card);
-          }
+            return {
+              key: y + "-" + m,
+              year: yy,
+              month: mm,
+              label: mm === 0 ? "Yearly" : MONTHS[m],
+              // Same-date entries need a real tiebreaker, not just array order —
+              // that order is stable within a session (new entries are always
+              // pushed to the end) but merge.js rebuilds the array from a Set of
+              // ids on every multi-device sync, reshuffling same-date entries
+              // arbitrarily. createdAt keeps the display order deterministic
+              // across renders and merges alike.
+              items: monthItems.slice().sort((a, b) =>
+                b.date.localeCompare(a.date) || (b.createdAt || "").localeCompare(a.createdAt || "")),
+              counted: monthItems.filter((f) => !f.skipped),
+            };
+          });
+          reconcile(body, cards, {
+            keyOf: (c) => c.key,
+            create: () => el("div", "month-card"),
+            update: (card, c) => {
+              card.dataset.year = c.year;
+              card.dataset.month = c.month;
+              fillFinanceMonthCard(card, c.year + "-" + c.month, c.label, c.items, c.counted,
+                () => openFinanceModal(null, { year: c.year, month: c.month }));
+            },
+          });
         },
       });
     }
-    renderLazySections(root, sections);
+    if (!finRootEl) finRootEl = document.createElement("div");
+    root.appendChild(finRootEl);
+    renderLazySections(finRootEl, sections);
     // All sections are attached to the document by now (renderLazySections
     // appends every node up front, before building any bodies), so headers
     // can be measured here regardless of which sections have built their
@@ -550,8 +543,10 @@
     }
   }
 
+  // The row's *contents*. Its click and long-press live in createFinanceRow.
   function financeRow(f) {
     const row = el("div", "entry finance-entry" + (f.yearly ? " yearly-expense" : "") + (f.skipped ? " is-skipped" : ""));
+    row.dataset.id = f.id;
     if (state.bulk.active && !f.virtual) row.appendChild(bulkCheckbox(f));
     const color = financeColorOf(f.category);
     const chip = el("span", "entry-cat");
@@ -573,14 +568,102 @@
     if (f.skipped) row.appendChild(el("span", "skipped-badge", f.paused ? "Paused" : "Skipped"));
     const amt = el("span", "famount fnegative", formatMoney(f.amount));
     row.appendChild(amt);
-    row.onclick = f.virtual
-      ? () => {
-          const rec = state.data.recurringExpenses.find((r) => r.id === f.recurringId);
-          if (rec) openRecurringOccModal(rec, f);
-        }
-      : () => (state.bulk.active ? toggleBulkItem(f.id) : openFinanceModal(f));
-    if (!f.virtual) attachLongPressSelect(row, f);
     return row;
+  }
+
+  // The row's click and long-press, bound once per node and resolving the item
+  // by id at click time — adopt() carries attributes across a refill but not
+  // properties, so a captured item goes stale (see NOTES.md). The lookup goes
+  // through getEffectiveFinanceEntries because a recurring occurrence is
+  // generated, not stored, and so isn't in state.data.financeEntries.
+  //
+  // Whether a row is virtual is fixed for the life of its node: a generated
+  // occurrence keys as `${rec.id}:${n}` and a real entry as a uid, so the two
+  // key spaces are disjoint and a key never changes sides. That is what makes
+  // it safe to decide here, at create time, whether to attach the long-press.
+  function createFinanceRow(id, virtual) {
+    const row = el("div", "entry finance-entry");
+    row.dataset.id = id;
+    row.onclick = () => {
+      const f = getEffectiveFinanceEntries().find((x) => x.id === id);
+      if (!f) return;
+      if (f.virtual) {
+        const rec = state.data.recurringExpenses.find((r) => r.id === f.recurringId);
+        if (rec) openRecurringOccModal(rec, f);
+        return;
+      }
+      if (state.bulk.active) { toggleBulkItem(id); return; }
+      openFinanceModal(f);
+    };
+    if (!virtual) attachLongPressSelect(row, { id });
+    return row;
+  }
+
+  // A month's header plus its rows. financeRow encodes four bits of state in
+  // its class string — yearly, skipped, and via the row's contents virtual and
+  // overridden — and adopt() syncs the whole class attribute, so a reused node
+  // loses the ones that no longer apply as well as gaining the ones that do.
+  function fillFinanceMonthCard(card, key, label, monthItems, countedItems, onAdd) {
+    const parts = [{ key: "__head", kind: "head", label, countedItems, monthItems, onAdd }];
+    for (const f of monthItems) parts.push({ key: f.id, kind: "row", item: f });
+
+    // Where the month's money went, above its total: one line per category
+    // that actually has entries this month, largest first. Counted items only,
+    // so the lines add up to the total under them (a skipped or paused
+    // occurrence is in neither).
+    const byCat = groupBy(countedItems, (f) => f.category);
+    const catRows = Object.keys(byCat)
+      .map((name) => ({ name, total: byCat[name].reduce((sum, f) => sum + f.amount, 0) }))
+      .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+    if (catRows.length) parts.push({ key: "__cats", kind: "cats", catRows });
+    parts.push({
+      key: "__total", kind: "total", animKey: "fin-month-total:" + key,
+      total: countedItems.reduce((sum, f) => sum + f.amount, 0),
+    });
+
+    reconcile(card, parts, {
+      keyOf: (part) => part.key,
+      create: (part) => {
+        if (part.kind === "head") return el("h3");
+        if (part.kind === "cats") return el("div", "month-cats");
+        if (part.kind === "total") {
+          // Built once and updated in place, unlike the rest: the total counts
+          // up over half a second, and rebuilding the span it animates would
+          // cut that off on any render landing mid-flight.
+          const totalRow = el("div", "month-total");
+          totalRow.appendChild(el("span", null, "Total"));
+          totalRow.appendChild(el("span", "famount fnegative"));
+          return totalRow;
+        }
+        return createFinanceRow(part.item.id, !!part.item.virtual);
+      },
+      update: (node, part) => {
+        if (part.kind === "total") {
+          animatedNumberText(node.lastChild, part.animKey, part.total, formatMoney);
+          return;
+        }
+        if (part.kind === "cats") {
+          const cats = el("div", "month-cats");
+          for (const c of part.catRows) {
+            const row = el("div", "month-cat");
+            const dot = el("span", "dot");
+            dot.style.background = financeColorOf(c.name);
+            row.appendChild(dot);
+            const name = el("span", "month-cat-name", c.name);
+            name.title = c.name;
+            row.appendChild(name);
+            row.appendChild(el("span", "famount", formatMoney(c.total)));
+            cats.appendChild(row);
+          }
+          adopt(node, cats);
+          return;
+        }
+        adopt(node, part.kind === "head"
+          ? monthCardHeader(part.label, part.countedItems.length,
+              part.monthItems.filter((f) => !f.virtual), { onAdd: part.onAdd })
+          : financeRow(part.item));
+      },
+    });
   }
 
   // ---------- Summary view ----------

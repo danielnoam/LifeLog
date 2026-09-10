@@ -1,5 +1,14 @@
 todo:
 
+- the category chips should narrow Discover, and today they don't.
+  discoverSourceMap() walks state.data.categories unconditionally and never
+  looks at state.activeCats, so narrowing to Games still shows the book and
+  anime cards beside it — the one backlog surface where the chip row above it
+  does nothing. Filtering the map by activeCats (when the set is non-empty) is
+  most of the change; the rest is deciding what an empty result should say,
+  since "no categories match" is a different message from the existing "none
+  of your sources publishes a popularity list".
+
 - cover images are rebuilt on every row refill (adopt replaces children
   wholesale), so a re-render costs a decode per visible cover. Cached, so no
   download. Only worth special-casing if it shows up in a measurement — the
@@ -18,23 +27,20 @@ todo:
 
 - the rendering rework, continued. reconcile.js (0.129.0), the shared section
   plumbing (0.131.0), To-do (0.130.0), Notes (0.132.0) and the Timeline
-  (0.133.0) and the Backlog (0.134.0) have landed; the rest go in this order:
+  (0.133.0), the Backlog (0.134.0) and the Ledger (0.135.0) have landed —
+  every list view. What's left:
 
-  1. The Ledger. Virtual recurring occurrences already key stably as
-     `${rec.id}:${n}`. Watch the class-level state on rows — skipped, paused,
-     overridden, virtual — since a reused node keeps whatever it had, and
-     financeRow encodes all four in its class string.
-  2. Discover, on its own and last of the views. Its rows come from the
+  1. Discover, on its own and last of the views. Its rows come from the
      network and turn over wholesale on each fetch, so reuse buys little —
      the win would be that the grid stops flashing on every refresh, which
      is worth having but is not what the rest of this was for. Key the cards
      by source and the rows by source + result id.
-  3. The chrome that still rebuilds wholesale — the year/category chip rows
+  2. The chrome that still rebuilds wholesale — the year/category chip rows
      (buildYearFilter/buildCatFilter), the jump-nav carousel, the bulk bar.
      Small, but they're what you watch while typing in the search box.
-  4. Then the actual point: FLIP moves, enter/leave transitions, and View
+  3. Then the actual point: FLIP moves, enter/leave transitions, and View
      Transitions kept to view/mode switches only.
-  5. Last, not first: render() drops `#viewBody.innerHTML = ""`, once no view
+  4. Last, not first: render() drops `#viewBody.innerHTML = ""`, once no view
      depends on being handed an empty root. See NOTES.md for why this moved
      from the front of the list to the back.
 

@@ -16,6 +16,30 @@ what was decided against and why.
 
 ---
 
+- the Ledger converted in 0.135.0, finishing the list views. Three things
+  particular to it:
+
+  A row's click has to resolve through getEffectiveFinanceEntries(), not
+  state.data.financeEntries, because a recurring occurrence is *generated* and
+  isn't stored anywhere to look up. Whether a row is virtual is fixed for the
+  life of its node — a generated occurrence keys as `${rec.id}:${n}` and a
+  real entry as a uid, so the two key spaces are disjoint and a key never
+  changes sides. That invariant is what makes it safe for createFinanceRow to
+  decide at create time whether to attach the long-press.
+
+  The month total is the one node built in create() and updated in place
+  rather than refilled. animatedNumberText counts it up over ~550ms, and
+  adopt() replacing the span it animates would cut that off on any render
+  landing mid-flight. Everything else in the card is refilled as usual.
+
+  The month's category breakdown and its total ride in the same keyed list as
+  the rows, under __cats and __total, the same reserved-key trick To-do's
+  header and the Backlog's band separators use. Worth knowing because they are
+  easy to lose: they sat *after* the row loop in the old build, so a
+  conversion that only moves the rows drops them silently — which is exactly
+  what happened on the first pass here, caught by asserting the breakdown and
+  total are still on screen rather than only counting rows.
+
 - Backlog converted in 0.134.0 — Entries and Next releases. It is the view the
   plan called the intricate one, and it earned that in three specific ways:
 

@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.135.0] - 2026-09-10
+
+### Changed
+- **The Ledger updates in place instead of redrawing.** Editing an expense
+  leaves every other row where it was, and a month's total now counts up to
+  its new figure instead of being cut off by the rebuild. Last of the list
+  views onto `reconcile()`.
+
+### Fixed
+- **Clicking an expense you'd just edited could reopen the version from
+  before the edit** — the same stale-handler bug fixed for notes, entries and
+  backlog items in the three releases before this.
+
 ## [0.134.0] - 2026-09-10
 
 ### Changed
