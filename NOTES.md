@@ -16,6 +16,40 @@ what was decided against and why.
 
 ---
 
+- src/reconcile.js (0.129.0) is deliberately two halves in one file. diffKeys
+  is pure — key lists in, ops out — so it runs under the existing Node
+  harness, which has no DOM; reconcile() is the thin part that applies those
+  ops with insertBefore. That split is why the interesting logic has tests at
+  all, and it's worth keeping as views convert onto it.
+
+  Three decisions in there that look arbitrary and aren't:
+
+  Keys are item ids, never object identity. merge.js rebuilds every
+  collection from a Set of ids on each sync (see the mergeCollection entry
+  below), so the objects do not survive a reconciliation between two devices.
+  Anything keyed on identity — a WeakMap of item to node, or a signals/proxy
+  layer — would silently detach the first time two devices met. That is also
+  the reason this is a reconciler and not fine-grained reactivity.
+
+  The longest-increasing-subsequence pass isn't premature cleverness. It's
+  what makes one row dragged to the front report as one move instead of five,
+  and the animation layer drives straight off the op list, so a sloppier diff
+  would animate the whole list for a one-row drag.
+
+  The insert loop walks backwards and re-checks the live DOM
+  (node.nextSibling !== anchor) rather than trusting its own recorded order.
+  The to-do drag reorders rows under the finger with insertBefore and only
+  then asks for a render, so the DOM is legitimately ahead of what the last
+  reconcile recorded. Reading the DOM makes that self-correcting instead of a
+  bug.
+
+  Two rules callers have to know: element-level listeners belong in create(),
+  which runs once per node, never in update(), which runs on every render —
+  adopt() keeps the existing node and drops the freshly built one, taking its
+  listeners with it. And a setting that changes a row's *shape* rather than
+  its content has to go through `epoch`, or a reused node is the wrong node
+  wearing the right data.
+
 - #todoCatModal is the third add/edit-category modal (0.128.2) — the
   journal's, Finance's, and now this. It is deliberately the simplest of the
   three: a to-do category cascades to one collection, and there is no "Other"

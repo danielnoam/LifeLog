@@ -4,6 +4,26 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.129.0] - 2026-09-10
+
+### Added
+- **Keyed reconciliation (`src/reconcile.js`)** — the groundwork for making
+  the app animate. Nothing on screen changes yet: this release adds the
+  machinery and wires it to nothing.
+
+  Every view renders today by throwing its DOM away and building it again.
+  That is why nothing in the app can animate — a ticked to-do can't slide
+  down to the completed group, because the row that was ticked no longer
+  exists once the list redraws. `reconcile()` updates a container's children
+  in place instead, keeping the node that already belongs to each item, so
+  there is something left to animate.
+
+  Split so the deciding half is testable: `diffKeys()` is pure — two lists of
+  keys in, a list of keep / move / insert / remove operations out — and
+  `test/reconcile.test.js` covers it under the same zero-dependency Node
+  harness as everything else here. Views convert one at a time in the
+  releases that follow, starting with To-do.
+
 ## [0.128.2] - 2026-09-09
 
 ### Added
