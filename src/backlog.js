@@ -20,6 +20,11 @@
     loadBacklogPrices, applySteamAppId,
     backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS;
 
+  // Looked up at call time rather than captured: this file is required by the
+  // Node tests, which have no DOM and never render.
+  const reconcile = (...a) => window.LifeLogReconcile.reconcile(...a);
+  const adopt = (...a) => window.LifeLogReconcile.adopt(...a);
+
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
       emptyState, emptyCoverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
@@ -968,6 +973,7 @@
   function upcomingRow(b) {
     const rich = state.visual.backlogCoverSize !== "none";
     const row = el("div", rich ? "backlog-item-rich up-row" : "entry up-row");
+    row.dataset.id = b.id;
     if (state.bulk.active) row.appendChild(bulkCheckbox(b));
     if (rich && b.coverUrl) {
       const img = document.createElement("img");
@@ -1006,8 +1012,6 @@
     // same treatment (a re-sync for dates that have firmed up, a move, a
     // clear-out), and that's exactly the run this view groups for you.
     // Switching modes clears any selection in progress.
-    row.onclick = () => state.bulk.active ? toggleBulkItem(b.id) : openBacklogModal(b);
-    attachLongPressSelect(row, b);
     return row;
   }
 
@@ -1053,7 +1057,8 @@
       ((yearOf(a) || 9999) - (yearOf(b) || 9999)) || a.title.localeCompare(b.title));
 
     const byMonth = groupBy(dated, (b) => upcomingAt(b).slice(0, 7));
-    const grid = el("div", "backlog-grid");
+    if (!upGridEl) upGridEl = el("div", "backlog-grid");
+    const grid = upGridEl;
     const sections = [];
     const thisMonth = todayStr().slice(0, 7);
     for (const key of Object.keys(byMonth)) {
@@ -1112,7 +1117,16 @@
     section.appendChild(list);
     return {
       key, header: head, node: section, bodyEl: list,
-      build: (body) => { items.forEach((b) => body.appendChild(upcomingRow(b))); },
+      keepBody: true,
+      build: (body) => {
+        const shape = rowShapeFor("upcoming");
+        reconcile(body, items, {
+          epoch: shape,
+          keyOf: (b) => b.id,
+          create: (b) => createBacklogRow(b.id, shape),
+          update: (node, b) => adopt(node, upcomingRow(b)),
+        });
+      },
     };
   }
 
@@ -1555,6 +1569,8 @@
     return span;
   }
 
+  let blGridEl = null, upGridEl = null;
+
   function renderBacklog(root) {
     const items = getFilteredBacklog()
       .slice().sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
@@ -1582,7 +1598,10 @@
     const byCat = groupBy(items, (b) => b.category);
     const order = state.data.categories.map((c) => c.name).filter((n) => byCat[n]);
     for (const n of Object.keys(byCat)) if (!order.includes(n)) order.push(n);
-    const grid = el("div", "backlog-grid");
+    // Held across renders so the sections, rows and their listeners survive
+    // app.js clearing #viewBody on its way through.
+    if (!blGridEl) blGridEl = el("div", "backlog-grid");
+    const grid = blGridEl;
     const sections = [];
     for (const catName of order) {
       const catItems = byCat[catName];
@@ -1621,17 +1640,37 @@
 
       sections.push({
         key: catName, header: head, node: section, bodyEl: list,
+        keepBody: true,
         build: (body) => {
           const sorted = catItems.slice().sort(compareBacklog);
           // One dashed separator per boundary the category actually has —
           // named for the band being entered, so a list missing a band in
           // the middle still reads correctly.
+          //
+          // The separators ride in the same keyed list as the rows, under a
+          // key naming the band they open. Bands are ordered and a boundary
+          // into one can happen at most once, so those keys are unique; left
+          // unkeyed they would drift out of place the first time a row moved
+          // across a band (star something, and it does).
+          const parts = [];
           let lastBand = -1;
-          sorted.forEach((b) => {
+          for (const b of sorted) {
             const band = bandOf(b);
-            if (lastBand !== -1 && band !== lastBand) body.appendChild(el("div", BAND_SEPARATORS[band]));
+            if (lastBand !== -1 && band !== lastBand) {
+              parts.push({ key: "sep-" + band, kind: "sep", cls: BAND_SEPARATORS[band] });
+            }
             lastBand = band;
-            body.appendChild(backlogRow(b));
+            parts.push({ key: b.id, kind: "row", item: b });
+          }
+          const shape = rowShapeFor("entries");
+          reconcile(body, parts, {
+            epoch: shape,
+            keyOf: (part) => part.key,
+            create: (part) => (part.kind === "sep"
+              ? el("div", part.cls)
+              : createBacklogRow(part.item.id, shape)),
+            // A separator's class is fixed by its key, so it never needs one.
+            update: (node, part) => { if (part.kind === "row") adopt(node, backlogRow(part.item)); },
           });
           // Scoped to just this category's items — the old single call over
           // everything patched .bl-price spans that, under lazy sections,
@@ -1654,9 +1693,42 @@
     }
   }
 
+  // The row's *contents*. Its click and long-press live in createBacklogRow —
+  // see NOTES.md on why they can't be bound here.
+  // Bound once per node, and by id rather than over the item: adopt() carries
+  // attributes across a refill but not properties, so a captured item would go
+  // stale the moment the row was refilled (the trap noteCard fell into — see
+  // NOTES.md). attachLongPressSelect only reads .id, and a node's id is fixed
+  // by the key it is reconciled under, so a bare { id } is correct there.
+  //
+  // `cls` differs per surface and per cover setting, which is exactly why
+  // backlogCoverSize is an epoch: the two builders return different *root*
+  // elements, so a reused node would be the wrong element wearing right data.
+  function createBacklogRow(id, cls) {
+    const row = el("div", cls);
+    row.dataset.id = id;
+    row.onclick = () => {
+      if (state.bulk.active) { toggleBulkItem(id); return; }
+      const b = (state.data.backlog || []).find((x) => x.id === id);
+      if (b) openBacklogModal(b);
+    };
+    attachLongPressSelect(row, { id });
+    return row;
+  }
+
+  // What a row's root element is, for a given surface, under the current
+  // cover setting. Also the epoch: when this string changes, every row is
+  // rebuilt rather than refilled.
+  function rowShapeFor(surface) {
+    const rich = state.visual.backlogCoverSize !== "none";
+    if (surface === "upcoming") return rich ? "backlog-item-rich up-row" : "entry up-row";
+    return rich ? "backlog-item-rich" : "entry";
+  }
+
   function backlogRow(b) {
     if (state.visual.backlogCoverSize !== "none") return backlogRowRich(b);
     const row = el("div", "entry");
+    row.dataset.id = b.id;
     if (b.dropped) row.classList.add("is-dropped");
     if (state.bulk.active) row.appendChild(bulkCheckbox(b));
     const t = el("span", "etitle", b.title); t.title = b.title;
@@ -1670,13 +1742,12 @@
       doneBtn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
       row.appendChild(doneBtn);
     }
-    row.onclick = () => state.bulk.active ? toggleBulkItem(b.id) : openBacklogModal(b);
-    attachLongPressSelect(row, b);
     return row;
   }
 
   function backlogRowRich(b) {
     const row = el("div", "backlog-item-rich");
+    row.dataset.id = b.id;
     if (b.dropped) row.classList.add("is-dropped");
     if (state.bulk.active) row.appendChild(bulkCheckbox(b));
     const sizeClass = state.visual.backlogCoverSize === "small" ? "cover-sm" : "cover-lg";
@@ -1708,8 +1779,6 @@
       doneBtn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
       row.appendChild(doneBtn);
     }
-    row.onclick = () => state.bulk.active ? toggleBulkItem(b.id) : openBacklogModal(b);
-    attachLongPressSelect(row, b);
     return row;
   }
 

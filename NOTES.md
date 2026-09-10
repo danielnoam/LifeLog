@@ -16,6 +16,40 @@ what was decided against and why.
 
 ---
 
+- Backlog converted in 0.134.0 — Entries and Next releases. It is the view the
+  plan called the intricate one, and it earned that in three specific ways:
+
+  backlogCoverSize IS an epoch, where timelineCoverSize turned out not to be
+  (see 0.133.0 below). backlogRow dispatches to backlogRowRich and the two
+  return *different root elements* — div.entry versus div.backlog-item-rich —
+  so a reused node would be the wrong element wearing the right data. That is
+  the distinction: an epoch is for a setting that changes a node's root, never
+  for one that only changes what is inside it. rowShapeFor() returns the root
+  class and doubles as the epoch value, so the two can't drift apart.
+
+  Band separators ride in the same keyed list as the rows, keyed "sep-<band>".
+  Bands are ordered and a boundary into a given band happens at most once per
+  list, so those keys are unique. Left unkeyed they would drift out of place
+  the first time a row crossed a band — which is exactly what starring
+  something does, so this was not a theoretical worry. A separator's class is
+  fixed by its key, so it needs no update() at all.
+
+  All three row builders (backlogRow, backlogRowRich, upcomingRow) ended in
+  the identical two lines binding row.onclick and attachLongPressSelect. They
+  now share createBacklogRow, which binds by id. attachLongPressSelect keeps
+  taking a bare { id } for the reason given under 0.133.0.
+
+  Discover is deliberately NOT converted. Its rows come from the network and
+  turn over wholesale on each fetch, so keyed reuse buys nearly nothing there,
+  and it is the one backlog surface with no editing, no reordering and no band
+  to cross. TODO.md carries it as its own small item rather than leaving it
+  looking forgotten.
+
+  Worth knowing when reading the tests: the separator *count* follows the bands
+  present, not the row count — Games spanning bands 0, 1, 3 and 4 has three
+  separators. The invariant to assert is that no band separator appears twice,
+  which is what an unkeyed one would do.
+
 - Timeline converted in 0.133.0, to the Notes template exactly: view root held
   across renders, `keepBody` sections, month cards keyed year-month, rows keyed
   by entry id. Three things it settled that are worth not re-deriving:

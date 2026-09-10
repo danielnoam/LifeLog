@@ -18,16 +18,17 @@ todo:
 
 - the rendering rework, continued. reconcile.js (0.129.0), the shared section
   plumbing (0.131.0), To-do (0.130.0), Notes (0.132.0) and the Timeline
-  (0.133.0) have landed; the rest convert on their own, in this order:
+  (0.133.0) and the Backlog (0.134.0) have landed; the rest go in this order:
 
-  1. Backlog, all three modes — the intricate one. Two row builders switched
-     by state.visual.backlogCoverSize (that one *does* need an epoch: the
-     root element differs, unlike timelineCoverSize), band separators that
-     need synthetic keys the way To-do's header and rule got them, price
-     spans patched in after build, and Discover's async fills.
-  2. The Ledger. Virtual recurring occurrences already key stably as
+  1. The Ledger. Virtual recurring occurrences already key stably as
      `${rec.id}:${n}`. Watch the class-level state on rows — skipped, paused,
-     overridden, virtual — since a reused node keeps whatever it had.
+     overridden, virtual — since a reused node keeps whatever it had, and
+     financeRow encodes all four in its class string.
+  2. Discover, on its own and last of the views. Its rows come from the
+     network and turn over wholesale on each fetch, so reuse buys little —
+     the win would be that the grid stops flashing on every refresh, which
+     is worth having but is not what the rest of this was for. Key the cards
+     by source and the rows by source + result id.
   3. The chrome that still rebuilds wholesale — the year/category chip rows
      (buildYearFilter/buildCatFilter), the jump-nav carousel, the bulk bar.
      Small, but they're what you watch while typing in the search box.

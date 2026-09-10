@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.134.0] - 2026-09-10
+
+### Changed
+- **The Backlog updates in place instead of redrawing** — Entries and Next
+  releases both. Star something and its row *moves* up across the dashed
+  rule into the starred band; drop it and it moves down. Same row, travelling,
+  where before the list was rebuilt around it.
+
+### Fixed
+- **Clicking a backlog item you'd just edited could reopen the version from
+  before the edit** — the third and last place this bug lived, after notes
+  (0.132.0) and timeline entries (0.133.0).
+
 ## [0.133.0] - 2026-09-10
 
 ### Changed
