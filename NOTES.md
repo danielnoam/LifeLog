@@ -16,6 +16,30 @@ what was decided against and why.
 
 ---
 
+- Notes converted in 0.132.0, and it is the template the remaining three
+  views copy: hold the view root across a render, mark each section
+  `keepBody`, and reconcile month cards by `year-month` and rows by item id.
+
+  It also caught the hazard that the To-do conversion got away with by luck.
+  noteCard bound `card.onclick` and `card.onkeydown` on the card *root*,
+  closed over the note object. adopt() carries attributes across a refill but
+  not properties, so a reused card kept a handler pointing at the note as it
+  was when the card was first built: edit a note, click it, and the pre-edit
+  text opened. It is now bound once in createNoteCard and resolves the note by
+  id at click time, which cannot go stale.
+
+  To-do never hit this because all its handlers sit on children (the
+  checkbox, the text, the ✕), and children travel with childNodes. Anything
+  bound to a row's own element is the thing to check when converting Timeline,
+  Backlog and the Ledger.
+
+  One consequence of `keepBody` worth knowing: a reused section whose body is
+  no longer cleared shows the *previous* render's rows until its build() runs.
+  Off-screen sections are built by the IntersectionObserver and the idle
+  trickle within a second or two, so the window is short, and stale-but-present
+  reads better than the blank a cleared body left. It does mean a deleted item
+  can linger briefly in a section you cannot see.
+
 - the section contract changed shape in 0.131.0: build() now takes the body
   element to fill, `build(bodyEl)`, instead of closing over the one it was
   created beside. This looks like a pointless parameter — it is the whole

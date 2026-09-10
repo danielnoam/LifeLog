@@ -5,14 +5,11 @@ todo:
   convert on their own, in this order, because each one gets cheaper once the
   one before it lands:
 
-  1. Notes, then Timeline entries: year block -> month card -> row, keyed by
-     year, year-month and item id. Each holds its root across a render (as
-     To-do does) and sets `keepBody` so its build() reconciles rather than
-     refills. Keep the dataset.year/month the Stats heatmap jumps to.
-     Watch for handlers bound to a row's *root* rather than its children —
-     noteCard does this — since adopt() copies attributes, not properties,
-     so a reused card keeps a handler closed over a stale item. Bind by id
-     and look the item up at click time.
+  1. Timeline entries, following Notes (0.132.0) exactly: hold the view root,
+     mark sections `keepBody`, reconcile month cards by year-month and rows
+     by item id, and keep the dataset.year/month the Stats heatmap jumps to.
+     Check entryRow for handlers bound to the row's *root* rather than its
+     children — that was the one real bug the Notes conversion turned up.
   3. Backlog (all three modes). The intricate one: two row builders switched
      by state.visual.backlogCoverSize, band separators that need synthetic
      keys, and Discover's async fills.

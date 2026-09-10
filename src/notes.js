@@ -14,6 +14,11 @@
       monthCardHeader, emptyState, backfillUpdatedAt, keepUnknown, MONTHS } = ctx);
   }
 
+  // Looked up at call time rather than captured: this file is required by the
+  // Node tests, which have no DOM and never render.
+  const reconcile = (...a) => window.LifeLogReconcile.reconcile(...a);
+  const adopt = (...a) => window.LifeLogReconcile.adopt(...a);
+
   // ---------- data ----------
   // createdAt carries a time, unlike a timeline entry's year/month: an entry
   // is filed under the month you finished something, a note is a moment.
@@ -69,8 +74,11 @@
     return isNaN(d) ? "" : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
   }
 
+  // The card's *contents*. Its click and key handlers are not here — see
+  // createNoteCard, and NOTES.md on why they can't be.
   function noteCard(n) {
     const card = el("div", "note-card");
+    card.dataset.id = n.id;
     const stamp = el("div", "note-stamp", formatStamp(noteDate(n)));
     if (n.editedAt) {
       const edited = formatEdited(n.editedAt);
@@ -80,18 +88,68 @@
     // textContent, never innerHTML: a note is whatever you typed, and the
     // white-space CSS is what keeps your line breaks.
     card.appendChild(el("p", "note-text", n.text));
-    card.onclick = () => openNoteModal(n);
     card.tabIndex = 0;
     card.setAttribute("role", "button");
+    return card;
+  }
+
+  // Bound once per node, and deliberately by id rather than over the note
+  // object. adopt() carries attributes across a refill but not properties, so
+  // a handler closed over `n` would keep opening the copy of the note that
+  // existed when the card was first built — edit a note, click it, and the
+  // pre-edit text comes back. Looking it up at click time can't go stale.
+  function createNoteCard() {
+    const card = el("div", "note-card");
+    const open = () => {
+      const n = (state.data.notes || []).find((x) => x.id === card.dataset.id);
+      if (n) openNoteModal(n);
+    };
+    card.onclick = open;
     card.onkeydown = (ev) => {
-      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); openNoteModal(n); }
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); }
     };
     return card;
   }
 
+  // A month's header plus its notes, keyed so a note keeps its card across a
+  // render. The header rides in the same list under a reserved key, which
+  // keeps the card's DOM shape exactly what it was.
+  function fillMonthCard(card, label, notes) {
+    const parts = [{ key: "__head", kind: "head", label, count: notes.length }];
+    for (const n of notes) parts.push({ key: n.id, kind: "note", note: n });
+    reconcile(card, parts, {
+      keyOf: (part) => part.key,
+      create: (part) => (part.kind === "head" ? el("h3") : createNoteCard()),
+      update: (node, part) => adopt(node, part.kind === "head"
+        // No "+" on a month: a note is stamped with the moment it's written,
+        // so there is no such thing as adding one to March.
+        ? monthCardHeader(part.label, part.count, [], null)
+        : noteCard(part.note)),
+    });
+  }
+
+  // The shell outlives a render. app.js still clears #viewBody on its way
+  // through (that comes out last — see TODO.md), so holding this subtree is
+  // what lets the year sections, month cards and note cards survive: clearing
+  // a parent detaches these nodes without destroying them.
+  let notesRootEl = null, notesEmptyEl = null;
+
   function renderNotes(root) {
+    if (!notesRootEl) notesRootEl = document.createElement("div");
+    const shell = notesRootEl;
+    root.appendChild(shell);
+
+    const showEmpty = (node) => {
+      // Hands the section machinery an empty list so it drops the year blocks
+      // it is still holding; without this they'd sit under the empty state.
+      renderLazySections(shell, []);
+      if (notesEmptyEl) notesEmptyEl.remove();
+      notesEmptyEl = node;
+      shell.appendChild(node);
+    };
+
     if (!state.data.notes.length) {
-      root.appendChild(emptyState({
+      showEmpty(emptyState({
         glyph: "✎",
         title: "No notes yet",
         body: "Write things down as you notice them. Each one keeps the date and time it was written, and you can edit it later.",
@@ -102,9 +160,11 @@
     }
     const notes = getFilteredNotes();
     if (!notes.length) {
-      root.appendChild(emptyState("No notes match your filters."));
+      showEmpty(emptyState("No notes match your filters."));
       return;
     }
+    if (notesEmptyEl) { notesEmptyEl.remove(); notesEmptyEl = null; }
+
     // Same year → month shape as the timeline beside it, and the same month
     // order setting, so switching modes doesn't rearrange the page under
     // you. Within a month the notes run in that same direction: a feed read
@@ -123,24 +183,33 @@
       block.appendChild(grid);
       sections.push({
         key: y, header: head, node: block, bodyEl: grid,
+        // build() reconciles the body rather than appending to it, so
+        // renderLazySections must not clear it first.
+        keepBody: true,
         build: (body) => {
           const byMonth = groupBy(byYear[y], (n) => noteDate(n).getMonth() + 1);
           const months = Object.keys(byMonth).sort(desc ? (a, b) => b - a : (a, b) => a - b);
-          for (const m of months) {
-            const card = el("div", "month-card");
-            card.dataset.year = +y; card.dataset.month = +m;
-            // No "+" on a month: a note is stamped with the moment it's
-            // written, so there is no such thing as adding one to March.
-            card.appendChild(monthCardHeader(MONTHS[m], byMonth[m].length, [], null));
-            const inMonth = byMonth[m].slice().sort((a, b) =>
-              desc ? noteDate(b) - noteDate(a) : noteDate(a) - noteDate(b));
-            inMonth.forEach((n) => card.appendChild(noteCard(n)));
-            body.appendChild(card);
-          }
+          const cards = months.map((m) => ({
+            key: y + "-" + m,
+            year: +y,
+            month: +m,
+            notes: byMonth[m].slice().sort((a, b) =>
+              desc ? noteDate(b) - noteDate(a) : noteDate(a) - noteDate(b)),
+          }));
+          reconcile(body, cards, {
+            keyOf: (c) => c.key,
+            create: () => el("div", "month-card"),
+            update: (card, c) => {
+              // The Stats heatmap scrolls straight to these.
+              card.dataset.year = c.year;
+              card.dataset.month = c.month;
+              fillMonthCard(card, MONTHS[c.month], c.notes);
+            },
+          });
         },
       });
     }
-    renderLazySections(root, sections);
+    renderLazySections(shell, sections);
     sections.forEach((s) => s.node.style.setProperty("--year-head-h", s.header.getBoundingClientRect().height + "px"));
   }
 

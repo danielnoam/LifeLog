@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.132.0] - 2026-09-10
+
+### Changed
+- **Notes updates in place instead of redrawing.** Editing a note now leaves
+  every other card exactly where it was — same nodes, same scroll position —
+  rather than rebuilding the whole feed around it. The second view onto
+  `reconcile()`, after To-do.
+
+### Fixed
+- **Clicking a note you'd just edited could reopen the version from before
+  the edit.** The card's click handler was bound to the note as it looked
+  when the card was built; it now looks the note up when you click it.
+
 ## [0.131.0] - 2026-09-10
 
 ### Changed
