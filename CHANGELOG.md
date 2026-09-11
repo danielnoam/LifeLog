@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.137.0] - 2026-09-11
+
+### Fixed
+- **The category chips now narrow Discover.** Narrowing to Games used to
+  leave the book and anime cards sitting beside it — Discover was the one
+  Backlog surface where the chip row above it did nothing. Narrowing to a
+  category whose source publishes no popularity list now says so, and points
+  at the chips, rather than showing the "you haven't set a source up" message.
+
+### Changed
+- **Discover refreshes in place instead of flashing.** Hitting ↻, or
+  switching between Popular now and Coming soon, refills the cards rather
+  than replacing the grid. Last of the views onto `reconcile()`.
+
 ## [0.136.2] - 2026-09-11
 
 ### Changed

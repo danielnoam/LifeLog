@@ -1182,8 +1182,15 @@
   function discoverSourceMap() {
     const cfg = state.data.settings.mediaCategorySources || {};
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
+    // The category chips narrow this the same way they narrow Entries and
+    // Next releases — an empty set means everything (getFilteredBacklog's
+    // rule). Until 0.137.0 Discover was the one backlog surface where the
+    // chip row above it did nothing: narrowing to Games still sat a books
+    // card and an anime card beside it.
+    const cf = state.activeCats;
     const lists = new Map(), needsKey = new Map();
     for (const c of state.data.categories) {
+      if (cf.size && !cf.has(c.name)) continue;
       const configured = cfg[c.name];
       if (!configured) continue;
       const listSource = discoverSourceFor(configured, keys);
@@ -1391,9 +1398,29 @@
     // category is a guess (a source can cover several), and the details call
     // below lands a beat later, so there's something to watch fill in before
     // you commit it.
+    return row;
+  }
+
+  // Discover is the one view whose rows cannot resolve themselves by id at
+  // click time, because a result is not stored anywhere — `r` *is* the data,
+  // straight off the network, and a refresh replaces the object for a given
+  // id with a new one. So the current result rides on the node and the
+  // handler reads it there. Everywhere else, looking the item up in
+  // state.data is both simpler and safer; this is the exception, not a
+  // pattern to copy.
+  const dscResult = new WeakMap();
+
+  function createDiscoverRow(cls) {
+    const row = el("div", cls);
     row.onclick = () => {
-      openBacklogModal(null, catName);
-      applyMediaResult(r, keys).catch(() => toast("Couldn't fetch the full details for that one"));
+      const cur = dscResult.get(row);
+      if (!cur) return;
+      // The modal opens rather than the item being filed silently: the
+      // category is a guess (a source can cover several), and the details
+      // call below lands a beat later, so there's something to watch fill in
+      // before you commit it.
+      openBacklogModal(null, cur.catName);
+      applyMediaResult(cur.r, cur.keys).catch(() => toast("Couldn't fetch the full details for that one"));
     };
     return row;
   }
@@ -1448,63 +1475,116 @@
   // the source label opposite is what says where the list came from, which
   // matters most when RAWG is standing in for a category set to something
   // else.
-  function discoverCard(title, sourceLabel, fill) {
-    const section = el("div", "backlog-section");
+  function discoverCardHead(title, sourceLabel) {
     const head = el("div", "backlog-section-head");
     head.appendChild(el("span", "backlog-section-name", title));
     head.appendChild(el("span", "backlog-section-count dsc-source", sourceLabel));
-    section.appendChild(head);
-    const list = el("div", "backlog-list");
-    fill(list);
-    section.appendChild(list);
-    return section;
+    return head;
   }
+
+  // A card is a head plus a list, both kept across renders so a refresh
+  // refills the rows rather than replacing the grid. The parts a card can
+  // show instead of rows — Loading, "nothing came back", "you already have
+  // all of these", the hidden-count footnote — ride in the same keyed list
+  // under reserved keys, the way every other view's furniture does.
+  function fillDiscoverCard(card, title, sourceLabel, parts) {
+    // The card keeps the shape every other backlog section has — a head and
+    // a .backlog-list — so it inherits the same CSS. Only the list's children
+    // are reconciled; the head is small enough to refill.
+    let head = card.firstElementChild, list = card.lastElementChild;
+    if (!head || !list || head === list) {
+      head = discoverCardHead(title, sourceLabel);
+      list = el("div", "backlog-list");
+      card.replaceChildren(head, list);
+    } else {
+      adopt(head, discoverCardHead(title, sourceLabel));
+    }
+    const shape = rowShapeFor("discover");
+    reconcile(list, parts, {
+      epoch: shape,
+      keyOf: (part) => part.key,
+      create: (part) => (part.kind === "row" ? createDiscoverRow(shape) : el("p", "dsc-note")),
+      update: (node, part) => {
+        if (part.kind === "note") { node.textContent = part.text; return; }
+        dscResult.set(node, { r: part.r, catName: part.catName, keys: part.keys });
+        adopt(node, discoverRow(part.r, part.catName, part.keys, part.owned));
+      },
+    });
+  }
+
+  // Held across renders like every other view's root, so a refresh refills
+  // the cards instead of replacing the grid — the flash on every fetch was
+  // the only thing converting Discover was ever going to fix.
+  let dscRootEl = null, dscBarEl = null, dscGridEl = null;
 
   function renderDiscover(root) {
     const { lists, needsKey } = discoverSourceMap();
     if (!lists.size && !needsKey.size) {
-      root.appendChild(emptyState(
-        "Discover follows the media sources your categories use, and none of the ones you've set publishes a popularity list. " +
-        "RAWG, TMDB, AniList and Jikan do — set one for a category in Settings → Media."));
+      // Two different dead ends, and telling them apart matters: one is
+      // something you set up, the other is a chip you can click off.
+      root.appendChild(emptyState(state.activeCats.size
+        ? "Nothing to discover in the categories you've narrowed to — none of them uses a source that publishes a popularity list. " +
+          "Clear the category chips to see the rest, or set a source in Settings → Media."
+        : "Discover follows the media sources your categories use, and none of the ones you've set publishes a popularity list. " +
+          "RAWG, TMDB, AniList and Jikan do — set one for a category in Settings → Media."));
       return;
     }
     const sources = [...lists.keys()];
-    root.appendChild(discoverKindBar(sources));
+    if (!dscRootEl) {
+      dscRootEl = document.createElement("div");
+      dscBarEl = discoverKindBar(sources);
+      dscGridEl = el("div", "backlog-grid");
+      dscRootEl.append(dscBarEl, dscGridEl);
+    } else {
+      // Its buttons are children, so their handlers travel with the refill.
+      adopt(dscBarEl, discoverKindBar(sources));
+    }
+    root.appendChild(dscRootEl);
+
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     const owned = discoverOwnedIndex();
-    const grid = el("div", "backlog-grid");
+
+    const cards = [];
     for (const [source, cats] of lists) {
-      grid.appendChild(discoverCard(cats.join(" · "), MEDIA_SOURCE_LABELS[source] || source, (list) => {
-        const run = discoverRuns.get(source + "|" + discoverKind);
-        const rows = run ? discoverVisibleRows(run.rows, owned) : [];
-        const hidden = run ? run.rows.length - rows.length : 0;
-        if (!run || run.status === "loading") {
-          list.appendChild(el("p", "dsc-note", "Loading…"));
-        } else if (!run.rows.length) {
-          list.appendChild(el("p", "dsc-note",
-            "Nothing came back. Check this source's API key in Settings → Media."));
-        } else if (!rows.length) {
-          list.appendChild(el("p", "dsc-note",
-            "You already have all " + run.rows.length + " of these."));
-        } else {
-          applyDiscoverEarlyAccess(rows, discoverEaCache());
-          rows.forEach((r) => list.appendChild(discoverRow(r, cats[0], keys, owned)));
-          // The visible rows, not run.rows: a title you already have is
-          // filtered out of the list, and asking Steam about it would spend
-          // two requests on a badge nobody sees.
-          loadDiscoverEarlyAccess(source, discoverKind, rows, keys);
-          // Says the filter did something, so a short list doesn't read as a
-          // thin one from the source.
-          if (hidden) list.appendChild(el("p", "dsc-note", hidden + " already yours, hidden"));
-        }
-      }));
+      const run = discoverRuns.get(source + "|" + discoverKind);
+      const rows = run ? discoverVisibleRows(run.rows, owned) : [];
+      const hidden = run ? run.rows.length - rows.length : 0;
+      const parts = [];
+      if (!run || run.status === "loading") {
+        parts.push({ key: "__loading", kind: "note", text: "Loading…" });
+      } else if (!run.rows.length) {
+        parts.push({ key: "__none", kind: "note", text: "Nothing came back. Check this source's API key in Settings → Media." });
+      } else if (!rows.length) {
+        parts.push({ key: "__owned", kind: "note", text: "You already have all " + run.rows.length + " of these." });
+      } else {
+        applyDiscoverEarlyAccess(rows, discoverEaCache());
+        // Keyed by source as well as result id: two sources can return the
+        // same id for different things, and the cards share no key space.
+        for (const r of rows) parts.push({ key: source + "|" + r.id, kind: "row", r, catName: cats[0], keys, owned });
+        // The visible rows, not run.rows: a title you already have is
+        // filtered out of the list, and asking Steam about it would spend
+        // two requests on a badge nobody sees.
+        loadDiscoverEarlyAccess(source, discoverKind, rows, keys);
+        // Says the filter did something, so a short list doesn't read as a
+        // thin one from the source.
+        if (hidden) parts.push({ key: "__hidden", kind: "note", text: hidden + " already yours, hidden" });
+      }
+      cards.push({ key: "src:" + source, title: cats.join(" · "), sourceLabel: MEDIA_SOURCE_LABELS[source] || source, parts });
     }
     for (const [source, cats] of needsKey) {
-      grid.appendChild(discoverCard(cats.join(" · "), MEDIA_SOURCE_LABELS[source] || source, (list) => {
-        list.appendChild(el("p", "dsc-note", discoverUnavailableNote(source)));
-      }));
+      cards.push({
+        key: "nokey:" + source,
+        title: cats.join(" · "),
+        sourceLabel: MEDIA_SOURCE_LABELS[source] || source,
+        parts: [{ key: "__unavailable", kind: "note", text: discoverUnavailableNote(source) }],
+      });
     }
-    root.appendChild(grid);
+
+    reconcile(dscGridEl, cards, {
+      keyOf: (c) => c.key,
+      create: () => el("div", "backlog-section"),
+      update: (card, c) => fillDiscoverCard(card, c.title, c.sourceLabel, c.parts),
+    });
     ensureDiscover(sources);
   }
 
@@ -1726,6 +1806,7 @@
   function rowShapeFor(surface) {
     const rich = state.visual.backlogCoverSize !== "none";
     if (surface === "upcoming") return rich ? "backlog-item-rich up-row" : "entry up-row";
+    if (surface === "discover") return rich ? "backlog-item-rich dsc-row" : "entry dsc-row";
     return rich ? "backlog-item-rich" : "entry";
   }
 

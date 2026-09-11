@@ -16,6 +16,35 @@ what was decided against and why.
 
 ---
 
+- Discover converted in 0.137.0, finishing the views, and it is the one that
+  breaks the rule the other four established.
+
+  Everywhere else a row's click handler resolves its item by id at click
+  time, because a captured object goes stale when adopt() refills the node.
+  Discover cannot: a result is not stored anywhere, `r` *is* the data straight
+  off the network, and a refresh replaces the object behind a given id with a
+  new one. So the current result rides on the node in a WeakMap and the
+  handler reads it there. That is the exception, not a pattern to copy — if a
+  future view can look its item up in state.data, it should.
+
+  Rows are keyed by source + result id, not result id alone. Two sources can
+  return the same id for different things and the cards share no key space,
+  so the source has to be in the key.
+
+  The card keeps the head/.backlog-list shape every other backlog section
+  has, rather than being flattened into one reconciled list — the first
+  attempt did flatten it, which silently dropped .backlog-list and the CSS
+  that hangs off it.
+
+- the Discover category filter (0.137.0) was a real bug, not a missing
+  feature: discoverSourceMap() walked state.data.categories unconditionally
+  and never looked at state.activeCats, so the chip row rendered above a grid
+  it had no effect on. It now uses getFilteredBacklog's rule — an empty chip
+  set means everything. The empty state had to split in two as a result:
+  "you have not set up a source that publishes a list" and "nothing in the
+  categories you narrowed to has one" are different problems, and only the
+  second has a fix the reader can act on immediately (click the chip off).
+
 - what 0.136.1's measurements ruled *out*, which is the more useful half and
   is easy to lose. At 4x CPU throttle over 611 entries, the browser's own
   counters put ScriptDuration at 24ms against RecalcStyle 136ms and Layout
