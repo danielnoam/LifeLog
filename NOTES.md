@@ -16,6 +16,20 @@ what was decided against and why.
 
 ---
 
+- what 0.136.1's measurements ruled *out*, which is the more useful half and
+  is easy to lose. At 4x CPU throttle over 611 entries, the browser's own
+  counters put ScriptDuration at 24ms against RecalcStyle 136ms and Layout
+  65ms. So: the app's JS is not the cost, and neither is parsing and
+  compiling its 690KB across fifteen files — a plan to split the modules and
+  load the optional ones late would have bought almost nothing. The cost is
+  style and layout over 18,388 nodes, and the only way down is fewer nodes.
+  TODO.md carries that as the virtualisation entry, with the numbers.
+
+  Two other theories died the same way. The tab underline animating
+  left/width was not why the bottom bar stuttered — the main thread was busy.
+  And the idle trickle does not jank: one ~150ms frame across a whole 3s load
+  at 4x, and that frame is the first render, not the trickle.
+
 - 0.136.1 is a performance pass, and it was measured rather than guessed —
   worth recording, because two of the three obvious suspects were wrong.
 

@@ -1,5 +1,22 @@
 todo:
 
+- virtualising the Timeline and Backlog rows, if load ever needs to get
+  faster again. Measured at 4x CPU throttle over 611 entries and 250 backlog
+  items (0.136.1): first row ~320-660ms, and of the browser's own time
+  RecalcStyle was 136ms and Layout 65ms against **18,388 DOM nodes** —
+  ScriptDuration was 24ms, so neither the app's own logic nor compiling its
+  690KB of JS is the cost. The load is one ~150ms frame and then smooth; the
+  idle trickle behaves.
+
+  The only lever left is building fewer nodes: ~30 per entry is what makes
+  style recalc expensive. That means not building rows for sections nowhere
+  near the viewport, which the IntersectionObserver already half does — the
+  trickle deliberately fills the rest so the document reaches its true height
+  and the scrollbar stops moving under you. Virtualising means owning that
+  height yourself (estimated row heights, a spacer per unbuilt section), and
+  it costs find-in-page over unbuilt rows. Not worth it at this size; the
+  numbers above are the baseline to beat if it ever is.
+
 - the category chips should narrow Discover, and today they don't.
   discoverSourceMap() walks state.data.categories unconditionally and never
   looks at state.activeCats, so narrowing to Games still shows the book and
@@ -50,6 +67,15 @@ todo:
   5. Last, not first: render() drops `#viewBody.innerHTML = ""`, once no view
      depends on being handed an empty root. See NOTES.md for why this moved
      from the front of the list to the back.
+
+     Worth knowing before starting: this is now *tidiness*, not speed.
+     content-visibility (0.136.1) made the layout this was going to save
+     cheap enough that a profile no longer sees it. The clear still collapses
+     #viewBody for an instant, so captureScrollAnchor/restoreScrollAnchor
+     stay until it goes — but they are propping up a correctness problem now,
+     not a performance one. Every view holds exactly one root node, so the
+     shape of the fix is a registry of those roots that render() keeps while
+     removing everything else.
 
   `epoch` is for a setting that changes a node's *root*, not its contents —
   adopt() handles contents. timelineCoverSize turned out not to need one;

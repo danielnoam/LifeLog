@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.136.2] - 2026-09-11
+
+### Changed
+- Notes only: the load-time measurements behind 0.136.1 are written down in
+  TODO.md and NOTES.md, including what is *not* worth optimising next and the
+  numbers to beat if it ever is.
+
 ## [0.136.1] - 2026-09-11
 
 ### Fixed
