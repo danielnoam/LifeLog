@@ -36,7 +36,8 @@ todo:
      is worth having but is not what the rest of this was for. Key the cards
      by source and the rows by source + result id.
   2. The jump-nav carousel and the bulk action bar, the last two bits of
-     chrome still rebuilt wholesale. The chip rows went in 0.136.0; these two
+     chrome still rebuilt wholesale. Note the 0.136.1 profile found neither
+     of them costly, so this is tidiness rather than speed. The chip rows went in 0.136.0; these two
      are smaller and less often on screen, which is why they waited.
   3. Leave animations. Moves and arrivals shipped in 0.136.0; a row leaving
      still vanishes. Doing it means holding the node in the flow while it

@@ -211,7 +211,10 @@
       });
     }
     renderLazySections(shell, sections);
-    sections.forEach((s) => s.node.style.setProperty("--year-head-h", s.header.getBoundingClientRect().height + "px"));
+    // Every height read first, then every write: alternating them makes the
+    // browser flush layout once per section instead of once for the lot.
+    const headHeights = sections.map((s) => s.header.getBoundingClientRect().height);
+    sections.forEach((s, i) => s.node.style.setProperty("--year-head-h", headHeights[i] + "px"));
   }
 
   // ---------- modal ----------

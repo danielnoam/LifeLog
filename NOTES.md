@@ -16,6 +16,44 @@ what was decided against and why.
 
 ---
 
+- 0.136.1 is a performance pass, and it was measured rather than guessed —
+  worth recording, because two of the three obvious suspects were wrong.
+
+  A CPU profile of one category-chip toggle over 611 entries and 250 backlog
+  items put getBoundingClientRect at 318ms of a ~500ms busy window, with the
+  browser's own layout time beside it. Not row construction, not the diff.
+
+  Fix one: FLIP now only measures when the op list actually contains a move.
+  A filter change, a search keystroke or a chip toggle produces inserts and
+  removes — nothing moves — and the animation layer was measuring every row in
+  every month card anyway. Arrivals are not gated by this, since the enter
+  animation is a CSS class and costs no measurement. 318ms -> 186ms.
+
+  Fix two: content-visibility: auto on .month-card and .backlog-section. The
+  remaining 186ms was not many reads — instrumenting the page counted only 22
+  layout reads in the whole toggle — but each one forced a full layout of a
+  document holding 611 rows. Taking off-screen cards out of layout makes every
+  one of those reads cheap. 186ms -> 2ms, and the browser's layout time
+  dropped from 304ms to 85ms.
+
+  contain-intrinsic-size uses the `auto` keyword so each card remembers the
+  height it last rendered at; the 300px is only the first guess for a card
+  never yet painted. Sticky headers survive it — .month-card h3 and
+  .backlog-section-head both sit *inside* contained elements and were the
+  obvious thing to break, so they are covered by their own test.
+
+  What this also fixed, which is the part worth remembering: the bottom bar's
+  lag. Measured frame intervals across four tab switches went from worst
+  frames of 100ms and 300ms with 18 dropped, to zero dropped and a worst of
+  16.8ms. The underline was never the problem — it janked because the main
+  thread was busy laying out six hundred rows underneath it. See the entry
+  below on why the underline is still animating left/width: that reasoning
+  now has a measurement behind it rather than an assertion.
+
+  The --year-head-h loop was also batched (all the reads, then all the
+  writes). Small on its own — eight sections — but it was alternating read and
+  write, which is the shape that makes a browser flush layout per iteration.
+
 - the payoff, 0.136.0: reconcile() grew FLIP for moves and a fade for
   arrivals. Notes on the shape of it, because several parts look optional and
   are not:

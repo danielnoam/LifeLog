@@ -1886,3 +1886,19 @@ html.force-mobile .backlog-section-head {
 @media (prefers-reduced-motion: reduce) {
   .ll-enter { animation: none; }
 }
+
+
+/* ---------- keeping layout off-screen cheap ---------- */
+/* A month card that isn't on screen doesn't get laid out. This is what makes
+   the forced layouts the app does on every render — the scroll anchor, the
+   sticky-header measurement, the jump nav — cost the visible cards rather
+   than all six hundred rows in the document.
+
+   `auto` on contain-intrinsic-size means each card remembers the height it
+   last rendered at, so the scrollbar doesn't jump once one has been seen; the
+   300px is only the first guess for a card never yet painted. */
+.month-card,
+.backlog-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
+}

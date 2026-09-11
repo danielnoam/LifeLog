@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.136.1] - 2026-09-11
+
+### Fixed
+- **The bottom bar stops stuttering on a big log.** Switching tabs with ~600
+  entries dropped frames badly — a worst frame of 300ms — because the tab
+  underline was trying to animate while the main thread laid out every row in
+  the document. Measured after the fix: no dropped frames on any tab switch.
+- **Timeline and Backlog react faster.** A month card or backlog section that
+  isn't on screen no longer takes part in layout, so the measurements the app
+  makes on every render cost the visible cards rather than the whole list.
+  Toggling a category chip over 600 entries went from ~500ms of work to ~100ms.
+- **Movement is only measured when something actually moved.** Filtering and
+  searching rearrange nothing, and were paying to measure every row anyway.
+
 ## [0.136.0] - 2026-09-10
 
 ### Added

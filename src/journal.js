@@ -113,7 +113,10 @@
     // rows yet. getBoundingClientRect (not offsetHeight) keeps the
     // sub-pixel remainder, which otherwise rounds away and leaves a
     // hairline gap under the sticky header.
-    sections.forEach((s) => s.node.style.setProperty("--year-head-h", s.header.getBoundingClientRect().height + "px"));
+    // Every height read first, then every write: alternating them makes the
+    // browser flush layout once per section instead of once for the lot.
+    const headHeights = sections.map((s) => s.header.getBoundingClientRect().height);
+    sections.forEach((s, i) => s.node.style.setProperty("--year-head-h", headHeights[i] + "px"));
 
     // Outside the shell: the bar belongs to the view, not to the list, and it
     // comes and goes with bulk mode rather than being reconciled.

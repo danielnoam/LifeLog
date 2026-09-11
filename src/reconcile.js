@@ -241,9 +241,29 @@
 
     const ops = diffKeys(prev.keys, newKeys);
 
-    // Measured before anything moves, and only for nodes actually in place.
-    const before = animate ? new Map() : null;
-    if (animate) {
+    // Measuring is the expensive half of this file, so it is gated twice.
+    //
+    // First on the ops: if nothing MOVED there is nothing to FLIP. A filter
+    // change, a search keystroke, a category toggle — the common re-renders —
+    // produce inserts and removes, not moves, and used to pay for measuring
+    // every row in every month card anyway. That was the single biggest cost
+    // in a profile of a chip toggle over 600 entries.
+    //
+    // Then on position: a container far outside the viewport can move its
+    // children wherever it likes, unwatched. One rect for the container beats
+    // one per row.
+    //
+    // Arrivals are not gated by either — the enter animation is a CSS class
+    // and costs no measurement.
+    let wantMove = animate && ops.some((o) => o.op === "move");
+    if (wantMove) {
+      const box = container.getBoundingClientRect();
+      const margin = window.innerHeight;
+      if (box.bottom < -margin || box.top > window.innerHeight + margin) wantMove = false;
+    }
+
+    const before = wantMove ? new Map() : null;
+    if (wantMove) {
       for (const [key, node] of prev.nodes) {
         if (node.parentNode !== container) continue;
         const r = node.getBoundingClientRect();
@@ -300,6 +320,7 @@
       const moved = [];
       for (const [key, node] of nodes) {
         if (entered.has(key)) { playEnter(node); continue; }
+        if (!wantMove) continue;
         const was = before.get(key);
         if (!was) continue;
         // An animation still running would otherwise be measured mid-flight
