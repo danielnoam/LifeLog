@@ -74,6 +74,14 @@
     return isNaN(d) ? "" : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
   }
 
+  // Read once per render rather than per card: "now" cannot change between
+  // two month cards of the same pass, and Date() is not free at a few hundred
+  // notes.
+  function isCurrentMonth(year, month) {
+    const now = new Date();
+    return year === now.getFullYear() && month === now.getMonth() + 1;
+  }
+
   // The card's *contents*. Its click and key handlers are not here — see
   // createNoteCard, and NOTES.md on why they can't be.
   function noteCard(n) {
@@ -114,17 +122,20 @@
   // A month's header plus its notes, keyed so a note keeps its card across a
   // render. The header rides in the same list under a reserved key, which
   // keeps the card's DOM shape exactly what it was.
-  function fillMonthCard(card, label, notes) {
-    const parts = [{ key: "__head", kind: "head", label, count: notes.length }];
+  function fillMonthCard(card, label, notes, current) {
+    const parts = [{ key: "__head", kind: "head", label, count: notes.length, current }];
     for (const n of notes) parts.push({ key: n.id, kind: "note", note: n });
     reconcile(card, parts, {
       animate: true,
       keyOf: (part) => part.key,
       create: (part) => (part.kind === "head" ? el("h3") : createNoteCard()),
       update: (node, part) => adopt(node, part.kind === "head"
-        // No "+" on a month: a note is stamped with the moment it's written,
-        // so there is no such thing as adding one to March.
-        ? monthCardHeader(part.label, part.count, [], null)
+        // A "+" only on the month you are actually in. A note is stamped with
+        // the moment it's written, so there is no such thing as adding one to
+        // March — a + on March's card that produced a September note would
+        // read as a bug. On the current month it means exactly what it looks
+        // like, and saves a reach for the compose button.
+        ? monthCardHeader(part.label, part.count, [], part.current ? { onAdd: () => openNoteModal(null) } : null)
         : noteCard(part.note)),
     });
   }
@@ -204,7 +215,7 @@
               // The Stats heatmap scrolls straight to these.
               card.dataset.year = c.year;
               card.dataset.month = c.month;
-              fillMonthCard(card, MONTHS[c.month], c.notes);
+              fillMonthCard(card, MONTHS[c.month], c.notes, isCurrentMonth(c.year, c.month));
             },
           });
         },

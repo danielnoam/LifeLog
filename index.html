@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.137.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.138.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -389,8 +389,9 @@
                 <option value="upcoming">Upcoming</option>
                 <option value="released">Released</option>
               </select>
+              <label class="ovr-check"><input type="checkbox" id="bOvrEarlyAccess" disabled /> Early Access</label>
             </div>
-            <p class="hint">Precision follows what you type — <code>2027-05-14</code>, <code>2027-05</code>, <code>2027-Q1</code> or <code>2027</code>. Blank means TBA.</p>
+            <p class="hint">Precision follows what you type — <code>2027-05-14</code>, <code>2027-05</code>, <code>2027-Q1</code> or <code>2027</code>. Blank means TBA. Early Access is otherwise only ever set by a Steam sync, so a GOG or itch game needs it ticked here.</p>
           </div>
           <div class="ovr">
             <label class="ovr-head"><input type="checkbox" id="bOvrCover" /> Cover image URL</label>
@@ -1257,20 +1258,20 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.137.0"></script>
-  <script defer src="src/qr.js?v=0.137.0"></script>
-  <script defer src="src/media.js?v=0.137.0"></script>
-  <script defer src="src/merge.js?v=0.137.0"></script>
-  <script defer src="src/storage.js?v=0.137.0"></script>
-  <script defer src="src/finance.js?v=0.137.0"></script>
-  <script defer src="src/settings.js?v=0.137.0"></script>
-  <script defer src="src/wheel.js?v=0.137.0"></script>
-  <script defer src="src/backlog.js?v=0.137.0"></script>
-  <script defer src="src/journal.js?v=0.137.0"></script>
-  <script defer src="src/notes.js?v=0.137.0"></script>
-  <script defer src="src/todos.js?v=0.137.0"></script>
-  <script defer src="src/io.js?v=0.137.0"></script>
-  <script defer src="src/sync.js?v=0.137.0"></script>
-  <script defer src="src/app.js?v=0.137.0"></script>
+  <script defer src="src/reconcile.js?v=0.138.0"></script>
+  <script defer src="src/qr.js?v=0.138.0"></script>
+  <script defer src="src/media.js?v=0.138.0"></script>
+  <script defer src="src/merge.js?v=0.138.0"></script>
+  <script defer src="src/storage.js?v=0.138.0"></script>
+  <script defer src="src/finance.js?v=0.138.0"></script>
+  <script defer src="src/settings.js?v=0.138.0"></script>
+  <script defer src="src/wheel.js?v=0.138.0"></script>
+  <script defer src="src/backlog.js?v=0.138.0"></script>
+  <script defer src="src/journal.js?v=0.138.0"></script>
+  <script defer src="src/notes.js?v=0.138.0"></script>
+  <script defer src="src/todos.js?v=0.138.0"></script>
+  <script defer src="src/io.js?v=0.138.0"></script>
+  <script defer src="src/sync.js?v=0.138.0"></script>
+  <script defer src="src/app.js?v=0.138.0"></script>
 </body>
 </html>

@@ -1457,7 +1457,7 @@ kbd {
    value you'd be pinning before you tick it — greyed out to make clear it
    isn't yours yet and isn't being saved. */
 .ovr input:disabled, .ovr select:disabled { color: var(--text-faint); opacity: 1; }
-.ovr-row { display: flex; gap: 8px; }
+.ovr-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .ovr-row input { flex: 1 1 60%; min-width: 0; }
 .ovr-row select { flex: 1 1 40%; min-width: 0; }
 .ovr .hint code { font-size: 11px; background: var(--bg-elev-2); padding: 1px 4px; border-radius: 4px; white-space: nowrap; }
@@ -1902,3 +1902,22 @@ html.force-mobile .backlog-section-head {
   content-visibility: auto;
   contain-intrinsic-size: auto 300px;
 }
+
+/* The To-do row's "No category" chip: a hollow dot, since there is no colour
+   to show — it stands for the absence of one. */
+.cat-chip.is-general .dot {
+  background: transparent !important;
+  border: 1.5px solid var(--text-faint);
+  box-sizing: border-box;
+}
+
+/* The Early Access tick sits in the release override's row beside the date
+   and status, not on a line of its own — it is part of the same answer. */
+.ovr-row .ovr-check {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--text-dim); white-space: nowrap;
+}
+/* Not the row's 60%-wide text input — a tickbox is its own size. */
+.ovr-row .ovr-check input { margin: 0; flex: 0 0 auto; min-width: 0; width: auto; }
+.ovr-row .ovr-check { flex: 0 0 auto; }
+.ovr-row .ovr-check:has(input:disabled) { opacity: .5; }

@@ -16,6 +16,27 @@ what was decided against and why.
 
 ---
 
+- three small gaps closed in 0.138.0, each with a decision in it:
+
+  The To-do "No category" chip keys as "" — getFilteredTodos already read
+  `cats.has(t.category || "")`, so only the chip was ever missing. It gets no
+  ✎ because there is nothing to edit: it is not a category, it is where a
+  to-do lands when it doesn't name one.
+
+  The Notes + appears on the current month's card only. The old comment said
+  there should be no + at all, because a note is stamped with the moment it is
+  written and there is no such thing as adding one to March. That reasoning
+  holds for *filing* and not for a shortcut — but a + on March's card that
+  produced a September note would read as a bug, so it only shows where it
+  means what it looks like.
+
+  Early Access rides with the existing release pin rather than earning a pin
+  of its own. MEDIA_FIELD_PINS already mapped the field to "release", and it
+  is part of the same "what is the state of this release" answer as the date
+  and the status. The override machinery in app.js turned out to be entirely
+  generic — f.inputs just gets disabled/enabled — so a checkbox slotted in
+  beside the two text inputs with no changes to it.
+
 - Discover converted in 0.137.0, finishing the views, and it is the one that
   breaks the rule the other four established.
 

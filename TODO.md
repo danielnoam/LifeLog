@@ -23,16 +23,6 @@ todo:
   row surviving is what the rework was for, and preserving one child by src
   means per-field patching that nothing else needs yet.
 
-- a **+** on each month panel in Notes, as a fast path to writing one. The
-  month card header takes an onAdd today (monthCardHeader's opts) and Notes
-  deliberately passes null, with the comment that a note is stamped with the
-  moment it's written so there is no such thing as adding one to March.
-  That reasoning still holds for *filing* — so the + should open the new-note
-  modal as it always does and let the note stamp itself now, rather than
-  backdating into the month whose header was clicked. Worth deciding whether
-  a + that ignores its own month reads as a bug from the outside, or whether
-  it should only appear on the current month's card.
-
 - the rendering rework, continued. reconcile.js (0.129.0), the shared section
   plumbing (0.131.0), To-do (0.130.0), Notes (0.132.0) and the Timeline
   (0.133.0), the Backlog (0.134.0), the Ledger (0.135.0) the movement it
@@ -75,20 +65,8 @@ todo:
   written as a knowing third copy (0.128.2) rather than doing this refactor in
   the middle of a feature.
 
-- a chip for the general to-do panel in the Categories row. You can narrow to
-  any category but not to "no category", because the row is built from the
-  category list and the general panel isn't in it.
-
 Ideas that turned out not to be worth doing, or not to be possible, live in
 DROPPED.md rather than sitting here unread.
-
-- an Early Access flag can only ever be set by a Steam sync. Every other
-  release field can be pinned by hand in the backlog modal's Advanced
-  foldout — date, precision, status — but earlyAccess has no input, so a
-  GOG or itch game in Early Access can't say so and Steam can't be
-  corrected when it's wrong. The pin machinery already covers the field
-  (MEDIA_FIELD_PINS maps it to "release"); it needs a checkbox in
-  OVERRIDE_FIELDS' release entry and its pull/push
 
 - Notes, deliberately left out of the first cut: no bulk select (the
   timeline's long-press machinery would carry over), and no way to turn a

@@ -514,7 +514,13 @@
   const OVERRIDE_KEYS = ["release", "cover", "rating", "length"];
   const OVERRIDE_FIELDS = [
     {
-      key: "release", check: "#bOvrRelease", inputs: ["#bOvrReleaseDate", "#bOvrReleaseStatus"],
+      // earlyAccess rides with the release pin rather than earning one of its
+      // own: it is part of the same "what is the state of this release"
+      // answer, and MEDIA_FIELD_PINS already maps it to "release". Before
+      // 0.138.0 it had no input at all, so it could only ever be set by a
+      // Steam sync — a GOG or itch game in Early Access could not say so, and
+      // Steam could not be corrected when it was wrong.
+      key: "release", check: "#bOvrRelease", inputs: ["#bOvrReleaseDate", "#bOvrReleaseStatus", "#bOvrEarlyAccess"],
       pull() {
         $("#bOvrReleaseDate").value = formatReleaseInput({
           releaseDate: $("#bReleaseDate").value,
@@ -522,12 +528,16 @@
           releaseYear: $("#bReleaseYear").value,
         });
         $("#bOvrReleaseStatus").value = $("#bReleaseStatus").value;
+        $("#bOvrEarlyAccess").checked = !!$("#bEarlyAccess").value;
       },
       push() {
         const parsed = parseReleaseInput($("#bOvrReleaseDate").value);
         $("#bReleaseDate").value = parsed.releaseDate;
         $("#bReleasePrecision").value = parsed.releasePrecision;
         $("#bReleaseStatus").value = $("#bOvrReleaseStatus").value;
+        // The hidden field is a string ("1" or ""), the way every other
+        // boolean on this form is carried.
+        $("#bEarlyAccess").value = $("#bOvrEarlyAccess").checked ? "1" : "";
         // releaseYear is what the metadata line shows and what releaseWindow
         // falls back on, so it has to move with the date rather than keep
         // pointing at whatever the source last said.

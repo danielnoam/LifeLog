@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.138.0] - 2026-09-11
+
+### Added
+- **A "No category" chip on the To-do list.** Everything without a category
+  shares the general panel, and that panel isn't in the category list — so it
+  was the one group you couldn't narrow to. It leads the chip row now, with a
+  hollow dot and no ✎, since it isn't a category.
+- **A + on the current month's card in Notes**, as a shortcut to writing one.
+  Only the current month gets it: a note stamps itself with the moment it's
+  written, so a + on March that produced a September note would read as a bug.
+- **Early Access can be set by hand**, in the backlog item's Advanced foldout
+  beside the release date. It was previously only ever set by a Steam sync, so
+  a GOG or itch game in Early Access had no way to say so, and Steam couldn't
+  be corrected when it was wrong. It rides with the release pin, so a sync
+  leaves it alone once ticked.
+
 ## [0.137.0] - 2026-09-11
 
 ### Fixed

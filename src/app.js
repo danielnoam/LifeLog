@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.137.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.138.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2094,7 +2094,16 @@
       : finance ? "Add finance category" : "Add category";
     // The + rides in the same keyed list under a reserved key, so it keeps its
     // place at the end without being rebuilt with the row.
-    const chips = [...cats.map((c) => ({ key: c.name, cat: c })), { key: "__add", add: true }];
+    //
+    // To-do gets one more, at the front: everything without a category shares
+    // the general panel, and that panel is not in the category list, so until
+    // 0.138.0 it was the one group you could not narrow to. getFilteredTodos
+    // already keyed it as "" — only the chip was missing.
+    const chips = [
+      ...(todo ? [{ key: "", cat: { name: "", color: "#7a8a99" }, general: true }] : []),
+      ...cats.map((c) => ({ key: c.name, cat: c })),
+      { key: "__add", add: true },
+    ];
     // Which of the three category lists these chips are — the same name can
     // exist in more than one, so a node must not be reused across the change.
     const which = todo ? "todo" : finance ? "finance" : "journal";
@@ -2107,7 +2116,7 @@
           activatable(addChip, (ev) => { ev.stopPropagation(); editCatFor(which)(null); }, addLabel);
           return addChip;
         }
-        const chip = el("span", "cat-chip");
+        const chip = el("span", "cat-chip" + (item.general ? " is-general" : ""));
         const name = item.cat.name;
         activatable(chip, () => {
           const set = activeCatSetFor(which);
@@ -2125,6 +2134,13 @@
         const c = item.cat;
         chip.classList.toggle("on", activeCats.has(c.name));
         const dot = el("span", "dot"); dot.style.background = c.color;
+        // Nothing to edit on the general one — it isn't a category, it's
+        // where a to-do lands when it doesn't name one.
+        if (item.general) {
+          chip.title = "To-dos with no category";
+          chip.replaceChildren(dot, document.createTextNode("No category"));
+          return;
+        }
         const edit = el("span", "chip-edit", "✎");
         edit.title = "Edit category";
         activatable(edit, (ev) => { ev.stopPropagation(); editCatFor(which)(c); }, "Edit category " + c.name);
