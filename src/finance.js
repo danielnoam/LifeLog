@@ -1550,7 +1550,10 @@
         toast("That category already exists", true);
         return;
       }
-      state.data.financeCategories.push({ id: newName.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: newName, color, createdAt: new Date().toISOString() });
+      const now = new Date().toISOString();
+      // See the journal's equivalent: this collection syncs, so it needs an
+      // updatedAt for merge.js to decide between two devices.
+      state.data.financeCategories.push({ id: newName.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: newName, color, createdAt: now, updatedAt: now });
       closeFinanceCatModal();
       rebuildFinanceColorMap(); buildCatFilter(); render();
       await persist();

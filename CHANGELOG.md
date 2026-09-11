@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.140.0] - 2026-09-11
+
+### Fixed
+- **Categories sync properly between two devices.** All three category lists —
+  the journal's, the to-do list's and Finance's — travel with your data, but
+  most of them carried no "last changed" stamp, so two devices that each added
+  or renamed a category had nothing to decide between them. Every category now
+  gets one, including the ones already in your file.
+
 ## [0.139.1] - 2026-09-11
 
 ### Changed

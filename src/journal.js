@@ -1372,7 +1372,10 @@
         toast("That category already exists", true);
         return;
       }
-      state.data.categories.push({ id: newName.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: newName, color, createdAt: new Date().toISOString() });
+      const now = new Date().toISOString();
+      // updatedAt as well as createdAt: this collection syncs, and merge.js
+      // has nothing to tie-break on without it (see sanitizeCategory).
+      state.data.categories.push({ id: newName.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: newName, color, createdAt: now, updatedAt: now });
       closeCategoryModal();
       rebuildColorMap(); buildCatFilter(); render();
       await persist();
@@ -1423,7 +1426,10 @@
       }
       if (!confirm(`“${cat.name}” is used by ${n} item${n === 1 ? "" : "s"}. Move them to “Other” and delete?`)) return;
       let other = state.data.categories.find((c) => c.name === "Other");
-      if (!other) { other = { id: "other", name: "Other", color: "#7a8a99" }; state.data.categories.push(other); }
+      if (!other) {
+        other = { id: "other", name: "Other", color: "#7a8a99", updatedAt: new Date().toISOString() };
+        state.data.categories.push(other);
+      }
       state.data.entries.forEach((e) => { if (e.category === cat.name) e.category = "Other"; });
       state.data.backlog.forEach((b) => { if (b.category === cat.name) b.category = "Other"; });
     } else {

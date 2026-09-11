@@ -179,5 +179,49 @@ test("normalize falls back to defaults for missing settings fields and merges ne
   assert.strictEqual(data.settings.steam.proxyUrl, ""); // default field still present
 });
 
+// ---------- sanitizeCategory ----------
+// All three category collections sync (merge.js COLLECTION_KEYS), so each one
+// needs an updatedAt to tie-break a two-device edit. Nothing sanitized them
+// until 0.140.0 and three of the five creation paths stamped the wrong thing.
+
+test("a category with neither stamp still gets an updatedAt", () => {
+  const out = App.sanitizeCategory({ id: "c1", name: "Games", color: "#0f0" });
+  assert.ok(out.updatedAt, "has one at all");
+  assert.strictEqual(out.updatedAt, "1970-01-01T00:00:00.000Z", "the epoch fallback, so anything real beats it");
+});
+
+test("createdAt is promoted to updatedAt when that's all there is", () => {
+  const out = App.sanitizeCategory({ id: "c1", name: "Games", color: "#0f0", createdAt: "2026-01-02T00:00:00.000Z" });
+  assert.strictEqual(out.updatedAt, "2026-01-02T00:00:00.000Z");
+  assert.strictEqual(out.createdAt, "2026-01-02T00:00:00.000Z", "and createdAt is kept");
+});
+
+test("a real updatedAt wins over createdAt", () => {
+  const out = App.sanitizeCategory({ name: "Games", createdAt: "2026-01-02T00:00:00.000Z", updatedAt: "2026-03-04T00:00:00.000Z" });
+  assert.strictEqual(out.updatedAt, "2026-03-04T00:00:00.000Z");
+});
+
+test("a category with no id gets one, so merge can key it", () => {
+  const out = App.sanitizeCategory({ name: "Games" });
+  assert.ok(out.id, JSON.stringify(out));
+});
+
+test("a category carries a field it doesn't know about", () => {
+  const out = App.sanitizeCategory({ id: "c1", name: "Games", somethingNew: 42 });
+  assert.strictEqual(out.somethingNew, 42);
+});
+
+test("normalize stamps every category collection, not just the to-do one", () => {
+  const data = App.normalize({
+    categories: [{ id: "c1", name: "Games", color: "#0f0", createdAt: "2026-01-02T00:00:00.000Z" }],
+    todoCategories: [{ id: "tc1", name: "Errands", color: "#00f" }],
+    financeCategories: [{ id: "f1", name: "Food", color: "#f00", createdAt: "2026-01-03T00:00:00.000Z" }],
+  });
+  for (const key of ["categories", "todoCategories", "financeCategories"]) {
+    assert.ok(data[key].every((c) => !!c.updatedAt), key + " all stamped");
+  }
+  assert.strictEqual(data.financeCategories[0].updatedAt, "2026-01-03T00:00:00.000Z", "finance promotes its createdAt");
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

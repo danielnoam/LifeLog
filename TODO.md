@@ -37,16 +37,6 @@ todo:
   backlogCoverSize does, because it switches between two different root
   elements. See NOTES.md (0.133.0).
 
-- a new finance category carries createdAt but no updatedAt, and nothing
-  sanitizes financeCategories at all — there is no sanitizeFinanceCategory
-  the way there is for finance entries and recurring expenses, both of which
-  call backfillUpdatedAt. financeCategories *is* in merge.js's
-  COLLECTION_KEYS, so it syncs; mergeCollection compares content and stamps
-  what changed, which probably fills the gap on first edit, but two devices
-  that both added a category with no updatedAt have nothing to tie-break on.
-  todoCategories, added later, does it correctly. Found while sizing the
-  category-modal refactor below; worth fixing on its own, and cheaply.
-
 - one parameterised add/edit-category modal instead of three. The journal's,
   Finance's and the to-do list's are the same form over a different
   collection. #todoCatModal was written as a knowing third copy (0.128.2)

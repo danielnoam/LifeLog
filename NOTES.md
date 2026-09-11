@@ -16,6 +16,30 @@ what was decided against and why.
 
 ---
 
+- categories got a sanitizer in 0.140.0, and the hole was wider than the TODO
+  entry that found it said. All three collections are in merge.js's
+  COLLECTION_KEYS, so all three sync — but *none* of them was sanitized on
+  load, and three of the five places that create one stamped the wrong thing:
+  the journal's and Finance's add-category forms both wrote createdAt and no
+  updatedAt, and journal.js's "Other" fallback wrote neither. Only
+  ensureCategories (for a category a row names but the list lacks) and
+  todoCategories, added later, were right.
+
+  Without updatedAt, mergeCollection has nothing to tie-break on, so two
+  devices that each added a category resolved arbitrarily.
+
+  sanitizeCategory promotes createdAt to updatedAt where that is all there is,
+  and falls back to the epoch where there is neither — deliberately, so any
+  real edit on either device beats an unstamped one rather than the other way
+  round.
+
+  One thing to know when testing this: the localStorage cache written on first
+  load is the *raw* fetched JSON. normalize() runs on the in-memory copy, and
+  the cache only catches up from the first save onwards. That is benign — the
+  cache is re-normalized on the next load either way — but it means asserting
+  on the cache straight after a cold load reads pre-sanitize data and looks
+  like a failure.
+
 - leave animations landed in 0.139.0 after being filed as "only if a vanishing
   row starts to read as a glitch". The version that works takes the node *out
   of the flow* at the exact place it was sitting and fades it there, so the

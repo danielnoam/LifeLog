@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.139.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.140.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2432,6 +2432,24 @@
   function backfillUpdatedAt(item) {
     return item.updatedAt || item.createdAt || "1970-01-01T00:00:00.000Z";
   }
+  // The three category collections — the journal's, the to-do list's and
+  // Finance's — are all in merge.js's COLLECTION_KEYS, so they sync like any
+  // other list and need updatedAt to tie-break a two-device edit. Nothing
+  // sanitized them until 0.140.0, and three of the five places that create
+  // one stamped createdAt or nothing at all, so two devices that each added a
+  // category had nothing to decide between them.
+  const KNOWN_CATEGORY_KEYS = new Set(["id", "name", "color", "createdAt", "updatedAt"]);
+  function sanitizeCategory(c) {
+    const out = {
+      id: c.id || uid(),
+      name: String(c.name == null ? "" : c.name),
+      color: c.color || "#7a8a99",
+      updatedAt: backfillUpdatedAt(c),
+    };
+    if (c.createdAt) out.createdAt = c.createdAt;
+    return keepUnknown(c, out, KNOWN_CATEGORY_KEYS);
+  }
+
   // adds a category entry (with a palette color) for any category name used
   // by entries/backlog items that isn't already known
   function ensureCategories(categories, items) {
@@ -2455,7 +2473,7 @@
 
   function normalize(data) {
     data = data || emptyData();
-    data.categories = data.categories || [];
+    data.categories = (data.categories || []).map(sanitizeCategory);
     data.entries = (data.entries || []).map(Journal.sanitizeEntry);
     data.backlog = (data.backlog || []).map(Backlog.sanitizeBacklog);
     data.notes = (data.notes || []).map(Notes.sanitizeNote);
@@ -2465,7 +2483,7 @@
     // list rather than a third use of the journal's. Anything a to-do names
     // that isn't in it yet is added here, which is also what carries across
     // the to-dos that briefly used journal categories in 0.128.1.
-    data.todoCategories = data.todoCategories || [];
+    data.todoCategories = (data.todoCategories || []).map(sanitizeCategory);
     ensureCategories(data.todoCategories, data.todos.filter((t) => t.category));
     const incomingSettings = data.settings || {};
     // One-time migration: visual layout prefs used to be synced as part of
@@ -2534,6 +2552,7 @@
     ensureCategories(data.categories, [...data.entries, ...data.backlog]);
 
     if (data.financeCategories === undefined) data.financeCategories = Finance.seedFinanceCategories();
+    data.financeCategories = data.financeCategories.map(sanitizeCategory);
     data.financeEntries = (data.financeEntries || []).map(Finance.sanitizeFinanceEntry);
     data.recurringExpenses = (data.recurringExpenses || []).map(Finance.sanitizeRecurring);
     ensureCategories(data.financeCategories, [...data.financeEntries, ...data.recurringExpenses]);
@@ -3251,7 +3270,7 @@
   // pattern) — lets test/app.test.js exercise normalize()'s migrations and
   // its small pure helpers directly via require(), without needing this
   // whole file's real bootstrap (Storage.load, wire()'s DOM wiring, etc).
-  window.LifeLogApp = { normalize, backfillUpdatedAt, emptyData, ensureCategories };
+  window.LifeLogApp = { normalize, backfillUpdatedAt, emptyData, ensureCategories, sanitizeCategory };
   if (typeof module !== "undefined" && module.exports) module.exports = window.LifeLogApp;
 
   // `module` only exists under CommonJS (a Node `require()`, e.g. from a
