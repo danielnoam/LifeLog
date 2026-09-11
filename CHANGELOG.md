@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.141.0] - 2026-09-11
+
+### Fixed
+- **Finance no longer lets you create two categories with the same name in
+  different case.** Adding "games" when "Games" already existed was allowed —
+  the journal and the to-do list have always refused it. This mattered more
+  than a tidiness complaint: Finance builds a category's id by lowercasing
+  its name, so the two ended up sharing one id, which is exactly what sync
+  uses to tell categories apart. Renaming a category onto a case-variant of
+  another is refused now too.
+
 ## [0.140.0] - 2026-09-11
 
 ### Fixed

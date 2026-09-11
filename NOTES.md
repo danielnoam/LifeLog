@@ -16,6 +16,22 @@ what was decided against and why.
 
 ---
 
+- Finance's category ids are slugged from the name (`"Board Games"` ->
+  `board-games`) while the journal's and the to-do list's call uid(). That is
+  why Finance's duplicate check being case-sensitive (fixed in 0.141.0) was a
+  sync bug and not a tidiness one: "Games" and "games" were two categories
+  with one id, and the id is what mergeCollection matches on. Everywhere else
+  a case-variant duplicate would just look silly.
+
+  The slug also explains the comment in the rename path about deliberately
+  keeping the old id. Renaming a Finance category changes the thing its id was
+  derived from, so regenerating it would hand the category a new sync
+  identity and orphan the copy on every other device. The name cascades
+  across financeEntries and recurringExpenses; the id does not move.
+
+  This divergence is the main reason the one-shared-category-modal refactor
+  went to DROPPED.md rather than getting built.
+
 - categories got a sanitizer in 0.140.0, and the hole was wider than the TODO
   entry that found it said. All three collections are in merge.js's
   COLLECTION_KEYS, so all three sync — but *none* of them was sanitized on

@@ -1544,9 +1544,13 @@
     const newName = $("#finCatName").value.trim();
     const color = $("#finCatColorInput").value;
     if (!newName) return;
+    // Case-insensitive, matching the to-do and journal modals: "Games" and
+    // "games" are the same category to a reader, and the entries that carry
+    // the name as a string can only ever point at one of them.
+    const clash = (c) => c.name.toLowerCase() === newName.toLowerCase();
 
     if (!orig) { // adding a new category
-      if (state.data.financeCategories.some((c) => c.name === newName)) {
+      if (state.data.financeCategories.some(clash)) {
         toast("That category already exists", true);
         return;
       }
@@ -1564,7 +1568,7 @@
 
     const cat = state.data.financeCategories.find((c) => c.name === orig);
     if (!cat) return;
-    if (newName !== cat.name && state.data.financeCategories.some((c) => c !== cat && c.name === newName)) {
+    if (newName !== cat.name && state.data.financeCategories.some((c) => c !== cat && clash(c))) {
       toast("A category with that name already exists", true);
       return;
     }

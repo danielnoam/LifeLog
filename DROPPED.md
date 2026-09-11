@@ -171,3 +171,45 @@ fields through, being behind isn't destructive any more.
 
 The hook is there if this ever changes: `versionBehind()` is one call away
 from `persist()`.
+
+## One parameterised add/edit-category modal instead of three
+
+**The three copies are honest; the abstraction wouldn't be.** The journal's,
+Finance's and the to-do list's category modals are the same form over a
+different collection, and #todoCatModal was written as a knowing third copy
+(0.128.2) rather than doing this refactor in the middle of a feature. It sat
+in TODO.md until 0.141.0 on the assumption that it was just deferred work.
+
+The `open` half really is mechanical — ids, title, the "uses" count and its
+noun, the default colour, whether the name input takes focus. The save half
+is where it falls down, and the three divergences aren't accidents:
+
+- **Finance slugs its id from the name** (`"Board Games"` → `board-games`);
+  the other two call `uid()`. That isn't a style difference. It means a
+  Finance category's sync identity is derived from something the user can
+  see, so the rename path has to deliberately *keep* the old id while
+  cascading the name across financeEntries and recurringExpenses. A shared
+  save path would have to either impose one scheme on all three — changing
+  the merge identity of a collection that's already synced to a device — or
+  branch, which is the three copies again with extra indirection.
+- **The cascade differs.** Renaming a Finance category rewrites two arrays of
+  entries that store the name as a string. The journal's rewrites entries;
+  the to-do list's rewrites todos. Same idea, three different sets of arrays
+  and field names.
+- **What each stamps** was the one genuine inconsistency — createdAt versus
+  updatedAt — and 0.140.0 fixed it in `sanitizeCategory` without touching a
+  single modal, which is the tell: the part that was actually wrong was the
+  part that didn't need the refactor.
+
+So the bar was: do the whole thing (unify the id scheme, unify the cascade)
+or leave three honest copies. Unifying the id scheme is not worth a migration
+on a synced collection to save a form. And a shared form with three divergent
+save paths behind it is worse than either, because it tells the next reader
+these things are the same when they aren't.
+
+What did come out of it: 0.141.0 made Finance's duplicate check
+case-insensitive like the other two. That was a real bug — Finance slugs the
+id from the lowercased name, so "Games" and "games" produced two categories
+sharing the id `games`, which is exactly what mergeCollection keys on.
+
+If the id schemes ever converge for another reason, this is worth reopening.
