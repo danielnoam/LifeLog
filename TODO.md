@@ -37,11 +37,36 @@ todo:
   backlogCoverSize does, because it switches between two different root
   elements. See NOTES.md (0.133.0).
 
+- a new finance category carries createdAt but no updatedAt, and nothing
+  sanitizes financeCategories at all — there is no sanitizeFinanceCategory
+  the way there is for finance entries and recurring expenses, both of which
+  call backfillUpdatedAt. financeCategories *is* in merge.js's
+  COLLECTION_KEYS, so it syncs; mergeCollection compares content and stamps
+  what changed, which probably fills the gap on first edit, but two devices
+  that both added a category with no updatedAt have nothing to tie-break on.
+  todoCategories, added later, does it correctly. Found while sizing the
+  category-modal refactor below; worth fixing on its own, and cheaply.
+
 - one parameterised add/edit-category modal instead of three. The journal's,
   Finance's and the to-do list's are the same form over a different
-  collection, with different cascades on rename and delete. #todoCatModal was
-  written as a knowing third copy (0.128.2) rather than doing this refactor in
-  the middle of a feature.
+  collection. #todoCatModal was written as a knowing third copy (0.128.2)
+  rather than doing this refactor in the middle of a feature.
+
+  The three `open` functions are near-identical — ids, title, the "uses"
+  count and its noun, the default colour, and whether the name input takes
+  focus. That half is mechanical.
+
+  The save paths are not, and this is why it hasn't been done: they diverge
+  in three ways that a shared form would have to *resolve*, not just absorb.
+  Finance's duplicate check is case-sensitive and To-do's is case-insensitive
+  (so Finance will take both "Games" and "games"). Finance generates an id by
+  slugging the name, To-do calls uid(). Finance stamps createdAt, To-do
+  stamps updatedAt — the item above.
+
+  Each of those is a decision, and the last one changes the shape of a synced
+  collection. Do the whole thing or leave the three honest copies: a shared
+  form with three divergent save paths behind it is worse than either, because
+  it implies a sameness that isn't there.
 
 Ideas that turned out not to be worth doing, or not to be possible, live in
 DROPPED.md rather than sitting here unread.

@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.139.1] - 2026-09-11
+
+### Changed
+- Notes only: what the category-modal refactor would actually cost is written
+  down in TODO.md, along with a latent sync inconsistency found while sizing
+  it — new finance categories carry no `updatedAt`, and nothing sanitizes that
+  collection.
+
 ## [0.139.0] - 2026-09-11
 
 ### Added
