@@ -23,36 +23,14 @@ todo:
   row surviving is what the rework was for, and preserving one child by src
   means per-field patching that nothing else needs yet.
 
-- the rendering rework, continued. reconcile.js (0.129.0), the shared section
-  plumbing (0.131.0), To-do (0.130.0), Notes (0.132.0) and the Timeline
-  (0.133.0), the Backlog (0.134.0), the Ledger (0.135.0) the movement it
-  was all for (0.136.0) and Discover (0.137.0) have landed — every view.
-  What's left is cleanup:
-
-  1. The jump-nav carousel and the bulk action bar, the last two bits of
-     chrome still rebuilt wholesale. Note the 0.136.1 profile found neither
-     of them costly, so this is tidiness rather than speed. The chip rows went in 0.136.0; these two
-     are smaller and less often on screen, which is why they waited.
-  2. Leave animations. Moves and arrivals shipped in 0.136.0; a row leaving
-     still vanishes. Doing it means holding the node in the flow while it
-     goes, which puts every caller's bookkeeping briefly out of step with the
-     DOM — see NOTES.md. Worth it only if a vanishing row starts to read as a
-     glitch.
-  3. View Transitions for view/mode switches, where the whole page really does
-     change. The existing view-fade-in and mode-slide-* keyframes may simply
-     be replaced by it. Feature-detect.
-  4. Last, not first: render() drops `#viewBody.innerHTML = ""`, once no view
-     depends on being handed an empty root. See NOTES.md for why this moved
-     from the front of the list to the back.
-
-     Worth knowing before starting: this is now *tidiness*, not speed.
-     content-visibility (0.136.1) made the layout this was going to save
-     cheap enough that a profile no longer sees it. The clear still collapses
-     #viewBody for an instant, so captureScrollAnchor/restoreScrollAnchor
-     stay until it goes — but they are propping up a correctness problem now,
-     not a performance one. Every view holds exactly one root node, so the
-     shape of the fix is a registry of those roots that render() keeps while
-     removing everything else.
+- the rendering rework is finished. reconcile.js (0.129.0), the shared
+  section plumbing (0.131.0), To-do (0.130.0), Notes (0.132.0), the Timeline
+  (0.133.0), the Backlog (0.134.0), the Ledger (0.135.0), movement (0.136.0),
+  the layout-cost pass (0.136.1), Discover (0.137.0) and leave animations
+  (0.139.0) have all landed. Two planned steps were dropped rather than built
+  — View Transitions and render() losing its innerHTML clear — and DROPPED.md
+  says why for both. The jump-nav carousel is the one thing still rebuilt
+  wholesale, and it measured free.
 
   `epoch` is for a setting that changes a node's *root*, not its contents —
   adopt() handles contents. timelineCoverSize turned out not to need one;

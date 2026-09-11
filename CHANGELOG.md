@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.139.0] - 2026-09-11
+
+### Added
+- **A deleted row fades out instead of blinking away.** It's lifted out of the
+  flow first, so the list closes up straight away and the row fades over the
+  space rather than holding it open. Filtering a long list down still happens
+  at once — past a handful, departures stop being feedback and become a wave.
+
+### Changed
+- **The bulk action bar updates in place.** The count ticks as you select
+  without the Move-to-category picker closing under you mid-choice.
+
 ## [0.138.0] - 2026-09-11
 
 ### Added

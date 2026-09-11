@@ -1883,8 +1883,16 @@ html.force-mobile .backlog-section-head {
 }
 .ll-enter { animation: ll-enter var(--ll-move-dur) var(--ll-move-ease); }
 
+/* A row on its way out, already lifted out of the flow by reconcile.js so the
+   list has closed up behind it. */
+@keyframes ll-exit {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(4px) scale(.97); }
+}
+.ll-exit { animation: ll-exit .2s var(--ll-move-ease) forwards; z-index: 1; }
+
 @media (prefers-reduced-motion: reduce) {
-  .ll-enter { animation: none; }
+  .ll-enter, .ll-exit { animation: none; }
 }
 
 

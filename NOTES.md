@@ -16,6 +16,29 @@ what was decided against and why.
 
 ---
 
+- leave animations landed in 0.139.0 after being filed as "only if a vanishing
+  row starts to read as a glitch". The version that works takes the node *out
+  of the flow* at the exact place it was sitting and fades it there, so the
+  list closes up immediately and the survivors FLIP into the space while the
+  leaver fades over it. Keeping it in the flow — the obvious implementation —
+  means the list not closing until the fade ends, which reads as lag rather
+  than as motion. That was the objection recorded against doing this at all,
+  and taking it out of flow is what answers it.
+
+  MAX_EXITS caps it at a handful. Filtering six hundred rows down to ten
+  should not animate five hundred and ninety departures; past a few, exits
+  stop being feedback and become a wave.
+
+  The bulk bar is now one shared node held in app.js rather than one per view
+  — there is only ever one on screen. Its per-view callbacks ride on the
+  control nodes (`sel.__onMove` and friends) because the bar outlives the view
+  that built it, which is the same problem Discover's rows have and the same
+  answer.
+
+  The jump-nav carousel is deliberately left alone: three nodes that slide as
+  a unit, a transition:none/offsetWidth flush doing precise work, and a
+  profile that says it costs nothing.
+
 - three small gaps closed in 0.138.0, each with a decision in it:
 
   The To-do "No category" chip keys as "" — getFilteredTodos already read

@@ -179,11 +179,38 @@
     }));
   }
 
-  // A node arriving fades and slides the short distance in. Removals are
-  // deliberately not animated: holding a node in the flow while it leaves
-  // means the list doesn't close up until the animation ends, and every
-  // caller here would need to know that its own bookkeeping is momentarily
-  // out of step with the DOM.
+  // A leaving node is taken out of the flow at the exact place it was sitting
+  // and faded there, so the gap it left closes immediately — the survivors
+  // FLIP into the space while it fades on top of it. Leaving it *in* the flow
+  // would mean the list not closing up until the fade ended, which reads as
+  // lag rather than as motion.
+  //
+  // It is gone from the reconciler's bookkeeping the moment this is called,
+  // so nothing downstream has to know the DOM is briefly holding a node the
+  // state no longer lists. The pointer-events kill stops a half-faded row
+  // from swallowing the click aimed at whatever moved up underneath it.
+  const EXIT_MS = 200;
+  // Beyond a handful, exits stop being feedback and become a wave: filtering
+  // six hundred rows down to ten should not animate five hundred and ninety
+  // departures. Deleting one, or a few, is the case worth showing.
+  const MAX_EXITS = 12;
+
+  function playExit(container, node, box) {
+    const cbox = container.getBoundingClientRect();
+    // position:relative on a static element changes no layout, and gives the
+    // absolutely-placed leaver something to be placed against.
+    if (getComputedStyle(container).position === "static") container.style.position = "relative";
+    node.style.position = "absolute";
+    node.style.left = (box.left - cbox.left) + "px";
+    node.style.top = (box.top - cbox.top) + "px";
+    node.style.width = box.width + "px";
+    node.style.margin = "0";
+    node.style.pointerEvents = "none";
+    node.classList.add("ll-exit");
+    setTimeout(() => node.remove(), EXIT_MS + 40);
+  }
+
+  // A node arriving fades and slides the short distance in.
   function playEnter(node) {
     node.classList.add("ll-enter");
     const done = () => { node.classList.remove("ll-enter"); node.removeEventListener("animationend", done); };
@@ -271,10 +298,22 @@
       }
     }
 
-    for (const op of ops) {
-      if (op.op !== "remove") continue;
+    const removals = ops.filter((o) => o.op === "remove");
+    // Measured before anything is taken out, and only when few enough to be
+    // worth animating (see MAX_EXITS).
+    const exiting = animate && removals.length && removals.length <= MAX_EXITS ? [] : null;
+    if (exiting) {
+      for (const op of removals) {
+        const node = prev.nodes.get(op.key);
+        if (node && node.parentNode === container) exiting.push({ node, box: node.getBoundingClientRect() });
+      }
+    }
+    for (const op of removals) {
       const node = prev.nodes.get(op.key);
-      if (node) node.remove();
+      if (!node) continue;
+      const leaving = exiting && exiting.find((e) => e.node === node);
+      if (leaving) playExit(container, node, leaving.box);
+      else node.remove();
     }
 
     // Backwards, each node placed before the one that follows it: by the time

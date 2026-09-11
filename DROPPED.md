@@ -13,6 +13,44 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## View Transitions for the view and mode switches
+
+**Not possible without losing something better.** Planned as the last flourish
+of the rendering rework: replace the hand-written `view-fade-in` and
+`mode-slide-*` keyframes with `document.startViewTransition()`.
+
+The mode switch is swipe-driven and follows your finger — attachSwipe's
+`onMove(dx)` fires continuously through the drag, so the page tracks the
+gesture and letting go finishes the slide. A View Transition is snapshot-based
+and discrete: it captures before and after and animates between them. It
+cannot track a drag at all, so adopting it for the mode switch would trade a
+gesture that follows your hand for one that plays a canned animation after you
+let go.
+
+That leaves it usable only for the tab switch, where the existing fade is
+already cheap and already works — and having one of the two switches animate
+by a different mechanism than the other is worse than having both hand-written.
+
+## render() dropping `#viewBody.innerHTML = ""`
+
+**Both reasons for it turned out to be wrong.** It was the keystone of the
+rendering rework's plan, then its last step, and now it isn't happening.
+
+The first reason was speed: clearing collapses the page, which forces the
+scroll-anchor dance. content-visibility (0.136.1) made that layout cheap
+enough that a CPU profile no longer sees it — the clear costs one detach and
+reattach of nodes that survive it anyway, since every view holds its own root.
+
+The second reason was that removing it would let captureScrollAnchor and
+restoreScrollAnchor go with it. It wouldn't. Those don't exist to undo the
+collapse — restoreScrollAnchor repositions relative to the anchored *section*,
+which is what keeps you in place when the content above you changes height. A
+filter that drops rows above your scroll position still shifts everything
+under you, reconciled or not. That machinery earns its keep either way.
+
+So what's left is a registry of every view's root node threaded through five
+modules, to remove a line that costs nothing and frees nothing.
+
 ## Income tracking (Finance)
 
 **Removed in v0.85.0.** The Type field on entries, the income/expense/net

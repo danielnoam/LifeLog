@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.138.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.139.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1865,41 +1865,76 @@
     render();
   }
 
+  // One bar, reused. There is only ever one on screen — whichever view is
+  // active builds it — so it is held here rather than per view, and its
+  // controls are reconciled rather than rebuilt: the count ticks as you
+  // select without the move-select closing under you mid-choice.
+  //
+  // The jump-nav carousel next door is deliberately NOT converted. It is
+  // three nodes that slide as a unit, its transition:none / offsetWidth flush
+  // is doing precise work, and the 0.136.1 profile found it costs nothing.
+  let bulkBarEl = null;
+
   function bulkActionBar(opts) {
     const { categories, onMove, onDelete, onSync } = opts;
     const empty = state.bulk.selected.size === 0;
-    const bar = el("div", "bulk-bar");
-    bar.appendChild(el("span", "bulk-count", `${state.bulk.selected.size} selected`));
-    bar.appendChild(el("span", "bulk-progress"));
-    const moveSel = document.createElement("select");
-    moveSel.className = "bulk-move-select";
-    moveSel.disabled = empty;
-    fillSelect(moveSel, [
-      { value: "", label: "Move to category…" },
-      ...categories.map((c) => ({ value: c.name, label: c.name })),
-    ], "");
-    moveSel.onchange = async () => {
-      if (!moveSel.value) return;
-      await onMove(moveSel.value);
-    };
-    bar.appendChild(moveSel);
-    if (onSync) {
-      const syncBtn = el("button", "btn btn-sm", "🔄 Sync");
-      syncBtn.type = "button";
-      syncBtn.disabled = empty;
-      syncBtn.onclick = () => onSync(syncBtn);
-      bar.appendChild(syncBtn);
-    }
-    const delBtn = el("button", "btn btn-sm btn-danger", "Delete");
-    delBtn.type = "button";
-    delBtn.disabled = empty;
-    delBtn.onclick = onDelete;
-    bar.appendChild(delBtn);
-    const cancelBtn = el("button", "btn btn-sm", "Cancel");
-    cancelBtn.type = "button";
-    cancelBtn.onclick = toggleBulkMode;
-    bar.appendChild(cancelBtn);
-    return bar;
+    if (!bulkBarEl) bulkBarEl = el("div", "bulk-bar");
+
+    const parts = [
+      { key: "count", kind: "count" },
+      { key: "progress", kind: "progress" },
+      { key: "move", kind: "move" },
+      ...(onSync ? [{ key: "sync", kind: "sync" }] : []),
+      { key: "delete", kind: "delete" },
+      { key: "cancel", kind: "cancel" },
+    ];
+
+    reconcile(bulkBarEl, parts, {
+      keyOf: (part) => part.key,
+      create: (part) => {
+        if (part.kind === "count") return el("span", "bulk-count");
+        if (part.kind === "progress") return el("span", "bulk-progress");
+        if (part.kind === "move") {
+          const sel = document.createElement("select");
+          sel.className = "bulk-move-select";
+          // Reads the handler off the node, since the bar outlives the view
+          // that built it and onMove differs per view.
+          sel.onchange = async () => {
+            if (!sel.value) return;
+            const fn = sel.__onMove;
+            if (fn) await fn(sel.value);
+          };
+          return sel;
+        }
+        const btn = el("button", part.kind === "delete" ? "btn btn-sm btn-danger" : "btn btn-sm");
+        btn.type = "button";
+        if (part.kind === "sync") btn.onclick = () => btn.__onSync && btn.__onSync(btn);
+        if (part.kind === "delete") btn.onclick = () => btn.__onDelete && btn.__onDelete();
+        if (part.kind === "cancel") btn.onclick = toggleBulkMode;
+        return btn;
+      },
+      update: (node, part) => {
+        if (part.kind === "count") { node.textContent = `${state.bulk.selected.size} selected`; return; }
+        if (part.kind === "progress") return;
+        if (part.kind === "move") {
+          node.__onMove = onMove;
+          node.disabled = empty;
+          // Left alone while it's the thing being used, the same rule
+          // reconcile applies to any live input.
+          if (document.activeElement === node) return;
+          fillSelect(node, [
+            { value: "", label: "Move to category…" },
+            ...categories.map((c) => ({ value: c.name, label: c.name })),
+          ], "");
+          return;
+        }
+        node.disabled = part.kind === "cancel" ? false : empty;
+        if (part.kind === "sync") { node.__onSync = onSync; node.textContent = "🔄 Sync"; }
+        if (part.kind === "delete") { node.__onDelete = onDelete; node.textContent = "Delete"; }
+        if (part.kind === "cancel") node.textContent = "Cancel";
+      },
+    });
+    return bulkBarEl;
   }
 
   // Long-pressing a row is the only way into bulk mode (there's no separate
