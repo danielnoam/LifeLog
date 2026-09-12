@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.141.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.142.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -523,6 +523,12 @@
   // chip rows describe whichever mode is on screen (see years() and
   // buildCatFilter), so they're rebuilt before the render that reads them.
   function commitModeChange() {
+    // A selection belongs to the list it was made in, so it ends with that
+    // list — the same rule switchToView applies to a tab change. Without it
+    // the Notes view's two modes share one: select notes, switch to To-do,
+    // and bulk mode is still on with nothing on screen that can cancel it.
+    state.bulk.active = false;
+    state.bulk.selected.clear();
     buildYearFilter();
     buildCatFilter();
     render();
@@ -1848,7 +1854,13 @@
       // Mid-drag: update the checkbox in place instead of re-rendering, since a
       // full render() while the pointer is still down can detach the element the
       // gesture started on and cause mobile browsers to cancel the touch early.
-      document.querySelectorAll(`.bulk-check[data-bulk-id="${id}"]`).forEach((cb) => { cb.checked = value; });
+      // The box's own parent gets is-selected as well, for rows big enough to
+      // want more than a 14px tick (note cards); on the rows that don't style
+      // it the class is inert, which keeps this from naming views.
+      document.querySelectorAll(`.bulk-check[data-bulk-id="${id}"]`).forEach((cb) => {
+        cb.checked = value;
+        if (cb.parentElement) cb.parentElement.classList.toggle("is-selected", value);
+      });
       return;
     }
     render();
@@ -1883,7 +1895,10 @@
     const parts = [
       { key: "count", kind: "count" },
       { key: "progress", kind: "progress" },
-      { key: "move", kind: "move" },
+      // Both optional: Notes carry no category, so they get a bar that is
+      // Delete and Cancel and nothing that would sit there permanently
+      // disabled pretending otherwise.
+      ...(onMove ? [{ key: "move", kind: "move" }] : []),
       ...(onSync ? [{ key: "sync", kind: "sync" }] : []),
       { key: "delete", kind: "delete" },
       { key: "cancel", kind: "cancel" },
@@ -1947,7 +1962,7 @@
       if (state.bulk.active) return;
       // A long-press on the title text itself is left alone so it can still be
       // used to select/copy the text — only the rest of the row enters bulk mode.
-      if (ev.target.closest(".etitle, .bl-title")) return;
+      if (ev.target.closest(".etitle, .bl-title, .note-text")) return;
       start = { x: ev.clientX, y: ev.clientY };
       timer = setTimeout(() => {
         timer = null;
@@ -3232,6 +3247,8 @@
   Notes.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
     monthCardHeader, emptyState, buildYearFilter, buildCatFilter, saveUiState,
+    bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
+    openEntryModal: Journal.openEntryModal,
     backfillUpdatedAt, keepUnknown, MONTHS,
   });
 

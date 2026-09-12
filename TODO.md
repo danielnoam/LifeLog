@@ -17,12 +17,6 @@ todo:
   it costs find-in-page over unbuilt rows. Not worth it at this size; the
   numbers above are the baseline to beat if it ever is.
 
-- cover images are rebuilt on every row refill (adopt replaces children
-  wholesale), so a re-render costs a decode per visible cover. Cached, so no
-  download. Only worth special-casing if it shows up in a measurement — the
-  row surviving is what the rework was for, and preserving one child by src
-  means per-field patching that nothing else needs yet.
-
 - the rendering rework is finished. reconcile.js (0.129.0), the shared
   section plumbing (0.131.0), To-do (0.130.0), Notes (0.132.0), the Timeline
   (0.133.0), the Backlog (0.134.0), the Ledger (0.135.0), movement (0.136.0),
@@ -37,22 +31,16 @@ todo:
   backlogCoverSize does, because it switches between two different root
   elements. See NOTES.md (0.133.0).
 
-Ideas that turned out not to be worth doing, or not to be possible, live in
-DROPPED.md rather than sitting here unread.
-
-- Notes, deliberately left out of the first cut: no bulk select (the
-  timeline's long-press machinery would carry over), and no way to turn a
-  note into a timeline entry — "started Silksong" becoming a finished entry
-  is an obvious bridge, but it wants using the feed first to know what shape
-  it should take. Whether the year -> month grouping earns its keep at a few
-  hundred notes is the other thing only use will answer
-
-- Discover could answer "what's hot on the services I actually have" via
-  TMDB's watch-provider filter (/discover with with_watch_providers +
-  watch_region). The nearest thing to the Netflix browsing this was
-  originally asked for (see DROPPED.md)
+- whether Notes' year -> month grouping earns its keep at a few hundred
+  notes. The last open question from the first cut — bulk select and
+  note -> entry both landed in 0.142.0 — and the one only use can answer: a
+  feed you read top-down may want a flat list, or month cards may be exactly
+  what makes it scannable. Nothing to build until that's known.
 
 ---
+
+Ideas that turned out not to be worth doing, or not to be possible, live in
+DROPPED.md rather than sitting here unread.
 
 Two neighbours: **NOTES.md** carries the reasoning behind what's already
 shipped — read it before changing something that looks arbitrary — and

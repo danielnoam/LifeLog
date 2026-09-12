@@ -16,6 +16,39 @@ what was decided against and why.
 
 ---
 
+- Notes' bulk select reuses the timeline's machinery whole, with three
+  adjustments worth knowing about. bulkActionBar's Move control became
+  optional (it was unconditional) because a note has no category, and a
+  permanently disabled dropdown is worse than no dropdown.
+  attachLongPressSelect's "don't steal a long-press over text" guard gained
+  `.note-text` alongside `.etitle` and `.bl-title`, so holding a note's body
+  still selects the text. And createNoteCard takes the id as an argument
+  rather than reading it off the node, for the same reason createEntryRow
+  does: attachLongPressSelect binds once and captures `.id`, so it has to be
+  the reconcile key, which is fixed for the node's life.
+
+  The selected tint is kept in sync during a drag-paint by setBulkItem
+  toggling `is-selected` on the checkbox's *parent*, not on a named card
+  class. The skipRender path exists so a render can't detach the element
+  mid-gesture, which means the class has to be set by hand there; going
+  through the parent keeps app.js from naming a view's markup, and the class
+  is inert on rows that don't style it.
+
+- note -> entry copies rather than moves, and stores no link between the two.
+  A note carries a moment (createdAt, to the minute); an entry is filed under
+  a month. Deleting the note to "promote" it would throw the moment away, and
+  a link field would go into a collection that syncs — which is a merge
+  question, a UI question and a migration, to answer something use hasn't
+  asked yet. The title/notes split is first line against the rest, capped at
+  80 characters, and the cap keeps the whole first line in the notes field
+  when it trips so nothing you wrote is lost on the way across.
+
+- commitModeChange clears the bulk selection. A selection belongs to the list
+  it was made in, and the Notes view's two modes (feed and To-do) are two
+  different lists — selecting notes and switching to To-do previously left
+  bulk mode on with no bar on screen to cancel it. switchToView already did
+  this for tab changes; this is the same rule one level down.
+
 - Finance's category ids are slugged from the name (`"Board Games"` ->
   `board-games`) while the journal's and the to-do list's call uid(). That is
   why Finance's duplicate check being case-sensitive (fixed in 0.141.0) was a

@@ -657,18 +657,23 @@
   }
 
   // ---------- entry modal ----------
-  function openEntryModal(entry, fromBacklog, presetDate) {
+  // `preset` seeds an entry that is being created from somewhere else in the
+  // app: { year, month } from a month card's "+", plus optionally { title,
+  // notes } when a note is being turned into an entry. It is ignored while
+  // editing, where the entry itself is the source of truth.
+  function openEntryModal(entry, fromBacklog, preset) {
     const editing = !!entry;
     $("#entryModalTitle").textContent = editing ? "Edit entry" : "Add entry";
     $("#entryId").value = editing ? entry.id : "";
     $("#entryFromBacklog").value = fromBacklog ? fromBacklog.id : "";
-    $("#fTitle").value = editing ? entry.title : (fromBacklog ? fromBacklog.title : "");
+    $("#fTitle").value = editing ? entry.title
+      : (fromBacklog ? fromBacklog.title : ((preset && preset.title) || ""));
     fillCategorySelect($("#fCategory"), state.data.categories,
       editing ? entry.category : (fromBacklog ? fromBacklog.category : (state.data.categories[0] && state.data.categories[0].name)));
     fillSelect($("#fMonth"),
       MONTHS.slice(1).map((m, i) => ({ value: i + 1, label: m })),
-      editing ? entry.month : (presetDate ? presetDate.month : (new Date().getMonth() + 1)));
-    $("#fYear").value = editing ? entry.year : (presetDate ? presetDate.year : new Date().getFullYear());
+      editing ? entry.month : (preset ? preset.month : (new Date().getMonth() + 1)));
+    $("#fYear").value = editing ? entry.year : (preset ? preset.year : new Date().getFullYear());
     // Optional "Started" month for a multi-month span — a blank "— none —" by
     // default (single month). Start year defaults to the finish year, so the
     // common case (spanned within one year) is a single tap on the month.
@@ -676,7 +681,7 @@
       [{ value: "", label: "— none —" }].concat(MONTHS.slice(1).map((m, i) => ({ value: i + 1, label: m }))),
       editing && entry.startMonth ? entry.startMonth : "");
     $("#fStartYear").value = editing && entry.startYear ? entry.startYear
-      : (editing ? entry.year : (presetDate ? presetDate.year : new Date().getFullYear()));
+      : (editing ? entry.year : (preset ? preset.year : new Date().getFullYear()));
     $("#deleteEntryBtn").hidden = !editing;
     $("#moveToBacklogBtn").hidden = !editing;
     const added = $("#addedLine");
@@ -686,7 +691,7 @@
       added.hidden = false;
     } else added.hidden = true;
     setRating(editing ? (entry.rating || 0) : 0);
-    $("#fNotes").value = editing ? (entry.notes || "") : "";
+    $("#fNotes").value = editing ? (entry.notes || "") : ((preset && preset.notes) || "");
     const coverSrc = editing ? (entry.coverUrl || "") : (fromBacklog ? (fromBacklog.coverUrl || "") : "");
     const mediaSrc = editing ? (entry.mediaSource || "") : (fromBacklog ? (fromBacklog.mediaSource || "") : "");
     const mediaId = editing ? (entry.mediaId || "") : (fromBacklog ? (fromBacklog.mediaId || "") : "");

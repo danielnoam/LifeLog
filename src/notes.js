@@ -7,11 +7,15 @@
 // view module.
 (function () {
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
-    monthCardHeader, emptyState, backfillUpdatedAt, keepUnknown, MONTHS;
+    monthCardHeader, emptyState, backfillUpdatedAt, keepUnknown, MONTHS,
+    bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
+    openEntryModal;
 
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
-      monthCardHeader, emptyState, backfillUpdatedAt, keepUnknown, MONTHS } = ctx);
+      monthCardHeader, emptyState, backfillUpdatedAt, keepUnknown, MONTHS,
+      bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
+      openEntryModal } = ctx);
   }
 
   // Looked up at call time rather than captured: this file is required by the
@@ -87,6 +91,14 @@
   function noteCard(n) {
     const card = el("div", "note-card");
     card.dataset.id = n.id;
+    if (state.bulk.active) {
+      // is-bulk re-lays the card out around the box; is-selected tints it.
+      // A note card is a lot taller than a timeline row, so a 14px checkbox
+      // in its corner is thin feedback on its own.
+      card.classList.add("is-bulk");
+      card.classList.toggle("is-selected", state.bulk.selected.has(n.id));
+      card.appendChild(bulkCheckbox({ id: n.id }));
+    }
     const stamp = el("div", "note-stamp", formatStamp(noteDate(n)));
     if (n.editedAt) {
       const edited = formatEdited(n.editedAt);
@@ -106,16 +118,25 @@
   // a handler closed over `n` would keep opening the copy of the note that
   // existed when the card was first built — edit a note, click it, and the
   // pre-edit text comes back. Looking it up at click time can't go stale.
-  function createNoteCard() {
+  //
+  // The id is passed in rather than read off the node because
+  // attachLongPressSelect binds once and only ever reads `.id` — the same
+  // reason createEntryRow takes one. It is fixed for the life of the node,
+  // since it is the reconcile key.
+  function createNoteCard(id) {
     const card = el("div", "note-card");
-    const open = () => {
+    const activate = () => {
+      // While selecting, a tap is a tick. Opening the editor here would
+      // close the selection you were halfway through building.
+      if (state.bulk.active) { toggleBulkItem(card.dataset.id); return; }
       const n = (state.data.notes || []).find((x) => x.id === card.dataset.id);
       if (n) openNoteModal(n);
     };
-    card.onclick = open;
+    card.onclick = activate;
     card.onkeydown = (ev) => {
-      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); open(); }
+      if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); activate(); }
     };
+    attachLongPressSelect(card, { id });
     return card;
   }
 
@@ -128,14 +149,16 @@
     reconcile(card, parts, {
       animate: true,
       keyOf: (part) => part.key,
-      create: (part) => (part.kind === "head" ? el("h3") : createNoteCard()),
+      create: (part) => (part.kind === "head" ? el("h3") : createNoteCard(part.key)),
       update: (node, part) => adopt(node, part.kind === "head"
         // A "+" only on the month you are actually in. A note is stamped with
         // the moment it's written, so there is no such thing as adding one to
         // March — a + on March's card that produced a September note would
         // read as a bug. On the current month it means exactly what it looks
-        // like, and saves a reach for the compose button.
-        ? monthCardHeader(part.label, part.count, [], part.current ? { onAdd: () => openNoteModal(null) } : null)
+        // like, and saves a reach for the compose button. monthCardHeader
+        // swaps it for the month's select-all box while bulk mode is on.
+        ? monthCardHeader(part.label, part.count, notes,
+            part.current ? { onAdd: () => openNoteModal(null) } : null)
         : noteCard(part.note)),
     });
   }
@@ -144,7 +167,7 @@
   // through (that comes out last — see TODO.md), so holding this subtree is
   // what lets the year sections, month cards and note cards survive: clearing
   // a parent detaches these nodes without destroying them.
-  let notesRootEl = null, notesEmptyEl = null;
+  let notesRootEl = null, notesEmptyEl = null, notesBulkEl = null;
 
   function renderNotes(root) {
     if (!notesRootEl) notesRootEl = document.createElement("div");
@@ -155,6 +178,10 @@
       // Hands the section machinery an empty list so it drops the year blocks
       // it is still holding; without this they'd sit under the empty state.
       renderLazySections(shell, []);
+      // Both early returns come through here, so the bar is dropped in one
+      // place rather than twice: with no cards on screen there is nothing
+      // left to select, and a bar counting notes you can't see is a lie.
+      if (notesBulkEl) { notesBulkEl.remove(); notesBulkEl = null; }
       if (notesEmptyEl) notesEmptyEl.remove();
       notesEmptyEl = node;
       shell.appendChild(node);
@@ -226,6 +253,71 @@
     // browser flush layout once per section instead of once for the lot.
     const headHeights = sections.map((s) => s.header.getBoundingClientRect().height);
     sections.forEach((s, i) => s.node.style.setProperty("--year-head-h", headHeights[i] + "px"));
+
+    // Outside the shell, and rebuilt rather than reconciled — the same shape
+    // the timeline uses. No onMove: a note has no category to be moved into.
+    if (notesBulkEl) { notesBulkEl.remove(); notesBulkEl = null; }
+    if (state.bulk.active) {
+      notesBulkEl = bulkActionBar({ categories: [], onDelete: bulkDeleteNotesSelected });
+      root.appendChild(notesBulkEl);
+    }
+  }
+
+  // ---------- bulk actions ----------
+  // Delete is the only one. Moving needs categories, syncing needs media, and
+  // turning a pile of notes into entries at once would need a title and a
+  // category decided per note — which is the single-note flow below, and not
+  // something a bar can do for twenty of them.
+  async function bulkDeleteNotesSelected() {
+    const ids = state.bulk.selected;
+    const n = ids.size;
+    if (!confirm(`Delete ${n} note${n === 1 ? "" : "s"}?`)) return;
+    state.data.notes = state.data.notes.filter((x) => !ids.has(x.id));
+    state.bulk.active = false;
+    state.bulk.selected.clear();
+    render();
+    await persist();
+    toast(`Deleted ${n} note${n === 1 ? "" : "s"}`);
+  }
+
+  // ---------- note -> entry ----------
+  // A note is one blob of text; an entry has a title and a separate notes
+  // field. The split is the first line against the rest, which is how people
+  // already write these ("Finished Silksong" and then why). A single-line
+  // note becomes a title and leaves the entry's notes empty rather than
+  // saying the same thing twice.
+  //
+  // The cap is on the title only, and it keeps the whole first line in the
+  // notes when it trips, so nothing is silently lost.
+  const ENTRY_TITLE_MAX = 80;
+  function splitNoteForEntry(text) {
+    const lines = String(text == null ? "" : text).split("\n");
+    const first = lines[0].trim();
+    const rest = lines.slice(1).join("\n").trim();
+    if (first.length > ENTRY_TITLE_MAX) {
+      return { title: first.slice(0, ENTRY_TITLE_MAX).trimEnd(), notes: [first, rest].filter(Boolean).join("\n\n") };
+    }
+    return { title: first, notes: rest };
+  }
+
+  // The note is deliberately left where it is. It is stamped with a moment
+  // and the entry is filed under a month, so they are not the same record and
+  // deleting one to make the other loses the moment. There is no link field
+  // either: what a note-to-entry relationship should mean is exactly what
+  // using this is meant to answer, and a field in a synced collection is the
+  // expensive way to find out. Delete the note by hand if you want it gone.
+  function makeEntryFromNote() {
+    const n = state.data.notes.find((x) => x.id === editingNoteId);
+    if (!n) return;
+    const d = noteDate(n);
+    const { title, notes } = splitNoteForEntry(n.text);
+    closeNoteModal();
+    openEntryModal(null, null, {
+      year: d.getFullYear(),
+      month: d.getMonth() + 1,
+      title,
+      notes,
+    });
   }
 
   // ---------- modal ----------
@@ -236,6 +328,9 @@
     $("#noteModalTitle").textContent = note ? "Edit note" : "New note";
     $("#nText").value = note ? note.text : "";
     $("#deleteNoteBtn").hidden = !note;
+    // Only on a saved note: an unsaved one has nothing to convert yet, and
+    // "Make entry" before "Save" would read as a choice between the two.
+    $("#noteToEntryBtn").hidden = !note;
     const stamp = $("#noteStampLine");
     if (note) {
       let line = "Written " + formatStamp(noteDate(note));
@@ -285,6 +380,7 @@
     $("#noteForm").onsubmit = saveNoteFromForm;
     $("#cancelNoteBtn").onclick = closeNoteModal;
     $("#deleteNoteBtn").onclick = deleteNote;
+    $("#noteToEntryBtn").onclick = makeEntryFromNote;
     // Ctrl/Cmd+Enter saves from inside the textarea, where Enter is a
     // newline and the Save button is a reach away on a phone.
     $("#nText").onkeydown = (ev) => {
@@ -298,6 +394,6 @@
     renderNotes,
     openNoteModal, closeNoteModal,
     // pure helpers (test/notes.test.js)
-    noteDate, noteYear,
+    noteDate, noteYear, splitNoteForEntry,
   };
 })();

@@ -4,6 +4,27 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.142.0] - 2026-09-12
+
+### Added
+- **Bulk select in Notes.** Long-press a note to start selecting, the same
+  gesture the timeline and backlog already use, then tap to add more or drag
+  across the boxes to sweep a run of them. A month's header selects that whole
+  month. Delete is the only bulk action — a note has no category to be moved
+  into and no media to sync — and a selected note is tinted rather than only
+  ticked, since a note card is a lot bigger than a timeline row.
+- **Make a note into a timeline entry.** Open a note and there is now a "Make
+  entry" button: the first line becomes the entry's title, anything after it
+  becomes the entry's notes, and the month is the one the note was written in.
+  The note itself stays where it is — it is stamped with a moment and the entry
+  is filed under a month, so they aren't the same record. Delete the note by
+  hand if you wanted it moved rather than copied.
+
+### Changed
+- Switching between a view's modes now clears a bulk selection, the way
+  switching tabs already did. Without it, selecting notes and then flipping to
+  To-do left selection mode on with nothing on screen that could turn it off.
+
 ## [0.141.0] - 2026-09-11
 
 ### Fixed

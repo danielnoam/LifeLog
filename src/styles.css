@@ -789,10 +789,27 @@ select:focus { outline: none; border-color: var(--accent); }
   padding: 8px 10px; border-radius: 8px; cursor: pointer;
   background: var(--bg-elev-2); border: 1px solid var(--border);
   margin-bottom: 6px;
+  /* Same reason as .entry: without these a long-press is taken as "select
+     text" and the bulk-select gesture never fires. The note's own text opts
+     back in below, so it can still be held to select and copy. */
+  -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
 }
+.note-card .note-text { -webkit-touch-callout: default; -webkit-user-select: text; user-select: text; }
+/* Bulk mode puts the box in a column of its own beside the note, spanning
+   both rows. Placed explicitly rather than by flow: the box comes first in
+   the DOM so the tab order is right, which auto-placement would read as
+   "row 1, column 1" and push the text under it. */
+.note-card.is-bulk {
+  display: grid; grid-template-columns: auto 1fr; column-gap: 8px; align-items: start;
+}
+.note-card.is-bulk > .bulk-check { grid-column: 1; grid-row: 1 / 3; margin-top: 2px; }
+.note-card.is-bulk > .note-stamp { grid-column: 2; grid-row: 1; }
+.note-card.is-bulk > .note-text { grid-column: 2; grid-row: 2; }
 .note-card:last-child { margin-bottom: 0; }
 .note-card:hover { border-color: var(--accent); }
 .note-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* After :hover, so a selected card stays marked while the pointer is over it. */
+.note-card.is-selected { border-color: var(--accent); background: var(--accent-soft); }
 .note-stamp { font-size: 11px; color: var(--text-faint); margin-bottom: 4px; }
 .note-edited { font-style: italic; }
 .note-text {

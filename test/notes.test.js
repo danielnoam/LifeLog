@@ -109,4 +109,64 @@ test("year and search narrow together, not separately", () => {
   assert.deepStrictEqual(getFilteredNotes().map((n) => n.id), ["a"]);
 });
 
+console.log("\nsplitNoteForEntry");
+
+const { splitNoteForEntry } = Notes;
+
+test("a one-line note is all title, and leaves the entry's notes empty", () => {
+  // The duplication case: repeating the title in the notes field would be
+  // the obvious implementation and the wrong one.
+  assert.deepStrictEqual(splitNoteForEntry("Finished Silksong"), { title: "Finished Silksong", notes: "" });
+});
+
+test("the first line titles it and the rest becomes the notes", () => {
+  const r = splitNoteForEntry("Finished Silksong\nHarder than Hollow Knight, and better for it.");
+  assert.strictEqual(r.title, "Finished Silksong");
+  assert.strictEqual(r.notes, "Harder than Hollow Knight, and better for it.");
+});
+
+test("blank lines between the two are not carried into the notes", () => {
+  const r = splitNoteForEntry("Finished Silksong\n\n\nWorth it.");
+  assert.strictEqual(r.title, "Finished Silksong");
+  assert.strictEqual(r.notes, "Worth it.");
+});
+
+test("line breaks inside the body survive", () => {
+  const r = splitNoteForEntry("Trip\nDay one: rain.\nDay two: less rain.");
+  assert.strictEqual(r.notes, "Day one: rain.\nDay two: less rain.");
+});
+
+test("surrounding whitespace is trimmed off both halves", () => {
+  const r = splitNoteForEntry("   Finished Silksong   \n   Worth it.   ");
+  assert.strictEqual(r.title, "Finished Silksong");
+  assert.strictEqual(r.notes, "Worth it.");
+});
+
+test("an over-long first line is cut for the title but kept whole in the notes", () => {
+  // Nothing you wrote may be lost on the way across, so the full line lands
+  // in the notes when the title can't hold it.
+  const long = "x".repeat(200);
+  const r = splitNoteForEntry(long);
+  assert.strictEqual(r.title.length, 80);
+  assert.ok(r.notes.startsWith(long), "the whole first line is still there");
+});
+
+test("an over-long first line keeps the body under it too", () => {
+  const long = "y".repeat(120);
+  const r = splitNoteForEntry(long + "\nthe rest");
+  assert.strictEqual(r.title, "y".repeat(80));
+  assert.strictEqual(r.notes, long + "\n\nthe rest");
+});
+
+test("a title cut mid-way does not end on a space", () => {
+  const r = splitNoteForEntry("word ".repeat(40));
+  assert.strictEqual(r.title, r.title.trimEnd());
+});
+
+test("an empty or junk note does not throw", () => {
+  assert.deepStrictEqual(splitNoteForEntry(""), { title: "", notes: "" });
+  assert.deepStrictEqual(splitNoteForEntry(null), { title: "", notes: "" });
+  assert.deepStrictEqual(splitNoteForEntry(undefined), { title: "", notes: "" });
+});
+
 console.log(`\n${passed} test(s) passed.`);

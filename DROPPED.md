@@ -213,3 +213,57 @@ id from the lowercased name, so "Games" and "games" produced two categories
 sharing the id `games`, which is exactly what mergeCollection keys on.
 
 If the id schemes ever converge for another reason, this is worth reopening.
+
+## Preserving cover images across a row refill
+
+**Built it, measured it, threw it away.** adopt() replaces a row's children
+wholesale, so the <img> a refill installs is a different element from the one
+before it. The TODO entry asking for this assumed that costs a decode per
+visible cover, and guessed it might also flash — a fresh <img> with no bitmap
+paints nothing.
+
+Neither is true. The implementation was a reuseImages() pass in adopt():
+match the fresh tree's `img[src]` against the existing one's, keep the node
+that already holds the bitmap, carry the fresh attributes and onerror onto
+it. It worked — element identity survived a re-render, covers still swapped
+when the src changed, neighbours stayed put. Then, against a control build
+with the pass disabled:
+
+| | before | after |
+|---|---|---|
+| same <img> element after a re-render | 0/120 | 120/120 |
+| covers with a bitmap to paint, same task | **120/120** | **120/120** |
+| reconcile time, 120 rows | **4.3-7.4ms** | **6.8-17ms** |
+
+The middle row is the whole argument and it says no. Chrome hands back a
+memory-cached image synchronously: the fresh <img> is already `complete` with
+a non-zero naturalWidth on the same task that created it, so there is no
+frame where the art is missing and nothing to fix. Measured at 12 small
+covers and again at 120 incompressible 600x600 PNGs (~1.4 MB of decoded
+bitmap each, ~168 MB total) to force memory-cache pressure — still 120/120.
+
+What it did buy was a consistent slowdown, because the pass walks both trees
+with querySelectorAll on every row that has an image, and a new hazard: a
+reused node runs the *fresh* handler, so any onerror closing over its own
+`img` would fire against the detached one and silently do nothing. Four
+handlers had to be rewritten to say `this`.
+
+So: a measurable cost, a new trap, and zero benefit. The TODO entry set the
+bar at "only worth special-casing if it shows up in a measurement" — this is
+that measurement. Reopen only if a profile ever shows image decode on the
+render path, which would mean something about how Chrome caches has changed.
+
+## Discover via TMDB's watch-provider filter
+
+**Decided against.** Discover could have answered "what's hot on the services
+I actually have" through /discover with `with_watch_providers` +
+`watch_region` — the nearest this app was going to get to the Netflix-style
+browsing that prompted Discover in the first place (the original idea, and
+why it wasn't possible, is further up this file).
+
+Dropped on the owner's call rather than on a technical finding: it is a
+second discovery mode to build and maintain, on top of a Discover that
+already works, for a browsing habit the app doesn't otherwise serve. The API
+support is real and unchanged, so if Discover ever becomes something used
+often enough to want steering by subscription, this is still the way to do
+it.
