@@ -16,25 +16,30 @@ what was decided against and why.
 
 ---
 
-- the section navbar (sectionNavBar in backlog.js) is a switcher, not a
-  jump-to. Scrolling past four sources' worth of trending lists to reach the
-  fifth was the thing being fixed, and a jump-link leaves every section built
-  — which on Discover also means fetching every source. Building one section
-  is what lets Discover call one API instead of four, which is what the file's
-  own opening comment asked for and hadn't got.
+- the jump row (#jumpNav) is the app's secondary navbar, and jumpSectionSelector
+  decides where it appears. Its rule used to be "the view's first mode only",
+  which was standing in for "this mode is a stack of sections you can page
+  between". That proxy holds for the other three views — Stats, Summary and
+  To-do are fixed layouts sharing a tab with a list — but not for the Backlog,
+  whose three modes are all section stacks with the same `.backlog-section-head`
+  markup. So Next releases and Discover had no row, and were exactly the
+  lists that wanted one: a dozen release months, a card per media source.
+  Backlog is now checked before the first-mode rule rather than after it.
 
-  Three things every caller has to do, and the reason they go through shared
-  helpers rather than each rolling their own: resolveActiveKey re-resolves the
-  stored key against the current list, because a category chip or a sync can
-  drop the section you were on and the mode would otherwise go blank;
-  pickSection scrolls to the top, because render()'s anchor-relative restore
-  anchors to the section being replaced and lands you partway down a section
-  you have not seen; and the bar hides itself below two sections, since one
-  pill is not a choice.
+  The same function feeds captureScrollAnchor, so both modes also gained
+  anchored scroll restore across re-renders — which matters most in Discover,
+  where cards are rebuilt as fetches land.
 
-  Both active keys live in memory, not in visual settings. They are "where am
-  I looking right now", the same category as discoverKind, not a preference
-  worth surviving a reload.
+  Two things about the row that are easy to get wrong when testing it: it is
+  mobile-only (`.jump-nav { display: none }` outside the mobile media query
+  and `html.force-mobile`), so the is-active class alone says nothing about
+  whether it is on screen; and at maximum scroll the last sections share one
+  screenful, so paging back moves the index without moving scrollY.
+
+  0.143.0 built a pill switcher for this instead — one section shown at a
+  time — which was the wrong thing: the ask was for the bar Entries already
+  had. It is gone, along with the Discover single-source fetching that only
+  made sense while one card was visible.
 
 - the Timeline's month summary is off by default and the Ledger's is on,
   which is not an oversight. The Ledger's shipped on and turning it off for

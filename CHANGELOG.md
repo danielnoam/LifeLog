@@ -4,16 +4,24 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.144.0] - 2026-09-12
+
+### Changed
+- **Next releases and Discover now use the same jump row Entries has.** The
+  ◀ ▶ bar above the tabs pages between sections — release months in Next
+  releases, one card per source in Discover — exactly as it already did for
+  the backlog's categories. It replaces the pill switcher 0.143.0 shipped,
+  which hid every section but one; all sections are back on a single scroll,
+  and the bar just moves you between them.
+- Discover fetches every source it shows again, undoing the other half of
+  0.143.0: that change only made sense while one card was visible at a time.
+
 ## [0.143.0] - 2026-09-12
 
 ### Added
-- **Discover and Next releases each get a secondary navbar.** Both used to
-  stack every section into one long scroll — a card per media source, a card
-  per release month. Now a row of pills across the top names each section and
-  shows one at a time. Next releases' pills carry a count; Discover's don't,
-  because a source's count isn't known until that source has been asked. The
-  bar hides itself when there's only one section, and Discover's Popular /
-  Coming soon switch is unchanged above it.
+- ~~**Discover and Next releases each get a secondary navbar.**~~ Shipped as
+  a row of pills showing one section at a time; replaced in 0.144.0 by the
+  jump row Entries already had, which was what was wanted. See that entry.
 - **Swipe between Settings tabs.** The same left/right gesture the main views
   use, on a phone. The ends don't wrap, a vertical drag down a long panel
   isn't mistaken for a tab change, and the tab strip scrolls to keep the
@@ -26,9 +34,8 @@ the bottom of Settings.
   on a month with only one category in it.
 
 ### Changed
-- Discover now fetches only the source you're looking at, and ↻ Refresh
-  refetches that one. Showing four sources at once meant calling four APIs to
-  glance at the Backlog.
+- ~~Discover now fetches only the source you're looking at.~~ Reverted in
+  0.144.0 along with the pill switcher that made it make sense.
 
 ### Fixed
 - A year with one entry in it said "1 entries".

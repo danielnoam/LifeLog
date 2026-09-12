@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.143.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.144.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1150,11 +1150,17 @@
   // syncJumpNavToScroll below.
   function jumpSectionSelector() {
     const spec = VIEW_MODES[state.view];
+    // All three Backlog modes are stacks of sections with the same header —
+    // categories in Entries, release months in Next releases, one card per
+    // source in Discover — so all three can be paged. The first-mode rule
+    // below was standing in for "has sections to page between", which is only
+    // true of the other views: it left Next releases and Discover scrolling
+    // by hand through exactly the kind of list this row exists for.
+    if (state.view === "backlog") return ".backlog-section-head";
     // Stats, Summary and To-do are fixed layouts with no headers to page
     // between, so the row goes — which is a per-mode question now that each
     // of them shares a tab with a list that does have them.
     if (spec && spec.get() !== modeIds(spec)[0]) return null;
-    if (state.view === "backlog") return ".backlog-section-head";
     return ".year-head";
   }
   function jumpLabelFor(sectionEl) {
