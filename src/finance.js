@@ -614,11 +614,15 @@
     // that actually has entries this month, largest first. Counted items only,
     // so the lines add up to the total under them (a skipped or paused
     // occurrence is in neither).
-    const byCat = groupBy(countedItems, (f) => f.category);
-    const catRows = Object.keys(byCat)
-      .map((name) => ({ name, total: byCat[name].reduce((sum, f) => sum + f.amount, 0) }))
-      .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
-    if (catRows.length) parts.push({ key: "__cats", kind: "cats", catRows });
+    // Off by setting means not computed either, not merely not shown: this
+    // runs per month card on every render.
+    if (state.visual.ledgerMonthSummary !== "hide") {
+      const byCat = groupBy(countedItems, (f) => f.category);
+      const catRows = Object.keys(byCat)
+        .map((name) => ({ name, total: byCat[name].reduce((sum, f) => sum + f.amount, 0) }))
+        .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+      if (catRows.length) parts.push({ key: "__cats", kind: "cats", catRows });
+    }
     parts.push({
       key: "__total", kind: "total", animKey: "fin-month-total:" + key,
       total: countedItems.reduce((sum, f) => sum + f.amount, 0),

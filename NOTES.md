@@ -16,6 +16,63 @@ what was decided against and why.
 
 ---
 
+- the section navbar (sectionNavBar in backlog.js) is a switcher, not a
+  jump-to. Scrolling past four sources' worth of trending lists to reach the
+  fifth was the thing being fixed, and a jump-link leaves every section built
+  — which on Discover also means fetching every source. Building one section
+  is what lets Discover call one API instead of four, which is what the file's
+  own opening comment asked for and hadn't got.
+
+  Three things every caller has to do, and the reason they go through shared
+  helpers rather than each rolling their own: resolveActiveKey re-resolves the
+  stored key against the current list, because a category chip or a sync can
+  drop the section you were on and the mode would otherwise go blank;
+  pickSection scrolls to the top, because render()'s anchor-relative restore
+  anchors to the section being replaced and lands you partway down a section
+  you have not seen; and the bar hides itself below two sections, since one
+  pill is not a choice.
+
+  Both active keys live in memory, not in visual settings. They are "where am
+  I looking right now", the same category as discoverKind, not a preference
+  worth surviving a reload.
+
+- the Timeline's month summary is off by default and the Ledger's is on,
+  which is not an oversight. The Ledger's shipped on and turning it off for
+  everyone would be a change nobody asked for; the Timeline's is new, and
+  adding two lines to every month card in the view by default is a change
+  nobody asked for either. Both are computed only when shown — the work runs
+  per month card per render, so the setting gates the groupBy, not just the
+  markup.
+
+  Neither draws for a single category: the month header already carries the
+  count, and one line repeating it under a coloured dot is noise. That rule
+  lives in monthCatRows (journal.js) and is why a Timeline month can have the
+  setting on and still show nothing.
+
+- Settings tab swiping does not wrap, while the bottom tab bar's stepMode
+  does. A swipe is a nudge in a direction and jumping from Data to Media
+  because you nudged once more is not what that gesture means; a tap on a tab
+  you are already on is a discrete "next" and wrapping is what makes the whole
+  set reachable. cycleMode makes the same choice as the swipe for the same
+  reason.
+
+- the rendering rework, start to finish. reconcile.js (0.129.0), the shared
+  section plumbing (0.131.0), To-do (0.130.0), Notes (0.132.0), the Timeline
+  (0.133.0), the Backlog (0.134.0), the Ledger (0.135.0), movement (0.136.0),
+  the layout-cost pass (0.136.1), Discover (0.137.0) and leave animations
+  (0.139.0). Two planned steps were dropped rather than built — View
+  Transitions and render() losing its innerHTML clear — and DROPPED.md says
+  why for both. The jump-nav carousel is the one thing still rebuilt
+  wholesale, and it measured free.
+
+  `epoch` is for a setting that changes a node's *root*, not its contents —
+  adopt() handles contents. timelineCoverSize turned out not to need one;
+  backlogCoverSize does, because it switches between two different root
+  elements. See the 0.133.0 entry below.
+
+  (Kept here rather than in TODO.md, where it sat until 0.143.0: nothing in
+  it is work, and a to-do list is for things still to do.)
+
 - Notes' bulk select reuses the timeline's machinery whole, with three
   adjustments worth knowing about. bulkActionBar's Move control became
   optional (it was unconditional) because a note has no category, and a

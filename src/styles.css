@@ -665,6 +665,9 @@ select:focus { outline: none; border-color: var(--accent); }
 .month-cat .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
 .month-cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .month-cat .famount { font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+/* The Timeline's count sits where the Ledger's amount does, without the
+   money colour — same column, same alignment, different unit. */
+.month-cat-n { font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .month-cats + .month-total { border-top: none; margin-top: 5px; }
 /* The to-do box sits above both panels: press it, type, Enter. It's the
    whole "add" affordance, so it's always open rather than hidden behind a
@@ -1044,6 +1047,38 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 }
 .seg-btn:hover { color: var(--text); }
 .seg-btn.active { background: var(--surface-card); color: var(--text); box-shadow: var(--shadow); }
+
+/* The secondary navbar Discover and Next releases both use: a scrollable row
+   of pills, one per section, one section shown at a time. Shaped like the
+   category chips rather than like .seg, because the number of pills is the
+   number of sources or months you have — it is a list that scrolls, not a
+   fixed two-way switch. */
+.section-nav {
+  display: flex; gap: 6px; align-items: center;
+  overflow-x: auto; overflow-y: hidden;
+  margin-bottom: 12px; padding-bottom: 2px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.section-nav::-webkit-scrollbar { display: none; }
+.section-nav-btn {
+  display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto;
+  appearance: none; cursor: pointer; font: inherit;
+  padding: 4px 12px; border-radius: 20px; font-size: 12.5px; font-weight: 550;
+  border: 1px solid var(--border); background: var(--bg-elev); color: var(--text);
+  max-width: 60vw; white-space: nowrap;
+  transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.section-nav-label { overflow: hidden; text-overflow: ellipsis; }
+.section-nav-btn:hover { border-color: var(--accent); }
+.section-nav-btn.active { border-color: transparent; background: var(--accent); color: var(--text-on-accent); }
+.section-nav-n {
+  font-size: 11px; font-variant-numeric: tabular-nums; color: var(--text-faint);
+  background: var(--bg-elev-2); border-radius: 10px; padding: 0 6px; flex: 0 0 auto;
+}
+/* No plate on the active pill: --text-on-accent is dark in some themes and
+   light in others, so any fixed overlay is low-contrast in one of them.
+   Inheriting the pill's own colour is right in all of them. */
+.section-nav-btn.active .section-nav-n { color: inherit; background: none; padding: 0; opacity: .75; }
 
 /* next releases */
 .up-section-sub { font-size: 11px; color: var(--text-faint); }

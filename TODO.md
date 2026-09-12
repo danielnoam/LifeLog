@@ -17,26 +17,6 @@ todo:
   it costs find-in-page over unbuilt rows. Not worth it at this size; the
   numbers above are the baseline to beat if it ever is.
 
-- the rendering rework is finished. reconcile.js (0.129.0), the shared
-  section plumbing (0.131.0), To-do (0.130.0), Notes (0.132.0), the Timeline
-  (0.133.0), the Backlog (0.134.0), the Ledger (0.135.0), movement (0.136.0),
-  the layout-cost pass (0.136.1), Discover (0.137.0) and leave animations
-  (0.139.0) have all landed. Two planned steps were dropped rather than built
-  — View Transitions and render() losing its innerHTML clear — and DROPPED.md
-  says why for both. The jump-nav carousel is the one thing still rebuilt
-  wholesale, and it measured free.
-
-  `epoch` is for a setting that changes a node's *root*, not its contents —
-  adopt() handles contents. timelineCoverSize turned out not to need one;
-  backlogCoverSize does, because it switches between two different root
-  elements. See NOTES.md (0.133.0).
-
-- whether Notes' year -> month grouping earns its keep at a few hundred
-  notes. The last open question from the first cut — bulk select and
-  note -> entry both landed in 0.142.0 — and the one only use can answer: a
-  feed you read top-down may want a flat list, or month cards may be exactly
-  what makes it scannable. Nothing to build until that's known.
-
 ---
 
 Ideas that turned out not to be worth doing, or not to be possible, live in

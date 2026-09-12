@@ -63,7 +63,8 @@
       block.dataset.year = y; // lets the Stats heatmap scroll straight to this year
       const head = el("div", "year-head");
       head.appendChild(el("h2", null, y));
-      head.appendChild(el("span", "ycount", `${byYear[y].length} entries`));
+      const yn = byYear[y].length;
+      head.appendChild(el("span", "ycount", `${yn} ${yn === 1 ? "entry" : "entries"}`));
       const accs = (state.data.accomplishments && state.data.accomplishments[y]) || [];
       if (accs.length) {
         const a = el("div", "accs");
@@ -209,16 +210,60 @@
   // A month's header plus its entries, keyed so an entry keeps its row. The
   // header rides in the same list under a reserved key, which leaves the
   // card's DOM shape exactly as it was.
+  // What the month was made of, under its rows: one line per category with a
+  // count, biggest first. The Ledger's equivalent (fillFinanceMonthCard) is
+  // the same shape with money instead of counts, deliberately — the two views
+  // sit side by side in the same grid and a reader shouldn't have to learn
+  // two layouts. Off by default, unlike the Ledger's: money wants a
+  // breakdown, a list of five things you finished in March mostly doesn't.
+  //
+  // Not computed at all when it's off. This runs per month card per render.
+  function monthCatRows(items) {
+    if (state.visual.timelineMonthSummary !== "show") return null;
+    const byCat = countBy(items, (e) => e.category);
+    const rows = Object.keys(byCat)
+      .map((name) => ({ name, n: byCat[name] }))
+      .sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
+    // One category is no breakdown — the header already says how many, and
+    // the line would just repeat it under a colour.
+    return rows.length > 1 ? rows : null;
+  }
+
+  function monthCatsEl(catRows) {
+    const cats = el("div", "month-cats");
+    for (const c of catRows) {
+      const row = el("div", "month-cat");
+      const dot = el("span", "dot");
+      dot.style.background = colorOf(c.name);
+      row.appendChild(dot);
+      const name = el("span", "month-cat-name", c.name);
+      name.title = c.name;
+      row.appendChild(name);
+      row.appendChild(el("span", "month-cat-n", String(c.n)));
+      cats.appendChild(row);
+    }
+    return cats;
+  }
+
   function fillMonthCard(card, label, monthItems, onAdd) {
     const parts = [{ key: "__head", kind: "head", label, items: monthItems, onAdd }];
     for (const e of monthItems) parts.push({ key: e.id, kind: "row", entry: e });
+    const catRows = monthCatRows(monthItems);
+    if (catRows) parts.push({ key: "__cats", kind: "cats", catRows });
     reconcile(card, parts, {
       animate: true,
       keyOf: (part) => part.key,
-      create: (part) => (part.kind === "head" ? el("h3") : createEntryRow(part.entry.id)),
-      update: (node, part) => adopt(node, part.kind === "head"
-        ? monthCardHeader(part.label, part.items.length, part.items, { onAdd: part.onAdd })
-        : entryRow(part.entry)),
+      create: (part) => {
+        if (part.kind === "head") return el("h3");
+        if (part.kind === "cats") return el("div", "month-cats");
+        return createEntryRow(part.entry.id);
+      },
+      update: (node, part) => {
+        if (part.kind === "cats") { adopt(node, monthCatsEl(part.catRows)); return; }
+        adopt(node, part.kind === "head"
+          ? monthCardHeader(part.label, part.items.length, part.items, { onAdd: part.onAdd })
+          : entryRow(part.entry));
+      },
     });
   }
 

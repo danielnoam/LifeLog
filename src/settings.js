@@ -12,7 +12,7 @@
   // Shared app plumbing, provided by app.js via init(ctx).
   let state, $, el, toast, persist, render, normalize, afterDataChange,
     setSyncing, refreshStorageStatus, versionBehind, APP_VERSION, schedulePoll,
-    saveVisualSettings, savePrivacySettings,
+    saveVisualSettings, savePrivacySettings, attachSwipe,
     applyMonthLayout, applyFont, applyTheme, applyForceLayout,
     prefersReducedMotion, biometricAvailable, hashPin, randomHex, registerBiometric,
     updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
@@ -24,7 +24,7 @@
   function init(ctx) {
     ({ state, $, el, toast, persist, render, normalize, afterDataChange,
       setSyncing, refreshStorageStatus, schedulePoll, versionBehind, APP_VERSION,
-      saveVisualSettings, savePrivacySettings,
+      saveVisualSettings, savePrivacySettings, attachSwipe,
       applyMonthLayout, applyFont, applyTheme, applyForceLayout,
       prefersReducedMotion, biometricAvailable, hashPin, randomHex, registerBiometric,
       updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
@@ -294,8 +294,29 @@
     }
   }
 
+  // Swiping between panels on a phone, the same gesture the views use. The
+  // ends are the ends rather than wrapping: a swipe is a nudge in a
+  // direction, and jumping from Data to Media because you nudged once more
+  // is not what that gesture means. (cycleMode makes the same choice; the
+  // tab bar's stepMode wraps because a tap there is a discrete "next".)
+  function stepSettingsTab(delta) {
+    const tabs = [...document.querySelectorAll(".stab")];
+    const i = tabs.findIndex((t) => t.classList.contains("active"));
+    const next = tabs[i + delta];
+    if (i < 0 || !next) return;
+    setSettingsTab(next.dataset.stab);
+  }
+
   function setSettingsTab(name) {
-    document.querySelectorAll(".stab").forEach((t) => t.classList.toggle("active", t.dataset.stab === name));
+    document.querySelectorAll(".stab").forEach((t) => {
+      const on = t.dataset.stab === name;
+      t.classList.toggle("active", on);
+      // Six tabs don't fit a phone, so the strip scrolls. Without this a tab
+      // reached by swiping could end up active while off-screen, which reads
+      // as the swipe having done nothing. "nearest" is a no-op when the tab
+      // is already visible, so clicking is unaffected.
+      if (on && t.scrollIntoView) t.scrollIntoView({ block: "nearest", inline: "nearest" });
+    });
     document.querySelectorAll(".settings-panel").forEach((p) => {
       const isActive = p.dataset.panel === name;
       p.classList.toggle("active", isActive);
@@ -468,6 +489,8 @@
     $("#timelineCoverSize").value = state.visual.timelineCoverSize || "small";
     $("#backlogCoverSize").value = state.visual.backlogCoverSize || "big";
     $("#backlogSummaries").value = state.visual.backlogSummaries || "show";
+    $("#ledgerMonthSummary").value = state.visual.ledgerMonthSummary || "show";
+    $("#timelineMonthSummary").value = state.visual.timelineMonthSummary || "hide";
     $("#backlogCounts").value = state.visual.backlogCounts;
     updateMediaSettings();
     updatePrivacySettings();
@@ -552,6 +575,14 @@
   }
   function onBacklogSummariesChange() {
     state.visual.backlogSummaries = $("#backlogSummaries").value;
+    state.visual.ledgerMonthSummary = $("#ledgerMonthSummary").value;
+    state.visual.timelineMonthSummary = $("#timelineMonthSummary").value;
+    saveVisualSettings(state.visual);
+    render();
+  }
+  function onMonthSummaryChange() {
+    state.visual.ledgerMonthSummary = $("#ledgerMonthSummary").value;
+    state.visual.timelineMonthSummary = $("#timelineMonthSummary").value;
     saveVisualSettings(state.visual);
     render();
   }
@@ -647,6 +678,18 @@
     $("#settingsBtn").onclick = openSettings;
     $("#closeSettingsBtn").onclick = closeSettings;
     document.querySelectorAll(".stab").forEach((t) => t.onclick = () => setSettingsTab(t.dataset.stab));
+    // On the panels, not the tab strip: the strip scrolls horizontally under
+    // the same finger. requireHorizontal keeps a vertical drag down a long
+    // panel from being read as a tab change.
+    const panels = $(".settings-panels");
+    if (panels) {
+      attachSwipe(panels, {
+        onLeft: () => stepSettingsTab(1),
+        onRight: () => stepSettingsTab(-1),
+        threshold: 60,
+        requireHorizontal: true,
+      });
+    }
     $("#connectFileBtn").onclick = connectFile;
     $("#reconnectFileBtn").onclick = reconnectFile;
     $("#disconnectFileBtn").onclick = disconnectFile;
@@ -668,6 +711,8 @@
     $("#backlogCoverSize").onchange = onBacklogCoverSizeChange;
     $("#backlogSummaries").onchange = onBacklogSummariesChange;
     $("#backlogCounts").onchange = onBacklogCountsChange;
+    $("#ledgerMonthSummary").onchange = onMonthSummaryChange;
+    $("#timelineMonthSummary").onchange = onMonthSummaryChange;
     $("#currency").onchange = async () => {
       state.data.settings.currency = $("#currency").value;
       render();

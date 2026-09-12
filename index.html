@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.142.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.143.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -1059,6 +1059,23 @@
       </section>
 
       <section class="settings-section">
+        <h3>Month summaries</h3>
+        <p class="hint">A breakdown under each month card showing what the month was made of, one line per category. The Ledger's shows what you spent per category; the Timeline's shows how many entries each category got. Neither appears on a month with only one category in it, since the header already says the number (this device only).</p>
+        <label>Ledger month cards
+          <select id="ledgerMonthSummary">
+            <option value="show">Show breakdown</option>
+            <option value="hide">Total only</option>
+          </select>
+        </label>
+        <label>Timeline month cards
+          <select id="timelineMonthSummary">
+            <option value="hide">Hide</option>
+            <option value="show">Show breakdown</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="settings-section">
         <h3>Currency</h3>
         <p class="hint">Currency symbol used throughout the Finance tabs. Syncs across your devices.</p>
         <label>Symbol
@@ -1259,20 +1276,20 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.142.0"></script>
-  <script defer src="src/qr.js?v=0.142.0"></script>
-  <script defer src="src/media.js?v=0.142.0"></script>
-  <script defer src="src/merge.js?v=0.142.0"></script>
-  <script defer src="src/storage.js?v=0.142.0"></script>
-  <script defer src="src/finance.js?v=0.142.0"></script>
-  <script defer src="src/settings.js?v=0.142.0"></script>
-  <script defer src="src/wheel.js?v=0.142.0"></script>
-  <script defer src="src/backlog.js?v=0.142.0"></script>
-  <script defer src="src/journal.js?v=0.142.0"></script>
-  <script defer src="src/notes.js?v=0.142.0"></script>
-  <script defer src="src/todos.js?v=0.142.0"></script>
-  <script defer src="src/io.js?v=0.142.0"></script>
-  <script defer src="src/sync.js?v=0.142.0"></script>
-  <script defer src="src/app.js?v=0.142.0"></script>
+  <script defer src="src/reconcile.js?v=0.143.0"></script>
+  <script defer src="src/qr.js?v=0.143.0"></script>
+  <script defer src="src/media.js?v=0.143.0"></script>
+  <script defer src="src/merge.js?v=0.143.0"></script>
+  <script defer src="src/storage.js?v=0.143.0"></script>
+  <script defer src="src/finance.js?v=0.143.0"></script>
+  <script defer src="src/settings.js?v=0.143.0"></script>
+  <script defer src="src/wheel.js?v=0.143.0"></script>
+  <script defer src="src/backlog.js?v=0.143.0"></script>
+  <script defer src="src/journal.js?v=0.143.0"></script>
+  <script defer src="src/notes.js?v=0.143.0"></script>
+  <script defer src="src/todos.js?v=0.143.0"></script>
+  <script defer src="src/io.js?v=0.143.0"></script>
+  <script defer src="src/sync.js?v=0.143.0"></script>
+  <script defer src="src/app.js?v=0.143.0"></script>
 </body>
 </html>

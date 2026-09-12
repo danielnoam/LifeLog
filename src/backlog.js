@@ -1095,8 +1095,21 @@
       sections.push(makeUpcomingSection("undated", "No date yet",
         "Announced, but nothing dated yet", noDate));
     }
+
+    // One month at a time, same as Discover. Counts ride along here because
+    // they are local data already in hand — a month's worth of titles is
+    // known without asking anyone.
+    const navItems = sections.map((sec) => ({ key: sec.key, label: sec.navLabel, count: sec.navCount }));
+    upcomingSection = resolveActiveKey(navItems, upcomingSection);
+    const pick = pickSection((k) => { upcomingSection = k; });
+    if (!upNavEl) upNavEl = sectionNavBar(navItems, upcomingSection, pick);
+    else adopt(upNavEl, sectionNavBar(navItems, upcomingSection, pick));
+    // A single month is not a choice.
+    upNavEl.hidden = navItems.length < 2;
+    root.appendChild(upNavEl);
+
     root.appendChild(grid);
-    renderLazySections(grid, sections);
+    renderLazySections(grid, sections.filter((sec) => sec.key === upcomingSection));
     if (state.bulk.active) {
       root.appendChild(bulkActionBar({
         categories: state.data.categories,
@@ -1127,6 +1140,11 @@
     section.appendChild(list);
     return {
       key, header: head, node: section, bodyEl: list,
+      // What the section navbar shows for this section. The title alone: the
+      // subtitle ("Announced, but nothing dated yet") is a sentence, and a
+      // pill is not the place for one.
+      navLabel: title,
+      navCount: items.length,
       keepBody: true,
       build: (body) => {
         const shape = rowShapeFor("upcoming");
@@ -1139,6 +1157,55 @@
         });
       },
     };
+  }
+
+  // ---------- the section navbar ----------
+  // Discover and Next releases both produce a handful of independent
+  // sections — one per source, one per month — and both used to stack the
+  // lot into one long scroll. This switches between them instead: a row of
+  // pills naming each section, one shown at a time.
+  //
+  // Deliberately a switcher rather than a jump-to. Scrolling past four
+  // sources' worth of trending lists to reach the fifth is the thing being
+  // fixed, and a jump-link leaves all of them built — which on Discover also
+  // means fetching all of them.
+  //
+  // `count` is optional, and Discover leaves it out on purpose: a month's
+  // count is local data already in hand, while a source's is a network fact
+  // that doesn't exist until that source has been asked. A bar with numbers
+  // on some pills and not others reads as broken.
+  function sectionNavBar(items, activeKey, onPick) {
+    const nav = el("nav", "section-nav");
+    for (const it of items) {
+      const btn = el("button", "section-nav-btn");
+      btn.type = "button";
+      btn.appendChild(el("span", "section-nav-label", it.label));
+      if (it.count != null) btn.appendChild(el("span", "section-nav-n", String(it.count)));
+      const active = it.key === activeKey;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", String(active));
+      btn.title = it.label;
+      btn.onclick = () => { if (it.key !== activeKey) onPick(it.key); };
+      nav.appendChild(btn);
+    }
+    return nav;
+  }
+
+  // The active section after the list it indexes may have changed under it:
+  // a category chip, a filter or a sync can drop the one you were on. Falling
+  // back to the first keeps the mode showing something rather than going
+  // blank, and is why every caller resolves through here rather than trusting
+  // its stored key.
+  function resolveActiveKey(items, stored) {
+    if (items.some((it) => it.key === stored)) return stored;
+    return items.length ? items[0].key : "";
+  }
+
+  // Switching section starts at the top. render()'s anchor-relative restore
+  // can't help here — the section it anchored to is the one being replaced —
+  // and without this you land partway down a section you have not seen.
+  function pickSection(set) {
+    return (key) => { set(key); render(); window.scrollTo(0, 0); };
   }
 
   // ---------- Discover ----------
@@ -1457,7 +1524,13 @@
     refresh.type = "button";
     refresh.title = "Fetch these lists again, ignoring the six-hour cache";
     refresh.hidden = !sources.length;
-    refresh.onclick = () => { ensureDiscover(sources, { force: true }); render(); };
+    // The source on screen, not all of them: ↻ refetches what you are
+    // looking at. discoverKindBar is built before the active section is
+    // resolved, so it reads it at click time rather than closing over it.
+    refresh.onclick = () => {
+      ensureDiscover(sources.filter((src) => "src:" + src === discoverSection), { force: true });
+      render();
+    };
     right.appendChild(refresh);
     bar.appendChild(right);
     return bar;
@@ -1525,7 +1598,10 @@
   // Held across renders like every other view's root, so a refresh refills
   // the cards instead of replacing the grid — the flash on every fetch was
   // the only thing converting Discover was ever going to fix.
-  let dscRootEl = null, dscBarEl = null, dscGridEl = null;
+  let dscRootEl = null, dscBarEl = null, dscNavEl = null, dscGridEl = null;
+  // Which source's card is showing. In memory like discoverKind, not stored:
+  // both are "where am I looking right now", not a preference.
+  let discoverSection = "";
 
   function renderDiscover(root) {
     const { lists, needsKey } = discoverSourceMap();
@@ -1540,15 +1616,32 @@
       return;
     }
     const sources = [...lists.keys()];
+
+    // The nav is built from the section list alone, before any rows: the
+    // sections a source *would* have are known from the category settings,
+    // so the bar is complete on the first frame even though only one card's
+    // worth of rows is ever fetched.
+    const navItems = [
+      ...[...lists].map(([source, cats]) => ({ key: "src:" + source, label: cats.join(" · ") })),
+      ...[...needsKey].map(([source, cats]) => ({ key: "nokey:" + source, label: cats.join(" · ") })),
+    ];
+    discoverSection = resolveActiveKey(navItems, discoverSection);
+    const pick = pickSection((k) => { discoverSection = k; });
+
     if (!dscRootEl) {
       dscRootEl = document.createElement("div");
       dscBarEl = discoverKindBar(sources);
+      dscNavEl = sectionNavBar(navItems, discoverSection, pick);
       dscGridEl = el("div", "backlog-grid");
-      dscRootEl.append(dscBarEl, dscGridEl);
+      dscRootEl.append(dscBarEl, dscNavEl, dscGridEl);
     } else {
-      // Its buttons are children, so their handlers travel with the refill.
+      // Their buttons are children, so the handlers travel with the refill.
       adopt(dscBarEl, discoverKindBar(sources));
+      adopt(dscNavEl, sectionNavBar(navItems, discoverSection, pick));
     }
+    // One source in total is not a choice, and a bar with a single pill on it
+    // is furniture. The kind bar above it still switches Popular/Coming soon.
+    dscNavEl.hidden = navItems.length < 2;
     root.appendChild(dscRootEl);
 
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
@@ -1556,6 +1649,11 @@
 
     const cards = [];
     for (const [source, cats] of lists) {
+      // Only the card on screen is built, and — below — only its source is
+      // fetched. This is the reason the mode is a switcher: four sources
+      // stacked meant four APIs called to glance at the Backlog, which is
+      // exactly what this file set out not to do.
+      if ("src:" + source !== discoverSection) continue;
       const run = discoverRuns.get(source + "|" + discoverKind);
       const rows = run ? discoverVisibleRows(run.rows, owned) : [];
       const hidden = run ? run.rows.length - rows.length : 0;
@@ -1582,6 +1680,7 @@
       cards.push({ key: "src:" + source, title: cats.join(" · "), sourceLabel: MEDIA_SOURCE_LABELS[source] || source, parts });
     }
     for (const [source, cats] of needsKey) {
+      if ("nokey:" + source !== discoverSection) continue;
       cards.push({
         key: "nokey:" + source,
         title: cats.join(" · "),
@@ -1595,7 +1694,10 @@
       create: () => el("div", "backlog-section"),
       update: (card, c) => fillDiscoverCard(card, c.title, c.sourceLabel, c.parts),
     });
-    ensureDiscover(sources);
+    // The shown source only. Refresh still forces every source it is given,
+    // so ↻ refetches what you are looking at rather than the whole set.
+    const shown = sources.filter((src) => "src:" + src === discoverSection);
+    ensureDiscover(shown);
   }
 
   // The Backlog view's three layouts. Kept as a mode switch rather than a
@@ -1660,7 +1762,9 @@
     return span;
   }
 
-  let blGridEl = null, upGridEl = null;
+  let blGridEl = null, upGridEl = null, upNavEl = null;
+  // Which month/year section is showing. In memory, like Discover's.
+  let upcomingSection = "";
 
   function renderBacklog(root) {
     const items = getFilteredBacklog()

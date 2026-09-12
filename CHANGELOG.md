@@ -4,6 +4,35 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.143.0] - 2026-09-12
+
+### Added
+- **Discover and Next releases each get a secondary navbar.** Both used to
+  stack every section into one long scroll — a card per media source, a card
+  per release month. Now a row of pills across the top names each section and
+  shows one at a time. Next releases' pills carry a count; Discover's don't,
+  because a source's count isn't known until that source has been asked. The
+  bar hides itself when there's only one section, and Discover's Popular /
+  Coming soon switch is unchanged above it.
+- **Swipe between Settings tabs.** The same left/right gesture the main views
+  use, on a phone. The ends don't wrap, a vertical drag down a long panel
+  isn't mistaken for a tab change, and the tab strip scrolls to keep the
+  active tab visible.
+- **Month summaries are now a setting, and the Timeline has one too.** The
+  Ledger's per-category breakdown can be turned off (Appearance → Month
+  summaries), leaving just the month total. The Timeline gets the same
+  breakdown with counts instead of amounts — off by default, since a list of
+  five things you finished in March mostly doesn't need one. Neither appears
+  on a month with only one category in it.
+
+### Changed
+- Discover now fetches only the source you're looking at, and ↻ Refresh
+  refetches that one. Showing four sources at once meant calling four APIs to
+  glance at the Backlog.
+
+### Fixed
+- A year with one entry in it said "1 entries".
+
 ## [0.142.0] - 2026-09-12
 
 ### Added
