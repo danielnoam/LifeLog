@@ -595,8 +595,11 @@
             update: (card, c) => {
               card.dataset.year = c.year;
               card.dataset.month = c.month;
+              // No "+" on the Yearly bucket: it exists only to hold the lump
+              // entries that are already there, and adding another is the
+              // thing projects replaced.
               fillFinanceMonthCard(card, c.year + "-" + c.month, c.label, c.items, c.counted,
-                () => openFinanceModal(null, { year: c.year, month: c.month }));
+                c.month === 0 ? null : () => openFinanceModal(null, { year: c.year, month: c.month }));
             },
           });
         },
@@ -1224,10 +1227,17 @@
   // ---------- finance entries ----------
   function applyFinanceYearlyUI() {
     const yearly = $("#finYearly").checked;
+    const editing = !!$("#financeId").value;
     $("#finDateLabel").hidden = yearly;
     $("#finYearLabel").hidden = !yearly;
     $("#finDate").required = !yearly;
     $("#finYear").required = yearly;
+    // The toggle is only offered on an entry that already is one. New lump
+    // expenses are made as projects now — a project holds the same total and
+    // can be broken into the expenses it was actually made of.
+    $("#finYearlyLabel").hidden = !(editing && yearly);
+    // The way out of a legacy lump: turn it into a project it can sit inside.
+    $("#yearlyToProjectBtn").hidden = !(editing && yearly);
     // Only an existing, dated entry can seed a recurring template — a yearly
     // entry carries no month/day for the schedule to anchor to.
     $("#makeRecurringBtn").hidden = yearly || !$("#financeId").value;
@@ -1256,8 +1266,10 @@
     // An existing entry keeps whatever it has, including none. A new one is
     // offered the project whose range covers its date — preselected in a
     // visible dropdown, never applied silently.
-    const preset = editing ? (entry.project || "")
-      : (projectForDate($("#finDate").value) || {}).name || "";
+    // A new expense starts on no project. The date-range offer still runs,
+    // but only when you actually pick a date — opening the form on today's
+    // date and finding a trip already filled in was too eager.
+    const preset = editing ? (entry.project || "") : "";
     fillProjectSelect($("#finProject"), preset);
     updateProjectHint(!editing);
     // An existing entry shows what it was saved with. A new one inherits its
@@ -1297,21 +1309,40 @@
   // Rate, amount and the running "= ₪X" under them, refreshed together. The
   // rate row only exists for a foreign currency, so an ordinary expense sees
   // the form it has always seen.
+  // The selected project, but only when it actually supplies this expense's
+  // rate — same currency, rate set. That is the case where the rate is not
+  // yours to type.
+  function ratingProject() {
+    const proj = projectByName($("#finProject").value);
+    const code = $("#finCurrency").value;
+    return proj && proj.currency && proj.currency === code && proj.rate ? proj : null;
+  }
+
   function applyFinanceCurrencyUI() {
     const code = $("#finCurrency").value;
     const foreign = code && code !== homeCurrency();
-    $("#finRateLabel").hidden = !foreign;
+    const from = foreign ? ratingProject() : null;
+    // Home currency: no rate, nothing to say. Foreign but the project already
+    // has a rate: it is used, and shown in the preview line below rather than
+    // as a box asking to be filled in — you said "Switzerland is in CHF at
+    // 3.9" once and shouldn't be asked again per expense. Foreign with no
+    // project rate: the box, because nobody else knows the number.
+    $("#finRateLabel").hidden = !foreign || !!from;
+    if (from) $("#finRate").value = from.rate;
     const preview = $("#finFxPreview");
     if (!foreign) { preview.hidden = true; return; }
     const amount = readAmount("#finAmount");
     const rate = parseFloat($("#finRate").value);
-    if (!amount || !isFinite(rate) || rate <= 0) {
+    if (!isFinite(rate) || rate <= 0) {
       preview.textContent = "1 " + code + " = how many " + homeCurrency() + "?";
       preview.hidden = false;
       return;
     }
-    preview.textContent = formatIn(amount, code) + " = " + formatMoney(amount * rate)
-      + " at " + rate + " " + homeCurrency() + " per " + code;
+    const at = " at " + rate + " " + homeCurrency() + " per " + code
+      + (from ? " (from " + from.name + ")" : "");
+    preview.textContent = amount
+      ? formatIn(amount, code) + " = " + formatMoney(amount * rate) + at
+      : "Converted" + at;
     preview.hidden = false;
   }
 
@@ -1395,6 +1426,36 @@
     render();
     await persist();
     toast(id ? "Finance entry updated" : "Finance entry added");
+  }
+
+  // The way out of a legacy lump. "Switzerland — ₪10,000" as one yearly entry
+  // becomes a project of the same name, with that entry as its first and only
+  // expense — so the total you already had is preserved on day one, and you
+  // break it into real expenses at your own pace, deleting the lump when
+  // there is nothing left in it.
+  //
+  // The entry stays yearly. It has no month, and inventing one would put it
+  // in a month you didn't spend it in.
+  let pendingYearlyEntryId = "";
+
+  function makeProjectFromYearly() {
+    const id = $("#financeId").value;
+    const f = state.data.financeEntries.find((x) => x.id === id);
+    if (!f || !f.yearly) return;
+    pendingYearlyEntryId = id;
+    const year = String(f.date).slice(0, 4);
+    closeFinanceModal();
+    openProjectModal(null, { fromYearly: true });
+    // Seeded after open so it overrides the blank-form defaults: the note is
+    // what you called this thing, and the year is the only date it carries.
+    $("#projName").value = f.note || f.category || year;
+    if (/^\d{4}$/.test(year)) {
+      $("#projStart").value = year + "-01-01";
+      $("#projEnd").value = year + "-12-31";
+    }
+    $("#projUses").textContent = "Built from " + formatMoney(f.amount)
+      + " — that entry becomes this project's first expense.";
+    $("#projUses").hidden = false;
   }
 
   async function deleteCurrentFinanceEntry() {
@@ -1936,6 +1997,7 @@
   function openProjectModal(proj, opts) {
     const editing = !!proj;
     pendingProjectSelect = !!(opts && opts.fromEntry);
+    if (!(opts && opts.fromYearly)) pendingYearlyEntryId = "";
     $("#projectModalTitle").textContent = editing ? "Edit project" : "New project";
     $("#projOrigName").value = editing ? proj.name : "";
     $("#projName").value = editing ? proj.name : "";
@@ -1985,6 +2047,7 @@
   // the expense form, with whatever was selected before still selected.
   function cancelProjectModal() {
     closeProjectModal();
+    pendingYearlyEntryId = "";
     if (pendingProjectSelect) {
       pendingProjectSelect = false;
       fillProjectSelect($("#finProject"), $("#finProject").dataset.prevValue || "");
@@ -2040,6 +2103,12 @@
     }
     closeProjectModal();
     rebuildProjectColorMap();
+    // A project made from a lump adopts that lump as its first expense.
+    if (pendingYearlyEntryId) {
+      const f = state.data.financeEntries.find((x) => x.id === pendingYearlyEntryId);
+      if (f) f.project = name;
+      pendingYearlyEntryId = "";
+    }
     if (pendingProjectSelect) {
       pendingProjectSelect = false;
       fillProjectSelect($("#finProject"), name);
@@ -2545,6 +2614,8 @@
       $("#convRate").value = Math.round((total / fxTotal) * 1e6) / 1e6;
       updateConvertSummary();
     };
+
+    $("#yearlyToProjectBtn").onclick = makeProjectFromYearly;
 
     $("#cancelProjectBtn").onclick = cancelProjectModal;
     $("#projectForm").onsubmit = saveProjectFromForm;

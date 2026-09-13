@@ -4,6 +4,36 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.147.0] - 2026-09-13
+
+### Added
+- **Turn a yearly lump into a project.** Open an existing yearly expense and
+  there's a "Make project" button: it creates a project named after the entry,
+  spanning that year, and adopts the entry as its first expense. The total you
+  already had is preserved on day one, and you break it into real expenses at
+  your own pace, deleting the lump when there's nothing left in it.
+
+### Changed
+- **You can't create a new yearly expense any more.** Projects do the same job
+  better — they hold the same total and can be broken into what it was
+  actually made of. Existing yearly entries still open, edit and save exactly
+  as before; only the way to make a new one is gone, along with the Yearly
+  bucket's "+".
+- **You're no longer asked for a rate the project already knows.** Pick a
+  project that's set to a currency and its rate is simply used, named in the
+  line under the amount ("at 4.1 ILS per EUR (from Right now)"). The rate box
+  only appears for a foreign currency nothing else supplies a rate for.
+- Amount and Currency now sit on one line, stacking on a narrow phone.
+- A new expense starts on no project. Picking a date inside a project's range
+  still offers it; opening the form on today's date and finding a trip already
+  filled in was too eager.
+- Projects in the month breakdown are no longer bold.
+
+### Fixed
+- A stacked Amount/Currency pair grew a 136px-tall currency field on screens
+  under 360px: flex-basis follows the main axis, so the width set for the row
+  layout became a height in the column one.
+
 ## [0.146.0] - 2026-09-13
 
 ### Added

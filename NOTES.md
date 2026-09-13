@@ -16,6 +16,32 @@ what was decided against and why.
 
 ---
 
+- yearly expenses are edit-only as of 0.147.0. The checkbox and the Yearly
+  bucket's "+" are gone for new entries, but the field, the sanitizer, the
+  pseudo-month-0 bucketing and the save path all stay: the data exists, CSV
+  import still produces it, and a legacy lump has to keep opening and saving.
+  What changed is only that there is no longer a way to make a new one, and
+  "Make project" is the way out of an old one.
+
+  That conversion keeps the entry yearly rather than giving it a date. It has
+  no month, and inventing one would file it in a month you didn't spend it in.
+  It adopts the entry via pendingYearlyEntryId, which openProjectModal clears
+  unless it was opened with { fromYearly: true } — otherwise the next project
+  you created by any route would quietly swallow that lump.
+
+- the rate box only appears when nothing else supplies the rate
+  (ratingProject). Having said "Switzerland is in CHF at 3.9" once, being
+  asked again on every expense is the app forgetting what you told it. The
+  rate is still stored per expense — Convert needs somewhere to write — it is
+  just not asked for when the project already answers.
+
+- flex-basis follows the main axis, which is why .field-row resets
+  `flex` as well as `flex-direction` in its narrow-screen media query. The
+  8.5rem that is a sensible *width* for the currency field in a row became a
+  136px *height* in a column, leaving a gap under it that looked like a
+  hidden element still taking space. It wasn't; every [hidden] in that form
+  measures 0.
+
 - `amount` on a finance entry is ALWAYS in the home currency. This is the
   single decision the whole multi-currency feature rests on. A foreign expense
   carries three extra fields describing where that number came from —

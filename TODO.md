@@ -25,6 +25,10 @@ todo:
   before you spend, and the converter is a one-off migration whose shape
   depends on how many old lumps turn out to be worth splitting.
 
+  The yearly-lump converter landed in 0.147.0, so what's left of that idea is
+  only the bulk case: breaking one lump into many expenses is still manual,
+  one Add at a time. Worth revisiting only if you actually convert several.
+
   Currency-wise (0.146.0), two things were left out deliberately: recurring
   expenses can't be foreign (a subscription billed in USD is a real case, but
   it wants a rate per occurrence or a rate that drifts, and neither is a

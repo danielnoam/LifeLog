@@ -671,6 +671,21 @@ select:focus { outline: none; border-color: var(--accent); }
 .month-cats + .month-total { border-top: none; margin-top: 5px; }
 /* The ordinary-spending figure, under the total and quieter than it: it is
    context for the number above, not a second number competing with it. */
+/* Two fields on one line — amount and the currency it was paid in belong
+   together and read as one number. The currency side is given just enough
+   room for a code plus its symbol, and the pair stacks on a narrow phone
+   rather than squeezing the amount down to nothing. */
+.field-row { display: flex; gap: 10px; align-items: flex-end; }
+.field-row > label { flex: 1 1 auto; min-width: 0; margin: 0; }
+.field-row > label.field-narrow { flex: 0 0 8.5rem; }
+/* Stacked on a narrow phone. The basis has to be reset with the direction:
+   flex-basis follows the main axis, so the 8.5rem that is a *width* in a row
+   silently becomes a 136px-tall currency field in a column. */
+@media (max-width: 360px) {
+  .field-row { flex-direction: column; align-items: stretch; gap: 0; }
+  .field-row > label, .field-row > label.field-narrow { flex: 0 0 auto; margin-bottom: 12px; }
+}
+
 /* What you actually paid, beside what it came to. Quiet and monospaced-ish:
    it is provenance for the number next to it, not a second amount. */
 .fx-paid {
@@ -696,7 +711,7 @@ select:focus { outline: none; border-color: var(--accent); }
 /* A project's line in the breakdown sits with the categories but reads as a
    different kind of thing — it is a block of one-off spending, not one of the
    recurring shapes of the month. */
-.month-cat.is-project .month-cat-name { font-weight: 600; color: var(--text-dim); }
+.month-cat.is-project .month-cat-name { color: var(--text-dim); }
 
 /* The pill: consecutive expenses on the same project, wrapped once and named
    once. The three tints come in as variables set by fillProjectGroup, built
