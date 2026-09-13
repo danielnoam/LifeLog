@@ -21,7 +21,7 @@ Finance.init({
     for (const key of Object.keys(src || {})) if (!known.has(key)) out[key] = src[key];
     return out;
   },
-  // 1-indexed, matching app.js — formatProjectRange reads MONTHS[month + 1].
+  // 1-indexed, matching app.js.
   MONTHS: ["", "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"],
 });
@@ -507,7 +507,7 @@ test("evalMathExpr guards against division by zero (non-finite)", () => {
 
 console.log("\nprojects");
 
-const { groupRunsByProject, sanitizeProject, formatProjectRange } = Finance;
+const { groupRunsByProject, sanitizeProject } = Finance;
 const runShape = (items) => groupRunsByProject(items).map((r) => r.project + ":" + r.items.length);
 
 test("no projects means one run per stretch of plain rows", () => {
@@ -574,10 +574,13 @@ test("sanitizeProject fills in what is missing and keeps what is not", () => {
   assert.strictEqual(p.color, "#7a8a99");
   assert.ok(p.updatedAt, "carries a stamp so two devices can be told apart");
   assert.strictEqual(p.startDate, undefined, "no dates invented");
+  assert.strictEqual(p.endDate, undefined);
 });
 
-test("sanitizeProject trims dates to a plain day", () => {
-  const p = sanitizeProject({ name: "Trip", startDate: "2026-07-12T00:00:00.000Z", endDate: "2026-07-22" });
+test("a project that still carries old dates keeps them, inertly", () => {
+  // Projects had a date range until 0.148.0. Nothing reads it now, but
+  // keepUnknown carries it so removing the feature doesn't delete data.
+  const p = sanitizeProject({ name: "Trip", startDate: "2026-07-12", endDate: "2026-07-22" });
   assert.strictEqual(p.startDate, "2026-07-12");
   assert.strictEqual(p.endDate, "2026-07-22");
 });
@@ -600,23 +603,6 @@ test("the dedupe key separates a trip expense from an identical ordinary one", (
   const base = { date: "2026-07-14", amount: 240, category: "Food", note: "Dinner" };
   assert.notStrictEqual(financeKey({ ...base, project: "Switzerland" }), financeKey(base));
   assert.strictEqual(financeKey({ ...base, project: "Switzerland" }), financeKey({ ...base, project: "switzerland" }));
-});
-
-test("formatProjectRange collapses a repeated month and year", () => {
-  assert.strictEqual(formatProjectRange({ startDate: "2026-07-12", endDate: "2026-07-22" }), "12 – 22 Jul 2026");
-});
-
-test("formatProjectRange keeps the month when it changes", () => {
-  assert.strictEqual(formatProjectRange({ startDate: "2026-07-28", endDate: "2026-08-03" }), "28 Jul – 3 Aug 2026");
-});
-
-test("formatProjectRange keeps the year when it changes", () => {
-  assert.strictEqual(formatProjectRange({ startDate: "2026-12-28", endDate: "2027-01-03" }), "28 Dec 2026 – 3 Jan 2027");
-});
-
-test("formatProjectRange shows one date when there is no end", () => {
-  assert.strictEqual(formatProjectRange({ startDate: "2026-09-09" }), "9 Sep 2026");
-  assert.strictEqual(formatProjectRange({ startDate: "2026-09-09", endDate: "2026-09-09" }), "9 Sep 2026");
 });
 
 console.log("\ncurrency");

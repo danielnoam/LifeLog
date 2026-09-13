@@ -16,6 +16,28 @@ what was decided against and why.
 
 ---
 
+- projects had a start and end date until 0.148.0, and the reason they went is
+  worth keeping: the dates were argued for on one use — projectForDate offering
+  the right project for an expense dated inside the range — and that use was
+  quietly killed by a later change. 0.147.0 made a new expense default to no
+  project (correctly: preselecting one was too eager), which left the offer
+  firing only on a `change` event on the date field. During a trip you open
+  Add, the date already says today, you never change it, and nothing is
+  offered. The one case the dates existed for became the one case that didn't
+  fire.
+
+  What remained was a range label in Summary and a filter keeping unspent
+  dated projects visible — neither worth two date fields on every project.
+
+  The lesson for the next feature argued for on a single downstream use: when
+  that use changes, re-check whether the thing supporting it still earns its
+  keep. Nothing failed here; the feature just quietly stopped paying for
+  itself, and only got noticed because it was questioned.
+
+  startDate/endDate are no longer in KNOWN_PROJECT_KEYS, which means
+  keepUnknown carries any already in the data through untouched. Removing a
+  feature is not a reason to delete what people already saved.
+
 - yearly expenses are edit-only as of 0.147.0. The checkbox and the Yearly
   bucket's "+" are gone for new entries, but the field, the sanitizer, the
   pseudo-month-0 bucketing and the save path all stay: the data exists, CSV

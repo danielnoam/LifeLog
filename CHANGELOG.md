@@ -4,6 +4,26 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.148.0] - 2026-09-13
+
+### Removed
+- **Projects no longer have a start and end date.** They earned their place on
+  one job — offering the right project for an expense dated inside the range —
+  and that job stopped happening when a new expense started defaulting to no
+  project in 0.147.0: the offer only fired if you actually *changed* the date
+  field, so during a trip, when today's date is already right, it never fired
+  at all. What was left was two date fields to fill in for a label in Summary.
+  A project is now a name, a colour, and optionally a currency and rate.
+- A project with no expenses no longer appears in Summary. It was only there
+  to show dated-but-unspent trips.
+
+### Fixed
+- Currencies whose symbol is their own code no longer read "CHF · CHF".
+
+### Note
+- Existing projects keep whatever dates they have in the saved data, untouched
+  and unread, rather than being stripped on load.
+
 ## [0.147.0] - 2026-09-13
 
 ### Added

@@ -186,21 +186,6 @@
   const projectColorOf = (name) => projectColor[name] || "#7a8a99";
   const projectByName = (name) => (state.data.projects || []).find((p) => p.name === name) || null;
 
-  // The project whose date range covers this date, if any — what the expense
-  // form preselects. First match wins; overlapping ranges are the user's to
-  // sort out, and silently picking "the best" of two would be worse than
-  // picking the first and letting them change it.
-  function projectForDate(date) {
-    if (!date) return null;
-    const d = String(date).slice(0, 10);
-    for (const p of state.data.projects || []) {
-      if (!p.startDate) continue;
-      const end = p.endDate || p.startDate;
-      if (d >= p.startDate && d <= end) return p;
-    }
-    return null;
-  }
-
   // Manual formatting instead of Intl.NumberFormat("he-IL", {style:"currency"}) —
   // that locale injects invisible RTL bidi marks and puts the symbol after the
   // number ("1,302.00 ₪"), not matching the source sheet's "₪1,302.00".
@@ -966,9 +951,9 @@
   // give back. Before this you wrote one lump "Switzerland 10,000" entry and
   // had the figure but none of the detail; now the detail adds up to it.
   //
-  // Every project with spending gets a row, plus any dated project that has
-  // none yet: a trip you have set up but not yet spent on should show as
-  // waiting rather than not exist.
+  // A project with no spending yet has nothing to show here. It is a name you
+  // can pick in the expense form, and it appears the moment it costs
+  // something.
   function renderProjectsCard(root, items) {
     const projects = state.data.projects || [];
     if (!projects.length) return;
@@ -978,7 +963,7 @@
         const own = byProj[p.name] || [];
         return { p, total: own.reduce((sum, f) => sum + f.amount, 0), n: own.length };
       })
-      .filter((r) => r.n || r.p.startDate)
+      .filter((r) => r.n)
       .sort((a, b) => b.total - a.total || a.p.name.localeCompare(b.p.name));
     if (!rows.length) return;
 
@@ -989,32 +974,12 @@
       const line = el("div", "proj-stat");
       const bar = barRow(r.p.name, r.total, max, r.p.color, null, formatMoney);
       line.appendChild(bar);
-      const meta = [];
-      if (r.p.startDate) meta.push(formatProjectRange(r.p));
-      meta.push(r.n + (r.n === 1 ? " expense" : " expenses"));
-      line.appendChild(el("div", "proj-stat-meta", meta.join(" · ")));
+      line.appendChild(el("div", "proj-stat-meta", r.n + (r.n === 1 ? " expense" : " expenses")));
       // Same target as the pill's ✎ — one place to rename, recolour or redate.
       line.onclick = () => openProjectModal(r.p);
       card.appendChild(line);
     }
     root.appendChild(card);
-  }
-
-  // "12–22 Jul 2026", collapsing the repeated month and year, and a single
-  // date when a project has a start but no end.
-  function formatProjectRange(p) {
-    const fmt = (d, withMonth, withYear) => {
-      const dt = new Date(d + "T00:00:00");
-      if (isNaN(dt)) return d;
-      return dt.getDate() + (withMonth ? " " + MONTHS[dt.getMonth() + 1].slice(0, 3) : "")
-        + (withYear ? " " + dt.getFullYear() : "");
-    };
-    if (!p.endDate || p.endDate === p.startDate) return fmt(p.startDate, true, true);
-    const a = new Date(p.startDate + "T00:00:00"), b = new Date(p.endDate + "T00:00:00");
-    if (isNaN(a) || isNaN(b)) return p.startDate + " – " + p.endDate;
-    const sameYear = a.getFullYear() === b.getFullYear();
-    const sameMonth = sameYear && a.getMonth() === b.getMonth();
-    return fmt(p.startDate, !sameMonth, !sameYear) + " – " + fmt(p.endDate, true, true);
   }
 
   // Monthly spend totals keyed by year*12+(month-1) so consecutive calendar
@@ -1271,7 +1236,6 @@
     // date and finding a trip already filled in was too eager.
     const preset = editing ? (entry.project || "") : "";
     fillProjectSelect($("#finProject"), preset);
-    updateProjectHint(!editing);
     // An existing entry shows what it was saved with. A new one inherits its
     // project's currency and rough rate, which is the whole point of setting
     // them on the project: you pick "Switzerland" and stop thinking about it.
@@ -1296,10 +1260,13 @@
   function currencyOptions() {
     const home = homeCurrency();
     const codes = Object.keys(CURRENCY_SYMBOLS).filter((c) => c !== home).sort();
-    return [home, ...codes].map((c) => ({
-      value: c,
-      label: c === home ? c + " (yours)" : c + " · " + CURRENCY_SYMBOLS[c],
-    }));
+    return [home, ...codes].map((c) => {
+      // Several codes are their own symbol (CHF, CA$ is not but CHF is), and
+      // "CHF · CHF" reads as a bug rather than as a currency.
+      const sym = CURRENCY_SYMBOLS[c];
+      const shown = sym && sym !== c ? c + " · " + sym : c;
+      return { value: c, label: c === home ? shown + " (yours)" : shown };
+    });
   }
 
   function fillCurrencySelect(sel, val) {
@@ -1366,20 +1333,6 @@
     sel.dataset.prevValue = val || "";
   }
 
-  // Says *why* a project is already selected, so a preselection reads as the
-  // app being helpful rather than as a value the user doesn't remember
-  // setting. Only on a new entry: on an edit the value is simply what was
-  // saved, and explaining it would be wrong.
-  function updateProjectHint(isNew) {
-    const hint = $("#finProjectHint");
-    if (!hint) return;
-    const name = $("#finProject").value;
-    const p = isNew && name ? projectByName(name) : null;
-    if (p && p.startDate) {
-      hint.textContent = `Picked because this date falls inside ${p.name}.`;
-      hint.hidden = false;
-    } else hint.hidden = true;
-  }
   function closeFinanceModal() { $("#financeModal").hidden = true; }
 
   async function saveFinanceFromForm(ev) {
@@ -1449,10 +1402,6 @@
     // Seeded after open so it overrides the blank-form defaults: the note is
     // what you called this thing, and the year is the only date it carries.
     $("#projName").value = f.note || f.category || year;
-    if (/^\d{4}$/.test(year)) {
-      $("#projStart").value = year + "-01-01";
-      $("#projEnd").value = year + "-12-31";
-    }
     $("#projUses").textContent = "Built from " + formatMoney(f.amount)
       + " — that entry becomes this project's first expense.";
     $("#projUses").hidden = false;
@@ -2002,8 +1951,6 @@
     $("#projOrigName").value = editing ? proj.name : "";
     $("#projName").value = editing ? proj.name : "";
     $("#projColorInput").value = editing ? proj.color : "#3bb2e2";
-    $("#projStart").value = editing ? (proj.startDate || "") : "";
-    $("#projEnd").value = editing ? (proj.endDate || "") : "";
     fillCurrencySelect($("#projCurrency"), editing ? (proj.currency || homeCurrency()) : homeCurrency());
     $("#projRate").value = editing ? (proj.rate || "") : "";
     applyProjectCurrencyUI(editing ? proj : null);
@@ -2060,13 +2007,7 @@
     const orig = $("#projOrigName").value;
     const name = $("#projName").value.trim();
     const color = $("#projColorInput").value;
-    const startDate = $("#projStart").value;
-    const endDate = $("#projEnd").value;
     if (!name) return;
-    if (startDate && endDate && endDate < startDate) {
-      toast("A project can't end before it starts", true);
-      return;
-    }
     const clash = (p) => p.name.toLowerCase() === name.toLowerCase();
     const projects = state.data.projects;
 
@@ -2074,8 +2015,6 @@
       if (projects.some(clash)) { toast("That project already exists", true); return; }
       const now = new Date().toISOString();
       const item = { id: uid(), name, color, createdAt: now, updatedAt: now };
-      if (startDate) item.startDate = startDate;
-      if (endDate) item.endDate = endDate;
       Object.assign(item, readProjectCurrency(null));
       projects.push(item);
     } else {
@@ -2086,8 +2025,6 @@
         return;
       }
       proj.color = color;
-      if (startDate) proj.startDate = startDate; else delete proj.startDate;
-      if (endDate) proj.endDate = endDate; else delete proj.endDate;
       const fx = readProjectCurrency(proj);
       for (const k of ["currency", "rate", "rateConfirmed"]) {
         if (fx[k] == null) delete proj[k]; else proj[k] = fx[k];
@@ -2112,7 +2049,6 @@
     if (pendingProjectSelect) {
       pendingProjectSelect = false;
       fillProjectSelect($("#finProject"), name);
-      updateProjectHint(false);
       $("#financeModal").hidden = false;
     }
     render();
@@ -2424,8 +2360,11 @@
     "id", "date", "amount", "category", "createdAt", "updatedAt", "yearly", "note", "project",
     "currency", "fxAmount", "rate",
   ]);
+  // startDate/endDate are deliberately absent: projects carried a date range
+  // until 0.148.0, and one that still has it keeps it untouched through
+  // keepUnknown. Nothing reads it — NOTES.md says why it went.
   const KNOWN_PROJECT_KEYS = new Set([
-    "id", "name", "color", "startDate", "endDate", "createdAt", "updatedAt",
+    "id", "name", "color", "createdAt", "updatedAt",
     "currency", "rate", "rateConfirmed",
   ]);
   const KNOWN_RECURRING_KEYS = new Set([
@@ -2474,8 +2413,6 @@
       color: p.color || "#7a8a99",
       updatedAt: backfillUpdatedAt(p),
     };
-    if (p.startDate) out.startDate = String(p.startDate).slice(0, 10);
-    if (p.endDate) out.endDate = String(p.endDate).slice(0, 10);
     if (p.createdAt) out.createdAt = p.createdAt;
     // A project spent in a foreign currency: the code its expenses are
     // entered in, the rate they inherit, and whether that rate has been
@@ -2627,29 +2564,12 @@
       const sel = $("#finProject");
       if (sel.value !== ADD_PROJECT_OPTION) {
         sel.dataset.prevValue = sel.value;
-        updateProjectHint(false);
         inheritProjectCurrency();
         return;
       }
       $("#financeModal").hidden = true;
       openProjectModal(null, { fromEntry: true });
     };
-    // Changing the date re-offers the project for that date, but only while
-    // the field is still untouched: overwriting a choice the user has made
-    // because they corrected a typo in the date would be worse than not
-    // helping at all.
-    $("#finDate").addEventListener("change", () => {
-      if ($("#financeId").value) return; // editing: the saved value stands
-      if ($("#finProject").value) return; // already chosen
-      const p = projectForDate($("#finDate").value);
-      if (!p) return;
-      fillProjectSelect($("#finProject"), p.name);
-      updateProjectHint(true);
-      // The project only just arrived, so its currency has to arrive with it
-      // — openFinanceModal ran before there was a date to match on.
-      inheritProjectCurrency();
-    });
-
     $("#exportFinanceJsonBtn").onclick = exportFinanceJson;
     $("#exportFinanceCsvBtn").onclick = exportFinanceCsv;
     $("#importFinanceJsonBtn").onclick = () => $("#importFinanceJsonInput").click();
@@ -2688,7 +2608,6 @@
     financeColorOf,
     rebuildProjectColorMap,
     projectColorOf,
-    projectForDate,
     groupRunsByProject,
     formatMoney,
     financeYears,
@@ -2711,7 +2630,6 @@
     cancelProjectModal,
     openConvertModal,
     closeConvertModal,
-    formatProjectRange,
     // currency (test/finance.test.js)
     formatIn,
     fxOf,

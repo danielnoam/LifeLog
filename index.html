@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.147.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.148.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -537,7 +537,6 @@
         <label>Project
           <select id="finProject"></select>
         </label>
-        <p class="hint" id="finProjectHint" hidden></p>
         <label>Note
           <input id="finNote" type="text" autocomplete="off" placeholder="Optional description…" />
         </label>
@@ -729,13 +728,6 @@
         </label>
         <label>Colour
           <input id="projColorInput" type="color" />
-        </label>
-        <p class="hint">Dates are optional. Give a project a range and an expense dated inside it will offer that project for you — you can always change it.</p>
-        <label>Starts
-          <input id="projStart" type="date" />
-        </label>
-        <label>Ends
-          <input id="projEnd" type="date" />
         </label>
         <label>Spent in
           <select id="projCurrency"></select>
@@ -1354,20 +1346,20 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.147.0"></script>
-  <script defer src="src/qr.js?v=0.147.0"></script>
-  <script defer src="src/media.js?v=0.147.0"></script>
-  <script defer src="src/merge.js?v=0.147.0"></script>
-  <script defer src="src/storage.js?v=0.147.0"></script>
-  <script defer src="src/finance.js?v=0.147.0"></script>
-  <script defer src="src/settings.js?v=0.147.0"></script>
-  <script defer src="src/wheel.js?v=0.147.0"></script>
-  <script defer src="src/backlog.js?v=0.147.0"></script>
-  <script defer src="src/journal.js?v=0.147.0"></script>
-  <script defer src="src/notes.js?v=0.147.0"></script>
-  <script defer src="src/todos.js?v=0.147.0"></script>
-  <script defer src="src/io.js?v=0.147.0"></script>
-  <script defer src="src/sync.js?v=0.147.0"></script>
-  <script defer src="src/app.js?v=0.147.0"></script>
+  <script defer src="src/reconcile.js?v=0.148.0"></script>
+  <script defer src="src/qr.js?v=0.148.0"></script>
+  <script defer src="src/media.js?v=0.148.0"></script>
+  <script defer src="src/merge.js?v=0.148.0"></script>
+  <script defer src="src/storage.js?v=0.148.0"></script>
+  <script defer src="src/finance.js?v=0.148.0"></script>
+  <script defer src="src/settings.js?v=0.148.0"></script>
+  <script defer src="src/wheel.js?v=0.148.0"></script>
+  <script defer src="src/backlog.js?v=0.148.0"></script>
+  <script defer src="src/journal.js?v=0.148.0"></script>
+  <script defer src="src/notes.js?v=0.148.0"></script>
+  <script defer src="src/todos.js?v=0.148.0"></script>
+  <script defer src="src/io.js?v=0.148.0"></script>
+  <script defer src="src/sync.js?v=0.148.0"></script>
+  <script defer src="src/app.js?v=0.148.0"></script>
 </body>
 </html>
