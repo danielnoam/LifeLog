@@ -671,6 +671,24 @@ select:focus { outline: none; border-color: var(--accent); }
 .month-cats + .month-total { border-top: none; margin-top: 5px; }
 /* The ordinary-spending figure, under the total and quieter than it: it is
    context for the number above, not a second number competing with it. */
+/* What you actually paid, beside what it came to. Quiet and monospaced-ish:
+   it is provenance for the number next to it, not a second amount. */
+.fx-paid {
+  font-size: 11px; color: var(--text-faint); flex: 0 0 auto;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+/* A provisional figure came from a rate you called a guess, so it says so
+   rather than sitting there looking settled. The mark is a suffix rather than
+   a colour alone — colour is already doing category work in these rows.
+   Always on the amount itself, never on its container: .month-total is a
+   two-column flex row and an ::after there would become a third column. */
+.famount.is-provisional,
+.month-cat.is-provisional .famount,
+.month-total.is-provisional .famount { font-style: italic; }
+.famount.is-provisional::after,
+.month-cat.is-provisional .famount::after,
+.month-total.is-provisional .famount::after { content: " ~"; opacity: .7; }
+
 .month-total-ex {
   text-align: right; padding: 2px 7px 0; font-size: 11px; color: var(--text-faint);
   font-variant-numeric: tabular-nums;

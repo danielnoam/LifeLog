@@ -10,7 +10,9 @@ const Finance = global.window.LifeLogFinance;
 // fully free-standing like merge.js — supply trivial stubs so the sanitizers
 // are callable in isolation.
 let idCounter = 0;
+const testState = { data: { settings: { currency: "ILS" }, projects: [], financeEntries: [] } };
 Finance.init({
+  state: testState,
   uid: () => "test-id-" + (idCounter++),
   backfillUpdatedAt: (item) => item.updatedAt || item.createdAt || "1970-01-01T00:00:00.000Z",
   // Same contract as the real one in app.js: copy anything the sanitizer
@@ -615,6 +617,91 @@ test("formatProjectRange keeps the year when it changes", () => {
 test("formatProjectRange shows one date when there is no end", () => {
   assert.strictEqual(formatProjectRange({ startDate: "2026-09-09" }), "9 Sep 2026");
   assert.strictEqual(formatProjectRange({ startDate: "2026-09-09", endDate: "2026-09-09" }), "9 Sep 2026");
+});
+
+console.log("\ncurrency");
+
+const { formatIn, fxOf, isProvisional, sanitizeFinanceEntry: sanF } = Finance;
+
+test("a code-like symbol gets a space, a true symbol does not", () => {
+  assert.strictEqual(formatIn(1234.5, "CHF"), "CHF 1,234.50");
+  assert.strictEqual(formatIn(1234.5, "ILS"), "₪1,234.50");
+  assert.strictEqual(formatIn(1234.5, "USD"), "$1,234.50");
+});
+
+test("currencies with no minor unit get no decimals", () => {
+  assert.strictEqual(formatIn(1200, "JPY"), "¥1,200");
+  assert.strictEqual(formatIn(1200, "KRW"), "₩1,200");
+  assert.strictEqual(formatIn(1200, "USD"), "$1,200.00");
+});
+
+test("an unknown code falls back to the home symbol rather than printing junk", () => {
+  assert.strictEqual(formatIn(10, "XYZ"), "₪10.00");
+});
+
+test("amount is stored in the home currency, never the foreign one", () => {
+  // The invariant the whole feature rests on: every existing reader of
+  // .amount keeps summing home-currency figures and needs no changes.
+  const f = sanF({ date: "2026-07-14", amount: 244.9, currency: "CHF", fxAmount: 62, rate: 3.95 });
+  assert.strictEqual(f.amount, 244.9);
+  assert.strictEqual(f.fxAmount, 62);
+  assert.strictEqual(f.rate, 3.95);
+});
+
+test("a half-described conversion is dropped rather than half-applied", () => {
+  // A currency with no rate can't produce the home amount, so the entry falls
+  // back to being a plain expense instead of claiming a conversion it can't do.
+  const noRate = sanF({ date: "2026-07-14", amount: 240, currency: "CHF", fxAmount: 62 });
+  assert.strictEqual(noRate.currency, undefined);
+  assert.strictEqual(noRate.amount, 240, "the home amount still stands");
+  const noFx = sanF({ date: "2026-07-14", amount: 240, currency: "CHF", rate: 3.95 });
+  assert.strictEqual(noFx.currency, undefined);
+  const zeroRate = sanF({ date: "2026-07-14", amount: 240, currency: "CHF", fxAmount: 62, rate: 0 });
+  assert.strictEqual(zeroRate.currency, undefined);
+  const junkRate = sanF({ date: "2026-07-14", amount: 240, currency: "CHF", fxAmount: 62, rate: "abc" });
+  assert.strictEqual(junkRate.currency, undefined);
+});
+
+test("a negative rate is refused, not silently flipped", () => {
+  assert.strictEqual(sanF({ amount: 10, currency: "CHF", fxAmount: 5, rate: -3 }).currency, undefined);
+});
+
+test("the currency code is normalised", () => {
+  assert.strictEqual(sanF({ amount: 10, currency: "chf", fxAmount: 5, rate: 2 }).currency, "CHF");
+});
+
+test("fxOf ignores an expense already in the home currency", () => {
+  assert.strictEqual(fxOf({ amount: 10 }), null);
+  assert.strictEqual(fxOf({ amount: 10, currency: "ILS", fxAmount: 10, rate: 1 }), null);
+  const fx = fxOf({ amount: 244.9, currency: "CHF", fxAmount: 62, rate: 3.95 });
+  assert.deepStrictEqual(fx, { currency: "CHF", amount: 62, rate: 3.95 });
+});
+
+test("provisional means the project has not been converted yet", () => {
+  testState.data.projects = [
+    { id: "p1", name: "Switzerland", currency: "CHF", rate: 3.9 },
+    { id: "p2", name: "Japan", currency: "JPY", rate: 0.025, rateConfirmed: true },
+  ];
+  const inSwiss = { amount: 242, currency: "CHF", fxAmount: 62, rate: 3.9, project: "Switzerland" };
+  const inJapan = { amount: 250, currency: "JPY", fxAmount: 10000, rate: 0.025, project: "Japan" };
+  assert.strictEqual(isProvisional(inSwiss), true, "unconverted project");
+  assert.strictEqual(isProvisional(inJapan), false, "converted project");
+});
+
+test("a one-off foreign expense outside any project is never provisional", () => {
+  // You typed that rate yourself; nothing is waiting to be settled.
+  assert.strictEqual(isProvisional({ amount: 112, currency: "USD", fxAmount: 29.99, rate: 3.75 }), false);
+});
+
+test("a home-currency expense inside an unconverted project is not provisional", () => {
+  testState.data.projects = [{ id: "p1", name: "Switzerland", currency: "CHF", rate: 3.9 }];
+  assert.strictEqual(isProvisional({ amount: 45, project: "Switzerland" }), false);
+});
+
+test("the dedupe key separates two expenses whose home amounts happen to match", () => {
+  const a = { date: "2026-07-14", amount: 240, category: "Food", currency: "CHF", fxAmount: 60, rate: 4 };
+  const b = { date: "2026-07-14", amount: 240, category: "Food", currency: "USD", fxAmount: 64, rate: 3.75 };
+  assert.notStrictEqual(Finance.financeKey(a), Finance.financeKey(b));
 });
 
 console.log(`\n${passed} test(s) passed.`);

@@ -16,6 +16,55 @@ what was decided against and why.
 
 ---
 
+- `amount` on a finance entry is ALWAYS in the home currency. This is the
+  single decision the whole multi-currency feature rests on. A foreign expense
+  carries three extra fields describing where that number came from —
+  `fxAmount` (what you actually paid), `currency`, and `rate` (home per 1
+  foreign unit) — and `amount` is their product, frozen.
+
+  The alternative, storing the foreign figure in `amount` and deriving the
+  home one at read time, would have meant auditing every total, breakdown,
+  chart, sort, export and dedupe that reads `.amount` — and any one missed
+  would silently add francs to shekels. This way a reader that knows nothing
+  about currency is still correct, which is why this feature touched the
+  rendering and almost nothing else.
+
+  Rates are frozen rather than looked up. A past expense cost what it cost; if
+  the home figure were re-derived from a live rate, last July's total would
+  drift every time you opened the app. That is also why there is no FX API
+  here and no network dependency added to a view that had none.
+
+- a rate is "provisional" when its project hasn't been converted yet, and that
+  is *derived*, not stored on the entry (isProvisional). "Has this trip been
+  settled up" is a fact about the trip; a per-entry copy would be one more
+  thing for Convert to keep in sync. A one-off foreign expense outside any
+  project is never provisional — you typed that rate yourself, nothing is
+  waiting on it.
+
+- Convert takes either a rate or the total the trip actually came to, and
+  derives one from the other. The second is the one worth having: your card
+  statement includes the bank's spread and fees, which no published rate does,
+  so "it came to ₪4,400" is a more accurate basis than any mid-market number.
+  Convert restamps `rate` and `amount` on every matching expense and sets
+  `rateConfirmed` on the project; `fxAmount` is never touched, so a wrong rate
+  is always fixable by converting again.
+
+  Editing the rate by hand in the project form deliberately does NOT restamp
+  anything — it only changes what the next expense inherits. Silently
+  rewriting settled figures because someone opened a form and typed would be
+  the worst available surprise.
+
+- the expense form adopts a project's currency whenever the *project* changes,
+  including when a date inside its range selects it. The first cut only seeded
+  currency in openFinanceModal, which runs before there is a date to match on,
+  so picking a date brought the project across without its currency. Both
+  paths now go through inheritProjectCurrency.
+
+- sanitizeFinanceEntry takes all three currency fields or none. A currency
+  without a rate cannot produce the home amount, and half a conversion is
+  worse than none — a junk trio is dropped and `amount` stands alone, which
+  is simply a plain expense.
+
 - projects are a second name-referenced collection beside financeCategories,
   not a free-text field and not a flag. The shape is deliberate: an entry
   stores `project: "Switzerland"` as a *name*, exactly as it stores `category`,

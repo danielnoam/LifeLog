@@ -25,6 +25,14 @@ todo:
   before you spend, and the converter is a one-off migration whose shape
   depends on how many old lumps turn out to be worth splitting.
 
+  Currency-wise (0.146.0), two things were left out deliberately: recurring
+  expenses can't be foreign (a subscription billed in USD is a real case, but
+  it wants a rate per occurrence or a rate that drifts, and neither is a
+  five-minute decision), and there is no rate lookup — every rate is one you
+  typed. An FX API would add a network dependency to a view that has none,
+  and for the main use (settling a trip from the statement) the number you
+  want isn't a published rate anyway.
+
   Projects are also finance-only on purpose. A holiday is a thing you log
   entries and notes about too, and a project that spanned all four views is a
   much bigger idea than this one — don't grow this into that by accident.

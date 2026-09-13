@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.145.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.146.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -518,6 +518,13 @@
         <label>Amount
           <input id="finAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 12.50 or 50-25" required />
         </label>
+        <label>Currency
+          <select id="finCurrency"></select>
+        </label>
+        <label id="finRateLabel" hidden>Rate
+          <input id="finRate" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 3.95" />
+        </label>
+        <p class="hint" id="finFxPreview" hidden></p>
         <label>Category
           <select id="finCategory" required></select>
         </label>
@@ -723,12 +730,43 @@
         <label>Ends
           <input id="projEnd" type="date" />
         </label>
+        <label>Spent in
+          <select id="projCurrency"></select>
+        </label>
+        <label id="projRateLabel" hidden>Rough rate
+          <input id="projRate" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 3.95" />
+        </label>
+        <p class="hint" id="projRateHint" hidden></p>
         <p class="muted" id="projUses"></p>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteProjectBtn" hidden>Delete</button>
+          <button type="button" class="link-btn" id="convertProjectBtn" hidden>Convert…</button>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelProjectBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="convertModal" hidden>
+    <div class="modal">
+      <h2 id="convertModalTitle">Convert</h2>
+      <form id="convertForm">
+        <input type="hidden" id="convProjName" />
+        <p class="hint" id="convIntro"></p>
+        <label>Rate
+          <input id="convRate" type="text" inputmode="decimal" autocomplete="off" />
+        </label>
+        <p class="hint">or, if you know what it came to on your statement:</p>
+        <label id="convTotalLabel">Total charged
+          <input id="convTotal" type="text" inputmode="decimal" autocomplete="off" />
+        </label>
+        <p class="muted" id="convSummary"></p>
+        <div class="modal-actions">
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelConvertBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Convert</button>
         </div>
       </form>
     </div>
@@ -1309,20 +1347,20 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.145.0"></script>
-  <script defer src="src/qr.js?v=0.145.0"></script>
-  <script defer src="src/media.js?v=0.145.0"></script>
-  <script defer src="src/merge.js?v=0.145.0"></script>
-  <script defer src="src/storage.js?v=0.145.0"></script>
-  <script defer src="src/finance.js?v=0.145.0"></script>
-  <script defer src="src/settings.js?v=0.145.0"></script>
-  <script defer src="src/wheel.js?v=0.145.0"></script>
-  <script defer src="src/backlog.js?v=0.145.0"></script>
-  <script defer src="src/journal.js?v=0.145.0"></script>
-  <script defer src="src/notes.js?v=0.145.0"></script>
-  <script defer src="src/todos.js?v=0.145.0"></script>
-  <script defer src="src/io.js?v=0.145.0"></script>
-  <script defer src="src/sync.js?v=0.145.0"></script>
-  <script defer src="src/app.js?v=0.145.0"></script>
+  <script defer src="src/reconcile.js?v=0.146.0"></script>
+  <script defer src="src/qr.js?v=0.146.0"></script>
+  <script defer src="src/media.js?v=0.146.0"></script>
+  <script defer src="src/merge.js?v=0.146.0"></script>
+  <script defer src="src/storage.js?v=0.146.0"></script>
+  <script defer src="src/finance.js?v=0.146.0"></script>
+  <script defer src="src/settings.js?v=0.146.0"></script>
+  <script defer src="src/wheel.js?v=0.146.0"></script>
+  <script defer src="src/backlog.js?v=0.146.0"></script>
+  <script defer src="src/journal.js?v=0.146.0"></script>
+  <script defer src="src/notes.js?v=0.146.0"></script>
+  <script defer src="src/todos.js?v=0.146.0"></script>
+  <script defer src="src/io.js?v=0.146.0"></script>
+  <script defer src="src/sync.js?v=0.146.0"></script>
+  <script defer src="src/app.js?v=0.146.0"></script>
 </body>
 </html>

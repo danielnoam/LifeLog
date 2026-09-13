@@ -4,6 +4,32 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.146.0] - 2026-09-13
+
+### Added
+- **Spend in another currency.** Any expense can be entered in the currency
+  you actually paid in, and the row shows both — "CHF 158.97  ₪619.98" — with
+  the home figure in the amount column so the column still lines up and still
+  adds up.
+  - A project can be set to a currency and a rough rate. Expenses you add to
+    it inherit both, so once you've said "Switzerland is in CHF" you stop
+    thinking about it. Picking a date inside the project's range brings the
+    currency along with the project.
+  - Until you settle up, those figures are marked provisional with a `~` —
+    on the row, on the project's breakdown line and on the month total. The
+    ledger always has a number; it just doesn't pretend the number is final.
+  - **Convert** restamps a whole project at once. Give it a rate, or give it
+    what the trip actually came to on your statement and it works the rate out
+    — which is usually the better answer, since your bank's spread and fees
+    are in that figure and in no published rate.
+  - What you paid is never overwritten. Convert changes the rate and the home
+    amount; the original stays exactly as entered, so a wrong rate is always
+    fixable.
+  - Twenty-three currencies, with JPY, KRW and HUF correctly showing no
+    decimals.
+- Finance CSV export now carries Project, Currency, Paid and Rate columns.
+  Amount stays the home figure, so the column still sums in a spreadsheet.
+
 ## [0.145.0] - 2026-09-13
 
 ### Added
