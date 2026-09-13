@@ -16,6 +16,58 @@ what was decided against and why.
 
 ---
 
+- projects are a second name-referenced collection beside financeCategories,
+  not a free-text field and not a flag. The shape is deliberate: an entry
+  stores `project: "Switzerland"` as a *name*, exactly as it stores `category`,
+  so the rename cascade in saveProjectFromForm is the one the finance category
+  modal already had, and the id stays put across a rename because it is the
+  merge identity. ensureProjects mirrors ensureCategories: a project an entry
+  names but the list has lost gets rebuilt rather than the expense silently
+  losing its grouping.
+
+  It is knowingly the *fourth* copy of the add/edit-category modal. DROPPED.md
+  argues why the three weren't unified, and this one diverges further still —
+  it carries a date range nothing else has, and deleting it un-groups expenses
+  rather than moving them to a fallback, because there is no "Other project"
+  and an expense without one is a perfectly ordinary expense.
+
+- the pill groups *runs*, not a groupBy. groupRunsByProject walks the month's
+  rows in their existing date order and starts a new run whenever the project
+  changes, so a non-project expense in the middle of a holiday splits it into
+  two pills. That is the correct answer rather than a limitation: a month card
+  is sorted by date, and gathering scattered rows into one pill would mean
+  reordering the month to make the grouping look tidy — the ledger lying about
+  when things happened.
+
+  The group's reconcile key carries the run's first row id, not just the
+  project name, because one project can legitimately have two runs in a month
+  and the two must not collide. The cost is that adding an expense *above* a
+  run's current head changes the key and rebuilds that pill instead of
+  animating it; cheap, and rare next to a key collision.
+
+  The pill head shows no amount, deliberately. A run is a partial figure — a
+  project spans months and can split within one — so a number there would sit
+  beside the month's project line in the breakdown and disagree with it. The
+  month's figure is in the breakdown; the project's is in Summary.
+
+- a project's spending leaves its category lines in the month breakdown and
+  gets a line of its own, so the lines still sum to the total underneath.
+  Counting a Switzerland dinner under both "Food" and "Switzerland" would make
+  the breakdown add up to more than the month, which is the one thing a
+  breakdown has to get right.
+
+  financeMonthlyTotals skips projects for the same reason it already skipped
+  yearly entries: the average, the trend and "biggest month" are describing
+  the shape of a normal month, and one holiday makes all three answer a
+  question nobody asked. The Ledger still counts them — that is where you go
+  to see what actually left your account.
+
+- adding a collection to merge.js's COLLECTION_KEYS used to be a two-file
+  change that crashed if you forgot the second: COLLECTION_LABELS was read by
+  destructuring, so a key with no label threw on `const [singular, plural] =
+  undefined`. Both readers now fall back to the key itself. Found by adding
+  `projects` and watching six unrelated merge tests fail.
+
 - the jump row (#jumpNav) is the app's secondary navbar, and jumpSectionSelector
   decides where it appears. Its rule used to be "the view's first mode only",
   which was standing in for "this mode is a stack of sections you can page

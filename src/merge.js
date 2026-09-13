@@ -4,7 +4,7 @@
 // in plain Node (see test/merge.test.js) — the merge logic is exactly what
 // gets tested, not a simulation of it.
 (function () {
-  const COLLECTION_KEYS = ["entries", "backlog", "notes", "todos", "financeEntries", "recurringExpenses", "categories", "todoCategories", "financeCategories"];
+  const COLLECTION_KEYS = ["entries", "backlog", "notes", "todos", "financeEntries", "recurringExpenses", "categories", "todoCategories", "financeCategories", "projects"];
 
   function byId(arr) {
     const m = new Map();
@@ -105,6 +105,7 @@
     categories: ["category", "categories"],
     todoCategories: ["to-do category", "to-do categories"],
     financeCategories: ["finance category", "finance categories"],
+    projects: ["project", "projects"],
   };
 
   // Human-readable summary of what changed between two whole-document
@@ -113,7 +114,7 @@
     before = before || {}; after = after || {};
     const parts = [];
     for (const key of COLLECTION_KEYS) {
-      const [singular, plural] = COLLECTION_LABELS[key];
+      const [singular, plural] = COLLECTION_LABELS[key] || [key, key];
       const d = diffCollection(before[key] || [], after[key] || []);
       if (d.added.length) parts.push(`+${d.added.length} ${d.added.length === 1 ? singular : plural}`);
       if (d.removed.length) parts.push(`-${d.removed.length} ${d.removed.length === 1 ? singular : plural}`);
@@ -138,7 +139,7 @@
     base = base || {}; local = local || {}; remote = remote || {};
     const editParts = [], deleteParts = [];
     for (const key of COLLECTION_KEYS) {
-      const [singular, plural] = COLLECTION_LABELS[key];
+      const [singular, plural] = COLLECTION_LABELS[key] || [key, key];
       const r = mergeCollection(base[key] || [], local[key] || [], remote[key] || []);
       if (r.editConflicts.length) editParts.push(`${r.editConflicts.length} ${r.editConflicts.length === 1 ? singular : plural}`);
       if (r.deleteOverridden.length) deleteParts.push(`${r.deleteOverridden.length} ${r.deleteOverridden.length === 1 ? singular : plural}`);

@@ -17,6 +17,18 @@ todo:
   it costs find-in-page over unbuilt rows. Not worth it at this size; the
   numbers above are the baseline to beat if it ever is.
 
+- projects, now that they exist (0.145.0), have obvious next steps that were
+  deliberately left out of the first cut: a budget per project with a
+  spent-against-it bar, and a way to turn an existing lump entry
+  ("Switzerland — 10,000") into a project with real expenses under it. Both
+  want using the feature first — a budget is only useful if you set one
+  before you spend, and the converter is a one-off migration whose shape
+  depends on how many old lumps turn out to be worth splitting.
+
+  Projects are also finance-only on purpose. A holiday is a thing you log
+  entries and notes about too, and a project that spanned all four views is a
+  much bigger idea than this one — don't grow this into that by accident.
+
 ---
 
 Ideas that turned out not to be worth doing, or not to be possible, live in

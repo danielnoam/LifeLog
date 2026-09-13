@@ -19,6 +19,9 @@ Finance.init({
     for (const key of Object.keys(src || {})) if (!known.has(key)) out[key] = src[key];
     return out;
   },
+  // 1-indexed, matching app.js — formatProjectRange reads MONTHS[month + 1].
+  MONTHS: ["", "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"],
 });
 
 const {
@@ -498,6 +501,120 @@ test("evalMathExpr returns null for incomplete or invalid input", () => {
 
 test("evalMathExpr guards against division by zero (non-finite)", () => {
   assert.strictEqual(evalMathExpr("1/0"), null);
+});
+
+console.log("\nprojects");
+
+const { groupRunsByProject, sanitizeProject, formatProjectRange } = Finance;
+const runShape = (items) => groupRunsByProject(items).map((r) => r.project + ":" + r.items.length);
+
+test("no projects means one run per stretch of plain rows", () => {
+  assert.deepStrictEqual(runShape([{ id: "a" }, { id: "b" }, { id: "c" }]), [":3"]);
+});
+
+test("an empty month has no runs", () => {
+  assert.deepStrictEqual(groupRunsByProject([]), []);
+  assert.deepStrictEqual(groupRunsByProject(undefined), []);
+});
+
+test("consecutive same-project rows become one run", () => {
+  const items = [
+    { id: "a" },
+    { id: "b", project: "Switzerland" },
+    { id: "c", project: "Switzerland" },
+    { id: "d", project: "Switzerland" },
+    { id: "e" },
+  ];
+  assert.deepStrictEqual(runShape(items), [":1", "Switzerland:3", ":1"]);
+});
+
+test("a non-project expense in the middle splits the block in two", () => {
+  // The subscription that hit while you were away. Two pills, deliberately —
+  // merging them would mean reordering the month to make them look tidy.
+  const items = [
+    { id: "a", project: "Switzerland" },
+    { id: "b" },
+    { id: "c", project: "Switzerland" },
+  ];
+  assert.deepStrictEqual(runShape(items), ["Switzerland:1", ":1", "Switzerland:1"]);
+});
+
+test("two different projects back to back stay separate", () => {
+  const items = [
+    { id: "a", project: "Switzerland" },
+    { id: "b", project: "Kitchen" },
+  ];
+  assert.deepStrictEqual(runShape(items), ["Switzerland:1", "Kitchen:1"]);
+});
+
+test("a lone project expense still gets its own run", () => {
+  // Otherwise the project would be invisible on that row.
+  assert.deepStrictEqual(runShape([{ id: "a", project: "Wedding" }]), ["Wedding:1"]);
+});
+
+test("every row lands in exactly one run, in order", () => {
+  const items = [
+    { id: "a" }, { id: "b", project: "P" }, { id: "c", project: "P" },
+    { id: "d" }, { id: "e", project: "Q" }, { id: "f" },
+  ];
+  const flat = groupRunsByProject(items).flatMap((r) => r.items.map((f) => f.id));
+  assert.deepStrictEqual(flat, ["a", "b", "c", "d", "e", "f"], "nothing dropped, nothing reordered");
+});
+
+test("an empty-string project is the same as none", () => {
+  assert.deepStrictEqual(runShape([{ id: "a", project: "" }, { id: "b" }]), [":2"]);
+});
+
+test("sanitizeProject fills in what is missing and keeps what is not", () => {
+  const p = sanitizeProject({ name: "Switzerland" });
+  assert.ok(p.id, "gets an id");
+  assert.strictEqual(p.name, "Switzerland");
+  assert.strictEqual(p.color, "#7a8a99");
+  assert.ok(p.updatedAt, "carries a stamp so two devices can be told apart");
+  assert.strictEqual(p.startDate, undefined, "no dates invented");
+});
+
+test("sanitizeProject trims dates to a plain day", () => {
+  const p = sanitizeProject({ name: "Trip", startDate: "2026-07-12T00:00:00.000Z", endDate: "2026-07-22" });
+  assert.strictEqual(p.startDate, "2026-07-12");
+  assert.strictEqual(p.endDate, "2026-07-22");
+});
+
+test("sanitizeProject carries fields it does not know about", () => {
+  // Same contract as every other sanitizer: an older build must not silently
+  // delete what a newer one added.
+  const p = sanitizeProject({ name: "Trip", budget: 5000 });
+  assert.strictEqual(p.budget, 5000);
+});
+
+test("a missing name becomes empty rather than undefined", () => {
+  assert.strictEqual(sanitizeProject({}).name, "");
+  assert.strictEqual(sanitizeProject({ name: null }).name, "");
+});
+
+test("the dedupe key separates a trip expense from an identical ordinary one", () => {
+  // Same day, same amount, same category, same note — one on the trip and one
+  // not. Without the project in the key an import would fold them together.
+  const base = { date: "2026-07-14", amount: 240, category: "Food", note: "Dinner" };
+  assert.notStrictEqual(financeKey({ ...base, project: "Switzerland" }), financeKey(base));
+  assert.strictEqual(financeKey({ ...base, project: "Switzerland" }), financeKey({ ...base, project: "switzerland" }));
+});
+
+test("formatProjectRange collapses a repeated month and year", () => {
+  assert.strictEqual(formatProjectRange({ startDate: "2026-07-12", endDate: "2026-07-22" }), "12 – 22 Jul 2026");
+});
+
+test("formatProjectRange keeps the month when it changes", () => {
+  assert.strictEqual(formatProjectRange({ startDate: "2026-07-28", endDate: "2026-08-03" }), "28 Jul – 3 Aug 2026");
+});
+
+test("formatProjectRange keeps the year when it changes", () => {
+  assert.strictEqual(formatProjectRange({ startDate: "2026-12-28", endDate: "2027-01-03" }), "28 Dec 2026 – 3 Jan 2027");
+});
+
+test("formatProjectRange shows one date when there is no end", () => {
+  assert.strictEqual(formatProjectRange({ startDate: "2026-09-09" }), "9 Sep 2026");
+  assert.strictEqual(formatProjectRange({ startDate: "2026-09-09", endDate: "2026-09-09" }), "9 Sep 2026");
 });
 
 console.log(`\n${passed} test(s) passed.`);

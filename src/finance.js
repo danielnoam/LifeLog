@@ -25,7 +25,7 @@
   let state, $, el, uid, groupBy, countBy, toast, persist, render, renderLazySections,
     buildYearFilter, buildCatFilter, monthCardHeader, emptyState,
     bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
-    animatedNumberText, barRow, fillCategorySelect, wireCategorySelect,
+    animatedNumberText, barRow, fillSelect, fillCategorySelect, wireCategorySelect,
     resolvePendingCatSelect, download, csvEsc, parseCsv,
     buildImportItems, reviewAndImport, openImportPicker,
     backfillUpdatedAt, MONTHS;
@@ -39,7 +39,7 @@
     ({ state, $, el, uid, groupBy, countBy, toast, persist, render, renderLazySections,
       buildYearFilter, buildCatFilter, monthCardHeader, emptyState,
       bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
-      animatedNumberText, barRow, fillCategorySelect, wireCategorySelect,
+      animatedNumberText, barRow, fillSelect, fillCategorySelect, wireCategorySelect,
       resolvePendingCatSelect, keepUnknown, download, csvEsc, parseCsv,
       buildImportItems, reviewAndImport, openImportPicker,
       backfillUpdatedAt, MONTHS } = ctx);
@@ -152,6 +152,29 @@
     for (const c of state.data.financeCategories) financeCatColor[c.name] = c.color;
   }
   const financeColorOf = (name) => financeCatColor[name] || "#7a8a99";
+
+  let projectColor = {};
+  function rebuildProjectColorMap() {
+    projectColor = {};
+    for (const p of state.data.projects || []) projectColor[p.name] = p.color;
+  }
+  const projectColorOf = (name) => projectColor[name] || "#7a8a99";
+  const projectByName = (name) => (state.data.projects || []).find((p) => p.name === name) || null;
+
+  // The project whose date range covers this date, if any — what the expense
+  // form preselects. First match wins; overlapping ranges are the user's to
+  // sort out, and silently picking "the best" of two would be worse than
+  // picking the first and letting them change it.
+  function projectForDate(date) {
+    if (!date) return null;
+    const d = String(date).slice(0, 10);
+    for (const p of state.data.projects || []) {
+      if (!p.startDate) continue;
+      const end = p.endDate || p.startDate;
+      if (d >= p.startDate && d <= end) return p;
+    }
+    return null;
+  }
 
   // Manual formatting instead of Intl.NumberFormat("he-IL", {style:"currency"}) —
   // that locale injects invisible RTL bidi marks and puts the symbol after the
@@ -546,6 +569,26 @@
     }
   }
 
+  // Consecutive rows belonging to the same project become one pill, so the
+  // project is named once over the block rather than repeated on every row.
+  // Runs, not a groupBy: a month card is sorted by date, so a holiday's
+  // expenses are already adjacent, and a non-project expense landing in the
+  // middle (a subscription that hit while you were away) genuinely does split
+  // the block in two. Grouping regardless of position would reorder the month
+  // to make the pills look tidy, which is the ledger lying about dates.
+  //
+  // Pure, and exported for test/finance.test.js.
+  function groupRunsByProject(items) {
+    const runs = [];
+    for (const f of items || []) {
+      const project = f.project || "";
+      const last = runs[runs.length - 1];
+      if (last && last.project === project) last.items.push(f);
+      else runs.push({ project, items: [f] });
+    }
+    return runs;
+  }
+
   // The row's *contents*. Its click and long-press live in createFinanceRow.
   function financeRow(f) {
     const row = el("div", "entry finance-entry" + (f.yearly ? " yearly-expense" : "") + (f.skipped ? " is-skipped" : ""));
@@ -602,13 +645,82 @@
     return row;
   }
 
+  // The pill's contents: the project named once over the block, and its rows
+  // reconciled inside. Nested reconcile rather than a rebuild, so a row that
+  // stays in the same run keeps its node — which is what lets the month card
+  // animate at all, and what keeps a long-press or an open bulk selection
+  // from being torn out from under you.
+  //
+  // No amount in the head, deliberately. A run is a partial figure: a project
+  // spans months and can be split in two within one, so a number here would
+  // sit next to the month's project line in the breakdown and disagree with
+  // it. The month's total is in the breakdown; the project's is in Summary.
+  function fillProjectGroup(box, project, items) {
+    const color = projectColorOf(project);
+    // Alpha suffixes on the hex, the same trick the category chip uses
+    // (`color + "22"`). A project colour that isn't a 6-digit hex — from
+    // hand-edited JSON — makes these invalid, and the tints fall back to
+    // their defaults: a pill with no colour rather than a broken card.
+    box.style.setProperty("--proj-tint", color + "12");
+    box.style.setProperty("--proj-head", color + "22");
+    box.style.setProperty("--proj-edge", color + "59");
+    const head = box.firstElementChild;
+    const list = box.lastElementChild;
+
+    const fresh = el("div", "proj-group-head");
+    const dot = el("span", "dot");
+    dot.style.background = color;
+    fresh.appendChild(dot);
+    const name = el("span", "proj-group-name", project);
+    name.title = project;
+    fresh.appendChild(name);
+    // Opens the project itself, not the expense — the head names the group,
+    // so tapping it is how you rename or recolour it.
+    const edit = el("button", "proj-group-edit", "✎");
+    edit.type = "button";
+    edit.title = "Edit " + project;
+    edit.setAttribute("aria-label", edit.title);
+    fresh.appendChild(edit);
+    adopt(head, fresh);
+    // Bound after adopt: adopt() carries attributes, not properties, so a
+    // handler set on a child that gets replaced goes with it. The button is
+    // re-created every refill, so it is wired every refill.
+    head.querySelector(".proj-group-edit").onclick = (ev) => {
+      ev.stopPropagation();
+      const p = projectByName(project);
+      if (p) openProjectModal(p);
+    };
+
+    reconcile(list, items, {
+      animate: true,
+      keyOf: (f) => f.id,
+      create: (f) => createFinanceRow(f.id, !!f.virtual),
+      update: (node, f) => adopt(node, financeRow(f)),
+    });
+  }
+
   // A month's header plus its rows. financeRow encodes four bits of state in
   // its class string — yearly, skipped, and via the row's contents virtual and
   // overridden — and adopt() syncs the whole class attribute, so a reused node
   // loses the ones that no longer apply as well as gaining the ones that do.
   function fillFinanceMonthCard(card, key, label, monthItems, countedItems, onAdd) {
     const parts = [{ key: "__head", kind: "head", label, countedItems, monthItems, onAdd }];
-    for (const f of monthItems) parts.push({ key: f.id, kind: "row", item: f });
+    // Consecutive same-project rows become one pill. The key carries the run's
+    // first row id, not just the project name: one project can have two runs
+    // in a month (something non-project landed between them) and the two must
+    // not share a key. The cost is that adding an expense *above* a run's
+    // current head changes the key and rebuilds that pill rather than
+    // animating it — cheap, and rare next to the alternative of colliding.
+    for (const run of groupRunsByProject(monthItems)) {
+      if (!run.project) {
+        for (const f of run.items) parts.push({ key: f.id, kind: "row", item: f });
+        continue;
+      }
+      parts.push({
+        key: "proj:" + run.project + ":" + run.items[0].id,
+        kind: "group", project: run.project, items: run.items,
+      });
+    }
 
     // Where the month's money went, above its total: one line per category
     // that actually has entries this month, largest first. Counted items only,
@@ -616,17 +728,40 @@
     // occurrence is in neither).
     // Off by setting means not computed either, not merely not shown: this
     // runs per month card on every render.
+    const projectTotal = countedItems.reduce((sum, f) => sum + (f.project ? f.amount : 0), 0);
     if (state.visual.ledgerMonthSummary !== "hide") {
-      const byCat = groupBy(countedItems, (f) => f.category);
+      // A project's spending leaves its category lines and gets one of its
+      // own, so every line here still sums to the total underneath. Counting
+      // a Switzerland dinner under both "Food" and "Switzerland" would make
+      // the breakdown add up to more than the month, which is the one thing a
+      // breakdown has to get right.
+      const byCat = groupBy(countedItems.filter((f) => !f.project), (f) => f.category);
       const catRows = Object.keys(byCat)
         .map((name) => ({ name, total: byCat[name].reduce((sum, f) => sum + f.amount, 0) }))
         .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
-      if (catRows.length) parts.push({ key: "__cats", kind: "cats", catRows });
+      const byProj = groupBy(countedItems.filter((f) => f.project), (f) => f.project);
+      const projRows = Object.keys(byProj)
+        .map((name) => ({ name, project: true, total: byProj[name].reduce((sum, f) => sum + f.amount, 0) }))
+        .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
+      // Projects last regardless of size: they are the one-offs, and the
+      // recurring shape of the month is what the category lines are for.
+      const rows = catRows.concat(projRows);
+      if (rows.length) parts.push({ key: "__cats", kind: "cats", catRows: rows });
     }
     parts.push({
       key: "__total", kind: "total", animKey: "fin-month-total:" + key,
       total: countedItems.reduce((sum, f) => sum + f.amount, 0),
     });
+    // Its own part rather than a third child of .month-total, which is a
+    // two-column flex row — anything appended there lands beside the amount.
+    // Only when a project is actually in play: on an ordinary month the two
+    // figures are the same number twice.
+    if (projectTotal) {
+      parts.push({
+        key: "__ex", kind: "ex",
+        total: countedItems.reduce((sum, f) => sum + (f.project ? 0 : f.amount), 0),
+      });
+    }
 
     reconcile(card, parts, {
       animate: true,
@@ -634,14 +769,24 @@
       create: (part) => {
         if (part.kind === "head") return el("h3");
         if (part.kind === "cats") return el("div", "month-cats");
+        if (part.kind === "ex") return el("div", "month-total-ex");
         if (part.kind === "total") {
           // Built once and updated in place, unlike the rest: the total counts
           // up over half a second, and rebuilding the span it animates would
-          // cut that off on any render landing mid-flight.
+          // cut that off on any render landing mid-flight. The ex-projects
+          // line rides alongside rather than inside, for the same reason.
           const totalRow = el("div", "month-total");
           totalRow.appendChild(el("span", null, "Total"));
           totalRow.appendChild(el("span", "famount fnegative"));
           return totalRow;
+        }
+        // The pill. Its head and list are kept across renders so the rows
+        // inside reconcile rather than being rebuilt with the wrapper.
+        if (part.kind === "group") {
+          const box = el("div", "proj-group");
+          box.appendChild(el("div", "proj-group-head"));
+          box.appendChild(el("div", "proj-group-list"));
+          return box;
         }
         return createFinanceRow(part.item.id, !!part.item.virtual);
       },
@@ -650,12 +795,16 @@
           animatedNumberText(node.lastChild, part.animKey, part.total, formatMoney);
           return;
         }
+        if (part.kind === "ex") {
+          node.textContent = formatMoney(part.total) + " excluding projects";
+          return;
+        }
         if (part.kind === "cats") {
           const cats = el("div", "month-cats");
           for (const c of part.catRows) {
-            const row = el("div", "month-cat");
+            const row = el("div", "month-cat" + (c.project ? " is-project" : ""));
             const dot = el("span", "dot");
-            dot.style.background = financeColorOf(c.name);
+            dot.style.background = c.project ? projectColorOf(c.name) : financeColorOf(c.name);
             row.appendChild(dot);
             const name = el("span", "month-cat-name", c.name);
             name.title = c.name;
@@ -664,6 +813,10 @@
             cats.appendChild(row);
           }
           adopt(node, cats);
+          return;
+        }
+        if (part.kind === "group") {
+          fillProjectGroup(node, part.project, part.items);
           return;
         }
         adopt(node, part.kind === "head"
@@ -725,8 +878,64 @@
 
     renderFinanceMonthCard(root, items);
     renderFinanceTrendCard(root, items);
+    renderProjectsCard(root, items);
     renderRecurringSplitCard(root, items);
     renderTopExpensesCard(root, items);
+  }
+
+  // What each project cost in total — the number the whole feature exists to
+  // give back. Before this you wrote one lump "Switzerland 10,000" entry and
+  // had the figure but none of the detail; now the detail adds up to it.
+  //
+  // Every project with spending gets a row, plus any dated project that has
+  // none yet: a trip you have set up but not yet spent on should show as
+  // waiting rather than not exist.
+  function renderProjectsCard(root, items) {
+    const projects = state.data.projects || [];
+    if (!projects.length) return;
+    const byProj = groupBy(items.filter((f) => f.project), (f) => f.project);
+    const rows = projects
+      .map((p) => {
+        const own = byProj[p.name] || [];
+        return { p, total: own.reduce((sum, f) => sum + f.amount, 0), n: own.length };
+      })
+      .filter((r) => r.n || r.p.startDate)
+      .sort((a, b) => b.total - a.total || a.p.name.localeCompare(b.p.name));
+    if (!rows.length) return;
+
+    const card = el("div", "card");
+    card.appendChild(el("h2", null, "Projects"));
+    const max = Math.max(1, ...rows.map((r) => r.total));
+    for (const r of rows) {
+      const line = el("div", "proj-stat");
+      const bar = barRow(r.p.name, r.total, max, r.p.color, null, formatMoney);
+      line.appendChild(bar);
+      const meta = [];
+      if (r.p.startDate) meta.push(formatProjectRange(r.p));
+      meta.push(r.n + (r.n === 1 ? " expense" : " expenses"));
+      line.appendChild(el("div", "proj-stat-meta", meta.join(" · ")));
+      // Same target as the pill's ✎ — one place to rename, recolour or redate.
+      line.onclick = () => openProjectModal(r.p);
+      card.appendChild(line);
+    }
+    root.appendChild(card);
+  }
+
+  // "12–22 Jul 2026", collapsing the repeated month and year, and a single
+  // date when a project has a start but no end.
+  function formatProjectRange(p) {
+    const fmt = (d, withMonth, withYear) => {
+      const dt = new Date(d + "T00:00:00");
+      if (isNaN(dt)) return d;
+      return dt.getDate() + (withMonth ? " " + MONTHS[dt.getMonth() + 1].slice(0, 3) : "")
+        + (withYear ? " " + dt.getFullYear() : "");
+    };
+    if (!p.endDate || p.endDate === p.startDate) return fmt(p.startDate, true, true);
+    const a = new Date(p.startDate + "T00:00:00"), b = new Date(p.endDate + "T00:00:00");
+    if (isNaN(a) || isNaN(b)) return p.startDate + " – " + p.endDate;
+    const sameYear = a.getFullYear() === b.getFullYear();
+    const sameMonth = sameYear && a.getMonth() === b.getMonth();
+    return fmt(p.startDate, !sameMonth, !sameYear) + " – " + fmt(p.endDate, true, true);
   }
 
   // Monthly spend totals keyed by year*12+(month-1) so consecutive calendar
@@ -736,6 +945,12 @@
     const totals = {};
     for (const f of items) {
       if (f.yearly) continue;
+      // Projects are left out for the same reason yearly entries are: a
+      // holiday is not part of the shape of a normal month, and letting one
+      // through makes the average, the trend line and "biggest month" answer
+      // a question nobody asked. The Ledger still counts them — that is where
+      // you go to see what actually left your account.
+      if (f.project) continue;
       const k = financeYearOf(f) * 12 + (financeMonthOf(f) - 1);
       totals[k] = (totals[k] || 0) + f.amount;
     }
@@ -962,10 +1177,41 @@
     $("#finAmount").value = editing ? entry.amount : "";
     fillCategorySelect($("#finCategory"), state.data.financeCategories,
       editing ? entry.category : (state.data.financeCategories[0] && state.data.financeCategories[0].name));
+    // An existing entry keeps whatever it has, including none. A new one is
+    // offered the project whose range covers its date — preselected in a
+    // visible dropdown, never applied silently.
+    const preset = editing ? (entry.project || "")
+      : (projectForDate($("#finDate").value) || {}).name || "";
+    fillProjectSelect($("#finProject"), preset);
+    updateProjectHint(!editing);
     $("#finNote").value = editing ? (entry.note || "") : "";
     $("#deleteFinanceBtn").hidden = !editing;
     applyFinanceYearlyUI();
     $("#financeModal").hidden = false;
+  }
+
+  const ADD_PROJECT_OPTION = "__add_project__";
+
+  function fillProjectSelect(sel, val) {
+    fillSelect(sel, [{ value: "", label: "— none —" }]
+      .concat((state.data.projects || []).map((p) => ({ value: p.name, label: p.name })))
+      .concat([{ value: ADD_PROJECT_OPTION, label: "+ New project…" }]), val || "");
+    sel.dataset.prevValue = val || "";
+  }
+
+  // Says *why* a project is already selected, so a preselection reads as the
+  // app being helpful rather than as a value the user doesn't remember
+  // setting. Only on a new entry: on an edit the value is simply what was
+  // saved, and explaining it would be wrong.
+  function updateProjectHint(isNew) {
+    const hint = $("#finProjectHint");
+    if (!hint) return;
+    const name = $("#finProject").value;
+    const p = isNew && name ? projectByName(name) : null;
+    if (p && p.startDate) {
+      hint.textContent = `Picked because this date falls inside ${p.name}.`;
+      hint.hidden = false;
+    } else hint.hidden = true;
   }
   function closeFinanceModal() { $("#financeModal").hidden = true; }
 
@@ -976,6 +1222,7 @@
     const date = yearly ? $("#finYear").value : $("#finDate").value;
     const amount = readAmount("#finAmount");
     const category = $("#finCategory").value;
+    const project = $("#finProject").value === ADD_PROJECT_OPTION ? "" : $("#finProject").value;
     const note = $("#finNote").value.trim();
     if (!date || !amount) return;
     if (yearly && !/^\d{4}$/.test(date)) return;
@@ -984,10 +1231,12 @@
       Object.assign(f, { date, amount, category });
       if (note) f.note = note; else delete f.note;
       if (yearly) f.yearly = true; else delete f.yearly;
+      if (project) f.project = project; else delete f.project;
     } else {
       const item = { id: uid(), date, amount, category, createdAt: new Date().toISOString() };
       if (note) item.note = note;
       if (yearly) item.yearly = true;
+      if (project) item.project = project;
       state.data.financeEntries.push(item);
     }
     closeFinanceModal();
@@ -1523,6 +1772,120 @@
   }
 
   // ---------- finance categories management ----------
+  // ---------- projects ----------
+  // The fourth copy of the add/edit-category modal, knowingly. DROPPED.md
+  // says why the three existing ones weren't unified: their save paths
+  // diverge in ways a shared form would have to resolve rather than absorb.
+  // This one diverges further still — it carries a date range nothing else
+  // has, and deleting it un-groups expenses instead of moving them to a
+  // fallback, because there is no "Other project" and an expense without a
+  // project is a perfectly ordinary expense.
+  let pendingProjectSelect = false; // reopen #financeModal after adding inline
+
+  function openProjectModal(proj, opts) {
+    const editing = !!proj;
+    pendingProjectSelect = !!(opts && opts.fromEntry);
+    $("#projectModalTitle").textContent = editing ? "Edit project" : "New project";
+    $("#projOrigName").value = editing ? proj.name : "";
+    $("#projName").value = editing ? proj.name : "";
+    $("#projColorInput").value = editing ? proj.color : "#3bb2e2";
+    $("#projStart").value = editing ? (proj.startDate || "") : "";
+    $("#projEnd").value = editing ? (proj.endDate || "") : "";
+    const uses = $("#projUses");
+    if (editing) {
+      const items = state.data.financeEntries.filter((f) => f.project === proj.name);
+      const total = items.reduce((sum, f) => sum + f.amount, 0);
+      uses.textContent = items.length
+        ? `${items.length} expense${items.length === 1 ? "" : "s"}, ${formatMoney(total)}`
+        : "No expenses yet";
+      uses.hidden = false;
+    } else uses.hidden = true;
+    $("#deleteProjectBtn").hidden = !editing;
+    $("#projectModal").hidden = false;
+  }
+  function closeProjectModal() { $("#projectModal").hidden = true; }
+  // Backing out of a project opened from the expense form puts you back in
+  // the expense form, with whatever was selected before still selected.
+  function cancelProjectModal() {
+    closeProjectModal();
+    if (pendingProjectSelect) {
+      pendingProjectSelect = false;
+      fillProjectSelect($("#finProject"), $("#finProject").dataset.prevValue || "");
+      $("#financeModal").hidden = false;
+    }
+  }
+
+  async function saveProjectFromForm(ev) {
+    ev.preventDefault();
+    const orig = $("#projOrigName").value;
+    const name = $("#projName").value.trim();
+    const color = $("#projColorInput").value;
+    const startDate = $("#projStart").value;
+    const endDate = $("#projEnd").value;
+    if (!name) return;
+    if (startDate && endDate && endDate < startDate) {
+      toast("A project can't end before it starts", true);
+      return;
+    }
+    const clash = (p) => p.name.toLowerCase() === name.toLowerCase();
+    const projects = state.data.projects;
+
+    if (!orig) {
+      if (projects.some(clash)) { toast("That project already exists", true); return; }
+      const now = new Date().toISOString();
+      const item = { id: uid(), name, color, createdAt: now, updatedAt: now };
+      if (startDate) item.startDate = startDate;
+      if (endDate) item.endDate = endDate;
+      projects.push(item);
+    } else {
+      const proj = projects.find((p) => p.name === orig);
+      if (!proj) return;
+      if (name !== proj.name && projects.some((p) => p !== proj && clash(p))) {
+        toast("A project with that name already exists", true);
+        return;
+      }
+      proj.color = color;
+      if (startDate) proj.startDate = startDate; else delete proj.startDate;
+      if (endDate) proj.endDate = endDate; else delete proj.endDate;
+      if (name !== proj.name) {
+        // The id stays put — it's the merge identity — and the name cascades
+        // across the entries that reference it, exactly as a finance category
+        // rename does.
+        const old = proj.name;
+        proj.name = name;
+        state.data.financeEntries.forEach((f) => { if (f.project === old) f.project = name; });
+      }
+    }
+    closeProjectModal();
+    rebuildProjectColorMap();
+    if (pendingProjectSelect) {
+      pendingProjectSelect = false;
+      fillProjectSelect($("#finProject"), name);
+      updateProjectHint(false);
+      $("#financeModal").hidden = false;
+    }
+    render();
+    await persist();
+    toast(orig ? "Project updated" : "Project added");
+  }
+
+  async function deleteCurrentProject() {
+    const proj = state.data.projects.find((p) => p.name === $("#projOrigName").value);
+    if (!proj) return;
+    const n = state.data.financeEntries.filter((f) => f.project === proj.name).length;
+    // Un-grouped, not deleted, and not moved to a fallback: the expenses are
+    // real and stay exactly where they are in their months. Only the grouping
+    // goes, which is the thing being deleted.
+    if (n > 0 && !confirm(`Delete “${proj.name}”? Its ${n} expense${n === 1 ? "" : "s"} stay where they are, just no longer grouped.`)) return;
+    state.data.projects = state.data.projects.filter((p) => p !== proj);
+    state.data.financeEntries.forEach((f) => { if (f.project === proj.name) delete f.project; });
+    closeProjectModal();
+    rebuildProjectColorMap();
+    render();
+    await persist();
+    toast("Project deleted");
+  }
+
   function openFinanceCatModal(cat) {
     const editing = !!cat;
     $("#financeCatModalTitle").textContent = editing ? "Edit finance category" : "Add finance category";
@@ -1729,7 +2092,10 @@
   // carried through rather than dropped, so a device on an older build can't
   // silently delete a newer one's data.
   const KNOWN_FINANCE_ENTRY_KEYS = new Set([
-    "id", "date", "amount", "category", "createdAt", "updatedAt", "yearly", "note",
+    "id", "date", "amount", "category", "createdAt", "updatedAt", "yearly", "note", "project",
+  ]);
+  const KNOWN_PROJECT_KEYS = new Set([
+    "id", "name", "color", "startDate", "endDate", "createdAt", "updatedAt",
   ]);
   const KNOWN_RECURRING_KEYS = new Set([
     "id", "startDate", "interval", "amount", "category", "createdAt", "updatedAt",
@@ -1749,9 +2115,30 @@
       out.date = String(out.date).slice(0, 4);
     }
     if (f.note) out.note = f.note;
+    // Referenced by name, exactly as `category` is — the rename cascade in
+    // saveProjectFromForm is the same one finance categories already use.
+    if (f.project) out.project = String(f.project);
     return keepUnknown(f, out, KNOWN_FINANCE_ENTRY_KEYS);
   }
-  const financeKey = (f) => `${(f.date || "").toLowerCase()}|${+f.amount}|${(f.category || "").toLowerCase()}|${(f.note || "").toLowerCase()}|${f.yearly ? 1 : 0}`;
+
+  // A project is a one-off burst of spending you want totalled on its own and
+  // kept out of your monthly average: a holiday, a renovation, a wedding. The
+  // shape deliberately mirrors a finance category (name + colour, referenced
+  // by name) and adds an optional date range, which is what lets the expense
+  // form offer the right project for a date without being asked.
+  function sanitizeProject(p) {
+    const out = {
+      id: p.id || uid(),
+      name: String(p.name == null ? "" : p.name),
+      color: p.color || "#7a8a99",
+      updatedAt: backfillUpdatedAt(p),
+    };
+    if (p.startDate) out.startDate = String(p.startDate).slice(0, 10);
+    if (p.endDate) out.endDate = String(p.endDate).slice(0, 10);
+    if (p.createdAt) out.createdAt = p.createdAt;
+    return keepUnknown(p, out, KNOWN_PROJECT_KEYS);
+  }
+  const financeKey = (f) => `${(f.date || "").toLowerCase()}|${+f.amount}|${(f.category || "").toLowerCase()}|${(f.note || "").toLowerCase()}|${f.yearly ? 1 : 0}|${(f.project || "").toLowerCase()}`;
   function sanitizeRecurring(r) {
     const out = {
       id: r.id || uid(),
@@ -1846,6 +2233,31 @@
     $("#financeCatForm").onsubmit = saveFinanceCatFromForm;
     $("#deleteFinanceCatBtn").onclick = deleteCurrentFinanceCategory;
 
+    $("#cancelProjectBtn").onclick = cancelProjectModal;
+    $("#projectForm").onsubmit = saveProjectFromForm;
+    $("#deleteProjectBtn").onclick = deleteCurrentProject;
+    // "+ New project…" hides the expense form, opens the project one, and
+    // comes back with the new project selected — the same round trip
+    // wireCategorySelect does for categories.
+    $("#finProject").onchange = () => {
+      const sel = $("#finProject");
+      if (sel.value !== ADD_PROJECT_OPTION) { sel.dataset.prevValue = sel.value; updateProjectHint(false); return; }
+      $("#financeModal").hidden = true;
+      openProjectModal(null, { fromEntry: true });
+    };
+    // Changing the date re-offers the project for that date, but only while
+    // the field is still untouched: overwriting a choice the user has made
+    // because they corrected a typo in the date would be worse than not
+    // helping at all.
+    $("#finDate").addEventListener("change", () => {
+      if ($("#financeId").value) return; // editing: the saved value stands
+      if ($("#finProject").value) return; // already chosen
+      const p = projectForDate($("#finDate").value);
+      if (!p) return;
+      fillProjectSelect($("#finProject"), p.name);
+      updateProjectHint(true);
+    });
+
     $("#exportFinanceJsonBtn").onclick = exportFinanceJson;
     $("#exportFinanceCsvBtn").onclick = exportFinanceCsv;
     $("#importFinanceJsonBtn").onclick = () => $("#importFinanceJsonInput").click();
@@ -1860,6 +2272,7 @@
     // data lifecycle (used by app.js's emptyData/normalize/import infra)
     seedFinanceCategories,
     sanitizeFinanceEntry,
+    sanitizeProject,
     sanitizeRecurring,
     financeKey,
     recurringKey,
@@ -1881,6 +2294,10 @@
     // shared lookups/formatting (used by the shared import picker rows)
     rebuildFinanceColorMap,
     financeColorOf,
+    rebuildProjectColorMap,
+    projectColorOf,
+    projectForDate,
+    groupRunsByProject,
     formatMoney,
     financeYears,
     // views (dispatched from app.js's render())
@@ -1897,5 +2314,9 @@
     closePauseModal,
     openFinanceCatModal,
     cancelFinanceCatModal,
+    openProjectModal,
+    closeProjectModal,
+    cancelProjectModal,
+    formatProjectRange,
   };
 })();

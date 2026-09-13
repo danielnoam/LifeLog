@@ -669,6 +669,48 @@ select:focus { outline: none; border-color: var(--accent); }
    money colour — same column, same alignment, different unit. */
 .month-cat-n { font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .month-cats + .month-total { border-top: none; margin-top: 5px; }
+/* The ordinary-spending figure, under the total and quieter than it: it is
+   context for the number above, not a second number competing with it. */
+.month-total-ex {
+  text-align: right; padding: 2px 7px 0; font-size: 11px; color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+/* A project's line in the breakdown sits with the categories but reads as a
+   different kind of thing — it is a block of one-off spending, not one of the
+   recurring shapes of the month. */
+.month-cat.is-project .month-cat-name { font-weight: 600; color: var(--text-dim); }
+
+/* The pill: consecutive expenses on the same project, wrapped once and named
+   once. The three tints come in as variables set by fillProjectGroup, built
+   the way this file already builds translucent brand colours — an alpha
+   suffix on the hex (`color + "22"`, as the category chip does) rather than
+   color-mix, which nothing else here relies on. */
+.proj-group {
+  margin: 6px 0; border-radius: 10px; overflow: hidden;
+  border: 1px solid var(--proj-edge, var(--border));
+  background: var(--proj-tint, transparent);
+}
+.proj-group-head {
+  display: flex; align-items: center; gap: 7px; padding: 5px 9px;
+  font-size: 11.5px; font-weight: 600; color: var(--text-dim);
+  background: var(--proj-head, transparent);
+}
+.proj-group-head .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+.proj-group-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proj-group-edit {
+  appearance: none; background: none; border: 0; cursor: pointer; font: inherit;
+  color: var(--text-faint); padding: 0 2px; line-height: 1; flex: 0 0 auto;
+}
+.proj-group-edit:hover { color: var(--accent); }
+.proj-group-list { padding: 2px; }
+/* Rows inside a pill drop their own hover plate — the pill is already a
+   surface, and a second one on top of it reads as a box in a box. */
+.proj-group-list .finance-entry:hover { background: var(--proj-head, var(--bg-elev-2)); }
+
+/* Summary's Projects card: a bar per project with its dates under it. */
+.proj-stat { cursor: pointer; border-radius: 7px; padding: 2px 4px; margin: 0 -4px; }
+.proj-stat:hover { background: var(--bg-elev-2); }
+.proj-stat-meta { font-size: 11px; color: var(--text-faint); margin: -2px 0 8px; }
 /* The to-do box sits above both panels: press it, type, Enter. It's the
    whole "add" affordance, so it's always open rather than hidden behind a
    button — a checklist you have to unlock before writing in is a checklist

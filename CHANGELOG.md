@@ -4,6 +4,32 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.145.0] - 2026-09-13
+
+### Added
+- **Projects: group a burst of one-off spending and total it on its own.** A
+  holiday, a renovation, a wedding — anything you used to log as a single lump
+  ("Switzerland — ₪10,000") can now be the individual expenses it was made of,
+  each keeping its own category, all adding up to the figure you had before.
+  - Consecutive expenses on the same project are wrapped in one tinted pill
+    with the project named once over the block. A non-project expense landing
+    in the middle (a subscription that hit while you were away) splits it in
+    two, because the ledger sorts by date and reordering a month to make the
+    pills look tidy would be lying about when things happened.
+  - A project can carry a date range, and then an expense dated inside it
+    offers that project for you — preselected in the dropdown, visibly, never
+    applied silently. Change the date and it re-offers; change the project
+    yourself and it leaves your choice alone.
+  - The month card counts project spending in its total and gives it its own
+    breakdown line, so the lines still add up, with the ordinary spending
+    shown underneath as "₪225.00 excluding projects".
+  - Summary's monthly average, trend and "biggest month" leave projects out,
+    exactly as they already leave out yearly entries — a holiday isn't part
+    of the shape of a normal month. A new Projects card lists each one's full
+    total with its dates.
+  - Deleting a project un-groups its expenses. They stay exactly where they
+    are, in their months, with their categories.
+
 ## [0.144.0] - 2026-09-12
 
 ### Changed
