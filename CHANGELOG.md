@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.148.1] - 2026-09-13
+
+### Fixed
+- A project's line in a month's breakdown still stood out from the category
+  lines beside it. 0.147.0 took the bold off but left the name a brighter
+  grey, which reads as emphasis just the same. The line is now identical to a
+  category's — the coloured dot is the only difference.
+
 ## [0.148.0] - 2026-09-13
 
 ### Removed

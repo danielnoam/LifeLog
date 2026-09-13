@@ -708,10 +708,10 @@ select:focus { outline: none; border-color: var(--accent); }
   text-align: right; padding: 2px 7px 0; font-size: 11px; color: var(--text-faint);
   font-variant-numeric: tabular-nums;
 }
-/* A project's line in the breakdown sits with the categories but reads as a
-   different kind of thing — it is a block of one-off spending, not one of the
-   recurring shapes of the month. */
-.month-cat.is-project .month-cat-name { color: var(--text-dim); }
+/* A project's line in the breakdown looks exactly like a category's. Its dot
+   carries the project's colour, and that is the whole distinction — an
+   earlier version also brightened the name to --text-dim, which read as
+   emphasis next to the --text-faint lines around it. */
 
 /* The pill: consecutive expenses on the same project, wrapped once and named
    once. The three tints come in as variables set by fillProjectGroup, built

@@ -16,6 +16,16 @@ what was decided against and why.
 
 ---
 
+- "not bold" is not only font-weight. The project line in a month's breakdown
+  was un-bolded in 0.147.0 and still read as emphasised, because the rule also
+  set the name to --text-dim while every line around it is --text-faint. The
+  browser test passed throughout: it compared computed fontWeight and nothing
+  else. It now compares colour and size too.
+
+  Worth generalising when a visual fix is asked for: assert on what the eye
+  actually reads — weight, colour, size together — or the test certifies the
+  half of the change you happened to think of.
+
 - projects had a start and end date until 0.148.0, and the reason they went is
   worth keeping: the dates were argued for on one use — projectForDate offering
   the right project for an expense dated inside the range — and that use was
