@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.148.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.149.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -122,6 +122,10 @@
       <div class="filter-group" id="catFilterGroup">
         <label id="catFilterLabel" class="filter-label" title="Click to select/deselect all">Categories</label>
         <div class="cats" id="catFilter"></div>
+      </div>
+      <div class="filter-group" id="projFilterGroup" hidden>
+        <label class="filter-label">Projects</label>
+        <div class="cats" id="projFilter"></div>
       </div>
     </div>
     <!-- What a mode carries besides the list — the Notes count, the
@@ -582,6 +586,9 @@
         <label>Category
           <select id="recCategory" required></select>
         </label>
+        <label>Project
+          <select id="recProject"></select>
+        </label>
         <label>Note
           <input id="recNote" type="text" autocomplete="off" placeholder="Optional description…" />
         </label>
@@ -729,14 +736,8 @@
         <label>Colour
           <input id="projColorInput" type="color" />
         </label>
-        <label>Spent in
-          <select id="projCurrency"></select>
-        </label>
-        <label id="projRateLabel" hidden>Rough rate
-          <input id="projRate" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 3.95" />
-        </label>
-        <p class="hint" id="projRateHint" hidden></p>
         <p class="muted" id="projUses"></p>
+        <div class="proj-expenses" id="projExpenses" hidden></div>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteProjectBtn" hidden>Delete</button>
           <button type="button" class="link-btn" id="convertProjectBtn" hidden>Convert…</button>
@@ -754,6 +755,9 @@
       <form id="convertForm">
         <input type="hidden" id="convProjName" />
         <p class="hint" id="convIntro"></p>
+        <label id="convCurrencyLabel" hidden>Currency
+          <select id="convCurrency"></select>
+        </label>
         <label>Rate
           <input id="convRate" type="text" inputmode="decimal" autocomplete="off" />
         </label>
@@ -1346,20 +1350,20 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.148.1"></script>
-  <script defer src="src/qr.js?v=0.148.1"></script>
-  <script defer src="src/media.js?v=0.148.1"></script>
-  <script defer src="src/merge.js?v=0.148.1"></script>
-  <script defer src="src/storage.js?v=0.148.1"></script>
-  <script defer src="src/finance.js?v=0.148.1"></script>
-  <script defer src="src/settings.js?v=0.148.1"></script>
-  <script defer src="src/wheel.js?v=0.148.1"></script>
-  <script defer src="src/backlog.js?v=0.148.1"></script>
-  <script defer src="src/journal.js?v=0.148.1"></script>
-  <script defer src="src/notes.js?v=0.148.1"></script>
-  <script defer src="src/todos.js?v=0.148.1"></script>
-  <script defer src="src/io.js?v=0.148.1"></script>
-  <script defer src="src/sync.js?v=0.148.1"></script>
-  <script defer src="src/app.js?v=0.148.1"></script>
+  <script defer src="src/reconcile.js?v=0.149.0"></script>
+  <script defer src="src/qr.js?v=0.149.0"></script>
+  <script defer src="src/media.js?v=0.149.0"></script>
+  <script defer src="src/merge.js?v=0.149.0"></script>
+  <script defer src="src/storage.js?v=0.149.0"></script>
+  <script defer src="src/finance.js?v=0.149.0"></script>
+  <script defer src="src/settings.js?v=0.149.0"></script>
+  <script defer src="src/wheel.js?v=0.149.0"></script>
+  <script defer src="src/backlog.js?v=0.149.0"></script>
+  <script defer src="src/journal.js?v=0.149.0"></script>
+  <script defer src="src/notes.js?v=0.149.0"></script>
+  <script defer src="src/todos.js?v=0.149.0"></script>
+  <script defer src="src/io.js?v=0.149.0"></script>
+  <script defer src="src/sync.js?v=0.149.0"></script>
+  <script defer src="src/app.js?v=0.149.0"></script>
 </body>
 </html>

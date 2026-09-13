@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.148.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.149.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -227,6 +227,7 @@
     // thing — the entries and their stats, the ledger and its summary — or,
     // for Notes, the two things you write yourself.
     notesMode: "notes",
+    financeActiveProjects: new Set(),
     timelineMode: "entries",
     financeMode: "entries",
     search: "",
@@ -532,6 +533,7 @@
     state.bulk.selected.clear();
     buildYearFilter();
     buildCatFilter();
+    buildProjectFilter();
     render();
     saveUiState();
   }
@@ -802,6 +804,7 @@
     state.bulk.selected.clear();
     buildYearFilter();
     buildCatFilter();
+    buildProjectFilter();
     render();
     saveUiState();
   }
@@ -2114,7 +2117,53 @@
   function updateFilterbarVisibility() {
     const bar = $("#filterbar");
     if (!bar) return;
-    bar.hidden = $("#yearFilterGroup").hidden && $("#catFilterGroup").hidden;
+    bar.hidden = $("#yearFilterGroup").hidden && $("#catFilterGroup").hidden
+      && $("#projFilterGroup").hidden;
+  }
+
+  // A second axis beside the categories, and only in the Ledger, where
+  // projects exist. Its own row rather than more chips in the category one:
+  // "Food" and "Switzerland" narrow different things, and a single row of
+  // chips that mixes them would read as one list.
+  //
+  // The "No project" chip is what makes the row complete — without it the one
+  // group you could not isolate is ordinary spending, which is most of it.
+  const NO_PROJECT = "\u0000none";
+
+  function buildProjectFilter() {
+    const group = $("#projFilterGroup");
+    if (!group) return;
+    const projects = state.data.projects || [];
+    const show = isFinanceView() && projects.length > 0;
+    group.hidden = !show;
+    if (!show) { state.financeActiveProjects.clear(); updateFilterbarVisibility(); return; }
+    const wrap = $("#projFilter");
+    const chips = [
+      { key: NO_PROJECT, name: "", label: "No project", color: "#7a8a99", general: true },
+      ...projects.map((p) => ({ key: p.name, name: p.name, label: p.name, color: p.color })),
+    ];
+    reconcile(wrap, chips, {
+      keyOf: (item) => item.key,
+      create: (item) => {
+        const chip = el("span", "cat-chip" + (item.general ? " is-general" : ""));
+        activatable(chip, () => {
+          const set = state.financeActiveProjects;
+          const key = item.general ? NO_PROJECT : item.name;
+          if (set.has(key)) set.delete(key); else set.add(key);
+          buildProjectFilter();
+          render();
+        });
+        return chip;
+      },
+      update: (chip, item) => {
+        chip.classList.toggle("on", state.financeActiveProjects.has(item.general ? NO_PROJECT : item.name));
+        const dot = el("span", "dot");
+        dot.style.background = item.color;
+        chip.title = item.general ? "Expenses that aren't part of a project" : item.label;
+        chip.replaceChildren(dot, document.createTextNode(item.label));
+      },
+    });
+    updateFilterbarVisibility();
   }
 
   // Resolved when a chip is used, not when it is built: a chip node outlives
@@ -2616,6 +2665,7 @@
     applyForceLayout();
     buildYearFilter();
     buildCatFilter();
+    buildProjectFilter();
     render();
   }
 
@@ -3307,7 +3357,7 @@
   Wheel.init({ $, toast, prefersReducedMotion });
   Finance.init({
     state, $, el, uid, groupBy, countBy, toast, persist, render, renderLazySections,
-    buildYearFilter, buildCatFilter, monthCardHeader, emptyState,
+    buildYearFilter, buildCatFilter, buildProjectFilter, monthCardHeader, emptyState,
     bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
     animatedNumberText, barRow, fillSelect, fillCategorySelect, wireCategorySelect,
     resolvePendingCatSelect, keepUnknown, download: IO.download, csvEsc: IO.csvEsc, parseCsv: IO.parseCsv,

@@ -48,7 +48,7 @@
   // (except seedFinanceCategories and the pure date/key helpers) assumes
   // init() has run.
   let state, $, el, uid, groupBy, countBy, toast, persist, render, renderLazySections,
-    buildYearFilter, buildCatFilter, monthCardHeader, emptyState,
+    buildYearFilter, buildCatFilter, buildProjectFilter, monthCardHeader, emptyState,
     bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
     animatedNumberText, barRow, fillSelect, fillCategorySelect, wireCategorySelect,
     resolvePendingCatSelect, download, csvEsc, parseCsv,
@@ -62,7 +62,7 @@
 
   function init(ctx) {
     ({ state, $, el, uid, groupBy, countBy, toast, persist, render, renderLazySections,
-      buildYearFilter, buildCatFilter, monthCardHeader, emptyState,
+      buildYearFilter, buildCatFilter, buildProjectFilter, monthCardHeader, emptyState,
       bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
       animatedNumberText, barRow, fillSelect, fillCategorySelect, wireCategorySelect,
       resolvePendingCatSelect, keepUnknown, download, csvEsc, parseCsv,
@@ -220,9 +220,10 @@
   // one more thing to keep in sync every time Convert runs.
   function isProvisional(f) {
     if (!f || !f.currency || f.currency === homeCurrency()) return false;
-    if (!f.project) return false;
-    const p = projectByName(f.project);
-    return !!(p && p.currency && !p.rateConfirmed);
+    // Only inside a project, and only until Convert settles it. A one-off
+    // foreign expense is never provisional: you typed that rate yourself and
+    // nothing is waiting on it.
+    return !!f.project && !f.rateConfirmed;
   }
 
   function currencyGlyph() {
@@ -331,6 +332,7 @@
         category: rec.category,
         note: ov && ov.note != null ? ov.note : rec.note,
         createdAt: rec.createdAt,
+        project: rec.project || undefined,
         recurringId: rec.id, virtual: true, overridden: !!ov,
         skipped: paused || !!(ov && ov.skip),
         paused,
@@ -477,6 +479,11 @@
     return getEffectiveFinanceEntries().filter((f) => {
       if (state.financeActiveYears.size && !state.financeActiveYears.has(financeYearOf(f))) return false;
       if (state.financeActiveCats.size && !state.financeActiveCats.has(f.category)) return false;
+      // Projects narrow on a second axis: an empty set means everything, the
+      // same rule the category chips follow. "\u0000none" is the No-project
+      // chip — a real name can't collide with it.
+      const pf = state.financeActiveProjects;
+      if (pf.size && !pf.has(f.project || "\u0000none")) return false;
       if (q && !(f.note || "").toLowerCase().includes(q)) return false;
       return true;
     });
@@ -1167,8 +1174,20 @@
     top.forEach((f) => {
       const label = f.note || f.category;
       const row = barRow(label, f.amount, max, financeColorOf(f.category), null, formatMoney);
-      row.querySelector(".lbl").title = label;
+      row.querySelector(".lbl").title = f.project ? label + " · " + f.project : label;
       card.appendChild(row);
+      // The biggest expenses of a year are usually the trip ones, and "which
+      // trip" is the first thing you want to know about them. On its own line
+      // rather than inside the label: .bar-row is a grid whose label column
+      // is 120px and ellipsised, so anything appended there is invisible.
+      if (f.project) {
+        const tag = el("div", "top-proj");
+        const dot = el("span", "dot");
+        dot.style.background = projectColorOf(f.project);
+        tag.appendChild(dot);
+        tag.appendChild(document.createTextNode(f.project));
+        card.appendChild(tag);
+      }
     });
     root.appendChild(card);
   }
@@ -1239,10 +1258,10 @@
     // An existing entry shows what it was saved with. A new one inherits its
     // project's currency and rough rate, which is the whole point of setting
     // them on the project: you pick "Switzerland" and stop thinking about it.
-    const proj = preset ? projectByName(preset) : null;
+    const pfx = preset ? projectFx(preset) : null;
     const fx = editing ? fxOf(entry) : null;
-    fillCurrencySelect($("#finCurrency"), fx ? fx.currency : (proj && proj.currency) || homeCurrency());
-    $("#finRate").value = fx ? fx.rate : ((proj && proj.rate) || "");
+    fillCurrencySelect($("#finCurrency"), fx ? fx.currency : (pfx && pfx.currency) || homeCurrency());
+    $("#finRate").value = fx ? fx.rate : ((pfx && pfx.rate) || "");
     // The amount field shows what you paid, not the converted figure — it is
     // the number you have in front of you.
     if (editing && fx) $("#finAmount").value = fx.amount;
@@ -1280,9 +1299,9 @@
   // rate — same currency, rate set. That is the case where the rate is not
   // yours to type.
   function ratingProject() {
-    const proj = projectByName($("#finProject").value);
-    const code = $("#finCurrency").value;
-    return proj && proj.currency && proj.currency === code && proj.rate ? proj : null;
+    const name = $("#finProject").value;
+    const fx = projectFx(name);
+    return fx && fx.currency === $("#finCurrency").value ? { name, rate: fx.rate } : null;
   }
 
   function applyFinanceCurrencyUI() {
@@ -1320,10 +1339,28 @@
   // well. A currency you set yourself after that stands, until the project
   // changes again.
   function inheritProjectCurrency() {
-    const proj = projectByName($("#finProject").value);
-    fillCurrencySelect($("#finCurrency"), (proj && proj.currency) || homeCurrency());
-    $("#finRate").value = (proj && proj.currency && proj.rate) || "";
+    const fx = projectFx($("#finProject").value);
+    fillCurrencySelect($("#finCurrency"), fx ? fx.currency : homeCurrency());
+    $("#finRate").value = fx ? fx.rate : "";
     applyFinanceCurrencyUI();
+  }
+
+  // What currency a project is being spent in, read off the expenses already
+  // in it rather than declared on the project. The most recently added
+  // foreign one wins: it is the rate you last decided was right, and on a
+  // trip that is the one you want the next expense to use.
+  //
+  // This is why a project has no currency field. The expenses carry the
+  // money; asking you to declare it twice would be asking you to keep two
+  // answers in step.
+  function projectFx(name) {
+    if (!name) return null;
+    let best = null;
+    for (const f of state.data.financeEntries) {
+      if (f.project !== name || !f.currency || !f.rate) continue;
+      if (!best || (f.createdAt || "") > (best.createdAt || "")) best = f;
+    }
+    return best ? { currency: best.currency, rate: best.rate } : null;
   }
 
   function fillProjectSelect(sel, val) {
@@ -1356,9 +1393,15 @@
     // What gets stored in `amount` is always the home figure. See the note on
     // CURRENCY_SYMBOLS for why that direction and not the other.
     const amount = foreign ? Math.round(typed * rate * 100) / 100 : typed;
+    // rateConfirmed is Convert's to set, never the form's: a rate you type
+    // when adding a trip expense is exactly the guess Convert exists to
+    // settle. An edit that leaves the rate alone keeps whatever settlement
+    // the expense already had; changing the rate re-opens the question.
+    const prev = id ? state.data.financeEntries.find((x) => x.id === id) : null;
+    const keepConfirmed = !!(prev && prev.rateConfirmed && prev.currency === code && +prev.rate === rate);
     const fxFields = foreign
-      ? { currency: code, fxAmount: typed, rate }
-      : { currency: null, fxAmount: null, rate: null };
+      ? { currency: code, fxAmount: typed, rate, rateConfirmed: keepConfirmed || null }
+      : { currency: null, fxAmount: null, rate: null, rateConfirmed: null };
     if (id) {
       const f = state.data.financeEntries.find((x) => x.id === id);
       Object.assign(f, { date, amount, category });
@@ -1481,6 +1524,7 @@
       occWrap.hidden = true;
     }
     $("#recurringModal").hidden = false;
+    fillProjectSelect($("#recProject"), (rec && rec.project) || "");
   }
   function closeRecurringModal() { $("#recurringModal").hidden = true; pendingConvertEntryId = null; }
 
@@ -1682,10 +1726,14 @@
     if (id) {
       const r = state.data.recurringExpenses.find((x) => x.id === id);
       Object.assign(r, { startDate, interval, amount, category });
+      const rProject = $("#recProject").value === ADD_PROJECT_OPTION ? "" : $("#recProject").value;
+      if (rProject) r.project = rProject; else delete r.project;
       if (note) r.note = note; else delete r.note;
       if (endDate) r.endDate = endDate; else delete r.endDate;
     } else {
       const item = { id: uid(), startDate, interval, amount, category, createdAt: new Date().toISOString() };
+      const rProject = $("#recProject").value === ADD_PROJECT_OPTION ? "" : $("#recProject").value;
+      if (rProject) item.project = rProject;
       if (note) item.note = note;
       if (endDate) item.endDate = endDate;
       state.data.recurringExpenses.push(item);
@@ -1951,42 +1999,63 @@
     $("#projOrigName").value = editing ? proj.name : "";
     $("#projName").value = editing ? proj.name : "";
     $("#projColorInput").value = editing ? proj.color : "#3bb2e2";
-    fillCurrencySelect($("#projCurrency"), editing ? (proj.currency || homeCurrency()) : homeCurrency());
-    $("#projRate").value = editing ? (proj.rate || "") : "";
-    applyProjectCurrencyUI(editing ? proj : null);
-    // Convert is only offered once there is something to convert: a currency
-    // set, and expenses carrying it.
-    $("#convertProjectBtn").hidden = !(editing && proj.currency
-      && state.data.financeEntries.some((f) => f.project === proj.name && f.currency === proj.currency));
+    // Convert is offered once there is something to convert: expenses in
+    // this project that were paid in a currency other than yours.
+    $("#convertProjectBtn").hidden = !(editing && projectExpenses(proj).length);
     const uses = $("#projUses");
+    const list = $("#projExpenses");
     if (editing) {
-      const items = state.data.financeEntries.filter((f) => f.project === proj.name);
+      // Effective entries, so a recurring expense assigned to this project
+      // counts here exactly as it does in the month cards.
+      const items = getEffectiveFinanceEntries()
+        .filter((f) => f.project === proj.name && !f.skipped)
+        .sort((a, b) => String(b.date).localeCompare(String(a.date)));
       const total = items.reduce((sum, f) => sum + f.amount, 0);
       uses.textContent = items.length
         ? `${items.length} expense${items.length === 1 ? "" : "s"}, ${formatMoney(total)}`
         : "No expenses yet";
       uses.hidden = false;
-    } else uses.hidden = true;
+      fillProjectExpenses(list, items);
+    } else { uses.hidden = true; list.hidden = true; }
     $("#deleteProjectBtn").hidden = !editing;
     $("#projectModal").hidden = false;
   }
-  // The rough-rate row and what it says about itself. The wording is the
-  // point: an unconverted project's rate is openly a guess, so the number it
-  // produces can be shown with a ~ without that reading as a bug.
-  function applyProjectCurrencyUI(proj) {
-    const code = $("#projCurrency").value;
-    const foreign = code && code !== homeCurrency();
-    $("#projRateLabel").hidden = !foreign;
-    const hint = $("#projRateHint");
-    if (!foreign) { hint.hidden = true; return; }
-    if (proj && proj.rateConfirmed) {
-      hint.textContent = "Converted at " + proj.rate + " " + homeCurrency() + " per " + code
-        + ". Changing this rate here won't restamp the expenses — use Convert for that.";
-    } else {
-      hint.textContent = "A rough rate is fine. Expenses you add inherit it and show as provisional (~)"
-        + " until you settle up with Convert.";
-    }
-    hint.hidden = false;
+  // Everything in the project, so "what did this actually consist of" is
+  // answered where you are already looking at it rather than by scrolling
+  // months. A row opens that expense, which is the other thing you come here
+  // wanting to do.
+  function fillProjectExpenses(list, items) {
+    list.hidden = !items.length;
+    if (!items.length) { list.replaceChildren(); return; }
+    const rows = items.map((f) => {
+      const row = el("div", "proj-expense");
+      row.appendChild(el("span", "proj-expense-date", f.yearly ? String(f.date) : String(f.date).slice(5)));
+      const dot = el("span", "dot");
+      dot.style.background = financeColorOf(f.category);
+      row.appendChild(dot);
+      const name = el("span", "proj-expense-name", f.note || f.category);
+      name.title = (f.note ? f.note + " · " : "") + f.category;
+      row.appendChild(name);
+      if (f.virtual) {
+        const badge = el("span", "recur-badge", "↻");
+        badge.title = "From a recurring expense";
+        row.appendChild(badge);
+      }
+      const fx = fxOf(f);
+      if (fx) row.appendChild(el("span", "fx-paid", formatIn(fx.amount, fx.currency)));
+      row.appendChild(el("span", "famount" + (isProvisional(f) ? " is-provisional" : ""), formatMoney(f.amount)));
+      // A generated occurrence has no entry of its own to open; its template
+      // does, and that is what editing it means.
+      row.onclick = () => {
+        closeProjectModal();
+        if (f.virtual) {
+          const rec = state.data.recurringExpenses.find((r) => r.id === f.recurringId);
+          if (rec) openRecurringModal(rec);
+        } else openFinanceModal(f);
+      };
+      return row;
+    });
+    list.replaceChildren(...rows);
   }
 
   function closeProjectModal() { $("#projectModal").hidden = true; }
@@ -2015,7 +2084,6 @@
       if (projects.some(clash)) { toast("That project already exists", true); return; }
       const now = new Date().toISOString();
       const item = { id: uid(), name, color, createdAt: now, updatedAt: now };
-      Object.assign(item, readProjectCurrency(null));
       projects.push(item);
     } else {
       const proj = projects.find((p) => p.name === orig);
@@ -2025,10 +2093,6 @@
         return;
       }
       proj.color = color;
-      const fx = readProjectCurrency(proj);
-      for (const k of ["currency", "rate", "rateConfirmed"]) {
-        if (fx[k] == null) delete proj[k]; else proj[k] = fx[k];
-      }
       if (name !== proj.name) {
         // The id stays put — it's the merge identity — and the name cascades
         // across the entries that reference it, exactly as a finance category
@@ -2040,6 +2104,7 @@
     }
     closeProjectModal();
     rebuildProjectColorMap();
+    buildProjectFilter();
     // A project made from a lump adopts that lump as its first expense.
     if (pendingYearlyEntryId) {
       const f = state.data.financeEntries.find((x) => x.id === pendingYearlyEntryId);
@@ -2056,20 +2121,6 @@
     toast(orig ? "Project updated" : "Project added");
   }
 
-  // Reads the currency pair off the project form. Editing the rate by hand
-  // does NOT restamp the expenses — only Convert does — so a project that was
-  // already converted keeps rateConfirmed and a hand-edit only changes what
-  // the *next* expense inherits. Silently rewriting settled figures because
-  // someone opened a form and typed would be the worst kind of surprise.
-  function readProjectCurrency(proj) {
-    const code = $("#projCurrency").value;
-    const rate = parseFloat($("#projRate").value);
-    if (!code || code === homeCurrency() || !isFinite(rate) || rate <= 0) {
-      return { currency: null, rate: null, rateConfirmed: null };
-    }
-    return { currency: code, rate, rateConfirmed: proj && proj.rateConfirmed ? true : null };
-  }
-
   // ---------- convert ----------
   // Two ways in, because they are the two ways you actually know the number.
   // Either you looked up the rate, or — far more often — the statement
@@ -2080,27 +2131,60 @@
 
   function openConvertModal(proj) {
     convertingProject = proj;
-    const own = projectExpenses(proj);
-    const fxTotal = own.reduce((sum, f) => sum + (+f.fxAmount || 0), 0);
+    const codes = projectCurrencies(proj);
+    fillSelect($("#convCurrency"), codes.map((c) => ({ value: c, label: c })), codes[0] || "");
+    $("#convCurrencyLabel").hidden = codes.length < 2;
     $("#convertModalTitle").textContent = "Convert " + proj.name;
     $("#convProjName").value = proj.name;
-    $("#convIntro").textContent = own.length + " expense" + (own.length === 1 ? "" : "s")
-      + " totalling " + formatIn(fxTotal, proj.currency)
-      + (proj.rateConfirmed ? ", converted at " + proj.rate : ", provisionally at " + proj.rate) + ".";
     $("#convTotalLabel").firstChild.textContent = "Total charged in " + homeCurrency() + " ";
-    $("#convRate").value = proj.rate || "";
     $("#convTotal").value = "";
-    updateConvertSummary();
+    $("#convRate").value = "";
+    updateConvertIntro();
     $("#projectModal").hidden = true;
     $("#convertModal").hidden = false;
   }
+
+  // Restated whenever the currency changes: how many expenses are about to
+  // move, what they came to in that currency, and the rate they are on now.
+  function updateConvertIntro() {
+    const proj = convertingProject;
+    if (!proj) return;
+    const code = $("#convCurrency").value;
+    const own = projectExpenses(proj, code);
+    const fxTotal = own.reduce((sum, f) => sum + (+f.fxAmount || 0), 0);
+    const rates = [...new Set(own.map((f) => f.rate))];
+    $("#convIntro").textContent = own.length + " expense" + (own.length === 1 ? "" : "s")
+      + " totalling " + formatIn(fxTotal, code)
+      + (rates.length === 1
+        ? (own.every((f) => f.rateConfirmed) ? ", converted at " + rates[0] : ", provisionally at " + rates[0])
+        : ", at " + rates.length + " different rates") + ".";
+    if (!$("#convRate").value && rates.length === 1) $("#convRate").value = rates[0];
+    updateConvertSummary();
+  }
+
   function closeConvertModal() { $("#convertModal").hidden = true; convertingProject = null; }
 
-  const projectExpenses = (proj) => state.data.financeEntries
-    .filter((f) => f.project === proj.name && f.currency === proj.currency && +f.fxAmount);
+  // Every foreign expense in the project, optionally narrowed to one
+  // currency. Real entries only: a recurring occurrence is generated rather
+  // than stored, so there is nothing to restamp — and a recurring expense
+  // can't be foreign in the first place (see TODO.md).
+  const projectExpenses = (proj, code) => state.data.financeEntries
+    .filter((f) => f.project === proj.name && f.currency && +f.fxAmount
+      && f.currency !== homeCurrency() && (!code || f.currency === code));
+
+  // The distinct currencies a project was spent in, biggest total first — a
+  // trip through Switzerland and Italy is two, and Convert settles one at a
+  // time rather than pretending they share a rate.
+  function projectCurrencies(proj) {
+    const totals = {};
+    for (const f of projectExpenses(proj)) totals[f.currency] = (totals[f.currency] || 0) + (+f.fxAmount || 0);
+    return Object.keys(totals).sort((a, b) => totals[b] - totals[a]);
+  }
 
   function convertFxTotal() {
-    return convertingProject ? projectExpenses(convertingProject).reduce((s, f) => s + (+f.fxAmount || 0), 0) : 0;
+    if (!convertingProject) return 0;
+    return projectExpenses(convertingProject, $("#convCurrency").value)
+      .reduce((s, f) => s + (+f.fxAmount || 0), 0);
   }
 
   function updateConvertSummary() {
@@ -2108,7 +2192,7 @@
     const fxTotal = convertFxTotal();
     const out = $("#convSummary");
     if (!isFinite(rate) || rate <= 0 || !fxTotal) { out.hidden = true; return; }
-    out.textContent = formatIn(fxTotal, convertingProject.currency) + " → " + formatMoney(fxTotal * rate);
+    out.textContent = formatIn(fxTotal, $("#convCurrency").value) + " → " + formatMoney(fxTotal * rate);
     out.hidden = false;
   }
 
@@ -2118,13 +2202,16 @@
     if (!proj) return;
     const rate = parseFloat($("#convRate").value);
     if (!isFinite(rate) || rate <= 0) { toast("Give a rate, or a total to work it out from", true); return; }
-    const own = projectExpenses(proj);
+    const code = $("#convCurrency").value;
+    const own = projectExpenses(proj, code);
     for (const f of own) {
       f.rate = rate;
       f.amount = Math.round((+f.fxAmount || 0) * rate * 100) / 100;
     }
-    proj.rate = rate;
-    proj.rateConfirmed = true;
+    // Settlement is recorded per expense, not on the project: a trip through
+    // Switzerland and Italy is converted one currency at a time, and the
+    // francs being settled says nothing about the euros.
+    for (const f of own) f.rateConfirmed = true;
     closeConvertModal();
     render();
     await persist();
@@ -2143,6 +2230,7 @@
     state.data.financeEntries.forEach((f) => { if (f.project === proj.name) delete f.project; });
     closeProjectModal();
     rebuildProjectColorMap();
+    buildProjectFilter();
     render();
     await persist();
     toast("Project deleted");
@@ -2358,18 +2446,17 @@
   // silently delete a newer one's data.
   const KNOWN_FINANCE_ENTRY_KEYS = new Set([
     "id", "date", "amount", "category", "createdAt", "updatedAt", "yearly", "note", "project",
-    "currency", "fxAmount", "rate",
+    "currency", "fxAmount", "rate", "rateConfirmed",
   ]);
   // startDate/endDate are deliberately absent: projects carried a date range
   // until 0.148.0, and one that still has it keeps it untouched through
   // keepUnknown. Nothing reads it — NOTES.md says why it went.
   const KNOWN_PROJECT_KEYS = new Set([
     "id", "name", "color", "createdAt", "updatedAt",
-    "currency", "rate", "rateConfirmed",
   ]);
   const KNOWN_RECURRING_KEYS = new Set([
     "id", "startDate", "interval", "amount", "category", "createdAt", "updatedAt",
-    "note", "endDate", "prevId", "overrides", "pauses",
+    "note", "endDate", "prevId", "overrides", "pauses", "project",
   ]);
   function sanitizeFinanceEntry(f) {
     const out = {
@@ -2397,6 +2484,7 @@
       out.currency = String(f.currency).toUpperCase().slice(0, 8);
       out.rate = rate;
       out.fxAmount = Math.round(fxAmount * 100) / 100;
+      if (f.rateConfirmed) out.rateConfirmed = true;
     }
     return keepUnknown(f, out, KNOWN_FINANCE_ENTRY_KEYS);
   }
@@ -2414,16 +2502,9 @@
       updatedAt: backfillUpdatedAt(p),
     };
     if (p.createdAt) out.createdAt = p.createdAt;
-    // A project spent in a foreign currency: the code its expenses are
-    // entered in, the rate they inherit, and whether that rate has been
-    // settled up. An unconfirmed rate is the provisional one you guessed when
-    // you set the trip up; Convert replaces it and sets rateConfirmed.
-    const rate = +p.rate;
-    if (p.currency && isFinite(rate) && rate > 0) {
-      out.currency = String(p.currency).toUpperCase().slice(0, 8);
-      out.rate = rate;
-      if (p.rateConfirmed) out.rateConfirmed = true;
-    }
+    // Nothing else. A project is a name and a colour: the money, the
+    // currency, the rate and whether it has been settled all live on the
+    // expenses, because that is where they actually are.
     return keepUnknown(p, out, KNOWN_PROJECT_KEYS);
   }
   const financeKey = (f) => `${(f.date || "").toLowerCase()}|${+f.amount}|${(f.category || "").toLowerCase()}|${(f.note || "").toLowerCase()}|${f.yearly ? 1 : 0}|${(f.project || "").toLowerCase()}|${(f.currency || "").toUpperCase()}|${+f.fxAmount || 0}`;
@@ -2439,6 +2520,9 @@
     };
     if (r.note) out.note = r.note;
     if (r.endDate) out.endDate = r.endDate;
+    // Every occurrence this template generates inherits it, so a subscription
+    // that belongs to a project groups with the rest of it.
+    if (r.project) out.project = String(r.project);
     // The plan this one took over from — kept so a bill's history still
     // reads as one chain after an import/sync round-trip (see planChain).
     if (r.prevId) out.prevId = r.prevId;
@@ -2526,21 +2610,21 @@
       // Switching to a foreign currency with an empty rate box borrows the
       // project's, if it has one — the common case is that they match.
       if (code !== homeCurrency() && !$("#finRate").value) {
-        const proj = projectByName($("#finProject").value);
-        if (proj && proj.currency === code && proj.rate) $("#finRate").value = proj.rate;
+        const pfx = projectFx($("#finProject").value);
+        if (pfx && pfx.currency === code) $("#finRate").value = pfx.rate;
       }
       applyFinanceCurrencyUI();
     };
     $("#finRate").oninput = applyFinanceCurrencyUI;
     $("#finAmount").addEventListener("input", applyFinanceCurrencyUI);
 
-    $("#projCurrency").onchange = () => applyProjectCurrencyUI(null);
     $("#convertProjectBtn").onclick = () => {
       const proj = state.data.projects.find((p) => p.name === $("#projOrigName").value);
       if (proj) openConvertModal(proj);
     };
     $("#cancelConvertBtn").onclick = closeConvertModal;
     $("#convertForm").onsubmit = saveConvertFromForm;
+    $("#convCurrency").onchange = () => { $("#convRate").value = ""; $("#convTotal").value = ""; updateConvertIntro(); };
     $("#convRate").oninput = () => { $("#convTotal").value = ""; updateConvertSummary(); };
     // Typing what the statement says derives the rate, rather than making you
     // do the division. The two fields drive each other, last one edited wins.

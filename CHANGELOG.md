@@ -4,6 +4,35 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.149.0] - 2026-09-13
+
+### Added
+- **Editing a project lists everything in it** — date, category, what you
+  paid, what it came to — with a running total above. Tapping a row opens that
+  expense (or, for a recurring occurrence, the template behind it).
+- **Filter by project.** A second chip row in the Ledger, beside the
+  categories, with a "No project" chip so ordinary spending can be isolated
+  too. It appears only where projects exist.
+- **A recurring expense can belong to a project.** Every occurrence it
+  generates inherits it, so a subscription groups into the project's pill,
+  counts in its total, and shows in its expense list.
+- **Top expenses names the project** an expense belonged to, under its bar.
+  The biggest expenses of a year are usually the trip ones.
+
+### Changed
+- **A project no longer has its own currency or rate.** It had one only so new
+  expenses could inherit it, which meant keeping two answers in step; the
+  currency now comes from the expenses already in the project, most recent
+  first. A project is a name and a colour.
+- **Settling up is recorded per expense, not per project.** A trip through
+  Switzerland and Italy is two currencies, and converting the francs says
+  nothing about the euros — so Convert offers a currency picker when a project
+  has more than one, and only what it converts loses its `~`.
+
+### Note
+- Projects that already carried a currency, rate or settlement flag keep them
+  in the saved data, untouched and unread.
+
 ## [0.148.1] - 2026-09-13
 
 ### Fixed

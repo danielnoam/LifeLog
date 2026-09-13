@@ -16,6 +16,42 @@ what was decided against and why.
 
 ---
 
+- a project has no currency, rate or settlement state of its own (0.149.0).
+  It had all three, and each was a second copy of something the expenses
+  already knew: the currency and rate existed only so a new expense could
+  inherit them, which meant two answers to keep in step, and the project-level
+  `rateConfirmed` could not express a half-settled trip through two countries.
+
+  projectFx(name) now reads the currency and rate off the project's own
+  expenses, most recently created first — the rate you last decided was right
+  is the one the next expense should use. The cost is that the *first* expense
+  in a new project has to have its currency and rate typed; every one after
+  inherits. That is the right trade for deleting a configuration step.
+
+  Settlement moved onto the expense as `rateConfirmed`, set only by Convert
+  and never by the expense form — a rate you type when adding a trip expense
+  is exactly the guess Convert exists to settle. An edit that leaves the rate
+  alone keeps the flag; changing the rate clears it.
+
+  Convert therefore works per currency: projectCurrencies() lists what a
+  project was spent in, biggest total first, and the dialog shows a picker
+  when there is more than one.
+
+- a recurring expense can carry a project, and every occurrence it generates
+  inherits it — so it groups into the pill and counts in the project's total
+  with no special casing anywhere downstream. It deliberately cannot carry a
+  *currency*: a foreign recurring expense needs either a rate per occurrence
+  or one that drifts, which is still parked in TODO.md. That is also why
+  projectExpenses() (Convert's input) filters to real entries: a generated
+  occurrence has nothing to restamp.
+
+- "present" is not "visible", again. The Top-expenses project tag was first
+  appended inside .lbl — a 120px ellipsised grid column — where it rendered at
+  zero width, and the browser check passed because it only asked whether the
+  element existed. It now asserts the tag has real width and sits inside the
+  card. Second time this exact shape of false pass has happened (see the
+  not-bold entry below); when the ask is visual, measure geometry.
+
 - "not bold" is not only font-weight. The project line in a month's breakdown
   was un-bolded in 0.147.0 and still read as emphasised, because the rule also
   set the name to --text-dim while every line around it is --text-faint. The

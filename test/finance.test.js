@@ -663,15 +663,56 @@ test("fxOf ignores an expense already in the home currency", () => {
   assert.deepStrictEqual(fx, { currency: "CHF", amount: 62, rate: 3.95 });
 });
 
-test("provisional means the project has not been converted yet", () => {
-  testState.data.projects = [
-    { id: "p1", name: "Switzerland", currency: "CHF", rate: 3.9 },
-    { id: "p2", name: "Japan", currency: "JPY", rate: 0.025, rateConfirmed: true },
-  ];
-  const inSwiss = { amount: 242, currency: "CHF", fxAmount: 62, rate: 3.9, project: "Switzerland" };
-  const inJapan = { amount: 250, currency: "JPY", fxAmount: 10000, rate: 0.025, project: "Japan" };
-  assert.strictEqual(isProvisional(inSwiss), true, "unconverted project");
-  assert.strictEqual(isProvisional(inJapan), false, "converted project");
+test("provisional means this expense has not been converted yet", () => {
+  // Settlement is per expense, not per project: a trip through two countries
+  // is converted one currency at a time, and settling the francs says nothing
+  // about the euros.
+  testState.data.projects = [{ id: "p1", name: "Switzerland" }];
+  const guessed = { amount: 242, currency: "CHF", fxAmount: 62, rate: 3.9, project: "Switzerland" };
+  const settled = { amount: 250, currency: "EUR", fxAmount: 61, rate: 4.1, project: "Switzerland", rateConfirmed: true };
+  assert.strictEqual(isProvisional(guessed), true);
+  assert.strictEqual(isProvisional(settled), false);
+});
+
+test("a project is built with no currency, rate or settlement of its own", () => {
+  // They all live on the expenses, because that is where the money is.
+  const p = sanitizeProject({ name: "Trip" });
+  assert.deepStrictEqual(Object.keys(p).sort(), ["color", "id", "name", "updatedAt"]);
+});
+
+test("a project that still carries an old currency keeps it, inertly", () => {
+  // Same contract as the dates: nothing reads these any more, and removing
+  // the feature is not a reason to delete what was already saved.
+  const p = sanitizeProject({ name: "Trip", currency: "CHF", rate: 3.9, rateConfirmed: true });
+  assert.strictEqual(p.currency, "CHF");
+  // And they do not make its expenses look settled — that is the expense's
+  // own flag now.
+  testState.data.projects = [p];
+  assert.strictEqual(
+    isProvisional({ amount: 242, currency: "CHF", fxAmount: 62, rate: 3.9, project: "Trip" }),
+    true, "an old project-level rateConfirmed does not settle an expense");
+});
+
+test("sanitizeFinanceEntry keeps a settled flag only alongside a real conversion", () => {
+  const settled = sanF({ amount: 242, currency: "CHF", fxAmount: 62, rate: 3.9, rateConfirmed: true });
+  assert.strictEqual(settled.rateConfirmed, true);
+  // No currency trio means no conversion to have settled.
+  const plain = sanF({ amount: 242, rateConfirmed: true });
+  assert.strictEqual(plain.rateConfirmed, undefined);
+});
+
+test("a recurring expense can belong to a project", () => {
+  const r = Finance.sanitizeRecurring({ startDate: "2026-01-01", amount: 50, category: "Other", project: "Kitchen refit" });
+  assert.strictEqual(r.project, "Kitchen refit");
+  assert.strictEqual(Finance.sanitizeRecurring({ startDate: "2026-01-01", amount: 50 }).project, undefined);
+});
+
+test("every occurrence a project's template generates carries the project", () => {
+  const occ = Finance.recurringOccurrences(
+    { id: "r1", startDate: "2026-01-01", interval: "monthly", amount: 50, category: "Other", project: "Kitchen refit" },
+    new Date("2026-03-15T00:00:00"));
+  assert.ok(occ.length >= 3, "generated some occurrences");
+  assert.ok(occ.every((o) => o.project === "Kitchen refit"), "all carry it");
 });
 
 test("a one-off foreign expense outside any project is never provisional", () => {
@@ -680,7 +721,7 @@ test("a one-off foreign expense outside any project is never provisional", () =>
 });
 
 test("a home-currency expense inside an unconverted project is not provisional", () => {
-  testState.data.projects = [{ id: "p1", name: "Switzerland", currency: "CHF", rate: 3.9 }];
+  testState.data.projects = [{ id: "p1", name: "Switzerland" }];
   assert.strictEqual(isProvisional({ amount: 45, project: "Switzerland" }), false);
 });
 

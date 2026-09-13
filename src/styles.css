@@ -740,7 +740,33 @@ select:focus { outline: none; border-color: var(--accent); }
    surface, and a second one on top of it reads as a box in a box. */
 .proj-group-list .finance-entry:hover { background: var(--proj-head, var(--bg-elev-2)); }
 
-/* Summary's Projects card: a bar per project with its dates under it. */
+/* Everything in a project, listed inside its own edit form. Sized like the
+   month-card breakdown rather than like the expense rows, because this is a
+   reference list you scan, not a list you act on row by row. */
+.proj-expenses {
+  max-height: 240px; overflow-y: auto; margin: 2px 0 12px;
+  border: 1px solid var(--border); border-radius: 8px; padding: 3px;
+}
+.proj-expense {
+  display: flex; align-items: center; gap: 7px; padding: 4px 6px;
+  font-size: 12px; color: var(--text-dim); border-radius: 6px; cursor: pointer;
+}
+.proj-expense:hover { background: var(--bg-elev-2); color: var(--text); }
+.proj-expense .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+.proj-expense-date { font-variant-numeric: tabular-nums; color: var(--text-faint); flex: 0 0 auto; }
+.proj-expense-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proj-expense .famount { font-variant-numeric: tabular-nums; flex: 0 0 auto; }
+
+/* Which project a top expense belonged to, on the line under its bar —
+   .bar-row's label column is a fixed 120px and ellipsised, so a tag appended
+   inside it never shows. */
+.top-proj {
+  display: flex; align-items: center; gap: 5px;
+  margin: -4px 0 8px; font-size: 11px; color: var(--text-faint);
+}
+.top-proj .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
+
+/* Summary's Projects card: a bar per project. */
 .proj-stat { cursor: pointer; border-radius: 7px; padding: 2px 4px; margin: 0 -4px; }
 .proj-stat:hover { background: var(--bg-elev-2); }
 .proj-stat-meta { font-size: 11px; color: var(--text-faint); margin: -2px 0 8px; }
