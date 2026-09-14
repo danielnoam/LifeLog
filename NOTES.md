@@ -16,6 +16,27 @@ what was decided against and why.
 
 ---
 
+- .content's bottom padding on a phone is `--bottombar-h + --fab-clear`, not
+  just the bar. The bar is fixed and so is the + button 12px above it; padding
+  for the first leaves the second floating over the last 64px of every view.
+  --fab-clear exists as a token because three numbers have to agree — the 12px
+  offset, the button's 52px, and 12px so the last row isn't flush against it —
+  and they live in different rules.
+
+  It presented as "Summary and Stats overlap on mobile" and was in every
+  scrolling view; those two just end with a tall card whose right edge carries
+  a number, so it was visible rather than merely present. test/mobilefit
+  (scratchpad) asserts the last card of all seven views clears both the button
+  and the bar at three phone sizes, and fails 15 checks with the padding
+  reverted — checked, because a layout test that passes either way is how the
+  bold and the invisible-tag regressions both got through.
+
+  One knock-on worth knowing: adding 76px makes a short page technically
+  scrollable, which broke a jump-nav assertion guarded on
+  `scrollHeight > innerHeight + 4`. That guard was meant to ask "is there
+  content to page through" and was answering "is there padding". It now wants
+  240px.
+
 - the project filter is two chips — No project / Project — and not one per
   project, which is what it shipped as for a few hours. A chip per project
   looked like the obvious parallel to the category row and was wrong for a

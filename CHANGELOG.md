@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.149.2] - 2026-09-14
+
+### Fixed
+- **The floating + covered the bottom of every view on a phone.** Content was
+  padded to clear the tab bar but not the button floating 12px above it, so
+  scrolled all the way down the last card sat underneath it — hiding an amount
+  in Top expenses, an achievement in Year in Review, the last row of any list.
+  Most obvious in Summary and Stats, where the final card is tall and its
+  right edge carries a number, but it affected the Timeline, Backlog, Notes
+  and To-do as well.
+- The bottom-most panel also ended flush against the tab bar, with a single
+  pixel to spare. It now has room.
+
 ## [0.149.1] - 2026-09-14
 
 ### Changed

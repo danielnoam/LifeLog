@@ -454,6 +454,12 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 /* Add floats free of the header/tabs entirely — a single fixed FAB in the
    bottom-right corner on every layout, so it's never crowded next to
    Settings or the view tabs. */
+/* How much room the floating + needs above the bottom bar, so content can be
+   scrolled clear of it instead of ending underneath. Kept as a token because
+   three numbers have to agree: the 12px the button sits above the bar, its
+   own 52px, and 12px so the last row isn't flush against it. .content's
+   bottom padding on a phone is this plus the bar itself. */
+:root { --fab-clear: 76px; }
 .fab-wrap { position: fixed; right: 24px; bottom: 24px; z-index: 35; }
 .fab {
   width: 52px; height: 52px; border-radius: 50%; padding: 0;
@@ -1801,7 +1807,7 @@ kbd {
   html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
   html:not(.force-pc) .filter-slot { padding: 14px 14px 0; }
   html:not(.force-pc) .filter-slot:empty { padding: 0; }
-  html:not(.force-pc) .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: var(--bottombar-h, 88px); }
+  html:not(.force-pc) .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: calc(var(--bottombar-h, 88px) + var(--fab-clear)); }
   html:not(.force-pc) .content.no-filters { padding-top: 0; }
   html:not(.force-pc) .toast { bottom: var(--bottombar-h, 88px); }
   html:not(.force-pc) .update-bar { bottom: var(--bottombar-h, 88px); }
@@ -1892,7 +1898,7 @@ html.force-mobile .jump-item.is-active { color: var(--accent); font-size: 13.5px
 html.force-mobile .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
 html.force-mobile .filter-slot { padding: 14px 14px 0; }
 html.force-mobile .filter-slot:empty { padding: 0; }
-html.force-mobile .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: var(--bottombar-h, 88px); }
+html.force-mobile .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: calc(var(--bottombar-h, 88px) + var(--fab-clear)); }
 html.force-mobile .content.no-filters { padding-top: 0; }
 html.force-mobile .toast { bottom: var(--bottombar-h, 88px); }
 html.force-mobile .update-bar { bottom: var(--bottombar-h, 88px); }
