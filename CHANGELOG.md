@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.150.1] - 2026-09-14
+
+### Fixed
+- **Spend trend and Projects sat flush against each other in Summary.** Every
+  card in that stack sets its own 20px top margin; the Projects card, added in
+  0.145.0, didn't. With no gap between them the two read as one overlapping
+  block. Every other pair was already 20px, which is why it only looked wrong
+  in one place.
+
 ## [0.150.0] - 2026-09-14
 
 ### Removed

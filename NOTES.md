@@ -40,6 +40,24 @@ what was decided against and why.
   alongside it). The test is not "is it retired" but "does leaving it make some
   reader wrong".
 
+- the cards in Summary and Stats space themselves with an inline
+  `card.style.marginTop = "20px"`, repeated at eleven sites across finance.js
+  and journal.js. It is a fragile convention — a new card that forgets it is
+  invisible in review and obvious on screen — and the Projects card forgot,
+  sitting flush against Spend trend and reading as an overlap.
+
+  Left as a convention rather than moved to CSS: there are 17 `.card`
+  creations and no container class that distinguishes the stats stack from the
+  Ledger's Recurring card, so a `#content .card` rule would leak. What makes it
+  safe instead is test/panelgaps (scratchpad), which walks the stack's adjacent
+  siblings and asserts the gaps are uniform. It names the offending pair, and
+  was confirmed to fail with the margin removed.
+
+  Measure adjacent *siblings*, not consecutive cards: the first version of that
+  check compared card to card and read the whole .stats-grid between two of
+  them as a 330px gap. A margin governs siblings; that is the thing to assert
+  on.
+
 - .content's bottom padding on a phone is `--bottombar-h + --fab-clear`, not
   just the bar. The bar is fixed and so is the + button 12px above it; padding
   for the first leaves the second floating over the last 64px of every view.

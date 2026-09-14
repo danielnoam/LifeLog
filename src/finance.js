@@ -966,6 +966,11 @@
     if (!rows.length) return;
 
     const card = el("div", "card");
+    // Every card in this stack sets its own top margin inline. Forgetting it
+    // is invisible in code and obvious on screen — this one did, and sat flush
+    // against Spend trend looking like an overlap. The uniform-gap check in
+    // test/panelgaps is what makes the next omission fail rather than ship.
+    card.style.marginTop = "20px";
     card.appendChild(el("h2", null, "Projects"));
     const max = Math.max(1, ...rows.map((r) => r.total));
     for (const r of rows) {
