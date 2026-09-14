@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.149.1] - 2026-09-14
+
+### Changed
+- **The project filter is two chips, not one per project.** A chip per project
+  grew the row with every trip you ever took, and narrowing to one particular
+  project is already answered better elsewhere — its own edit form lists its
+  expenses, and Summary totals it. What the Ledger wants to ask is "trip
+  spending or ordinary spending", which is two chips that never grow.
+
+### Fixed
+- "₪0.00 excluding projects" no longer appears under months made up entirely
+  of project spending. That line is a contrast against ordinary spending, so a
+  month with none has nothing to contrast — most obvious when filtering to
+  Project, where every month said it at once.
+
 ## [0.149.0] - 2026-09-13
 
 ### Added

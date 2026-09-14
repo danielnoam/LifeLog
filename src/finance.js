@@ -480,10 +480,10 @@
       if (state.financeActiveYears.size && !state.financeActiveYears.has(financeYearOf(f))) return false;
       if (state.financeActiveCats.size && !state.financeActiveCats.has(f.category)) return false;
       // Projects narrow on a second axis: an empty set means everything, the
-      // same rule the category chips follow. "\u0000none" is the No-project
-      // chip — a real name can't collide with it.
+      // same rule the category chips follow. Two states only — in a project
+      // or not — so this asks which, never which one.
       const pf = state.financeActiveProjects;
-      if (pf.size && !pf.has(f.project || "\u0000none")) return false;
+      if (pf.size && !pf.has(f.project ? "any" : "none")) return false;
       if (q && !(f.note || "").toLowerCase().includes(q)) return false;
       return true;
     });
@@ -821,14 +821,14 @@
     });
     // Its own part rather than a third child of .month-total, which is a
     // two-column flex row — anything appended there lands beside the amount.
-    // Only when a project is actually in play: on an ordinary month the two
-    // figures are the same number twice.
-    if (projectTotal) {
-      parts.push({
-        key: "__ex", kind: "ex",
-        total: countedItems.reduce((sum, f) => sum + (f.project ? 0 : f.amount), 0),
-      });
-    }
+    //
+    // Only when the month actually has both kinds of spending. The line is a
+    // contrast — "of this total, this much was ordinary" — so a month that is
+    // all project spending has nothing to contrast and used to say "₪0.00
+    // excluding projects" on every card, which is loudest exactly when you
+    // filter to Project and every month says it at once.
+    const exTotal = countedItems.reduce((sum, f) => sum + (f.project ? 0 : f.amount), 0);
+    if (projectTotal && exTotal) parts.push({ key: "__ex", kind: "ex", total: exTotal });
 
     reconcile(card, parts, {
       animate: true,

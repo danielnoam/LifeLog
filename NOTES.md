@@ -16,6 +16,21 @@ what was decided against and why.
 
 ---
 
+- the project filter is two chips — No project / Project — and not one per
+  project, which is what it shipped as for a few hours. A chip per project
+  looked like the obvious parallel to the category row and was wrong for a
+  reason the category row doesn't have: categories are a small fixed set you
+  chose, projects accumulate with every trip, so the row grows forever. And
+  narrowing to one specific project is already answered twice over — its edit
+  form lists its expenses, Summary totals it. The question the ledger actually
+  has is binary.
+
+  The "₪0.00 excluding projects" line came out of the same look: that line is
+  a *contrast*, so it only belongs on a month that has both kinds of spending.
+  Gating it on projectTotal alone meant an all-project month asserted that
+  ordinary spending was zero, which is true and useless — and filtering to
+  Project made every month say it at once.
+
 - a project has no currency, rate or settlement state of its own (0.149.0).
   It had all three, and each was a second copy of something the expenses
   already knew: the currency and rate existed only so a new expense could

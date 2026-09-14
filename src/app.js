@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.149.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.149.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2123,43 +2123,50 @@
 
   // A second axis beside the categories, and only in the Ledger, where
   // projects exist. Its own row rather than more chips in the category one:
-  // "Food" and "Switzerland" narrow different things, and a single row of
-  // chips that mixes them would read as one list.
+  // "Food" and "Switzerland" narrow different things, and a single row that
+  // mixes them reads as one list.
   //
-  // The "No project" chip is what makes the row complete — without it the one
-  // group you could not isolate is ordinary spending, which is most of it.
-  const NO_PROJECT = "\u0000none";
+  // Two chips, not one per project. A chip per project looked obvious and was
+  // wrong: the row grows with every trip you ever take, and narrowing to one
+  // particular project is already answered better elsewhere — its own edit
+  // form lists its expenses, and Summary totals it. What the ledger actually
+  // wants to ask is "trip spending or ordinary spending", which is two chips
+  // that never grow.
+  const PROJ_NONE = "none";
+  const PROJ_ANY = "any";
 
   function buildProjectFilter() {
     const group = $("#projFilterGroup");
     if (!group) return;
-    const projects = state.data.projects || [];
-    const show = isFinanceView() && projects.length > 0;
+    const show = isFinanceView() && (state.data.projects || []).length > 0;
     group.hidden = !show;
     if (!show) { state.financeActiveProjects.clear(); updateFilterbarVisibility(); return; }
-    const wrap = $("#projFilter");
     const chips = [
-      { key: NO_PROJECT, name: "", label: "No project", color: "#7a8a99", general: true },
-      ...projects.map((p) => ({ key: p.name, name: p.name, label: p.name, color: p.color })),
+      { key: PROJ_NONE, label: "No project", general: true },
+      { key: PROJ_ANY, label: "Project" },
     ];
-    reconcile(wrap, chips, {
+    reconcile($("#projFilter"), chips, {
       keyOf: (item) => item.key,
       create: (item) => {
         const chip = el("span", "cat-chip" + (item.general ? " is-general" : ""));
         activatable(chip, () => {
           const set = state.financeActiveProjects;
-          const key = item.general ? NO_PROJECT : item.name;
-          if (set.has(key)) set.delete(key); else set.add(key);
+          if (set.has(item.key)) set.delete(item.key); else set.add(item.key);
           buildProjectFilter();
           render();
         });
         return chip;
       },
       update: (chip, item) => {
-        chip.classList.toggle("on", state.financeActiveProjects.has(item.general ? NO_PROJECT : item.name));
+        chip.classList.toggle("on", state.financeActiveProjects.has(item.key));
         const dot = el("span", "dot");
-        dot.style.background = item.color;
-        chip.title = item.general ? "Expenses that aren't part of a project" : item.label;
+        // The hollow dot .is-general already gives "No project" reads as the
+        // absence of one; the other takes the accent, since no single project
+        // colour could stand for all of them.
+        if (!item.general) dot.style.background = "var(--accent)";
+        chip.title = item.general
+          ? "Expenses that aren't part of a project"
+          : "Expenses that are part of any project";
         chip.replaceChildren(dot, document.createTextNode(item.label));
       },
     });
