@@ -231,9 +231,7 @@
   }
 
   function financeYearOf(f) { return +String(f.date).slice(0, 4); }
-  // yearly ad-hoc entries (imported big purchases) carry just a year, no
-  // month — they get bucketed into a pseudo-month (0) rendered as "Yearly"
-  function financeMonthOf(f) { return f.yearly ? 0 : +String(f.date).slice(5, 7); }
+  function financeMonthOf(f) { return +String(f.date).slice(5, 7); }
 
   // "YYYY-MM-DD" from a Date's local calendar fields — never
   // `.toISOString().slice(0, 10)`, which converts to UTC first and can
@@ -556,12 +554,8 @@
         keepBody: true,
         build: (body) => {
           const byMonth = groupBy(byYear[y], financeMonthOf);
-          const monthSort = (a, b) => {
-            a = +a; b = +b;
-            if (a === 0) return 1; // yearly ad-hoc bucket always last
-            if (b === 0) return -1;
-            return state.data.settings.monthOrder === "desc" ? b - a : a - b;
-          };
+          const monthSort = (a, b) =>
+            (state.data.settings.monthOrder === "desc" ? +b - +a : +a - +b);
           const cards = Object.keys(byMonth).sort(monthSort).map((m) => {
             const yy = +y, mm = +m;
             const monthItems = byMonth[m];
@@ -569,7 +563,7 @@
               key: y + "-" + m,
               year: yy,
               month: mm,
-              label: mm === 0 ? "Yearly" : MONTHS[m],
+              label: MONTHS[m],
               // Same-date entries need a real tiebreaker, not just array order —
               // that order is stable within a session (new entries are always
               // pushed to the end) but merge.js rebuilds the array from a Set of
@@ -587,11 +581,8 @@
             update: (card, c) => {
               card.dataset.year = c.year;
               card.dataset.month = c.month;
-              // No "+" on the Yearly bucket: it exists only to hold the lump
-              // entries that are already there, and adding another is the
-              // thing projects replaced.
               fillFinanceMonthCard(card, c.year + "-" + c.month, c.label, c.items, c.counted,
-                c.month === 0 ? null : () => openFinanceModal(null, { year: c.year, month: c.month }));
+                () => openFinanceModal(null, { year: c.year, month: c.month }));
             },
           });
         },
@@ -641,7 +632,7 @@
 
   // The row's *contents*. Its click and long-press live in createFinanceRow.
   function financeRow(f) {
-    const row = el("div", "entry finance-entry" + (f.yearly ? " yearly-expense" : "") + (f.skipped ? " is-skipped" : ""));
+    const row = el("div", "entry finance-entry" + (f.skipped ? " is-skipped" : ""));
     row.dataset.id = f.id;
     if (state.bulk.active && !f.virtual) row.appendChild(bulkCheckbox(f));
     const color = financeColorOf(f.category);
@@ -761,7 +752,7 @@
   }
 
   // A month's header plus its rows. financeRow encodes four bits of state in
-  // its class string — yearly, skipped, and via the row's contents virtual and
+  // its class string — skipped, and via the row's contents virtual and
   // overridden — and adopt() syncs the whole class attribute, so a reused node
   // loses the ones that no longer apply as well as gaining the ones that do.
   function fillFinanceMonthCard(card, key, label, monthItems, countedItems, onAdd) {
@@ -990,17 +981,15 @@
   }
 
   // Monthly spend totals keyed by year*12+(month-1) so consecutive calendar
-  // months are consecutive integers. Yearly ad-hoc entries carry no month
-  // (financeMonthOf → 0) and are left out — they'd distort a per-month view.
+  // months are consecutive integers.
   function financeMonthlyTotals(items) {
     const totals = {};
     for (const f of items) {
-      if (f.yearly) continue;
-      // Projects are left out for the same reason yearly entries are: a
-      // holiday is not part of the shape of a normal month, and letting one
-      // through makes the average, the trend line and "biggest month" answer
-      // a question nobody asked. The Ledger still counts them — that is where
-      // you go to see what actually left your account.
+      // Projects are left out: a holiday is not part of the shape of a normal
+      // month, and letting one through makes the average, the trend line and
+      // "biggest month" answer a question nobody asked. The Ledger still
+      // counts them — that is where you go to see what actually left your
+      // account.
       if (f.project) continue;
       const k = financeYearOf(f) * 12 + (financeMonthOf(f) - 1);
       totals[k] = (totals[k] || 0) + f.amount;
@@ -1015,8 +1004,8 @@
   // At-a-glance Ledger insights, mirroring the Journal Stats "Highlights"
   // card: real average over the months you actually spent (not total/12),
   // the single biggest month, the top spending category, and this calendar
-  // year vs last. Monthly figures skip yearly ad-hoc entries; the
-  // year-over-year delta counts everything.
+  // year vs last. Monthly figures skip project spending; the year-over-year
+  // delta counts everything.
   function renderFinanceHighlights(root, items) {
     if (items.length < 2) return;
     const monthTotals = financeMonthlyTotals(items);
@@ -1102,12 +1091,7 @@
     return card;
   }
 
-  const monthSortAsc = (a, b) => {
-    a = +a; b = +b;
-    if (a === 0) return 1; // yearly ad-hoc bucket always last
-    if (b === 0) return -1;
-    return a - b;
-  };
+  const monthSortAsc = (a, b) => +a - +b;
 
   // Real per-month expense total, replacing the old flat
   // yearTotal/12 "Per month average" — one year at a time via a tab
@@ -1133,10 +1117,8 @@
     const yearItems = items.filter((f) => financeYearOf(f) === state.financeStatsYear);
     const byMonth = groupBy(yearItems, financeMonthOf);
     Object.keys(byMonth).sort(monthSortAsc).forEach((m) => {
-      const mm = +m;
-      const label = mm === 0 ? "Yearly" : MONTHS[mm];
       const total = byMonth[m].reduce((s, f) => s + f.amount, 0);
-      card.appendChild(financeMoneyRow(label, total));
+      card.appendChild(financeMoneyRow(MONTHS[+m], total));
     });
     root.appendChild(card);
   }
@@ -1209,22 +1191,10 @@
   }
 
   // ---------- finance entries ----------
-  function applyFinanceYearlyUI() {
-    const yearly = $("#finYearly").checked;
-    const editing = !!$("#financeId").value;
-    $("#finDateLabel").hidden = yearly;
-    $("#finYearLabel").hidden = !yearly;
-    $("#finDate").required = !yearly;
-    $("#finYear").required = yearly;
-    // The toggle is only offered on an entry that already is one. New lump
-    // expenses are made as projects now — a project holds the same total and
-    // can be broken into the expenses it was actually made of.
-    $("#finYearlyLabel").hidden = !(editing && yearly);
-    // The way out of a legacy lump: turn it into a project it can sit inside.
-    $("#yearlyToProjectBtn").hidden = !(editing && yearly);
-    // Only an existing, dated entry can seed a recurring template — a yearly
-    // entry carries no month/day for the schedule to anchor to.
-    $("#makeRecurringBtn").hidden = yearly || !$("#financeId").value;
+  // Only an existing entry can seed a recurring template — there is nothing
+  // for a schedule to anchor to until the expense has a date of its own.
+  function applyFinanceModalUI() {
+    $("#makeRecurringBtn").hidden = !$("#financeId").value;
   }
   // Quick-adding into a month card should default to today's actual date
   // when that card is the current month (matches what the plain "+" button
@@ -1237,13 +1207,10 @@
   }
   function openFinanceModal(entry, presetDate) {
     const editing = !!entry;
-    const yearly = editing ? !!entry.yearly : (presetDate && presetDate.month === 0);
     $("#financeModalTitle").textContent = editing ? "Edit finance entry" : "Add finance entry";
     $("#financeId").value = editing ? entry.id : "";
-    $("#finYearly").checked = yearly;
-    $("#finDate").value = (editing && !yearly) ? entry.date
-      : (!yearly && presetDate ? presetDateStr(presetDate) : todayStr());
-    $("#finYear").value = yearly ? (editing ? entry.date : (presetDate ? String(presetDate.year) : "")) : "";
+    $("#finDate").value = editing ? entry.date
+      : (presetDate ? presetDateStr(presetDate) : todayStr());
     $("#finAmount").value = editing ? entry.amount : "";
     fillCategorySelect($("#finCategory"), state.data.financeCategories,
       editing ? entry.category : (state.data.financeCategories[0] && state.data.financeCategories[0].name));
@@ -1268,7 +1235,7 @@
     applyFinanceCurrencyUI();
     $("#finNote").value = editing ? (entry.note || "") : "";
     $("#deleteFinanceBtn").hidden = !editing;
-    applyFinanceYearlyUI();
+    applyFinanceModalUI();
     $("#financeModal").hidden = false;
   }
 
@@ -1375,8 +1342,7 @@
   async function saveFinanceFromForm(ev) {
     ev.preventDefault();
     const id = $("#financeId").value;
-    const yearly = $("#finYearly").checked;
-    const date = yearly ? $("#finYear").value : $("#finDate").value;
+    const date = $("#finDate").value;
     const typed = readAmount("#finAmount");
     const category = $("#finCategory").value;
     const project = $("#finProject").value === ADD_PROJECT_OPTION ? "" : $("#finProject").value;
@@ -1385,7 +1351,6 @@
     const foreign = code && code !== homeCurrency();
     const rate = foreign ? parseFloat($("#finRate").value) : 0;
     if (!date || !typed) return;
-    if (yearly && !/^\d{4}$/.test(date)) return;
     if (foreign && (!isFinite(rate) || rate <= 0)) {
       toast("Give a rate for " + code + ", or switch back to " + homeCurrency(), true);
       return;
@@ -1406,13 +1371,11 @@
       const f = state.data.financeEntries.find((x) => x.id === id);
       Object.assign(f, { date, amount, category });
       if (note) f.note = note; else delete f.note;
-      if (yearly) f.yearly = true; else delete f.yearly;
       if (project) f.project = project; else delete f.project;
       for (const [k, v] of Object.entries(fxFields)) { if (v == null) delete f[k]; else f[k] = v; }
     } else {
       const item = { id: uid(), date, amount, category, createdAt: new Date().toISOString() };
       if (note) item.note = note;
-      if (yearly) item.yearly = true;
       if (project) item.project = project;
       for (const [k, v] of Object.entries(fxFields)) if (v != null) item[k] = v;
       state.data.financeEntries.push(item);
@@ -1422,32 +1385,6 @@
     render();
     await persist();
     toast(id ? "Finance entry updated" : "Finance entry added");
-  }
-
-  // The way out of a legacy lump. "Switzerland — ₪10,000" as one yearly entry
-  // becomes a project of the same name, with that entry as its first and only
-  // expense — so the total you already had is preserved on day one, and you
-  // break it into real expenses at your own pace, deleting the lump when
-  // there is nothing left in it.
-  //
-  // The entry stays yearly. It has no month, and inventing one would put it
-  // in a month you didn't spend it in.
-  let pendingYearlyEntryId = "";
-
-  function makeProjectFromYearly() {
-    const id = $("#financeId").value;
-    const f = state.data.financeEntries.find((x) => x.id === id);
-    if (!f || !f.yearly) return;
-    pendingYearlyEntryId = id;
-    const year = String(f.date).slice(0, 4);
-    closeFinanceModal();
-    openProjectModal(null, { fromYearly: true });
-    // Seeded after open so it overrides the blank-form defaults: the note is
-    // what you called this thing, and the year is the only date it carries.
-    $("#projName").value = f.note || f.category || year;
-    $("#projUses").textContent = "Built from " + formatMoney(f.amount)
-      + " — that entry becomes this project's first expense.";
-    $("#projUses").hidden = false;
   }
 
   async function deleteCurrentFinanceEntry() {
@@ -1855,7 +1792,6 @@
   function makeEntryRecurring() {
     const entry = state.data.financeEntries.find((x) => x.id === $("#financeId").value);
     if (!entry) return;
-    if (entry.yearly) { toast("Yearly entries have no month or day to repeat from", true); return; }
     closeFinanceModal();
     openRecurringModal(null, {
       convertFromId: entry.id,
@@ -1890,11 +1826,7 @@
   // template's current amount — a bill that changed price over time
   // shouldn't have its history rewritten by linking it.
   function openLinkPastExpensesPicker(rec) {
-    // Yearly big-purchase entries only carry a bare year (no month/day), so
-    // they're excluded both because a template's startDate needs a real
-    // date and because a one-off yearly purchase isn't really an instance
-    // of a periodic bill anyway.
-    const candidates = state.data.financeEntries.filter((e) => e.category === rec.category && !e.yearly);
+    const candidates = state.data.financeEntries.filter((e) => e.category === rec.category);
     if (!candidates.length) { toast("No existing expenses in this category to link", true); return; }
     const items = candidates.map((e) => ({ kind: "finance", entry: e, dup: false, checked: false }));
     openImportPicker({
@@ -1994,7 +1926,6 @@
   function openProjectModal(proj, opts) {
     const editing = !!proj;
     pendingProjectSelect = !!(opts && opts.fromEntry);
-    if (!(opts && opts.fromYearly)) pendingYearlyEntryId = "";
     $("#projectModalTitle").textContent = editing ? "Edit project" : "New project";
     $("#projOrigName").value = editing ? proj.name : "";
     $("#projName").value = editing ? proj.name : "";
@@ -2029,7 +1960,7 @@
     if (!items.length) { list.replaceChildren(); return; }
     const rows = items.map((f) => {
       const row = el("div", "proj-expense");
-      row.appendChild(el("span", "proj-expense-date", f.yearly ? String(f.date) : String(f.date).slice(5)));
+      row.appendChild(el("span", "proj-expense-date", String(f.date).slice(5)));
       const dot = el("span", "dot");
       dot.style.background = financeColorOf(f.category);
       row.appendChild(dot);
@@ -2063,7 +1994,6 @@
   // the expense form, with whatever was selected before still selected.
   function cancelProjectModal() {
     closeProjectModal();
-    pendingYearlyEntryId = "";
     if (pendingProjectSelect) {
       pendingProjectSelect = false;
       fillProjectSelect($("#finProject"), $("#finProject").dataset.prevValue || "");
@@ -2105,12 +2035,6 @@
     closeProjectModal();
     rebuildProjectColorMap();
     buildProjectFilter();
-    // A project made from a lump adopts that lump as its first expense.
-    if (pendingYearlyEntryId) {
-      const f = state.data.financeEntries.find((x) => x.id === pendingYearlyEntryId);
-      if (f) f.project = name;
-      pendingYearlyEntryId = "";
-    }
     if (pendingProjectSelect) {
       pendingProjectSelect = false;
       fillProjectSelect($("#finProject"), name);
@@ -2378,11 +2302,16 @@
     ]);
     // month-totals rows (the first 12 rows of each year block) carry a real
     // transaction in one of their month columns *and* a month name in the
-    // trailing label — that label should only be excluded from the yearly
-    // ad-hoc-expense check below, not used to skip the row's own monthly data
+    // trailing label — that label should only be excluded from the
+    // whole-year-column check below, not used to skip the row's own monthly data
     const reservedLabels = new Set([...MONTHS.slice(1), ...rowSkipLabels]);
     const monthly = [];
-    const yearly = [];
+    // The export's year-total column: a big purchase the sheet recorded
+    // against the year rather than a month. It has no month to land in, so it
+    // takes 1 January — the same rule the sanitizer applies to a legacy
+    // yearly entry, since the kind of entry it used to become no longer
+    // exists.
+    const undated = [];
     let currentYear = null;
     for (const row of rows) {
       const yearMatch = (row[1] || "").trim().match(/^(\d{4}):$/);
@@ -2399,18 +2328,18 @@
       }
       if (label && !reservedLabels.has(label)) {
         const amount = parseMoneyCell(row[36]);
-        if (amount) yearly.push({ date: currentYear, amount, category: "Other", note: label, yearly: true });
+        if (amount) undated.push({ date: `${currentYear}-01-01`, amount, category: "Other", note: label });
       }
     }
     if (currentYear === null) throw new Error("No year blocks found — is this the right CSV export?");
-    return { monthly, yearly };
+    return { monthly, undated };
   }
   function importFinanceCsv(file) {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const { monthly, yearly } = parseFinanceCsv(reader.result);
-        const incoming = [...monthly, ...yearly];
+        const { monthly, undated } = parseFinanceCsv(reader.result);
+        const incoming = [...monthly, ...undated];
         const built = buildImportItems({ financeEntries: incoming });
         reviewAndImport("Import Finance CSV", "Pick which entries to add, disable whole years/months at once, and choose which new categories to bring in. Entries already in your data are hidden by default — turn on the toggle below to review and re-import them anyway.", built);
       } catch (e) { toast("Import failed: " + (e.message || e), true); }
@@ -2430,9 +2359,9 @@
         if (!selected.length) { toast("Nothing selected"); return; }
         // Amount stays the home figure so the column still sums in a
         // spreadsheet; what was paid rides in three columns beside it.
-        const rows = [["Date", "Amount", "Category", "Note", "Yearly", "Project", "Currency", "Paid", "Rate"]];
+        const rows = [["Date", "Amount", "Category", "Note", "Project", "Currency", "Paid", "Rate"]];
         selected.map((i) => i.entry).sort((a, b) => b.date.localeCompare(a.date)).forEach((f) =>
-          rows.push([f.date, f.amount, f.category, f.note || "", f.yearly ? "yes" : "",
+          rows.push([f.date, f.amount, f.category, f.note || "",
             f.project || "", f.currency || "", f.fxAmount || "", f.rate || ""]));
         download("lifelog-finance.csv", rows.map((r) => r.map(csvEsc).join(",")).join("\n"), "text/csv");
         toast(`Exported ${selected.length} entr${selected.length === 1 ? "y" : "ies"}`);
@@ -2445,7 +2374,7 @@
   // carried through rather than dropped, so a device on an older build can't
   // silently delete a newer one's data.
   const KNOWN_FINANCE_ENTRY_KEYS = new Set([
-    "id", "date", "amount", "category", "createdAt", "updatedAt", "yearly", "note", "project",
+    "id", "date", "amount", "category", "createdAt", "updatedAt", "note", "project",
     "currency", "fxAmount", "rate", "rateConfirmed",
   ]);
   // startDate/endDate are deliberately absent: projects carried a date range
@@ -2467,10 +2396,12 @@
       createdAt: f.createdAt || null,
       updatedAt: backfillUpdatedAt(f),
     };
-    if (f.yearly) {
-      out.yearly = true;
-      out.date = String(out.date).slice(0, 4);
-    }
+    // Yearly entries are gone (0.150.0). One left in the data carries a bare
+    // year for a date, which every month lookup below would read as NaN, so
+    // it becomes an ordinary expense on 1 January of that year. The month is
+    // invented — a lump had none — but a dated expense is a real row and a
+    // broken date is not, and no row is deleted to make the feature go away.
+    if (/^\d{4}$/.test(out.date)) out.date = out.date + "-01-01";
     if (f.note) out.note = f.note;
     // Referenced by name, exactly as `category` is — the rename cascade in
     // saveProjectFromForm is the same one finance categories already use.
@@ -2486,7 +2417,14 @@
       out.fxAmount = Math.round(fxAmount * 100) / 100;
       if (f.rateConfirmed) out.rateConfirmed = true;
     }
-    return keepUnknown(f, out, KNOWN_FINANCE_ENTRY_KEYS);
+    const kept = keepUnknown(f, out, KNOWN_FINANCE_ENTRY_KEYS);
+    // keepUnknown exists so a build older than the data can't silently drop
+    // what a newer one added. `yearly` is the opposite case — a field this
+    // build deliberately retired — and carrying it would leave every migrated
+    // row paired with a flag that tells an older build to truncate the date
+    // back to a bare year. Retired, so dropped on purpose.
+    delete kept.yearly;
+    return kept;
   }
 
   // A project is a one-off burst of spending you want totalled on its own and
@@ -2507,7 +2445,7 @@
     // expenses, because that is where they actually are.
     return keepUnknown(p, out, KNOWN_PROJECT_KEYS);
   }
-  const financeKey = (f) => `${(f.date || "").toLowerCase()}|${+f.amount}|${(f.category || "").toLowerCase()}|${(f.note || "").toLowerCase()}|${f.yearly ? 1 : 0}|${(f.project || "").toLowerCase()}|${(f.currency || "").toUpperCase()}|${+f.fxAmount || 0}`;
+  const financeKey = (f) => `${(f.date || "").toLowerCase()}|${+f.amount}|${(f.category || "").toLowerCase()}|${(f.note || "").toLowerCase()}|${(f.project || "").toLowerCase()}|${(f.currency || "").toUpperCase()}|${+f.fxAmount || 0}`;
   function sanitizeRecurring(r) {
     const out = {
       id: r.id || uid(),
@@ -2567,7 +2505,6 @@
     $("#cancelFinanceBtn").onclick = closeFinanceModal;
     $("#financeForm").onsubmit = saveFinanceFromForm;
     $("#deleteFinanceBtn").onclick = deleteCurrentFinanceEntry;
-    $("#finYearly").onchange = applyFinanceYearlyUI;
     $("#makeRecurringBtn").onclick = makeEntryRecurring;
 
     $("#cancelRecurringBtn").onclick = closeRecurringModal;
@@ -2635,8 +2572,6 @@
       $("#convRate").value = Math.round((total / fxTotal) * 1e6) / 1e6;
       updateConvertSummary();
     };
-
-    $("#yearlyToProjectBtn").onclick = makeProjectFromYearly;
 
     $("#cancelProjectBtn").onclick = cancelProjectModal;
     $("#projectForm").onsubmit = saveProjectFromForm;

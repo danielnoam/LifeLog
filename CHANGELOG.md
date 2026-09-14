@@ -4,6 +4,27 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.150.0] - 2026-09-14
+
+### Removed
+- **Yearly expenses are gone.** The toggle, the year-only date field, the
+  "Yearly" bucket at the bottom of each year, the "Make project" bridge out of
+  one, and every special case they needed — the pseudo-month they sorted into,
+  their exclusion from monthly figures, the block on turning one into a
+  recurring expense, the extra CSV column. Projects do the job better: they
+  hold the same total and can be broken into what it was actually made of.
+
+### Changed
+- **A yearly expense you already had becomes an ordinary one, dated 1 January
+  of its year.** Nothing is deleted. The month is invented — a lump never had
+  one — but a dated expense is a real row and a bare `"2025"` date is not: every
+  month lookup would read it as NaN. Its amount, category, note and project are
+  untouched, and it can now do things a lump couldn't, like seed a recurring
+  expense.
+- Finance CSV import puts a purchase recorded against a year rather than a
+  month on 1 January too, instead of making a kind of entry that no longer
+  exists. The export drops its Yearly column.
+
 ## [0.149.2] - 2026-09-14
 
 ### Fixed

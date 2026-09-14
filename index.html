@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.149.2" />
+  <link rel="stylesheet" href="src/styles.css?v=0.150.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -509,19 +509,8 @@
       <h2 id="financeModalTitle">Add finance entry</h2>
       <form id="financeForm">
         <input type="hidden" id="financeId" />
-        <!-- Yearly is edit-only now: existing lump entries still open and
-             save, but new ones are made as projects instead. The checkbox
-             stays in the DOM because applyFinanceYearlyUI and the save path
-             both read it; it is simply never shown for a new entry. -->
-        <label class="toggle-label" id="finYearlyLabel" hidden>
-          <input type="checkbox" id="finYearly" />
-          Yearly expense (no specific month)
-        </label>
         <label id="finDateLabel">Date
           <input id="finDate" type="date" required />
-        </label>
-        <label id="finYearLabel" hidden>Year
-          <input id="finYear" type="number" min="1900" max="2999" step="1" />
         </label>
         <div class="field-row">
           <label>Amount
@@ -547,7 +536,6 @@
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteFinanceBtn" hidden>Delete</button>
           <button type="button" class="link-btn" id="makeRecurringBtn" hidden>↻ Make recurring</button>
-          <button type="button" class="link-btn" id="yearlyToProjectBtn" hidden>Make project</button>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelFinanceBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
@@ -984,7 +972,7 @@
         </div>
         <input type="file" id="importFinanceJsonInput" accept="application/json,.json" hidden />
         <input type="file" id="importFinanceCsvInput" accept="text/csv,.csv" hidden />
-        <p class="hint">Finance CSV import expects the yearly pivot format exported from a Google Sheets export (year blocks, 12 month columns, a note on each real transaction); big one-off purchases with no month become "yearly expenses." Every import goes through the same review screen as Journal data.</p>
+        <p class="hint">Finance CSV import expects the yearly pivot format exported from a Google Sheets export (year blocks, 12 month columns, a note on each real transaction); big one-off purchases recorded against a year rather than a month land on 1 January. Every import goes through the same review screen as Journal data.</p>
       </section>
       </div><!-- /backup panel -->
 
@@ -1350,20 +1338,20 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.149.2"></script>
-  <script defer src="src/qr.js?v=0.149.2"></script>
-  <script defer src="src/media.js?v=0.149.2"></script>
-  <script defer src="src/merge.js?v=0.149.2"></script>
-  <script defer src="src/storage.js?v=0.149.2"></script>
-  <script defer src="src/finance.js?v=0.149.2"></script>
-  <script defer src="src/settings.js?v=0.149.2"></script>
-  <script defer src="src/wheel.js?v=0.149.2"></script>
-  <script defer src="src/backlog.js?v=0.149.2"></script>
-  <script defer src="src/journal.js?v=0.149.2"></script>
-  <script defer src="src/notes.js?v=0.149.2"></script>
-  <script defer src="src/todos.js?v=0.149.2"></script>
-  <script defer src="src/io.js?v=0.149.2"></script>
-  <script defer src="src/sync.js?v=0.149.2"></script>
-  <script defer src="src/app.js?v=0.149.2"></script>
+  <script defer src="src/reconcile.js?v=0.150.0"></script>
+  <script defer src="src/qr.js?v=0.150.0"></script>
+  <script defer src="src/media.js?v=0.150.0"></script>
+  <script defer src="src/merge.js?v=0.150.0"></script>
+  <script defer src="src/storage.js?v=0.150.0"></script>
+  <script defer src="src/finance.js?v=0.150.0"></script>
+  <script defer src="src/settings.js?v=0.150.0"></script>
+  <script defer src="src/wheel.js?v=0.150.0"></script>
+  <script defer src="src/backlog.js?v=0.150.0"></script>
+  <script defer src="src/journal.js?v=0.150.0"></script>
+  <script defer src="src/notes.js?v=0.150.0"></script>
+  <script defer src="src/todos.js?v=0.150.0"></script>
+  <script defer src="src/io.js?v=0.150.0"></script>
+  <script defer src="src/sync.js?v=0.150.0"></script>
+  <script defer src="src/app.js?v=0.150.0"></script>
 </body>
 </html>

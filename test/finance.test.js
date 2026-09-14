@@ -370,10 +370,19 @@ test("sanitizeFinanceEntry coerces amount to a positive number and assigns an id
   assert.strictEqual(out.updatedAt, "1970-01-01T00:00:00.000Z"); // no updatedAt/createdAt supplied
 });
 
-test("sanitizeFinanceEntry truncates the date to just the year for yearly entries", () => {
-  const out = sanitizeFinanceEntry({ date: "2026-03-15", amount: 100, category: "Other", yearly: true });
-  assert.strictEqual(out.date, "2026");
-  assert.strictEqual(out.yearly, true);
+test("a legacy yearly entry becomes an ordinary expense on 1 January", () => {
+  // Yearly entries were removed in 0.150.0. One left in the data carries a
+  // bare year for a date, which every month lookup would read as NaN — so it
+  // is dated rather than deleted, and the flag goes.
+  const out = sanitizeFinanceEntry({ date: "2025", amount: 10000, category: "Other", note: "Italy", yearly: true });
+  assert.strictEqual(out.date, "2025-01-01");
+  assert.strictEqual(out.yearly, undefined);
+  assert.strictEqual(out.amount, 10000, "the money is untouched");
+  assert.strictEqual(out.note, "Italy", "and so is what you called it");
+});
+
+test("an ordinary date is left exactly as it is", () => {
+  assert.strictEqual(sanitizeFinanceEntry({ date: "2026-03-15", amount: 100, category: "Other" }).date, "2026-03-15");
 });
 
 test("sanitizeFinanceEntry drops amount to 0 for garbage input instead of NaN", () => {
@@ -462,9 +471,10 @@ test("monthSortAsc sorts numerically ascending", () => {
   assert.ok(monthSortAsc(3, 2) > 0);
 });
 
-test("monthSortAsc always sorts the pseudo-month 0 ('Yearly' bucket) last", () => {
-  assert.ok(monthSortAsc(0, 12) > 0); // 0 sorts after even December
-  assert.ok(monthSortAsc(1, 0) < 0); // any real month sorts before 0
+test("monthSortAsc puts the months in calendar order", () => {
+  // The pseudo-month 0 it used to shepherd to the end went with yearly
+  // entries in 0.150.0; every bucket is a real month now.
+  assert.deepStrictEqual(["12", "3", "7", "1"].sort(Finance.monthSortAsc), ["1", "3", "7", "12"]);
 });
 
 // ---------- evalMathExpr ----------

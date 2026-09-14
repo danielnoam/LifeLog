@@ -293,17 +293,16 @@
   function importBucketKey(item) {
     const ds = importItemDateStr(item);
     if (!ds) return null;
-    return ds.length === 4 ? ds : ds.slice(0, 7);
+    return ds.slice(0, 7);
   }
   function importBucketLabel(key) {
-    if (key.length === 4) return `${key} · yearly`;
     const [y, m] = key.split("-");
     return `${MONTHS_SHORT[+m]} ${y}`;
   }
   function importRowFor(item, onChange) {
     const e = item.entry;
     const finance = item.kind === "finance" || item.kind === "recurring";
-    const row = el("label", "entry picker-row" + (item.dup ? " is-dup" : "") + (finance ? " finance-entry" : "") + (e.yearly ? " yearly-expense" : ""));
+    const row = el("label", "entry picker-row" + (item.dup ? " is-dup" : "") + (finance ? " finance-entry" : ""));
     const cb = el("input"); cb.type = "checkbox"; cb.checked = item.checked;
     cb.onchange = () => { item.checked = cb.checked; onChange(); };
     row.appendChild(cb);
@@ -311,7 +310,7 @@
     bar.style.background = finance ? financeColorOf(e.category) : colorOf(e.category);
     row.appendChild(bar);
     if (item.kind === "finance") {
-      row.appendChild(el("span", "fdate" + (e.yearly ? " fyearly" : ""), e.yearly ? `${e.date} · yearly` : e.date));
+      row.appendChild(el("span", "fdate", e.date));
       const t = el("span", "etitle", e.note || e.category); t.title = e.note || e.category; row.appendChild(t);
       row.appendChild(el("span", "ecat", e.category));
       row.appendChild(el("span", "famount fnegative", formatMoney(e.amount)));

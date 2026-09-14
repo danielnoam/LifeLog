@@ -16,6 +16,30 @@ what was decided against and why.
 
 ---
 
+- yearly expenses are gone entirely (0.150.0), after two releases of being
+  edit-only. What made them expensive was never the feature, it was the special
+  cases: a bare-year `date`, a pseudo-month 0 that two sorts had to shepherd to
+  the end, a label branch in three places, exclusion from financeMonthlyTotals,
+  a guard against seeding a recurring expense, an extra CSV column, and a whole
+  bridge (makeProjectFromYearly) for getting out of one. All of that is out.
+
+  A legacy row migrates rather than being deleted: `/^\d{4}$/` on the date
+  becomes 1 January of that year. The month is invented, which is a real cost,
+  but the alternative is a row whose every month lookup is NaN — and deleting
+  rows to retire a feature is not on the table.
+
+  The one place keepUnknown is deliberately overridden: `delete kept.yearly`.
+  keepUnknown exists so a build older than the data can't drop what a newer one
+  added, and a *retired* field is the opposite case. Left in, every migrated
+  row would carry a flag telling an older build to truncate the date it had
+  just been given back to a bare year.
+
+  This is the second retired-field decision in two days and they went opposite
+  ways: project startDate/endDate were left to pass through (inert, nothing
+  reads them), `yearly` is deleted (actively contradicts a field that changed
+  alongside it). The test is not "is it retired" but "does leaving it make some
+  reader wrong".
+
 - .content's bottom padding on a phone is `--bottombar-h + --fab-clear`, not
   just the bar. The bar is fixed and so is the + button 12px above it; padding
   for the first leaves the second floating over the last 64px of every view.

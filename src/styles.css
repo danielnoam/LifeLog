@@ -979,7 +979,6 @@ select:focus { outline: none; border-color: var(--accent); }
 
 /* finance */
 .picker-row .fdate { font-size: 11px; color: var(--text-faint); width: 78px; flex: 0 0 auto; }
-.picker-row .fdate.fyearly { width: auto; font-style: italic; }
 .finance-entry .famount { font-weight: 700; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .famount.fnegative { color: var(--danger); }
 .recur-badge { font-size: 12px; color: var(--text-faint); flex: 0 0 auto; }
