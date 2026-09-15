@@ -11,13 +11,13 @@
   let state, $, el, toast, persist, afterDataChange, ensureCategories,
     CATEGORY_PALETTE, MONTHS, MONTHS_SHORT, colorOf,
     financeColorOf, formatMoney, financeKey, recurringKey,
-    sanitizeFinanceEntry, sanitizeRecurring, sanitizeEntry, sanitizeBacklog;
+    sanitizeFinanceEntry, sanitizeRecurring, sanitizeEntry, sanitizeBacklog, isOverridden;
 
   function init(ctx) {
     ({ state, $, el, toast, persist, afterDataChange, ensureCategories,
       CATEGORY_PALETTE, MONTHS, MONTHS_SHORT, colorOf,
       financeColorOf, formatMoney, financeKey, recurringKey,
-      sanitizeFinanceEntry, sanitizeRecurring, sanitizeEntry, sanitizeBacklog } = ctx);
+      sanitizeFinanceEntry, sanitizeRecurring, sanitizeEntry, sanitizeBacklog, isOverridden } = ctx);
   }
 
   function download(filename, text, type) {
@@ -107,6 +107,71 @@
     });
     return out;
   }
+  // Which of an incoming record's fields the thing you already have is
+  // *missing*. Never a field that already holds something: an import fills
+  // gaps and does not overwrite, so a title you corrected or a cover you
+  // picked can't be reverted by re-running a sync. Pinned fields (the
+  // Advanced foldout) are skipped even when empty — pinning is a statement
+  // that this field is yours to set.
+  const IMPORT_FILLABLE = [
+    ["coverUrl", "cover"],
+    ["externalRating", "rating"],
+    ["length", "length"],
+    ["releaseYear", "year"],
+    ["releaseDate", "release date"],
+    ["releaseStatus", "release status"],
+    ["summary", "description"],
+    ["genres", "genres"],
+    ["mediaSource", "media link"],
+  ];
+  const isEmptyField = (v) => v == null || v === "" || (Array.isArray(v) && !v.length);
+
+  // Whether a local item is missing anything an import could fill. Asked
+  // before a source spends a slow per-item lookup on something it already
+  // has: a complete item has nothing to gain, an incomplete one might.
+  function importItemIncomplete(target) {
+    return IMPORT_FILLABLE.some(([key]) => {
+      if (!isEmptyField(target[key])) return false;
+      if (isOverridden && isOverridden(target, key === "coverUrl" ? "cover" : key)) return false;
+      if (key === "mediaSource" && target.mediaId) return false;
+      return true;
+    });
+  }
+
+  function fillableFields(target, incoming) {
+    const out = [];
+    for (const [key, label] of IMPORT_FILLABLE) {
+      if (isEmptyField(incoming[key])) continue;
+      if (!isEmptyField(target[key])) continue;
+      if (isOverridden && isOverridden(target, key === "coverUrl" ? "cover" : key)) continue;
+      // The media link is a pair; offering one half would leave an id with no
+      // source to resolve it against.
+      if (key === "mediaSource" && (!incoming.mediaId || target.mediaId)) continue;
+      out.push({ key, label });
+    }
+    return out;
+  }
+
+  // The backlog item or journal entry an incoming record is a duplicate of,
+  // by the same three identities buildImportItems uses to call it one —
+  // strongest first, so a locally renamed item still matches on its media id.
+  // Returns { item, kind } rather than tagging the item: these are the live
+  // records out of state, and a marker property stuck on one would be
+  // persisted, synced, and carried through keepUnknown forever.
+  function findExistingFor(b) {
+    if (b.mediaSource && b.mediaId) {
+      const inBacklog = state.data.backlog.find((x) => x.mediaSource === b.mediaSource && x.mediaId === b.mediaId);
+      if (inBacklog) return { item: inBacklog, kind: "backlog" };
+      const inEntries = state.data.entries.find((x) => x.mediaSource === b.mediaSource && x.mediaId === b.mediaId);
+      if (inEntries) return { item: inEntries, kind: "entry" };
+    }
+    const t = (b.title || "").toLowerCase(), c = (b.category || "").toLowerCase();
+    const byTitle = state.data.backlog.find((x) => (x.title || "").toLowerCase() === t && (x.category || "").toLowerCase() === c);
+    if (byTitle) return { item: byTitle, kind: "backlog" };
+    const inJournal = state.data.entries.find((x) => (x.title || "").toLowerCase() === t && (x.category || "").toLowerCase() === c);
+    return inJournal ? { item: inJournal, kind: "entry" } : null;
+  }
+
   function buildImportItems({ entries, backlog, financeEntries, recurringExpenses, categories, financeCategories }) {
     const items = [];
     const entryKey = (e) => `${(e.title || "").toLowerCase()}|${(e.category || "").toLowerCase()}|${+e.year}|${+e.month}`;
@@ -140,9 +205,26 @@
     });
     (backlog || []).forEach((raw) => {
       const b = sanitizeBacklog(raw);
-      const dup = existingBacklogKeys.has(backlogKey(b)) ||
+      // Boolean-wrapped because the last term short-circuits on an empty
+      // mediaSource and would otherwise leave dup as "" — truthy-correct but
+      // a lie to anything that reads the flag rather than tests it.
+      const dup = !!(existingBacklogKeys.has(backlogKey(b)) ||
         existingEntryTitleKeys.has(titleCatKey(b.title, b.category)) ||
-        (b.mediaSource && b.mediaId && existingMediaIds.has(b.mediaSource + ":" + b.mediaId));
+        (b.mediaSource && b.mediaId && existingMediaIds.has(b.mediaSource + ":" + b.mediaId)));
+      // A duplicate used to be the end of the story: hidden, skipped, and the
+      // sync could never enrich anything you already had. Now it is asked
+      // what it could *add* — a cover you have no cover for, a rating you
+      // have no rating for — and offered as an update when the answer isn't
+      // "nothing". One that can't add anything stays a plain duplicate.
+      const found = dup ? findExistingFor(b) : null;
+      const fills = found ? fillableFields(found.item, b) : [];
+      if (found && fills.length) {
+        items.push({
+          kind: "backlog", entry: b, dup: true, update: true, targetId: found.item.id,
+          targetKind: found.kind, fills, checked: true, unresolved: !!raw.unresolved,
+        });
+        return;
+      }
       items.push({ kind: "backlog", entry: b, dup, checked: !dup, unresolved: !!raw.unresolved });
     });
     (financeEntries || []).map(sanitizeFinanceEntry).forEach((f) => {
@@ -169,8 +251,27 @@
       const target = c.scope === "finance" ? state.data.financeCategories : state.data.categories;
       if (!target.some((x) => x.name === c.name)) target.push({ id: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: c.name, color: c.color });
     }
+    // Updates are applied in place against the item they matched; only the
+    // rest are new rows. Split before anything is pushed, or an update would
+    // be added as a second copy of what it was meant to enrich.
+    const updates = selected.filter((i) => i.update);
+    let filled = 0;
+    for (const u of updates) {
+      const pool = u.targetKind === "entry" ? state.data.entries : state.data.backlog;
+      const target = pool.find((x) => x.id === u.targetId);
+      if (!target) continue;
+      for (const f of u.fills) {
+        const v = u.entry[f.key];
+        if (isEmptyField(v)) continue;
+        target[f.key] = Array.isArray(v) ? v.slice() : v;
+        // The media link is a pair — the id travels with the source, or the
+        // source names a lookup with nothing to look up.
+        if (f.key === "mediaSource" && u.entry.mediaId) target.mediaId = u.entry.mediaId;
+        filled++;
+      }
+    }
     const byKind = { entry: [], backlog: [], finance: [], recurring: [] };
-    selected.forEach((i) => byKind[i.kind].push(i.entry));
+    selected.filter((i) => !i.update).forEach((i) => byKind[i.kind].push(i.entry));
     state.data.entries.push(...byKind.entry);
     state.data.backlog.push(...byKind.backlog);
     state.data.financeEntries.push(...byKind.finance);
@@ -185,6 +286,10 @@
     if (byKind.backlog.length) parts.push(`${byKind.backlog.length} backlog items`);
     if (byKind.finance.length) parts.push(`${byKind.finance.length} finance entries`);
     if (byKind.recurring.length) parts.push(`${byKind.recurring.length} recurring expenses`);
+    if (updates.length) {
+      parts.push(`filled ${filled} field${filled === 1 ? "" : "s"} on ${updates.length} existing item${updates.length === 1 ? "" : "s"}`);
+    }
+    if (!parts.length) { toast("Nothing to import"); return; }
     toast(`Imported ${parts.join(", ")}`);
   }
 
@@ -302,7 +407,9 @@
   function importRowFor(item, onChange) {
     const e = item.entry;
     const finance = item.kind === "finance" || item.kind === "recurring";
-    const row = el("label", "entry picker-row" + (item.dup ? " is-dup" : "") + (finance ? " finance-entry" : ""));
+    const row = el("label", "entry picker-row"
+      + (item.update ? " is-update" : (item.dup ? " is-dup" : ""))
+      + (finance ? " finance-entry" : ""));
     const cb = el("input"); cb.type = "checkbox"; cb.checked = item.checked;
     cb.onchange = () => { item.checked = cb.checked; onChange(); };
     row.appendChild(cb);
@@ -330,7 +437,14 @@
       row.appendChild(el("span", "ecat", e.category));
       row.appendChild(el("span", "dup-tag", "backlog"));
     }
-    if (item.dup) row.appendChild(el("span", "dup-tag", "already added"));
+    // An update says what it would actually do, rather than "already added":
+    // that phrase is true of the item and useless about the change.
+    if (item.update) {
+      const tag = el("span", "update-tag", "+ " + item.fills.map((f) => f.label).join(", "));
+      tag.title = "Already in your " + (item.targetKind === "entry" ? "timeline" : "backlog")
+        + " — this fills in what it's missing, and changes nothing it already has";
+      row.appendChild(tag);
+    } else if (item.dup) row.appendChild(el("span", "dup-tag", "already added"));
     return row;
   }
   function openImportPicker({ title, hint, mode, items, newCategories, confirmLabel, onConfirm, searchable }) {
@@ -341,7 +455,7 @@
     $("#financePickerConfirmBtn").textContent = confirmLabel;
     const dupRow = $("#financePickerDupRow");
     const showDupCb = $("#financePickerShowDup");
-    dupRow.hidden = mode !== "import" || !items.some((i) => i.dup);
+    dupRow.hidden = mode !== "import" || !items.some((i) => i.dup && !i.update);
     showDupCb.checked = false;
     const unresolvedRow = $("#financePickerUnresolvedRow");
     const hideUnresolvedCb = $("#financePickerHideUnresolved");
@@ -382,7 +496,10 @@
     }
     function visibleItems() {
       return items.filter((i) =>
-        (!i.dup || showDupCb.checked) &&
+        // An update is a duplicate by identity but not by intent: it is the
+        // one row that says what a re-sync would actually do, so the
+        // hide-duplicates toggle must not take it away.
+        (i.update || !i.dup || showDupCb.checked) &&
         (!i.unresolved || !hideUnresolvedCb.checked) &&
         matchesSearch(i)
       );
@@ -442,8 +559,10 @@
     download, csvEsc, parseCsv,
     exportJson, exportJournalJson, exportJournalCsv,
     importJsonAll, importJournalJson, importJournalCsv,
-    buildImportItems, reviewAndImport, openImportPicker,
+    buildImportItems,
+    importItemIncomplete, reviewAndImport, openImportPicker,
     // pure helpers (exported for test/io.test.js)
     importItemDateStr, importBucketKey, journalCsvText, parseJournalCsv,
+    fillableFields, findExistingFor,
   };
 })();

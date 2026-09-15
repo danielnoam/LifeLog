@@ -746,6 +746,17 @@ select:focus { outline: none; border-color: var(--accent); }
    surface, and a second one on top of it reads as a box in a box. */
 .proj-group-list .finance-entry:hover { background: var(--proj-head, var(--bg-elev-2)); }
 
+/* An import row that would fill gaps in something you already have, rather
+   than add a new item. Marked apart from .is-dup: a duplicate is a row you
+   are being offered the chance to skip, this one is a row you are being
+   offered the chance to take. */
+.picker-row.is-update { border-left: 2px solid var(--accent); }
+.update-tag {
+  font-size: 10.5px; color: var(--accent); background: var(--accent-soft);
+  border-radius: 999px; padding: 1px 8px; white-space: nowrap; flex: 0 0 auto;
+  max-width: 45%; overflow: hidden; text-overflow: ellipsis;
+}
+
 /* Everything in a project, listed inside its own edit form. Sized like the
    month-card breakdown rather than like the expense rows, because this is a
    reference list you scan, not a list you act on row by row. */
@@ -1229,8 +1240,29 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
   display: flex; align-items: center; gap: 10px; font-size: 13px; max-width: calc(100vw - 32px);
 }
 .bulk-count { font-weight: 600; white-space: nowrap; }
-.bulk-progress { color: var(--text-dim); white-space: nowrap; }
-.bulk-progress:empty { display: none; }
+/* A button, not a label: the count is the way into the full run breakdown. */
+.bulk-progress {
+  color: var(--text-dim); white-space: nowrap; font: inherit; cursor: pointer;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 999px; padding: 4px 10px;
+}
+.bulk-progress:hover { color: var(--text); border-color: var(--text-faint); }
+.bulk-progress:empty, .bulk-progress[hidden] { display: none; }
+
+.bulkp-list { display: flex; flex-direction: column; gap: 2px; max-height: 50vh; overflow-y: auto; margin-top: 10px; }
+.bulkp-row {
+  display: flex; align-items: baseline; gap: 8px; padding: 6px 8px; border-radius: 8px; font-size: 13px;
+}
+.bulkp-row:nth-child(odd) { background: var(--bg-elev-2); }
+.bulkp-glyph { flex: 0 0 1em; text-align: center; color: var(--text-faint); }
+.bulkp-row.is-done .bulkp-glyph { color: var(--success); }
+.bulkp-row.is-skipped .bulkp-glyph { color: var(--warning); }
+.bulkp-row.is-failed .bulkp-glyph { color: var(--danger); }
+.bulkp-row.is-pending { color: var(--text-faint); }
+.bulkp-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bulkp-detail {
+  flex: 0 1 auto; min-width: 0; color: var(--text-faint); font-size: 12px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%;
+}
 .bulk-move-select {
   background: var(--bg); border: 1px solid var(--border); color: var(--text);
   padding: 6px 8px; border-radius: 8px; font-size: 12px;

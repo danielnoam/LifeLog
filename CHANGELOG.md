@@ -4,6 +4,64 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.151.0] - 2026-09-15
+
+### Added
+- **One import system behind the Steam wishlist and AniList pulls.** Both were
+  bespoke functions that happened to do the same six things in a different
+  order. A source now declares what it is — `id`, `label`, `hint`, a `plan()`
+  saying what it's about to fetch, a `fetch()`, a `toItem()` turning one raw
+  record into a backlog item, and an `empty()` message — and a single
+  `runImport()` drives it: fetch, build, review, apply. Adding a third source
+  is now an adapter, not another copy of the machinery.
+- **An import can now update what you already have, not just skip it.** A
+  wishlist item you already own was a duplicate and nothing more, so a re-sync
+  could never enrich anything — the items most likely to need a cover or a
+  release date were exactly the ones it refused to look at. Those now show up
+  as their own row, ticked, tagged with what they would add: *+ cover, rating,
+  release date*. They stay visible when duplicates are hidden, because an
+  update is a duplicate by identity but not by intent.
+- **Updates only ever fill gaps.** A field you already have is never
+  overwritten, and a field you pinned in Advanced is never touched. The worst
+  an update can do is add something to an empty slot, which is why it's safe
+  to leave them all ticked.
+- **The Steam pull now looks up games already in your backlog when they're
+  incomplete.** It used to skip every appid it recognised, which would have
+  made the update rows above unreachable for almost everything.
+- **A live list for a bulk media pull.** The count in the bulk bar is now a
+  button: press it during a run — or after — and you get every item in the
+  selection with what happened to it. Done, with which fields were filled and
+  what it matched. Skipped, with why: no media source for that category,
+  Steam needs an App ID, no match found. Failed, with the error. Still
+  waiting. It updates as the run goes, and the rows behind it re-render after
+  every item, so covers appear as they arrive instead of all at once at the
+  end.
+- **The panel opens itself when a run didn't come back clean.** A toast saying
+  "skipped 3" is exactly the sentence that makes you want the list.
+
+### Changed
+- **One bad title no longer aborts the rest of a bulk sync.** A throw used to
+  end the loop, leaving everything after it untouched with no way to tell
+  which item did it. Each item is now caught on its own and marked failed with
+  its error. Three failures in a row still stop the run — a dead key fails
+  identically on every title — and the rest are marked as skipped saying so.
+- **The bulk bar's own buttons are disabled while a run is going.** They were
+  re-enabled by every mid-run re-render, which is a second run starting on top
+  of the first.
+- **A finished run's count is cleared when you enter bulk mode again.** It
+  belongs to the selection that produced it; last time's "12/12 · done" is not
+  news about this one.
+
+### Fixed
+- **`dup` on an imported backlog row could be `""` instead of `false`.** The
+  media-id term short-circuits on an empty source. Truthy-correct everywhere
+  it was tested, and a lie to anything reading the flag.
+- **The duplicate lookup no longer tags the record it found.** It was marking
+  the live backlog item or journal entry with which list it came from — a
+  property that would then be saved, synced, and carried forward by
+  `keepUnknown` on every device, forever. It returns the answer alongside the
+  item now instead of writing it onto it.
+
 ## [0.150.1] - 2026-09-14
 
 ### Fixed

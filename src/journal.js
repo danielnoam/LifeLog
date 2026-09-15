@@ -10,6 +10,7 @@
   let state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
     emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect,
+    startBulkRun, markBulkItem, finishBulkRun,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
     rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
     isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
@@ -26,6 +27,7 @@
     ({ state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
       emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
       attachLongPressSelect, animatedNumberText, barRow, fillSelect,
+      startBulkRun, markBulkItem, finishBulkRun,
       fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
       rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
     isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
@@ -323,63 +325,80 @@
   async function bulkSyncEntriesSelected(btn) {
     const ids = [...state.bulk.selected];
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
-    const progress = $(".bulk-progress");
+    startBulkRun(ids.map((id) => {
+      const e = state.data.entries.find((x) => x.id === id);
+      return { id, title: e ? e.title : "(gone)" };
+    }));
     btn.disabled = true;
-    let synced = 0, skipped = 0, lastErr = "";
-    try {
-      for (const id of ids) {
-        const item = state.data.entries.find((e) => e.id === id);
-        // Steam has no search (CORS-blocked) — its App ID can only be entered
-        // manually per item, so it's skipped here rather than attempted.
-        const source = item && (state.data.settings.mediaCategorySources || {})[item.category];
-        if (!item || !source || source === "steam") {
-          skipped++;
-        } else {
+    let synced = 0, skipped = 0, failed = 0, lastErr = "", streak = 0;
+    for (const id of ids) {
+      const item = state.data.entries.find((e) => e.id === id);
+      // Steam has no search (CORS-blocked) — its App ID can only be entered
+      // manually per item, so it's skipped here rather than attempted.
+      const source = item && (state.data.settings.mediaCategorySources || {})[item.category];
+      if (!item) { markBulkItem(id, "skipped", "no longer in your timeline"); skipped++; }
+      else if (!source) { markBulkItem(id, "skipped", `no media source set for ${item.category}`); skipped++; }
+      else if (source === "steam") { markBulkItem(id, "skipped", "Steam needs an App ID per item"); skipped++; }
+      else {
+        try {
           const results = await fetchMediaSuggestions(item.title, item.category);
           if (!results.length) {
             skipped++;
-            lastErr = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || lastErr;
+            const err = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || "";
+            if (err) lastErr = err;
+            markBulkItem(id, "skipped", err || "no match found");
           } else {
             const r = results[0];
+            const filled = [];
             // Fields pinned in the entry's Advanced foldout are left alone.
-            if (!isOverridden(item, "cover")) item.coverUrl = r.coverUrl || "";
+            if (!isOverridden(item, "cover")) { item.coverUrl = r.coverUrl || ""; if (item.coverUrl) filled.push("cover"); }
             // TMDB needs a second per-title call for runtime/season data — the
             // search endpoint doesn't include it (see fetchEntryExtras in
             // media.js) — and a SteamGridDB match has neither a length nor
             // genres until RAWG is asked by title, which is what the title
             // argument is for.
             const extras = await window.LifeLogMedia.fetchEntryExtras(r.id, r.source, keys, r.title);
-            if (!isOverridden(item, "length")) item.length = extras.length || r.length || "";
+            if (!isOverridden(item, "length")) { item.length = extras.length || r.length || ""; if (item.length) filled.push("length"); }
             // extras.genres is filled only by the SteamGridDB cross-fill, and
             // only for a source that stated none of its own — so a search
             // result that did come with genres still wins.
             const genres = extras.genres.length ? extras.genres : r.genres;
-            if (genres && genres.length) item.genres = genres.slice(); else delete item.genres;
+            if (genres && genres.length) { item.genres = genres.slice(); filled.push("genres"); } else delete item.genres;
             const resolved = await resolveMediaIdentity(r, keys);
             item.mediaSource = resolved.mediaSource;
             item.mediaId = resolved.mediaId;
             synced++;
+            streak = 0;
+            markBulkItem(id, "done", (filled.length ? filled.join(", ") + " · " : "") + r.title);
           }
+        } catch (e) {
+          // Per item rather than per run: one bad title used to abort
+          // everything after it, and from the bar you couldn't tell which.
+          failed++;
+          streak++;
+          lastErr = (e && e.message) || "failed";
+          markBulkItem(id, "failed", lastErr);
         }
-        if (progress) progress.textContent = `${synced + skipped}/${ids.length} synced`;
       }
-    } catch (e) {
-      // Anything thrown in here used to leave the button disabled and the bar
-      // sitting there unchanged — from the outside, indistinguishable from the
-      // button doing nothing at all. Whatever it was, say so and hand the
-      // button back; entries already synced above keep their metadata.
-      btn.disabled = false;
-      if (progress) progress.textContent = "";
-      toast("Bulk sync failed" + ((e && e.message) ? " — " + e.message : ""), true);
-      await persist();
-      return;
+      render();
+      // A dead key or a blocked network fails identically on every title —
+      // no reason to spend the rest of the selection proving it.
+      if (streak >= 3) {
+        ids.slice(ids.indexOf(id) + 1).forEach((rest) => markBulkItem(rest, "skipped", "stopped after 3 failures in a row"));
+        skipped += ids.length - ids.indexOf(id) - 1;
+        break;
+      }
     }
+    finishBulkRun();
     state.bulk.active = false;
     state.bulk.selected.clear();
     render();
     await persist();
-    const base = skipped ? `Synced ${synced} entr${synced === 1 ? "y" : "ies"}, skipped ${skipped}` : `Synced ${synced} entr${synced === 1 ? "y" : "ies"}`;
-    toast(lastErr ? base + " — " + lastErr : base, !!(skipped && lastErr));
+    const bits = [`Synced ${synced} entr${synced === 1 ? "y" : "ies"}`];
+    if (skipped) bits.push(`skipped ${skipped}`);
+    if (failed) bits.push(`${failed} failed`);
+    const base = bits.join(", ");
+    toast(lastErr ? base + " — " + lastErr : base, !!(failed || (skipped && lastErr)));
   }
 
   // ---------- stats view ----------

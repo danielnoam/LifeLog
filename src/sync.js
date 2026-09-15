@@ -22,11 +22,11 @@
 
   // Shared app plumbing, provided by app.js via init(ctx).
   let state, $, toast, persist, render, afterDataChange, DEFAULT_SETTINGS, isOverridden,
-    buildImportItems, reviewAndImport, setBacklogCover, setEntryCover;
+    buildImportItems, importItemIncomplete, reviewAndImport, setBacklogCover, setEntryCover;
 
   function init(ctx) {
     ({ state, $, toast, persist, render, afterDataChange, DEFAULT_SETTINGS, isOverridden,
-      buildImportItems, reviewAndImport, setBacklogCover, setEntryCover } = ctx);
+      buildImportItems, importItemIncomplete, reviewAndImport, setBacklogCover, setEntryCover } = ctx);
   }
 
   // Builds the cover/media fields directly from a manually-entered Steam App
@@ -215,69 +215,185 @@
   // manually entered Steam App ID produces, so cover art and GG.deals
   // pricing (both already wired to that shape) pick it up with no
   // further work.
-  async function syncSteamWishlist() {
-    const cfg = state.data.settings.steam || DEFAULT_SETTINGS.steam;
-    const proxyUrl = (cfg.proxyUrl || "").trim().replace(/\/+$/, "");
-    const steamId = (cfg.steamId || "").trim();
-    const category = cfg.wishlistCategory || "";
-    if (!proxyUrl || !steamId) { toast("Set your proxy URL and SteamID64 first", true); return; }
-    if (!category) { toast("Choose a category to import into first", true); return; }
-    const btn = $("#steamWishlistSyncBtn");
+  // ---------- the import runner ----------
+  // Steam and AniList were two bespoke flows that did the same four things in
+  // the same order and shared none of it: validate the settings, fetch with
+  // some progress showing, map each result to a backlog item, hand the lot to
+  // the review picker. A source now declares only what differs.
+  //
+  //   id       button to disable and relabel while it runs
+  //   label    what the review screen is called
+  //   hint     what it says under that
+  //   plan()   validates settings; returns { ctx } or { error } — the error
+  //            is the toast, so a source words its own missing-setup message
+  //   fetch(ctx, report)  returns raw records, calling report(done, total)
+  //            as it goes; returns null to mean "the source itself failed",
+  //            which is kept distinct from "reachable, but empty"
+  //   toItem(raw, ctx)    one raw record to one backlog item
+  //   empty(ctx)          the toast when it came back reachable but empty
+  //
+  // Everything else — the button state, the try/finally, the error wording,
+  // the build-and-review handoff — happens once, here.
+  async function runImport(source) {
+    const plan = source.plan();
+    if (plan.error) { toast(plan.error, true); return; }
+    const ctx = plan.ctx;
+    const btn = $("#" + source.id);
     const label = btn ? btn.textContent : "";
     if (btn) { btn.disabled = true; btn.textContent = "Syncing…"; }
+    const report = (done, total) => {
+      if (btn) btn.textContent = total ? `Fetching… ${done}/${total}` : "Syncing…";
+    };
     try {
-      const res = await fetch(`${proxyUrl}/steam-wishlist/${encodeURIComponent(steamId)}`);
-      if (!res.ok) { toast(`Steam wishlist fetch failed (HTTP ${res.status})`, true); return; }
-      const data = await res.json();
-      const items = (data && data.response && data.response.items) || [];
-      if (!items.length) {
-        toast("Wishlist came back empty — check it's set to Public in your Steam privacy settings", true);
-        return;
-      }
-      const existingSteamIds = new Set(
-        state.data.backlog.filter((b) => b.mediaSource === "steam" && b.mediaId).map((b) => b.mediaId)
-      );
-      const newItems = items.filter((it) => !existingSteamIds.has(String(it.appid)));
-      if (!newItems.length) {
-        toast("Nothing new — every wishlisted game is already in your backlog");
-        return;
-      }
-      const games = [];
-      for (let i = 0; i < newItems.length; i++) {
-        const appid = newItems[i].appid;
-        if (btn) btn.textContent = `Fetching titles & info… ${i + 1}/${newItems.length}`;
-        const info = await fetchSteamAppInfo(proxyUrl, appid);
-        const name = info && info.name;
-        const rawg = name ? await fetchRawgInfo(name) : null;
-        games.push({
-          title: name || `Steam app ${appid}`,
-          category,
-          mediaSource: "steam",
-          mediaId: String(appid),
-          coverUrl: window.LifeLogMedia ? window.LifeLogMedia.steamCoverUrl(appid) : "",
-          unresolved: !name,
-          ...(info?.summary ? { summary: info.summary } : {}),
-          ...(rawg?.externalRating ? { externalRating: rawg.externalRating } : {}),
-          ...(rawg?.length ? { length: rawg.length } : {}),
-          ...(rawg?.year ? { releaseYear: rawg.year } : {}),
-          // Steam's own release info wins over RAWG's — it's the store this
-          // game came from, not a name-matched guess (see mergeRelease).
-          ...mergeRelease(rawg, info && info.release),
-        });
-        if (i < newItems.length - 1) await sleep(500);
-      }
-      const built = buildImportItems({ backlog: games, categories: [] });
-      reviewAndImport(
-        "Steam Wishlist",
-        "Review which wishlisted games to add to your backlog — titles already in your backlog are hidden by default.",
-        built
-      );
+      const raw = await source.fetch(ctx, report);
+      if (raw === null) return; // fetch() has already said what went wrong
+      if (!raw.length) { toast(source.empty(ctx)); return; }
+      const built = buildImportItems({ backlog: raw.map((r) => source.toItem(r, ctx)), categories: [] });
+      if (!built.items.length) { toast("Nothing new — everything is already in your backlog"); return; }
+      reviewAndImport(source.label, source.hint, built);
     } catch (e) {
-      toast("Steam wishlist fetch failed (" + ((e && e.message) || "network error") + ")", true);
+      toast(source.label + " failed (" + ((e && e.message) || "network error") + ")", true);
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = label; }
     }
   }
+
+  // ---------- Steam wishlist ----------
+  const steamWishlistSource = {
+    id: "steamWishlistSyncBtn",
+    label: "Steam Wishlist",
+    hint: "Review which wishlisted games to add. Anything already in your backlog is marked — if this sync can fill in a cover, rating or release date it doesn't have, that row says so and is ticked.",
+    plan() {
+      const cfg = state.data.settings.steam || DEFAULT_SETTINGS.steam;
+      const proxyUrl = (cfg.proxyUrl || "").trim().replace(/\/+$/, "");
+      const steamId = (cfg.steamId || "").trim();
+      const category = cfg.wishlistCategory || "";
+      if (!proxyUrl || !steamId) return { error: "Set your proxy URL and SteamID64 first" };
+      if (!category) return { error: "Choose a category to import into first" };
+      return { ctx: { proxyUrl, steamId, category } };
+    },
+    async fetch(ctx, report) {
+      // window.fetch spelled out: this method is itself called `fetch`, and
+      // although shorthand doesn't bind the name, reading it here shouldn't
+      // require knowing that.
+      const res = await window.fetch(`${ctx.proxyUrl}/steam-wishlist/${encodeURIComponent(ctx.steamId)}`);
+      if (!res.ok) { toast(`Steam wishlist fetch failed (HTTP ${res.status})`, true); return null; }
+      const data = await res.json();
+      const items = (data && data.response && data.response.items) || [];
+      ctx.wishlistCount = items.length;
+      if (!items.length) return [];
+      // The per-app lookups are the slow part — two requests and a courtesy
+      // pause each — so they are spent on two kinds of appid only: ones not in
+      // the backlog at all, and ones that are but are still missing something
+      // an import could fill. A wishlisted game already sitting there complete
+      // is skipped, which is most of them on every sync after the first.
+      //
+      // Skipping the incomplete ones as well (which the first version of this
+      // did) would have made the update feature useless for Steam: the items
+      // most likely to need a cover or a rating are exactly the ones already
+      // imported.
+      const bySteamId = new Map(
+        state.data.backlog.filter((b) => b.mediaSource === "steam" && b.mediaId).map((b) => [b.mediaId, b])
+      );
+      const fresh = items.filter((it) => {
+        const have = bySteamId.get(String(it.appid));
+        return !have || importItemIncomplete(have);
+      });
+      const out = [];
+      for (let i = 0; i < fresh.length; i++) {
+        report(i + 1, fresh.length);
+        const appid = fresh[i].appid;
+        const info = await fetchSteamAppInfo(ctx.proxyUrl, appid);
+        const name = info && info.name;
+        const rawg = name ? await fetchRawgInfo(name) : null;
+        out.push({ appid, info, rawg, name });
+        if (i < fresh.length - 1) await sleep(500);
+      }
+      return out;
+    },
+    toItem({ appid, info, rawg, name }, ctx) {
+      return {
+        title: name || `Steam app ${appid}`,
+        category: ctx.category,
+        mediaSource: "steam",
+        mediaId: String(appid),
+        coverUrl: window.LifeLogMedia ? window.LifeLogMedia.steamCoverUrl(appid) : "",
+        unresolved: !name,
+        ...(info?.summary ? { summary: info.summary } : {}),
+        ...(rawg?.externalRating ? { externalRating: rawg.externalRating } : {}),
+        ...(rawg?.length ? { length: rawg.length } : {}),
+        ...(rawg?.year ? { releaseYear: rawg.year } : {}),
+        // Steam's own release info wins over RAWG's — it's the store this
+        // game came from, not a name-matched guess (see mergeRelease).
+        ...mergeRelease(rawg, info && info.release),
+      };
+    },
+    // Two different nothings: a wishlist that came back empty (usually a
+    // privacy setting) and a wishlist where every game is already in your
+    // backlog with nothing left to fill. Telling the second one to check its
+    // privacy settings sends you looking for a problem you don't have.
+    empty: (ctx) => (ctx.wishlistCount
+      ? "Nothing new — every wishlisted game is already in your backlog, with nothing left to fill in"
+      : "Wishlist came back empty — check it's set to Public in your Steam privacy settings"),
+  };
+
+  // ---------- AniList planning ----------
+  const anilistSource = {
+    id: "anilistSyncBtn",
+    label: "AniList Planning",
+    hint: "Review which plan-to-watch/read titles to add. Anything already in your backlog or timeline is marked — if this sync can fill in a cover, rating or release date it doesn't have, that row says so and is ticked.",
+    plan() {
+      const cfg = state.data.settings.anilist || DEFAULT_SETTINGS.anilist;
+      const userName = (cfg.userName || "").trim();
+      const animeCategory = cfg.animeCategory || "";
+      const mangaCategory = cfg.mangaCategory || "";
+      if (!userName) return { error: "Enter your AniList username first" };
+      if (!animeCategory && !mangaCategory) return { error: "Pick a category for anime and/or manga first" };
+      if (!window.LifeLogMedia) return { error: "Media lookups aren't available" };
+      return { ctx: { userName, animeCategory, mangaCategory } };
+    },
+    async fetch(ctx, report) {
+      const pulls = [];
+      if (ctx.animeCategory) pulls.push(["ANIME", ctx.animeCategory]);
+      if (ctx.mangaCategory) pulls.push(["MANGA", ctx.mangaCategory]);
+      let failed = false;
+      const out = [];
+      for (let i = 0; i < pulls.length; i++) {
+        const [type, category] = pulls[i];
+        report(i + 1, pulls.length);
+        // null is a hard failure (network, private list, unknown user), kept
+        // distinct from an empty-but-reachable list.
+        const media = await window.LifeLogMedia.fetchAniListPlanning(ctx.userName, type);
+        if (media === null) { failed = true; continue; }
+        for (const m of media) out.push({ m, category });
+      }
+      if (!out.length && failed) {
+        const err = window.LifeLogMedia.getLastError();
+        toast(err ? "AniList sync failed — " + err : "AniList sync failed", true);
+        return null;
+      }
+      return out;
+    },
+    toItem({ m, category }) {
+      return {
+        title: m.title || "",
+        category,
+        mediaSource: m.source,
+        mediaId: m.id,
+        coverUrl: m.coverUrl || "",
+        unresolved: !m.title,
+        ...(m.externalRating ? { externalRating: m.externalRating } : {}),
+        ...(m.length ? { length: m.length } : {}),
+        ...(m.year ? { releaseYear: m.year } : {}),
+        ...mergeRelease(m),
+        ...(m.genres && m.genres.length ? { genres: m.genres } : {}),
+      };
+    },
+    empty: () => "Planning list came back empty — check the username, and that your list is public",
+  };
+
+  const syncSteamWishlist = () => runImport(steamWishlistSource);
+  const syncAniListPlanning = () => runImport(anilistSource);
 
   // Backlog items still stuck on the "Steam app <id>" placeholder title —
   // exact match against what syncSteamWishlist generates, so this can't
@@ -622,67 +738,6 @@
   // mediaSource: "anilist-anime"/"anilist-manga" + mediaId, the same shape a
   // normal AniList sync produces, so cover art and the genre breakdown pick
   // it up with no extra work.
-  async function syncAniListPlanning() {
-    const cfg = state.data.settings.anilist || DEFAULT_SETTINGS.anilist;
-    const userName = (cfg.userName || "").trim();
-    const animeCategory = cfg.animeCategory || "";
-    const mangaCategory = cfg.mangaCategory || "";
-    if (!userName) { toast("Enter your AniList username first", true); return; }
-    if (!animeCategory && !mangaCategory) { toast("Pick a category for anime and/or manga first", true); return; }
-    if (!window.LifeLogMedia) return;
-    const btn = $("#anilistSyncBtn");
-    const label = btn ? btn.textContent : "";
-    if (btn) { btn.disabled = true; btn.textContent = "Syncing…"; }
-    try {
-      // Only the types with a category chosen are fetched. Each fetch returns
-      // null on a hard failure (network, private list, unknown user), which is
-      // kept distinct from an empty-but-reachable list.
-      let failed = false;
-      const backlogItems = [];
-      const pulls = [];
-      if (animeCategory) pulls.push(["ANIME", animeCategory]);
-      if (mangaCategory) pulls.push(["MANGA", mangaCategory]);
-      for (const [type, category] of pulls) {
-        const media = await window.LifeLogMedia.fetchAniListPlanning(userName, type);
-        if (media === null) { failed = true; continue; }
-        for (const m of media) {
-          backlogItems.push({
-            title: m.title || "",
-            category,
-            mediaSource: m.source,
-            mediaId: m.id,
-            coverUrl: m.coverUrl || "",
-            unresolved: !m.title,
-            ...(m.externalRating ? { externalRating: m.externalRating } : {}),
-            ...(m.length ? { length: m.length } : {}),
-            ...(m.year ? { releaseYear: m.year } : {}),
-            ...mergeRelease(m),
-            ...(m.genres && m.genres.length ? { genres: m.genres } : {}),
-          });
-        }
-      }
-      if (!backlogItems.length) {
-        if (failed) {
-          const err = window.LifeLogMedia.getLastError();
-          toast(err ? "AniList sync failed — " + err : "AniList sync failed", true);
-        } else {
-          toast("Planning list came back empty — check the username, and that your list is public");
-        }
-        return;
-      }
-      const built = buildImportItems({ backlog: backlogItems, categories: [] });
-      reviewAndImport(
-        "AniList Planning",
-        "Review which plan-to-watch/read titles to add to your backlog — anything already in your backlog or already logged is tagged and hidden by default.",
-        built
-      );
-    } catch (e) {
-      toast("AniList sync failed (" + ((e && e.message) || "network error") + ")", true);
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = label; }
-    }
-  }
-
   // The AniList equivalent of maybeAutoCheckSteamWishlist, paced by Settings →
   // Media → AniList "Check automatically" (days between checks; 0 = never).
   // Fetches the Planning list(s) for whichever type(s) have a category chosen

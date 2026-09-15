@@ -16,6 +16,54 @@ what was decided against and why.
 
 ---
 
+- **imports became one system with two adapters (0.151.0).** `syncSteamWishlist`
+  and `syncAniListPlanning` were 90% the same function: fetch, map to backlog
+  shape, `buildImportItems`, `reviewAndImport`, toast, persist — in a slightly
+  different order each, with their own bugs in the parts that differed. A
+  source is now a description (`plan`, `fetch`, `toItem`, `empty`) and
+  `runImport` is the only thing that knows the order. The point isn't line
+  count, it's that a fix to the shared half can only be made once now.
+
+- **an import that can only add or skip is missing its most useful third
+  option (0.151.0).** The old duplicate check answered "do you have this?" and
+  stopped. But "I have it" and "I have everything about it" are different
+  questions, and the gap between them is exactly where a re-sync is worth
+  running. `fillableFields(target, incoming)` asks the second one and returns
+  the list. An update row is pre-ticked on purpose: it cannot overwrite
+  anything, it cannot touch a pinned field, and the only thing it can do is
+  put something in an empty slot — so there is nothing to weigh up.
+
+  The Steam side had to change with it. Its fetch skipped every appid already
+  in the backlog, so the update path would have been dead code for every item
+  that could have used it. It now looks up anything `importItemIncomplete()`
+  says is still missing something.
+
+- **a bulk media pull is a minute of network with nothing to look at
+  (0.151.0).** The old feedback was one string, `"7/20 synced"`, which told you
+  it was alive and nothing else — not which item, not whether the seven were
+  successes or seven silent skips. `bulkRun` records a row per item as it
+  happens and the count in the bar opens it. The three states were chosen to
+  answer three different questions: *done* says what it filled and what it
+  matched (so a wrong match is visible), *skipped* says why (which is usually
+  a setting you can change — no media source for that category), *failed*
+  carries the error verbatim.
+
+  Two things fell out of building it. The loop used to have one try/catch
+  around the whole thing, so the first throw ended the run and you couldn't
+  tell from the outside which item did it or that anything was left. Now each
+  item is caught on its own — with a three-consecutive-failures stop, because
+  an invalid key fails identically on all fifty and there's no reason to prove
+  it fifty times. And the bar's buttons had to learn about the run: they were
+  disabled by a local flag the caller set once, which every mid-run `render()`
+  then reset, so a second run could be started on top of the first. They read
+  `bulkRun.active` now, which is the thing that's actually true.
+
+- **`bulkRun` is cleared on entering bulk mode, not on finishing (0.151.0).**
+  A finished run has to survive the end of the loop or the pill would vanish
+  with the answer still in it. But it belongs to the selection that made it —
+  carrying "12/12 · done" into an unrelated selection later is worse than
+  showing nothing.
+
 - yearly expenses are gone entirely (0.150.0), after two releases of being
   edit-only. What made them expensive was never the feature, it was the special
   cases: a bare-year `date`, a pseudo-month 0 that two sorts had to shepherd to

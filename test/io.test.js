@@ -57,7 +57,8 @@ IO.init({
   sanitizeRecurring: global.window.LifeLogFinance.sanitizeRecurring,
 });
 
-const { parseCsv, csvEsc, buildImportItems, importItemDateStr, importBucketKey, journalCsvText, parseJournalCsv } = IO;
+const { parseCsv, csvEsc, buildImportItems, importItemDateStr, importBucketKey, journalCsvText, parseJournalCsv,
+  fillableFields, findExistingFor, importItemIncomplete } = IO;
 
 let passed = 0;
 function test(name, fn) {
@@ -232,6 +233,108 @@ test("importBucketKey buckets by year for a yearly finance entry, year-month oth
   assert.strictEqual(importBucketKey({ kind: "entry", entry: { year: 2026, month: 3 } }), "2026-03");
   assert.strictEqual(importBucketKey({ kind: "backlog", entry: {} }), null);
 });
+
+// ---------- import updates (fill-the-gaps) ----------
+// The reset matters: these tests seed the shared `state` the IO module was
+// init()ed with, and buildImportItems reads it live.
+function seed({ backlog = [], entries = [] } = {}) {
+  state.data.backlog = backlog;
+  state.data.entries = entries;
+}
+
+test("fillableFields names only the gaps, never a field that already has something", () => {
+  const target = { coverUrl: "have.png", externalRating: "", length: "12h" };
+  const incoming = { coverUrl: "new.png", externalRating: "88", length: "20h", summary: "words" };
+  const keys = fillableFields(target, incoming).map((f) => f.key).sort();
+  assert.deepStrictEqual(keys, ["externalRating", "summary"]);
+});
+
+test("fillableFields ignores an incoming field that is itself empty", () => {
+  assert.deepStrictEqual(fillableFields({}, { coverUrl: "", genres: [] }), []);
+});
+
+test("fillableFields only offers a media link when the incoming has an id and the target has none", () => {
+  const inc = { mediaSource: "steam", mediaId: "440" };
+  assert.ok(fillableFields({}, inc).some((f) => f.key === "mediaSource"));
+  assert.ok(!fillableFields({ mediaId: "1" }, inc).some((f) => f.key === "mediaSource"));
+  assert.ok(!fillableFields({}, { mediaSource: "steam" }).some((f) => f.key === "mediaSource"));
+});
+
+test("importItemIncomplete is true while any fillable field is still empty, false once they are all set", () => {
+  assert.strictEqual(importItemIncomplete({ title: "X" }), true);
+  const full = {
+    coverUrl: "c.png", externalRating: "9", length: "10h", releaseYear: 2020,
+    releaseDate: "2020-01-01", releaseStatus: "released", summary: "s",
+    genres: ["RPG"], mediaSource: "steam", mediaId: "440",
+  };
+  assert.strictEqual(importItemIncomplete(full), false);
+});
+
+test("findExistingFor prefers a media-id match over a title match, and reports which list it came from", () => {
+  seed({
+    backlog: [{ id: "b1", title: "Other Name", category: "Games", mediaSource: "steam", mediaId: "440" }],
+    entries: [{ id: "e1", title: "Team Fortress 2", category: "Games" }],
+  });
+  const byMedia = findExistingFor({ title: "Team Fortress 2", category: "Games", mediaSource: "steam", mediaId: "440" });
+  assert.strictEqual(byMedia.item.id, "b1");
+  assert.strictEqual(byMedia.kind, "backlog");
+  const byTitle = findExistingFor({ title: "Team Fortress 2", category: "Games" });
+  assert.strictEqual(byTitle.item.id, "e1");
+  assert.strictEqual(byTitle.kind, "entry");
+});
+
+test("findExistingFor matches a title regardless of case, and returns null when nothing matches", () => {
+  seed({ backlog: [{ id: "b1", title: "Hades", category: "Games" }] });
+  assert.strictEqual(findExistingFor({ title: "HADES", category: "games" }).item.id, "b1");
+  assert.strictEqual(findExistingFor({ title: "Hades II", category: "Games" }), null);
+});
+
+test("finding the existing item leaves no marker on the record itself", () => {
+  const live = { id: "b1", title: "Hades", category: "Games" };
+  seed({ backlog: [live] });
+  findExistingFor({ title: "Hades", category: "Games" });
+  assert.deepStrictEqual(Object.keys(live).sort(), ["category", "id", "title"],
+    "a marker stuck on a live record would be persisted and synced forever");
+});
+
+test("a duplicate with gaps imports as an update row naming what it would fill", () => {
+  seed({ backlog: [{ id: "b1", title: "Hades", category: "Games", coverUrl: "" }] });
+  const { items } = buildImportItems({ backlog: [{ title: "Hades", category: "Games", coverUrl: "art.png", externalRating: "93" }] });
+  const row = items.find((i) => i.kind === "backlog");
+  assert.strictEqual(row.update, true);
+  assert.strictEqual(row.dup, true);
+  assert.strictEqual(row.checked, true, "an update is worth doing, so it comes pre-ticked");
+  assert.strictEqual(row.targetId, "b1");
+  assert.strictEqual(row.targetKind, "backlog");
+  assert.deepStrictEqual(row.fills.map((f) => f.key).sort(), ["coverUrl", "externalRating"]);
+});
+
+test("a duplicate with nothing to add stays a plain, unticked duplicate", () => {
+  seed({ backlog: [{ id: "b1", title: "Hades", category: "Games", coverUrl: "art.png" }] });
+  const { items } = buildImportItems({ backlog: [{ title: "Hades", category: "Games", coverUrl: "other.png" }] });
+  const row = items.find((i) => i.kind === "backlog");
+  assert.strictEqual(row.dup, true);
+  assert.ok(!row.update);
+  assert.strictEqual(row.checked, false);
+});
+
+test("an update never proposes overwriting a field the existing item already had", () => {
+  seed({ backlog: [{ id: "b1", title: "Hades", category: "Games", coverUrl: "mine.png", summary: "" }] });
+  const { items } = buildImportItems({ backlog: [{ title: "Hades", category: "Games", coverUrl: "theirs.png", summary: "words" }] });
+  const row = items.find((i) => i.kind === "backlog");
+  assert.deepStrictEqual(row.fills.map((f) => f.key), ["summary"]);
+});
+
+test("a brand new item is a plain add, not an update", () => {
+  seed({ backlog: [] });
+  const { items } = buildImportItems({ backlog: [{ title: "Hades", category: "Games", coverUrl: "art.png" }] });
+  const row = items.find((i) => i.kind === "backlog");
+  assert.ok(!row.update);
+  assert.strictEqual(row.dup, false);
+  assert.strictEqual(row.checked, true);
+});
+
+seed();
 
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

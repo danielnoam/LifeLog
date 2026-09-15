@@ -53,7 +53,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.150.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.151.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1854,6 +1854,7 @@
   function toggleBulkMode() {
     state.bulk.active = !state.bulk.active;
     state.bulk.selected.clear();
+    if (state.bulk.active) clearBulkRun();
     render();
   }
 
@@ -1900,6 +1901,11 @@
   function bulkActionBar(opts) {
     const { categories, onMove, onDelete, onSync } = opts;
     const empty = state.bulk.selected.size === 0;
+    // A run re-renders after every item, so the bar's own disabled state has
+    // to come from the run rather than from a flag the caller set once —
+    // otherwise each re-render hands the Sync button straight back and a
+    // second run can start on top of the first.
+    const busy = !!(bulkRun && bulkRun.active);
     if (!bulkBarEl) bulkBarEl = el("div", "bulk-bar");
 
     const parts = [
@@ -1918,7 +1924,14 @@
       keyOf: (part) => part.key,
       create: (part) => {
         if (part.kind === "count") return el("span", "bulk-count");
-        if (part.kind === "progress") return el("span", "bulk-progress");
+        if (part.kind === "progress") {
+          // A button, not a span: while a run is going this is the only
+          // handle on what it is actually doing.
+          const b = el("button", "bulk-progress");
+          b.type = "button";
+          b.onclick = openBulkProgressPanel;
+          return b;
+        }
         if (part.kind === "move") {
           const sel = document.createElement("select");
           sel.className = "bulk-move-select";
@@ -1940,10 +1953,17 @@
       },
       update: (node, part) => {
         if (part.kind === "count") { node.textContent = `${state.bulk.selected.size} selected`; return; }
-        if (part.kind === "progress") return;
+        if (part.kind === "progress") {
+          const run = bulkRun;
+          node.hidden = !run;
+          if (!run) { node.textContent = ""; return; }
+          node.textContent = `${run.done}/${run.total}` + (run.active ? "" : " · done");
+          node.title = "See what happened to each item";
+          return;
+        }
         if (part.kind === "move") {
           node.__onMove = onMove;
-          node.disabled = empty;
+          node.disabled = empty || busy;
           // Left alone while it's the thing being used, the same rule
           // reconcile applies to any live input.
           if (document.activeElement === node) return;
@@ -1953,13 +1973,99 @@
           ], "");
           return;
         }
-        node.disabled = part.kind === "cancel" ? false : empty;
+        node.disabled = part.kind === "cancel" ? busy : (empty || busy);
         if (part.kind === "sync") { node.__onSync = onSync; node.textContent = "🔄 Sync"; }
         if (part.kind === "delete") { node.__onDelete = onDelete; node.textContent = "Delete"; }
         if (part.kind === "cancel") node.textContent = "Cancel";
       },
     });
     return bulkBarEl;
+  }
+
+  // ---------- bulk run progress ----------
+  // A bulk media pull is a minute of network with nothing to look at. This
+  // records what happened to each item as it happens, so the count in the bar
+  // can be pressed to see the whole list: what came back, what was skipped and
+  // why, what failed and with what error, what is still waiting.
+  //
+  // Held here rather than in journal.js/backlog.js because both run the same
+  // shape of loop and the bar they report into belongs to this file.
+  let bulkRun = null; // { rows: [{id,title,state,detail}], total, done, active }
+
+  // A finished run is left in place so the pill can still be pressed, but it
+  // belongs to the selection that produced it — entering bulk mode again is a
+  // new session, and last time's "12/12 · done" is not news about it.
+  function clearBulkRun() {
+    bulkRun = null;
+    closeBulkProgressPanel();
+  }
+
+  function startBulkRun(rows) {
+    bulkRun = {
+      rows: rows.map((r) => ({ ...r, state: "pending", detail: "" })),
+      total: rows.length, done: 0, active: true,
+    };
+    renderBulkProgressPanel();
+  }
+
+  // `outcome`, not `state` — this file's `state` is the whole app's data, and
+  // shadowing it here is one edit away from a very confusing bug.
+  function markBulkItem(id, outcome, detail) {
+    if (!bulkRun) return;
+    const row = bulkRun.rows.find((r) => r.id === id);
+    if (!row) return;
+    if (row.state === "pending") bulkRun.done++;
+    row.state = outcome;
+    row.detail = detail || "";
+    renderBulkProgressPanel();
+  }
+
+  // Anything that didn't come back clean opens the panel by itself: a toast
+  // saying "skipped 3" is exactly the sentence that makes you want the list.
+  function finishBulkRun() {
+    if (!bulkRun) return;
+    bulkRun.active = false;
+    if (bulkRun.rows.some((r) => r.state !== "done")) openBulkProgressPanel();
+    else renderBulkProgressPanel();
+  }
+
+  const BULK_GLYPH = { done: "✓", skipped: "⚠", failed: "✕", pending: "○" };
+
+  function openBulkProgressPanel() {
+    if (!bulkRun) return;
+    $("#bulkProgressModal").hidden = false;
+    renderBulkProgressPanel();
+  }
+  function closeBulkProgressPanel() { const m = $("#bulkProgressModal"); if (m) m.hidden = true; }
+
+  // Refreshed on every item, and cheap enough to do that way: the list is the
+  // selection, which is bounded by what you could plausibly tick.
+  function renderBulkProgressPanel() {
+    const modal = $("#bulkProgressModal");
+    if (!modal || modal.hidden || !bulkRun) return;
+    const { rows, total, done, active } = bulkRun;
+    const counts = { done: 0, skipped: 0, failed: 0 };
+    rows.forEach((r) => { if (counts[r.state] != null) counts[r.state]++; });
+    $("#bulkProgressTitle").textContent = active ? `Syncing ${done} of ${total}` : `Finished — ${total} item${total === 1 ? "" : "s"}`;
+    const parts = [];
+    if (counts.done) parts.push(counts.done + " updated");
+    if (counts.skipped) parts.push(counts.skipped + " skipped");
+    if (counts.failed) parts.push(counts.failed + " failed");
+    $("#bulkProgressSummary").textContent = parts.join(" · ") || "Nothing yet";
+    const list = $("#bulkProgressList");
+    list.replaceChildren(...rows.map((r) => {
+      const row = el("div", "bulkp-row is-" + r.state);
+      row.appendChild(el("span", "bulkp-glyph", BULK_GLYPH[r.state] || "○"));
+      const name = el("span", "bulkp-name", r.title || "(untitled)");
+      name.title = r.title || "";
+      row.appendChild(name);
+      if (r.detail) {
+        const d = el("span", "bulkp-detail", r.detail);
+        d.title = r.detail;
+        row.appendChild(d);
+      }
+      return row;
+    }));
   }
 
   // Long-pressing a row is the only way into bulk mode (there's no separate
@@ -1977,6 +2083,7 @@
       timer = setTimeout(() => {
         timer = null;
         state.bulk.active = true;
+        clearBulkRun();
         state.bulk.selected.clear();
         state.bulk.selected.add(b.id);
         render();
@@ -2990,6 +3097,7 @@
     syncModalOpenState();
 
     $("#closeShortcutsBtn").onclick = closeShortcutsModal;
+    $("#closeBulkProgressBtn").onclick = closeBulkProgressPanel;
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
@@ -2999,6 +3107,7 @@
         Finance.closePauseModal(); Finance.cancelFinanceCatModal(); Todos.closeTodoCatModal();
         SettingsUI.closeSettings();
         closeShortcutsModal();
+        closeBulkProgressPanel();
         $("#addMenu").hidden = true;
         return;
       }
@@ -3295,10 +3404,12 @@
     financeKey: Finance.financeKey, recurringKey: Finance.recurringKey,
     sanitizeFinanceEntry: Finance.sanitizeFinanceEntry, sanitizeRecurring: Finance.sanitizeRecurring,
     sanitizeEntry: Journal.sanitizeEntry, sanitizeBacklog: Backlog.sanitizeBacklog,
+    isOverridden,
   });
   Sync.init({
     state, $, toast, persist, render, afterDataChange, DEFAULT_SETTINGS, isOverridden,
-    buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport,
+    buildImportItems: IO.buildImportItems, importItemIncomplete: IO.importItemIncomplete,
+    reviewAndImport: IO.reviewAndImport,
     setBacklogCover: Backlog.setBacklogCover, setEntryCover: Journal.setEntryCover,
   });
   SettingsUI.init({
@@ -3321,6 +3432,7 @@
     state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
     emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect,
+    startBulkRun, markBulkItem, finishBulkRun,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
     rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
     isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
@@ -3346,6 +3458,7 @@
     MEDIA_SOURCE_LABELS, saveVisualSettings, isMobileLayout,
     emptyState, emptyCoverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect,
+    startBulkRun, markBulkItem, finishBulkRun,
     openEntryModal: Journal.openEntryModal,
     fillCategorySelect, wireCategorySelect,
     titleSuggestions: Journal.titleSuggestions,
@@ -3376,7 +3489,14 @@
   // pattern) — lets test/app.test.js exercise normalize()'s migrations and
   // its small pure helpers directly via require(), without needing this
   // whole file's real bootstrap (Storage.load, wire()'s DOM wiring, etc).
-  window.LifeLogApp = { normalize, backfillUpdatedAt, emptyData, ensureCategories, ensureProjects, sanitizeCategory };
+  window.LifeLogApp = {
+    normalize, backfillUpdatedAt, emptyData, ensureCategories, ensureProjects, sanitizeCategory,
+    // The bulk-run tracker, exposed the same way: a run is otherwise only
+    // reachable through a minute of real network, which is not a test.
+    startBulkRun, markBulkItem, finishBulkRun, clearBulkRun,
+    openBulkProgressPanel, closeBulkProgressPanel,
+    getBulkRun: () => bulkRun,
+  };
   if (typeof module !== "undefined" && module.exports) module.exports = window.LifeLogApp;
 
   // `module` only exists under CommonJS (a Node `require()`, e.g. from a
