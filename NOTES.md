@@ -16,6 +16,45 @@ what was decided against and why.
 
 ---
 
+- **what an import can fill is decided by what the dup check matched on
+  (0.154.0).** Extending update rows past the backlog turned out to be less
+  about writing code than about answering one question per kind: given that
+  this record was called a duplicate, what is left that could differ? The
+  answer comes straight from the key.
+
+  Entries match on title+category+year+month, so everything descriptive is
+  outside it — cover, length, genres, and your own rating and notes. Recurring
+  plans match on startDate+interval+amount+category+note, so the end date,
+  project, pauses, per-occurrence overrides and the prevId chain are all
+  outside it, and all of them are things a restore can silently lose.
+
+  Finance entries were the interesting one: `financeKey` spans date, amount,
+  category, note, project, currency and fxAmount, which is the entire record
+  except `rate` — which cannot be absent when a currency is set, because
+  sanitizeFinanceEntry drops the whole trio otherwise — and `rateConfirmed`,
+  a claim rather than a gap. So there is nothing to fill, and the honest
+  implementation was to not build one. Narrowing the key to create gaps would
+  have meant treating two identical same-day expenses as one, which is a real
+  thing that happens (two coffees) and a much worse failure than a duplicate
+  row you can untick. The test that asserts finance never produces an update
+  row is there so a later change to financeKey has to think about this again.
+
+  The other rule worth keeping: an entry is only offered fields the app reads
+  back. An incoming entry can carry `summary`/`releaseDate`/`externalRating`
+  and `keepUnknown` will store them, but nothing ever displays them on an
+  entry — so offering them would be a row promising a change you could never
+  see.
+
+- **updatedAt is not yours to set (0.154.0).** The first version of the
+  in-place fill stamped `target.updatedAt = now`, reasoning that a changed
+  record has to say so or the next item-level merge would prefer the other
+  device's older copy. The reasoning was right and the code was wrong:
+  `persist()` calls `merge.stampChangedItems` first, which times every item
+  whose content actually changed, and its own comment says it exists so that
+  no mutation site has to thread a manual touch call. This one had been
+  re-deriving a solved problem. There is a browser test asserting the fill
+  lands re-stamped, so the guarantee is checked rather than assumed.
+
 - **the subtitle tier lasted one release (0.153.0).** 0.152.0's matcher had
   two tiers: exact, and "that title plus a separated subtitle". The second was
   the only judgement call in the whole thing and it was dropped a release

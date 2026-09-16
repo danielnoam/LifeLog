@@ -4,6 +4,42 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.154.0] - 2026-09-16
+
+### Added
+- **Journal entries can now be updated by an import, not just skipped.** A
+  duplicate entry — same title, category, year and month — is asked what it
+  could gain and offered as a ticked row naming it: *+ cover, length, genres,
+  your rating, your notes*. Restoring a backup onto a device that has the
+  entry but lost its cover now fills the cover instead of reporting a
+  duplicate and doing nothing.
+- **Recurring expenses too.** `recurringKey` matches on start date, interval,
+  amount, category and note, so everything that makes a plan more than its
+  bare shape — its end date, its project, its pauses, its per-month amount and
+  note changes, and the plan it took over from — sits outside the key and can
+  go missing on a restore. Those are now offered.
+- **Paired fields travel together.** The media link (source + id) already did;
+  a multi-month span (start year + start month) now does too. Half a pair is
+  worse than the gap it filled, so a pair is only offered when the incoming
+  record has both halves and the local one has neither.
+
+### Changed
+- **Every kind builds its import row through one function.** The backlog's
+  update logic was inline in `buildImportItems`; entries and recurring
+  expenses would have been two more copies of it.
+- **Finance entries deliberately have no update path.** `financeKey` already
+  spans date, amount, category, note, project, currency and fxAmount — every
+  field a finance entry has, bar `rate` (which cannot be missing when a
+  currency is set, since the trio is dropped otherwise) and the
+  `rateConfirmed` flag, which is a claim about a rate rather than a gap in
+  one. A finance duplicate has nothing to fill, so it stays a plain duplicate
+  rather than an update row that would always read "+ nothing". There is a
+  test asserting this stays true.
+- **An entry is only offered fields the app actually reads back.** An incoming
+  entry can carry `summary`, `releaseDate` and `externalRating` — `keepUnknown`
+  would store them — but nothing in the Journal ever displays them on an
+  entry, so they are not offered.
+
 ## [0.153.0] - 2026-09-16
 
 ### Changed

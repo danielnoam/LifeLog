@@ -58,7 +58,7 @@ IO.init({
 });
 
 const { parseCsv, csvEsc, buildImportItems, importItemDateStr, importBucketKey, journalCsvText, parseJournalCsv,
-  fillableFields, findExistingFor, importItemIncomplete } = IO;
+  fillableFields, findImportTarget, importItemIncomplete } = IO;
 
 let passed = 0;
 function test(name, fn) {
@@ -237,27 +237,29 @@ test("importBucketKey buckets by year for a yearly finance entry, year-month oth
 // ---------- import updates (fill-the-gaps) ----------
 // The reset matters: these tests seed the shared `state` the IO module was
 // init()ed with, and buildImportItems reads it live.
-function seed({ backlog = [], entries = [] } = {}) {
+function seed({ backlog = [], entries = [], recurringExpenses = [], financeEntries = [] } = {}) {
   state.data.backlog = backlog;
   state.data.entries = entries;
+  state.data.recurringExpenses = recurringExpenses;
+  state.data.financeEntries = financeEntries;
 }
 
 test("fillableFields names only the gaps, never a field that already has something", () => {
   const target = { coverUrl: "have.png", externalRating: "", length: "12h" };
   const incoming = { coverUrl: "new.png", externalRating: "88", length: "20h", summary: "words" };
-  const keys = fillableFields(target, incoming).map((f) => f.key).sort();
+  const keys = fillableFields(target, incoming, "backlog").map((f) => f.key).sort();
   assert.deepStrictEqual(keys, ["externalRating", "summary"]);
 });
 
 test("fillableFields ignores an incoming field that is itself empty", () => {
-  assert.deepStrictEqual(fillableFields({}, { coverUrl: "", genres: [] }), []);
+  assert.deepStrictEqual(fillableFields({}, { coverUrl: "", genres: [] }, "backlog"), []);
 });
 
 test("fillableFields only offers a media link when the incoming has an id and the target has none", () => {
   const inc = { mediaSource: "steam", mediaId: "440" };
-  assert.ok(fillableFields({}, inc).some((f) => f.key === "mediaSource"));
-  assert.ok(!fillableFields({ mediaId: "1" }, inc).some((f) => f.key === "mediaSource"));
-  assert.ok(!fillableFields({}, { mediaSource: "steam" }).some((f) => f.key === "mediaSource"));
+  assert.ok(fillableFields({}, inc, "backlog").some((f) => f.key === "mediaSource"));
+  assert.ok(!fillableFields({ mediaId: "1" }, inc, "backlog").some((f) => f.key === "mediaSource"));
+  assert.ok(!fillableFields({}, { mediaSource: "steam" }, "backlog").some((f) => f.key === "mediaSource"));
 });
 
 test("importItemIncomplete is true while any fillable field is still empty, false once they are all set", () => {
@@ -275,24 +277,24 @@ test("findExistingFor prefers a media-id match over a title match, and reports w
     backlog: [{ id: "b1", title: "Other Name", category: "Games", mediaSource: "steam", mediaId: "440" }],
     entries: [{ id: "e1", title: "Team Fortress 2", category: "Games" }],
   });
-  const byMedia = findExistingFor({ title: "Team Fortress 2", category: "Games", mediaSource: "steam", mediaId: "440" });
+  const byMedia = findImportTarget({ title: "Team Fortress 2", category: "Games", mediaSource: "steam", mediaId: "440" }, "backlog");
   assert.strictEqual(byMedia.item.id, "b1");
   assert.strictEqual(byMedia.kind, "backlog");
-  const byTitle = findExistingFor({ title: "Team Fortress 2", category: "Games" });
+  const byTitle = findImportTarget({ title: "Team Fortress 2", category: "Games" }, "backlog");
   assert.strictEqual(byTitle.item.id, "e1");
   assert.strictEqual(byTitle.kind, "entry");
 });
 
 test("findExistingFor matches a title regardless of case, and returns null when nothing matches", () => {
   seed({ backlog: [{ id: "b1", title: "Hades", category: "Games" }] });
-  assert.strictEqual(findExistingFor({ title: "HADES", category: "games" }).item.id, "b1");
-  assert.strictEqual(findExistingFor({ title: "Hades II", category: "Games" }), null);
+  assert.strictEqual(findImportTarget({ title: "HADES", category: "games" }, "backlog").item.id, "b1");
+  assert.strictEqual(findImportTarget({ title: "Hades II", category: "Games" }, "backlog"), null);
 });
 
 test("finding the existing item leaves no marker on the record itself", () => {
   const live = { id: "b1", title: "Hades", category: "Games" };
   seed({ backlog: [live] });
-  findExistingFor({ title: "Hades", category: "Games" });
+  findImportTarget({ title: "Hades", category: "Games" }, "backlog");
   assert.deepStrictEqual(Object.keys(live).sort(), ["category", "id", "title"],
     "a marker stuck on a live record would be persisted and synced forever");
 });
@@ -332,6 +334,108 @@ test("a brand new item is a plain add, not an update", () => {
   assert.ok(!row.update);
   assert.strictEqual(row.dup, false);
   assert.strictEqual(row.checked, true);
+});
+
+seed();
+
+// ---------- update rows for entries and recurring expenses (0.154.0) ----------
+test("a journal entry duplicate with gaps becomes an update row", () => {
+  seed({ entries: [{ id: "e1", title: "Celeste", category: "Games", year: 2026, month: 3, coverUrl: "" }] });
+  const { items } = buildImportItems({
+    entries: [{ title: "Celeste", category: "Games", year: 2026, month: 3,
+      coverUrl: "art.png", length: "8h", rating: 5, notes: "loved it" }],
+  });
+  const row = items.find((i) => i.kind === "entry");
+  assert.strictEqual(row.update, true);
+  assert.strictEqual(row.targetId, "e1");
+  assert.strictEqual(row.targetKind, "entry");
+  assert.deepStrictEqual(row.fills.map((f) => f.key).sort(), ["coverUrl", "length", "notes", "rating"]);
+});
+
+test("an entry update never proposes a field the entry already has", () => {
+  seed({ entries: [{ id: "e1", title: "Celeste", category: "Games", year: 2026, month: 3, rating: 4, notes: "" }] });
+  const { items } = buildImportItems({
+    entries: [{ title: "Celeste", category: "Games", year: 2026, month: 3, rating: 5, notes: "mine" }],
+  });
+  assert.deepStrictEqual(items.find((i) => i.kind === "entry").fills.map((f) => f.key), ["notes"]);
+});
+
+test("an entry is only a duplicate of the same month, so a replay is a new entry", () => {
+  seed({ entries: [{ id: "e1", title: "Celeste", category: "Games", year: 2026, month: 3 }] });
+  const { items } = buildImportItems({
+    entries: [{ title: "Celeste", category: "Games", year: 2027, month: 1, coverUrl: "art.png" }],
+  });
+  const row = items.find((i) => i.kind === "entry");
+  assert.strictEqual(row.dup, false);
+  assert.ok(!row.update);
+});
+
+test("an entry is never offered a field the app would never read back", () => {
+  seed({ entries: [{ id: "e1", title: "Celeste", category: "Games", year: 2026, month: 3 }] });
+  const { items } = buildImportItems({
+    entries: [{ title: "Celeste", category: "Games", year: 2026, month: 3,
+      summary: "words", releaseDate: "2018-01-25", externalRating: "91", coverUrl: "art.png" }],
+  });
+  assert.deepStrictEqual(items.find((i) => i.kind === "entry").fills.map((f) => f.key), ["coverUrl"]);
+});
+
+test("a recurring duplicate offers what recurringKey does not match on", () => {
+  seed({ recurringExpenses: [{ id: "r1", startDate: "2026-01-01", interval: "monthly", amount: 10, category: "Food", note: "milk" }] });
+  const { items } = buildImportItems({
+    recurringExpenses: [{ startDate: "2026-01-01", interval: "monthly", amount: 10, category: "Food", note: "milk",
+      endDate: "2026-12-01", project: "Switzerland", pauses: [{ from: "2026-06-01" }],
+      overrides: { "2026-04-01": { amount: 12 } } }],
+  });
+  const row = items.find((i) => i.kind === "recurring");
+  assert.strictEqual(row.update, true);
+  assert.strictEqual(row.targetKind, "recurring");
+  assert.deepStrictEqual(row.fills.map((f) => f.key).sort(), ["endDate", "overrides", "pauses", "project"]);
+});
+
+test("a recurring duplicate with nothing outside the key stays a plain duplicate", () => {
+  seed({ recurringExpenses: [{ id: "r1", startDate: "2026-01-01", interval: "monthly", amount: 10, category: "Food", note: "milk" }] });
+  const { items } = buildImportItems({
+    recurringExpenses: [{ startDate: "2026-01-01", interval: "monthly", amount: 10, category: "Food", note: "milk" }],
+  });
+  const row = items.find((i) => i.kind === "recurring");
+  assert.strictEqual(row.dup, true);
+  assert.ok(!row.update);
+  assert.strictEqual(row.checked, false);
+});
+
+// financeKey spans every field a finance entry has that could go missing, so
+// there is nothing an update could add. Asserted so that stays true.
+test("a finance duplicate is never an update row, because it has nothing to fill", () => {
+  seed({ financeEntries: [{ id: "f1", date: "2026-03-04", amount: 20, category: "Food", note: "lunch" }] });
+  const { items } = buildImportItems({
+    financeEntries: [{ date: "2026-03-04", amount: 20, category: "Food", note: "lunch" }],
+  });
+  const row = items.find((i) => i.kind === "finance");
+  assert.strictEqual(row.dup, true);
+  assert.ok(!row.update);
+});
+
+test("an empty object counts as a gap, so pauses/overrides can be filled", () => {
+  assert.deepStrictEqual(fillableFields({ overrides: {} }, { overrides: { a: { skip: true } } }, "recurring")
+    .map((f) => f.key), ["overrides"]);
+  assert.deepStrictEqual(fillableFields({ overrides: { a: { skip: true } } }, { overrides: { b: { skip: true } } }, "recurring"), []);
+});
+
+test("a paired field needs both halves incoming and neither locally", () => {
+  const inc = { startYear: 2025, startMonth: 11 };
+  assert.ok(fillableFields({}, inc, "entry").some((f) => f.key === "startYear"));
+  // Half a span is worse than none.
+  assert.deepStrictEqual(fillableFields({}, { startYear: 2025 }, "entry"), []);
+  assert.deepStrictEqual(fillableFields({ startMonth: 2 }, inc, "entry"), []);
+});
+
+test("importItemIncomplete still answers for the backlog by default", () => {
+  assert.strictEqual(importItemIncomplete({ title: "X" }), true);
+  assert.strictEqual(importItemIncomplete({ title: "X" }, "backlog"), true);
+  // And says so per kind: a recurring plan with every optional part set.
+  assert.strictEqual(importItemIncomplete(
+    { endDate: "2026-12-01", project: "P", pauses: [{ from: "x" }], overrides: { a: {} }, prevId: "r0" },
+    "recurring"), false);
 });
 
 seed();

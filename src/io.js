@@ -113,69 +113,152 @@
   // picked can't be reverted by re-running a sync. Pinned fields (the
   // Advanced foldout) are skipped even when empty — pinning is a statement
   // that this field is yours to set.
-  const IMPORT_FILLABLE = [
-    ["coverUrl", "cover"],
-    ["externalRating", "rating"],
-    ["length", "length"],
-    ["releaseYear", "year"],
-    ["releaseDate", "release date"],
-    ["releaseStatus", "release status"],
-    ["summary", "description"],
-    ["genres", "genres"],
-    ["mediaSource", "media link"],
-  ];
-  const isEmptyField = (v) => v == null || v === "" || (Array.isArray(v) && !v.length);
+  //
+  // One table per kind, because the answer to "what could an import add"
+  // depends entirely on what the duplicate check already matched on. There is
+  // deliberately no `finance` table: financeKey spans date, amount, category,
+  // note, project, currency and fxAmount, which is every field a finance
+  // entry has bar `rate` — which cannot be missing when a currency is set,
+  // since sanitizeFinanceEntry drops the trio otherwise — and the
+  // `rateConfirmed` flag, which is a claim about a rate rather than a gap in
+  // one. A finance duplicate has nothing to fill, so it stays a plain
+  // duplicate instead of an update row that would always read "+ nothing".
+  const IMPORT_FILLABLE = {
+    backlog: [
+      ["coverUrl", "cover"],
+      ["externalRating", "rating"],
+      ["length", "length"],
+      ["releaseYear", "year"],
+      ["releaseDate", "release date"],
+      ["releaseStatus", "release status"],
+      ["summary", "description"],
+      ["genres", "genres"],
+      ["mediaSource", "media link"],
+    ],
+    // Only what sanitizeEntry actually keeps (KNOWN_ENTRY_KEYS). An entry has
+    // no externalRating/release*/summary — offering those would write fields
+    // nothing in the app ever reads back. `rating` and `notes` are yours
+    // rather than a source's, which is exactly why restoring them from a
+    // backup is worth offering; gap-only means neither can overwrite what
+    // you wrote.
+    entry: [
+      ["coverUrl", "cover"],
+      ["length", "length"],
+      ["genres", "genres"],
+      ["rating", "your rating"],
+      ["notes", "your notes"],
+      ["startYear", "month span"],
+      ["mediaSource", "media link"],
+    ],
+    // recurringKey matches on startDate, interval, amount, category and note,
+    // so everything that makes a plan more than its bare shape is outside it
+    // and can go missing on a restore.
+    recurring: [
+      ["endDate", "end date"],
+      ["project", "project"],
+      ["pauses", "pauses"],
+      ["overrides", "per-month changes"],
+      ["prevId", "plan history"],
+    ],
+  };
+
+  // Fields that only mean anything together: filling one half would leave an
+  // id with no source to resolve it against, or a span with no start month.
+  const FIELD_PAIR = { mediaSource: "mediaId", startYear: "startMonth" };
+
+  const isEmptyField = (v) => v == null || v === ""
+    || (Array.isArray(v) && !v.length)
+    || (typeof v === "object" && !Array.isArray(v) && !Object.keys(v).length);
+
+  // The Advanced foldout's pin names don't all match the field they pin.
+  const overrideKeyFor = (key) => (key === "coverUrl" ? "cover" : key);
+
+  // A pair is only fillable when the incoming record has both halves and the
+  // local one has neither — a half-filled pair is worse than an empty one.
+  function pairBlocked(key, target, incoming) {
+    const other = FIELD_PAIR[key];
+    return !!other && (isEmptyField(incoming[other]) || !isEmptyField(target[other]));
+  }
 
   // Whether a local item is missing anything an import could fill. Asked
   // before a source spends a slow per-item lookup on something it already
   // has: a complete item has nothing to gain, an incomplete one might.
-  function importItemIncomplete(target) {
-    return IMPORT_FILLABLE.some(([key]) => {
+  function importItemIncomplete(target, kind) {
+    return (IMPORT_FILLABLE[kind || "backlog"] || []).some(([key]) => {
       if (!isEmptyField(target[key])) return false;
-      if (isOverridden && isOverridden(target, key === "coverUrl" ? "cover" : key)) return false;
-      if (key === "mediaSource" && target.mediaId) return false;
+      if (isOverridden && isOverridden(target, overrideKeyFor(key))) return false;
+      if (FIELD_PAIR[key] && !isEmptyField(target[FIELD_PAIR[key]])) return false;
       return true;
     });
   }
 
-  function fillableFields(target, incoming) {
+  function fillableFields(target, incoming, kind) {
     const out = [];
-    for (const [key, label] of IMPORT_FILLABLE) {
+    for (const [key, label] of IMPORT_FILLABLE[kind || "backlog"] || []) {
       if (isEmptyField(incoming[key])) continue;
       if (!isEmptyField(target[key])) continue;
-      if (isOverridden && isOverridden(target, key === "coverUrl" ? "cover" : key)) continue;
-      // The media link is a pair; offering one half would leave an id with no
-      // source to resolve it against.
-      if (key === "mediaSource" && (!incoming.mediaId || target.mediaId)) continue;
+      if (isOverridden && isOverridden(target, overrideKeyFor(key))) continue;
+      if (pairBlocked(key, target, incoming)) continue;
       out.push({ key, label });
     }
     return out;
   }
 
-  // The backlog item or journal entry an incoming record is a duplicate of,
-  // by the same three identities buildImportItems uses to call it one —
-  // strongest first, so a locally renamed item still matches on its media id.
+  const titleCatKey = (title, category) =>
+    `${(title || "").toLowerCase()}|${(category || "").toLowerCase()}`;
+  const entryKey = (e) => `${titleCatKey(e.title, e.category)}|${+e.year}|${+e.month}`;
+
+  // The record an incoming one is a duplicate of, found the same way
+  // buildImportItems decided it was one — so the thing that gets updated is
+  // always the thing that caused the row to be called a duplicate.
+  //
   // Returns { item, kind } rather than tagging the item: these are the live
   // records out of state, and a marker property stuck on one would be
   // persisted, synced, and carried through keepUnknown forever.
-  function findExistingFor(b) {
-    if (b.mediaSource && b.mediaId) {
-      const inBacklog = state.data.backlog.find((x) => x.mediaSource === b.mediaSource && x.mediaId === b.mediaId);
+  function findImportTarget(rec, kind) {
+    if (kind === "entry") {
+      const k = entryKey(rec);
+      const hit = state.data.entries.find((x) => entryKey(x) === k);
+      return hit ? { item: hit, kind: "entry" } : null;
+    }
+    if (kind === "recurring") {
+      const k = recurringKey(rec);
+      const hit = state.data.recurringExpenses.find((x) => recurringKey(x) === k);
+      return hit ? { item: hit, kind: "recurring" } : null;
+    }
+    // Backlog, by the same three identities as its dup check — strongest
+    // first, so a locally renamed item still matches on its media id, and a
+    // wishlist row can land on something already in your timeline.
+    if (rec.mediaSource && rec.mediaId) {
+      const inBacklog = state.data.backlog.find((x) => x.mediaSource === rec.mediaSource && x.mediaId === rec.mediaId);
       if (inBacklog) return { item: inBacklog, kind: "backlog" };
-      const inEntries = state.data.entries.find((x) => x.mediaSource === b.mediaSource && x.mediaId === b.mediaId);
+      const inEntries = state.data.entries.find((x) => x.mediaSource === rec.mediaSource && x.mediaId === rec.mediaId);
       if (inEntries) return { item: inEntries, kind: "entry" };
     }
-    const t = (b.title || "").toLowerCase(), c = (b.category || "").toLowerCase();
-    const byTitle = state.data.backlog.find((x) => (x.title || "").toLowerCase() === t && (x.category || "").toLowerCase() === c);
+    const k = titleCatKey(rec.title, rec.category);
+    const byTitle = state.data.backlog.find((x) => titleCatKey(x.title, x.category) === k);
     if (byTitle) return { item: byTitle, kind: "backlog" };
-    const inJournal = state.data.entries.find((x) => (x.title || "").toLowerCase() === t && (x.category || "").toLowerCase() === c);
+    const inJournal = state.data.entries.find((x) => titleCatKey(x.title, x.category) === k);
     return inJournal ? { item: inJournal, kind: "entry" } : null;
+  }
+
+  // One shape for every kind: a duplicate that could gain something becomes a
+  // ticked update row naming what; one that couldn't stays a plain duplicate.
+  function buildImportRow(kind, rec, dup, extra) {
+    const found = dup ? findImportTarget(rec, kind) : null;
+    const fills = found ? fillableFields(found.item, rec, found.kind) : [];
+    if (found && fills.length) {
+      return Object.assign({
+        kind, entry: rec, dup: true, update: true,
+        targetId: found.item.id, targetKind: found.kind, fills, checked: true,
+      }, extra);
+    }
+    return Object.assign({ kind, entry: rec, dup, checked: !dup }, extra);
   }
 
   function buildImportItems({ entries, backlog, financeEntries, recurringExpenses, categories, financeCategories }) {
     const items = [];
-    const entryKey = (e) => `${(e.title || "").toLowerCase()}|${(e.category || "").toLowerCase()}|${+e.year}|${+e.month}`;
-    const backlogKey = (b) => `${(b.title || "").toLowerCase()}|${(b.category || "").toLowerCase()}`;
+    const backlogKey = (b) => titleCatKey(b.title, b.category);
     const existingEntryKeys = new Set(state.data.entries.map(entryKey));
     const existingBacklogKeys = new Set(state.data.backlog.map(backlogKey));
     const existingFinanceKeys = new Set(state.data.financeEntries.map(financeKey));
@@ -185,7 +268,6 @@
     // those yet) is just as much a duplicate as one already sitting in
     // the backlog — same check the single-item add form already does
     // (updateBacklogDuplicateBanner) that bulk import was missing.
-    const titleCatKey = (t, c) => `${(t || "").toLowerCase()}|${(c || "").toLowerCase()}`;
     const existingEntryTitleKeys = new Set(state.data.entries.map((e) => titleCatKey(e.title, e.category)));
     // A synced item's media source+id is a stronger identity than its title —
     // catches an imported item (Steam wishlist, AniList Planning) whose title
@@ -200,8 +282,7 @@
     );
 
     (entries || []).map(sanitizeEntry).forEach((e) => {
-      const dup = existingEntryKeys.has(entryKey(e));
-      items.push({ kind: "entry", entry: e, dup, checked: !dup });
+      items.push(buildImportRow("entry", e, existingEntryKeys.has(entryKey(e))));
     });
     (backlog || []).forEach((raw) => {
       const b = sanitizeBacklog(raw);
@@ -216,24 +297,16 @@
       // what it could *add* — a cover you have no cover for, a rating you
       // have no rating for — and offered as an update when the answer isn't
       // "nothing". One that can't add anything stays a plain duplicate.
-      const found = dup ? findExistingFor(b) : null;
-      const fills = found ? fillableFields(found.item, b) : [];
-      if (found && fills.length) {
-        items.push({
-          kind: "backlog", entry: b, dup: true, update: true, targetId: found.item.id,
-          targetKind: found.kind, fills, checked: true, unresolved: !!raw.unresolved,
-        });
-        return;
-      }
-      items.push({ kind: "backlog", entry: b, dup, checked: !dup, unresolved: !!raw.unresolved });
+      items.push(buildImportRow("backlog", b, dup, { unresolved: !!raw.unresolved }));
     });
+    // No update path: see IMPORT_FILLABLE — financeKey already spans every
+    // field a finance entry has that could be missing.
     (financeEntries || []).map(sanitizeFinanceEntry).forEach((f) => {
       const dup = existingFinanceKeys.has(financeKey(f));
       items.push({ kind: "finance", entry: f, dup, checked: !dup });
     });
     (recurringExpenses || []).map(sanitizeRecurring).forEach((r) => {
-      const dup = existingRecurKeys.has(recurringKey(r));
-      items.push({ kind: "recurring", entry: r, dup, checked: !dup });
+      items.push(buildImportRow("recurring", r, existingRecurKeys.has(recurringKey(r))));
     });
 
     const newCategories = [
@@ -256,19 +329,30 @@
     // be added as a second copy of what it was meant to enrich.
     const updates = selected.filter((i) => i.update);
     let filled = 0;
+    const POOL = {
+      entry: () => state.data.entries,
+      backlog: () => state.data.backlog,
+      recurring: () => state.data.recurringExpenses,
+    };
     for (const u of updates) {
-      const pool = u.targetKind === "entry" ? state.data.entries : state.data.backlog;
+      const pool = (POOL[u.targetKind] || POOL.backlog)();
       const target = pool.find((x) => x.id === u.targetId);
       if (!target) continue;
       for (const f of u.fills) {
         const v = u.entry[f.key];
         if (isEmptyField(v)) continue;
         target[f.key] = Array.isArray(v) ? v.slice() : v;
-        // The media link is a pair — the id travels with the source, or the
-        // source names a lookup with nothing to look up.
-        if (f.key === "mediaSource" && u.entry.mediaId) target.mediaId = u.entry.mediaId;
+        // A paired field travels with its other half — an id with no source
+        // to resolve it against, or a span with no start month, is worse than
+        // the gap it filled.
+        const other = FIELD_PAIR[f.key];
+        if (other && !isEmptyField(u.entry[other])) target[other] = u.entry[other];
         filled++;
       }
+      // No updatedAt stamp here on purpose: persist() runs
+      // merge.stampChangedItems first, which times every item whose content
+      // actually changed. Touching it by hand would be the manual "touch"
+      // call that function exists to make unnecessary.
     }
     const byKind = { entry: [], backlog: [], finance: [], recurring: [] };
     selected.filter((i) => !i.update).forEach((i) => byKind[i.kind].push(i.entry));
@@ -563,6 +647,6 @@
     importItemIncomplete, reviewAndImport, openImportPicker,
     // pure helpers (exported for test/io.test.js)
     importItemDateStr, importBucketKey, journalCsvText, parseJournalCsv,
-    fillableFields, findExistingFor,
+    fillableFields, findImportTarget,
   };
 })();
