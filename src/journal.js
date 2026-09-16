@@ -962,19 +962,17 @@
     // Matching runs on the suffix-stripped title for the same reason the
     // search does: "BioShock (2007)" is asking about BioShock.
     const q = search.stripped;
-    const rank = (r) => (r ? window.LifeLogMedia.matchRank(q, r.title) : 0);
     const seen = [];
     const searched = [search.source];
     try {
       const primary = await search.trySource(search.source);
       seen.push(...primary);
       let match = window.LifeLogMedia.pickMatch(primary, q);
-      if (rank(match) < 2 && search.fallbackSource) {
+      if (!match && search.fallbackSource) {
         searched.push(search.fallbackSource);
         const alt = await search.trySource(search.fallbackSource);
         seen.push(...alt);
-        const altMatch = window.LifeLogMedia.pickMatch(alt, q);
-        if (rank(altMatch) > rank(match)) match = altMatch;
+        match = window.LifeLogMedia.pickMatch(alt, q);
       }
       return { match: match || null, closest: seen[0] || null, searched };
     } catch (e) {

@@ -9,7 +9,7 @@ require("../src/media.js");
 const Media = global.window.LifeLogMedia;
 
 const {
-  steamCoverUrl, normGenres, titleKey, matchRank, pickMatch, stripHtml, firstParagraph, rawgMeta,
+  steamCoverUrl, normGenres, titleKey, isTitleMatch, pickMatch, stripHtml, firstParagraph, rawgMeta,
   parseSteamReleaseDate, steamEarlyAccess, releaseFromString, releaseFromParts,
   releaseFromSgdb, mergeRelease,
 } = Media;
@@ -417,37 +417,41 @@ atest("fetchEntryExtras still skips RAWG, whose search already said both", async
       process.exitCode = 1;
     }
   }
-  // ---------- matchRank / pickMatch ----------
+  // ---------- isTitleMatch / pickMatch ----------
 // The reported cases: RAWG answers "BioShock" with "BioShock Infinite", which
 // is not nothing — so the old "fall back only when empty, then take [0]" rule
 // never asked the second source and then picked the wrong game.
 test("an auto-pick refuses a result that is merely the closest thing", () => {
-  assert.strictEqual(matchRank("BioShock", "BioShock Infinite"), 0);
-  assert.strictEqual(matchRank("Metro 2033", "Metro 2033 Redux"), 0);
-  assert.strictEqual(matchRank("Portal", "Portal Knights"), 0);
+  assert.strictEqual(isTitleMatch("BioShock", "BioShock Infinite"), false);
+  assert.strictEqual(isTitleMatch("Metro 2033", "Metro 2033 Redux"), false);
+  assert.strictEqual(isTitleMatch("Portal", "Portal Knights"), false);
 });
 
-test("the same title in different dress is still an exact match", () => {
-  assert.strictEqual(matchRank("BioShock", "BioShock"), 2);
-  assert.strictEqual(matchRank("bioshock", "BIOSHOCK"), 2);
+test("the same title in different dress is still a match", () => {
+  assert.strictEqual(isTitleMatch("BioShock", "BioShock"), true);
+  assert.strictEqual(isTitleMatch("bioshock", "BIOSHOCK"), true);
   // Store names carry these constantly, and NFKD turns \u2122 into the letters TM.
-  assert.strictEqual(matchRank("Bioshock", "BIOSHOCK\u2122"), 2);
-  assert.strictEqual(matchRank("Half-Life 2", "Half-Life\u00ae 2"), 2);
-  assert.strictEqual(matchRank("Pokemon", "Pok\u00e9mon"), 2);
-  assert.strictEqual(matchRank("Ratchet & Clank", "Ratchet and Clank"), 2);
+  assert.strictEqual(isTitleMatch("Bioshock", "BIOSHOCK\u2122"), true);
+  assert.strictEqual(isTitleMatch("Half-Life 2", "Half-Life\u00ae 2"), true);
+  assert.strictEqual(isTitleMatch("Pokemon", "Pok\u00e9mon"), true);
+  assert.strictEqual(isTitleMatch("Ratchet & Clank", "Ratchet and Clank"), true);
+  // A season marker is not a different title; a season NUMBER is.
+  assert.strictEqual(isTitleMatch("Attack on Titan S1", "Attack on Titan"), true);
+  assert.strictEqual(isTitleMatch("Attack on Titan S1", "Attack on Titan Season 4"), false);
 });
 
-test("a subtitle narrows a title and still counts, but ranks below exact", () => {
-  assert.strictEqual(matchRank("The Witcher 3", "The Witcher 3: Wild Hunt"), 1);
-  assert.strictEqual(matchRank("Halo", "Halo - Combat Evolved"), 1);
-  // A bare extra word is a different work, which is the whole distinction.
-  assert.strictEqual(matchRank("Halo", "Halo Wars"), 0);
+// Dropped in 0.153.0: a subtitle is usually the same work narrowed, but
+// "usually" is what put the wrong cover on things in the first place.
+test("a subtitle is no longer close enough", () => {
+  assert.strictEqual(isTitleMatch("The Witcher 3", "The Witcher 3: Wild Hunt"), false);
+  assert.strictEqual(isTitleMatch("Halo", "Halo - Combat Evolved"), false);
+  assert.strictEqual(isTitleMatch("BioShock", "BioShock: The Collection"), false);
 });
 
-test("matchRank says nothing matches an empty query", () => {
-  assert.strictEqual(matchRank("", "BioShock"), 0);
-  assert.strictEqual(matchRank("   ", "BioShock"), 0);
-  assert.strictEqual(matchRank("BioShock", null), 0);
+test("nothing matches an empty query", () => {
+  assert.strictEqual(isTitleMatch("", "BioShock"), false);
+  assert.strictEqual(isTitleMatch("   ", "BioShock"), false);
+  assert.strictEqual(isTitleMatch("BioShock", null), false);
 });
 
 test("pickMatch returns null rather than the closest thing", () => {
@@ -457,19 +461,14 @@ test("pickMatch returns null rather than the closest thing", () => {
   assert.strictEqual(pickMatch(null, "BioShock"), null);
 });
 
-test("pickMatch takes the exact match wherever it sits in the list", () => {
+test("pickMatch takes the match wherever it sits in the list", () => {
   const results = [{ title: "BioShock Infinite" }, { title: "BioShock 2" }, { title: "BioShock" }];
   assert.strictEqual(pickMatch(results, "BioShock").title, "BioShock");
 });
 
-test("an exact match beats a subtitle one even when the subtitle came first", () => {
-  const results = [{ title: "The Witcher 3: Wild Hunt" }, { title: "The Witcher 3" }];
-  assert.strictEqual(pickMatch(results, "The Witcher 3").title, "The Witcher 3");
-});
-
-test("within one rank the source's own ordering decides", () => {
-  const results = [{ title: "Halo: Combat Evolved" }, { title: "Halo: Reach" }];
-  assert.strictEqual(pickMatch(results, "Halo").title, "Halo: Combat Evolved");
+test("pickMatch takes the first of several matches, which is the source's own ranking", () => {
+  const results = [{ id: "a", title: "BIOSHOCK\u2122" }, { id: "b", title: "BioShock" }];
+  assert.strictEqual(pickMatch(results, "BioShock").id, "a");
 });
 
 test("titleKey no longer turns a trademark symbol into letters", () => {

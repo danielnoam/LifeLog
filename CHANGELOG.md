@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.153.0] - 2026-09-16
+
+### Changed
+- **Auto-sync now accepts an exact title only.** 0.152.0 also took that title
+  plus a separated subtitle — "The Witcher 3" answered by "The Witcher 3: Wild
+  Hunt" — which is usually the same work narrowed and occasionally a spin-off.
+  It is gone. Case, accents, punctuation, `&`/`and`, trademark symbols and
+  season/part markers are still normalised away, so "BIOSHOCK™" still matches
+  "BioShock" and "Attack on Titan S1" still matches "Attack on Titan"; a
+  subtitle no longer does.
+- **`matchRank` is now `isTitleMatch`.** With one tier left, a rank was a
+  scale with a single meaningful value.
+
+  The trade this makes: a title whose store entry carries a subtitle is now
+  left alone, named in the progress row as a near-miss, and set by hand. A gap
+  you can see beats a match you have to audit.
+
 ## [0.152.0] - 2026-09-16
 
 ### Fixed

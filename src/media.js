@@ -1060,36 +1060,23 @@
   // results[0] will confidently attach the wrong game's cover, rating and
   // length.
   //
-  //   2  the same title, once case, accents, punctuation, "&"/"and" and
-  //      season/part markers are normalised away (titleKey)
-  //   1  that title plus a subtitle — "The Witcher 3" answered by "The
-  //      Witcher 3: Wild Hunt". A separator is required: a subtitle narrows a
-  //      title, whereas another bare word after it ("BioShock" → "BioShock
-  //      Infinite") is a different work.
-  //   0  not a match. Nothing may be auto-picked on this.
-  const TITLE_SUBTITLE_RE = /\s*[:\u2013\u2014]\s*|\s+-\s+/;
-  function matchRank(query, resultTitle) {
+  // The bar is the same title and nothing else, once case, accents,
+  // punctuation, "&"/"and", trademark symbols and season/part markers are
+  // normalised away (titleKey). 0.152.0 also accepted that title plus a
+  // separated subtitle — "The Witcher 3" answered by "The Witcher 3: Wild
+  // Hunt" — which is usually right and occasionally picks a spin-off. It was
+  // dropped in 0.153.0 in favour of leaving a title alone and saying so: a
+  // gap you can see beats a match you have to audit.
+  function isTitleMatch(query, resultTitle) {
     const q = titleKey(query);
-    if (!q) return 0;
-    if (titleKey(resultTitle) === q) return 2;
-    const head = String(resultTitle == null ? "" : resultTitle).split(TITLE_SUBTITLE_RE)[0];
-    if (head && head !== resultTitle && titleKey(head) === q) return 1;
-    return 0;
+    return !!q && titleKey(resultTitle) === q;
   }
 
-  // The best result for `query`, or null when nothing in the list is that
-  // title at all. An exact match beats a subtitle one; within a rank the
-  // source's own ordering decides, since that is its relevance ranking.
+  // The result that IS `query`, or null. Never the closest thing: a caller
+  // with nothing to show is expected to say so, not to settle.
   function pickMatch(results, query) {
-    let best = null, bestRank = 0;
-    for (const r of results || []) {
-      const rank = matchRank(query, r && r.title);
-      if (rank > bestRank) {
-        best = r; bestRank = rank;
-        if (rank === 2) break;
-      }
-    }
-    return best;
+    for (const r of results || []) if (isTitleMatch(query, r && r.title)) return r;
+    return null;
   }
 
   window.LifeLogMedia = {
@@ -1214,7 +1201,7 @@
     mergeRelease,
     normGenres,
     titleKey,
-    matchRank,
+    isTitleMatch,
     pickMatch,
     stripHtml,
     firstParagraph,

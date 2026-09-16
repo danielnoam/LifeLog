@@ -16,6 +16,18 @@ what was decided against and why.
 
 ---
 
+- **the subtitle tier lasted one release (0.153.0).** 0.152.0's matcher had
+  two tiers: exact, and "that title plus a separated subtitle". The second was
+  the only judgement call in the whole thing and it was dropped a release
+  later, on purpose rather than because it misfired. The reasoning: its wins
+  ("The Witcher 3" → "The Witcher 3: Wild Hunt") are cases you would also be
+  happy to fix by hand once, and its losses (a spin-off or collection sharing
+  a stem) are silent and permanent. Asymmetric costs, so the strict side wins.
+
+  It also shrank the code to the thing it actually is — `isTitleMatch`, a
+  boolean — instead of a rank scale with one live value, which is what the
+  tier had been propping up.
+
 - **"did it return anything" is not "did it find it" (0.152.0).** Auto-sync
   had two rules that were each reasonable alone and wrong together: fall back
   to the second source only when the first returns an empty list, and take
