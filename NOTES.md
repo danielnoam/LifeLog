@@ -16,6 +16,25 @@ what was decided against and why.
 
 ---
 
+- **a CSS animation outranks the declaration it collides with (0.155.1).**
+  Dimming a dropped row with `opacity: .55` looked correct in every static
+  screenshot and was wrong in motion: `.ll-enter` animates opacity 0 → 1, and
+  for the 300ms that animation is running its value wins over the class's, so
+  an arriving dropped row was fully bright and then snapped. `filter:
+  opacity(.55)` sits in a different property the animation never mentions, so
+  the two compose — the row fades in *to* dimmed.
+
+  Worth keeping in mind generally: any property `.ll-enter` or `.ll-exit`
+  touches (opacity, transform) cannot also be used to express a row's state,
+  because for the length of the animation the keyframe is the authority. Pick
+  a property outside the keyframe, or the state will be invisible exactly
+  when the row is most likely to be looked at.
+
+  The test for it has to sample mid-animation — two `requestAnimationFrame`s
+  after the click, with `ll-enter` still on the node — which is also why the
+  original bug got through: every check written after `waitForTimeout` sees
+  the settled, correct value.
+
 - **the Dropped band is the one separator that can't be a boundary marker
   (0.155.0).** The backlog's dashed rules are emitted on a band *transition*:
   walk the sorted rows, and whenever the band changes, push a separator named

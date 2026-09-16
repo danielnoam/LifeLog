@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.155.1] - 2026-09-16
+
+### Fixed
+- **Opening the Dropped block showed the rows undimmed for a third of a
+  second.** `.ll-enter` animates opacity 0 → 1, and a running CSS animation
+  outranks a normal declaration, so `.is-dropped { opacity: .55 }` did
+  nothing until the 300ms arrival finished and the row snapped to dim. The
+  dimming is a `filter: opacity(.55)` now, which the animation doesn't touch,
+  so a dropped row fades in already dimmed. It looks identical once settled;
+  it just no longer lies on the way there.
+- **Pressing the Dropped bar drew the browser's blue highlight rect**, and a
+  press that lingered started selecting the label text instead of opening the
+  block. It now suppresses the tap highlight and text selection like every
+  other pressable row in the app, and keeps a proper focus ring for keyboard
+  use — `:focus-visible` doesn't match a tap, so the two don't conflict.
+
 ## [0.155.0] - 2026-09-16
 
 ### Added
