@@ -16,6 +16,39 @@ what was decided against and why.
 
 ---
 
+- **"did it return anything" is not "did it find it" (0.152.0).** Auto-sync
+  had two rules that were each reasonable alone and wrong together: fall back
+  to the second source only when the first returns an empty list, and take
+  `results[0]`. A search API always has an opinion, so the first rule almost
+  never fired — "BioShock" gets "BioShock Infinite", which is not an empty
+  list — and the second then committed to it. The two reported cases were
+  exactly these: a title the fallback source had and was never asked for, and
+  a title neither source has, filled in with a near-miss anyway.
+
+  `matchRank` is the whole fix and it is deliberately blunt: 2 for the same
+  title after normalisation, 1 for that title plus a *separated* subtitle, 0
+  otherwise. The separator is what makes it safe — "BioShock" → "BioShock:
+  The Collection" is the same game narrowed, "BioShock" → "BioShock Infinite"
+  is a different one, and without requiring a `:` or ` - ` there is no way to
+  tell those apart. Rank 1 is the only judgement call in here; if it ever
+  picks something wrong, deleting it leaves an exact-only matcher and nothing
+  else has to change.
+
+  Both sources are now asked unless the first returns a rank-2 match. That
+  costs one extra request per imperfect title and none at all for the ones
+  that matched cleanly, which is the common case on a re-sync.
+
+  The knock-on worth remembering: refusing to guess means *fewer* fields get
+  filled than before. That is the trade being made on purpose — a missing
+  rating looks missing and gets fixed, a wrong one looks fine forever.
+
+- **NFKD is not a safe normaliser for store names (0.152.0).** `titleKey` ran
+  `.normalize("NFKD")` to fold accents, which also decomposes `™` into the
+  letters `TM`: "BIOSHOCK™" became "bioshocktm" and matched nothing. Steam
+  names carry `™` and `®` constantly. They are stripped before the NFKD step
+  now. Discover's already-have check shares this key, so it had been failing
+  to hide duplicates for every trademarked title.
+
 - **imports became one system with two adapters (0.151.0).** `syncSteamWishlist`
   and `syncAniListPlanning` were 90% the same function: fetch, map to backlog
   shape, `buildImportItems`, `reviewAndImport`, toast, persist — in a slightly

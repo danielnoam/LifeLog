@@ -939,6 +939,10 @@
     const part = m ? parseInt(m[1], 10) : 1;
     if (m) t = t.slice(0, m.index);
     const base = t
+      // Before NFKD, which decomposes ™ into the letters "TM" and would
+      // turn Steam's "BIOSHOCK™" into "bioshocktm" — a title that matches
+      // nothing. Store names carry these constantly.
+      .replace(/[™®©℗℠]/g, " ")
       .normalize("NFKD").replace(/[̀-ͯ]/g, "")
       .toLowerCase()
       .replace(/&/g, " and ")
@@ -1047,6 +1051,45 @@
       const data = await res.json();
       return (data.data || []).map((d) => mapJikanResult(d, type));
     } catch (e) { return []; }
+  }
+
+  // ---------- is this result actually the thing you asked for? ----------
+  // A search API always has an opinion. Ask RAWG for "BioShock" and it will
+  // happily lead with "BioShock Infinite" — so "did it return anything" is not
+  // the same question as "did it find it", and an auto-pick that takes
+  // results[0] will confidently attach the wrong game's cover, rating and
+  // length.
+  //
+  //   2  the same title, once case, accents, punctuation, "&"/"and" and
+  //      season/part markers are normalised away (titleKey)
+  //   1  that title plus a subtitle — "The Witcher 3" answered by "The
+  //      Witcher 3: Wild Hunt". A separator is required: a subtitle narrows a
+  //      title, whereas another bare word after it ("BioShock" → "BioShock
+  //      Infinite") is a different work.
+  //   0  not a match. Nothing may be auto-picked on this.
+  const TITLE_SUBTITLE_RE = /\s*[:\u2013\u2014]\s*|\s+-\s+/;
+  function matchRank(query, resultTitle) {
+    const q = titleKey(query);
+    if (!q) return 0;
+    if (titleKey(resultTitle) === q) return 2;
+    const head = String(resultTitle == null ? "" : resultTitle).split(TITLE_SUBTITLE_RE)[0];
+    if (head && head !== resultTitle && titleKey(head) === q) return 1;
+    return 0;
+  }
+
+  // The best result for `query`, or null when nothing in the list is that
+  // title at all. An exact match beats a subtitle one; within a rank the
+  // source's own ordering decides, since that is its relevance ranking.
+  function pickMatch(results, query) {
+    let best = null, bestRank = 0;
+    for (const r of results || []) {
+      const rank = matchRank(query, r && r.title);
+      if (rank > bestRank) {
+        best = r; bestRank = rank;
+        if (rank === 2) break;
+      }
+    }
+    return best;
   }
 
   window.LifeLogMedia = {
@@ -1171,6 +1214,8 @@
     mergeRelease,
     normGenres,
     titleKey,
+    matchRank,
+    pickMatch,
     stripHtml,
     firstParagraph,
     rawgMeta,

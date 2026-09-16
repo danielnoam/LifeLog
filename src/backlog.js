@@ -14,7 +14,7 @@
     toggleBulkCategoryAll, attachLongPressSelect, openEntryModal,
     startBulkRun, markBulkItem, finishBulkRun,
     fillCategorySelect, wireCategorySelect, titleSuggestions,
-    backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
+    backlogSuggestions, makeMediaAcItem, fetchMediaMatch, renderStreamedSuggestions,
     resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
     renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
@@ -32,7 +32,7 @@
       toggleBulkCategoryAll, attachLongPressSelect, openEntryModal,
       startBulkRun, markBulkItem, finishBulkRun,
       fillCategorySelect, wireCategorySelect, titleSuggestions,
-      backlogSuggestions, makeMediaAcItem, fetchMediaSuggestions, renderStreamedSuggestions,
+      backlogSuggestions, makeMediaAcItem, fetchMediaMatch, renderStreamedSuggestions,
       resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
       renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
@@ -1902,19 +1902,25 @@
       else if (source === "steam") { markBulkItem(id, "skipped", "Steam needs an App ID per item"); skipped++; }
       else {
         try {
-          // fetchMediaSuggestions swallows its own errors and returns [], so a
+          // fetchMediaMatch swallows its own errors and returns no match, so a
           // search that fails for a real reason (bad key, rate limit) arrives
-          // here as "no results" and is reported as a skip with getLastError()
-          // as the reason. The catch below is for the per-title detail calls,
-          // which do throw.
-          const results = await fetchMediaSuggestions(item.title, item.category);
-          if (!results.length) {
+          // here looking like "not found" and is reported as a skip with
+          // getLastError() as the reason. The catch below is for the per-title
+          // detail calls, which do throw.
+          //
+          // A miss is now a real outcome rather than a reason to take whatever
+          // came back first: if neither source could find the title, the item
+          // is left exactly as it was and the row says what it nearly picked.
+          const found = await fetchMediaMatch(item.title, item.category);
+          if (!found.match) {
             skipped++;
             const err = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || "";
             if (err) lastErr = err;
-            markBulkItem(id, "skipped", err || "no match found");
+            markBulkItem(id, "skipped", found.closest
+              ? `no match for this title — closest was “${found.closest.title}”`
+              : (err || "no match found"));
           } else {
-            const r = results[0];
+            const r = found.match;
             const filled = [];
             // Same rule as the single-item sync: a field pinned in the item's
             // Advanced foldout is left exactly as it is.

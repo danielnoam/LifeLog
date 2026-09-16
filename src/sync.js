@@ -197,7 +197,12 @@
     if (!rawgKey || !window.LifeLogMedia) return null;
     try {
       const results = await window.LifeLogMedia.search(title, "rawg", { rawg: rawgKey });
-      return (results && results[0]) || null;
+      // pickMatch, not results[0]: this game's identity is already settled by
+      // its Steam App ID, and RAWG is only being asked to fill in a rating,
+      // length and year. Taking its top guess meant BioShock could quietly
+      // end up with BioShock Infinite's numbers — worse than having none,
+      // because nothing about the item then looks wrong.
+      return window.LifeLogMedia.pickMatch(results, title) || null;
     } catch (e) {
       return null;
     }

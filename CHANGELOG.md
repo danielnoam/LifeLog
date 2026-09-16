@@ -4,6 +4,37 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.152.0] - 2026-09-16
+
+### Fixed
+- **Auto-sync asked the second source only when the first found nothing —
+  which is almost never.** Ask RAWG for "BioShock" and it answers "BioShock
+  Infinite": not nothing, so the fallback source was never tried, even though
+  it had the actual game. Both sources are asked now unless the first returns
+  an exact title match.
+- **Auto-sync took the first result whether or not it was the thing you asked
+  for.** "BioShock" got BioShock Infinite's cover, rating and length;
+  "Metro 2033", which neither source has an exact entry for, got Metro 2033
+  Redux. A result is only accepted now if it is that title — the same title
+  once case, accents, punctuation, `&`/`and`, trademark symbols and
+  season/part markers are normalised away, or that title plus a subtitle
+  ("The Witcher 3" answered by "The Witcher 3: Wild Hunt"). Another bare word
+  after it is a different work and is refused.
+- **A title nothing matched is left alone instead of being filled in wrong.**
+  The bulk progress row says so and names what it nearly picked — *no match
+  for this title — closest was "BioShock Infinite"* — so you can go and set
+  it by hand rather than discovering months later that the cover is wrong.
+- **The Steam import's RAWG cross-fill had the same hazard.** A game already
+  identified by its Steam App ID was having RAWG's top guess-by-name supply
+  its rating, length and year. It now only takes a real title match. Some
+  imports will come back with less, which is the point: a missing rating
+  looks missing, a wrong one doesn't.
+- **`titleKey` turned a trademark symbol into letters.** Unicode NFKD
+  decomposes `™` into `TM`, so Steam's "BIOSHOCK™" normalised to "bioshocktm"
+  and matched nothing. Store names carry these constantly. Discover's
+  already-have check reads the same key, so it was hiding fewer duplicates
+  than it should have.
+
 ## [0.151.0] - 2026-09-15
 
 ### Added

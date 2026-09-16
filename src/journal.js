@@ -3,7 +3,7 @@
 // backlog modal), timeline entry bulk actions, achievements, category
 // management, and the entry sanitizer. Extracted from app.js; shared app
 // plumbing arrives via init(ctx). The shared media helpers (title suggestions,
-// fetchMediaSuggestions, makeMediaAcItem, sync-status/button visibility,
+// fetchMediaMatch, makeMediaAcItem, sync-status/button visibility,
 // setEntryCover) live here and are re-forwarded into backlog.js by app.js.
 (function () {
   // Shared app plumbing, provided by app.js via init(ctx).
@@ -341,19 +341,25 @@
       else if (source === "steam") { markBulkItem(id, "skipped", "Steam needs an App ID per item"); skipped++; }
       else {
         try {
-          // fetchMediaSuggestions swallows its own errors and returns [], so a
+          // fetchMediaMatch swallows its own errors and returns no match, so a
           // search that fails for a real reason (bad key, rate limit) arrives
-          // here as "no results" and is reported as a skip with getLastError()
-          // as the reason. The catch below is for the per-title detail calls,
-          // which do throw.
-          const results = await fetchMediaSuggestions(item.title, item.category);
-          if (!results.length) {
+          // here looking like "not found" and is reported as a skip with
+          // getLastError() as the reason. The catch below is for the per-title
+          // detail calls, which do throw.
+          //
+          // A miss is now a real outcome rather than a reason to take whatever
+          // came back first: if neither source could find the title, the item
+          // is left exactly as it was and the row says what it nearly picked.
+          const found = await fetchMediaMatch(item.title, item.category);
+          if (!found.match) {
             skipped++;
             const err = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || "";
             if (err) lastErr = err;
-            markBulkItem(id, "skipped", err || "no match found");
+            markBulkItem(id, "skipped", found.closest
+              ? `no match for this title — closest was “${found.closest.title}”`
+              : (err || "no match found"));
           } else {
-            const r = results[0];
+            const r = found.match;
             const filled = [];
             // Fields pinned in the entry's Advanced foldout are left alone.
             if (!isOverridden(item, "cover")) { item.coverUrl = r.coverUrl || ""; if (item.coverUrl) filled.push("cover"); }
@@ -934,22 +940,46 @@
     // A fallback set to the same source as the primary is nothing to fall back
     // to — searching it again would just repeat the request.
     const hasFallback = !!fallbackSource && fallbackSource !== source;
-    return { source, fallbackSource: hasFallback ? fallbackSource : "", trySource };
+    return { source, fallbackSource: hasFallback ? fallbackSource : "", trySource, stripped };
   }
 
-  // Looks up a category's media source for `title`, used by bulk sync and the
-  // background auto-checks, which just auto-take the first result. Only if the
-  // primary comes back completely empty does it fall back to the category's
-  // configured fallback — the fallback fills a gap, it never overrides a
-  // primary that found something.
-  async function fetchMediaSuggestions(title, category) {
+  // The automatic lookup — bulk sync and the background checks — which has to
+  // decide on its own, with nobody looking, which result to take.
+  //
+  // It used to ask the fallback source only when the primary returned
+  // *nothing*, then hand back the list for the caller to take [0] of. Both
+  // halves were wrong for the same reason: a search API always has an
+  // opinion. Ask RAWG for "BioShock" and it answers "BioShock Infinite" —
+  // which is not nothing, so the second source was never asked, and the
+  // caller then took the wrong game.
+  //
+  // So: both sources are asked unless the first one returns an exact title
+  // match, and the answer is a *match* or nothing at all. `closest` is only
+  // for saying what it nearly picked; it is never used as the pick.
+  async function fetchMediaMatch(title, category) {
     const search = mediaSearchFor(title, category);
-    if (!search) return [];
+    if (!search) return { match: null, closest: null, searched: [] };
+    // Matching runs on the suffix-stripped title for the same reason the
+    // search does: "BioShock (2007)" is asking about BioShock.
+    const q = search.stripped;
+    const rank = (r) => (r ? window.LifeLogMedia.matchRank(q, r.title) : 0);
+    const seen = [];
+    const searched = [search.source];
     try {
-      const results = await search.trySource(search.source);
-      if (results.length || !search.fallbackSource) return results;
-      return await search.trySource(search.fallbackSource);
-    } catch (e) { return []; }
+      const primary = await search.trySource(search.source);
+      seen.push(...primary);
+      let match = window.LifeLogMedia.pickMatch(primary, q);
+      if (rank(match) < 2 && search.fallbackSource) {
+        searched.push(search.fallbackSource);
+        const alt = await search.trySource(search.fallbackSource);
+        seen.push(...alt);
+        const altMatch = window.LifeLogMedia.pickMatch(alt, q);
+        if (rank(altMatch) > rank(match)) match = altMatch;
+      }
+      return { match: match || null, closest: seen[0] || null, searched };
+    } catch (e) {
+      return { match: null, closest: seen[0] || null, searched };
+    }
   }
 
   // The manual "🔄 Sync" button's lookup: both sources, so you can pick from
@@ -1631,7 +1661,7 @@
     titleSuggestions,
     backlogSuggestions,
     makeMediaAcItem,
-    fetchMediaSuggestions,
+    fetchMediaMatch,
     renderStreamedSuggestions,
     resolveMediaIdentity,
     updateSyncBtnVisibility,
