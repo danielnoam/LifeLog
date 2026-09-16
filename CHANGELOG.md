@@ -4,6 +4,28 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.155.0] - 2026-09-16
+
+### Added
+- **The Backlog's Dropped block folds away.** Its dashed separator is now the
+  bar you press: `▸ Dropped 3`, collapsed by default, opening to the struck-
+  through rows underneath. Dropped is by definition the part of the list you
+  have stopped caring about, and until you ask, a count is all it owes you.
+  Each category folds on its own, and the state is per session — collapsed is
+  where you come back to.
+
+### Changed
+- **A collapsed Dropped block isn't rendered, not hidden.** No nodes, no
+  cover requests, nothing for the reconciler to walk — a list you gave up on
+  shouldn't cost anything to not look at.
+- **A category whose items are all dropped still gets its bar.** The other
+  band separators only appear where a boundary is crossed; that rule would
+  have left such a category with no bar to press and its rows unreachable
+  once collapsed, so Dropped is emitted whenever the band has anything in it.
+- **Select-all in bulk mode now takes only the rows you can see.** With the
+  Dropped block shut it would otherwise tick items off-screen and then delete
+  them.
+
 ## [0.154.0] - 2026-09-16
 
 ### Added

@@ -1224,7 +1224,20 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .backlog-item-rich .ecat { align-self: flex-start; margin-top: 3px; flex-shrink: 0; }
 .backlog-item-rich .btn-sm { align-self: flex-start; flex-shrink: 0; }
 
-.backlog-dropped-sep, .backlog-priority-sep, .backlog-ea-sep, .backlog-upcoming-sep { border-top: 1px dashed var(--border); margin: 6px 2px; }
+.backlog-priority-sep, .backlog-ea-sep, .backlog-upcoming-sep { border-top: 1px dashed var(--border); margin: 6px 2px; }
+/* The Dropped band's separator is the bar you press to open it, so it is a
+   button wearing the same dashed rule — drawn as the two ::before/::after
+   halves either side of the label. */
+.backlog-dropped-toggle {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  background: none; border: 0; padding: 2px; margin: 6px 0 2px;
+  font: inherit; font-size: 12px; color: var(--text-faint); cursor: pointer;
+}
+.backlog-dropped-toggle::before, .backlog-dropped-toggle::after {
+  content: ""; flex: 1 1 auto; border-top: 1px dashed var(--border);
+}
+.backlog-dropped-toggle:hover, .backlog-dropped-toggle:focus-visible { color: var(--text-dim); }
+.backlog-dropped-toggle .bdt-label { flex: 0 0 auto; white-space: nowrap; }
 .entry.is-dropped, .backlog-item-rich.is-dropped { opacity: .55; }
 .entry.is-dropped .etitle, .backlog-item-rich.is-dropped .bl-title { text-decoration: line-through; }
 

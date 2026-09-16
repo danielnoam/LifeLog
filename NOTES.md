@@ -16,6 +16,27 @@ what was decided against and why.
 
 ---
 
+- **the Dropped band is the one separator that can't be a boundary marker
+  (0.155.0).** The backlog's dashed rules are emitted on a band *transition*:
+  walk the sorted rows, and whenever the band changes, push a separator named
+  for the band being entered. That is exactly right for a rule whose job is
+  to say "a different kind of thing starts here", and exactly wrong for a bar
+  that has to be pressable — a category holding nothing but dropped items
+  crosses no boundary, so it would get no bar, and collapsing would strand
+  its rows with no way back. Dropped is now split out of the walk and emitted
+  whenever the band is non-empty.
+
+  Collapsed means the rows aren't in the keyed part list at all, rather than
+  rendered and hidden. Cheaper, and it keeps the reconciler honest: a row
+  that isn't in the list is a row whose cover was never fetched.
+
+  The knock-on was bulk mode. A per-category select-all handed
+  `toggleBulkCategoryAll` every item in the category, which with the block
+  shut meant ticking rows you can't see and then deleting them on the next
+  button. It takes the visible set now. Worth remembering as a shape: any
+  time a list learns to hide part of itself, every "all" in that list has to
+  be re-read as "all of what, exactly".
+
 - **what an import can fill is decided by what the dup check matched on
   (0.154.0).** Extending update rows past the backlog turned out to be less
   about writing code than about answering one question per kind: given that

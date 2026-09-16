@@ -449,7 +449,10 @@
   // between them: you can start it today, so it doesn't belong down with
   // things that don't exist yet, but it isn't the game it's going to be, so
   // it shouldn't sit among the finished ones you could just play.
-  const BAND_SEPARATORS = ["", "backlog-priority-sep", "backlog-ea-sep", "backlog-upcoming-sep", "backlog-dropped-sep"];
+  // Band 4's slot is empty: dropped renders a collapse button instead of a
+  // rule (see createDroppedToggle), and it is the one band whose separator
+  // has to exist even with no boundary crossed into it.
+  const BAND_SEPARATORS = ["", "backlog-priority-sep", "backlog-ea-sep", "backlog-upcoming-sep", ""];
   const RELEASE_STATE_BAND = { ready: 1, "early-access": 2, waiting: 3 };
   function bandOf(b) {
     if (b.dropped) return 4;
@@ -1701,12 +1704,17 @@
       const section = el("div", "backlog-section");
       const head = el("div", "backlog-section-head");
       if (state.bulk.active) {
-        const allSelected = catItems.every((b) => state.bulk.selected.has(b.id));
+        // Only what's on screen: with the Dropped block collapsed, a
+        // select-all over every item in the category would tick rows you
+        // can't see and then delete them.
+        const selectable = state.droppedOpen.has(catName)
+          ? catItems : catItems.filter((b) => !b.dropped);
+        const allSelected = selectable.length > 0 && selectable.every((b) => state.bulk.selected.has(b.id));
         const cb = document.createElement("input");
         cb.type = "checkbox"; cb.className = "bulk-check"; cb.checked = allSelected;
-        cb.indeterminate = !allSelected && catItems.some((b) => state.bulk.selected.has(b.id));
+        cb.indeterminate = !allSelected && selectable.some((b) => state.bulk.selected.has(b.id));
         cb.title = "Select all in " + catName;
-        cb.onclick = (ev) => { ev.stopPropagation(); toggleBulkCategoryAll(catItems); };
+        cb.onclick = (ev) => { ev.stopPropagation(); toggleBulkCategoryAll(selectable); };
         head.appendChild(cb);
       }
       // Dot and name in one box so the header can wrap the count onto a
@@ -1736,6 +1744,14 @@
         keepBody: true,
         build: (body) => {
           const sorted = catItems.slice().sort(compareBacklog);
+          // Dropped is split out rather than walked with the rest: its
+          // separator is the only one that has to exist even when no band
+          // boundary was crossed (a category with nothing BUT dropped items
+          // would otherwise have no bar to press, and its rows would be
+          // unreachable once collapsed).
+          const dropped = sorted.filter((b) => b.dropped);
+          const kept = sorted.filter((b) => !b.dropped);
+          const open = state.droppedOpen.has(catName);
           // One dashed separator per boundary the category actually has —
           // named for the band being entered, so a list missing a band in
           // the middle still reads correctly.
@@ -1747,13 +1763,19 @@
           // across a band (star something, and it does).
           const parts = [];
           let lastBand = -1;
-          for (const b of sorted) {
+          for (const b of kept) {
             const band = bandOf(b);
             if (lastBand !== -1 && band !== lastBand) {
               parts.push({ key: "sep-" + band, kind: "sep", cls: BAND_SEPARATORS[band] });
             }
             lastBand = band;
             parts.push({ key: b.id, kind: "row", item: b });
+          }
+          if (dropped.length) {
+            parts.push({ key: "sep-4", kind: "drop", n: dropped.length, open });
+            // Collapsed means not built at all, not hidden: a row you have
+            // given up on shouldn't cost a node or a cover request.
+            if (open) for (const b of dropped) parts.push({ key: b.id, kind: "row", item: b });
           }
           const shape = rowShapeFor("entries");
           reconcile(body, parts, {
@@ -1762,11 +1784,16 @@
             // it goes the other way. This is where that reads as movement.
             animate: true,
             keyOf: (part) => part.key,
-            create: (part) => (part.kind === "sep"
-              ? el("div", part.cls)
-              : createBacklogRow(part.item.id, shape)),
+            create: (part) => {
+              if (part.kind === "drop") return createDroppedToggle(catName);
+              if (part.kind === "sep") return el("div", part.cls);
+              return createBacklogRow(part.item.id, shape);
+            },
             // A separator's class is fixed by its key, so it never needs one.
-            update: (node, part) => { if (part.kind === "row") adopt(node, backlogRow(part.item)); },
+            update: (node, part) => {
+              if (part.kind === "row") adopt(node, backlogRow(part.item));
+              else if (part.kind === "drop") fillDroppedToggle(node, part.n, part.open);
+            },
           });
           // Scoped to just this category's items — the old single call over
           // everything patched .bl-price spans that, under lazy sections,
@@ -1787,6 +1814,38 @@
         onSync: bulkSyncSelected,
       }));
     }
+  }
+
+  // The Dropped band's separator is a button: the block is collapsed by
+  // default, since dropped is by definition the part of the list you have
+  // stopped caring about, and a count on the bar is all it owes you until
+  // you ask.
+  //
+  // The category is read off the node at click time rather than captured.
+  // adopt() carries attributes across a refill but not properties, and a
+  // captured name is exactly the stale-handler trap NOTES.md describes — a
+  // dataset value survives, a closure variable is one refactor from not.
+  function createDroppedToggle(catName) {
+    const btn = el("button", "backlog-dropped-toggle");
+    btn.type = "button";
+    btn.dataset.cat = catName;
+    btn.appendChild(el("span", "bdt-label"));
+    btn.onclick = (ev) => {
+      ev.stopPropagation();
+      const cat = btn.dataset.cat;
+      if (state.droppedOpen.has(cat)) state.droppedOpen.delete(cat);
+      else state.droppedOpen.add(cat);
+      render();
+    };
+    return btn;
+  }
+
+  function fillDroppedToggle(node, n, open) {
+    node.classList.toggle("is-open", open);
+    node.setAttribute("aria-expanded", open ? "true" : "false");
+    node.title = open ? "Hide dropped" : "Show dropped";
+    const label = node.querySelector(".bdt-label");
+    if (label) label.textContent = `${open ? "\u25be" : "\u25b8"} Dropped ${n}`;
   }
 
   // The row's *contents*. Its click and long-press live in createBacklogRow —
