@@ -1902,6 +1902,11 @@
       else if (source === "steam") { markBulkItem(id, "skipped", "Steam needs an App ID per item"); skipped++; }
       else {
         try {
+          // fetchMediaSuggestions swallows its own errors and returns [], so a
+          // search that fails for a real reason (bad key, rate limit) arrives
+          // here as "no results" and is reported as a skip with getLastError()
+          // as the reason. The catch below is for the per-title detail calls,
+          // which do throw.
           const results = await fetchMediaSuggestions(item.title, item.category);
           if (!results.length) {
             skipped++;
