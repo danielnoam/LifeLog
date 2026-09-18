@@ -24,7 +24,7 @@
   // object, so a default declared here is the only one there is — a `||` at
   // the read site is a second copy that can drift from it.
   // maxWidth 0 = stretch.
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, ledgerMonthSummary: "show", timelineMonthSummary: "hide" };
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, ledgerMonthSummary: "show", timelineMonthSummary: "hide", backlogBandFold: "open" };
   // Every option is a complete statement about the whole list — "Largest
   // first", not "Amount" plus a direction toggle somewhere else. The control
   // that replaced monthOrder said one thing on its face ("↑ Oldest first")
@@ -108,7 +108,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.157.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.158.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -283,11 +283,12 @@
     // for Notes, the two things you write yourself.
     notesMode: "notes",
     financeActiveProjects: new Set(),
-    // Backlog categories whose Dropped block is open. In memory rather than
-    // in saveUiState on purpose: dropped is the band you have stopped caring
-    // about, so "collapsed" is the right state to come back to, and an
-    // expansion is a look rather than a preference.
-    droppedOpen: new Set(),
+    // Which foldable backlog bands are open, keyed "<category>|<band>". In
+    // memory rather than in saveUiState on purpose: a fold is a look, not a
+    // preference — the preference is the setting that decides what a band
+    // starts as (visual.backlogBandFold), and coming back should honour that
+    // rather than whatever you happened to leave open.
+    bandOpen: new Set(),
     timelineMode: "entries",
     financeMode: "entries",
     search: "",

@@ -449,10 +449,53 @@
   // between them: you can start it today, so it doesn't belong down with
   // things that don't exist yet, but it isn't the game it's going to be, so
   // it shouldn't sit among the finished ones you could just play.
-  // Band 4's slot is empty: dropped renders a collapse button instead of a
-  // rule (see createDroppedToggle), and it is the one band whose separator
-  // has to exist even with no boundary crossed into it.
-  const BAND_SEPARATORS = ["", "backlog-priority-sep", "backlog-ea-sep", "backlog-upcoming-sep", ""];
+  // Bands 2-4 have empty slots: each renders a collapse button instead of a
+  // rule (see createBandToggle), and each has to exist even with no boundary
+  // crossed into it — a category holding nothing but unreleased items still
+  // needs a bar to press, or its rows are unreachable once collapsed.
+  const BAND_SEPARATORS = ["", "backlog-priority-sep", "", "", ""];
+
+  // The three set-aside bands, in the order they appear. Dropped is the one
+  // you gave up on; the other two you are waiting on, which is why the
+  // setting below governs those two and dropped keeps its own rule.
+  const FOLD_BANDS = [
+    { band: 2, label: "Early Access", cls: "backlog-ea-sep" },
+    { band: 3, label: "Unreleased", cls: "backlog-upcoming-sep" },
+    { band: 4, label: "Dropped", cls: "backlog-dropped-sep" },
+  ];
+
+  // "always" leaves Early Access and Unreleased as plain rules, the way they
+  // were before 0.158.0; "collapsed" and "open" make them foldable and decide
+  // which state they start in. Dropped is deliberately outside this: it has
+  // been foldable and collapsed since 0.155.0, and "always open" would undo
+  // the thing that block exists for.
+  const FOLD_BAND_SET = new Set(FOLD_BANDS.map((f) => f.band));
+  const bandFoldMode = () => state.visual.backlogBandFold || "open";
+  // Starred and ready are never foldable — they are the list. Without the
+  // set check every band would answer "foldable" here, and the select-all
+  // that asks bandIsOpen would start skipping visible rows.
+  const bandFoldable = (band) => FOLD_BAND_SET.has(band) && (band === 4 || bandFoldMode() !== "always");
+  const bandStartsOpen = (band) => (band === 4 ? false : bandFoldMode() !== "collapsed");
+  const bandKey = (catName, band) => catName + "|" + band;
+
+  // A band's open state is "whatever you last set it to, else what the
+  // setting says it starts as". Stored as the *exception* rather than the
+  // truth, so changing the setting moves every band you have not touched.
+  function bandIsOpen(catName, band) {
+    if (!bandFoldable(band)) return true;
+    const key = bandKey(catName, band);
+    if (state.bandOpen.has(key + "|on")) return true;
+    if (state.bandOpen.has(key + "|off")) return false;
+    return bandStartsOpen(band);
+  }
+
+  function toggleBand(catName, band) {
+    const key = bandKey(catName, band);
+    const open = bandIsOpen(catName, band);
+    state.bandOpen.delete(key + "|on");
+    state.bandOpen.delete(key + "|off");
+    state.bandOpen.add(key + (open ? "|off" : "|on"));
+  }
   const RELEASE_STATE_BAND = { ready: 1, "early-access": 2, waiting: 3 };
   function bandOf(b) {
     if (b.dropped) return 4;
@@ -1760,11 +1803,10 @@
       const section = el("div", "backlog-section");
       const head = el("div", "backlog-section-head");
       if (state.bulk.active) {
-        // Only what's on screen: with the Dropped block collapsed, a
-        // select-all over every item in the category would tick rows you
-        // can't see and then delete them.
-        const selectable = state.droppedOpen.has(catName)
-          ? catItems : catItems.filter((b) => !b.dropped);
+        // Only what's on screen: with a band folded away, a select-all over
+        // every item in the category would tick rows you can't see and then
+        // delete them.
+        const selectable = catItems.filter((b) => bandIsOpen(catName, bandOf(b)));
         const allSelected = selectable.length > 0 && selectable.every((b) => state.bulk.selected.has(b.id));
         const cb = document.createElement("input");
         cb.type = "checkbox"; cb.className = "bulk-check"; cb.checked = allSelected;
@@ -1805,12 +1847,20 @@
           // boundary was crossed (a category with nothing BUT dropped items
           // would otherwise have no bar to press, and its rows would be
           // unreachable once collapsed).
-          const dropped = sorted.filter((b) => b.dropped);
-          const kept = sorted.filter((b) => !b.dropped);
-          const open = state.droppedOpen.has(catName);
-          // One dashed separator per boundary the category actually has —
-          // named for the band being entered, so a list missing a band in
-          // the middle still reads correctly.
+          // The foldable bands are split out of the walk below rather than
+          // handled by it: their separators have to exist even when no band
+          // boundary was crossed into them (a category with nothing BUT
+          // unreleased items would otherwise have no bar to press, and its
+          // rows would be unreachable once collapsed).
+          const folded = new Map(FOLD_BANDS.map((f) => [f.band, []]));
+          const plain = [];
+          for (const b of sorted) {
+            const list = folded.get(bandOf(b));
+            (list || plain).push(b);
+          }
+          // One dashed separator per boundary the unfoldable part actually
+          // has — named for the band being entered, so a list missing a band
+          // in the middle still reads correctly.
           //
           // The separators ride in the same keyed list as the rows, under a
           // key naming the band they open. Bands are ordered and a boundary
@@ -1819,7 +1869,7 @@
           // across a band (star something, and it does).
           const parts = [];
           let lastBand = -1;
-          for (const b of kept) {
+          for (const b of plain) {
             const band = bandOf(b);
             if (lastBand !== -1 && band !== lastBand) {
               parts.push({ key: "sep-" + band, kind: "sep", cls: BAND_SEPARATORS[band] });
@@ -1827,11 +1877,21 @@
             lastBand = band;
             parts.push({ key: b.id, kind: "row", item: b });
           }
-          if (dropped.length) {
-            parts.push({ key: "sep-4", kind: "drop", n: dropped.length, open });
-            // Collapsed means not built at all, not hidden: a row you have
-            // given up on shouldn't cost a node or a cover request.
-            if (open) for (const b of dropped) parts.push({ key: b.id, kind: "row", item: b });
+          for (const f of FOLD_BANDS) {
+            const items = folded.get(f.band);
+            if (!items.length) continue;
+            const foldable = bandFoldable(f.band);
+            const open = bandIsOpen(catName, f.band);
+            // The key encodes the kind, not just the band: reconcile only
+            // calls create() for a key it has not seen, so a bar and a rule
+            // sharing "sep-3" meant switching the setting reused whichever
+            // node was already there and update() quietly did nothing to it.
+            parts.push(foldable
+              ? { key: "fold-" + f.band, kind: "fold", band: f.band, label: f.label, n: items.length, open }
+              : { key: "sep-" + f.band, kind: "sep", cls: f.cls });
+            // Collapsed means not built at all, not hidden: a band you have
+            // folded away shouldn't cost a node or a cover request.
+            if (open) for (const b of items) parts.push({ key: b.id, kind: "row", item: b });
           }
           const shape = rowShapeFor("entries");
           reconcile(body, parts, {
@@ -1841,14 +1901,15 @@
             animate: true,
             keyOf: (part) => part.key,
             create: (part) => {
-              if (part.kind === "drop") return createDroppedToggle(catName);
+              if (part.kind === "fold") return createBandToggle(catName, part.band);
               if (part.kind === "sep") return el("div", part.cls);
               return createBacklogRow(part.item.id, shape);
             },
-            // A separator's class is fixed by its key, so it never needs one.
+            // A plain separator's class is fixed by its key, so it never
+            // needs one. A fold bar's label and count do change.
             update: (node, part) => {
               if (part.kind === "row") adopt(node, backlogRow(part.item));
-              else if (part.kind === "drop") fillDroppedToggle(node, part.n, part.open);
+              else if (part.kind === "fold") fillBandToggle(node, part.label, part.n, part.open);
             },
           });
           // Scoped to just this category's items — the old single call over
@@ -1872,36 +1933,33 @@
     }
   }
 
-  // The Dropped band's separator is a button: the block is collapsed by
-  // default, since dropped is by definition the part of the list you have
-  // stopped caring about, and a count on the bar is all it owes you until
-  // you ask.
+  // A set-aside band's separator is a button, so the block behind it can be
+  // folded away and a count on the bar is all it owes you until you ask.
   //
-  // The category is read off the node at click time rather than captured.
-  // adopt() carries attributes across a refill but not properties, and a
-  // captured name is exactly the stale-handler trap NOTES.md describes — a
-  // dataset value survives, a closure variable is one refactor from not.
-  function createDroppedToggle(catName) {
+  // The category and band are read off the node at click time rather than
+  // captured. adopt() carries attributes across a refill but not properties,
+  // and a captured name is exactly the stale-handler trap NOTES.md describes
+  // — a dataset value survives, a closure variable is one refactor from not.
+  function createBandToggle(catName, band) {
     const btn = el("button", "backlog-dropped-toggle");
     btn.type = "button";
     btn.dataset.cat = catName;
+    btn.dataset.band = String(band);
     btn.appendChild(el("span", "bdt-label"));
     btn.onclick = (ev) => {
       ev.stopPropagation();
-      const cat = btn.dataset.cat;
-      if (state.droppedOpen.has(cat)) state.droppedOpen.delete(cat);
-      else state.droppedOpen.add(cat);
+      toggleBand(btn.dataset.cat, +btn.dataset.band);
       render();
     };
     return btn;
   }
 
-  function fillDroppedToggle(node, n, open) {
+  function fillBandToggle(node, label, n, open) {
     node.classList.toggle("is-open", open);
     node.setAttribute("aria-expanded", open ? "true" : "false");
-    node.title = open ? "Hide dropped" : "Show dropped";
-    const label = node.querySelector(".bdt-label");
-    if (label) label.textContent = `${open ? "\u25be" : "\u25b8"} Dropped ${n}`;
+    node.title = (open ? "Hide " : "Show ") + label.toLowerCase();
+    const lbl = node.querySelector(".bdt-label");
+    if (lbl) lbl.textContent = `${open ? "\u25be" : "\u25b8"} ${label} ${n}`;
   }
 
   // The row's *contents*. Its click and long-press live in createBacklogRow —

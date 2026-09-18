@@ -4,6 +4,37 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.158.0] - 2026-09-18
+
+### Added
+- **Early Access and Unreleased fold away like Dropped**, behind a bar
+  reading *▸ Unreleased 12*. They start open, so nothing disappears until you
+  ask. The separators above those bands were blank rules before; they name
+  and count their band now whether you fold it or not.
+- **Settings → Backlog set-aside bands**, with three choices: *Foldable,
+  start open* (the new default), *Foldable, start folded*, and *Always open*
+  — which puts Early Access and Unreleased back to the plain rules they were
+  before this release.
+- **Dropped stays outside that setting.** It has been foldable and
+  collapsed-by-default since 0.155.0, and "always open" would undo the thing
+  that block exists for. The other two are bands you are waiting on; dropped
+  is the one you gave up on.
+
+### Changed
+- **A fold you set by hand is a look, not a preference.** It lives in memory,
+  so a reload puts every band back to what the setting says it starts as.
+  Changing the setting clears them too — they are stored as exceptions to it,
+  so a band you had opened would otherwise ignore the new choice.
+- **Select-all in bulk mode follows every fold, not just Dropped's.** It asks
+  each row's band whether it is currently showing, rather than testing one
+  band by name.
+
+### Fixed
+- **Switching to "Always open" left the fold bars on screen.** The bar and the
+  plain rule shared a key (`sep-3`), and reconcile only calls `create()` for a
+  key it hasn't seen — so it reused whichever node was already there and the
+  update pass quietly did nothing to it. The key encodes the node's kind now.
+
 ## [0.157.0] - 2026-09-18
 
 ### Added

@@ -16,6 +16,26 @@ what was decided against and why.
 
 ---
 
+- **two node types under one reconcile key (0.158.0).** The fold bar and the
+  plain dashed rule for a band were both pushed as `sep-<band>`, on the
+  reasoning that they occupy the same slot. They do — but `create()` only
+  runs for a key reconcile has not seen, so switching the setting from
+  foldable to always-open reused the existing `<button>` and the update pass,
+  which only knew how to fill a bar, silently left it there. The list said
+  "always open" and showed three collapsed bars.
+
+  The rule: a key identifies a *node*, not a position. Two things that would
+  need different `create()` calls need different keys, however alike their
+  places in the list look.
+
+- **a fold is a look; the setting is the preference (0.158.0).** Per-category
+  fold state is held in memory and cleared on reload and whenever the setting
+  changes, and it is stored as an *exception* ("this one was opened") rather
+  than as the truth ("this one is open"). Storing the truth would mean a band
+  you once touched ignoring every later change to the setting, which is the
+  bug where a preference silently stops applying to the parts you have
+  interacted with most.
+
 - **a control that labels the action and a tooltip that labels the state
   (0.157.0).** The Timeline's order button read "↑ Oldest first" while
   showing newest-first, and its tooltip read "Showing newest month first —

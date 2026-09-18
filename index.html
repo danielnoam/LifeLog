@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.157.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.158.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -1110,6 +1110,18 @@
       </section>
 
       <section class="settings-section">
+        <h3>Backlog set-aside bands</h3>
+        <p class="hint">Whether the Early Access and Unreleased blocks at the end of a backlog category can be folded away behind a bar reading <em>▸ Unreleased 12</em>, and what they start as. A folded block isn't rendered at all, so a long shelf of things you're waiting on costs nothing to scroll past. Dropped always folds and always starts closed, whatever this says (this device only).</p>
+        <label>Early Access and Unreleased
+          <select id="backlogBandFold">
+            <option value="open">Foldable, start open</option>
+            <option value="collapsed">Foldable, start folded</option>
+            <option value="always">Always open</option>
+          </select>
+        </label>
+      </section>
+
+      <section class="settings-section">
         <h3>Backlog descriptions</h3>
         <p class="hint">Whether the description a sync pulled in shows under each row in the backlog list. Hiding it doesn't delete anything — open the item and it's still there (this device only).</p>
         <label>Descriptions in the list
@@ -1349,20 +1361,20 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.157.0"></script>
-  <script defer src="src/qr.js?v=0.157.0"></script>
-  <script defer src="src/media.js?v=0.157.0"></script>
-  <script defer src="src/merge.js?v=0.157.0"></script>
-  <script defer src="src/storage.js?v=0.157.0"></script>
-  <script defer src="src/finance.js?v=0.157.0"></script>
-  <script defer src="src/settings.js?v=0.157.0"></script>
-  <script defer src="src/wheel.js?v=0.157.0"></script>
-  <script defer src="src/backlog.js?v=0.157.0"></script>
-  <script defer src="src/journal.js?v=0.157.0"></script>
-  <script defer src="src/notes.js?v=0.157.0"></script>
-  <script defer src="src/todos.js?v=0.157.0"></script>
-  <script defer src="src/io.js?v=0.157.0"></script>
-  <script defer src="src/sync.js?v=0.157.0"></script>
-  <script defer src="src/app.js?v=0.157.0"></script>
+  <script defer src="src/reconcile.js?v=0.158.0"></script>
+  <script defer src="src/qr.js?v=0.158.0"></script>
+  <script defer src="src/media.js?v=0.158.0"></script>
+  <script defer src="src/merge.js?v=0.158.0"></script>
+  <script defer src="src/storage.js?v=0.158.0"></script>
+  <script defer src="src/finance.js?v=0.158.0"></script>
+  <script defer src="src/settings.js?v=0.158.0"></script>
+  <script defer src="src/wheel.js?v=0.158.0"></script>
+  <script defer src="src/backlog.js?v=0.158.0"></script>
+  <script defer src="src/journal.js?v=0.158.0"></script>
+  <script defer src="src/notes.js?v=0.158.0"></script>
+  <script defer src="src/todos.js?v=0.158.0"></script>
+  <script defer src="src/io.js?v=0.158.0"></script>
+  <script defer src="src/sync.js?v=0.158.0"></script>
+  <script defer src="src/app.js?v=0.158.0"></script>
 </body>
 </html>
