@@ -160,6 +160,33 @@ input:focus-visible, select:focus-visible, textarea:focus-visible {
   border-radius: 4px;
 }
 
+/* Pressables, app-wide. Every browser draws its own highlight rect over a
+   tapped control — a translucent blue-grey block that ignores the control's
+   shape — and a press that lingers on one starts selecting its label instead
+   of activating it. Four places had been fixed by hand (the tabs, the jump
+   arrows, backlog rows, note cards); an audit across every view and modal
+   found 105 more, which is to say all of them. One rule instead.
+   `.tab` is in the list although its own rule already covers it, so the
+   next pressable added near one inherits the right thing by default.
+   Anything outside <button> is here because this app uses it as a button. */
+button, [role="button"], summary,
+.tab, .cat-chip, .chip-edit, .filter-label, .toggle-label {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none; user-select: none;
+}
+/* user-select inherits, and several of those labels wrap a real field. */
+input, textarea, select { -webkit-user-select: auto; user-select: auto; }
+
+/* Removing the highlight removes the only press feedback touch had: before
+   this the app owned exactly one :active rule in ~2000 lines, so without a
+   replacement every tap would go dead. Transient, so unlike a row's *state*
+   it is fine on opacity (see NOTES.md on .ll-enter owning that property) —
+   nothing animates for the length of a press.
+   :disabled is excluded: a button that can't act shouldn't answer. */
+button:active:not(:disabled), [role="button"]:active, summary:active,
+.tab:active, .cat-chip:active, .chip-edit:active,
+.filter-label:active, .toggle-label:active { opacity: .6; }
 html, body {
   margin: 0;
   background: var(--bg);
@@ -736,11 +763,19 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .proj-group-head .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 .proj-group-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.proj-group-edit {
+.proj-group-edit, .proj-group-add {
   appearance: none; background: none; border: 0; cursor: pointer; font: inherit;
   color: var(--text-faint); padding: 0 2px; line-height: 1; flex: 0 0 auto;
 }
-.proj-group-edit:hover { color: var(--accent); }
+.proj-group-edit:hover, .proj-group-add:hover { color: var(--accent); }
+/* Sized and ringed like a month card's +, since it does the same job one
+   level down, but on the pill's own tint rather than the card's surface. */
+.proj-group-add {
+  width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--proj-edge, var(--border));
+  display: flex; align-items: center; justify-content: center;
+  padding: 0; font-size: 13px; color: var(--text-dim);
+}
+.proj-group-add:hover { border-color: var(--accent); }
 .proj-group-list { padding: 2px; }
 /* Rows inside a pill drop their own hover plate — the pill is already a
    surface, and a second one on top of it reads as a box in a box. */
@@ -1870,6 +1905,7 @@ kbd {
   html:not(.force-pc) .update-bar { bottom: var(--bottombar-h, 88px); }
   html:not(.force-pc) .bulk-bar { bottom: var(--bottombar-h, 88px); flex-wrap: wrap; }
   html:not(.force-pc) .month-add-btn { width: 20px; height: 20px; font-size: 14px; }
+  html:not(.force-pc) .proj-group-add { width: 20px; height: 20px; font-size: 14px; }
   /* Both gestures the bar carries are the app's: the sideways tab swipe and
      the upward slide through a mode fan. pan-y would hand the second one to
      the browser as a scroll. */
@@ -1961,6 +1997,7 @@ html.force-mobile .toast { bottom: var(--bottombar-h, 88px); }
 html.force-mobile .update-bar { bottom: var(--bottombar-h, 88px); }
 html.force-mobile .bulk-bar { bottom: var(--bottombar-h, 88px); flex-wrap: wrap; }
 html.force-mobile .month-add-btn { width: 20px; height: 20px; font-size: 14px; }
+html.force-mobile .proj-group-add { width: 20px; height: 20px; font-size: 14px; }
 html.force-mobile .views { touch-action: none; }
 
 html.force-mobile .year-head { position: sticky; top: var(--topbar-h, 0px); z-index: 6; background: var(--bg); }

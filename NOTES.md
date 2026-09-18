@@ -16,6 +16,26 @@ what was decided against and why.
 
 ---
 
+- **suppressing a tap highlight is only half a fix (0.156.0).** The blue rect
+  a browser paints over a tapped control is ugly and it was on all 105
+  pressables in the app — but it is also, on touch, the *only* thing telling
+  you the press registered. Grepping for `:active` found exactly one rule in
+  the whole stylesheet, on the wheel hub. Removing the highlight on its own
+  would have traded an ugly response for no response, which is the worse of
+  the two. The rule that suppresses it adds a press state in the same breath.
+
+  `opacity` is fine for that state even though 0.155.1's lesson was that
+  `.ll-enter` owns opacity: a press is transient and nothing is animating for
+  its duration. The rule from that entry is about *state that must stay
+  visible*, not about every use of the property.
+
+  The audit is worth keeping as a shape: rather than grep the CSS, walk every
+  view and every modal in a real browser and read `getComputedStyle` for
+  `-webkit-tap-highlight-color` and `user-select` on everything matching a
+  pressable selector. Grep would have found the four hand-fixed spots and
+  told me nothing about the other 105, because the absence of a declaration
+  is what was wrong.
+
 - **a CSS animation outranks the declaration it collides with (0.155.1).**
   Dimming a dropped row with `opacity: .55` looked correct in every static
   screenshot and was wrong in motion: `.ll-enter` animates opacity 0 → 1, and

@@ -726,6 +726,15 @@
     const name = el("span", "proj-group-name", project);
     name.title = project;
     fresh.appendChild(name);
+    // Straight into a new expense already on this project, the way a month
+    // card's + opens one already on that month. A trip is entered as a run of
+    // small expenses, so the shortest path from "I just paid for something"
+    // to a saved row is the button that matters most on this header.
+    const add = el("button", "proj-group-add", "+");
+    add.type = "button";
+    add.title = "Add an expense to " + project;
+    add.setAttribute("aria-label", add.title);
+    fresh.appendChild(add);
     // Opens the project itself, not the expense — the head names the group,
     // so tapping it is how you rename or recolour it.
     const edit = el("button", "proj-group-edit", "✎");
@@ -735,12 +744,29 @@
     fresh.appendChild(edit);
     adopt(head, fresh);
     // Bound after adopt: adopt() carries attributes, not properties, so a
-    // handler set on a child that gets replaced goes with it. The button is
-    // re-created every refill, so it is wired every refill.
+    // handler set on a child that gets replaced goes with it. The buttons are
+    // re-created every refill, so they are wired every refill.
     head.querySelector(".proj-group-edit").onclick = (ev) => {
       ev.stopPropagation();
       const p = projectByName(project);
       if (p) openProjectModal(p);
+    };
+    // The date comes from the month this pill is sitting in rather than
+    // today: adding to a June trip from the June card should land in June.
+    // openFinanceModal wants { year, month } — handing it the run's raw
+    // "2026-06-04" produced an invalid date the input silently dropped —
+    // and from there it behaves exactly like a month card's +, i.e. today
+    // when the month is the current one and the 1st otherwise.
+    head.querySelector(".proj-group-add").onclick = (ev) => {
+      ev.stopPropagation();
+      const first = (items[0] && items[0].date) || "";
+      const m = /^(\d{4})-(\d{2})/.exec(first);
+      openFinanceModal(null, m ? { year: +m[1], month: +m[2] } : undefined);
+      fillProjectSelect($("#finProject"), project);
+      // Re-run the currency offer now the project is set: fillProjectSelect
+      // only changes the dropdown, and a new expense inherits its project's
+      // currency from the same place the dropdown's own change handler does.
+      $("#finProject").dispatchEvent(new Event("change", { bubbles: true }));
     };
 
     reconcile(list, items, {

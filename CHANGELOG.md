@@ -4,6 +4,28 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.156.0] - 2026-09-18
+
+### Added
+- **A + on every project pill in the Ledger, next to its ✎.** It opens the
+  add form already on that project, dated into the month the pill is sitting
+  in and carrying the project's currency, so a trip's next expense is one tap
+  and an amount. A trip is entered as a run of small expenses, which makes
+  this the button that matters most on that header.
+
+### Fixed
+- **Every button in the app drew the browser's blue tap-highlight rect, and
+  its label could be selected instead of pressed.** 0.155.1 fixed the Dropped
+  bar; an audit across all nine views and every modal found 105 more — which
+  is to say all of them. One rule covers `button`, `[role=button]`,
+  `summary`, and the spans and labels this app uses as buttons. Text fields
+  keep their own selection.
+- **Taps now have visible feedback.** Removing the highlight removes the only
+  press response touch had: before this the app owned exactly one `:active`
+  rule in ~2000 lines of CSS, so suppressing the highlight alone would have
+  made every button feel dead. Pressing one now dims it while held, and a
+  disabled button stays put.
+
 ## [0.155.1] - 2026-09-16
 
 ### Fixed
