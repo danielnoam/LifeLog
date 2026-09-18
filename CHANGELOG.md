@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.159.0] - 2026-09-18
+
+### Changed
+- **Dropped follows the same setting as the other two**, so it can now be
+  always-open or start open — neither of which it could be before.
+- **Each band has its own setting** rather than one covering all three:
+  Early Access, Unreleased and Dropped are set aside for three different
+  reasons — not out yet, out but unfinished, given up on — and which of them
+  you want hidden isn't one question. Defaults are unchanged in effect: the
+  first two start open, Dropped starts folded.
+- **0.158.0's single `backlogBandFold` is migrated into the two bands it
+  covered and deleted**, rather than left as a third answer to a question two
+  other keys now settle.
+
 ## [0.158.0] - 2026-09-18
 
 ### Added

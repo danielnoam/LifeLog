@@ -19,7 +19,8 @@
     renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId,
-    backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS;
+    backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
+    DEFAULT_SETTINGS, DEFAULT_VISUAL;
 
   // Looked up at call time rather than captured: this file is required by the
   // Node tests, which have no DOM and never render.
@@ -37,7 +38,8 @@
       renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId,
-      backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS } = ctx);
+      backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
+      DEFAULT_SETTINGS, DEFAULT_VISUAL } = ctx);
   }
 
   // Coarse "N days/months/years ago" for the backlog edit modal's aging line.
@@ -455,27 +457,30 @@
   // needs a bar to press, or its rows are unreachable once collapsed.
   const BAND_SEPARATORS = ["", "backlog-priority-sep", "", "", ""];
 
-  // The three set-aside bands, in the order they appear. Dropped is the one
-  // you gave up on; the other two you are waiting on, which is why the
-  // setting below governs those two and dropped keeps its own rule.
+  // The three set-aside bands, in the order they appear, each with the
+  // setting that decides how it folds. One per band rather than one for all
+  // three: they are set aside for three different reasons — not out yet,
+  // out but unfinished, given up on — and which of those you want hidden is
+  // not one question.
+  //
+  // Each setting is "always" (a plain rule, never folds), "open" (foldable,
+  // starts open) or "collapsed" (foldable, starts folded).
   const FOLD_BANDS = [
-    { band: 2, label: "Early Access", cls: "backlog-ea-sep" },
-    { band: 3, label: "Unreleased", cls: "backlog-upcoming-sep" },
-    { band: 4, label: "Dropped", cls: "backlog-dropped-sep" },
+    { band: 2, label: "Early Access", cls: "backlog-ea-sep", setting: "backlogFoldEa" },
+    { band: 3, label: "Unreleased", cls: "backlog-upcoming-sep", setting: "backlogFoldUnreleased" },
+    { band: 4, label: "Dropped", cls: "backlog-dropped-sep", setting: "backlogFoldDropped" },
   ];
+  const FOLD_BY_BAND = new Map(FOLD_BANDS.map((f) => [f.band, f]));
 
-  // "always" leaves Early Access and Unreleased as plain rules, the way they
-  // were before 0.158.0; "collapsed" and "open" make them foldable and decide
-  // which state they start in. Dropped is deliberately outside this: it has
-  // been foldable and collapsed since 0.155.0, and "always open" would undo
-  // the thing that block exists for.
-  const FOLD_BAND_SET = new Set(FOLD_BANDS.map((f) => f.band));
-  const bandFoldMode = () => state.visual.backlogBandFold || "open";
   // Starred and ready are never foldable — they are the list. Without the
-  // set check every band would answer "foldable" here, and the select-all
+  // map lookup every band would answer "foldable" here, and the select-all
   // that asks bandIsOpen would start skipping visible rows.
-  const bandFoldable = (band) => FOLD_BAND_SET.has(band) && (band === 4 || bandFoldMode() !== "always");
-  const bandStartsOpen = (band) => (band === 4 ? false : bandFoldMode() !== "collapsed");
+  function bandFoldMode(band) {
+    const f = FOLD_BY_BAND.get(band);
+    return f ? (state.visual[f.setting] || DEFAULT_VISUAL[f.setting]) : "";
+  }
+  const bandFoldable = (band) => FOLD_BY_BAND.has(band) && bandFoldMode(band) !== "always";
+  const bandStartsOpen = (band) => bandFoldMode(band) !== "collapsed";
   const bandKey = (catName, band) => catName + "|" + band;
 
   // A band's open state is "whatever you last set it to, else what the

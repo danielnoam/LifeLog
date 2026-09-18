@@ -492,7 +492,9 @@
     $("#ledgerMonthSummary").value = state.visual.ledgerMonthSummary || "show";
     $("#timelineMonthSummary").value = state.visual.timelineMonthSummary || "hide";
     $("#backlogCounts").value = state.visual.backlogCounts;
-    $("#backlogBandFold").value = state.visual.backlogBandFold;
+    $("#backlogFoldEa").value = state.visual.backlogFoldEa;
+    $("#backlogFoldUnreleased").value = state.visual.backlogFoldUnreleased;
+    $("#backlogFoldDropped").value = state.visual.backlogFoldDropped;
     updateMediaSettings();
     updatePrivacySettings();
     $("#settingsModal").hidden = false;
@@ -593,10 +595,12 @@
     render();
   }
   // Clears the per-category folds along with it: they are stored as
-  // exceptions to what the setting says a band starts as, so a band you had
+  // exceptions to what a setting says a band starts as, so a band you had
   // opened by hand would otherwise ignore the new setting entirely.
   function onBandFoldChange() {
-    state.visual.backlogBandFold = $("#backlogBandFold").value;
+    for (const key of ["backlogFoldEa", "backlogFoldUnreleased", "backlogFoldDropped"]) {
+      state.visual[key] = $("#" + key).value;
+    }
     state.bandOpen.clear();
     saveVisualSettings(state.visual);
     render();
@@ -721,7 +725,9 @@
     $("#backlogCoverSize").onchange = onBacklogCoverSizeChange;
     $("#backlogSummaries").onchange = onBacklogSummariesChange;
     $("#backlogCounts").onchange = onBacklogCountsChange;
-    $("#backlogBandFold").onchange = onBandFoldChange;
+    $("#backlogFoldEa").onchange = onBandFoldChange;
+    $("#backlogFoldUnreleased").onchange = onBandFoldChange;
+    $("#backlogFoldDropped").onchange = onBandFoldChange;
     $("#ledgerMonthSummary").onchange = onMonthSummaryChange;
     $("#timelineMonthSummary").onchange = onMonthSummaryChange;
     $("#currency").onchange = async () => {

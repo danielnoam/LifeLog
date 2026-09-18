@@ -16,6 +16,18 @@ what was decided against and why.
 
 ---
 
+- **one setting for three bands was one too few (0.159.0).** 0.158.0 gave
+  Early Access and Unreleased a shared fold setting and left Dropped on a
+  hardcoded rule, on the reasoning that "waiting on" and "gave up on" are
+  different intents. The intents are different; that was an argument for
+  three settings, not for two-plus-a-special-case. The grouping was doing the
+  work a comment should have done, and it made Dropped the only band that
+  couldn't be always-open.
+
+  Each band now names its own key in FOLD_BANDS, and every rule that used to
+  branch on `band === 4` reads that key instead. The special case is gone
+  rather than moved.
+
 - **two node types under one reconcile key (0.158.0).** The fold bar and the
   plain dashed rule for a band were both pushed as `sep-<band>`, on the
   reasoning that they occupy the same slot. They do — but `create()` only

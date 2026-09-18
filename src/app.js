@@ -24,7 +24,12 @@
   // object, so a default declared here is the only one there is — a `||` at
   // the read site is a second copy that can drift from it.
   // maxWidth 0 = stretch.
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, ledgerMonthSummary: "show", timelineMonthSummary: "hide", backlogBandFold: "open" };
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, ledgerMonthSummary: "show", timelineMonthSummary: "hide",
+    // One per set-aside band: "always" (a plain rule, never folds), "open"
+    // (foldable, starts open) or "collapsed" (foldable, starts folded).
+    // Dropped starts folded because it is the band you gave up on; the other
+    // two are things you are waiting on and worth seeing.
+    backlogFoldEa: "open", backlogFoldUnreleased: "open", backlogFoldDropped: "collapsed" };
   // Every option is a complete statement about the whole list — "Largest
   // first", not "Amount" plus a direction toggle somewhere else. The control
   // that replaced monthOrder said one thing on its face ("↑ Oldest first")
@@ -108,7 +113,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.158.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.159.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -133,7 +138,18 @@
   function loadVisualSettings() {
     try {
       const raw = localStorage.getItem(VISUAL_KEY);
-      if (raw) return Object.assign({ ...DEFAULT_VISUAL }, JSON.parse(raw));
+      if (!raw) return null;
+      const v = Object.assign({ ...DEFAULT_VISUAL }, JSON.parse(raw));
+      // 0.158.0 had one setting for Early Access and Unreleased together.
+      // 0.159.0 gives every band its own, so the old value becomes the two it
+      // used to cover — and is dropped, rather than left as a third answer to
+      // a question two other keys now settle.
+      if (v.backlogBandFold) {
+        v.backlogFoldEa = v.backlogBandFold;
+        v.backlogFoldUnreleased = v.backlogBandFold;
+        delete v.backlogBandFold;
+      }
+      return v;
     } catch (e) {}
     return null;
   }
@@ -286,7 +302,7 @@
     // Which foldable backlog bands are open, keyed "<category>|<band>". In
     // memory rather than in saveUiState on purpose: a fold is a look, not a
     // preference — the preference is the setting that decides what a band
-    // starts as (visual.backlogBandFold), and coming back should honour that
+    // starts as (visual.backlogFold*), and coming back should honour that
     // rather than whatever you happened to leave open.
     bandOpen: new Set(),
     timelineMode: "entries",
@@ -3552,7 +3568,7 @@
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices: Sync.loadBacklogPrices, applySteamAppId: Sync.applySteamAppId,
     backlogPriceOf: Sync.backlogPriceOf, priceEpoch: Sync.priceEpoch,
-    backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS,
+    backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS, DEFAULT_VISUAL,
   });
   Wheel.init({ $, toast, prefersReducedMotion });
   Finance.init({
