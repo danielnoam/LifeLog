@@ -173,7 +173,10 @@ test("normalize falls back to defaults for missing settings fields and merges ne
     entries: [], backlog: [], categories: [],
     settings: { steam: { steamId: "12345" } },
   });
-  assert.strictEqual(data.settings.monthOrder, "asc"); // DEFAULT_SETTINGS.monthOrder
+  // monthOrder became timelineSort/ledgerSort/backlogSort in 0.157.0.
+  assert.strictEqual(data.settings.timelineSort, "newest");
+  assert.strictEqual(data.settings.ledgerSort, "newest");
+  assert.strictEqual(data.settings.backlogSort, "title");
   assert.strictEqual(data.settings.currency, "ILS");
   assert.strictEqual(data.settings.steam.steamId, "12345"); // incoming value kept
   assert.strictEqual(data.settings.steam.proxyUrl, ""); // default field still present

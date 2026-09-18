@@ -9,13 +9,13 @@
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
     monthCardHeader, emptyState, backfillUpdatedAt, keepUnknown, MONTHS,
     bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
-    openEntryModal;
+    openEntryModal, DEFAULT_SETTINGS;
 
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
       monthCardHeader, emptyState, backfillUpdatedAt, keepUnknown, MONTHS,
       bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
-      openEntryModal } = ctx);
+      openEntryModal, DEFAULT_SETTINGS } = ctx);
   }
 
   // Looked up at call time rather than captured: this file is required by the
@@ -204,14 +204,15 @@
     }
     if (notesEmptyEl) { notesEmptyEl.remove(); notesEmptyEl = null; }
 
-    // Same year → month shape as the timeline beside it, and the same month
-    // order setting, so switching modes doesn't rearrange the page under
-    // you. Within a month the notes run in that same direction: a feed read
-    // newest-first inside an oldest-first month would fight itself.
-    const desc = state.data.settings.monthOrder !== "asc";
+    // Same year → month shape as the timeline beside it, and the same sort
+    // setting, so switching modes doesn't rearrange the page under you.
+    // Within a month the notes run in that same direction: a feed read
+    // newest-first inside an oldest-first month would fight itself. Notes
+    // therefore has no control of its own — the Timeline's is both.
+    const desc = (state.data.settings.timelineSort || DEFAULT_SETTINGS.timelineSort) !== "oldest";
     const byYear = groupBy(notes, noteYear);
     const sections = [];
-    for (const y of Object.keys(byYear).sort((a, b) => b - a)) {
+    for (const y of Object.keys(byYear).sort((a, b) => (desc ? b - a : a - b))) {
       const block = el("div", "year-block");
       block.dataset.year = y;
       const head = el("div", "year-head");

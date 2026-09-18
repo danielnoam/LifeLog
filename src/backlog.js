@@ -11,14 +11,14 @@
   // Shared app plumbing, provided by app.js via init(ctx).
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
     emptyState, emptyCoverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
-    toggleBulkCategoryAll, attachLongPressSelect, openEntryModal,
+    toggleBulkCategoryAll, attachLongPressSelect, sortSelect, openEntryModal,
     startBulkRun, markBulkItem, finishBulkRun,
     fillCategorySelect, wireCategorySelect, titleSuggestions,
     backlogSuggestions, makeMediaAcItem, fetchMediaMatch, renderStreamedSuggestions,
     resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
     renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
-    loadBacklogPrices, applySteamAppId,
+    loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId,
     backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS;
 
   // Looked up at call time rather than captured: this file is required by the
@@ -29,14 +29,14 @@
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
       emptyState, emptyCoverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
-      toggleBulkCategoryAll, attachLongPressSelect, openEntryModal,
+      toggleBulkCategoryAll, attachLongPressSelect, sortSelect, openEntryModal,
       startBulkRun, markBulkItem, finishBulkRun,
       fillCategorySelect, wireCategorySelect, titleSuggestions,
       backlogSuggestions, makeMediaAcItem, fetchMediaMatch, renderStreamedSuggestions,
       resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
       renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
-    loadBacklogPrices, applySteamAppId,
+    loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId,
       backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS, DEFAULT_SETTINGS } = ctx);
   }
 
@@ -476,7 +476,44 @@
       const boughtDiff = (b.bought ? 1 : 0) - (a.bought ? 1 : 0);
       if (boughtDiff) return boughtDiff;
     }
-    return (b.priority || 0) - (a.priority || 0) || a.title.localeCompare(b.title);
+    const priorityDiff = (b.priority || 0) - (a.priority || 0);
+    if (priorityDiff) return priorityDiff;
+    return withinBand(a, b);
+  }
+
+  const backlogSort = () => state.data.settings.backlogSort || DEFAULT_SETTINGS.backlogSort;
+
+  // The chosen sort applies *inside* a band, not across the list: the bands
+  // are what the backlog is for — what you could start today, above what you
+  // are waiting on, above what you gave up on — and a sort that dissolved
+  // them would answer a different question than the one the list exists to
+  // answer. Title is the final tie-break in every case, so two items that
+  // are equal under the chosen sort still land in a stable, readable order
+  // rather than swapping places between renders.
+  function withinBand(a, b) {
+    const byTitle = () => (a.title || "").localeCompare(b.title || "");
+    const added = (x) => String(x.createdAt || "");
+    switch (backlogSort()) {
+      case "added-new": return added(b).localeCompare(added(a)) || byTitle();
+      case "added-old": return added(a).localeCompare(added(b)) || byTitle();
+      case "release": {
+        // Soonest first, and anything with no date at all last rather than
+        // first — a TBA is the least actionable thing in the band, and an
+        // empty string would otherwise sort above every real date.
+        const ra = a.releaseDate || "", rb = b.releaseDate || "";
+        if (!ra !== !rb) return ra ? -1 : 1;
+        return ra.localeCompare(rb) || byTitle();
+      }
+      case "price": {
+        // Same rule as TBA above: no price known is not a price of zero, so
+        // it goes last instead of leading the list with every unpriced row.
+        const pa = backlogPriceOf(a), pb = backlogPriceOf(b);
+        if ((pa == null) !== (pb == null)) return pa == null ? 1 : -1;
+        if (pa == null) return byTitle();
+        return pa - pb || byTitle();
+      }
+      default: return byTitle();
+    }
   }
 
   // ---------- manual release overrides ----------
@@ -749,6 +786,11 @@
   // with the list and so is always offered.
   function makePickGroup(items) {
     const right = el("div", "dsc-bar-right");
+    right.appendChild(sortSelect("backlog", backlogSort(), async (value) => {
+      state.data.settings.backlogSort = value;
+      render();
+      await persist();
+    }));
     const spin = el("button", "btn btn-sm", "🎡 Spin");
     spin.type = "button";
     spin.title = "A wheel of your own options";
@@ -1665,6 +1707,20 @@
     return span;
   }
 
+  // Prices land well after the render that requested them, and the loader
+  // only patches the price spans in place — so a list ordered by price would
+  // sit in its priceless order until something else redrew it. One redraw,
+  // and only when the order actually depends on the numbers that arrived.
+  // The epoch guard is what stops the redraw from asking for prices again
+  // and redrawing forever.
+  let seenPriceEpoch = -1;
+  function watchPricesForSort() {
+    const epoch = priceEpoch();
+    if (backlogSort() !== "price" || epoch === seenPriceEpoch) return;
+    seenPriceEpoch = epoch;
+    render();
+  }
+
   let blGridEl = null, upGridEl = null;
 
   function renderBacklog(root) {
@@ -1800,7 +1856,7 @@
           // mostly don't exist in the DOM yet. priceCache is shared/keyed by
           // mediaId, so sections that build later resolve through its cached
           // fast path instead of re-fetching.
-          loadBacklogPrices(catItems);
+          loadBacklogPrices(catItems).then(watchPricesForSort);
         },
       });
     }

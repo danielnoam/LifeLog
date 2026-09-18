@@ -105,6 +105,7 @@
       const err = window.LifeLogMedia.getLastError();
       if (err && !priceErrorToasted) { priceErrorToasted = true; toast(err, true); }
       for (const id of chunk) priceCache.set(id, { ts: now, data: result[id] || null });
+      priceEpoch++;
     }
     applyCachedPrices(items);
   }
@@ -113,6 +114,24 @@
   // backlog render/poll, and a persistent failure (bad key, CORS) shouldn't
   // re-announce itself every time.
   let priceErrorToasted = false;
+
+  // The number behind the "$12.34 (low $7.99)" string, for sorting by it.
+  // null means "no price known" — not free, and not zero, which is why the
+  // sort has to put these somewhere deliberate rather than treat them as 0.
+  function backlogPriceOf(b) {
+    if (!b || b.mediaSource !== "steam" || !b.mediaId) return null;
+    const cached = priceCache.get(b.mediaId);
+    if (!cached || !cached.data) return null;
+    const current = currentRetailPrice(cached.data.prices || {});
+    return current == null ? null : current;
+  }
+
+  // Bumped whenever a fetch puts something new in the cache. Prices arrive
+  // long after the render that asked for them, and applyCachedPrices only
+  // patches the price spans in place — so a list *ordered* by price would
+  // stay in its priceless order until something else redrew it. The backlog
+  // watches this to redraw itself once, and only when it is sorted by price.
+  let priceEpoch = 0;
 
   function applyCachedPrices(items) {
     for (const b of items) {
@@ -810,6 +829,8 @@
     steamGameNeedsRawgInfo,
     applySteamAppId,
     loadBacklogPrices,
+    backlogPriceOf,
+    priceEpoch: () => priceEpoch,
     ggDealsPageUrl,
     hasPriceCached,
     syncSteamWishlist,

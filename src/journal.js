@@ -9,7 +9,7 @@
   // Shared app plumbing, provided by app.js via init(ctx).
   let state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
     emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
-    attachLongPressSelect, animatedNumberText, barRow, fillSelect,
+    attachLongPressSelect, animatedNumberText, barRow, fillSelect, sortSelect,
     startBulkRun, markBulkItem, finishBulkRun,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
     rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
@@ -26,7 +26,7 @@
   function init(ctx) {
     ({ state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
       emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
-      attachLongPressSelect, animatedNumberText, barRow, fillSelect,
+      attachLongPressSelect, animatedNumberText, barRow, fillSelect, sortSelect,
       startBulkRun, markBulkItem, finishBulkRun,
       fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
       rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
@@ -52,15 +52,19 @@
       tlRootEl.appendChild(tlToolbarEl);
       tlRootEl.appendChild(tlSectionsEl);
     } else {
-      // The button's label and title flip with monthOrder; its handler sits on
-      // the button, which is a child, so it travels with the refill.
+      // The select's chosen option follows the setting; its handler sits on
+      // the select, which is a child, so it travels with the refill.
       adopt(tlToolbarEl, timelineToolbar());
     }
     root.appendChild(tlRootEl);
 
     const byYear = groupBy(entries, (e) => e.year);
     const sections = [];
-    for (const y of Object.keys(byYear).sort((a, b) => b - a)) {
+    // Years follow the choice as well. They used to be pinned newest-first
+    // while months flipped, so "oldest first" put 2026's January above
+    // 2026's September above 2024 — an order that is not either thing.
+    const oldest = timelineOldestFirst();
+    for (const y of Object.keys(byYear).sort((a, b) => (oldest ? a - b : b - a))) {
       const block = el("div", "year-block");
       block.dataset.year = y; // lets the Stats heatmap scroll straight to this year
       const head = el("div", "year-head");
@@ -90,12 +94,14 @@
         keepBody: true,
         build: (body) => {
           const byMonth = groupBy(byYear[y], (e) => e.month);
-          const monthSort = state.data.settings.monthOrder === "desc" ? (a, b) => b - a : (a, b) => a - b;
+          const monthSort = oldest ? (a, b) => a - b : (a, b) => b - a;
           const cards = Object.keys(byMonth).sort(monthSort).map((m) => ({
             key: y + "-" + m,
             year: +y,
             month: +m,
-            items: byMonth[m].slice().sort(byNewestAdded),
+            // Rows run the stated way too: an oldest-first month whose
+            // entries read newest-first would fight itself.
+            items: byMonth[m].slice().sort(oldest ? byOldestAdded : byNewestAdded),
           }));
           reconcile(body, cards, {
             keyOf: (c) => c.key,
@@ -146,6 +152,7 @@
   // Anything with no createdAt at all (imported from the original sheet)
   // sorts last, keeping its relative order.
   const byNewestAdded = (a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""));
+  const byOldestAdded = (a, b) => -byNewestAdded(a, b);
 
   // The row's *contents*. Its click and long-press live in createEntryRow.
   function entryRow(e) {
@@ -277,19 +284,18 @@
 
   function timelineToolbar() {
     const bar = el("div", "timeline-toolbar");
-    const desc = state.data.settings.monthOrder === "desc";
-    const btn = el("button", "btn btn-sm", desc ? "↑ Oldest first" : "↓ Newest first");
-    btn.type = "button";
-    btn.title = desc
-      ? "Showing newest month first within each year — click for oldest first"
-      : "Showing oldest month first within each year — click for newest first";
-    btn.onclick = toggleMonthOrder;
-    bar.appendChild(btn);
+    bar.appendChild(sortSelect("timeline", timelineSort(), setTimelineSort));
     return bar;
   }
 
-  async function toggleMonthOrder() {
-    state.data.settings.monthOrder = state.data.settings.monthOrder === "desc" ? "asc" : "desc";
+  // Notes reads this too. They are two modes of one tab, and switching
+  // between them shouldn't rearrange the page under you — which is why Notes
+  // has no control of its own rather than having been forgotten.
+  const timelineSort = () => state.data.settings.timelineSort || DEFAULT_SETTINGS.timelineSort;
+  const timelineOldestFirst = () => timelineSort() === "oldest";
+
+  async function setTimelineSort(value) {
+    state.data.settings.timelineSort = value;
     render();
     await persist();
   }

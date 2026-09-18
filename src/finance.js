@@ -50,10 +50,10 @@
   let state, $, el, uid, groupBy, countBy, toast, persist, render, renderLazySections,
     buildYearFilter, buildCatFilter, buildProjectFilter, monthCardHeader, emptyState,
     bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
-    animatedNumberText, barRow, fillSelect, fillCategorySelect, wireCategorySelect,
+    animatedNumberText, barRow, fillSelect, sortSelect, fillCategorySelect, wireCategorySelect,
     resolvePendingCatSelect, download, csvEsc, parseCsv,
     buildImportItems, reviewAndImport, openImportPicker,
-    backfillUpdatedAt, MONTHS;
+    backfillUpdatedAt, MONTHS, DEFAULT_SETTINGS;
 
   // Looked up at call time rather than captured: this file is required by the
   // Node tests, which have no DOM and never render.
@@ -64,10 +64,10 @@
     ({ state, $, el, uid, groupBy, countBy, toast, persist, render, renderLazySections,
       buildYearFilter, buildCatFilter, buildProjectFilter, monthCardHeader, emptyState,
       bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
-      animatedNumberText, barRow, fillSelect, fillCategorySelect, wireCategorySelect,
+      animatedNumberText, barRow, fillSelect, sortSelect, fillCategorySelect, wireCategorySelect,
       resolvePendingCatSelect, keepUnknown, download, csvEsc, parseCsv,
       buildImportItems, reviewAndImport, openImportPicker,
-      backfillUpdatedAt, MONTHS } = ctx);
+      backfillUpdatedAt, MONTHS, DEFAULT_SETTINGS } = ctx);
   }
 
   // ---------- amount math expressions ----------
@@ -535,9 +535,16 @@
       root.appendChild(emptyState("No finance entries match your filters."));
       return;
     }
+    root.appendChild(ledgerToolbar());
+    const sort = ledgerSort();
+    // The two time options run the whole ledger their way; the two amount
+    // ones reorder rows inside a month and leave the months where they are,
+    // because "largest first" is a statement about expenses, not about
+    // months. That scope is part of what each option means — see SORTS.
+    const oldest = sort === "oldest";
     const byYear = groupBy(items, financeYearOf);
     const sections = [];
-    for (const y of Object.keys(byYear).sort((a, b) => b - a)) {
+    for (const y of Object.keys(byYear).sort((a, b) => (oldest ? a - b : b - a))) {
       const block = el("div", "year-block");
       const head = el("div", "year-head");
       head.appendChild(el("h2", null, y));
@@ -554,8 +561,7 @@
         keepBody: true,
         build: (body) => {
           const byMonth = groupBy(byYear[y], financeMonthOf);
-          const monthSort = (a, b) =>
-            (state.data.settings.monthOrder === "desc" ? +b - +a : +a - +b);
+          const monthSort = (a, b) => (oldest ? +a - +b : +b - +a);
           const cards = Object.keys(byMonth).sort(monthSort).map((m) => {
             const yy = +y, mm = +m;
             const monthItems = byMonth[m];
@@ -570,8 +576,7 @@
               // ids on every multi-device sync, reshuffling same-date entries
               // arbitrarily. createdAt keeps the display order deterministic
               // across renders and merges alike.
-              items: monthItems.slice().sort((a, b) =>
-                b.date.localeCompare(a.date) || (b.createdAt || "").localeCompare(a.createdAt || "")),
+              items: monthItems.slice().sort(financeRowSort(sort)),
               counted: monthItems.filter((f) => !f.skipped),
             };
           });
@@ -1120,6 +1125,30 @@
     order.sort((a, b) => totals[b] - totals[a])
       .forEach((n) => card.appendChild(barRow(n, totals[n], max, financeColorOf(n), counts[n], formatMoney, "entries")));
     return card;
+  }
+
+  const ledgerSort = () => state.data.settings.ledgerSort || DEFAULT_SETTINGS.ledgerSort;
+
+  function ledgerToolbar() {
+    const bar = el("div", "timeline-toolbar");
+    bar.appendChild(sortSelect("ledger", ledgerSort(), async (value) => {
+      state.data.settings.ledgerSort = value;
+      render();
+      await persist();
+    }));
+    return bar;
+  }
+
+  // createdAt is the tie-break in every case, not id: ids are regenerated on
+  // every multi-device sync and would reshuffle same-date or same-amount rows
+  // arbitrarily. It keeps the display order deterministic across renders and
+  // merges alike.
+  function financeRowSort(sort) {
+    const added = (a, b) => (b.createdAt || "").localeCompare(a.createdAt || "");
+    if (sort === "largest") return (a, b) => b.amount - a.amount || added(a, b);
+    if (sort === "smallest") return (a, b) => a.amount - b.amount || added(a, b);
+    if (sort === "oldest") return (a, b) => a.date.localeCompare(b.date) || -added(a, b);
+    return (a, b) => b.date.localeCompare(a.date) || added(a, b);
   }
 
   const monthSortAsc = (a, b) => +a - +b;

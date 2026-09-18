@@ -4,6 +4,48 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.157.0] - 2026-09-18
+
+### Added
+- **A sort control in the Backlog and the Ledger**, the same one the Timeline
+  now has. Backlog: Title A–Z, Recently added, Added longest ago, Release
+  date, Price cheapest. Ledger: Newest first, Oldest first, Largest first,
+  Smallest first.
+- **The Backlog's sorts apply inside each band**, not across the list. The
+  bands — starred, ready, early access, unreleased, dropped — are what the
+  backlog is for; a sort that dissolved them would answer a different
+  question than the one the list exists to answer.
+- **Release date puts a TBA last and Price puts an unpriced row last.** An
+  empty date is not the earliest date and no price known is not a price of
+  zero, so neither is allowed to lead the list.
+- **A price sort redraws once when the prices arrive.** They land long after
+  the render that asked for them, and the loader only patches the price text
+  in place — so a list ordered by price would otherwise sit in its priceless
+  order until something else redrew it.
+
+### Changed
+- **The Timeline's order control said two contradictory things at once.** The
+  button was labelled with the action ("↑ Oldest first") and its tooltip with
+  the state ("Showing newest month first"), so whichever you read, the other
+  one disagreed. Every option is now a complete phrase — the list says what
+  you are looking at, and picking one is the only thing that changes it.
+- **"Oldest first" now means it.** It used to order months only, while years
+  stayed newest-first regardless — so it produced 2026's January above 2026's
+  September above 2024, which is not either thing. Years, months and rows all
+  follow the choice now.
+- **Everyone starts on "Newest first", including devices set to the old
+  `monthOrder: "asc"`.** That was the default, years were already newest-first
+  under it, and the old button's own default label said "↓ Newest first" — so
+  this is the coherent reading of what was already on screen. Months within a
+  year are the part that flips; pick "Oldest first" to get the other way,
+  properly this time.
+- **The Timeline and the Ledger no longer share one hidden setting.** They are
+  read for different reasons and each remembers its own. Notes still follows
+  the Timeline, which is deliberate: they are two modes of one tab, and
+  switching between them shouldn't rearrange the page under you.
+- **`monthOrder` is migrated and deleted** rather than kept in step. Two
+  sources of truth for one question is how they drift.
+
 ## [0.156.0] - 2026-09-18
 
 ### Added

@@ -7,6 +7,7 @@ require("../src/backlog.js");
 const Backlog = global.window.LifeLogBacklog;
 
 let idCounter = 0;
+const testState = { data: { settings: { backlogSort: "title" } } };
 Backlog.init({
   uid: () => "test-id-" + (idCounter++),
   backfillUpdatedAt: (item) => item.updatedAt || item.createdAt || "1970-01-01T00:00:00.000Z",
@@ -24,7 +25,16 @@ Backlog.init({
     for (const key of keys) if (overrides && overrides[key]) out[key] = true;
     return Object.keys(out).length ? out : null;
   },
+  // compareBacklog reads the chosen within-band sort off state (0.157.0), so
+  // the tests have to say which one they are exercising rather than relying
+  // on a module that happens not to crash without it.
+  state: testState,
+  DEFAULT_SETTINGS: { backlogSort: "title" },
+  // Only the price sort touches these; every other test leaves them unused.
+  backlogPriceOf: (b) => (b.__price == null ? null : b.__price),
+  priceEpoch: () => 0,
 });
+const setSort = (v) => { testState.data.settings.backlogSort = v; };
 
 const { sanitizeBacklog, isUnreleased, releaseStateOf, upcomingAt, parseReleaseInput,
   formatReleaseInput, bandOf, compareBacklog, peekPickBag, spendPick } = Backlog;
@@ -426,6 +436,72 @@ test("narrowing the scope drops what left it, widening picks up what came back",
   assert.deepStrictEqual(narrowed.map((b) => b.id).sort(), ["p0", "p1"]);
   const widened = peekPickBag(items, 6).map((b) => b.id).sort();
   assert.deepStrictEqual(widened, ["p0", "p1", "p2", "p3", "p4", "p5"]);
+});
+
+// ---------- within-band sorting (0.157.0) ----------
+// The sort applies inside a band, never across the list: the bands are what
+// the backlog is for, and a sort that dissolved them would answer a
+// different question than the one the list exists to answer.
+const band1 = (extra) => ({ title: "x", category: "c", ...extra });
+
+test("every sort still leaves the bands untouched", () => {
+  const starred = band1({ title: "Zed", priority: 1, createdAt: "2020-01-01" });
+  const plain = band1({ title: "Abel", createdAt: "2026-01-01" });
+  for (const v of ["title", "added-new", "added-old", "release", "price"]) {
+    setSort(v);
+    assert.ok(compareBacklog(starred, plain) < 0, v + " moved a starred item out of its band");
+  }
+  setSort("title");
+});
+
+test("Recently added and Added longest ago are opposites", () => {
+  const older = band1({ title: "Older", createdAt: "2024-01-01T00:00:00.000Z" });
+  const newer = band1({ title: "Newer", createdAt: "2026-01-01T00:00:00.000Z" });
+  setSort("added-new");
+  assert.ok(compareBacklog(newer, older) < 0);
+  setSort("added-old");
+  assert.ok(compareBacklog(older, newer) < 0);
+  setSort("title");
+});
+
+test("Release date puts the soonest first and a TBA last", () => {
+  setSort("release");
+  // All three have to be in the waiting band for the sort to be what decides
+  // between them. An item with no release info at all is "ready", not TBA —
+  // you can start it today — so a real TBA is one announced with no date.
+  const soon = band1({ title: "Soon", releaseDate: "2027-01-01" });
+  const later = band1({ title: "Later", releaseDate: "2028-01-01" });
+  const tba = band1({ title: "Aaa TBA", releaseStatus: "upcoming" });
+  assert.strictEqual(bandOf(soon), bandOf(tba));
+  assert.ok(compareBacklog(soon, later) < 0);
+  // Last despite sorting first alphabetically — an empty date must not read
+  // as the earliest one.
+  assert.ok(compareBacklog(tba, soon) > 0);
+  assert.ok(compareBacklog(tba, later) > 0);
+  setSort("title");
+});
+
+test("Price puts the cheapest first, and no price known is not a price of zero", () => {
+  setSort("price");
+  const cheap = band1({ title: "Cheap", __price: 5 });
+  const dear = band1({ title: "Dear", __price: 50 });
+  const unknown = band1({ title: "Aaa Unknown" });
+  assert.ok(compareBacklog(cheap, dear) < 0);
+  assert.ok(compareBacklog(unknown, cheap) > 0, "an unpriced row led the list as if it were free");
+  assert.ok(compareBacklog(unknown, dear) > 0);
+  setSort("title");
+});
+
+test("title breaks every tie, so equal items don't swap places between renders", () => {
+  for (const [v, extra] of [["added-new", { createdAt: "2026-01-01" }], ["added-old", { createdAt: "2026-01-01" }],
+                            ["release", { releaseDate: "2027-01-01" }], ["price", { __price: 10 }]]) {
+    setSort(v);
+    const a = band1({ title: "Aaa", ...extra });
+    const b = band1({ title: "Bbb", ...extra });
+    assert.ok(compareBacklog(a, b) < 0, v + " left a tie unbroken");
+    assert.ok(compareBacklog(b, a) > 0, v + " is not antisymmetric");
+  }
+  setSort("title");
 });
 
 console.log(`\n${passed} test(s) passed.`);

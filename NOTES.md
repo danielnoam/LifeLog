@@ -16,6 +16,44 @@ what was decided against and why.
 
 ---
 
+- **a control that labels the action and a tooltip that labels the state
+  (0.157.0).** The Timeline's order button read "↑ Oldest first" while
+  showing newest-first, and its tooltip read "Showing newest month first —
+  click for oldest first". Both were accurate; they just answered different
+  questions, so whichever you read the other one contradicted it. That is the
+  whole of why the naming felt wrong, and it is why every sort option is now
+  a finished phrase in a list: a list of states can't disagree with itself
+  about which one you are in.
+
+  The behaviour underneath was worse than the label. `monthOrder` ordered
+  months while years stayed pinned newest-first, so "oldest first" gave
+  2026: Jan, Sep then 2024: Feb, Nov — neither oldest-first nor newest-first,
+  just inconsistent at two levels. Fixing the naming without fixing that
+  would have made the label an accurate description of something incoherent.
+
+  Scope is part of each option's meaning and differs per view, which is why
+  SORTS carries a comment rather than just a list: the Ledger's time options
+  run the whole ledger, but "Largest first" reorders rows inside a month and
+  leaves the months alone — because it is a statement about expenses, not
+  about months.
+
+- **an ordering that depends on data arriving later has to ask for a redraw
+  (0.157.0).** Backlog prices are fetched after the render that wants them
+  and the loader only patches the price spans in place, which is fine when
+  price is something a row *shows* and wrong the moment it is what the list
+  is *ordered by*. The fix is a counter bumped on every cache write, with the
+  backlog redrawing once when it is sorted by price and the counter has
+  moved — the guard being what stops the redraw from re-requesting prices and
+  redrawing forever.
+
+- **sorting inside the bands, not across them (0.157.0).** Offered the choice,
+  the call was to keep the backlog's bands absolute and let a sort reorder
+  within them. It is the smaller change and it keeps the list answering "what
+  could I start today" first, which is what the bands are for — the cost is
+  that "Added longest ago" shows the oldest starred thing before the oldest
+  thing, which in practice reads as pinned-items-first and is what you would
+  want anyway.
+
 - **suppressing a tap highlight is only half a fix (0.156.0).** The blue rect
   a browser paints over a tapped control is ugly and it was on all 105
   pressables in the app — but it is also, on touch, the *only* thing telling
