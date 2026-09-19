@@ -657,6 +657,13 @@ select:focus { outline: none; border-color: var(--accent); }
 /* The one sort control, identical in all three views so they can't drift
    apart visually any more than they can behaviourally. Shaped like the bulk
    bar's move-select, which is the app's existing "pick one" control. */
+/* The rate box and its lookup button. The input takes the room; the button
+   is only as wide as its word, and min-width:0 is what stops a flex child
+   from refusing to shrink below its content. */
+.rate-row { display: flex; align-items: center; gap: 8px; }
+.rate-row input { flex: 1 1 auto; min-width: 0; }
+.rate-row .btn { flex: 0 0 auto; }
+
 .sort-select {
   background: var(--bg-elev-2); border: 1px solid var(--border); color: var(--text-dim);
   padding: 5px 8px; border-radius: 8px; font: inherit; font-size: 12.5px; cursor: pointer;

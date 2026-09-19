@@ -4,6 +4,33 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.160.0] - 2026-09-19
+
+### Added
+- **A "Look up" button beside the rate on a foreign-currency expense.** It
+  fills in the exchange rate so you don't have to go and find it. Also on the
+  Convert screen, where it's the rate you settle a project at.
+- **It looks up the rate for the expense's own date, not today's.** An expense
+  on 4 June converted at today's rate is a number that was never true. For a
+  new expense the date *is* today, so this is the same thing; for an old one
+  it's right instead of wrong. Weekends come back stamped with the Friday
+  before them, and the hint under the field says which date it used —
+  *4.12346 ILS per CHF — ECB rate for 3 Jun*. Convert asks for the latest
+  rate instead, since a project spans dates.
+- **Two sources, an API and a CDN**, so one being down isn't a dead button.
+  Both are keyless and CORS-enabled, so this needs no proxy and nothing
+  stored. Neither is Google: Google has no public FX API — Google Finance
+  never exposed one and the old Currency API was retired.
+- **Rates keep six significant figures** rather than a fixed four decimals,
+  which would round 1 KRW = 0.00234568 ILS down to 0.0023 and be wrong by 2%
+  on every won.
+
+### Notes
+- The button appears where the rate box does: on an ad-hoc foreign expense,
+  or the first one on a project. Once a project has a rate, later expenses
+  inherit it and the box is hidden — refreshing *that* rate is what Convert
+  is for, which is why the button is there too.
+
 ## [0.159.0] - 2026-09-18
 
 ### Changed

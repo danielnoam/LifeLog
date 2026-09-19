@@ -1352,7 +1352,7 @@
       return;
     }
     const at = " at " + rate + " " + homeCurrency() + " per " + code
-      + (from ? " (from " + from.name + ")" : "");
+      + (from ? " (from " + from.name + ")" : "") + fxNote(code, rate);
     preview.textContent = amount
       ? formatIn(amount, code) + " = " + formatMoney(amount * rate) + at
       : "Converted" + at;
@@ -2113,6 +2113,95 @@
   // published rate does, so it is the more accurate of the two.
   let convertingProject = null;
 
+  // ---------- looking a rate up ----------
+  // Google has no public FX API — Google Finance never exposed one and the
+  // old Currency API was retired — so "check with Google" is not a thing that
+  // can be built. These two are keyless and send CORS headers, which is what
+  // a browser-only app actually needs: no proxy, no key in localStorage.
+  //
+  // Two sources with different failure modes, for the same reason the media
+  // lookups have a primary and a fallback: an API host and a CDN do not go
+  // down together.
+  //
+  // Both answer in the direction LifeLog stores — `rate` is home per foreign,
+  // so 1 CHF = <rate> ILS (see saveFinanceFromForm).
+  const FX_TIMEOUT_MS = 8000;
+
+  async function fxJson(url) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), FX_TIMEOUT_MS);
+    try {
+      const r = await fetch(url, { signal: ctl.signal, cache: "no-store" });
+      return r.ok ? await r.json() : null;
+    } catch (e) {
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  // Six significant digits rather than a fixed number of decimals: 4dp is
+  // plenty for 1 CHF = 4.1234 ILS and destroys 1 IDR = 0.000234 ILS, which
+  // would round to 0.0002 and be wrong by more than a tenth.
+  const fxRound = (n) => +Number(n).toPrecision(6);
+
+  // `date` is the expense's own, not today's. An expense on 4 June converted
+  // at today's rate is a number that was never true. ECB publishes on
+  // business days only, so a weekend asks for and receives the Friday before
+  // it — which the caller says out loud rather than hiding.
+  async function fetchRate(from, to, date) {
+    const f = String(from || "").toUpperCase();
+    const t = String(to || "").toUpperCase();
+    if (!f || !t) return null;
+    if (f === t) return { rate: 1, date: date || "", source: "" };
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(date || "") && date <= todayStr() ? date : "latest";
+
+    const a = await fxJson(`https://api.frankfurter.dev/v1/${day}?base=${f}&symbols=${t}`);
+    const ar = a && a.rates && +a.rates[t];
+    if (isFinite(ar) && ar > 0) return { rate: fxRound(ar), date: a.date || "", source: "ECB" };
+
+    // Same numbers off a CDN, version-pinned to the same day, so a dead API
+    // host isn't a dead button.
+    const lo = f.toLowerCase(), tlo = t.toLowerCase();
+    const b = await fxJson(`https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${day}/v1/currencies/${lo}.json`);
+    const br = b && b[lo] && +b[lo][tlo];
+    if (isFinite(br) && br > 0) return { rate: fxRound(br), date: b.date || "", source: "Currency API" };
+    return null;
+  }
+
+  // What the last successful lookup said, so the form can name the date and
+  // source it used. Cleared by any rate that isn't the one it returned, which
+  // is how typing over it makes the note go away on its own.
+  let lastFx = null;
+
+  function fxNote(code, rate) {
+    if (!lastFx || lastFx.code !== code || lastFx.rate !== rate) return "";
+    const d = lastFx.date;
+    const pretty = /^\d{4}-\d{2}-\d{2}$/.test(d)
+      ? new Date(d + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })
+      : "";
+    return pretty ? ` — ${lastFx.source} rate for ${pretty}` : "";
+  }
+
+  // Shared by both buttons: the lookup, the button's own busy state, and the
+  // one toast that says why nothing happened.
+  async function runRateLookup(btn, code, date, onRate) {
+    const home = homeCurrency();
+    if (!code || code === home) { toast("Pick a currency other than " + home); return; }
+    const label = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "…";
+    try {
+      const got = await fetchRate(code, home, date);
+      if (!got) { toast("Couldn't reach a rate for " + code + " — type it in", true); return; }
+      lastFx = { code, rate: got.rate, date: got.date, source: got.source };
+      onRate(got);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = label;
+    }
+  }
+
   function openConvertModal(proj) {
     convertingProject = proj;
     const codes = projectCurrencies(proj);
@@ -2613,12 +2702,24 @@
       applyFinanceCurrencyUI();
     };
     $("#finRate").oninput = applyFinanceCurrencyUI;
+    $("#finRateFetchBtn").onclick = () =>
+      runRateLookup($("#finRateFetchBtn"), $("#finCurrency").value, $("#finDate").value, (got) => {
+        $("#finRate").value = got.rate;
+        applyFinanceCurrencyUI();
+      });
     $("#finAmount").addEventListener("input", applyFinanceCurrencyUI);
 
     $("#convertProjectBtn").onclick = () => {
       const proj = state.data.projects.find((p) => p.name === $("#projOrigName").value);
       if (proj) openConvertModal(proj);
     };
+    // No single date here — a project spans them — so Convert asks for the
+    // latest rate, which is the one you are settling at.
+    $("#convRateFetchBtn").onclick = () =>
+      runRateLookup($("#convRateFetchBtn"), $("#convCurrency").value, "", (got) => {
+        $("#convRate").value = got.rate;
+        $("#convRate").dispatchEvent(new Event("input", { bubbles: true }));
+      });
     $("#cancelConvertBtn").onclick = closeConvertModal;
     $("#convertForm").onsubmit = saveConvertFromForm;
     $("#convCurrency").onchange = () => { $("#convRate").value = ""; $("#convTotal").value = ""; updateConvertIntro(); };

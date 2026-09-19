@@ -16,6 +16,35 @@ what was decided against and why.
 
 ---
 
+- **the rate you want is the one that applied when you spent it (0.160.0).**
+  The ask was a button for "the current rate". Built literally that would put
+  today's number on a June expense — a rate that was never true for it. The
+  lookup takes the expense's own date, which for a new expense is today
+  anyway, so the literal reading is the common case of the correct one. ECB
+  publishes on business days, so a weekend resolves to the Friday before it;
+  the hint names the date it actually used rather than letting you assume it
+  matched.
+
+  Six significant figures, not four decimals: 4dp is ample for 4.1234 and
+  destroys 0.00234568, which is a real supported currency pair (KRW) and
+  would be wrong by 2%.
+
+  Where the button can appear is decided by something that was already there:
+  the rate box is hidden when a project already prices the expense, because
+  "you said Switzerland is CHF at 3.9 once and shouldn't be asked again". So
+  the button reaches an ad-hoc foreign expense and the first one on a
+  project — exactly the cases where nobody else knows the number — and
+  Convert covers the project case. Found by a test whose fixture put the
+  expense on a priced project and got a hidden row; the fixture was wrong,
+  and the boundary is now asserted rather than assumed.
+
+- **verified against documented shapes, not a live call (0.160.0).** This
+  sandbox's egress policy blocks every FX host, so the browser tests stub
+  both services in their documented response shapes and assert the URLs the
+  app builds. That proves the parsing, the fallback order, the date pinning
+  and the direction — and proves nothing about the services being up. First
+  real use is the test that matters.
+
 - **one setting for three bands was one too few (0.159.0).** 0.158.0 gave
   Early Access and Unreleased a shared fold setting and left Dropped on a
   hardcoded rule, on the reasoning that "waiting on" and "gave up on" are
