@@ -16,6 +16,23 @@ what was decided against and why.
 
 ---
 
+- **a form's job is the form (0.163.0).** The recurring modal showed four
+  occasional actions — change plan, pause, convert, link past expenses — on
+  every open, alongside a plan trail, a pause list and every occurrence the
+  plan had generated. Most opens are to change a note or an amount, and all
+  of that was in the way of the two fields that were the point.
+
+  Folding them behind "More…" costs a press on the rare visit and saves a
+  screenful on the common one. It re-closes on every open rather than
+  remembering: an errand is something you arrive knowing you want, so there
+  is nothing to remember — and a toggle that persists would mean the form
+  looks different depending on what you did to a *different* plan last time.
+
+  The one wrinkle is that the tools sit above the button that reveals them,
+  so opening from the bottom of a scrolled modal can put them off-screen;
+  `scrollIntoView({ block: "nearest" })` on open covers it without yanking
+  anything that was already visible.
+
 - **a dropdown option with nothing behind it (0.162.1).** The recurring form
   offered "+ New project…" because it shares `fillProjectSelect` with the
   expense form, which builds that option into every project dropdown. Only

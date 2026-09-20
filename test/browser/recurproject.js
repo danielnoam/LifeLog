@@ -128,6 +128,72 @@ const load = async (page) => {
   check("leaving the choice as it was before, not on the '+ New project…' row",
     cancelled.selected === "Studio", cancelled);
 
+  // ---------- the tools are behind a button now ----------
+  const tools = async () => page.evaluate(() => {
+    const t = document.querySelector("#recTools");
+    const m = document.querySelector("#recMoreBtn");
+    const del = document.querySelector("#deleteRecurringBtn");
+    const acts = [...document.querySelectorAll("#recurringModal .modal-actions > *")];
+    return {
+      toolsShown: !t.hidden,
+      moreShown: !m.hidden,
+      label: m.textContent.trim(),
+      expanded: m.getAttribute("aria-expanded"),
+      controls: m.getAttribute("aria-controls"),
+      nextToDelete: acts.indexOf(m) === acts.indexOf(del) + 1,
+      names: [...t.querySelectorAll("button")].map((x) => x.textContent.trim()),
+    };
+  });
+  await page.evaluate(async () => {
+    const rec = JSON.parse(localStorage.getItem("lifelog-cache-v1")).recurringExpenses.find((x) => x.id === "r3");
+    window.LifeLogFinance.openRecurringModal(rec);
+    await new Promise((r) => setTimeout(r, 250));
+  });
+  let t = await tools();
+  check("opening a plan no longer lays its errands out in full", t.toolsShown === false, t);
+  check("a More button offers them instead, next to Delete",
+    t.moreShown === true && t.nextToDelete === true && t.label === "More\u2026", t);
+  check("and says what it controls", t.controls === "recTools" && t.expanded === "false", t);
+
+  await page.evaluate(() => document.querySelector("#recMoreBtn").click());
+  await page.waitForTimeout(250);
+  t = await tools();
+  check("pressing it reveals them", t.toolsShown === true && t.expanded === "true", t);
+  check("all of them — pause, convert, link past expenses",
+    t.names.some((n) => /Pause/.test(n)) && t.names.some((n) => /Convert/.test(n))
+    && t.names.some((n) => /Link past/.test(n)), t.names);
+  check("and it offers to put them away again", t.label === "Fewer", t);
+
+  await page.evaluate(() => document.querySelector("#recMoreBtn").click());
+  await page.waitForTimeout(200);
+  t = await tools();
+  check("pressing again closes them", t.toolsShown === false && t.label === "More\u2026", t);
+
+  // Left open, then reopened: the form's job is the form.
+  const reopened = await page.evaluate(async () => {
+    document.querySelector("#recMoreBtn").click();
+    await new Promise((r) => setTimeout(r, 150));
+    document.querySelector("#recurringModal").hidden = true;
+    const rec = JSON.parse(localStorage.getItem("lifelog-cache-v1")).recurringExpenses.find((x) => x.id === "r2");
+    window.LifeLogFinance.openRecurringModal(rec);
+    await new Promise((r) => setTimeout(r, 250));
+    return { toolsShown: !document.querySelector("#recTools").hidden };
+  });
+  check("they come back closed on the next plan you open", reopened.toolsShown === false, reopened);
+
+  // A brand new plan has nothing to pause or convert yet.
+  const fresh = await page.evaluate(async () => {
+    document.querySelector("#recurringModal").hidden = true;
+    window.LifeLogFinance.openRecurringModal(null);
+    await new Promise((r) => setTimeout(r, 250));
+    return { more: document.querySelector("#recMoreBtn").hidden,
+             del: document.querySelector("#deleteRecurringBtn").hidden,
+             tools: document.querySelector("#recTools").hidden };
+  });
+  check("a brand new plan offers neither the button nor the tools",
+    fresh.more === true && fresh.tools === true && fresh.del === true, fresh);
+  await page.evaluate(() => { document.querySelector("#recurringModal").hidden = true; });
+
   // The expense form's own version must still work.
   await page.evaluate(() => { document.querySelector("#recurringModal").hidden = true; });
   const entry = await page.evaluate(async () => {

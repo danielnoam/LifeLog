@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.163.0] - 2026-09-20
+
+### Changed
+- **A recurring expense's errands are behind a button now.** Change plan,
+  Pause, Convert to entries and Link past expenses were laid out in full
+  every time you opened a plan — including the times you opened one to fix a
+  typo in its note. They sit behind **More…**, next to Delete, and it closes
+  again on every open: these are things you arrive already knowing you want,
+  so the form's job can be the form.
+- **A brand new plan offers neither**, the same as Delete — there is nothing
+  yet to pause or convert.
+- Opening them scrolls them into view, since they sit above the button that
+  reveals them and a plan with a trail, pauses and a long occurrence list can
+  put them off-screen.
+
 ## [0.162.1] - 2026-09-20
 
 ### Fixed

@@ -1481,7 +1481,13 @@
       editing ? rec.category : (p.category || (state.data.financeCategories[0] && state.data.financeCategories[0].name)));
     $("#recNote").value = editing ? (rec.note || "") : (p.note || "");
     $("#deleteRecurringBtn").hidden = !editing;
-    $("#recTools").hidden = !editing;
+    // Change plan, Pause, Convert, Link past expenses: four things you do to
+    // a plan occasionally, which were laid out in full every time you opened
+    // one to fix a typo in its note. Behind a button next to Delete, and
+    // closed again on every open — the form's job is the form, and these are
+    // errands you arrive already knowing you want.
+    $("#recMoreBtn").hidden = !editing;
+    setRecToolsOpen(false);
 
     // A plan that's already been superseded can't be split again — the
     // change belongs on whichever plan is currently in force, so point at
@@ -1523,6 +1529,21 @@
     $("#recurringModal").hidden = false;
     fillProjectSelect($("#recProject"), (rec && rec.project) || "");
   }
+  function setRecToolsOpen(open) {
+    const tools = $("#recTools");
+    const btn = $("#recMoreBtn");
+    if (!tools || !btn) return;
+    // Never open on a new plan: there is nothing yet to pause or convert.
+    const on = open && !btn.hidden;
+    tools.hidden = !on;
+    btn.setAttribute("aria-expanded", on ? "true" : "false");
+    btn.textContent = on ? "Fewer" : "More…";
+    // The tools sit above the button that reveals them, so on a long plan —
+    // one with a trail, pauses and a list of occurrences — opening them from
+    // the bottom of a scrolled modal would put them off-screen.
+    if (on) tools.scrollIntoView({ block: "nearest" });
+  }
+
   function closeRecurringModal() { $("#recurringModal").hidden = true; pendingConvertEntryId = null; }
 
   // The plan history strip: every template this bill has been through,
@@ -2806,6 +2827,8 @@
     };
     // The same offer on the recurring form, which had the option in its
     // dropdown and no handler behind it.
+    $("#recMoreBtn").onclick = () =>
+      setRecToolsOpen($("#recMoreBtn").getAttribute("aria-expanded") !== "true");
     $("#recProject").onchange = () => {
       const sel = $("#recProject");
       if (sel.value !== ADD_PROJECT_OPTION) { sel.dataset.prevValue = sel.value; return; }
