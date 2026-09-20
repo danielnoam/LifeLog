@@ -16,6 +16,27 @@ what was decided against and why.
 
 ---
 
+- **a dropdown option with nothing behind it (0.162.1).** The recurring form
+  offered "+ New project…" because it shares `fillProjectSelect` with the
+  expense form, which builds that option into every project dropdown. Only
+  the expense form had a handler for it. The save path even had a branch for
+  the case — `value === ADD_PROJECT_OPTION ? "" : value` — which is what made
+  it silent rather than broken: picking it stored no project, exactly as if
+  you had chosen "none".
+
+  Worth remembering: a shared builder that emits an *action* item makes every
+  consumer responsible for that action, and the one that forgets fails
+  quietly. `pendingProjectSelect` was a boolean meaning "#financeModal", which
+  is the same mistake one level up — it now carries which form and which
+  field to return to, so a third caller can't inherit the wrong one.
+
+- **grouped, not run-merged (0.162.1).** The Ledger merges *consecutive*
+  same-project rows because its months are date-ordered and a trip's expenses
+  genuinely sit together. The recurring list is ordered by start date, where
+  a project's two subscriptions are almost never adjacent — run-merging there
+  would have meant never grouping at all. Same pill, different rule, and the
+  rule follows from what the list is sorted by.
+
 - **an overview has to hand the problem over (0.161.0 → 0.162.0).** The
   partial states the app accumulates — an import whose title never resolved,
   a backlog item a source could still fill, an expense on an unsettled

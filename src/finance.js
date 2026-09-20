@@ -1942,7 +1942,7 @@
     head.appendChild(el("span", "ycount", `${active.length} active`));
     card.appendChild(head);
 
-    const addRow = (r, isEnded) => {
+    const addRow = (r, isEnded, into) => {
       const row = el("div", "recur-row" + (isEnded ? " is-ended" : ""));
       const bar = el("div", "bar");
       bar.style.background = financeColorOf(r.category);
@@ -1959,15 +1959,60 @@
       }
       row.appendChild(el("span", "famount fnegative", "-" + formatMoney(r.amount)));
       row.onclick = () => openRecurringModal(r);
-      card.appendChild(row);
+      (into || card).appendChild(row);
     };
 
-    active.slice().sort((a, b) => a.startDate.localeCompare(b.startDate)).forEach((r) => addRow(r, false));
+    // Plans on a project gather into a pill, the same one the Ledger's month
+    // cards use for a run of project expenses. Unlike there, these are
+    // grouped rather than run-merged: this list is ordered by start date and
+    // a trip's two subscriptions are rarely adjacent, so waiting for them to
+    // touch would mean never grouping them at all.
+    const byProject = (plans, isEnded) => {
+      const loose = plans.filter((r) => !r.project);
+      const named = plans.filter((r) => r.project);
+      loose.forEach((r) => addRow(r, isEnded, card));
+      const seen = [];
+      for (const r of named) if (!seen.includes(r.project)) seen.push(r.project);
+      for (const name of seen) {
+        const mine = named.filter((r) => r.project === name);
+        const color = projectColorOf(name);
+        const box = el("div", "proj-group");
+        box.style.setProperty("--proj-tint", color + "12");
+        box.style.setProperty("--proj-head", color + "22");
+        box.style.setProperty("--proj-edge", color + "59");
+        const head = el("div", "proj-group-head");
+        const dot = el("span", "dot");
+        dot.style.background = color;
+        head.appendChild(dot);
+        const label = el("span", "proj-group-name", name);
+        label.title = name;
+        head.appendChild(label);
+        // Opens the project, not a plan — the head names the group, exactly
+        // as it does in the Ledger.
+        const edit = el("button", "proj-group-edit", "✎");
+        edit.type = "button";
+        edit.title = "Edit " + name;
+        edit.setAttribute("aria-label", edit.title);
+        edit.onclick = (ev) => {
+          ev.stopPropagation();
+          const p = projectByName(name);
+          if (p) openProjectModal(p);
+        };
+        head.appendChild(edit);
+        box.appendChild(head);
+        const list = el("div", "proj-group-list");
+        mine.forEach((r) => addRow(r, isEnded, list));
+        box.appendChild(list);
+        card.appendChild(box);
+      }
+    };
+
+    byProject(active.slice().sort((a, b) => a.startDate.localeCompare(b.startDate)), false);
     if (ended.length) {
       const sub = el("div", "recur-subhead");
       sub.appendChild(el("span", null, `Ended (${ended.length})`));
       card.appendChild(sub);
-      ended.slice().sort((a, b) => b.endDate.localeCompare(a.endDate)).forEach((r) => addRow(r, true));
+      byProject(ended.slice().sort((a, b) => b.endDate.localeCompare(a.endDate)), true);
     }
     root.appendChild(card);
   }
@@ -1981,11 +2026,16 @@
   // has, and deleting it un-groups expenses instead of moving them to a
   // fallback, because there is no "Other project" and an expense without a
   // project is a perfectly ordinary expense.
-  let pendingProjectSelect = false; // reopen #financeModal after adding inline
+  // Which form to hand back to after adding a project inline, and which
+  // select on it to fill in. A boolean pointing at #financeModal was enough
+  // while the expense form was the only caller — the recurring form offered
+  // "+ New project…" too, and picking it did nothing at all, then saved as
+  // no project.
+  let pendingProjectReturn = null; // { modal, select } | null
 
   function openProjectModal(proj, opts) {
     const editing = !!proj;
-    pendingProjectSelect = !!(opts && opts.fromEntry);
+    pendingProjectReturn = (opts && opts.returnTo) || null;
     $("#projectModalTitle").textContent = editing ? "Edit project" : "New project";
     $("#projOrigName").value = editing ? proj.name : "";
     $("#projName").value = editing ? proj.name : "";
@@ -2054,10 +2104,13 @@
   // the expense form, with whatever was selected before still selected.
   function cancelProjectModal() {
     closeProjectModal();
-    if (pendingProjectSelect) {
-      pendingProjectSelect = false;
-      fillProjectSelect($("#finProject"), $("#finProject").dataset.prevValue || "");
-      $("#financeModal").hidden = false;
+    const back = pendingProjectReturn;
+    if (back) {
+      pendingProjectReturn = null;
+      // Back to whatever it was before "+ New project…" was picked, so
+      // cancelling the project leaves the form as it was found.
+      fillProjectSelect($(back.select), $(back.select).dataset.prevValue || "");
+      $(back.modal).hidden = false;
     }
   }
 
@@ -2095,10 +2148,11 @@
     closeProjectModal();
     rebuildProjectColorMap();
     buildProjectFilter();
-    if (pendingProjectSelect) {
-      pendingProjectSelect = false;
-      fillProjectSelect($("#finProject"), name);
-      $("#financeModal").hidden = false;
+    const back = pendingProjectReturn;
+    if (back) {
+      pendingProjectReturn = null;
+      fillProjectSelect($(back.select), name);
+      $(back.modal).hidden = false;
     }
     render();
     await persist();
@@ -2748,7 +2802,15 @@
         return;
       }
       $("#financeModal").hidden = true;
-      openProjectModal(null, { fromEntry: true });
+      openProjectModal(null, { returnTo: { modal: "#financeModal", select: "#finProject" } });
+    };
+    // The same offer on the recurring form, which had the option in its
+    // dropdown and no handler behind it.
+    $("#recProject").onchange = () => {
+      const sel = $("#recProject");
+      if (sel.value !== ADD_PROJECT_OPTION) { sel.dataset.prevValue = sel.value; return; }
+      $("#recurringModal").hidden = true;
+      openProjectModal(null, { returnTo: { modal: "#recurringModal", select: "#recProject" } });
     };
     $("#exportFinanceJsonBtn").onclick = exportFinanceJson;
     $("#exportFinanceCsvBtn").onclick = exportFinanceCsv;

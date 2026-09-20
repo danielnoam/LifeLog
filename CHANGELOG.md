@@ -4,6 +4,24 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.162.1] - 2026-09-20
+
+### Fixed
+- **"+ New project…" did nothing on a recurring expense.** The option was in
+  the dropdown and nothing was listening: picking it left the select sitting
+  on that row, and saving then stored the plan with no project at all. The
+  return-to-form was hardcoded to the expense modal — it now names the form
+  and the field to come back to, so both offer it and cancelling puts the
+  choice back exactly as it was found.
+
+### Added
+- **Recurring plans on the same project gather into a pill**, the one the
+  Ledger's month cards already use, with the project's colour and an edit
+  button. Grouped rather than run-merged as they are there: this list is
+  ordered by start date, and a trip's two subscriptions are rarely adjacent,
+  so waiting for them to touch would mean never grouping them. Plans with no
+  project stay loose above them, and the ended section groups the same way.
+
 ## [0.162.0] - 2026-09-20
 
 ### Changed

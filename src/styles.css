@@ -804,7 +804,14 @@ select:focus { outline: none; border-color: var(--accent); }
 .proj-group-list { padding: 2px; }
 /* Rows inside a pill drop their own hover plate — the pill is already a
    surface, and a second one on top of it reads as a box in a box. */
-.proj-group-list .finance-entry:hover { background: var(--proj-head, var(--bg-elev-2)); }
+.proj-group-list .finance-entry:hover,
+/* Recurring plans sit in the same pill (see renderRecurringCard) and need the
+   same treatment: the pill is already a surface, and a second one on top of
+   it reads as a box in a box. */
+.proj-group-list .recur-row:hover { background: var(--proj-head, var(--bg-elev-2)); }
+/* The pill provides the gap between its rows, which .recur-card sets for the
+   ungrouped ones. */
+.recur-card > .proj-group { margin-top: 4px; }
 
 /* An import row that would fill gaps in something you already have, rather
    than add a new item. Marked apart from .is-dup: a duplicate is a row you
