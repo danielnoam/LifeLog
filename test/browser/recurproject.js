@@ -128,20 +128,29 @@ const load = async (page) => {
   check("leaving the choice as it was before, not on the '+ New project…' row",
     cancelled.selected === "Studio", cancelled);
 
-  // ---------- the tools are behind a button now ----------
-  const tools = async () => page.evaluate(() => {
-    const t = document.querySelector("#recTools");
-    const m = document.querySelector("#recMoreBtn");
+  // ---------- the errands are a menu now ----------
+  const menu = async () => page.evaluate(() => {
+    const m = document.querySelector("#recMoreMenu");
+    const btn = document.querySelector("#recMoreBtn");
+    const wrap = document.querySelector("#recMoreWrap");
     const del = document.querySelector("#deleteRecurringBtn");
     const acts = [...document.querySelectorAll("#recurringModal .modal-actions > *")];
+    const mr = m.hidden ? null : m.getBoundingClientRect();
+    const br = btn.getBoundingClientRect();
+    const modal = document.querySelector("#recurringModal .modal").getBoundingClientRect();
     return {
-      toolsShown: !t.hidden,
-      moreShown: !m.hidden,
-      label: m.textContent.trim(),
-      expanded: m.getAttribute("aria-expanded"),
-      controls: m.getAttribute("aria-controls"),
-      nextToDelete: acts.indexOf(m) === acts.indexOf(del) + 1,
-      names: [...t.querySelectorAll("button")].map((x) => x.textContent.trim()),
+      open: !m.hidden,
+      wrapShown: !wrap.hidden,
+      label: btn.textContent.trim(),
+      expanded: btn.getAttribute("aria-expanded"),
+      haspopup: btn.getAttribute("aria-haspopup"),
+      controls: btn.getAttribute("aria-controls"),
+      nextToDelete: acts.indexOf(wrap) === acts.indexOf(del) + 1,
+      names: [...m.querySelectorAll("button")].filter((x) => !x.hidden).map((x) => x.textContent.trim()),
+      // Opens upward, and stays inside the modal it belongs to.
+      above: mr ? mr.bottom <= br.top + 1 : null,
+      insideModal: mr ? mr.top >= modal.top - 1 && mr.left >= modal.left - 1 : null,
+      styled: m.classList.contains("menu-pop"),
     };
   });
   await page.evaluate(async () => {
@@ -149,49 +158,72 @@ const load = async (page) => {
     window.LifeLogFinance.openRecurringModal(rec);
     await new Promise((r) => setTimeout(r, 250));
   });
-  let t = await tools();
-  check("opening a plan no longer lays its errands out in full", t.toolsShown === false, t);
+  let t = await menu();
+  check("opening a plan no longer lays its errands out in full", t.open === false, t);
   check("a More button offers them instead, next to Delete",
-    t.moreShown === true && t.nextToDelete === true && t.label === "More\u2026", t);
-  check("and says what it controls", t.controls === "recTools" && t.expanded === "false", t);
+    t.wrapShown === true && t.nextToDelete === true && t.label === "More\u2026", t);
+  check("announced as a menu", t.haspopup === "menu" && t.controls === "recMoreMenu" && t.expanded === "false", t);
 
   await page.evaluate(() => document.querySelector("#recMoreBtn").click());
   await page.waitForTimeout(250);
-  t = await tools();
-  check("pressing it reveals them", t.toolsShown === true && t.expanded === "true", t);
-  check("all of them — pause, convert, link past expenses",
+  t = await menu();
+  check("pressing it drops a menu", t.open === true && t.expanded === "true", t);
+  check("wearing the same style as the + button's", t.styled === true, t);
+  check("holding all of them — pause, convert, link past expenses",
     t.names.some((n) => /Pause/.test(n)) && t.names.some((n) => /Convert/.test(n))
     && t.names.some((n) => /Link past/.test(n)), t.names);
-  check("and it offers to put them away again", t.label === "Fewer", t);
+  check("opening upward, since it sits at the foot of a scrolling modal", t.above === true, t);
+  check("and staying inside the modal rather than spilling out of it", t.insideModal === true, t);
+  check("the button keeps its name — a menu doesn't need a 'Fewer'", t.label === "More\u2026", t);
+
+  // ---- dismissal ----
+  await page.evaluate(() => document.querySelector("#recMoreBtn").click());
+  await page.waitForTimeout(200);
+  check("pressing it again puts the menu away", (await menu()).open === false);
 
   await page.evaluate(() => document.querySelector("#recMoreBtn").click());
   await page.waitForTimeout(200);
-  t = await tools();
-  check("pressing again closes them", t.toolsShown === false && t.label === "More\u2026", t);
+  await page.evaluate(() => document.querySelector("#recNote").click());
+  await page.waitForTimeout(200);
+  check("clicking anywhere else closes it", (await menu()).open === false);
 
-  // Left open, then reopened: the form's job is the form.
-  const reopened = await page.evaluate(async () => {
+  // ---- picking one ends the menu's job ----
+  const picked2 = await page.evaluate(async () => {
     document.querySelector("#recMoreBtn").click();
     await new Promise((r) => setTimeout(r, 150));
-    document.querySelector("#recurringModal").hidden = true;
+    document.querySelector("#pauseBtn").click();
+    await new Promise((r) => setTimeout(r, 350));
+    return { menuOpen: !document.querySelector("#recMoreMenu").hidden,
+             pauseOpen: !document.querySelector("#pauseModal").hidden };
+  });
+  check("picking one opens what it promises", picked2.pauseOpen === true, picked2);
+  check("and closes the menu behind it", picked2.menuOpen === false, picked2);
+  await page.evaluate(() => { document.querySelector("#pauseModal").hidden = true; });
+
+  // ---- it doesn't survive the modal ----
+  const reopened = await page.evaluate(async () => {
+    document.querySelector("#recurringModal").hidden = false;
+    document.querySelector("#recMoreBtn").click();
+    await new Promise((r) => setTimeout(r, 150));
+    window.LifeLogFinance.closeRecurringModal();
     const rec = JSON.parse(localStorage.getItem("lifelog-cache-v1")).recurringExpenses.find((x) => x.id === "r2");
     window.LifeLogFinance.openRecurringModal(rec);
     await new Promise((r) => setTimeout(r, 250));
-    return { toolsShown: !document.querySelector("#recTools").hidden };
+    return { open: !document.querySelector("#recMoreMenu").hidden };
   });
-  check("they come back closed on the next plan you open", reopened.toolsShown === false, reopened);
+  check("it comes back closed on the next plan you open", reopened.open === false, reopened);
 
   // A brand new plan has nothing to pause or convert yet.
   const fresh = await page.evaluate(async () => {
     document.querySelector("#recurringModal").hidden = true;
     window.LifeLogFinance.openRecurringModal(null);
     await new Promise((r) => setTimeout(r, 250));
-    return { more: document.querySelector("#recMoreBtn").hidden,
+    return { wrap: document.querySelector("#recMoreWrap").hidden,
              del: document.querySelector("#deleteRecurringBtn").hidden,
-             tools: document.querySelector("#recTools").hidden };
+             menu: document.querySelector("#recMoreMenu").hidden };
   });
-  check("a brand new plan offers neither the button nor the tools",
-    fresh.more === true && fresh.tools === true && fresh.del === true, fresh);
+  check("a brand new plan offers neither the button nor the menu",
+    fresh.wrap === true && fresh.menu === true && fresh.del === true, fresh);
   await page.evaluate(() => { document.querySelector("#recurringModal").hidden = true; });
 
   // The expense form's own version must still work.

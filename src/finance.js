@@ -1486,7 +1486,7 @@
     // one to fix a typo in its note. Behind a button next to Delete, and
     // closed again on every open — the form's job is the form, and these are
     // errands you arrive already knowing you want.
-    $("#recMoreBtn").hidden = !editing;
+    $("#recMoreWrap").hidden = !editing;
     setRecToolsOpen(false);
 
     // A plan that's already been superseded can't be split again — the
@@ -1529,22 +1529,24 @@
     $("#recurringModal").hidden = false;
     fillProjectSelect($("#recProject"), (rec && rec.project) || "");
   }
+  // A menu anchored to the button, the same one the + button drops (see
+  // .menu-pop): the four errands are actions you pick, not a section of the
+  // form, and laying them out inline made them look like fields.
   function setRecToolsOpen(open) {
-    const tools = $("#recTools");
+    const menu = $("#recMoreMenu");
     const btn = $("#recMoreBtn");
-    if (!tools || !btn) return;
+    if (!menu || !btn) return;
     // Never open on a new plan: there is nothing yet to pause or convert.
-    const on = open && !btn.hidden;
-    tools.hidden = !on;
+    const on = open && !$("#recMoreWrap").hidden;
+    menu.hidden = !on;
     btn.setAttribute("aria-expanded", on ? "true" : "false");
-    btn.textContent = on ? "Fewer" : "More…";
-    // The tools sit above the button that reveals them, so on a long plan —
-    // one with a trail, pauses and a list of occurrences — opening them from
-    // the bottom of a scrolled modal would put them off-screen.
-    if (on) tools.scrollIntoView({ block: "nearest" });
   }
 
-  function closeRecurringModal() { $("#recurringModal").hidden = true; pendingConvertEntryId = null; }
+  function closeRecurringModal() {
+    setRecToolsOpen(false);
+    $("#recurringModal").hidden = true;
+    pendingConvertEntryId = null;
+  }
 
   // The plan history strip: every template this bill has been through,
   // oldest first. Only rendered once a plan change has actually happened —
@@ -2827,8 +2829,17 @@
     };
     // The same offer on the recurring form, which had the option in its
     // dropdown and no handler behind it.
-    $("#recMoreBtn").onclick = () =>
+    $("#recMoreBtn").onclick = (ev) => {
+      // Or the document listener below would close it in the same click.
+      ev.stopPropagation();
       setRecToolsOpen($("#recMoreBtn").getAttribute("aria-expanded") !== "true");
+    };
+    // Picking one is the end of the menu's job, whatever it then opens.
+    $("#recMoreMenu").querySelectorAll("button").forEach((b) => {
+      b.addEventListener("click", () => setRecToolsOpen(false));
+    });
+    // Same dismissal as the + menu: anywhere else closes it.
+    document.addEventListener("click", () => setRecToolsOpen(false));
     $("#recProject").onchange = () => {
       const sel = $("#recProject");
       if (sel.value !== ADD_PROJECT_OPTION) { sel.dataset.prevValue = sel.value; return; }

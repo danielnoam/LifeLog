@@ -16,6 +16,17 @@ what was decided against and why.
 
 ---
 
+- **a disclosure and a menu say different things (0.163.1).** Folding the
+  recurring plan's four errands behind a button was right; making that button
+  a disclosure was not. An inline row that appears in the middle of a form
+  reads as *more form* — another section you might need to fill in — when
+  what it holds is four things you go and do. A menu says "pick one and
+  leave", which is what these are.
+
+  The visual came from extracting `.menu-pop` out of `.add-menu` rather than
+  copying it. That was the actual work: two popup menus that merely look
+  alike become two that don't, one release later.
+
 - **a form's job is the form (0.163.0).** The recurring modal showed four
   occasional actions — change plan, pause, convert, link past expenses — on
   every open, alongside a plan trail, a pause list and every occurrence the

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.163.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.163.1" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -92,12 +92,12 @@
   </header>
 
   <div class="fab-wrap" id="fabWrap">
-    <div class="add-menu" id="addMenu" hidden>
+    <div class="add-menu menu-pop" id="addMenu" hidden>
       <button type="button" data-add="entry">Add entry</button>
       <button type="button" data-add="note">Write a note</button>
       <button type="button" data-add="achievement">Add achievement</button>
       <button type="button" data-add="backlog">Add to backlog</button>
-      <div class="add-menu-divider" role="separator"></div>
+      <div class="menu-pop-divider" role="separator"></div>
       <button type="button" data-add="finance">Add finance entry</button>
       <button type="button" data-add="recurring">Add recurring expense</button>
     </div>
@@ -592,12 +592,6 @@
           <p class="hint">Paused</p>
           <div class="plan-trail-list" id="recPauseList"></div>
         </div>
-        <div class="rec-tools" id="recTools" hidden>
-          <button type="button" class="link-btn" id="changePlanBtn">↻ Change plan…</button>
-          <button type="button" class="link-btn" id="pauseBtn">⏸ Pause…</button>
-          <button type="button" class="link-btn" id="convertRecurringBtn">⇄ Convert to entries</button>
-          <button type="button" class="link-btn" id="linkPastExpensesBtn">🔗 Link past expenses</button>
-        </div>
         <div class="rec-occurrences" id="recOccurrences" hidden>
           <div class="rec-occ-head">
             <p class="hint">Generated occurrences</p>
@@ -606,7 +600,15 @@
         </div>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteRecurringBtn" hidden>Delete</button>
-          <button type="button" class="btn" id="recMoreBtn" aria-controls="recTools" aria-expanded="false" hidden>More…</button>
+          <span class="menu-wrap" id="recMoreWrap" hidden>
+            <button type="button" class="btn" id="recMoreBtn" aria-haspopup="menu" aria-controls="recMoreMenu" aria-expanded="false">More…</button>
+            <div class="menu-pop" id="recMoreMenu" role="menu" hidden>
+              <button type="button" role="menuitem" id="changePlanBtn">↻ Change plan…</button>
+              <button type="button" role="menuitem" id="pauseBtn">⏸ Pause…</button>
+              <button type="button" role="menuitem" id="convertRecurringBtn">⇄ Convert to entries</button>
+              <button type="button" role="menuitem" id="linkPastExpensesBtn">🔗 Link past expenses</button>
+            </div>
+          </span>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelRecurringBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
@@ -1382,20 +1384,20 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.163.0"></script>
-  <script defer src="src/qr.js?v=0.163.0"></script>
-  <script defer src="src/media.js?v=0.163.0"></script>
-  <script defer src="src/merge.js?v=0.163.0"></script>
-  <script defer src="src/storage.js?v=0.163.0"></script>
-  <script defer src="src/finance.js?v=0.163.0"></script>
-  <script defer src="src/settings.js?v=0.163.0"></script>
-  <script defer src="src/wheel.js?v=0.163.0"></script>
-  <script defer src="src/backlog.js?v=0.163.0"></script>
-  <script defer src="src/journal.js?v=0.163.0"></script>
-  <script defer src="src/notes.js?v=0.163.0"></script>
-  <script defer src="src/todos.js?v=0.163.0"></script>
-  <script defer src="src/io.js?v=0.163.0"></script>
-  <script defer src="src/sync.js?v=0.163.0"></script>
-  <script defer src="src/app.js?v=0.163.0"></script>
+  <script defer src="src/reconcile.js?v=0.163.1"></script>
+  <script defer src="src/qr.js?v=0.163.1"></script>
+  <script defer src="src/media.js?v=0.163.1"></script>
+  <script defer src="src/merge.js?v=0.163.1"></script>
+  <script defer src="src/storage.js?v=0.163.1"></script>
+  <script defer src="src/finance.js?v=0.163.1"></script>
+  <script defer src="src/settings.js?v=0.163.1"></script>
+  <script defer src="src/wheel.js?v=0.163.1"></script>
+  <script defer src="src/backlog.js?v=0.163.1"></script>
+  <script defer src="src/journal.js?v=0.163.1"></script>
+  <script defer src="src/notes.js?v=0.163.1"></script>
+  <script defer src="src/todos.js?v=0.163.1"></script>
+  <script defer src="src/io.js?v=0.163.1"></script>
+  <script defer src="src/sync.js?v=0.163.1"></script>
+  <script defer src="src/app.js?v=0.163.1"></script>
 </body>
 </html>

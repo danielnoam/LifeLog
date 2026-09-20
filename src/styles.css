@@ -493,18 +493,33 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
   font-size: 26px; line-height: 1; display: flex; align-items: center; justify-content: center;
   box-shadow: var(--shadow);
 }
-.add-menu {
-  position: absolute; right: 0; bottom: calc(100% + 10px); min-width: 185px;
+/* The one popup-menu look, shared by the + button's menu and the recurring
+   plan's More… — extracted rather than copied so a second menu can't drift
+   into being a second style. Position is the caller's: these open from
+   opposite corners of the screen. */
+.menu-pop {
+  min-width: 185px;
   background: var(--bg-elev); border: 1px solid var(--border); border-radius: 10px;
   box-shadow: var(--shadow); padding: 5px; display: flex; flex-direction: column;
+  z-index: 20;
 }
-.add-menu[hidden] { display: none; }
-.add-menu button {
+.menu-pop[hidden] { display: none; }
+.menu-pop button {
   background: transparent; border: none; color: var(--text); text-align: left;
   padding: 9px 12px; border-radius: 7px; cursor: pointer; font-size: 13.5px;
+  white-space: nowrap;
 }
-.add-menu button:hover { background: var(--bg-elev-2); }
-.add-menu-divider { border-top: 1px solid var(--border); margin: 4px 6px; }
+.menu-pop button:hover:not(:disabled) { background: var(--bg-elev-2); }
+.menu-pop button[hidden] { display: none; }
+.menu-pop-divider { border-top: 1px solid var(--border); margin: 4px 6px; }
+
+.add-menu { position: absolute; right: 0; bottom: calc(100% + 10px); }
+
+/* Anchors a menu to the button that opens it. */
+.menu-wrap { position: relative; display: inline-flex; }
+/* Opens upward: this one lives in .modal-actions at the foot of a modal that
+   scrolls, so downward would be off the end of it. */
+.menu-wrap .menu-pop { position: absolute; left: 0; bottom: calc(100% + 8px); }
 
 /* ---------- buttons ---------- */
 .btn {
@@ -1071,13 +1086,11 @@ select:focus { outline: none; border-color: var(--accent); }
 .rec-occurrences { margin-top: 8px; }
 .rec-occ-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .rec-occ-head .hint { margin: 0; }
-.rec-tools { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; }
-.rec-tools[hidden] { display: none; }
-.rec-tools .link-btn,
+/* .rec-tools is gone — its four buttons moved into the More… menu in
+   0.163.1 and take .menu-pop's styling there. */
 .rec-occ-head .link-btn {
   background: none; border: none; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0;
 }
-.rec-tools .link-btn:hover,
 .rec-occ-head .link-btn:hover { text-decoration: underline; }
 /* Plan history: one row per template this bill has been through, current
    one highlighted. Only shown once a plan change has actually happened. */

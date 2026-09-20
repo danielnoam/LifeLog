@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.163.1] - 2026-09-20
+
+### Changed
+- **More… drops a menu rather than unfolding a row.** They are four actions
+  you pick, not a section of the form, and laid out inline they read like
+  fields. It is the same menu the **+** button drops — that look is now one
+  shared `.menu-pop` rather than a second copy, so a third menu can't drift
+  into being a third style.
+- It opens upward, since it lives at the foot of a modal that scrolls, and
+  closes the way the + menu does: pick something, press it again, or click
+  anywhere else. The button keeps its name — a menu doesn't need a "Fewer".
+
 ## [0.163.0] - 2026-09-20
 
 ### Changed
