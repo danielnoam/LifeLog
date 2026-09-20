@@ -4,6 +4,34 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.161.0] - 2026-09-20
+
+### Added
+- **Needs attention.** A ⚠ count in the header, shown only when there is
+  something in it, opening a panel of the things the app knows are
+  unfinished: Steam imports whose title never resolved, backlog items a sync
+  could still fill in, and expenses still on a guessed rate. Each group says
+  how many, names a few, and has a button that takes you where you can fix
+  them. Individually each of these was only visible if you happened to scroll
+  past the one row that had it.
+- **An item belongs to one group.** An unresolved Steam import is also,
+  truthfully, an item a sync could fill in — counting it in both would make
+  two problems out of one, so the more specific group claims it and the
+  general one takes what's left.
+- **Nothing that nothing could fix is listed.** An incomplete backlog item in
+  a category with no media source isn't a gap, it's just not that kind of
+  thing.
+- **Settings can be opened on a given tab**, so the Steam group lands on
+  Media rather than on Data.
+
+### Changed
+- **The browser suites live in the repo now** (`test/browser/`, 15 suites,
+  294 checks). `node test/browser/run-all.js` serves the app on a free port
+  and runs every suite in its own process. They had been living in a
+  session-scoped temp directory, which for tests that exist because they
+  caught real bugs is one session-end away from gone. Playwright stays out of
+  `package.json` — the harness finds it or says how to install it.
+
 ## [0.160.2] - 2026-09-20
 
 ### Fixed

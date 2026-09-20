@@ -13,6 +13,25 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## Committing the ten older ad-hoc browser scripts
+
+Fourteen browser suites came into `test/browser/` in 0.161.0. Ten others
+from the same scratchpad did not: `features`, `allviews`, `tabs`, `jump`,
+`jumpbehave`, `swipe`, `summaries`, `chips`, `fixes`, `v149`.
+
+They were written against a seed file that no longer exists, and they fail
+on arrival — wrong section counts, wrong row counts, selectors for markup
+that has since changed. Their whole value was *differential*: run them
+before a change and after it, and identical output meant the change touched
+nothing it shouldn't. That works for a scratch script and not for a
+committed suite, because a suite that is red on arrival teaches you to skim
+past red.
+
+Fixing their fixtures means reconstructing a seed from their assertions,
+which is guesswork, and the areas they cover are mostly covered by the
+fourteen that did land. If one of those areas regresses, write a fresh
+suite with a seed it owns rather than reviving these.
+
 ## View Transitions for the view and mode switches
 
 **Not possible without losing something better.** Planned as the last flourish

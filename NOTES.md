@@ -16,6 +16,43 @@ what was decided against and why.
 
 ---
 
+- **partial states were invisible until gathered (0.161.0).** The app had
+  accumulated several ways for a thing to be half-done — a Steam import with
+  a placeholder title, a backlog item a source could still fill in, an
+  expense on a project that hasn't been converted — and each was only visible
+  if you happened to scroll past the one row that had it. Every predicate
+  already existed and was owned by the module that understands it;
+  `attentionGroups()` gathers, it does not decide.
+
+  Two rules make it a list rather than a nag. Groups are **mutually
+  exclusive**: an unresolved Steam import is genuinely also an item a sync
+  could fill, and counting it twice makes two problems out of one, so the
+  more specific group claims it first. And a gap **nothing could fill** is
+  not a gap: an incomplete backlog item in a category with no media source is
+  just not that kind of thing. Without the second rule the count is dominated
+  by rows nobody can act on, which is how a "needs attention" list becomes
+  something you stop looking at.
+
+  The pill shows only when the count is non-zero, so it is a signal and not
+  chrome — and it says "⚠ 3" rather than "3 need attention", because spelled
+  out it ate the search field on a phone. The header's second line was
+  already taken at both ends by the sync status and the version badge.
+
+- **the browser suites were perishable (0.161.0).** Fifteen suites and ~294
+  checks had been living in a session-scoped temp directory with nothing in
+  the repo. Several of them exist *because* they caught something no unit
+  test could: a reconcile key collision that left stale fold bars on screen,
+  a CSS animation outranking the class meant to dim a row, a toast
+  contradicting the status line beside it. Losing those means re-deriving
+  them from the same bugs.
+
+  `run-all.js` serves the repo itself on a free port, so there is no port to
+  remember, and runs each suite as its own process — a crash takes one suite
+  down rather than the run, and a suite killed by the timeout can't leave
+  localStorage behind for the next one, which is exactly how the ad-hoc
+  scripts used to drift. Ten older scripts were deliberately left out; see
+  DROPPED.md for why a red-on-arrival suite is worse than none.
+
 - **"did it win" is not "did it answer" (0.160.2).** The offline warning on
   load was computed from the load's `source` — github / file / cache /
   merged — which describes which copy the app decided to use. Whether GitHub

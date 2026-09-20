@@ -113,7 +113,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.160.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.161.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2059,6 +2059,106 @@
     return bulkBarEl;
   }
 
+  // ---------- needs attention ----------
+  // The app has accumulated several partial states, each of which is only
+  // visible if you happen to scroll past the one row that has it: a Steam
+  // import whose title never resolved, a backlog item a sync could still
+  // fill in, an expense still on a guessed rate. Individually each is a
+  // shrug; together they are a to-do list nobody can see.
+  //
+  // Every predicate here already existed and is owned by the module that
+  // understands it — this gathers, it does not decide. A group that would be
+  // empty is not built, and when every group is empty the pill is not shown
+  // at all, so this is a signal rather than a permanent badge nagging at you.
+  function attentionGroups() {
+    const groups = [];
+    // Claimed by the first group that wants it. An unresolved Steam import is
+    // also, truthfully, an item a sync could fill in — but counting it in
+    // both makes two problems out of one and inflates the headline number.
+    // The earlier group is the more specific and more actionable of the two,
+    // so it wins, and the general one picks up whatever is left.
+    const claimed = new Set();
+    const add = (id, label, hint, items, act) => {
+      const mine = items.filter((x) => !claimed.has(x.id));
+      if (!mine.length) return;
+      mine.forEach((x) => claimed.add(x.id));
+      groups.push({ id, label, hint, items: mine, act });
+    };
+
+    add("steam", "Steam titles that never resolved",
+      "Imported with a placeholder name because the store lookup failed. Settings → Media can retry them.",
+      state.data.backlog.filter((b) => Sync.isUnresolvedSteamItem(b)),
+      () => { closeAttentionPanel(); SettingsUI.openSettings("media"); });
+
+    // Deliberately only items a source could still answer for: something with
+    // no media source set isn't incomplete, it's just not that kind of thing.
+    const sources = state.data.settings.mediaCategorySources || {};
+    add("meta", "Backlog items a sync could fill in",
+      "Missing a cover, a rating, a length or a release date that their source knows.",
+      state.data.backlog.filter((b) => sources[b.category] && IO.importItemIncomplete(b, "backlog")),
+      () => { closeAttentionPanel(); switchToView("backlog"); });
+
+    add("rates", "Expenses still on a guessed rate",
+      "On a project that hasn't been converted yet, so the home figure is an estimate.",
+      state.data.financeEntries.filter((f) => Finance.isProvisional(f)),
+      () => { closeAttentionPanel(); switchToView("finance"); });
+
+    return groups;
+  }
+
+  function attentionCount() {
+    return attentionGroups().reduce((n, g) => n + g.items.length, 0);
+  }
+
+  function renderAttentionPill() {
+    const pill = $("#attentionPill");
+    if (!pill) return;
+    const n = attentionCount();
+    pill.hidden = !n;
+    if (!n) return;
+    pill.textContent = "⚠ " + n;
+    pill.title = n + " thing" + (n === 1 ? "" : "s") + " the app knows are unfinished";
+    pill.setAttribute("aria-label", pill.title);
+  }
+
+  function openAttentionPanel() {
+    renderAttentionPanel();
+    $("#attentionModal").hidden = false;
+  }
+  function closeAttentionPanel() {
+    const m = $("#attentionModal");
+    if (m) m.hidden = true;
+  }
+
+  function renderAttentionPanel() {
+    const list = $("#attentionList");
+    if (!list) return;
+    const groups = attentionGroups();
+    if (!groups.length) {
+      list.replaceChildren(el("p", "muted", "Nothing outstanding."));
+      return;
+    }
+    list.replaceChildren(...groups.map((g) => {
+      const box = el("div", "attn-group");
+      const head = el("div", "attn-head");
+      head.appendChild(el("span", "attn-label", g.label));
+      head.appendChild(el("span", "attn-count", String(g.items.length)));
+      box.appendChild(head);
+      box.appendChild(el("p", "attn-hint", g.hint));
+      // A few names, not all of them: the count is the number that matters
+      // and a hundred rows here would just be the backlog again.
+      const names = g.items.slice(0, 6).map((x) => x.title || x.note || x.category || "(untitled)");
+      const more = g.items.length - names.length;
+      box.appendChild(el("p", "attn-names",
+        names.join(", ") + (more > 0 ? " and " + more + " more" : "")));
+      const btn = el("button", "btn btn-sm", "Take me there");
+      btn.type = "button";
+      btn.onclick = g.act;
+      box.appendChild(btn);
+      return box;
+    }));
+  }
+
   // ---------- bulk run progress ----------
   // A bulk media pull is a minute of network with nothing to look at. This
   // records what happened to each item as it happens, so the count in the bar
@@ -2875,6 +2975,7 @@
     buildYearFilter();
     buildCatFilter();
     buildProjectFilter();
+    renderAttentionPill();
     render();
   }
 
@@ -3193,6 +3294,8 @@
 
     $("#closeShortcutsBtn").onclick = closeShortcutsModal;
     $("#closeBulkProgressBtn").onclick = closeBulkProgressPanel;
+    $("#attentionPill").onclick = openAttentionPanel;
+    $("#closeAttentionBtn").onclick = closeAttentionPanel;
 
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
@@ -3203,6 +3306,7 @@
         SettingsUI.closeSettings();
         closeShortcutsModal();
         closeBulkProgressPanel();
+        closeAttentionPanel();
         $("#addMenu").hidden = true;
         return;
       }

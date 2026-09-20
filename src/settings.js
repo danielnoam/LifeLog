@@ -472,8 +472,11 @@
       `This device is running LifeLog v${APP_VERSION}, but your data has already been saved by v${behind} on another device.`;
   }
 
-  function openSettings() {
-    setSettingsTab("storage");
+  // `tab` lets a caller open straight onto the section that answers what
+  // they clicked — the Needs-attention panel's Steam group, for one. Anything
+  // unrecognised falls back to Data, which is where opening it by hand lands.
+  function openSettings(tab) {
+    setSettingsTab(document.querySelector('.stab[data-stab="' + tab + '"]') ? tab : "storage");
     updateVersionSkew();
     updateBackendInfo();
     updateFileInfo();
