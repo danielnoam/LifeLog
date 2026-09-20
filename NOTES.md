@@ -16,6 +16,28 @@ what was decided against and why.
 
 ---
 
+- **"did it win" is not "did it answer" (0.160.2).** The offline warning on
+  load was computed from the load's `source` — github / file / cache /
+  merged — which describes which copy the app decided to use. Whether GitHub
+  was reachable is a different fact, and the two disagree in both directions:
+  a 404 (no data file in the repo yet) is a perfectly good answer that
+  contributes no winning candidate, and a merge whose remote was the local
+  file, because the GitHub read threw, still reported `merged`. So the
+  warning fired when GitHub was fine and stayed silent when it wasn't.
+
+  Storage now says outright whether the read completed, and the warning reads
+  that. The general shape: when a boolean is derived from an enum that was
+  built to answer something else, it will be wrong wherever the two questions
+  come apart — and the enum's name won't warn you, because it is accurate
+  about its own question.
+
+  The other half was staleness. A toast asserts something about a moment; the
+  status line asserts the present. One failed request would toast, the next
+  save would succeed and turn the status green, and both would be on screen
+  together saying opposite things. Retrying once removes the class rather
+  than the symptom — and a 401/403 is deliberately not retried, since that
+  failure is a decision and the status line already explains it.
+
 - **a caption binds to whichever neighbour is closer (0.160.1).** The FX
   conversion line inherited `.hint`'s 10px-top / 0-bottom margin, which put it
   0px from the Category field below and made it read as Category's caption.

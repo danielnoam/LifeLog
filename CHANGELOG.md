@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.160.2] - 2026-09-20
+
+### Fixed
+- **"Offline — showing last saved copy" appeared while the status line said
+  "Synced".** The warning asked the wrong question: it was derived from which
+  copy won the load rather than from whether GitHub answered at all. Those
+  come apart in both directions — a repo whose data file doesn't exist yet
+  answers 404, so nothing of GitHub's wins and you were told you were offline;
+  and a merge whose remote was the local file, because GitHub had thrown, was
+  reported as reached. It now reports what actually happened on the read.
+- **A single blip on the load no longer warns about your connection.** One
+  failed request was enough to raise the warning, and the next save seconds
+  later would go through and turn the status green — leaving a warning on
+  screen contradicted by the thing next to it. A transient failure is retried
+  once. A rejected token isn't: that's a decision, not a blip, and the status
+  line already names it.
+
 ## [0.160.1] - 2026-09-20
 
 ### Fixed

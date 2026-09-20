@@ -113,7 +113,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.160.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.160.2"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3413,14 +3413,16 @@
       const resolved = await Storage.resolveConflict(chosen);
       state.data = normalize(resolved.data);
       source = resolved.source;
-      githubReached = result.conflict.some((c) => c.source === "github");
     } else {
       state.data = result.data ? normalize(result.data) : emptyData();
       source = result.source;
-      // "merged" only happens after successfully reaching a remote
-      // candidate (GitHub, when connected) to merge against.
-      githubReached = source === "github" || (source === "merged" && Storage.githubConnected);
     }
+    // Straight from the load, rather than inferred from which copy won it.
+    // Those are different questions, and the old inference got both answers
+    // wrong: a repo with no data file yet was reported as offline (GitHub
+    // answered 404, so nothing of its own won), and a merge whose remote was
+    // the local file — because GitHub had thrown — was reported as reached.
+    githubReached = Storage.githubReadOk;
     afterDataChange();
     lastPersistedSnapshot = structuredClone(state.data);
     if (savedUi?.scrollY) setTimeout(() => window.scrollTo(0, savedUi.scrollY), 0);

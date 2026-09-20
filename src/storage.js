@@ -164,6 +164,11 @@
   // ---- GitHub backend ----
   let gh = loadGhCfg();      // { owner, repo, path, branch, token, sha } | null
   let githubError = null;
+  // Whether the last load() actually got an answer out of GitHub. Not the
+  // same question as "did GitHub's copy win" — a repo with no data file yet
+  // answers 404, which is an answer — and the two were being conflated,
+  // warning people they were offline while the status line went green.
+  let githubReadOk = false;
 
   function loadGhCfg() {
     try { return JSON.parse(localStorage.getItem(GH_KEY)) || null; } catch (e) { return null; }
@@ -238,6 +243,20 @@
     return { data: JSON.parse(b64decode(j.content)), sha: j.sha };
   }
 
+  // One retry on a transient failure. A single blip on the load fetch was
+  // enough to warn someone their connection was down, and the next save
+  // seconds later would go through and turn the status green — leaving a
+  // warning on screen contradicted by the thing right next to it. A 401/403
+  // is a decision, not a blip, so it is not retried; a 404 never throws.
+  async function ghGetFileRetrying() {
+    try {
+      return await ghGetFile();
+    } catch (e) {
+      if (e && (e.status === 401 || e.status === 403)) throw e;
+      return await ghGetFile();
+    }
+  }
+
   // Recent commits that touched the data file (newest first). Capped at 20 —
   // this is a rollback aid, not a full audit log.
   async function ghListCommits() {
@@ -310,6 +329,7 @@
     get fileConnected() { return !!(handle && !needsReconnect); },
     get githubConnected() { return !!(gh && gh.token); },
     get githubError() { return githubError; },
+    get githubReadOk() { return githubReadOk; },
     // public github info without exposing the token
     get githubInfo() {
       return gh ? { owner: gh.owner, repo: gh.repo, path: gh.path, branch: gh.branch } : null;
@@ -324,9 +344,13 @@
       const candidates = [];
 
       // --- GitHub ---
+      githubReadOk = false;
       if (gh && gh.token) {
         try {
-          const f = await ghGetFile();
+          const f = await ghGetFileRetrying();
+          // Reached, whatever it said. A missing file is an answer: it means
+          // "nothing synced here yet", not "we couldn't get through".
+          githubReadOk = true;
           if (f) {
             gh.sha = f.sha; saveGhCfg();
             githubError = null;
