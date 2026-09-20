@@ -660,6 +660,15 @@ select:focus { outline: none; border-color: var(--accent); }
 /* The rate box and its lookup button. The input takes the room; the button
    is only as wide as its word, and min-width:0 is what stops a flex child
    from refusing to shrink below its content. */
+/* The conversion line is a caption for the rate above it, but .hint's default
+   margin is 10px top and 0 bottom — so it sat flush against the Category
+   field and read as that field's caption instead, worst of all when the rate
+   row is hidden and it lands directly under Amount. The gap below is the one
+   that has to grow: the gap above is already the form's 12px field spacing
+   and can't be shrunk from here, since an adjacent sibling's bottom margin
+   collapses with this one's top. */
+#finFxPreview { margin-bottom: 20px; }
+
 .rate-row { display: flex; align-items: center; gap: 8px; }
 .rate-row input { flex: 1 1 auto; min-width: 0; }
 .rate-row .btn { flex: 0 0 auto; }

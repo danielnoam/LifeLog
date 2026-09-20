@@ -16,6 +16,20 @@ what was decided against and why.
 
 ---
 
+- **a caption binds to whichever neighbour is closer (0.160.1).** The FX
+  conversion line inherited `.hint`'s 10px-top / 0-bottom margin, which put it
+  0px from the Category field below and made it read as Category's caption.
+  Proximity is the only thing saying what a line of small grey text belongs
+  to, so the asymmetry has to point at its subject.
+
+  The fix had to go on the bottom, not the top: an adjacent sibling's bottom
+  margin collapses with this element's top margin, so the gap above is the
+  form's 12px field spacing and cannot be shrunk from the hint alone. Growing
+  the gap below to 20px produces the same asymmetry without a negative margin
+  or a `:has()` rule. The test asserts `below > above` rather than a specific
+  pixel value, so it keeps meaning the same thing if the form's spacing
+  changes.
+
 - **the rate you want is the one that applied when you spent it (0.160.0).**
   The ask was a button for "the current rate". Built literally that would put
   today's number on a June expense — a rate that was never true for it. The

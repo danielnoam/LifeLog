@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.160.1] - 2026-09-20
+
+### Fixed
+- **The conversion line captioned the wrong field.** `.hint` defaults to 10px
+  of margin above and none below, so the line sat flush against Category and
+  read as that field's caption — worst of all when the rate row is hidden and
+  it lands directly under Amount. It now has clear air beneath it and sits
+  nearer what it describes.
+
 ## [0.160.0] - 2026-09-19
 
 ### Added
