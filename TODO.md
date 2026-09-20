@@ -29,13 +29,19 @@ todo:
   only the bulk case: breaking one lump into many expenses is still manual,
   one Add at a time. Worth revisiting only if you actually convert several.
 
-  Currency-wise (0.146.0), two things were left out deliberately: recurring
-  expenses can't be foreign (a subscription billed in USD is a real case, but
-  it wants a rate per occurrence or a rate that drifts, and neither is a
-  five-minute decision), and there is no rate lookup — every rate is one you
-  typed. An FX API would add a network dependency to a view that has none,
-  and for the main use (settling a trip from the statement) the number you
-  want isn't a published rate anyway.
+  Currency-wise (0.146.0), two things were left out deliberately. The rate
+  lookup is no longer one of them: 0.160.0 added it to the expense form and
+  to Convert, keyless and CORS-direct, so the network dependency that was the
+  objection turned out to cost nothing. The reasoning that survives is the
+  narrower half — for settling a trip from a statement, the number you want
+  is the one your card issuer used, not a published reference rate, which is
+  why Convert still leads with "what it came to on your statement".
+
+  Still open: recurring expenses can't be foreign. A subscription billed in
+  USD is a real case — most of them are — and it wants either a rate per
+  occurrence or a rate that drifts, which is the decision that was never
+  made. With a lookup now in place, "per occurrence, fetched at the date the
+  occurrence falls on" is a more answerable question than it was.
 
   Projects are also finance-only on purpose. A holiday is a thing you log
   entries and notes about too, and a project that spanned all four views is a
