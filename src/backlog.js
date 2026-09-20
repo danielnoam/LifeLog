@@ -18,7 +18,7 @@
     resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
     renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
-    loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId,
+    loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId, importItemIncomplete,
     backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
     DEFAULT_SETTINGS, DEFAULT_VISUAL;
 
@@ -37,7 +37,7 @@
       resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
       renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
-    loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId,
+    loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId, importItemIncomplete,
       backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
       DEFAULT_SETTINGS, DEFAULT_VISUAL } = ctx);
   }
@@ -1198,6 +1198,12 @@
         onMove: bulkMoveSelected,
         onDelete: bulkDeleteSelected,
         onSync: bulkSyncSelected,
+        preset: {
+          label: "⚠ Incomplete",
+          count: syncableIncomplete().length,
+          title: "Select everything here a sync could still fill in, then press Sync",
+          apply: selectIncomplete,
+        },
       }));
     }
   }
@@ -1934,6 +1940,12 @@
         onMove: bulkMoveSelected,
         onDelete: bulkDeleteSelected,
         onSync: bulkSyncSelected,
+        preset: {
+          label: "⚠ Incomplete",
+          count: syncableIncomplete().length,
+          title: "Select everything here a sync could still fill in, then press Sync",
+          apply: selectIncomplete,
+        },
       }));
     }
   }
@@ -2055,6 +2067,33 @@
       row.appendChild(doneBtn);
     }
     return row;
+  }
+
+  // ---------- "everything a sync could still fill in" ----------
+  // The one-press selection offered inside bulk mode. Two rules make it
+  // mean something:
+  //
+  // A category with no media source is excluded. An item there isn't
+  // incomplete, it's just not the kind of thing anything could look up, and
+  // counting those buries the ones you can actually act on.
+  //
+  // A row inside a folded band is excluded, for the same reason the
+  // per-category select-all excludes them (0.155.0): bulk mode must never
+  // act on rows you can't see. It also keeps the button honest — the number
+  // on it is the number you get.
+  function syncableIncomplete() {
+    const sources = state.data.settings.mediaCategorySources || {};
+    return getFilteredBacklog().filter((b) =>
+      sources[b.category] &&
+      bandIsOpen(b.category, bandOf(b)) &&
+      importItemIncomplete(b, "backlog"));
+  }
+
+  function selectIncomplete() {
+    const items = syncableIncomplete();
+    state.bulk.selected.clear();
+    items.forEach((b) => state.bulk.selected.add(b.id));
+    render();
   }
 
   // ---------- bulk actions ----------

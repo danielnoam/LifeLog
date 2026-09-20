@@ -16,27 +16,25 @@ what was decided against and why.
 
 ---
 
-- **partial states were invisible until gathered (0.161.0).** The app had
-  accumulated several ways for a thing to be half-done — a Steam import with
-  a placeholder title, a backlog item a source could still fill in, an
-  expense on a project that hasn't been converted — and each was only visible
-  if you happened to scroll past the one row that had it. Every predicate
-  already existed and was owned by the module that understands it;
-  `attentionGroups()` gathers, it does not decide.
+- **an overview has to hand the problem over (0.161.0 → 0.162.0).** The
+  partial states the app accumulates — an import whose title never resolved,
+  a backlog item a source could still fill, an expense on an unsettled
+  project — are real and were invisible. Gathering them into a panel was the
+  obvious move and the wrong one: it could only *tell* you, and its one
+  action put you in front of the same list with nothing selected.
 
-  Two rules make it a list rather than a nag. Groups are **mutually
-  exclusive**: an unresolved Steam import is genuinely also an item a sync
-  could fill, and counting it twice makes two problems out of one, so the
-  more specific group claims it first. And a gap **nothing could fill** is
-  not a gap: an incomplete backlog item in a category with no media source is
-  just not that kind of thing. Without the second rule the count is dominated
-  by rows nobody can act on, which is how a "needs attention" list becomes
-  something you stop looking at.
+  The version that works does a single group and stages the fix: inside bulk
+  mode the Backlog offers "⚠ Incomplete 12", which selects exactly those,
+  next to the Sync button that resolves them. The other two groups had no
+  such pairing, which is the tell — they shared a mood, not a fix, and
+  grouping by mood is what made it a report.
 
-  The pill shows only when the count is non-zero, so it is a signal and not
-  chrome — and it says "⚠ 3" rather than "3 need attention", because spelled
-  out it ate the search field on a phone. The header's second line was
-  already taken at both ends by the sync status and the version badge.
+  Two exclusions keep the count honest, and both were worth more than the
+  grouping was. A category with no media source can't have gaps, only
+  absences, so counting those buries the actionable ones. And a row inside a
+  folded band is excluded because bulk mode must never act on what you can't
+  see (0.155.0) — which has the happy side effect that the number on the
+  button is the number you get.
 
 - **the browser suites were perishable (0.161.0).** Fifteen suites and ~294
   checks had been living in a session-scoped temp directory with nothing in

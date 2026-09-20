@@ -13,6 +13,30 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## A "Needs attention" pill and panel
+
+Shipped in 0.161.0, removed in 0.162.0. A ⚠ count in the header opened a
+panel grouping everything the app knew was unfinished — unresolved Steam
+imports, backlog items a sync could fill, expenses on a guessed rate — each
+group with a "Take me there" button.
+
+It was a list that could only tell you. "Take me there" switched view and
+left you facing the same list you'd have scrolled anyway, with nothing
+selected and no action staged. The information was right; the shape was a
+report, and a report you have to act on manually is one you stop opening.
+
+What replaced it does one of the three groups and does it properly: inside
+bulk mode the Backlog's bar offers "⚠ Incomplete 12", which selects exactly
+those, with Sync already next to it. The other two groups had no equivalent
+— a guessed rate is settled by Convert, which is per-project, and
+unresolved Steam titles already have a retry button — and gathering things
+that share a mood rather than a fix is what made the panel a report in the
+first place.
+
+Worth remembering before building another overview: an overview earns its
+place when it can hand the problem to the thing that solves it. If the best
+it can offer is a signpost, the signpost belongs where the work is.
+
 ## Committing the ten older ad-hoc browser scripts
 
 Fourteen browser suites came into `test/browser/` in 0.161.0. Ten others

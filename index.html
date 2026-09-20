@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.161.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.162.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -53,9 +53,6 @@
       <span class="brand-mark">◆</span>
       <h1>LifeLog</h1>
       <div class="storage-status" id="storageStatus"></div>
-      <!-- Only rendered when there is something in it, so it is a signal
-           rather than a permanent piece of chrome (see renderAttentionPill). -->
-      <button type="button" class="attention-pill" id="attentionPill" hidden></button>
     </div>
 
     <!-- The ✕ is ours, not the browser's: Chrome only draws its native
@@ -1351,18 +1348,6 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="attentionModal" hidden>
-    <div class="modal">
-      <div class="modal-head">
-        <h2>Needs attention</h2>
-        <button class="btn btn-icon" id="closeAttentionBtn" title="Close" aria-label="Close">✕</button>
-      </div>
-      <p class="hint">Things the app knows are unfinished. Each one is a gap it
-        can see but can't fill on its own.</p>
-      <div class="attn-list" id="attentionList"></div>
-    </div>
-  </div>
-
   <div class="modal-overlay" id="bulkProgressModal" hidden>
     <div class="modal">
       <div class="modal-head">
@@ -1396,20 +1381,20 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.161.0"></script>
-  <script defer src="src/qr.js?v=0.161.0"></script>
-  <script defer src="src/media.js?v=0.161.0"></script>
-  <script defer src="src/merge.js?v=0.161.0"></script>
-  <script defer src="src/storage.js?v=0.161.0"></script>
-  <script defer src="src/finance.js?v=0.161.0"></script>
-  <script defer src="src/settings.js?v=0.161.0"></script>
-  <script defer src="src/wheel.js?v=0.161.0"></script>
-  <script defer src="src/backlog.js?v=0.161.0"></script>
-  <script defer src="src/journal.js?v=0.161.0"></script>
-  <script defer src="src/notes.js?v=0.161.0"></script>
-  <script defer src="src/todos.js?v=0.161.0"></script>
-  <script defer src="src/io.js?v=0.161.0"></script>
-  <script defer src="src/sync.js?v=0.161.0"></script>
-  <script defer src="src/app.js?v=0.161.0"></script>
+  <script defer src="src/reconcile.js?v=0.162.0"></script>
+  <script defer src="src/qr.js?v=0.162.0"></script>
+  <script defer src="src/media.js?v=0.162.0"></script>
+  <script defer src="src/merge.js?v=0.162.0"></script>
+  <script defer src="src/storage.js?v=0.162.0"></script>
+  <script defer src="src/finance.js?v=0.162.0"></script>
+  <script defer src="src/settings.js?v=0.162.0"></script>
+  <script defer src="src/wheel.js?v=0.162.0"></script>
+  <script defer src="src/backlog.js?v=0.162.0"></script>
+  <script defer src="src/journal.js?v=0.162.0"></script>
+  <script defer src="src/notes.js?v=0.162.0"></script>
+  <script defer src="src/todos.js?v=0.162.0"></script>
+  <script defer src="src/io.js?v=0.162.0"></script>
+  <script defer src="src/sync.js?v=0.162.0"></script>
+  <script defer src="src/app.js?v=0.162.0"></script>
 </body>
 </html>

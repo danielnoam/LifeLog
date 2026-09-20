@@ -669,38 +669,6 @@ select:focus { outline: none; border-color: var(--accent); }
    collapses with this one's top. */
 #finFxPreview { margin-bottom: 20px; }
 
-/* Only on screen when it has something to say, so it reads as a signal
-   rather than chrome. Warning-coloured rather than danger: nothing here is
-   broken, it is unfinished. */
-.attention-pill {
-  font: inherit; font-size: 11px; line-height: 1; cursor: pointer;
-  color: var(--warning); background: none;
-  border: 1px solid var(--warning); border-radius: 999px; padding: 3px 9px;
-  white-space: nowrap; flex: 0 0 auto; align-self: center;
-  /* A count, not a sentence. The full wording is in the title and the panel:
-     spelled out here it ate the search field's width, which on a phone is
-     the difference between "Search titles & notes…" and "Searc", and the
-     line below is already taken at both ends by the sync status and the
-     version badge. */
-}
-.attention-pill:hover { background: var(--bg-elev-2); }
-.attention-pill[hidden] { display: none; }
-
-.attn-list { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
-.attn-group { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 12px; }
-.attn-head { display: flex; align-items: baseline; gap: 8px; }
-.attn-label { font-weight: 600; font-size: 13px; flex: 1 1 auto; min-width: 0; }
-.attn-count {
-  flex: 0 0 auto; font-size: 11.5px; font-weight: 600; color: var(--warning);
-  border: 1px solid var(--warning); border-radius: 999px; padding: 1px 8px;
-}
-.attn-hint { margin: 4px 0 0; font-size: 12px; color: var(--text-faint); }
-/* The names are context, not the point — the count is. */
-.attn-names {
-  margin: 6px 0 10px; font-size: 12px; color: var(--text-dim);
-  overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
-}
-
 .rate-row { display: flex; align-items: center; gap: 8px; }
 .rate-row input { flex: 1 1 auto; min-width: 0; }
 .rate-row .btn { flex: 0 0 auto; }
@@ -1381,6 +1349,12 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
   flex: 0 1 auto; min-width: 0; color: var(--text-faint); font-size: 12px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%;
 }
+/* Warning-coloured rather than a plain button: it names a problem, and the
+   count is the point. Sits before the actions, since it changes what they
+   will act on. */
+.bulk-preset { color: var(--warning); border-color: var(--warning); white-space: nowrap; }
+.bulk-preset:hover:not(:disabled) { background: var(--bg); }
+
 .bulk-move-select {
   background: var(--bg); border: 1px solid var(--border); color: var(--text);
   padding: 6px 8px; border-radius: 8px; font-size: 12px;

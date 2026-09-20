@@ -4,6 +4,28 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.162.0] - 2026-09-20
+
+### Changed
+- **0.161.0's Needs-attention pill and panel are gone**, replaced by a
+  one-press selection inside bulk mode. In the Backlog, long-press to enter
+  bulk mode and the bar offers **⚠ Incomplete 12** — press it and exactly
+  those are selected, with the Sync button already beside it. The panel could
+  only tell you; this hands the problem straight to the thing that fixes it.
+  See DROPPED.md.
+- **Only the one group survived.** Unresolved Steam titles already have a
+  retry in Settings → Media, and a guessed exchange rate is settled by
+  Convert, which is per-project and lives in the project modal. Neither fits
+  a selection you press Sync on.
+- **Nothing is added to the view until you're bulk-editing**, so there is no
+  new chrome in the header or anywhere else.
+
+### Notes
+- The count excludes two things on purpose: an item in a category with no
+  media source (nothing could fill it, so it isn't a gap), and a row inside a
+  folded band (bulk mode never acts on what you can't see — the rule from
+  0.155.0). The number on the button is therefore the number you get.
+
 ## [0.161.0] - 2026-09-20
 
 ### Added
