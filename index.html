@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.169.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.169.1" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -110,14 +110,18 @@
   </header>
 
   <div class="fab-wrap">
+    <!-- data-view is the tab each item files into, so turning that tab off
+         takes the item with it — see syncAddMenu() in app.js. An achievement
+         belongs to the Timeline because its Stats mode is where you read one
+         back. -->
     <div class="add-menu menu-pop" id="addMenu" hidden>
-      <button type="button" data-add="entry">Add entry</button>
-      <button type="button" data-add="note">Write a note</button>
-      <button type="button" data-add="achievement">Add achievement</button>
-      <button type="button" data-add="backlog">Add to backlog</button>
-      <div class="menu-pop-divider" role="separator"></div>
-      <button type="button" data-add="finance">Add finance entry</button>
-      <button type="button" data-add="recurring">Add recurring expense</button>
+      <button type="button" data-add="entry" data-view="timeline">Add entry</button>
+      <button type="button" data-add="note" data-view="notes">Write a note</button>
+      <button type="button" data-add="achievement" data-view="timeline">Add achievement</button>
+      <button type="button" data-add="backlog" data-view="backlog">Add to backlog</button>
+      <div class="menu-pop-divider" role="separator" data-view="finance"></div>
+      <button type="button" data-add="finance" data-view="finance">Add finance entry</button>
+      <button type="button" data-add="recurring" data-view="finance">Add recurring expense</button>
     </div>
     <button id="addBtn" class="btn btn-primary fab" aria-label="Add">+</button>
   </div>
@@ -1403,14 +1407,13 @@
         <h2>Keyboard shortcuts</h2>
         <button class="btn btn-icon" id="closeShortcutsBtn" title="Close" aria-label="Close keyboard shortcuts">✕</button>
       </div>
+      <!-- The tab rows are built by openShortcutsModal(): a cheat-sheet that
+           lists a key for a tab you have turned off is telling you about a
+           key that does nothing. -->
       <dl class="shortcuts-list">
         <div><dt><kbd>N</kbd></dt><dd>Add entry</dd></div>
         <div><dt><kbd>/</kbd></dt><dd>Focus search</dd></div>
-        <div><dt><kbd>1</kbd></dt><dd>Notes</dd></div>
-        <div><dt><kbd>2</kbd></dt><dd>Timeline</dd></div>
-        <div><dt><kbd>3</kbd></dt><dd>Backlog</dd></div>
-        <div><dt><kbd>4</kbd></dt><dd>Ledger</dd></div>
-        <div><dt><kbd>⇧</kbd> <kbd>1</kbd>–<kbd>4</kbd></dt><dd>The same tab's second mode — To-do, Stats, Next releases, Summary</dd></div>
+        <div id="shortcutViewRows"></div>
         <div><dt><kbd>Esc</kbd></dt><dd>Close a dialog / menu</dd></div>
         <div><dt><kbd>?</kbd></dt><dd>Show this list</dd></div>
       </dl>
@@ -1451,21 +1454,21 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.169.0"></script>
-  <script defer src="src/qr.js?v=0.169.0"></script>
-  <script defer src="src/media.js?v=0.169.0"></script>
-  <script defer src="src/merge.js?v=0.169.0"></script>
-  <script defer src="src/storage.js?v=0.169.0"></script>
-  <script defer src="src/finance.js?v=0.169.0"></script>
-  <script defer src="src/settings.js?v=0.169.0"></script>
-  <script defer src="src/wheel.js?v=0.169.0"></script>
-  <script defer src="src/backlog.js?v=0.169.0"></script>
-  <script defer src="src/journal.js?v=0.169.0"></script>
-  <script defer src="src/notes.js?v=0.169.0"></script>
-  <script defer src="src/todos.js?v=0.169.0"></script>
-  <script defer src="src/io.js?v=0.169.0"></script>
-  <script defer src="src/sync.js?v=0.169.0"></script>
-  <script defer src="src/recap.js?v=0.169.0"></script>
-  <script defer src="src/app.js?v=0.169.0"></script>
+  <script defer src="src/reconcile.js?v=0.169.1"></script>
+  <script defer src="src/qr.js?v=0.169.1"></script>
+  <script defer src="src/media.js?v=0.169.1"></script>
+  <script defer src="src/merge.js?v=0.169.1"></script>
+  <script defer src="src/storage.js?v=0.169.1"></script>
+  <script defer src="src/finance.js?v=0.169.1"></script>
+  <script defer src="src/settings.js?v=0.169.1"></script>
+  <script defer src="src/wheel.js?v=0.169.1"></script>
+  <script defer src="src/backlog.js?v=0.169.1"></script>
+  <script defer src="src/journal.js?v=0.169.1"></script>
+  <script defer src="src/notes.js?v=0.169.1"></script>
+  <script defer src="src/todos.js?v=0.169.1"></script>
+  <script defer src="src/io.js?v=0.169.1"></script>
+  <script defer src="src/sync.js?v=0.169.1"></script>
+  <script defer src="src/recap.js?v=0.169.1"></script>
+  <script defer src="src/app.js?v=0.169.1"></script>
 </body>
 </html>

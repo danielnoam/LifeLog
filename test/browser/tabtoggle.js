@@ -193,6 +193,108 @@ const activeView = (page) => page.evaluate(() => {
     await ctx.close();
   }
 
+  // ---- 6b. nothing anywhere else offers a tab you turned off ----
+  // 0.168.0 only took the tab out of the bar. A disabled Ledger still had
+  // "Add finance entry" in the + menu, a row in the keyboard cheat sheet and
+  // a spending slide in the Recap — all of them ways in to a tab that isn't
+  // there.
+  {
+    const { page, ctx, errs: e } = await app(browser, {
+      visual: { disabledViews: ["finance"], disabledModes: { notes: ["todo"] } },
+    });
+
+    await page.click("#addBtn");
+    await page.waitForTimeout(250);
+    const menu = await page.evaluate(() => [...document.querySelectorAll("#addMenu button")]
+      .filter((b) => !b.hidden).map((b) => b.dataset.add));
+    check("the + menu drops the items that file into a disabled tab",
+      !menu.includes("finance") && !menu.includes("recurring"), menu);
+    check("and keeps the rest", menu.includes("entry") && menu.includes("note") && menu.includes("backlog"), menu);
+    check("the divider that headed the dropped group goes with it",
+      await page.evaluate(() => document.querySelector("#addMenu .menu-pop-divider").hidden === true));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+
+    await page.keyboard.press("?");
+    await page.waitForSelector("#shortcutsModal:not([hidden])", { timeout: 5000 });
+    const sheet = await page.evaluate(() => document.querySelector(".shortcuts-list").innerText);
+    check("the cheat sheet doesn't list a key for a disabled tab", !/Ledger/.test(sheet), sheet.replace(/\s+/g, " "));
+    check("it still lists the tabs you kept", /Notes/.test(sheet) && /Timeline/.test(sheet) && /Backlog/.test(sheet), sheet.replace(/\s+/g, " "));
+    check("and the Shift row names only second modes that still exist",
+      /Stats/.test(sheet) && !/To-do/.test(sheet) && !/Summary/.test(sheet), sheet.replace(/\s+/g, " "));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 6c. and neither does the Recap ----
+  {
+    const seed = {
+      ...SEED,
+      financeEntries: [{ id: "f1", title: "Coffee", amount: 99, category: "Food", date: "2026-03-02", updatedAt: "2026-01-01T00:00:00.000Z" }],
+      entries: Array.from({ length: 5 }, (_, i) => ({
+        id: "e" + i, title: "Game " + i, category: "Games", year: 2026, month: 1 + i,
+        date: "2026-0" + (1 + i), rating: 5, createdAt: "2026-03-01T00:00:00.000Z", updatedAt: "2026-03-01T00:00:00.000Z" })),
+    };
+    const ctx2 = await browser.newContext({ viewport: { width: 460, height: 1100 }, serviceWorkers: "block" });
+    const page = await ctx2.newPage();
+    const e2 = [];
+    page.on("pageerror", (x) => e2.push("pageerror: " + x.message));
+    await page.goto(BASE + "/", { waitUntil: "networkidle" });
+    await page.evaluate((s) => {
+      localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "timeline", timelineMode: "stats" }));
+      localStorage.setItem("lifelog-cache-v1", JSON.stringify(s));
+      localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify({ disabledViews: ["finance"] }));
+      localStorage.removeItem("lifelog-github-v1");
+    }, seed);
+    await page.reload({ waitUntil: "load" });
+    await page.waitForSelector(".recap-open-btn", { timeout: 8000 });
+    await page.click(".recap-open-btn");
+    await page.waitForSelector("#recapScreen:not([hidden])", { timeout: 5000 });
+    let text = "";
+    for (let i = 0; i < 20; i++) {
+      if (await page.isHidden("#recapScreen")) break;
+      text += " " + (await page.evaluate(() => document.querySelector("#recapStage").innerText));
+      await page.keyboard.press("ArrowRight");
+      await page.waitForTimeout(130);
+    }
+    check("the Recap has no slide about a tab you turned off", !/99|spent across/.test(text), text.replace(/\s+/g, " ").slice(0, 120));
+    check("and still recaps the ones you kept", /things logged/.test(text), text.replace(/\s+/g, " ").slice(0, 120));
+    errs.push(...e2);
+    await ctx2.close();
+  }
+
+  // ---- 6d. and no cell offers a jump into a mode that isn't there ----
+  {
+    const seed = { ...SEED, entries: Array.from({ length: 4 }, (_, i) => ({
+      id: "e" + i, title: "Game " + i, category: "Games", year: 2026, month: 1 + i,
+      date: "2026-0" + (1 + i), rating: 4, createdAt: "2026-03-01T00:00:00.000Z", updatedAt: "2026-03-01T00:00:00.000Z" })) };
+    const mk = async (visual) => {
+      const c = await browser.newContext({ viewport: { width: 460, height: 1100 }, serviceWorkers: "block" });
+      const pg = await c.newPage();
+      pg.on("pageerror", (x) => errs.push("pageerror: " + x.message));
+      await pg.goto(BASE + "/", { waitUntil: "networkidle" });
+      await pg.evaluate(({ s2, v }) => {
+        localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "timeline", timelineMode: "stats" }));
+        localStorage.setItem("lifelog-cache-v1", JSON.stringify(s2));
+        localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify(v));
+        localStorage.removeItem("lifelog-github-v1");
+      }, { s2: seed, v: visual });
+      await pg.reload({ waitUntil: "load" });
+      await pg.waitForSelector(".card", { timeout: 8000 });
+      return { c, pg };
+    };
+    const a = await mk({});
+    const withEntries = await a.pg.evaluate(() => document.querySelectorAll(".heat-cell.is-clickable, .is-clickable").length);
+    await a.c.close();
+    const b2 = await mk({ disabledModes: { timeline: ["entries"] } });
+    const withoutEntries = await b2.pg.evaluate(() => document.querySelectorAll(".heat-cell.is-clickable, .is-clickable").length);
+    await b2.c.close();
+    check("Stats' heatmap offers its jump only while there is an Entries mode to jump to",
+      withEntries > 0 && withoutEntries === 0, { withEntries, withoutEntries });
+  }
+
   // ---- 7. a hand-edited file that turns everything off is survivable ----
   {
     const { page, ctx, errs: e } = await app(browser, {

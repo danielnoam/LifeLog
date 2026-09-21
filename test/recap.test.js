@@ -189,6 +189,53 @@ test("the closing line only lists what actually happened", () => {
   assert.strictEqual(s.sub, "2 things logged, 1 note. On to the next one.");
 });
 
+console.log("\nturned-off tabs and modes");
+
+const rich = () => ({
+  entries: [entry({ title: "A", rating: 5 }), entry({ title: "A" }), entry({ title: "B", month: 7 }),
+    entry({ title: "C", category: "Film", backlogAddedAt: "2024-01-01T00:00:00.000Z" })],
+  backlog: Array.from({ length: 5 }, (_, i) => ({ id: "b" + i, createdAt: "2026-02-01T00:00:00.000Z" })),
+  notes: [{ id: "n", createdAt: "2026-04-01T00:00:00.000Z" }],
+  todos: Array.from({ length: 4 }, (_, i) => ({ id: "t" + i, done: true, doneAt: "2026-05-01T00:00:00.000Z" })),
+  financeEntries: [{ id: "f", amount: 50, category: "Food", date: "2026-03-01" }],
+  accomplishments: { 2026: [{ text: "Ran a half marathon" }] },
+});
+const off = (...views) => (v) => !views.includes(v);
+
+test("with nothing turned off, every slide is offered", () => {
+  const all = Recap.buildRecap(rich(), 2026, money, () => true);
+  for (const id of ["logged", "backlog", "notes", "todos", "spend", "achievements"]) {
+    assert.ok(all.some((s) => s.id === id), "expected " + id);
+  }
+});
+
+test("a slide about a tab you turned off is not shown at all", () => {
+  const s = Recap.buildRecap(rich(), 2026, money, off("finance"));
+  assert.ok(!s.some((x) => x.id === "spend"), "the Ledger is off, so spending is not a slide");
+  assert.ok(s.some((x) => x.id === "logged"), "and the rest is untouched");
+});
+
+test("turning off the Backlog takes both of its slides", () => {
+  const s = Recap.buildRecap(rich(), 2026, money, off("backlog"));
+  assert.ok(!s.some((x) => ["backlog", "backlog-grew"].includes(x.id)), s.map((x) => x.id));
+});
+
+test("a mode counts too — to-dos go with the Notes tab's To-do mode", () => {
+  const noTodoMode = Recap.buildRecap(rich(), 2026, money, (v, m) => !(v === "notes" && m === "todo"));
+  assert.ok(!noTodoMode.some((x) => x.id === "todos"), "the To-do mode is off");
+  assert.ok(noTodoMode.some((x) => x.id === "notes"), "but Notes itself is still on, so its slide stays");
+  const noStats = Recap.buildRecap(rich(), 2026, money, (v, m) => !(v === "timeline" && m === "stats"));
+  assert.ok(!noStats.some((x) => x.id === "achievements"), "achievements are read in Stats");
+  assert.ok(noStats.some((x) => x.id === "logged"), "the Timeline's own slides stay");
+});
+
+test("if every tab a slide could belong to is off, there is no recap at all", () => {
+  // Not an opening and a closing with nothing between them — "2026" followed
+  // by "That was 2026." is two cards of nothing.
+  const s = Recap.buildRecap(rich(), 2026, money, off("timeline", "backlog", "notes", "finance"));
+  assert.deepStrictEqual(s, []);
+});
+
 console.log("\nwhich years, and when it offers itself");
 
 test("every view contributes a year worth recapping", () => {

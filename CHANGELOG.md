@@ -4,6 +4,27 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.169.1] - 2026-09-21
+
+### Fixed
+- Turning off a tab or a mode now takes it out of **everywhere**, not just the
+  tab bar. 0.168.0 only did the bar, so a switched-off Ledger still offered:
+  - "Add finance entry" and "Add recurring expense" in the **+ menu** (and the
+    divider that headed them),
+  - a row in the **keyboard shortcuts** list, for a key that did nothing,
+  - a **spending slide in your Recap**,
+  - and the **app-icon shortcut** ("Add expense" on a long press) still opened
+    the form.
+- The keyboard cheat sheet is now built from the tabs you actually have, and
+  its ⇧ row names only the second modes that still exist.
+- In Journal → Stats, a lit month in the heatmap no longer offers to jump to
+  the Timeline's Entries mode when you've turned that mode off. The cell still
+  colours and still says what it counts — it just isn't a way into somewhere
+  that isn't there.
+- A Recap with nothing left to say — every tab it could draw on turned off —
+  now shows nothing at all, rather than an opening and a closing card with
+  nothing in between.
+
 ## [0.169.0] - 2026-09-21
 
 ### Changed

@@ -20,6 +20,17 @@
 
   const MONTHS_LONG = () => MONTHS;
 
+  // Whether a tab (and, where a slide names one, a mode) is switched on. Read
+  // off the same visual settings the tab bar reads, so the recap and the app
+  // can't disagree about what exists.
+  function reachable(view, mode) {
+    const offViews = (state && state.visual && state.visual.disabledViews) || [];
+    if (offViews.includes(view)) return false;
+    if (!mode) return true;
+    const offModes = ((state && state.visual && state.visual.disabledModes) || {})[view] || [];
+    return !offModes.includes(mode);
+  }
+
   // ---------- gathering ----------
   const yearOf = (iso) => +String(iso || "").slice(0, 4);
   const monthOf = (iso) => +String(iso || "").slice(5, 7);
@@ -78,7 +89,7 @@
       // the first cut said "14" twice, which a screenshot caught and no
       // assertion would have.
       return {
-        id: "logged", kind: "big",
+        id: "logged", kind: "big", view: "timeline",
         value: g.entries.length,
         headline: g.entries.length === 1 ? "thing logged" : "things logged",
         sub: unique < g.entries.length ? unique + " of them different" : "",
@@ -92,7 +103,7 @@
       const [month, n] = topOf(counts, 1)[0] || [];
       if (!month || n < 2) return null;
       return {
-        id: "month", kind: "big",
+        id: "month", kind: "big", view: "timeline",
         value: MONTHS_LONG()[month],
         headline: "was your busiest month",
         sub: plural(n, "thing", "things") + " logged",
@@ -105,7 +116,7 @@
       if (counts.size < 2) return null;
       const top = topOf(counts, 4);
       return {
-        id: "categories", kind: "bars",
+        id: "categories", kind: "bars", view: "timeline",
         headline: "What you spent it on",
         bars: top.map(([label, n]) => ({ label, n })),
         max: top[0][1],
@@ -125,7 +136,7 @@
       if (top[0].rating < 4) return null; // nothing worth calling a highlight
       const avg = rated.reduce((s, e) => s + e.rating, 0) / rated.length;
       return {
-        id: "rated", kind: "list",
+        id: "rated", kind: "list", view: "timeline",
         headline: top[0].rating === 5 ? "The ones you loved" : "Your best of the year",
         list: top.filter((t) => t.rating >= 4).map((t) => ({ label: t.title, note: "★".repeat(t.rating), category: t.category })),
         foot: "You rated " + plural(rated.length, "thing", "things") + ", averaging " + avg.toFixed(1) + "★",
@@ -138,7 +149,7 @@
       if (!key || n < 2) return null;
       const example = g.entries.find((e) => e.title.trim().toLowerCase() === key);
       return {
-        id: "repeated", kind: "big",
+        id: "repeated", kind: "big", view: "timeline",
         value: example.title,
         headline: "you came back to " + n + " times",
         sub: "More than anything else this year",
@@ -155,7 +166,7 @@
         .filter((d) => isFinite(d) && d > 0);
       const longest = waits.length ? Math.round(Math.max(...waits)) : 0;
       return {
-        id: "backlog", kind: "big",
+        id: "backlog", kind: "big", view: "backlog",
         value: cleared.length,
         headline: cleared.length === 1 ? "thing off your backlog" : "things off your backlog",
         sub: longest > 60 ? "One had been waiting " + Math.round(longest / 30) + " months" : "",
@@ -166,7 +177,7 @@
       if (g.backlogAdded.length < 3) return null;
       const cleared = g.entries.filter((e) => e.backlogAddedAt).length;
       return {
-        id: "backlog-grew", kind: "big",
+        id: "backlog-grew", kind: "big", view: "backlog",
         value: g.backlogAdded.length,
         headline: "added to the backlog",
         sub: cleared
@@ -182,7 +193,7 @@
       const counts = countByKey(g.notes, (n) => monthOf(n.createdAt));
       const [month] = topOf(counts, 1)[0] || [];
       return {
-        id: "notes", kind: "big",
+        id: "notes", kind: "big", view: "notes",
         value: g.notes.length,
         headline: (g.notes.length === 1 ? "note" : "notes") + " written",
         sub: month && g.notes.length > 2 ? "Most of them in " + MONTHS_LONG()[month] : "",
@@ -193,7 +204,7 @@
     function ticked(g) {
       if (g.todosDone.length < 3) return null;
       return {
-        id: "todos", kind: "big",
+        id: "todos", kind: "big", view: "notes", mode: "todo",
         value: g.todosDone.length,
         headline: "to-dos ticked off",
         sub: "",
@@ -210,7 +221,7 @@
       const prevTotal = g.prevSpend.reduce((s, f) => s + (+f.amount || 0), 0);
       const pct = prevTotal ? Math.round(((total - prevTotal) / prevTotal) * 100) : 0;
       return {
-        id: "spend", kind: "big",
+        id: "spend", kind: "big", view: "finance",
         value: fmt(total),
         headline: "spent across " + plural(g.spend.length, "expense", "expenses"),
         sub: topCat ? "Most of it on " + topCat + " (" + fmt(topAmount) + ")" : "",
@@ -221,7 +232,7 @@
     function achievements(g) {
       if (!g.achievements.length) return null;
       return {
-        id: "achievements", kind: "list",
+        id: "achievements", kind: "list", view: "timeline", mode: "stats",
         headline: g.achievements.length === 1 ? "The thing you're proud of" : "The things you're proud of",
         list: g.achievements.slice(0, 8).map((a) => ({ label: a.text, note: "✦" })),
       };
@@ -243,9 +254,23 @@
 
   // The whole recap as data. `fmt` formats money — passed in so this file
   // never has to know about currencies.
-  function buildRecap(data, year, fmt) {
+  //
+  // `reachable(view, mode)` drops a slide about a tab or mode the reader has
+  // turned off. A recap is a reading of the app you actually use: someone who
+  // has switched the Ledger off should not be handed a slide about their
+  // spending, and the data is still all there the moment they switch it back.
+  // Default is everything, so the unit tests and any caller that doesn't care
+  // get the whole thing.
+  function buildRecap(data, year, fmt, reachable) {
     const g = gather(data || {}, year);
-    return SLIDES.map((f) => f(g, fmt || String)).filter(Boolean);
+    const ok = reachable || (() => true);
+    const kept = SLIDES
+      .map((f) => f(g, fmt || String))
+      .filter((sp) => sp && (!sp.view || ok(sp.view, sp.mode)));
+    // The opening and closing belong to no view, so they survive a filter
+    // that removed everything else — and "2026 / That was 2026." is not a
+    // recap, it is two cards of nothing. All or nothing.
+    return kept.some((sp) => sp.view) ? kept : [];
   }
 
   // Which years are worth offering at all.
@@ -321,7 +346,7 @@
     if (window.LifeLogFinance && window.LifeLogFinance.getEffectiveFinanceEntries) {
       data.financeEntries = window.LifeLogFinance.getEffectiveFinanceEntries();
     }
-    slides = buildRecap(data, year, fmt);
+    slides = buildRecap(data, year, fmt, reachable);
     if (!slides.length) { toast("Nothing logged in " + year + " to recap yet"); return false; }
     recapYear = year;
     at = 0;
@@ -429,7 +454,7 @@
     if (year == null) return;
     const seen = state.visual.recapSeen || {};
     if (seen[year]) return;
-    if (!buildRecap(state.data, year, String).length) return; // nothing to show; don't mark it seen either
+    if (!buildRecap(state.data, year, String, reachable).length) return; // nothing to show; don't mark it seen either
     openRecap(year, { onClosed: markSeen });
   }
 

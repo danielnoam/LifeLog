@@ -114,7 +114,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.169.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.169.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -579,6 +579,12 @@
     return on.length ? on : VIEW_ORDER;
   };
   const viewEnabled = (v) => enabledViews().includes(v);
+  // Asked by the other modules before they offer a way into a mode — see
+  // journal.js's heatmap, whose cells jump to the Timeline's Entries mode.
+  const modeEnabled = (v, m) => {
+    const spec = VIEW_MODES[v];
+    return !!spec && viewEnabled(v) && modeIds(spec).includes(m);
+  };
 
   // The modes of one view that are actually reachable, as [id, label, icon]
   // triples — the fan, the tab menu and the dots all want the labels too.
@@ -1548,6 +1554,10 @@
   function jumpToTimelineMonth(year, month) {
     // Stats is the Timeline's other mode now, so this is a mode change as
     // much as a view change — the heatmap cell has to land on the month card.
+    // Nothing offers this when Entries is turned off (the cell isn't made
+    // clickable), but the jump refuses anyway rather than parking the app in
+    // a mode the reader has switched off.
+    if (!modeEnabled("timeline", "entries")) return;
     state.timelineMode = "entries";
     if (state.view !== "timeline") switchToView("timeline"); else commitModeChange();
     const block = document.querySelector(`#content .year-block[data-year="${year}"]`);
@@ -2723,7 +2733,56 @@
     const tag = node.tagName;
     return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || node.isContentEditable;
   }
-  function openShortcutsModal() { $("#shortcutsModal").hidden = false; }
+  // The cheat sheet's tab rows, rebuilt each time it opens: a key for a tab
+  // you have turned off is a key that does nothing, and listing it is worse
+  // than listing nothing. The Shift row only names the views that still have
+  // a second mode to reach.
+  function renderShortcutRows() {
+    const wrap = $("#shortcutViewRows");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    const row = (keys, text) => {
+      const d = el("div");
+      const dt = el("dt");
+      keys.forEach((k, i) => {
+        if (i) dt.appendChild(document.createTextNode(" "));
+        dt.appendChild(el("kbd", null, k));
+      });
+      d.appendChild(dt);
+      d.appendChild(el("dd", null, text));
+      wrap.appendChild(d);
+    };
+    const digits = Object.entries(SHORTCUT_VIEWS).filter(([, v]) => viewEnabled(v));
+    for (const [digit, view] of digits) {
+      const tab = document.querySelector('#viewTabs .tab[data-view="' + view + '"]');
+      row([digit], (tab && tab.textContent) || view);
+    }
+    const seconds = digits
+      .map(([digit, view]) => {
+        const spec = VIEW_MODES[view];
+        const second = spec && modeEntries(spec)[1];
+        return second ? { digit, label: second[1] } : null;
+      })
+      .filter(Boolean);
+    if (seconds.length) {
+      const span = seconds.length > 1
+        ? [seconds[0].digit, "–", seconds[seconds.length - 1].digit]
+        : [seconds[0].digit];
+      row(["⇧", ...span], "That tab's second mode — " + seconds.map((x) => x.label).join(", "));
+    }
+  }
+
+  // Add "an expense" to a Ledger you have turned off and it lands somewhere
+  // you can't get to. Each item names the tab it files into (data-view in
+  // index.html); the divider carries one too, so the Finance group's rule
+  // goes with the group.
+  function syncAddMenu() {
+    document.querySelectorAll("#addMenu [data-view]").forEach((node) => {
+      node.hidden = !viewEnabled(node.dataset.view);
+    });
+  }
+
+  function openShortcutsModal() { renderShortcutRows(); $("#shortcutsModal").hidden = false; }
   function closeShortcutsModal() { $("#shortcutsModal").hidden = true; }
 
   // Periodic check for changes made on another device. If we have unsynced
@@ -3298,7 +3357,11 @@
 
     const addMenu = $("#addMenu");
     const closeAddMenu = () => { addMenu.hidden = true; };
-    $("#addBtn").onclick = (e) => { e.stopPropagation(); addMenu.hidden = !addMenu.hidden; };
+    $("#addBtn").onclick = (e) => {
+      e.stopPropagation();
+      syncAddMenu();
+      addMenu.hidden = !addMenu.hidden;
+    };
     addMenu.querySelectorAll("button").forEach((b) => b.onclick = () => {
       closeAddMenu();
       if (b.dataset.add === "entry") Journal.openEntryModal(null);
@@ -3643,8 +3706,10 @@
     const action = new URLSearchParams(location.search).get("action");
     if (action) {
       history.replaceState(null, "", location.pathname + location.hash);
-      if (action === "add-entry") Journal.openEntryModal(null);
-      else if (action === "add-expense") Finance.openFinanceModal(null);
+      // manifest.json's shortcut list is static — it can't know what you have
+      // turned off — so this is where one for a disabled tab stops.
+      if (action === "add-entry" && viewEnabled("timeline")) Journal.openEntryModal(null);
+      else if (action === "add-expense" && viewEnabled("finance")) Finance.openFinanceModal(null);
     }
 
     if (state.pendingSync) retrySync();
@@ -3745,7 +3810,7 @@
     isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
     pushOverrideValues, readOverrideChecks,
     applySteamAppId: Sync.applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
-    DEFAULT_SETTINGS, jumpToTimelineMonth,
+    DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled,
   });
   Todos.init({
     state, $, el, uid, toast, persist, render, emptyState, backfillUpdatedAt, keepUnknown,

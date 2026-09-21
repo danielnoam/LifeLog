@@ -16,7 +16,7 @@
     isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
     pushOverrideValues, readOverrideChecks,
     applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
-    DEFAULT_SETTINGS, jumpToTimelineMonth;
+    DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled;
 
   // Looked up at call time rather than captured: this file is required by the
   // Node tests, which have no DOM and never render.
@@ -33,7 +33,7 @@
     isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
     pushOverrideValues, readOverrideChecks,
       applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
-      DEFAULT_SETTINGS, jumpToTimelineMonth } = ctx);
+      DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled } = ctx);
   }
 
   // ---------- timeline view ----------
@@ -602,8 +602,13 @@
           cell.title = label;
           // A lit cell jumps to that month in the Timeline (see
           // jumpToTimelineMonth). activatable makes it keyboard-reachable too.
-          cell.classList.add("is-clickable");
-          activatable(cell, () => jumpToTimelineMonth(year, m), "Show " + label + " in Timeline");
+          // Only where there is an Entries mode to jump to: with it turned
+          // off the cell still colours and still says what it counts, it just
+          // isn't a way into a mode that isn't there.
+          if (modeEnabled("timeline", "entries")) {
+            cell.classList.add("is-clickable");
+            activatable(cell, () => jumpToTimelineMonth(year, m), "Show " + label + " in Timeline");
+          }
         }
         row.appendChild(cell);
       }

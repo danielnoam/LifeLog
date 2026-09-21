@@ -16,6 +16,41 @@ what was decided against and why.
 
 ---
 
+- 0.169.1 is the other half of 0.168.0, and the gap between them is the
+  lesson: **taking a tab out of the tab bar is not the same as taking it out
+  of the app.** The first pass routed every *navigation* surface through
+  `enabledViews()` — the bar, the swipe, the dots, the fan, the badges, the
+  shortcuts — and stopped there, because those were the places that walked a
+  list of views. What it missed is everything that names one view without
+  enumerating them: the + menu's six items, six lines of static HTML in the
+  cheat sheet, the Recap's slides, the PWA manifest's shortcuts, and a
+  heatmap cell in Stats that jumps into the Timeline's Entries mode.
+
+  None of those iterate over VIEW_ORDER, so no amount of routing through a
+  filtered list would have caught them. Finding them took grepping for the
+  tab names in user-visible strings and for cross-module `open*Modal` calls,
+  which is the check worth repeating if another view is ever added.
+
+  Two shapes came out of it, both worth keeping:
+
+  `data-view` on the markup. The + menu's items and the divider that heads
+  its Finance group each carry the tab they file into, so `syncAddMenu()` is
+  one loop over `[data-view]` rather than six conditions that must each be
+  remembered. The divider carrying one is the detail that makes the group
+  disappear cleanly.
+
+  **Hide the affordance, don't just guard the handler.** The Stats heatmap
+  could have kept its click and done nothing; instead the cell is not made
+  clickable at all. A control that is present and dead is worse than one that
+  is absent — it reads as a bug. `jumpToTimelineMonth` *also* refuses, but
+  that is a second line of defence, not the fix.
+
+  The Recap needed one more rule than the rest: its opening and closing cards
+  belong to no view, so a filter that removed everything else left them
+  standing. "2026" followed by "That was 2026." is two cards of nothing, so
+  it is all or nothing.
+
+
 - the Settings rework (0.169.0) is a regrouping, not a redesign, and the
   principle it turns on is worth stating: **group by where the effect lands,
   not by what kind of control it is.**
