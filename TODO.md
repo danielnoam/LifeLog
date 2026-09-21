@@ -1,21 +1,70 @@
 todo:
 
-- virtualising the Timeline and Backlog rows, if load ever needs to get
-  faster again. Measured at 4x CPU throttle over 611 entries and 250 backlog
-  items (0.136.1): first row ~320-660ms, and of the browser's own time
-  RecalcStyle was 136ms and Layout 65ms against **18,388 DOM nodes** —
-  ScriptDuration was 24ms, so neither the app's own logic nor compiling its
-  690KB of JS is the cost. The load is one ~150ms frame and then smooth; the
-  idle trickle behaves.
+- virtualising the Timeline and Backlog rows is **not worth doing**, and the
+  reason is no longer a guess. Re-measured 2026-09-21 (0.163.1) against the
+  0.136.1 baseline recorded in NOTES.md: Chromium at 4x CPU throttle,
+  460x1100, Timeline, median of three loads, dataset swept so the row count
+  is the only variable.
 
-  The only lever left is building fewer nodes: ~30 per entry is what makes
-  style recalc expensive. That means not building rows for sections nowhere
-  near the viewport, which the IntersectionObserver already half does — the
-  trickle deliberately fills the rest so the document reaches its true height
-  and the scrollbar stops moving under you. Virtualising means owning that
-  height yourself (estimated row heights, a spacer per unbuilt section), and
-  it costs find-in-page over unbuilt rows. Not worth it at this size; the
-  numbers above are the baseline to beat if it ever is.
+      entries   elements   first row   RecalcStyle   Layout   Script
+        611       5,327       534ms        192ms       78ms    115ms
+        300       3,461       642ms        158ms       80ms     73ms
+        120       2,381       635ms        149ms       71ms     41ms
+         60       1,853       551ms        149ms       72ms     41ms
+
+  Time to first row does not track the row count at all — the 611-entry load
+  came in faster than the 60-entry one. A ten-fold cut in the dataset, deeper
+  than virtualising could ever make since it removes the data and not just the
+  rows, moves it by less than the spread between repeats. The 500-650ms is
+  boot: fetching and compiling the JS, reading storage, the first render's own
+  chrome. The style and layout columns do fall with row count, but those are
+  cumulative totals over the whole 4.6s window, which is the idle trickle
+  spending time it has; they are not on the path to the first thing you see.
+
+  `node test/perf/serve-and-run.js` re-runs it.
+
+  Two things in the old entry were wrong and are worth correcting:
+
+  "~30 nodes per entry" was the CDP `Nodes` metric (17,824 today against the
+  18,388 recorded then — text nodes included) divided by the entry count. The
+  real figure is 6 elements per Timeline row and 7 per Backlog row; Timeline
+  over 611 entries is 5,327 elements in total, of which 3,666 are the rows
+  themselves. The row is already lean. There is no fat there to cut.
+
+  "which the IntersectionObserver already half does" is not true of Timeline.
+  An unbuilt section body collapses to its header's height, so all seven year
+  headers stack inside the observer's one-viewport rootMargin on first layout
+  and every section builds immediately. Disabling the idle trickle entirely
+  changes neither the node count nor the row count. Virtualising would have to
+  be row-level, not section-level — a much bigger change than the entry
+  implied, in exchange for a first-row time the sweep above cannot tell apart
+  from what we already have.
+
+  On the search question, because it comes up: the app's own search would not
+  be affected at all. `state.search` is read only by the five pure filters
+  (`getFiltered` app.js, `getFilteredBacklog`, `getFilteredFinance`,
+  `getFilteredNotes`, `getFilteredTodos`), all of which run over `state.data`
+  before anything is rendered, and `updateSearchMatchBadges` counts from those
+  same functions rather than from the DOM. Nothing in the app queries the DOM
+  for rows. Virtualisation would section an already-filtered list.
+
+  The drawback is browser find-in-page, which is a different thing, and it
+  cannot be kept. `hidden="until-found"` and `beforematch` only reveal nodes
+  that exist; a row that was never built is not reachable by any API, and
+  there is no event for "the user opened find". Intercepting Ctrl+F to focus
+  our own search box is a substitute, not a preservation — it misses find
+  opened from the browser's menu, and it does nothing for select-all, copy,
+  print-to-PDF or a screen reader walking the page.
+
+  And the cheap nine tenths of virtualisation was already taken: 0.136.1 put
+  `content-visibility: auto` on `.month-card` and `.backlog-section`, which
+  skips style, layout and paint for off-screen cards while leaving the nodes
+  in the document — which is exactly why find-in-page still works. That was
+  the benefit without the drawback, and it shipped back in 0.136.1.
+
+  So this stays parked, now for a measured reason rather than a suspected one.
+  If load ever does need to get faster, the numbers say to look at boot —
+  the JS bundle and the storage read — not at the rows.
 
 - projects, now that they exist (0.145.0), have obvious next steps that were
   deliberately left out of the first cut: a budget per project with a
