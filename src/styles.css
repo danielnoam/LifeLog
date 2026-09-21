@@ -769,11 +769,16 @@ select:focus { outline: none; border-color: var(--accent); }
    rather than sitting there looking settled. The mark is a suffix rather than
    a colour alone — colour is already doing category work in these rows.
    Always on the amount itself, never on its container: .month-total is a
-   two-column flex row and an ::after there would become a third column. */
+   two-column flex row and an ::after there would become a third column.
+   A recurring charge still on its plan's fallback rate is the same claim —
+   this is roughly what it cost, not what it cost — so it carries the same
+   mark rather than inventing a second vocabulary for the same doubt. */
 .famount.is-provisional,
+.rec-occ-amount.is-provisional,
 .month-cat.is-provisional .famount,
 .month-total.is-provisional .famount { font-style: italic; }
 .famount.is-provisional::after,
+.rec-occ-amount.is-provisional::after,
 .month-cat.is-provisional .famount::after,
 .month-total.is-provisional .famount::after { content: " ~"; opacity: .7; }
 

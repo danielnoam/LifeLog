@@ -36,7 +36,12 @@ const {
 let passed = 0;
 function test(name, fn) {
   try {
-    fn();
+    const r = fn();
+    // An async fn would hand back a promise this helper never waited on, so
+    // its rejection escaped as an unhandled rejection while the line above
+    // still printed "ok". Use atest for those; refuse them here rather than
+    // let one pass silently.
+    if (r && typeof r.then === "function") throw new Error("async test passed to test() — use atest()");
     passed++;
     console.log("  ok - " + name);
   } catch (e) {
@@ -44,6 +49,23 @@ function test(name, fn) {
     console.error("    " + e.message);
     process.exitCode = 1;
   }
+}
+
+// Async tests, run in order after the synchronous ones so the summary at the
+// bottom still counts them.
+const pending = [];
+function atest(name, fn) {
+  pending.push(async () => {
+    try {
+      await fn();
+      passed++;
+      console.log("  ok - " + name);
+    } catch (e) {
+      console.error("  FAIL - " + name);
+      console.error("    " + e.message);
+      process.exitCode = 1;
+    }
+  });
 }
 
 // ---------- localDateStr ----------
@@ -741,5 +763,167 @@ test("the dedupe key separates two expenses whose home amounts happen to match",
   assert.notStrictEqual(Finance.financeKey(a), Finance.financeKey(b));
 });
 
-console.log(`\n${passed} test(s) passed.`);
-if (process.exitCode) console.log("Some tests FAILED — see above.");
+// ---------- foreign recurring expenses (0.165.0) ----------
+const plan = (extra) => Finance.sanitizeRecurring({
+  id: "r1", startDate: "2026-01-15", interval: "monthly",
+  category: "Entertainment", note: "Streaming", ...extra,
+});
+const occsTo = (rec, dateStr) => Finance.recurringOccurrences(rec, new Date(dateStr + "T00:00:00"));
+
+test("a foreign plan keeps currency, fxAmount and rate only as a complete set", () => {
+  const ok = plan({ amount: 44.99, currency: "USD", fxAmount: 11.99, rate: 3.75 });
+  assert.strictEqual(ok.currency, "USD");
+  assert.strictEqual(ok.fxAmount, 11.99);
+  assert.strictEqual(ok.rate, 3.75);
+  // Half a description of a foreign charge is worse than none: every
+  // occurrence's home figure would be a guess nothing marked as one.
+  assert.strictEqual(plan({ amount: 44.99, currency: "USD", fxAmount: 11.99 }).currency, undefined);
+  assert.strictEqual(plan({ amount: 44.99, currency: "USD", rate: 3.75 }).currency, undefined);
+  assert.strictEqual(plan({ amount: 44.99, currency: "USD", fxAmount: 11.99, rate: 0 }).currency, undefined);
+});
+
+test("each occurrence of a foreign plan carries the same three fields an expense does", () => {
+  const rec = plan({ amount: 44.99, currency: "USD", fxAmount: 11.99, rate: 3.75 });
+  const o = occsTo(rec, "2026-03-20")[0];
+  assert.strictEqual(o.currency, "USD");
+  assert.strictEqual(o.fxAmount, 11.99);
+  assert.strictEqual(o.rate, 3.75);
+  // Which is the whole reason nothing downstream needed changing.
+  assert.deepStrictEqual(Finance.fxOf(o), { currency: "USD", amount: 11.99, rate: 3.75 });
+});
+
+test("a home-currency plan's occurrences carry no currency fields at all", () => {
+  const o = occsTo(plan({ amount: 30 }), "2026-03-20")[0];
+  assert.ok(!("currency" in o) && !("fxAmount" in o) && !("rate" in o));
+  assert.strictEqual(o.amount, 30);
+});
+
+test("a frozen rate is used for its own date and nothing else", () => {
+  const rec = plan({
+    amount: 44.99, currency: "USD", fxAmount: 10, rate: 4,
+    rates: { "2026-02-15": 3.5 },
+  });
+  const byDate = Object.fromEntries(occsTo(rec, "2026-03-20").map((o) => [o.date, o]));
+  assert.strictEqual(byDate["2026-02-15"].rate, 3.5);
+  assert.strictEqual(byDate["2026-02-15"].amount, 35);
+  assert.strictEqual(byDate["2026-02-15"].rateFrozen, true);
+  assert.strictEqual(byDate["2026-01-15"].rate, 4);
+  assert.strictEqual(byDate["2026-01-15"].amount, 40);
+  assert.strictEqual(byDate["2026-01-15"].rateFrozen, false);
+});
+
+test("changing the template rate cannot restate a charge that has a frozen one", () => {
+  // The reason the rate is per occurrence rather than per plan. Without this
+  // every past charge would silently re-price itself whenever the plan's rate
+  // was edited, which is exactly the drift the frozen-rate rule forbids.
+  const rates = { "2026-01-15": 3.5, "2026-02-15": 3.6 };
+  const before = occsTo(plan({ amount: 40, currency: "USD", fxAmount: 10, rate: 4, rates }), "2026-03-20");
+  const after = occsTo(plan({ amount: 90, currency: "USD", fxAmount: 10, rate: 9, rates }), "2026-03-20");
+  const amounts = (os) => os.filter((o) => o.rateFrozen).map((o) => o.amount);
+  assert.deepStrictEqual(amounts(before), [35, 36]);
+  assert.deepStrictEqual(amounts(after), [35, 36]);
+  // The one without a frozen rate is a forecast, so it does move.
+  const unfrozen = (os) => os.find((o) => !o.rateFrozen).amount;
+  assert.strictEqual(unfrozen(before), 40);
+  assert.strictEqual(unfrozen(after), 90);
+});
+
+test("an occurrence override changes the sum billed, and the rate still applies", () => {
+  const rec = plan({
+    amount: 40, currency: "USD", fxAmount: 10, rate: 4,
+    overrides: { "2026-02-15": { fxAmount: 25 } },
+    rates: { "2026-02-15": 3.5 },
+  });
+  const o = occsTo(rec, "2026-03-20").find((x) => x.date === "2026-02-15");
+  assert.strictEqual(o.fxAmount, 25);
+  assert.strictEqual(o.amount, 87.5);
+  assert.strictEqual(o.overridden, true);
+});
+
+test("a skipped occurrence of a foreign plan is still skipped", () => {
+  const rec = plan({
+    amount: 40, currency: "USD", fxAmount: 10, rate: 4,
+    overrides: { "2026-02-15": { skip: true } },
+  });
+  assert.strictEqual(occsTo(rec, "2026-03-20").find((o) => o.date === "2026-02-15").skipped, true);
+});
+
+test("rates survive a sanitize round-trip, and junk in them does not", () => {
+  const rec = plan({
+    amount: 40, currency: "USD", fxAmount: 10, rate: 4,
+    rates: { "2026-01-15": 3.5, "not-a-date": 9, "2026-02-15": 0, "2026-03-15": "3.8" },
+  });
+  assert.deepStrictEqual(rec.rates, { "2026-01-15": 3.5, "2026-03-15": 3.8 });
+});
+
+test("a plan change keeps the currency and re-prices from the new billed sum", () => {
+  const rec = plan({ amount: 40, currency: "USD", fxAmount: 10, rate: 4 });
+  const { created } = Finance.splitRecurring(
+    rec, "2026-04-15",
+    { interval: "monthly", amount: 12, category: "Entertainment", note: "", fxAmount: 12, rate: 4 },
+    "r2", "2026-04-01T00:00:00.000Z");
+  assert.strictEqual(created.currency, "USD");
+  assert.strictEqual(created.fxAmount, 12);
+  assert.strictEqual(created.rate, 4);
+  assert.strictEqual(created.amount, 48);
+});
+
+test("frozen rates split at the same line the overrides do", () => {
+  const rec = plan({
+    amount: 40, currency: "USD", fxAmount: 10, rate: 4,
+    rates: { "2026-01-15": 3.5, "2026-02-15": 3.6, "2026-05-15": 3.9, "2026-06-15": 3.95 },
+  });
+  const { prev, created } = Finance.splitRecurring(
+    rec, "2026-05-15",
+    { interval: "monthly", amount: 12, category: "Entertainment", note: "", fxAmount: 12, rate: 4 },
+    "r2", "2026-04-01T00:00:00.000Z");
+  // A rate priced a charge, and after the split that charge belongs to
+  // whichever plan now generates its date.
+  assert.deepStrictEqual(prev.rates, { "2026-01-15": 3.5, "2026-02-15": 3.6 });
+  assert.deepStrictEqual(created.rates, { "2026-05-15": 3.9, "2026-06-15": 3.95 });
+});
+
+test("a plan change on a home-currency plan grows no currency fields", () => {
+  const { created } = Finance.splitRecurring(
+    plan({ amount: 30 }), "2026-04-15",
+    { interval: "monthly", amount: 35, category: "Entertainment", note: "" },
+    "r2", "2026-04-01T00:00:00.000Z");
+  assert.ok(!("currency" in created) && !("rates" in created));
+  assert.strictEqual(created.amount, 35);
+});
+
+atest("the rate series takes the last quote on or before a date", async () => {
+  // The ECB quotes business days only, so a charge falling on a weekend has
+  // no key of its own — the rate in force when the card was charged is the
+  // previous quoted day's, not the next one's.
+  global.fetch = async () => ({
+    ok: true,
+    json: async () => ({ rates: {
+      "2026-01-02": { ILS: 3.70 }, "2026-01-05": { ILS: 3.72 }, "2026-01-06": { ILS: 3.75 },
+    } }),
+  });
+  const series = await Finance.fetchRateSeries("USD", "ILS", "2026-01-01", "2026-01-10");
+  assert.strictEqual(series.on("2026-01-02").rate, 3.7);
+  // 2026-01-04 is a Sunday with no quote of its own: it takes the preceding
+  // Friday's, not the following Monday's. The rate in force when the card was
+  // charged is the last one published before it, never a later one.
+  assert.strictEqual(series.on("2026-01-04").rate, 3.7);
+  assert.strictEqual(series.on("2026-01-04").date, "2026-01-02");
+  assert.strictEqual(series.on("2026-01-09").rate, 3.75, "past the end of the series, the last quote stands");
+  assert.strictEqual(series.on("2026-01-01"), null, "before the series starts there is nothing to say");
+  delete global.fetch;
+});
+
+atest("an empty or unreachable series is null rather than an empty answer", async () => {
+  global.fetch = async () => ({ ok: true, json: async () => ({ rates: {} }) });
+  assert.strictEqual(await Finance.fetchRateSeries("USD", "ILS", "2026-01-01", "2026-01-10"), null);
+  global.fetch = async () => ({ ok: false });
+  assert.strictEqual(await Finance.fetchRateSeries("USD", "ILS", "2026-01-01", "2026-01-10"), null);
+  delete global.fetch;
+});
+
+(async () => {
+  for (const run of pending) await run();
+  console.log(`\n${passed} test(s) passed.`);
+  if (process.exitCode) console.log("Some tests FAILED — see above.");
+})();

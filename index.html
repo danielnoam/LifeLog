@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.164.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.165.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -573,7 +573,17 @@
           <label>Amount
             <input id="recAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 12.50 or 50-25" required />
           </label>
+          <label class="field-narrow">Currency
+            <select id="recCurrency"></select>
+          </label>
         </div>
+        <label id="recRateLabel" hidden>Rate
+          <span class="rate-row">
+            <input id="recRate" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 3.95" />
+            <button type="button" class="btn btn-sm" id="recRateFetchBtn" title="Look up today's rate">Look up</button>
+          </span>
+        </label>
+        <p class="hint" id="recFxPreview" hidden></p>
         <label>Category
           <select id="recCategory" required></select>
         </label>
@@ -606,6 +616,7 @@
               <button type="button" role="menuitem" id="changePlanBtn">↻ Change plan…</button>
               <button type="button" role="menuitem" id="pauseBtn">⏸ Pause…</button>
               <button type="button" role="menuitem" id="convertRecurringBtn">⇄ Convert to entries</button>
+              <button type="button" role="menuitem" id="recFetchRatesBtn" hidden>💱 Look up past rates</button>
               <button type="button" role="menuitem" id="linkPastExpensesBtn">🔗 Link past expenses</button>
             </div>
           </span>
@@ -700,9 +711,16 @@
           Skip this occurrence (excluded from the Ledger and its Summary)
         </label>
         <p class="hint" id="recOccPausedHint" hidden>This date falls inside a pause, so it's already excluded. Edit the pause on the template to change that.</p>
-        <label>Amount
+        <label><span id="recOccAmountLabel">Amount</span>
           <input id="recOccAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 12.50 or 50-25" required />
         </label>
+        <label id="recOccRateLabel" hidden>Rate on this date
+          <span class="rate-row">
+            <input id="recOccRate" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 3.95" />
+            <button type="button" class="btn btn-sm" id="recOccRateFetchBtn" title="Look up the rate for this date">Look up</button>
+          </span>
+        </label>
+        <p class="hint" id="recOccFxPreview" hidden></p>
         <label>Note
           <input id="recOccNote" type="text" autocomplete="off" placeholder="Optional description…" />
         </label>
@@ -1384,20 +1402,20 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.164.0"></script>
-  <script defer src="src/qr.js?v=0.164.0"></script>
-  <script defer src="src/media.js?v=0.164.0"></script>
-  <script defer src="src/merge.js?v=0.164.0"></script>
-  <script defer src="src/storage.js?v=0.164.0"></script>
-  <script defer src="src/finance.js?v=0.164.0"></script>
-  <script defer src="src/settings.js?v=0.164.0"></script>
-  <script defer src="src/wheel.js?v=0.164.0"></script>
-  <script defer src="src/backlog.js?v=0.164.0"></script>
-  <script defer src="src/journal.js?v=0.164.0"></script>
-  <script defer src="src/notes.js?v=0.164.0"></script>
-  <script defer src="src/todos.js?v=0.164.0"></script>
-  <script defer src="src/io.js?v=0.164.0"></script>
-  <script defer src="src/sync.js?v=0.164.0"></script>
-  <script defer src="src/app.js?v=0.164.0"></script>
+  <script defer src="src/reconcile.js?v=0.165.0"></script>
+  <script defer src="src/qr.js?v=0.165.0"></script>
+  <script defer src="src/media.js?v=0.165.0"></script>
+  <script defer src="src/merge.js?v=0.165.0"></script>
+  <script defer src="src/storage.js?v=0.165.0"></script>
+  <script defer src="src/finance.js?v=0.165.0"></script>
+  <script defer src="src/settings.js?v=0.165.0"></script>
+  <script defer src="src/wheel.js?v=0.165.0"></script>
+  <script defer src="src/backlog.js?v=0.165.0"></script>
+  <script defer src="src/journal.js?v=0.165.0"></script>
+  <script defer src="src/notes.js?v=0.165.0"></script>
+  <script defer src="src/todos.js?v=0.165.0"></script>
+  <script defer src="src/io.js?v=0.165.0"></script>
+  <script defer src="src/sync.js?v=0.165.0"></script>
+  <script defer src="src/app.js?v=0.165.0"></script>
 </body>
 </html>

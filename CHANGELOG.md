@@ -4,6 +4,35 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.165.0] - 2026-09-21
+
+### Added
+- Recurring expenses can be billed in another currency. A subscription
+  charged in dollars is entered in dollars, with a rate beside it, and the
+  Ledger shows what you were billed next to what it came to — the same way a
+  one-off foreign expense already did.
+- **Look up past rates**, under More… on a foreign plan: fetches the real
+  rate for every charge the plan has already made, in a single request, and
+  freezes each one to its own date. A charge falling on a weekend takes the
+  last rate published before it, which is the one your card was charged at.
+- A charge still on the plan's fallback rate is marked with the same "~" the
+  app already uses for a figure that isn't settled yet, so you can see at a
+  glance which of them are real and which are estimates.
+- Editing a single occurrence of a foreign plan now asks for the sum you were
+  billed and the rate on that date, rather than a figure in your own currency
+  that you'd have to work out yourself.
+
+### Changed
+- The rate on a recurring expense is per charge, not per plan. Changing the
+  plan's rate re-prices only the charges that don't have a rate of their own
+  — three years of a dollar subscription can't silently restate itself at
+  today's rate, the same rule that has always applied to one-off expenses.
+- A plan change (a price rise, say) keeps the currency and asks for the new
+  price in it; the frozen rates split between old and new plan along the same
+  line the per-occurrence edits do.
+- Switching a plan back to your own currency clears its rate history, rather
+  than leaving it to reappear if you ever switch back.
+
 ## [0.164.0] - 2026-09-21
 
 ### Changed

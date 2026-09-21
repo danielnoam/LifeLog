@@ -125,11 +125,12 @@ todo:
   is the one your card issuer used, not a published reference rate, which is
   why Convert still leads with "what it came to on your statement".
 
-  Still open: recurring expenses can't be foreign. A subscription billed in
-  USD is a real case — most of them are — and it wants either a rate per
-  occurrence or a rate that drifts, which is the decision that was never
-  made. With a lookup now in place, "per occurrence, fetched at the date the
-  occurrence falls on" is a more answerable question than it was.
+  Recurring expenses could not be foreign; 0.165.0 made them so, and settled
+  the question this entry had been holding open. It is a rate per occurrence,
+  frozen to the date the charge falls on, with the plan's own rate serving
+  only as the fallback for dates that have none — because the alternative, one
+  rate on the template, lets a rate change restate every charge the plan ever
+  made. NOTES.md carries the full reasoning and the two traps in it.
 
   Projects are also finance-only on purpose. A holiday is a thing you log
   entries and notes about too, and a project that spanned all four views is a

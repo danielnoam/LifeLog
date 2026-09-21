@@ -16,6 +16,60 @@ what was decided against and why.
 
 ---
 
+- 0.165.0 made recurring expenses foreign, and the decision TODO.md had been
+  parking for three versions — "a rate per occurrence or a rate that drifts" —
+  came out on the side of per occurrence. The reasoning, because the cheaper
+  option is the obvious one and it is wrong.
+
+  A single `rate` on the template would have been four lines of code. It also
+  means every charge the plan has ever made is priced at whatever that field
+  currently says. Update it because the dollar moved, and three years of a
+  subscription silently restate themselves — last July's total is a different
+  number today than it was yesterday, for no reason the reader can see. That
+  is precisely the drift the frozen-rate rule at the top of finance.js exists
+  to prevent, and it applies to a recurring charge exactly as it does to a
+  one-off: a charge cost what it cost.
+
+  So a plan carries `rates: { date: rate }`, one per occurrence, and `rate` is
+  only the fallback for a date that has none yet. `occurrenceFx` is where the
+  two meet, and `rateFrozen` is what the `~` in the occurrence list reads.
+
+  **Why `rates` is its own map and not part of `overrides`.** They look alike
+  and they are not. An override is something you changed by hand, and the
+  list marks those with a `*` and offers to reset them. Freezing a rate is
+  bookkeeping — after "Look up past rates" every past date would carry an
+  override, every row would be starred, and the mark would stop meaning
+  anything. One map for your decisions, one for the record.
+
+  **Why the batch range starts a week before the first missing charge.** The
+  ECB quotes business days. A charge on the 15th that lands on a Saturday has
+  no quote of its own and takes the preceding Friday's — which is outside the
+  range if the range begins on the charge itself, so the very first date was
+  the one date the batch could never answer. It fell through to the per-date
+  fallback and got today's rate instead of its own. The browser suite caught
+  it; reverting the padding fails it.
+
+  **What did not need changing, and why that is the point.** `fxOf`, the
+  Ledger row, the totals, the export, the import: none of them know a
+  recurring occurrence from an ordinary expense, because `recurringOccurrences`
+  emits the same three fields a foreign expense carries — spread last, so a
+  home-currency plan adds literally nothing and every reader sees exactly what
+  it saw before. That is the storage rule at the top of finance.js paying for
+  itself a second time.
+
+  Two places that would have quietly lost the currency and now don't:
+  `splitRecurring` builds the new plan from scratch rather than spreading the
+  old one, so a price rise had to be taught to carry `currency`/`fxAmount`/
+  `rate` across; and switching a plan back to the home currency deletes
+  `rates` rather than orphaning it, or the old readings would come back to
+  life — repricing history — the moment it was switched back.
+
+  Also fixed here, in passing: `test()` in finance.test.js called its function
+  and never awaited it, so an async test printed "ok" while its rejection
+  escaped as an unhandled rejection. Two of this change's tests are async.
+  `test()` now refuses a promise outright and `atest()` handles those.
+
+
 - 0.164.0 renders from the cache first, and the two things that made it
   correct are both invisible in the diff, so they are written down here.
 
