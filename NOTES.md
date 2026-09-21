@@ -120,6 +120,48 @@ what was decided against and why.
   otherwise would mean flashing an empty state at someone whose data is
   about to arrive.
 
+  The profiling that found this is worth keeping, because most of it cleared
+  suspects rather than convicting one, and the cleared ones are the things
+  anybody would try first. `node test/perf/serve-and-run.js boot` re-runs it;
+  `… sync-block` re-runs the latency sweep, which now reads 318 / 320 / 296 /
+  333ms as GitHub's answer goes 0 / 50 / 150 / 400ms — flat, where it used to
+  be 312 / 408 / 503 / 770.
+
+  - **The JS weight is not the cost.** 924KB across 16 files, and stubbing
+    the ten that no first paint needs (finance, backlog, media, settings,
+    sync, io, qr, wheel, notes, todos — 349KB) moved DOMContentLoaded from
+    163ms to 161ms. V8 streams and parses off-thread and compiles lazily;
+    main-thread compile+evaluate for the whole app is ~30ms, 26 of it
+    app.js. Splitting the bundle or loading per tab would buy nothing, which
+    is the opposite of what the file sizes suggest.
+  - **The 21 hidden modals are a minor part.** They are 849 of the shell's
+    1,099 elements and 63KB of index.html's 74KB. Serving the page without
+    them takes domInteractive from 215ms to 57ms but DOMContentLoaded only
+    from 274ms to 243ms — the script fetch overlaps the HTML parse and
+    becomes the critical path instead. ~30ms for moving 21 modals out of
+    static markup is a bad trade.
+  - `wire()` 25ms, `normalize()` 10ms, the snapshot clone 8ms, the filters
+    19ms, the first render 60ms. Nothing there is worth attacking alone.
+  - `UpdateLayoutTree` is 59ms up to the first rows and 285ms across a 3s
+    window, so most style recalc happens after you are already reading —
+    the idle trickle doing its job. The stylesheet is 803 selectors with one
+    universal and no deep descendant chains; nothing pathological in it.
+  - The IndexedDB open for the local-file handle is still on
+    `Storage.load()`'s path, worth ~50ms, but that path is background now,
+    so nobody can see it. Not worth moving.
+
+- Convert still leads with "what it came to on your statement" rather than
+  offering to fetch a rate, and that is deliberate even though 0.160.0 put a
+  keyless rate lookup one button away.
+
+  A published reference rate and the rate you were actually charged are not
+  the same number. For settling a trip against a card statement the figure
+  you want is your issuer's — their spread, on their value date — and a
+  lookup that quoted the ECB would be confidently wrong in a way that is hard
+  to notice, because it looks right. So the lookup is offered where the rate
+  is genuinely unknown (the expense form, a recurring plan's past charges)
+  and not where you are holding the real one in your hand.
+
 
 - **a disclosure and a menu say different things (0.163.1).** Folding the
   recurring plan's four errands behind a button was right; making that button

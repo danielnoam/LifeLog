@@ -13,6 +13,79 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## Virtualising the Timeline and Backlog rows
+
+Parked in TODO.md since 0.136.1 on a suspicion, re-measured 2026-09-21 on
+0.163.1, and dropped on the numbers. Chromium at 4x CPU throttle, 460x1100,
+Timeline, median of three loads, dataset swept so the row count is the only
+variable (`node test/perf/serve-and-run.js`):
+
+    entries   elements   first row   RecalcStyle   Layout   Script
+      611       5,327       534ms        192ms       78ms    115ms
+      300       3,461       642ms        158ms       80ms     73ms
+      120       2,381       635ms        149ms       71ms     41ms
+       60       1,853       551ms        149ms       72ms     41ms
+
+Time to first row does not track the row count at all — the 611-entry load
+came in faster than the 60-entry one. A ten-fold cut in the dataset, deeper
+than virtualising could ever make since it removes the data and not just the
+rows, moves it by less than the spread between repeats.
+
+Two things the old entry asserted were wrong. "~30 nodes per entry" was the
+CDP `Nodes` metric (text nodes included) divided by the entry count; a row is
+6 elements on Timeline and 7 on Backlog, and there is no fat in it. And "the
+IntersectionObserver already half does it" is untrue of Timeline: an unbuilt
+section body collapses to its header's height, so all seven year headers fall
+inside the observer's one-viewport rootMargin on first layout and everything
+builds anyway. Disabling the idle trickle changes neither the node count nor
+the row count, so virtualising would have to be row-level rather than
+section-level — a far bigger change than the entry implied.
+
+On the search question, since it is the first thing anyone asks: the app's own
+search would be unaffected. `state.search` is read only by the five pure
+filters (`getFiltered`, `getFilteredBacklog`, `getFilteredFinance`,
+`getFilteredNotes`, `getFilteredTodos`), all of which run over `state.data`
+before anything renders, and `updateSearchMatchBadges` counts from those same
+functions rather than the DOM. Nothing in the app queries the DOM for rows.
+
+Browser find-in-page is the casualty, and it cannot be saved.
+`hidden="until-found"` and `beforematch` only reveal nodes that exist; a row
+never built is unreachable by any API, and there is no event for "the user
+opened find". Intercepting Ctrl+F to focus our own search box is a substitute,
+not a preservation — it misses find opened from the browser menu, and does
+nothing for select-all, copy, print-to-PDF or a screen reader.
+
+And the cheap nine tenths was already taken in 0.136.1: `content-visibility:
+auto` on `.month-card` and `.backlog-section` skips style, layout and paint
+for off-screen cards while leaving the nodes in the document — which is
+exactly why find-in-page still works there.
+
+The reason could stop being true: a dataset several times this one, where the
+sweep above starts to show a slope. The rig is still in `test/perf/` to check.
+
+## Project budgets, and bulk-splitting a lump into many expenses
+
+Two ideas that sat in TODO.md from 0.145.0: a budget per project with a
+spent-against-it bar, and a way to break one lump entry ("Switzerland —
+10,000") into many real expenses in one go. Both were written as "want using
+the feature first". The feature has now been used for twenty versions and
+neither has been missed, so they are not work waiting on an afternoon.
+
+The yearly-lump converter landed in 0.147.0 and covers the single case, which
+is the one that actually comes up; what was left was only the bulk case,
+worth revisiting only if several lumps ever turn out to need splitting.
+
+## Projects spanning all four views
+
+Projects are finance-only on purpose. A holiday is something you log entries
+and notes about too, and it is tempting to grow the field outward one view at
+a time. A project that meant something in Timeline, Backlog and Notes as well
+is a much larger idea than the one that shipped — different grouping, a
+different picker in four places, and a different answer to "what is a project"
+in each. Worth doing deliberately as its own thing, or not at all; what it
+must not be is something this one drifts into by accident.
+
+
 ## A "Needs attention" pill and panel
 
 Shipped in 0.161.0, removed in 0.162.0. A ⚠ count in the header opened a
