@@ -4,6 +4,26 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.168.0] - 2026-09-21
+
+### Added
+- **Turn off the tabs and modes you don't use** (Settings → Appearance →
+  Tabs). Use LifeLog purely as a ledger and you can have Ledger and nothing
+  else; keep the Timeline but drop Stats; keep Notes but drop the to-do list.
+  A tab you turn off leaves the bar entirely rather than sitting there greyed.
+- The switches are per device and don't sync, so your phone and your laptop
+  can be set up differently.
+
+### Changed
+- Everything that walks the tabs now walks only the ones you've kept: the
+  swipe between tabs skips a disabled one instead of stopping at it, the
+  match badges while you search don't count a tab you can't see, the dots
+  under a tab show only the modes it still has, and a number-key shortcut
+  for a tab you've turned off does nothing.
+- If you turn off the tab you were last on, the app opens on the first one
+  you kept rather than on a blank page. Same for a mode.
+- The last tab can't be turned off, and neither can a tab's last mode.
+
 ## [0.167.0] - 2026-09-21
 
 ### Added

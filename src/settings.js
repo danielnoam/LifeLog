@@ -19,7 +19,7 @@
     syncSteamWishlist, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
     syncAniListPlanning,
     refreshUpcomingReleases, updateRefreshReleasesButton,
-    DEFAULT_SETTINGS;
+    DEFAULT_SETTINGS, VIEW_TOGGLES, settleDisabled;
 
   function init(ctx) {
     ({ state, $, el, toast, persist, render, normalize, afterDataChange,
@@ -27,6 +27,7 @@
       saveVisualSettings, savePrivacySettings, attachSwipe,
       applyMonthLayout, applyFont, applyTheme, applyForceLayout,
       prefersReducedMotion, biometricAvailable, hashPin, randomHex, registerBiometric,
+      VIEW_TOGGLES, settleDisabled,
       updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
       syncSteamWishlist, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
       syncAniListPlanning,
@@ -440,6 +441,86 @@
     sel.value = (cur && state.data.categories.some((c) => c.name === cur)) ? cur : "";
   }
 
+  // One row per tab, each with its modes indented under it. Built rather
+  // than written into index.html because the modes are VIEW_MODES' business
+  // and a second copy of that list here would be one waiting to disagree
+  // with it — the Backlog's three came from backlog.js in the first place.
+  function renderTabToggles() {
+    const wrap = $("#tabToggles");
+    if (!wrap) return;
+    wrap.innerHTML = "";
+    const offViews = state.visual.disabledViews || [];
+    const offModes = state.visual.disabledModes || {};
+
+    for (const [view, label, modes] of VIEW_TOGGLES) {
+      const viewOn = !offViews.includes(view);
+      const row = el("label", "toggle-label tab-toggle-view");
+      const box = document.createElement("input");
+      box.type = "checkbox";
+      box.checked = viewOn;
+      box.onchange = () => setViewEnabled(view, box.checked);
+      row.appendChild(box);
+      row.appendChild(document.createTextNode(label));
+      wrap.appendChild(row);
+
+      const sub = el("div", "tab-toggle-modes");
+      for (const [id, modeLabel] of modes) {
+        const mrow = el("label", "toggle-label");
+        const mbox = document.createElement("input");
+        mbox.type = "checkbox";
+        mbox.checked = !(offModes[view] || []).includes(id);
+        // A mode of a tab you've turned off is not a separate decision —
+        // greyed rather than hidden, so turning the tab back on shows you
+        // what its modes were still set to.
+        mbox.disabled = !viewOn;
+        mbox.onchange = () => setModeEnabled(view, id, mbox.checked);
+        mrow.appendChild(mbox);
+        mrow.appendChild(document.createTextNode(modeLabel));
+        sub.appendChild(mrow);
+      }
+      wrap.appendChild(sub);
+    }
+  }
+
+  // The last tab cannot be turned off, and the last mode of a tab cannot
+  // either. Enforced here rather than only in app.js's fallbacks, so the
+  // answer is a message saying why instead of a checkbox that silently
+  // un-ticks itself.
+  function setViewEnabled(view, on) {
+    const off = new Set(state.visual.disabledViews || []);
+    if (on) off.delete(view); else off.add(view);
+    if (off.size >= VIEW_TOGGLES.length) {
+      toast("Something has to be on screen — keep at least one tab", true);
+      renderTabToggles();
+      return;
+    }
+    state.visual.disabledViews = [...off];
+    commitToggles();
+  }
+
+  function setModeEnabled(view, mode, on) {
+    const all = (VIEW_TOGGLES.find((t) => t[0] === view) || [])[2] || [];
+    const map = { ...(state.visual.disabledModes || {}) };
+    const off = new Set(map[view] || []);
+    if (on) off.delete(mode); else off.add(mode);
+    if (off.size >= all.length) {
+      toast("A tab needs at least one of its modes", true);
+      renderTabToggles();
+      return;
+    }
+    if (off.size) map[view] = [...off]; else delete map[view];
+    state.visual.disabledModes = map;
+    commitToggles();
+  }
+
+  function commitToggles() {
+    saveVisualSettings(state.visual);
+    // Where you are may no longer exist; app.js owns that question.
+    settleDisabled();
+    renderTabToggles();
+    render();
+  }
+
   function updateMediaSettings() {
     if (!$("#rawgKey")) return;
     $("#rawgKey").value = state.data.settings.mediaKeys?.rawg || "";
@@ -495,6 +576,7 @@
     $("#backlogFoldEa").value = state.visual.backlogFoldEa;
     $("#backlogFoldUnreleased").value = state.visual.backlogFoldUnreleased;
     $("#backlogFoldDropped").value = state.visual.backlogFoldDropped;
+    renderTabToggles();
     updateMediaSettings();
     updatePrivacySettings();
     $("#settingsModal").hidden = false;

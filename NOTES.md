@@ -16,6 +16,43 @@ what was decided against and why.
 
 ---
 
+- disabling tabs and modes (0.168.0) is four lines of feature and a long list
+  of things that quietly assumed four tabs. The shape that made it tractable:
+  two functions, `enabledViews()` and `modeEntries()/modeIds()`, and then
+  every consumer routed through them rather than through `VIEW_ORDER` and
+  `spec.modes` directly.
+
+  That was worth doing deliberately. The alternative — teaching the tab bar,
+  the swipe, the drag-underline, the mode fan, the tab menu, the mode dots,
+  the search badges, the keyboard shortcuts and `applySavedUi` each to check
+  the setting — is nine places that must all remember the same rule, and the
+  one that forgets fails silently. `modeIds` was already the funnel for most
+  of the mode work; giving each VIEW_MODES entry a `key` is what let it look
+  up what had been turned off without every call site passing the view in.
+
+  **Both functions refuse to return nothing.** A stylesheet with no tabs is
+  not a preference, it is a bricked app, and the setting is a plain object in
+  localStorage that a hand edit or a stale sync could set to anything. So
+  Settings blocks turning off the last tab (with a message, rather than a
+  checkbox that silently springs back), and `enabledViews()` falls back to
+  the full list if it is ever handed an empty one anyway. Two layers, because
+  only one of them is in code the user can't reach.
+
+  **The trap is where you open.** The tab you were last on is exactly the one
+  you are most likely to turn off, and `applySavedUi` would happily restore
+  it. `settleDisabled()` runs at the end of that, and again whenever the
+  setting changes, so "where am I now" has one answer rather than one per
+  entry point. A browser test covers it by opening with `view: "backlog"`
+  saved and Backlog disabled; removing the call fails it.
+
+  One thing the tests got wrong first, worth knowing for the next suite:
+  `attachSwipe` listens on **pointer** events, not touch, and only in the
+  mobile layout. A synthesised TouchEvent reaches nothing — drive it with
+  `page.mouse` instead. And a mode falling back is visible on screen before
+  it is in localStorage, since `saveUiState` only runs on a change; assert on
+  what is rendered, not on the file.
+
+
 - the Recap (0.167.0) is split so that *what it says* is testable without a
   browser: `buildRecap(data, year, fmt)` is pure and returns an array of slide
   specs, and the player only decides how a spec looks. That split is what let

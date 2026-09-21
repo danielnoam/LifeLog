@@ -114,7 +114,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.167.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.168.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -198,8 +198,27 @@
       const saved = (renamed && renamed[stored]) || stored;
       // Only where it's still one of that view's modes: "notes" sat in
       // timelineMode until 0.128.2, and setting it now would be a mode the
-      // Timeline no longer has.
+      // Timeline no longer has. modeIds also excludes anything turned off, so
+      // a saved mode you have since disabled falls back the same way.
       if (saved && modeIds(spec).includes(saved) && !(moved && key === moved.view)) spec.set(saved);
+    }
+    settleDisabled();
+  }
+
+  // The trap in letting tabs be turned off: the one you were last on is
+  // exactly the one you are most likely to turn off, and restoring it would
+  // open the app on a tab that no longer exists — a blank page with no way
+  // back. Called after the saved UI is applied and again whenever the
+  // setting changes, so there is one answer to "where am I now" rather than
+  // one per entry point.
+  function settleDisabled() {
+    const order = enabledViews();
+    if (!order.includes(state.view)) state.view = order[0];
+    // Same one level down: a mode you have disabled is not somewhere the app
+    // may be sitting.
+    for (const spec of Object.values(VIEW_MODES)) {
+      const ids = modeIds(spec);
+      if (!ids.includes(spec.get())) spec.set(ids[0]);
     }
   }
 
@@ -509,6 +528,7 @@
   // of looking at the same thing".
   const VIEW_MODES = {
     notes: {
+      key: "notes",
       modes: [["notes", "Notes", "▤"], ["todo", "To-do", "☑"]],
       // The only view whose two modes don't show the same chips: the years
       // come from the notes themselves, and a to-do has neither a year worth
@@ -519,11 +539,13 @@
       set: (m) => { state.notesMode = m; },
     },
     timeline: {
+      key: "timeline",
       modes: [["entries", "Entries", "☰"], ["stats", "Stats", "◑"]],
       get: () => state.timelineMode,
       set: (m) => { state.timelineMode = m; },
     },
     backlog: {
+      key: "backlog",
       // Read off backlog.js's own bar rather than restated here: two lists
       // would be two orders waiting to disagree about what a swipe lands on.
       modes: Backlog.MODES,
@@ -531,12 +553,41 @@
       set: (m) => { state.backlogMode = m; },
     },
     finance: {
+      key: "finance",
       modes: [["entries", "Entries", "₪"], ["summary", "Summary", "◑"]],
       get: () => state.financeMode,
       set: (m) => { state.financeMode = m; },
     },
   };
-  const modeIds = (spec) => spec.modes.map(([id]) => id);
+  // ---------- turning tabs and modes off ----------
+  // Not everyone wants four tabs. Someone using this as a ledger should be
+  // able to have Finance and nothing else; someone who only journals
+  // shouldn't carry the Backlog's chrome. Same one level down — Timeline
+  // without Stats, Notes without the to-do list.
+  //
+  // Everything downstream goes through these two rather than through
+  // VIEW_ORDER and spec.modes directly, which is what keeps the tab bar, the
+  // swipe, the mode fan, the dots, the shortcuts and the search badges from
+  // each needing to remember the rule separately.
+  //
+  // Both refuse to return nothing. A UI with no tabs is not a preference,
+  // it is a bricked app — Settings stops you turning the last one off, and
+  // this is the second line of defence for a hand-edited or synced-in value.
+  const enabledViews = () => {
+    const off = state.visual.disabledViews || [];
+    const on = VIEW_ORDER.filter((v) => !off.includes(v));
+    return on.length ? on : VIEW_ORDER;
+  };
+  const viewEnabled = (v) => enabledViews().includes(v);
+
+  // The modes of one view that are actually reachable, as [id, label, icon]
+  // triples — the fan, the tab menu and the dots all want the labels too.
+  const modeEntries = (spec) => {
+    const off = (state.visual.disabledModes || {})[spec.key] || [];
+    const on = spec.modes.filter(([id]) => !off.includes(id));
+    return on.length ? on : spec.modes;
+  };
+  const modeIds = (spec) => modeEntries(spec).map(([id]) => id);
 
   // The mode switch for whichever view is showing. Rendered before that view
   // draws, because a view's own empty state returns early — a switch rendered
@@ -675,7 +726,7 @@
     // Column-reverse in CSS, so the first mode sits nearest the tab: the
     // shortest slide reaches what a plain tap would have given you, and each
     // longer one reaches the next.
-    for (const [id, label, icon] of spec.modes) {
+    for (const [id, label, icon] of modeEntries(spec)) {
       const item = el("div", "mode-fan-item");
       item.dataset.mode = id;
       if (icon) item.appendChild(el("span", "mode-ico", icon));
@@ -728,7 +779,7 @@
     closeTabMenu();
     const menu = el("div", "tab-menu");
     menu.dataset.view = tab.dataset.view;
-    for (const [id, label, icon] of spec.modes) {
+    for (const [id, label, icon] of modeEntries(spec)) {
       const item = el("button", "tab-menu-item");
       item.type = "button";
       if (icon) item.appendChild(el("span", "mode-ico", icon));
@@ -869,7 +920,7 @@
   // Silently ignores an invalid/out-of-range view (e.g. swiping past the
   // first or last tab) instead of switching to nothing.
   function switchToView(view) {
-    if (!view || !VIEW_ORDER.includes(view)) return;
+    if (!view || !viewEnabled(view)) return;
     // Leaving a view puts it back in its own mode. That's what makes the
     // dots under an inactive tab honest: they'd otherwise show the mode it
     // was left in while a tap on it landed somewhere else. The one owner of
@@ -1127,6 +1178,9 @@
     if (activeLazySections) { activeLazySections.destroy(); activeLazySections = null; }
     try {
       document.querySelectorAll(".tab").forEach((t) => {
+        // A disabled tab goes out of the bar entirely rather than being
+        // greyed: it isn't unavailable, it's something you said you don't use.
+        t.hidden = !viewEnabled(t.dataset.view);
         t.classList.toggle("active", t.dataset.view === state.view);
       });
       updateTabUnderline();
@@ -1220,7 +1274,7 @@
       backlog: Backlog.getFilteredBacklog().length,
       finance: Finance.getFilteredFinance().length,
     } : null;
-    for (const key of VIEW_ORDER) {
+    for (const key of enabledViews()) {
       const tab = document.querySelector(`.tab[data-view="${key}"]`);
       if (!tab) continue;
       let badge = tab.querySelector(".tab-match-badge");
@@ -1368,7 +1422,7 @@
     for (const tab of document.querySelectorAll("#viewTabs .tab")) {
       const spec = VIEW_MODES[tab.dataset.view];
       let row = tab.querySelector(".tab-modes");
-      if (!spec) { if (row) row.remove(); continue; }
+      if (!spec || tab.hidden) { if (row) row.remove(); continue; }
       const ids = modeIds(spec);
       if (!row) { row = el("span", "tab-modes"); tab.appendChild(row); }
       // Rebuilt rather than diffed: three spans, once per render, against a
@@ -1408,8 +1462,9 @@
     if (!tabDrag) {
       const active = document.querySelector("#viewTabs .tab.active");
       if (!active) return;
-      const idx = VIEW_ORDER.indexOf(state.view);
-      const targetView = dx < 0 ? VIEW_ORDER[idx + 1] : VIEW_ORDER[idx - 1];
+      const order = enabledViews();
+      const idx = order.indexOf(state.view);
+      const targetView = dx < 0 ? order[idx + 1] : order[idx - 1];
       const targetEl = targetView ? document.querySelector('#viewTabs .tab[data-view="' + targetView + '"]') : null;
       if (!targetEl) return; // at a boundary — nothing to drag toward
       tabDrag = {
@@ -3093,13 +3148,15 @@
       onLeft: () => {
         if (modeFan) return;
         tabDrag = null;
-        const next = VIEW_ORDER[VIEW_ORDER.indexOf(state.view) + 1];
+        const order = enabledViews();
+        const next = order[order.indexOf(state.view) + 1];
         if (next) switchToView(next); else updateTabUnderline();
       },
       onRight: () => {
         if (modeFan) return;
         tabDrag = null;
-        const prev = VIEW_ORDER[VIEW_ORDER.indexOf(state.view) - 1];
+        const order = enabledViews();
+        const prev = order[order.indexOf(state.view) - 1];
         if (prev) switchToView(prev); else updateTabUnderline();
       },
       // The fan owns the gesture once it's open: the finger is heading up
@@ -3330,8 +3387,11 @@
       if (e.shiftKey && SHORTCUT_CODES[e.code]) {
         e.preventDefault();
         const view = SHORTCUT_CODES[e.code];
+        if (!viewEnabled(view)) return;
         const spec = VIEW_MODES[view];
-        if (spec) spec.set(modeIds(spec)[1]);
+        // [1] only where there is a second mode left to reach.
+        const ids = modeIds(spec);
+        if (spec && ids[1]) spec.set(ids[1]);
         if (view !== state.view) switchToView(view); else commitModeChange();
         return;
       }
@@ -3650,6 +3710,16 @@
     setBacklogCover: Backlog.setBacklogCover, setEntryCover: Journal.setEntryCover,
   });
   SettingsUI.init({
+    // The tab/mode list Settings draws its switches from, built here so
+    // VIEW_MODES stays the one place that knows what a view's modes are. The
+    // tab labels are the ones on the tabs themselves, read off the bar rather
+    // than restated, for the same reason.
+    VIEW_TOGGLES: VIEW_ORDER.map((v) => [
+      v,
+      (document.querySelector('#viewTabs .tab[data-view="' + v + '"]') || {}).textContent || v,
+      VIEW_MODES[v].modes.map(([id, label]) => [id, label]),
+    ]),
+    settleDisabled,
     state, $, el, toast, persist, render, normalize, afterDataChange,
     setSyncing, refreshStorageStatus, schedulePoll, versionBehind, APP_VERSION,
     saveVisualSettings, savePrivacySettings, attachSwipe,

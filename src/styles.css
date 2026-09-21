@@ -2291,3 +2291,18 @@ html.force-mobile .backlog-section-head {
   cursor: pointer; margin-left: auto;
 }
 .recap-open-btn:hover { background: var(--accent-hover); }
+
+/* Tab/mode switches in Settings → Appearance. The modes are indented under
+   their tab because they are a detail of it, not a peer — and greyed rather
+   than removed while the tab itself is off, so turning it back on shows you
+   what its modes were left set to. */
+.tab-toggles { display: flex; flex-direction: column; gap: 4px; }
+.tab-toggle-view { font-weight: 600; }
+.tab-toggle-modes {
+  display: flex; flex-direction: column; gap: 3px;
+  margin: 0 0 8px 24px; padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+.tab-toggle-modes .toggle-label { font-size: 12.5px; color: var(--text-dim); }
+.tab-toggle-modes input:disabled + * { opacity: .5; }
+.tab-toggle-modes label:has(input:disabled) { opacity: .5; cursor: default; }

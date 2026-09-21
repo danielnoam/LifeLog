@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.167.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.168.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -1074,6 +1074,14 @@
 
       <div class="settings-panel" data-panel="appearance">
       <section class="settings-section">
+        <h3>Tabs</h3>
+        <p class="hint">Turn off the parts of the app you don't use — they leave the
+          tab bar entirely. This device only. You can't turn off everything: the
+          last tab standing stays.</p>
+        <div class="tab-toggles" id="tabToggles"></div>
+      </section>
+
+      <section class="settings-section">
         <h3>Look</h3>
         <p class="hint">Color scheme and typeface — both visual only, this device only.</p>
         <label>Color scheme
@@ -1420,21 +1428,21 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.167.0"></script>
-  <script defer src="src/qr.js?v=0.167.0"></script>
-  <script defer src="src/media.js?v=0.167.0"></script>
-  <script defer src="src/merge.js?v=0.167.0"></script>
-  <script defer src="src/storage.js?v=0.167.0"></script>
-  <script defer src="src/finance.js?v=0.167.0"></script>
-  <script defer src="src/settings.js?v=0.167.0"></script>
-  <script defer src="src/wheel.js?v=0.167.0"></script>
-  <script defer src="src/backlog.js?v=0.167.0"></script>
-  <script defer src="src/journal.js?v=0.167.0"></script>
-  <script defer src="src/notes.js?v=0.167.0"></script>
-  <script defer src="src/todos.js?v=0.167.0"></script>
-  <script defer src="src/io.js?v=0.167.0"></script>
-  <script defer src="src/sync.js?v=0.167.0"></script>
-  <script defer src="src/recap.js?v=0.167.0"></script>
-  <script defer src="src/app.js?v=0.167.0"></script>
+  <script defer src="src/reconcile.js?v=0.168.0"></script>
+  <script defer src="src/qr.js?v=0.168.0"></script>
+  <script defer src="src/media.js?v=0.168.0"></script>
+  <script defer src="src/merge.js?v=0.168.0"></script>
+  <script defer src="src/storage.js?v=0.168.0"></script>
+  <script defer src="src/finance.js?v=0.168.0"></script>
+  <script defer src="src/settings.js?v=0.168.0"></script>
+  <script defer src="src/wheel.js?v=0.168.0"></script>
+  <script defer src="src/backlog.js?v=0.168.0"></script>
+  <script defer src="src/journal.js?v=0.168.0"></script>
+  <script defer src="src/notes.js?v=0.168.0"></script>
+  <script defer src="src/todos.js?v=0.168.0"></script>
+  <script defer src="src/io.js?v=0.168.0"></script>
+  <script defer src="src/sync.js?v=0.168.0"></script>
+  <script defer src="src/recap.js?v=0.168.0"></script>
+  <script defer src="src/app.js?v=0.168.0"></script>
 </body>
 </html>
