@@ -16,6 +16,45 @@ what was decided against and why.
 
 ---
 
+- 0.166.0 was a cleanup, and the part worth recording is how unreliable the
+  obvious way of finding dead code turned out to be.
+
+  Grepping a class name to see whether anything produces it fails twice over
+  in this codebase. `\bcat-row\b` matches inside `media-cat-row`, because a
+  hyphen is a word boundary — so a dead class looked alive. And pairing
+  quotes to extract string literals drifts the moment prose contains an
+  apostrophe, which in files this heavily commented means most literals after
+  the first "don't" are mis-parsed — so live classes looked dead. Both
+  failures point the same way: treat the output as a candidate list and let
+  a precise grep be the arbiter, one name at a time.
+
+  The same trap in reverse for ids: `$("#" + prefix + "SyncStatus")` builds
+  `fSyncStatus` and `bSyncStatus`, so a search for either finds nothing. Any
+  audit here has to consider prefix-built AND suffix-built selectors, and the
+  honest check for "did this removal matter" is not the analysis at all —
+  it is screenshotting every view, mode and modal at both widths before and
+  after and comparing the images. That is what was actually relied on.
+
+  What went, once verified: the whole `.cat-manager`/`.cat-row`/`.add-cat`
+  block (an in-place category editor replaced long ago by the three modals),
+  `.view-current`, `.recur-stop`, `.version-tag` (not to be confused with the
+  live `.version-badge`), `.bulkp-row.is-pending`, eleven vestigial `id`
+  attributes whose elements are all styled by class, and `b64urlEncode`,
+  whose decode half is still used by the setup-link path.
+
+- `sw.js`'s `CACHE` constant is bumped once per release, and 0.166.0 is where
+  that stopped being folklore. It had drifted three releases on `v87` because
+  the release checklist never mentioned it; the checklist now does.
+
+  Worth being clear about what it is and isn't for, since the drift did no
+  harm and that is easy to misread as "it doesn't matter". Freshness comes
+  from the `?v=x.y.z` query on every script and stylesheet — changed assets
+  are new URLs that miss the cache regardless of its name. What the name
+  controls is the `activate` handler's purge: it deletes every cache that
+  isn't the current one, so leaving the name alone means every superseded
+  `app.js?v=…` stays in the user's cache storage indefinitely.
+
+
 - 0.165.0 made recurring expenses foreign, and the decision TODO.md had been
   parking for three versions — "a rate per occurrence or a rate that drifts" —
   came out on the side of per occurrence. The reasoning, because the cheaper

@@ -4,6 +4,26 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.166.0] - 2026-09-21
+
+### Fixed
+- The service worker's cache version is bumped again. It had been stuck for
+  three releases, which didn't serve anyone stale code — the `?v=` on every
+  script does that job — but did mean superseded copies of the app were never
+  cleared out of your browser's cache storage.
+
+### Changed
+- Housekeeping only, with nothing to see: removed a stylesheet's worth of
+  rules for a category manager that no longer exists, a few other selectors
+  nothing produces, eleven `id` attributes nothing referred to, and an unused
+  encoder. Every view, mode and modal was screenshotted before and after at
+  both desktop and phone widths and the images are identical.
+- Six code comments pointed at TODO.md entries that have since been closed.
+  One of them claimed a recurring expense can't be foreign, which stopped
+  being true in 0.165.0 — it now explains what actually happens, which is
+  that Convert deliberately leaves a foreign plan's per-charge rates alone
+  rather than restating them at one project-wide rate.
+
 ## [0.165.0] - 2026-09-21
 
 ### Added

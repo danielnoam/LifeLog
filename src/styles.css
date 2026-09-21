@@ -407,8 +407,6 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 .tab-mode-dot.is-on { width: 9px; opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .tab-mode-dot { transition: none; } }
 
-/* mobile-only "current view" trigger; see .views.open below */
-.view-current { display: none; }
 
 /* The wrapper is what the topbar lays out; the input fills it. Block, not
    flex: as a flex item the input keeps its intrinsic min-width, which stops
@@ -1083,7 +1081,6 @@ select:focus { outline: none; border-color: var(--accent); }
 .recur-card { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
 .recur-row { display: flex; align-items: center; gap: 8px; padding: 5px 7px; border-radius: 7px; font-size: 13px; color: var(--text); }
 .recur-row:hover { background: var(--bg-elev-2); }
-.recur-row .recur-stop { margin-left: auto; }
 /* Stopped or superseded plans — still listed (and openable) so their
    history stays reachable, but visibly out of force. */
 .recur-row.is-ended { opacity: .58; }
@@ -1091,8 +1088,6 @@ select:focus { outline: none; border-color: var(--accent); }
 .rec-occurrences { margin-top: 8px; }
 .rec-occ-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .rec-occ-head .hint { margin: 0; }
-/* .rec-tools is gone — its four buttons moved into the More… menu in
-   0.163.1 and take .menu-pop's styling there. */
 .rec-occ-head .link-btn {
   background: none; border: none; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0;
 }
@@ -1368,7 +1363,6 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .bulkp-row.is-done .bulkp-glyph { color: var(--success); }
 .bulkp-row.is-skipped .bulkp-glyph { color: var(--warning); }
 .bulkp-row.is-failed .bulkp-glyph { color: var(--danger); }
-.bulkp-row.is-pending { color: var(--text-faint); }
 .bulkp-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bulkp-detail {
   flex: 0 1 auto; min-width: 0; color: var(--text-faint); font-size: 12px;
@@ -1757,10 +1751,6 @@ kbd {
   background: var(--danger-bg); border: 1px solid var(--danger);
   border-radius: 8px; padding: 8px 10px;
 }
-.version-tag {
-  margin: 16px 0 0; padding-top: 12px; border-top: 1px solid var(--border);
-  text-align: center; color: var(--text-faint); font-size: 11px;
-}
 .toggle-label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; color: var(--text); }
 .media-cat-row {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -1796,19 +1786,6 @@ kbd {
 .hint { margin: 10px 0 0; }
 .muted { margin: 0 0 10px; }
 
-.cat-manager { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
-.cat-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; }
-.cat-row input[type=color] { width: 28px; height: 26px; border: none; background: none; padding: 0; cursor: pointer; }
-.cat-row .cname { flex: 1; background: transparent; border: none; color: var(--text); font-size: 13.5px; padding: 2px 4px; }
-.cat-row .cname:focus { outline: 1px solid var(--accent); border-radius: 4px; }
-.cat-row .ccount { color: var(--text-faint); font-size: 12px; min-width: 54px; text-align: right; }
-.cat-row .move { background: none; border: none; color: var(--text-faint); cursor: pointer; padding: 2px 4px; font-size: 13px; }
-.cat-row .move:hover { color: var(--text); }
-.cat-row .del { background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 14px; }
-.cat-row .del:hover { color: var(--danger); }
-.add-cat { display: flex; gap: 8px; }
-.add-cat input[type=text] { flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 8px 10px; border-radius: 8px; }
-.add-cat input[type=color] { width: 38px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); cursor: pointer; }
 
 /* toast */
 .toast {
@@ -1864,7 +1841,6 @@ kbd {
     background: var(--bg-elev); border-top: 1px solid var(--border);
     box-shadow: 0 -2px 10px var(--nav-shadow);
   }
-  html:not(.force-pc) .view-current { display: none; }
   /* .views carries order:2 from its desktop role (positioning it among
      .brand/.search/#settingsBtn in the top header) — irrelevant here, but
      since #topbar-bottom is now itself a flex column, that leaks into
@@ -1996,7 +1972,6 @@ html.force-mobile .topbar-bottom {
   background: var(--bg-elev); border-top: 1px solid var(--border);
   box-shadow: 0 -2px 10px var(--nav-shadow);
 }
-html.force-mobile .view-current { display: none; }
 /* See the matching comment in the @media block above — the jump-nav row
    sits above the tabs (order:0), tabs stay bottom-most (order:1). */
 html.force-mobile .views { flex: 1; display: flex; align-items: stretch; order: 1; }

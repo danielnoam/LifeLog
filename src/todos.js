@@ -192,7 +192,7 @@
 
   // ---------- categories ----------
   // The third add/edit-category modal in the app, after the journal's and
-  // Finance's — TODO.md has the note about folding all three into one. This
+  // Finance's — DROPPED.md says why they stay three and not one. This
   // is the simplest: a to-do category cascades to one collection, and there
   // is no "Other" for its to-dos to fall back into, so deleting one just
   // leaves them in the general panel.
@@ -320,7 +320,7 @@
 
   // Creating one is part of picking one: a checklist's categories appear as
   // you need them, so a separate place to manage them first would be a
-  // detour. Renaming and recolouring are in TODO.md.
+  // detour. Renaming and recolouring a to-do category are still prompt-only.
   function newCategory() {
     const name = (prompt("New to-do category") || "").trim();
     if (!name) return "";

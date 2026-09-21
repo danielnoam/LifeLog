@@ -164,7 +164,7 @@
   }
 
   // The shell outlives a render. app.js still clears #viewBody on its way
-  // through (that comes out last — see TODO.md), so holding this subtree is
+  // through (and will keep doing so — see DROPPED.md), so holding this is
   // what lets the year sections, month cards and note cards survive: clearing
   // a parent detaches these nodes without destroying them.
   let notesRootEl = null, notesEmptyEl = null, notesBulkEl = null;

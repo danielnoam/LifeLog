@@ -113,7 +113,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.165.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.166.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3530,7 +3530,7 @@
     // the whole round-trip on a blank page, for entries that were already in
     // localStorage. Measured at 4x CPU throttle over 611 entries: 312ms to
     // first row with sync off, 770ms with GitHub answering in 400ms. See
-    // TODO.md's boot entry and test/perf/sync-block.js.
+    // NOTES.md's 0.164.0 entry and test/perf/sync-block.js.
     const cached = Storage.loadCache();
     if (cached) {
       state.data = normalize(cached.data);

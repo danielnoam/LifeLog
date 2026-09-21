@@ -179,9 +179,6 @@
   function b64encode(str) { return btoa(unescape(encodeURIComponent(str))); }
   function b64decode(b64) { return decodeURIComponent(escape(atob(b64.replace(/\s/g, "")))); }
   // URL-safe base64 for the device-setup link (carries the connection config)
-  function b64urlEncode(str) {
-    return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  }
   function b64urlDecode(s) {
     s = s.replace(/-/g, "+").replace(/_/g, "/");
     while (s.length % 4) s += "=";

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.165.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.166.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -91,7 +91,7 @@
     </div>
   </header>
 
-  <div class="fab-wrap" id="fabWrap">
+  <div class="fab-wrap">
     <div class="add-menu menu-pop" id="addMenu" hidden>
       <button type="button" data-add="entry">Add entry</button>
       <button type="button" data-add="note">Write a note</button>
@@ -211,7 +211,7 @@
           </label>
         </div>
         <p class="muted added-line" id="addedLine" hidden></p>
-        <div class="entry-extra" id="entryExtra">
+        <div class="entry-extra">
           <label>Rating
             <div class="rating-input" id="fRating" data-value="0">
               <button type="button" class="star" data-star="1" aria-label="1 star">★</button>
@@ -509,7 +509,7 @@
       <h2 id="financeModalTitle">Add finance entry</h2>
       <form id="financeForm">
         <input type="hidden" id="financeId" />
-        <label id="finDateLabel">Date
+        <label>Date
           <input id="finDate" type="date" required />
         </label>
         <div class="field-row">
@@ -555,10 +555,10 @@
         <input type="hidden" id="recId" />
         <p class="hint" id="recConvertHint" hidden>Converting an existing entry — it's replaced by this expense's first occurrence once you save.</p>
         <div class="row">
-          <label id="recStartLabel">Start date
+          <label>Start date
             <input id="recStart" type="date" required />
           </label>
-          <label id="recEndLabel">Stops on (optional)
+          <label>Stops on (optional)
             <input id="recEnd" type="date" />
           </label>
         </div>
@@ -593,7 +593,7 @@
         <label>Note
           <input id="recNote" type="text" autocomplete="off" placeholder="Optional description…" />
         </label>
-        <p class="hint" id="recHint">Generates an expense entry on this date every period, up to today (or the stop date). Saving here rewrites every past and future occurrence — to change the terms from a date onward instead, use “Change plan”.</p>
+        <p class="hint">Generates an expense entry on this date every period, up to today (or the stop date). Saving here rewrites every past and future occurrence — to change the terms from a date onward instead, use “Change plan”.</p>
         <div class="plan-trail" id="recPlanTrail" hidden>
           <p class="hint">Plan history</p>
           <div class="plan-trail-list" id="recPlanTrailList"></div>
@@ -813,8 +813,8 @@
   </div>
 
   <!-- To-do category add/edit. A third of these, after the journal's and the
-       Finance one — see TODO.md: they want one parameterised modal, not a
-       fourth copy. This one is the simplest of the three: to-do categories
+       Finance one — see DROPPED.md for why folding them into one
+       parameterised modal was tried and rejected. This one is the simplest:
        cascade to one collection and have no "Other" to fall back to. -->
   <div class="modal-overlay" id="todoCatModal" hidden>
     <div class="modal">
@@ -846,7 +846,7 @@
         <button class="btn btn-icon" id="closeSettingsBtn" title="Close" aria-label="Close settings">✕</button>
       </div>
 
-      <nav class="settings-tabs" id="settingsTabs">
+      <nav class="settings-tabs">
         <button class="stab active" data-stab="storage" type="button">Data</button>
         <button class="stab" data-stab="history" type="button">History</button>
         <button class="stab" data-stab="backup" type="button">Import / Export</button>
@@ -877,9 +877,9 @@
 
         <h4>GitHub sync <span class="muted">(works on all devices)</span></h4>
         <p class="muted" id="ghInfo"></p>
-        <div class="gh-fields" id="ghFields">
+        <div class="gh-fields">
           <ol class="gh-steps">
-            <li><a id="ghTokenLink" href="https://github.com/settings/tokens/new?description=LifeLog&amp;scopes=repo" target="_blank" rel="noopener">Create a GitHub token →</a>, click <strong>Generate token</strong>, and copy it.</li>
+            <li><a href="https://github.com/settings/tokens/new?description=LifeLog&amp;scopes=repo" target="_blank" rel="noopener">Create a GitHub token →</a>, click <strong>Generate token</strong>, and copy it.</li>
             <li>Paste it below and press <strong>Connect</strong> — a private data repo is created for you automatically.</li>
           </ol>
           <label>Access token
@@ -1025,7 +1025,7 @@
         <h4>Unlock methods</h4>
         <p class="hint">A PIN is required first — fingerprint/Face ID is an optional addition on top of it, with the PIN as a fallback if biometrics fail.</p>
 
-        <div id="privacyPinControls">
+        <div>
           <div class="row" id="privacyPinForm" hidden>
             <label>New PIN <span class="muted">(4–8 digits)</span>
               <input id="newPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" />
@@ -1043,7 +1043,7 @@
           </div>
         </div>
 
-        <div id="privacyBioControls">
+        <div>
           <p class="warn" id="privacyBioUnavailable" hidden>Fingerprint/Face ID isn't available on this device or browser.</p>
           <p class="muted" id="privacyBioStatus"></p>
           <div class="btn-row">
@@ -1402,20 +1402,20 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.165.0"></script>
-  <script defer src="src/qr.js?v=0.165.0"></script>
-  <script defer src="src/media.js?v=0.165.0"></script>
-  <script defer src="src/merge.js?v=0.165.0"></script>
-  <script defer src="src/storage.js?v=0.165.0"></script>
-  <script defer src="src/finance.js?v=0.165.0"></script>
-  <script defer src="src/settings.js?v=0.165.0"></script>
-  <script defer src="src/wheel.js?v=0.165.0"></script>
-  <script defer src="src/backlog.js?v=0.165.0"></script>
-  <script defer src="src/journal.js?v=0.165.0"></script>
-  <script defer src="src/notes.js?v=0.165.0"></script>
-  <script defer src="src/todos.js?v=0.165.0"></script>
-  <script defer src="src/io.js?v=0.165.0"></script>
-  <script defer src="src/sync.js?v=0.165.0"></script>
-  <script defer src="src/app.js?v=0.165.0"></script>
+  <script defer src="src/reconcile.js?v=0.166.0"></script>
+  <script defer src="src/qr.js?v=0.166.0"></script>
+  <script defer src="src/media.js?v=0.166.0"></script>
+  <script defer src="src/merge.js?v=0.166.0"></script>
+  <script defer src="src/storage.js?v=0.166.0"></script>
+  <script defer src="src/finance.js?v=0.166.0"></script>
+  <script defer src="src/settings.js?v=0.166.0"></script>
+  <script defer src="src/wheel.js?v=0.166.0"></script>
+  <script defer src="src/backlog.js?v=0.166.0"></script>
+  <script defer src="src/journal.js?v=0.166.0"></script>
+  <script defer src="src/notes.js?v=0.166.0"></script>
+  <script defer src="src/todos.js?v=0.166.0"></script>
+  <script defer src="src/io.js?v=0.166.0"></script>
+  <script defer src="src/sync.js?v=0.166.0"></script>
+  <script defer src="src/app.js?v=0.166.0"></script>
 </body>
 </html>

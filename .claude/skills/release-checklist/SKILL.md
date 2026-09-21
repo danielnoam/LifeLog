@@ -24,6 +24,15 @@ don't open a PR with any step skipped.
   browsers cache these by URL, so leaving the query string stale means
   returning visitors keep serving old JS/CSS after a deploy even though
   the file content changed on the server.
+- And bump `CACHE` in `sw.js` (`lifelog-vNN` → `vNN+1`). This step was
+  undocumented until 0.166.0 and had silently drifted three releases as a
+  result, which is exactly why it is written down now. It is not what keeps
+  assets fresh — the `?v=` query above does that — so a stale name doesn't
+  serve stale code. What it does is let the service worker's `activate`
+  handler drop the previous cache; leave it alone and every superseded
+  `app.js?v=…` stays in the user's cache storage forever.
+- If a release adds or removes a file under `src/`, add or remove it in
+  `sw.js`'s `ASSETS` list too, or it won't be precached for offline use.
 
 ## 2. Update CHANGELOG.md
 

@@ -2606,9 +2606,14 @@
   function closeConvertModal() { $("#convertModal").hidden = true; convertingProject = null; }
 
   // Every foreign expense in the project, optionally narrowed to one
-  // currency. Real entries only: a recurring occurrence is generated rather
-  // than stored, so there is nothing to restamp — and a recurring expense
-  // can't be foreign in the first place (see TODO.md).
+  // currency. Real entries only, for two reasons that both still hold now
+  // that a recurring expense CAN be foreign (0.165.0): a recurring
+  // occurrence is generated rather than stored, so there is nothing to
+  // restamp; and a plan's rates are frozen per charge on purpose, so
+  // settling a whole project at one rate must not reach in and restate
+  // them — that is the drift occurrenceFx exists to prevent. A foreign
+  // plan inside a converted project therefore keeps its own rates, which
+  // is the intended answer rather than an oversight.
   const projectExpenses = (proj, code) => state.data.financeEntries
     .filter((f) => f.project === proj.name && f.currency && +f.fxAmount
       && f.currency !== homeCurrency() && (!code || f.currency === code));
