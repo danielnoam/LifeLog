@@ -1205,7 +1205,7 @@
 
   // Real per-month expense total, replacing the old flat
   // yearTotal/12 "Per month average" — one year at a time via a tab
-  // picker, same pattern as the Journal Stats "Year in Review" card.
+  // picker, same pattern as the Journal Stats "That year in numbers" card.
   function renderFinanceMonthCard(root, items) {
     const allYears = [...new Set(items.map(financeYearOf))].sort((a, b) => b - a);
     if (!allYears.length) return;
@@ -3244,6 +3244,9 @@
     groupRunsByProject,
     formatMoney,
     financeYears,
+    // the Recap reads a year's spending, which has to include the charges a
+    // recurring plan generates rather than only the ones stored as entries
+    getEffectiveFinanceEntries,
     // views (dispatched from app.js's render())
     renderFinanceEntries,
     renderFinanceStats,

@@ -620,7 +620,18 @@
 
     const card = el("div", "card yir-card");
     card.style.marginTop = "20px";
-    card.appendChild(el("h2", null, "Year in Review"));
+    // Renamed in 0.167.0: this card is a per-year breakdown of the Journal,
+    // and "Year in Review" now belongs to the Recap — the thing you move
+    // through rather than read. Two of them under one name was worse than
+    // either, and this is the one that was always really a table.
+    const head = el("div", "yir-head");
+    head.appendChild(el("h2", null, "That year in numbers"));
+    const recapBtn = el("button", "recap-open-btn", "▶ Recap");
+    recapBtn.type = "button";
+    recapBtn.title = "Your year, one thing at a time";
+    recapBtn.onclick = () => window.LifeLogRecap.openRecap(state.statsYear);
+    head.appendChild(recapBtn);
+    card.appendChild(head);
 
     const yearNav = el("div", "yir-years");
     for (const y of allYears) {

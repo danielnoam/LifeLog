@@ -2181,3 +2181,113 @@ html.force-mobile .backlog-section-head {
 .ovr-row .ovr-check input { margin: 0; flex: 0 0 auto; min-width: 0; width: auto; }
 .ovr-row .ovr-check { flex: 0 0 auto; }
 .ovr-row .ovr-check:has(input:disabled) { opacity: .5; }
+
+
+/* ---------- year recap ---------- */
+/* A full-screen player, above everything including the modals: while it runs
+   it is the only thing on screen, which is the whole difference between a
+   recap and the stats card it sits beside. */
+.recap {
+  position: fixed; inset: 0; z-index: 250;
+  background: var(--bg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 54px 20px 64px;
+  overflow: hidden;
+}
+.recap[hidden] { display: none; }
+
+/* Story-style progress: one segment per slide, filled up to where you are.
+   It tells you how much is left, which a page count alone doesn't. */
+.recap-bar {
+  position: absolute; top: 12px; left: 14px; right: 14px;
+  display: flex; gap: 4px; height: 3px;
+}
+.recap-seg { flex: 1 1 0; background: var(--border); border-radius: 2px; }
+.recap-seg.is-done { background: var(--accent); }
+
+.recap-close {
+  position: absolute; top: 24px; right: 14px; z-index: 2;
+  background: none; border: none; color: var(--text-faint);
+  font-size: 20px; line-height: 1; padding: 6px 8px; cursor: pointer;
+}
+.recap-close:hover { color: var(--text); }
+
+.recap-stage {
+  width: 100%; max-width: 520px; z-index: 1;
+  pointer-events: none;   /* the tap zones below own the tap */
+  text-align: center;
+}
+.recap-stage a, .recap-stage button { pointer-events: auto; }
+
+/* Left third goes back, the rest goes forward — the proportions are
+   deliberate, since forward is what you do nine times out of ten and a
+   half-and-half split makes a mistap as likely as a hit. */
+.recap-zone {
+  position: absolute; top: 0; bottom: 0;
+  background: none; border: none; padding: 0; margin: 0;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.recap-prev { left: 0; width: 33%; }
+.recap-next { left: 33%; right: 0; }
+.recap-zone:disabled { cursor: default; }
+
+.recap-foot {
+  position: absolute; bottom: 18px; left: 0; right: 0;
+  text-align: center; color: var(--text-faint); font-size: 11px;
+  pointer-events: none;
+}
+
+.recap-slide { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.recap-year { font-size: 64px; font-weight: 800; letter-spacing: -2px; color: var(--accent); line-height: 1; }
+.recap-value {
+  font-size: 52px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.05;
+  color: var(--accent); overflow-wrap: anywhere;
+}
+.recap-headline { margin: 0; font-size: 19px; font-weight: 600; color: var(--text); }
+.recap-sub { margin: 0; font-size: 14px; color: var(--text-dim); }
+.recap-foot-note { margin: 6px 0 0; font-size: 12px; color: var(--text-faint); }
+
+.recap-bars { width: 100%; display: flex; flex-direction: column; gap: 9px; margin-top: 6px; }
+.recap-barrow { display: flex; align-items: center; gap: 10px; }
+.recap-barlabel {
+  flex: 0 0 34%; text-align: right; font-size: 13px; color: var(--text-dim);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.recap-bartrack { flex: 1 1 auto; height: 10px; background: var(--bg-elev-2); border-radius: 5px; overflow: hidden; }
+.recap-barfill { display: block; height: 100%; border-radius: 5px; }
+.recap-barn { flex: 0 0 auto; font-size: 12px; color: var(--text-faint); font-variant-numeric: tabular-nums; min-width: 22px; text-align: left; }
+
+.recap-list { width: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.recap-listrow {
+  display: flex; align-items: center; gap: 9px; text-align: left;
+  background: var(--bg-elev); border: 1px solid var(--border);
+  border-radius: 9px; padding: 9px 11px;
+}
+.recap-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.recap-listlabel { flex: 1 1 auto; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recap-listnote { flex: 0 0 auto; font-size: 12px; color: var(--text-faint); }
+
+/* Each slide arrives rather than swapping, so moving through feels like
+   moving. Short, because you may be tapping through fifteen of them. */
+@keyframes recap-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.recap-in { animation: recap-in var(--dur-fast, .18s) var(--ease, ease) both; }
+@media (prefers-reduced-motion: reduce) { .recap-in { animation: none; } }
+
+@media (max-width: 480px) {
+  .recap-year { font-size: 52px; }
+  .recap-value { font-size: 42px; }
+  .recap-barlabel { flex-basis: 38%; font-size: 12px; }
+}
+
+/* Its heading row on the stats card: the title on the left, the way in on
+   the right. */
+.yir-head { display: flex; align-items: center; gap: 12px; }
+.yir-head h2 { margin: 0; }
+
+/* The button that opens it, on the stats card beside the year picker. */
+.recap-open-btn {
+  background: var(--accent); color: var(--text-on-accent); border: none;
+  border-radius: 8px; padding: 7px 13px; font-size: 13px; font-weight: 600;
+  cursor: pointer; margin-left: auto;
+}
+.recap-open-btn:hover { background: var(--accent-hover); }

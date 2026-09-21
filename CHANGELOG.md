@@ -4,6 +4,25 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.167.0] - 2026-09-21
+
+### Added
+- **Recap**: your year, one thing at a time. A full-screen sequence you tap
+  through — what you logged, the month you did most, what you loved, what
+  finally came off the backlog, what you wrote, what it cost, what you said
+  you were proud of — drawn from all four tabs, because they're one record.
+- It offers itself once in December (or the first half of January, looking
+  back at the year just gone) and then stays out of the way. You can open any
+  year's recap whenever you like from the ▶ Recap button in Journal → Stats.
+- A slide with nothing to say is left out rather than padded: a quiet year
+  gets a short recap, not a dozen zeroes.
+
+### Changed
+- The old "Year in Review" card in Journal → Stats is now **"That year in
+  numbers"**. It hasn't changed — it's the same per-year breakdown — but two
+  things called Year in Review was worse than either, and this is the one
+  that was always really a table.
+
 ## [0.166.0] - 2026-09-21
 
 ### Fixed

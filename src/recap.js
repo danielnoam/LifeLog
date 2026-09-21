@@ -1,0 +1,446 @@
+// LifeLog — Recap: the year, told rather than tabulated.
+//
+// Journal Stats already has a per-year breakdown (the "That year in numbers"
+// card). This is the other thing: a sequence you move through one fact at a
+// time, drawn from all four views, because the point of this app is that they
+// are one record — what you finished, what you'd been putting off, what you
+// wrote, what it cost.
+//
+// The split that matters: buildRecap() is pure and knows nothing about the
+// DOM, so what the recap *says* is unit-testable (test/recap.test.js), and
+// renderRecap() only decides how a slide looks. A slide whose build returns
+// null is dropped outright — a recap that pads itself with "0 notes written"
+// is a report again, which is the thing this isn't.
+(function () {
+  let state, $, el, toast, MONTHS, prefersReducedMotion;
+
+  function init(ctx) {
+    ({ state, $, el, toast, MONTHS, prefersReducedMotion } = ctx);
+  }
+
+  const MONTHS_LONG = () => MONTHS;
+
+  // ---------- gathering ----------
+  const yearOf = (iso) => +String(iso || "").slice(0, 4);
+  const monthOf = (iso) => +String(iso || "").slice(5, 7);
+  const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
+
+  // "up 12 on last year" / "down 3" / "" when there's nothing to compare to.
+  // Deliberately silent at zero rather than saying "the same as last year",
+  // which reads as a judgement nobody asked for.
+  function delta(now, before) {
+    if (!before) return "";
+    const d = now - before;
+    if (!d) return "";
+    return (d > 0 ? "up " + d : "down " + -d) + " on " + (before === 0 ? "nothing" : "last year");
+  }
+
+  function countByKey(list, keyOf) {
+    const out = new Map();
+    for (const x of list) {
+      const k = keyOf(x);
+      if (k == null || k === "") continue;
+      out.set(k, (out.get(k) || 0) + 1);
+    }
+    return out;
+  }
+  const topOf = (map, n) => [...map.entries()].sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0]))).slice(0, n);
+
+  // Everything the slides draw on, for one year and the one before it.
+  function gather(data, year) {
+    const entries = (data.entries || []).filter((e) => +e.year === year);
+    const prevEntries = (data.entries || []).filter((e) => +e.year === year - 1);
+    const notes = (data.notes || []).filter((n) => yearOf(n.createdAt) === year);
+    const prevNotes = (data.notes || []).filter((n) => yearOf(n.createdAt) === year - 1);
+    const todosDone = (data.todos || []).filter((t) => t.done && yearOf(t.doneAt) === year);
+    const backlogAdded = (data.backlog || []).filter((b) => yearOf(b.createdAt) === year);
+    const spend = (data.financeEntries || []).filter((f) => !f.skipped && yearOf(f.date) === year);
+    const prevSpend = (data.financeEntries || []).filter((f) => !f.skipped && yearOf(f.date) === year - 1);
+    const achievements = (data.accomplishments && data.accomplishments[year]) || [];
+    return { year, entries, prevEntries, notes, prevNotes, todosDone, backlogAdded, spend, prevSpend, achievements };
+  }
+
+  // Each slide returns a spec or null. Order is the order you see them in:
+  // it opens on the year, works through what you did, and ends on what you
+  // said you'd do.
+  const SLIDES = [
+    function opening(g) {
+      const anything = g.entries.length || g.notes.length || g.todosDone.length || g.spend.length || g.achievements.length;
+      if (!anything) return null;
+      return { id: "opening", kind: "title", headline: String(g.year), sub: "Here's your year." };
+    },
+
+    function logged(g) {
+      if (!g.entries.length) return null;
+      const unique = new Set(g.entries.map((e) => e.title.trim().toLowerCase())).size;
+      // The headline never repeats the number above it. A "big" slide is one
+      // figure and a phrase that completes it — "14" / "things logged" — and
+      // the first cut said "14" twice, which a screenshot caught and no
+      // assertion would have.
+      return {
+        id: "logged", kind: "big",
+        value: g.entries.length,
+        headline: g.entries.length === 1 ? "thing logged" : "things logged",
+        sub: unique < g.entries.length ? unique + " of them different" : "",
+        foot: delta(g.entries.length, g.prevEntries.length),
+      };
+    },
+
+    function busiestMonth(g) {
+      if (g.entries.length < 3) return null;
+      const counts = countByKey(g.entries, (e) => +e.month);
+      const [month, n] = topOf(counts, 1)[0] || [];
+      if (!month || n < 2) return null;
+      return {
+        id: "month", kind: "big",
+        value: MONTHS_LONG()[month],
+        headline: "was your busiest month",
+        sub: plural(n, "thing", "things") + " logged",
+      };
+    },
+
+    function categories(g) {
+      if (g.entries.length < 3) return null;
+      const counts = countByKey(g.entries, (e) => e.category);
+      if (counts.size < 2) return null;
+      const top = topOf(counts, 4);
+      return {
+        id: "categories", kind: "bars",
+        headline: "What you spent it on",
+        bars: top.map(([label, n]) => ({ label, n })),
+        max: top[0][1],
+      };
+    },
+
+    function bestRated(g) {
+      const rated = g.entries.filter((e) => e.rating);
+      if (!rated.length) return null;
+      const best = new Map();
+      for (const e of rated) {
+        const k = e.title.trim().toLowerCase();
+        const cur = best.get(k);
+        if (!cur || e.rating > cur.rating) best.set(k, { title: e.title, rating: e.rating, category: e.category });
+      }
+      const top = [...best.values()].sort((a, b) => b.rating - a.rating).slice(0, 5);
+      if (top[0].rating < 4) return null; // nothing worth calling a highlight
+      const avg = rated.reduce((s, e) => s + e.rating, 0) / rated.length;
+      return {
+        id: "rated", kind: "list",
+        headline: top[0].rating === 5 ? "The ones you loved" : "Your best of the year",
+        list: top.filter((t) => t.rating >= 4).map((t) => ({ label: t.title, note: "★".repeat(t.rating), category: t.category })),
+        foot: "You rated " + plural(rated.length, "thing", "things") + ", averaging " + avg.toFixed(1) + "★",
+      };
+    },
+
+    function repeated(g) {
+      const counts = countByKey(g.entries, (e) => e.title.trim().toLowerCase());
+      const [key, n] = topOf(counts, 1)[0] || [];
+      if (!key || n < 2) return null;
+      const example = g.entries.find((e) => e.title.trim().toLowerCase() === key);
+      return {
+        id: "repeated", kind: "big",
+        value: example.title,
+        headline: "you came back to " + n + " times",
+        sub: "More than anything else this year",
+      };
+    },
+
+    function fromBacklog(g) {
+      const cleared = g.entries.filter((e) => e.backlogAddedAt);
+      if (!cleared.length) return null;
+      // How long the oldest of them had been sitting there, which is the part
+      // that actually lands — a count alone says nothing about the waiting.
+      const waits = cleared
+        .map((e) => (new Date(e.date + "-01") - new Date(e.backlogAddedAt)) / 86400000)
+        .filter((d) => isFinite(d) && d > 0);
+      const longest = waits.length ? Math.round(Math.max(...waits)) : 0;
+      return {
+        id: "backlog", kind: "big",
+        value: cleared.length,
+        headline: cleared.length === 1 ? "thing off your backlog" : "things off your backlog",
+        sub: longest > 60 ? "One had been waiting " + Math.round(longest / 30) + " months" : "",
+      };
+    },
+
+    function backlogGrew(g) {
+      if (g.backlogAdded.length < 3) return null;
+      const cleared = g.entries.filter((e) => e.backlogAddedAt).length;
+      return {
+        id: "backlog-grew", kind: "big",
+        value: g.backlogAdded.length,
+        headline: "added to the backlog",
+        sub: cleared
+          ? (g.backlogAdded.length > cleared
+            ? "and " + cleared + " taken off — it grew by " + (g.backlogAdded.length - cleared)
+            : "and " + cleared + " taken off — you're ahead")
+          : "",
+      };
+    },
+
+    function wrote(g) {
+      if (!g.notes.length) return null;
+      const counts = countByKey(g.notes, (n) => monthOf(n.createdAt));
+      const [month] = topOf(counts, 1)[0] || [];
+      return {
+        id: "notes", kind: "big",
+        value: g.notes.length,
+        headline: (g.notes.length === 1 ? "note" : "notes") + " written",
+        sub: month && g.notes.length > 2 ? "Most of them in " + MONTHS_LONG()[month] : "",
+        foot: delta(g.notes.length, g.prevNotes.length),
+      };
+    },
+
+    function ticked(g) {
+      if (g.todosDone.length < 3) return null;
+      return {
+        id: "todos", kind: "big",
+        value: g.todosDone.length,
+        headline: "to-dos ticked off",
+        sub: "",
+      };
+    },
+
+    function spent(g, fmt) {
+      if (!g.spend.length) return null;
+      const total = g.spend.reduce((s, f) => s + (+f.amount || 0), 0);
+      if (!total) return null;
+      const byCat = new Map();
+      for (const f of g.spend) byCat.set(f.category, (byCat.get(f.category) || 0) + (+f.amount || 0));
+      const [topCat, topAmount] = [...byCat.entries()].sort((a, b) => b[1] - a[1])[0] || [];
+      const prevTotal = g.prevSpend.reduce((s, f) => s + (+f.amount || 0), 0);
+      const pct = prevTotal ? Math.round(((total - prevTotal) / prevTotal) * 100) : 0;
+      return {
+        id: "spend", kind: "big",
+        value: fmt(total),
+        headline: "spent across " + plural(g.spend.length, "expense", "expenses"),
+        sub: topCat ? "Most of it on " + topCat + " (" + fmt(topAmount) + ")" : "",
+        foot: prevTotal && pct ? (pct > 0 ? pct + "% more than " : Math.abs(pct) + "% less than ") + (g.year - 1) : "",
+      };
+    },
+
+    function achievements(g) {
+      if (!g.achievements.length) return null;
+      return {
+        id: "achievements", kind: "list",
+        headline: g.achievements.length === 1 ? "The thing you're proud of" : "The things you're proud of",
+        list: g.achievements.slice(0, 8).map((a) => ({ label: a.text, note: "✦" })),
+      };
+    },
+
+    function closing(g) {
+      const bits = [];
+      if (g.entries.length) bits.push(plural(g.entries.length, "thing logged", "things logged"));
+      if (g.notes.length) bits.push(plural(g.notes.length, "note", "notes"));
+      if (g.todosDone.length) bits.push(plural(g.todosDone.length, "to-do done", "to-dos done"));
+      if (!bits.length) return null;
+      return {
+        id: "closing", kind: "title",
+        headline: "That was " + g.year + ".",
+        sub: bits.join(", ") + ". On to the next one.",
+      };
+    },
+  ];
+
+  // The whole recap as data. `fmt` formats money — passed in so this file
+  // never has to know about currencies.
+  function buildRecap(data, year, fmt) {
+    const g = gather(data || {}, year);
+    return SLIDES.map((f) => f(g, fmt || String)).filter(Boolean);
+  }
+
+  // Which years are worth offering at all.
+  function recapYears(data) {
+    const ys = new Set();
+    for (const e of data.entries || []) if (e.year) ys.add(+e.year);
+    for (const n of data.notes || []) if (yearOf(n.createdAt)) ys.add(yearOf(n.createdAt));
+    for (const f of data.financeEntries || []) if (yearOf(f.date)) ys.add(yearOf(f.date));
+    for (const y of Object.keys(data.accomplishments || {})) if (+y) ys.add(+y);
+    return [...ys].sort((a, b) => b - a);
+  }
+
+  // ---------- December ----------
+  // The one year the app should volunteer a recap for, or null. December of
+  // the year itself, or the first half of January looking back — past that it
+  // stops being this year's recap and starts being an interruption.
+  function yearToOffer(now) {
+    const m = now.getMonth(); // 0-indexed
+    const d = now.getDate();
+    if (m === 11) return now.getFullYear();
+    if (m === 0 && d <= 15) return now.getFullYear() - 1;
+    return null;
+  }
+
+  // ---------- the player ----------
+  // One slide on screen at a time, moved through by tap, arrow key or swipe.
+  let slides = [], at = 0, recapYear = null, onClosed = null;
+
+  function wire() {
+    $("#recapCloseBtn").onclick = () => closeRecap();
+    $("#recapPrevBtn").onclick = () => step(-1);
+    // Past the last slide, "next" closes: a recap that traps you on its final
+    // card until you find the ✕ ends on the wrong note.
+    $("#recapNextBtn").onclick = () => step(1);
+
+    const screen = $("#recapScreen");
+    let x0 = null;
+    screen.addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+    screen.addEventListener("touchend", (e) => {
+      if (x0 == null) return;
+      const dx = e.changedTouches[0].clientX - x0;
+      x0 = null;
+      if (Math.abs(dx) > 45) step(dx < 0 ? 1 : -1);
+    }, { passive: true });
+  }
+
+  function isOpen() { return !$("#recapScreen").hidden; }
+
+  // Called from app.js's global keydown, before the modal checks — the recap
+  // is not a modal and owns the arrow keys while it is up.
+  function handleKey(e) {
+    if (!isOpen()) return false;
+    if (e.key === "Escape") { closeRecap(); return true; }
+    if (e.key === "ArrowRight" || e.key === " " || e.key === "Enter") { e.preventDefault(); step(1); return true; }
+    if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); return true; }
+    return false;
+  }
+
+  function step(d) {
+    const next = at + d;
+    if (next < 0) return;
+    if (next >= slides.length) { closeRecap(); return; }
+    at = next;
+    paint();
+  }
+
+  function openRecap(year, opts) {
+    const fmt = (window.LifeLogFinance && window.LifeLogFinance.formatMoney) || String;
+    const data = { ...state.data };
+    // A year's spending has to include what the recurring plans generated,
+    // which are not stored as entries. Everything else reads straight off
+    // state.data, so only this one collection is swapped.
+    if (window.LifeLogFinance && window.LifeLogFinance.getEffectiveFinanceEntries) {
+      data.financeEntries = window.LifeLogFinance.getEffectiveFinanceEntries();
+    }
+    slides = buildRecap(data, year, fmt);
+    if (!slides.length) { toast("Nothing logged in " + year + " to recap yet"); return false; }
+    recapYear = year;
+    at = 0;
+    onClosed = (opts && opts.onClosed) || null;
+    $("#recapScreen").hidden = false;
+    document.body.classList.add("modal-open"); // same scroll lock the modals use
+    paint();
+    return true;
+  }
+
+  function closeRecap() {
+    if ($("#recapScreen").hidden) return;
+    $("#recapScreen").hidden = true;
+    $("#recapStage").innerHTML = "";
+    document.body.classList.remove("modal-open");
+    const done = onClosed;
+    onClosed = null;
+    if (done) done(recapYear);
+  }
+
+  function paint() {
+    const spec = slides[at];
+    const stage = $("#recapStage");
+    stage.innerHTML = "";
+    const card = el("div", "recap-slide recap-" + spec.kind);
+    if (!prefersReducedMotion()) card.classList.add("recap-in");
+    buildSlide(card, spec);
+    stage.appendChild(card);
+
+    const bar = $("#recapBar");
+    bar.innerHTML = "";
+    slides.forEach((_, i) => {
+      bar.appendChild(el("span", "recap-seg" + (i <= at ? " is-done" : "")));
+    });
+    $("#recapCount").textContent = (at + 1) + " / " + slides.length;
+    $("#recapPrevBtn").disabled = at === 0;
+  }
+
+  function buildSlide(card, spec) {
+    if (spec.kind === "title") {
+      card.appendChild(el("div", "recap-year", spec.headline));
+      if (spec.sub) card.appendChild(el("p", "recap-sub", spec.sub));
+      return;
+    }
+    if (spec.kind === "big") {
+      card.appendChild(el("div", "recap-value", String(spec.value)));
+      card.appendChild(el("h2", "recap-headline", spec.headline));
+      if (spec.sub) card.appendChild(el("p", "recap-sub", spec.sub));
+      if (spec.foot) card.appendChild(el("p", "recap-foot-note", spec.foot));
+      return;
+    }
+    if (spec.kind === "bars") {
+      card.appendChild(el("h2", "recap-headline", spec.headline));
+      const wrap = el("div", "recap-bars");
+      for (const b of spec.bars) {
+        const row = el("div", "recap-barrow");
+        row.appendChild(el("span", "recap-barlabel", b.label));
+        const track = el("span", "recap-bartrack");
+        const fill = el("span", "recap-barfill");
+        fill.style.width = Math.round((b.n / spec.max) * 100) + "%";
+        fill.style.background = colorFor(b.label);
+        track.appendChild(fill);
+        row.appendChild(track);
+        row.appendChild(el("span", "recap-barn", String(b.n)));
+        wrap.appendChild(row);
+      }
+      card.appendChild(wrap);
+      return;
+    }
+    // list
+    card.appendChild(el("h2", "recap-headline", spec.headline));
+    const list = el("div", "recap-list");
+    for (const item of spec.list) {
+      const row = el("div", "recap-listrow");
+      if (item.category) {
+        const dot = el("span", "recap-dot");
+        dot.style.background = colorFor(item.category);
+        row.appendChild(dot);
+      }
+      const label = el("span", "recap-listlabel", item.label);
+      label.title = item.label;
+      row.appendChild(label);
+      if (item.note) row.appendChild(el("span", "recap-listnote", item.note));
+      list.appendChild(row);
+    }
+    card.appendChild(list);
+    if (spec.foot) card.appendChild(el("p", "recap-foot-note", spec.foot));
+  }
+
+  // A journal category keeps the colour it has everywhere else; anything else
+  // falls back to the accent, rather than inventing a second palette.
+  function colorFor(name) {
+    const cat = (state.data.categories || []).find((c) => c.name === name);
+    return (cat && cat.color) || "var(--accent)";
+  }
+
+  // ---------- December ----------
+  // Offered once per year per device. Device-local on purpose: it rides in
+  // the visual settings, which never sync, so seeing it on your phone is not
+  // the same fact as seeing it on your laptop — and being shown your year
+  // twice is a much smaller cost than never being shown it at all because
+  // another device ticked it off while you weren't looking.
+  function maybeOfferRecap() {
+    const year = yearToOffer(new Date());
+    if (year == null) return;
+    const seen = state.visual.recapSeen || {};
+    if (seen[year]) return;
+    if (!buildRecap(state.data, year, String).length) return; // nothing to show; don't mark it seen either
+    openRecap(year, { onClosed: markSeen });
+  }
+
+  function markSeen(year) {
+    if (year == null) return;
+    state.visual.recapSeen = { ...(state.visual.recapSeen || {}), [year]: true };
+    if (window.LifeLogApp && window.LifeLogApp.saveVisualSettings) window.LifeLogApp.saveVisualSettings();
+  }
+
+  window.LifeLogRecap = {
+    init, wire, buildRecap, recapYears, yearToOffer, gather,
+    openRecap, closeRecap, isOpen, handleKey, maybeOfferRecap,
+  };
+})();

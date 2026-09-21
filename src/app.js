@@ -10,6 +10,7 @@
   const IO = window.LifeLogIO;
   const Sync = window.LifeLogSync;
   const Wheel = window.LifeLogWheel;
+  const Recap = window.LifeLogRecap;
   const MONTHS = ["", "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"];
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -113,7 +114,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.166.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.167.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3297,10 +3298,15 @@
     });
     syncModalOpenState();
 
+    Recap.wire();
+
     $("#closeShortcutsBtn").onclick = closeShortcutsModal;
     $("#closeBulkProgressBtn").onclick = closeBulkProgressPanel;
 
     document.addEventListener("keydown", (e) => {
+      // First: while the recap is up it is the only thing on screen, and the
+      // arrows move through it rather than doing whatever they'd otherwise do.
+      if (Recap.handleKey(e)) return;
       if (e.key === "Escape") {
         Journal.closeEntryModal(); Journal.closeAchModal(); Journal.cancelCategoryModal(); Backlog.closeBacklogModal();
         Backlog.closePickModal(); Wheel.closeWheel();
@@ -3583,6 +3589,11 @@
 
     if (state.pendingSync) retrySync();
     schedulePoll();
+    // December (or the first fortnight of January): offer the year's recap,
+    // once per year per device. After the first render, so it opens over the
+    // app rather than over a blank page, and never while a modal or the lock
+    // screen already has the screen.
+    if (!isAnyModalOpen()) setTimeout(() => { if (!isAnyModalOpen()) Recap.maybeOfferRecap(); }, 700);
     Sync.maybeAutoCheckSteamWishlist(); // fire-and-forget, doesn't block startup
     Sync.maybeAutoCheckAniList(); // same — quiet background check, never blocks startup
     Sync.maybeAutoRefreshReleases(); // same — keeps upcoming release dates current in the background
@@ -3670,6 +3681,7 @@
     state, $, el, uid, toast, persist, render, emptyState, backfillUpdatedAt, keepUnknown,
     prefersReducedMotion, CATEGORY_PALETTE, buildCatFilter, activatable,
   });
+  Recap.init({ state, $, el, toast, MONTHS, prefersReducedMotion });
 
   Notes.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
@@ -3724,6 +3736,9 @@
     startBulkRun, markBulkItem, finishBulkRun, clearBulkRun,
     openBulkProgressPanel, closeBulkProgressPanel,
     getBulkRun: () => bulkRun,
+    // The Recap marks a year as seen in the visual settings (device-local,
+    // never synced) and needs a way to persist that without a data save.
+    saveVisualSettings: () => saveVisualSettings(state.visual),
   };
   if (typeof module !== "undefined" && module.exports) module.exports = window.LifeLogApp;
 

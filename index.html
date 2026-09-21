@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.166.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.167.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -45,6 +45,24 @@
       <p class="lock-error" id="lockError" hidden></p>
 
       <button class="lock-reset-btn" id="lockResetBtn" type="button">Forgot PIN? Reset this device</button>
+    </div>
+  </div>
+
+  <!-- Year Recap. A full-screen player rather than a modal: it is the only
+       thing on screen while it runs, one fact at a time, and a dialog box
+       would frame it as something to dismiss. Slides are built by
+       src/recap.js; everything here is the frame they move through. -->
+  <div class="recap" id="recapScreen" hidden>
+    <div class="recap-bar" id="recapBar" aria-hidden="true"></div>
+    <button class="recap-close" id="recapCloseBtn" type="button" aria-label="Close recap">✕</button>
+    <div class="recap-stage" id="recapStage" role="region" aria-live="polite"></div>
+    <!-- Tap zones sit under the stage so a link or button on a slide still
+         wins the tap; they are how you move through it on a phone, where
+         there is no keyboard and reaching a small arrow is a chore. -->
+    <button class="recap-zone recap-prev" id="recapPrevBtn" type="button" aria-label="Previous"></button>
+    <button class="recap-zone recap-next" id="recapNextBtn" type="button" aria-label="Next"></button>
+    <div class="recap-foot">
+      <span class="recap-count" id="recapCount"></span>
     </div>
   </div>
 
@@ -1402,20 +1420,21 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.166.0"></script>
-  <script defer src="src/qr.js?v=0.166.0"></script>
-  <script defer src="src/media.js?v=0.166.0"></script>
-  <script defer src="src/merge.js?v=0.166.0"></script>
-  <script defer src="src/storage.js?v=0.166.0"></script>
-  <script defer src="src/finance.js?v=0.166.0"></script>
-  <script defer src="src/settings.js?v=0.166.0"></script>
-  <script defer src="src/wheel.js?v=0.166.0"></script>
-  <script defer src="src/backlog.js?v=0.166.0"></script>
-  <script defer src="src/journal.js?v=0.166.0"></script>
-  <script defer src="src/notes.js?v=0.166.0"></script>
-  <script defer src="src/todos.js?v=0.166.0"></script>
-  <script defer src="src/io.js?v=0.166.0"></script>
-  <script defer src="src/sync.js?v=0.166.0"></script>
-  <script defer src="src/app.js?v=0.166.0"></script>
+  <script defer src="src/reconcile.js?v=0.167.0"></script>
+  <script defer src="src/qr.js?v=0.167.0"></script>
+  <script defer src="src/media.js?v=0.167.0"></script>
+  <script defer src="src/merge.js?v=0.167.0"></script>
+  <script defer src="src/storage.js?v=0.167.0"></script>
+  <script defer src="src/finance.js?v=0.167.0"></script>
+  <script defer src="src/settings.js?v=0.167.0"></script>
+  <script defer src="src/wheel.js?v=0.167.0"></script>
+  <script defer src="src/backlog.js?v=0.167.0"></script>
+  <script defer src="src/journal.js?v=0.167.0"></script>
+  <script defer src="src/notes.js?v=0.167.0"></script>
+  <script defer src="src/todos.js?v=0.167.0"></script>
+  <script defer src="src/io.js?v=0.167.0"></script>
+  <script defer src="src/sync.js?v=0.167.0"></script>
+  <script defer src="src/recap.js?v=0.167.0"></script>
+  <script defer src="src/app.js?v=0.167.0"></script>
 </body>
 </html>

@@ -16,6 +16,41 @@ what was decided against and why.
 
 ---
 
+- the Recap (0.167.0) is split so that *what it says* is testable without a
+  browser: `buildRecap(data, year, fmt)` is pure and returns an array of slide
+  specs, and the player only decides how a spec looks. That split is what let
+  21 unit tests pin the wording, the thresholds and the year-on-year
+  comparisons before any markup existed.
+
+  Three rules it is built on, all of which are the difference between a recap
+  and the stats card it sits beside:
+
+  A slide that returns null is dropped. There is no "0 notes written" slide, no
+  "your busiest month was January (1 thing)". Every builder has a floor below
+  which it bows out — three entries for a busiest month, two categories for a
+  breakdown, four stars for a highlight, three to-dos for a tick-off — because
+  a recap that pads itself is a report again.
+
+  It never says the same number twice. A "big" slide is one figure and a
+  phrase that completes it: **14** / *things logged*. The first cut read "14"
+  and then "14 things logged", which is a stutter, and no assertion caught it
+  — a screenshot did. There is now a test that walks every big slide and
+  fails if its value appears in its own headline.
+
+  Money is formatted by the caller. `buildRecap` takes `fmt` and never learns
+  what a currency is, which is also why the tests can assert on exact strings.
+
+  Two smaller decisions worth keeping. The spending slide reads
+  `getEffectiveFinanceEntries()`, not `state.data.financeEntries` — a
+  recurring plan's charges are generated rather than stored, and a year's
+  spending that omitted every subscription would be wrong by the most regular
+  thing in it. And `recapSeen` lives in the visual settings, which are
+  device-local and never sync: being shown your year twice is a far smaller
+  cost than never being shown it because another device ticked it off while
+  you weren't looking. A year with no slides is never marked seen either, so
+  a quiet December that fills up later still gets its recap.
+
+
 - 0.166.0 was a cleanup, and the part worth recording is how unreliable the
   obvious way of finding dead code turned out to be.
 

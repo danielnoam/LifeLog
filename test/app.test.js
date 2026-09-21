@@ -48,6 +48,9 @@ require("../src/journal.js");
 require("../src/backlog.js");
 require("../src/notes.js");
 require("../src/todos.js");
+// Real too: recap.js is pure at load (its player only touches the DOM once
+// something opens it), so app.js's Recap.init(ctx) has something to call.
+require("../src/recap.js");
 // app.js calls .init(ctx) on these unconditionally at its own top
 // level; normalize() doesn't depend on their behavior, so no-op stubs.
 global.window.LifeLogIO = { init: () => {} };
