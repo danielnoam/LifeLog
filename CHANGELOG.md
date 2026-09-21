@@ -4,6 +4,32 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.169.0] - 2026-09-21
+
+### Changed
+- **Settings → Appearance has been reworked.** It had grown to ten sections
+  of equal weight, so the two things you actually change were buried among
+  the ones you set once and forget. It now holds three: what's on screen
+  (Tabs), what it looks like (Theme), and how it's laid out (Layout).
+- **New Views panel**, holding everything that changes one list rather than
+  the whole app, grouped by the list it changes. Tuning the Backlog used to
+  mean finding four sections scattered down a long panel — cover art, counts,
+  set-aside bands, descriptions — and they're now one group under "Backlog".
+- The force-layout override is folded behind a "Force a layout" disclosure.
+  It's a thing you set once, if ever, and it was taking a whole section at
+  the same weight as your colour scheme.
+- Currency moved to Views → Ledger, where you'd look for it, and now says
+  plainly that it's the one setting on the page that syncs between devices.
+  Everything else there is this device only.
+- Nothing was removed, renamed or reset — every switch does exactly what it
+  did, in a different place.
+
+### Fixed
+- Checkboxes in every modal sat jammed against their own labels. The rule
+  giving them breathing room had always been there and had never once
+  applied, because a more specific one further up the stylesheet overrode it.
+  Affects the Tabs switches, the privacy toggle and the import picker rows.
+
 ## [0.168.0] - 2026-09-21
 
 ### Added

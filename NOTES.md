@@ -16,6 +16,42 @@ what was decided against and why.
 
 ---
 
+- the Settings rework (0.169.0) is a regrouping, not a redesign, and the
+  principle it turns on is worth stating: **group by where the effect lands,
+  not by what kind of control it is.**
+
+  Appearance had ten sections because every feature that needed a switch
+  added one, and "it is a setting about how things look" was enough to get in.
+  That put "what colour is the app" beside "does the Backlog show
+  descriptions" at identical weight. Splitting by scope instead — the whole
+  app in Appearance, one list at a time in Views — cuts Appearance to three
+  sections and puts the Backlog's four scattered settings in one group.
+  Nothing was renamed or reset; the ids are untouched, so settings.js needed
+  no changes at all beyond the toggles it already had.
+
+  Two placements worth defending. Force-layout went behind a `<details>`
+  rather than out: it is a troubleshooting escape hatch you set once if ever,
+  and a whole section at the same weight as the colour scheme was the clearest
+  case of the problem. And currency moved to Views → Ledger even though it is
+  the one setting on either page that *syncs* — because "where would I look
+  for it" beats "what kind of setting is it", and the hint now says so out
+  loud rather than leaving it as a trap.
+
+- `.modal label { display: block }` (0,1,1) outranked `.toggle-label`
+  (0,1,0), so the flex row that gives a checkbox its 8px gap had never
+  applied anywhere in the app. Every `.toggle-label` lives inside a modal, so
+  every one of them — the privacy toggle, the import picker rows — had shipped
+  with the box jammed against its text.
+
+  Worth recording because of how it surfaced. The stylesheet looked right,
+  the rule was there, and no test touched it. It came out of *looking at a
+  screenshot* of a panel that had just been rebuilt, which is the third time
+  this month a screenshot has caught something the assertions could not (the
+  Recap's repeated number, the FX preview's spacing). The test that now holds
+  it measures the distance between the checkbox's right edge and the first
+  glyph of the label — asserting the rule exists would have passed all along.
+
+
 - disabling tabs and modes (0.168.0) is four lines of feature and a long list
   of things that quietly assumed four tabs. The shape that made it tractable:
   two functions, `enabledViews()` and `modeEntries()/modeIds()`, and then

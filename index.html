@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.168.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.169.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -870,6 +870,7 @@
         <button class="stab" data-stab="backup" type="button">Import / Export</button>
         <button class="stab" data-stab="privacy" type="button">Privacy</button>
         <button class="stab" data-stab="appearance" type="button">Appearance</button>
+        <button class="stab" data-stab="views" type="button">Views</button>
         <button class="stab" data-stab="media" type="button">Media</button>
       </nav>
 
@@ -1073,6 +1074,11 @@
       </div><!-- /privacy panel -->
 
       <div class="settings-panel" data-panel="appearance">
+      <!-- Appearance is now only what applies to the whole app: what is on
+           screen at all, what it looks like, and how it is laid out. Anything
+           that changes one list rather than the app moved to the Views panel
+           below — see NOTES.md on why that split is by where the effect lands
+           rather than by what kind of control it is. -->
       <section class="settings-section">
         <h3>Tabs</h3>
         <p class="hint">Turn off the parts of the app you don't use — they leave the
@@ -1082,151 +1088,168 @@
       </section>
 
       <section class="settings-section">
-        <h3>Look</h3>
-        <p class="hint">Color scheme and typeface — both visual only, this device only.</p>
-        <label>Color scheme
-          <select id="themeSelect">
-            <option value="default">Default</option>
-            <option value="light">Light</option>
-            <option value="nord">Nord</option>
-            <option value="dracula">Dracula</option>
-          </select>
-        </label>
-        <label>Typeface
-          <select id="fontFamily">
-            <option value="system">Default (system)</option>
-            <option value="serif">Serif</option>
-            <option value="mono">Monospace</option>
-            <option value="rounded">Rounded</option>
-          </select>
-        </label>
-      </section>
-
-      <section class="settings-section">
-        <h3>Timeline layout</h3>
-        <p class="hint">Controls how wide each month card is in the Timeline view.
-          <br>• <strong>Min width</strong> — smaller values fit more months per row.
-          <br>• <strong>Max width</strong> — set to 0 to let cards stretch and fill the available space.
-        </p>
+        <h3>Theme</h3>
+        <p class="hint">This device only.</p>
         <div class="row">
-          <label>Min width (px)
-            <input id="monthMin" type="number" min="80" max="600" step="10" />
+          <label>Color scheme
+            <select id="themeSelect">
+              <option value="default">Default</option>
+              <option value="light">Light</option>
+              <option value="nord">Nord</option>
+              <option value="dracula">Dracula</option>
+            </select>
           </label>
-          <label>Max width (px)
-            <input id="monthMax" type="number" min="0" max="1000" step="10" />
+          <label>Typeface
+            <select id="fontFamily">
+              <option value="system">Default (system)</option>
+              <option value="serif">Serif</option>
+              <option value="mono">Monospace</option>
+              <option value="rounded">Rounded</option>
+            </select>
           </label>
         </div>
       </section>
 
       <section class="settings-section">
-        <h3>Force layout</h3>
-        <p class="hint">Overrides which responsive layout this device uses, regardless of actual screen size — like a browser's "Request desktop site". Useful for previewing the other layout, or pinning one in place on an in-between-sized screen.</p>
-        <label>Layout
-          <select id="forceLayout">
-            <option value="none">None (automatic)</option>
-            <option value="mobile">Mobile</option>
-            <option value="pc">PC</option>
-          </select>
-        </label>
+        <h3>Layout</h3>
+        <p class="hint">How wide a month card gets in the Timeline and the Ledger.
+          A smaller minimum fits more months per row; a maximum of 0 lets them
+          stretch to fill the space.</p>
+        <div class="row">
+          <label>Month card min (px)
+            <input id="monthMin" type="number" min="80" max="600" step="10" />
+          </label>
+          <label>Month card max (px)
+            <input id="monthMax" type="number" min="0" max="1000" step="10" />
+          </label>
+        </div>
+        <details class="settings-advanced">
+          <summary>Force a layout</summary>
+          <p class="hint">Overrides which responsive layout this device uses, whatever
+            the screen size — like a browser's "Request desktop site". For previewing
+            the other one, or pinning one down on an in-between screen.</p>
+          <label>Layout
+            <select id="forceLayout">
+              <option value="none">None (automatic)</option>
+              <option value="mobile">Mobile</option>
+              <option value="pc">PC</option>
+            </select>
+          </label>
+        </details>
       </section>
 
+      </div><!-- /appearance panel -->
+
+      <!-- Views: everything that changes what one list shows, grouped by the
+           list it changes. Tuning the Backlog used to mean finding four
+           sections scattered down a ten-section panel; here it is one group. -->
+      <div class="settings-panel" data-panel="views">
       <section class="settings-section">
-        <h3>Cover art</h3>
-        <p class="hint">Controls whether saved cover art is shown in each view, and at what size (this device only).</p>
+        <h3>Timeline</h3>
         <div class="row">
-          <label>Timeline cover size
+          <label>Cover art
             <select id="timelineCoverSize">
               <option value="none">None</option>
               <option value="small">Small</option>
               <option value="big">Big</option>
             </select>
           </label>
-          <label>Backlog cover size
+          <label>Month cards
+            <select id="timelineMonthSummary">
+              <option value="hide">Total only</option>
+              <option value="show">Show breakdown</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint">The breakdown is a line per category under each month card,
+          saying how many entries each one got. It never appears on a month with only
+          one category in it — the header already says the number.</p>
+      </section>
+
+      <section class="settings-section">
+        <h3>Backlog</h3>
+        <div class="row">
+          <label>Cover art
             <select id="backlogCoverSize">
               <option value="none">None</option>
               <option value="small">Small</option>
               <option value="big">Big</option>
             </select>
           </label>
+          <label>Descriptions
+            <select id="backlogSummaries">
+              <option value="show">Show in the list</option>
+              <option value="hide">Hide</option>
+            </select>
+          </label>
         </div>
-      </section>
+        <p class="hint">Hiding a description doesn't delete it — open the item and
+          it's still there.</p>
 
-      <section class="settings-section">
-        <h3>Backlog counts</h3>
-        <p class="hint">Whether a category's count in the backlog sets aside what you can't sit down and finish — <em>300 (+12 EA, +43 unreleased, +8 dropped)</em> rather than a flat 363, so the number reads as things you could actually get through. Same groups the list sorts into (this device only).</p>
-        <label>Set-aside items
+        <label>Set-aside items in a category's count
           <select id="backlogCounts">
             <option value="split">Counted separately</option>
             <option value="total">Included in the total</option>
           </select>
         </label>
+        <p class="hint">Counted separately reads <em>300 (+12 EA, +43 unreleased, +8
+          dropped)</em> rather than a flat 363, so the number is things you could
+          actually sit down and get through.</p>
+
+        <h4>Set-aside bands</h4>
+        <p class="hint">Whether each block at the end of a category can fold away
+          behind a bar reading <em>▸ Unreleased 12</em>, and what it starts as. A
+          folded block isn't rendered at all, so a long shelf of things you're
+          waiting on costs nothing to scroll past. One setting each, because they're
+          set aside for three different reasons and which you want hidden isn't one
+          question.</p>
+        <div class="row">
+          <label>Early Access
+            <select id="backlogFoldEa">
+              <option value="open">Foldable, start open</option>
+              <option value="collapsed">Foldable, start folded</option>
+              <option value="always">Always open</option>
+            </select>
+          </label>
+          <label>Unreleased
+            <select id="backlogFoldUnreleased">
+              <option value="open">Foldable, start open</option>
+              <option value="collapsed">Foldable, start folded</option>
+              <option value="always">Always open</option>
+            </select>
+          </label>
+          <label>Dropped
+            <select id="backlogFoldDropped">
+              <option value="open">Foldable, start open</option>
+              <option value="collapsed">Foldable, start folded</option>
+              <option value="always">Always open</option>
+            </select>
+          </label>
+        </div>
       </section>
 
       <section class="settings-section">
-        <h3>Backlog set-aside bands</h3>
-        <p class="hint">Whether each block at the end of a backlog category can be folded away behind a bar reading <em>▸ Unreleased 12</em>, and what it starts as. A folded block isn't rendered at all, so a long shelf of things you're waiting on costs nothing to scroll past. One setting each, because they're set aside for three different reasons and which of them you want hidden isn't one question (this device only).</p>
-        <label>Early Access
-          <select id="backlogFoldEa">
-            <option value="open">Foldable, start open</option>
-            <option value="collapsed">Foldable, start folded</option>
-            <option value="always">Always open</option>
-          </select>
-        </label>
-        <label>Unreleased
-          <select id="backlogFoldUnreleased">
-            <option value="open">Foldable, start open</option>
-            <option value="collapsed">Foldable, start folded</option>
-            <option value="always">Always open</option>
-          </select>
-        </label>
-        <label>Dropped
-          <select id="backlogFoldDropped">
-            <option value="open">Foldable, start open</option>
-            <option value="collapsed">Foldable, start folded</option>
-            <option value="always">Always open</option>
-          </select>
-        </label>
-      </section>
-
-      <section class="settings-section">
-        <h3>Backlog descriptions</h3>
-        <p class="hint">Whether the description a sync pulled in shows under each row in the backlog list. Hiding it doesn't delete anything — open the item and it's still there (this device only).</p>
-        <label>Descriptions in the list
-          <select id="backlogSummaries">
-            <option value="show">Show</option>
-            <option value="hide">Hide</option>
-          </select>
-        </label>
-      </section>
-
-      <section class="settings-section">
-        <h3>Month summaries</h3>
-        <p class="hint">A breakdown under each month card showing what the month was made of, one line per category. The Ledger's shows what you spent per category; the Timeline's shows how many entries each category got. Neither appears on a month with only one category in it, since the header already says the number (this device only).</p>
-        <label>Ledger month cards
-          <select id="ledgerMonthSummary">
-            <option value="show">Show breakdown</option>
-            <option value="hide">Total only</option>
-          </select>
-        </label>
-        <label>Timeline month cards
-          <select id="timelineMonthSummary">
-            <option value="hide">Hide</option>
-            <option value="show">Show breakdown</option>
-          </select>
-        </label>
-      </section>
-
-      <section class="settings-section">
-        <h3>Currency</h3>
-        <p class="hint">Currency symbol used throughout the Finance tabs. Syncs across your devices.</p>
-        <label>Symbol
-          <select id="currency">
-            <option value="ILS">₪ Shekel (ILS)</option>
-            <option value="USD">$ Dollar (USD)</option>
-            <option value="EUR">€ Euro (EUR)</option>
-            <option value="GBP">£ Pound (GBP)</option>
-          </select>
-        </label>
+        <h3>Ledger</h3>
+        <div class="row">
+          <label>Month cards
+            <select id="ledgerMonthSummary">
+              <option value="show">Show breakdown</option>
+              <option value="hide">Total only</option>
+            </select>
+          </label>
+          <label>Currency <span class="muted">(syncs)</span>
+            <select id="currency">
+              <option value="ILS">₪ Shekel (ILS)</option>
+              <option value="USD">$ Dollar (USD)</option>
+              <option value="EUR">€ Euro (EUR)</option>
+              <option value="GBP">£ Pound (GBP)</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint">The breakdown is a line per category under each month card,
+          saying what you spent on each. Currency is the one setting on this page
+          that follows you between devices — it describes your money, not this
+          screen.</p>
       </section>
 
       </div><!-- /appearance panel -->
@@ -1428,21 +1451,21 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.168.0"></script>
-  <script defer src="src/qr.js?v=0.168.0"></script>
-  <script defer src="src/media.js?v=0.168.0"></script>
-  <script defer src="src/merge.js?v=0.168.0"></script>
-  <script defer src="src/storage.js?v=0.168.0"></script>
-  <script defer src="src/finance.js?v=0.168.0"></script>
-  <script defer src="src/settings.js?v=0.168.0"></script>
-  <script defer src="src/wheel.js?v=0.168.0"></script>
-  <script defer src="src/backlog.js?v=0.168.0"></script>
-  <script defer src="src/journal.js?v=0.168.0"></script>
-  <script defer src="src/notes.js?v=0.168.0"></script>
-  <script defer src="src/todos.js?v=0.168.0"></script>
-  <script defer src="src/io.js?v=0.168.0"></script>
-  <script defer src="src/sync.js?v=0.168.0"></script>
-  <script defer src="src/recap.js?v=0.168.0"></script>
-  <script defer src="src/app.js?v=0.168.0"></script>
+  <script defer src="src/reconcile.js?v=0.169.0"></script>
+  <script defer src="src/qr.js?v=0.169.0"></script>
+  <script defer src="src/media.js?v=0.169.0"></script>
+  <script defer src="src/merge.js?v=0.169.0"></script>
+  <script defer src="src/storage.js?v=0.169.0"></script>
+  <script defer src="src/finance.js?v=0.169.0"></script>
+  <script defer src="src/settings.js?v=0.169.0"></script>
+  <script defer src="src/wheel.js?v=0.169.0"></script>
+  <script defer src="src/backlog.js?v=0.169.0"></script>
+  <script defer src="src/journal.js?v=0.169.0"></script>
+  <script defer src="src/notes.js?v=0.169.0"></script>
+  <script defer src="src/todos.js?v=0.169.0"></script>
+  <script defer src="src/io.js?v=0.169.0"></script>
+  <script defer src="src/sync.js?v=0.169.0"></script>
+  <script defer src="src/recap.js?v=0.169.0"></script>
+  <script defer src="src/app.js?v=0.169.0"></script>
 </body>
 </html>

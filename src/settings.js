@@ -312,7 +312,7 @@
     document.querySelectorAll(".stab").forEach((t) => {
       const on = t.dataset.stab === name;
       t.classList.toggle("active", on);
-      // Six tabs don't fit a phone, so the strip scrolls. Without this a tab
+      // Seven tabs don't fit a phone, so the strip scrolls. Without this a tab
       // reached by swiping could end up active while off-screen, which reads
       // as the swipe having done nothing. "nearest" is a no-op when the tab
       // is already visible, so clicking is unaffected.
