@@ -515,6 +515,14 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 
 /* Anchors a menu to the button that opens it. */
 .menu-wrap { position: relative; display: inline-flex; }
+/* The display above outranks the UA stylesheet's [hidden] rule. Without this
+   #recMoreWrap — hidden while adding a recurring expense, since a plan that
+   doesn't exist yet has nothing to pause or convert — stayed on screen as a
+   More… button whose menu then refused to open, because setRecToolsOpen
+   reads that same .hidden. A control that is present and dead reads as a bug.
+   Same companion rule the rest of this file carries beside every author
+   display. */
+.menu-wrap[hidden] { display: none; }
 /* Opens upward: this one lives in .modal-actions at the foot of a modal that
    scrolls, so downward would be off the end of it. */
 .menu-wrap .menu-pop { position: absolute; left: 0; bottom: calc(100% + 8px); }
@@ -1152,6 +1160,9 @@ select:focus { outline: none; border-color: var(--accent); }
   border: 1px solid var(--border); border-radius: 10px; padding: 2px 8px;
 }
 .picker-buckets { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+/* Hidden when an import has fewer than two buckets to filter by; without the
+   companion rule it stayed as an empty flex row still spending its margin. */
+.picker-buckets[hidden] { display: none; }
 .picker-newcats {
   margin: 4px 0 12px; padding: 12px 14px; background: var(--accent-soft);
   border: 1px solid transparent; border-radius: 10px;
@@ -1745,6 +1756,9 @@ kbd {
   color: var(--text-dim); border-radius: 8px; padding: 8px 10px; font-size: 11.5px;
 }
 .gh-qr { display: flex; justify-content: center; margin: 4px 0 12px; }
+/* Hidden when the link is local-only or too long to encode; same empty-row
+   and stray-margin problem as .picker-buckets above. */
+.gh-qr[hidden] { display: none; }
 .gh-qr svg { background: #fff; padding: 10px; border-radius: 10px; box-shadow: var(--shadow); }
 .warn {
   margin: 0 0 10px; font-size: 12px; color: var(--danger-text);

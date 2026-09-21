@@ -4,6 +4,27 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.169.3] - 2026-09-21
+
+### Fixed
+Swept the whole app for the problem behind 0.169.2 — something asked to be
+hidden that stayed on screen anyway — and found three more, all present on
+desktop and phone alike:
+- Adding a **recurring expense** showed a **"More…" button** that shouldn't be
+  there yet (there's nothing to pause, convert or link on a plan that doesn't
+  exist), and tapping it did nothing, because the menu checked the same
+  hidden flag before opening.
+- The **GitHub share panel** left an empty gap where the QR code goes when the
+  link can't be encoded into one, or when the address is local-only.
+- The **finance import picker** left an empty gap where its bucket filters go
+  when there was only one bucket to filter by.
+
+### Added
+- A test that sets `hidden` on every element the app actually hides — about a
+  hundred of them — in four layouts, and fails if the browser doesn't then
+  compute it away. All four of these bugs were the same mistake, invisible to
+  reading the stylesheet, so the check is now automatic rather than a habit.
+
 ## [0.169.2] - 2026-09-21
 
 ### Fixed

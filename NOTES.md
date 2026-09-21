@@ -16,6 +16,37 @@ what was decided against and why.
 
 ---
 
+- 0.169.3 swept for the rest of 0.169.2's bug and turned the sweep into
+  `test/browser/hiddenaudit.js`, which is the part that matters.
+
+  Three more were hiding, all in every layout rather than just the phone:
+  `.menu-wrap` (so a brand-new recurring plan showed a More… button whose
+  menu then refused to open, since `setRecToolsOpen` reads the same
+  `.hidden` — the present-and-dead control again, and mine from 0.163.0),
+  `.gh-qr` and `.picker-buckets` (both left an empty flex row still spending
+  its margin). The stylesheet now carries 32 companion
+  `X[hidden] { display: none; }` rules; four of those were added only after
+  something visibly broke, which is the case for checking rather than
+  remembering.
+
+  **How the sweep works, because the method is reusable.** Don't reason about
+  specificity — that is the thing that goes wrong. Ask the browser: set
+  `hidden` on an element, read `getComputedStyle().display`, and anything
+  that isn't `none` is a bug. The only real work is deciding *which*
+  elements, and the answer is two sources — every element carrying a `hidden`
+  attribute in index.html, since that attribute is the app declaring the
+  element gets shown and hidden, plus anything else caught by a patched
+  `hidden` setter while the app is driven around. That comes to about a
+  hundred, which is small enough to check exhaustively in four layouts.
+
+  Two things the first cut of the suite got wrong, both worth remembering.
+  Auditing *every* element in the document rather than the hide-able ones
+  produced forty findings that were all noise — a `<select>` nobody ever
+  hides is not a bug. And seeding with nothing disabled meant `.tab` never
+  entered the set, so the suite could not catch the very bug it was written
+  for; it now seeds a disabled view and a disabled mode deliberately.
+
+
 - 0.169.2: a tab turned off in Settings still drew its icon in the phone's
   bottom bar. Two separate mistakes, and the second is the one worth keeping.
 

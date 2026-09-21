@@ -93,6 +93,23 @@ const planOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
   check("a generated occurrence carries the foreign figure into the ledger",
     !!ledger && /11\.99/.test(ledger.billed || ""), ledger);
 
+  // ---- 2b. a brand-new plan has no More… button ----
+  // It is hidden for a plan that doesn't exist yet — nothing to pause,
+  // convert or link — but `.menu-wrap { display: inline-flex }` outranked
+  // the UA [hidden] rule, so it stayed on screen as a button whose menu then
+  // refused to open (setRecToolsOpen reads the same .hidden). Fixed 0.169.3.
+  await page.evaluate(() => window.LifeLogFinance.openRecurringModal(null));
+  await page.waitForSelector("#recurringModal:not([hidden])", { timeout: 5000 });
+  const fresh = await page.evaluate(() => {
+    const w = document.querySelector("#recMoreWrap");
+    const r = w.getBoundingClientRect();
+    return { display: getComputedStyle(w).display, w: Math.round(r.width) };
+  });
+  check("adding a recurring expense offers no More… button at all",
+    fresh.display === "none" && fresh.w === 0, fresh);
+  await page.evaluate(() => window.LifeLogFinance.closeRecurringModal());
+  await page.waitForTimeout(300);
+
   // ---- 3. the modal opens in the plan's own currency ----
   await page.click(".recur-row");
   await page.waitForSelector("#recurringModal:not([hidden])", { timeout: 5000 });
