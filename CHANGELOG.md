@@ -4,6 +4,30 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.164.0] - 2026-09-21
+
+### Changed
+- The app now draws your own copy of the data before it talks to the
+  network, instead of after. Opening it used to mean waiting out a full
+  round-trip to GitHub — and an IndexedDB lookup before that — for entries
+  that were already saved on the device. Measured over 611 entries on a
+  throttled phone-like CPU, time to the first row went from 770ms to 333ms
+  when GitHub took 400ms to answer, and no longer depends on the connection
+  at all: 318ms with sync off, 333ms on a slow link.
+- GitHub and the local backup file are now reconciled in the background,
+  behind the rows already on screen. Anything another device changed still
+  arrives, with the same "merged changes from your other device" message as
+  before — a moment later than it used to, rather than before you could see
+  anything.
+- If two copies genuinely disagree, the "which version do you want" prompt
+  now opens over a working app rather than standing between you and it.
+- A save started while that first background check is still running waits
+  for it to finish, so an edit made in those first moments can't overwrite
+  something only the other device knew about.
+- A device opening LifeLog for the first time, with no saved copy of its
+  own, still waits for GitHub — there is genuinely nothing to show until it
+  answers.
+
 ## [0.163.1] - 2026-09-20
 
 ### Changed

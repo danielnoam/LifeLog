@@ -113,7 +113,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.163.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.164.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -940,8 +940,18 @@
   // a manual "touch" call through every mutation site in the app. Seeded
   // once data first loads (see init()) and refreshed after every persist().
   let lastPersistedSnapshot = null;
+  // In flight while boot's background reconcile is running; see persist().
+  let firstReconcile = null;
 
   async function persist() {
+    // Boot now renders before it has heard from GitHub, which opens a window
+    // where this device could push a document that has never seen the remote
+    // one — and a push is a whole-file write, so anything only GitHub knew
+    // about would be gone. Waiting here closes it. The edit itself already
+    // landed in state.data and on screen; only the save is held, and only for
+    // whatever is left of a network wait the user used to sit through before
+    // seeing anything at all.
+    if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } }
     if (window.LifeLogMerge) window.LifeLogMerge.stampChangedItems(lastPersistedSnapshot, state.data);
     state.data.exportedAt = new Date().toISOString();
     // The newest build that has ever written this file — a high-water mark,
@@ -2695,6 +2705,83 @@
     }
   }
 
+  // Boot's second half: the cached copy is already on screen, so bring in
+  // whatever GitHub and the local file have and fold it into what's there.
+  // This is pollForUpdates' job run once at startup rather than on the
+  // interval, with the same guards — but through Storage.load() rather than
+  // checkRemote(), so the local-file source and the conflict picker are
+  // covered too, and so githubReadOk gets set and the status line and the
+  // offline toast mean something.
+  //
+  // The local side of the merge is read through a function, not passed as a
+  // value: it is taken after the network waits inside load(), so an edit made
+  // while GitHub was answering is part of what gets merged rather than
+  // something the merge quietly undoes.
+  async function reconcileFromSources() {
+    if (syncInFlight || state.pendingSync) return; // a save owns the data; the poll will pick this up
+    let result;
+    try {
+      result = await Storage.load(() => {
+        // The live document has to carry accurate timestamps before it can be
+        // one side of a three-way merge, and stamping is normally persist()'s
+        // job — which is exactly what is being held up behind this. Without
+        // it an edit made during the wait still reads as unchanged since the
+        // base, so the merge takes the remote's older copy and the edit
+        // silently reverts. That is a real failure; bootcache.js covers it.
+        if (window.LifeLogMerge) window.LifeLogMerge.stampChangedItems(lastPersistedSnapshot, state.data);
+        return state.data;
+      });
+    } catch (e) {
+      refreshStorageStatus();
+      return;
+    }
+
+    if (result.conflict) {
+      // Now a prompt over a working app rather than the thing standing
+      // between you and your first row.
+      const chosen = await pickVersion(result.conflict);
+      const resolved = await Storage.resolveConflict(chosen);
+      state.data = normalize(resolved.data);
+      lastPersistedSnapshot = structuredClone(state.data);
+      afterDataChange();
+      noticeVersionSkew();
+      refreshStorageStatus();
+      return;
+    }
+
+    // Re-checked after the await, exactly as pollForUpdates does: a save may
+    // have started while GitHub was answering, and its data is newer than
+    // anything this merge saw.
+    if (syncInFlight || state.pendingSync || isAnyModalOpen()) { refreshStorageStatus(); return; }
+
+    // Normalized local against a raw sync base is the same footing
+    // pollForUpdates has always merged on — normalize() is deterministic and
+    // additive by design (see backfillUpdatedAt), so this is boot behaving
+    // like a poll rather than a new hazard.
+    const next = result.data ? normalize(result.data) : state.data;
+    const summary = window.LifeLogMerge
+      ? window.LifeLogMerge.diffSnapshots(state.data, next) : null;
+    const changed = summary == null ? result.data !== state.data : summary !== "No changes";
+    if (changed) {
+      state.data = next;
+      lastPersistedSnapshot = structuredClone(state.data);
+      afterDataChange();
+      noticeVersionSkew();
+    }
+    refreshStorageStatus();
+
+    if (result.source === "merged") {
+      toast(result.conflictSummary
+        ? "Merged from your other device — " + result.conflictSummary
+        : "Merged changes from your other device", !!result.conflictSummary);
+    } else if (changed) {
+      toast(summary ? "Merged " + summary + " from your other device"
+        : "Updated from your other device");
+    } else if (Storage.githubConnected && !Storage.githubReadOk) {
+      toast("Offline — showing last saved copy; will sync when GitHub is reachable", true);
+    }
+  }
+
   // (Re)start the polling timer based on the current setting and connection.
   function schedulePoll() {
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
@@ -3425,39 +3512,62 @@
     try { savedUi = JSON.parse(localStorage.getItem(UI_KEY)); } catch (e) {}
     applySavedUi(savedUi);
 
-    const result = await Storage.load();
-    let source, githubReached;
-    if (result.conflict) {
-      const chosen = await pickVersion(result.conflict);
-      const resolved = await Storage.resolveConflict(chosen);
-      state.data = normalize(resolved.data);
-      source = resolved.source;
+    // Everything the first sight of the data needs, whichever path produced
+    // it. Factored out because there are now two of those paths.
+    const showData = () => {
+      afterDataChange();
+      lastPersistedSnapshot = structuredClone(state.data);
+      if (savedUi?.scrollY) setTimeout(() => window.scrollTo(0, savedUi.scrollY), 0);
+      noticeVersionSkew();
+      refreshStorageStatus();
+    };
+
+    // Draw this device's own copy before anything is awaited, then reconcile
+    // with GitHub and the local file behind it. Storage.load() opens
+    // IndexedDB for the file handle and goes to the GitHub API with a retry
+    // before it ever looks at the cache, and init() awaited all of that
+    // before rendering a single row — so a synced phone on mobile data spent
+    // the whole round-trip on a blank page, for entries that were already in
+    // localStorage. Measured at 4x CPU throttle over 611 entries: 312ms to
+    // first row with sync off, 770ms with GitHub answering in 400ms. See
+    // TODO.md's boot entry and test/perf/sync-block.js.
+    const cached = Storage.loadCache();
+    if (cached) {
+      state.data = normalize(cached.data);
+      showData();
+      if (setupMsg) toast(setupMsg, setupErr);
+      // Deliberately not awaited: that is the entire point of the split. The
+      // promise is kept so persist() can wait on it — see the note there.
+      firstReconcile = reconcileFromSources().finally(() => { firstReconcile = null; });
     } else {
-      state.data = result.data ? normalize(result.data) : emptyData();
-      source = result.source;
-    }
-    // Straight from the load, rather than inferred from which copy won it.
-    // Those are different questions, and the old inference got both answers
-    // wrong: a repo with no data file yet was reported as offline (GitHub
-    // answered 404, so nothing of its own won), and a merge whose remote was
-    // the local file — because GitHub had thrown — was reported as reached.
-    githubReached = Storage.githubReadOk;
-    afterDataChange();
-    lastPersistedSnapshot = structuredClone(state.data);
-    if (savedUi?.scrollY) setTimeout(() => window.scrollTo(0, savedUi.scrollY), 0);
-
-    noticeVersionSkew();
-    refreshStorageStatus();
-
-    if (setupMsg) toast(setupMsg, setupErr);
-    else if (source === "seed") toast("Loaded " + state.data.entries.length + " entries from your sheet");
-    else if (source === "merged") {
-      toast(result.conflictSummary
-        ? "Merged from your other device — " + result.conflictSummary
-        : "Merged changes from your other device", !!result.conflictSummary);
-    }
-    else if (Storage.githubConnected && !githubReached) {
-      toast("Offline — showing last saved copy; will sync when GitHub is reachable", true);
+      // A device that has never held a copy has nothing to draw, so here the
+      // wait is the only honest thing to do.
+      const result = await Storage.load();
+      let source;
+      if (result.conflict) {
+        const chosen = await pickVersion(result.conflict);
+        const resolved = await Storage.resolveConflict(chosen);
+        state.data = normalize(resolved.data);
+        source = resolved.source;
+      } else {
+        state.data = result.data ? normalize(result.data) : emptyData();
+        source = result.source;
+      }
+      // Straight from the load, rather than inferred from which copy won it.
+      // Those are different questions, and the old inference got both answers
+      // wrong: a repo with no data file yet was reported as offline (GitHub
+      // answered 404, so nothing of its own won), and a merge whose remote was
+      // the local file — because GitHub had thrown — was reported as reached.
+      const githubReached = Storage.githubReadOk;
+      showData();
+      if (setupMsg) toast(setupMsg, setupErr);
+      else if (source === "seed") toast("Loaded " + state.data.entries.length + " entries from your sheet");
+      // "merged" can't happen here: a merge needs this device's own copy as
+      // one of its two sides, and this branch is the case where there isn't
+      // one. It belongs to reconcileFromSources now.
+      else if (Storage.githubConnected && !githubReached) {
+        toast("Offline — showing last saved copy; will sync when GitHub is reachable", true);
+      }
     }
 
     // PWA app shortcuts (manifest.json's `shortcuts`, long-press the

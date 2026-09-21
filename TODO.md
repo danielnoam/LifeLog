@@ -66,59 +66,44 @@ todo:
   If load ever does need to get faster, the numbers say to look at boot — and
   the next entry is what boot turned out to be.
 
-- **boot waits for the network before it draws anything**, and that is the
-  whole story of the load. `test/perf/boot.js` and `test/perf/sync-block.js`,
-  same rig as above: 4x CPU throttle, 611 entries, median of several loads.
+- boot's blocking load was **fixed in 0.164.0** — the app renders from its
+  own cached copy and reconciles with GitHub and the local file behind it.
+  Time to first row, same rig (`test/perf/sync-block.js`, 4x CPU throttle,
+  611 entries, median of 3):
 
-      time to first row                          ms from navigationStart
-      sync off                                     312
-      sync on, GitHub answers in  50ms             408
-      sync on, GitHub answers in 150ms             503
-      sync on, GitHub answers in 400ms             770
-      sync off, File System API absent             248
+      GitHub answers in       before      after
+      (sync off)               312ms      318ms
+       50ms                    408ms      320ms
+      150ms                    503ms      296ms
+      400ms                    770ms      333ms
 
-  `init()` awaits `Storage.load()` before `afterDataChange()` renders
-  anything, and `Storage.load()` does three things in this order: opens
-  IndexedDB to find the local-file backup handle, goes to the GitHub API (with
-  a retry), and only then reads the localStorage cache — which already holds a
-  complete copy of the data. So a synced user on mobile data waits out a full
-  GitHub round-trip staring at an empty page, for entries that were sitting in
-  localStorage the whole time. The last row is the same measurement with the
-  File System Access API removed, which skips the IndexedDB open: it is worth
-  about 50-60ms on its own, for a handle nothing needs until a save.
-
-  The shape of the fix is render-from-cache-first: draw the cached copy, let
-  GitHub and the local file resolve in the background, then merge and
-  re-render if they differ. Most of that already exists — `mergeCollection`
-  and `stampChangedItems` do the merging, and there is already a "merged
-  changes from your other device" toast for exactly this. Two things need
-  thought before starting: `pickVersion`'s conflict prompt currently runs
-  before the first render and would have to become a post-render one, and an
-  edit begun before the merge lands has to survive it (it should — the merge
-  is a merge, not an overwrite — but that is the thing to test first).
-
-  Everything else that looked like a suspect was measured and cleared:
+  Flat in latency now, which was the point. What is left of boot is ~300ms
+  that does not depend on the network, and the profiling that priced each
+  part of it is still worth having if it ever needs attacking again:
 
   - **The JS weight is not it.** 924KB across 16 files, and stubbing the ten
-    of them that no first paint needs (finance, backlog, media, settings,
-    sync, io, qr, wheel, notes, todos — 349KB) moved DOMContentLoaded from
-    163ms to 161ms. V8 streams and parses off-thread and compiles lazily;
-    main-thread compile+evaluate for the whole app is ~30ms, 26 of it app.js.
-    Splitting the bundle or loading modules per-tab would buy nothing.
-  - **The hidden modals are a minor part.** All 21 of them ship in index.html:
-    849 of the shell's 1,099 elements, 63KB of the 74KB. Serving the page
-    without them takes domInteractive from 215ms to 57ms — but only takes
-    DOMContentLoaded from 274ms to 243ms, because the script fetch overlaps
-    the HTML parse and becomes the critical path instead. ~30ms for moving 21
-    modals out of static markup is a bad trade.
-  - **`wire()` is 25ms, `normalize()` 10ms, the post-load `structuredClone` of
-    the whole dataset 8ms, the filters 19ms, the first render 60ms.** Nothing
-    there is worth attacking on its own.
-  - Of the browser's own time, `UpdateLayoutTree` is 59ms up to the first rows
-    and 285ms across the whole 3s window — so most style recalc happens after
-    you are already reading, which is the idle trickle doing its job. The
-    stylesheet is 803 selectors with one universal and no deep descendant
-    chains; there is nothing pathological in it to find.
+    that no first paint needs (finance, backlog, media, settings, sync, io,
+    qr, wheel, notes, todos — 349KB) moved DOMContentLoaded from 163ms to
+    161ms. V8 streams and parses off-thread and compiles lazily; main-thread
+    compile+evaluate for the whole app is ~30ms, 26 of it app.js. Splitting
+    the bundle or loading modules per tab would buy nothing.
+  - **The hidden modals are a minor part.** All 21 ship in index.html: 849 of
+    the shell's 1,099 elements, 63KB of the 74KB. Serving the page without
+    them takes domInteractive from 215ms to 57ms but DOMContentLoaded only
+    from 274ms to 243ms, because the script fetch overlaps the HTML parse and
+    becomes the critical path instead. ~30ms for moving 21 modals out of
+    static markup is a bad trade.
+  - **`wire()` 25ms, `normalize()` 10ms, the snapshot clone 8ms, the filters
+    19ms, the first render 60ms.** Nothing there is worth attacking alone.
+  - `UpdateLayoutTree` is 59ms up to the first rows and 285ms across a 3s
+    window, so most style recalc happens after you are already reading —
+    the idle trickle doing its job. The stylesheet is 803 selectors with one
+    universal and no deep descendant chains; nothing pathological in it.
+  - The IndexedDB open for the local-file handle is still on
+    `Storage.load()`'s path, but that path is now background, so its ~50ms
+    costs nothing anyone can see. Not worth moving.
+
+  `node test/perf/serve-and-run.js boot` and `… sync-block` re-run both.
 
 - projects, now that they exist (0.145.0), have obvious next steps that were
   deliberately left out of the first cut: a budget per project with a

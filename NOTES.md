@@ -16,6 +16,57 @@ what was decided against and why.
 
 ---
 
+- 0.164.0 renders from the cache first, and the two things that made it
+  correct are both invisible in the diff, so they are written down here.
+
+  The change itself is small: `init()` draws `Storage.loadCache()` — a plain
+  localStorage read, nothing awaited — and then runs `reconcileFromSources()`
+  behind it, which is `pollForUpdates`' job done once at startup. It goes
+  through `Storage.load()` rather than `checkRemote()` so the local-file
+  source, the conflict picker and `githubReadOk` are all still covered.
+
+  **Trap one: the local side of the merge has to be stamped first.** An edit
+  made while GitHub is still answering lives in `state.data` with whatever
+  `updatedAt` it had before, because stamping is `persist()`'s job and
+  `persist()` is queued behind the reconcile. Hand that document to
+  `mergeAllSources` and the edit reads as unchanged-since-the-base, so a
+  remote edit of the same item wins and the user's typing silently reverts.
+  So `Storage.load(getLocal)` takes a *function*, called at the merge point,
+  and that function runs `stampChangedItems` before returning `state.data`.
+
+  This is worth knowing because the obvious test does not catch it. If the
+  remote did not touch the same item, the merge keeps the local copy whether
+  or not its stamp is accurate — the first version of `bootcache.js` passed
+  with the stamping deleted. It takes a case where *both* sides edited the
+  same entry to make the timestamp the deciding fact. That case is now case
+  3b in the suite, and removing the stamp fails it.
+
+  **Trap two: a save must not overtake the first reconcile.** A push is a
+  whole-file write. Boot used to render only after it had seen GitHub, so
+  this could not arise; rendering first opens a window where the user edits,
+  `persist()` fires, and this device overwrites the remote file with a
+  document that has never seen it — anything only GitHub knew about is gone.
+  `persist()` therefore awaits `firstReconcile` before it does anything. The
+  edit has already landed in `state.data` and on screen; only the save waits,
+  and only for the remainder of a wait the user used to sit through staring
+  at nothing.
+
+  Two smaller things that look like oversights and aren't. The `"merged"`
+  toast moved out of the cold-load branch entirely, because a merge needs
+  this device's own copy as one of its two sides and that branch is by
+  definition the case where there isn't one. And `reconcileFromSources` hands
+  `mergeAllSources` a *normalized* local against a *raw* sync base, which
+  looks like it should manufacture differences — it doesn't, because
+  `normalize` is deterministic and additive by design (see
+  `backfillUpdatedAt`'s comment), and `pollForUpdates` has merged on exactly
+  that footing since it was written.
+
+  What did *not* change: the cold path. A device with no cached copy still
+  awaits `Storage.load()`, because it has nothing to draw and pretending
+  otherwise would mean flashing an empty state at someone whose data is
+  about to arrive.
+
+
 - **a disclosure and a menu say different things (0.163.1).** Folding the
   recurring plan's four errands behind a button was right; making that button
   a disclosure was not. An inline row that appears in the middle of a form

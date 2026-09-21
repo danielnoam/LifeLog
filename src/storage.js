@@ -338,7 +338,28 @@
     // Returns one of:
     //   { data, source }   source: 'github' | 'file' | 'cache' | 'seed' | 'empty'
     //   { conflict: [{ source, label, data }, ...] }  when sources disagree (by exportedAt)
-    async load() {
+    // The cache on its own, with nothing awaited: no IndexedDB open for the
+    // file handle, no GitHub round-trip. This is what boot renders from, so
+    // the first rows are on screen before the network is consulted at all —
+    // see reconcileFromSources() in app.js for the other half. Returns null
+    // when this device has never held a copy, which is the one case that
+    // genuinely has nothing to draw and has to wait for load().
+    loadCache() {
+      const raw = localStorage.getItem(CACHE_KEY);
+      if (!raw) return null;
+      try {
+        const data = JSON.parse(raw);
+        return data ? { data, source: "cache" } : null;
+      } catch (e) { return null; }
+    },
+
+    // getLocal, when given, replaces the cached copy as this device's side of
+    // the merge. Boot has already rendered from the cache by the time the
+    // background pass runs, and the user may have edited since — merging
+    // against the stale cache would quietly undo those edits. It is a
+    // function rather than a value so the snapshot is taken after the network
+    // waits below, at the latest possible moment before the merge.
+    async load(getLocal) {
       await ensureHandleLoaded(); // so the local file can also serve as a backup
 
       const candidates = [];
@@ -368,11 +389,16 @@
         } catch (e) { /* file moved/unreadable; fall through */ }
       }
 
-      // --- localStorage cache ---
-      const cached = localStorage.getItem(CACHE_KEY);
-      if (cached) {
-        try { candidates.push({ source: "cache", label: "This browser", data: JSON.parse(cached) }); }
-        catch (e) { /* ignore */ }
+      // --- this device's own copy ---
+      if (getLocal) {
+        const live = getLocal();
+        if (live) candidates.push({ source: "cache", label: "This browser", data: live });
+      } else {
+        const cached = localStorage.getItem(CACHE_KEY);
+        if (cached) {
+          try { candidates.push({ source: "cache", label: "This browser", data: JSON.parse(cached) }); }
+          catch (e) { /* ignore */ }
+        }
       }
 
       if (!candidates.length) {
