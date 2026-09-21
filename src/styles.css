@@ -1865,6 +1865,13 @@ kbd {
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
   }
+  /* The display above outranks the UA stylesheet's [hidden] rule, so a tab
+     turned off in Settings needs this said explicitly — without it the tab
+     kept its icon on the phone layout while being correctly gone on the
+     desktop one, where nothing sets an author display on .tab. Same
+     companion rule the rest of this file carries next to every other
+     author display. */
+  html:not(.force-pc) .tab[hidden] { display: none; }
   html:not(.force-pc) .tab::before { content: attr(data-icon); font-size: 17px; line-height: 1; }
   html:not(.force-pc) .tab.active { color: var(--accent); background: none; }
   html:not(.force-pc) .views { position: relative; }
@@ -1988,6 +1995,8 @@ html.force-mobile .tab {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
 }
+/* Same companion rule as the @media block above — see the note there. */
+html.force-mobile .tab[hidden] { display: none; }
 html.force-mobile .tab::before { content: attr(data-icon); font-size: 17px; line-height: 1; }
 html.force-mobile .tab.active { color: var(--accent); background: none; }
 html.force-mobile .views { position: relative; }

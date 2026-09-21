@@ -16,6 +16,28 @@ what was decided against and why.
 
 ---
 
+- 0.169.2: a tab turned off in Settings still drew its icon in the phone's
+  bottom bar. Two separate mistakes, and the second is the one worth keeping.
+
+  The bug itself is this file's oldest trap, which it already carries a
+  companion rule for in five other places: `html:not(.force-pc) .tab
+  { display: flex }` outranks the UA stylesheet's `[hidden] { display: none }`,
+  so setting `tab.hidden = true` did nothing on the phone layout. Desktop was
+  fine because nothing sets an author `display` on `.tab` there — which is
+  exactly why it read as "works" while being half broken. Both mobile blocks
+  now carry `.tab[hidden] { display: none; }`, the same companion the
+  checkbox, the filter group and the menu-pop rules already have.
+
+  **The test was the real failure.** It asked `!t.hidden` — a property the
+  app sets itself, so it could only ever agree with the app. It ran at 460px,
+  in the very layout where the bug lived, and passed. An assertion phrased in
+  terms of the thing under test is not a test; ask the layout instead —
+  `getBoundingClientRect().width` and `getComputedStyle().display`. Rewritten
+  that way it fails hard on the old CSS, and the suite now runs the bar checks
+  at 1280 and 390 rather than at one width, since the two layouts style `.tab`
+  differently and only one of them was ever broken.
+
+
 - 0.169.1 is the other half of 0.168.0, and the gap between them is the
   lesson: **taking a tab out of the tab bar is not the same as taking it out
   of the app.** The first pass routed every *navigation* surface through

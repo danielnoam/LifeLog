@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.169.2] - 2026-09-21
+
+### Fixed
+- A tab you'd turned off still showed its icon in the bottom bar on a phone.
+  It was correctly gone on desktop, which is why it slipped through — the
+  phone layout gives `.tab` a style that quietly overrode the app's request
+  to hide it. Now gone on both, taking no space at all, with the tabs you
+  kept spreading to fill the bar.
+
 ## [0.169.1] - 2026-09-21
 
 ### Fixed

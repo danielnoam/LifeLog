@@ -41,8 +41,15 @@ async function app(browser, { ui, visual } = {}) {
   return { page, ctx, errs };
 }
 
+// Actually invisible, not merely carrying the hidden attribute. The first
+// version of this asked `!t.hidden`, which is a property the app sets and
+// therefore always agreed with itself — meanwhile `html:not(.force-pc) .tab
+// { display: flex }` outranked the UA stylesheet's [hidden] rule and the tab
+// kept its icon on the phone layout. Ask the layout, not the attribute.
 const shownTabs = (page) => page.evaluate(() =>
-  [...document.querySelectorAll("#viewTabs .tab")].filter((t) => !t.hidden).map((t) => t.dataset.view));
+  [...document.querySelectorAll("#viewTabs .tab")]
+    .filter((t) => t.getBoundingClientRect().width > 0 && getComputedStyle(t).display !== "none")
+    .map((t) => t.dataset.view));
 const activeView = (page) => page.evaluate(() => {
   const t = document.querySelector("#viewTabs .tab.active");
   return t ? t.dataset.view : null;
@@ -98,6 +105,39 @@ const activeView = (page) => page.evaluate(() => {
     check("no disabled tab gets a match badge", !badged.includes("backlog"), badged);
     errs.push(...e);
     await ctx.close();
+  }
+
+  // ---- 2b. and it is gone on the phone layout too, not just this one ----
+  // The layouts style .tab differently — the mobile one sets its own display
+  // — so "gone from the bar" has to be asked at both widths.
+  {
+    for (const [label, vp] of [["desktop 1280", { width: 1280, height: 900 }], ["phone 390", { width: 390, height: 844 }]]) {
+      const c = await browser.newContext({ viewport: vp, serviceWorkers: "block" });
+      const pg = await c.newPage();
+      pg.on("pageerror", (x) => errs.push("pageerror: " + x.message));
+      await pg.goto(BASE + "/", { waitUntil: "networkidle" });
+      await pg.evaluate((s2) => {
+        localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "timeline", timelineMode: "entries" }));
+        localStorage.setItem("lifelog-cache-v1", JSON.stringify(s2));
+        localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify({ disabledViews: ["notes"] }));
+        localStorage.removeItem("lifelog-github-v1");
+      }, SEED);
+      await pg.reload({ waitUntil: "load" });
+      await pg.waitForTimeout(700);
+      const seen = await pg.evaluate(() => [...document.querySelectorAll("#viewTabs .tab")]
+        .filter((t) => t.getBoundingClientRect().width > 0 && getComputedStyle(t).display !== "none")
+        .map((t) => t.dataset.view));
+      // The icon is drawn by a ::before on the tab, so a tab that is really
+      // gone takes no width at all — that is the thing to measure.
+      const box = await pg.evaluate(() => {
+        const t = document.querySelector('#viewTabs .tab[data-view="notes"]');
+        const r = t.getBoundingClientRect();
+        return { w: Math.round(r.width), h: Math.round(r.height), display: getComputedStyle(t).display };
+      });
+      check(`a disabled tab takes no space on ${label}`,
+        !seen.includes("notes") && box.w === 0 && box.h === 0 && box.display === "none", { seen, box });
+      await c.close();
+    }
   }
 
   // ---- 3. THE TRAP: opening on a tab you have since turned off ----
