@@ -128,7 +128,97 @@ const slide = (page) => page.evaluate(() => {
       seen.map((t) => t.slice(0, 30)));
     check("past the last slide it closes rather than trapping you", await page.isHidden("#recapScreen"));
 
-    // ---- 5. Escape closes it ----
+    // ---- 4b. the slides that show things rather than count them ----
+  {
+    const cover = (h) => "data:image/svg+xml;base64," + Buffer.from(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="30"><rect width="20" height="30" fill="hsl(${h} 50% 40%)"/></svg>`
+    ).toString("base64");
+    const seed = {
+      ...SEED,
+      entries: [
+        ...Array.from({ length: 7 }, (_, i) => ({
+          id: "gx" + i, title: "Shown " + i, category: "Games", year: Y, month: 1 + i,
+          date: `${Y}-0${1 + i}`, rating: i < 3 ? 5 : 2,
+          coverUrl: i % 2 ? cover(i * 40) : "",
+          createdAt: `${Y}-03-01T00:00:00.000Z`, updatedAt: `${Y}-03-01T00:00:00.000Z` })),
+        // Logged twice, once with art: one tile, and it keeps the picture.
+        { id: "d1", title: "Twice", category: "Film", year: Y, month: 2, date: `${Y}-02`, rating: 3,
+          createdAt: `${Y}-03-01T00:00:00.000Z`, updatedAt: `${Y}-03-01T00:00:00.000Z` },
+        { id: "d2", title: "Twice", category: "Film", year: Y, month: 5, date: `${Y}-05`, rating: 4,
+          coverUrl: cover(300), createdAt: `${Y}-03-01T00:00:00.000Z`, updatedAt: `${Y}-03-01T00:00:00.000Z` },
+      ],
+      notes: [
+        { id: "n1", text: "First line\nsecond line", createdAt: `${Y}-08-14T00:00:00.000Z`, updatedAt: `${Y}-08-14T00:00:00.000Z` },
+        { id: "n2", text: "An older thought", createdAt: `${Y}-02-02T00:00:00.000Z`, updatedAt: `${Y}-02-02T00:00:00.000Z` },
+      ],
+    };
+    const { page, ctx, errs: e } = await app(browser, { now: "2026-06-15T12:00:00", seed });
+    await page.waitForSelector(".recap-open-btn", { timeout: 8000 });
+    await page.click(".recap-open-btn");
+    await page.waitForSelector("#recapScreen:not([hidden])", { timeout: 5000 });
+
+    const find = async (cls) => {
+      for (let i = 0; i < 20; i++) {
+        if (await page.isHidden("#recapScreen")) return false;
+        const hit = await page.evaluate((c) => {
+          const s = document.querySelector("#recapStage").firstElementChild;
+          return !!(s && s.classList.contains(c));
+        }, cls);
+        if (hit) return true;
+        await page.keyboard.press("ArrowRight");
+        await page.waitForTimeout(140);
+      }
+      return false;
+    };
+
+    check("there is a wall of everything you logged", await find("recap-gallery"));
+    const wall = await page.evaluate(() => {
+      const tiles = [...document.querySelectorAll(".recap-tile")];
+      const grid = document.querySelector(".recap-grid");
+      return {
+        n: tiles.length,
+        withArt: tiles.filter((t) => t.querySelector("img")).length,
+        names: tiles.map((t) => t.querySelector(".recap-tile-name").textContent),
+        scrolls: getComputedStyle(grid).overflowY,
+        touch: getComputedStyle(grid).touchAction,
+        pointer: getComputedStyle(grid).pointerEvents,
+      };
+    });
+    check("one tile per title, not one per logging", wall.n === 8 && new Set(wall.names).size === 8, wall.n);
+    check("the ones with art show it, the rest still get a tile",
+      wall.withArt === 4 && wall.names.every((x) => x.trim().length > 0), wall);
+    check("a title logged twice keeps the picture it had once",
+      await page.evaluate(() => {
+        const t = [...document.querySelectorAll(".recap-tile")]
+          .find((x) => x.querySelector(".recap-tile-name").textContent === "Twice");
+        return !!(t && t.querySelector("img"));
+      }));
+    // The gesture contract: scrolls vertically, leaves the horizontal axis to
+    // the player so a swipe still moves on.
+    check("the wall scrolls without stealing the swipe that advances the recap",
+      wall.scrolls === "auto" && wall.touch === "pan-y" && wall.pointer === "auto", wall);
+
+    check("and there is a slide of the notes themselves", await find("recap-cards"));
+    const notes = await page.evaluate(() => {
+      const cards = [...document.querySelectorAll(".recap-note")];
+      return {
+        n: cards.length,
+        texts: cards.map((c) => c.querySelector(".recap-note-text").textContent),
+        dates: cards.map((c) => c.querySelector(".recap-note-date").textContent),
+        headline: document.querySelector(".recap-headline").textContent,
+        wrap: getComputedStyle(document.querySelector(".recap-note-text")).whiteSpace,
+      };
+    });
+    check("the notes are shown, newest first, not just counted",
+      notes.n === 2 && notes.texts[0].startsWith("First line") && /2 notes/.test(notes.headline), notes);
+    check("each note is dated", notes.dates.every((d) => /\w/.test(d)), notes.dates);
+    check("a note keeps the line breaks you typed",
+      notes.texts[0].includes("\n") && notes.wrap === "pre-wrap", { t: notes.texts[0], wrap: notes.wrap });
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 5. Escape closes it ----
     await page.click(".recap-open-btn");
     await page.waitForSelector("#recapScreen:not([hidden])", { timeout: 5000 });
     await page.keyboard.press("Escape");

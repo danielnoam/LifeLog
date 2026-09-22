@@ -189,6 +189,115 @@ test("the closing line only lists what actually happened", () => {
   assert.strictEqual(s.sub, "2 things logged, 1 note. On to the next one.");
 });
 
+console.log("\nshowing things, not counting them");
+
+test("the wall carries one tile per title, not one per logging", () => {
+  const data = { entries: [
+    entry({ title: "Dune", coverUrl: "" }),
+    entry({ title: "Dune", coverUrl: "c.jpg", rating: 5 }),
+    entry({ title: "Hyperion" }),
+    entry({ title: "Celeste", category: "Games" }),
+  ] };
+  const g = byId(build(data, 2026), "gallery");
+  assert.strictEqual(g.items.length, 3);
+  // The showing that has art wins, so the wall doesn't lose a picture it had.
+  const dune = g.items.find((i) => i.title === "Dune");
+  assert.strictEqual(dune.coverUrl, "c.jpg");
+  assert.strictEqual(dune.rating, 5);
+});
+
+test("a thing with no cover still gets a tile", () => {
+  const data = { entries: [entry({ title: "A" }), entry({ title: "B" }), entry({ title: "C" })] };
+  const g = byId(build(data, 2026), "gallery");
+  assert.strictEqual(g.items.length, 3);
+  assert.ok(g.items.every((i) => i.coverUrl === ""), "no art, but every one is on the wall");
+  assert.ok(g.items.every((i) => i.category), "each keeps its category, which is what tints its tile");
+});
+
+test("the wall groups by category, and sorts the best first inside each", () => {
+  const data = { entries: [
+    entry({ title: "Zed", category: "Games", rating: 2 }),
+    entry({ title: "Alpha", category: "Games", rating: 5 }),
+    entry({ title: "Beta", category: "Film", rating: 3 }),
+  ] };
+  const g = byId(build(data, 2026), "gallery");
+  assert.deepStrictEqual(g.items.map((i) => i.title), ["Beta", "Alpha", "Zed"]);
+});
+
+test("a very full year says it is holding some back rather than showing 400 tiles", () => {
+  const many = Array.from({ length: 60 }, (_, i) => entry({ title: "T" + i }));
+  const g = byId(build({ entries: many }, 2026), "gallery");
+  assert.strictEqual(g.items.length, 48);
+  assert.ok(/Showing the first 48/.test(g.foot), g.foot);
+  const few = byId(build({ entries: many.slice(0, 10) }, 2026), "gallery");
+  assert.strictEqual(few.foot, "", "and says nothing when it is showing everything");
+});
+
+test("two entries is not a wall", () => {
+  assert.strictEqual(byId(build({ entries: [entry({ title: "A" }), entry({ title: "B" })] }, 2026), "gallery"), undefined);
+});
+
+test("the notes slide carries the notes themselves, newest first", () => {
+  const data = { notes: [
+    { id: "n1", text: "older", createdAt: "2026-02-01T00:00:00.000Z" },
+    { id: "n2", text: "newer", createdAt: "2026-08-01T00:00:00.000Z" },
+  ] };
+  const s = byId(build(data, 2026), "notes");
+  assert.strictEqual(s.kind, "cards");
+  assert.deepStrictEqual(s.cards.map((c) => c.text), ["newer", "older"]);
+  assert.strictEqual(s.cards[0].date, "2026-08-01");
+  // The count is still the first thing you read.
+  assert.strictEqual(s.headline, "2 notes written");
+});
+
+test("a note's text comes through untouched, line breaks and all", () => {
+  const text = "A line\nand another\n\nwith a gap";
+  const s = byId(build({ notes: [{ id: "n", text, createdAt: "2026-02-01T00:00:00.000Z" }] }, 2026), "notes");
+  assert.strictEqual(s.cards[0].text, text);
+});
+
+test("a year of heavy note-taking shows the recent ones and says so", () => {
+  const many = Array.from({ length: 30 }, (_, i) => ({
+    id: "n" + i, text: "note " + i,
+    createdAt: "2026-" + String(1 + (i % 9)).padStart(2, "0") + "-01T00:00:00.000Z",
+  }));
+  const s = byId(build({ notes: many }, 2026), "notes");
+  assert.strictEqual(s.cards.length, 12);
+  assert.ok(/Showing the most recent 12/.test(s.foot), s.foot);
+});
+
+test("'most of them in X' only when a month actually leads", () => {
+  const note = (iso) => ({ id: "n" + Math.random(), text: "t", createdAt: iso });
+  // Four notes in four months: no month leads, so it says nothing.
+  const spread = byId(build({ notes: [
+    note("2026-02-01T00:00:00.000Z"), note("2026-04-01T00:00:00.000Z"),
+    note("2026-06-01T00:00:00.000Z"), note("2026-08-01T00:00:00.000Z"),
+  ] }, 2026), "notes");
+  assert.strictEqual(spread.sub, "", "a four-way tie of one is not a busiest month");
+  // A real lead does get named.
+  const leader = byId(build({ notes: [
+    note("2026-03-01T00:00:00.000Z"), note("2026-03-02T00:00:00.000Z"),
+    note("2026-03-03T00:00:00.000Z"), note("2026-08-01T00:00:00.000Z"),
+  ] }, 2026), "notes");
+  assert.strictEqual(leader.sub, "Most of them in March");
+  // A two-way tie at the top is not a lead either.
+  const tie = byId(build({ notes: [
+    note("2026-03-01T00:00:00.000Z"), note("2026-03-02T00:00:00.000Z"),
+    note("2026-08-01T00:00:00.000Z"), note("2026-08-02T00:00:00.000Z"),
+  ] }, 2026), "notes");
+  assert.strictEqual(tie.sub, "");
+});
+
+test("the best-of list carries cover art where there is any", () => {
+  const data = { entries: [
+    entry({ title: "With art", rating: 5, coverUrl: "a.jpg" }),
+    entry({ title: "Without", rating: 5 }),
+  ] };
+  const s = byId(build(data, 2026), "rated");
+  assert.strictEqual(s.list.find((x) => x.label === "With art").coverUrl, "a.jpg");
+  assert.strictEqual(s.list.find((x) => x.label === "Without").coverUrl, "");
+});
+
 console.log("\nturned-off tabs and modes");
 
 const rich = () => ({

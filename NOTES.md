@@ -16,6 +16,41 @@ what was decided against and why.
 
 ---
 
+- 0.170.0 gave the Recap two slide kinds that show things instead of counting
+  them — `gallery` (the wall of covers) and `cards` (the notes themselves).
+  The pure/render split from 0.167.0 held: both are specs out of `buildRecap`,
+  so what the wall contains and how the notes are ordered are unit-tested
+  without a browser, and only the look needed a screenshot.
+
+  **The gesture problem is the interesting part.** The player owns the whole
+  screen: tap-zones advance, a horizontal swipe advances, and `.recap-stage`
+  is `pointer-events: none` so taps fall through to the zones. A slide you can
+  scroll has to take pointer events back, which would eat the swipe.
+
+  `touch-action: pan-y` on the scroller is what settles it. The browser
+  handles the vertical axis itself and leaves the horizontal one alone, so a
+  horizontal swipe still reaches `#recapScreen`'s touchend handler and moves
+  on. A vertical drag has a tiny `dx`, so the 45px threshold already ignored
+  it. The cost is that a tap in the middle of a wall no longer advances — it
+  lands on the scroller — which is right: tapping a thing you are looking at
+  should not skip past it. The margins, the arrows and the swipe all still do.
+  A browser test asserts that contract (`overflow-y`, `touch-action`,
+  `pointer-events`) rather than trusting it.
+
+  Two things the screenshots caught that the assertions did not, which is now
+  three releases running:
+
+  "Most of them in February" on four notes in four different months. The
+  entries slide had a floor for exactly this (`busiestMonth` returns null
+  under two) and the notes slide, written later, didn't. A leader now has to
+  have at least two and to actually beat second place.
+
+  And rows in the best-of list were different heights depending on which
+  titles had art, because the no-art case fell back to a small dot. The empty
+  state is now the same box as a cover, tinted with the category — same
+  lesson as the recap tiles: an absent picture should leave the layout alone.
+
+
 - 0.169.3 swept for the rest of 0.169.2's bug and turned the sweep into
   `test/browser/hiddenaudit.js`, which is the part that matters.
 

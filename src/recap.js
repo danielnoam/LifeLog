@@ -20,6 +20,13 @@
 
   const MONTHS_LONG = () => MONTHS;
 
+  // How much of a year one slide will show. A wall is a wall at forty tiles
+  // and a chore at four hundred; a scroll back through your notes is a nice
+  // thing to do for a dozen and a reading assignment beyond that. Both slides
+  // say so on their own foot when they are holding something back.
+  const GALLERY_MAX = 48;
+  const NOTE_CARDS_MAX = 12;
+
   // Whether a tab (and, where a slide names one, a mode) is switched on. Read
   // off the same visual settings the tab bar reads, so the recap and the app
   // can't disagree about what exists.
@@ -123,6 +130,36 @@
       };
     },
 
+    // The wall. A recap that only counts what you did is a report with nicer
+    // type; this is the slide that actually shows it back to you. Cover art
+    // where there is any, a category-tinted tile with the title where there
+    // isn't — a book you typed in by hand belongs on the wall too.
+    function gallery(g) {
+      if (g.entries.length < 3) return null;
+      const best = new Map();
+      for (const e of g.entries) {
+        const key = e.title.trim().toLowerCase();
+        const cur = best.get(key);
+        // One tile per title. Prefer the showing that has cover art, then the
+        // one you rated highest — a replay logged twice is one thing.
+        if (!cur || (!cur.coverUrl && e.coverUrl) || (+e.rating || 0) > (+cur.rating || 0)) {
+          best.set(key, { title: e.title, coverUrl: e.coverUrl || "", category: e.category, rating: +e.rating || 0 });
+        }
+      }
+      const items = [...best.values()].sort((a, b) =>
+        String(a.category).localeCompare(String(b.category))
+        || b.rating - a.rating
+        || a.title.localeCompare(b.title));
+      const withArt = items.filter((x) => x.coverUrl).length;
+      return {
+        id: "gallery", kind: "gallery", view: "timeline",
+        headline: "Everything you logged",
+        sub: items.length + (items.length === 1 ? " thing" : " things") + ", all in one place",
+        items: items.slice(0, GALLERY_MAX),
+        foot: items.length > GALLERY_MAX ? "Showing the first " + GALLERY_MAX : (withArt ? "" : ""),
+      };
+    },
+
     function bestRated(g) {
       const rated = g.entries.filter((e) => e.rating);
       if (!rated.length) return null;
@@ -130,7 +167,7 @@
       for (const e of rated) {
         const k = e.title.trim().toLowerCase();
         const cur = best.get(k);
-        if (!cur || e.rating > cur.rating) best.set(k, { title: e.title, rating: e.rating, category: e.category });
+        if (!cur || e.rating > cur.rating) best.set(k, { title: e.title, rating: e.rating, category: e.category, coverUrl: e.coverUrl || "" });
       }
       const top = [...best.values()].sort((a, b) => b.rating - a.rating).slice(0, 5);
       if (top[0].rating < 4) return null; // nothing worth calling a highlight
@@ -138,7 +175,7 @@
       return {
         id: "rated", kind: "list", view: "timeline",
         headline: top[0].rating === 5 ? "The ones you loved" : "Your best of the year",
-        list: top.filter((t) => t.rating >= 4).map((t) => ({ label: t.title, note: "★".repeat(t.rating), category: t.category })),
+        list: top.filter((t) => t.rating >= 4).map((t) => ({ label: t.title, note: "★".repeat(t.rating), category: t.category, coverUrl: t.coverUrl })),
         foot: "You rated " + plural(rated.length, "thing", "things") + ", averaging " + avg.toFixed(1) + "★",
       };
     },
@@ -190,14 +227,31 @@
 
     function wrote(g) {
       if (!g.notes.length) return null;
+      // A month only leads if it actually leads: four notes in four different
+      // months has no busiest month, and saying "most of them in February"
+      // about one of four is a claim the data doesn't support. Same floor
+      // busiestMonth applies to entries.
       const counts = countByKey(g.notes, (n) => monthOf(n.createdAt));
-      const [month] = topOf(counts, 1)[0] || [];
+      const ranked = topOf(counts, 2);
+      const [month, top] = ranked[0] || [];
+      const leads = top >= 2 && (!ranked[1] || top > ranked[1][1]);
+      // Shows them rather than counting them. The count is still the first
+      // thing you read — it is the headline — but under it are the notes
+      // themselves, newest first, to scroll back through.
+      const cards = g.notes
+        .slice()
+        .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
+        .slice(0, NOTE_CARDS_MAX)
+        .map((n) => ({ text: String(n.text || ""), date: String(n.createdAt || "").slice(0, 10) }));
       return {
-        id: "notes", kind: "big", view: "notes",
+        id: "notes", kind: "cards", view: "notes",
         value: g.notes.length,
-        headline: (g.notes.length === 1 ? "note" : "notes") + " written",
-        sub: month && g.notes.length > 2 ? "Most of them in " + MONTHS_LONG()[month] : "",
-        foot: delta(g.notes.length, g.prevNotes.length),
+        headline: g.notes.length + (g.notes.length === 1 ? " note" : " notes") + " written",
+        sub: leads ? "Most of them in " + MONTHS_LONG()[month] : "",
+        cards,
+        foot: [delta(g.notes.length, g.prevNotes.length),
+          g.notes.length > NOTE_CARDS_MAX ? "Showing the most recent " + NOTE_CARDS_MAX : ""]
+          .filter(Boolean).join(" · "),
       };
     },
 
@@ -416,15 +470,56 @@
       card.appendChild(wrap);
       return;
     }
+    if (spec.kind === "gallery") {
+      card.appendChild(el("h2", "recap-headline", spec.headline));
+      if (spec.sub) card.appendChild(el("p", "recap-sub", spec.sub));
+      const grid = el("div", "recap-grid");
+      for (const item of spec.items) grid.appendChild(tile(item));
+      card.appendChild(grid);
+      if (spec.foot) card.appendChild(el("p", "recap-foot-note", spec.foot));
+      return;
+    }
+    if (spec.kind === "cards") {
+      card.appendChild(el("h2", "recap-headline", spec.headline));
+      if (spec.sub) card.appendChild(el("p", "recap-sub", spec.sub));
+      const stack = el("div", "recap-cards");
+      for (const c of spec.cards) {
+        const note = el("div", "recap-note");
+        if (c.date) note.appendChild(el("div", "recap-note-date", prettyDate(c.date)));
+        // textContent via el(), never innerHTML: a note is whatever you
+        // typed, and .recap-note-text's white-space is what keeps the breaks.
+        note.appendChild(el("p", "recap-note-text", c.text));
+        stack.appendChild(note);
+      }
+      card.appendChild(stack);
+      if (spec.foot) card.appendChild(el("p", "recap-foot-note", spec.foot));
+      return;
+    }
     // list
     card.appendChild(el("h2", "recap-headline", spec.headline));
     const list = el("div", "recap-list");
     for (const item of spec.list) {
       const row = el("div", "recap-listrow");
-      if (item.category) {
-        const dot = el("span", "recap-dot");
-        dot.style.background = colorFor(item.category);
-        row.appendChild(dot);
+      // Cover art, or a tile of the same size tinted with the category. A dot
+      // here instead left the rows visibly different heights, so a list of
+      // five looked ragged depending on which of them happened to have a
+      // picture.
+      const placeholder = () => {
+        const box = el("span", "recap-listcover is-empty");
+        const c = colorFor(item.category);
+        if (/^#[0-9a-f]{6}$/i.test(c)) { box.style.background = c + "33"; box.style.borderColor = c + "77"; }
+        return box;
+      };
+      if (item.coverUrl) {
+        const img = document.createElement("img");
+        img.className = "recap-listcover";
+        img.loading = "lazy";
+        img.alt = "";
+        img.src = item.coverUrl;
+        img.onerror = () => img.replaceWith(placeholder());
+        row.appendChild(img);
+      } else {
+        row.appendChild(placeholder());
       }
       const label = el("span", "recap-listlabel", item.label);
       label.title = item.label;
@@ -434,6 +529,43 @@
     }
     card.appendChild(list);
     if (spec.foot) card.appendChild(el("p", "recap-foot-note", spec.foot));
+  }
+
+  // One tile on the wall: the cover if there is one, otherwise a tinted card
+  // carrying the title, so a book typed in by hand sits beside a game that
+  // came with art instead of leaving a hole in the grid.
+  function tile(item) {
+    const cell = el("div", "recap-tile");
+    cell.title = item.title;
+    if (item.coverUrl) {
+      const img = document.createElement("img");
+      img.className = "recap-tile-img";
+      img.loading = "lazy";
+      img.alt = item.title;
+      img.src = item.coverUrl;
+      // A dead URL leaves the tinted tile behind rather than a broken image.
+      img.onerror = () => { img.remove(); cell.classList.add("is-empty"); };
+      cell.appendChild(img);
+    } else {
+      cell.classList.add("is-empty");
+    }
+    // Hex + alpha suffix, the same way .entry-cat tints itself — colorFor can
+    // also hand back a var() fallback, which takes no suffix, so that case
+    // simply keeps the plain card background.
+    const colour = colorFor(item.category);
+    if (!item.coverUrl && /^#[0-9a-f]{6}$/i.test(colour)) {
+      cell.style.background = colour + "26";
+      cell.style.borderColor = colour + "66";
+    }
+    const name = el("span", "recap-tile-name", item.title);
+    cell.appendChild(name);
+    return cell;
+  }
+
+  function prettyDate(iso) {
+    const d = new Date(iso + "T00:00:00");
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
   }
 
   // A journal category keeps the colour it has everywhere else; anything else

@@ -4,6 +4,26 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.170.0] - 2026-09-22
+
+### Added
+- **The Recap now shows your year, not just counts of it.**
+- A new **"Everything you logged"** slide: a wall of every title, with its
+  cover art where you have any and a tile in the category's colour where you
+  don't — so a book you typed in by hand sits beside a game that came with a
+  picture. Scroll it; swipe to move on.
+- **The notes slide is now the notes.** The count is still the headline, but
+  under it are the notes themselves, newest first and dated, with the line
+  breaks you typed. Scroll back through your year.
+- **"The ones you loved" carries cover art** beside each title.
+
+### Fixed
+- The notes slide claimed a busiest month even when every note was in a
+  different one — four notes across four months is not "most of them in
+  February". It now only says that when a month genuinely leads.
+- Rows in "The ones you loved" were visibly different heights depending on
+  which titles happened to have cover art. They're even now.
+
 ## [0.169.3] - 2026-09-21
 
 ### Fixed
