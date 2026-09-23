@@ -13,6 +13,27 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## A tab of its own for Habits
+
+Shipped in 0.171.0, moved into Notes in 0.171.1 after one version on screen.
+
+The reasoning that put it there was sound and is worth not repeating: every
+other list in this app is organised by an ending, a habit has no ending, so it
+is a fourth kind of list rather than a second kind of to-do. All of that still
+holds — it just doesn't follow that a fourth list needs a fourth tab.
+
+The objection considered beforehand was room, and it was measured rather than
+guessed: five tabs are 75px each at 390px and 61px at 320px with nothing
+clipped, so the objection was dismissed. The one that mattered never came up
+until it was on screen — four tabs is what a bottom bar reads as, and a fifth
+turns it into a menu. Measuring the wrong objection is a way of feeling
+rigorous while still guessing.
+
+It could come back if the app ever grows a reason for the bottom bar to hold
+five things anyway. On its own, "habits deserve a list" is not that reason —
+they have one, inside Notes.
+
+
 ## Habit reminders and notifications
 
 The obvious thing to want from a habit tracker, and not happening. LifeLog

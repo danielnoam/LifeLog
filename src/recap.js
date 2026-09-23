@@ -283,7 +283,7 @@
       const top = g.habits.slice().sort((a, b) => b.best - a.best || b.kept - a.kept)[0];
       if (top.best < 3) return null; // two days in a row is not a streak worth a slide
       return {
-        id: "habit-streak", kind: "big", view: "habits",
+        id: "habit-streak", kind: "big", view: "notes", mode: "habits",
         value: top.best,
         headline: top.best === 1 ? "day in a row" : "days in a row",
         sub: "your best run of " + top.habit.name,
@@ -296,7 +296,7 @@
       if (g.habits.length < 2) return null;
       const ranked = g.habits.slice().sort((a, b) => (b.rate || 0) - (a.rate || 0));
       return {
-        id: "habits-kept", kind: "bars", view: "habits",
+        id: "habits-kept", kind: "bars", view: "notes", mode: "habits",
         headline: "How the habits went",
         bars: ranked.slice(0, 5).map((x) => ({ label: x.habit.name, n: x.kept, color: x.habit.color })),
         max: ranked.reduce((m, x) => Math.max(m, x.kept), 0),

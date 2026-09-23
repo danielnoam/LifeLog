@@ -358,13 +358,26 @@ test("a year that is only habits is still a year worth recapping", () => {
   assert.ok(s.some((x) => x.id === "habit-streak"));
 });
 
-test("turning the Habits tab off takes its slides with it", () => {
+test("turning the Habits mode off takes its slides with it", () => {
+  // Habits is Notes' third mode since 0.171.1, so it is turned off the same
+  // way To-do is — by (view, mode), not by a view of its own.
   const data = { habits: [
     habit({ name: "Read", marks: run("2026-02-01", 20) }),
     habit({ name: "Run", marks: run("2026-02-01", 9) }),
   ], entries: [entry({ title: "A" }), entry({ title: "B" })] };
-  const s = Recap.buildRecap(data, 2026, money, (v) => v !== "habits");
-  assert.ok(!s.some((x) => ["habit-streak", "habits-kept"].includes(x.id)), s.map((x) => x.id));
+  const off = Recap.buildRecap(data, 2026, money, (v, m) => !(v === "notes" && m === "habits"));
+  assert.ok(!off.some((x) => ["habit-streak", "habits-kept"].includes(x.id)), off.map((x) => x.id));
+  assert.ok(off.some((x) => x.id === "logged"), "and nothing else goes with it");
+});
+
+test("turning off the whole Notes tab takes the habits too", () => {
+  const data = {
+    habits: [habit({ name: "Read", marks: run("2026-02-01", 20) })],
+    notes: [{ id: "n", createdAt: "2026-04-01T00:00:00.000Z" }],
+    entries: [entry({ title: "A" }), entry({ title: "B" })],
+  };
+  const s = Recap.buildRecap(data, 2026, money, (v) => v !== "notes");
+  assert.ok(!s.some((x) => ["habit-streak", "notes"].includes(x.id)), s.map((x) => x.id));
 });
 
 test("a year known only by its habit marks is still offered", () => {

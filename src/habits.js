@@ -5,7 +5,11 @@
 // graduates into an entry; a to-do is ticked and stops mattering; an expense
 // is a fact about a date. A habit has no ending — it comes back tomorrow, and
 // what it's worth is the pattern rather than any single tick. That is why it
-// is its own tab rather than a third kind of to-do.
+// is its own list rather than a second kind of to-do.
+//
+// It lives as the Notes tab's third mode: the three things you keep yourself,
+// as against the things you log. It spent 0.171.0 as a fifth tab; see
+// NOTES.md for why that was the wrong shape.
 //
 // The shape it borrows is the recurring expense's: a template that says when
 // it is due, plus a per-date record of what actually happened. Marks live on
@@ -172,6 +176,11 @@
     }
     return { due, done, rate: due ? done / due : 0 };
   }
+
+  // Habits is Notes' third mode (0.171.1), so "am I showing?" is a mode
+  // question. Mirrors Todos.isTodoMode, and is what the year/category chip
+  // rows ask before drawing controls a habit has no use for.
+  const isHabitsMode = () => state.view === "notes" && state.notesMode === "habits";
 
   // The app-wide search, same contract as every other view's.
   function getFilteredHabits() {
@@ -442,7 +451,7 @@
   }
 
   window.LifeLogHabits = {
-    init, wire, renderHabits, openHabitModal, closeHabitModal,
+    init, wire, renderHabits, openHabitModal, closeHabitModal, isHabitsMode,
     sanitizeHabit,
     getFilteredHabits,
     // pure, and the point of the feature — see test/habits.test.js

@@ -4,11 +4,26 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.171.1] - 2026-09-23
+
+### Changed
+- **Habits moved out of its own tab and into Notes**, as its third mode
+  alongside Notes and To-do. The bottom bar is back to four tabs.
+- The reasoning for giving it a home of its own still stands — a habit has no
+  ending, so it isn't a kind of to-do — but it didn't follow that it needed a
+  tab. Notes now holds the three things you keep yourself: what you wrote,
+  what you mean to do once, and what you mean to keep doing.
+- Nothing about habits themselves changed: same cards, same ticking, same
+  streaks, same grid, same data. If you left the app on the Habits tab, it
+  opens where the habits now live rather than dropping you somewhere else.
+- Turning Habits off is now a mode switch under Notes in Settings →
+  Appearance → Tabs, rather than a tab switch of its own.
+
 ## [0.171.0] - 2026-09-23
 
 ### Added
-- **A Habits tab** — the fifth. Everything else in LifeLog is organised
-  around an ending: a backlog item graduates into an entry, a to-do is ticked
+- **Habits.** (Shipped as its own tab; moved into Notes in 0.171.1 — see
+  above.) Everything else in LifeLog is organised around an ending: a backlog item graduates into an entry, a to-do is ticked
   and stops mattering. A habit has no ending, and what it's worth is the
   pattern rather than any single tick, so it gets its own place.
 - **One tap to tick today.** It's the biggest thing on each card, because

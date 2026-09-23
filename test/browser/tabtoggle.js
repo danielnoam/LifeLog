@@ -211,10 +211,14 @@ const activeView = (page) => page.evaluate(() => {
       views: document.querySelectorAll("#tabToggles .tab-toggle-view").length,
       modes: document.querySelectorAll("#tabToggles .tab-toggle-modes .toggle-label").length,
     }));
-    // Habits has one screen and so no modes — a switch with nothing under it
-    // is the correct rendering of that, not a missing row.
+    // Counted off the app rather than written down, for the same reason the
+    // tab list is: "9" was right until Notes grew a third mode.
+    const expected = await page.evaluate(() =>
+      [...document.querySelectorAll("#viewTabs .tab")]
+        .reduce((n, t) => n + t.querySelectorAll(".tab-mode-dot").length, 0));
     check("every tab gets a switch, and every mode one under it",
-      rows.views === ALL_VIEWS.length && rows.modes === 9, { ...rows, tabs: ALL_VIEWS.length });
+      rows.views === ALL_VIEWS.length && rows.modes === expected && expected >= 8,
+      { ...rows, tabs: ALL_VIEWS.length, expected });
 
     // Turn Backlog off through the real control.
     await page.evaluate(() => {

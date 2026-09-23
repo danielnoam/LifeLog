@@ -115,19 +115,19 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.171.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.171.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
   // Left-to-right order of the mobile bottom tab bar (see the `order:`
   // values on .tab in styles.css) — used for swipe-to-switch, so a swipe
   // moves to the visually adjacent tab, not just the next one in DOM order.
-  const VIEW_ORDER = ["notes", "timeline", "backlog", "finance", "habits"];
+  const VIEW_ORDER = ["notes", "timeline", "backlog", "finance"];
   // Number-key shortcuts (see wire()'s keydown handler) — deliberately the
   // on-screen tab order (left-to-right in #viewTabs), not VIEW_ORDER above,
   // since that's what the shortcuts cheat-sheet shows and what a user
   // scanning the tab bar would expect "3" etc. to mean.
-  const SHORTCUT_VIEWS = { 1: "notes", 2: "timeline", 3: "backlog", 4: "finance", 5: "habits" };
+  const SHORTCUT_VIEWS = { 1: "notes", 2: "timeline", 3: "backlog", 4: "finance" };
   // Shift and the same digit goes to that tab's second mode — Shift+2 is the
   // Timeline's Stats, which is what the merge into modes would otherwise have
   // cost a keyboard. Keyed on e.code rather than e.key because Shift+2 is "@"
@@ -135,7 +135,7 @@
   // the thing the cheat-sheet is describing. A view with a third mode (the
   // Backlog) doesn't get a key for it — two is where a digit row runs out of
   // sensible meanings.
-  const SHORTCUT_CODES = { Digit1: "notes", Digit2: "timeline", Digit3: "backlog", Digit4: "finance", Digit5: "habits" };
+  const SHORTCUT_CODES = { Digit1: "notes", Digit2: "timeline", Digit3: "backlog", Digit4: "finance" };
 
   function loadVisualSettings() {
     try {
@@ -177,6 +177,10 @@
   const UI_MIGRATIONS = {
     "stats": { view: "timeline", mode: "stats" },
     "finance-stats": { view: "finance", mode: "summary" },
+    // Habits was its own tab for one version (0.171.0) before moving in with
+    // Notes. Without this, anyone who left the app on it would find the saved
+    // view no longer exists and be dropped back on Notes' first mode.
+    "habits": { view: "notes", mode: "habits" },
   };
   // Modes renamed in place. Without this the stored value simply fails the
   // check below and the view falls back to its first mode — which happens to
@@ -530,7 +534,11 @@
   const VIEW_MODES = {
     notes: {
       key: "notes",
-      modes: [["notes", "Notes", "▤"], ["todo", "To-do", "☑"]],
+      // The three things you keep yourself, as opposed to the things you
+      // log: what you wrote, what you mean to do once, and what you mean to
+      // keep doing. Habits was briefly its own tab (0.171.0) and reads
+      // better here — see NOTES.md.
+      modes: [["notes", "Notes", "▤"], ["todo", "To-do", "☑"], ["habits", "Habits", "✓"]],
       // The only view whose two modes don't show the same chips: the years
       // come from the notes themselves, and a to-do has neither a year worth
       // filtering nor a category. So here the filterbar is part of the
@@ -633,8 +641,10 @@
     if (state.view !== "notes") return;
     const bar = el("div", "backlog-mode-bar");
     // Notes and to-dos have no year/category chips to say how many there
-    // are, so the count goes here. The other views' own headers already do.
-    {
+    // are, so the count goes here. The other views' own headers already do —
+    // and so does Habits, whose "2 of 3 done today" is a better line than any
+    // count this bar could put above it.
+    if (state.notesMode !== "habits") {
       const count = state.notesMode === "notes"
         ? state.data.notes.length
         : state.data.todos.filter((t) => !t.done).length;
@@ -1209,12 +1219,12 @@
       // the content they filter.
       fadeInOnViewChange($("#content"));
       if (state.view === "backlog") { Backlog.renderBacklog(c); return; }
-      if (state.view === "habits") { Habits.renderHabits(c); return; }
       // Before the mode draws: a view's own empty state returns early, and
       // anything rendered inside it would go missing with it.
       renderModeBar(slot);
       if (state.view === "notes") {
-        if (state.notesMode === "todo") Todos.renderTodos(c);
+        if (state.notesMode === "habits") Habits.renderHabits(c);
+        else if (state.notesMode === "todo") Todos.renderTodos(c);
         else Notes.renderNotes(c);
         return;
       }
@@ -1281,11 +1291,10 @@
   function updateSearchMatchBadges() {
     const q = state.search.trim();
     const counts = q ? {
-      notes: Notes.getFilteredNotes().length + Todos.getFilteredTodos().length,
+      notes: Notes.getFilteredNotes().length + Todos.getFilteredTodos().length + Habits.getFilteredHabits().length,
       timeline: getFiltered().length,
       backlog: Backlog.getFilteredBacklog().length,
       finance: Finance.getFilteredFinance().length,
-      habits: Habits.getFilteredHabits().length,
     } : null;
     for (const key of enabledViews()) {
       const tab = document.querySelector(`.tab[data-view="${key}"]`);
@@ -1316,9 +1325,6 @@
     // true of the other views: it left Next releases and Discover scrolling
     // by hand through exactly the kind of list this row exists for.
     if (state.view === "backlog") return ".backlog-section-head";
-    // Habits is a flat stack of cards with no headers to page between, the
-    // same as Stats, Summary and To-do below.
-    if (state.view === "habits") return null;
     // Stats, Summary and To-do are fixed layouts with no headers to page
     // between, so the row goes — which is a per-mode question now that each
     // of them shares a tab with a list that does have them.
@@ -2350,7 +2356,7 @@
     const finance = isFinanceView();
     // Habits has no year chips: each card's own grid is the time axis, and a
     // chip row narrowing it to 2024 would narrow nothing you can see.
-    const ys = state.view === "habits" ? [] : (finance ? Finance.financeYears() : years());
+    const ys = Habits.isHabitsMode() ? [] : (finance ? Finance.financeYears() : years());
     // Nothing to filter by — an empty view, or a mode with no dates worth
     // chipping (To-do) — so the row goes rather than sitting there as a
     // label with nothing under it.
@@ -2486,7 +2492,7 @@
     const todo = Todos.isTodoMode();
     // A habit carries no category either — it carries a colour, which is its
     // own and not shared with anything the chips could narrow.
-    const noCats = state.view === "habits" || (state.view === "notes" && !todo);
+    const noCats = state.view === "notes" && !todo;
     $("#catFilterGroup").hidden = noCats;
     updateFilterbarVisibility();
     if (noCats) return;

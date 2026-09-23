@@ -1,4 +1,4 @@
-// The Habits tab (0.171.0). The cadence and streak maths is covered without a
+// Habits (0.171.1), Notes' third mode. The cadence and streak maths is covered without a
 // browser in test/habits.test.js; this is the part only a browser can answer —
 // that a tap records the right day, that the grid lets you fix a day you
 // forgot, and that archiving keeps the history rather than throwing it away.
@@ -35,7 +35,7 @@ async function app(browser, habits, vp) {
   }, TODAY + "T10:00:00");
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
   await page.evaluate(({ b, h }) => {
-    localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "habits" }));
+    localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "habits" }));
     localStorage.setItem("lifelog-cache-v1", JSON.stringify({ ...b, habits: h }));
     localStorage.removeItem("lifelog-visual-settings-v1");
     localStorage.removeItem("lifelog-github-v1");
@@ -222,6 +222,32 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     check("archiving keeps the habit and its record", archived.archivedAt === TODAY && archived.marks["2026-09-22"] === 1, archived);
     check("and it drops out of the live list into its own section",
       await page.evaluate(() => !document.querySelector(".habit-card") && !!document.querySelector(".habit-archived-row")));
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 7b. Notes' third mode, and the way back from the old tab ----
+  {
+    const { page, ctx, errs: e } = await app(browser, [habit({})]);
+    const bar = await page.evaluate(() => ({
+      tabs: [...document.querySelectorAll("#viewTabs .tab")].filter((t) => !t.hidden).map((t) => t.dataset.view),
+      notesDots: document.querySelectorAll('#viewTabs .tab[data-view="notes"] .tab-mode-dot').length,
+      active: (document.querySelector("#viewTabs .tab.active") || {}).dataset,
+    }));
+    check("habits has no tab of its own", !bar.tabs.includes("habits") && bar.tabs.length === 4, bar.tabs);
+    check("it is Notes' third mode", bar.notesDots === 3 && bar.active.view === "notes", bar);
+    check("and the card still renders there", await page.evaluate(() => !!document.querySelector(".habit-card")));
+
+    // Anyone who left the app on 0.171.0's tab has view: "habits" saved.
+    await page.evaluate(() => localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "habits" })));
+    await page.reload({ waitUntil: "load" });
+    await page.waitForTimeout(700);
+    const landed = await page.evaluate(() => ({
+      view: (document.querySelector("#viewTabs .tab.active") || {}).dataset.view,
+      card: !!document.querySelector(".habit-card"),
+    }));
+    check("a saved 'habits' tab lands in its new home rather than nowhere",
+      landed.view === "notes" && landed.card, landed);
     errs.push(...e);
     await ctx.close();
   }

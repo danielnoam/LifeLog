@@ -1,7 +1,8 @@
 todo:
 
-- habits shipped in 0.171.0 as a first cut, and two things were left out
-  deliberately rather than forgotten.
+- habits shipped in 0.171.0 and moved into Notes as its third mode in
+  0.171.1. Two things were left out of the first cut deliberately rather than
+  forgotten.
 
   **Times-per-week** ("the gym, three times, any days") is the cadence that
   didn't make it. It is not a third option on the same control: a streak
@@ -16,7 +17,8 @@ todo:
   that offer belongs is easier to answer after using the tab for a while.
 
   What was decided against outright is in DROPPED.md: reminders, and habits
-  feeding the to-do list.
+  feeding the to-do list. A habits tab of its own is there too, now that it
+  has been tried.
 
 ---
 
