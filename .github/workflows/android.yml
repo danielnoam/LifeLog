@@ -32,7 +32,14 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - uses: android-actions/setup-android@v3
+      # No Android setup step: ubuntu-latest ships the SDK (ANDROID_HOME) with
+      # its licences accepted, and Gradle fetches any platform it lacks.
+      # android-actions/setup-android@v3 tried to install the long-removed
+      # "tools" package and failed before anything else ran.
+      - name: Check the Android SDK
+        run: |
+          test -n "$ANDROID_HOME" && test -d "$ANDROID_HOME/build-tools"
+          ls "$ANDROID_HOME/build-tools" | sort -V | tail -3
 
       - run: npm ci
 
