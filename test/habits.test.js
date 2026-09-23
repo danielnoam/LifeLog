@@ -181,6 +181,70 @@ test("a window before the habit existed asks nothing of it", () => {
   assert.deepStrictEqual(s, { due: 0, done: 0, rate: 0 });
 });
 
+console.log("\nbackfill and the grid window");
+
+// Backfilling is only possible because of three things together: a start
+// date you can move, days before it becoming due, and a grid that reaches
+// them. Each one on its own leaves the feature impossible, which is what it
+// was in 0.171.1 — see NOTES.md.
+
+test("the blank days are the ones it now asks for and has nothing for", () => {
+  const h = habit({ startedAt: "2026-03-02", cadence: { days: [1, 2, 3, 4, 5] },
+    marks: marks("2026-03-03") });
+  // Mon-Sun. Tuesday is already recorded; the weekend was never promised.
+  assert.deepStrictEqual(H.blankDaysBetween(h, "2026-03-02", "2026-03-08"),
+    ["2026-03-02", "2026-03-04", "2026-03-05", "2026-03-06"]);
+});
+
+test("days before the habit started are not blank days, they are nothing", () => {
+  const h = habit({ startedAt: "2026-03-05" });
+  assert.deepStrictEqual(H.blankDaysBetween(h, "2026-03-01", "2026-03-06"),
+    ["2026-03-05", "2026-03-06"]);
+});
+
+test("a partial day counts as recorded — backfill never overwrites a count", () => {
+  const h = habit({ startedAt: "2026-03-01", target: 3, marks: { "2026-03-02": 1 } });
+  assert.deepStrictEqual(H.blankDaysBetween(h, "2026-03-02", "2026-03-02"), []);
+});
+
+test("a range that runs backwards or is junk yields nothing rather than spinning", () => {
+  const h = habit({ startedAt: "2026-03-01" });
+  assert.deepStrictEqual(H.blankDaysBetween(h, "2026-03-05", "2026-03-01"), []);
+  assert.deepStrictEqual(H.blankDaysBetween(h, "", "2026-03-01"), []);
+});
+
+test("the grid window is whole weeks, ending on the week containing its day", () => {
+  const start = H.windowStart("2026-03-02", 0); // a Monday
+  assert.strictEqual(start, "2025-12-14");
+  assert.strictEqual(new Date(start + "T00:00:00").getDay(), 0); // a Sunday
+  // GRID_WEEKS columns of seven days, the last of which contains today.
+  const last = H.addDaysStr(start, H.GRID_WEEKS * 7 - 1);
+  assert.ok(last >= "2026-03-02");
+  assert.strictEqual(H.addDaysStr(last, -6) <= "2026-03-02", true);
+});
+
+test("paging back moves the window a week at a time", () => {
+  assert.strictEqual(H.windowStart("2026-03-02", 1), H.addDaysStr(H.windowStart("2026-03-02", 0), -7));
+  assert.strictEqual(H.windowStart("2026-03-02", 4), H.addDaysStr(H.windowStart("2026-03-02", 0), -28));
+});
+
+test("you can page back to the habit's start and no further", () => {
+  // Started inside the first window: nowhere to page to.
+  assert.strictEqual(H.maxOffset(habit({ startedAt: "2026-01-05" }), "2026-03-02"), 0);
+  const h = habit({ startedAt: "2025-06-01" });
+  const max = H.maxOffset(h, "2026-03-02");
+  assert.ok(max > 0);
+  // The last window reaches the start date; the one before it does not.
+  assert.ok(H.windowStart("2026-03-02", max) <= "2025-06-01");
+  assert.ok(H.windowStart("2026-03-02", max - 1) > "2025-06-01");
+});
+
+test("the window is labelled by the months it covers", () => {
+  assert.strictEqual(H.rangeLabel("2026-03-01", "2026-03-28"), "Mar 2026");
+  assert.strictEqual(H.rangeLabel("2026-01-04", "2026-03-28"), "Jan – Mar 2026");
+  assert.strictEqual(H.rangeLabel("2025-12-14", "2026-03-07"), "Dec 2025 – Mar 2026");
+});
+
 test("search matches a habit's name, and archived ones are out of the list", () => {
   global.window.LifeLogHabits.init({
     uid: () => "x", backfillUpdatedAt: (i) => i.updatedAt || "1970-01-01T00:00:00.000Z",

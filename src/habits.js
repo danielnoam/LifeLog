@@ -304,14 +304,87 @@
     return card;
   }
 
+  // Which twelve weeks a card is showing, by habit id. Module-level rather
+  // than per-render so a tick — which re-renders the whole view — doesn't
+  // throw you back to this week in the middle of filling in last spring.
+  const gridOffset = new Map();
+
+  // The Sunday that opens the window `off` weeks back from today, so every
+  // column is a whole week and the rows line up with the weekday labels.
+  function windowStart(today, off) {
+    const end = addDaysStr(today, -off * 7);
+    return addDaysStr(addDaysStr(end, -(GRID_WEEKS - 1) * 7), -dowOf(end));
+  }
+
+  // The furthest back worth going: the first window whose start has passed
+  // the day the habit began. Anything beyond it is twelve columns of nothing.
+  function maxOffset(h, today) {
+    const floor = h.startedAt || "1970-01-01";
+    const first = windowStart(today, 0);
+    if (first <= floor) return 0;
+    const days = Math.round((new Date(first + "T00:00:00") - new Date(floor + "T00:00:00")) / 86400000);
+    // Ten years of paging is a corrupt start date, not a habit.
+    return Math.min(520, Math.ceil(days / 7));
+  }
+
+  function pageGrid(id, delta) {
+    const h = (state.data.habits || []).find((x) => x.id === id);
+    if (!h) return;
+    const today = todayStr();
+    const off = Math.min(maxOffset(h, today), Math.max(0, (gridOffset.get(id) || 0) + delta));
+    gridOffset.set(id, off);
+    // Repaint this one card's grid rather than the whole view: nothing else
+    // on the page changed, and a full render would scroll under you.
+    const card = document.querySelector('.habit-card[data-id="' + id + '"]');
+    const old = card && card.querySelector(".habit-grid");
+    if (!old) { render(); return; }
+    old.replaceWith(grid(h, today));
+    const again = card.querySelector('.habit-page[data-dir="' + delta + '"]');
+    if (again && !again.disabled) again.focus();
+  }
+
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const monthOf = (s) => MONTHS[+s.slice(5, 7) - 1];
+  function rangeLabel(a, b) {
+    const ya = a.slice(0, 4), yb = b.slice(0, 4);
+    if (ya !== yb) return monthOf(a) + " " + ya + " – " + monthOf(b) + " " + yb;
+    const ma = monthOf(a), mb = monthOf(b);
+    return (ma === mb ? ma : ma + " – " + mb) + " " + yb;
+  }
+
   // Twelve weeks of days, newest column last, one row per weekday. Tapping a
   // cell fixes a day you forgot to tick, which is the only way a tracker
-  // survives a day you were away from your phone.
+  // survives a day you were away from your phone. Older than twelve weeks,
+  // the arrows walk the window back as far as the habit's start date — a
+  // start date you can move back is worth nothing if the days it uncovers
+  // are off the end of the grid.
   function grid(h, today) {
     const wrap = el("div", "habit-grid");
-    // Start on the Sunday of the week GRID_WEEKS-1 weeks ago, so every
-    // column is a whole week and the rows line up with the weekday labels.
-    const start = addDaysStr(addDaysStr(today, -(GRID_WEEKS - 1) * 7), -dowOf(today));
+    const max = maxOffset(h, today);
+    const off = Math.min(max, gridOffset.get(h.id) || 0);
+    gridOffset.set(h.id, off);
+    const start = windowStart(today, off);
+    // No arrows on a habit whose whole life fits in one window: two dead
+    // controls read as a broken card.
+    if (max > 0) {
+      const nav = el("div", "habit-grid-nav");
+      const back = el("button", "habit-page", "‹");
+      back.type = "button";
+      back.dataset.dir = "1";
+      back.title = "Earlier weeks";
+      back.disabled = off >= max;
+      back.onclick = () => pageGrid(h.id, 1);
+      const fwd = el("button", "habit-page", "›");
+      fwd.type = "button";
+      fwd.dataset.dir = "-1";
+      fwd.title = "Later weeks";
+      fwd.disabled = off === 0;
+      fwd.onclick = () => pageGrid(h.id, -1);
+      nav.appendChild(back);
+      nav.appendChild(el("span", "habit-page-range", rangeLabel(start, addDaysStr(start, GRID_WEEKS * 7 - 1))));
+      nav.appendChild(fwd);
+      wrap.appendChild(nav);
+    }
     // Only the weekdays this habit is ever due on. A Mon/Wed/Fri habit drawn
     // on seven rows is four permanently empty ones — a lot of card spent
     // saying nothing, and it reads as though the grid is broken.
@@ -364,6 +437,7 @@
 
   // ---------- the modal ----------
   let editingId = null;
+  let startWas = null; // the start date the modal opened with
 
   function openHabitModal(habit) {
     editingId = habit ? habit.id : null;
@@ -371,6 +445,14 @@
     $("#habitName").value = habit ? habit.name : "";
     $("#habitTarget").value = habit ? habit.target : 1;
     $("#habitColor").value = habit ? habit.color : (CATEGORY_PALETTE[(state.data.habits || []).length % CATEGORY_PALETTE.length] || "#5b8cff");
+    // Backfilling starts here: a habit you have been keeping for months
+    // before you told the app about it has a start date in the past, and
+    // until 0.172.0 this was pinned to the day you created it with no way to
+    // move it — which made every earlier day permanently un-tickable.
+    startWas = habit ? habit.startedAt : todayStr();
+    $("#habitStart").value = startWas;
+    $("#habitStart").max = todayStr();
+    applyStartHint();
     const days = habit && habit.cadence && habit.cadence.days;
     $("#habitCadence").value = days ? "days" : "daily";
     const boxes = [...document.querySelectorAll("#habitDays input")];
@@ -387,6 +469,18 @@
     $("#habitDaysLabel").hidden = $("#habitCadence").value !== "days";
   }
 
+  // Shown exactly when the offer below will be made, so the question in the
+  // confirm isn't the first you hear of it.
+  function applyStartHint() {
+    const hint = $("#habitStartHint");
+    const v = $("#habitStart").value;
+    const back = isDateStr(v) && v < (startWas || todayStr());
+    hint.textContent = back
+      ? "Those earlier days open up in the grid — you'll be asked once whether you kept it on them."
+      : "";
+    hint.hidden = !back;
+  }
+
   async function saveHabitFromForm(ev) {
     ev.preventDefault();
     const name = $("#habitName").value.trim();
@@ -397,23 +491,62 @@
       toast("Pick at least one day, or switch back to every day", true);
       return;
     }
+    const startedAt = isDateStr($("#habitStart").value) ? $("#habitStart").value : todayStr();
+    if (startedAt > todayStr()) { toast("A habit can't start in the future", true); return; }
     const shape = {
       name,
       color: $("#habitColor").value,
       target: Math.max(1, Math.round(+$("#habitTarget").value) || 1),
       cadence: $("#habitCadence").value === "days" ? { days } : "daily",
+      startedAt,
     };
     if (editingId) {
       const h = (state.data.habits || []).find((x) => x.id === editingId);
-      if (h) Object.assign(h, shape);
+      if (h) {
+        const wasFrom = h.startedAt;
+        Object.assign(h, shape);
+        // Moving the start back uncovers days that now ask for something and
+        // have nothing recorded. Ticking fifty cells by hand is the
+        // difference between backfilling being possible and being done, so
+        // it is offered once, as a plain question with the count in it, and
+        // anything you actually missed can be unticked after.
+        if (startedAt < wasFrom) offerBackfill(h, startedAt, addDaysStr(wasFrom, -1));
+      }
     } else {
       const order = (state.data.habits || []).reduce((m, h) => Math.max(m, h.order || 0), 0) + 1;
-      state.data.habits.push(sanitizeHabit({ ...shape, order, startedAt: todayStr(), createdAt: new Date().toISOString() }));
+      const made = sanitizeHabit({ ...shape, order, createdAt: new Date().toISOString() });
+      state.data.habits.push(made);
+      if (startedAt < todayStr()) offerBackfill(made, startedAt, addDaysStr(todayStr(), -1));
     }
     closeHabitModal();
     render();
     await persist();
     toast(editingId ? "Habit updated" : "Habit added");
+  }
+
+  // Every day in the range the habit now asks for and has nothing recorded
+  // against. Asked as one question rather than assumed: the app does not get
+  // to decide you kept a habit, only to save you fifty taps once you say you
+  // did.
+  function blankDaysBetween(habit, fromStr, toStr) {
+    const blank = [];
+    if (!isDateStr(fromStr) || !isDateStr(toStr)) return blank;
+    let cursor = fromStr;
+    for (let guard = 0; guard < 4000 && cursor <= toStr; guard++) {
+      if (isDue(habit, cursor) && !markOf(habit, cursor)) blank.push(cursor);
+      cursor = addDaysStr(cursor, 1);
+    }
+    return blank;
+  }
+
+  function offerBackfill(habit, fromStr, toStr) {
+    const blank = blankDaysBetween(habit, fromStr, toStr);
+    if (!blank.length) return;
+    const n = blank.length;
+    if (!confirm(`“${habit.name}” now covers ${n} earlier ${n === 1 ? "day" : "days"} with nothing recorded.\n\nMark ${n === 1 ? "it" : "them all"} as done? You can untick anything you actually missed.`)) return;
+    const marks = { ...(habit.marks || {}) };
+    for (const d of blank) marks[d] = habit.target || 1;
+    habit.marks = marks;
   }
 
   // Archiving, not deleting, is the ordinary way to stop: the point of a
@@ -448,6 +581,7 @@
     $("#deleteHabitBtn").onclick = deleteCurrentHabit;
     $("#archiveHabitBtn").onclick = archiveCurrentHabit;
     $("#habitCadence").onchange = applyCadenceUI;
+    $("#habitStart").oninput = applyStartHint;
   }
 
   window.LifeLogHabits = {
@@ -456,7 +590,8 @@
     getFilteredHabits,
     // pure, and the point of the feature — see test/habits.test.js
     isDue, cadenceLabel, markOf, isDone, nextMark,
-    streakOf, bestStreakOf, statsFor,
+    streakOf, bestStreakOf, statsFor, blankDaysBetween,
+    windowStart, maxOffset, rangeLabel, GRID_WEEKS,
     localDateStr, todayStr, addDaysStr, byOrder,
     DAY_LABELS,
   };

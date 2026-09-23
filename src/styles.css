@@ -2500,6 +2500,21 @@ html.force-mobile .backlog-section-head {
 .habit-cell.is-off { background: transparent; cursor: default; }
 .habit-cell.is-future { background: transparent; opacity: .35; cursor: default; }
 
+/* Walking the window back, for a habit you kept longer than the grid is
+   wide. Only drawn when there is somewhere to walk to. */
+.habit-grid-nav { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; padding-left: 15px; }
+.habit-page {
+  flex: 0 0 auto; width: 20px; height: 20px; padding: 0;
+  background: none; border: 1px solid var(--border); border-radius: 5px;
+  color: var(--text-dim); font-size: 12px; line-height: 1; cursor: pointer;
+}
+.habit-page:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
+.habit-page:disabled { opacity: .3; cursor: default; }
+.habit-page-range {
+  flex: 1 1 auto; min-width: 0; text-align: center;
+  font-size: 10.5px; color: var(--text-faint); font-variant-numeric: tabular-nums;
+}
+
 .habit-archived { margin-top: 18px; }
 .habit-archived .hint { margin: 0 0 6px; }
 .habit-archived-row {

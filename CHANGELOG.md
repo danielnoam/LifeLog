@@ -4,6 +4,27 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.172.0] - 2026-09-23
+
+### Added
+- **Backfilling habits.** A habit you've been keeping for months used to
+  arrive with no history and no way to give it any — three separate things
+  stood in the way, and all three are gone.
+- **A start date you can set and move.** "Doing this since" is now a field in
+  the habit modal rather than the day you happened to create it. Move it back
+  and the earlier days come to life.
+- **One offer instead of fifty taps.** Moving the start back asks once, with
+  the count in it, whether you kept the habit on the days it just uncovered —
+  and fills them in if you say yes. Say no and the date still moves; nothing
+  is recorded you didn't claim. Anything you actually missed can be unticked
+  in the grid afterwards.
+- **Arrows on the grid.** The twelve-week grid now walks back a week at a
+  time, as far as the habit's own start date and no further, labelled with
+  the months it's showing. A movable start date is decorative if the days it
+  uncovers are off the end of the grid.
+- Ticking a day keeps the card where you left it, rather than snapping back
+  to this week in the middle of filling in last spring.
+
 ## [0.171.1] - 2026-09-23
 
 ### Changed

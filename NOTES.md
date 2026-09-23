@@ -16,6 +16,33 @@ what was decided against and why.
 
 ---
 
+- **backfilling a habit was impossible for three reasons at once**, and any
+  one of them left on its own would have kept it impossible. The start date
+  was pinned to the day you created the habit with no field to move it;
+  `isDue` correctly answers *no* for every day before the start date, so
+  those cells were drawn disabled; and the grid was twelve fixed weeks ending
+  today, so even a moved start date put the uncovered days off the end of it.
+
+  None of those is a bug. Each is a reasonable line read on its own, and the
+  code contains no comment saying "you cannot backfill" because no single
+  place decided that — it fell out of three correct decisions meeting. This
+  is the kind of thing that is only visible by asking the question from the
+  outside ("what if I want to backfill?") and then *running* it rather than
+  reading it: printing `isDue(h, lastMonth)` took a minute and turned a
+  suspicion into three concrete blockers.
+
+  What the fix does **not** do is assume. Moving the start back asks once,
+  with the count in it, and a no still moves the date — the date is a fact
+  about when you started, the marks are a claim about what you did, and the
+  app only gets to save you the taps once you make the claim. Anything you
+  actually missed is unticked afterwards, which is far less work than
+  ticking sixty cells by hand.
+
+  The grid's paging offset lives in a module-level `Map` keyed by habit id
+  rather than in the render. Ticking a cell re-renders the whole view, and a
+  per-render offset snaps you back to this week in the middle of filling in
+  last spring — the sort of thing that reads as the app fighting you.
+
 - habits are the Notes tab's **third mode**, and they spent exactly one
   version (0.171.0) as a fifth tab before moving. Both halves of that are
   worth keeping, because the reasoning that put them in a tab was sound and
