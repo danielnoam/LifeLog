@@ -783,6 +783,54 @@
     }
   }
 
+  // ---------- scanning a setup QR code (the Android app) ----------
+  // The phone's camera opens a QR code's link in the browser, which connects
+  // the web copy and leaves the app exactly as it was. Inside the app the
+  // code has to be read by the app, so it asks Google's scanner — Play
+  // services' own screen, which is why LifeLog needs no camera permission —
+  // and hands what it read to the same connect path as a pasted link.
+  const scanner = () => (window.LifeLogPlatform && window.LifeLogPlatform.plugin("BarcodeScanner")) || null;
+
+  // The scanner is a Play services module, normally fetched when the app is
+  // installed (tools/android-manifest.js). If it isn't there yet, ask for it
+  // and wait for the install to finish rather than failing the first scan.
+  async function ensureScannerModule(S) {
+    const { available } = await S.isGoogleBarcodeScannerModuleAvailable();
+    if (available) return;
+    toast("Getting the scanner ready…");
+    await new Promise((resolve, reject) => {
+      let handle = null;
+      const done = (fn, arg) => { if (handle) handle.remove(); fn(arg); };
+      Promise.resolve(S.addListener("googleBarcodeScannerModuleInstallProgress", (ev) => {
+        if (ev.state === 4) done(resolve);                          // COMPLETED
+        else if (ev.state === 3 || ev.state === 5) done(reject, new Error("The scanner couldn't be installed"));
+      })).then((h) => { handle = h; return S.installGoogleBarcodeScannerModule(); }).catch(reject);
+    });
+  }
+
+  async function scanSetupQr() {
+    const S = scanner();
+    if (!S) return;
+    let text = "";
+    try {
+      await ensureScannerModule(S);
+      const { barcodes } = await S.scan({ formats: ["QR_CODE"] });
+      text = String((barcodes && barcodes[0] && (barcodes[0].rawValue || barcodes[0].displayValue)) || "");
+    } catch (e) {
+      // Backing out of the scanner is a choice, not an error.
+      if (/cancel/i.test(String(e && e.message || e))) return;
+      toast("Couldn't scan: " + (e && e.message || e), true);
+      return;
+    }
+    if (!text) return;
+    if (!Storage.hashHasSetup(text)) {
+      toast("That QR code isn't a LifeLog setup link — use the one in Settings on a connected device", true);
+      return;
+    }
+    $("#ghToken").value = text;
+    await connectGithub();
+  }
+
   async function disconnectGithub() {
     await Storage.disconnectGithub();
     refreshStorageStatus();
@@ -815,6 +863,9 @@
     $("#reconnectFileBtn").onclick = reconnectFile;
     $("#disconnectFileBtn").onclick = disconnectFile;
     $("#ghConnectBtn").onclick = connectGithub;
+    // Only where there's a scanner to ask: a browser already has the camera.
+    $("#ghScanBtn").hidden = !scanner();
+    $("#ghScanBtn").onclick = scanSetupQr;
     $("#ghDisconnectBtn").onclick = disconnectGithub;
     $("#historyRefreshBtn").onclick = updateHistoryPanel;
     $("#ghPollInterval").onchange = onPollIntervalChange;

@@ -21,7 +21,9 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
 
 // What Capacitor's native bridge puts on the page, as far as LifeLog uses it.
 const FAKE_BRIDGE = () => {
-  window.__cap = { minimized: 0, opened: [], back: null };
+  window.__cap = { minimized: 0, opened: [], back: null, scans: 0, installs: 0, progress: [] };
+  // What the next scan will do; tests set it before pressing the button.
+  window.__scanPlan = { available: true, result: null, error: null };
   window.Capacitor = {
     isNativePlatform: () => true,
     getPlatform: () => "android",
@@ -29,6 +31,27 @@ const FAKE_BRIDGE = () => {
       App: {
         addListener: (ev, cb) => { if (ev === "backButton") window.__cap.back = cb; return Promise.resolve({ remove() {} }); },
         minimizeApp: () => { window.__cap.minimized++; return Promise.resolve(); },
+      },
+      // @capacitor-mlkit/barcode-scanning, as far as LifeLog uses it.
+      BarcodeScanner: {
+        isGoogleBarcodeScannerModuleAvailable: async () => ({ available: !!window.__scanPlan.available }),
+        installGoogleBarcodeScannerModule: async () => {
+          window.__cap.installs++;
+          setTimeout(() => {
+            window.__scanPlan.available = true;
+            for (const cb of window.__cap.progress.slice()) { cb({ state: 2, progress: 40 }); cb({ state: 4, progress: 100 }); }
+          }, 60);
+        },
+        addListener: async (ev, cb) => {
+          if (ev === "googleBarcodeScannerModuleInstallProgress") window.__cap.progress.push(cb);
+          return { remove() { window.__cap.progress = window.__cap.progress.filter((x) => x !== cb); } };
+        },
+        scan: async () => {
+          window.__cap.scans++;
+          if (!window.__scanPlan.available) throw new Error("module not installed");
+          if (window.__scanPlan.error) throw new Error(window.__scanPlan.error);
+          return { barcodes: window.__scanPlan.result ? [{ rawValue: window.__scanPlan.result, format: "QR_CODE" }] : [] };
+        },
       },
     },
   };
@@ -211,6 +234,32 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await ctx.close();
   }
 
+  // ---- 5b. joining never trades your media sources for a fresh app's blanks ----
+  // Settings merged as one blob, newer wins, until 0.175.0 — and a new
+  // install that has saved anything has the newest blob there is.
+  {
+    const synced = { ...remote, settings: {
+      backlogSort: "title", mediaKeys: { rawg: "RAWG-KEY", tmdb: "TMDB-KEY", ggdeals: "", steamgriddb: "" },
+      mediaCategorySources: { Games: "rawg" }, steam: { proxyUrl: "https://proxy.example", steamId: "7656" },
+      updatedAt: "2026-09-10T00:00:00.000Z",
+    } };
+    const freshCache = { ...doc([], null), settings: {
+      backlogSort: "title", mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "" },
+      mediaCategorySources: {}, steam: { proxyUrl: "", steamId: "" },
+      updatedAt: new Date().toISOString(), // saved just now, so "newer" than everything
+    } };
+    const { page, ctx, errs: e, github } = await openApp(browser, { remote: synced, cache: freshCache });
+    await pasteLink(page);
+    const kept = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).settings);
+    const pushed = github.puts.length ? github.puts[github.puts.length - 1].settings : null;
+    check("a freshly installed app joining keeps the synced media keys",
+      kept.mediaKeys.rawg === "RAWG-KEY" && kept.mediaKeys.tmdb === "TMDB-KEY" && kept.steam.proxyUrl === "https://proxy.example", kept);
+    check("and what it writes back to GitHub still has them",
+      !!pushed && pushed.mediaKeys.rawg === "RAWG-KEY" && pushed.mediaCategorySources.Games === "rawg", pushed);
+    errs.push(...e);
+    await ctx.close();
+  }
+
   // ---- 6. a setup link made inside the app works on another device ----
   {
     const gh = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branch: "main", token: "ghp_fake", sha: "sha-remote" };
@@ -226,6 +275,81 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
       share.link.startsWith(BUILD.webUrl + "#"), share.link.slice(0, 60));
     check("so there's no 'this link only works on this computer' warning, and there is a QR code",
       !share.localWarn && share.qr, share);
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 7. connecting by scanning the QR code, inside the app ----
+  // The phone's camera opens the QR's link in the browser — it connects the
+  // web copy and leaves the app untouched. So the app reads the code itself.
+  const openSync = async (page) => {
+    await page.click("#settingsBtn");
+    await page.waitForTimeout(300);
+    await page.evaluate(() => {
+      const t = [...document.querySelectorAll(".settings-tabs button, .settings-tabs [data-tab]")].find((b) => /data|sync/i.test(b.textContent));
+      if (t) t.click();
+    });
+    await page.waitForTimeout(200);
+  };
+  const scanShown = (page) => page.evaluate(() => {
+    const b = document.querySelector("#ghScanBtn");
+    return !!b && getComputedStyle(b).display !== "none" && b.getBoundingClientRect().width > 0;
+  });
+  {
+    const { page, ctx, errs: e } = await openApp(browser, { native: false });
+    await openSync(page);
+    check("a browser has no Scan button — its camera already does this", !(await scanShown(page)));
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    const { page, ctx, errs: e, dialogs, github } = await openApp(browser, { remote, cache: doc([], null) });
+    await openSync(page);
+    check("the app has a Scan QR code button", await scanShown(page));
+    await page.evaluate((link) => { window.__scanPlan.result = link; }, LINK);
+    await page.click("#ghScanBtn");
+    await page.waitForTimeout(1800);
+    const texts = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).notes.map((n) => n.text));
+    check("scanning a setup QR connects the app", await page.evaluate(() => !!JSON.parse(localStorage.getItem("lifelog-github-v1") || "null")));
+    check("and brings the synced log, merged like a pasted link, without a question",
+      texts.includes("From the desktop") && dialogs.length === 0, { texts, dialogs });
+    check("the token box isn't left holding the link", await page.evaluate(() => document.querySelector("#ghToken").value === ""));
+    check("and nothing empty was ever written over the synced log", github.puts.every((d) => (d.notes || []).length > 0));
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    const { page, ctx, errs: e } = await openApp(browser, { remote });
+    await openSync(page);
+    await page.evaluate(() => { window.__scanPlan.error = "scan canceled."; });
+    await page.click("#ghScanBtn");
+    await page.waitForTimeout(500);
+    const t = await page.evaluate(() => { const x = document.querySelector("#toast"); return x && !x.hidden ? x.textContent : ""; });
+    check("backing out of the scanner is quiet — it's a choice, not an error", !/Couldn't|isn't/.test(t), t);
+    check("and connects nothing", await page.evaluate(() => !localStorage.getItem("lifelog-github-v1")));
+
+    await page.evaluate(() => { window.__scanPlan.error = null; window.__scanPlan.result = "https://example.com/menu"; });
+    await page.click("#ghScanBtn");
+    await page.waitForTimeout(500);
+    const t2 = await page.evaluate(() => { const x = document.querySelector("#toast"); return x && !x.hidden ? x.textContent : ""; });
+    check("some other QR code says it isn't a setup link", /isn't a LifeLog setup link/.test(t2), t2);
+    check("and still connects nothing", await page.evaluate(() => !localStorage.getItem("lifelog-github-v1")));
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    const { page, ctx, errs: e } = await openApp(browser, { remote, cache: doc([], null) });
+    await openSync(page);
+    await page.evaluate((link) => { window.__scanPlan.available = false; window.__scanPlan.result = link; }, LINK);
+    await page.click("#ghScanBtn");
+    await page.waitForTimeout(2000);
+    const r = await page.evaluate(() => ({
+      installs: window.__cap.installs, scans: window.__cap.scans,
+      connected: !!localStorage.getItem("lifelog-github-v1"), listeners: window.__cap.progress.length,
+    }));
+    check("with the scanner module missing, it's installed first", r.installs === 1, r);
+    check("and the scan goes ahead once it has, rather than failing the first try", r.scans === 1 && r.connected, r);
+    check("without leaving its progress listener behind", r.listeners === 0, r);
     errs.push(...e);
     await ctx.close();
   }

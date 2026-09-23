@@ -104,6 +104,36 @@ test("a template whose version lines moved fails instead of shipping versionCode
   assert.throws(() => stamp(g, "0.174.0"));
 });
 
+console.log("\nthe manifest");
+const { patch } = require("../tools/android-manifest.js");
+const TEMPLATE = `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:allowBackup="true"
+        android:theme="@style/AppTheme">
+        <activity android:name=".MainActivity" />
+    </application>
+    <uses-permission android:name="android.permission.INTERNET" />
+</manifest>`;
+
+test("the scanner module is asked for inside <application>, not beside it", () => {
+  const out = patch(TEMPLATE);
+  const app = out.slice(out.indexOf("<application"), out.indexOf("</application>"));
+  assert.ok(app.includes('android:name="com.google.mlkit.vision.DEPENDENCIES"') && app.includes('android:value="barcode_ui"'), out);
+});
+
+test("patching twice doesn't add it twice", () => {
+  const twice = patch(patch(TEMPLATE));
+  assert.strictEqual(twice.split("com.google.mlkit.vision.DEPENDENCIES").length - 1, 1);
+});
+
+test("no camera permission: Google's scanner runs the camera, not LifeLog", () => {
+  assert.ok(!patch(TEMPLATE).includes("android.permission.CAMERA"));
+});
+
+test("a manifest without <application> fails instead of shipping without the scanner", () => {
+  assert.throws(() => patch("<manifest></manifest>"), /application/);
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

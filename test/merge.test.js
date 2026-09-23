@@ -379,5 +379,77 @@ test("habits are a synced collection like every other list", () => {
   assert.ok(Merge.COLLECTION_KEYS.includes("habits"));
 });
 
+// ---- settings, field by field (0.175.0) ----
+// Settings used to merge as one blob, newer wins wholesale — so an
+// unrelated change on one device erased a media key set on another.
+const KEYS_EMPTY = { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "" };
+const S = (o, at) => ({ backlogSort: "title", currency: "ILS", mediaKeys: { ...KEYS_EMPTY },
+  mediaCategorySources: { Games: "rawg" }, steam: { proxyUrl: "", steamId: "" }, ...o, updatedAt: at });
+
+test("settings: edits to different fields on two devices both survive", () => {
+  const base = S({}, "t0");
+  const desktop = S({ mediaKeys: { ...KEYS_EMPTY, rawg: "RAWG-KEY" } }, "t1");
+  const phone = S({ backlogSort: "release" }, "t2"); // later, and about something else
+  const m = mergeSettings(base, phone, desktop);
+  assert.strictEqual(m.mediaKeys.rawg, "RAWG-KEY");
+  assert.strictEqual(m.backlogSort, "release");
+});
+
+test("settings: the same field changed on both sides goes to the newer one", () => {
+  const base = S({}, "t0");
+  const a = S({ currency: "USD" }, "t1"), b = S({ currency: "EUR" }, "t2");
+  assert.strictEqual(mergeSettings(base, a, b).currency, "EUR");
+  assert.strictEqual(mergeSettings(base, b, a).currency, "EUR");
+});
+
+test("settings: nested maps merge per entry — two devices, two categories", () => {
+  const base = S({}, "t0");
+  const a = S({ mediaCategorySources: { Games: "rawg", Movies: "tmdb-movie" } }, "t1");
+  const b = S({ mediaCategorySources: { Games: "rawg", Books: "openlibrary" } }, "t2");
+  assert.deepStrictEqual(mergeSettings(base, a, b).mediaCategorySources,
+    { Games: "rawg", Movies: "tmdb-movie", Books: "openlibrary" });
+});
+
+test("settings: removing a mapping on one side stays removed", () => {
+  const base = S({ mediaCategorySources: { Games: "rawg", Movies: "tmdb-movie" } }, "t0");
+  const a = S({ mediaCategorySources: { Games: "rawg" } }, "t1");
+  const b = S({ mediaCategorySources: { Games: "rawg", Movies: "tmdb-movie" }, backlogSort: "release" }, "t2");
+  const m = mergeSettings(base, a, b);
+  assert.deepStrictEqual(m.mediaCategorySources, { Games: "rawg" });
+  assert.strictEqual(m.backlogSort, "release");
+});
+
+test("settings: clearing a key on one side is a change, not a blank to be overruled", () => {
+  const base = S({ mediaKeys: { ...KEYS_EMPTY, rawg: "OLD" } }, "t0");
+  const a = S({ mediaKeys: { ...KEYS_EMPTY, rawg: "" } }, "t1");
+  const b = S({ mediaKeys: { ...KEYS_EMPTY, rawg: "OLD" }, backlogSort: "release" }, "t2");
+  assert.strictEqual(mergeSettings(base, a, b).mediaKeys.rawg, "");
+});
+
+test("settings: joining with no base, a real value beats a fresh app's blank — however new the blank", () => {
+  const fresh = S({}, "t9"); // a new install whose first save is the newest thing here
+  const synced = S({ mediaKeys: { ...KEYS_EMPTY, rawg: "RAWG-KEY" }, steam: { proxyUrl: "https://proxy", steamId: "7656" } }, "t1");
+  const m = mergeSettings(null, fresh, synced);
+  assert.strictEqual(m.mediaKeys.rawg, "RAWG-KEY");
+  assert.deepStrictEqual(m.steam, { proxyUrl: "https://proxy", steamId: "7656" });
+});
+
+test("settings: joining with no base, two real values still go to the newer", () => {
+  const a = S({ currency: "USD" }, "t1"), b = S({ currency: "EUR" }, "t2");
+  assert.strictEqual(mergeSettings(null, a, b).currency, "EUR");
+});
+
+test("settings: the merged result carries the newer stamp", () => {
+  assert.strictEqual(mergeSettings(S({}, "t0"), S({ currency: "USD" }, "t1"), S({}, "t3")).updatedAt, "t3");
+});
+
+test("settings: the whole sync path keeps both edits, not just mergeSettings", () => {
+  const doc = (settings) => ({ entries: [], settings });
+  const base = doc(S({}, "t0"));
+  const out = mergeAllSources(base, doc(S({ backlogSort: "release" }, "t2")), doc(S({ mediaKeys: { ...KEYS_EMPTY, tmdb: "TMDB" } }, "t1")));
+  assert.strictEqual(out.settings.mediaKeys.tmdb, "TMDB");
+  assert.strictEqual(out.settings.backlogSort, "release");
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

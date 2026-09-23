@@ -16,6 +16,50 @@ what was decided against and why.
 
 ---
 
+- **settings merge field by field.** They were one atomic blob — if both
+  sides changed anything, the newer `settings.updatedAt` won wholesale —
+  which was fine while settings were a sort order and a currency. They grew
+  to hold the media sources: API keys, per-category sources and fallbacks,
+  Steam, AniList. Then any casual change on one device (a sort order) erased
+  a deliberate one on another (a key), and the report was simply "media
+  sources don't sync". Now each field, recursing into nested objects, merges
+  three-way like the collections do; only a field both sides changed falls
+  back to the newer stamp.
+
+  **Without a base, a value beats a blank.** Joining by setup link (0.174.0)
+  merges with no sync base, so there's no telling which side changed a
+  field. The wholesale rule turned that into a wipe: a fresh install that had
+  saved anything held the newest blob, all empty defaults, and pushed it
+  everywhere — test/browser/native.js shows the empty keys arriving on
+  GitHub under the old merge. With a base, a cleared key is still a real
+  change and stays cleared; "blank loses" applies only where nothing tells
+  a deliberate clear from never having been set.
+
+  This was caught because the settings bug and the join both touched the
+  same path, and the scanner (0.175.0) was about to make joining a one-tap
+  thing. It went out with the scanner rather than after it.
+
+- **the app reads setup QR codes itself, with Google's scanner rather than
+  its own camera view.** A QR code is a link, and the phone's camera hands
+  links to the browser, so scanning the setup code connected the web copy in
+  Chrome and never touched the APK. Android App Links would route the link
+  to the app instead, but they need `/.well-known/assetlinks.json` at the
+  *root* of the host, which for a project site on `github.io` means a
+  different repository, and they'd still send desktops and iPhones the same
+  link. So the app asks
+  `@capacitor-mlkit/barcode-scanning`'s `scan()`: Play services' own scanner
+  screen, which needs no camera permission from LifeLog — the manifest gains
+  one meta-data line (tools/android-manifest.js) so the scanner module is
+  fetched at install time, and the app installs it itself if it's missing.
+  What it reads goes into the token box and down the pasted-link path, so a
+  scanned code merges exactly like a pasted one.
+
+  Two outcomes that look like failures aren't. Backing out of the scanner
+  rejects with "scan canceled.", which is a choice and gets no toast. Some
+  other QR code is refused before it gets anywhere near Connect —
+  test/browser/native.js shows that without the check, a menu's URL goes
+  through as if it were a token.
+
 - **the Android app is the same files, bundled, not a thin shell over
   Pages.** Two shapes were on the table. Loading the Pages site inside the
   shell keeps today's update path — a push reaches the phone on its next

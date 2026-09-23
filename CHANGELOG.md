@@ -4,6 +4,33 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.175.0] - 2026-09-23
+
+### Added
+- **Scan QR code, in the Android app.** Your phone's camera opens a QR code's
+  link in the browser, so scanning a setup code connected the web version in
+  Chrome and left the app exactly as it was. The app now has its own **Scan
+  QR code** button next to Connect in Settings. It uses Google's scanner (a
+  Play services screen), so LifeLog doesn't ask for camera permission, and
+  a scanned code connects the same way a pasted setup link does: merged,
+  with nothing on either side lost. Backing out of the scanner does nothing;
+  scanning some other QR code says so. The browser version doesn't show the
+  button, since its camera already does this.
+
+### Fixed
+- **Media sources now sync reliably.** Settings used to merge as one block,
+  newest wins — and that block holds your sort orders and currency next to
+  your media sources. So setting an API key on your desktop and then changing
+  the Backlog sort on your phone put the phone's whole block on every device,
+  and the key was gone. Settings now merge field by field: each device's
+  change to a different setting is kept, and only a setting changed on both
+  sides goes to the newer one. This covers the API keys, which source each
+  category uses, and the Steam, AniList and release-date settings.
+- **Joining a new device can no longer wipe them.** A freshly installed app
+  that had saved anything counted its empty defaults as the newest settings
+  and would have pushed them to every device. When a device joins, a filled-in
+  setting now always beats an empty one.
+
 ## [0.174.0] - 2026-09-23
 
 ### Added

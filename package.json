@@ -7,6 +7,7 @@
     "android:sync": "node tools/build-www.js && npx cap sync android"
   },
   "devDependencies": {
+    "@capacitor-mlkit/barcode-scanning": "^8.2.1",
     "@capacitor/android": "8.5.2",
     "@capacitor/app": "8.1.1",
     "@capacitor/cli": "8.5.2",

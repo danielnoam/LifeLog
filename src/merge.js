@@ -214,16 +214,57 @@
     return unflattenAccomplishments(merged);
   }
 
-  // settings has no per-field timestamps — treated as one atomic blob: if
-  // only one side changed it since base, take that side; if both did,
-  // newer settings.updatedAt wins wholesale (no per-field merge).
+  // settings merges field by field, recursing into its nested objects
+  // (mediaKeys, steam, anilist, mediaCategorySources…), three-way like the
+  // collections: a field only one side changed since the base takes that
+  // side, and only a field both sides changed falls back to the newer
+  // settings.updatedAt.
+  //
+  // Until 0.175.0 it was one atomic blob, newer wins wholesale — and the
+  // blob holds sort orders and the currency beside the media sources. So
+  // setting a RAWG key on the desktop and then changing the backlog's sort
+  // on the phone put the phone's whole blob on every device, key and all
+  // gone: "media sources don't sync". Per field, the two edits never meet.
+  //
+  // Without a base (a device joining by setup link), there is no telling
+  // which side changed a field, so a value beats a blank: a freshly installed
+  // app's empty defaults must not win over a real key just because its first
+  // save was more recent. Where both sides hold different real values, the
+  // newer settings.updatedAt decides, as before.
+  const isPlainObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+  const isBlank = (v) => v === undefined || v === null || v === "";
+  const sameValue = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+  function mergeSettingValue(base, local, remote, hasBase, localNewer) {
+    if (isPlainObject(local) && isPlainObject(remote)) {
+      const b = isPlainObject(base) ? base : undefined;
+      const out = {};
+      for (const k of new Set([...Object.keys(local), ...Object.keys(remote)])) {
+        if (k === "updatedAt") continue;
+        const v = mergeSettingValue(b ? b[k] : undefined, local[k], remote[k], hasBase && !!b, localNewer);
+        if (v !== undefined) out[k] = v;
+      }
+      return out;
+    }
+    if (sameValue(local, remote)) return local;
+    if (hasBase && base !== undefined) {
+      if (sameValue(local, base)) return remote;
+      if (sameValue(remote, base)) return local;
+    } else {
+      if (isBlank(local)) return remote;
+      if (isBlank(remote)) return local;
+    }
+    return localNewer ? local : remote;
+  }
+
   function mergeSettings(base, local, remote) {
-    base = base || {}; local = local || {}; remote = remote || {};
-    const localChanged = !sameContent(local, base), remoteChanged = !sameContent(remote, base);
-    if (!localChanged && !remoteChanged) return local;
-    if (!localChanged) return remote;
-    if (!remoteChanged) return local;
-    return (local.updatedAt || "") >= (remote.updatedAt || "") ? local : remote;
+    if (!local) return remote || {};
+    if (!remote) return local;
+    const localNewer = (local.updatedAt || "") >= (remote.updatedAt || "");
+    const out = mergeSettingValue(base || undefined, local, remote, !!base, localNewer);
+    const stamp = localNewer ? local.updatedAt : remote.updatedAt;
+    if (stamp) out.updatedAt = stamp;
+    return out;
   }
 
   // Habits need one thing on top of the ordinary collection merge: their

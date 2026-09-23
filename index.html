@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.174.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.175.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -987,6 +987,7 @@
         </div>
         <div class="btn-row">
           <button class="btn" id="ghConnectBtn">Connect GitHub</button>
+          <button class="btn" id="ghScanBtn" type="button" hidden>Scan QR code</button>
           <button class="btn" id="ghDisconnectBtn" hidden>Disconnect</button>
         </div>
         <p class="hint">Keeps your phone and desktop in sync via a private GitHub repo — every save becomes a commit, giving you a version history. Your token stays in this browser only.</p>
@@ -997,7 +998,7 @@
 
         <div class="gh-share" id="ghShare" hidden>
           <h4>Add another device</h4>
-          <p class="hint">Scan the QR code with your phone camera (or open the link) to connect a new device instantly — no manual setup needed.</p>
+          <p class="hint">Scan the QR code with your phone camera (or open the link) to connect a new device instantly — no manual setup needed. For the Android app, use <strong>Scan QR code</strong> inside the app instead: the camera opens links in the browser, not in the app.</p>
           <p class="warn" id="ghLocalWarn" hidden>You're on a local/localhost URL, so this link only works on this computer. Open your published site (e.g. GitHub Pages) and copy the link from there to use it on other devices.</p>
           <div class="gh-qr" id="ghQr" hidden></div>
           <p class="warn" id="ghQrTooLong" hidden>The setup link is too long for a QR code — use the copy button below to share it instead.</p>
@@ -1516,23 +1517,23 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/platform.js?v=0.174.0"></script>
-  <script defer src="src/reconcile.js?v=0.174.0"></script>
-  <script defer src="src/qr.js?v=0.174.0"></script>
-  <script defer src="src/media.js?v=0.174.0"></script>
-  <script defer src="src/merge.js?v=0.174.0"></script>
-  <script defer src="src/storage.js?v=0.174.0"></script>
-  <script defer src="src/finance.js?v=0.174.0"></script>
-  <script defer src="src/settings.js?v=0.174.0"></script>
-  <script defer src="src/wheel.js?v=0.174.0"></script>
-  <script defer src="src/backlog.js?v=0.174.0"></script>
-  <script defer src="src/journal.js?v=0.174.0"></script>
-  <script defer src="src/notes.js?v=0.174.0"></script>
-  <script defer src="src/todos.js?v=0.174.0"></script>
-  <script defer src="src/io.js?v=0.174.0"></script>
-  <script defer src="src/sync.js?v=0.174.0"></script>
-  <script defer src="src/habits.js?v=0.174.0"></script>
-  <script defer src="src/recap.js?v=0.174.0"></script>
-  <script defer src="src/app.js?v=0.174.0"></script>
+  <script defer src="src/platform.js?v=0.175.0"></script>
+  <script defer src="src/reconcile.js?v=0.175.0"></script>
+  <script defer src="src/qr.js?v=0.175.0"></script>
+  <script defer src="src/media.js?v=0.175.0"></script>
+  <script defer src="src/merge.js?v=0.175.0"></script>
+  <script defer src="src/storage.js?v=0.175.0"></script>
+  <script defer src="src/finance.js?v=0.175.0"></script>
+  <script defer src="src/settings.js?v=0.175.0"></script>
+  <script defer src="src/wheel.js?v=0.175.0"></script>
+  <script defer src="src/backlog.js?v=0.175.0"></script>
+  <script defer src="src/journal.js?v=0.175.0"></script>
+  <script defer src="src/notes.js?v=0.175.0"></script>
+  <script defer src="src/todos.js?v=0.175.0"></script>
+  <script defer src="src/io.js?v=0.175.0"></script>
+  <script defer src="src/sync.js?v=0.175.0"></script>
+  <script defer src="src/habits.js?v=0.175.0"></script>
+  <script defer src="src/recap.js?v=0.175.0"></script>
+  <script defer src="src/app.js?v=0.175.0"></script>
 </body>
 </html>

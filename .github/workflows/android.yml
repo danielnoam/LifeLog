@@ -47,7 +47,9 @@ jobs:
         run: node tools/build-www.js
 
       - name: Generate the Android project
-        run: npx cap add android
+        run: |
+          npx cap add android
+          node tools/android-manifest.js
 
       - name: Icon and splash
         run: >-
