@@ -76,16 +76,23 @@ todo:
   place to start rather than another reshuffle.
 
 - **Android widgets.** The one thing the app can do that a browser can't.
-  Candidates, most useful first: today's habits with a tick per habit;
-  quick-add buttons (entry, expense, note — the manifest's shortcuts already
-  name the first two); this month's spend. Shape of it:
+  Candidates, most useful first: today's habits with a tick per habit; the
+  to-do list, scrollable, with a tick per item and its categories; quick-add
+  buttons (entry, expense, note — the manifest's shortcuts already name the
+  first two); this month's spend. Shape of it:
   - Widgets are native (Kotlin, `AppWidgetProvider` + RemoteViews), and
     `android/` is generated in CI and not committed. Put the widget code in a
     small local Capacitor plugin (say `native/widgets/`, a `file:`
     dependency) so `android/` can stay generated.
   - A widget can't run the web app. The app writes what the widget shows
-    (today's due habits and their marks) into SharedPreferences through that
-    plugin whenever the data changes, and the widget draws from that.
+    (today's due habits and their marks, the open to-dos in their order)
+    into SharedPreferences through that plugin whenever the data changes,
+    and the widget draws from that.
+  - The to-do list is a *collection* widget: a ListView fed by a
+    RemoteViewsService, which is what lets it scroll, unlike a plain widget
+    layout. Ticking an item goes through the same queue as a habit tick
+    below. Adding an item from the widget is a quick-add that opens the app
+    on the to-do sheet; typing inside a widget isn't something Android offers.
   - A tick on the widget can't reach GitHub by itself. Queue it natively, show
     it ticked straight away, and have the app apply the queue on its next
     launch or resume — it then syncs like any other tick. Say so somewhere,
