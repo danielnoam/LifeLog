@@ -37,7 +37,13 @@ what was decided against and why.
 
   This was caught because the settings bug and the join both touched the
   same path, and the scanner (0.175.0) was about to make joining a one-tap
-  thing. It went out with the scanner rather than after it.
+  thing. It went out with the scanner rather than after it — but not before
+  it had already emptied someone's keys, which is what 0.175.1's **Bring back
+  missing settings** is for. Restore was the wrong tool for that: it rolls the
+  whole log back to a save. `fillBlankSettings` fills only what's blank now,
+  and the button walks the history newest first so nobody has to guess which
+  save still had the keys. Blank-only is deliberate: a key someone changed
+  since is theirs, and anything they cleared on purpose they can clear again.
 
 - **the app reads setup QR codes itself, with Google's scanner rather than
   its own camera view.** A QR code is a link, and the phone's camera hands

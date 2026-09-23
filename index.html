@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.175.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.175.1" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -1041,7 +1041,9 @@
         <div id="historyControls" hidden>
           <div class="btn-row">
             <button class="btn" id="historyRefreshBtn" type="button">Refresh</button>
+            <button class="btn" id="historyFillSettingsBtn" type="button">Bring back missing settings</button>
           </div>
+          <p class="hint">Lost API keys or media sources? <strong>Bring back missing settings</strong> finds the newest save that still had them and fills in only what's empty now — your log and every other setting stay as they are. <strong>Restore</strong> on a row rolls <em>everything</em> back to that save.</p>
           <p class="muted" id="historyStatus"></p>
           <div id="historyList"></div>
         </div>
@@ -1517,23 +1519,23 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/platform.js?v=0.175.0"></script>
-  <script defer src="src/reconcile.js?v=0.175.0"></script>
-  <script defer src="src/qr.js?v=0.175.0"></script>
-  <script defer src="src/media.js?v=0.175.0"></script>
-  <script defer src="src/merge.js?v=0.175.0"></script>
-  <script defer src="src/storage.js?v=0.175.0"></script>
-  <script defer src="src/finance.js?v=0.175.0"></script>
-  <script defer src="src/settings.js?v=0.175.0"></script>
-  <script defer src="src/wheel.js?v=0.175.0"></script>
-  <script defer src="src/backlog.js?v=0.175.0"></script>
-  <script defer src="src/journal.js?v=0.175.0"></script>
-  <script defer src="src/notes.js?v=0.175.0"></script>
-  <script defer src="src/todos.js?v=0.175.0"></script>
-  <script defer src="src/io.js?v=0.175.0"></script>
-  <script defer src="src/sync.js?v=0.175.0"></script>
-  <script defer src="src/habits.js?v=0.175.0"></script>
-  <script defer src="src/recap.js?v=0.175.0"></script>
-  <script defer src="src/app.js?v=0.175.0"></script>
+  <script defer src="src/platform.js?v=0.175.1"></script>
+  <script defer src="src/reconcile.js?v=0.175.1"></script>
+  <script defer src="src/qr.js?v=0.175.1"></script>
+  <script defer src="src/media.js?v=0.175.1"></script>
+  <script defer src="src/merge.js?v=0.175.1"></script>
+  <script defer src="src/storage.js?v=0.175.1"></script>
+  <script defer src="src/finance.js?v=0.175.1"></script>
+  <script defer src="src/settings.js?v=0.175.1"></script>
+  <script defer src="src/wheel.js?v=0.175.1"></script>
+  <script defer src="src/backlog.js?v=0.175.1"></script>
+  <script defer src="src/journal.js?v=0.175.1"></script>
+  <script defer src="src/notes.js?v=0.175.1"></script>
+  <script defer src="src/todos.js?v=0.175.1"></script>
+  <script defer src="src/io.js?v=0.175.1"></script>
+  <script defer src="src/sync.js?v=0.175.1"></script>
+  <script defer src="src/habits.js?v=0.175.1"></script>
+  <script defer src="src/recap.js?v=0.175.1"></script>
+  <script defer src="src/app.js?v=0.175.1"></script>
 </body>
 </html>

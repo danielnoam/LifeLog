@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.175.1] - 2026-09-23
+
+### Added
+- **Bring back missing settings.** If your API keys or media sources were
+  emptied (0.174.0 could do this when an app joined by setup link — fixed in
+  0.175.0), **Settings → History → Bring back missing settings** finds the
+  newest save that still had them and fills in only what's empty now. Your
+  log isn't rolled back, and settings you've changed since stay as they are.
+  It asks first, listing what comes back (by name, never showing the keys).
+  Each save in the history also has a **Settings only** button to do the
+  same from a save you pick. **Restore** still rolls everything back to a save.
+
 ## [0.175.0] - 2026-09-23
 
 ### Added

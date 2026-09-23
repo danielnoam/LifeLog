@@ -230,6 +230,13 @@
         const head = el("div", "history-row-head");
         head.appendChild(el("span", "history-date", formatHistoryDate(c.savedAt)));
         if (i === 0) head.appendChild(el("span", "history-badge", "Current"));
+        if (i > 0) {
+          const only = el("button", "btn btn-small", "Settings only");
+          only.type = "button";
+          only.title = "Fill in settings that are empty now from this save, and change nothing else";
+          only.onclick = () => restoreSettingsFrom(c);
+          head.appendChild(only);
+        }
         const btn = el("button", "btn btn-small", i === 0 ? "Current" : "Restore");
         btn.type = "button";
         btn.disabled = i === 0;
@@ -267,6 +274,73 @@
     } catch (e) {
       toast("Restore failed: " + (e.message || e), true);
       refreshStorageStatus();
+    }
+  }
+
+  // ---------- bringing back settings a bad merge emptied ----------
+  // Restore above rolls the whole log back to a save, which is the wrong tool
+  // for "my API keys are gone": everything added since would go with it.
+  // These fill in only the settings that are blank now (see
+  // LifeLogMerge.fillBlankSettings) — the recovery for 0.174.0, where joining
+  // by setup link could push a fresh install's empty settings everywhere.
+  const SETTING_LABELS = {
+    "mediaKeys.rawg": "RAWG API key", "mediaKeys.tmdb": "TMDB API key",
+    "mediaKeys.ggdeals": "GG.deals API key", "mediaKeys.steamgriddb": "SteamGridDB API key",
+    "steam.proxyUrl": "Steam proxy URL", "steam.steamId": "Steam ID",
+    "steam.wishlistCategory": "Steam wishlist category", "steam.autoSyncDays": "Steam auto-sync",
+    "anilist.userName": "AniList user name", "anilist.animeCategory": "AniList anime category",
+    "anilist.mangaCategory": "AniList manga category", "anilist.autoSyncDays": "AniList auto-sync",
+    "releases.autoRefreshDays": "release-date refresh",
+  };
+  function settingLabel(path) {
+    if (SETTING_LABELS[path]) return SETTING_LABELS[path];
+    const m = path.match(/^mediaCategory(Fallback)?Sources\.(.+)$/);
+    if (m) return m[2] + (m[1] ? " fallback source" : " media source");
+    return path;
+  }
+
+  async function settingsOf(entry) {
+    const data = entry.snapshot ? entry.snapshot : await Storage.getVersion(entry.sha);
+    return (data && data.settings) || {};
+  }
+
+  async function restoreSettingsFrom(entry) {
+    let older;
+    try { older = await settingsOf(entry); }
+    catch (e) { toast("Couldn't read that save: " + (e.message || e), true); return; }
+    const { settings, filled } = window.LifeLogMerge.fillBlankSettings(state.data.settings, older);
+    const when = formatHistoryDate(entry.savedAt);
+    if (!filled.length) { toast("That save has nothing that's missing now"); return; }
+    const names = filled.map(settingLabel);
+    const list = names.slice(0, 10).join("\n  • ") + (names.length > 10 ? "\n  • and " + (names.length - 10) + " more" : "");
+    if (!confirm(`Bring back ${filled.length} setting${filled.length === 1 ? "" : "s"} from ${when}?\n\n  • ${list}\n\nOnly settings that are empty now are filled in. Your log and every other setting stay exactly as they are.`)) return;
+    state.data.settings = settings;
+    afterDataChange();
+    updateMediaSettings();
+    await persist();
+    toast(`Brought back ${filled.length} setting${filled.length === 1 ? "" : "s"} from ${when}`);
+  }
+
+  // Walks the history newest first and offers the first save that has
+  // anything to give back — so nobody has to guess which one still had the
+  // keys. Local snapshots are instant; older GitHub saves are fetched one at
+  // a time and the walk stops at the first hit.
+  async function fillMissingSettings() {
+    const btn = $("#historyFillSettingsBtn");
+    btn.disabled = true;
+    try {
+      if (!historyCache.length) await refreshHistoryList();
+      for (const entry of historyCache.slice(1)) {
+        let older;
+        try { older = await settingsOf(entry); } catch (e) { continue; }
+        if (window.LifeLogMerge.fillBlankSettings(state.data.settings, older).filled.length) {
+          await restoreSettingsFrom(entry);
+          return;
+        }
+      }
+      toast("None of your saved versions has a setting that's missing now");
+    } finally {
+      btn.disabled = false;
     }
   }
 
@@ -863,6 +937,7 @@
     $("#reconnectFileBtn").onclick = reconnectFile;
     $("#disconnectFileBtn").onclick = disconnectFile;
     $("#ghConnectBtn").onclick = connectGithub;
+    $("#historyFillSettingsBtn").onclick = fillMissingSettings;
     // Only where there's a scanner to ask: a browser already has the camera.
     $("#ghScanBtn").hidden = !scanner();
     $("#ghScanBtn").onclick = scanSetupQr;
