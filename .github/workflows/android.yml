@@ -76,7 +76,10 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: LifeLog-${{ steps.v.outputs.version }}${{ steps.sign.outputs.signed == 'true' && '' || '-unsigned-key' }}
+          # Both branches non-empty: `cond && '' || 'x'` is always 'x' in an
+          # Actions expression, because '' is falsy — which labelled the first
+          # properly signed build "-unsigned-key".
+          name: LifeLog-${{ steps.v.outputs.version }}${{ steps.sign.outputs.signed == 'true' && '-release-key' || '-throwaway-key' }}
           path: LifeLog.apk
 
       # Only from main, only with the real key, and only once per version: the
