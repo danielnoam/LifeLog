@@ -117,7 +117,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.175.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.176.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2830,13 +2830,22 @@
 
   // Periodic check for changes made on another device. If we have unsynced
   // local edits, push those first; otherwise pull in a newer remote copy.
+  // Says what happened, for the one caller that reports it (pull to refresh
+  // in the Android app); the interval and focus callers ignore it.
+  //   { outcome: "skipped" | "busy" | "saved" | "failed" | "unchanged" | "merged", problem? }
   async function pollForUpdates() {
-    if (!Storage.githubConnected || syncInFlight || isAnyModalOpen()) return;
-    if (state.pendingSync) { await retrySync(); return; }
+    if (!Storage.githubConnected) return { outcome: "skipped" };
+    if (syncInFlight || isAnyModalOpen()) return { outcome: "busy" };
+    if (state.pendingSync) {
+      await retrySync();
+      return state.pendingSync ? { outcome: "failed", problem: Storage.githubProblem } : { outcome: "saved" };
+    }
     const res = await Storage.checkRemote();
-    if (res && res.changed) {
+    if (res && res.error) return { outcome: "failed", problem: Storage.describeError(res.error) };
+    if (!res || !res.changed) return { outcome: "unchanged" };
+    {
       // Re-check: a save may have started while checkRemote() was in flight.
-      if (syncInFlight || isAnyModalOpen() || state.pendingSync) return;
+      if (syncInFlight || isAnyModalOpen() || state.pendingSync) return { outcome: "busy" };
       const remoteData = normalize(res.data);
       // Merge rather than blindly adopting remote — cheap insurance against
       // the narrow window where this device has local edits not yet marked
@@ -2860,6 +2869,7 @@
       let msg = summary && summary !== "No changes" ? "Merged " + summary + " from your other device" : "Updated from another device";
       if (conflictSummary) msg += " — " + conflictSummary;
       toast(msg, !!conflictSummary);
+      return { outcome: "merged" };
     }
   }
 
@@ -3778,6 +3788,7 @@
       // second cache of them, and its "new version" isn't the app's.
       checkForNewerApp();
       wireBackButton();
+      wirePullToRefresh();
     } else if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").then(watchForUpdate).catch(() => {});
     }
@@ -3805,6 +3816,94 @@
       btn.onclick = () => window.open(Platform.apkUrl(), "_blank");
       $("#updateBar").hidden = false;
     } catch (e) { /* offline — ask again next launch */ }
+  }
+
+  // Pull down from the top to sync. In a browser that gesture belongs to
+  // Chrome, which reloads the page, and the boot that follows is what pulls
+  // from GitHub. The app's WebView has no such gesture — and a reload would
+  // be the wrong thing to copy, since the app's files are already here. So it
+  // syncs: the same poll the interval runs, reported rather than silent.
+  //
+  // Only from the very top, only on a drag that is mostly downward (a
+  // sideways one belongs to the mode swipe), and never over a sheet, the
+  // add menu or the Recap. `html.native` turns off the WebView's own
+  // overscroll so the two don't fight over the same finger.
+  const PULL_ARM = 70, PULL_MAX = 110;
+  function wirePullToRefresh() {
+    document.documentElement.classList.add("native");
+    const ind = $("#pullRefresh");
+    let start = null, pulling = false, busy = false, dist = 0;
+    const atTop = () => (document.scrollingElement || document.documentElement).scrollTop <= 0;
+    const blocked = () => busy || isAnyModalOpen() || !$("#addMenu").hidden || !$("#recapScreen").hidden;
+    const show = (d) => {
+      ind.hidden = false;
+      ind.style.setProperty("--pull", d + "px");
+      ind.style.setProperty("--pull-turn", Math.round(d * 3) + "deg");
+      ind.classList.toggle("is-armed", d >= PULL_ARM);
+    };
+    const reset = () => {
+      ind.classList.remove("is-armed", "is-busy");
+      ind.hidden = true;
+      ind.style.removeProperty("--pull");
+      ind.style.removeProperty("--pull-turn");
+    };
+    document.addEventListener("touchstart", (e) => {
+      start = null;
+      if (e.touches.length !== 1 || blocked() || !atTop()) return;
+      start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      pulling = false;
+      dist = 0;
+    }, { passive: true });
+    document.addEventListener("touchmove", (e) => {
+      if (!start) return;
+      const dx = e.touches[0].clientX - start.x, dy = e.touches[0].clientY - start.y;
+      if (!pulling) {
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (dy <= 0 || Math.abs(dx) * 1.5 > dy || !atTop()) { start = null; return; }
+        pulling = true;
+      }
+      // Half the finger's travel, capped: the resistance is what makes it
+      // read as pulling something rather than dragging it.
+      dist = Math.min(PULL_MAX, Math.max(0, dy) * 0.5);
+      show(dist);
+    }, { passive: true });
+    document.addEventListener("touchend", async () => {
+      if (!start || !pulling) { start = null; return; }
+      start = null;
+      pulling = false;
+      if (dist < PULL_ARM) { reset(); return; }
+      busy = true;
+      show(PULL_ARM);
+      ind.classList.add("is-busy");
+      try {
+        // A floor on how long it spins, so "Up to date" doesn't arrive
+        // before the eye has registered that anything happened.
+        await Promise.all([refreshNow(), new Promise((r) => setTimeout(r, 450))]);
+      } finally {
+        busy = false;
+        reset();
+      }
+    });
+    document.addEventListener("touchcancel", () => { start = null; pulling = false; if (!busy) reset(); });
+  }
+
+  async function refreshNow() {
+    if (!Storage.githubConnected) {
+      toast("This device isn't syncing with GitHub — connect it in Settings", true);
+      return;
+    }
+    const r = await pollForUpdates();
+    if (r.outcome === "unchanged") toast("Up to date");
+    else if (r.outcome === "saved") toast("Your changes are saved to GitHub");
+    else if (r.outcome === "busy") toast("Already syncing");
+    else if (r.outcome === "failed") {
+      const p = r.problem;
+      toast(!p || p.kind === "offline"
+        ? "You're offline — changes are kept here and will sync when you're back"
+        : "Couldn't sync" + (p.detail ? " — " + p.detail : ""), true);
+      refreshStorageStatus();
+    }
+    // "merged" has already said what it merged.
   }
 
   // Android's back gesture. Left alone it leaves the app from anywhere, which

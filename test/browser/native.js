@@ -58,8 +58,8 @@ const FAKE_BRIDGE = () => {
   window.open = (url) => { window.__cap.opened.push(String(url)); return null; };
 };
 
-async function openApp(browser, { native = true, latestTag = null, cache = doc([], null), gh = null, remote = null, serviceWorkers = "block" } = {}) {
-  const ctx = await browser.newContext({ viewport: { width: 420, height: 900 }, serviceWorkers });
+async function openApp(browser, { native = true, latestTag = null, cache = doc([], null), gh = null, remote = null, serviceWorkers = "block", hasTouch = false } = {}) {
+  const ctx = await browser.newContext({ viewport: { width: 420, height: 900 }, serviceWorkers, hasTouch });
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
@@ -68,20 +68,26 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
   page.on("dialog", (d) => { dialogs.push(d.message()); d.accept(); });
   if (native) await page.addInitScript(FAKE_BRIDGE);
   await page.route("**/app-build.json", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(BUILD) }));
-  const github = { puts: [] };
+  // `remote`, `sha` and `down` can be changed mid-test to stage what the
+  // other device did, or GitHub being unreachable.
+  const github = { puts: [], remote, sha: "sha-remote", down: false, reads: 0 };
   await page.route("https://api.github.com/**", async (route) => {
     const req = route.request();
     const url = req.url();
     const say = (status, body) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
     if (/\/releases\/latest$/.test(url)) return latestTag ? say(200, { tag_name: latestTag }) : say(404, { message: "Not Found" });
+    if (github.down) return route.abort();
     if (/\/user$/.test(url)) return say(200, { login: "someone" });
     if (/\/repos\/someone\/lifelog-data$/.test(url)) return say(200, { default_branch: "main" });
     if (/\/commits/.test(url)) return say(200, []);
     if (req.method() === "PUT") {
       github.puts.push(JSON.parse(Buffer.from(JSON.parse(req.postData()).content, "base64").toString()));
-      return say(200, { content: { sha: "sha-" + github.puts.length } });
+      github.remote = github.puts[github.puts.length - 1];
+      github.sha = "sha-" + github.puts.length;
+      return say(200, { content: { sha: github.sha } });
     }
-    return remote ? say(200, { sha: "sha-remote", size: 100, encoding: "base64", content: b64(remote) }) : say(404, { message: "Not Found" });
+    github.reads++;
+    return github.remote ? say(200, { sha: github.sha, size: 100, encoding: "base64", content: b64(github.remote) }) : say(404, { message: "Not Found" });
   });
   // networkidle, not load: the first boot fetches the demo seed and caches
   // it, and under a full run that write could land after the setup below.
@@ -350,6 +356,92 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     check("with the scanner module missing, it's installed first", r.installs === 1, r);
     check("and the scan goes ahead once it has, rather than failing the first try", r.scans === 1 && r.connected, r);
     check("without leaving its progress listener behind", r.listeners === 0, r);
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 8. pull down to sync ----
+  // A browser's pull reloads the page, and the reload is what syncs. The app
+  // has no such gesture, so it has its own — which syncs rather than reloads.
+  const pull = (page, { dy = 240, dx = 0, steps = 8 } = {}) => page.evaluate(async ({ dy, dx, steps }) => {
+    const t = (x, y) => new Touch({ identifier: 1, target: document.body, clientX: x, clientY: y });
+    const fire = (type, x, y) => document.body.dispatchEvent(new TouchEvent(type, {
+      touches: type === "touchend" ? [] : [t(x, y)], changedTouches: [t(x, y)], bubbles: true, cancelable: true,
+    }));
+    const seen = [];
+    fire("touchstart", 200, 150);
+    for (let i = 1; i <= steps; i++) {
+      fire("touchmove", 200 + (dx * i) / steps, 150 + (dy * i) / steps);
+      await new Promise((r) => requestAnimationFrame(r));
+      const ind = document.querySelector("#pullRefresh");
+      seen.push({ shown: !ind.hidden, armed: ind.classList.contains("is-armed") });
+    }
+    fire("touchend", 200 + dx, 150 + dy);
+    return seen;
+  }, { dy, dx, steps });
+  const toastNow = (page) => page.evaluate(() => { const x = document.querySelector("#toast"); return x && !x.hidden ? x.textContent : ""; });
+  const connected = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branch: "main", token: "ghp_fake", sha: "sha-remote" };
+  {
+    const { page, ctx, errs: e, github } = await openApp(browser, { remote, cache: remote, gh: connected, hasTouch: true });
+    check("the app turns off the WebView's own overscroll, so the two don't fight",
+      await page.evaluate(() => getComputedStyle(document.documentElement).overscrollBehaviorY === "none"));
+
+    const seen = await pull(page);
+    check("pulling down from the top shows the indicator following the finger", seen.some((x) => x.shown), seen);
+    check("and it says when it's been pulled far enough to count", seen[seen.length - 1].armed, seen);
+    const readsBefore = github.reads;
+    await page.waitForTimeout(1200);
+    check("letting go syncs", github.reads > readsBefore, { before: readsBefore, after: github.reads });
+    check("and with nothing new, it says so rather than nothing", /Up to date/.test(await toastNow(page)), await toastNow(page));
+    check("the indicator goes away afterwards", await page.evaluate(() => document.querySelector("#pullRefresh").hidden));
+
+    // The other device saves something; the pull brings it in.
+    github.remote = doc([...remote.notes, note("n2", "Saved on the desktop a moment ago", "2026-09-23T20:00:00.000Z")], "2026-09-23T20:00:00.000Z");
+    github.sha = "sha-desktop";
+    await pull(page);
+    await page.waitForTimeout(1500);
+    check("a pull after the other device saved brings its change in",
+      /Saved on the desktop a moment ago/.test(await page.evaluate(() => document.querySelector("#viewBody").innerText)));
+    check("and says what it merged", /Merged/.test(await toastNow(page)), await toastNow(page));
+
+    // Short pulls, sideways drags and pulls from further down do nothing.
+    let r0 = github.reads;
+    await pull(page, { dy: 90 });
+    await page.waitForTimeout(700);
+    check("a short pull that never reached the mark syncs nothing", github.reads === r0, { r0, now: github.reads });
+    r0 = github.reads;
+    const side = await pull(page, { dy: 60, dx: -260 });
+    await page.waitForTimeout(700);
+    check("a sideways drag is the mode swipe's, not a pull", side.every((x) => !x.shown) && github.reads === r0, side);
+    await page.evaluate(() => { document.querySelector("#viewBody").style.minHeight = "3000px"; window.scrollTo(0, 400); });
+    r0 = github.reads;
+    const mid = await pull(page);
+    await page.waitForTimeout(700);
+    check("pulling down anywhere but the top just scrolls", mid.every((x) => !x.shown) && github.reads === r0, mid);
+    await page.evaluate(() => window.scrollTo(0, 0));
+
+    await page.click("#settingsBtn");
+    await page.waitForTimeout(300);
+    r0 = github.reads;
+    const over = await pull(page);
+    await page.waitForTimeout(700);
+    check("and a pull over an open sheet does nothing", over.every((x) => !x.shown) && github.reads === r0, over);
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+
+    github.down = true;
+    await pull(page);
+    await page.waitForTimeout(1200);
+    check("with GitHub unreachable it says so, instead of 'Up to date'",
+      /offline|Couldn't sync/.test(await toastNow(page)) && !/Up to date/.test(await toastNow(page)), await toastNow(page));
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    const { page, ctx, errs: e } = await openApp(browser, { native: false, remote, cache: remote, gh: connected, hasTouch: true });
+    const seen = await pull(page);
+    check("a browser keeps its own pull — the app's isn't added there",
+      seen.every((x) => !x.shown) && await page.evaluate(() => !document.documentElement.classList.contains("native")), seen);
     errs.push(...e);
     await ctx.close();
   }

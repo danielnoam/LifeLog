@@ -16,6 +16,21 @@ what was decided against and why.
 
 ---
 
+- **pull to refresh in the app syncs; it doesn't reload.** In Chrome the
+  gesture reloads the page, and it's the boot after the reload that pulls
+  from GitHub — so "pull to refresh" has always really meant "pull to sync".
+  The app's files are on the phone, so a reload there would only rebuild the
+  same screen. The pull runs `pollForUpdates()` and reports what happened,
+  which meant making the poll say so: it returns an outcome now, and
+  `checkRemote` stopped swallowing errors — before, a pull with GitHub
+  unreachable would have said "Up to date", the same wrong comfort the
+  status line used to give. The interval and focus callers ignore the result.
+
+  It claims a drag only once it's clearly a downward pull from the very top:
+  a sideways one belongs to the mode swipe, and one that starts lower down is
+  the page scrolling. `html.native` sets `overscroll-behavior-y: none`, or
+  the WebView's own glow answers the same finger.
+
 - **settings merge field by field.** They were one atomic blob — if both
   sides changed anything, the newer `settings.updatedAt` won wholesale —
   which was fine while settings were a sort order and a currency. They grew

@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.176.0] - 2026-09-23
+
+### Added
+- **Pull down to sync, in the Android app.** In a browser, pulling down at
+  the top reloads the page, and the reload is what fetches your other
+  device's changes. The app had no such gesture. Now pulling down from the
+  top shows an indicator that follows your finger. Let go once it has filled
+  in, and the app syncs with GitHub, then says "Up to date", what it merged,
+  or why it couldn't (offline, or GitHub's own reason). It only starts from
+  the very top, a sideways swipe still switches modes, and it does nothing
+  while a sheet is open. The browser version keeps Chrome's own pull.
+
 ## [0.175.1] - 2026-09-23
 
 ### Added

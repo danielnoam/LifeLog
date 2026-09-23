@@ -653,8 +653,11 @@
         if (!f || f.sha === gh.sha) return { changed: false };
         gh.sha = f.sha; saveGhCfg();
         return { changed: true, data: f.data };
-      } catch (e) { return null; }
+      } catch (e) { return { changed: false, error: e }; }
     },
+    // What a failure means, for callers that report one themselves (the
+    // Android app's pull to refresh). The same reading the status line uses.
+    describeError: (e) => describeGhError(e),
 
     // ---- version history (GitHub only) ----
     // Recent commits to the data file. Throws if GitHub isn't connected or the
