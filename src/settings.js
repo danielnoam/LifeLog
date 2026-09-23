@@ -69,10 +69,14 @@
       disc.hidden = false;
       const frag = Storage.setupFragment();
       if (frag) {
-        const link = location.origin + location.pathname + "#" + frag;
+        // Inside the Android app this page lives at https://localhost, which
+        // another device can't open — the link points at the web copy the
+        // app was built from instead.
+        const webUrl = window.LifeLogPlatform && window.LifeLogPlatform.webUrl();
+        const link = (webUrl || location.origin + location.pathname) + "#" + frag;
         $("#ghSetupLink").value = link;
         // warn when the current URL isn't reachable from a phone
-        const localOnly = location.protocol === "file:" || /^(localhost$|127\.|0\.0\.0\.0$|\[::1\]$)/.test(location.hostname);
+        const localOnly = !webUrl && (location.protocol === "file:" || /^(localhost$|127\.|0\.0\.0\.0$|\[::1\]$)/.test(location.hostname));
         $("#ghLocalWarn").hidden = !localOnly;
         // render QR (hidden when local-only or text too long for a v1-9 code)
         const qr = $("#ghQr");
@@ -721,6 +725,12 @@
   async function connectGithub() {
     const token = $("#ghToken").value.trim();
     if (!token) { toast("Paste your access token", true); return; }
+    // A whole setup link, pasted where the token goes. A link opens a
+    // browser, which is fine for joining in a browser and no use at all for
+    // the Android app — it has no address bar to open one in. The token box
+    // is where people already paste things, so it takes either.
+    if (Storage.hashHasSetup(token)) return connectGithubFrom(() =>
+      Storage.connectFromHash(token.slice(token.indexOf("#")), state.data), { join: true });
     // Repo is optional (Advanced); blank → owner derived from token, repo = lifelog-data.
     let owner = "", repo = "";
     const repoRaw = $("#ghRepo").value.trim();
@@ -735,10 +745,25 @@
       branch: $("#ghBranch").value.trim() || "main",
       token: token,
     };
+    return connectGithubFrom(() => Storage.connectGithub(cfg, state.data));
+  }
+
+  async function connectGithubFrom(connect, { join = false } = {}) {
     try {
       toast("Connecting to GitHub…");
-      const res = await Storage.connectGithub(cfg, state.data);
-      if (res.existed && res.data && Array.isArray(res.data.entries)) {
+      const res = await connect();
+      if (join && res && res.existed && res.data) {
+        // A setup link joins; it never asks which copy wins. The question
+        // below offers "overwrite it with this device's entries", which on a
+        // freshly installed app is zero entries and one mis-tap from wiping
+        // the synced log. Both copies are merged with no base instead, so
+        // anything either side has is kept — for a new device that is simply
+        // the remote, and for one that was used offline first it is both.
+        const merged = window.LifeLogMerge.mergeAllSources(null, state.data, normalize(res.data));
+        state.data = normalize(merged);
+        afterDataChange();
+        await persist();
+      } else if (res.existed && res.data && Array.isArray(res.data.entries)) {
         const useRemote = confirm(
           "That repo already has a log with " + res.data.entries.length + " entries.\n\n" +
           "OK = load it onto this device.\n" +

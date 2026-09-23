@@ -12,6 +12,8 @@
   const Wheel = window.LifeLogWheel;
   const Habits = window.LifeLogHabits;
   const Recap = window.LifeLogRecap;
+  // Absent only under the unit tests, which load this file without a page.
+  const Platform = window.LifeLogPlatform || { native: false, ready: Promise.resolve(null), plugin: () => null, webUrl: () => null, apkUrl: () => null };
   const MONTHS = ["", "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"];
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -115,7 +117,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.173.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.174.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3771,9 +3773,53 @@
     Sync.maybeAutoCheckAniList(); // same — quiet background check, never blocks startup
     Sync.maybeAutoRefreshReleases(); // same — keeps upcoming release dates current in the background
 
-    if ("serviceWorker" in navigator) {
+    if (Platform.native) {
+      // The app's files are already on the device; a worker would only be a
+      // second cache of them, and its "new version" isn't the app's.
+      checkForNewerApp();
+      wireBackButton();
+    } else if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").then(watchForUpdate).catch(() => {});
     }
+  }
+
+  // ---------- the Android app ----------
+  // A newer build is a newer APK on the repo's Releases page, tagged
+  // app-v<APP_VERSION> by .github/workflows/android.yml. Asked once per launch:
+  // unauthenticated, because the Releases of the repo that built this app are
+  // public, and the token this device holds is for the data repo, not this
+  // one. The same bar the browser uses, saying the one thing that differs.
+  async function checkForNewerApp() {
+    const build = await Platform.ready;
+    if (!build || !build.repo) return;
+    try {
+      const r = await fetch("https://api.github.com/repos/" + build.repo + "/releases/latest", { cache: "no-store" });
+      if (!r.ok) return;
+      const tag = String((await r.json()).tag_name || "");
+      const latest = tag.replace(/^app-v/, "");
+      if (!/^\d+\.\d+\.\d+$/.test(latest) || latest === APP_VERSION) return;
+      if (window.LifeLogMerge.maxVersion(latest, APP_VERSION) !== latest) return;
+      $("#updateBarText").textContent = "LifeLog " + latest + " is out";
+      const btn = $("#updateReloadBtn");
+      btn.textContent = "Download";
+      btn.onclick = () => window.open(Platform.apkUrl(), "_blank");
+      $("#updateBar").hidden = false;
+    } catch (e) { /* offline — ask again next launch */ }
+  }
+
+  // Android's back gesture. Left alone it leaves the app from anywhere, which
+  // is not what back means with a sheet open: there it closes the sheet, the
+  // way Escape does on a keyboard — so it *is* Escape, and every close path
+  // Escape already knows about comes with it. With nothing open it puts the
+  // app away rather than killing it, the way back does on a home screen.
+  function wireBackButton() {
+    const App = Platform.plugin("App");
+    if (!App) return;
+    App.addListener("backButton", () => {
+      const somethingOpen = isAnyModalOpen() || !$("#addMenu").hidden || !$("#recapScreen").hidden;
+      if (somethingOpen) document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      else App.minimizeApp();
+    });
   }
 
   // The service worker serves this app's own files from cache first and

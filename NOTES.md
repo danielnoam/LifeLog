@@ -16,6 +16,55 @@ what was decided against and why.
 
 ---
 
+- **the Android app is the same files, bundled, not a thin shell over
+  Pages.** Two shapes were on the table. Loading the Pages site inside the
+  shell keeps today's update path — a push reaches the phone on its next
+  launch — but the first launch needs a connection, Capacitor doesn't
+  support a remote `server.url` for release builds, and it gets fragile on
+  iOS. Bundling makes the app open instantly and offline like any other app,
+  at the cost that a change reaches the phone only as a new APK. That cost
+  is paid down rather than accepted: every version bump on `main` publishes
+  a release, and the app asks the Releases API about it on launch.
+
+  What differs between the two homes lives in `src/platform.js` and nowhere
+  else: no service worker in the app (its files are already on the device,
+  and a worker's "new version" wouldn't be the app's), the update bar
+  offering a download instead of a reload, and setup links pointing at the
+  web copy because the app's own origin is `https://localhost`.
+
+  **`sw.js`'s `ASSETS` is the one list of what the app is made of.** The
+  browser's offline cache is built from it and so is the APK's bundle, and
+  `tools/build-www.js` fails if `index.html` loads anything the list is
+  missing — a file that falls off it is now a failed build rather than an app
+  that 404s on its own script offline.
+
+  **Signing is the part that can't be fixed later.** Android installs an
+  update only over an app signed with the same key. CI runners make a fresh
+  debug key every time, so an APK signed that way installs once and then
+  refuses every update — and uninstalling to get past that wipes the app's
+  local copy. Releases are signed with a key held in repository secrets, and
+  without them the workflow still builds a test APK but will not publish it:
+  a throwaway-signed release would be the one every later update can't
+  install over. For the same reason `versionCode` comes from `APP_VERSION`
+  (major·1e6 + minor·1e3 + patch) instead of the template's constant 1.
+
+  **Joining by link merges; it never asks which copy wins.** Settings'
+  connect flow asks "load it, or overwrite it with this device's N
+  entries?". On a freshly installed app N is zero, and the question is one
+  mis-tap from wiping the synced log. A pasted setup link merges both copies
+  with no base, so each side keeps everything it has. test/browser/native.js
+  shows the old prompt's exact text when the merge is removed.
+
+  **What the tests can't cover.** There's no Android in this environment, so
+  test/browser/native.js fakes the bridge the way Capacitor presents it and
+  checks what the page decides for itself. Whether Android's WebView agrees —
+  status-bar colours, `target="_blank"` links opening outside, the back
+  gesture reaching the listener — is the first real launch's job. One known
+  gap: the status bar follows the phone's light/dark setting, not LifeLog's
+  theme. Matching it means going edge-to-edge (`viewport-fit=cover` plus
+  safe-area padding), which changes the web layout too, and wasn't worth
+  doing blind.
+
 - **sync broke at 1MB, and the app spent the whole time saying the wrong
   thing about it.** GitHub's contents endpoint carries a file's bytes up to
   1MB; between 1 and 100MB it answers with the metadata, `content: ""` and

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.173.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.174.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -967,8 +967,8 @@
             <li><a href="https://github.com/settings/tokens/new?description=LifeLog&amp;scopes=repo" target="_blank" rel="noopener">Create a GitHub token →</a>, click <strong>Generate token</strong>, and copy it.</li>
             <li>Paste it below and press <strong>Connect</strong> — a private data repo is created for you automatically.</li>
           </ol>
-          <label>Access token
-            <input id="ghToken" type="password" placeholder="ghp_… or github_pat_…" autocomplete="off" spellcheck="false" />
+          <label>Access token <span class="muted">— or a setup link from a device that's already connected</span>
+            <input id="ghToken" type="password" placeholder="ghp_… or github_pat_… or a setup link" autocomplete="off" spellcheck="false" />
           </label>
           <details class="gh-advanced">
             <summary>Advanced</summary>
@@ -1509,29 +1509,30 @@
        predict — which is how a device ends up quietly running months-old
        code against newer data. -->
   <div id="updateBar" class="update-bar" hidden>
-    <span>New version ready</span>
+    <span id="updateBarText">New version ready</span>
     <button type="button" class="btn btn-sm" id="updateReloadBtn">Reload</button>
   </div>
 
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.173.1"></script>
-  <script defer src="src/qr.js?v=0.173.1"></script>
-  <script defer src="src/media.js?v=0.173.1"></script>
-  <script defer src="src/merge.js?v=0.173.1"></script>
-  <script defer src="src/storage.js?v=0.173.1"></script>
-  <script defer src="src/finance.js?v=0.173.1"></script>
-  <script defer src="src/settings.js?v=0.173.1"></script>
-  <script defer src="src/wheel.js?v=0.173.1"></script>
-  <script defer src="src/backlog.js?v=0.173.1"></script>
-  <script defer src="src/journal.js?v=0.173.1"></script>
-  <script defer src="src/notes.js?v=0.173.1"></script>
-  <script defer src="src/todos.js?v=0.173.1"></script>
-  <script defer src="src/io.js?v=0.173.1"></script>
-  <script defer src="src/sync.js?v=0.173.1"></script>
-  <script defer src="src/habits.js?v=0.173.1"></script>
-  <script defer src="src/recap.js?v=0.173.1"></script>
-  <script defer src="src/app.js?v=0.173.1"></script>
+  <script defer src="src/platform.js?v=0.174.0"></script>
+  <script defer src="src/reconcile.js?v=0.174.0"></script>
+  <script defer src="src/qr.js?v=0.174.0"></script>
+  <script defer src="src/media.js?v=0.174.0"></script>
+  <script defer src="src/merge.js?v=0.174.0"></script>
+  <script defer src="src/storage.js?v=0.174.0"></script>
+  <script defer src="src/finance.js?v=0.174.0"></script>
+  <script defer src="src/settings.js?v=0.174.0"></script>
+  <script defer src="src/wheel.js?v=0.174.0"></script>
+  <script defer src="src/backlog.js?v=0.174.0"></script>
+  <script defer src="src/journal.js?v=0.174.0"></script>
+  <script defer src="src/notes.js?v=0.174.0"></script>
+  <script defer src="src/todos.js?v=0.174.0"></script>
+  <script defer src="src/io.js?v=0.174.0"></script>
+  <script defer src="src/sync.js?v=0.174.0"></script>
+  <script defer src="src/habits.js?v=0.174.0"></script>
+  <script defer src="src/recap.js?v=0.174.0"></script>
+  <script defer src="src/app.js?v=0.174.0"></script>
 </body>
 </html>

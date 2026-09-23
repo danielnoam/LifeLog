@@ -34,6 +34,29 @@ neither (browser-only) and use **Export JSON / Export CSV** for manual backups.
 
 Your original Google Sheet is never touched.
 
+## The Android app
+
+The same files, built into an APK by
+[Capacitor](https://capacitorjs.com). The web version is unaffected: it
+doesn't load or depend on anything the app build adds.
+
+- **Getting it:** open the repo's **Releases** page on the phone, download
+  `LifeLog.apk`, and allow your browser to install apps the first time it
+  asks. Connect sync by pasting a **setup link** from another device into
+  **Settings → Access token**.
+- **Updates:** the app checks for a newer release each time it opens and
+  offers it. Updates install over the top and keep your data.
+- **How it's built:** `.github/workflows/android.yml`, on every push to
+  `main`. `tools/build-www.js` copies the files in `sw.js`'s `ASSETS` list
+  into `www/`, Capacitor wraps them, and a release `app-v<version>` is
+  published whenever `APP_VERSION` is new.
+- **Signing:** Android only installs an update over an app signed with the
+  same key, so releases are signed with a key held in two repository
+  secrets, `ANDROID_KEYSTORE_B64` and `ANDROID_KEYSTORE_PASSWORD` (alias
+  `lifelog`). Without them CI still builds a test APK but publishes nothing.
+- **Building locally** (needs the Android SDK): `npm install`,
+  `npm run android:sync`, then open `android/` in Android Studio.
+
 ## Use it on your phone
 
 The app is an installable **PWA** (manifest + service worker), so once it's

@@ -1,0 +1,15 @@
+{
+  "name": "lifelog",
+  "private": true,
+  "description": "LifeLog's native builds. The web app itself has no build step and doesn't depend on anything here.",
+  "scripts": {
+    "build:www": "node tools/build-www.js",
+    "android:sync": "node tools/build-www.js && npx cap sync android"
+  },
+  "devDependencies": {
+    "@capacitor/android": "8.5.2",
+    "@capacitor/app": "8.1.1",
+    "@capacitor/cli": "8.5.2",
+    "@capacitor/core": "8.5.2"
+  }
+}

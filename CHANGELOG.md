@@ -4,6 +4,31 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.174.0] - 2026-09-23
+
+### Added
+- **LifeLog for Android.** The same app, as an APK you install on your
+  phone. It's built from exactly the same files as the web version, which
+  keeps working as it always has. Every time the version number changes, a
+  new APK is built automatically and published on the repository's Releases
+  page.
+- **The app tells you when there's a newer one.** It checks once each
+  time it opens and offers a Download button. The new APK installs over the
+  old one and keeps your data.
+- **Android's back gesture closes what's open first** — a sheet, the add
+  menu, the Recap — and only puts the app away when nothing is.
+- **A setup link can be pasted where the token goes.** A setup link opens
+  a browser, which is no use for joining from the app, so the access-token
+  box in Settings now takes either. Joining by link never asks which copy
+  should win: both are merged and nothing on either side is lost. (The old
+  question offered to "overwrite it with this device's entries", which on a
+  freshly installed app meant zero entries.)
+
+### Changed
+- Inside the app, "Add another device" makes a link to the web version rather
+  than to the app's own internal address, so it works on the device you
+  send it to.
+
 ## [0.173.1] - 2026-09-23
 
 ### Fixed

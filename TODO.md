@@ -32,6 +32,24 @@ todo:
   may rely on the save having happened when the promise resolves, so it
   wants its own change rather than riding along with a fix.
 
+  **The Android app, after its first real launch.** 0.174.0 is tested
+  against a faked bridge only (see NOTES.md). Things to look at on a phone:
+  links with `target="_blank"` (the token page, release notes) should open
+  in the browser rather than inside the app; the back gesture; the status
+  bar. The status bar follows the phone's light/dark setting rather than
+  LifeLog's theme, and matching it means edge-to-edge (`viewport-fit=cover`
+  and safe-area padding), which changes the web layout too.
+
+  **What the app could do that a browser can't**, in the order it's worth
+  doing: native HTTP (`CapacitorHttp` — Steam without the proxy), a real
+  file backup on the phone (the Filesystem plugin as a fourth backend in
+  storage.js), and a home-screen widget for ticking habits, which is the one
+  thing a browser can never do.
+
+  **iOS.** The same wrapper, plus $99/year for Apple's developer program and
+  a macOS build job. Until there's a native feature worth that, iOS stays on
+  Safari's Add to Home Screen, which already works.
+
   What was decided against outright is in DROPPED.md: reminders, and habits
   feeding the to-do list. A habits tab of its own is there too, now that it
   has been tried.

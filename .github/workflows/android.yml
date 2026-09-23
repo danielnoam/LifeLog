@@ -1,0 +1,93 @@
+# Builds the Android app from the same files GitHub Pages serves, and
+# publishes it as a release when APP_VERSION is new. See NOTES.md ("the
+# Android app") for why it is bundled rather than loaded from Pages.
+name: Android app
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths-ignore: ["**.md", "test/**", ".claude/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: android-actions/setup-android@v3
+
+      - run: npm ci
+
+      - name: Bundle the web app
+        run: node tools/build-www.js
+
+      - name: Generate the Android project
+        run: npx cap add android
+
+      - name: Icon and splash
+        run: >-
+          npx --yes @capacitor/assets@3 generate --android
+          --iconBackgroundColor '#11141a' --iconBackgroundColorDark '#11141a'
+          --splashBackgroundColor '#11141a' --splashBackgroundColorDark '#11141a'
+
+      - name: Stamp the version
+        id: v
+        run: |
+          node tools/android-version.js
+          echo "version=$(node -p "require('./tools/build-www').appVersion()")" >> "$GITHUB_OUTPUT"
+
+      - run: npx cap sync android
+
+      - name: Build
+        working-directory: android
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Sign
+        id: sign
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: bash tools/sign-apk.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LifeLog-${{ steps.v.outputs.version }}${{ steps.sign.outputs.signed == 'true' && '' || '-unsigned-key' }}
+          path: LifeLog.apk
+
+      # Only from main, only with the real key, and only once per version: the
+      # app looks for releases/latest/download/LifeLog.apk, and each one has to
+      # install over the last.
+      - name: Publish the release
+        if: github.ref == 'refs/heads/main' && steps.sign.outputs.signed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.v.outputs.version }}
+        run: |
+          if gh release view "app-v$V" >/dev/null 2>&1; then
+            echo "app-v$V is already released"; exit 0
+          fi
+          awk -v v="$V" '$0 ~ "^## \\[" v "\\]" {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > notes.md
+          {
+            echo
+            echo "---"
+            echo "**Installing:** open this page on your phone, tap **LifeLog.apk**, and allow your browser to install apps the first time it asks. Updates install over the top and keep your data."
+          } >> notes.md
+          gh release create "app-v$V" LifeLog.apk --title "LifeLog $V" --notes-file notes.md

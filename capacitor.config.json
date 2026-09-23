@@ -1,0 +1,14 @@
+{
+  "appId": "io.github.danielnoam.lifelog",
+  "appName": "LifeLog",
+  "webDir": "www",
+  "backgroundColor": "#11141a",
+  "android": {
+    "backgroundColor": "#11141a"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css"
+    }
+  }
+}

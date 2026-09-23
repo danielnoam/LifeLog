@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- icon.svg's mark without its tile: Android draws the tile itself
+       (an adaptive icon's background layer), in the same #11141a. -->
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#3bb2e2" stroke-width="22"/>
+  <path d="M256 150 L300 256 L256 362 L212 256 Z" fill="#3bb2e2"/>
+</svg>

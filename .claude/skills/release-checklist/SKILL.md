@@ -33,6 +33,12 @@ don't open a PR with any step skipped.
   `app.js?v=…` stays in the user's cache storage forever.
 - If a release adds or removes a file under `src/`, add or remove it in
   `sw.js`'s `ASSETS` list too, or it won't be precached for offline use.
+  That list is also exactly what goes into the Android app
+  (`tools/build-www.js`), and the app build fails if `index.html` loads
+  anything the list is missing.
+- Changing `APP_VERSION` on `main` publishes a new Android release
+  (`app-v<version>`) — the workflow skips versions already released, so a
+  push without a bump rebuilds but publishes nothing.
 
 ## 2. Update CHANGELOG.md
 
