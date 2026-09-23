@@ -4,6 +4,26 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.173.1] - 2026-09-23
+
+### Fixed
+- **Sync stopped working once your data file grew past 1MB.** GitHub's API
+  only sends a file's contents up to 1MB; above that it sends an empty
+  field, and the app tried to read the empty field as your data. From then on
+  every read failed. The status line said "unsynced changes, will sync when
+  online" while you were online, a save made after your other device had
+  saved could never get through, and a setup link on a new device failed
+  with "Unexpected end of JSON input". Large files are now read in full (up
+  to GitHub's 100MB limit), and a stuck device catches up the next time it
+  opens: it merges what the other device saved and pushes the result.
+- **The status line says what actually went wrong.** It used to have two
+  stories — "GitHub rejected your token" for any 401/403, and "will sync when
+  online" for everything else. Now a rate limit says GitHub is limiting saves
+  for a minute (it used to say your token was rejected), a GitHub error says
+  "Not syncing — " with GitHub's own reason, and only an actual lack of a
+  connection is called being offline. The startup toast follows the same
+  rules.
+
 ## [0.173.0] - 2026-09-23
 
 ### Added

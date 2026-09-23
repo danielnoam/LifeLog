@@ -115,7 +115,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.173.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.173.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2712,8 +2712,8 @@
     // there, because it never will until the token is fixed, leaving the user
     // to believe their data is safely synced when it only lives in this browser.
     // Any other failure (offline, 5xx, network) stays transient/retryable.
-    const ghErr = ghOn ? Storage.githubError : null;
-    const ghAuthFailed = ghErr && (ghErr.status === 401 || ghErr.status === 403);
+    const problem = ghOn ? Storage.githubProblem : null;
+    const ghAuthFailed = problem && problem.kind === "auth";
     // Order is by how badly each one is failing right now: a rejected token
     // means nothing is reaching GitHub at all, which beats being a version
     // behind (still saving, still merging, just can't render what it doesn't
@@ -2729,6 +2729,15 @@
       // that has to survive the cut. The full story is in the toast and in
       // Settings, which tapping the line opens.
       txt = `Update this device — your data is on v${behind}`;
+    } else if (problem && problem.kind === "ratelimit") {
+      // Fixes itself; the next save goes through once GitHub lets it.
+      cls = "storage-status pending";
+      txt = "GitHub is limiting saves for a minute — changes are kept here and will sync";
+    } else if (problem && (problem.kind === "server" || problem.kind === "other")) {
+      // Not offline, and saying so is what made this undiagnosable: the
+      // reason is known, so it goes on the line.
+      cls = "storage-status error";
+      txt = "Not syncing — " + (problem.detail || "GitHub refused the save") + ". Changes are kept on this device.";
     } else if (state.pendingSync && (ghOn || fileOn)) {
       cls = "storage-status pending";
       txt += " — unsynced changes, will sync when online";
@@ -2925,7 +2934,10 @@
       toast(summary ? "Merged " + summary + " from your other device"
         : "Updated from your other device");
     } else if (Storage.githubConnected && !Storage.githubReadOk) {
-      toast("Offline — showing last saved copy; will sync when GitHub is reachable", true);
+      const p = Storage.githubProblem;
+      toast(!p || p.kind === "offline"
+        ? "Offline — showing last saved copy; will sync when GitHub is reachable"
+        : "Couldn't read from GitHub" + (p.detail ? " — " + p.detail : "") + ". Showing this device's copy.", true);
     }
   }
 

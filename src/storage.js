@@ -196,15 +196,45 @@
     return `${API}/repos/${gh.owner}/${gh.repo}/contents/${gh.path}`;
   }
 
-  function ghErr(status, text) {
-    const e = new Error("GitHub " + status + ": " + text.slice(0, 200));
-    e.status = status; return e;
+  // Every GitHub failure carries a kind, because the status line has to say
+  // something true about it. Until 0.173.1 there were two stories: a 401/403
+  // was "GitHub rejected your token", and anything else was "will sync when
+  // online". Neither is true of a rate limit (a 403 that fixes itself in a
+  // minute), and the second is not true of anything except being offline — a
+  // data file that had grown past 1MB failed every read, said "offline" to
+  // someone who was online, and never recovered.
+  function ghErr(status, text, response) {
+    let message = "";
+    try { message = JSON.parse(text).message || ""; } catch (e) { message = String(text || ""); }
+    const e = new Error("GitHub " + status + ": " + String(text || "").slice(0, 200));
+    e.status = status;
+    e.detail = message.slice(0, 160);
+    const limited = /rate limit/i.test(message) ||
+      (response && response.headers && response.headers.get("x-ratelimit-remaining") === "0");
+    e.kind = status === 401 ? "auth"
+      : (status === 403 || status === 429) ? (limited ? "ratelimit" : "auth")
+      : status >= 500 ? "server"
+      : "other";
+    return e;
+  }
+
+  // What went wrong, in terms the status line can act on. A fetch that never
+  // reached GitHub throws a TypeError before any status exists — that, and
+  // only that, is "offline".
+  function describeGhError(e) {
+    if (!e) return null;
+    if (e.kind) return { kind: e.kind, detail: e.detail || "" };
+    if (e instanceof TypeError || (typeof navigator !== "undefined" && navigator.onLine === false)) {
+      return { kind: "offline", detail: "" };
+    }
+    if (e instanceof SyntaxError) return { kind: "other", detail: "GitHub sent back something that isn't your data" };
+    return { kind: "other", detail: String(e.message || e).slice(0, 160) };
   }
 
   // The login the token belongs to (so the user only has to supply a token).
   async function ghWhoAmI() {
     const r = await fetch(API + "/user", { headers: ghHeaders(), cache: "no-store" });
-    if (!r.ok) throw ghErr(r.status, await r.text());
+    if (!r.ok) throw ghErr(r.status, await r.text(), r);
     return (await r.json()).login;
   }
 
@@ -215,29 +245,53 @@
       headers: ghHeaders(), cache: "no-store",
     });
     if (r.ok) return gh.branch;
-    if (r.status !== 404) throw ghErr(r.status, await r.text());
+    if (r.status !== 404) throw ghErr(r.status, await r.text(), r);
     const cr = await fetch(API + "/user/repos", {
       method: "POST",
       headers: Object.assign({ "Content-Type": "application/json" }, ghHeaders()),
       body: JSON.stringify({ name: gh.repo, private: true, auto_init: true, description: "LifeLog data" }),
     });
-    if (!cr.ok) throw ghErr(cr.status, await cr.text());
+    if (!cr.ok) throw ghErr(cr.status, await cr.text(), cr);
     const created = await cr.json();
     return created.default_branch || gh.branch; // honour main/master the repo actually used
   }
 
-  // Returns { data, sha } or null if the file doesn't exist yet.
-  async function ghGetFile() {
-    const r = await fetch(ghContentsUrl() + "?ref=" + encodeURIComponent(gh.branch), {
-      headers: ghHeaders(), cache: "no-store",
+  // Returns { data, sha } or null if the file doesn't exist yet. `ref` is a
+  // branch or a commit; the branch by default.
+  //
+  // The contents endpoint only carries a file's bytes up to 1MB. Between 1
+  // and 100MB it answers with the metadata and an empty `content` with
+  // `encoding: "none"`, and the bytes are only reachable as the git blob the
+  // sha names. A LifeLog with a few years of entries, a Steam backlog and a
+  // finance history crosses 1MB pretty-printed, and from then on every read
+  // failed: JSON.parse("") on the empty field. The blob is fetched by the sha
+  // from the same answer, so the data and the sha a later save writes against
+  // can't come from two different versions of the file.
+  async function ghGetFile(ref) {
+    const r = await fetch(ghContentsUrl() + "?ref=" + encodeURIComponent(ref || gh.branch), {
+      // Asked for explicitly: "object" is the type documented to answer large
+      // files with metadata rather than a refusal.
+      headers: Object.assign(ghHeaders(), { "Accept": "application/vnd.github.object+json" }),
+      cache: "no-store",
     });
     if (r.status === 404) return null;
-    if (!r.ok) {
-      const err = new Error("GitHub " + r.status + ": " + (await r.text()).slice(0, 200));
-      err.status = r.status; throw err;
-    }
+    if (!r.ok) throw ghErr(r.status, await r.text(), r);
     const j = await r.json();
-    return { data: JSON.parse(b64decode(j.content)), sha: j.sha };
+    if (j.size === 0) return null; // an empty file holds nothing to merge
+    // The content when it came, the blob when it didn't. Keyed on the content
+    // itself rather than `encoding`, so an answer that leaves the field out
+    // isn't mistaken for a large file.
+    const b64 = j.content ? j.content : await ghGetBlob(j.sha);
+    return { data: JSON.parse(b64decode(b64)), sha: j.sha };
+  }
+
+  async function ghGetBlob(sha) {
+    const r = await fetch(`${API}/repos/${gh.owner}/${gh.repo}/git/blobs/${encodeURIComponent(sha)}`, {
+      headers: ghHeaders(), cache: "no-store",
+    });
+    if (!r.ok) throw ghErr(r.status, await r.text(), r);
+    const j = await r.json();
+    return j.content;
   }
 
   // One retry on a transient failure. A single blip on the load fetch was
@@ -249,7 +303,8 @@
     try {
       return await ghGetFile();
     } catch (e) {
-      if (e && (e.status === 401 || e.status === 403)) throw e;
+      // Neither a rejected token nor a rate limit gets better in a second.
+      if (e && (e.kind === "auth" || e.kind === "ratelimit")) throw e;
       return await ghGetFile();
     }
   }
@@ -260,7 +315,7 @@
     const url = `${API}/repos/${gh.owner}/${gh.repo}/commits` +
       `?path=${encodeURIComponent(gh.path)}&sha=${encodeURIComponent(gh.branch)}&per_page=20`;
     const r = await fetch(url, { headers: ghHeaders(), cache: "no-store" });
-    if (!r.ok) throw ghErr(r.status, await r.text());
+    if (!r.ok) throw ghErr(r.status, await r.text(), r);
     const j = await r.json();
     return j.map((c) => ({
       sha: c.sha,
@@ -269,17 +324,10 @@
     }));
   }
 
-  // Historical content of the data file at a specific commit. Same shape as
-  // ghGetFile() (data, sha) but addressed by commit sha instead of the branch tip.
-  async function ghGetFileAtRef(ref) {
-    const r = await fetch(ghContentsUrl() + "?ref=" + encodeURIComponent(ref), {
-      headers: ghHeaders(), cache: "no-store",
-    });
-    if (r.status === 404) return null;
-    if (!r.ok) throw ghErr(r.status, await r.text());
-    const j = await r.json();
-    return { data: JSON.parse(b64decode(j.content)), sha: j.sha };
-  }
+  // Historical content of the data file at a specific commit — ghGetFile at
+  // a ref, including its large-file path: a restore is exactly the moment an
+  // old version is needed, and a file past 1MB now is one past 1MB then.
+  const ghGetFileAtRef = (ref) => ghGetFile(ref);
 
   async function ghPut(data, sha) {
     const body = {
@@ -293,10 +341,7 @@
       headers: Object.assign({ "Content-Type": "application/json" }, ghHeaders()),
       body: JSON.stringify(body),
     });
-    if (!r.ok) {
-      const err = new Error("GitHub " + r.status + ": " + (await r.text()).slice(0, 200));
-      err.status = r.status; throw err;
-    }
+    if (!r.ok) throw ghErr(r.status, await r.text(), r);
     const j = await r.json();
     return j.content.sha;
   }
@@ -326,6 +371,7 @@
     get fileConnected() { return !!(handle && !needsReconnect); },
     get githubConnected() { return !!(gh && gh.token); },
     get githubError() { return githubError; },
+    get githubProblem() { return describeGhError(githubError); },
     get githubReadOk() { return githubReadOk; },
     // public github info without exposing the token
     get githubInfo() {

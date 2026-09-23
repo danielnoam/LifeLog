@@ -16,6 +16,39 @@ what was decided against and why.
 
 ---
 
+- **sync broke at 1MB, and the app spent the whole time saying the wrong
+  thing about it.** GitHub's contents endpoint carries a file's bytes up to
+  1MB; between 1 and 100MB it answers with the metadata, `content: ""` and
+  `encoding: "none"`. `ghGetFile` ran `JSON.parse(b64decode(j.content))` on
+  that and threw "Unexpected end of JSON input". A single device keeps
+  working — its PUTs carry the sha it last wrote, so they land without ever
+  reading — which is how the file got past 1MB in the first place. The
+  moment a second device saves, the first one's sha is stale, the 409
+  recovery path reads the file to get the current sha, and that read is the
+  one that fails. From there it never recovers.
+
+  The fix reads with the `object` media type, and when the content isn't in
+  the answer, fetches `/git/blobs/{sha}` for the sha that same answer named
+  — so the data merged and the sha the next save writes against can't be
+  from two different versions of the file. History restores go through the
+  same function, since a file past 1MB now was probably past it then.
+
+  **The report was "sync is not working, I'm not sure why".** The app knew
+  why. It had exactly two stories: a 401 or 403 was "GitHub rejected your
+  token", and anything else was "will sync when online". The first is false
+  for a secondary rate limit (a 403 that fixes itself in a minute, and easy
+  to hit now that ticking habit cells is one commit per tap). The second is
+  false for everything except being offline, and it was what the screen said
+  here. Errors now carry a `kind` — auth, ratelimit, server, other, offline —
+  and only a fetch that never reached GitHub is called offline. The
+  diagnosis took a mocked GitHub reproducing the exact line on the user's
+  screen; the next one should take reading the line.
+
+  test/browser/ghlarge.js runs against a small fake GitHub that behaves like
+  the real one where it matters — large files come back empty, blobs come
+  back by sha, a stale-sha PUT is a 409 — and on the old code it reproduces
+  both messages the user sent, word for word.
+
 - **a control that works and is useless is a thing tests will happily confirm.**
   0.172.0 gave the habit grid arrows that moved one week per press. Every
   assertion about them passed: they appeared only when there was somewhere to

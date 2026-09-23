@@ -82,9 +82,14 @@ const boot = async (page, mode) => {
   check("and it ends up reaching GitHub", r.readOk === true, r);
 
   // ---- genuinely unreachable: the warning must still fire ----
+  // A GitHub answering 500 twice. Until 0.173.1 the warning here said
+  // "Offline", which is what made a data file past 1MB undiagnosable: every
+  // failure that reached GitHub was reported as not having reached it. It
+  // still warns; it now says what happened.
   await page.evaluate(() => { document.querySelectorAll(".toast, #toast").forEach((t) => t.remove()); });
   r = await boot(page, "down");
-  check("a GitHub that stays down still warns", offlineToast(r), r.toasts);
+  check("a GitHub that stays down still warns, and doesn't call it being offline",
+    r.toasts.some((t) => /Couldn't read from GitHub/.test(t)) && !offlineToast(r), r.toasts);
   check("and says so rather than claiming it was reached", r.readOk === false, r);
 
   // ---- a rejected token is a decision, not a blip ----
