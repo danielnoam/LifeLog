@@ -100,6 +100,29 @@ todo:
     otherwise.
   - Quick-add opens the app on the right sheet; that's the easy half.
 
+- **Pull to refresh should move the page, not show an icon.** 0.176.0's
+  pull works, but it draws a circle that drops in over the top bar, and
+  that's not what a pull looks like in the browser. There, the page itself
+  follows the finger down and springs back. Wanted: no indicator at all; the
+  view moves down with the pull (with resistance) and eases back when you let
+  go, and syncing shows in the status line under the title ("Syncing…" and
+  then the result, which `setSyncing` already does) rather than in a floating
+  badge. Two ways to get there, cheapest first:
+  - Let Android do it. Android 12+ draws its own *stretch* overscroll on a
+    WebView, which is the native version of exactly this. 0.176.0 turned it
+    off (`overscroll-behavior-y: none` on `html.native`) so it wouldn't fight
+    the circle. Turn it back on, keep the touch listeners only to decide
+    whether the pull went far enough, and the look comes from the system for
+    free. Check how it feels on a real phone first: the stretch distance and
+    our threshold have to agree, or it syncs on a pull that barely moved.
+  - Or move it ourselves. Translate the page below the top bar by the pull
+    distance, and spring it back with the same easing the mode swipe uses.
+    Full control, but it's one more thing moving the same content the mode
+    swipe moves, so the two have to share rather than both writing
+    `transform`.
+  Either way the "Up to date" / "Merged …" / "Couldn't sync" messages stay;
+  only the circle goes.
+
 - **Habit reminders — Android app only.** Dropped in 0.171.0 (see git
   history of DROPPED.md) because a *browser* can't do them well: a service
   worker waking on a schedule, permission prompts, an iOS story that
