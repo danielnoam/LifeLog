@@ -100,6 +100,24 @@ todo:
     otherwise.
   - Quick-add opens the app on the right sheet; that's the easy half.
 
+- **Pull to refresh in the Android app.** In a browser, pulling down at the
+  top of the page is Chrome's own gesture: it reloads the page, and the boot
+  that follows pulls from GitHub. The app's WebView has no such gesture, so
+  there's no way to say "sync now". A reload would be the wrong thing to copy
+  anyway, since the app's files are already on the phone. What the pull
+  should do is sync: `pollForUpdates()` (plus `retrySync()` if a save is
+  pending), with an indicator that follows the finger, then a short "Up to
+  date" or "Merged …" when it lands. Build it in JS and only in the app
+  (`Platform.native`):
+  - Only from the very top (`scrollY === 0`) and only on a mostly vertical
+    drag, so it can't fight the horizontal mode swipe, and never while a
+    sheet or the Recap is open.
+  - It needs `overscroll-behavior-y: contain` or the WebView's own overscroll
+    glow will fight it.
+  - The app already syncs when it comes back to the foreground (the
+    `visibilitychange` handler) and polls on the interval, so this is for the
+    moment you *know* the other device just saved, not a gap in syncing.
+
 - **Habit reminders — Android app only.** Dropped in 0.171.0 (see git
   history of DROPPED.md) because a *browser* can't do them well: a service
   worker waking on a schedule, permission prompts, an iOS story that
