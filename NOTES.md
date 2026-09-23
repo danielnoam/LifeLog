@@ -16,6 +16,59 @@ what was decided against and why.
 
 ---
 
+- **a control that works and is useless is a thing tests will happily confirm.**
+  0.172.0 gave the habit grid arrows that moved one week per press. Every
+  assertion about them passed: they appeared only when there was somewhere to
+  go, they stopped at the habit's start, the window label was right. The test
+  that reached a day four months back clicked twenty-five times in a loop and
+  called that a pass, because what it asserted was `clicks < 25` — a loop
+  bound written to keep the test from hanging, sitting exactly where the
+  complaint should have been. A press is now a whole window, the way a
+  calendar pages by month, and the assertion is `clicks === 1`.
+
+  The general form: a bound you wrote to stop a test spinning is not a
+  statement about the product, and it will sit there looking like one.
+
+- **the offer moved out of `confirm()` and into the modal.** Three things were
+  wrong with asking after Save. You met the question having already committed
+  to it; "no" was final, because the offer only fired on a date change; and a
+  native dialog is the one surface in this app that can't say "60 days (3×
+  each)" and let you look at it. A checkbox next to the field it is about says
+  the same thing before the fact and can be unticked. The app still doesn't
+  get to decide you kept a habit — the box starts empty.
+
+  What did not move: `confirm()` is still right for deleting a habit. The
+  difference is that deleting is a yes/no about something you already did,
+  and backfilling is a claim about the past that you might want to look at
+  first.
+
+- **held-then-tapped, not dragged, for filling a run.** Dragging across the
+  grid is the obvious gesture and it was the wrong one: it needs
+  `touch-action: none` over the grid, the grid is more than half the height
+  of every card, and that is the surface you scroll the list with. Holding one
+  end and tapping the other costs one extra tap, works identically on touch
+  and desktop, and leaves scrolling alone. Shift-click is the mouse shortcut.
+
+  The subtle part is the click the browser sends *after* a long press. A
+  boolean flag ("swallow the next click") doesn't work, because setting the
+  anchor repaints the grid: the click may land on a replaced node, on nothing,
+  or — on touch — never arrive, and a flag left standing then swallows the
+  next real tap, which is the one choosing the other end. The anchor carries a
+  `performance.now()` stamp instead and ignores clicks for 350ms. It is
+  `performance.now()` rather than `Date.now()` because the browser suites
+  freeze `Date`, and a frozen clock makes an elapsed-time guard permanent.
+
+- **statsFor counts instead of walking.** It walked the window a day at a
+  time, which was fine while every window was ninety days. Backfilling makes
+  "since you started" a real question and a ten-year card would have walked
+  3,650 days per habit on every render, including every tick. Whole weeks
+  contribute a fixed number of due days whatever the cadence, so only the
+  ragged tail needs looking at, and the kept half is counted off the marks,
+  which are far fewer than the days. The old walking version lives on in
+  test/habits.test.js as the reference a property test checks the new one
+  against over four thousand random habits — that is what makes the rewrite
+  safe to have done at all.
+
 - **backfilling a habit was impossible for three reasons at once**, and any
   one of them left on its own would have kept it impossible. The start date
   was pinned to the day you created the habit with no field to move it;

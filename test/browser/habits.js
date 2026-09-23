@@ -268,85 +268,164 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     await ctx.close();
   }
 
-  // ---- 9. backfilling: a start date you can move, and the offer that follows ----
+  // ---- 9. backfilling: a start date you can move, and the offer beside it ----
   // Until 0.172.0 the start date was pinned to the day you created the habit,
   // so a habit you had kept for months arrived with no history and no way to
-  // give it any. Three things had to be true at once; this is two of them.
+  // give it any. 0.173.0 moved the offer out of a native confirm and into the
+  // modal, where you meet it before pressing Save rather than after.
   {
-    const { page, ctx, errs: e, dialogs } = await app(browser, [habit({ startedAt: back(40) })]);
+    const { page, ctx, errs: e } = await app(browser, [habit({ startedAt: back(40) })]);
     await page.waitForSelector(".habit-card", { timeout: 8000 });
     await page.click(".habit-name");
     await page.waitForSelector("#habitModal:not([hidden])", { timeout: 5000 });
     const field = await page.evaluate(() => ({
       value: document.querySelector("#habitStart").value,
       max: document.querySelector("#habitStart").max,
+      offer: getComputedStyle(document.querySelector("#habitFillLabel")).display,
       hint: !document.querySelector("#habitStartHint").hidden,
     }));
     check("the modal opens on the habit's real start date, capped at today",
       field.value === back(40) && field.max === TODAY, field);
-    check("and says nothing about backfilling until you move it", !field.hint, field);
+    check("and offers nothing until you move it", field.offer === "none" && !field.hint, field);
 
     await page.evaluate((d) => {
       const i = document.querySelector("#habitStart");
       i.value = d; i.oninput({ target: i });
     }, back(100));
     await page.waitForTimeout(150);
-    check("moving the start back warns that it will ask about those days",
-      await page.evaluate(() => !document.querySelector("#habitStartHint").hidden));
+    const offer = await page.evaluate(() => ({
+      shown: getComputedStyle(document.querySelector("#habitFillLabel")).display !== "none",
+      text: document.querySelector("#habitFillText").textContent,
+      checked: document.querySelector("#habitFill").checked,
+    }));
+    check("moving the start back offers the days it uncovered, with the count",
+      offer.shown && /\b60 days\b/.test(offer.text), offer);
+    check("and the offer starts unticked — the app doesn't assume you kept it",
+      offer.checked === false, offer);
 
+    // Leave it unticked: the date is a fact, the marks are a claim.
     await page.click("#habitForm button[type=submit]");
     await page.waitForSelector("#habitModal", { state: "hidden", timeout: 5000 });
     await page.waitForTimeout(600);
-    const h = (await stored(page))[0];
+    let h = (await stored(page))[0];
+    check("saving without ticking it moves the date", h.startedAt === back(100), h.startedAt);
+    check("and records nothing you didn't claim", !h.marks || !Object.keys(h.marks).length, h.marks);
+
+    // Declining doesn't put it out of reach: the offer comes back with the
+    // next move, and a run can be filled from the grid without touching the
+    // date at all (section 11).
+    await page.click(".habit-name");
+    await page.waitForSelector("#habitModal:not([hidden])", { timeout: 5000 });
+    await page.evaluate((d) => {
+      const i = document.querySelector("#habitStart");
+      i.value = d; i.oninput({ target: i });
+    }, back(160));
+    await page.waitForTimeout(150);
+    await page.check("#habitFill");
+    await page.click("#habitForm button[type=submit]");
+    await page.waitForSelector("#habitModal", { state: "hidden", timeout: 5000 });
+    await page.waitForTimeout(600);
+    h = (await stored(page))[0];
     const filled = Object.keys(h.marks || {}).sort();
-    check("the offer says how many days it is about to fill in",
-      dialogs.some((m) => /60 earlier days/.test(m)), dialogs);
-    check("saying yes marks every uncovered day and none of the later ones",
-      h.startedAt === back(100) && filled.length === 60 &&
-      filled[0] === back(100) && filled[59] === back(41), { n: filled.length, first: filled[0], last: filled[59] });
+    check("ticking it fills every uncovered day and none of the later ones",
+      filled.length === 60 && filled[0] === back(160) && filled[59] === back(101),
+      { n: filled.length, first: filled[0], last: filled[59] });
+
+    // ---- and it can be taken back ----
+    const toastText = await page.evaluate(() => document.querySelector("#toast").innerText);
+    check("the toast says what it did and offers to undo it",
+      /Filled in 60 days/.test(toastText) && /Undo/.test(toastText), toastText);
+    await page.click(".toast-action");
+    await page.waitForTimeout(600);
+    h = (await stored(page))[0];
+    check("undo puts the marks back the way they were",
+      !h.marks || !Object.keys(h.marks).length, h.marks);
+    check("and the start date with them — a mistyped year is one press, not sixty",
+      h.startedAt === back(100), h.startedAt);
     errs.push(...e);
     await ctx.close();
   }
 
-  // ---- 9b. saying no moves the date and leaves the days alone ----
-  // The app does not get to decide you kept a habit. The date is a fact about
-  // when you started; the marks are a claim about what you did.
+  // ---- 9b. moving the start forward says what it costs ----
   {
-    const { page, ctx, errs: e, ask } = await app(browser, [habit({ startedAt: back(40) })]);
+    const { page, ctx, errs: e } = await app(browser,
+      [habit({ startedAt: back(40), marks: { [back(30)]: 1, [back(29)]: 1, [back(5)]: 1 } })]);
     await page.waitForSelector(".habit-card", { timeout: 8000 });
-    ask.accept = false;
     await page.click(".habit-name");
     await page.waitForSelector("#habitModal:not([hidden])", { timeout: 5000 });
-    await page.fill("#habitStart", back(100));
-    await page.click("#habitForm button[type=submit]");
-    await page.waitForSelector("#habitModal", { state: "hidden", timeout: 5000 });
-    await page.waitForTimeout(600);
-    const h = (await stored(page))[0];
-    check("saying no still moves the start date", h.startedAt === back(100), h.startedAt);
-    check("but records nothing you didn't claim", !h.marks || !Object.keys(h.marks).length, h.marks);
+    await page.evaluate((d) => {
+      const i = document.querySelector("#habitStart");
+      i.value = d; i.oninput({ target: i });
+    }, back(20));
+    await page.waitForTimeout(150);
+    const warn = await page.evaluate(() => ({
+      shown: !document.querySelector("#habitStartHint").hidden,
+      text: document.querySelector("#habitStartHint").textContent,
+      offer: getComputedStyle(document.querySelector("#habitFillLabel")).display,
+    }));
+    check("moving it forward warns that recorded days stop counting",
+      warn.shown && /\b2 recorded days\b/.test(warn.text), warn);
+    check("and offers no backfill, because nothing was uncovered", warn.offer === "none", warn);
     errs.push(...e);
     await ctx.close();
   }
 
   // ---- 9c. a habit born with a past start is offered the same deal ----
   {
-    const { page, ctx, errs: e, dialogs } = await app(browser, []);
+    const { page, ctx, errs: e } = await app(browser, []);
     await page.click("#addBtn");
     await page.waitForTimeout(250);
     await page.click('#addMenu [data-add="habit"]');
     await page.waitForSelector("#habitModal:not([hidden])", { timeout: 5000 });
     await page.fill("#habitName", "Walk");
-    await page.fill("#habitStart", back(9));
+    await page.fill("#habitTarget", "3");
+    await page.evaluate((d) => {
+      const i = document.querySelector("#habitStart");
+      i.value = d; i.oninput({ target: i });
+    }, back(9));
+    await page.waitForTimeout(150);
+    const text = await page.evaluate(() => document.querySelector("#habitFillText").textContent);
+    check("a new habit that started last week is offered its history",
+      /\b9 days\b/.test(text), text);
+    check("and the offer says it means three times each, rather than hiding it",
+      /3× each/.test(text), text);
+    await page.check("#habitFill");
     await page.click("#habitForm button[type=submit]");
     await page.waitForSelector("#habitModal", { state: "hidden", timeout: 5000 });
     await page.waitForTimeout(600);
     const h = (await stored(page))[0];
-    check("a new habit that started last week is offered its history",
-      dialogs.some((m) => /9 earlier days/.test(m)), dialogs);
-    check("and gets it, up to but not including today",
-      h.startedAt === back(9) && Object.keys(h.marks || {}).length === 9 && !(h.marks || {})[TODAY], h.marks);
+    const days = Object.keys(h.marks || {});
+    check("and gets it, at the target, up to but not including today",
+      days.length === 9 && !days.includes(TODAY) && h.marks[back(9)] === 3, h.marks);
     errs.push(...e);
     await ctx.close();
+  }
+
+  // ---- 9d. the card says what the history is worth ----
+  {
+    const marks = {};
+    for (let i = 1; i <= 200; i++) if (i % 4) marks[back(i)] = 1;
+    const { page, ctx, errs: e } = await app(browser, [habit({ startedAt: back(200), marks })]);
+    await page.waitForSelector(".habit-card", { timeout: 8000 });
+    const life = await page.evaluate(() => {
+      const n = document.querySelector(".habit-life");
+      return n ? n.textContent : null;
+    });
+    // 200 days of life, 150 of them kept — none of which the 90-day figure says.
+    check("a habit older than the 90-day window says how long and how much",
+      life && /Since /.test(life) && /150 of 201 days kept/.test(life), life);
+    await ctx.close();
+    errs.push(...e);
+  }
+
+  // ---- 9e. and says nothing when there is nothing longer to say ----
+  {
+    const { page, ctx, errs: e } = await app(browser, [habit({ startedAt: back(20) })]);
+    await page.waitForSelector(".habit-card", { timeout: 8000 });
+    check("a young habit gets no lifetime line, because it would repeat the other one",
+      await page.evaluate(() => !document.querySelector(".habit-life")));
+    await ctx.close();
+    errs.push(...e);
   }
 
   // ---- 10. the grid reaches the days the start date uncovered ----
@@ -375,12 +454,15 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
 
     const far = back(120);
     let clicks = 0;
-    while (clicks < 25 && !(await page.evaluate((d) => !!document.querySelector('.habit-cell[title^="' + d + '"]'), far))) {
+    while (clicks < 25 && !(await page.evaluate((d) => !!document.querySelector('.habit-cell[data-date="' + d + '"]'), far))) {
       await page.click('.habit-page[data-dir="1"]');
       await page.waitForTimeout(120);
       clicks++;
     }
-    check("paging back reaches a day older than the grid is wide", clicks > 0 && clicks < 25, clicks);
+    // One press is one window, not one week. At a week a press, a day four
+    // months back was five presses away and a year back was fifty-two — the
+    // arrows worked and were useless. This assertion is the difference.
+    check("one press moves a whole window, so four months back is one press", clicks === 1, clicks);
     const nav1 = await page.evaluate(() => {
       const n = document.querySelector(".habit-grid-nav");
       return { fwd: n.querySelector('.habit-page[data-dir="-1"]').disabled, range: n.querySelector(".habit-page-range").textContent };
@@ -388,12 +470,12 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     check("and the way forward opens up once you have gone back", nav1.fwd === false, nav1);
     check("the window says which months you are looking at", nav1.range !== nav0.range && /\d{4}/.test(nav1.range), nav1.range);
 
-    await page.click('.habit-cell[title^="' + far + '"]');
+    await page.click('.habit-cell[data-date="' + far + '"]');
     await page.waitForTimeout(600);
     const h = (await stored(page))[0];
     check("and a cell that far back records the day you tapped", (h.marks || {})[far] === 1, h.marks);
     check("the card stays where you left it rather than snapping back to this week",
-      await page.evaluate((d) => !!document.querySelector('.habit-cell[title^="' + d + '"]'), far));
+      await page.evaluate((d) => !!document.querySelector('.habit-cell[data-date="' + d + '"]'), far));
 
     // All the way back, and no further: the far end is the habit's own start.
     for (let i = 0; i < 40; i++) {
@@ -403,10 +485,159 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     }
     const end = await page.evaluate(() => ({
       stuck: document.querySelector('.habit-page[data-dir="1"]').disabled,
-      first: (document.querySelector(".habit-grid-row .habit-cell") || {}).title || "",
+      first: (document.querySelector(".habit-grid-row .habit-cell") || {}).dataset.date || "",
     }));
     check("paging stops at the habit's start rather than running off into nothing",
-      end.stuck && end.first.slice(0, 10) <= back(300), end);
+      end.stuck && end.first <= back(300), end);
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 11. fixing a run of days without tapping each one ----
+  // The start date covers the history you had before the app knew about the
+  // habit, which happens once per habit. The week you were away happens over
+  // and over, and nine taps across two columns is where people stop bothering.
+  {
+    const { page, ctx, errs: e } = await app(browser, [habit({ startedAt: back(40) })]);
+    await page.waitForSelector(".habit-card", { timeout: 8000 });
+    const press = async (date, settle = 450) => {
+      const box = await page.locator('.habit-cell[data-date="' + date + '"]').boundingBox();
+      await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+      await page.mouse.down();
+      await page.waitForTimeout(700);
+      await page.mouse.up();
+      await page.waitForTimeout(settle);
+    };
+    await press(back(9));
+    const held = await page.evaluate(() => ({
+      anchor: (document.querySelector(".habit-cell.is-anchor") || {}).dataset,
+      hint: !!document.querySelector(".habit-range-hint"),
+    }));
+    check("holding a day marks it as one end of a run and says what to do next",
+      held.anchor && held.anchor.date === back(9) && held.hint, held);
+
+    await page.click('.habit-cell[data-date="' + back(1) + '"]');
+    await page.waitForTimeout(600);
+    let h = (await stored(page))[0];
+    let days = Object.keys(h.marks || {}).sort();
+    check("tapping the other end fills the whole run, inclusive",
+      days.length === 9 && days[0] === back(9) && days[8] === back(1), days);
+    check("and the run is undoable like any other bulk write",
+      /Filled in 9 days/.test(await page.evaluate(() => document.querySelector("#toast").innerText)));
+
+    // Held again over a run that is already kept, it clears instead — one
+    // rule, and the outcome is the one you meant either way.
+    await press(back(9));
+    await page.click('.habit-cell[data-date="' + back(5) + '"]');
+    await page.waitForTimeout(600);
+    h = (await stored(page))[0];
+    days = Object.keys(h.marks || {}).sort();
+    check("holding over a run that is already kept clears it", days.length === 4 && days[0] === back(4), days);
+    await page.click(".toast-action");
+    await page.waitForTimeout(600);
+    h = (await stored(page))[0];
+    check("and that is undoable too", Object.keys(h.marks || {}).length === 9, h.marks);
+
+    // The press's own click must not count as the second tap. This browser
+    // drops that click (the grid node it started on was replaced when the
+    // anchor was set, so there is no common ancestor for a click) — a touch
+    // device sends it at the touch point regardless, so it is simulated here
+    // rather than trusted not to happen. Without the guard this cancels.
+    await press(back(20), 0);
+    await page.click('.habit-cell[data-date="' + back(20) + '"]');
+    await page.waitForTimeout(200);
+    const still = await page.evaluate(() => !!document.querySelector(".habit-cell.is-anchor"));
+    check("the click a touch device sends after a long press doesn't cancel it", still);
+    await page.waitForTimeout(400);
+    await page.click('.habit-cell[data-date="' + back(20) + '"]');
+    await page.waitForTimeout(300);
+    check("but tapping the held day again does",
+      await page.evaluate(() => !document.querySelector(".habit-cell.is-anchor")));
+    check("and cancelling records nothing",
+      Object.keys((await stored(page))[0].marks || {}).length === 9);
+
+    // The recovery path for "no, I'll do it later": hold one end, page the
+    // grid to where the other end is, tap it. The anchor is a date, not a
+    // cell, so it survives the window moving under it.
+    await page.evaluate(() => {
+      const c = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+      c.habits[0].startedAt = "2026-01-01";
+      c.habits[0].marks = {};
+      localStorage.setItem("lifelog-cache-v1", JSON.stringify(c));
+    });
+    await page.reload({ waitUntil: "load" });
+    await page.waitForTimeout(700);
+    await press(back(2));
+    await page.click('.habit-page[data-dir="1"]');
+    await page.waitForTimeout(300);
+    const kept = await page.evaluate(() => ({
+      anchored: !!document.querySelector(".habit-range-hint"),
+      oldest: (document.querySelector(".habit-grid-row .habit-cell") || {}).dataset.date,
+    }));
+    check("the held day survives paging the grid to find the other end", kept.anchored, kept);
+    await page.click('.habit-cell[data-date="' + kept.oldest + '"]');
+    await page.waitForTimeout(700);
+    const spanned = Object.keys((await stored(page))[0].marks || {}).sort();
+    check("and the run spans both windows", spanned.length > 12 * 7 &&
+      spanned[0] === kept.oldest && spanned[spanned.length - 1] === back(2), spanned.length);
+
+    // A weekends habit asked nothing of the weekdays in between.
+    await page.evaluate((s) => {
+      const c = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+      c.habits[0].cadence = { days: [0, 6] };
+      c.habits[0].marks = {};
+      c.habits[0].startedAt = s;
+      localStorage.setItem("lifelog-cache-v1", JSON.stringify(c));
+    }, back(40));
+    await page.reload({ waitUntil: "load" });
+    await page.waitForTimeout(700);
+    // Both ends on a Sunday: a weekends habit has no Tuesday row to hold.
+    await press(back(17));
+    await page.click('.habit-cell[data-date="' + back(3) + '"]');
+    await page.waitForTimeout(600);
+    h = (await stored(page))[0];
+    const dows = Object.keys(h.marks || {}).map((d) => new Date(d + "T00:00:00").getDay());
+    check("a run only fills the days the habit actually asked for",
+      dows.length > 0 && dows.every((d) => d === 0 || d === 6), Object.keys(h.marks || {}));
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 11c. the count is what changed, not how far you reached ----
+  {
+    const marks = {};
+    for (let i = 1; i <= 5; i++) marks[back(i)] = 1;
+    const { page, ctx, errs: e } = await app(browser, [habit({ startedAt: back(40), marks })]);
+    await page.waitForSelector(".habit-card", { timeout: 8000 });
+    const box = await page.locator('.habit-cell[data-date="' + back(8) + '"]').boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(700);
+    await page.mouse.up();
+    await page.waitForTimeout(450);
+    await page.click('.habit-cell[data-date="' + back(1) + '"]');
+    await page.waitForTimeout(600);
+    const said = await page.evaluate(() => document.querySelector("#toast").innerText);
+    // Eight days reached over, five of them already kept.
+    check("a run over days that were already kept counts only what it changed",
+      /Filled in 3 days/.test(said), said);
+    check("and the whole run is kept afterwards either way",
+      Object.keys((await stored(page))[0].marks || {}).length === 8);
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 11b. shift-click is the same thing without the wait ----
+  {
+    const { page, ctx, errs: e } = await app(browser, [habit({ startedAt: back(40) })]);
+    await page.waitForSelector(".habit-card", { timeout: 8000 });
+    await page.click('.habit-cell[data-date="' + back(12) + '"]');
+    await page.waitForTimeout(400);
+    await page.click('.habit-cell[data-date="' + back(8) + '"]', { modifiers: ["Shift"] });
+    await page.waitForTimeout(600);
+    const days = Object.keys((await stored(page))[0].marks || {}).sort();
+    check("shift-clicking extends from the last day you tapped",
+      days.length === 5 && days[0] === back(12) && days[4] === back(8), days);
     errs.push(...e);
     await ctx.close();
   }

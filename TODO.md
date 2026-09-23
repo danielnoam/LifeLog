@@ -1,8 +1,8 @@
 todo:
 
-- habits shipped in 0.171.0 and moved into Notes as its third mode in
-  0.171.1. Two things were left out of the first cut deliberately rather than
-  forgotten.
+- habits shipped in 0.171.0, moved into Notes as its third mode in 0.171.1,
+  and learned to backfill in 0.172.0–0.173.0. Two things were left out of the
+  first cut deliberately rather than forgotten.
 
   **Times-per-week** ("the gym, three times, any days") is the cadence that
   didn't make it. It is not a third option on the same control: a streak
@@ -15,6 +15,13 @@ todo:
   connection the app is already shaped for. Left out of the first cut because
   it should be an offer rather than something that happens to you, and where
   that offer belongs is easier to answer after using the tab for a while.
+
+  **An undo that lasts longer than a toast.** 0.173.0 gave the app its first
+  undo, for the two habit actions that write a lot of days at once. It lives
+  as long as the toast does, which is right for "wait, no" and no use at all
+  the next morning. A real one is a different piece of machinery — a stack, a
+  serialised before-state, a decision about what syncing does with it — and
+  worth doing only if the toast one turns out not to be enough.
 
   What was decided against outright is in DROPPED.md: reminders, and habits
   feeding the to-do list. A habits tab of its own is there too, now that it

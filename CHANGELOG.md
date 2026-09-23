@@ -4,6 +4,44 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.173.0] - 2026-09-23
+
+### Added
+- **Fix a whole run of days at once.** Hold a day in the habit grid, then tap
+  the day the run ends on, and everything the habit asked for in between is
+  filled in — or cleared, if the run was already kept. On a mouse, shift-click
+  does the same without the wait. Backfilling a start date covers the history
+  you had before the app knew about the habit, which happens once; the week
+  you were away happens over and over.
+- **Undo.** Anything that writes a lot of days at once now says so in the
+  toast with an Undo beside it — the backfill, and any run you fill or clear.
+  It puts the days *and* the start date back, so a mistyped year is one press
+  rather than sixty taps.
+- **How long you've kept it.** A habit older than three months now says
+  "Since 14 Jun 2025 · 412 of 480 days kept" on its card. Everything else
+  there is about the last ninety days, so backfilling two years of history
+  used to leave the card looking exactly as it did.
+
+### Changed
+- **The backfill offer moved out of a native dialog and into the habit
+  modal**, as a checkbox next to the start date that names the count (and says
+  "3× each" for a habit with a target). You meet the question before pressing
+  Save rather than after, and it can be ticked and unticked rather than being
+  a yes/no you only get once.
+- **The grid's arrows page a whole window at a time** rather than a week, the
+  way a calendar pages by month. A day four months back was five presses away
+  and a year back was fifty-two; both are now one and four.
+- **Moving a start date forward now says what it costs**: the days recorded
+  before it are kept, but stop counting, and the modal says so rather than
+  letting them quietly vanish from the streaks.
+
+### Fixed
+- The card's figures are counted rather than walked day by day, so a habit
+  with years of history doesn't re-walk every one of them on every tick.
+- The guards that stop a corrupt date spinning a loop agreed on 4,000 days in
+  one place and ten years in another; both now allow twenty years, which
+  backfilling made reachable for the first time.
+
 ## [0.172.0] - 2026-09-23
 
 ### Added

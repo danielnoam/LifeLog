@@ -223,7 +223,7 @@ test("the grid window is whole weeks, ending on the week containing its day", ()
   assert.strictEqual(H.addDaysStr(last, -6) <= "2026-03-02", true);
 });
 
-test("paging back moves the window a week at a time", () => {
+test("an offset is one week, and the window slides by that many", () => {
   assert.strictEqual(H.windowStart("2026-03-02", 1), H.addDaysStr(H.windowStart("2026-03-02", 0), -7));
   assert.strictEqual(H.windowStart("2026-03-02", 4), H.addDaysStr(H.windowStart("2026-03-02", 0), -28));
 });
@@ -243,6 +243,87 @@ test("the window is labelled by the months it covers", () => {
   assert.strictEqual(H.rangeLabel("2026-03-01", "2026-03-28"), "Mar 2026");
   assert.strictEqual(H.rangeLabel("2026-01-04", "2026-03-28"), "Jan – Mar 2026");
   assert.strictEqual(H.rangeLabel("2025-12-14", "2026-03-07"), "Dec 2025 – Mar 2026");
+});
+
+console.log("\ncounting a window instead of walking it");
+
+// statsFor used to walk the window a day at a time, which was fine while a
+// window was ninety days. Backfilling makes "since you started" a real
+// question, and a ten-year card would walk 3,650 days per habit on every
+// render — including every tick. The counting version has to agree with the
+// walking one exactly, so the walking one lives on here as the reference.
+function walk(h, from, to) {
+  let due = 0, done = 0, c = from;
+  for (let g = 0; g < 8000 && c <= to; g++) {
+    if (H.isDue(h, c)) { due++; if (H.isDone(h, c)) done++; }
+    c = H.addDaysStr(c, 1);
+  }
+  return { due, done };
+}
+
+test("counting agrees with walking over four thousand random habits", () => {
+  const rnd = (a) => a[Math.floor(Math.random() * a.length)];
+  let mismatch = null;
+  for (let i = 0; i < 4000 && !mismatch; i++) {
+    const startedAt = H.addDaysStr("2025-01-01", Math.floor(Math.random() * 400));
+    const cadence = rnd(["daily", { days: [1, 3, 5] }, { days: [0, 6] }, { days: [2] }, { days: [1, 2, 3, 4, 5] }]);
+    const m = {};
+    for (let k = 0; k < 40; k++) m[H.addDaysStr(startedAt, Math.floor(Math.random() * 500) - 20)] = rnd([1, 2, 3]);
+    const h = H.sanitizeHabit({ name: "x", startedAt, cadence, target: rnd([1, 2, 3]), marks: m,
+      archivedAt: Math.random() < 0.3 ? H.addDaysStr(startedAt, 200 + Math.floor(Math.random() * 100)) : undefined });
+    const from = H.addDaysStr(startedAt, Math.floor(Math.random() * 600) - 100);
+    const to = H.addDaysStr(from, Math.floor(Math.random() * 500));
+    const slow = walk(h, from, to), fast = H.statsFor(h, from, to);
+    if (slow.due !== fast.due || slow.done !== fast.done) mismatch = { startedAt, cadence, from, to, slow, fast };
+  }
+  assert.strictEqual(mismatch, null, "disagreed: " + JSON.stringify(mismatch));
+});
+
+test("a window is clipped to the habit's own life at both ends", () => {
+  const h = habit({ startedAt: "2026-03-05", archivedAt: "2026-03-10" });
+  assert.strictEqual(H.dueBetween(h, "2026-03-01", "2026-03-31"), 6);
+  assert.strictEqual(H.dueBetween(h, "2026-01-01", "2026-03-04"), 0);
+});
+
+test("a mark on a day the habit never asked for is not a day kept", () => {
+  // Weekdays only, with a Saturday ticked: one due day, none kept.
+  const h = habit({ startedAt: "2026-03-07", cadence: { days: [1, 2, 3, 4, 5] },
+    marks: marks("2026-03-07") });
+  assert.deepStrictEqual(H.statsFor(h, "2026-03-07", "2026-03-09"), { due: 1, done: 0, rate: 0 });
+});
+
+test("a partial day is not a day kept either", () => {
+  const h = habit({ startedAt: "2026-03-02", target: 3, marks: { "2026-03-02": 2 } });
+  assert.strictEqual(H.keptBetween(h, "2026-03-02", "2026-03-02"), 0);
+  assert.strictEqual(H.keptBetween(habit({ startedAt: "2026-03-02", target: 3, marks: { "2026-03-02": 3 } }),
+    "2026-03-02", "2026-03-02"), 1);
+});
+
+console.log("\nfilling a run, and what a start date costs");
+
+test("a run covers only the days the habit asked for", () => {
+  const h = habit({ startedAt: "2026-03-01", cadence: { days: [0, 6] } });
+  // Sun 2026-03-01 through Sun 2026-03-08.
+  assert.deepStrictEqual(H.dueDaysBetween(h, "2026-03-01", "2026-03-08"),
+    ["2026-03-01", "2026-03-07", "2026-03-08"]);
+});
+
+test("a run is clipped to the habit's life rather than inventing days", () => {
+  const h = habit({ startedAt: "2026-03-05" });
+  assert.deepStrictEqual(H.dueDaysBetween(h, "2026-03-01", "2026-03-06"), ["2026-03-05", "2026-03-06"]);
+  assert.deepStrictEqual(H.dueDaysBetween(h, "2026-03-06", "2026-03-01"), []);
+});
+
+test("moving a start date forward counts what stops counting", () => {
+  const h = habit({ startedAt: "2026-03-01", marks: marks("2026-03-01", "2026-03-02", "2026-03-09") });
+  assert.strictEqual(H.orphanedMarks(h, "2026-03-05"), 2);
+  assert.strictEqual(H.orphanedMarks(h, "2026-03-01"), 0);
+});
+
+test("a date reads as a date, not as an ISO string", () => {
+  assert.strictEqual(H.prettyDate("2025-06-14"), "14 Jun 2025");
+  assert.strictEqual(H.prettyDate("2026-01-01"), "1 Jan 2026");
+  assert.strictEqual(H.prettyDate("nonsense"), "");
 });
 
 test("search matches a habit's name, and archived ones are out of the list", () => {

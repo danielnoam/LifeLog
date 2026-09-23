@@ -1773,6 +1773,9 @@ kbd {
    obvious enough to notice. This is the same declaration, said loudly
    enough to win. */
 .modal .toggle-label { display: flex; align-items: center; gap: 8px; }
+/* And the companion, because that display (0,2,0) outranks `[hidden]`: the
+   habit modal's backfill offer is a toggle that comes and goes. */
+.modal .toggle-label[hidden] { display: none; }
 .media-cat-row {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px;
@@ -1815,7 +1818,19 @@ kbd {
   padding: 11px 18px; border-radius: 10px; box-shadow: var(--shadow); z-index: 80;
   font-size: 13px;
 }
+/* :not([hidden]) rather than a companion rule below: an author `display`
+   outranks the UA's `[hidden] { display: none }`, and the toast is hidden by
+   that attribute. Written so it cannot apply while hidden, instead of relying
+   on source order to undo it — the trap test/browser/hiddenaudit.js exists for. */
+.toast:not([hidden]):has(.toast-action) {
+  display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 16px;
+}
 .toast[hidden] { display: none; }
+.toast-action {
+  flex: 0 0 auto; background: none; border: 1px solid var(--accent); border-radius: 7px;
+  padding: 5px 11px; color: var(--accent); font-size: 12.5px; font-weight: 600; cursor: pointer;
+}
+.toast-action:hover { background: var(--accent); color: #fff; }
 /* Sits where a toast does but doesn't leave on its own: there is nothing to
    do about it except reload, and the whole point is that it waits until you
    do. Above the toast, since a transient message must not cover it. */
@@ -2480,6 +2495,9 @@ html.force-mobile .backlog-section-head {
 }
 .habit-tick-mark { font-size: 16px; line-height: 1; font-variant-numeric: tabular-nums; }
 .habit-notdue { margin: 10px 0 4px; font-size: 12.5px; color: var(--text-faint); font-style: italic; }
+/* Everything longer than the last ninety days, which is the only thing
+   backfilling produces and the rest of the card never mentions. */
+.habit-life { margin: 6px 0 0 19px; font-size: 11.5px; color: var(--text-faint); }
 
 /* Twelve weeks, a row per weekday. Tapping a cell fixes a day you forgot,
    which is the only way a tracker survives being away from your phone. */
@@ -2499,6 +2517,11 @@ html.force-mobile .backlog-section-head {
    point of a cadence. A future day is simply not there yet. */
 .habit-cell.is-off { background: transparent; cursor: default; }
 .habit-cell.is-future { background: transparent; opacity: .35; cursor: default; }
+/* Held down: this is one end of a run, and the grid is waiting for the other.
+   An outline in --text rather than --accent, because a kept cell is already
+   filled with the habit's colour and an accent ring on it is invisible. */
+.habit-cell.is-anchor { outline: 2px solid var(--text); outline-offset: 1px; }
+.habit-range-hint { margin: 7px 0 0; font-size: 11.5px; color: var(--accent); text-align: center; }
 
 /* Walking the window back, for a habit you kept longer than the grid is
    wide. Only drawn when there is somewhere to walk to. */

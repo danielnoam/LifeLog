@@ -115,7 +115,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.172.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.173.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -998,13 +998,25 @@
     });
   }
 
-  function toast(msg, isErr) {
+  // A message, and optionally the one thing to do about it. The action is for
+  // a change big enough that the next thought is "wait, no" — a habit
+  // backfill writes sixty days in one press, and until 0.173.0 the only way
+  // back was sixty taps. It is the app's only undo, deliberately: it lasts as
+  // long as the toast does, which is as long as "wait, no" takes.
+  function toast(msg, isErr, action) {
     const t = $("#toast");
-    t.textContent = msg;
+    t.textContent = "";
+    t.appendChild(el("span", null, msg));
+    if (action) {
+      const b = el("button", "toast-action", action.label);
+      b.type = "button";
+      b.onclick = () => { t.hidden = true; clearTimeout(toast._t); action.onClick(); };
+      t.appendChild(b);
+    }
     t.className = "toast" + (isErr ? " err" : "");
     t.hidden = false;
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => (t.hidden = true), isErr ? 6000 : 2600);
+    toast._t = setTimeout(() => (t.hidden = true), action ? 8000 : isErr ? 6000 : 2600);
   }
 
   // Snapshot of state.data as of the last successful save, used only to
