@@ -43,16 +43,74 @@ todo:
   **What the app could do that a browser can't**, in the order it's worth
   doing: native HTTP (`CapacitorHttp` — Steam without the proxy), a real
   file backup on the phone (the Filesystem plugin as a fourth backend in
-  storage.js), and a home-screen widget for ticking habits, which is the one
-  thing a browser can never do.
+  storage.js), and home-screen widgets — which have their own entry below.
 
   **iOS.** The same wrapper, plus $99/year for Apple's developer program and
   a macOS build job. Until there's a native feature worth that, iOS stays on
   Safari's Add to Home Screen, which already works.
 
-  What was decided against outright is in DROPPED.md: reminders, and habits
-  feeding the to-do list. A habits tab of its own is there too, now that it
-  has been tried.
+  What was decided against outright is in DROPPED.md: habits feeding the
+  to-do list, and a habits tab of its own, now that it has been tried.
+  Reminders were there too until the Android app gave them a way in — see
+  below.
+
+- **the mode switch animation.** Swiping between modes (Notes / To-do /
+  Habits, and the other tabs' modes) slides the current screen out and then
+  brings the new one in *in the same container*, from roughly where the old
+  one left: an exit, a blank beat, and an unrelated entrance, rather than one
+  screen pushing the other along. It reads as a glitch. A swipe should look
+  like a pager: the neighbouring mode rendered beside the current one while
+  the finger is down, both moving together with it, and on release the pair
+  carrying on (or springing back) as a single strip. That means building the
+  neighbour before the swipe commits — worth checking what that costs on the
+  heavy views (Timeline, Backlog), and whether a lightweight placeholder of
+  the neighbour is enough until the finger lets go. See modeDragMove /
+  modeDragCommit in app.js and the enter keyframes in styles.css.
+
+- **settings, again.** 0.169.0 regrouped Settings by where each change lands,
+  and it still doesn't look good — Appearance was the specific complaint the
+  first time. Before touching it, pin down what reads badly: spacing and
+  hierarchy inside a panel, the tab strip on a phone, controls of mismatched
+  sizes sitting in one row, or long hint paragraphs doing a label's job. A
+  screenshot of each panel at 390px and at desktop width, marked up, is the
+  place to start rather than another reshuffle.
+
+- **Android widgets.** The one thing the app can do that a browser can't.
+  Candidates, most useful first: today's habits with a tick per habit;
+  quick-add buttons (entry, expense, note — the manifest's shortcuts already
+  name the first two); this month's spend. Shape of it:
+  - Widgets are native (Kotlin, `AppWidgetProvider` + RemoteViews), and
+    `android/` is generated in CI and not committed. Put the widget code in a
+    small local Capacitor plugin (say `native/widgets/`, a `file:`
+    dependency) so `android/` can stay generated.
+  - A widget can't run the web app. The app writes what the widget shows
+    (today's due habits and their marks) into SharedPreferences through that
+    plugin whenever the data changes, and the widget draws from that.
+  - A tick on the widget can't reach GitHub by itself. Queue it natively, show
+    it ticked straight away, and have the app apply the queue on its next
+    launch or resume — it then syncs like any other tick. Say so somewhere,
+    because a tick that only lands next time you open the app is a surprise
+    otherwise.
+  - Quick-add opens the app on the right sheet; that's the easy half.
+
+- **Habit reminders — Android app only.** Dropped in 0.171.0 (see git
+  history of DROPPED.md) because a *browser* can't do them well: a service
+  worker waking on a schedule, permission prompts, an iOS story that
+  historically didn't work, and a whole class of "why did it buzz twice" bug
+  — bigger than the tracker. The app removes the main objection:
+  `@capacitor/local-notifications` schedules on-device notifications with no
+  server and no service worker. What stays true:
+  - A reminder time per habit, on its due days only, set on the phone and
+    kept local to it (a desktop has nothing to buzz) — so it lives beside the
+    habit, not in the synced habit.
+  - Android 13+ asks for notification permission; ask when the first reminder
+    is set, not at launch. Inexact scheduling is fine for "remind me around
+    21:00" and avoids the exact-alarm permission.
+  - A reminder shouldn't nag about a habit already ticked. Cancel today's
+    when it's ticked on the phone; a tick made on the desktop only reaches
+    the phone at its next sync, so either accept the occasional stale buzz or
+    re-check on resume. Decide which before building.
+  - The browser version shows no reminder controls at all.
 
 ---
 

@@ -34,18 +34,6 @@ five things anyway. On its own, "habits deserve a list" is not that reason —
 they have one, inside Notes.
 
 
-## Habit reminders and notifications
-
-The obvious thing to want from a habit tracker, and not happening. LifeLog
-has no notification infrastructure at all, and a PWA one is its own project:
-permission prompts, a service worker that wakes on a schedule, an iOS story
-that has historically been the weak spot, and a whole class of "why did it
-buzz twice" bug that none of the rest of this app can produce. It would be
-larger than the habit tracker it was meant to support.
-
-If it ever happens it should be its own decision, taken on its own merits,
-not smuggled in as a feature of habits.
-
 ## Habits feeding the to-do list
 
 Today's unticked habits appearing as rows in the To-do checklist. Tempting —
