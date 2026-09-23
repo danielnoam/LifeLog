@@ -9,6 +9,7 @@ const {
   mergeCollection, mergeAllSources, mergeSettings, flattenAccomplishments,
   compareVersions, maxVersion,
 } = global.window.LifeLogMerge;
+const Merge = global.window.LifeLogMerge;
 
 let passed = 0;
 function test(name, fn) {
@@ -318,6 +319,64 @@ test("two devices, each with different offline edits, converge to the same resul
   const idsAtA = mergedAtA.entries.map((e) => e.id).sort();
   assert.deepStrictEqual(idsAtA, idsAtB);
   assert.strictEqual(mergedAtA.entries.find((e) => e.id === "y").title, "Y edited by B");
+});
+
+
+// ---------- habits: a marks map two devices both write to (0.171.0) ----------
+const habit = (o) => ({ id: "h1", name: "Read", target: 1, cadence: "daily",
+  startedAt: "2026-03-01", updatedAt: "2026-03-01T00:00:00.000Z", ...o });
+
+test("two devices ticking different days keep both", () => {
+  // The single most likely thing that will ever happen here. Left to
+  // mergeCollection it is an edit conflict and one of the days is gone.
+  const base = [habit({ marks: { "2026-03-01": 1 } })];
+  const local = [habit({ marks: { "2026-03-01": 1, "2026-03-02": 1 }, updatedAt: "2026-03-02T09:00:00.000Z" })];
+  const remote = [habit({ marks: { "2026-03-01": 1, "2026-03-03": 1 }, updatedAt: "2026-03-03T09:00:00.000Z" })];
+  const out = Merge.mergeHabits(base, local, remote);
+  assert.deepStrictEqual(out[0].marks, { "2026-03-01": 1, "2026-03-02": 1, "2026-03-03": 1 });
+});
+
+test("unticking a day sticks, rather than being undone by the other copy", () => {
+  // Only one side changed that date, so that side is the truth — which is
+  // what a plain union would get wrong.
+  const base = [habit({ marks: { "2026-03-01": 1, "2026-03-02": 1 } })];
+  const local = [habit({ marks: { "2026-03-01": 1 }, updatedAt: "2026-03-05T00:00:00.000Z" })];
+  const remote = [habit({ marks: { "2026-03-01": 1, "2026-03-02": 1 } })];
+  assert.deepStrictEqual(Merge.mergeHabits(base, local, remote)[0].marks, { "2026-03-01": 1 });
+});
+
+test("both sides changing the same day keeps the larger count", () => {
+  const base = [habit({ target: 3, marks: { "2026-03-02": 1 } })];
+  const local = [habit({ target: 3, marks: { "2026-03-02": 3 }, updatedAt: "2026-03-02T20:00:00.000Z" })];
+  const remote = [habit({ target: 3, marks: { "2026-03-02": 2 }, updatedAt: "2026-03-02T21:00:00.000Z" })];
+  assert.strictEqual(Merge.mergeHabits(base, local, remote)[0].marks["2026-03-02"], 3);
+});
+
+test("a habit added on one device arrives with its marks intact", () => {
+  const added = habit({ id: "h2", name: "Run", marks: { "2026-03-04": 1 } });
+  const out = Merge.mergeHabits([], [], [added]);
+  assert.strictEqual(out.length, 1);
+  assert.deepStrictEqual(out[0].marks, { "2026-03-04": 1 });
+});
+
+test("a habit with every mark removed carries no empty map", () => {
+  const base = [habit({ marks: { "2026-03-01": 1 } })];
+  const local = [habit({ marks: {}, updatedAt: "2026-03-05T00:00:00.000Z" })];
+  const out = Merge.mergeHabits(base, local, base);
+  assert.strictEqual("marks" in out[0], false);
+});
+
+test("habits go through mergeAllSources with their marks merged, not clobbered", () => {
+  const doc = (marks, stamp) => ({ habits: [habit({ marks, updatedAt: stamp })] });
+  const out = Merge.mergeAllSources(
+    doc({ "2026-03-01": 1 }, "2026-03-01T00:00:00.000Z"),
+    doc({ "2026-03-01": 1, "2026-03-02": 1 }, "2026-03-02T00:00:00.000Z"),
+    doc({ "2026-03-01": 1, "2026-03-03": 1 }, "2026-03-03T00:00:00.000Z"));
+  assert.deepStrictEqual(out.habits[0].marks, { "2026-03-01": 1, "2026-03-02": 1, "2026-03-03": 1 });
+});
+
+test("habits are a synced collection like every other list", () => {
+  assert.ok(Merge.COLLECTION_KEYS.includes("habits"));
 });
 
 console.log(`\n${passed} test(s) passed.`);

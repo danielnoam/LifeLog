@@ -10,6 +10,7 @@
   const IO = window.LifeLogIO;
   const Sync = window.LifeLogSync;
   const Wheel = window.LifeLogWheel;
+  const Habits = window.LifeLogHabits;
   const Recap = window.LifeLogRecap;
   const MONTHS = ["", "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"];
@@ -114,19 +115,19 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.170.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.171.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
   // Left-to-right order of the mobile bottom tab bar (see the `order:`
   // values on .tab in styles.css) — used for swipe-to-switch, so a swipe
   // moves to the visually adjacent tab, not just the next one in DOM order.
-  const VIEW_ORDER = ["notes", "timeline", "backlog", "finance"];
+  const VIEW_ORDER = ["notes", "timeline", "backlog", "finance", "habits"];
   // Number-key shortcuts (see wire()'s keydown handler) — deliberately the
   // on-screen tab order (left-to-right in #viewTabs), not VIEW_ORDER above,
   // since that's what the shortcuts cheat-sheet shows and what a user
   // scanning the tab bar would expect "3" etc. to mean.
-  const SHORTCUT_VIEWS = { 1: "notes", 2: "timeline", 3: "backlog", 4: "finance" };
+  const SHORTCUT_VIEWS = { 1: "notes", 2: "timeline", 3: "backlog", 4: "finance", 5: "habits" };
   // Shift and the same digit goes to that tab's second mode — Shift+2 is the
   // Timeline's Stats, which is what the merge into modes would otherwise have
   // cost a keyboard. Keyed on e.code rather than e.key because Shift+2 is "@"
@@ -134,7 +135,7 @@
   // the thing the cheat-sheet is describing. A view with a third mode (the
   // Backlog) doesn't get a key for it — two is where a digit row runs out of
   // sensible meanings.
-  const SHORTCUT_CODES = { Digit1: "notes", Digit2: "timeline", Digit3: "backlog", Digit4: "finance" };
+  const SHORTCUT_CODES = { Digit1: "notes", Digit2: "timeline", Digit3: "backlog", Digit4: "finance", Digit5: "habits" };
 
   function loadVisualSettings() {
     try {
@@ -355,7 +356,7 @@
   function emptyData() {
     return {
       version: 1, categories: [], entries: [], backlog: [], notes: [], todos: [], accomplishments: {},
-      todoCategories: [],
+      todoCategories: [], habits: [],
       financeCategories: Finance.seedFinanceCategories(), financeEntries: [], recurringExpenses: [],
       projects: [],
       settings: { ...DEFAULT_SETTINGS },
@@ -594,6 +595,10 @@
     return on.length ? on : spec.modes;
   };
   const modeIds = (spec) => modeEntries(spec).map(([id]) => id);
+  // Habits has no VIEW_MODES entry on purpose: it is one screen, so there is
+  // nothing to switch between, no dots under its tab and no mode swipe. Every
+  // reader here already copes with a view that has no spec — Stats and
+  // Summary were the same before they became modes.
 
   // The mode switch for whichever view is showing. Rendered before that view
   // draws, because a view's own empty state returns early — a switch rendered
@@ -1204,6 +1209,7 @@
       // the content they filter.
       fadeInOnViewChange($("#content"));
       if (state.view === "backlog") { Backlog.renderBacklog(c); return; }
+      if (state.view === "habits") { Habits.renderHabits(c); return; }
       // Before the mode draws: a view's own empty state returns early, and
       // anything rendered inside it would go missing with it.
       renderModeBar(slot);
@@ -1279,6 +1285,7 @@
       timeline: getFiltered().length,
       backlog: Backlog.getFilteredBacklog().length,
       finance: Finance.getFilteredFinance().length,
+      habits: Habits.getFilteredHabits().length,
     } : null;
     for (const key of enabledViews()) {
       const tab = document.querySelector(`.tab[data-view="${key}"]`);
@@ -1309,6 +1316,9 @@
     // true of the other views: it left Next releases and Discover scrolling
     // by hand through exactly the kind of list this row exists for.
     if (state.view === "backlog") return ".backlog-section-head";
+    // Habits is a flat stack of cards with no headers to page between, the
+    // same as Stats, Summary and To-do below.
+    if (state.view === "habits") return null;
     // Stats, Summary and To-do are fixed layouts with no headers to page
     // between, so the row goes — which is a per-mode question now that each
     // of them shares a tab with a list that does have them.
@@ -2338,7 +2348,9 @@
     // its stale-node guard treats as "someone took these away, rebuild".
     const wrap = $("#yearFilter");
     const finance = isFinanceView();
-    const ys = finance ? Finance.financeYears() : years();
+    // Habits has no year chips: each card's own grid is the time axis, and a
+    // chip row narrowing it to 2024 would narrow nothing you can see.
+    const ys = state.view === "habits" ? [] : (finance ? Finance.financeYears() : years());
     // Nothing to filter by — an empty view, or a mode with no dates worth
     // chipping (To-do) — so the row goes rather than sitting there as a
     // label with nothing under it.
@@ -2472,7 +2484,9 @@
     // nothing to explain and nothing you could do about it. To-dos do carry
     // one, from their own list, so the row is theirs in that mode.
     const todo = Todos.isTodoMode();
-    const noCats = state.view === "notes" && !todo;
+    // A habit carries no category either — it carries a colour, which is its
+    // own and not shared with anything the chips could narrow.
+    const noCats = state.view === "habits" || (state.view === "notes" && !todo);
     $("#catFilterGroup").hidden = noCats;
     updateFilterbarVisibility();
     if (noCats) return;
@@ -2985,6 +2999,7 @@
     data.backlog = (data.backlog || []).map(Backlog.sanitizeBacklog);
     data.notes = (data.notes || []).map(Notes.sanitizeNote);
     data.todos = Todos.assignMissingOrder((data.todos || []).map(Todos.sanitizeTodo));
+    data.habits = (data.habits || []).map(Habits.sanitizeHabit);
     // A checklist's categories are its own — "Errands", "Work" — and have
     // nothing to say about what you've watched or bought, so they're a third
     // list rather than a third use of the journal's. Anything a to-do names
@@ -3368,6 +3383,7 @@
       else if (b.dataset.add === "note") Notes.openNoteModal(null);
       else if (b.dataset.add === "achievement") Journal.openAchModal(null);
       else if (b.dataset.add === "backlog") Backlog.openBacklogModal(null);
+      else if (b.dataset.add === "habit") Habits.openHabitModal(null);
       else if (b.dataset.add === "finance") Finance.openFinanceModal(null);
       else if (b.dataset.add === "recurring") Finance.openRecurringModal(null);
     });
@@ -3418,6 +3434,7 @@
     });
     syncModalOpenState();
 
+    Habits.wire();
     Recap.wire();
 
     $("#closeShortcutsBtn").onclick = closeShortcutsModal;
@@ -3432,6 +3449,7 @@
         Backlog.closePickModal(); Wheel.closeWheel();
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
         Finance.closePauseModal(); Finance.cancelFinanceCatModal(); Todos.closeTodoCatModal();
+        Habits.closeHabitModal();
         SettingsUI.closeSettings();
         closeShortcutsModal();
         closeBulkProgressPanel();
@@ -3779,10 +3797,12 @@
     // VIEW_MODES stays the one place that knows what a view's modes are. The
     // tab labels are the ones on the tabs themselves, read off the bar rather
     // than restated, for the same reason.
+    // Habits has no VIEW_MODES entry — it is one screen — so its modes list
+    // is empty and Settings shows it a switch with nothing under it.
     VIEW_TOGGLES: VIEW_ORDER.map((v) => [
       v,
       (document.querySelector('#viewTabs .tab[data-view="' + v + '"]') || {}).textContent || v,
-      VIEW_MODES[v].modes.map(([id, label]) => [id, label]),
+      ((VIEW_MODES[v] || {}).modes || []).map(([id, label]) => [id, label]),
     ]),
     settleDisabled,
     state, $, el, toast, persist, render, normalize, afterDataChange,
@@ -3815,6 +3835,10 @@
   Todos.init({
     state, $, el, uid, toast, persist, render, emptyState, backfillUpdatedAt, keepUnknown,
     prefersReducedMotion, CATEGORY_PALETTE, buildCatFilter, activatable,
+  });
+  Habits.init({
+    state, $, el, uid, toast, persist, render, emptyState, activatable,
+    backfillUpdatedAt, keepUnknown, CATEGORY_PALETTE, buildCatFilter,
   });
   Recap.init({ state, $, el, toast, MONTHS, prefersReducedMotion });
 

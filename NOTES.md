@@ -16,6 +16,62 @@ what was decided against and why.
 
 ---
 
+- habits (0.171.0) are a fifth tab rather than a third Notes mode, and the
+  argument is the one this app has always used: **lists here are organised by
+  their ending.** A backlog item graduates into an entry, a to-do is ticked
+  and stops mattering, an expense is a fact about a date. A habit has no
+  ending — it comes back tomorrow — and what it is worth is the pattern
+  rather than any single tick. That is a fourth kind of ending, so it is a
+  fourth kind of list.
+
+  The practical objection to a fifth tab was room, and it was measured rather
+  than assumed: five tabs are 75px each at 390px and 61px at 320px, with no
+  label clipped. The objection that actually mattered was different — a
+  habit tracker you go two taps deep to tick is one you stop using — which is
+  why today's tick is the biggest thing on each card and the tab is one level
+  from anywhere.
+
+  **Marks live on the habit as a `{ date: count }` map**, not as their own
+  collection. A daily habit over three years is ~1,100 of them; at ~16 bytes
+  each that is 18KB, where id-carrying records would be five or six times
+  that in a file that syncs whole on every save.
+
+  That costs one thing, and it is the one that had to be got right:
+  `mergeCollection` treats an item as atomic, so two phones ticking two
+  different days would resolve as an edit conflict with one of the days
+  simply gone — and that is the single most likely thing that will ever
+  happen to this collection. `mergeHabits` merges the habit's own fields
+  normally and then merges its marks **per date**, three-way like everything
+  else: a date only one side touched takes that side, which is what makes
+  unticking work rather than being undone by the other device's stale copy.
+  Where both sides changed the same date the larger count wins — "I did it"
+  beats "I didn't record it", and the loser can untick again. A plain union
+  would have been simpler and would have made unticking impossible.
+
+  **Two rules in the streak maths are judgement calls**, both of them there
+  to stop the tracker punishing you for being honest with it. A day the
+  cadence never asked for does not break a run, so a weekdays habit survives
+  the weekend untouched — a streak counted in calendar days would tell
+  someone doing exactly what they planned that they keep failing. And today
+  is never counted against you: if it is due and not yet done, the run up to
+  yesterday still stands, because a tracker that zeroes your streak at
+  midnight punishes you for looking at it in the morning. Both have tests
+  that say so in words.
+
+  Three things the fifth view broke that are worth knowing, since a sixth
+  would break them too: `VIEW_TOGGLES` in Settings assumed every view has a
+  `VIEW_MODES` entry (habits has none — it is one screen, so no mode dots and
+  no mode swipe); `buildYearFilter`/`buildCatFilter` showed the journal's year
+  and category chips over a view that has neither; and six checks in
+  `tabtoggle.js` had "four" written into them. Those checks now read the tab
+  list off the bar instead.
+
+  And one real bug the browser suite caught: archiving your only habit landed
+  on "no habits match your search" **with the archived section never
+  rendered** — the habit and its whole history unreachable. The live list
+  being empty is no longer an early return.
+
+
 - 0.170.0 gave the Recap two slide kinds that show things instead of counting
   them — `gallery` (the wall of covers) and `cards` (the notes themselves).
   The pure/render split from 0.167.0 held: both are specs out of `buildRecap`,

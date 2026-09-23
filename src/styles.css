@@ -2432,3 +2432,86 @@ html.force-mobile .backlog-section-head {
   .recap-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; }
   .recap-grid, .recap-cards { max-height: 62vh; }
 }
+
+/* ---------- habits ---------- */
+/* How much of today you've done, before any of the cards. */
+.habit-today {
+  display: flex; align-items: baseline; gap: 8px;
+  margin: 0 0 12px; padding: 0 2px;
+}
+.habit-today-count { font-size: 22px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+.habit-today-label { font-size: 13px; color: var(--text-dim); }
+
+.habit-card {
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px;
+  padding: 12px 13px; margin-bottom: 12px;
+}
+.habit-head { display: flex; align-items: center; gap: 9px; }
+.habit-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+.habit-name {
+  flex: 1 1 auto; min-width: 0; text-align: left;
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--text); font-size: 15px; font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.habit-name:hover { color: var(--accent); }
+.habit-streak { flex: 0 0 auto; font-size: 13px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.habit-sub {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  margin: 3px 0 0 19px; font-size: 11.5px; color: var(--text-faint);
+}
+.habit-sub-right { text-align: right; }
+
+/* The one control you use every day, so it is the biggest thing on the card
+   and a whole-width target rather than a checkbox to aim at. */
+.habit-tick {
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  width: 100%; margin: 11px 0 4px; padding: 13px 10px;
+  background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: 10px;
+  color: var(--text-dim); font-size: 14px; font-weight: 600; cursor: pointer;
+  transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease);
+}
+.habit-tick:hover { border-color: var(--habit-colour, var(--accent)); color: var(--text); }
+.habit-tick.is-done {
+  background: var(--habit-colour, var(--accent));
+  border-color: var(--habit-colour, var(--accent));
+  color: #fff;
+}
+.habit-tick-mark { font-size: 16px; line-height: 1; font-variant-numeric: tabular-nums; }
+.habit-notdue { margin: 10px 0 4px; font-size: 12.5px; color: var(--text-faint); font-style: italic; }
+
+/* Twelve weeks, a row per weekday. Tapping a cell fixes a day you forgot,
+   which is the only way a tracker survives being away from your phone. */
+.habit-grid { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
+.habit-grid-row { display: flex; align-items: center; gap: 3px; }
+.habit-grid-day {
+  flex: 0 0 12px; font-size: 8.5px; color: var(--text-faint);
+  text-align: right; line-height: 1;
+}
+.habit-cell {
+  flex: 1 1 0; aspect-ratio: 1; min-width: 0; padding: 0;
+  background: var(--bg-elev-2); border: 1px solid transparent; border-radius: 3px;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.habit-cell:hover:not(:disabled) { border-color: var(--accent); }
+/* A day the habit never asked for reads as absent, not as a miss — the whole
+   point of a cadence. A future day is simply not there yet. */
+.habit-cell.is-off { background: transparent; cursor: default; }
+.habit-cell.is-future { background: transparent; opacity: .35; cursor: default; }
+
+.habit-archived { margin-top: 18px; }
+.habit-archived .hint { margin: 0 0 6px; }
+.habit-archived-row {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  background: none; border: none; padding: 6px 2px; cursor: pointer;
+  color: var(--text-dim); font-size: 13px; text-align: left;
+}
+.habit-archived-row:hover { color: var(--text); }
+.habit-archived-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.habit-archived-when { flex: 0 0 auto; font-size: 11px; color: var(--text-faint); }
+
+/* The day pickers in the habit modal: a row of small toggles rather than
+   seven stacked label rows. */
+.habit-days { display: flex; flex-wrap: wrap; gap: 4px 12px; padding-top: 4px; }
+.habit-days .toggle-label { font-size: 12.5px; }

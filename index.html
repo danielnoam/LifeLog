@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.170.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.171.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -87,6 +87,7 @@
         <button class="tab active" data-view="timeline" data-icon="☰">Timeline</button>
         <button class="tab" data-view="backlog" data-icon="★">Backlog</button>
         <button class="tab" data-view="finance" data-icon="₪">Ledger</button>
+        <button class="tab" data-view="habits" data-icon="✓">Habits</button>
         <span class="tab-underline" id="tabUnderline" hidden></span>
       </nav>
       <!-- Mobile-only quick-jump row: prev/next between the sticky year/category
@@ -119,6 +120,7 @@
       <button type="button" data-add="note" data-view="notes">Write a note</button>
       <button type="button" data-add="achievement" data-view="timeline">Add achievement</button>
       <button type="button" data-add="backlog" data-view="backlog">Add to backlog</button>
+      <button type="button" data-add="habit" data-view="habits">Add habit</button>
       <div class="menu-pop-divider" role="separator" data-view="finance"></div>
       <button type="button" data-add="finance" data-view="finance">Add finance entry</button>
       <button type="button" data-add="recurring" data-view="finance">Add recurring expense</button>
@@ -834,6 +836,57 @@
     </div>
   </div>
 
+  <!-- Habit add/edit. Archiving rather than deleting is the ordinary way to
+       stop one: a habit's history is the whole point of having kept it, and a
+       year of ticks shouldn't go because you stopped in March. -->
+  <div class="modal-overlay" id="habitModal" hidden>
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="habitModalTitle">Add habit</h2>
+      </div>
+      <form id="habitForm">
+        <label>Name
+          <input id="habitName" type="text" required autocomplete="off" placeholder="e.g. Read before bed" />
+        </label>
+        <div class="field-row">
+          <label>How often
+            <select id="habitCadence">
+              <option value="daily">Every day</option>
+              <option value="days">Certain days</option>
+            </select>
+          </label>
+          <label class="field-narrow">Times a day
+            <input id="habitTarget" type="number" min="1" max="99" step="1" value="1" />
+          </label>
+        </div>
+        <label id="habitDaysLabel" hidden>Days
+          <span class="habit-days" id="habitDays">
+            <label class="toggle-label"><input type="checkbox" />Sun</label>
+            <label class="toggle-label"><input type="checkbox" />Mon</label>
+            <label class="toggle-label"><input type="checkbox" />Tue</label>
+            <label class="toggle-label"><input type="checkbox" />Wed</label>
+            <label class="toggle-label"><input type="checkbox" />Thu</label>
+            <label class="toggle-label"><input type="checkbox" />Fri</label>
+            <label class="toggle-label"><input type="checkbox" />Sat</label>
+          </span>
+        </label>
+        <label>Colour
+          <input id="habitColor" type="color" value="#5b8cff" />
+        </label>
+        <p class="hint">A day you never promised doesn't break a streak — a
+          weekdays habit survives the weekend untouched. Today never counts
+          against you until it's over.</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="deleteHabitBtn" hidden>Delete</button>
+          <button type="button" class="btn" id="archiveHabitBtn" hidden>⏸ Archive</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelHabitBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- To-do category add/edit. A third of these, after the journal's and the
        Finance one — see DROPPED.md for why folding them into one
        parameterised modal was tried and rejected. This one is the simplest:
@@ -1454,21 +1507,22 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/reconcile.js?v=0.170.0"></script>
-  <script defer src="src/qr.js?v=0.170.0"></script>
-  <script defer src="src/media.js?v=0.170.0"></script>
-  <script defer src="src/merge.js?v=0.170.0"></script>
-  <script defer src="src/storage.js?v=0.170.0"></script>
-  <script defer src="src/finance.js?v=0.170.0"></script>
-  <script defer src="src/settings.js?v=0.170.0"></script>
-  <script defer src="src/wheel.js?v=0.170.0"></script>
-  <script defer src="src/backlog.js?v=0.170.0"></script>
-  <script defer src="src/journal.js?v=0.170.0"></script>
-  <script defer src="src/notes.js?v=0.170.0"></script>
-  <script defer src="src/todos.js?v=0.170.0"></script>
-  <script defer src="src/io.js?v=0.170.0"></script>
-  <script defer src="src/sync.js?v=0.170.0"></script>
-  <script defer src="src/recap.js?v=0.170.0"></script>
-  <script defer src="src/app.js?v=0.170.0"></script>
+  <script defer src="src/reconcile.js?v=0.171.0"></script>
+  <script defer src="src/qr.js?v=0.171.0"></script>
+  <script defer src="src/media.js?v=0.171.0"></script>
+  <script defer src="src/merge.js?v=0.171.0"></script>
+  <script defer src="src/storage.js?v=0.171.0"></script>
+  <script defer src="src/finance.js?v=0.171.0"></script>
+  <script defer src="src/settings.js?v=0.171.0"></script>
+  <script defer src="src/wheel.js?v=0.171.0"></script>
+  <script defer src="src/backlog.js?v=0.171.0"></script>
+  <script defer src="src/journal.js?v=0.171.0"></script>
+  <script defer src="src/notes.js?v=0.171.0"></script>
+  <script defer src="src/todos.js?v=0.171.0"></script>
+  <script defer src="src/io.js?v=0.171.0"></script>
+  <script defer src="src/sync.js?v=0.171.0"></script>
+  <script defer src="src/habits.js?v=0.171.0"></script>
+  <script defer src="src/recap.js?v=0.171.0"></script>
+  <script defer src="src/app.js?v=0.171.0"></script>
 </body>
 </html>

@@ -3,6 +3,11 @@
 // anything untrue and never pads itself with a slide that has nothing to say.
 const assert = require("assert");
 global.window = {};
+require("../src/habits.js");
+global.window.LifeLogHabits.init({
+  uid: () => "h", backfillUpdatedAt: (i) => i.updatedAt || "1970-01-01T00:00:00.000Z",
+  keepUnknown: (src, out) => out,
+});
 require("../src/recap.js");
 const Recap = global.window.LifeLogRecap;
 Recap.init({
@@ -296,6 +301,74 @@ test("the best-of list carries cover art where there is any", () => {
   const s = byId(build(data, 2026), "rated");
   assert.strictEqual(s.list.find((x) => x.label === "With art").coverUrl, "a.jpg");
   assert.strictEqual(s.list.find((x) => x.label === "Without").coverUrl, "");
+});
+
+console.log("\nhabits in the recap");
+
+const habit = (o) => ({ id: "h" + Math.random(), name: "Read", color: "#5b8cff",
+  cadence: "daily", target: 1, startedAt: "2026-01-01", ...o });
+const run = (from, n) => {
+  const m = {};
+  const d = new Date(from + "T00:00:00");
+  for (let i = 0; i < n; i++) { m[d.toISOString().slice(0, 10)] = 1; d.setDate(d.getDate() + 1); }
+  return m;
+};
+
+test("a year's best run gets a slide, with the habit named", () => {
+  const s = byId(build({ habits: [habit({ name: "Read", marks: run("2026-02-01", 9) })] }, 2026), "habit-streak");
+  assert.strictEqual(s.value, 9);
+  assert.ok(/your best run of Read/.test(s.sub), s.sub);
+  assert.ok(/kept it 9 of \d+ days/.test(s.foot), s.foot);
+});
+
+test("two days in a row is not a streak worth a slide", () => {
+  assert.strictEqual(byId(build({ habits: [habit({ marks: run("2026-02-01", 2) })] }, 2026), "habit-streak"), undefined);
+});
+
+test("a habit with nothing recorded that year is not in the recap at all", () => {
+  const s = build({ habits: [habit({ marks: run("2025-02-01", 20) })] }, 2026);
+  assert.deepStrictEqual(s, [], "a year with nothing else in it has no recap either");
+});
+
+test("with more than one habit, the recap compares them", () => {
+  const s = byId(build({ habits: [
+    habit({ name: "Read", marks: run("2026-02-01", 20) }),
+    habit({ name: "Run", color: "#e2554b", marks: run("2026-02-01", 6) }),
+  ] }, 2026), "habits-kept");
+  assert.deepStrictEqual(s.bars.map((b) => b.label), ["Read", "Run"]);
+  assert.strictEqual(s.bars[0].n, 20);
+  // Each bar carries its own habit's colour rather than borrowing a category's.
+  assert.strictEqual(s.bars[1].color, "#e2554b");
+});
+
+test("one habit alone is a streak slide, not a comparison", () => {
+  const one = build({ habits: [habit({ marks: run("2026-02-01", 9) })] }, 2026);
+  assert.ok(one.some((x) => x.id === "habit-streak"));
+  assert.ok(!one.some((x) => x.id === "habits-kept"), "nothing to compare it with");
+});
+
+test("the closing line counts the days you kept", () => {
+  const s = byId(build({ habits: [habit({ marks: run("2026-02-01", 9) })] }, 2026), "closing");
+  assert.ok(/9 days of habits kept/.test(s.sub), s.sub);
+});
+
+test("a year that is only habits is still a year worth recapping", () => {
+  const s = build({ habits: [habit({ marks: run("2026-02-01", 9) })] }, 2026);
+  assert.ok(s.some((x) => x.id === "opening"), "it opens");
+  assert.ok(s.some((x) => x.id === "habit-streak"));
+});
+
+test("turning the Habits tab off takes its slides with it", () => {
+  const data = { habits: [
+    habit({ name: "Read", marks: run("2026-02-01", 20) }),
+    habit({ name: "Run", marks: run("2026-02-01", 9) }),
+  ], entries: [entry({ title: "A" }), entry({ title: "B" })] };
+  const s = Recap.buildRecap(data, 2026, money, (v) => v !== "habits");
+  assert.ok(!s.some((x) => ["habit-streak", "habits-kept"].includes(x.id)), s.map((x) => x.id));
+});
+
+test("a year known only by its habit marks is still offered", () => {
+  assert.deepStrictEqual(Recap.recapYears({ habits: [habit({ marks: run("2024-03-01", 3) })] }), [2024]);
 });
 
 console.log("\nturned-off tabs and modes");

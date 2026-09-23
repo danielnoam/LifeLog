@@ -4,7 +4,7 @@
 // in plain Node (see test/merge.test.js) — the merge logic is exactly what
 // gets tested, not a simulation of it.
 (function () {
-  const COLLECTION_KEYS = ["entries", "backlog", "notes", "todos", "financeEntries", "recurringExpenses", "categories", "todoCategories", "financeCategories", "projects"];
+  const COLLECTION_KEYS = ["entries", "backlog", "notes", "todos", "financeEntries", "recurringExpenses", "categories", "todoCategories", "financeCategories", "projects", "habits"];
 
   function byId(arr) {
     const m = new Map();
@@ -106,6 +106,7 @@
     todoCategories: ["to-do category", "to-do categories"],
     financeCategories: ["finance category", "finance categories"],
     projects: ["project", "projects"],
+    habits: ["habit", "habits"],
   };
 
   // Human-readable summary of what changed between two whole-document
@@ -225,10 +226,50 @@
     return (local.updatedAt || "") >= (remote.updatedAt || "") ? local : remote;
   }
 
+  // Habits need one thing on top of the ordinary collection merge: their
+  // marks are a { date: count } map, and mergeCollection treats an item as
+  // atomic. Two phones ticking two different days is the single most likely
+  // thing that will ever happen to this collection, and left alone it would
+  // resolve as an edit conflict — one of the two days simply gone.
+  //
+  // So the habit's own fields merge as usual, and then its marks are merged
+  // per date, three-way like everything else here: a date only one side
+  // touched takes that side, which is what makes unticking a day work rather
+  // than being undone by the other device's stale copy. Where both sides
+  // changed the same date, the larger count wins — "I did it" beats "I
+  // didn't record it", and the loser can untick again. See NOTES.md.
+  function mergeMarks(base, local, remote) {
+    base = base || {}; local = local || {}; remote = remote || {};
+    const out = {};
+    for (const date of new Set([...Object.keys(base), ...Object.keys(local), ...Object.keys(remote)])) {
+      const b = +base[date] || 0, l = +local[date] || 0, r = +remote[date] || 0;
+      let v;
+      if (l === r) v = l;
+      else if (l === b) v = r;
+      else if (r === b) v = l;
+      else v = Math.max(l, r);
+      if (v > 0) out[date] = v;
+    }
+    return out;
+  }
+
+  function mergeHabits(baseArr, localArr, remoteArr) {
+    const merged = mergeCollection(baseArr || [], localArr || [], remoteArr || []).merged;
+    const b = byId(baseArr), l = byId(localArr), r = byId(remoteArr);
+    return merged.map((h) => {
+      const marks = mergeMarks((b.get(h.id) || {}).marks, (l.get(h.id) || {}).marks, (r.get(h.id) || {}).marks);
+      const out = { ...h };
+      if (Object.keys(marks).length) out.marks = marks; else delete out.marks;
+      return out;
+    });
+  }
+
   function mergeAllSources(base, local, remote) {
     base = base || {}; local = local || {}; remote = remote || {};
     const out = {};
     for (const key of COLLECTION_KEYS) out[key] = mergeCollection(base[key] || [], local[key] || [], remote[key] || []).merged;
+    // ...except habits, whose marks map has to survive both sides editing it.
+    out.habits = mergeHabits(base.habits, local.habits, remote.habits);
     out.accomplishments = mergeAccomplishmentYears(base.accomplishments, local.accomplishments, remote.accomplishments);
     out.settings = mergeSettings(base.settings, local.settings, remote.settings);
     out.version = local.version || remote.version || 1;
@@ -247,6 +288,7 @@
     compareVersions, maxVersion,
     stampChangedItems, diffCollection, diffSnapshots, summarizeConflicts,
     mergeCollection, mergeAccomplishmentYears, mergeSettings, mergeAllSources,
+    mergeHabits, mergeMarks,
   };
 
   if (typeof window !== "undefined") window.LifeLogMerge = api;

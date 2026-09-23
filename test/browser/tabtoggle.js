@@ -59,12 +59,20 @@ const activeView = (page) => page.evaluate(() => {
   const browser = await chromium.launch();
   const errs = [];
 
+  // Read off the bar rather than written down here, so adding a sixth view
+  // does not fail a test about turning tabs off. The 0.171.0 habits tab broke
+  // six checks that had "four" baked into them; that is a fact about the
+  // tests, not about the feature.
+  let ALL_VIEWS = [];
+
   // ---- 1. by default nothing changes ----
   {
     const { page, ctx, errs: e } = await app(browser);
-    check("all four tabs are there when nothing is turned off",
-      JSON.stringify(await shownTabs(page)) === JSON.stringify(["notes", "timeline", "backlog", "finance"]),
-      await shownTabs(page));
+    ALL_VIEWS = await page.evaluate(() =>
+      [...document.querySelectorAll("#viewTabs .tab")].map((t) => t.dataset.view));
+    const shown = await shownTabs(page);
+    check("every tab is there when nothing is turned off",
+      JSON.stringify(shown) === JSON.stringify(ALL_VIEWS) && shown.length >= 4, shown);
     errs.push(...e);
     await ctx.close();
   }
@@ -73,9 +81,10 @@ const activeView = (page) => page.evaluate(() => {
   {
     const { page, ctx, errs: e } = await app(browser, { visual: { disabledViews: ["backlog"] } });
     const tabs = await shownTabs(page);
-    check("a disabled tab is gone from the bar", !tabs.includes("backlog") && tabs.length === 3, tabs);
+    check("a disabled tab is gone from the bar",
+      !tabs.includes("backlog") && tabs.length === ALL_VIEWS.length - 1, tabs);
     check("and the ones left keep their order",
-      JSON.stringify(tabs) === JSON.stringify(["notes", "timeline", "finance"]), tabs);
+      JSON.stringify(tabs) === JSON.stringify(ALL_VIEWS.filter((v) => v !== "backlog")), tabs);
 
     // Timeline → swipe left should land on Finance, not the disabled Backlog.
     // attachSwipe listens on pointer events, not touch, and only in the
@@ -202,7 +211,10 @@ const activeView = (page) => page.evaluate(() => {
       views: document.querySelectorAll("#tabToggles .tab-toggle-view").length,
       modes: document.querySelectorAll("#tabToggles .tab-toggle-modes .toggle-label").length,
     }));
-    check("every tab gets a switch, and every mode one under it", rows.views === 4 && rows.modes === 9, rows);
+    // Habits has one screen and so no modes — a switch with nothing under it
+    // is the correct rendering of that, not a missing row.
+    check("every tab gets a switch, and every mode one under it",
+      rows.views === ALL_VIEWS.length && rows.modes === 9, { ...rows, tabs: ALL_VIEWS.length });
 
     // Turn Backlog off through the real control.
     await page.evaluate(() => {
@@ -218,16 +230,18 @@ const activeView = (page) => page.evaluate(() => {
       return sub.querySelectorAll("input").length === 3 && [...sub.querySelectorAll("input")].every((i) => i.disabled);
     }));
 
-    // The last one standing can't be turned off.
-    for (const name of ["Notes", "Timeline", "Ledger"]) {
-      await page.evaluate((n) => {
-        const row = [...document.querySelectorAll("#tabToggles .tab-toggle-view")].find((l) => l.textContent.includes(n));
-        if (row && row.querySelector("input").checked) row.querySelector("input").click();
-      }, name);
-      await page.waitForTimeout(300);
+    // The last one standing can't be turned off — try to switch off every
+    // remaining one and see how many actually go.
+    for (let i = 0; i < ALL_VIEWS.length; i++) {
+      await page.evaluate(() => {
+        const row = [...document.querySelectorAll("#tabToggles .tab-toggle-view")]
+          .find((l) => l.querySelector("input").checked);
+        if (row) row.querySelector("input").click();
+      });
+      await page.waitForTimeout(250);
     }
     const left = await page.evaluate(() => (JSON.parse(localStorage.getItem("lifelog-visual-settings-v1")).disabledViews || []).length);
-    check("you cannot turn off the last tab", left === 3, left);
+    check("you cannot turn off the last tab", left === ALL_VIEWS.length - 1, { left, of: ALL_VIEWS.length });
     check("so one tab is still on screen", (await shownTabs(page)).length === 1, await shownTabs(page));
     errs.push(...e);
     await ctx.close();
@@ -337,11 +351,9 @@ const activeView = (page) => page.evaluate(() => {
 
   // ---- 7. a hand-edited file that turns everything off is survivable ----
   {
-    const { page, ctx, errs: e } = await app(browser, {
-      visual: { disabledViews: ["notes", "timeline", "backlog", "finance"] },
-    });
+    const { page, ctx, errs: e } = await app(browser, { visual: { disabledViews: ALL_VIEWS } });
     check("disabling every tab falls back to all of them rather than bricking",
-      (await shownTabs(page)).length === 4, await shownTabs(page));
+      (await shownTabs(page)).length === ALL_VIEWS.length, await shownTabs(page));
     errs.push(...e);
     await ctx.close();
   }

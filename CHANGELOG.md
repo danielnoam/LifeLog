@@ -4,6 +4,34 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.171.0] - 2026-09-23
+
+### Added
+- **A Habits tab** — the fifth. Everything else in LifeLog is organised
+  around an ending: a backlog item graduates into an entry, a to-do is ticked
+  and stops mattering. A habit has no ending, and what it's worth is the
+  pattern rather than any single tick, so it gets its own place.
+- **One tap to tick today.** It's the biggest thing on each card, because
+  it's the only part you use daily.
+- **Every day, or certain days.** A weekdays habit isn't broken by a
+  Saturday — a day you never promised doesn't count against you. And today
+  never counts against you until it's over, so your streak still stands when
+  you open the app in the morning.
+- **Times a day**, for the ones that aren't yes/no: set a target of 3 and
+  each tap counts one, so "1 of 3" is honest rather than all-or-nothing.
+- **A twelve-week grid** per habit, showing the run at a glance. Tap any past
+  day to fix one you forgot — which is the only way a tracker survives a day
+  spent away from your phone. A habit due on three days draws three rows, not
+  seven with gaps in.
+- **Archive rather than delete.** A year of ticks is the point of having kept
+  them, so stopping a habit keeps its history and you can start it again.
+- **Habits in your Recap**: your best run of the year, and how the habits
+  went against each other. A year with nothing in it but habits is still a
+  year worth recapping.
+- Habits sync like everything else, and two phones ticking two different days
+  both keep their day — the marks merge per date rather than one device's
+  copy winning whole.
+
 ## [0.170.0] - 2026-09-22
 
 ### Added

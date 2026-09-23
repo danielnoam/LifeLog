@@ -13,6 +13,32 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## Habit reminders and notifications
+
+The obvious thing to want from a habit tracker, and not happening. LifeLog
+has no notification infrastructure at all, and a PWA one is its own project:
+permission prompts, a service worker that wakes on a schedule, an iOS story
+that has historically been the weak spot, and a whole class of "why did it
+buzz twice" bug that none of the rest of this app can produce. It would be
+larger than the habit tracker it was meant to support.
+
+If it ever happens it should be its own decision, taken on its own merits,
+not smuggled in as a feature of habits.
+
+## Habits feeding the to-do list
+
+Today's unticked habits appearing as rows in the To-do checklist. Tempting —
+both answer "what am I doing today" — and rejected because it makes two lists
+disagree about what "done" means. A to-do is ticked and stops mattering; a
+habit comes back tomorrow. Putting them in one list means either the habit
+vanishes when ticked (wrong — the tick is the whole record) or the checklist
+grows rows that never go away (wrong — that is not a checklist).
+
+The connection people actually want from this is speed of ticking, and that
+is answered by the Habits tab being one tap from anywhere with today's tick
+as the biggest thing on the card.
+
+
 ## Virtualising the Timeline and Backlog rows
 
 Parked in TODO.md since 0.136.1 on a suspicion, re-measured 2026-09-21 on

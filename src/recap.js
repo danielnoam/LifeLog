@@ -75,7 +75,17 @@
     const spend = (data.financeEntries || []).filter((f) => !f.skipped && yearOf(f.date) === year);
     const prevSpend = (data.financeEntries || []).filter((f) => !f.skipped && yearOf(f.date) === year - 1);
     const achievements = (data.accomplishments && data.accomplishments[year]) || [];
-    return { year, entries, prevEntries, notes, prevNotes, todosDone, backlogAdded, spend, prevSpend, achievements };
+    // Habits are read through src/habits.js's own pure helpers rather than
+    // re-deriving cadence and streak rules here — there is exactly one place
+    // that knows what a streak is, and this is not it.
+    const habits = (data.habits || []).map((h) => {
+      const H = window.LifeLogHabits;
+      const from = year + "-01-01", to = year + "-12-31";
+      if (!H) return { habit: h, kept: 0, due: 0, best: 0 };
+      const st = H.statsFor(h, from, to);
+      return { habit: h, kept: st.done, due: st.due, rate: st.rate, best: H.bestStreakOf(h, to) };
+    }).filter((x) => x.kept > 0);
+    return { year, entries, prevEntries, notes, prevNotes, todosDone, backlogAdded, spend, prevSpend, achievements, habits };
   }
 
   // Each slide returns a spec or null. Order is the order you see them in:
@@ -83,7 +93,8 @@
   // said you'd do.
   const SLIDES = [
     function opening(g) {
-      const anything = g.entries.length || g.notes.length || g.todosDone.length || g.spend.length || g.achievements.length;
+      const anything = g.entries.length || g.notes.length || g.todosDone.length || g.spend.length
+        || g.achievements.length || g.habits.length;
       if (!anything) return null;
       return { id: "opening", kind: "title", headline: String(g.year), sub: "Here's your year." };
     },
@@ -265,6 +276,34 @@
       };
     },
 
+    // The year's best run. A habit's whole value is the pattern, so the recap
+    // says the pattern rather than a count of ticks.
+    function habitStreak(g) {
+      if (!g.habits.length) return null;
+      const top = g.habits.slice().sort((a, b) => b.best - a.best || b.kept - a.kept)[0];
+      if (top.best < 3) return null; // two days in a row is not a streak worth a slide
+      return {
+        id: "habit-streak", kind: "big", view: "habits",
+        value: top.best,
+        headline: top.best === 1 ? "day in a row" : "days in a row",
+        sub: "your best run of " + top.habit.name,
+        foot: top.due ? "kept it " + top.kept + " of " + top.due + " days it asked for" : "",
+      };
+    },
+
+    // And what you actually kept, across all of them.
+    function habitsKept(g) {
+      if (g.habits.length < 2) return null;
+      const ranked = g.habits.slice().sort((a, b) => (b.rate || 0) - (a.rate || 0));
+      return {
+        id: "habits-kept", kind: "bars", view: "habits",
+        headline: "How the habits went",
+        bars: ranked.slice(0, 5).map((x) => ({ label: x.habit.name, n: x.kept, color: x.habit.color })),
+        max: ranked.reduce((m, x) => Math.max(m, x.kept), 0),
+        foot: "days kept in " + g.year,
+      };
+    },
+
     function spent(g, fmt) {
       if (!g.spend.length) return null;
       const total = g.spend.reduce((s, f) => s + (+f.amount || 0), 0);
@@ -297,6 +336,8 @@
       if (g.entries.length) bits.push(plural(g.entries.length, "thing logged", "things logged"));
       if (g.notes.length) bits.push(plural(g.notes.length, "note", "notes"));
       if (g.todosDone.length) bits.push(plural(g.todosDone.length, "to-do done", "to-dos done"));
+      const habitDays = g.habits.reduce((n, x) => n + x.kept, 0);
+      if (habitDays) bits.push(plural(habitDays, "day of a habit kept", "days of habits kept"));
       if (!bits.length) return null;
       return {
         id: "closing", kind: "title",
@@ -334,6 +375,7 @@
     for (const n of data.notes || []) if (yearOf(n.createdAt)) ys.add(yearOf(n.createdAt));
     for (const f of data.financeEntries || []) if (yearOf(f.date)) ys.add(yearOf(f.date));
     for (const y of Object.keys(data.accomplishments || {})) if (+y) ys.add(+y);
+    for (const h of data.habits || []) for (const d of Object.keys(h.marks || {})) if (yearOf(d)) ys.add(yearOf(d));
     return [...ys].sort((a, b) => b - a);
   }
 
@@ -461,7 +503,7 @@
         const track = el("span", "recap-bartrack");
         const fill = el("span", "recap-barfill");
         fill.style.width = Math.round((b.n / spec.max) * 100) + "%";
-        fill.style.background = colorFor(b.label);
+        fill.style.background = b.color || colorFor(b.label);
         track.appendChild(fill);
         row.appendChild(track);
         row.appendChild(el("span", "recap-barn", String(b.n)));
