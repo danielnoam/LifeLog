@@ -2,7 +2,7 @@
 // browser in test/habits.test.js; this is the part only a browser can answer —
 // that a tap records the right day, that the grid lets you fix a day you
 // forgot, and that archiving keeps the history rather than throwing it away.
-const { chromium, BASE } = require("./harness");
+const { chromium, BASE, settled } = require("./harness");
 let pass = 0, fail = 0;
 const check = (n, ok, extra) => { ok ? pass++ : fail++; console.log((ok ? "  ok   - " : "  FAIL - ") + n + (ok || extra === undefined ? "" : "  [" + JSON.stringify(extra) + "]")); };
 
@@ -211,6 +211,7 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     check("and it starts today, not at the epoch", made.startedAt === TODAY, made.startedAt);
 
     // Archive it, and check the record survives.
+    await settled(page);
     await page.evaluate(() => {
       const h = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
       h.habits[0].marks = { "2026-09-22": 1 };
@@ -582,6 +583,7 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
       spanned[0] === kept.oldest && spanned[spanned.length - 1] === back(2), spanned.length);
 
     // A weekends habit asked nothing of the weekdays in between.
+    await settled(page);
     await page.evaluate((s) => {
       const c = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
       c.habits[0].cadence = { days: [0, 6] };

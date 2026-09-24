@@ -127,7 +127,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.179.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.180.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1130,14 +1130,38 @@
     toast._t = setTimeout(() => (t.hidden = true), action ? 8000 : isErr ? 6000 : 2600);
   }
 
-  // Snapshot of state.data as of the last successful save, used only to
-  // detect (via LifeLogMerge.stampChangedItems) which items changed since
-  // then — so every real edit gets an accurate updatedAt without threading
-  // a manual "touch" call through every mutation site in the app. Seeded
-  // once data first loads (see init()) and refreshed after every persist().
+  // Snapshot of state.data as of the last persist(), used only to detect
+  // (via LifeLogMerge.stampChangedItems) which items changed since then — so
+  // every real edit gets an accurate updatedAt without threading a manual
+  // "touch" call through every mutation site in the app. Seeded once data
+  // first loads (see init()) and refreshed on every persist().
   let lastPersistedSnapshot = null;
   // In flight while boot's background reconcile is running; see persist().
   let firstReconcile = null;
+
+  // ---- saves are coalesced (0.180.0) ----
+  // persist() used to write everywhere at once, and to GitHub that is a
+  // commit: ten habit ticks were ten commits in a few seconds, an API key
+  // typed into Settings was a commit per keystroke, and all of them raced
+  // each other against the same sha. That is how GitHub's limit on content
+  // writes (80 a minute) became reachable. Now an edit lands on this device
+  // straight away — the cache, which is what a reload or the next launch
+  // reads — and the write to GitHub and the backup file follows once edits
+  // stop for SAVE_DELAY, as one commit for the burst. SAVE_MAX_WAIT keeps a
+  // long run of edits from never saving at all.
+  //
+  // persist() resolves once the edit is kept on this device, not once it is
+  // on GitHub; nothing that awaits it needs more than that, and its toasts
+  // no longer wait on the network. An edit still queued when the app goes
+  // to the background is flushed then. If the app is killed first, the
+  // cache is newer than GitHub's copy, and the next launch merges and
+  // pushes it like any other change made offline.
+  const SAVE_DELAY = 1500;
+  const SAVE_MAX_WAIT = 8000;
+  let saveTimer = null;
+  let saveQueuedAt = 0;
+  let saveDirty = false;   // an edit no save has picked up yet
+  let saving = null;       // the save in flight
 
   async function persist() {
     // Boot now renders before it has heard from GitHub, which opens a window
@@ -1156,15 +1180,43 @@
     if (window.LifeLogMerge) {
       state.data.appVersion = window.LifeLogMerge.maxVersion(state.data.appVersion, APP_VERSION);
     }
+    Storage._cache(state.data);
+    lastPersistedSnapshot = structuredClone(state.data);
+    saveDirty = true;
+    const now = performance.now();
+    if (!saveQueuedAt) saveQueuedAt = now;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(flushSave, Math.max(0, Math.min(SAVE_DELAY, saveQueuedAt + SAVE_MAX_WAIT - now)));
     setSyncing("Saving…");
+  }
+
+  const savePending = () => !!(saveTimer || saving);
+
+  // Writes what's queued now rather than when the edits settle. Resolves when
+  // it has landed (or failed); a save already in flight is waited out first,
+  // and anything edited during it goes in a second one.
+  function flushSave() {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    saveQueuedAt = 0;
+    if (saving) return saving.then(() => (saveDirty ? flushSave() : undefined));
+    if (!saveDirty && !state.pendingSync) return Promise.resolve();
+    saveDirty = false;
+    // A copy, so what's recorded as synced is exactly what was sent, however
+    // the live document moves on while GitHub answers.
+    const snapshot = structuredClone(state.data);
     syncInFlight = true;
-    try {
-      const where = await Storage.save(state.data);
+    saving = (async () => {
+      let where = "cache", merged = false;
+      try { ({ where, merged } = await Storage.save(snapshot)); }
+      catch (e) { /* kept on this device; retried like any failed save */ }
+      finally { syncInFlight = false; saving = null; }
       refreshStorageStatus(where);
-      lastPersistedSnapshot = structuredClone(state.data);
-    } finally {
-      syncInFlight = false;
-    }
+      // Another device had saved first, and GitHub now holds both. Fetch it,
+      // through the poll's merge and its guards (see ghSave).
+      if (merged) pollForUpdates();
+    })();
+    return saving;
   }
 
   // ---------- lazy section rendering ----------
@@ -2855,6 +2907,9 @@
       cls = "storage-status pending";
       txt += " — unsynced changes, will sync when online";
     }
+    // "Synced" while an edit is still waiting to go out would be a claim
+    // about GitHub this device can't make yet.
+    if (cls === "storage-status connected" && savePending()) { setSyncing("Saving…"); return; }
     setStorageStatus(cls, txt);
   }
 
@@ -2872,7 +2927,7 @@
   // Re-attempt a save that previously only landed in the local cache.
   async function retrySync() {
     if (!state.pendingSync || syncInFlight) return;
-    await persist();
+    await flushSave();
   }
 
   function isAnyModalOpen() {
@@ -2947,8 +3002,8 @@
   async function pollForUpdates() {
     if (!Storage.githubConnected) return { outcome: "skipped" };
     if (syncInFlight || isAnyModalOpen()) return { outcome: "busy" };
-    if (state.pendingSync) {
-      await retrySync();
+    if (state.pendingSync || saveDirty) {
+      await flushSave();
       return state.pendingSync ? { outcome: "failed", problem: Storage.githubProblem } : { outcome: "saved" };
     }
     const res = await Storage.checkRemote();
@@ -2958,9 +3013,11 @@
       // Re-check: a save may have started while checkRemote() was in flight.
       if (syncInFlight || isAnyModalOpen() || state.pendingSync) return { outcome: "busy" };
       const remoteData = normalize(res.data);
-      // Merge rather than blindly adopting remote — cheap insurance against
-      // the narrow window where this device has local edits not yet marked
-      // "pending" (e.g. between a mutation and its persist() call landing).
+      // Merge rather than blindly adopting remote: this device may have
+      // edits queued for its next save (see persist()), and they are already
+      // stamped in state.data. Bailing out here instead would be worse than
+      // it looks — checkRemote() has moved the sha on, so the queued save
+      // would replace GitHub's copy without ever having seen it.
       let merged = remoteData, contributedLocally = false, summary = "", conflictSummary = "";
       if (window.LifeLogMerge) {
         try {
@@ -3661,9 +3718,12 @@
     function onReconnectOrFocus() { retrySync(); pollForUpdates(); }
     window.addEventListener("online", onReconnectOrFocus);
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") { onReconnectOrFocus(); schedulePoll(); }
-      else if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      if (document.visibilityState === "visible") { onReconnectOrFocus(); schedulePoll(); return; }
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      // Leaving the app is the last sure chance to send a queued save.
+      if (saveTimer) flushSave();
     });
+    window.addEventListener("pagehide", () => { if (saveTimer) flushSave(); });
   }
 
   // Show the app-lock screen and resolve once the user unlocks it. Blocks

@@ -4,6 +4,33 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.180.0] - 2026-09-24
+
+### Changed
+- **A burst of edits is now one save to GitHub, not one per edit.** Ticking
+  ten habits used to make ten commits in a few seconds, and typing an API key
+  into Settings made one per keystroke. That is how GitHub's limit on saves
+  (80 a minute) could be hit. Now each edit is kept on your device at once,
+  and the save to GitHub follows as one commit when you pause (after 1.5
+  seconds, or 8 at most while you keep going). Anything still waiting is sent
+  as soon as you switch away from the app. If the app is killed first, the
+  next launch sends it.
+- **The status line says "Saving…" until the save has actually landed**,
+  instead of "Synced" while it was still on its way.
+
+### Fixed
+- **Quick edits no longer race each other to GitHub.** Saves went out all
+  at once, most collided, and with a slow connection the last one to land
+  could be an older copy — leaving GitHub a few edits behind your screen.
+  One save now goes out at a time, and an edit made during it follows in the
+  next one.
+- **Saving no longer deletes what your other device just saved.** If
+  another device had saved since this one last checked, this device used to
+  write its own copy over the top. The other device's new items vanished
+  from GitHub, and its next sync deleted them there too. Now the two copies
+  are merged and the merge is what gets saved; this device then fetches it,
+  so both end up with everything.
+
 ## [0.179.1] - 2026-09-24
 
 ### Changed

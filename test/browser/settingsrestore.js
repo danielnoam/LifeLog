@@ -9,7 +9,7 @@
 //
 // GitHub is a fake with three saves: the current one (keys empty, plus a note
 // added after the wipe), the wipe itself, and an older one with the keys.
-const { chromium, BASE } = require("./harness");
+const { chromium, BASE, settled } = require("./harness");
 let pass = 0, fail = 0;
 const check = (n, ok, extra) => { ok ? pass++ : fail++; console.log((ok ? "  ok   - " : "  FAIL - ") + n + (ok || extra === undefined ? "" : "  [" + JSON.stringify(extra) + "]")); };
 
@@ -98,6 +98,7 @@ const cached = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     const { page, ctx, errs: e, dialogs, puts } = await openApp(browser);
     await page.click("#historyFillSettingsBtn");
     await page.waitForTimeout(1500);
+    await settled(page);
     const d = await cached(page);
     check("the missing API keys come back", d.settings.mediaKeys.rawg === "RAWG-SECRET" && d.settings.mediaKeys.tmdb === "TMDB-SECRET", d.settings.mediaKeys);
     check("and the media sources and Steam settings with them",

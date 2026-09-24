@@ -16,6 +16,55 @@ what was decided against and why.
 
 ---
 
+- **a stale sha is merged, not overwritten — and the merge's sha isn't
+  taken as seen (0.180.0).** A 409 means another device saved since this
+  one read. ghSave used to answer it by writing this copy over theirs,
+  on the theory that the next poll would reconcile. It couldn't: their new
+  items were gone from GitHub, and on their next poll base had them, remote
+  didn't and local hadn't changed them — a deletion, by the merge's own
+  rules — so they were deleted there too. Now this copy is three-way merged
+  onto GitHub's (sync base as ancestor) and that is written.
+
+  The easy version of this takes the merge's sha as its own, and
+  savecoalesce.js section 6 shows why that loses the same items one save
+  later: state.data still lacks them, so the next save — against a sha that
+  now matches — writes them away without a 409 to stop it. Instead neither
+  gh.sha nor the sync base moves to the merge. The poll the save kicks off
+  sees GitHub changed and brings the items in through its usual merge,
+  guards and all (it won't swap data under an open form). And any save before that
+  poll lands comes back 409 and merges again. Adopting the merge directly
+  in flushSave was the alternative, and was turned down for the reason the
+  poll has that guard: an open modal holds references to items that
+  replacing state.data would detach. resolveConflict passes merge: false,
+  because there the user explicitly chose which version wins.
+
+- **saves are coalesced: an edit is kept at once, and GitHub hears about a
+  burst of them once (0.180.0).** Every persist() used to be its own PUT,
+  so its own commit, and nothing serialised them: ten quick habit ticks
+  were ten PUTs against the same sha, most came back 409 and were retried,
+  and with a slow connection the last to land could be an older copy
+  (savecoalesce.js reproduces this on 0.179.1: GitHub ended on "ONE" when
+  the screen said "ONETWO"). The fix splits persist() in two. The cheap,
+  synchronous half — stamp updatedAt, write the cache — happens on every
+  edit, so a reload or a crash never loses one. The network half waits for
+  1.5s without edits (8s at most), then sends one snapshot; one save is in
+  flight at a time, and edits made during it go in the next.
+
+  persist() now resolves when the edit is kept on this device, not when
+  GitHub has it. Every caller only toasts or re-renders after it, so none
+  needed more — and their toasts stopped waiting on the network. Going to
+  the background (visibilitychange, pagehide) sends a queued save straight
+  away. If the app dies before that, nothing special is needed: the cache's
+  exportedAt is newer than GitHub's, so the next launch merges and pushes it
+  like an offline edit.
+
+  Two rules make it safe to leave the poll alone. The stamping snapshot
+  (lastPersistedSnapshot) moves with each persist(), not each save, so a
+  queued edit is already stamped in state.data and a poll's merge keeps it.
+  And a poll that finds a remote change while an edit is queued merges
+  rather than backing off, because checkRemote() has already moved the sha
+  on and the queued save would otherwise replace GitHub's copy unseen.
+
 - **the app updates itself and exports through the share sheet — with plain
   plugin calls, no bundler.** Both are the same problem: a file has to leave
   the WebView. A download link can't do it (the WebView ignores them, which

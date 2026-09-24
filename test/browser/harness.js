@@ -52,4 +52,12 @@ function tally() {
 
 const seed = (name) => require(path.join(__dirname, "seeds", name));
 
-module.exports = { chromium, BASE, tally, seed };
+// Saves are coalesced (0.180.0): an edit reaches the cache at once and
+// GitHub once edits settle, so a suite that checks what was sent waits for
+// the status line to stop saying "Saving…" rather than guessing a delay.
+async function settled(page, timeout = 8000) {
+  await page.waitForTimeout(50);
+  await page.waitForFunction(() => !document.querySelector(".storage-status.syncing"), null, { timeout });
+}
+
+module.exports = { chromium, BASE, tally, seed, settled };

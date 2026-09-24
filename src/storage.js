@@ -346,22 +346,44 @@
     return j.content.sha;
   }
 
-  async function ghSave(data) {
+  // Resolves true when another device had saved first and what went out was
+  // a merge rather than `data` itself.
+  //
+  // A stale sha (409) used to be answered by writing this copy over the
+  // other device's. That lost its new items twice over: they were gone from
+  // GitHub, and the other device's next poll then deleted them locally too —
+  // its base had them, the remote didn't, and it hadn't changed them, which
+  // is exactly what a deletion looks like (0.180.0). Now this copy is merged
+  // onto theirs against the sync base, and the merge is what's written.
+  //
+  // Neither the sha nor the sync base moves to the merge, on purpose: this
+  // device hasn't seen it — state.data still lacks what the other device
+  // added. So the next poll finds GitHub changed and brings those items in
+  // through its usual merge, and a save before then comes back 409 and
+  // merges again instead of writing over them. `merge: false` is for a
+  // version the user explicitly chose to put in place.
+  async function ghSave(data, { merge = true } = {}) {
     try {
       gh.sha = await ghPut(data, gh.sha);
+      saveGhCfg();
+      return false;
     } catch (e) {
-      // Stale SHA — another device saved first. Overwrite here (this single
-      // HTTP write still resolves last-write-wins); nothing is actually
-      // lost, though, because this device's own edits stay in its local
-      // cache/sync-base comparison and the *next* load()/pollForUpdates()
-      // cycle (which both merge properly) reconciles the two for real —
-      // that's the layer this is deliberately kept simple in favor of.
-      if (e.status === 409 || e.status === 422) {
-        const cur = await ghGetFile();
-        gh.sha = await ghPut(data, cur ? cur.sha : null);
-      } else throw e;
+      if (e.status !== 409 && e.status !== 422) throw e;
     }
-    saveGhCfg();
+    for (let tries = 1; ; tries++) {
+      const cur = await ghGetFile();
+      const merging = merge && !!cur && !!window.LifeLogMerge;
+      const out = merging ? window.LifeLogMerge.mergeAllSources(_getSyncBase(), data, cur.data) : data;
+      if (merging) out.exportedAt = new Date().toISOString();
+      try {
+        const sha = await ghPut(out, cur ? cur.sha : null);
+        if (!merging) { gh.sha = sha; saveGhCfg(); }
+        return merging;
+      } catch (e) {
+        // Yet another save landed in between; take it into the next merge.
+        if ((e.status !== 409 && e.status !== 422) || tries >= 3) throw e;
+      }
+    }
   }
 
   const Storage = {
@@ -474,9 +496,10 @@
             const merged = window.LifeLogMerge.mergeAllSources(syncBase, local.data, remote.data);
             merged.exportedAt = new Date().toISOString();
             this._cache(merged);
-            if (gh && gh.token) { try { await ghSave(merged); githubError = null; } catch (e) { githubError = e; } }
+            let remerged = false;
+            if (gh && gh.token) { try { remerged = await ghSave(merged); githubError = null; } catch (e) { githubError = e; } }
             await backupToFile(merged);
-            _setSyncBase(merged);
+            if (!remerged) _setSyncBase(merged);
             lastSavedSnapshot = structuredClone(merged);
             const conflictSummary = window.LifeLogMerge.summarizeConflicts(syncBase, local.data, remote.data);
             let historySummary = "Merged — " + window.LifeLogMerge.diffSnapshots(local.data, merged);
@@ -513,7 +536,7 @@
       const data = candidate.data;
       this._cache(data);
       if (gh && gh.token) {
-        try { await ghSave(data); githubError = null; }
+        try { await ghSave(data, { merge: false }); githubError = null; }
         catch (e) { githubError = e; }
       }
       await backupToFile(data);
@@ -525,14 +548,19 @@
     },
 
     // Persist data to cache plus EVERY connected target (GitHub + local file).
-    // Returns where it landed: 'github+file' | 'github' | 'file' | 'cache'.
+    // Resolves to { where, merged }: where it landed — 'github+file' |
+    // 'github' | 'file' | 'cache' — and whether GitHub had moved on and got
+    // a merge instead (see ghSave), which means there's something to fetch.
     async save(data) {
       this._cache(data);
-      let toGithub = false, toFile = false;
+      let toGithub = false, toFile = false, merged = false;
 
       if (gh && gh.token) {
-        try { await ghSave(data); githubError = null; toGithub = true; _setSyncBase(data); }
-        catch (e) { githubError = e; }
+        try {
+          merged = await ghSave(data);
+          githubError = null; toGithub = true;
+          if (!merged) _setSyncBase(data);
+        } catch (e) { githubError = e; }
       }
       toFile = await backupToFile(data);
 
@@ -542,10 +570,8 @@
       await recordHistory(data, summary);
       lastSavedSnapshot = structuredClone(data);
 
-      if (toGithub && toFile) return "github+file";
-      if (toGithub) return "github";
-      if (toFile) return "file";
-      return "cache";
+      const where = toGithub && toFile ? "github+file" : toGithub ? "github" : toFile ? "file" : "cache";
+      return { where, merged };
     },
 
     // Local-first history: recent saves with a full snapshot + diff

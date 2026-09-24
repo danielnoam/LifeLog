@@ -11,7 +11,7 @@
 // GitHub here is a small fake that behaves like the real one on the three
 // things that matter: large files come back empty, blobs come back by sha,
 // and a PUT against a stale sha is a 409.
-const { chromium, BASE } = require("./harness");
+const { chromium, BASE, settled } = require("./harness");
 let pass = 0, fail = 0;
 const check = (n, ok, extra) => { ok ? pass++ : fail++; console.log((ok ? "  ok   - " : "  FAIL - ") + n + (ok || extra === undefined ? "" : "  [" + JSON.stringify(extra) + "]")); };
 
@@ -90,7 +90,7 @@ async function writeNote(page, text) {
   await page.waitForSelector("#noteModal:not([hidden])", { timeout: 5000 });
   await page.fill("#nText", text);
   await page.click("#noteForm button[type=submit]");
-  await page.waitForTimeout(1500);
+  await settled(page);
 }
 
 (async () => {

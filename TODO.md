@@ -23,15 +23,6 @@ todo:
   serialised before-state, a decision about what syncing does with it — and
   worth doing only if the toast one turns out not to be enough.
 
-  **One commit per edit.** Every persist() is its own PUT, and so its own
-  commit in the data repo: ticking ten habit cells is ten commits in a few
-  seconds. That is how GitHub's secondary rate limit (80 content writes a
-  minute) becomes reachable, and 0.173.1 only made the status line honest
-  about it. Coalescing saves — a short trailing debounce, one write for a
-  burst — would fix the cause. It touches every save path, and some callers
-  may rely on the save having happened when the promise resolves, so it
-  wants its own change rather than riding along with a fix.
-
   **Still only verifiable on a phone** (0.178.0 made each right by
   construction and tested what the page decides): the status bar really
   taking the top bar's colour, outside links opening in the phone's browser, the
