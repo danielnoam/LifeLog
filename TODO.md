@@ -54,19 +54,6 @@ todo:
   Reminders were there too until the Android app gave them a way in — see
   below.
 
-- **the mode switch animation.** Swiping between modes (Notes / To-do /
-  Habits, and the other tabs' modes) slides the current screen out and then
-  brings the new one in *in the same container*, from roughly where the old
-  one left: an exit, a blank beat, and an unrelated entrance, rather than one
-  screen pushing the other along. It reads as a glitch. A swipe should look
-  like a pager: the neighbouring mode rendered beside the current one while
-  the finger is down, both moving together with it, and on release the pair
-  carrying on (or springing back) as a single strip. That means building the
-  neighbour before the swipe commits — worth checking what that costs on the
-  heavy views (Timeline, Backlog), and whether a lightweight placeholder of
-  the neighbour is enough until the finger lets go. See modeDragMove /
-  modeDragCommit in app.js and the enter keyframes in styles.css.
-
 - **settings, again.** 0.169.0 regrouped Settings by where each change lands,
   and it still doesn't look good — Appearance was the specific complaint the
   first time. Before touching it, pin down what reads badly: spacing and
@@ -99,29 +86,6 @@ todo:
     because a tick that only lands next time you open the app is a surprise
     otherwise.
   - Quick-add opens the app on the right sheet; that's the easy half.
-
-- **Pull to refresh should move the page, not show an icon.** 0.176.0's
-  pull works, but it draws a circle that drops in over the top bar, and
-  that's not what a pull looks like in the browser. There, the page itself
-  follows the finger down and springs back. Wanted: no indicator at all; the
-  view moves down with the pull (with resistance) and eases back when you let
-  go, and syncing shows in the status line under the title ("Syncing…" and
-  then the result, which `setSyncing` already does) rather than in a floating
-  badge. Two ways to get there, cheapest first:
-  - Let Android do it. Android 12+ draws its own *stretch* overscroll on a
-    WebView, which is the native version of exactly this. 0.176.0 turned it
-    off (`overscroll-behavior-y: none` on `html.native`) so it wouldn't fight
-    the circle. Turn it back on, keep the touch listeners only to decide
-    whether the pull went far enough, and the look comes from the system for
-    free. Check how it feels on a real phone first: the stretch distance and
-    our threshold have to agree, or it syncs on a pull that barely moved.
-  - Or move it ourselves. Translate the page below the top bar by the pull
-    distance, and spring it back with the same easing the mode swipe uses.
-    Full control, but it's one more thing moving the same content the mode
-    swipe moves, so the two have to share rather than both writing
-    `transform`.
-  Either way the "Up to date" / "Merged …" / "Couldn't sync" messages stay;
-  only the circle goes.
 
 - **Habit reminders — Android app only.** Dropped in 0.171.0 (see git
   history of DROPPED.md) because a *browser* can't do them well: a service

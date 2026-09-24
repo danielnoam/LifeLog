@@ -16,6 +16,44 @@ what was decided against and why.
 
 ---
 
+- **the mode swipe is a pager built from snapshots, not two live renders.**
+  A pager needs the neighbouring mode on screen while the finger is down, and
+  `render()` can't draw it: it owns the whole page (the tab bar, the filter
+  chips, the scroll position, the lazy sections and their observers), so a
+  second mode can't be rendered beside the first without the two fighting
+  over all of that. So the neighbour is a *picture*: a copy of `#content`
+  taken the last time you swiped away from that mode, drawn in a fixed,
+  clipped, inert layer beside the page. The first time there's no picture
+  yet, so it shows the mode's name and icon. On release, the page as it was
+  becomes a picture too, the real next mode renders into `#content` one
+  page-width along, and the two move together — so the strip always lands on
+  the true page, and the picture is never there long enough to be caught
+  out. Any render that isn't a mode change (an edit, a filter, a sync) drops
+  the pictures, since it may have changed what the other modes show.
+
+  The copies keep their ids, because the stylesheet targets `#content` and
+  `#viewBody`. The layer is appended last in the document, so
+  `querySelector` and `getElementById` still find the real page first.
+
+  The first version put the name-and-icon placeholder in the centre of the
+  neighbouring page, which is exactly the half the finger hasn't uncovered
+  yet, so a normal-length drag never showed it. The test passed anyway,
+  because `innerText` reads clipped text. It now asserts where the label is
+  on screen; the screenshot is what caught it — the same lesson as 0.169.2.
+
+  **Modes wrap, tabs don't.** Four tabs are a row you can see, and the edge
+  means something there. A view's modes are a small loop you can't see, and
+  hitting a wall there only meant turning round.
+
+- **pull to refresh moves the page, not an indicator.** 0.176.0 dropped a
+  circle in over the top bar, which worked and looked like something from
+  another app. Now `#content` and the filter slot come down with the finger
+  against a rubber-band curve (easy at first, never past 180px). It uses the
+  `translate` property rather than `transform`, so it can't collide with the
+  mode swipe moving the same content sideways. It's set inline only while
+  pulling, because any value but `none` would make `#content` a containing
+  block for its fixed children — the bulk bar trap from view-fade-in.
+
 - **pull to refresh in the app syncs; it doesn't reload.** In Chrome the
   gesture reloads the page, and it's the boot after the reload that pulls
   from GitHub — so "pull to refresh" has always really meant "pull to sync".

@@ -373,10 +373,12 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     for (let i = 1; i <= steps; i++) {
       fire("touchmove", 200 + (dx * i) / steps, 150 + (dy * i) / steps);
       await new Promise((r) => requestAnimationFrame(r));
-      const ind = document.querySelector("#pullRefresh");
-      seen.push({ shown: !ind.hidden, armed: ind.classList.contains("is-armed") });
+      const t = getComputedStyle(document.querySelector("#content")).translate;
+      const y = t === "none" ? 0 : parseFloat(t.split(" ")[1] || "0");
+      seen.push({ y, shown: y > 0, armed: document.documentElement.classList.contains("pull-armed") });
     }
     fire("touchend", 200 + dx, 150 + dy);
+    seen.push({ statusAtRelease: (document.querySelector(".storage-status") || {}).textContent || "" });
     return seen;
   }, { dy, dx, steps });
   const toastNow = (page) => page.evaluate(() => { const x = document.querySelector("#toast"); return x && !x.hidden ? x.textContent : ""; });
@@ -386,14 +388,22 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     check("the app turns off the WebView's own overscroll, so the two don't fight",
       await page.evaluate(() => getComputedStyle(document.documentElement).overscrollBehaviorY === "none"));
 
-    const seen = await pull(page);
-    check("pulling down from the top shows the indicator following the finger", seen.some((x) => x.shown), seen);
-    check("and it says when it's been pulled far enough to count", seen[seen.length - 1].armed, seen);
     const readsBefore = github.reads;
+    const seen = await pull(page);
+    const moves = seen.filter((x) => "y" in x);
+    check("pulling down from the top moves the page itself with the finger",
+      moves[0].y > 0 && moves.every((m, i) => i === 0 || m.y >= moves[i - 1].y), moves.map((m) => Math.round(m.y)));
+    check("against a resistance — the page travels less than the finger did",
+      moves[moves.length - 1].y < 240 * 0.5, moves[moves.length - 1].y);
+    check("there's no indicator any more, just the page", await page.evaluate(() => !document.querySelector("#pullRefresh, .pull-refresh")));
+    check("pulled far enough, it counts", moves[moves.length - 1].armed, moves[moves.length - 1]);
+    check("and the status line says it's syncing the moment you let go",
+      /Syncing/.test(seen[seen.length - 1].statusAtRelease), seen[seen.length - 1]);
     await page.waitForTimeout(1200);
     check("letting go syncs", github.reads > readsBefore, { before: readsBefore, after: github.reads });
     check("and with nothing new, it says so rather than nothing", /Up to date/.test(await toastNow(page)), await toastNow(page));
-    check("the indicator goes away afterwards", await page.evaluate(() => document.querySelector("#pullRefresh").hidden));
+    check("the page springs back home, holding nothing that would pin fixed children",
+      await page.evaluate(() => getComputedStyle(document.querySelector("#content")).translate === "none" && !document.querySelector("#content").style.translate));
 
     // The other device saves something; the pull brings it in.
     github.remote = doc([...remote.notes, note("n2", "Saved on the desktop a moment ago", "2026-09-23T20:00:00.000Z")], "2026-09-23T20:00:00.000Z");

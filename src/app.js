@@ -117,7 +117,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.176.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.177.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -496,7 +496,7 @@
       root.addEventListener("animationend", () => root.classList.remove("view-fade-in"), { once: true });
       return;
     }
-    if (!spec || mode === prevMode || prevMode == null) return;
+    if (!spec || mode === prevMode || prevMode == null || suppressModeAnim) return;
     // Direction is read from where you were to where you are, rather than
     // told to us: that way a swipe, a tap on the switch and the Backlog's own
     // mode bar all animate correctly without any of them knowing this exists.
@@ -659,17 +659,14 @@
     }
     if (bar.firstChild) root.appendChild(bar);
   }
-  // No wrap-around, matching the tab swipe: the ends are the ends, so a
-  // swipe past the last mode does nothing rather than teleporting you back
-  // to the first one.
+  // Modes wrap (0.177.0): past the last is the first again, so you can keep
+  // swiping one way round. The tab bar's own swipe still stops at its ends —
+  // four tabs are a row you can see; a view's modes are a small loop you
+  // can't, and hitting a wall there only meant turning round.
   function cycleMode(delta) {
-    const spec = VIEW_MODES[state.view];
-    if (!spec) return;
-    const ids = modeIds(spec);
-    const i = ids.indexOf(spec.get());
-    const next = i < 0 ? null : ids[i + delta];
+    const next = modeNeighbour(delta);
     if (!next) return;
-    spec.set(next);
+    VIEW_MODES[state.view].set(next);
     commitModeChange();
   }
 
@@ -871,21 +868,37 @@
     else commitModeChange();
   }
 
-  // A swipe across the page drags it with the finger rather than waiting for
-  // release: the mode moves when you move it, and letting go finishes the
-  // travel it had already started. Without this the page sat still through
-  // the whole gesture and then animated from scratch — two separate
-  // movements where the hand only made one.
-  let modeDrag = null;
-  const MODE_EXIT_MS = 130;
-  const modeTravel = () => Math.min(180, Math.round(window.innerWidth * 0.4));
+  // ---------- swiping between modes: a pager ----------
+  // The page follows the finger, and the mode it's heading for sits right
+  // beside it — the two travel as one strip, and on release the strip
+  // finishes the turn or springs back. Until 0.177.0 the page slid off and
+  // faded to nothing, and the new mode came in afterwards from a short way
+  // off: an exit, a blank beat and a separate entrance, which read as a
+  // glitch rather than a page turning.
+  //
+  // What sits beside it while the finger is down is a snapshot, not a live
+  // render: render() owns the whole page (tabs, filters, scroll position,
+  // lazy sections) and can't draw a second mode next to the first. The
+  // snapshot is that mode as you last swiped away from it or, the first
+  // time, its name and icon. On release the real render takes its place in
+  // the same spot, so the strip always lands on the true page. Any render
+  // that isn't a mode change (an edit, a filter, a sync) may have changed
+  // what the other modes show, so it drops the snapshots.
+  let modeDrag = null;      // { delta, offset, rect, peek } while a finger is down
+  let modeTurning = false;  // the release animation is running
+  let suppressModeAnim = false;
+  const MODE_STRIP_MS = 280;
+  const MODE_GAP = 16;
+  const MODE_EASE = "cubic-bezier(.22,1,.36,1)";
+  const modeSnapshots = new Map(); // "view:mode" → a detached copy of #content
 
   function modeNeighbour(delta) {
     const spec = VIEW_MODES[state.view];
     if (!spec) return null;
     const ids = modeIds(spec);
     const i = ids.indexOf(spec.get());
-    return i < 0 ? null : (ids[i + delta] || null);
+    if (i < 0 || ids.length < 2) return null;
+    return ids[(i + delta + ids.length) % ids.length];
   }
 
   function clearModeDragStyle(c) {
@@ -894,49 +907,135 @@
     c.style.opacity = "";
   }
 
+  // A fixed, clipped layer lined up with #content's box — where snapshots of
+  // other modes are drawn. Appended last so the real page's ids resolve
+  // first, and inert so nothing in a picture of a page can be clicked.
+  function modeLayer(rect) {
+    const layer = el("div", "mode-layer");
+    layer.setAttribute("aria-hidden", "true");
+    layer.inert = true;
+    layer.style.left = rect.left + "px";
+    layer.style.width = rect.width + "px";
+    document.body.appendChild(layer);
+    return layer;
+  }
+
+  function copyOfContent() {
+    const copy = $("#content").cloneNode(true);
+    clearModeDragStyle(copy);
+    copy.classList.remove("view-fade-in", "mode-slide-fwd", "mode-slide-back");
+    return copy;
+  }
+
+  // The mode being swiped towards: its snapshot, placed where the page will
+  // sit once it's the current one (render lands a mode change at the top),
+  // or its name and icon if it hasn't been visited yet.
+  function makePeek(mode, rect, delta) {
+    const layer = modeLayer(rect);
+    const pageTop = rect.top + window.scrollY;
+    const snap = modeSnapshots.get(state.view + ":" + mode);
+    if (snap) {
+      const copy = snap.cloneNode(true);
+      copy.style.top = pageTop + "px";
+      layer.appendChild(copy);
+    } else {
+      const entry = VIEW_MODES[state.view].modes.find(([id]) => id === mode) || [mode, mode, ""];
+      // Against the edge that comes into view first: a centred label sits
+      // in the half of the neighbour you haven't uncovered yet, and a
+      // drag that stops short never shows it at all.
+      const label = el("div", "mode-peek-label");
+      label.dataset.side = delta > 0 ? "right" : "left";
+      label.style.top = Math.max(pageTop, 0) + 72 + "px";
+      label.appendChild(el("span", "mode-peek-icon", entry[2]));
+      label.appendChild(el("span", "mode-peek-name", entry[1]));
+      layer.appendChild(label);
+    }
+    return layer;
+  }
+
   function modeDragMove(dx) {
-    if (!VIEW_MODES[state.view]) return;
+    if (!VIEW_MODES[state.view] || modeTurning) return;
     const c = $("#content");
-    // Past the last mode there's nowhere to go, so the page gives a little
-    // and stops rather than sliding towards nothing.
-    const offset = dx * (modeNeighbour(dx < 0 ? 1 : -1) ? 1 : 0.25);
-    modeDrag = true;
+    const delta = dx < 0 ? 1 : -1;
+    if (!modeDrag) modeDrag = { rect: c.getBoundingClientRect() };
+    if (modeDrag.delta !== delta) {
+      // Changed direction mid-drag: the other neighbour.
+      if (modeDrag.peek) modeDrag.peek.remove();
+      const target = modeNeighbour(delta);
+      modeDrag.delta = delta;
+      modeDrag.peek = target ? makePeek(target, modeDrag.rect, delta) : null;
+    }
+    // A view with one mode has nowhere to go: the page gives a little and stops.
+    const offset = modeDrag.peek ? dx : dx * 0.25;
+    modeDrag.offset = offset;
     c.style.transition = "none";
     c.style.transform = "translateX(" + offset + "px)";
-    c.style.opacity = String(Math.max(0.4, 1 - Math.abs(offset) / 500));
+    if (modeDrag.peek) {
+      modeDrag.peek.firstChild.style.transform = "translateX(" + (offset + delta * (modeDrag.rect.width + MODE_GAP)) + "px)";
+    }
   }
 
-  // Didn't go far enough, or there was nothing on that side: back to rest.
+  // Didn't go far enough: the strip springs back, and the peek with it.
   function modeDragSettle() {
     if (!modeDrag) return;
+    const { delta, peek, rect } = modeDrag;
     modeDrag = null;
     const c = $("#content");
-    c.style.transition = "transform .18s cubic-bezier(.22,1,.36,1), opacity .18s ease-out";
+    const t = "transform .22s " + MODE_EASE;
+    c.style.transition = t;
     c.style.transform = "";
-    c.style.opacity = "";
-    setTimeout(() => { if (!modeDrag) c.style.transition = ""; }, 220);
+    if (peek) {
+      peek.firstChild.style.transition = t;
+      peek.firstChild.style.transform = "translateX(" + delta * (rect.width + MODE_GAP) + "px)";
+    }
+    setTimeout(() => {
+      if (!modeDrag) c.style.transition = "";
+      if (peek) peek.remove();
+    }, 240);
   }
 
-  // Committed: carry on in the direction it was already going, and let the
-  // new mode come in from the far side at the same distance — so the two
-  // halves read as one travel rather than an exit and an unrelated entrance.
+  // Committed: the page as it was goes into a layer at the offset it had
+  // reached, the real next mode renders into #content right beside it, and
+  // the two move together until the new one is home.
   function modeDragCommit(delta) {
+    const target = modeNeighbour(delta);
+    if (!target || modeTurning) { modeDragSettle(); return; }
     const c = $("#content");
-    if (!modeNeighbour(delta)) { modeDragSettle(); return; }
+    const drag = modeDrag || { rect: c.getBoundingClientRect(), offset: 0 };
     modeDrag = null;
-    const dir = delta > 0 ? -1 : 1;
-    const travel = modeTravel();
-    c.style.transition = "transform " + MODE_EXIT_MS + "ms ease-in, opacity " + MODE_EXIT_MS + "ms ease-in";
-    c.style.transform = "translateX(" + dir * travel + "px)";
-    c.style.opacity = "0";
-    setTimeout(() => {
-      // Where the incoming content starts, read by the keyframes in
-      // styles.css. A button press leaves it unset and gets the small
-      // default instead — there was no finger travel to continue.
-      c.style.setProperty("--mode-enter-x", -dir * travel + "px");
+    if (drag.peek) drag.peek.remove();
+    const step = drag.rect.width + MODE_GAP;
+    const offset = drag.offset || 0;
+
+    const leaving = copyOfContent();
+    modeSnapshots.set(state.view + ":" + VIEW_MODES[state.view].get(), leaving.cloneNode(true));
+    if (prefersReducedMotion()) {
       clearModeDragStyle(c);
       cycleMode(delta);
-    }, MODE_EXIT_MS);
+      return;
+    }
+    const ghost = modeLayer(drag.rect);
+    leaving.style.top = drag.rect.top + "px";
+    leaving.style.transform = "translateX(" + offset + "px)";
+    ghost.appendChild(leaving);
+
+    suppressModeAnim = true;
+    c.style.transition = "none";
+    c.style.transform = "translateX(" + (offset + delta * step) + "px)";
+    try { cycleMode(delta); } finally { suppressModeAnim = false; }
+
+    modeTurning = true;
+    void c.offsetWidth;
+    const t = "transform " + MODE_STRIP_MS + "ms " + MODE_EASE;
+    c.style.transition = t;
+    c.style.transform = "translateX(0px)";
+    leaving.style.transition = t;
+    leaving.style.transform = "translateX(" + (-delta * step) + "px)";
+    setTimeout(() => {
+      ghost.remove();
+      clearModeDragStyle(c);
+      modeTurning = false;
+    }, MODE_STRIP_MS + 30);
   }
 
   // Shared by the tab click handler and the mobile tab-bar swipe gesture.
@@ -1208,6 +1307,8 @@
     // same as switching tab does.
     const spec = VIEW_MODES[state.view];
     const inPlace = state.view === lastRenderedView && (!spec || spec.get() === lastRenderedMode);
+    // An edit, a filter or a sync may have changed what the other modes show.
+    if (inPlace) modeSnapshots.clear();
     const prevScrollY = window.scrollY;
     scrollAnchor = inPlace ? captureScrollAnchor() : null;
     if (activeLazySections) { activeLazySections.destroy(); activeLazySections = null; }
@@ -3824,28 +3925,40 @@
   // be the wrong thing to copy, since the app's files are already here. So it
   // syncs: the same poll the interval runs, reported rather than silent.
   //
+  // It looks like the browser's, not like a widget: the page itself comes
+  // down with the finger, against a rubber-band resistance, and springs back
+  // when you let go. 0.176.0 dropped a circle in over the top bar instead,
+  // which worked and looked like something else. While it syncs, the status
+  // line under the title says so, and the result arrives as a toast.
+  //
   // Only from the very top, only on a drag that is mostly downward (a
   // sideways one belongs to the mode swipe), and never over a sheet, the
   // add menu or the Recap. `html.native` turns off the WebView's own
   // overscroll so the two don't fight over the same finger.
-  const PULL_ARM = 70, PULL_MAX = 110;
+  const PULL_ARM = 60, PULL_REACH = 180;
+  // How far the page moves for a finger that has moved dy: easy at first,
+  // then harder and harder, never past PULL_REACH.
+  const pullDistance = (dy) => (1 - 1 / (Math.max(0, dy) * 0.55 / PULL_REACH + 1)) * PULL_REACH;
+
   function wirePullToRefresh() {
-    document.documentElement.classList.add("native");
-    const ind = $("#pullRefresh");
+    const root = document.documentElement;
+    root.classList.add("native");
+    const pages = () => [$("#content"), $("#filterSlot")].filter(Boolean);
     let start = null, pulling = false, busy = false, dist = 0;
-    const atTop = () => (document.scrollingElement || document.documentElement).scrollTop <= 0;
-    const blocked = () => busy || isAnyModalOpen() || !$("#addMenu").hidden || !$("#recapScreen").hidden;
-    const show = (d) => {
-      ind.hidden = false;
-      ind.style.setProperty("--pull", d + "px");
-      ind.style.setProperty("--pull-turn", Math.round(d * 3) + "deg");
-      ind.classList.toggle("is-armed", d >= PULL_ARM);
+    const atTop = () => (document.scrollingElement || root).scrollTop <= 0;
+    const blocked = () => busy || modeTurning || isAnyModalOpen() || !$("#addMenu").hidden || !$("#recapScreen").hidden;
+    const move = (y) => {
+      for (const p of pages()) { p.style.transition = "none"; p.style.translate = "0 " + y + "px"; }
+      root.classList.toggle("pull-armed", y >= PULL_ARM);
     };
-    const reset = () => {
-      ind.classList.remove("is-armed", "is-busy");
-      ind.hidden = true;
-      ind.style.removeProperty("--pull");
-      ind.style.removeProperty("--pull-turn");
+    const release = () => {
+      root.classList.remove("pull-armed");
+      for (const p of pages()) {
+        if (!p.style.translate) continue;
+        p.style.transition = "translate .32s " + MODE_EASE;
+        p.style.translate = "0 0";
+        setTimeout(() => { p.style.translate = ""; p.style.transition = ""; }, 340);
+      }
     };
     document.addEventListener("touchstart", (e) => {
       start = null;
@@ -3862,29 +3975,22 @@
         if (dy <= 0 || Math.abs(dx) * 1.5 > dy || !atTop()) { start = null; return; }
         pulling = true;
       }
-      // Half the finger's travel, capped: the resistance is what makes it
-      // read as pulling something rather than dragging it.
-      dist = Math.min(PULL_MAX, Math.max(0, dy) * 0.5);
-      show(dist);
+      dist = pullDistance(dy);
+      move(dist);
     }, { passive: true });
     document.addEventListener("touchend", async () => {
       if (!start || !pulling) { start = null; return; }
       start = null;
       pulling = false;
-      if (dist < PULL_ARM) { reset(); return; }
+      const armed = dist >= PULL_ARM;
+      release();
+      if (!armed) return;
       busy = true;
-      show(PULL_ARM);
-      ind.classList.add("is-busy");
-      try {
-        // A floor on how long it spins, so "Up to date" doesn't arrive
-        // before the eye has registered that anything happened.
-        await Promise.all([refreshNow(), new Promise((r) => setTimeout(r, 450))]);
-      } finally {
-        busy = false;
-        reset();
-      }
+      setSyncing("Syncing…");
+      try { await refreshNow(); }
+      finally { busy = false; refreshStorageStatus(); }
     });
-    document.addEventListener("touchcancel", () => { start = null; pulling = false; if (!busy) reset(); });
+    document.addEventListener("touchcancel", () => { start = null; pulling = false; release(); });
   }
 
   async function refreshNow() {

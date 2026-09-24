@@ -4,6 +4,26 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.177.0] - 2026-09-24
+
+### Changed
+- **Swiping between modes turns the page like a real pager.** The mode
+  you're heading for now sits right beside the page while your finger is
+  down, and the two move together. Let go and they finish the turn as one
+  strip; stop short and both spring back. Before, the page slid off and faded
+  away, and the new mode then appeared on its own from a short distance —
+  an exit, a blank moment and a separate entrance. The first time you swipe
+  towards a mode you see its name and icon beside the page; after that you
+  see the mode itself as you last left it.
+- **Modes go round.** Keep swiping the same way and you come back to the
+  first mode, instead of stopping at the last one. The tab bar's own swipe
+  still stops at the first and last tab.
+- **Pull to refresh in the Android app looks like the browser's.** No circle
+  any more: the page itself comes down with your finger, harder to pull the
+  further it goes, and springs back when you let go. The line under the title
+  says "Syncing…" while it works, then the result arrives as before ("Up to
+  date", what it merged, or why it couldn't).
+
 ## [0.176.0] - 2026-09-23
 
 ### Added
