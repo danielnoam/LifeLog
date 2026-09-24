@@ -4,6 +4,29 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.179.0] - 2026-09-24
+
+### Added
+- **The Android app updates itself.** When a new version is out, the bar
+  says so with an **Update** button. Press it and the app downloads the new
+  version itself, with the percentage on the bar, then opens Android's
+  installer. There's no browser tab and nothing in your Downloads folder. The
+  first time, Android asks whether LifeLog may install apps; say yes once. The
+  update installs over the top and keeps everything. If you dismiss the
+  installer, **Install** on the bar reopens it without downloading again;
+  if the download breaks off, **Retry**. Downloaded updates are cleared out
+  once they're installed.
+  - This starts with the *next* update: updating to 0.179.0 itself still goes
+    through Chrome, because the app you have now doesn't contain the
+    downloader yet.
+
+### Fixed
+- **Exports work in the Android app.** Export JSON / CSV (and the journal and
+  finance exports) did nothing in the app, because Android's in-app browser
+  ignores download links. Now they open Android's share sheet, so you can
+  save the file to Drive or Files, email it, or send it anywhere else. In a
+  browser they're still an ordinary download.
+
 ## [0.178.0] - 2026-09-24
 
 ### Changed

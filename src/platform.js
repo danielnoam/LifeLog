@@ -64,6 +64,68 @@
     }, true);
   }
 
+  // ---- files out of the app (0.179.0) ----
+  // A browser saves a file when a page clicks a download link; the app's
+  // WebView ignores such links, so every export in the app did nothing. In
+  // the app the file is written to the app's cache and handed to Android's
+  // share sheet — Drive, Files, email, whatever the phone has. Returns false
+  // when the plugins aren't there (a browser, or an older app), so the caller
+  // falls back to the link.
+  async function saveAndShare(filename, text) {
+    const FS = native && cap.Plugins && cap.Plugins.Filesystem;
+    const SH = native && cap.Plugins && cap.Plugins.Share;
+    if (!FS || !SH) return false;
+    const { uri } = await FS.writeFile({ path: filename, data: text, directory: "CACHE", encoding: "utf8" });
+    try {
+      await SH.share({ title: filename, files: [uri], dialogTitle: "Save or send " + filename });
+    } catch (e) {
+      // Closing the share sheet is a choice, not a failure.
+      if (!/cancel/i.test(String(e && e.message || e))) throw e;
+    }
+    return true;
+  }
+
+  // ---- updating the app in place (0.179.0) ----
+  // Downloads the release's APK into the app's cache, reporting progress, and
+  // hands it to Android's installer — no browser tab, no Downloads folder.
+  // The installer is Android's own screen: it asks once whether LifeLog may
+  // install apps, and then to install. Because the APK is signed with the
+  // same key it installs over the top and keeps everything. Resolves to the
+  // file's uri, so a cancelled installer can be reopened without downloading
+  // again; null when the plugins aren't there (an app older than this).
+  const APK_MIME = "application/vnd.android.package-archive";
+  async function downloadUpdate(version, onProgress) {
+    const FS = native && cap.Plugins && cap.Plugins.Filesystem;
+    if (!FS || !(cap.Plugins && cap.Plugins.FileOpener) || !build || !build.repo) return null;
+    const url = "https://github.com/" + build.repo + "/releases/download/app-v" + version + "/LifeLog.apk";
+    const path = "LifeLog-" + version + ".apk";
+    const listener = await FS.addListener("progress", (p) => {
+      if (onProgress && p && p.contentLength > 0) onProgress(Math.min(1, p.bytes / p.contentLength));
+    });
+    try {
+      await FS.downloadFile({ url, path, directory: "CACHE", progress: true });
+    } finally {
+      if (listener && listener.remove) listener.remove();
+    }
+    return (await FS.getUri({ path, directory: "CACHE" })).uri;
+  }
+  function openInstaller(uri) {
+    return cap.Plugins.FileOpener.openFile({ path: uri, mimeType: APK_MIME });
+  }
+  // APKs for versions already installed have done their job.
+  async function clearOldUpdates(currentVersion, isNewer) {
+    const FS = native && cap.Plugins && cap.Plugins.Filesystem;
+    if (!FS) return;
+    try {
+      const { files } = await FS.readdir({ path: "", directory: "CACHE" });
+      for (const f of files || []) {
+        const name = typeof f === "string" ? f : f.name;
+        const m = /^LifeLog-(\d+\.\d+\.\d+)\.apk$/.exec(name || "");
+        if (m && !isNewer(m[1], currentVersion)) await FS.deleteFile({ path: name, directory: "CACHE" });
+      }
+    } catch (e) { /* nothing to tidy */ }
+  }
+
   window.LifeLogPlatform = {
     native,
     ready,
@@ -71,6 +133,10 @@
     // A native plugin, or null in a browser or when the build doesn't carry it.
     plugin(name) { return (native && cap.Plugins && cap.Plugins[name]) || null; },
     openOutside,
+    saveAndShare,
+    downloadUpdate,
+    openInstaller,
+    clearOldUpdates,
     // Where the web copy lives, for links that have to work on another device.
     webUrl() { return (build && build.webUrl) || null; },
     releasesUrl() { return build && build.repo ? "https://github.com/" + build.repo + "/releases/latest" : null; },

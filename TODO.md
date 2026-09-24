@@ -32,23 +32,19 @@ todo:
   may rely on the save having happened when the promise resolves, so it
   wants its own change rather than riding along with a fix.
 
-  **Exports in the Android app.** Export JSON / CSV make a file in memory and
-  click a download link (io.js), and Android's WebView doesn't act on that
-  without native help — in the app they most likely do nothing. The fix is
-  to write the file with the Filesystem plugin, then hand it to Android's
-  share sheet (Share plugin) so it can go to Drive, Files or anywhere else.
-  The same pair would give a real on-phone backup (below). Worth checking
-  on the phone first, to be sure.
-
   **Still only verifiable on a phone** (0.178.0 made each right by
   construction and tested what the page decides): the status bar really
-  taking the top bar's colour, outside links opening in Chrome's tab, and
-  the back gesture reaching the app.
+  taking the top bar's colour, outside links opening in Chrome's tab, the
+  back gesture reaching the app, the in-app update reaching Android's
+  installer (0.179.0 — first testable on the update *after* it), and
+  exports reaching the share sheet.
 
   **What the app could do that a browser can't**, in the order it's worth
   doing: native HTTP (`CapacitorHttp` — Steam without the proxy), a real
   file backup on the phone (the Filesystem plugin as a fourth backend in
-  storage.js), and home-screen widgets — which have their own entry below.
+  storage.js — 0.179.0's export already writes files with that plugin and
+  shares them, so this is the same pair on a schedule), and home-screen
+  widgets — which have their own entry below.
 
   **iOS.** The same wrapper, plus $99/year for Apple's developer program and
   a macOS build job. Until there's a native feature worth that, iOS stays on

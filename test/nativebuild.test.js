@@ -137,6 +137,13 @@ test("no camera permission: Google's scanner runs the camera, not LifeLog", () =
   assert.ok(!patch(TEMPLATE).includes("android.permission.CAMERA"));
 });
 
+test("the app may hand Android an APK to install — the in-app updater needs it", () => {
+  const out = patch(TEMPLATE);
+  const beforeApp = out.slice(0, out.indexOf("<application"));
+  assert.ok(beforeApp.includes('<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />'), out);
+  assert.strictEqual(patch(out).split("REQUEST_INSTALL_PACKAGES").length - 1, 1);
+});
+
 test("a manifest without <application> fails instead of shipping without the scanner", () => {
   assert.throws(() => patch("<manifest></manifest>"), /application/);
 });

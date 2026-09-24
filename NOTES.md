@@ -16,6 +16,36 @@ what was decided against and why.
 
 ---
 
+- **the app updates itself and exports through the share sheet — with plain
+  plugin calls, no bundler.** Both are the same problem: a file has to leave
+  the WebView. A download link can't do it (the WebView ignores them, which
+  meant every export had silently done nothing), and a browser tab for an
+  update is a detour through the Downloads folder.
+  - **Exports:** the file is written to the app's cache (Filesystem), then
+    handed to Android's share sheet (Share). All of them go through
+    `IO.download`, so that is the one place that knows. Closing the sheet is
+    a choice, not an error.
+  - **Updates:** the release's APK is downloaded into the cache with
+    progress (Filesystem.downloadFile), then opened with Android's installer
+    (capawesome's FileOpener, through the app's existing FileProvider, whose
+    cache path the template already declares). The manifest needs
+    `REQUEST_INSTALL_PACKAGES` or Android refuses the hand-off. Android still
+    asks, on its own screen, for each install and once for permission. The
+    download targets the specific tag, not `latest`, so a release published
+    mid-download can't swap the file under it. A dismissed installer can be
+    reopened from the same file, and old APKs are cleared on launch.
+
+  `Filesystem.downloadFile` is deprecated in favour of
+  `@capacitor/file-transfer`, and deliberately used anyway: file-transfer's
+  JavaScript layer installs a helper (`CapacitorUtils.Synapse`) when it's
+  imported, and LifeLog has no build step to import it. Every plugin here is
+  called through `Capacitor.Plugins.X`, which is what a plain-script app
+  gets. Revisit if downloadFile is ever removed.
+
+  The first update this can do is the one *after* 0.179.0: the app that
+  receives 0.179.0 doesn't have the downloader yet, so the bar falls back to
+  Chrome's tab when the plugins aren't there.
+
 - **the Android app runs edge to edge, and the app's copy of index.html is
   what says so.** Matching the status bar to LifeLog's theme means drawing
   the page under it: `viewport-fit=cover`, with the top bar's colour filling

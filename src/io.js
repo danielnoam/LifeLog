@@ -20,7 +20,19 @@
       sanitizeFinanceEntry, sanitizeRecurring, sanitizeEntry, sanitizeBacklog, isOverridden } = ctx);
   }
 
+  // Every export goes through here. In the Android app a download link does
+  // nothing, so the file goes to Android's share sheet instead (see
+  // LifeLogPlatform.saveAndShare); everywhere else it's the ordinary link.
   function download(filename, text, type) {
+    const P = window.LifeLogPlatform;
+    if (P && P.native) {
+      P.saveAndShare(filename, text).then((done) => { if (!done) downloadLink(filename, text, type); })
+        .catch((e) => toast("Couldn't export: " + (e && e.message || e), true));
+      return;
+    }
+    downloadLink(filename, text, type);
+  }
+  function downloadLink(filename, text, type) {
     const blob = new Blob([text], { type });
     const url = URL.createObjectURL(blob);
     const a = el("a"); a.href = url; a.download = filename;

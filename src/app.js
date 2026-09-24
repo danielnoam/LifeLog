@@ -123,7 +123,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.178.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.179.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3930,9 +3930,12 @@
   // unauthenticated, because the Releases of the repo that built this app are
   // public, and the token this device holds is for the data repo, not this
   // one. The same bar the browser uses, saying the one thing that differs.
+  const isNewerVersion = (a, b) => a !== b && window.LifeLogMerge.maxVersion(a, b) === a;
+
   async function checkForNewerApp() {
     const build = await Platform.ready;
     if (!build || !build.repo) return;
+    Platform.clearOldUpdates(APP_VERSION, isNewerVersion);
     try {
       const r = await fetch("https://api.github.com/repos/" + build.repo + "/releases/latest", { cache: "no-store" });
       if (!r.ok) return;
@@ -3940,12 +3943,52 @@
       const latest = tag.replace(/^app-v/, "");
       if (!/^\d+\.\d+\.\d+$/.test(latest) || latest === APP_VERSION) return;
       if (window.LifeLogMerge.maxVersion(latest, APP_VERSION) !== latest) return;
-      $("#updateBarText").textContent = "LifeLog " + latest + " is out";
-      const btn = $("#updateReloadBtn");
-      btn.textContent = "Download";
-      btn.onclick = () => Platform.openOutside(Platform.apkUrl());
-      $("#updateBar").hidden = false;
+      offerUpdate(latest);
     } catch (e) { /* offline — ask again next launch */ }
+  }
+
+  // The update bar, as an updater. "Update" downloads the new APK inside the
+  // app with its progress on the bar, then opens Android's installer; if the
+  // installer is dismissed, "Install" reopens it without downloading again.
+  // An app older than 0.179.0 has no plugins for this, and for that one step
+  // the bar still sends you to the download in Chrome's tab.
+  function offerUpdate(version) {
+    const text = $("#updateBarText");
+    const btn = $("#updateReloadBtn");
+    let apk = null;
+    const say = (msg, label, busy) => {
+      text.textContent = msg;
+      btn.textContent = label;
+      btn.disabled = !!busy;
+    };
+    const install = async () => {
+      say("Opening the installer…", "Install", true);
+      try {
+        await Platform.openInstaller(apk);
+        say("LifeLog " + version + " is ready to install", "Install");
+      } catch (e) {
+        say("Couldn't open the installer", "Try again");
+      }
+    };
+    btn.onclick = async () => {
+      if (apk) return install();
+      say("Downloading LifeLog " + version + "…", "0%", true);
+      try {
+        apk = await Platform.downloadUpdate(version, (f) => { btn.textContent = Math.round(f * 100) + "%"; });
+      } catch (e) {
+        say("The download didn't finish", "Retry");
+        return;
+      }
+      if (!apk) {
+        // An older shell: no in-app downloader, so Chrome's tab it is.
+        say("LifeLog " + version + " is out", "Download");
+        Platform.openOutside(Platform.apkUrl());
+        return;
+      }
+      install();
+    };
+    say("LifeLog " + version + " is out", "Update");
+    $("#updateBar").hidden = false;
   }
 
   // Pull down from the top to sync. In a browser that gesture belongs to

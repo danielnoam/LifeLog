@@ -21,7 +21,10 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
 
 // What Capacitor's native bridge puts on the page, as far as LifeLog uses it.
 const FAKE_BRIDGE = () => {
-  window.__cap = { minimized: 0, opened: [], back: null, scans: 0, installs: 0, progress: [], barStyles: [], browsed: [] };
+  window.__cap = { minimized: 0, opened: [], back: null, scans: 0, installs: 0, progress: [], barStyles: [], browsed: [],
+    written: [], shared: [], downloads: [], fsProgress: [], installers: [], deleted: [] };
+  // What the file plugins will do; tests change it before acting.
+  window.__filePlan = { downloadFails: false, shareCancels: false, installerFails: false, cacheFiles: [] };
   // What the next scan will do; tests set it before pressing the button.
   window.__scanPlan = { available: true, result: null, error: null };
   window.Capacitor = {
@@ -31,6 +34,43 @@ const FAKE_BRIDGE = () => {
       App: {
         addListener: (ev, cb) => { if (ev === "backButton") window.__cap.back = cb; return Promise.resolve({ remove() {} }); },
         minimizeApp: () => { window.__cap.minimized++; return Promise.resolve(); },
+      },
+      // @capacitor/filesystem, as far as LifeLog uses it.
+      Filesystem: {
+        writeFile: async ({ path, data, directory, encoding }) => {
+          window.__cap.written.push({ path, data, directory, encoding });
+          return { uri: "file:///data/user/0/app/cache/" + path };
+        },
+        addListener: async (ev, cb) => {
+          if (ev === "progress") window.__cap.fsProgress.push(cb);
+          return { remove() { window.__cap.fsProgress = window.__cap.fsProgress.filter((x) => x !== cb); } };
+        },
+        downloadFile: async ({ url, path, directory, progress }) => {
+          window.__cap.downloads.push({ url, path, directory, progress });
+          for (const f of [0.25, 0.5, 1]) {
+            await new Promise((r) => setTimeout(r, 90));
+            if (window.__filePlan.downloadFails && f === 0.5) throw new Error("connection reset");
+            window.__cap.fsProgress.forEach((cb) => cb({ url, bytes: f * 4000000, contentLength: 4000000 }));
+          }
+          return { path: "/data/user/0/app/cache/" + path };
+        },
+        getUri: async ({ path }) => ({ uri: "file:///data/user/0/app/cache/" + path }),
+        readdir: async () => ({ files: window.__filePlan.cacheFiles.map((name) => ({ name, type: "file" })) }),
+        deleteFile: async ({ path }) => { window.__cap.deleted.push(path); },
+      },
+      // @capawesome-team/capacitor-file-opener: Android's installer, for an APK.
+      FileOpener: {
+        openFile: async ({ path, mimeType }) => {
+          window.__cap.installers.push({ path, mimeType });
+          if (window.__filePlan.installerFails) throw new Error("No activity found");
+        },
+      },
+      // @capacitor/share: Android's share sheet.
+      Share: {
+        share: async (opts) => {
+          window.__cap.shared.push(opts);
+          if (window.__filePlan.shareCancels) throw new Error("Share canceled");
+        },
       },
       // @capacitor/browser: Chrome's in-app tab.
       Browser: { open: async ({ url }) => { window.__cap.browsed.push(url); window.__cap.opened.push(url); } },
@@ -149,23 +189,86 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await ctx.close();
   }
 
-  // ---- 3. a newer APK is noticed and offered ----
+  // ---- 3. a newer version is noticed, downloaded in the app, and installed ----
+  // No browser tab and no Downloads folder: the app fetches the release's APK
+  // itself with its progress on the bar, then opens Android's installer.
+  const barNow = (page) => page.evaluate(() => ({
+    shown: !document.querySelector("#updateBar").hidden,
+    text: document.querySelector("#updateBarText").textContent,
+    button: document.querySelector("#updateReloadBtn").textContent,
+    busy: document.querySelector("#updateReloadBtn").disabled,
+  }));
+  const pressUpdate = (page) => page.evaluate(() => document.querySelector("#updateReloadBtn").click());
   {
     const { page, ctx, errs: e } = await openApp(browser, { latestTag: "app-v9.9.9" });
-    const bar = await page.evaluate(() => ({
-      shown: !document.querySelector("#updateBar").hidden,
-      text: document.querySelector("#updateBarText").textContent,
-      button: document.querySelector("#updateReloadBtn").textContent,
-    }));
+    let bar = await barNow(page);
     check("a newer release puts the update bar up", bar.shown && /9\.9\.9/.test(bar.text), bar);
-    check("offering a download rather than a reload, which would change nothing", bar.button === "Download", bar);
-    // Clicked from the page rather than by Playwright: if the bar never
-    // showed, that is the failure above, not a reason to stop the suite.
-    await page.evaluate(() => document.querySelector("#updateReloadBtn").click());
-    const opened = await page.evaluate(() => window.__cap.opened);
-    check("and the download is the latest release's APK from the repo it was built from",
-      opened[0] === "https://github.com/someone/lifelog/releases/latest/download/LifeLog.apk", opened);
+    check("offering to update, rather than a reload that would change nothing", bar.button === "Update", bar);
+    await pressUpdate(page);
+    await page.waitForTimeout(140);
+    const mid = await barNow(page);
+    check("it downloads inside the app, showing how far it's got", /Downloading/.test(mid.text) && /^\d+%$/.test(mid.button) && mid.busy, mid);
+    await page.waitForTimeout(500);
+    const cap = await page.evaluate(() => ({ ...window.__cap, fsProgress: window.__cap.fsProgress.length }));
+    check("the download is that release's APK, into the app's own cache",
+      cap.downloads.length === 1 && cap.downloads[0].url === "https://github.com/someone/lifelog/releases/download/app-v9.9.9/LifeLog.apk" &&
+      cap.downloads[0].directory === "CACHE" && cap.downloads[0].progress === true, cap.downloads);
+    check("then Android's installer is opened on it",
+      cap.installers.length === 1 && /LifeLog-9\.9\.9\.apk$/.test(cap.installers[0].path) &&
+      cap.installers[0].mimeType === "application/vnd.android.package-archive", cap.installers);
+    check("without a browser tab anywhere in it", cap.browsed.length === 0, cap.browsed);
+    check("and without leaving its progress listener behind", cap.fsProgress === 0, cap.fsProgress);
+    bar = await barNow(page);
+    check("if the installer is dismissed, the bar can reopen it", /ready to install/.test(bar.text) && bar.button === "Install" && !bar.busy, bar);
+    await pressUpdate(page);
+    await page.waitForTimeout(200);
+    const again = await page.evaluate(() => ({ downloads: window.__cap.downloads.length, installers: window.__cap.installers.length }));
+    check("reopening it doesn't download it all again", again.downloads === 1 && again.installers === 2, again);
     errs.push(...e);
+    await ctx.close();
+  }
+  {
+    const { page, ctx, errs: e } = await openApp(browser, { latestTag: "app-v9.9.9" });
+    await page.evaluate(() => { window.__filePlan.downloadFails = true; });
+    await pressUpdate(page);
+    await page.waitForTimeout(600);
+    const bar = await barNow(page);
+    const installers = await page.evaluate(() => window.__cap.installers.length);
+    check("a download that breaks off says so and offers to retry", /didn't finish/.test(bar.text) && bar.button === "Retry" && !bar.busy, bar);
+    check("and never hands a half-downloaded APK to the installer", installers === 0, installers);
+    await page.evaluate(() => { window.__filePlan.downloadFails = false; });
+    await pressUpdate(page);
+    await page.waitForTimeout(600);
+    check("retrying goes through", await page.evaluate(() => window.__cap.installers.length === 1));
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    // An app from before 0.179.0 has none of the file plugins: for that one
+    // update, the bar still goes to the download in Chrome's tab.
+    const { page, ctx, errs: e } = await openApp(browser, { latestTag: "app-v9.9.9" });
+    await page.evaluate(() => { delete window.Capacitor.Plugins.FileOpener; });
+    await pressUpdate(page);
+    await page.waitForTimeout(300);
+    const cap = await page.evaluate(() => ({ downloads: window.__cap.downloads.length, browsed: window.__cap.browsed }));
+    check("an app without the in-app updater falls back to the download in Chrome's tab",
+      cap.downloads === 0 && cap.browsed[0] === "https://github.com/someone/lifelog/releases/latest/download/LifeLog.apk", cap);
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    // APKs already installed are cleared out of the cache on launch.
+    const ctx = await browser.newContext({ viewport: { width: 420, height: 900 }, serviceWorkers: "block" });
+    const page = await ctx.newPage();
+    await page.addInitScript(FAKE_BRIDGE);
+    await page.addInitScript(() => { window.__filePlan = { cacheFiles: ["LifeLog-0.0.1.apk", "LifeLog-99.0.0.apk", "lifelog.json"] }; });
+    await page.route("**/app-build.json", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(BUILD) }));
+    await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 404, contentType: "application/json", body: "{}" }));
+    await page.goto(BASE + "/", { waitUntil: "load" });
+    await page.waitForTimeout(900);
+    const deleted = await page.evaluate(() => window.__cap.deleted);
+    check("on launch, APKs for versions already installed are cleared from the cache — and nothing else",
+      deleted.length === 1 && deleted[0] === "LifeLog-0.0.1.apk", deleted);
     await ctx.close();
   }
   const OWN = "app-v" + require("fs").readFileSync(require("path").join(__dirname, "..", "..", "src", "app.js"), "utf8")
@@ -607,6 +710,57 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
       border: parseFloat(getComputedStyle(document.querySelector(".topbar")).borderTopWidth),
     }));
     check("the web copy doesn't go edge to edge or grow a top border", !/viewport-fit/.test(web.vp) && web.border === 0, web);
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 10. exports ----
+  // A download link does nothing in the app's WebView, so exports went
+  // nowhere. In the app they're written to the cache and handed to Android's
+  // share sheet — Drive, Files, email — and in a browser they stay a download.
+  const exportFrom = async (page) => {
+    await page.click("#settingsBtn");
+    await page.waitForTimeout(300);
+    await page.click('.stab[data-stab="backup"]');
+    await page.waitForTimeout(200);
+    await page.evaluate(() => {
+      window.__linkDownloads = [];
+      const real = HTMLAnchorElement.prototype.click;
+      HTMLAnchorElement.prototype.click = function () { if (this.hasAttribute("download")) window.__linkDownloads.push(this.download); else real.call(this); };
+    });
+    await page.click("#exportJsonBtn");
+    await page.waitForTimeout(400);
+  };
+  {
+    const withNotes = doc([note("x", "Exported note", "2026-09-01T00:00:00.000Z")], "2026-09-01T00:00:00.000Z");
+    const { page, ctx, errs: e } = await openApp(browser, { cache: withNotes });
+    await exportFrom(page);
+    const r = await page.evaluate(() => ({ written: window.__cap.written, shared: window.__cap.shared, links: window.__linkDownloads }));
+    const w = r.written[0] || {};
+    let parsed = null;
+    try { parsed = JSON.parse(w.data); } catch (err) { /* checked below */ }
+    check("exporting in the app writes the file to the app's cache",
+      w.path === "lifelog.json" && w.directory === "CACHE" && w.encoding === "utf8", { path: w.path, directory: w.directory, encoding: w.encoding });
+    check("with the whole log in it", !!parsed && parsed.notes.some((n) => n.text === "Exported note"), (w.data || "").slice(0, 80));
+    check("and hands it to Android's share sheet", r.shared.length === 1 && r.shared[0].files[0] === "file:///data/user/0/app/cache/lifelog.json", r.shared);
+    check("rather than a download link the app would ignore", r.links.length === 0, r.links);
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    const { page, ctx, errs: e } = await openApp(browser);
+    await page.evaluate(() => { window.__filePlan.shareCancels = true; });
+    await exportFrom(page);
+    const t = await page.evaluate(() => { const x = document.querySelector("#toast"); return x && !x.hidden ? x.textContent : ""; });
+    check("closing the share sheet is a choice, not an error", !/Couldn't export/.test(t), t);
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    const { page, ctx, errs: e } = await openApp(browser, { native: false });
+    await exportFrom(page);
+    const links = await page.evaluate(() => window.__linkDownloads);
+    check("in a browser, exporting is still an ordinary download", links.length === 1 && links[0] === "lifelog.json", links);
     errs.push(...e);
     await ctx.close();
   }
