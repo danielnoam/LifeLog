@@ -27,8 +27,11 @@ todo:
   construction and tested what the page decides): the status bar really
   taking the top bar's colour, outside links opening in the phone's browser, the
   back gesture reaching the app, the in-app update reaching Android's
-  installer (0.179.0 — first testable on the update *after* it), and
-  exports reaching the share sheet.
+  installer (0.179.0 — first testable on the update *after* it),
+  exports reaching the share sheet, and the widgets (0.181.0) — whether
+  they draw at all, tick in place, and turn over at midnight. Their Java
+  is compiled against the real framework before it ships and their XML
+  checked by nativebuild.test.js, but only a home screen inflates them.
 
   **What the app could do that a browser can't**, in the order it's worth
   doing: native HTTP (`CapacitorHttp` — Steam without the proxy), a real
@@ -54,30 +57,14 @@ todo:
   screenshot of each panel at 390px and at desktop width, marked up, is the
   place to start rather than another reshuffle.
 
-- **Android widgets.** The one thing the app can do that a browser can't.
-  Candidates, most useful first: today's habits with a tick per habit; the
-  to-do list, scrollable, with a tick per item and its categories; quick-add
-  buttons (entry, expense, note — the manifest's shortcuts already name the
-  first two); this month's spend. Shape of it:
-  - Widgets are native (Kotlin, `AppWidgetProvider` + RemoteViews), and
-    `android/` is generated in CI and not committed. Put the widget code in a
-    small local Capacitor plugin (say `native/widgets/`, a `file:`
-    dependency) so `android/` can stay generated.
-  - A widget can't run the web app. The app writes what the widget shows
-    (today's due habits and their marks, the open to-dos in their order)
-    into SharedPreferences through that plugin whenever the data changes,
-    and the widget draws from that.
-  - The to-do list is a *collection* widget: a ListView fed by a
-    RemoteViewsService, which is what lets it scroll, unlike a plain widget
-    layout. Ticking an item goes through the same queue as a habit tick
-    below. Adding an item from the widget is a quick-add that opens the app
-    on the to-do sheet; typing inside a widget isn't something Android offers.
-  - A tick on the widget can't reach GitHub by itself. Queue it natively, show
-    it ticked straight away, and have the app apply the queue on its next
-    launch or resume — it then syncs like any other tick. Say so somewhere,
-    because a tick that only lands next time you open the app is a surprise
-    otherwise.
-  - Quick-add opens the app on the right sheet; that's the easy half.
+- **Widgets, second round** (the first shipped in 0.181.0: habits, to-do,
+  quick add). This month's spend was the fourth candidate and was left out
+  of the first cut: it needs Finance's month total, currency and all, worked
+  out in JavaScript and carried in the snapshot, and it's the one of the
+  four you'd read rather than touch. Also worth doing once the three have
+  been lived with: Android 12's RemoteCollectionItems instead of the
+  deprecated list service (it's 12+ only, so it would sit beside the old
+  path, not replace it), and a preview image for the widget picker.
 
 - **Habit reminders — Android app only.** Dropped in 0.171.0 (see git
   history of DROPPED.md) because a *browser* can't do them well: a service

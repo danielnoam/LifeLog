@@ -16,6 +16,42 @@ what was decided against and why.
 
 ---
 
+- **widgets are a local plugin that draws from a snapshot and hands back a
+  queue (0.181.0).** Widgets are native (AppWidgetProvider + RemoteViews)
+  and android/ is generated in CI, so their code lives in native/widgets/,
+  a Capacitor plugin linked as a `file:` dependency — Capacitor finds it,
+  links the module and registers WidgetsPlugin like any other. Java, not
+  Kotlin: the generated project already builds Java, and a Kotlin plugin
+  would bring its own Gradle plugin into the build.
+
+  A widget can't run the web app, so neither direction goes through it.
+  The app sends a snapshot (src/widgets.js snapshotOf) on every data
+  change; a tick on a widget is queued natively, shown at once by
+  overlaying the queue on the snapshot, and applied by the app the next
+  time it runs (applyQueue), where it saves and syncs like any tick. The
+  queue keeps one entry per thing ticked, the latest, so tick-untick is one
+  entry. Habit ticks carry the value the widget showed next, not "a tap":
+  replaying taps against data another device changed in between would land
+  somewhere nobody chose.
+
+  Due-today is worked out in Java from each habit's days and start date,
+  not taken from the snapshot, so the habits widget turns over at midnight
+  (updatePeriodMillis, every half hour) without the app. That is why the
+  snapshot carries a week of marks rather than today's: a midnight the app
+  never saw still has the right day's mark to hand.
+
+  Checked without a phone, three ways. The Java is compiled against
+  Robolectric's android-all (the real framework, from Maven Central — the
+  SDK's own host is blocked here) with stubs for Capacitor's classes, which
+  is how the org.json trap was found: optString turns a JSON null into
+  "null", which sorts after every date, so a habit with no start date would
+  have silently never been due. nativebuild.test.js checks what only a home
+  screen would otherwise find out: every layout uses views RemoteViews can
+  inflate (anything else is "Can't load widget"), every id and resource the
+  Java names exists, dark mode redefines every colour, and every action a
+  button sends is one runAction handles. browser/native.js drives the app's
+  side against a fake plugin.
+
 - **a stale sha is merged, not overwritten — and the merge's sha isn't
   taken as seen (0.180.0).** A 409 means another device saved since this
   one read. ghSave used to answer it by writing this copy over theirs,

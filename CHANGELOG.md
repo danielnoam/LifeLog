@@ -4,6 +4,24 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.181.0] - 2026-09-24
+
+### Added
+- **Home-screen widgets in the Android app.** Three of them, in your
+  launcher's widget list under LifeLog:
+  - **Habits** — today's habits, ticked in place. A habit you count ("3
+    glasses of water") goes 1/3, 2/3, then done. It turns over at midnight
+    by itself, without opening the app.
+  - **To-do** — your open to-dos in the app's order, grouped by category,
+    scrollable, ticked in place. Tap a ticked one again to untick it.
+  - **Quick add** — Entry, Expense, Note and To-do buttons, each opening the
+    app on its form. Buttons for tabs you've turned off are hidden.
+
+  Tapping a widget's title opens that list in the app, and its **+** adds
+  to it. A widget can't reach GitHub, so a tick made there shows at once
+  and is saved and synced the next time LifeLog runs. The widget tells you
+  while it has ticks waiting, and the app tells you when it picks them up.
+
 ## [0.180.0] - 2026-09-24
 
 ### Changed

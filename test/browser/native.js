@@ -22,7 +22,10 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
 // What Capacitor's native bridge puts on the page, as far as LifeLog uses it.
 const FAKE_BRIDGE = () => {
   window.__cap = { minimized: 0, opened: [], back: null, scans: 0, installs: 0, progress: [], barStyles: [], browsed: [],
-    written: [], shared: [], downloads: [], fsProgress: [], installers: [], deleted: [], inAppTab: [] };
+    written: [], shared: [], downloads: [], fsProgress: [], installers: [], deleted: [], inAppTab: [],
+    widgetSnaps: [], widgetListeners: {} };
+  // What the widgets have waiting for the app; a test can set it at launch.
+  window.__widgetPlan = window.__widgetPlanAtLaunch || { queue: [], action: null };
   // What the file plugins will do; tests change it before acting.
   window.__filePlan = { downloadFails: false, shareCancels: false, installerFails: false, cacheFiles: [] };
   // What the next scan will do; tests set it before pressing the button.
@@ -78,6 +81,14 @@ const FAKE_BRIDGE = () => {
       // @capacitor/browser (Chrome's in-app tab) — present only so a test can
       // prove it's no longer what outside links use.
       Browser: { open: async ({ url }) => { window.__cap.inAppTab.push(url); } },
+      // LifeLog's own widgets plugin (native/widgets/): the snapshot out, the
+      // widget's ticks and button presses in.
+      Widgets: {
+        update: async ({ json }) => { window.__cap.widgetSnaps.push(JSON.parse(json)); },
+        takeQueue: async () => { const items = window.__widgetPlan.queue; window.__widgetPlan.queue = []; return { items }; },
+        takeLaunchAction: async () => { const a = window.__widgetPlan.action; window.__widgetPlan.action = null; return a ? { action: a } : {}; },
+        addListener: async (ev, cb) => { (window.__cap.widgetListeners[ev] = window.__cap.widgetListeners[ev] || []).push(cb); return { remove() {} }; },
+      },
       // Capacitor's own SystemBars.
       SystemBars: { setStyle: async ({ style }) => { window.__cap.barStyles.push(style); } },
       // @capacitor-mlkit/barcode-scanning, as far as LifeLog uses it.
@@ -111,7 +122,7 @@ const FAKE_BRIDGE = () => {
 const { appIndexHtml } = require("../../tools/build-www.js");
 const BUNDLED_HTML = appIndexHtml(require("fs").readFileSync(require("path").join(__dirname, "..", "..", "index.html"), "utf8"));
 
-async function openApp(browser, { native = true, latestTag = null, cache = doc([], null), gh = null, remote = null, serviceWorkers = "block", hasTouch = false, bundled = false, visual = null } = {}) {
+async function openApp(browser, { native = true, latestTag = null, cache = doc([], null), gh = null, remote = null, serviceWorkers = "block", hasTouch = false, bundled = false, visual = null, widgets = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 420, height: 900 }, serviceWorkers, hasTouch });
   const page = await ctx.newPage();
   const errs = [];
@@ -119,6 +130,14 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
   page.on("console", (m) => { if (m.type() === "error" && !/404|Failed to load resource/.test(m.text())) errs.push("console: " + m.text()); });
   const dialogs = [];
   page.on("dialog", (d) => { dialogs.push(d.message()); d.accept(); });
+  // Before the bridge, which picks it up: what the widgets hold at launch.
+  // Only for the second load below — the first boots on the demo seed, which
+  // has to-dos of its own for a queue to land on.
+  if (widgets) await page.addInitScript((plan) => {
+    const n = +(sessionStorage.getItem("__boots") || 0) + 1;
+    sessionStorage.setItem("__boots", String(n));
+    if (n >= 2) window.__widgetPlanAtLaunch = plan;
+  }, widgets);
   if (native) await page.addInitScript(FAKE_BRIDGE);
   await page.route("**/app-build.json", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(BUILD) }));
   if (bundled) await page.route(BASE + "/", (r) => r.fulfill({ status: 200, contentType: "text/html", body: BUNDLED_HTML }));
@@ -801,6 +820,86 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await page.waitForTimeout(1300);
     check("a pull checks for a newer app even on a device that isn't syncing",
       await page.evaluate(() => !document.querySelector("#updateBar").hidden && /9\.9\.9/.test(document.querySelector("#updateBarText").textContent)));
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 12. home-screen widgets ----
+  {
+    const today = (() => { const d = new Date(); const p = (n) => String(n).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); })();
+    const withLists = () => ({
+      ...doc([], "2026-09-01T00:00:00.000Z"),
+      habits: [{ id: "h1", name: "Stretch", color: "#22aa66", cadence: "daily", target: 1, order: 0, startedAt: "2026-01-01", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" }],
+      todos: [
+        { id: "t1", text: "Buy milk", order: 0, createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z" },
+        { id: "t2", text: "Post the letter", order: 1, createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z" },
+      ],
+    });
+    const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+    const lastSnap = (page) => page.evaluate(() => window.__cap.widgetSnaps[window.__cap.widgetSnaps.length - 1] || null);
+
+    // Ticks made on the widgets while the app was closed.
+    const { page, ctx, errs: e } = await openApp(browser, {
+      cache: withLists(),
+      widgets: { queue: [
+        { kind: "habit", id: "h1", date: today, value: 1, at: "2026-09-24T07:00:00.000Z" },
+        { kind: "todo", id: "t1", done: true, at: "2026-09-24T07:01:00.000Z" },
+      ], action: null },
+    });
+    await page.waitForTimeout(600);
+    let d = await stored(page);
+    check("a habit ticked on the widget is ticked in the app when it opens", d.habits[0].marks && d.habits[0].marks[today] === 1, d.habits[0]);
+    check("and a to-do ticked there is done, as of when it was ticked",
+      d.todos[0].done === true && d.todos[0].doneAt === "2026-09-24T07:01:00.000Z", d.todos[0]);
+    check("the app says where the ticks came from", /2 ticks from your home-screen widget/.test(await page.evaluate(() => document.querySelector("#toast").textContent)));
+    let snap = await lastSnap(page);
+    check("the widgets are sent the list with the ticks in it",
+      !!snap && snap.todos.map((t) => t.id).join() === "t2" && snap.habits[0].marks[today] === 1, snap);
+    check("and the quick-add buttons for every tab that's on",
+      !!snap && ["add-entry", "add-expense", "add-note", "add-todo"].every((a) => snap.actions.includes(a)), snap && snap.actions);
+
+    // A tick while the app is running arrives as a nudge.
+    await page.evaluate((today) => {
+      window.__widgetPlan.queue.push({ kind: "todo", id: "t2", done: true, at: "2026-09-24T08:00:00.000Z" });
+      (window.__cap.widgetListeners.queued || []).forEach((cb) => cb({}));
+    }, today);
+    await page.waitForTimeout(700);
+    d = await stored(page);
+    check("a tick made while the app is open lands straight away", d.todos[1].done === true, d.todos[1]);
+
+    // The widget's +, with the app already open.
+    const before = await page.evaluate(() => window.__cap.widgetSnaps.length);
+    await page.evaluate(() => {
+      window.__widgetPlan.action = "add-todo";
+      (window.__cap.widgetListeners.action || []).forEach((cb) => cb({}));
+    });
+    await page.waitForTimeout(500);
+    const ui = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-ui-v1")));
+    check("the widget's + opens the to-do list, ready to type into",
+      ui.view === "notes" && ui.notesMode === "todo" && await page.evaluate(() => (document.activeElement || {}).id === "todoCompose"), ui);
+    await page.fill("#todoCompose", "From the widget's +");
+    await page.press("#todoCompose", "Enter");
+    await page.waitForTimeout(900);
+    snap = await lastSnap(page);
+    check("and what's added in the app goes back out to the widget",
+      (await page.evaluate(() => window.__cap.widgetSnaps.length)) > before && snap.todos.some((t) => t.text === "From the widget's +"), snap && snap.todos);
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    // A widget button that launched the app, and tabs that are turned off.
+    const { page, ctx, errs: e } = await openApp(browser, { visual: { disabledViews: ["finance"] }, widgets: { queue: [], action: "open-habits" } });
+    await page.waitForTimeout(500);
+    const ui = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-ui-v1")));
+    check("a widget header that launched the app lands on habits", ui.view === "notes" && ui.notesMode === "habits", ui);
+    const snap = await page.evaluate(() => window.__cap.widgetSnaps[window.__cap.widgetSnaps.length - 1]);
+    check("a quick-add button for a tab that's off isn't offered", !!snap && !snap.actions.includes("add-expense") && snap.actions.includes("add-note"), snap && snap.actions);
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    const { page, ctx, errs: e } = await openApp(browser, { native: false });
+    check("a browser has no widgets to talk to, and nothing tries", await page.evaluate(() => !window.__cap));
     errs.push(...e);
     await ctx.close();
   }

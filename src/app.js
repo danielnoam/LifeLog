@@ -12,6 +12,7 @@
   const Wheel = window.LifeLogWheel;
   const Habits = window.LifeLogHabits;
   const Recap = window.LifeLogRecap;
+  const Widgets = window.LifeLogWidgets || { changed() {}, start() {} };
   // Absent only under the unit tests, which load this file without a page.
   // The status-bar style last sent to Android (see syncSystemBars). Up here
   // with the module's other state, not beside its function: applyTheme runs
@@ -127,7 +128,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.180.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.181.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1182,6 +1183,7 @@
     }
     Storage._cache(state.data);
     lastPersistedSnapshot = structuredClone(state.data);
+    Widgets.changed();
     saveDirty = true;
     const now = performance.now();
     if (!saveQueuedAt) saveQueuedAt = now;
@@ -3322,6 +3324,7 @@
     buildCatFilter();
     buildProjectFilter();
     render();
+    Widgets.changed();
   }
 
   function applyMonthLayout() {
@@ -3726,6 +3729,34 @@
     window.addEventListener("pagehide", () => { if (saveTimer) flushSave(); });
   }
 
+  // Where a shortcut from outside the app lands: the PWA's (manifest.json's
+  // `shortcuts`, arriving as ?action=) and the Android widgets' (through the
+  // Widgets plugin — see widgets.js). Neither list can know what you've
+  // turned off, so this is where one for a disabled tab or mode stops.
+  function runAction(action) {
+    const goTo = (view, mode) => {
+      VIEW_MODES[view].set(mode);
+      if (view !== state.view) switchToView(view); else commitModeChange();
+    };
+    if (action === "add-entry" && viewEnabled("timeline")) Journal.openEntryModal(null);
+    else if (action === "add-expense" && viewEnabled("finance")) Finance.openFinanceModal(null);
+    else if (action === "add-note" && modeEnabled("notes", "notes")) Notes.openNoteModal(null);
+    else if (action === "add-habit" && modeEnabled("notes", "habits")) { goTo("notes", "habits"); Habits.openHabitModal(null); }
+    else if (action === "open-habits" && modeEnabled("notes", "habits")) goTo("notes", "habits");
+    else if ((action === "open-todos" || action === "add-todo") && modeEnabled("notes", "todo")) {
+      goTo("notes", "todo");
+      const box = action === "add-todo" && $("#todoCompose");
+      if (box) box.focus();
+    }
+  }
+  // The quick-add widget's buttons, less any for a tab or mode that's off.
+  const quickActions = () => [
+    viewEnabled("timeline") && "add-entry",
+    viewEnabled("finance") && "add-expense",
+    modeEnabled("notes", "notes") && "add-note",
+    modeEnabled("notes", "todo") && "add-todo",
+  ].filter(Boolean);
+
   // Show the app-lock screen and resolve once the user unlocks it. Blocks
   // the rest of init() so no data is loaded/rendered until then.
   function showLockScreen() {
@@ -3960,10 +3991,7 @@
     const action = new URLSearchParams(location.search).get("action");
     if (action) {
       history.replaceState(null, "", location.pathname + location.hash);
-      // manifest.json's shortcut list is static — it can't know what you have
-      // turned off — so this is where one for a disabled tab stops.
-      if (action === "add-entry" && viewEnabled("timeline")) Journal.openEntryModal(null);
-      else if (action === "add-expense" && viewEnabled("finance")) Finance.openFinanceModal(null);
+      runAction(action);
     }
 
     if (state.pendingSync) retrySync();
@@ -3981,6 +4009,7 @@
       // The app's files are already on the device; a worker would only be a
       // second cache of them, and its "new version" isn't the app's.
       checkForNewerApp();
+      Widgets.start({ state, Platform, persist, afterDataChange, toast, runAction, quickActions });
       wireBackButton();
       wirePullToRefresh();
     } else if ("serviceWorker" in navigator) {

@@ -1,0 +1,11 @@
+{
+  "name": "lifelog-widgets",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LifeLog's Android home-screen widgets, as a local Capacitor plugin. No JavaScript: the app calls it as Capacitor.Plugins.Widgets.",
+  "capacitor": {
+    "android": {
+      "src": "android"
+    }
+  }
+}

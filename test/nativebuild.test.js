@@ -148,6 +148,79 @@ test("a manifest without <application> fails instead of shipping without the sca
   assert.throws(() => patch("<manifest></manifest>"), /application/);
 });
 
+console.log("\nthe widgets");
+// Nothing here can inflate a widget, and a mistake in one isn't a build
+// error: Android draws "Can't load widget" on the home screen instead. So
+// what can be checked from the files is checked here.
+const WIDGETS = path.join(__dirname, "..", "native", "widgets", "android", "src", "main");
+const JAVA = path.join(WIDGETS, "java", "io", "github", "danielnoam", "lifelog", "widgets");
+const read = (...p) => fs.readFileSync(path.join(...p), "utf8");
+const javaSrc = fs.readdirSync(JAVA).filter((f) => f.endsWith(".java")).map((f) => read(JAVA, f)).join("\n");
+const layouts = fs.readdirSync(path.join(WIDGETS, "res", "layout"));
+
+// The views RemoteViews can inflate on every Android the app supports
+// (minSdk 24). Anything else — a plain <View> divider, a CheckBox before 12 —
+// is the "Can't load widget" box.
+const REMOTABLE = new Set(["FrameLayout", "LinearLayout", "RelativeLayout", "GridLayout",
+  "TextView", "ImageView", "Button", "ImageButton", "ProgressBar", "ListView", "GridView",
+  "StackView", "AdapterViewFlipper", "ViewFlipper", "Chronometer", "AnalogClock", "ViewStub"]);
+
+test("every widget layout uses only views a home-screen widget can show", () => {
+  for (const f of layouts) {
+    const tags = [...read(WIDGETS, "res", "layout", f).matchAll(/<([A-Za-z][\w.]*)[\s>/]/g)].map((m) => m[1]);
+    const bad = tags.filter((t) => !REMOTABLE.has(t));
+    assert.deepStrictEqual(bad, [], f);
+  }
+});
+
+test("every view the Java reaches for is in a layout", () => {
+  const declared = new Set();
+  for (const f of layouts) for (const m of read(WIDGETS, "res", "layout", f).matchAll(/@\+id\/(\w+)/g)) declared.add(m[1]);
+  const used = [...new Set([...javaSrc.matchAll(/R\.id\.(\w+)/g)].map((m) => m[1]))];
+  assert.deepStrictEqual(used.filter((id) => !declared.has(id)), []);
+});
+
+test("every layout, drawable and colour the Java names exists", () => {
+  const have = (kind, name) => kind === "color"
+    ? /<color name="/.test(read(WIDGETS, "res", "values", "colors.xml")) && read(WIDGETS, "res", "values", "colors.xml").includes('name="' + name + '"')
+    : fs.existsSync(path.join(WIDGETS, "res", kind, name + ".xml"));
+  const missing = [...javaSrc.matchAll(/R\.(layout|drawable|color)\.(\w+)/g)].filter((m) => !have(m[1], m[2])).map((m) => m[0]);
+  assert.deepStrictEqual([...new Set(missing)], []);
+});
+
+test("dark mode redefines every widget colour, so none is left light-on-dark", () => {
+  const names = (f) => [...read(WIDGETS, "res", f, "colors.xml").matchAll(/<color name="(\w+)"/g)].map((m) => m[1]).sort();
+  assert.deepStrictEqual(names("values-night"), names("values"));
+});
+
+test("each widget is declared, with its definition, and the list service is bound", () => {
+  const manifest = read(WIDGETS, "AndroidManifest.xml");
+  for (const w of ["HabitsWidget", "TodosWidget", "QuickAddWidget"]) {
+    const block = manifest.slice(manifest.indexOf("widgets." + w + '"'), manifest.indexOf("</receiver>", manifest.indexOf("widgets." + w + '"')));
+    assert.ok(block.includes("android.appwidget.action.APPWIDGET_UPDATE"), w + " never hears it should draw");
+    const info = (block.match(/@xml\/(\w+)/) || [])[1];
+    assert.ok(info && fs.existsSync(path.join(WIDGETS, "res", "xml", info + ".xml")), w + " has no definition");
+    assert.ok(javaSrc.includes("class " + w + " extends AppWidgetProvider"), w + " isn't a provider");
+  }
+  assert.ok(/ListService"[\s\S]*?android:permission="android.permission.BIND_REMOTEVIEWS"/.test(manifest), "the list service is open to anyone");
+});
+
+test("the app loads the plugin by the name the page calls it", () => {
+  const name = (javaSrc.match(/@CapacitorPlugin\(name = "(\w+)"\)/) || [])[1];
+  assert.strictEqual(name, "Widgets");
+  assert.ok(/plugin\("Widgets"\)/.test(fs.readFileSync(path.join(__dirname, "..", "src", "widgets.js"), "utf8")));
+  const pkg = require("../package.json");
+  assert.strictEqual(pkg.devDependencies["lifelog-widgets"], "file:native/widgets");
+});
+
+test("every action a widget sends is one the app knows what to do with", () => {
+  const app = fs.readFileSync(path.join(__dirname, "..", "src", "app.js"), "utf8");
+  const run = app.slice(app.indexOf("function runAction("), app.indexOf("const quickActions"));
+  const sent = [...new Set([...javaSrc.matchAll(/"((?:add|open)-[a-z]+)"/g)].map((m) => m[1]))];
+  assert.ok(sent.length >= 6, sent);
+  assert.deepStrictEqual(sent.filter((a) => !run.includes('"' + a + '"')), []);
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");
