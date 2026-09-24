@@ -854,7 +854,9 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     check("the app says where the ticks came from", /2 ticks from your home-screen widget/.test(await page.evaluate(() => document.querySelector("#toast").textContent)));
     let snap = await lastSnap(page);
     check("the widgets are sent the list with the ticks in it",
-      !!snap && snap.todos.map((t) => t.id).join() === "t2" && snap.habits[0].marks[today] === 1, snap);
+      !!snap && snap.todos.filter((t) => !t.done).map((t) => t.id).join() === "t2" && snap.habits[0].marks[today] === 1, snap);
+    check("the finished one goes too, under the open ones, for the widget's done list",
+      !!snap && snap.todos.map((t) => t.id + (t.done ? "✓" : "")).join() === "t2,t1✓" && snap.doneCount[""] === 1, snap && snap.todos);
     check("and the quick-add buttons for every tab that's on",
       !!snap && ["add-entry", "add-expense", "add-note", "add-todo"].every((a) => snap.actions.includes(a)), snap && snap.actions);
 

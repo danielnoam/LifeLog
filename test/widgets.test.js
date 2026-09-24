@@ -53,11 +53,28 @@ test("only the last week of marks, not a habit's whole history", () => {
   assert.deepStrictEqual(run.marks, { "2026-09-23": 1 });
 });
 
-test("open to-dos in the to-do view's panel order, done ones left out", () => {
+test("to-dos in the to-do view's panel order, each panel's finished ones at its foot", () => {
   const s = W.snapshotOf(data(), { today: TODAY });
-  // General first, then the categories in their list's order, then one a
-  // to-do names that the list has lost; hand order inside each.
-  assert.deepStrictEqual(s.todos.map((t) => t.id), ["t2", "t4", "t5", "t1", "t6"]);
+  // General first (its open one, then its done one), then the categories in
+  // their list's order, then one a to-do names that the list has lost; hand
+  // order inside each.
+  assert.deepStrictEqual(s.todos.map((t) => t.id), ["t2", "t3", "t4", "t5", "t1", "t6"]);
+  assert.deepStrictEqual(s.todos.filter((t) => t.done).map((t) => t.id), ["t3"]);
+  assert.deepStrictEqual(s.doneCount, { "": 1 });
+});
+
+test("finished ones newest first, as the panel shows them, and only the latest few", () => {
+  const d = data();
+  d.todos = [];
+  for (let i = 0; i < W.DONE_PER_PANEL + 5; i++) {
+    d.todos.push({ id: "d" + i, text: "x", done: true, doneAt: "2026-09-" + String(1 + (i % 28)).padStart(2, "0") + "T00:00:" + String(i % 60).padStart(2, "0") + ".000Z" });
+  }
+  d.todos.push({ id: "newest", text: "y", done: true, doneAt: "2026-09-30T00:00:00.000Z" });
+  const s = W.snapshotOf(d, { today: TODAY });
+  assert.strictEqual(s.todos[0].id, "newest");
+  assert.strictEqual(s.todos.length, W.DONE_PER_PANEL);
+  // The line under the list still counts every one of them.
+  assert.strictEqual(s.doneCount[""], W.DONE_PER_PANEL + 6);
 });
 
 test("a categorised to-do brings its category's colour", () => {

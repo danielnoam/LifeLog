@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.182.0] - 2026-09-24
+
+### Changed
+- **The to-do widget is laid out like the to-do list in the app.** Every
+  category has its own heading, and finished to-dos sit under an "N done"
+  line at the foot of their category, struck through, newest first. Ticking
+  one moves it there, and unticking one brings it back.
+- **Ticking on the to-do widget animates** on Android 12 and later: each
+  row is a real checkbox, so the tick draws itself where you tapped, and
+  the row waits for it to finish before moving down into the done ones.
+  Older Android keeps the plain tick.
+
+### Fixed
+- **The habits and to-do widgets no longer jump back to the top** every time
+  they redraw — after each tick, and whenever the app sent them new data —
+  which made anything below the first screenful hard to reach.
+
 ## [0.181.0] - 2026-09-24
 
 ### Added

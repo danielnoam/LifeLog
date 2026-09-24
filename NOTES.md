@@ -16,6 +16,33 @@ what was decided against and why.
 
 ---
 
+- **a widget list keeps its place, and its checkboxes animate themselves
+  (0.182.0).** 0.181.0 redrew a widget whole on every change —
+  updateAppWidget with a fresh RemoteViews — and a whole redraw hands the
+  ListView a new adapter, which puts it back at the top. So a tick three
+  categories down lost your place, and the app's snapshot on every save
+  (and on leaving the app) did the same. Now only onUpdate — placed,
+  rebooted, app updated — draws whole; everything else is
+  partiallyUpdateAppWidget for the header plus
+  notifyAppWidgetViewDataChanged for the list, which keeps the scroll.
+
+  A widget can't run the app's animations: RemoteViews has no layout
+  transitions, and the list redraws rows rather than moving them. What
+  Android 12 added is a real CheckBox in a widget, and a CheckBox animates
+  its own tick on the home screen before anything reaches us
+  (setOnCheckedChangeResponse, with RemoteViews.EXTRA_CHECKED saying which
+  way it went — the queue takes that rather than flipping, so it can't
+  disagree with the box). The row then waits SETTLE_MS (goAsync, so the
+  broadcast lives that long) before the list moves it under the done line:
+  the same "let the tick land, then move" the app's reconcile animation
+  does, minus the slide. It's a separate layout, widget_row_check, used only
+  behind SDK_INT >= S; nativebuild.test.js holds both halves of that rule.
+
+  Finished to-dos travel in the snapshot now, newest first and capped per
+  panel (DONE_PER_PANEL), with doneCount carrying the real total for the
+  "N done" line. The row logic is a pure todoRows(snapshot, queue), run on
+  the JVM against the real org.json before it shipped.
+
 - **widgets are a local plugin that draws from a snapshot and hands back a
   queue (0.181.0).** Widgets are native (AppWidgetProvider + RemoteViews)
   and android/ is generated in CI, so their code lives in native/widgets/,

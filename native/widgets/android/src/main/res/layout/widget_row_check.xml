@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A to-do row from Android 12 on, where widgets can hold a real checkbox:
+     the whole row is the box, so a tap anywhere animates the tick. Never used
+     before 12 (ListService checks), where widget_row_todo draws instead. -->
+<CheckBox xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/row_check"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:buttonTint="@color/widget_accent"
+    android:ellipsize="end"
+    android:maxLines="2"
+    android:minHeight="40dp"
+    android:paddingStart="6dp"
+    android:textColor="@color/widget_text"
+    android:textSize="14sp" />

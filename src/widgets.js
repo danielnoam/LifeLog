@@ -21,6 +21,7 @@
   // midnight the app didn't see. The whole map would be ~1,100 dates for a
   // habit kept three years, sent on every save.
   const MARK_DAYS = 7;
+  const DONE_PER_PANEL = 30;
 
   const pad = (n) => String(n).padStart(2, "0");
   const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -31,6 +32,7 @@
   };
   const isDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || ""));
 
+  const byNewestDone = (a, b) => String(b.doneAt || "").localeCompare(String(a.doneAt || ""));
   const byOrder = (a, b) => (+a.order || 0) - (+b.order || 0) || String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
 
   // What every widget draws from. `actions` are the quick-add buttons worth
@@ -56,26 +58,34 @@
         };
       });
 
-    // The to-do view's panel order: the general list, then each category in
-    // the order its list holds them, then any a to-do names that the list
-    // has lost — the same as todos.js's panelGroups.
+    // The to-do view's panels, in its order: the general list, then each
+    // category in the order its list holds them, then any a to-do names that
+    // the list has lost — todos.js's panelGroups. Inside each, the same as a
+    // panel: open ones by hand order, then the finished ones, newest first,
+    // which the widget draws under an "N done" line. Finished ones are capped
+    // per panel (DONE_PER_PANEL) — they pile up until cleared, and this goes
+    // out on every save; `doneCount` keeps the line honest about the rest.
     const cats = data.todoCategories || [];
     const colorOf = (name) => (cats.find((c) => c.name === name) || {}).color || null;
-    const open = (data.todos || []).filter((t) => !t.done);
     const groups = new Map([["", []]]);
     for (const c of cats) groups.set(c.name, []);
-    for (const t of open) {
+    for (const t of data.todos || []) {
       const key = t.category || "";
       if (!groups.has(key)) groups.set(key, []);
       groups.get(key).push(t);
     }
     const todos = [];
+    const doneCount = {};
     for (const [name, list] of groups) {
-      for (const t of list.sort(byOrder)) {
-        todos.push({ id: t.id, text: t.text, category: name, color: (name && colorOf(name)) || "" });
-      }
+      const color = (name && colorOf(name)) || "";
+      const row = (t) => ({ id: t.id, text: t.text, category: name, color, done: !!t.done });
+      const open = list.filter((t) => !t.done).sort(byOrder);
+      const done = list.filter((t) => t.done).sort(byNewestDone);
+      if (done.length) doneCount[name] = done.length;
+      for (const t of open) todos.push(row(t));
+      for (const t of done.slice(0, DONE_PER_PANEL)) todos.push(row(t));
     }
-    return { v: 1, today, habits, todos, actions };
+    return { v: 2, today, habits, todos, doneCount, actions };
   }
 
   // Ticks from a widget, onto the data. Anything that has gone since the
@@ -171,5 +181,5 @@
     takeAction();
   }
 
-  window.LifeLogWidgets = { snapshotOf, applyQueue, start, changed, MARK_DAYS };
+  window.LifeLogWidgets = { snapshotOf, applyQueue, start, changed, MARK_DAYS, DONE_PER_PANEL };
 })();

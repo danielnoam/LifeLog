@@ -9,8 +9,11 @@ import android.os.Build;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.TimeZone;
 import org.json.JSONArray;
@@ -39,6 +42,7 @@ final class WidgetStore {
     static final int ROW_HEADER = 0;
     static final int ROW_HABIT = 1;
     static final int ROW_TODO = 2;
+    static final int ROW_SEP = 3;
 
     /** One line of a widget's list. */
     static final class Row {
@@ -47,6 +51,7 @@ final class WidgetStore {
         String text = "";
         int color;
         boolean done;
+        /** A habit's mark today; for a to-do ticked on the widget, where its tick sits in the queue. */
         int value;
         int target = 1;
     }
@@ -214,53 +219,94 @@ final class WidgetStore {
 
     // ---- to-dos ----
 
-    private static Boolean queuedDone(JSONArray q, String id) {
-        for (int i = 0; i < q.length(); i++) {
+    /** Where this to-do's latest tick sits in the queue, or -1. */
+    private static int queuedAt(JSONArray q, String id) {
+        for (int i = q.length() - 1; i >= 0; i--) {
             JSONObject o = q.optJSONObject(i);
-            if (o != null && "todo".equals(o.optString("kind")) && id.equals(o.optString("id"))) {
-                return o.optBoolean("done");
-            }
+            if (o != null && "todo".equals(o.optString("kind")) && id.equals(o.optString("id"))) return i;
         }
-        return null;
+        return -1;
     }
 
     /**
-     * The open to-dos in the app's own order, a header wherever the category
-     * changes. The general list goes unlabelled when it is the only one,
-     * which is the common case and doesn't need a heading saying so.
+     * The to-do view's panels, as the app draws them: a heading per category
+     * (left off when the general list is the only one), the open to-dos in
+     * hand order, then an "N done" line and the finished ones, newest first.
+     * Something ticked on the widget joins the top of the finished ones
+     * straight away, and one unticked goes back to the foot of the open ones,
+     * before the app has seen either.
      */
     static List<Row> todoRows(Context c) {
+        return todoRows(snapshot(c), queue(c));
+    }
+
+    static List<Row> todoRows(JSONObject snap, JSONArray q) {
         List<Row> rows = new ArrayList<>();
-        JSONObject snap = snapshot(c);
         if (snap == null) return rows;
         JSONArray todos = snap.optJSONArray("todos");
         if (todos == null) return rows;
-        JSONArray q = queue(c);
-        boolean anyCategory = false;
-        for (int i = 0; i < todos.length(); i++) {
-            JSONObject t = todos.optJSONObject(i);
-            if (t != null && !str(t, "category").isEmpty()) anyCategory = true;
-        }
-        String last = null;
+        JSONObject doneCount = snap.optJSONObject("doneCount");
+
+        Map<String, List<JSONObject>> panels = new LinkedHashMap<>();
         for (int i = 0; i < todos.length(); i++) {
             JSONObject t = todos.optJSONObject(i);
             if (t == null) continue;
             String cat = str(t, "category");
-            if (anyCategory && !cat.equals(last)) {
+            List<JSONObject> list = panels.get(cat);
+            if (list == null) panels.put(cat, list = new ArrayList<>());
+            list.add(t);
+        }
+        boolean titled = panels.size() > 1 || (panels.size() == 1 && !panels.containsKey(""));
+
+        for (Map.Entry<String, List<JSONObject>> panel : panels.entrySet()) {
+            String cat = panel.getKey();
+            List<Row> open = new ArrayList<>();
+            List<Row> justDone = new ArrayList<>();
+            List<Row> done = new ArrayList<>();
+            int color = 0;
+            int unticked = 0;
+            for (JSONObject t : panel.getValue()) {
+                Row r = new Row();
+                r.type = ROW_TODO;
+                r.id = str(t, "id");
+                r.text = str(t, "text");
+                color = parseColor(str(t, "color"), 0);
+                boolean saved = t.optBoolean("done");
+                int at = queuedAt(q, r.id);
+                r.done = at >= 0 ? q.optJSONObject(at).optBoolean("done") : saved;
+                if (!r.done) {
+                    open.add(r);
+                    if (saved) unticked++;
+                } else if (!saved) {
+                    r.value = at;
+                    justDone.add(r);
+                } else {
+                    done.add(r);
+                }
+            }
+            // The latest tick first, as the newest finished one is in the app.
+            Collections.sort(justDone, (a, b) -> b.value - a.value);
+
+            if (titled) {
                 Row h = new Row();
                 h.type = ROW_HEADER;
                 h.text = cat.isEmpty() ? "To do" : cat;
-                h.color = parseColor(str(t, "color"), 0);
+                h.color = color;
                 rows.add(h);
             }
-            last = cat;
-            Row r = new Row();
-            r.type = ROW_TODO;
-            r.id = str(t, "id");
-            r.text = str(t, "text");
-            Boolean queued = queuedDone(q, r.id);
-            r.done = queued != null && queued;
-            rows.add(r);
+            rows.addAll(open);
+            // Counted from the app's total, not the rows sent: only the newest
+            // few finished ones travel in the snapshot.
+            int savedDone = doneCount != null && doneCount.has(cat) ? doneCount.optInt(cat) : done.size() + unticked;
+            int doneTotal = savedDone - unticked + justDone.size();
+            if (doneTotal > 0 && (justDone.size() + done.size()) > 0) {
+                Row sep = new Row();
+                sep.type = ROW_SEP;
+                sep.text = doneTotal + " done";
+                rows.add(sep);
+                rows.addAll(justDone);
+                rows.addAll(done);
+            }
         }
         return rows;
     }
@@ -271,15 +317,22 @@ final class WidgetStore {
         return n;
     }
 
-    static void tickTodo(Context c, String id) {
+    /**
+     * `checked` is the state a widget checkbox has already moved to (Android
+     * 12 and up), so the queue can't disagree with what's on screen; null
+     * means a plain tap, which flips it.
+     */
+    static void tickTodo(Context c, String id, Boolean checked) {
         if (id == null) return;
         for (Row r : todoRows(c)) {
             if (r.type != ROW_TODO || !r.id.equals(id)) continue;
+            boolean to = checked != null ? checked : !r.done;
+            if (to == r.done) return;
             try {
                 JSONObject item = new JSONObject();
                 item.put("kind", "todo");
                 item.put("id", id);
-                item.put("done", !r.done);
+                item.put("done", to);
                 item.put("at", nowIso());
                 enqueue(c, item);
             } catch (JSONException e) {

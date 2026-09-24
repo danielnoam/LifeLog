@@ -165,11 +165,28 @@ const REMOTABLE = new Set(["FrameLayout", "LinearLayout", "RelativeLayout", "Gri
   "TextView", "ImageView", "Button", "ImageButton", "ProgressBar", "ListView", "GridView",
   "StackView", "AdapterViewFlipper", "ViewFlipper", "Chronometer", "AnalogClock", "ViewStub"]);
 
+// Views widgets gained in Android 12, allowed only in a layout the Java
+// reaches for behind a version check — elsewhere they'd be the same box on
+// every phone older than that.
+const FROM_12 = { "widget_row_check.xml": ["CheckBox"] };
+
 test("every widget layout uses only views a home-screen widget can show", () => {
   for (const f of layouts) {
     const tags = [...read(WIDGETS, "res", "layout", f).matchAll(/<([A-Za-z][\w.]*)[\s>/]/g)].map((m) => m[1]);
-    const bad = tags.filter((t) => !REMOTABLE.has(t));
+    const bad = tags.filter((t) => !REMOTABLE.has(t) && !(FROM_12[f] || []).includes(t));
     assert.deepStrictEqual(bad, [], f);
+  }
+});
+
+test("a layout that needs Android 12 is only ever used behind a check for it", () => {
+  for (const f of Object.keys(FROM_12)) {
+    const name = f.replace(/\.xml$/, "");
+    const uses = [...javaSrc.matchAll(new RegExp("R\\.layout\\." + name + "\\b", "g"))];
+    assert.ok(uses.length, name + " is never used");
+    // The one method that inflates it is only called behind SDK_INT >= S.
+    assert.ok(/SDK_INT >= Build\.VERSION_CODES\.S\) return checkboxRow\(/.test(javaSrc), "checkboxRow isn't guarded");
+    const owner = javaSrc.slice(javaSrc.indexOf("private RemoteViews checkboxRow("));
+    assert.ok(owner.indexOf("R.layout." + name) > -1 && owner.indexOf("R.layout." + name) < owner.indexOf("\n        }\n"), name + " is used outside checkboxRow");
   }
 });
 
