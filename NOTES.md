@@ -45,9 +45,24 @@ what was decided against and why.
   means something there. A view's modes are a small loop you can't see, and
   hitting a wall there only meant turning round.
 
-- **pull to refresh moves the page, not an indicator.** 0.176.0 dropped a
-  circle in over the top bar, which worked and looked like something from
-  another app. Now `#content` and the filter slot come down with the finger
+- **pull to refresh: the page and an arrow on the background, driven by
+  one value.** The look since 0.177.1 is Chrome's and Brave's: the page
+  comes down, and in the gap it opens an arrow — drawn on the background, no
+  bubble — comes down with it, winds up as you pull, then spins in place
+  while the page holds a little way down, until the sync answers. The
+  holding matters most: 0.177.0 sprang straight back on release, so a slow
+  sync looked like nothing had happened.
+
+  Page and arrow both read `--pull` on `<html>`, registered with `@property`
+  so it can animate. Settling to the hold and back up is then one animation
+  both follow, instead of two that could drift apart. The arrow sits under
+  the top bar in z-order, so it comes out from behind it rather than
+  appearing. The spin has a 700ms floor, so a quick "Up to date" still reads
+  as the app having checked.
+
+  Earlier, 0.176.0 dropped a circle in over the top bar, which worked and
+  looked like something from another app, and 0.177.0 took every indicator
+  away. Now `#content` and the filter slot come down with the finger
   against a rubber-band curve (easy at first, never past 180px). It uses the
   `translate` property rather than `transform`, so it can't collide with the
   mode swipe moving the same content sideways. It's set inline only while

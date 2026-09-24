@@ -1844,12 +1844,38 @@ kbd {
 }
 .toast[hidden] { display: none; }
 
-/* Pull to refresh, in the Android app only (see wirePullToRefresh): the
-   page itself follows the finger down and springs back, the way a browser's
-   does — no indicator. `translate`, not `transform`, so it can't collide with
-   the mode swipe, which moves the same content sideways. Set inline only
-   while pulling: any value but none makes #content a containing block for
-   its fixed children. */
+/* Pull to refresh, in the Android app only (see wirePullToRefresh). The
+   page comes down with the finger, and in the gap it opens an arrow drawn on
+   the background — no bubble — comes down with it, winding up as it goes,
+   then spins in place while the app syncs.
+
+   --pull is registered so it can animate: the page and the arrow both read
+   it, so settling to the hold position and back up is one movement for
+   both. The page's `translate` exists only under html.pulling — any value
+   but none makes #content a containing block for its fixed children — and
+   it's `translate`, not `transform`, so it can't collide with the mode
+   swipe moving the same content sideways. */
+@property --pull { syntax: "<length>"; inherits: true; initial-value: 0px; }
+html.pulling #content, html.pulling #filterSlot { translate: 0 var(--pull); }
+html.pull-settling { transition: --pull .3s cubic-bezier(.22,1,.36,1); }
+.pull-icon {
+  display: none; position: fixed; left: 50%; top: var(--topbar-h, 60px);
+  width: 26px; height: 26px; margin-left: -13px;
+  z-index: 15; /* under the top bar, so it comes out from behind it */
+  pointer-events: none; color: var(--text-dim);
+  transform: translateY(calc(var(--pull) - 40px));
+  opacity: var(--pull-progress, 1);
+}
+html.pulling .pull-icon { display: block; }
+.pull-icon svg { display: block; width: 100%; height: 100%; transform: rotate(var(--pull-turn, 0deg)); }
+.pull-icon circle { stroke-dasharray: calc(var(--pull-progress, 0) * 72) 100; }
+html.pull-armed .pull-icon, html.pull-busy .pull-icon { color: var(--accent); opacity: 1; }
+html.pull-busy .pull-icon svg { animation: pull-spin .75s linear infinite; }
+html.pull-busy .pull-icon circle { stroke-dasharray: 64 100; }
+@keyframes pull-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  html.pull-busy .pull-icon svg { animation-duration: 2.4s; }
+}
 /* The WebView's own overscroll glow would answer the same pull. */
 html.native, html.native body { overscroll-behavior-y: none; }
 .toast-action {

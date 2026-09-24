@@ -117,7 +117,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.177.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.177.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3925,17 +3925,23 @@
   // be the wrong thing to copy, since the app's files are already here. So it
   // syncs: the same poll the interval runs, reported rather than silent.
   //
-  // It looks like the browser's, not like a widget: the page itself comes
-  // down with the finger, against a rubber-band resistance, and springs back
-  // when you let go. 0.176.0 dropped a circle in over the top bar instead,
-  // which worked and looked like something else. While it syncs, the status
-  // line under the title says so, and the result arrives as a toast.
+  // It looks the way Chrome's and Brave's do. The page comes down with the
+  // finger against a rubber-band resistance, and in the gap it opens there's
+  // an arrow drawn on the background — no bubble — that comes down with it
+  // and winds up as you pull. Let go past the mark and the page settles a
+  // little way down while the arrow spins in place for as long as the sync
+  // takes, then both go back up together, so you can see it working. Let go
+  // short and it all just springs back.
+  //
+  // One value drives all of it: `--pull` on <html>, a registered custom
+  // property (see styles.css) so it animates. The page and the arrow both
+  // read it, so they can't come apart on the way down or back up.
   //
   // Only from the very top, only on a drag that is mostly downward (a
   // sideways one belongs to the mode swipe), and never over a sheet, the
   // add menu or the Recap. `html.native` turns off the WebView's own
   // overscroll so the two don't fight over the same finger.
-  const PULL_ARM = 60, PULL_REACH = 180;
+  const PULL_ARM = 60, PULL_REACH = 180, PULL_HOLD = 52, PULL_SETTLE_MS = 300, PULL_MIN_SPIN_MS = 700;
   // How far the page moves for a finger that has moved dy: easy at first,
   // then harder and harder, never past PULL_REACH.
   const pullDistance = (dy) => (1 - 1 / (Math.max(0, dy) * 0.55 / PULL_REACH + 1)) * PULL_REACH;
@@ -3943,22 +3949,31 @@
   function wirePullToRefresh() {
     const root = document.documentElement;
     root.classList.add("native");
-    const pages = () => [$("#content"), $("#filterSlot")].filter(Boolean);
     let start = null, pulling = false, busy = false, dist = 0;
     const atTop = () => (document.scrollingElement || root).scrollTop <= 0;
     const blocked = () => busy || modeTurning || isAnyModalOpen() || !$("#addMenu").hidden || !$("#recapScreen").hidden;
-    const move = (y) => {
-      for (const p of pages()) { p.style.transition = "none"; p.style.translate = "0 " + y + "px"; }
-      root.classList.toggle("pull-armed", y >= PULL_ARM);
+    const set = (y) => {
+      root.style.setProperty("--pull", y + "px");
+      root.style.setProperty("--pull-progress", String(Math.min(1, y / PULL_ARM)));
+      root.style.setProperty("--pull-turn", Math.round(y * 2.4) + "deg");
     };
-    const release = () => {
+    const move = (y) => {
+      root.classList.remove("pull-settling");
+      root.classList.add("pulling");
+      root.classList.toggle("pull-armed", y >= PULL_ARM);
+      set(y);
+    };
+    // Animate --pull to `y`; resolves when it has arrived.
+    const settle = (y) => new Promise((resolve) => {
+      root.classList.add("pull-settling");
+      root.style.setProperty("--pull", y + "px");
+      setTimeout(resolve, PULL_SETTLE_MS + 20);
+    });
+    const home = async () => {
       root.classList.remove("pull-armed");
-      for (const p of pages()) {
-        if (!p.style.translate) continue;
-        p.style.transition = "translate .32s " + MODE_EASE;
-        p.style.translate = "0 0";
-        setTimeout(() => { p.style.translate = ""; p.style.transition = ""; }, 340);
-      }
+      await settle(0);
+      root.classList.remove("pulling", "pull-settling", "pull-busy", "pull-armed");
+      for (const v of ["--pull", "--pull-progress", "--pull-turn"]) root.style.removeProperty(v);
     };
     document.addEventListener("touchstart", (e) => {
       start = null;
@@ -3982,15 +3997,22 @@
       if (!start || !pulling) { start = null; return; }
       start = null;
       pulling = false;
-      const armed = dist >= PULL_ARM;
-      release();
-      if (!armed) return;
+      if (dist < PULL_ARM) { home(); return; }
       busy = true;
+      root.classList.add("pull-busy");
       setSyncing("Syncing…");
-      try { await refreshNow(); }
-      finally { busy = false; refreshStorageStatus(); }
+      settle(PULL_HOLD);
+      try {
+        // A floor on the spin, so a quick "Up to date" still reads as the
+        // app having checked rather than as the page bouncing.
+        await Promise.all([refreshNow(), new Promise((r) => setTimeout(r, PULL_MIN_SPIN_MS))]);
+      } finally {
+        refreshStorageStatus();
+        await home();
+        busy = false;
+      }
     });
-    document.addEventListener("touchcancel", () => { start = null; pulling = false; release(); });
+    document.addEventListener("touchcancel", () => { start = null; pulling = false; if (!busy) home(); });
   }
 
   async function refreshNow() {

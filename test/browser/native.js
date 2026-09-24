@@ -70,7 +70,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
   await page.route("**/app-build.json", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(BUILD) }));
   // `remote`, `sha` and `down` can be changed mid-test to stage what the
   // other device did, or GitHub being unreachable.
-  const github = { puts: [], remote, sha: "sha-remote", down: false, reads: 0 };
+  const github = { puts: [], remote, sha: "sha-remote", down: false, reads: 0, delay: 0 };
   await page.route("https://api.github.com/**", async (route) => {
     const req = route.request();
     const url = req.url();
@@ -87,6 +87,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
       return say(200, { content: { sha: github.sha } });
     }
     github.reads++;
+    if (github.delay) await new Promise((r) => setTimeout(r, github.delay));
     return github.remote ? say(200, { sha: github.sha, size: 100, encoding: "base64", content: b64(github.remote) }) : say(404, { message: "Not Found" });
   });
   // networkidle, not load: the first boot fetches the demo seed and caches
@@ -375,7 +376,19 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
       await new Promise((r) => requestAnimationFrame(r));
       const t = getComputedStyle(document.querySelector("#content")).translate;
       const y = t === "none" ? 0 : parseFloat(t.split(" ")[1] || "0");
-      seen.push({ y, shown: y > 0, armed: document.documentElement.classList.contains("pull-armed") });
+      // Tolerates a missing arrow, so a build without one fails these
+      // checks instead of taking the rest of the suite down with it.
+      const icon = document.querySelector("#pullIcon");
+      const ir = icon ? icon.getBoundingClientRect() : {};
+      const ics = icon ? getComputedStyle(icon) : { display: "none" };
+      const svg = icon && icon.querySelector("svg");
+      const top = Math.min(...["#filterSlot", "#content"].map((q) => document.querySelector(q).getBoundingClientRect().top));
+      seen.push({
+        y, shown: y > 0, armed: document.documentElement.classList.contains("pull-armed"),
+        icon: { shown: ics.display !== "none", top: ir.top, bottom: ir.bottom, bg: ics.backgroundColor, shadow: ics.boxShadow,
+          turn: svg ? getComputedStyle(svg).transform : "none" },
+        pageTop: top, barBottom: document.querySelector(".topbar").getBoundingClientRect().bottom,
+      });
     }
     fire("touchend", 200 + dx, 150 + dy);
     seen.push({ statusAtRelease: (document.querySelector(".storage-status") || {}).textContent || "" });
@@ -395,7 +408,15 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
       moves[0].y > 0 && moves.every((m, i) => i === 0 || m.y >= moves[i - 1].y), moves.map((m) => Math.round(m.y)));
     check("against a resistance — the page travels less than the finger did",
       moves[moves.length - 1].y < 240 * 0.5, moves[moves.length - 1].y);
-    check("there's no indicator any more, just the page", await page.evaluate(() => !document.querySelector("#pullRefresh, .pull-refresh")));
+    const last = moves[moves.length - 1];
+    check("the arrow is drawn on the background — no bubble behind it",
+      last.icon.shown && /rgba\(0, 0, 0, 0\)|transparent/.test(last.icon.bg) && last.icon.shadow === "none", last.icon);
+    check("it sits in the gap the pull opened, under the top bar and above the page",
+      last.icon.top >= last.barBottom - 1 && last.icon.bottom <= last.pageTop + 1, { icon: last.icon, pageTop: last.pageTop, bar: last.barBottom });
+    const gaps = moves.filter((m) => m.icon.shown).map((m) => Math.round(m.pageTop - m.icon.bottom));
+    check("and comes down with the page, the same distance above it the whole way",
+      gaps.length > 2 && gaps.every((g) => Math.abs(g - gaps[0]) <= 1), gaps);
+    check("winding round as you pull", new Set(moves.map((m) => m.icon.turn)).size > 3, moves.map((m) => m.icon.turn));
     check("pulled far enough, it counts", moves[moves.length - 1].armed, moves[moves.length - 1]);
     check("and the status line says it's syncing the moment you let go",
       /Syncing/.test(seen[seen.length - 1].statusAtRelease), seen[seen.length - 1]);
@@ -403,7 +424,41 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     check("letting go syncs", github.reads > readsBefore, { before: readsBefore, after: github.reads });
     check("and with nothing new, it says so rather than nothing", /Up to date/.test(await toastNow(page)), await toastNow(page));
     check("the page springs back home, holding nothing that would pin fixed children",
-      await page.evaluate(() => getComputedStyle(document.querySelector("#content")).translate === "none" && !document.querySelector("#content").style.translate));
+      await page.evaluate(() => getComputedStyle(document.querySelector("#content")).translate === "none" &&
+        !document.documentElement.classList.contains("pulling") &&
+        (!document.querySelector("#pullIcon") || getComputedStyle(document.querySelector("#pullIcon")).display === "none")));
+
+    // A slow GitHub, to watch it think: the page holds a little way down and
+    // the arrow spins in place until the answer comes, then both go home.
+    github.delay = 1200;
+    await pull(page);
+    await page.waitForTimeout(500);
+    const thinking = await page.evaluate(() => {
+      const t = getComputedStyle(document.querySelector("#content")).translate;
+      const icon = document.querySelector("#pullIcon");
+      const ir = icon ? icon.getBoundingClientRect() : {};
+      return {
+        y: t === "none" ? 0 : parseFloat(t.split(" ")[1] || "0"),
+        spinning: icon ? getComputedStyle(icon.querySelector("svg")).animationName : "none",
+        iconShown: !!icon && getComputedStyle(icon).display !== "none",
+        iconBottom: ir.bottom,
+        pageTop: document.querySelector("#content").getBoundingClientRect().top,
+        status: document.querySelector(".storage-status").textContent,
+      };
+    });
+    check("while it syncs, the page holds a little way down instead of snapping back", Math.abs(thinking.y - 52) < 3, thinking);
+    check("and the arrow spins in place there, so you can see it working",
+      thinking.iconShown && thinking.spinning === "pull-spin" && thinking.iconBottom <= thinking.pageTop + 1, thinking);
+    check("with the status line saying so", /Syncing/.test(thinking.status), thinking.status);
+    await page.waitForTimeout(1400);
+    const done = await page.evaluate(() => ({
+      translate: getComputedStyle(document.querySelector("#content")).translate,
+      icon: document.querySelector("#pullIcon") ? getComputedStyle(document.querySelector("#pullIcon")).display : "none",
+      classes: document.documentElement.className,
+    }));
+    check("when the answer comes, page and arrow go back up together and leave nothing behind",
+      done.translate === "none" && done.icon === "none" && !/pull/.test(done.classes), done);
+    github.delay = 0;
 
     // The other device saves something; the pull brings it in.
     github.remote = doc([...remote.notes, note("n2", "Saved on the desktop a moment ago", "2026-09-23T20:00:00.000Z")], "2026-09-23T20:00:00.000Z");

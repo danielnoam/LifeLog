@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.177.1] - 2026-09-24
+
+### Changed
+- **Pull to refresh in the Android app now works like Chrome's and
+  Brave's.** As the page comes down, an arrow drawn on the background (no
+  bubble) comes down with it in the gap, winding round as you pull and
+  turning blue once you've pulled far enough. Let go and the page stays a
+  little way down while the arrow spins in place for as long as the sync
+  takes. Then both go back up together. Let go early and everything just
+  springs back.
+
 ## [0.177.0] - 2026-09-24
 
 ### Changed
