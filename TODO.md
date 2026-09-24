@@ -34,7 +34,7 @@ todo:
 
   **Still only verifiable on a phone** (0.178.0 made each right by
   construction and tested what the page decides): the status bar really
-  taking the top bar's colour, outside links opening in Chrome's tab, the
+  taking the top bar's colour, outside links opening in the phone's browser, the
   back gesture reaching the app, the in-app update reaching Android's
   installer (0.179.0 — first testable on the update *after* it), and
   exports reaching the share sheet.

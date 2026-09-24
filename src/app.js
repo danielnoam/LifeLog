@@ -19,6 +19,10 @@
   // there is still in its temporal dead zone — a ReferenceError that stopped
   // the whole app starting (caught by test/browser/native.js).
   let systemBarsStyle = "";
+  // The app version the update bar is currently offering (see offerUpdate),
+  // so a second check — a pull to refresh — can't reset a bar that is
+  // halfway through downloading it.
+  let offeredUpdate = "";
   const Platform = window.LifeLogPlatform || { native: false, ready: Promise.resolve(null), plugin: () => null, webUrl: () => null, apkUrl: () => null, openOutside: () => {} };
   const MONTHS = ["", "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"];
@@ -123,7 +127,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.179.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.179.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3943,6 +3947,7 @@
       const latest = tag.replace(/^app-v/, "");
       if (!/^\d+\.\d+\.\d+$/.test(latest) || latest === APP_VERSION) return;
       if (window.LifeLogMerge.maxVersion(latest, APP_VERSION) !== latest) return;
+      if (latest === offeredUpdate) return;
       offerUpdate(latest);
     } catch (e) { /* offline — ask again next launch */ }
   }
@@ -3951,8 +3956,9 @@
   // app with its progress on the bar, then opens Android's installer; if the
   // installer is dismissed, "Install" reopens it without downloading again.
   // An app older than 0.179.0 has no plugins for this, and for that one step
-  // the bar still sends you to the download in Chrome's tab.
+  // the bar still sends you to the download in the phone's browser.
   function offerUpdate(version) {
+    offeredUpdate = version;
     const text = $("#updateBarText");
     const btn = $("#updateReloadBtn");
     let apk = null;
@@ -3980,7 +3986,7 @@
         return;
       }
       if (!apk) {
-        // An older shell: no in-app downloader, so Chrome's tab it is.
+        // An older shell: no in-app downloader, so the browser it is.
         say("LifeLog " + version + " is out", "Download");
         Platform.openOutside(Platform.apkUrl());
         return;
@@ -4087,12 +4093,18 @@
     document.addEventListener("touchcancel", () => { start = null; pulling = false; if (!busy) home(); });
   }
 
+  // A pull asks two things at once: whether the other device saved
+  // anything, and whether there's a newer version of the app. The second
+  // doesn't need GitHub sync connected — it's the app's own Releases page —
+  // and when it finds one, the update bar says so, as it does at launch.
   async function refreshNow() {
+    const newerApp = checkForNewerApp();
     if (!Storage.githubConnected) {
+      await newerApp;
       toast("This device isn't syncing with GitHub — connect it in Settings", true);
       return;
     }
-    const r = await pollForUpdates();
+    const [r] = await Promise.all([pollForUpdates(), newerApp]);
     if (r.outcome === "unchanged") toast("Up to date");
     else if (r.outcome === "saved") toast("Your changes are saved to GitHub");
     else if (r.outcome === "busy") toast("Already syncing");
@@ -4117,7 +4129,7 @@
     App.addListener("backButton", (ev) => {
       const somethingOpen = isAnyModalOpen() || !$("#addMenu").hidden || !$("#recapScreen").hidden;
       if (somethingOpen) document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-      // Outside links open in Chrome's tab, so the app's own page should
+      // Outside links open in the phone's browser, so the app's own page should
       // never have anywhere to go back to — but if something ever does
       // navigate it, back returns from there rather than leaving the app.
       else if (ev && ev.canGoBack) history.back();

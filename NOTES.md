@@ -79,9 +79,13 @@ what was decided against and why.
   **Outside links are routed explicitly.** Capacitor most likely hands
   outside URLs to the system browser already, but a link that did load
   inside the app would strand you: no address bar, and back would put the
-  app away. So outside `<a>` clicks and `window.open` go through the Browser
-  plugin (Chrome's in-app tab), and back returns when the page has
-  somewhere to go back to.
+  app away. So outside `<a>` clicks and `window.open` are routed by hand,
+  and back returns when the page has somewhere to go back to. 0.178.0
+  routed them to the Browser plugin — Chrome's in-app tab — and that was
+  the wrong call: it opens over the app, so it reads as being *inside*
+  LifeLog. The point was to leave, so 0.179.1 hands them to Android with
+  AppLauncher (a plain view intent), which opens the phone's own browser as
+  its own app.
 
 - **the mode swipe is a pager built from snapshots, not two live renders.**
   A pager needs the neighbouring mode on screen while the finger is down, and

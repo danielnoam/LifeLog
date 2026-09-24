@@ -22,7 +22,7 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
 // What Capacitor's native bridge puts on the page, as far as LifeLog uses it.
 const FAKE_BRIDGE = () => {
   window.__cap = { minimized: 0, opened: [], back: null, scans: 0, installs: 0, progress: [], barStyles: [], browsed: [],
-    written: [], shared: [], downloads: [], fsProgress: [], installers: [], deleted: [] };
+    written: [], shared: [], downloads: [], fsProgress: [], installers: [], deleted: [], inAppTab: [] };
   // What the file plugins will do; tests change it before acting.
   window.__filePlan = { downloadFails: false, shareCancels: false, installerFails: false, cacheFiles: [] };
   // What the next scan will do; tests set it before pressing the button.
@@ -48,7 +48,7 @@ const FAKE_BRIDGE = () => {
         downloadFile: async ({ url, path, directory, progress }) => {
           window.__cap.downloads.push({ url, path, directory, progress });
           for (const f of [0.25, 0.5, 1]) {
-            await new Promise((r) => setTimeout(r, 90));
+            await new Promise((r) => setTimeout(r, window.__filePlan.slow ? 800 : 90));
             if (window.__filePlan.downloadFails && f === 0.5) throw new Error("connection reset");
             window.__cap.fsProgress.forEach((cb) => cb({ url, bytes: f * 4000000, contentLength: 4000000 }));
           }
@@ -72,8 +72,12 @@ const FAKE_BRIDGE = () => {
           if (window.__filePlan.shareCancels) throw new Error("Share canceled");
         },
       },
-      // @capacitor/browser: Chrome's in-app tab.
-      Browser: { open: async ({ url }) => { window.__cap.browsed.push(url); window.__cap.opened.push(url); } },
+      // @capacitor/app-launcher: hands a link to Android, which opens the
+      // phone's own browser app.
+      AppLauncher: { openUrl: async ({ url }) => { window.__cap.browsed.push(url); window.__cap.opened.push(url); return { completed: true }; } },
+      // @capacitor/browser (Chrome's in-app tab) — present only so a test can
+      // prove it's no longer what outside links use.
+      Browser: { open: async ({ url }) => { window.__cap.inAppTab.push(url); } },
       // Capacitor's own SystemBars.
       SystemBars: { setStyle: async ({ style }) => { window.__cap.barStyles.push(style); } },
       // @capacitor-mlkit/barcode-scanning, as far as LifeLog uses it.
@@ -251,7 +255,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await pressUpdate(page);
     await page.waitForTimeout(300);
     const cap = await page.evaluate(() => ({ downloads: window.__cap.downloads.length, browsed: window.__cap.browsed }));
-    check("an app without the in-app updater falls back to the download in Chrome's tab",
+    check("an app without the in-app updater falls back to the download in the browser",
       cap.downloads === 0 && cap.browsed[0] === "https://github.com/someone/lifelog/releases/latest/download/LifeLog.apk", cap);
     errs.push(...e);
     await ctx.close();
@@ -669,7 +673,9 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     });
     await page.waitForTimeout(200);
     const browsed = await page.evaluate(() => window.__cap.browsed);
-    check("an outside link opens in Chrome's in-app tab", browsed.some((u) => /^https:\/\/github\.com\//.test(u)), browsed);
+    check("an outside link opens in the phone's own browser, as its own app", browsed.some((u) => /^https:\/\/github\.com\//.test(u)), browsed);
+    check("not in Chrome's in-app tab, which still reads as being inside LifeLog",
+      (await page.evaluate(() => window.__cap.inAppTab.length)) === 0, await page.evaluate(() => window.__cap.inAppTab));
     check("and the app's own page stays where it was", page.url() === here, page.url());
     await page.evaluate(() => window.open("https://example.com/somewhere"));
     check("window.open to the outside goes the same way",
@@ -761,6 +767,40 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await exportFrom(page);
     const links = await page.evaluate(() => window.__linkDownloads);
     check("in a browser, exporting is still an ordinary download", links.length === 1 && links[0] === "lifelog.json", links);
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 11. a pull also checks for a newer app ----
+  {
+    const { page, ctx, errs: e } = await openApp(browser, { remote, cache: remote, gh: connected, hasTouch: true });
+    check("with nothing newer out, there's no update bar", await page.evaluate(() => document.querySelector("#updateBar").hidden));
+    // A release goes out while the app is open.
+    await page.route("https://api.github.com/repos/someone/lifelog/releases/latest",
+      (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ tag_name: "app-v9.9.9" }) }));
+    await pull(page);
+    await page.waitForTimeout(1300);
+    const bar = await page.evaluate(() => ({ hidden: document.querySelector("#updateBar").hidden, text: document.querySelector("#updateBarText").textContent }));
+    check("pulling to refresh finds a release that came out since the app opened", !bar.hidden && /9\.9\.9/.test(bar.text), bar);
+    // Halfway through downloading it, pull again: the bar must carry on.
+    await page.evaluate(() => { window.__filePlan.slow = true; document.querySelector("#updateReloadBtn").click(); });
+    await page.waitForTimeout(120);
+    await pull(page);
+    await page.waitForTimeout(80);
+    const during = await page.evaluate(() => ({ text: document.querySelector("#updateBarText").textContent, busy: document.querySelector("#updateReloadBtn").disabled }));
+    check("and a second pull doesn't reset a download that's under way", /Downloading/.test(during.text) && during.busy, during);
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    // Not connected to GitHub sync at all: the app update check still runs.
+    const { page, ctx, errs: e } = await openApp(browser, { hasTouch: true });
+    await page.route("https://api.github.com/repos/someone/lifelog/releases/latest",
+      (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ tag_name: "app-v9.9.9" }) }));
+    await pull(page);
+    await page.waitForTimeout(1300);
+    check("a pull checks for a newer app even on a device that isn't syncing",
+      await page.evaluate(() => !document.querySelector("#updateBar").hidden && /9\.9\.9/.test(document.querySelector("#updateBarText").textContent)));
     errs.push(...e);
     await ctx.close();
   }

@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.179.1] - 2026-09-24
+
+### Changed
+- **Links out of the Android app open in your phone's browser again**, as
+  its own app, not in a browser tab inside LifeLog. 0.178.0 had sent them to
+  Chrome's in-app tab, which still felt like being inside the app. Now the
+  link is handed to Android, which opens whatever browser you use, and back
+  from there returns you to LifeLog.
+- **Pulling to refresh also checks for a new version of the app**, rather
+  than only when the app opens. It checks even on a device that isn't
+  syncing with GitHub. If an update is already downloading, another pull
+  leaves it alone.
+
 ## [0.179.0] - 2026-09-24
 
 ### Added

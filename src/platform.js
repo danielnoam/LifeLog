@@ -32,25 +32,32 @@
         .catch(() => null)
     : Promise.resolve(null);
 
-  // Anything that leaves the app — the token page, a release, the APK, a
-  // store link — opens in Chrome's in-app tab (the Browser plugin), with its
-  // own close button, rather than being loaded into the app's WebView. There
-  // it would have no address bar, and back would put the whole app away
-  // instead of returning from the page. Capacitor most likely hands such
-  // links to the browser already; "most likely" isn't good enough for the
-  // one thing that can strand you, so both ways out are routed explicitly:
-  // clicks on outside <a> links, and window.open.
+  // Anything that leaves the app — the token page, a release, a store link —
+  // opens in the phone's own browser, as its own app, rather than inside
+  // LifeLog. Loaded into the app's WebView it would have no address bar, and
+  // back would put the whole app away. 0.178.0 used Chrome's in-app tab (the
+  // Browser plugin) for this, and that still reads as being inside LifeLog —
+  // so it hands the link to Android instead (AppLauncher: a plain "view this"
+  // intent), which opens whatever browser the phone uses. Both ways out are
+  // routed: clicks on outside <a> links, and window.open.
   const isOutside = (url) => {
     try {
       const u = new URL(String(url), location.href);
       return /^https?:$/.test(u.protocol) && u.origin !== location.origin;
     } catch (e) { return false; }
   };
-  const browser = () => (native && cap.Plugins && cap.Plugins.Browser) || null;
+  const launcher = () => (native && cap.Plugins && cap.Plugins.AppLauncher) || null;
   const nativeOpen = window.open.bind(window);
   function openOutside(url) {
-    const B = browser();
-    if (B) { B.open({ url: String(url) }); return true; }
+    const L = launcher();
+    if (L) {
+      // If Android can't find anything to open it with, fall back to the
+      // WebView's own hand-off, which also goes out to the browser.
+      Promise.resolve(L.openUrl({ url: String(url) }))
+        .then((r) => { if (r && r.completed === false) nativeOpen(url, "_blank"); })
+        .catch(() => nativeOpen(url, "_blank"));
+      return true;
+    }
     nativeOpen(url, "_blank");
     return true;
   }
