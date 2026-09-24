@@ -14,7 +14,7 @@
     setSyncing, refreshStorageStatus, versionBehind, APP_VERSION, schedulePoll,
     saveVisualSettings, savePrivacySettings, attachSwipe,
     applyMonthLayout, applyFont, applyTheme, applyForceLayout,
-    prefersReducedMotion, biometricAvailable, hashPin, randomHex, registerBiometric,
+    prefersReducedMotion, biometricAvailable, biometricState, hashPin, randomHex, registerBiometric,
     updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
     syncSteamWishlist, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
     syncAniListPlanning,
@@ -26,7 +26,7 @@
       setSyncing, refreshStorageStatus, schedulePoll, versionBehind, APP_VERSION,
       saveVisualSettings, savePrivacySettings, attachSwipe,
       applyMonthLayout, applyFont, applyTheme, applyForceLayout,
-      prefersReducedMotion, biometricAvailable, hashPin, randomHex, registerBiometric,
+      prefersReducedMotion, biometricAvailable, biometricState, hashPin, randomHex, registerBiometric,
       VIEW_TOGGLES, settleDisabled,
       updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
       syncSteamWishlist, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
@@ -662,16 +662,22 @@
   }
 
   // ---------- privacy / app lock settings ----------
-  let bioAvailable = null; // cached after the first check (per page load)
+  let bioAvailable = false;
 
   async function updatePrivacySettings() {
     $("#privacyEnabled").checked = !!state.privacy.enabled;
     $("#privacyGrace").value = String(state.privacy.graceMinutes || 0);
     refreshPrivacyUI();
 
-    if (bioAvailable === null) bioAvailable = await biometricAvailable();
+    // Asked each time Settings opens, not cached: someone told to go and add
+    // a fingerprint in Android's settings comes back expecting it to work.
+    const bio = await biometricState();
+    bioAvailable = bio === "available";
     $("#setBioBtn").hidden = !bioAvailable;
     $("#privacyBioUnavailable").hidden = bioAvailable;
+    $("#privacyBioUnavailable").textContent = bio === "none-enrolled"
+      ? "This phone has no fingerprint or face unlock set up — add one in Android's settings, then come back here."
+      : "Fingerprint/Face ID isn't available on this device or browser.";
   }
 
   function refreshPrivacyUI() {
@@ -1063,7 +1069,10 @@
         savePrivacySettings();
         refreshPrivacyUI();
         toast("Fingerprint/Face ID set up");
-      } catch (e) { toast("Couldn't set up: " + (e.message || e), true); }
+      } catch (e) {
+        if (e && e.cancelled) return;
+        toast("Couldn't set up: " + (e.message || e), true);
+      }
     };
     $("#removeBioBtn").onclick = () => {
       if (!confirm("Remove Fingerprint/Face ID from this device?")) return;

@@ -437,10 +437,19 @@ final class WidgetStore {
 
     /** Opens the app with an action for it to run (see WidgetsPlugin). */
     static PendingIntent openApp(Context c, String action, int requestCode) {
+        return openAppOn(c, action, requestCode, null);
+    }
+
+    /**
+     * The same, told apart from its siblings by `data` — one per habit row,
+     * where the request code alone would give every row the first one's.
+     */
+    static PendingIntent openAppOn(Context c, String action, int requestCode, android.net.Uri data) {
         Intent i = c.getPackageManager().getLaunchIntentForPackage(c.getPackageName());
         if (i == null) i = new Intent();
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         if (action != null) i.putExtra(EXTRA_ACTION, action);
+        if (data != null) i.setData(data);
         return PendingIntent.getActivity(c, requestCode, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 

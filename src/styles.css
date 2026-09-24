@@ -2632,3 +2632,12 @@ html.force-mobile .backlog-section-head {
 .reminder-row .dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
 .reminder-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .reminder-row input[type="time"] { flex: 0 0 auto; width: auto; }
+
+/* A habit opened from the home-screen widget (0.184.0): a ring that fades,
+   so the eye finds the card it asked for. */
+.habit-card.habit-flash { animation: habit-flash 1.5s ease-out; }
+@keyframes habit-flash {
+  0%, 30% { box-shadow: 0 0 0 3px var(--accent); }
+  100% { box-shadow: 0 0 0 3px transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .habit-card.habit-flash { animation: none; outline: 2px solid var(--accent); } }

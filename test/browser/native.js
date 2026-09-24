@@ -23,7 +23,7 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
 const FAKE_BRIDGE = () => {
   window.__cap = { minimized: 0, opened: [], back: null, scans: 0, installs: 0, progress: [], barStyles: [], browsed: [],
     written: [], shared: [], downloads: [], fsProgress: [], installers: [], deleted: [], inAppTab: [],
-    widgetSnaps: [], widgetListeners: {}, askedToNotify: 0, notifySettings: 0 };
+    widgetSnaps: [], widgetListeners: {}, askedToNotify: 0, notifySettings: 0, bioAsks: [] };
   // What the widgets have waiting for the app; a test can set it at launch.
   window.__widgetPlan = window.__widgetPlanAtLaunch || { queue: [], action: null };
   // What the file plugins will do; tests change it before acting.
@@ -96,6 +96,13 @@ const FAKE_BRIDGE = () => {
           return { state: window.__widgetPlan.notify };
         },
         openNotificationSettings: async () => { window.__cap.notifySettings++; },
+        // Android's own fingerprint / face sheet, for the app lock.
+        biometricState: async () => ({ state: window.__widgetPlan.bio || "available" }),
+        authenticate: async ({ title }) => {
+          window.__cap.bioAsks.push(title);
+          const a = window.__widgetPlan.bioAnswer || "ok";
+          return { ok: a === "ok", reason: a, message: a === "error" ? "Too many attempts" : "" };
+        },
       },
       // Capacitor's own SystemBars.
       SystemBars: { setStyle: async ({ style }) => { window.__cap.barStyles.push(style); } },
@@ -999,6 +1006,113 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
       await page.evaluate(() => document.querySelector("#remindersSection").hidden && document.querySelector("#habitRemindLabel").hidden));
     errs.push(...e);
     await ctx.close();
+  }
+
+  // ---- 14a. a habit tapped on the widget opens on that habit ----
+  {
+    const withHabits = {
+      ...doc([], "2026-09-01T00:00:00.000Z"),
+      habits: ["Stretch", "Read", "Walk", "Water", "Sleep", "Write"].map((name, i) => ({
+        id: "h" + i, name, color: "#22aa66", cadence: "daily", target: 1, order: i,
+        startedAt: "2026-01-01", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z",
+      })),
+    };
+    const { page, ctx, errs: e } = await openApp(browser, { cache: withHabits, widgets: { queue: [], action: null } });
+    // The app is open on Notes; the habit is tapped on the home screen.
+    await page.evaluate(() => {
+      window.__widgetPlan.action = "open-habit:h5";
+      (window.__cap.widgetListeners.action || []).forEach((cb) => cb({}));
+    });
+    await page.waitForTimeout(250);
+    const st = await page.evaluate(() => {
+      const ui = JSON.parse(localStorage.getItem("lifelog-ui-v1"));
+      const card = document.querySelector('.habit-card[data-id="h5"]');
+      const r = card && card.getBoundingClientRect();
+      return { view: ui.view, mode: ui.notesMode, lit: !!card && card.classList.contains("habit-flash"),
+        onScreen: !!r && r.top >= 0 && r.bottom <= innerHeight };
+    });
+    check("tapping a habit on the widget opens the app on that habit, in view and lit",
+      st.view === "notes" && st.mode === "habits" && st.lit && st.onScreen, st);
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 14. the app lock's fingerprint, with Android's own sheet ----
+  {
+    // PIN 1234, hashed the way app.js's hashPin does it.
+    const PIN = { pinSalt: "abcd", pinHash: "ef53952abc7954443575c3ee91322dce7d70e261ddc310a7cc9e5475309e30df" };
+    const locked = (extra) => ({ enabled: true, graceMinutes: 0, lastUnlockAt: 0, credentialId: null, ...PIN, ...extra });
+    const reopen = async (page, privacy) => {
+      await page.evaluate((p) => localStorage.setItem("lifelog-privacy-v1", JSON.stringify(p)), privacy);
+      await page.reload({ waitUntil: "load" });
+      await page.waitForTimeout(900);
+    };
+    const lockUp = (page) => page.evaluate(() => !document.querySelector("#lockScreen").hidden);
+
+    // Setting it up, in Settings.
+    const a = await openApp(browser, { widgets: { queue: [], action: null } });
+    await a.page.evaluate((p) => localStorage.setItem("lifelog-privacy-v1", JSON.stringify(p)), { ...locked(), enabled: false });
+    await a.page.reload({ waitUntil: "load" });
+    await a.page.waitForTimeout(900);
+    await a.page.evaluate(() => { document.querySelector("#settingsBtn").click(); });
+    await a.page.click('.stab[data-stab="privacy"]');
+    await a.page.waitForTimeout(300);
+    check("the app offers fingerprint unlock, which the WebView alone never could",
+      await a.page.evaluate(() => !document.querySelector("#setBioBtn").hidden && document.querySelector("#privacyBioUnavailable").hidden));
+    await a.page.click("#setBioBtn");
+    await a.page.waitForTimeout(300);
+    const saved = await a.page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-privacy-v1")));
+    check("setting it up asks Android's sheet once, and remembers it's Android's",
+      saved.credentialId === "android-biometric" && (await a.page.evaluate(() => window.__cap.bioAsks.length)) === 1, { saved, asks: await a.page.evaluate(() => window.__cap.bioAsks) });
+    errs.push(...a.errs);
+    await a.ctx.close();
+
+    // Opening a locked app: the sheet comes up by itself and a finger opens it.
+    const b = await openApp(browser, { widgets: { queue: [], action: null } });
+    await reopen(b.page, locked({ credentialId: "android-biometric" }));
+    check("a locked app asks for a finger as it opens", await b.page.evaluate(() => window.__cap.bioAsks[0] === "Unlock LifeLog"), await b.page.evaluate(() => window.__cap.bioAsks));
+    check("and a recognised one lets you in", !(await lockUp(b.page)));
+    errs.push(...b.errs);
+    await b.ctx.close();
+
+    // Choosing the PIN instead isn't a failure.
+    const c = await openApp(browser, { widgets: { queue: [], action: null, bioAnswer: "cancelled" } });
+    await reopen(c.page, locked({ credentialId: "android-biometric" }));
+    const st = await c.page.evaluate(() => ({ locked: !document.querySelector("#lockScreen").hidden, err: document.querySelector("#lockError").hidden ? "" : document.querySelector("#lockError").textContent }));
+    check("backing out to the PIN leaves the lock up, without an error", st.locked && st.err === "", st);
+    await c.page.fill("#lockPinInput", "1234");
+    await c.page.press("#lockPinInput", "Enter");
+    await c.page.waitForTimeout(400);
+    check("and the PIN still opens it", !(await lockUp(c.page)));
+    errs.push(...c.errs);
+    await c.ctx.close();
+
+    // A sensor that refuses is.
+    const d = await openApp(browser, { widgets: { queue: [], action: null, bioAnswer: "error" } });
+    await reopen(d.page, locked({ credentialId: "android-biometric" }));
+    check("a finger Android won't take says so", await d.page.evaluate(() => /Couldn't verify/.test(document.querySelector("#lockError").textContent) && !document.querySelector("#lockError").hidden));
+    errs.push(...d.errs);
+    await d.ctx.close();
+
+    // A phone that could, with nothing set up.
+    const f = await openApp(browser, { widgets: { queue: [], action: null, bio: "none-enrolled" } });
+    await f.page.evaluate(() => { document.querySelector("#settingsBtn").click(); });
+    await f.page.click('.stab[data-stab="privacy"]');
+    await f.page.waitForTimeout(300);
+    check("with no fingerprint on the phone, Settings says where to add one",
+      await f.page.evaluate(() => !document.querySelector("#privacyBioUnavailable").hidden && /Android's settings/.test(document.querySelector("#privacyBioUnavailable").textContent) && document.querySelector("#setBioBtn").hidden));
+    errs.push(...f.errs);
+    await f.ctx.close();
+
+    // The browser keeps its own way (WebAuthn), which headless Chromium lacks.
+    const g = await openApp(browser, { native: false });
+    await g.page.evaluate(() => { document.querySelector("#settingsBtn").click(); });
+    await g.page.click('.stab[data-stab="privacy"]');
+    await g.page.waitForTimeout(300);
+    check("a browser still asks WebAuthn, not the app's plugin",
+      await g.page.evaluate(() => !window.__cap && /this device or browser/.test(document.querySelector("#privacyBioUnavailable").textContent)));
+    errs.push(...g.errs);
+    await g.ctx.close();
   }
 
   await browser.close();

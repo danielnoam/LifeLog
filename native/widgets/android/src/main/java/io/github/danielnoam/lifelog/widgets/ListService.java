@@ -4,29 +4,26 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Paint;
 import android.os.Build;
-import android.view.View;
 import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Feeds the habits and to-do lists their rows. */
+/** Feeds the to-do list its rows. (The habits widget has plain rows — see HabitsWidget.) */
 public class ListService extends RemoteViewsService {
 
     @Override
     public RemoteViewsFactory onGetViewFactory(Intent intent) {
-        return new Factory(getApplicationContext(), intent.getStringExtra(ListWidget.EXTRA_KIND));
+        return new Factory(getApplicationContext());
     }
 
     private static final class Factory implements RemoteViewsService.RemoteViewsFactory {
 
         private final Context c;
-        private final boolean habits;
         private List<WidgetStore.Row> rows = new ArrayList<>();
 
-        Factory(Context c, String kind) {
+        Factory(Context c) {
             this.c = c;
-            this.habits = "habits".equals(kind);
         }
 
         @Override
@@ -34,7 +31,7 @@ public class ListService extends RemoteViewsService {
 
         @Override
         public void onDataSetChanged() {
-            rows = habits ? WidgetStore.habitRows(c) : WidgetStore.todoRows(c);
+            rows = WidgetStore.todoRows(c);
         }
 
         @Override
@@ -56,24 +53,13 @@ public class ListService extends RemoteViewsService {
                 if (r.color != 0) v.setTextColor(R.id.row_text, r.color);
                 return v;
             }
-            boolean habit = r.type == WidgetStore.ROW_HABIT;
-            if (!habit && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return checkboxRow(r);
-            RemoteViews v = new RemoteViews(c.getPackageName(), habit ? R.layout.widget_row_habit : R.layout.widget_row_todo);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return checkboxRow(r);
+            RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_row_todo);
             v.setTextViewText(R.id.row_text, r.text);
-            if (habit) {
-                v.setTextColor(R.id.row_dot, r.color);
-                v.setTextViewText(R.id.row_streak, r.streak > 0 ? "🔥" + r.streak : "");
-                v.setViewVisibility(R.id.row_streak, r.streak > 0 ? View.VISIBLE : View.GONE);
-                // A count habit shows how far along today is until it's done.
-                String mark = r.done ? "✓" : (r.target > 1 && r.value > 0 ? r.value + "/" + r.target : "");
-                v.setTextViewText(R.id.row_tick, mark);
-                v.setTextColor(R.id.row_tick, c.getResources().getColor(r.done ? R.color.widget_on_accent : R.color.widget_muted, null));
-            } else {
-                v.setTextViewText(R.id.row_tick, r.done ? "✓" : "");
-                int flags = Paint.ANTI_ALIAS_FLAG | (r.done ? Paint.STRIKE_THRU_TEXT_FLAG : 0);
-                v.setInt(R.id.row_text, "setPaintFlags", flags);
-                v.setTextColor(R.id.row_text, c.getResources().getColor(r.done ? R.color.widget_muted : R.color.widget_text, null));
-            }
+            v.setTextViewText(R.id.row_tick, r.done ? "✓" : "");
+            int flags = Paint.ANTI_ALIAS_FLAG | (r.done ? Paint.STRIKE_THRU_TEXT_FLAG : 0);
+            v.setInt(R.id.row_text, "setPaintFlags", flags);
+            v.setTextColor(R.id.row_text, c.getResources().getColor(r.done ? R.color.widget_muted : R.color.widget_text, null));
             v.setInt(R.id.row_tick, "setBackgroundResource", r.done ? R.drawable.widget_tick_on : R.drawable.widget_tick_off);
 
             Intent fill = new Intent();
@@ -107,7 +93,7 @@ public class ListService extends RemoteViewsService {
 
         @Override
         public int getViewTypeCount() {
-            return 5;
+            return 4;
         }
 
         @Override

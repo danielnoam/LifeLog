@@ -28,7 +28,8 @@ todo:
   taking the top bar's colour, outside links opening in the phone's browser, the
   back gesture reaching the app, the in-app update reaching Android's
   installer (0.179.0 — first testable on the update *after* it),
-  exports reaching the share sheet, habit reminders (0.183.0) ringing on
+  exports reaching the share sheet, the fingerprint sheet (0.184.0) coming
+  up on a locked app, habit reminders (0.183.0) ringing on
   time and staying quiet for a habit already kept, and the widgets (0.181.0) — whether
   they draw at all, tick in place, and turn over at midnight. Their Java
   is compiled against the real framework before it ships and their XML
@@ -38,8 +39,8 @@ todo:
   doing: native HTTP (`CapacitorHttp` — Steam without the proxy), a real
   file backup on the phone (the Filesystem plugin as a fourth backend in
   storage.js — 0.179.0's export already writes files with that plugin and
-  shares them, so this is the same pair on a schedule), and home-screen
-  widgets — which have their own entry below.
+  shares them, so this is the same pair on a schedule). Widgets shipped in
+  0.181.0; their second round has its own entry below.
 
   **iOS.** The same wrapper, plus $99/year for Apple's developer program and
   a macOS build job. Until there's a native feature worth that, iOS stays on
@@ -49,6 +50,13 @@ todo:
   to-do list, and a habits tab of its own, now that it has been tried.
   Reminders were there too until the Android app gave them a way in; they
   shipped in 0.183.0.
+
+- **A save in flight while a poll finds another device's change.** 0.180.0
+  made a stale save merge instead of overwrite, and a queued save merges
+  too. One window is left: a save already on its way to GitHub when the
+  poll moves the sha on can still land over the other device's commit. It
+  needs two devices saving within about a second of each other. The fix is
+  for the poll to wait out a save in flight before it takes the new sha.
 
 - **settings, again.** 0.169.0 regrouped Settings by where each change lands,
   and it still doesn't look good — Appearance was the specific complaint the

@@ -137,6 +137,16 @@ public class WidgetLogicTest {
         assertEquals("Still to do today — keep your 5-day streak going", Reminders.text(r));
     }
 
+    // ---- how many habit rows fit ----
+
+    @Test
+    public void rowsAreFittedToTheWidgetsHeight() {
+        assertEquals(1, HabitsWidget.rowsThatFit(110));  // the smallest it can be
+        assertEquals(3, HabitsWidget.rowsThatFit(210));
+        assertEquals(3, HabitsWidget.rowsThatFit(0));    // a launcher that doesn't say
+        assertEquals(1, HabitsWidget.rowsThatFit(40));   // never none
+    }
+
     // ---- the to-do list, as the app's panels ----
 
     private static String rows(JSONObject snap, JSONArray q) {

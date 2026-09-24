@@ -4,6 +4,25 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.184.0] - 2026-09-24
+
+### Added
+- **Fingerprint and face unlock in the Android app.** The app lock's
+  fingerprint option only ever worked in a browser: it used a web login
+  feature the app's built-in browser doesn't have, so the app said it
+  wasn't available. The app now uses Android's own fingerprint and face
+  sheet (Android 10 and later): set it up in Settings → Privacy, and a
+  locked app asks for it as it opens. "Use PIN" is always there, and
+  backing out of the sheet just leaves the PIN, no error. If the phone has
+  no fingerprint set up, Settings says to add one in Android's settings.
+
+### Changed
+- **On the habits widget, the tick marks a habit and the rest of the row
+  opens it** in the app: LifeLog opens on Habits with that habit's card in
+  view and lit for a moment. The widget shows as many habits as its height
+  fits, and a "+N more" line when there are more — it no longer scrolls,
+  which was the price of a row having two different taps.
+
 ## [0.183.0] - 2026-09-24
 
 ### Added

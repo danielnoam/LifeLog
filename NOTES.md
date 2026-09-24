@@ -16,6 +16,34 @@ what was decided against and why.
 
 ---
 
+- **the app lock's fingerprint is Android's own sheet in the app, WebAuthn in a
+  browser (0.184.0).** The lock was built on WebAuthn, and the app's WebView
+  doesn't offer it: newer WebViews can, but only to a site that proves it
+  belongs to the app, and the app's pages come from https://localhost. So
+  the app always said "not available". The plugin now wraps the framework's
+  BiometricPrompt (Biometrics.java) — not androidx.biometric, to add no
+  dependency, which is why it needs Android 10 (BiometricManager). There is
+  no credential to store: Android holds the fingerprints, so the setting is
+  just "android-biometric", written once a check succeeds. It stays what
+  the WebAuthn version was: a faster way past the PIN, never instead of it,
+  guarding the app's opening rather than encrypting anything. The plugin
+  always resolves { ok, reason } rather than rejecting, and "cancelled"
+  (backing out, or "Use PIN") shows no error.
+
+- **the habits widget is plain rows, not a list (0.184.0).** A habit row
+  needs two taps: the tick, which must stay on the home screen, and the row,
+  which opens the app on that habit. Every row of a list widget sends its
+  taps through one shared PendingIntent template, so both would have to be a
+  broadcast — and whether a broadcast receiver may then start an activity
+  depends on background-launch rules that have tightened with each Android
+  (14 made the sender opt in), which can't be checked from here. Plain
+  views each get their own PendingIntent: a broadcast for the tick (with a
+  per-habit data URI, or every row would share the first one's), an activity
+  for the row. The price is scrolling, so rows are fitted to the widget's
+  reported height (OPTION_APPWIDGET_MAX_HEIGHT, redrawn on resize) with a
+  "+N more" line. The to-do widget keeps its list: it scrolls through many
+  more items, and its rows only ever need the one tap.
+
 - **habit reminders are one alarm, and it decides when it rings (0.183.0).**
   The plan in TODO was @capacitor/local-notifications. It would schedule
   fine, but a notification it has scheduled goes off whether or not the

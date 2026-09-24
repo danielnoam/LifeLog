@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- One habit. Two targets: the tick on the right marks it, anywhere else
+     opens the app on that habit. The tick sits in a wider frame so it's a
+     thumb's width to hit, not the 30dp circle's. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/row"
     android:layout_width="match_parent"
@@ -6,8 +9,7 @@
     android:gravity="center_vertical"
     android:minHeight="44dp"
     android:orientation="horizontal"
-    android:paddingStart="4dp"
-    android:paddingEnd="4dp">
+    android:paddingStart="4dp">
 
     <TextView
         android:id="@+id/row_dot"
@@ -36,14 +38,20 @@
         android:textColor="@color/widget_muted"
         android:textSize="12sp" />
 
-    <TextView
-        android:id="@+id/row_tick"
-        android:layout_width="30dp"
-        android:layout_height="30dp"
-        android:layout_marginStart="8dp"
-        android:background="@drawable/widget_tick_off"
-        android:gravity="center"
-        android:textColor="@color/widget_on_accent"
-        android:textSize="13sp"
-        android:textStyle="bold" />
+    <FrameLayout
+        android:id="@+id/row_tick_hit"
+        android:layout_width="52dp"
+        android:layout_height="44dp">
+
+        <TextView
+            android:id="@+id/row_tick"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:layout_gravity="center"
+            android:background="@drawable/widget_tick_off"
+            android:gravity="center"
+            android:textColor="@color/widget_on_accent"
+            android:textSize="13sp"
+            android:textStyle="bold" />
+    </FrameLayout>
 </LinearLayout>

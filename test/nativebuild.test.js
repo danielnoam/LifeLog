@@ -254,8 +254,9 @@ test("the app loads the plugin by the name the page calls it", () => {
 test("every action a widget sends is one the app knows what to do with", () => {
   const app = fs.readFileSync(path.join(__dirname, "..", "src", "app.js"), "utf8");
   const run = app.slice(app.indexOf("function runAction("), app.indexOf("const quickActions"));
-  const sent = [...new Set([...javaSrc.matchAll(/"((?:add|open)-[a-z]+)"/g)].map((m) => m[1]))];
-  assert.ok(sent.length >= 6, sent);
+  // "open-habit:" + an id is sent as a prefix, and handled as one.
+  const sent = [...new Set([...javaSrc.matchAll(/"((?:add|open)-[a-z]+:?)"/g)].map((m) => m[1]))];
+  assert.ok(sent.length >= 7 && sent.includes("open-habit:"), sent);
   assert.deepStrictEqual(sent.filter((a) => !run.includes('"' + a + '"')), []);
 });
 

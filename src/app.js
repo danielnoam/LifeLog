@@ -128,7 +128,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.183.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.184.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -278,12 +278,46 @@
   function b64ToBuf(b64) {
     return Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
   }
-  async function biometricAvailable() {
-    return !!(window.PublicKeyCredential &&
+  // In the Android app it's Android's own fingerprint / face sheet, through
+  // the native plugin (Biometrics.java): the app's WebView has no WebAuthn —
+  // it only serves sites that can prove they belong to the app, and the app's
+  // pages come from https://localhost (0.184.0). In a browser, WebAuthn.
+  // Either way it's a faster way past the PIN, never a replacement for it.
+  const NATIVE_BIOMETRIC = "android-biometric";
+  const nativeBiometrics = () => (Platform.native && Platform.plugin("Widgets")) || null;
+
+  // "available", "none-enrolled" (the phone could, but has no fingerprint or
+  // face set up) or "unsupported".
+  async function biometricState() {
+    const W = nativeBiometrics();
+    if (W) {
+      try { return (await W.biometricState()).state; } catch (e) { return "unsupported"; }
+    }
+    const web = !!(window.PublicKeyCredential &&
       PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable &&
       (await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable().catch(() => false)));
+    return web ? "available" : "unsupported";
+  }
+  async function biometricAvailable() {
+    return (await biometricState()) === "available";
+  }
+  // Rejects with .cancelled set when someone backed out or chose the PIN,
+  // which isn't a failure worth an error message.
+  async function nativeBiometricCheck(W, title) {
+    const r = await W.authenticate({ title });
+    if (r && r.ok) return;
+    const err = new Error((r && r.message) || "Not verified");
+    err.cancelled = !!r && r.reason === "cancelled";
+    throw err;
   }
   async function registerBiometric() {
+    const W = nativeBiometrics();
+    if (W) {
+      // Proving it works once is the setting-up: Android holds the
+      // fingerprints, so there's no credential of ours to store.
+      await nativeBiometricCheck(W, "Use your fingerprint for LifeLog");
+      return NATIVE_BIOMETRIC;
+    }
     const cred = await navigator.credentials.create({
       publicKey: {
         challenge: crypto.getRandomValues(new Uint8Array(32)),
@@ -298,6 +332,11 @@
     return bufToB64(cred.rawId);
   }
   async function verifyBiometric(credentialId) {
+    const W = nativeBiometrics();
+    if (credentialId === NATIVE_BIOMETRIC || W) {
+      if (!W || credentialId !== NATIVE_BIOMETRIC) throw new Error("Fingerprint unlock was set up somewhere else — use your PIN");
+      return nativeBiometricCheck(W, "Unlock LifeLog");
+    }
     await navigator.credentials.get({
       publicKey: {
         challenge: crypto.getRandomValues(new Uint8Array(32)),
@@ -3744,6 +3783,20 @@
     else if (action === "add-note" && modeEnabled("notes", "notes")) Notes.openNoteModal(null);
     else if (action === "add-habit" && modeEnabled("notes", "habits")) { goTo("notes", "habits"); Habits.openHabitModal(null); }
     else if (action === "open-habits" && modeEnabled("notes", "habits")) goTo("notes", "habits");
+    else if (action.startsWith("open-habit:") && modeEnabled("notes", "habits")) {
+      // A habit tapped on the widget: its card, brought into view and lit
+      // for a moment so the eye lands on it.
+      goTo("notes", "habits");
+      const id = action.slice("open-habit:".length);
+      const card = document.querySelector('.habit-card[data-id="' + CSS.escape(id) + '"]');
+      if (card) {
+        card.scrollIntoView({ block: "center" });
+        card.classList.remove("habit-flash");
+        void card.offsetWidth; // restart the animation if it's still running
+        card.classList.add("habit-flash");
+        setTimeout(() => card.classList.remove("habit-flash"), 1600);
+      }
+    }
     else if ((action === "open-todos" || action === "add-todo") && modeEnabled("notes", "todo")) {
       goTo("notes", "todo");
       const box = action === "add-todo" && $("#todoCompose");
@@ -3850,7 +3903,11 @@
       bioBtn.onclick = async () => {
         errorEl.hidden = true;
         try { await verifyBiometric(state.privacy.credentialId); unlocked(); }
-        catch (e) { showError("Couldn't verify — try again"); }
+        catch (e) {
+          // Backing out, or choosing the PIN, is a choice — the PIN is right there.
+          if (e && e.cancelled) { if (hasPin) input.focus(); return; }
+          showError("Couldn't verify — try again");
+        }
       };
       // Forgotten PIN / lost biometric: a reset that just removed the lock and
       // left the data sitting there would be a free bypass for anyone, so
@@ -4292,7 +4349,7 @@
     setSyncing, refreshStorageStatus, schedulePoll, versionBehind, APP_VERSION,
     saveVisualSettings, savePrivacySettings, attachSwipe,
     applyMonthLayout, applyFont, applyTheme, applyForceLayout,
-    prefersReducedMotion, biometricAvailable, hashPin, randomHex, registerBiometric,
+    prefersReducedMotion, biometricAvailable, biometricState, hashPin, randomHex, registerBiometric,
     updateSteamRetryUnresolvedButton: Sync.updateSteamRetryUnresolvedButton,
     updateSteamBackfillRawgButton: Sync.updateSteamBackfillRawgButton,
     syncSteamWishlist: Sync.syncSteamWishlist,

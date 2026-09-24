@@ -24,6 +24,11 @@ import org.json.JSONArray;
  *   takeLaunchAction() what a widget button asked the app to open, once
  *   notificationState(), askForNotifications(), openNotificationSettings()
  *                      for habit reminders (see Reminders)
+ *   biometricState(), authenticate({ title, subtitle })
+ *                      the app lock's fingerprint / face unlock (see Biometrics)
+ *
+ * "Widgets" is the name it started with; it has become the app's one native
+ * plugin, and renaming it would only be churn.
  *
  * and two events with nothing in them, each just a nudge to ask: "queued"
  * when a widget is ticked while the app is running, and "action" when a
@@ -138,6 +143,27 @@ public class WidgetsPlugin extends Plugin {
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         getContext().startActivity(i);
         call.resolve();
+    }
+
+    @PluginMethod
+    public void biometricState(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("state", Biometrics.state(getContext()));
+        call.resolve(ret);
+    }
+
+    /** Resolves { ok, reason, message } — never rejects, so the page has one shape to read. */
+    @PluginMethod
+    public void authenticate(PluginCall call) {
+        String title = call.getString("title", "Unlock LifeLog");
+        String subtitle = call.getString("subtitle", "");
+        getActivity().runOnUiThread(() -> Biometrics.prompt(getActivity(), title, subtitle, (ok, reason, message) -> {
+            JSObject ret = new JSObject();
+            ret.put("ok", ok);
+            ret.put("reason", reason);
+            ret.put("message", message);
+            call.resolve(ret);
+        }));
     }
 
     @PluginMethod
