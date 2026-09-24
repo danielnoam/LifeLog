@@ -28,7 +28,8 @@ todo:
   taking the top bar's colour, outside links opening in the phone's browser, the
   back gesture reaching the app, the in-app update reaching Android's
   installer (0.179.0 — first testable on the update *after* it),
-  exports reaching the share sheet, and the widgets (0.181.0) — whether
+  exports reaching the share sheet, habit reminders (0.183.0) ringing on
+  time and staying quiet for a habit already kept, and the widgets (0.181.0) — whether
   they draw at all, tick in place, and turn over at midnight. Their Java
   is compiled against the real framework before it ships and their XML
   checked by nativebuild.test.js, but only a home screen inflates them.
@@ -46,8 +47,8 @@ todo:
 
   What was decided against outright is in DROPPED.md: habits feeding the
   to-do list, and a habits tab of its own, now that it has been tried.
-  Reminders were there too until the Android app gave them a way in — see
-  below.
+  Reminders were there too until the Android app gave them a way in; they
+  shipped in 0.183.0.
 
 - **settings, again.** 0.169.0 regrouped Settings by where each change lands,
   and it still doesn't look good — Appearance was the specific complaint the
@@ -65,25 +66,6 @@ todo:
   been lived with: Android 12's RemoteCollectionItems instead of the
   deprecated list service (it's 12+ only, so it would sit beside the old
   path, not replace it), and a preview image for the widget picker.
-
-- **Habit reminders — Android app only.** Dropped in 0.171.0 (see git
-  history of DROPPED.md) because a *browser* can't do them well: a service
-  worker waking on a schedule, permission prompts, an iOS story that
-  historically didn't work, and a whole class of "why did it buzz twice" bug
-  — bigger than the tracker. The app removes the main objection:
-  `@capacitor/local-notifications` schedules on-device notifications with no
-  server and no service worker. What stays true:
-  - A reminder time per habit, on its due days only, set on the phone and
-    kept local to it (a desktop has nothing to buzz) — so it lives beside the
-    habit, not in the synced habit.
-  - Android 13+ asks for notification permission; ask when the first reminder
-    is set, not at launch. Inexact scheduling is fine for "remind me around
-    21:00" and avoids the exact-alarm permission.
-  - A reminder shouldn't nag about a habit already ticked. Cancel today's
-    when it's ticked on the phone; a tick made on the desktop only reaches
-    the phone at its next sync, so either accept the occasional stale buzz or
-    re-check on resume. Decide which before building.
-  - The browser version shows no reminder controls at all.
 
 ---
 

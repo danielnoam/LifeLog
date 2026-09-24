@@ -4,7 +4,6 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.graphics.Color;
 import android.os.Build;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -53,12 +52,15 @@ final class WidgetStore {
         boolean done;
         /** A habit's mark today; for a to-do ticked on the widget, where its tick sits in the queue. */
         int value;
+        int streak;
+        /** A habit's reminder time on this phone, "HH:mm", or "". */
+        String remind = "";
         int target = 1;
     }
 
     private WidgetStore() {}
 
-    private static SharedPreferences prefs(Context c) {
+    static SharedPreferences prefs(Context c) {
         return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
@@ -114,13 +116,38 @@ final class WidgetStore {
 
     // ---- dates, the way the app writes them ----
 
+    private static SimpleDateFormat dayFormat() {
+        SimpleDateFormat f = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        f.setLenient(false);
+        return f;
+    }
+
     static String today() {
-        return new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(new Date());
+        return dayFormat().format(new Date());
+    }
+
+    /** Local midnight of a yyyy-MM-dd date, or null. */
+    static Calendar dayOf(String date) {
+        try {
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(dayFormat().parse(date));
+            return cal;
+        } catch (java.text.ParseException e) {
+            return null;
+        }
+    }
+
+    static String addDays(String date, int n) {
+        Calendar cal = dayOf(date);
+        if (cal == null) return date;
+        cal.add(Calendar.DAY_OF_MONTH, n);
+        return dayFormat().format(cal.getTime());
     }
 
     /** 0 = Sunday, as JavaScript's getDay(). */
-    static int weekdayToday() {
-        return Calendar.getInstance().get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY;
+    static int weekdayOf(String date) {
+        Calendar cal = dayOf(date);
+        return cal == null ? -1 : cal.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY;
     }
 
     static String nowIso() {
@@ -129,61 +156,90 @@ final class WidgetStore {
         return f.format(new Date());
     }
 
-    // ---- habits ----
-
-    /**
-     * Due today is worked out here rather than taken from the snapshot, so
-     * the widget turns over at midnight without waiting for the app to run.
-     * Same rules as habits.js's isDue.
-     */
     /** optString turns a JSON null into "null", which sorts after every date. */
     static String str(JSONObject o, String key) {
         return o.isNull(key) ? "" : o.optString(key, "");
     }
 
-    static boolean dueToday(JSONObject h, String today, int weekday) {
+    // ---- habits ----
+
+    /**
+     * Whether a habit asks anything of a date — habits.js's isDue. Worked out
+     * here rather than taken from the snapshot, so the widget and the
+     * reminders turn over at midnight without waiting for the app to run.
+     */
+    static boolean dueOn(JSONObject h, String date) {
         String started = str(h, "startedAt");
-        if (!started.isEmpty() && today.compareTo(started) < 0) return false;
+        if (!started.isEmpty() && date.compareTo(started) < 0) return false;
         JSONArray days = h.optJSONArray("days");
         if (days == null) return true;
+        int weekday = weekdayOf(date);
         for (int i = 0; i < days.length(); i++) {
             if (days.optInt(i, -1) == weekday) return true;
         }
         return false;
     }
 
-    private static int queuedMark(JSONArray q, String id, String date, int fallback) {
-        for (int i = 0; i < q.length(); i++) {
+    /** A date's mark: the widget's latest tick for it, else what the app sent. */
+    static int markOn(JSONObject h, JSONArray q, String date) {
+        String id = str(h, "id");
+        for (int i = q.length() - 1; i >= 0; i--) {
             JSONObject o = q.optJSONObject(i);
             if (o != null && "habit".equals(o.optString("kind")) && id.equals(o.optString("id")) && date.equals(o.optString("date"))) {
-                return o.optInt("value", fallback);
+                return o.optInt("value", 0);
             }
         }
-        return fallback;
+        JSONObject marks = h.optJSONObject("marks");
+        return marks == null ? 0 : marks.optInt(date, 0);
+    }
+
+    /**
+     * The streak as the app counts it (habits.js's streakOf), on `day`. The
+     * app sends `runBefore`: the kept due days in a row that end the day
+     * before the snapshot's own today. Days since then are walked here from
+     * the week of marks the snapshot carries, plus the widget's ticks; a due
+     * day not kept ends the run. `day` itself only ever adds — it isn't over.
+     */
+    static int streakOn(JSONObject h, JSONArray q, String snapToday, String day) {
+        int target = Math.max(1, h.optInt("target", 1));
+        int run = 0;
+        boolean broken = false;
+        String d = addDays(day, -1);
+        for (int guard = 0; guard < 400 && d.compareTo(snapToday) >= 0; guard++) {
+            if (dueOn(h, d)) {
+                if (markOn(h, q, d) >= target) run++;
+                else { broken = true; break; }
+            }
+            d = addDays(d, -1);
+        }
+        if (!broken) run += Math.max(0, h.optInt("runBefore", 0));
+        if (dueOn(h, day) && markOn(h, q, day) >= target) run++;
+        return run;
     }
 
     static List<Row> habitRows(Context c) {
+        return habitRows(snapshot(c), queue(c), today());
+    }
+
+    static List<Row> habitRows(JSONObject snap, JSONArray q, String today) {
         List<Row> rows = new ArrayList<>();
-        JSONObject snap = snapshot(c);
         if (snap == null) return rows;
         JSONArray habits = snap.optJSONArray("habits");
         if (habits == null) return rows;
-        JSONArray q = queue(c);
-        String today = today();
-        int weekday = weekdayToday();
+        String snapToday = snap.optString("today", today);
         for (int i = 0; i < habits.length(); i++) {
             JSONObject h = habits.optJSONObject(i);
-            if (h == null || !dueToday(h, today, weekday)) continue;
+            if (h == null || !dueOn(h, today)) continue;
             Row r = new Row();
             r.type = ROW_HABIT;
             r.id = str(h, "id");
             r.text = str(h, "name");
             r.color = parseColor(str(h, "color"), 0xFF5B8CFF);
             r.target = Math.max(1, h.optInt("target", 1));
-            JSONObject marks = h.optJSONObject("marks");
-            int saved = marks == null ? 0 : marks.optInt(today, 0);
-            r.value = queuedMark(q, r.id, today, saved);
+            r.value = markOn(h, q, today);
             r.done = r.value >= r.target;
+            r.streak = streakOn(h, q, snapToday, today);
+            r.remind = str(h, "remind");
             rows.add(r);
         }
         return rows;
@@ -196,24 +252,35 @@ final class WidgetStore {
         return habits == null ? 0 : habits.length();
     }
 
+    private static void queueMark(Context c, String id, int value) {
+        try {
+            JSONObject item = new JSONObject();
+            item.put("kind", "habit");
+            item.put("id", id);
+            item.put("date", today());
+            item.put("value", value);
+            item.put("at", nowIso());
+            enqueue(c, item);
+        } catch (JSONException e) {
+            // Nothing to queue.
+        }
+    }
+
     /** A tap moves the mark on by one and wraps at the target — habits.js's nextMark. */
     static void tickHabit(Context c, String id) {
         if (id == null) return;
         for (Row r : habitRows(c)) {
             if (!r.id.equals(id)) continue;
-            int next = r.value >= r.target ? 0 : r.value + 1;
-            try {
-                JSONObject item = new JSONObject();
-                item.put("kind", "habit");
-                item.put("id", id);
-                item.put("date", today());
-                item.put("value", next);
-                item.put("at", nowIso());
-                enqueue(c, item);
-            } catch (JSONException e) {
-                // Nothing to queue.
-            }
+            queueMark(c, id, r.value >= r.target ? 0 : r.value + 1);
             return;
+        }
+    }
+
+    /** A reminder's Done: all the way to the target, however far along it was. */
+    static void finishHabit(Context c, String id) {
+        if (id == null) return;
+        for (Row r : habitRows(c)) {
+            if (r.id.equals(id) && !r.done) queueMark(c, id, r.target);
         }
     }
 
@@ -357,12 +424,15 @@ final class WidgetStore {
 
     // ---- shared plumbing ----
 
+    /**
+     * "#rrggbb" (or "#aarrggbb") to a colour int. Plain Java rather than
+     * Color.parseColor, so the row logic runs in a JVM unit test, where every
+     * android.* method is a stub that throws.
+     */
     static int parseColor(String s, int fallback) {
-        try {
-            return s == null || s.isEmpty() ? fallback : Color.parseColor(s);
-        } catch (IllegalArgumentException e) {
-            return fallback;
-        }
+        if (s == null || !s.matches("#[0-9a-fA-F]{6}([0-9a-fA-F]{2})?")) return fallback;
+        long v = Long.parseLong(s.substring(1), 16);
+        return (int) (s.length() == 7 ? v | 0xFF000000L : v);
     }
 
     /** Opens the app with an action for it to run (see WidgetsPlugin). */
@@ -380,6 +450,7 @@ final class WidgetStore {
     }
 
     static void refreshAll(Context c) {
+        Reminders.clearKept(c);
         HabitsWidget.refresh(c);
         TodosWidget.refresh(c);
         QuickAddWidget.refresh(c);

@@ -4,6 +4,27 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.183.0] - 2026-09-24
+
+### Added
+- **Habit reminders, in the Android app.** Give a habit a "Remind me at"
+  time, in the habit itself or all together in Settings → Views → Habit
+  reminders, which also has the switch for turning them all off. A reminder
+  rings only on the habit's due days, and not at all once it's kept today:
+  in the app, on the widget, or on another device once it has synced. It
+  says what's at stake ("keep your 12-day streak going") and has a **Done**
+  button that ticks it without opening the app. Times stay on the phone
+  they were set on. LifeLog asks for permission to notify when you set the
+  first one, and Settings says so if Android is blocking them.
+- **Streaks on the habits widget**, counted the way the app counts them, and
+  still right the morning after, before the app has been opened.
+- **A Backlog button on the quick-add widget.** The buttons are now an icon
+  over a label, so five fit.
+
+### Changed
+- **Ticking on the to-do widget is immediate.** 0.182.0 held a ticked row in
+  place while its checkbox animated, which came across as lag.
+
 ## [0.182.0] - 2026-09-24
 
 ### Changed

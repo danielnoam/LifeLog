@@ -338,5 +338,29 @@ test("search matches a habit's name, and archived ones are out of the list", () 
   assert.deepStrictEqual(global.window.LifeLogHabits.getFilteredHabits().map((h) => h.id), ["a"]);
 });
 
+console.log("\nthe run the widgets count on from");
+
+test("streakOf is runBefore plus the day itself when it's kept, whatever the day", () => {
+  const cases = [
+    habit({ marks: marks("2026-03-02", "2026-03-03", "2026-03-04") }),
+    habit({ marks: marks("2026-03-02", "2026-03-04", "2026-03-05") }),
+    habit({ cadence: { days: [1, 3, 5] }, marks: marks("2026-03-02", "2026-03-04", "2026-03-06", "2026-03-09") }),
+    habit({ target: 2, marks: { "2026-03-02": 2, "2026-03-03": 1, "2026-03-04": 2 } }),
+  ];
+  for (const h of cases) {
+    for (let day = 2; day <= 10; day++) {
+      const d = "2026-03-" + String(day).padStart(2, "0");
+      const today = H.isDue(h, d) && H.isDone(h, d) ? 1 : 0;
+      assert.strictEqual(H.streakOf(h, d), H.runBefore(h, d) + today, d + " " + JSON.stringify(h.marks));
+    }
+  }
+});
+
+test("a missed day ends the run before it, even the day after", () => {
+  const h = habit({ marks: marks("2026-03-02", "2026-03-03") });
+  assert.strictEqual(H.runBefore(h, "2026-03-04"), 2);
+  assert.strictEqual(H.runBefore(h, "2026-03-05"), 0);
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

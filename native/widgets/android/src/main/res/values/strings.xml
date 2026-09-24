@@ -5,10 +5,11 @@
     <string name="widget_todos_label">LifeLog to-do</string>
     <string name="widget_todos_description">Your to-do list, ticked without opening the app</string>
     <string name="widget_quickadd_label">LifeLog quick add</string>
-    <string name="widget_quickadd_description">Add an entry, an expense, a note or a to-do</string>
+    <string name="widget_quickadd_description">Add an entry, an expense, a backlog item, a note or a to-do</string>
     <string name="widget_add">Add</string>
-    <string name="widget_add_entry">✎ Entry</string>
-    <string name="widget_add_expense">₪ Expense</string>
-    <string name="widget_add_note">▤ Note</string>
-    <string name="widget_add_todo">☑ To-do</string>
+    <string name="widget_add_entry">✎\nEntry</string>
+    <string name="widget_add_expense">₪\nExpense</string>
+    <string name="widget_add_backlog">★\nBacklog</string>
+    <string name="widget_add_note">▤\nNote</string>
+    <string name="widget_add_todo">☑\nTo-do</string>
 </resources>

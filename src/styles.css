@@ -2624,3 +2624,11 @@ html.force-mobile .backlog-section-head {
    seven stacked label rows. */
 .habit-days { display: flex; flex-wrap: wrap; gap: 4px 12px; padding-top: 4px; }
 .habit-days .toggle-label { font-size: 12.5px; }
+
+/* Habit reminders in Settings (0.183.0): one row per habit, its colour, its
+   name, its time. */
+.reminders-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
+.reminder-row { display: flex; align-items: center; gap: 10px; }
+.reminder-row .dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+.reminder-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reminder-row input[type="time"] { flex: 0 0 auto; width: auto; }

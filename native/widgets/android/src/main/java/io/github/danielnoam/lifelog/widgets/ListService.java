@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Paint;
 import android.os.Build;
+import android.view.View;
 import android.widget.RemoteViews;
 import android.widget.RemoteViewsService;
 import java.util.ArrayList;
@@ -61,6 +62,8 @@ public class ListService extends RemoteViewsService {
             v.setTextViewText(R.id.row_text, r.text);
             if (habit) {
                 v.setTextColor(R.id.row_dot, r.color);
+                v.setTextViewText(R.id.row_streak, r.streak > 0 ? "🔥" + r.streak : "");
+                v.setViewVisibility(R.id.row_streak, r.streak > 0 ? View.VISIBLE : View.GONE);
                 // A count habit shows how far along today is until it's done.
                 String mark = r.done ? "✓" : (r.target > 1 && r.value > 0 ? r.value + "/" + r.target : "");
                 v.setTextViewText(R.id.row_tick, mark);

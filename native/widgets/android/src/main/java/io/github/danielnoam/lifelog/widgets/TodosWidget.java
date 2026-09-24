@@ -4,18 +4,12 @@ import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Handler;
-import android.os.Looper;
 import android.widget.RemoteViews;
 
 /** The to-do list: every panel, scrollable, each item ticked in place. */
 public class TodosWidget extends AppWidgetProvider {
 
     static final String ACTION_TICK = "io.github.danielnoam.lifelog.widgets.TICK_TODO";
-
-    // Long enough for a checkbox's own tick animation to finish before the
-    // row moves down into the finished ones.
-    private static final long SETTLE_MS = 650;
 
     @Override
     public void onUpdate(Context c, AppWidgetManager manager, int[] ids) {
@@ -39,25 +33,10 @@ public class TodosWidget extends AppWidgetProvider {
             ? intent.getBooleanExtra(RemoteViews.EXTRA_CHECKED, false)
             : null;
         WidgetStore.tickTodo(c, intent.getStringExtra(ListWidget.EXTRA_ID), checked);
-        if (checked == null) {
-            WidgetStore.refreshAll(c);
-            WidgetsPlugin.onQueued();
-            return;
-        }
-        // Let the tick play where it happened, then move the row, the way the
-        // app lets a ticked row finish before it slides under the line.
-        String[] text = text(c);
-        ListWidget.refreshHeader(c, TodosWidget.class, ListWidget.header(c, text[0], text[1], text[2]));
-        final PendingResult pending = goAsync();
-        final Context app = c.getApplicationContext();
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            try {
-                WidgetStore.refreshAll(app);
-                WidgetsPlugin.onQueued();
-            } finally {
-                pending.finish();
-            }
-        }, SETTLE_MS);
+        // Straight away. 0.182.0 held the row back while the box's own tick
+        // animation played, and what that felt like was lag.
+        WidgetStore.refreshAll(c);
+        WidgetsPlugin.onQueued();
     }
 
     static void refresh(Context c) {

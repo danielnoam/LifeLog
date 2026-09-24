@@ -657,6 +657,7 @@
     renderTabToggles();
     updateMediaSettings();
     updatePrivacySettings();
+    if (window.LifeLogReminders) window.LifeLogReminders.renderSettings();
     $("#settingsModal").hidden = false;
   }
 

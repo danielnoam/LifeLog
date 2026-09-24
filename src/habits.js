@@ -157,6 +157,26 @@
     return run;
   }
 
+  // Kept due days in a row ending the day before `dateStr`. That day is over,
+  // so a due one not kept ends it. streakOf is exactly this plus the day
+  // itself when it's kept; the widgets are sent this and add their own today
+  // (native/widgets, WidgetStore.streakOn), which lets them count on past a
+  // midnight the app didn't see.
+  function runBefore(habit, dateStr) {
+    if (!habit) return 0;
+    const floor = habit.startedAt || "1970-01-01";
+    let cursor = addDaysStr(dateStr, -1);
+    let run = 0;
+    for (let guard = 0; guard < MAX_DAYS && cursor >= floor; guard++) {
+      if (isDue(habit, cursor)) {
+        if (!isDone(habit, cursor)) break;
+        run++;
+      }
+      cursor = addDaysStr(cursor, -1);
+    }
+    return run;
+  }
+
   // The best run it has ever had, walked forward from the start date to the
   // last day it has any mark for (or today, whichever is later).
   function bestStreakOf(habit, todayDateStr) {
@@ -655,6 +675,11 @@
     $("#archiveHabitBtn").hidden = !habit;
     $("#archiveHabitBtn").textContent = habit && habit.archivedAt ? "↩ Un-archive" : "⏸ Archive";
     applyCadenceUI();
+    // Reminders live on the phone, not in the habit (see reminders.js).
+    const R = window.LifeLogReminders;
+    const remind = !!(R && R.available());
+    $("#habitRemindLabel").hidden = !remind;
+    $("#habitRemind").value = remind && habit ? R.timeOf(habit.id) : "";
     $("#habitModal").hidden = false;
   }
   function closeHabitModal() { $("#habitModal").hidden = true; editingId = null; }
@@ -760,6 +785,9 @@
       if (fill && startedAt < todayStr()) filled = applyBackfill(made, startedAt, addDaysStr(todayStr(), -1));
     }
     const wasEditing = editingId;
+    const savedId = editingId || (state.data.habits[state.data.habits.length - 1] || {}).id;
+    const R = window.LifeLogReminders;
+    if (R && R.available() && savedId) R.setTime(savedId, $("#habitRemind").value);
     closeHabitModal();
     render();
     await persist();
@@ -851,7 +879,7 @@
     getFilteredHabits,
     // pure, and the point of the feature — see test/habits.test.js
     isDue, cadenceLabel, markOf, isDone, nextMark,
-    streakOf, bestStreakOf, statsFor, blankDaysBetween,
+    streakOf, bestStreakOf, runBefore, statsFor, blankDaysBetween,
     dueBetween, keptBetween, dueDaysBetween, orphanedMarks, firstMarkOf,
     windowStart, maxOffset, rangeLabel, prettyDate, GRID_WEEKS,
     localDateStr, todayStr, addDaysStr, byOrder,

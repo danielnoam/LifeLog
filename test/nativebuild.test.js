@@ -222,8 +222,29 @@ test("each widget is declared, with its definition, and the list service is boun
   assert.ok(/ListService"[\s\S]*?android:permission="android.permission.BIND_REMOTEVIEWS"/.test(manifest), "the list service is open to anyone");
 });
 
+test("reminders can post, and come back after a reboot, an update or a clock change", () => {
+  const manifest = read(WIDGETS, "AndroidManifest.xml");
+  for (const p of ["POST_NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED"]) {
+    assert.ok(manifest.includes('android:name="android.permission.' + p + '"'), p);
+  }
+  const block = manifest.slice(manifest.indexOf("widgets.ReminderReceiver"), manifest.indexOf("</receiver>", manifest.indexOf("widgets.ReminderReceiver")));
+  for (const a of ["BOOT_COMPLETED", "MY_PACKAGE_REPLACED", "TIME_SET", "TIMEZONE_CHANGED"]) {
+    assert.ok(block.includes("android.intent.action." + a), a);
+  }
+  assert.ok(javaSrc.includes("class ReminderReceiver extends BroadcastReceiver"));
+});
+
+test("the page asks the plugin only for what the plugin has", () => {
+  const methods = new Set([...javaSrc.matchAll(/@PluginMethod\s+public void (\w+)\(/g)].map((m) => m[1]));
+  const js = ["widgets.js", "reminders.js"].map((f) => fs.readFileSync(path.join(__dirname, "..", "src", f), "utf8")).join("\n");
+  const called = [...new Set([...js.matchAll(/\bW\.(\w+)\(/g), ...js.matchAll(/plugin\(\)\.(\w+)\(/g)].map((m) => m[1]))]
+    .filter((m) => m !== "addListener");
+  assert.ok(called.length >= 6, called);
+  assert.deepStrictEqual(called.filter((m) => !methods.has(m)), []);
+});
+
 test("the app loads the plugin by the name the page calls it", () => {
-  const name = (javaSrc.match(/@CapacitorPlugin\(name = "(\w+)"\)/) || [])[1];
+  const name = (javaSrc.match(/@CapacitorPlugin\(\s*name = "(\w+)"/) || [])[1];
   assert.strictEqual(name, "Widgets");
   assert.ok(/plugin\("Widgets"\)/.test(fs.readFileSync(path.join(__dirname, "..", "src", "widgets.js"), "utf8")));
   const pkg = require("../package.json");

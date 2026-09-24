@@ -128,7 +128,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.182.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.183.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3740,6 +3740,7 @@
     };
     if (action === "add-entry" && viewEnabled("timeline")) Journal.openEntryModal(null);
     else if (action === "add-expense" && viewEnabled("finance")) Finance.openFinanceModal(null);
+    else if (action === "add-backlog" && viewEnabled("backlog")) Backlog.openBacklogModal(null);
     else if (action === "add-note" && modeEnabled("notes", "notes")) Notes.openNoteModal(null);
     else if (action === "add-habit" && modeEnabled("notes", "habits")) { goTo("notes", "habits"); Habits.openHabitModal(null); }
     else if (action === "open-habits" && modeEnabled("notes", "habits")) goTo("notes", "habits");
@@ -3753,6 +3754,7 @@
   const quickActions = () => [
     viewEnabled("timeline") && "add-entry",
     viewEnabled("finance") && "add-expense",
+    viewEnabled("backlog") && "add-backlog",
     modeEnabled("notes", "notes") && "add-note",
     modeEnabled("notes", "todo") && "add-todo",
   ].filter(Boolean);
@@ -4010,6 +4012,7 @@
       // second cache of them, and its "new version" isn't the app's.
       checkForNewerApp();
       Widgets.start({ state, Platform, persist, afterDataChange, toast, runAction, quickActions });
+      if (window.LifeLogReminders) window.LifeLogReminders.start({ state, $, el, Platform, toast, changed: Widgets.changed });
       wireBackButton();
       wirePullToRefresh();
     } else if ("serviceWorker" in navigator) {

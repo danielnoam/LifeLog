@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Four ways in, each opening the app on its own form. A button for a tab
+<!-- Five ways in, each opening the app on its own form. A button for a tab
      you've turned off is hidden, as the app's own + menu does. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
@@ -19,6 +19,11 @@
         android:id="@+id/add_expense"
         style="@style/LifeLogWidgetButton"
         android:text="@string/widget_add_expense" />
+
+    <TextView
+        android:id="@+id/add_backlog"
+        style="@style/LifeLogWidgetButton"
+        android:text="@string/widget_add_backlog" />
 
     <TextView
         android:id="@+id/add_note"

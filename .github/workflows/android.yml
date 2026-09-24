@@ -65,6 +65,12 @@ jobs:
 
       - run: npx cap sync android
 
+      # The widgets' and reminders' own logic (streaks, the next reminder, the
+      # to-do panels) — what runs on the phone with the app closed.
+      - name: Test the widgets
+        working-directory: android
+        run: ./gradlew :lifelog-widgets:testDebugUnitTest --no-daemon
+
       - name: Build
         working-directory: android
         run: ./gradlew assembleRelease --no-daemon --stacktrace

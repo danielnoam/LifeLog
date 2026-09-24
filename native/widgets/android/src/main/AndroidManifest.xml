@@ -1,5 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Habit reminders: asked for when the first one is set, not at launch. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Alarms don't survive a reboot; this puts the next reminder back. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
     <application>
         <receiver
             android:name="io.github.danielnoam.lifelog.widgets.HabitsWidget"
@@ -35,6 +40,17 @@
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_quickadd_info" />
+        </receiver>
+
+        <receiver
+            android:name="io.github.danielnoam.lifelog.widgets.ReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
         </receiver>
 
         <service

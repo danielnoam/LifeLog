@@ -37,7 +37,9 @@
 
   // What every widget draws from. `actions` are the quick-add buttons worth
   // showing — a button for a tab you've turned off opens nothing.
-  function snapshotOf(data, { today, actions = [] } = {}) {
+  // remindAt and runBefore come from reminders.js and habits.js in the app;
+  // left out, nothing is reminded and every run starts at nought.
+  function snapshotOf(data, { today, actions = [], remindAt = () => "", runBefore = () => 0 } = {}) {
     const since = addDays(today, -MARK_DAYS);
     const until = addDays(today, 1);
     const habits = (data.habits || [])
@@ -55,6 +57,8 @@
           days: h.cadence && Array.isArray(h.cadence.days) ? h.cadence.days : null,
           startedAt: h.startedAt || "",
           marks,
+          runBefore: runBefore(h, today),
+          remind: remindAt(h.id) || "",
         };
       });
 
@@ -85,7 +89,7 @@
       for (const t of open) todos.push(row(t));
       for (const t of done.slice(0, DONE_PER_PANEL)) todos.push(row(t));
     }
-    return { v: 2, today, habits, todos, doneCount, actions };
+    return { v: 3, today, habits, todos, doneCount, actions };
   }
 
   // Ticks from a widget, onto the data. Anything that has gone since the
@@ -125,7 +129,14 @@
     pushTimer = null;
     const W = plugin();
     if (!W) return;
-    const snap = snapshotOf(ctx.state.data, { today: localDate(new Date()), actions: ctx.quickActions() });
+    const R = window.LifeLogReminders;
+    const H = window.LifeLogHabits;
+    const snap = snapshotOf(ctx.state.data, {
+      today: localDate(new Date()),
+      actions: ctx.quickActions(),
+      remindAt: R ? R.remindAt : undefined,
+      runBefore: H ? H.runBefore : undefined,
+    });
     Promise.resolve(W.update({ json: JSON.stringify(snap) })).catch(() => { /* the widget keeps its last copy */ });
   }
 

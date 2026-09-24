@@ -10,8 +10,8 @@ import android.widget.RemoteViews;
 /** Buttons that open the app on the right form. */
 public class QuickAddWidget extends AppWidgetProvider {
 
-    private static final int[] BUTTONS = { R.id.add_entry, R.id.add_expense, R.id.add_note, R.id.add_todo };
-    private static final String[] ACTIONS = { "add-entry", "add-expense", "add-note", "add-todo" };
+    private static final int[] BUTTONS = { R.id.add_entry, R.id.add_expense, R.id.add_backlog, R.id.add_note, R.id.add_todo };
+    private static final String[] ACTIONS = { "add-entry", "add-expense", "add-backlog", "add-note", "add-todo" };
 
     @Override
     public void onUpdate(Context c, AppWidgetManager manager, int[] ids) {

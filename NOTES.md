@@ -16,6 +16,40 @@ what was decided against and why.
 
 ---
 
+- **habit reminders are one alarm, and it decides when it rings (0.183.0).**
+  The plan in TODO was @capacitor/local-notifications. It would schedule
+  fine, but a notification it has scheduled goes off whether or not the
+  habit has been kept since — and a tick on the widget, or one synced from
+  the desktop, would each have had to reach in and cancel it. Instead the
+  times ride out in the widgets' snapshot (reminders.js → widgets.js), and
+  the plugin keeps a single inexact alarm for the next one. When it goes
+  off, it looks at the latest snapshot and the widget's queue and rings for
+  what is due today, past its time and still not kept — decided at that
+  moment, so anything kept anywhere that has reached the phone stays quiet.
+  One alarm, rescheduled on every snapshot and on boot, update and clock
+  changes, means there is nothing to keep in step. The window is "since the
+  last check": a snapshot from the app resets it, so nothing earlier today
+  rings late, while after a reboot a missed one still comes through.
+
+  Times are per phone, in localStorage, not in the habit: a desktop can't
+  buzz, and two phones can want different times. The permission is asked
+  when the first time is set. Before Android 13 there is nothing to ask,
+  only the app's switch in Android's settings, which is what "granted" means
+  there. The notification's Done fills the habit to its target through the
+  widget's queue, the same road a widget tick takes.
+
+  The widget's streak is the app's: the snapshot carries runBefore (kept due
+  days ending the day before its own today — streakOf minus today, which
+  habits.test.js pins as an identity), and the Java walks the days since
+  from the week of marks plus its own ticks, then adds today if it's kept.
+  So it stays right on the morning after, before the app has run.
+
+  Those parts are Java that runs with the app closed, so they are tested
+  where they run: WidgetLogicTest, JUnit in the plugin, run by CI before
+  every APK (`gradlew :lifelog-widgets:testDebugUnitTest`). That meant
+  WidgetStore's row logic could call nothing from android.* — unit tests get
+  a framework of stubs that throw — so parseColor is plain Java now.
+
 - **a widget list keeps its place, and its checkboxes animate themselves
   (0.182.0).** 0.181.0 redrew a widget whole on every change —
   updateAppWidget with a fresh RemoteViews — and a whole redraw hands the
@@ -35,7 +69,8 @@ what was decided against and why.
   disagree with the box). The row then waits SETTLE_MS (goAsync, so the
   broadcast lives that long) before the list moves it under the done line:
   the same "let the tick land, then move" the app's reconcile animation
-  does, minus the slide. It's a separate layout, widget_row_check, used only
+  does, minus the slide. (The wait went in 0.183.0: it read as lag.) It's
+  a separate layout, widget_row_check, used only
   behind SDK_INT >= S; nativebuild.test.js holds both halves of that rule.
 
   Finished to-dos travel in the snapshot now, newest first and capped per

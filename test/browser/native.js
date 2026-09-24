@@ -23,7 +23,7 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
 const FAKE_BRIDGE = () => {
   window.__cap = { minimized: 0, opened: [], back: null, scans: 0, installs: 0, progress: [], barStyles: [], browsed: [],
     written: [], shared: [], downloads: [], fsProgress: [], installers: [], deleted: [], inAppTab: [],
-    widgetSnaps: [], widgetListeners: {} };
+    widgetSnaps: [], widgetListeners: {}, askedToNotify: 0, notifySettings: 0 };
   // What the widgets have waiting for the app; a test can set it at launch.
   window.__widgetPlan = window.__widgetPlanAtLaunch || { queue: [], action: null };
   // What the file plugins will do; tests change it before acting.
@@ -88,6 +88,14 @@ const FAKE_BRIDGE = () => {
         takeQueue: async () => { const items = window.__widgetPlan.queue; window.__widgetPlan.queue = []; return { items }; },
         takeLaunchAction: async () => { const a = window.__widgetPlan.action; window.__widgetPlan.action = null; return a ? { action: a } : {}; },
         addListener: async (ev, cb) => { (window.__cap.widgetListeners[ev] = window.__cap.widgetListeners[ev] || []).push(cb); return { remove() {} }; },
+        // Android's notification permission, for habit reminders.
+        notificationState: async () => ({ state: window.__widgetPlan.notify || "prompt" }),
+        askForNotifications: async () => {
+          window.__cap.askedToNotify++;
+          window.__widgetPlan.notify = window.__widgetPlan.answer || "granted";
+          return { state: window.__widgetPlan.notify };
+        },
+        openNotificationSettings: async () => { window.__cap.notifySettings++; },
       },
       // Capacitor's own SystemBars.
       SystemBars: { setStyle: async ({ style }) => { window.__cap.barStyles.push(style); } },
@@ -902,6 +910,93 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
   {
     const { page, ctx, errs: e } = await openApp(browser, { native: false });
     check("a browser has no widgets to talk to, and nothing tries", await page.evaluate(() => !window.__cap));
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 13. habit reminders, and the rest of the quick-add buttons ----
+  {
+    const withHabit = {
+      ...doc([], "2026-09-01T00:00:00.000Z"),
+      habits: [
+        { id: "h1", name: "Stretch", color: "#22aa66", cadence: "daily", target: 1, order: 0, startedAt: "2026-01-01", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" },
+        { id: "h2", name: "Read", color: "#aa2266", cadence: "daily", target: 1, order: 1, startedAt: "2026-01-01", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" },
+      ],
+    };
+    const lastSnap = (page) => page.evaluate(() => window.__cap.widgetSnaps[window.__cap.widgetSnaps.length - 1] || null);
+    const { page, ctx, errs: e } = await openApp(browser, { cache: withHabit });
+    // Set in the habit itself.
+    await page.evaluate(() => window.LifeLogHabits.openHabitModal(window.LifeLogHabits.getFilteredHabits().find((h) => h.id === "h1")));
+    check("the habit form offers a reminder time in the app", await page.evaluate(() => !document.querySelector("#habitRemindLabel").hidden));
+    await page.fill("#habitRemind", "21:30");
+    await page.click("#habitForm button[type=submit]");
+    await page.waitForTimeout(900);
+    let snap = await lastSnap(page);
+    const h1 = snap && snap.habits.find((h) => h.id === "h1");
+    check("the time goes to the phone with the habit", !!h1 && h1.remind === "21:30", h1);
+    check("and only that habit's", !!snap && snap.habits.find((h) => h.id === "h2").remind === "", snap && snap.habits);
+    check("the first reminder asks for permission to notify, once", await page.evaluate(() => window.__cap.askedToNotify) === 1);
+    check("it stays on this phone rather than in the synced habit",
+      await page.evaluate(() => !("remind" in JSON.parse(localStorage.getItem("lifelog-cache-v1")).habits[0]) && JSON.parse(localStorage.getItem("lifelog-habit-reminders-v1")).times.h1 === "21:30"));
+    check("the widget is sent the run to count its streak on from", !!h1 && typeof h1.runBefore === "number", h1);
+
+    // Every habit's time, in Settings.
+    await page.evaluate(() => { document.querySelector("#settingsBtn").click(); });
+    await page.click('.stab[data-stab="views"]');
+    await page.waitForTimeout(300);
+    const rows = await page.evaluate(() => [...document.querySelectorAll("#remindersList .reminder-row")].map((r) => [r.textContent.trim(), r.querySelector("input").value]));
+    check("Settings lists every habit with its reminder time",
+      rows.length === 2 && rows[0][1] === "21:30" && rows[1][1] === "", rows);
+    await page.fill("#remindersList .reminder-row:nth-child(2) input", "07:15");
+    await page.dispatchEvent("#remindersList .reminder-row:nth-child(2) input", "change");
+    await page.waitForTimeout(700);
+    snap = await lastSnap(page);
+    check("a time set there goes out too", snap.habits.find((h) => h.id === "h2").remind === "07:15", snap.habits);
+    await page.click("#remindersOn");
+    await page.waitForTimeout(700);
+    snap = await lastSnap(page);
+    check("switching them off sends no times, so nothing rings", snap.habits.every((h) => h.remind === ""), snap.habits);
+    check("and keeps them for switching back on", await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-habit-reminders-v1")).times.h2 === "07:15"));
+    await page.click("#remindersOn");
+    await page.waitForTimeout(300);
+    check("with permission given, Settings has nothing to warn about", await page.evaluate(() => document.querySelector("#remindersState").hidden));
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    // Said no to Android's question: Settings says so, and says where to fix it.
+    const { page, ctx, errs: e } = await openApp(browser, { widgets: { queue: [], action: null, notify: "denied" } });
+    await page.evaluate(() => localStorage.setItem("lifelog-habit-reminders-v1", JSON.stringify({ on: true, times: { x: "09:00" } })));
+    await page.evaluate(async () => {
+      const d = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+      d.habits = [{ id: "x", name: "Walk", color: "#2266aa", cadence: "daily", target: 1, order: 0, startedAt: "2026-01-01" }];
+      localStorage.setItem("lifelog-cache-v1", JSON.stringify(d));
+    });
+    await page.reload({ waitUntil: "load" });
+    await page.waitForTimeout(1200);
+    await page.evaluate(() => { document.querySelector("#settingsBtn").click(); });
+    await page.click('.stab[data-stab="views"]');
+    await page.waitForTimeout(400);
+    const st = await page.evaluate(() => ({ line: document.querySelector("#remindersState").hidden ? "" : document.querySelector("#remindersState").textContent, btn: document.querySelector("#remindersAllowBtn").textContent }));
+    check("blocked notifications are named in Settings, with the way to Android's settings", /blocking/.test(st.line) && /Android's settings/.test(st.btn), st);
+    await page.click("#remindersAllowBtn");
+    check("which the button opens", await page.evaluate(() => window.__cap.notifySettings) === 1);
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    const { page, ctx, errs: e } = await openApp(browser, { widgets: { queue: [], action: "add-backlog" } });
+    await page.waitForTimeout(500);
+    check("the quick-add widget's Backlog button opens the backlog form", await page.evaluate(() => !document.querySelector("#backlogModal").hidden));
+    const snap = await page.evaluate(() => window.__cap.widgetSnaps[window.__cap.widgetSnaps.length - 1]);
+    check("and is offered while the Backlog tab is on", !!snap && snap.actions.includes("add-backlog"), snap && snap.actions);
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    const { page, ctx, errs: e } = await openApp(browser, { native: false });
+    check("a browser shows no reminder settings and no reminder field",
+      await page.evaluate(() => document.querySelector("#remindersSection").hidden && document.querySelector("#habitRemindLabel").hidden));
     errs.push(...e);
     await ctx.close();
   }
