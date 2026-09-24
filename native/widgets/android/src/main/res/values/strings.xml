@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_habits_label">LifeLog habits</string>
+    <string name="widget_habits_description">Today\'s habits, ticked without opening the app</string>
+    <string name="widget_todos_label">LifeLog to-do</string>
+    <string name="widget_todos_description">Your to-do list, ticked without opening the app</string>
+    <string name="widget_quickadd_label">LifeLog quick add</string>
+    <string name="widget_quickadd_description">Add an entry, an expense, a note or a to-do</string>
+    <string name="widget_add">Add</string>
+    <string name="widget_add_entry">✎ Entry</string>
+    <string name="widget_add_expense">₪ Expense</string>
+    <string name="widget_add_note">▤ Note</string>
+    <string name="widget_add_todo">☑ To-do</string>
+</resources>

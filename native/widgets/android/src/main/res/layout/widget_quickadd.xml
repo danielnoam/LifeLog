@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Four ways in, each opening the app on its own form. A button for a tab
+     you've turned off is hidden, as the app's own + menu does. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:padding="8dp">
+
+    <TextView
+        android:id="@+id/add_entry"
+        style="@style/LifeLogWidgetButton"
+        android:text="@string/widget_add_entry" />
+
+    <TextView
+        android:id="@+id/add_expense"
+        style="@style/LifeLogWidgetButton"
+        android:text="@string/widget_add_expense" />
+
+    <TextView
+        android:id="@+id/add_note"
+        style="@style/LifeLogWidgetButton"
+        android:text="@string/widget_add_note" />
+
+    <TextView
+        android:id="@+id/add_todo"
+        style="@style/LifeLogWidgetButton"
+        android:text="@string/widget_add_todo" />
+</LinearLayout>
