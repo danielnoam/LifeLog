@@ -17,6 +17,11 @@ the bottom of Settings.
   no fingerprint set up, Settings says to add one in Android's settings.
 
 ### Changed
+- **Habit reminders live with the habits now, not in Settings.** Each habit's
+  card has a bell: tap it to pick a time, tap the time to change it, ✕ to
+  take it off. Once any are set, a line above the cards counts them, pauses
+  or resumes them all, and says if Android is blocking the notifications,
+  with a button to fix it. The time is still in each habit's edit form too.
 - **On the habits widget, the tick marks a habit and the rest of the row
   opens it** in the app: LifeLog opens on Habits with that habit's card in
   view and lit for a moment. The widget shows as many habits as its height
@@ -34,7 +39,8 @@ the bottom of Settings.
   says what's at stake ("keep your 12-day streak going") and has a **Done**
   button that ticks it without opening the app. Times stay on the phone
   they were set on. LifeLog asks for permission to notify when you set the
-  first one, and Settings says so if Android is blocking them.
+  first one, and Settings says so if Android is blocking them. (Moved onto
+  the habits themselves in 0.184.0.)
 - **Streaks on the habits widget**, counted the way the app counts them, and
   still right the morning after, before the app has been opened.
 - **A Backlog button on the quick-add widget.** The buttons are now an icon

@@ -947,46 +947,56 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
       await page.evaluate(() => !("remind" in JSON.parse(localStorage.getItem("lifelog-cache-v1")).habits[0]) && JSON.parse(localStorage.getItem("lifelog-habit-reminders-v1")).times.h1 === "21:30"));
     check("the widget is sent the run to count its streak on from", !!h1 && typeof h1.runBefore === "number", h1);
 
-    // Every habit's time, in Settings.
-    await page.evaluate(() => { document.querySelector("#settingsBtn").click(); });
-    await page.click('.stab[data-stab="views"]');
-    await page.waitForTimeout(300);
-    const rows = await page.evaluate(() => [...document.querySelectorAll("#remindersList .reminder-row")].map((r) => [r.textContent.trim(), r.querySelector("input").value]));
-    check("Settings lists every habit with its reminder time",
-      rows.length === 2 && rows[0][1] === "21:30" && rows[1][1] === "", rows);
-    await page.fill("#remindersList .reminder-row:nth-child(2) input", "07:15");
-    await page.dispatchEvent("#remindersList .reminder-row:nth-child(2) input", "change");
+    // On the cards themselves.
+    await page.evaluate(() => { localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "habits" })); });
+    await page.reload({ waitUntil: "load" });
+    await page.waitForTimeout(1000);
+    const chips = await page.evaluate(() => [...document.querySelectorAll(".habit-card")].map((c) => [c.dataset.id, (c.querySelector(".habit-remind-face") || {}).textContent || null]));
+    check("each habit card shows its reminder, or a bell to set one", JSON.stringify(chips) === JSON.stringify([["h1", "🔔 21:30"], ["h2", "🔔"]]), chips);
+    await page.evaluate(() => {
+      const input = document.querySelector('.habit-card[data-id="h2"] .habit-remind-input');
+      input.value = "07:15";
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
     await page.waitForTimeout(700);
     snap = await lastSnap(page);
-    check("a time set there goes out too", snap.habits.find((h) => h.id === "h2").remind === "07:15", snap.habits);
-    await page.click("#remindersOn");
+    check("a time set on the card goes to the phone", snap.habits.find((h) => h.id === "h2").remind === "07:15", snap.habits);
+    check("and the card says so", await page.evaluate(() => document.querySelector('.habit-card[data-id="h2"] .habit-remind-face').textContent === "🔔 07:15"));
+    check("one line above the cards counts them", await page.evaluate(() => /2 reminders on this phone/.test(document.querySelector(".habit-remind-bar").textContent)));
+    await page.click('.habit-card[data-id="h2"] .habit-remind-clear');
     await page.waitForTimeout(700);
     snap = await lastSnap(page);
-    check("switching them off sends no times, so nothing rings", snap.habits.every((h) => h.remind === ""), snap.habits);
-    check("and keeps them for switching back on", await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-habit-reminders-v1")).times.h2 === "07:15"));
-    await page.click("#remindersOn");
-    await page.waitForTimeout(300);
-    check("with permission given, Settings has nothing to warn about", await page.evaluate(() => document.querySelector("#remindersState").hidden));
+    check("the ✕ takes a reminder off", snap.habits.find((h) => h.id === "h2").remind === "" &&
+      await page.evaluate(() => !document.querySelector('.habit-card[data-id="h2"] .habit-remind-clear')), snap.habits);
+    await page.click(".habit-remind-bar button");
+    await page.waitForTimeout(700);
+    snap = await lastSnap(page);
+    check("pausing them sends no times, so nothing rings", snap.habits.every((h) => h.remind === ""), snap.habits);
+    check("and the line and the card say they're paused",
+      await page.evaluate(() => /paused/.test(document.querySelector(".habit-remind-bar").textContent) && /🔕/.test(document.querySelector('.habit-card[data-id="h1"] .habit-remind-face').textContent)));
+    check("the time is kept for resuming", await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-habit-reminders-v1")).times.h1 === "21:30"));
+    await page.click(".habit-remind-bar button");
+    await page.waitForTimeout(500);
+    check("with permission given there's nothing to warn about", await page.evaluate(() => document.querySelector(".habit-remind-warn").hidden));
+    check("and Settings has no reminders section any more", await page.evaluate(() => !document.querySelector("#remindersSection")));
     errs.push(...e);
     await ctx.close();
   }
   {
-    // Said no to Android's question: Settings says so, and says where to fix it.
+    // Said no to Android's question: the line over the cards says so, and where to fix it.
     const { page, ctx, errs: e } = await openApp(browser, { widgets: { queue: [], action: null, notify: "denied" } });
-    await page.evaluate(() => localStorage.setItem("lifelog-habit-reminders-v1", JSON.stringify({ on: true, times: { x: "09:00" } })));
-    await page.evaluate(async () => {
+    await page.evaluate(() => {
+      localStorage.setItem("lifelog-habit-reminders-v1", JSON.stringify({ on: true, times: { x: "09:00" } }));
+      localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "habits" }));
       const d = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
       d.habits = [{ id: "x", name: "Walk", color: "#2266aa", cadence: "daily", target: 1, order: 0, startedAt: "2026-01-01" }];
       localStorage.setItem("lifelog-cache-v1", JSON.stringify(d));
     });
     await page.reload({ waitUntil: "load" });
     await page.waitForTimeout(1200);
-    await page.evaluate(() => { document.querySelector("#settingsBtn").click(); });
-    await page.click('.stab[data-stab="views"]');
-    await page.waitForTimeout(400);
-    const st = await page.evaluate(() => ({ line: document.querySelector("#remindersState").hidden ? "" : document.querySelector("#remindersState").textContent, btn: document.querySelector("#remindersAllowBtn").textContent }));
-    check("blocked notifications are named in Settings, with the way to Android's settings", /blocking/.test(st.line) && /Android's settings/.test(st.btn), st);
-    await page.click("#remindersAllowBtn");
+    const warn = await page.evaluate(() => { const w = document.querySelector(".habit-remind-warn"); return w && !w.hidden ? w.textContent : ""; });
+    check("blocked notifications are named over the habits, with the way to Android's settings", /blocking/.test(warn) && /Android's settings/.test(warn), warn);
+    await page.click(".habit-remind-warn button");
     check("which the button opens", await page.evaluate(() => window.__cap.notifySettings) === 1);
     errs.push(...e);
     await ctx.close();
@@ -1002,8 +1012,9 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
   }
   {
     const { page, ctx, errs: e } = await openApp(browser, { native: false });
-    check("a browser shows no reminder settings and no reminder field",
-      await page.evaluate(() => document.querySelector("#remindersSection").hidden && document.querySelector("#habitRemindLabel").hidden));
+    await page.evaluate(() => window.LifeLogHabits.openHabitModal(null));
+    check("a browser shows no reminder field and no bell",
+      await page.evaluate(() => document.querySelector("#habitRemindLabel").hidden && !document.querySelector(".habit-remind")));
     errs.push(...e);
     await ctx.close();
   }

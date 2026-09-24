@@ -4069,7 +4069,7 @@
       // second cache of them, and its "new version" isn't the app's.
       checkForNewerApp();
       Widgets.start({ state, Platform, persist, afterDataChange, toast, runAction, quickActions });
-      if (window.LifeLogReminders) window.LifeLogReminders.start({ state, $, el, Platform, toast, changed: Widgets.changed });
+      if (window.LifeLogReminders) window.LifeLogReminders.start({ $, el, Platform, toast, changed: Widgets.changed, render });
       wireBackButton();
       wirePullToRefresh();
     } else if ("serviceWorker" in navigator) {

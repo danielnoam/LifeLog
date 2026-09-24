@@ -75,9 +75,10 @@ final class Biometrics {
             public void onAuthenticationError(int code, CharSequence message) {
                 if (settled[0]) return;
                 settled[0] = true;
+                // "Use PIN" arrives through setNegativeButton's own listener,
+                // above; its error code isn't public in the framework.
                 boolean backedOut = code == BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED
-                    || code == BiometricPrompt.BIOMETRIC_ERROR_CANCELED
-                    || code == BiometricPrompt.BIOMETRIC_ERROR_NEGATIVE_BUTTON;
+                    || code == BiometricPrompt.BIOMETRIC_ERROR_CANCELED;
                 result.done(false, backedOut ? "cancelled" : "error", message == null ? "" : message.toString());
             }
             // onAuthenticationFailed — one finger not recognised — keeps the

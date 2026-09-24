@@ -1,8 +1,8 @@
 // LifeLog — habit reminders, in the Android app only (0.183.0).
 //
 // Dropped once (see NOTES.md) because a browser can't do them well; the app
-// can. A reminder is a time per habit, set in the habit itself or all
-// together in Settings, and kept on this phone rather than in the synced
+// can. A reminder is a time per habit, set on its card in the Habits view
+// or in its edit form, and kept on this phone rather than in the synced
 // habit: a desktop has nothing to buzz, and two phones can want different
 // times.
 //
@@ -44,7 +44,7 @@
     // Asked when the first one is set, not at launch: that's when the
     // question makes sense.
     if (isTime(time) && isOn() && !had) ensureAllowed();
-    renderSettings();
+    ctx.render();
   }
 
   function setOn(on) {
@@ -53,7 +53,7 @@
     write(s);
     ctx.changed();
     if (on && Object.values(s.times || {}).some(isTime)) ensureAllowed();
-    renderSettings();
+    ctx.render();
   }
 
   async function state() {
@@ -70,65 +70,84 @@
       try { now = (await W.askForNotifications()).state; } catch (e) { /* treated as not allowed */ }
     }
     if (now !== "granted") {
-      ctx.toast("Notifications are off for LifeLog, so reminders can't show yet", true,
+      ctx.toast("Notifications are off for LifeLog, so reminders can't ring yet", true,
         { label: "Allow", onClick: () => W.openNotificationSettings() });
     }
-    renderSettings();
+    ctx.render();
     return now === "granted";
   }
 
-  // The Settings section: the switch, whether Android will show them, and
-  // every habit's time in one place.
-  let rendering = 0;
-  async function renderSettings() {
-    if (!ctx || !available()) return;
-    const { $, el, state: app } = ctx;
-    const section = $("#remindersSection");
-    if (!section) return;
-    section.hidden = false;
-    $("#remindersOn").checked = isOn();
+  // ---------- in the Habits view (0.184.0 — they started in Settings) ----------
 
-    const list = $("#remindersList");
-    list.textContent = "";
-    const habits = (app.data.habits || []).filter((h) => !h.archivedAt)
-      .slice().sort((a, b) => (a.order - b.order) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
-    if (!habits.length) list.appendChild(el("p", "hint", "No habits yet — reminders are set per habit."));
-    for (const h of habits) {
-      const row = el("label", "reminder-row");
-      const dot = el("span", "dot");
-      dot.style.background = h.color;
-      row.appendChild(dot);
-      row.appendChild(el("span", "reminder-name", h.name));
-      const input = el("input");
-      input.type = "time";
-      input.value = timeOf(h.id);
-      input.disabled = !isOn();
-      input.onchange = () => setTime(h.id, input.value);
-      row.appendChild(input);
-      list.appendChild(row);
+  // On each habit's card: its time, tapped to set or change it. The time
+  // input sits invisibly over the chip, so the tap opens Android's own time
+  // picker; the ✕ beside a set time clears it.
+  function chip(habit) {
+    if (!available()) return null;
+    const { el } = ctx;
+    const t = timeOf(habit.id);
+    const wrap = el("span", "habit-remind" + (t ? " is-set" : "") + (t && !isOn() ? " is-paused" : ""));
+    const face = el("label", "habit-remind-face");
+    face.title = t ? "Reminder at " + t + " — tap to change" : "Remind me about this habit";
+    face.appendChild(el("span", null, t ? (isOn() ? "🔔 " : "🔕 ") + t : "🔔"));
+    const input = el("input", "habit-remind-input");
+    input.type = "time";
+    input.value = t;
+    input.setAttribute("aria-label", "Reminder time for " + habit.name);
+    input.onchange = () => setTime(habit.id, input.value);
+    face.appendChild(input);
+    wrap.appendChild(face);
+    if (t) {
+      const clear = el("button", "habit-remind-clear", "✕");
+      clear.type = "button";
+      clear.title = "No reminder";
+      clear.setAttribute("aria-label", "Remove the reminder for " + habit.name);
+      clear.onclick = () => setTime(habit.id, "");
+      wrap.appendChild(clear);
     }
-
-    const run = ++rendering;
-    const now = await state();
-    if (run !== rendering) return;
-    const line = $("#remindersState");
-    const fix = $("#remindersAllowBtn");
-    const anySet = habits.some((h) => timeOf(h.id));
-    line.hidden = fix.hidden = !(isOn() && anySet && now !== "granted");
-    line.textContent = now === "denied"
-      ? "Android is blocking LifeLog's notifications, so no reminder will show."
-      : "LifeLog needs your permission to show notifications before any reminder can.";
-    fix.textContent = now === "denied" ? "Open Android's settings" : "Allow notifications";
-    fix.onclick = () => (now === "denied" ? plugin().openNotificationSettings() : ensureAllowed());
+    return wrap;
   }
 
-  // ctx: { state, $, el, Platform, toast, changed }
+  // Above the cards, once any habit has a time: how many, a switch for all
+  // of them, and — if Android is holding them back — why, and the way out.
+  function bar(habits) {
+    if (!available()) return null;
+    const set = habits.filter((h) => timeOf(h.id)).length;
+    if (!set) return null;
+    const { el } = ctx;
+    const b = el("div", "habit-remind-bar");
+    b.appendChild(el("span", "habit-remind-bar-text", isOn()
+      ? "🔔 " + set + (set === 1 ? " reminder" : " reminders") + " on this phone"
+      : "🔕 Reminders paused on this phone"));
+    const toggle = el("button", "btn btn-sm", isOn() ? "Pause" : "Resume");
+    toggle.type = "button";
+    toggle.onclick = () => setOn(!isOn());
+    b.appendChild(toggle);
+    if (isOn()) {
+      const warn = el("p", "habit-remind-warn");
+      warn.hidden = true;
+      b.appendChild(warn);
+      state().then((now) => {
+        if (now === "granted" || now === "unavailable" || !warn.isConnected) return;
+        warn.hidden = false;
+        warn.textContent = now === "denied"
+          ? "Android is blocking LifeLog's notifications, so none of these will ring. "
+          : "LifeLog needs your permission before any of these can ring. ";
+        const fix = el("button", "btn btn-sm", now === "denied" ? "Open Android's settings" : "Allow");
+        fix.type = "button";
+        fix.onclick = () => (now === "denied" ? plugin().openNotificationSettings() : ensureAllowed());
+        warn.appendChild(fix);
+      });
+    }
+    return b;
+  }
+
+  // ctx: { $, el, Platform, toast, changed, render }
   function start(c) {
     ctx = c;
-    if (!available()) return;
-    ctx.$("#remindersOn").onchange = (e) => setOn(e.target.checked);
-    renderSettings();
+    // The first render has already happened by now, without the bells.
+    if (available()) ctx.render();
   }
 
-  window.LifeLogReminders = { start, available, isOn, timeOf, remindAt, setTime, renderSettings, isTime, KEY };
+  window.LifeLogReminders = { start, available, isOn, setOn, timeOf, remindAt, setTime, chip, bar, isTime, KEY };
 })();

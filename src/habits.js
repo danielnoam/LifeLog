@@ -314,6 +314,9 @@
     const today = todayStr();
     const due = all.filter((h) => isDue(h, today));
     const kept = due.filter((h) => isDone(h, today));
+    const R = window.LifeLogReminders;
+    const remindBar = R && R.bar(all);
+    if (remindBar) root.appendChild(remindBar);
     if (due.length) {
       const bar = el("div", "habit-today");
       bar.appendChild(el("span", "habit-today-count", kept.length + " of " + due.length));
@@ -368,6 +371,9 @@
       s.title = run + (run === 1 ? " day" : " days") + " in a row";
       head.appendChild(s);
     }
+    // In the Android app, its reminder (see reminders.js).
+    const remind = window.LifeLogReminders && window.LifeLogReminders.chip(h);
+    if (remind) head.appendChild(remind);
     card.appendChild(head);
 
     const sub = el("div", "habit-sub");

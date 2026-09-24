@@ -2625,13 +2625,32 @@ html.force-mobile .backlog-section-head {
 .habit-days { display: flex; flex-wrap: wrap; gap: 4px 12px; padding-top: 4px; }
 .habit-days .toggle-label { font-size: 12.5px; }
 
-/* Habit reminders in Settings (0.183.0): one row per habit, its colour, its
-   name, its time. */
-.reminders-list { display: flex; flex-direction: column; gap: 6px; margin: 8px 0; }
-.reminder-row { display: flex; align-items: center; gap: 10px; }
-.reminder-row .dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
-.reminder-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.reminder-row input[type="time"] { flex: 0 0 auto; width: auto; }
+/* Habit reminders, in the Habits view (0.184.0). On a card, a chip with
+   the time; a time input lies invisibly over it so a tap opens the phone's
+   own time picker. Above the cards, one line for all of them. */
+.habit-remind { display: inline-flex; align-items: center; gap: 2px; margin-left: auto; flex: 0 0 auto; }
+.habit-remind-face {
+  position: relative; display: inline-flex; align-items: center;
+  padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border);
+  color: var(--text-faint); font-size: 12px; line-height: 1.6; cursor: pointer;
+}
+.habit-remind.is-set .habit-remind-face { color: var(--text); border-color: var(--accent); }
+.habit-remind.is-paused .habit-remind-face { color: var(--text-faint); border-color: var(--border); }
+.habit-remind-input {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; border: 0; padding: 0; cursor: pointer;
+}
+.habit-remind-clear {
+  border: 0; background: none; color: var(--text-faint); font-size: 12px;
+  padding: 4px 6px; cursor: pointer;
+}
+.habit-remind-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  margin: 0 0 10px; font-size: 13px; color: var(--text-faint);
+}
+.habit-remind-bar-text { flex: 1 1 auto; }
+.habit-remind-warn { flex: 1 1 100%; margin: 0; color: var(--text); }
+.habit-remind-warn .btn { margin-left: 6px; }
 
 /* A habit opened from the home-screen widget (0.184.0): a ring that fades,
    so the eye finds the card it asked for. */

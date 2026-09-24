@@ -16,6 +16,16 @@ what was decided against and why.
 
 ---
 
+- **reminders are set on the habit cards, not in Settings (0.184.0).**
+  0.183.0 put the switch, the permission state and every habit's time in
+  Settings → Views. A reminder is a property of one habit, and Settings is
+  somewhere you go on purpose, so it moved to where the habit already is: a
+  bell chip on each card (a time input lying invisibly over it, so the tap
+  opens Android's own picker; ✕ clears), and one line above the cards once
+  any is set — the count, Pause/Resume for all, and Android blocking them if
+  it is. reminders.js draws both (chip, bar) and habits.js only places them,
+  so the page has one owner of reminder UI. The edit form keeps its field.
+
 - **the app lock's fingerprint is Android's own sheet in the app, WebAuthn in a
   browser (0.184.0).** The lock was built on WebAuthn, and the app's WebView
   doesn't offer it: newer WebViews can, but only to a site that proves it
@@ -29,6 +39,12 @@ what was decided against and why.
   guarding the app's opening rather than encrypting anything. The plugin
   always resolves { ok, reason } rather than rejecting, and "cancelled"
   (backing out, or "Use PIN") shows no error.
+
+  Its first build failed in CI on BiometricPrompt.BIOMETRIC_ERROR_NEGATIVE_BUTTON,
+  which compiled here: the local check compiles against Robolectric's
+  android-all, the real framework — hidden members and all. It proves an API
+  exists, not that it's public. CI's compile, against the SDK's android.jar,
+  is the one that answers that; the constant only exists in androidx.
 
 - **the habits widget is plain rows, not a list (0.184.0).** A habit row
   needs two taps: the tick, which must stay on the home screen, and the row,
