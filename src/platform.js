@@ -19,6 +19,11 @@
   const cap = window.Capacitor;
   const native = !!(cap && typeof cap.isNativePlatform === "function" && cap.isNativePlatform());
 
+  // Also baked into the app's index.html by tools/build-www.js, so the
+  // edge-to-edge padding applies from the first frame; this is the same
+  // thing again for anything that loads the page some other way.
+  if (native) document.documentElement.classList.add("native");
+
   let build = null;
   const ready = native
     ? fetch("app-build.json", { cache: "no-store" })
@@ -27,12 +32,45 @@
         .catch(() => null)
     : Promise.resolve(null);
 
+  // Anything that leaves the app — the token page, a release, the APK, a
+  // store link — opens in Chrome's in-app tab (the Browser plugin), with its
+  // own close button, rather than being loaded into the app's WebView. There
+  // it would have no address bar, and back would put the whole app away
+  // instead of returning from the page. Capacitor most likely hands such
+  // links to the browser already; "most likely" isn't good enough for the
+  // one thing that can strand you, so both ways out are routed explicitly:
+  // clicks on outside <a> links, and window.open.
+  const isOutside = (url) => {
+    try {
+      const u = new URL(String(url), location.href);
+      return /^https?:$/.test(u.protocol) && u.origin !== location.origin;
+    } catch (e) { return false; }
+  };
+  const browser = () => (native && cap.Plugins && cap.Plugins.Browser) || null;
+  const nativeOpen = window.open.bind(window);
+  function openOutside(url) {
+    const B = browser();
+    if (B) { B.open({ url: String(url) }); return true; }
+    nativeOpen(url, "_blank");
+    return true;
+  }
+  if (native) {
+    window.open = (url, target, features) => (isOutside(url) ? (openOutside(url), null) : nativeOpen(url, target, features));
+    document.addEventListener("click", (e) => {
+      const a = e.target && e.target.closest && e.target.closest("a[href]");
+      if (!a || a.hasAttribute("download") || !isOutside(a.href)) return;
+      e.preventDefault();
+      openOutside(a.href);
+    }, true);
+  }
+
   window.LifeLogPlatform = {
     native,
     ready,
     get build() { return build; },
     // A native plugin, or null in a browser or when the build doesn't carry it.
     plugin(name) { return (native && cap.Plugins && cap.Plugins[name]) || null; },
+    openOutside,
     // Where the web copy lives, for links that have to work on another device.
     webUrl() { return (build && build.webUrl) || null; },
     releasesUrl() { return build && build.repo ? "https://github.com/" + build.repo + "/releases/latest" : null; },

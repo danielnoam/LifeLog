@@ -21,7 +21,7 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
 
 // What Capacitor's native bridge puts on the page, as far as LifeLog uses it.
 const FAKE_BRIDGE = () => {
-  window.__cap = { minimized: 0, opened: [], back: null, scans: 0, installs: 0, progress: [] };
+  window.__cap = { minimized: 0, opened: [], back: null, scans: 0, installs: 0, progress: [], barStyles: [], browsed: [] };
   // What the next scan will do; tests set it before pressing the button.
   window.__scanPlan = { available: true, result: null, error: null };
   window.Capacitor = {
@@ -32,6 +32,10 @@ const FAKE_BRIDGE = () => {
         addListener: (ev, cb) => { if (ev === "backButton") window.__cap.back = cb; return Promise.resolve({ remove() {} }); },
         minimizeApp: () => { window.__cap.minimized++; return Promise.resolve(); },
       },
+      // @capacitor/browser: Chrome's in-app tab.
+      Browser: { open: async ({ url }) => { window.__cap.browsed.push(url); window.__cap.opened.push(url); } },
+      // Capacitor's own SystemBars.
+      SystemBars: { setStyle: async ({ style }) => { window.__cap.barStyles.push(style); } },
       // @capacitor-mlkit/barcode-scanning, as far as LifeLog uses it.
       BarcodeScanner: {
         isGoogleBarcodeScannerModuleAvailable: async () => ({ available: !!window.__scanPlan.available }),
@@ -58,7 +62,12 @@ const FAKE_BRIDGE = () => {
   window.open = (url) => { window.__cap.opened.push(String(url)); return null; };
 };
 
-async function openApp(browser, { native = true, latestTag = null, cache = doc([], null), gh = null, remote = null, serviceWorkers = "block", hasTouch = false } = {}) {
+// The page exactly as the app bundles it: tools/build-www.js marks its copy
+// of index.html edge-to-edge (viewport-fit=cover, class="native").
+const { appIndexHtml } = require("../../tools/build-www.js");
+const BUNDLED_HTML = appIndexHtml(require("fs").readFileSync(require("path").join(__dirname, "..", "..", "index.html"), "utf8"));
+
+async function openApp(browser, { native = true, latestTag = null, cache = doc([], null), gh = null, remote = null, serviceWorkers = "block", hasTouch = false, bundled = false, visual = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 420, height: 900 }, serviceWorkers, hasTouch });
   const page = await ctx.newPage();
   const errs = [];
@@ -68,6 +77,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
   page.on("dialog", (d) => { dialogs.push(d.message()); d.accept(); });
   if (native) await page.addInitScript(FAKE_BRIDGE);
   await page.route("**/app-build.json", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(BUILD) }));
+  if (bundled) await page.route(BASE + "/", (r) => r.fulfill({ status: 200, contentType: "text/html", body: BUNDLED_HTML }));
   // `remote`, `sha` and `down` can be changed mid-test to stage what the
   // other device did, or GitHub being unreachable.
   const github = { puts: [], remote, sha: "sha-remote", down: false, reads: 0, delay: 0 };
@@ -94,12 +104,13 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
   // it, and under a full run that write could land after the setup below.
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
   await page.waitForTimeout(300);
-  await page.evaluate(({ cache, gh }) => {
+  await page.evaluate(({ cache, gh, visual }) => {
     localStorage.clear();
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" }));
     if (cache) localStorage.setItem("lifelog-cache-v1", JSON.stringify(cache));
     if (gh) localStorage.setItem("lifelog-github-v1", JSON.stringify(gh));
-  }, { cache, gh });
+    if (visual) localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify(visual));
+  }, { cache, gh, visual });
   await page.goto("about:blank");
   await page.goto(BASE + "/", { waitUntil: "load" });
   await page.waitForTimeout(1200);
@@ -507,6 +518,95 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     const seen = await pull(page);
     check("a browser keeps its own pull — the app's isn't added there",
       seen.every((x) => !x.shown) && await page.evaluate(() => !document.documentElement.classList.contains("native")), seen);
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 9. first launch: edges, status bar, outside links, back ----
+  // The things that can only be *seen* on a phone, checked here for what the
+  // page decides: that it runs edge to edge with its content clear of the
+  // bars, that the bar icons follow LifeLog's theme, that nothing outside
+  // the app can load inside it, and that back returns before it leaves.
+  {
+    const { page, ctx, errs: e } = await openApp(browser, { bundled: true, visual: { forceLayout: "mobile" } });
+    const vp = await page.evaluate(() => document.querySelector('meta[name="viewport"]').content);
+    check("the app's page asks to run under the status and gesture bars", /viewport-fit=cover/.test(vp), vp);
+    check("and keeps asking after the layout setting rewrites the viewport", /width=400/.test(vp) && /viewport-fit=cover/.test(vp), vp);
+
+    // Capacitor injects the real bar sizes as CSS variables.
+    await page.evaluate(() => {
+      document.documentElement.style.setProperty("--safe-area-inset-top", "24px");
+      document.documentElement.style.setProperty("--safe-area-inset-bottom", "20px");
+    });
+    await page.waitForTimeout(100);
+    const edge = await page.evaluate(() => {
+      const bar = document.querySelector(".topbar");
+      const cs = getComputedStyle(bar);
+      const logo = bar.querySelector(".brand, h1, .logo") || bar.firstElementChild;
+      const nav = document.querySelector(".topbar-bottom");
+      return {
+        border: parseFloat(cs.borderTopWidth), borderColor: cs.borderTopColor, bg: cs.backgroundColor,
+        logoTop: logo.getBoundingClientRect().top,
+        navPad: nav ? parseFloat(getComputedStyle(nav).paddingBottom) : null,
+      };
+    });
+    check("the top bar's own colour fills the status bar", edge.border === 24 && edge.borderColor === edge.bg, edge);
+    check("and its contents start below it", edge.logoTop >= 24, edge.logoTop);
+    check("the bottom tab bar keeps clear of the gesture bar", edge.navPad === 20, edge.navPad);
+    await page.click("#settingsBtn");
+    await page.waitForTimeout(300);
+    const sheet = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector("#settingsModal, .modal-overlay:not([hidden])")).paddingTop));
+    check("a sheet opens clear of the status bar too", sheet === 44, sheet);
+
+    // Outside links go to Chrome's tab; nothing loads into the app itself.
+    const here = page.url();
+    await page.evaluate(() => {
+      const a = [...document.querySelectorAll("a[href^='https://github.com']")].find((x) => x.offsetParent);
+      (a || document.querySelector("a[href^='https://github.com']")).click();
+    });
+    await page.waitForTimeout(200);
+    const browsed = await page.evaluate(() => window.__cap.browsed);
+    check("an outside link opens in Chrome's in-app tab", browsed.some((u) => /^https:\/\/github\.com\//.test(u)), browsed);
+    check("and the app's own page stays where it was", page.url() === here, page.url());
+    await page.evaluate(() => window.open("https://example.com/somewhere"));
+    check("window.open to the outside goes the same way",
+      (await page.evaluate(() => window.__cap.browsed)).includes("https://example.com/somewhere"));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+
+    // Status bar icons follow LifeLog's theme, not the phone's.
+    const darkStyles = await page.evaluate(() => window.__cap.barStyles.slice());
+    check("on LifeLog's dark theme the bar icons are light", darkStyles[darkStyles.length - 1] === "DARK", darkStyles);
+
+    // Back, if the page has somewhere to go back to, goes there first.
+    const went = await page.evaluate(() => {
+      let backed = 0; const real = history.back.bind(history);
+      history.back = () => { backed++; };
+      const before = window.__cap.minimized;
+      window.__cap.back({ canGoBack: true });
+      history.back = real;
+      return { backed, minimized: window.__cap.minimized - before };
+    });
+    check("back returns from a page the app navigated to, rather than leaving the app", went.backed === 1 && went.minimized === 0, went);
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    const { page, ctx, errs: e } = await openApp(browser, { bundled: true, visual: { theme: "light" } });
+    const styles = await page.evaluate(() => window.__cap.barStyles.slice());
+    check("on LifeLog's light theme the bar icons are dark", styles[styles.length - 1] === "LIGHT", styles);
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    // The web copy: none of it.
+    const { page, ctx, errs: e } = await openApp(browser, { native: false });
+    await page.evaluate(() => document.documentElement.style.setProperty("--safe-area-inset-top", "24px"));
+    const web = await page.evaluate(() => ({
+      vp: document.querySelector('meta[name="viewport"]').content,
+      border: parseFloat(getComputedStyle(document.querySelector(".topbar")).borderTopWidth),
+    }));
+    check("the web copy doesn't go edge to edge or grow a top border", !/viewport-fit/.test(web.vp) && web.border === 0, web);
     errs.push(...e);
     await ctx.close();
   }

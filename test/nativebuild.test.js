@@ -70,6 +70,13 @@ test("a file index.html loads but the cache list forgot fails the build", () => 
   fs.rmSync(root, { recursive: true, force: true });
 });
 
+test("only the app's copy of index.html goes edge to edge", () => {
+  const app = fs.readFileSync(path.join(out, "index.html"), "utf8");
+  const web = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
+  assert.ok(/viewport-fit=cover/.test(app) && /<html[^>]*class="[^"]*\bnative\b/.test(app), "app copy not marked");
+  assert.ok(!/viewport-fit/.test(web) && !/class="native"/.test(web), "the web copy was changed");
+});
+
 console.log("\nthe version Android sees");
 
 test("versionCode is APP_VERSION as one number", () => {

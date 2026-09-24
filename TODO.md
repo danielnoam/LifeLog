@@ -32,13 +32,18 @@ todo:
   may rely on the save having happened when the promise resolves, so it
   wants its own change rather than riding along with a fix.
 
-  **The Android app, after its first real launch.** 0.174.0 is tested
-  against a faked bridge only (see NOTES.md). Things to look at on a phone:
-  links with `target="_blank"` (the token page, release notes) should open
-  in the browser rather than inside the app; the back gesture; the status
-  bar. The status bar follows the phone's light/dark setting rather than
-  LifeLog's theme, and matching it means edge-to-edge (`viewport-fit=cover`
-  and safe-area padding), which changes the web layout too.
+  **Exports in the Android app.** Export JSON / CSV make a file in memory and
+  click a download link (io.js), and Android's WebView doesn't act on that
+  without native help — in the app they most likely do nothing. The fix is
+  to write the file with the Filesystem plugin, then hand it to Android's
+  share sheet (Share plugin) so it can go to Drive, Files or anywhere else.
+  The same pair would give a real on-phone backup (below). Worth checking
+  on the phone first, to be sure.
+
+  **Still only verifiable on a phone** (0.178.0 made each right by
+  construction and tested what the page decides): the status bar really
+  taking the top bar's colour, outside links opening in Chrome's tab, and
+  the back gesture reaching the app.
 
   **What the app could do that a browser can't**, in the order it's worth
   doing: native HTTP (`CapacitorHttp` — Steam without the proxy), a real

@@ -53,6 +53,25 @@ function repoSlug() {
   } catch (e) { return null; }
 }
 
+// The app's copy of index.html differs from the web's in two places, both
+// about going edge to edge (0.178.0): viewport-fit=cover, which tells
+// Android's WebView to draw under the status and gesture bars so the top
+// bar's own colour fills them, and class="native" on <html>, so the padding
+// that keeps content clear of those bars applies from the very first frame
+// rather than after a script runs. Capacitor reads viewport-fit once, when
+// the first frame shows, which is why it has to be in the file and not set
+// afterwards. The web copy keeps neither: a browser has its own bars.
+function appIndexHtml(html) {
+  let out = html.replace(/<meta name="viewport" content="([^"]*)"/, (m, content) =>
+    '<meta name="viewport" content="' + (/viewport-fit=/.test(content) ? content : content + ", viewport-fit=cover") + '"');
+  out = out.replace(/<html(\s[^>]*)?>/, (m, attrs = "") =>
+    /class=/.test(attrs) ? m.replace(/class="([^"]*)"/, (c, v) => 'class="' + (v + " native").trim() + '"') : "<html" + attrs + ' class="native">');
+  if (!/viewport-fit=cover/.test(out) || !/<html[^>]*class="[^"]*\bnative\b/.test(out)) {
+    throw new Error("couldn't mark index.html as the app's: no viewport meta or <html> tag where expected");
+  }
+  return out;
+}
+
 function build(out = OUT, root = ROOT) {
   const assets = assetList(root);
   const missing = referencedByIndex(root).filter((f) => !assets.includes(f));
@@ -66,7 +85,8 @@ function build(out = OUT, root = ROOT) {
     if (!fs.existsSync(from)) throw new Error("sw.js lists " + rel + ", which doesn't exist");
     const to = path.join(out, rel);
     fs.mkdirSync(path.dirname(to), { recursive: true });
-    fs.copyFileSync(from, to);
+    if (rel === "index.html") fs.writeFileSync(to, appIndexHtml(fs.readFileSync(from, "utf8")));
+    else fs.copyFileSync(from, to);
   }
   const repo = repoSlug();
   const [owner, name] = repo ? repo.split("/") : [];
@@ -85,4 +105,4 @@ if (require.main === module) {
   const r = build();
   console.log("www: " + r.files + " files → " + path.relative(ROOT, r.out) + " (" + r.info.version + ", " + (r.info.repo || "no repo") + ")");
 }
-module.exports = { build, assetList, referencedByIndex, appVersion };
+module.exports = { build, assetList, referencedByIndex, appVersion, appIndexHtml };

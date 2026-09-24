@@ -16,6 +16,43 @@ what was decided against and why.
 
 ---
 
+- **the Android app runs edge to edge, and the app's copy of index.html is
+  what says so.** Matching the status bar to LifeLog's theme means drawing
+  the page under it: `viewport-fit=cover`, with the top bar's colour filling
+  the space and the icons set by `syncSystemBars` from the top bar's actual
+  background (a new theme can't be forgotten there). Capacitor's SystemBars
+  reads the viewport tag *once*, when the first frame becomes visible
+  (`onPageCommitVisible`). Setting it from a script would race that, so
+  tools/build-www.js writes `viewport-fit=cover` and `class="native"` into
+  the app's copy of index.html instead. The web copy keeps neither, because
+  a browser has bars of its own.
+
+  Two things quietly depended on the viewport tag staying put.
+  `applyForceLayout` rewrote it wholesale and would have dropped
+  `viewport-fit`, pulling the page out from under the status bar while the
+  top bar kept the padding meant for it. It now keeps whatever `viewport-fit`
+  it found.
+
+  The top bar grows a *border* in its own colour rather than more padding,
+  so nothing inside it moves and the measured `--topbar-h` includes the lot.
+  Sizes come from Capacitor's injected `--safe-area-inset-*`, with `env()`
+  as the fallback.
+
+  **A `let` declared beside the function that reads it can still crash at
+  load.** `syncSystemBars` compared against `systemBarsStyle`, declared
+  just above it, but `applyTheme` — which calls it — runs at load, hundreds
+  of lines earlier. In a browser the function returned before reaching the
+  variable, since there's no SystemBars plugin, so nothing noticed. In the app
+  it was a ReferenceError that stopped the whole app starting. Only the
+  faked-bridge suite could see it.
+
+  **Outside links are routed explicitly.** Capacitor most likely hands
+  outside URLs to the system browser already, but a link that did load
+  inside the app would strand you: no address bar, and back would put the
+  app away. So outside `<a>` clicks and `window.open` go through the Browser
+  plugin (Chrome's in-app tab), and back returns when the page has
+  somewhere to go back to.
+
 - **the mode swipe is a pager built from snapshots, not two live renders.**
   A pager needs the neighbouring mode on screen while the finger is down, and
   `render()` can't draw it: it owns the whole page (the tab bar, the filter

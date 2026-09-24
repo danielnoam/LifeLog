@@ -13,7 +13,13 @@
   const Habits = window.LifeLogHabits;
   const Recap = window.LifeLogRecap;
   // Absent only under the unit tests, which load this file without a page.
-  const Platform = window.LifeLogPlatform || { native: false, ready: Promise.resolve(null), plugin: () => null, webUrl: () => null, apkUrl: () => null };
+  // The status-bar style last sent to Android (see syncSystemBars). Up here
+  // with the module's other state, not beside its function: applyTheme runs
+  // at load, long before that line, and in the app a `let` declared down
+  // there is still in its temporal dead zone — a ReferenceError that stopped
+  // the whole app starting (caught by test/browser/native.js).
+  let systemBarsStyle = "";
+  const Platform = window.LifeLogPlatform || { native: false, ready: Promise.resolve(null), plugin: () => null, webUrl: () => null, apkUrl: () => null, openOutside: () => {} };
   const MONTHS = ["", "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"];
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -117,7 +123,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.177.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.178.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3273,6 +3279,25 @@
   function applyTheme() {
     const s = state.visual || DEFAULT_VISUAL;
     THEMES.forEach((t) => document.documentElement.classList.toggle("theme-" + t, s.theme === t));
+    syncSystemBars();
+  }
+
+  // In the Android app the page runs under the status and gesture bars, so
+  // their icons have to suit LifeLog's theme rather than the phone's
+  // light/dark setting: light icons over a dark top bar, dark over a light
+  // one. Read off the top bar's actual colour rather than a list of theme
+  // names, so a new theme can't be forgotten here.
+  function syncSystemBars() {
+    const bars = Platform.plugin("SystemBars");
+    const topbar = document.querySelector(".topbar");
+    if (!bars || !topbar) return;
+    const rgb = (getComputedStyle(topbar).backgroundColor.match(/[\d.]+/g) || []).map(Number);
+    if (rgb.length < 3) return;
+    const lum = (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255;
+    const style = lum < 0.5 ? "DARK" : "LIGHT";
+    if (style === systemBarsStyle) return;
+    systemBarsStyle = style;
+    try { bars.setStyle({ style }); } catch (e) { /* an older shell without it */ }
   }
 
   // Forces the mobile/desktop layout regardless of actual screen size.
@@ -3287,9 +3312,13 @@
     document.documentElement.classList.toggle("force-pc", s.forceLayout === "pc");
     const meta = document.querySelector('meta[name="viewport"]');
     if (!meta) return;
-    if (s.forceLayout === "mobile") meta.content = "width=400, initial-scale=1.0";
-    else if (s.forceLayout === "pc") meta.content = "width=1280, initial-scale=1.0";
-    else meta.content = "width=device-width, initial-scale=1.0";
+    // Whatever viewport-fit the page shipped with stays: the Android app's
+    // copy says cover (tools/build-www.js), and dropping it here would pull
+    // the page back out from under the status bar while the top bar kept the
+    // padding meant for it.
+    const fit = (meta.content.match(/viewport-fit=[\w-]+/) || [""])[0];
+    const width = s.forceLayout === "mobile" ? "width=400" : s.forceLayout === "pc" ? "width=1280" : "width=device-width";
+    meta.content = width + ", initial-scale=1.0" + (fit ? ", " + fit : "");
   }
 
   // ---------- events ----------
@@ -3914,7 +3943,7 @@
       $("#updateBarText").textContent = "LifeLog " + latest + " is out";
       const btn = $("#updateReloadBtn");
       btn.textContent = "Download";
-      btn.onclick = () => window.open(Platform.apkUrl(), "_blank");
+      btn.onclick = () => Platform.openOutside(Platform.apkUrl());
       $("#updateBar").hidden = false;
     } catch (e) { /* offline — ask again next launch */ }
   }
@@ -4042,9 +4071,13 @@
   function wireBackButton() {
     const App = Platform.plugin("App");
     if (!App) return;
-    App.addListener("backButton", () => {
+    App.addListener("backButton", (ev) => {
       const somethingOpen = isAnyModalOpen() || !$("#addMenu").hidden || !$("#recapScreen").hidden;
       if (somethingOpen) document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+      // Outside links open in Chrome's tab, so the app's own page should
+      // never have anywhere to go back to — but if something ever does
+      // navigate it, back returns from there rather than leaving the app.
+      else if (ev && ev.canGoBack) history.back();
       else App.minimizeApp();
     });
   }

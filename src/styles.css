@@ -1876,6 +1876,25 @@ html.pull-busy .pull-icon circle { stroke-dasharray: 64 100; }
 @media (prefers-reduced-motion: reduce) {
   html.pull-busy .pull-icon svg { animation-duration: 2.4s; }
 }
+/* Edge to edge, in the Android app only (0.178.0). The app's page runs under
+   the status bar and the gesture bar (viewport-fit=cover, written into the
+   app's index.html at build time), so the top bar's own colour fills the
+   status bar and its icons follow LifeLog's theme (syncSystemBars) rather
+   than the phone's. Everything pinned to an edge then has to keep its
+   content clear of those bars. Capacitor injects the real sizes as
+   --safe-area-inset-*; env() is the fallback. The top bar grows a border in
+   its own colour rather than more padding, so its layout inside is unchanged
+   and --topbar-h (measured) still includes the whole of it. */
+html.native {
+  --sat: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --sab: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+}
+html.native .topbar { border-top: var(--sat) solid var(--bg-elev); }
+html.native .modal-overlay,
+html.native .lock-screen { padding-top: calc(20px + var(--sat)); padding-bottom: calc(20px + var(--sab)); }
+html.native .recap { padding-top: calc(54px + var(--sat)); padding-bottom: calc(64px + var(--sab)); }
+html.native .recap-bar { top: calc(12px + var(--sat)); }
+html.native .recap-close { top: calc(24px + var(--sat)); }
 /* The WebView's own overscroll glow would answer the same pull. */
 html.native, html.native body { overscroll-behavior-y: none; }
 .toast-action {
@@ -1925,7 +1944,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
   html:not(.force-pc) .topbar-bottom {
     display: flex; flex-direction: column; align-items: stretch;
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
     background: var(--bg-elev); border-top: 1px solid var(--border);
     box-shadow: 0 -2px 10px var(--nav-shadow);
   }
@@ -2063,7 +2082,7 @@ html.force-mobile .search-clear { width: 34px; font-size: 13px; }
 html.force-mobile .topbar-bottom {
   display: flex; flex-direction: column; align-items: stretch;
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
   background: var(--bg-elev); border-top: 1px solid var(--border);
   box-shadow: 0 -2px 10px var(--nav-shadow);
 }

@@ -4,6 +4,28 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.178.0] - 2026-09-24
+
+### Changed
+- **The Android app now runs edge to edge.** The top bar's own colour
+  fills the status bar, and the status-bar icons follow LifeLog's theme:
+  light on the dark themes, dark on the light one. Before, they followed your
+  phone's light/dark setting. Sheets, the lock screen, the Recap and the
+  bottom tab bar keep their content clear of the status bar and the gesture
+  bar.
+- **Links out of the app open in Chrome's in-app tab**, with its own close
+  button: the GitHub token page, release notes, the new-version download,
+  store links. None of them can load inside the app itself, where there'd
+  be no address bar and back would close the app.
+- **Back returns before it leaves.** If the app's page ever does navigate
+  somewhere, the back gesture goes back to it instead of putting the app
+  away.
+
+### Fixed
+- The layout setting (Settings → Appearance → phone/desktop layout) rewrote
+  the page's viewport and would have dropped the app's edge-to-edge setting,
+  pulling the page back out from under the status bar. It now keeps it.
+
 ## [0.177.1] - 2026-09-24
 
 ### Changed
