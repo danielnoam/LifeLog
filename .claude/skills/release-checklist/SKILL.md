@@ -1,13 +1,13 @@
 ---
 name: release-checklist
-description: Pre-PR checklist for the LifeLog app (danielnoam/lifelog) — bump APP_VERSION, add a matching CHANGELOG.md entry, file notes under TODO.md/NOTES.md/DROPPED.md, keep the vanilla JS/CSS app lean, and verify both mobile and desktop layouts. Use this before opening any PR for LifeLog.
+description: Release checklist for the LifeLog app (danielnoam/lifelog) — bump APP_VERSION, add a matching CHANGELOG.md entry, file notes under TODO.md/NOTES.md/DROPPED.md, keep the vanilla JS/CSS app lean, verify mobile and desktop, push to main (which publishes the APK), and delete finished branches. Use this before shipping any change to LifeLog.
 ---
 
 # LifeLog release checklist
 
-Run through all of these before opening a PR. Every PR should leave the
-version number, CHANGELOG.md, and the notes files in sync with the change —
-don't open a PR with any step skipped.
+Run through all of these before shipping a change. Every change pushed to
+`main` should leave the version number, CHANGELOG.md, and the notes files in
+sync with it. Don't push with any step skipped.
 
 ## 1. Bump APP_VERSION
 
@@ -18,7 +18,7 @@ don't open a PR with any step skipped.
   - New user-facing feature → bump minor (`0.X.0` → `0.(X+1).0`), reset patch to 0
   - Bug fix / small tweak / styling-only → bump patch (`0.x.Y` → `0.x.(Y+1)`)
   - Breaking change to the saved data format (`data.version` in `src/storage.js`) → bump major
-- Never open a PR without bumping this, even for small fixes.
+- Never push to `main` without bumping this, even for small fixes.
 - Also update the `?v=x.y.z` cache-busting query string on every
   `<script>`/`<link rel="stylesheet">` tag in `index.html` to match —
   browsers cache these by URL, so leaving the query string stale means
@@ -37,8 +37,7 @@ don't open a PR with any step skipped.
   (`tools/build-www.js`), and the app build fails if `index.html` loads
   anything the list is missing.
 - Changing `APP_VERSION` on `main` publishes a new Android release
-  (`app-v<version>`) — the workflow skips versions already released, so a
-  push without a bump rebuilds but publishes nothing.
+  (`app-v<version>`). See step 7.
 
 ## 2. Update CHANGELOG.md
 
@@ -46,8 +45,8 @@ don't open a PR with any step skipped.
   (use today's date), with `### Added` / `### Changed` / `### Fixed` /
   `### Removed` sections as needed.
 - The version heading here must always match `APP_VERSION` in `src/app.js`.
-- Write entries in plain, user-facing language — they double as the basis
-  for the PR summary.
+- Write entries in plain, user-facing language. The workflow copies this
+  entry into the GitHub release as its notes.
 
 ## 3. Update the three notes files
 
@@ -88,10 +87,42 @@ Each holds one kind of thing; put an entry in exactly one of them.
     confirm zero console errors (`page.on('pageerror'/'console')`).
 - Kill the dev server and remove any temporary test scripts afterwards.
 
-## 6. Commit & push
+## 6. Commit & push to main
 
+- Work on `main` directly. No feature branches, no PRs: the owner wants a
+  change live as soon as it's done. This overrides a session's default
+  "develop on `claude/...`" branch. If a session was started on one, commit
+  there, then fast-forward `main` to it and push `main`
+  (`git push origin HEAD:main`).
 - Commit the version bump + CHANGELOG.md + the notes-file updates together
   with the feature changes (or as one small follow-up commit).
-- Push to the active work branch.
-- Open the PR with a summary that mirrors the new CHANGELOG entry, plus a
-  test plan section covering the mobile/desktop verification above.
+- Before pushing, `git fetch origin main` and rebase onto it if it moved.
+  Never force-push `main`.
+- `main` is production. The push deploys the web app to GitHub Pages at once
+  and, with a new `APP_VERSION`, publishes the APK. So step 5 has to pass
+  before the push, not after.
+
+## 7. Ship the APK
+
+- Nothing to build locally. `.github/workflows/android.yml` runs on every
+  push to `main`, builds and signs the APK, and publishes it as the GitHub
+  release `app-v<APP_VERSION>`. The app's updater downloads it from
+  `releases/latest/download/LifeLog.apk`.
+- It only publishes when `APP_VERSION` is new (step 1). A push without a
+  bump rebuilds but ships nothing to the app.
+- A push that only touches `**.md`, `test/**` or `.claude/**` doesn't run
+  the workflow at all, which is correct: nothing in the app changed.
+- After pushing, check the "Android app" run on `main` went green and the
+  `app-v<version>` release exists. If the build failed, fix it in the next
+  commit and push again; the app keeps offering the last release until then.
+
+## 8. Clean up branches
+
+- Delete every remote branch except `main` once its work is on `main`,
+  including the session branch you just shipped from
+  (`git push origin --delete <branch>`).
+- Changes land by squash or cherry-pick, so `git branch --merged` and
+  `git cherry` both call finished branches unmerged. Check by content: the
+  branch's last `APP_VERSION` has a CHANGELOG.md entry on `main`, or its
+  diff against `main` holds nothing new.
+- A branch with work that isn't on `main`: ask the owner before deleting.
