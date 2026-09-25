@@ -56,6 +56,24 @@ todo:
   "Automatically delete head branches" only helps with branches merged
   through a PR, which this repo no longer uses.
 
+- **A drawing board, something like Excalidraw.** Possibly a fourth mode in
+  the Notes tab ("Boards"), or a drawing attached to a note. Decide first
+  which of two ways:
+  - **Excalidraw itself** (`@excalidraw/excalidraw`). The real thing, but a
+    React library of a few MB: against the no-build, no-dependency rule,
+    and the Android app would have to bundle it to work offline.
+  - **Our own, on a `<canvas>`.** Freehand pen, rectangles/ellipses/arrows,
+    text, select and move, pan and zoom, undo, and touch that doesn't fight
+    the mode swipe or pull to refresh. The hand-drawn look is rough.js
+    (~30KB), which would be the one library, loaded like any other file.
+    Fits the app; a big job to make feel right, especially on a phone.
+  Either way the drawing is data that syncs through GitHub, and freehand
+  strokes get big fast: simplify each stroke's points on save, and consider
+  keeping boards in a file of their own beside lifelog.json so a heavy
+  board doesn't slow every save (the 1MB large-file path would otherwise be
+  hit early). Exports need a place too: PNG/SVG out, and boards in the
+  Notes tab's JSON.
+
 ---
 
 Ideas that turned out not to be worth doing, or not to be possible, live in
