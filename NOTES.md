@@ -16,6 +16,16 @@ what was decided against and why.
 
 ---
 
+- **The everything CSV is the tab sheets stacked, not one merged sheet
+  (0.192.0).** One set of columns for every kind would have meant a second
+  CSV format to read and write, next to the per-tab ones. Stacking reuses
+  them: `allCsvText` joins the Notes, Timeline+Backlog and Ledger sheets,
+  and `parseAllCsv` starts a new block at every row whose first cell is
+  "Kind" and hands each block to the parser whose header it has. The price
+  is that in a spreadsheet the columns change meaning at each header row.
+  It relies on the tab sheets' kinds never overlapping and on each parser
+  skipping rows that aren't its own — the Ledger's didn't until this change.
+
 - **Import & export is per tab, with one importer underneath (0.191.0).**
   `TAB_KINDS` in io.js says which kinds a tab owns; a tab's export writes all
   of them and a tab's import passes them to `buildImportItems(incoming,

@@ -31,7 +31,7 @@
     backlog: ["backlog"],
     finance: ["finance", "recurring"],
   };
-  const TAB_LABEL = { notes: "Notes", timeline: "Timeline", backlog: "Backlog", finance: "Ledger" };
+  const TAB_LABEL = { notes: "Notes", timeline: "Timeline", backlog: "Backlog", finance: "Ledger", all: "everything" };
   const TAB_FILE = { notes: "notes", timeline: "timeline", backlog: "backlog", finance: "ledger" };
   function tabPayload(tab) {
     const d = state.data;
@@ -153,6 +153,38 @@
     if (tab === "notes") return download("lifelog-notes.csv", notesCsvText(d.notes, d.todos, d.habits), "text/csv");
     if (tab === "timeline") return download("lifelog-timeline.csv", journalCsvText(d.entries, [], d.accomplishments), "text/csv");
     if (tab === "backlog") return download("lifelog-backlog.csv", journalCsvText([], d.backlog), "text/csv");
+    if (tab === "all") return download("lifelog.csv", allCsvText(d), "text/csv");
+  }
+
+  // Everything in one CSV: a CSV has one sheet, so it's the three sheets one
+  // under another — Notes, then Timeline and Backlog, then Ledger — each
+  // under its own header row, a blank line between. The import splits it
+  // back at those headers, so each block goes to the parser that wrote it.
+  function allCsvText(d) {
+    return [
+      notesCsvText(d.notes, d.todos, d.habits),
+      journalCsvText(d.entries, d.backlog, d.accomplishments),
+      window.LifeLogFinance.financeCsvText(d.financeEntries, d.recurringExpenses),
+    ].join("\n\n");
+  }
+  function parseAllCsv(text) {
+    const blocks = [];
+    for (const row of parseCsv(text)) {
+      if (String(row[0]).trim().toLowerCase() === "kind") blocks.push([]);
+      if (blocks.length) blocks[blocks.length - 1].push(row);
+    }
+    const out = {};
+    for (const rows of blocks) {
+      const h = rows[0].map((c) => String(c).trim().toLowerCase());
+      const text = rows.map((r) => r.map(csvEsc).join(",")).join("\n");
+      const parse = h[1] === "year" ? parseJournalCsv
+        : h[2] === "amount" ? (t) => window.LifeLogFinance.parseFlatFinanceCsv(t)
+        : h[2] === "category" ? parseNotesCsv : null;
+      if (!parse || rows.length < 2) continue;
+      Object.assign(out, parse(text));
+    }
+    if (!Object.keys(out).length) throw new Error("No rows found — is this a LifeLog CSV export?");
+    return out;
   }
   let MONTH_NAME_TO_NUM;
   function parseJournalCsv(text) {
@@ -593,7 +625,7 @@
   }
   function importTabCsv(file, tab) {
     readFile(file, (text) => {
-      const incoming = tab === "notes" ? parseNotesCsv(text) : parseJournalCsv(text);
+      const incoming = tab === "all" ? parseAllCsv(text) : tab === "notes" ? parseNotesCsv(text) : parseJournalCsv(text);
       const built = buildImportItems(incoming, TAB_KINDS[tab]);
       if (!built.items.length) throw new Error("no " + TAB_LABEL[tab] + " rows in this file");
       reviewAndImport("Import " + TAB_LABEL[tab] + " CSV", IMPORT_HINT, built);
@@ -816,7 +848,7 @@
     buildImportItems,
     importItemIncomplete, reviewAndImport, openImportPicker,
     // pure helpers (exported for test/io.test.js)
-    importItemDateStr, importBucketKey, journalCsvText, parseJournalCsv, notesCsvText, parseNotesCsv,
+    importItemDateStr, importBucketKey, journalCsvText, parseJournalCsv, notesCsvText, parseNotesCsv, allCsvText, parseAllCsv,
     fillableFields, findImportTarget, applyImportSelection,
   };
 })();

@@ -104,6 +104,21 @@ const TABS = {
   const all = { ...NONE }; for (const w of Object.values(TABS)) Object.assign(all, w);
   check("the full backup brings back every kind", JSON.stringify(got) === JSON.stringify(all), { got, all });
 
+  // And all of it as one CSV, through Everything's CSV pair.
+  await load(FULL);
+  const fullCsv = await exportVia('[data-io="export-csv"][data-tab="all"]');
+  await load(EMPTY);
+  const gotCsv = await importVia('[data-io="import-csv"][data-tab="all"]', fullCsv.file);
+  check("everything as one CSV brings back every kind", JSON.stringify(gotCsv) === JSON.stringify(all), { gotCsv, all });
+
+  // Each tab's CSV import takes its own block out of it.
+  for (const [tab, want] of Object.entries(TABS)) {
+    await load(EMPTY);
+    const sel = tab === "finance" ? "#importFinanceCsvBtn" : `[data-io="import-csv"][data-tab="${tab}"]`;
+    const got = await importVia(sel, fullCsv.file);
+    check(`${tab}'s CSV import takes its own block of the everything CSV`, JSON.stringify(got) === JSON.stringify({ ...NONE, ...want }), got);
+  }
+
   // And a full backup read by one tab's import takes that tab's share only.
   await load(EMPTY);
   const part = await importVia('[data-io="import-json"][data-tab="notes"]', full.file);

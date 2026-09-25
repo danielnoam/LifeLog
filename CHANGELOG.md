@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.192.0] - 2026-09-25
+
+### Added
+- **Everything as one CSV.** Settings → Import & export → Everything now
+  has CSV beside JSON, both ways. A CSV holds one sheet, so the file is the
+  three sheets one under another — Notes, then Timeline and Backlog, then
+  Ledger — each under its own header row. Importing it brings back every
+  kind, and any tab's CSV import takes just its own block out of it.
+
+### Fixed
+- **A Notes CSV given to the Ledger's import** was read as expenses, because
+  both sheets start with Kind and Date. The Ledger now reads only its own
+  rows.
+
 ## [0.191.0] - 2026-09-25
 
 ### Added

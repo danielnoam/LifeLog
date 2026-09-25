@@ -74,7 +74,7 @@ IO.init({
 });
 
 const { parseCsv, csvEsc, buildImportItems, importItemDateStr, importBucketKey, journalCsvText, parseJournalCsv,
-  fillableFields, findImportTarget, importItemIncomplete, notesCsvText, parseNotesCsv, applyImportSelection, TAB_KINDS } = IO;
+  fillableFields, findImportTarget, importItemIncomplete, notesCsvText, parseNotesCsv, allCsvText, parseAllCsv, applyImportSelection, TAB_KINDS } = IO;
 const { financeCsvText, parseFlatFinanceCsv } = global.window.LifeLogFinance;
 
 let passed = 0;
@@ -568,6 +568,18 @@ atest("Ledger CSV round trip keeps expenses and recurring expenses", async () =>
   await importAll(back, TAB_KINDS.finance);
   assert.deepStrictEqual([state.data.financeEntries.length, state.data.recurringExpenses.length], [1, 1]);
   assert.ok(state.data.projects.some((p) => p.name === "Trip"), "a project named on an expense comes with it");
+});
+
+atest("everything in one CSV comes back as every kind, each block to its own parser", async () => {
+  const back = parseAllCsv(allCsvText(FULL));
+  state.data = blank();
+  await importAll(back);
+  const d = state.data;
+  assert.deepStrictEqual([d.notes.length, d.todos.length, d.habits.length, d.entries.length, d.backlog.length,
+    d.accomplishments[2026].length, d.financeEntries.length, d.recurringExpenses.length], [1, 2, 1, 1, 1, 1, 1, 1]);
+  // A habit's date column is a plain date, which the Ledger parser would
+  // read as an expense if it looked past its own block.
+  assert.deepStrictEqual(d.financeEntries.map((f) => f.note), ["Lunch, big"]);
 });
 
 atest("a Ledger CSV from before the Kind column still reads, and a Sheets pivot is left alone", async () => {

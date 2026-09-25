@@ -2840,7 +2840,7 @@
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const flat = parseFlatFinanceCsv(reader.result);
+        const flat = parseFlatFinanceCsv(reader.result) || ledgerOfAll(reader.result);
         const built = flat ? buildImportItems(flat) : (() => {
           const { monthly, undated } = parseFinanceCsv(reader.result);
           return buildImportItems({ financeEntries: [...monthly, ...undated] });
@@ -2870,11 +2870,12 @@
   function parseFlatFinanceCsv(text) {
     const rows = parseCsv(text);
     const head = (rows[0] || []).map((c) => String(c).trim().toLowerCase());
-    const kinded = head[0] === "kind" && head[1] === "date";
+    const kinded = head[0] === "kind" && head[1] === "date" && head[2] === "amount";
     if (!kinded && !(head[0] === "date" && head[1] === "amount")) return null;
     const financeEntries = [], recurringExpenses = [];
     for (const row of rows.slice(1)) {
       const [kind, date, amount, category, note, project, currency, paid, rate, repeats, ends] = kinded ? row : ["Expense", ...row];
+      if (!/^(expense|recurring)$/i.test(String(kind || "").trim())) continue;
       if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || "").trim())) continue;
       const rec = { amount: parseMoneyCell(amount), category: (category || "").trim() || "Other" };
       if ((note || "").trim()) rec.note = note.trim();
@@ -2886,6 +2887,14 @@
     }
     if (!financeEntries.length && !recurringExpenses.length) throw new Error("No rows found — is this a Ledger CSV export?");
     return { financeEntries, recurringExpenses };
+  }
+  // The Ledger block of an everything-in-one CSV (see allCsvText in io.js).
+  function ledgerOfAll(text) {
+    try {
+      const all = window.LifeLogIO.parseAllCsv(text);
+      return all.financeEntries || all.recurringExpenses
+        ? { financeEntries: all.financeEntries || [], recurringExpenses: all.recurringExpenses || [] } : null;
+    } catch (e) { return null; }
   }
   function exportFinanceCsv() {
     if (!state.data.financeEntries.length && !state.data.recurringExpenses.length) { toast("Nothing in the Ledger to export"); return; }
