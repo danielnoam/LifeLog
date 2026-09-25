@@ -350,8 +350,30 @@
     return out;
   }
 
+  // Boards (boards.json, 0.193.0) merge in two steps. Which boards survive is
+  // decided on the whole board, so a board one device deleted while the other
+  // drew on it comes back rather than vanishing with the new strokes. Then a
+  // board both sides still have merges element by element: two devices
+  // drawing on the same board keep both sets of strokes, and one erasing a
+  // stroke the other never touched stays erased. The name and the rest of the
+  // board's own fields come from whichever side changed them (the newer on a
+  // clash), as for any other item.
+  function mergeBoards(base, local, remote) {
+    base = base || []; local = local || []; remote = remote || [];
+    const baseMap = byId(base), localMap = byId(local), remoteMap = byId(remote);
+    const meta = (b) => { if (!b) return b; const m = { ...b }; delete m.elements; return m; };
+    const kept = mergeCollection(base, local, remote).merged;
+    return kept.map((board) => {
+      const b = baseMap.get(board.id), l = localMap.get(board.id), r = remoteMap.get(board.id);
+      if (!l || !r) return board;
+      const fields = mergeCollection(b ? [meta(b)] : [], [meta(l)], [meta(r)]).merged[0] || meta(board);
+      const elements = mergeCollection(b ? b.elements : [], l.elements, r.elements).merged;
+      return { ...fields, elements };
+    });
+  }
+
   const api = {
-    COLLECTION_KEYS, byId, sameContent, flattenAccomplishments, unflattenAccomplishments,
+    COLLECTION_KEYS, byId, mergeBoards, sameContent, flattenAccomplishments, unflattenAccomplishments,
     compareVersions, maxVersion,
     stampChangedItems, diffCollection, diffSnapshots, summarizeConflicts,
     mergeCollection, mergeAccomplishmentYears, mergeSettings, mergeAllSources, fillBlankSettings,

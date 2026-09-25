@@ -4,6 +4,30 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.193.0] - 2026-09-25
+
+### Added
+- **Drawing boards.** A fourth mode in the Notes tab, Boards: pages to draw
+  on, in a hand-drawn style like Excalidraw. Tap a board to open it full
+  screen, or + → New board.
+  - **Tools:** pen, eraser, rectangle, ellipse, arrow, line and text, in six
+    colours and three widths. Select taps an element or drags a box around
+    several; drag to move them, Delete to remove, and colour or width
+    changes what's selected.
+  - **Moving around:** two fingers pinch to zoom and drag to pan; on a
+    computer, the wheel pans, Ctrl+wheel zooms, and Space or the hand tool
+    drags. ⤢ fits the drawing to the screen.
+  - **Keyboard:** V P E R O A L T H pick tools, Ctrl+Z / Ctrl+Shift+Z undo
+    and redo, Ctrl+A selects everything, Escape steps out of text, then the
+    selection, then the board.
+  - **Export** a board as PNG or SVG from its ⋯ menu. Boards are in the Notes
+    tab's JSON and the full backup, and come back through their imports.
+  - **Sync:** boards are kept in their own file, boards.json beside your
+    data, so drawing never slows an ordinary save. Two devices drawing on
+    the same board keep both sets of strokes.
+  The ink colour follows the theme, so a board drawn in the dark reads in
+  the light.
+
 ## [0.192.0] - 2026-09-25
 
 ### Added

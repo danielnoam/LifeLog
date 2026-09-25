@@ -60,7 +60,8 @@ async function drag(page, dx, { hold = false, steps = 10 } = {}) {
     localStorage.setItem("lifelog-cache-v1", JSON.stringify(seed));
     // The pager, not the order: pinned so "next" is the to-do list whatever
     // order Notes' modes ship in (0.188.0 moved Notes to the middle).
-    localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify({ modeOrder: { notes: ["notes", "todo", "habits"] } }));
+    // And Boards (0.193.0) off, so this stays the three-page pager it tests.
+    localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify({ modeOrder: { notes: ["notes", "todo", "habits"] }, disabledModes: { notes: ["boards"] } }));
   }, SEED);
   await page.reload({ waitUntil: "load" });
   await page.waitForTimeout(800);

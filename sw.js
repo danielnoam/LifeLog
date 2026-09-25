@@ -12,12 +12,12 @@
 // touched — intercepting those and falling back to index.html on failure
 // previously turned a real network/CORS error into a fake 200 OK full of HTML,
 // masking the actual failure from the app's own error handling.
-const CACHE = "lifelog-v124";
+const CACHE = "lifelog-v125";
 // Note: lifelog.json is intentionally NOT precached — it isn't deployed (your
 // data is private). The app fetches it at runtime with a graceful fallback.
 const ASSETS = [
   "./", "./index.html",
-  "./src/styles.css", "./src/platform.js", "./src/app.js", "./src/reconcile.js", "./src/finance.js", "./src/settings.js", "./src/backlog.js", "./src/wheel.js", "./src/journal.js", "./src/notes.js", "./src/todos.js", "./src/io.js", "./src/sync.js", "./src/habits.js", "./src/recap.js", "./src/merge.js", "./src/storage.js", "./src/media.js", "./src/qr.js", "./src/widgets.js", "./src/reminders.js",
+  "./src/styles.css", "./src/platform.js", "./src/app.js", "./src/reconcile.js", "./src/finance.js", "./src/settings.js", "./src/backlog.js", "./src/wheel.js", "./src/journal.js", "./src/notes.js", "./src/todos.js", "./src/io.js", "./src/sync.js", "./src/habits.js", "./src/recap.js", "./src/merge.js", "./src/storage.js", "./src/media.js", "./src/qr.js", "./src/widgets.js", "./src/reminders.js", "./src/boards.js", "./src/vendor/rough.js",
   "./manifest.json", "./icon.svg",
 ];
 

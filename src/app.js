@@ -11,6 +11,7 @@
   const Sync = window.LifeLogSync;
   const Wheel = window.LifeLogWheel;
   const Habits = window.LifeLogHabits;
+  const Boards = window.LifeLogBoards;
   const Recap = window.LifeLogRecap;
   const Widgets = window.LifeLogWidgets || { changed() {}, start() {} };
   // Absent only under the unit tests, which load this file without a page.
@@ -128,7 +129,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.192.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.193.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -582,7 +583,7 @@
       // log: what you wrote, what you mean to do once, and what you mean to
       // keep doing. Habits was briefly its own tab (0.171.0) and reads
       // better here — see NOTES.md.
-      modes: [["notes", "Notes", "▤"], ["todo", "To-do", "☑"], ["habits", "Habits", "✓"]],
+      modes: [["notes", "Notes", "▤"], ["todo", "To-do", "☑"], ["habits", "Habits", "✓"], ["boards", "Boards", "✎"]],
       // The only view whose two modes don't show the same chips: the years
       // come from the notes themselves, and a to-do has neither a year worth
       // filtering nor a category. So here the filterbar is part of the
@@ -624,7 +625,10 @@
   // tab has always opened on in the middle, so nothing opens differently
   // until you change it. With two modes the default is simply the one you
   // choose, the first until you do.
-  const DEFAULT_MODE_ORDER = { notes: ["todo", "notes", "habits"], backlog: ["upcoming", "entries", "discover"] };
+  const DEFAULT_MODE_ORDER = { notes: ["todo", "notes", "habits", "boards"], backlog: ["upcoming", "entries", "discover"] };
+  // With more than three there's no middle, so a tab opens on your choice or,
+  // until you make one, on the mode it has always opened on.
+  const DEFAULT_LANDING = { notes: "notes" };
   const mergeOrder = (saved, all) => {
     const known = [...new Set((saved || []).filter((x) => all.includes(x)))];
     return known.concat(all.filter((x) => !known.includes(x)));
@@ -638,7 +642,8 @@
     const ids = modeIds(spec);
     if (ids.length === 3) return ids[1];
     const chosen = (state.visual.defaultModes || {})[spec.key];
-    return ids.includes(chosen) ? chosen : ids[0];
+    if (ids.includes(chosen)) return chosen;
+    return ids.length > 3 && ids.includes(DEFAULT_LANDING[spec.key]) ? DEFAULT_LANDING[spec.key] : ids[0];
   }
   // Shift and a tab's number goes to its other mode: the one after where it
   // opens, so with two modes it is simply the other one.
@@ -726,7 +731,7 @@
     // are, so the count goes here. The other views' own headers already do —
     // and so does Habits, whose "2 of 3 done today" is a better line than any
     // count this bar could put above it.
-    if (state.notesMode !== "habits") {
+    if (state.notesMode === "notes" || state.notesMode === "todo") {
       const count = state.notesMode === "notes"
         ? state.data.notes.length
         : state.data.todos.filter((t) => !t.done).length;
@@ -1474,6 +1479,7 @@
       renderModeBar(slot);
       if (state.view === "notes") {
         if (state.notesMode === "habits") Habits.renderHabits(c);
+        else if (state.notesMode === "boards") Boards.renderBoards(c);
         else if (state.notesMode === "todo") Todos.renderTodos(c);
         else Notes.renderNotes(c);
         return;
@@ -2620,7 +2626,8 @@
     const finance = isFinanceView();
     // Habits has no year chips: each card's own grid is the time axis, and a
     // chip row narrowing it to 2024 would narrow nothing you can see.
-    const ys = Habits.isHabitsMode() ? [] : (finance ? Finance.financeYears() : years());
+    // Nor has Boards: a board isn't filed under a year.
+    const ys = Habits.isHabitsMode() || Boards.isBoardsMode() ? [] : (finance ? Finance.financeYears() : years());
     // Nothing to filter by — an empty view, or a mode with no dates worth
     // chipping (To-do) — so the row goes rather than sitting there as a
     // label with nothing under it.
@@ -3077,7 +3084,7 @@
   // goes with the group.
   function syncAddMenu() {
     document.querySelectorAll("#addMenu [data-view]").forEach((node) => {
-      node.hidden = !viewEnabled(node.dataset.view);
+      node.hidden = !viewEnabled(node.dataset.view) || (!!node.dataset.mode && !modeEnabled(node.dataset.view, node.dataset.mode));
     });
   }
 
@@ -3717,6 +3724,11 @@
       else if (b.dataset.add === "achievement") Journal.openAchModal(null);
       else if (b.dataset.add === "backlog") Backlog.openBacklogModal(null);
       else if (b.dataset.add === "habit") Habits.openHabitModal(null);
+      else if (b.dataset.add === "board") {
+        VIEW_MODES.notes.set("boards");
+        if (state.view !== "notes") switchToView("notes"); else commitModeChange();
+        Boards.newBoard();
+      }
       else if (b.dataset.add === "finance") Finance.openFinanceModal(null);
       else if (b.dataset.add === "recurring") Finance.openRecurringModal(null);
     });
@@ -3761,6 +3773,7 @@
         if (e.target !== ov) return;
         if (ov.id === "catModal") Journal.cancelCategoryModal();
         else if (ov.id === "financeCatModal") Finance.cancelFinanceCatModal();
+        else if (ov.id === "boardEditor") return; // it is the whole screen; nothing outside it to tap
         else ov.hidden = true;
       });
     });
@@ -3777,6 +3790,7 @@
     syncModalOpenState();
 
     Habits.wire();
+    Boards.wire();
     Recap.wire();
 
     $("#closeShortcutsBtn").onclick = closeShortcutsModal;
@@ -3786,6 +3800,9 @@
       // First: while the recap is up it is the only thing on screen, and the
       // arrows move through it rather than doing whatever they'd otherwise do.
       if (Recap.handleKey(e)) return;
+      // The board editor, while open, has every key: its own tools and undo,
+      // and Escape steps out of a text box, then a selection, then the board.
+      if (Boards.handleKey(e)) return;
       if (e.key === "Escape") {
         if (SettingsUI.settingsBack()) return;
         Journal.closeEntryModal(); Journal.closeAchModal(); Journal.cancelCategoryModal(); Backlog.closeBacklogModal();
@@ -4491,6 +4508,7 @@
     sanitizeProject: Finance.sanitizeProject,
     sanitizeEntry: Journal.sanitizeEntry, sanitizeBacklog: Backlog.sanitizeBacklog,
     sanitizeNote: Notes.sanitizeNote, sanitizeTodo: Todos.sanitizeTodo, sanitizeHabit: Habits.sanitizeHabit,
+    sanitizeBoard: Boards.sanitizeBoard, addBoards: Boards.addBoards, boardsForExport: Boards.boardsForExport, boardsNow: Boards.boardsNow,
     isOverridden,
   });
   Sync.init({
@@ -4554,6 +4572,7 @@
     backfillUpdatedAt, keepUnknown, CATEGORY_PALETTE, buildCatFilter,
   });
   Recap.init({ state, $, el, toast, MONTHS, prefersReducedMotion });
+  Boards.init({ state, $, el, uid, toast, emptyState, render, Storage, download: IO.download });
 
   Notes.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy,

@@ -12,21 +12,21 @@
     CATEGORY_PALETTE, MONTHS, MONTHS_SHORT, colorOf,
     financeColorOf, formatMoney, financeKey, recurringKey,
     sanitizeFinanceEntry, sanitizeRecurring, sanitizeProject, sanitizeEntry, sanitizeBacklog,
-    sanitizeNote, sanitizeTodo, sanitizeHabit, isOverridden;
+    sanitizeNote, sanitizeTodo, sanitizeHabit, sanitizeBoard, addBoards, boardsForExport, boardsNow, isOverridden;
 
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, afterDataChange, ensureCategories, ensureProjects,
       CATEGORY_PALETTE, MONTHS, MONTHS_SHORT, colorOf,
       financeColorOf, formatMoney, financeKey, recurringKey,
       sanitizeFinanceEntry, sanitizeRecurring, sanitizeProject, sanitizeEntry, sanitizeBacklog,
-      sanitizeNote, sanitizeTodo, sanitizeHabit, isOverridden } = ctx);
+      sanitizeNote, sanitizeTodo, sanitizeHabit, sanitizeBoard, addBoards, boardsForExport, boardsNow, isOverridden } = ctx);
   }
 
   // What each tab holds, keyed by its view name. A tab's export carries all
   // of it, and a tab's import takes only its own kinds out of whatever file
   // it is given — so a full backup can be imported one tab at a time.
   const TAB_KINDS = {
-    notes: ["note", "todo", "habit"],
+    notes: ["note", "todo", "habit", "board"],
     timeline: ["entry", "achievement"],
     backlog: ["backlog"],
     finance: ["finance", "recurring"],
@@ -44,31 +44,38 @@
   // Every export goes through here. In the Android app a download link does
   // nothing, so the file goes to Android's share sheet instead (see
   // LifeLogPlatform.saveAndShare); everywhere else it's the ordinary link.
-  function download(filename, text, type) {
+  // `base64: true` when `text` is a binary file's bytes in base64 (a board's
+  // PNG) rather than text.
+  function download(filename, text, type, opts = {}) {
     const P = window.LifeLogPlatform;
     if (P && P.native) {
-      P.saveAndShare(filename, text).then((done) => { if (!done) downloadLink(filename, text, type); })
+      P.saveAndShare(filename, text, opts).then((done) => { if (!done) downloadLink(filename, text, type, opts); })
         .catch((e) => toast("Couldn't export: " + (e && e.message || e), true));
       return;
     }
-    downloadLink(filename, text, type);
+    downloadLink(filename, text, type, opts);
   }
-  function downloadLink(filename, text, type) {
-    const blob = new Blob([text], { type });
+  function downloadLink(filename, text, type, opts = {}) {
+    const body = opts.base64 ? Uint8Array.from(atob(text), (ch) => ch.charCodeAt(0)) : text;
+    const blob = new Blob([body], { type });
     const url = URL.createObjectURL(blob);
     const a = el("a"); a.href = url; a.download = filename;
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
   }
-  function exportJson() {
-    download("lifelog.json", JSON.stringify(state.data, null, 2), "application/json");
+  // Boards live in their own file (boards.js), so both exports that carry
+  // them fetch them first.
+  async function exportJson() {
+    const boards = boardsForExport ? await boardsForExport() : undefined;
+    download("lifelog.json", JSON.stringify({ ...state.data, boards }, null, 2), "application/json");
   }
   function csvEsc(s) {
     s = String(s == null ? "" : s);
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
-  function exportTabJson(tab) {
+  async function exportTabJson(tab) {
     const payload = { lifelog: tab, exportedAt: new Date().toISOString(), ...tabPayload(tab) };
+    if (tab === "notes" && boardsForExport) payload.boards = await boardsForExport();
     download("lifelog-" + TAB_FILE[tab] + ".json", JSON.stringify(payload, null, 2), "application/json");
   }
   // journal CSV covers both Timeline entries (dated, Year+Month) and Backlog
@@ -467,6 +474,10 @@
     if (want("note")) simple("note", incoming.notes || [], sanitizeNote, (n) => n.text, (n) => low(n.text), state.data.notes || []);
     if (want("todo")) simple("todo", incoming.todos || [], sanitizeTodo, (t) => t.text, (t) => low(t.category) + "|" + low(t.text), state.data.todos || []);
     if (want("habit")) simple("habit", incoming.habits || [], sanitizeHabit, (h) => h.name, (h) => low(h.name), state.data.habits || []);
+    // Names like "Board 3" repeat across devices, so a board matches on its
+    // name and how much is on it, or on id.
+    if (want("board") && sanitizeBoard) simple("board", incoming.boards || [], sanitizeBoard, (b) => b.name,
+      (b) => low(b.name) + "|" + b.elements.length, boardsNow ? boardsNow() : []);
     if (want("achievement")) {
       const have = state.data.accomplishments || {};
       for (const [y, list] of Object.entries(incoming.accomplishments || {})) {
@@ -538,7 +549,7 @@
       // actually changed. Touching it by hand would be the manual "touch"
       // call that function exists to make unnecessary.
     }
-    const byKind = { entry: [], backlog: [], finance: [], recurring: [], note: [], todo: [], habit: [], achievement: [] };
+    const byKind = { entry: [], backlog: [], finance: [], recurring: [], note: [], todo: [], habit: [], achievement: [], board: [] };
     selected.filter((i) => !i.update).forEach((i) => byKind[i.kind].push(i));
     // A new item whose id is already taken — the same item, changed since the
     // file was made, re-imported as a copy on purpose — gets an id of its own:
@@ -573,6 +584,7 @@
     ensureCategories(d.financeCategories, [...recs("finance"), ...recs("recurring")]);
     ensureCategories(d.todoCategories = d.todoCategories || [], recs("todo").filter((t) => t.category));
     if (ensureProjects) ensureProjects(d.projects = d.projects || [], [...recs("finance"), ...recs("recurring")]);
+    if (byKind.board.length && addBoards) await addBoards(recs("board"));
 
     afterDataChange();
     await persist();
@@ -584,6 +596,7 @@
     count("note", "note", "notes");
     count("todo", "to-do", "to-dos");
     count("habit", "habit", "habits");
+    count("board", "board", "boards");
     count("finance", "finance entry", "finance entries");
     count("recurring", "recurring expense", "recurring expenses");
     if (updates.length) {
@@ -608,15 +621,17 @@
   function readFile(file, then) {
     const reader = new FileReader();
     reader.onload = () => {
-      try { then(reader.result); } catch (e) { toast("Import failed: " + (e.message || e), true); }
+      Promise.resolve().then(() => then(reader.result)).catch((e) => toast("Import failed: " + (e.message || e), true));
     };
     reader.readAsText(file);
   }
   // A whole backup (tab omitted) or one tab's share of any LifeLog JSON —
   // a tab's own export, a full backup, or the older Journal/Finance files.
   function importJson(file, tab) {
-    readFile(file, (text) => {
+    readFile(file, async (text) => {
       const incoming = JSON.parse(text);
+      // What boards you already have, so a re-import of one is a duplicate.
+      if (Array.isArray(incoming.boards) && boardsForExport) await boardsForExport();
       if (!incoming || typeof incoming !== "object") throw new Error("not a LifeLog file");
       const built = buildImportItems(incoming, tab ? TAB_KINDS[tab] : null);
       if (!built.items.length) throw new Error(tab ? "no " + TAB_LABEL[tab] + " data in this file" : "not a LifeLog file");
@@ -671,6 +686,7 @@
     if (item.kind === "entry") return `${e.year}-${String(e.month).padStart(2, "0")}`;
     if (item.kind === "recurring") return e.startDate || "";
     if (item.kind === "note") return (e.createdAt || "").slice(0, 10);
+    if (item.kind === "board") return (e.updatedAt || "").slice(0, 10);
     return ""; // backlog, to-dos, habits and achievements have no month to group by
   }
   function importBucketKey(item) {
@@ -709,15 +725,16 @@
       row.appendChild(el("span", "fdate", `${MONTHS_SHORT[e.month]} ${e.year}`));
       const t = el("span", "etitle", e.title); t.title = e.title; row.appendChild(t);
       row.appendChild(el("span", "ecat", e.category));
-    } else if (item.kind === "note" || item.kind === "todo" || item.kind === "habit" || item.kind === "achievement") {
+    } else if (item.kind === "note" || item.kind === "todo" || item.kind === "habit" || item.kind === "achievement" || item.kind === "board") {
       const date = item.kind === "note" ? (e.createdAt || "").slice(0, 10)
+        : item.kind === "board" ? (e.updatedAt || "").slice(0, 10)
         : item.kind === "achievement" ? String(item.year)
         : item.kind === "habit" ? (e.startedAt || "") : "—";
       row.appendChild(el("span", "fdate", date || "—"));
-      const text = item.kind === "habit" ? e.name : (e.text || "").split("\n")[0];
+      const text = item.kind === "habit" || item.kind === "board" ? e.name : (e.text || "").split("\n")[0];
       const t = el("span", "etitle", (item.kind === "todo" && e.done ? "✓ " : "") + text); t.title = e.text || e.name; row.appendChild(t);
       if (e.category) row.appendChild(el("span", "ecat", e.category));
-      row.appendChild(el("span", "dup-tag", { note: "note", todo: "to-do", habit: "habit", achievement: "achievement" }[item.kind]));
+      row.appendChild(el("span", "dup-tag", { note: "note", todo: "to-do", habit: "habit", achievement: "achievement", board: "board" }[item.kind]));
     } else { // backlog
       row.appendChild(el("span", "fdate", "—"));
       const t = el("span", "etitle", e.title); t.title = e.title; row.appendChild(t);

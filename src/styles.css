@@ -2807,3 +2807,122 @@ html.force-mobile .modal.view-options {
   100% { box-shadow: 0 0 0 3px transparent; }
 }
 @media (prefers-reduced-motion: reduce) { .habit-card.habit-flash { animation: none; outline: 2px solid var(--accent); } }
+
+/* ---------- boards (src/boards.js) ---------- */
+.board-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px;
+}
+.board-card {
+  display: flex; flex-direction: column; padding: 0; overflow: hidden; text-align: left;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font: inherit; cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease), transform var(--dur-fast) var(--ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.board-card:hover { border-color: var(--border-strong); }
+.board-card:active { transform: scale(.98); }
+.board-thumb {
+  aspect-ratio: 4 / 3; background: var(--bg); border-bottom: 1px solid var(--border);
+  display: flex; padding: 10px; color: var(--text);
+}
+.board-thumb-svg { width: 100%; height: 100%; overflow: visible; }
+.board-meta { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 10px 12px; }
+.board-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.board-when { font-size: 12px; color: var(--text-faint); flex: 0 0 auto; }
+.board-new {
+  align-items: center; justify-content: center; gap: 6px; min-height: 150px;
+  border-style: dashed; color: var(--text-dim); background: transparent;
+}
+.board-new-plus { font-size: 32px; line-height: 1; color: var(--accent); }
+.board-new:hover { color: var(--text); border-color: var(--accent); }
+.boards-loading { padding: 20px 4px; }
+
+/* The editor is the whole screen: no scrim, no padding, its own layers. */
+.modal-overlay.board-editor {
+  display: block; padding: 0; background: var(--bg); z-index: 60;
+  --board-safe-top: var(--sat, env(safe-area-inset-top, 0px));
+  --board-safe-bottom: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
+}
+.modal-overlay.board-editor[hidden] { display: none; }
+.board-svg {
+  position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  touch-action: none; user-select: none; -webkit-user-select: none; color: var(--text);
+  background-image: radial-gradient(circle, var(--border) 1px, transparent 1.2px);
+  cursor: crosshair;
+}
+.board-svg[data-tool="select"] { cursor: default; }
+.board-svg[data-tool="hand"], .board-svg.panning { cursor: grab; }
+.board-svg[data-tool="text"] { cursor: text; }
+.board-text { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; white-space: pre; }
+.board-sel {
+  fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 5 4;
+  vector-effect: non-scaling-stroke;
+}
+.board-box {
+  fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+.board-text-input {
+  position: absolute; z-index: 3; margin: 0; padding: 0; border: 0; outline: 1px dashed var(--accent);
+  background: transparent; color: var(--text); resize: none; overflow: hidden; white-space: pre;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; min-width: 40px;
+}
+.board-top {
+  position: absolute; z-index: 3; /* over the zoom buttons, which its menu drops across */ top: calc(var(--board-safe-top) + 10px); left: 10px; right: 10px;
+  display: flex; align-items: center; gap: 8px; pointer-events: none;
+}
+.board-top > * { pointer-events: auto; }
+.board-back {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 6px 14px 6px 8px;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px;
+  color: var(--accent); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+  box-shadow: var(--shadow); -webkit-tap-highlight-color: transparent;
+}
+.board-name-input {
+  flex: 0 1 260px; min-width: 0; height: 44px; padding: 0 12px; box-sizing: border-box;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px;
+  color: var(--text); font: inherit; font-weight: 600; box-shadow: var(--shadow);
+}
+.board-name-input:focus { outline: none; border-color: var(--accent); }
+.board-top-btns { margin-left: auto; display: flex; gap: 6px; position: relative; }
+.board-top-btns .btn-icon, .board-zoom .btn-icon {
+  min-width: 44px; min-height: 44px; font-size: 18px; background: var(--bg-elev); box-shadow: var(--shadow);
+}
+.board-top-btns .btn-icon:disabled { opacity: .4; }
+.board-menu { position: absolute; right: 0; top: calc(100% + 8px); }
+.board-menu .danger { color: var(--danger); }
+.board-zoom {
+  position: absolute; z-index: 2; right: 10px; display: flex; gap: 6px;
+  top: calc(var(--board-safe-top) + 64px);
+}
+.board-bar {
+  position: absolute; z-index: 2; left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--board-safe-bottom) + 12px); max-width: calc(100% - 20px);
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.board-tools, .board-style {
+  display: flex; align-items: center; gap: 2px; padding: 4px; max-width: 100%; overflow-x: auto;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow);
+  scrollbar-width: none;
+}
+.board-tool, .board-width, .board-swatch, .board-delete {
+  flex: 0 0 auto; width: 40px; height: 40px; border: 0; border-radius: 10px; padding: 0;
+  display: grid; place-items: center; background: transparent; color: var(--text-dim);
+  font: inherit; font-size: 18px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.board-tool:hover, .board-width:hover, .board-delete:hover { background: var(--bg-elev-2); color: var(--text); }
+.board-tool.on { background: var(--accent-soft); color: var(--accent); }
+.board-swatch::before {
+  content: ""; width: 20px; height: 20px; border-radius: 50%; background: var(--swatch);
+  box-shadow: 0 0 0 1px var(--border-strong);
+}
+.board-swatch.on::before { box-shadow: 0 0 0 2px var(--bg-elev), 0 0 0 4px var(--accent); }
+.board-width-dot { width: 18px; border-radius: 99px; background: currentColor; }
+.board-width.on { background: var(--accent-soft); color: var(--accent); }
+.board-delete { color: var(--danger); font-size: 16px; }
+.board-delete[hidden] { display: none; }
+@media (max-width: 480px) {
+  .board-tool, .board-width, .board-swatch, .board-delete { width: 36px; height: 40px; }
+  .board-name-input { flex-basis: 140px; }
+  .board-zoom { top: auto; bottom: calc(var(--board-safe-bottom) + 124px); }
+}

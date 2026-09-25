@@ -251,9 +251,24 @@ const activeView = (page) => page.evaluate(() => {
     await ctx.close();
   }
 
-  // ---- 6a. the order of tabs and modes, and where a tab opens (0.188.0) ----
+  // ---- 6. Notes' four modes (0.193.0): no middle, so it opens on Notes ----
   {
     const { page, ctx, errs: e } = await app(browser, { ui: { view: "timeline", timelineMode: "entries" } });
+    await page.click('#viewTabs .tab[data-view="notes"]');
+    await page.waitForTimeout(300);
+    const r = await page.evaluate(() => ({
+      mode: JSON.parse(localStorage.getItem("lifelog-ui-v1")).notesMode,
+      dots: document.querySelectorAll('#viewTabs .tab[data-view="notes"] .tab-mode-dot').length,
+    }));
+    check("with Boards, Notes has four modes and still opens on Notes", r.mode === "notes" && r.dots === 4, r);
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 6a. the order of tabs and modes, and where a tab opens (0.188.0) ----
+  // Boards off, so Notes is the three-mode tab these steps are about.
+  {
+    const { page, ctx, errs: e } = await app(browser, { ui: { view: "timeline", timelineMode: "entries" }, visual: { disabledModes: { notes: ["boards"] } } });
     const ui = () => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-ui-v1")));
     const visual = () => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-visual-settings-v1") || "{}"));
     const barOrder = () => page.evaluate(() => [...document.querySelectorAll("#viewTabs .tab")].map((t) => t.dataset.view));
@@ -278,7 +293,7 @@ const activeView = (page) => page.evaluate(() => {
     await openTabsPage();
     check("out of the box a three-mode tab lists the mode it has always opened on in the middle",
       JSON.stringify(await tabRows("Backlog")) === JSON.stringify(["Next releases", "Entries*", "Discover"]) &&
-      JSON.stringify(await tabRows("Notes")) === JSON.stringify(["To-do", "Notes*", "Habits"]),
+      JSON.stringify(await tabRows("Notes")) === JSON.stringify(["To-do", "Notes*", "Habits", "Boards"]),
       { backlog: await tabRows("Backlog"), notes: await tabRows("Notes") });
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
@@ -306,7 +321,7 @@ const activeView = (page) => page.evaluate(() => {
       JSON.stringify(await tabRows("Timeline")) === JSON.stringify(["Entries", "Stats*"]), await tabRows("Timeline"));
     await press("Habits", "mode-up");
     check("moving a three-mode tab's modes moves the star with whatever lands in the middle",
-      JSON.stringify(await tabRows("Notes")) === JSON.stringify(["To-do", "Habits*", "Notes"]) &&
+      JSON.stringify(await tabRows("Notes")) === JSON.stringify(["To-do", "Habits*", "Notes", "Boards"]) &&
       (await visual()).defaultModes.notes === "habits", { rows: await tabRows("Notes"), stored: (await visual()).defaultModes });
 
     await page.keyboard.press("Escape");

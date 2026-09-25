@@ -192,8 +192,8 @@
       "X-GitHub-Api-Version": "2022-11-28",
     };
   }
-  function ghContentsUrl() {
-    return `${API}/repos/${gh.owner}/${gh.repo}/contents/${gh.path}`;
+  function ghContentsUrl(path) {
+    return `${API}/repos/${gh.owner}/${gh.repo}/contents/${path || gh.path}`;
   }
 
   // Every GitHub failure carries a kind, because the status line has to say
@@ -267,8 +267,8 @@
   // failed: JSON.parse("") on the empty field. The blob is fetched by the sha
   // from the same answer, so the data and the sha a later save writes against
   // can't come from two different versions of the file.
-  async function ghGetFile(ref) {
-    const r = await fetch(ghContentsUrl() + "?ref=" + encodeURIComponent(ref || gh.branch), {
+  async function ghGetFile(ref, path) {
+    const r = await fetch(ghContentsUrl(path) + "?ref=" + encodeURIComponent(ref || gh.branch), {
       // Asked for explicitly: "object" is the type documented to answer large
       // files with metadata rather than a refusal.
       headers: Object.assign(ghHeaders(), { "Accept": "application/vnd.github.object+json" }),
@@ -329,14 +329,16 @@
   // old version is needed, and a file past 1MB now is one past 1MB then.
   const ghGetFileAtRef = (ref) => ghGetFile(ref);
 
-  async function ghPut(data, sha) {
+  // `path` and `pretty` are for boards.json, which is written compact: it's
+  // mostly numbers, and indenting them would double its size.
+  async function ghPut(data, sha, path, pretty = true) {
     const body = {
-      message: "Update lifelog (" + new Date().toISOString() + ")",
-      content: b64encode(JSON.stringify(data, null, 2)),
+      message: "Update " + (path ? "boards" : "lifelog") + " (" + new Date().toISOString() + ")",
+      content: b64encode(pretty ? JSON.stringify(data, null, 2) : JSON.stringify(data)),
       branch: gh.branch,
     };
     if (sha) body.sha = sha;
-    const r = await fetch(ghContentsUrl(), {
+    const r = await fetch(ghContentsUrl(path), {
       method: "PUT",
       headers: Object.assign({ "Content-Type": "application/json" }, ghHeaders()),
       body: JSON.stringify(body),
@@ -386,8 +388,76 @@
     }
   }
 
+  // ---- boards (0.193.0) ----
+  // Drawing boards live in a file of their own, boards.json beside the data
+  // file, so an ordinary save — ticking a habit — never uploads them, and a
+  // heavy board can't push lifelog.json past GitHub's 1MB mark. The file has
+  // its own sha and its own merge ancestor, kept in IndexedDB rather than
+  // localStorage because a few handwritten boards would crowd its 5MB. Unlike
+  // lifelog.json, a merge here is adopted by the caller straight away (see
+  // boards.js), so the sha and base move to whatever was written.
+  const BOARDS_CACHE = "boardsCache", BOARDS_BASE = "boardsBase";
+  let boardsError = null;
+  const boardsPath = () => gh.path.replace(/[^/]*$/, "") + "boards.json";
+  const emptyBoards = () => ({ boards: [] });
+  const mergeBoardDocs = (base, local, remote) => ({
+    boards: window.LifeLogMerge.mergeBoards(base && base.boards, local && local.boards, remote && remote.boards),
+  });
+  const idbGetSafe = (k) => idbGet(k).catch(() => null);
+
+  const Boards = {
+    get error() { return boardsError; },
+    // This device's copy, merged with GitHub's when it's connected and
+    // reachable. `dirty` means this device holds changes GitHub doesn't have
+    // yet (a save made offline, or the merge just now), for the caller to
+    // save.
+    async load() {
+      const local = await idbGetSafe(BOARDS_CACHE);
+      if (!gh || !gh.token) return { doc: local || emptyBoards(), dirty: false };
+      const base = await idbGetSafe(BOARDS_BASE);
+      let remote;
+      try { remote = await ghGetFile(null, boardsPath()); boardsError = null; }
+      catch (e) { boardsError = e; return { doc: local || emptyBoards(), dirty: false }; }
+      if (!remote) return { doc: local || emptyBoards(), dirty: !!(local && local.boards.length) };
+      const doc = local ? mergeBoardDocs(base, local, remote.data) : { boards: remote.data.boards || [] };
+      gh.boardsSha = remote.sha; saveGhCfg();
+      await idbSet(BOARDS_BASE, remote.data).catch(() => {});
+      await idbSet(BOARDS_CACHE, doc).catch(() => {});
+      return { doc, dirty: JSON.stringify(doc.boards) !== JSON.stringify(remote.data.boards || []) };
+    },
+    // Resolves { doc, where, merged }: `doc` is what now stands — the caller's
+    // own, or a merge with a save another device made first.
+    async save(doc) {
+      doc = { boards: doc.boards, exportedAt: new Date().toISOString() };
+      await idbSet(BOARDS_CACHE, doc).catch(() => {});
+      if (!gh || !gh.token) return { doc, where: "cache", merged: false };
+      const path = boardsPath();
+      let out = doc;
+      for (let tries = 0; ; tries++) {
+        try {
+          gh.boardsSha = await ghPut(out, gh.boardsSha, path, false);
+          saveGhCfg(); boardsError = null;
+          await idbSet(BOARDS_BASE, out).catch(() => {});
+          if (out !== doc) await idbSet(BOARDS_CACHE, out).catch(() => {});
+          return { doc: out, where: "github", merged: out !== doc };
+        } catch (e) {
+          if ((e.status !== 409 && e.status !== 422) || tries >= 3) { boardsError = e; return { doc, where: "cache", merged: false }; }
+          let cur;
+          try { cur = await ghGetFile(null, path); } catch (e2) { boardsError = e2; return { doc, where: "cache", merged: false }; }
+          out = cur ? { ...mergeBoardDocs(await idbGetSafe(BOARDS_BASE), doc, cur.data), exportedAt: doc.exportedAt } : doc;
+          gh.boardsSha = cur ? cur.sha : null;
+        }
+      }
+    },
+    async forget() {
+      await idbDel(BOARDS_CACHE).catch(() => {});
+      await idbDel(BOARDS_BASE).catch(() => {});
+    },
+  };
+
   const Storage = {
     fsSupported,
+    boards: Boards,
     get needsReconnect() { return needsReconnect; },
     get fileName() { return handle ? handle.name : null; },
     get fileConnected() { return !!(handle && !needsReconnect); },
@@ -664,6 +734,7 @@
     async forgetDevice() {
       if (gh && gh.token) await Storage.disconnectGithub();
       if (handle) await Storage.disconnect();
+      await Boards.forget();
       try { localStorage.removeItem(CACHE_KEY); } catch (e) {}
     },
 

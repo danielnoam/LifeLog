@@ -16,6 +16,35 @@ what was decided against and why.
 
 ---
 
+- **Boards are SVG, in their own file, merged per element (0.193.0).**
+  - *Own file:* boards.json sits beside lifelog.json with its own sha and
+    merge base (Storage.boards), both in IndexedDB — localStorage's 5MB
+    would fill with a few handwritten boards. Unlike lifelog.json, a merge
+    after a 409 is adopted straight away (boards.js swaps it in, merging
+    anything drawn while the save was out), so the sha and base move to it.
+    Saves wait 2.5s after the last change so a burst of strokes is one
+    commit; closing the board, leaving the app or hiding it sends at once.
+  - *Merge:* `mergeBoards` decides which boards survive on the whole board
+    (so one deleted here but drawn on there comes back), then merges a
+    surviving board's elements with `mergeCollection`. Elements carry no
+    updatedAt; the rare element both sides changed goes to this device.
+  - *SVG, not canvas:* export is the DOM serialised, text stays text, and a
+    board of a few thousand paths redraws fast enough. rough.js (vendored,
+    MIT, 28KB) draws the shapes, seeded per element so they don't wobble
+    between redraws; freehand strokes are our own quadratic path through
+    the samples' midpoints, simplified on pointerup (Ramer–Douglas–Peucker,
+    0.8px on screen) and stored as integer deltas — about a quarter of the
+    raw size, which is what the TODO's size estimates assumed.
+  - *The editor is a .modal-overlay,* so the scroll lock, Escape and
+    Android's back, pull to refresh and the one-key shortcuts all treat it
+    as open without knowing about it. Boards.handleKey takes every key while
+    it's up.
+  - *A fourth mode* broke "a tab opens on its middle mode": landingMode now
+    uses the chosen default, then DEFAULT_LANDING (Notes still opens on
+    Notes), then the first.
+  - *Not there yet:* History and the local-file backup cover lifelog.json
+    only, and elements can't be resized — see TODO.md.
+
 - **The everything CSV is the tab sheets stacked, not one merged sheet
   (0.192.0).** One set of columns for every kind would have meant a second
   CSV format to read and write, next to the per-tab ones. Stacking reuses

@@ -78,11 +78,15 @@
   // share sheet — Drive, Files, email, whatever the phone has. Returns false
   // when the plugins aren't there (a browser, or an older app), so the caller
   // falls back to the link.
-  async function saveAndShare(filename, text) {
+  // `base64: true` writes `text` as the bytes it encodes (a PNG) — the
+  // Filesystem plugin takes base64 for binary when no encoding is given.
+  async function saveAndShare(filename, text, opts = {}) {
     const FS = native && cap.Plugins && cap.Plugins.Filesystem;
     const SH = native && cap.Plugins && cap.Plugins.Share;
     if (!FS || !SH) return false;
-    const { uri } = await FS.writeFile({ path: filename, data: text, directory: "CACHE", encoding: "utf8" });
+    const file = { path: filename, data: text, directory: "CACHE" };
+    if (!opts.base64) file.encoding = "utf8";
+    const { uri } = await FS.writeFile(file);
     try {
       await SH.share({ title: filename, files: [uri], dialogTitle: "Save or send " + filename });
     } catch (e) {
