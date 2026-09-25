@@ -42,6 +42,11 @@ todo:
     the app. A lost board today comes back only from GitHub's web UI.
   - **The local-file backup** (File System Access) mirrors lifelog.json
     only; boards.json could be a second file beside it.
+  - **Move the zoom out / fit / zoom in buttons somewhere better.** They
+    float on their own over the drawing: under the top bar on a computer,
+    and just above the toolbar on a phone, where they cover what you're
+    drawing near the bottom. Options: fold them into the top bar's button
+    group, into the tool row, or into one button that opens the three.
   - **Fill** for rectangles and ellipses (rough.js hachure), and a
     hand-drawn font for text, which would finish the Excalidraw look.
   - **Measure the real sizes** against the estimates the board item had
