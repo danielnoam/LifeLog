@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One habit in the compact grid: its tick (the first letter in the habit's
+     colour until it's kept), its name, and its streak. The whole chip is the
+     tick's target, so it's a thumb's width however small the circle. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/chip"
+    android:layout_width="0dp"
+    android:layout_height="wrap_content"
+    android:layout_weight="1"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingTop="3dp"
+    android:paddingBottom="3dp">
+
+    <TextView
+        android:id="@+id/chip_tick"
+        android:layout_width="34dp"
+        android:layout_height="34dp"
+        android:background="@drawable/widget_tick_off"
+        android:gravity="center"
+        android:maxLines="1"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/chip_name"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:gravity="center"
+        android:maxLines="1"
+        android:paddingStart="2dp"
+        android:paddingEnd="2dp"
+        android:textColor="@color/widget_text"
+        android:textSize="10sp" />
+
+    <TextView
+        android:id="@+id/chip_streak"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:maxLines="1"
+        android:textColor="@color/widget_muted"
+        android:textSize="10sp" />
+</LinearLayout>

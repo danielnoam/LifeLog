@@ -38,17 +38,6 @@ todo:
   Probably worth doing only the first, with a clear warning about the
   passphrase, and leaving device storage to the phone's own encryption.
 
-- **Widgets that look right when small.** At their smallest sizes the
-  widgets are the big layouts squeezed: the habits and to-do headers crowd
-  the rows, quick add's five buttons get cramped labels, the spend total
-  wraps. Give each a compact layout of its own rather than shrinking the one
-  it has — e.g. habits as ticks with streaks and no header text, to-do as the
-  list alone, quick add as icons only, spend as the total and the month.
-  Android 12+ picks between layouts by size itself (a RemoteViews map keyed
-  by SizeF); before 12, choose in onAppWidgetOptionsChanged from
-  OPTION_APPWIDGET_MIN_WIDTH / MAX_HEIGHT, the way the habits widget already
-  counts how many rows fit.
-
 ---
 
 Ideas that turned out not to be worth doing, or not to be possible, live in

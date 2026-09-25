@@ -1,5 +1,6 @@
 package io.github.danielnoam.lifelog.widgets;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -145,6 +146,57 @@ public class WidgetLogicTest {
         assertEquals(3, HabitsWidget.rowsThatFit(210));
         assertEquals(3, HabitsWidget.rowsThatFit(0));    // a launcher that doesn't say
         assertEquals(1, HabitsWidget.rowsThatFit(40));   // never none
+    }
+
+    // ---- small widgets get layouts of their own (0.189.0) ----
+
+    @Test
+    public void habitsTurnIntoAGridWhenNarrowOrShort() {
+        assertFalse(HabitsWidget.compact(250, 200));  // three by two: the list
+        assertTrue(HabitsWidget.compact(150, 200));   // two cells wide
+        assertTrue(HabitsWidget.compact(250, 110));   // one row of list is no list
+        assertFalse(HabitsWidget.compact(0, 0));      // a launcher that doesn't say
+    }
+
+    @Test
+    public void theGridFitsItsTicksAndDropsNamesThenStreaksAsItShrinks() {
+        assertEquals(2, HabitsWidget.chipDetail(100));
+        assertEquals(1, HabitsWidget.chipDetail(70));
+        assertEquals(0, HabitsWidget.chipDetail(50));
+        assertArrayEquals(new int[] { 2, 1 }, HabitsWidget.chipGrid(140, 100));
+        assertArrayEquals(new int[] { 4, 2 }, HabitsWidget.chipGrid(250, 160));
+        assertArrayEquals(new int[] { 1, 1 }, HabitsWidget.chipGrid(40, 40));  // never none
+    }
+
+    @Test
+    public void aTickShowsItsHabitsFirstLetter() {
+        assertEquals("R", HabitsWidget.initial("  read"));
+        assertEquals("💧", HabitsWidget.initial("💧 water"));
+        assertEquals("•", HabitsWidget.initial(""));
+    }
+
+    @Test
+    public void theToDoListLosesItsHeaderWhenSmall() {
+        assertFalse(TodosWidget.compact(250, 250));
+        assertTrue(TodosWidget.compact(150, 250));
+        assertTrue(TodosWidget.compact(250, 110));
+        assertFalse(TodosWidget.compact(0, 0));
+    }
+
+    @Test
+    public void quickAddButtonsAreIconsWhenTheirLabelsWouldBeCut() {
+        assertFalse(QuickAddWidget.iconsOnly(320, 5));
+        assertTrue(QuickAddWidget.iconsOnly(180, 5));
+        assertFalse(QuickAddWidget.iconsOnly(200, 3));  // tabs turned off leave room
+        assertFalse(QuickAddWidget.iconsOnly(0, 5));
+    }
+
+    @Test
+    public void spendingShedsItsCategoriesThenTheComparison() {
+        assertEquals(SpendWidget.DETAIL_CATS, SpendWidget.detail(200));
+        assertEquals(SpendWidget.DETAIL_COMPARE, SpendWidget.detail(120));
+        assertEquals(SpendWidget.DETAIL_TOTAL, SpendWidget.detail(70));
+        assertEquals(SpendWidget.DETAIL_CATS, SpendWidget.detail(0));
     }
 
     // ---- the spend widget ----

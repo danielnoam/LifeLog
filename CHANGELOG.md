@@ -4,6 +4,25 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.189.0] - 2026-09-25
+
+### Changed
+- **The Android widgets have layouts of their own when small**, instead of
+  the big ones squeezed. Each picks by its size and redraws when you resize
+  it:
+  - **Habits**, two cells wide or one row tall, is a grid of ticks — the
+    habit's first letter in its colour until it's kept, a ✓ after — with
+    its name and streak under each while there's room, then just the
+    streak, then just the tick. Tap a tick to mark it; tap anywhere else to
+    open Habits. More habits than fit end in a "+N" that opens the app.
+  - **To-do**, when narrow or short, is the list alone with a small + in the
+    corner; the header is gone.
+  - **Quick add**, when its labels would be cut, shows the icons only.
+  - **Spending** drops the categories first, then the comparison with last
+    month, down to the month and its total — which then says "ENDED" when
+    the month has turned over, since the line that used to say so is gone.
+- Every widget can be made smaller than before: habits down to one cell.
+
 ## [0.188.0] - 2026-09-25
 
 ### Added

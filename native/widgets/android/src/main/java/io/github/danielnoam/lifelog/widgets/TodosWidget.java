@@ -4,21 +4,47 @@ import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Bundle;
 import android.widget.RemoteViews;
 
-/** The to-do list: every panel, scrollable, each item ticked in place. */
+/**
+ * The to-do list: every panel, scrollable, each item ticked in place. Small,
+ * it's the list alone with a + in the corner (0.189.0) — the header took a
+ * third of a two-row widget.
+ */
 public class TodosWidget extends AppWidgetProvider {
 
     static final String ACTION_TICK = "io.github.danielnoam.lifelog.widgets.TICK_TODO";
 
     @Override
     public void onUpdate(Context c, AppWidgetManager manager, int[] ids) {
-        String[] text = text(c);
-        for (int id : ids) {
-            manager.updateAppWidget(id, ListWidget.whole(c, id, TodosWidget.class, "todos", ACTION_TICK,
-                text[0], text[1], text[2], "open-todos", "add-todo", 200));
-        }
+        for (int id : ids) manager.updateAppWidget(id, whole(c, manager, id));
         manager.notifyAppWidgetViewDataChanged(ids, R.id.widget_list);
+    }
+
+    // Resized across the line between the two layouts: only a whole redraw
+    // swaps one for the other. It starts the list from the top again, which
+    // after a resize is no loss.
+    @Override
+    public void onAppWidgetOptionsChanged(Context c, AppWidgetManager manager, int id, Bundle options) {
+        manager.updateAppWidget(id, whole(c, manager, id));
+        manager.notifyAppWidgetViewDataChanged(new int[] { id }, R.id.widget_list);
+    }
+
+    /** The list alone: too narrow for the header beside its +, or too short for it above the list. */
+    static boolean compact(int widthDp, int heightDp) {
+        return (widthDp > 0 && widthDp < 180) || (heightDp > 0 && heightDp < 150);
+    }
+
+    private static int layoutFor(AppWidgetManager manager, int id) {
+        WidgetSize size = WidgetSize.of(manager, id);
+        return compact(size.width, size.height) ? R.layout.widget_list_compact : R.layout.widget_list;
+    }
+
+    private static RemoteViews whole(Context c, AppWidgetManager manager, int id) {
+        String[] text = text(c);
+        return ListWidget.whole(c, id, layoutFor(manager, id), TodosWidget.class, "todos", ACTION_TICK,
+            text[0], text[1], text[2], "open-todos", "add-todo", 200);
     }
 
     @Override
@@ -62,7 +88,8 @@ public class TodosWidget extends AppWidgetProvider {
 
     static void refresh(Context c) {
         String[] text = text(c);
-        ListWidget.refresh(c, TodosWidget.class, ListWidget.header(c, text[0], text[1], text[2]));
+        AppWidgetManager manager = AppWidgetManager.getInstance(c);
+        ListWidget.refresh(c, TodosWidget.class, (id) -> ListWidget.header(c, layoutFor(manager, id), text[0], text[1], text[2]));
     }
 
     private static String[] text(Context c) {

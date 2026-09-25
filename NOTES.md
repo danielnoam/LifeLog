@@ -16,6 +16,20 @@ what was decided against and why.
 
 ---
 
+- **Small widgets pick their own layout by size (0.189.0).** Read from the
+  widget's options (portrait's width and height) on every draw and redrawn
+  in onAppWidgetOptionsChanged, on every Android version, rather than
+  Android 12's size-keyed RemoteViews. That map would let the launcher pick,
+  but the to-do list keeps its scroll through partial updates, and a
+  partial update can't aim at one size of a map. So the to-do widget's
+  partial updates are built per widget, each in the layout that widget has,
+  and the compact layout keeps the header's views hidden rather than
+  dropping them. The thresholds are pure functions in each provider
+  (compact, chipGrid, chipDetail, iconsOnly, detail) and are tested in
+  WidgetLogicTest; what they look like on a real launcher still has to be
+  checked on a phone. The compact habits grid gives up per-habit "open"
+  (a chip is the tick's target, all of it) — opening is the space around.
+
 - **Tab and mode order, and where a tab opens (0.188.0).** Two orders and
   a default per tab, all device-local like turning tabs off, all read
   through app.js's enabledViews/modeEntries/landingMode so every consumer
