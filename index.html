@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.186.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.187.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -991,115 +991,143 @@
         </div>
         <div class="settings-pages">
 
+      <!-- Inside a page, the same rows as the list: a card per group, a row
+           per setting with its label on the left and its control on the
+           right. .sitem is a row; .sitem-stack puts a text field under its
+           label; .sitem-go is an action, drawn as a row with a chevron. -->
       <div class="settings-page" hidden data-page="sync" data-title="Sync" data-keywords="github token repository repo backup file qr code device link connect disconnect auto-sync interval">
       <h2 class="settings-page-title">Sync</h2>
-      <p class="muted" id="backendInfo"></p>
-      <section class="settings-section">
-        <h3>GitHub <span class="muted">(works on every device)</span></h3>
-        <p class="muted" id="ghInfo"></p>
-        <button class="btn" id="ghEditBtn" type="button" hidden>Change token or repository</button>
-        <div class="gh-fields">
-          <ol class="gh-steps">
-            <li><a href="https://github.com/settings/tokens/new?description=LifeLog&amp;scopes=repo" target="_blank" rel="noopener">Create a GitHub token →</a>, click <strong>Generate token</strong>, and copy it.</li>
-            <li>Paste it below and press <strong>Connect</strong> — a private data repo is created for you automatically.</li>
-          </ol>
-          <label>Access token <span class="muted">— or a setup link from a device that's already connected</span>
-            <input id="ghToken" type="password" placeholder="ghp_… or github_pat_… or a setup link" autocomplete="off" spellcheck="false" />
-          </label>
-          <details class="gh-advanced">
-            <summary>Advanced</summary>
-            <label>Repository <span class="muted">owner/repo — leave blank to use your account / lifelog-data</span>
-              <input id="ghRepo" type="text" placeholder="(auto: yourname/lifelog-data)" autocomplete="off" spellcheck="false" />
-            </label>
-            <div class="row">
-              <label>File path
-                <input id="ghPath" type="text" placeholder="lifelog.json" autocomplete="off" spellcheck="false" />
-              </label>
-              <label>Branch
-                <input id="ghBranch" type="text" placeholder="main" autocomplete="off" spellcheck="false" />
-              </label>
-            </div>
-          </details>
-          <div class="btn-row">
-            <button class="btn" id="ghConnectBtn">Connect GitHub</button>
-            <button class="btn" id="ghScanBtn" type="button" hidden>Scan QR code</button>
+      <p class="muted page-lede" id="backendInfo"></p>
+      <section class="sgroup">
+        <div class="sgroup-card">
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">GitHub</span><span class="sitem-sub" id="ghInfo"></span></span>
           </div>
-          <p class="hint gh-how">Every save becomes a commit in a private repo, so your devices stay in sync and you get a history. The token stays on this device.</p>
+          <div class="sitem sitem-stack gh-fields">
+            <ol class="gh-steps">
+              <li><a href="https://github.com/settings/tokens/new?description=LifeLog&amp;scopes=repo" target="_blank" rel="noopener">Create a GitHub token →</a>, click <strong>Generate token</strong>, and copy it.</li>
+              <li>Paste it below and press <strong>Connect</strong> — a private data repo is created for you automatically.</li>
+            </ol>
+            <label>Access token <span class="muted">— or a setup link from a device that's already connected</span>
+              <input id="ghToken" type="password" placeholder="ghp_… or github_pat_… or a setup link" autocomplete="off" spellcheck="false" />
+            </label>
+            <details class="gh-advanced">
+              <summary>Advanced</summary>
+              <label>Repository <span class="muted">owner/repo — leave blank to use your account / lifelog-data</span>
+                <input id="ghRepo" type="text" placeholder="(auto: yourname/lifelog-data)" autocomplete="off" spellcheck="false" />
+              </label>
+              <div class="row">
+                <label>File path
+                  <input id="ghPath" type="text" placeholder="lifelog.json" autocomplete="off" spellcheck="false" />
+                </label>
+                <label>Branch
+                  <input id="ghBranch" type="text" placeholder="main" autocomplete="off" spellcheck="false" />
+                </label>
+              </div>
+            </details>
+            <div class="btn-row">
+              <button class="btn btn-primary" id="ghConnectBtn">Connect GitHub</button>
+              <button class="btn" id="ghScanBtn" type="button" hidden>Scan QR code</button>
+            </div>
+            <p class="hint gh-how">Every save becomes a commit in a private repo, so your devices stay in sync and you get a history. The token stays on this device.</p>
+          </div>
+          <button type="button" class="sitem sitem-go" id="ghEditBtn" hidden>Change token or repository</button>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Check for changes</span><span class="sitem-sub">From your other devices</span></span>
+            <select id="ghPollInterval">
+              <option value="0">Off</option>
+              <option value="10">Every 10 seconds</option>
+              <option value="30">Every 30 seconds</option>
+              <option value="60">Every minute</option>
+              <option value="300">Every 5 minutes</option>
+            </select>
+          </label>
         </div>
-        <label>Check for changes from your other devices
-          <select id="ghPollInterval">
-            <option value="0">Off</option>
-            <option value="10">Every 10 seconds</option>
-            <option value="30">Every 30 seconds</option>
-            <option value="60">Every minute</option>
-            <option value="300">Every 5 minutes</option>
-          </select>
-        </label>
       </section>
 
-      <section class="settings-section gh-share" id="ghShare" hidden>
-        <h3>Add another device</h3>
-        <p class="hint">Scan the code with the new device's camera, or open the link there. In the Android app use <strong>Scan QR code</strong> instead — the camera opens links in the browser, not the app.</p>
-        <p class="warn" id="ghLocalWarn" hidden>You're on a local/localhost URL, so this link only works on this computer. Open your published site (e.g. GitHub Pages) and copy the link from there to use it on other devices.</p>
-        <div class="gh-qr" id="ghQr" hidden></div>
-        <p class="warn" id="ghQrTooLong" hidden>The setup link is too long for a QR code — use the copy button below to share it instead.</p>
-        <div class="row">
-          <input id="ghSetupLink" type="text" readonly onclick="this.select()" aria-label="Setup link" />
-          <button class="btn" id="ghCopyLinkBtn" type="button">Copy</button>
+      <section class="sgroup gh-share" id="ghShare" hidden>
+        <h3 class="sgroup-label">Add another device</h3>
+        <div class="sgroup-card">
+          <div class="sitem sitem-stack">
+            <p class="hint">Scan the code with the new device's camera, or open the link there. In the Android app use <strong>Scan QR code</strong> instead — the camera opens links in the browser, not the app.</p>
+            <p class="warn" id="ghLocalWarn" hidden>You're on a local/localhost URL, so this link only works on this computer. Open your published site (e.g. GitHub Pages) and copy the link from there to use it on other devices.</p>
+            <div class="gh-qr" id="ghQr" hidden></div>
+            <p class="warn" id="ghQrTooLong" hidden>The setup link is too long for a QR code — use the copy button below to share it instead.</p>
+            <div class="row">
+              <input id="ghSetupLink" type="text" readonly onclick="this.select()" aria-label="Setup link" />
+              <button class="btn" id="ghCopyLinkBtn" type="button">Copy</button>
+            </div>
+          </div>
         </div>
         <p class="hint">The link contains your access token — only share it with your own devices.</p>
       </section>
 
-      <section class="settings-section">
-        <h3>Backup file</h3>
-        <p class="muted" id="fileInfo"></p>
-        <div class="btn-row">
-          <button class="btn" id="connectFileBtn">Choose data file…</button>
-          <button class="btn" id="reconnectFileBtn" hidden>Reconnect file</button>
-          <button class="btn btn-danger" id="disconnectFileBtn" hidden>Disconnect</button>
+      <section class="sgroup">
+        <h3 class="sgroup-label">Backup file</h3>
+        <div class="sgroup-card">
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Local file</span><span class="sitem-sub" id="fileInfo"></span></span>
+          </div>
+          <button type="button" class="sitem sitem-go" id="connectFileBtn">Choose data file…</button>
+          <button type="button" class="sitem sitem-go" id="reconnectFileBtn" hidden>Reconnect file</button>
+          <button type="button" class="sitem sitem-go sitem-danger" id="disconnectFileBtn" hidden>Disconnect</button>
         </div>
         <p class="hint">Every save is also written to a <code>.json</code> file on this computer — a local backup, or a way to sync through a shared Drive/Dropbox folder. Chrome and Edge on a computer only.</p>
       </section>
 
-      <section class="settings-section" id="ghDisconnectSection" hidden>
-        <h3>Disconnect</h3>
-        <button class="btn btn-danger" id="ghDisconnectBtn" hidden>Disconnect GitHub</button>
+      <section class="sgroup" id="ghDisconnectSection" hidden>
+        <div class="sgroup-card">
+          <button type="button" class="sitem sitem-go sitem-danger" id="ghDisconnectBtn" hidden>Disconnect GitHub</button>
+        </div>
         <p class="hint">Your data stays on this device and on GitHub.</p>
       </section>
       </div>
 
       <div class="settings-page" hidden data-page="io" data-title="Import &amp; export" data-keywords="backup export import json csv spreadsheet download">
       <h2 class="settings-page-title">Import &amp; export</h2>
-      <p class="hint">Importing always merges with what you have — it never replaces it — and opens a review screen first: pick items, switch whole years or months off, choose which new categories to add. Anything you already have is skipped.</p>
-      <section class="settings-section">
-        <h3>Everything</h3>
-        <p class="hint">Entries, categories, backlog, achievements, finance and recurring expenses, in one file.</p>
-        <div class="btn-row">
-          <button class="btn" id="exportJsonBtn">Export JSON</button>
-          <button class="btn" id="importJsonBtn">Import JSON…</button>
+      <p class="hint page-lede">Importing always merges with what you have — it never replaces it — and opens a review screen first: pick items, switch whole years or months off, choose which new categories to add. Anything you already have is skipped.</p>
+      <section class="sgroup">
+        <h3 class="sgroup-label">Everything</h3>
+        <div class="sgroup-card">
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Export</span><span class="sitem-sub">Entries, categories, backlog, achievements, finance and recurring expenses, in one file</span></span>
+            <span class="sitem-btns"><button class="btn btn-small" id="exportJsonBtn">JSON</button></span>
+          </div>
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Import</span></span>
+            <span class="sitem-btns"><button class="btn btn-small" id="importJsonBtn">JSON…</button></span>
+          </div>
         </div>
         <input type="file" id="importJsonInput" accept="application/json,.json" hidden />
       </section>
 
-      <section class="settings-section">
-        <h3>Journal <span class="muted">(Timeline, categories, Backlog)</span></h3>
-        <div class="btn-row">
-          <button class="btn" id="exportJournalJsonBtn">Export JSON</button>
-          <button class="btn" id="exportJournalCsvBtn">Export CSV</button>
-          <button class="btn" id="importJournalJsonBtn">Import JSON…</button>
-          <button class="btn" id="importJournalCsvBtn">Import CSV…</button>
+      <section class="sgroup">
+        <h3 class="sgroup-label">Journal</h3>
+        <div class="sgroup-card">
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Export</span><span class="sitem-sub">Timeline entries, categories and the Backlog</span></span>
+            <span class="sitem-btns"><button class="btn btn-small" id="exportJournalJsonBtn">JSON</button><button class="btn btn-small" id="exportJournalCsvBtn">CSV</button></span>
+          </div>
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Import</span></span>
+            <span class="sitem-btns"><button class="btn btn-small" id="importJournalJsonBtn">JSON…</button><button class="btn btn-small" id="importJournalCsvBtn">CSV…</button></span>
+          </div>
         </div>
         <input type="file" id="importJournalJsonInput" accept="application/json,.json" hidden />
         <input type="file" id="importJournalCsvInput" accept="text/csv,.csv" hidden />
       </section>
 
-      <section class="settings-section">
-        <h3>Finance <span class="muted">(entries, categories, recurring)</span></h3>
-        <div class="btn-row">
-          <button class="btn" id="exportFinanceJsonBtn">Export JSON</button>
-          <button class="btn" id="exportFinanceCsvBtn">Export CSV…</button>
-          <button class="btn" id="importFinanceJsonBtn">Import JSON…</button>
-          <button class="btn" id="importFinanceCsvBtn">Import Finance CSV…</button>
+      <section class="sgroup">
+        <h3 class="sgroup-label">Finance</h3>
+        <div class="sgroup-card">
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Export</span><span class="sitem-sub">Entries, categories and recurring expenses</span></span>
+            <span class="sitem-btns"><button class="btn btn-small" id="exportFinanceJsonBtn">JSON</button><button class="btn btn-small" id="exportFinanceCsvBtn">CSV…</button></span>
+          </div>
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Import</span></span>
+            <span class="sitem-btns"><button class="btn btn-small" id="importFinanceJsonBtn">JSON…</button><button class="btn btn-small" id="importFinanceCsvBtn">CSV…</button></span>
+          </div>
         </div>
         <input type="file" id="importFinanceJsonInput" accept="application/json,.json" hidden />
         <input type="file" id="importFinanceCsvInput" accept="text/csv,.csv" hidden />
@@ -1109,82 +1137,96 @@
 
       <div class="settings-page" hidden data-page="history" data-title="History" data-keywords="version undo restore rollback saves commits missing settings">
       <h2 class="settings-page-title">History</h2>
-      <p class="hint">Your last ~40 saves, kept on this device and shown with what changed in each. <strong>Undo</strong> takes back one change and keeps everything since; <strong>Restore</strong> rolls everything back to that save, as a new save — nothing in the list is ever deleted. With GitHub connected, older saves come from its commit log.</p>
+      <p class="hint page-lede">Your last ~40 saves, kept on this device and shown with what changed in each. <strong>Undo</strong> takes back one change and keeps everything since; <strong>Restore</strong> rolls everything back to that save, as a new save — nothing in the list is ever deleted. With GitHub connected, older saves come from its commit log.</p>
       <p class="muted" id="historyEmptyState" hidden>No saves yet — your history will appear here once you make your first change.</p>
       <div id="historyControls" hidden>
-        <div class="btn-row">
-          <button class="btn" id="historyRefreshBtn" type="button">Refresh</button>
-          <button class="btn" id="historyFillSettingsBtn" type="button">Bring back missing settings</button>
-        </div>
-        <p class="hint">Lost API keys or media sources? <strong>Bring back missing settings</strong> finds the newest save that still had them and fills in only what's empty now.</p>
-        <p class="muted" id="historyStatus"></p>
-        <div id="historyList"></div>
+        <section class="sgroup">
+          <div class="sgroup-card">
+            <button type="button" class="sitem sitem-go" id="historyFillSettingsBtn">Bring back missing settings</button>
+          </div>
+          <p class="hint">Lost API keys or media sources? This finds the newest save that still had them and fills in only what's empty now.</p>
+        </section>
+        <section class="sgroup">
+          <div class="sgroup-head">
+            <h3 class="sgroup-label">Saves</h3>
+            <button class="btn btn-small" id="historyRefreshBtn" type="button">Refresh</button>
+          </div>
+          <p class="muted" id="historyStatus"></p>
+          <div class="sgroup-card history-card" id="historyList"></div>
+        </section>
       </div>
       </div>
 
       <div class="settings-page" hidden data-page="deleted" data-title="Recently deleted" data-keywords="trash bin undelete restore removed">
       <h2 class="settings-page-title">Recently deleted</h2>
-      <p class="hint">Entries, backlog items, notes, to-dos and expenses deleted within your save history. Restoring one brings back just that item and touches nothing else.</p>
+      <p class="hint page-lede">Entries, backlog items, notes, to-dos and expenses deleted within your save history. Restoring one brings back just that item and touches nothing else.</p>
       <p class="muted" id="trashEmptyState" hidden>Nothing recently deleted.</p>
-      <div id="trashList"></div>
+      <div class="sgroup-card history-card" id="trashList"></div>
       </div>
 
       <div class="settings-page" hidden data-page="lock" data-title="App lock" data-keywords="privacy pin fingerprint face id biometric password security">
       <h2 class="settings-page-title">App lock</h2>
-      <p class="hint">Asks for a PIN or fingerprint to open LifeLog on this device. It doesn't encrypt your data. Forgot the PIN? The lock screen can wipe this device's copy — reconnect GitHub or your backup file afterwards to get it back, or it's gone.</p>
-      <section class="settings-section">
-        <label class="toggle-label">
-          <input type="checkbox" id="privacyEnabled" />
-          Require unlock to open this app
-        </label>
-        <label>Stay unlocked after unlocking for
-          <select id="privacyGrace">
-            <option value="0">Always require unlock</option>
-            <option value="1">1 minute</option>
-            <option value="5">5 minutes</option>
-            <option value="15">15 minutes</option>
-            <option value="60">1 hour</option>
-          </select>
-        </label>
-      </section>
-
-      <section class="settings-section">
-        <h3>PIN</h3>
-        <div class="row" id="privacyPinForm" hidden>
-          <label>New PIN <span class="muted">(4–8 digits)</span>
-            <input id="newPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" />
+      <p class="hint page-lede">Asks for a PIN or fingerprint to open LifeLog on this device. It doesn't encrypt your data. Forgot the PIN? The lock screen can wipe this device's copy — reconnect GitHub or your backup file afterwards to get it back, or it's gone.</p>
+      <section class="sgroup">
+        <div class="sgroup-card">
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">Require unlock</span><span class="sitem-sub">Every time LifeLog opens on this device</span></span>
+            <input type="checkbox" class="switch" id="privacyEnabled" />
           </label>
-          <label>Confirm PIN
-            <input id="confirmPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" />
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Stay unlocked for</span><span class="sitem-sub">After you unlock</span></span>
+            <select id="privacyGrace">
+              <option value="0">Not at all</option>
+              <option value="1">1 minute</option>
+              <option value="5">5 minutes</option>
+              <option value="15">15 minutes</option>
+              <option value="60">1 hour</option>
+            </select>
           </label>
-        </div>
-        <p class="muted" id="privacyPinStatus"></p>
-        <div class="btn-row">
-          <button class="btn" id="setPinBtn" type="button">Set PIN</button>
-          <button class="btn btn-primary" id="savePinBtn" type="button" hidden>Save PIN</button>
-          <button class="btn" id="cancelPinBtn" type="button" hidden>Cancel</button>
-          <button class="btn btn-danger" id="removePinBtn" type="button" hidden>Remove PIN</button>
         </div>
       </section>
 
-      <section class="settings-section">
-        <h3>Fingerprint / Face ID</h3>
-        <p class="hint">On top of the PIN, which stays as the fallback.</p>
+      <section class="sgroup">
+        <div class="sgroup-card">
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">PIN</span><span class="sitem-sub" id="privacyPinStatus"></span></span>
+          </div>
+          <div class="sitem sitem-stack" id="privacyPinForm" hidden>
+            <div class="row">
+              <label>New PIN <span class="muted">(4–8 digits)</span>
+                <input id="newPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" />
+              </label>
+              <label>Confirm PIN
+                <input id="confirmPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" />
+              </label>
+            </div>
+          </div>
+          <button type="button" class="sitem sitem-go" id="setPinBtn">Set PIN</button>
+          <button type="button" class="sitem sitem-go" id="savePinBtn" hidden>Save PIN</button>
+          <button type="button" class="sitem sitem-go" id="cancelPinBtn" hidden>Cancel</button>
+          <button type="button" class="sitem sitem-go sitem-danger" id="removePinBtn" hidden>Remove PIN</button>
+        </div>
+      </section>
+
+      <section class="sgroup">
+        <div class="sgroup-card">
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Fingerprint / Face ID</span><span class="sitem-sub" id="privacyBioStatus"></span></span>
+          </div>
+          <button type="button" class="sitem sitem-go" id="setBioBtn">Set up Fingerprint / Face ID</button>
+          <button type="button" class="sitem sitem-go sitem-danger" id="removeBioBtn" hidden>Remove</button>
+        </div>
         <p class="warn" id="privacyBioUnavailable" hidden>Fingerprint/Face ID isn't available on this device or browser.</p>
-        <p class="muted" id="privacyBioStatus"></p>
-        <div class="btn-row">
-          <button class="btn" id="setBioBtn" type="button">Set up Fingerprint / Face ID</button>
-          <button class="btn btn-danger" id="removeBioBtn" type="button" hidden>Remove</button>
-        </div>
+        <p class="hint">On top of the PIN, which stays as the fallback.</p>
       </section>
       </div>
 
       <div class="settings-page" hidden data-page="appearance" data-title="Appearance" data-keywords="theme dark light colour color font typeface layout phone computer desktop mobile">
       <h2 class="settings-page-title">Appearance</h2>
-      <p class="hint">This device only.</p>
-      <section class="settings-section">
-        <div class="row">
-          <label>Color scheme
+      <section class="sgroup">
+        <div class="sgroup-card">
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Color scheme</span></span>
             <select id="themeSelect">
               <option value="default">Default</option>
               <option value="light">Light</option>
@@ -1192,7 +1234,8 @@
               <option value="dracula">Dracula</option>
             </select>
           </label>
-          <label>Typeface
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Typeface</span></span>
             <select id="fontFamily">
               <option value="system">Default (system)</option>
               <option value="serif">Serif</option>
@@ -1200,128 +1243,150 @@
               <option value="rounded">Rounded</option>
             </select>
           </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Layout</span><span class="sitem-sub">Automatic picks by screen width</span></span>
+            <select id="forceLayout">
+              <option value="none">Automatic</option>
+              <option value="mobile">Always the phone layout</option>
+              <option value="pc">Always the computer layout</option>
+            </select>
+          </label>
         </div>
-        <label>Layout
-          <select id="forceLayout">
-            <option value="none">Automatic</option>
-            <option value="mobile">Always the phone layout</option>
-            <option value="pc">Always the computer layout</option>
-          </select>
-        </label>
-        <p class="hint">Automatic picks by screen width. Forcing one is like a browser's "Request desktop site".</p>
-        <p class="hint">Cover art, month card sizes and each list's options are on that tab's <strong>View</strong> button.</p>
+        <p class="hint">This device only. Cover art, month cards and each list's options are on that tab's <strong>View</strong> button.</p>
       </section>
       </div>
 
       <div class="settings-page" hidden data-page="tabs" data-title="Tabs" data-keywords="hide show views modes notes habits timeline backlog ledger">
       <h2 class="settings-page-title">Tabs</h2>
-      <p class="hint">Turn off the parts of the app you don't use and they leave the tab bar. This device only. The last tab on stays on.</p>
+      <p class="hint page-lede">Turn off the parts of the app you don't use and they leave the tab bar. This device only. The last tab on stays on.</p>
       <div class="tab-toggles" id="tabToggles"></div>
       </div>
 
       <div class="settings-page" hidden data-page="media" data-title="Media lookups" data-keywords="api keys rawg tmdb steamgriddb gg.deals proxy cors cover art metadata sources">
       <h2 class="settings-page-title">Media lookups</h2>
-      <p class="hint">Where cover art, ratings, lengths and release dates come from. Keys and sources sync to your other devices.</p>
-      <section class="settings-section">
-        <h3>Source per category</h3>
+      <p class="hint page-lede">Where cover art, ratings, lengths and release dates come from. Keys and sources sync to your other devices.</p>
+      <section class="sgroup">
+        <h3 class="sgroup-label">Source per category</h3>
+        <div class="sgroup-card" id="mediaCatRows"></div>
         <p class="hint">A primary source and an optional fallback per category; "None" fetches nothing. Background checks only try the fallback when the primary finds nothing, while <strong>🔄 Sync</strong> on an item searches both and tags each match with its source. "Steam" takes a Steam App ID from the store URL instead of a search. "RAWG + Steam + GG.deals" also finds the Steam ID through RAWG, for cover, rating, length and price at once.</p>
-        <div id="mediaCatRows"></div>
       </section>
 
-      <section class="settings-section">
-        <h3>API keys</h3>
+      <section class="sgroup">
+        <h3 class="sgroup-label">API keys</h3>
+        <div class="sgroup-card">
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">RAWG key</span><span class="sitem-sub">Games — free at rawg.io/apidocs</span></span>
+            <input id="rawgKey" type="password" placeholder="Paste your RAWG API key…" autocomplete="off" spellcheck="false" />
+          </label>
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">TMDB key</span><span class="sitem-sub">Movies &amp; shows — free at themoviedb.org</span></span>
+            <input id="tmdbKey" type="password" placeholder="Paste your TMDB API key…" autocomplete="off" spellcheck="false" />
+          </label>
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">GG.deals key</span><span class="sitem-sub">Game prices — free at gg.deals/api; needs the proxy</span></span>
+            <input id="ggdealsKey" type="password" placeholder="Paste your GG.deals API key…" autocomplete="off" spellcheck="false" />
+          </label>
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">SteamGridDB key</span><span class="sitem-sub">Game covers — free at steamgriddb.com, Preferences → API; needs the proxy</span></span>
+            <input id="steamgriddbKey" type="password" placeholder="Paste your SteamGridDB API key…" autocomplete="off" spellcheck="false" />
+          </label>
+        </div>
         <p class="hint">Open Library, AniList, Jikan, Google Books and MusicBrainz need no key.</p>
-        <label>RAWG key <span class="muted">(games — free at rawg.io/apidocs)</span>
-          <input id="rawgKey" type="password" placeholder="Paste your RAWG API key…" autocomplete="off" spellcheck="false" />
-        </label>
-        <label>TMDB key <span class="muted">(movies &amp; shows — free at themoviedb.org)</span>
-          <input id="tmdbKey" type="password" placeholder="Paste your TMDB API key…" autocomplete="off" spellcheck="false" />
-        </label>
-        <label>GG.deals key <span class="muted">(game prices — free at gg.deals/api; needs the proxy)</span>
-          <input id="ggdealsKey" type="password" placeholder="Paste your GG.deals API key…" autocomplete="off" spellcheck="false" />
-        </label>
-        <label>SteamGridDB key <span class="muted">(game covers — free at steamgriddb.com, Preferences → API; needs the proxy)</span>
-          <input id="steamgriddbKey" type="password" placeholder="Paste your SteamGridDB API key…" autocomplete="off" spellcheck="false" />
-        </label>
       </section>
 
-      <section class="settings-section">
-        <h3>CORS proxy</h3>
-        <p class="hint">A proxy of your own for the sources a browser can't call directly: SteamGridDB, GG.deals and the Steam wishlist import. Setup is in <code>proxy/README.md</code>. Leave it blank if you use none of those.</p>
-        <label>Proxy URL
-          <input id="steamProxyUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://your-worker.workers.dev" />
-        </label>
+      <section class="sgroup">
+        <h3 class="sgroup-label">CORS proxy</h3>
+        <div class="sgroup-card">
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">Proxy URL</span><span class="sitem-sub">For SteamGridDB, GG.deals and the Steam wishlist import, which a browser can't call directly</span></span>
+            <input id="steamProxyUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://your-worker.workers.dev" />
+          </label>
+        </div>
+        <p class="hint">Setup is in <code>proxy/README.md</code>. Leave it blank if you use none of those.</p>
       </section>
       </div>
 
       <div class="settings-page" hidden data-page="imports" data-title="Imports" data-keywords="steam wishlist anilist planning anime manga">
       <h2 class="settings-page-title">Imports</h2>
-      <p class="hint">Both open a review screen before anything is added, and never re-add what's already in your backlog. The automatic check only counts what's new and tells you.</p>
-      <section class="settings-section">
-        <h3>Steam wishlist</h3>
+      <p class="hint page-lede">Both open a review screen before anything is added, and never re-add what's already in your backlog. The automatic check only counts what's new and tells you.</p>
+      <section class="sgroup">
+        <h3 class="sgroup-label">Steam wishlist</h3>
+        <div class="sgroup-card">
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">SteamID64</span><span class="sitem-sub"><a href="https://steamid.io/" target="_blank" rel="noopener">Find yours →</a></span></span>
+            <input id="steamId64" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 76561198012345678" />
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Add imported games to</span></span>
+            <select id="steamWishlistCategory"></select>
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Check automatically</span></span>
+            <select id="steamAutoSyncDays">
+              <option value="0">Never (manual only)</option>
+              <option value="1">Every day</option>
+              <option value="3">Every 3 days</option>
+              <option value="7">Every week</option>
+              <option value="30">Every month</option>
+            </select>
+          </label>
+          <button id="steamWishlistSyncBtn" type="button" class="sitem sitem-go">🔄 Sync Steam Wishlist</button>
+          <button id="steamRetryUnresolvedBtn" type="button" class="sitem sitem-go" hidden>🔁 Retry unresolved Steam titles</button>
+          <button id="steamBackfillRawgBtn" type="button" class="sitem sitem-go" hidden>🎮 Backfill missing game info</button>
+        </div>
         <p class="hint">Your wishlist must be public (Steam → Privacy Settings → Game details), and this goes through the CORS proxy on Media lookups.</p>
-        <label>SteamID64
-          <input id="steamId64" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 76561198012345678" />
-        </label>
-        <p class="hint"><a href="https://steamid.io/" target="_blank" rel="noopener">Find your SteamID64 →</a></p>
-        <label>Add imported games to
-          <select id="steamWishlistCategory"></select>
-        </label>
-        <label>Check automatically
-          <select id="steamAutoSyncDays">
-            <option value="0">Never (manual only)</option>
-            <option value="1">Every day</option>
-            <option value="3">Every 3 days</option>
-            <option value="7">Every week</option>
-            <option value="30">Every month</option>
-          </select>
-        </label>
-        <button id="steamWishlistSyncBtn" type="button" class="btn">🔄 Sync Steam Wishlist</button>
-        <button id="steamRetryUnresolvedBtn" type="button" class="btn" hidden>🔁 Retry unresolved Steam titles</button>
-        <p class="hint" id="steamRetryUnresolvedHint" hidden>Looks up again the items still called "Steam app &lt;id&gt;" (usually Steam rate-limiting a large first sync) and fixes the ones that resolve.</p>
-        <button id="steamBackfillRawgBtn" type="button" class="btn" hidden>🎮 Backfill missing game info</button>
-        <p class="hint" id="steamBackfillRawgHint" hidden>Fills in what Steam-synced games lack: rating, length and year from RAWG (needs a RAWG key), and Steam's description (needs the proxy). Never touches title, cover or App ID.</p>
+        <p class="hint" id="steamRetryUnresolvedHint" hidden><strong>Retry</strong> looks up again the items still called "Steam app &lt;id&gt;" (usually Steam rate-limiting a large first sync) and fixes the ones that resolve.</p>
+        <p class="hint" id="steamBackfillRawgHint" hidden><strong>Backfill</strong> fills in what Steam-synced games lack: rating, length and year from RAWG (needs a RAWG key), and Steam's description (needs the proxy). Never touches title, cover or App ID.</p>
       </section>
 
-      <section class="settings-section">
-        <h3>AniList planning list</h3>
+      <section class="sgroup">
+        <h3 class="sgroup-label">AniList planning list</h3>
+        <div class="sgroup-card">
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">AniList username</span></span>
+            <input id="anilistUserName" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. YourAniListName" />
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Add planned anime to</span></span>
+            <select id="anilistAnimeCategory"></select>
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Add planned manga to</span></span>
+            <select id="anilistMangaCategory"></select>
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Check automatically</span></span>
+            <select id="anilistAutoSyncDays">
+              <option value="0">Never (manual only)</option>
+              <option value="1">Every day</option>
+              <option value="3">Every 3 days</option>
+              <option value="7">Every week</option>
+              <option value="30">Every month</option>
+            </select>
+          </label>
+          <button id="anilistSyncBtn" type="button" class="sitem sitem-go">🔄 Sync AniList Planning</button>
+        </div>
         <p class="hint">Needs no key or proxy, but the list must be public (AniList → Settings → Lists → untick "Set anime/manga list to private"). Set one side to "Don't import" to bring in only the other.</p>
-        <label>AniList username
-          <input id="anilistUserName" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. YourAniListName" />
-        </label>
-        <label>Add planned anime to
-          <select id="anilistAnimeCategory"></select>
-        </label>
-        <label>Add planned manga to
-          <select id="anilistMangaCategory"></select>
-        </label>
-        <label>Check automatically
-          <select id="anilistAutoSyncDays">
-            <option value="0">Never (manual only)</option>
-            <option value="1">Every day</option>
-            <option value="3">Every 3 days</option>
-            <option value="7">Every week</option>
-            <option value="30">Every month</option>
-          </select>
-        </label>
-        <button id="anilistSyncBtn" type="button" class="btn">🔄 Sync AniList Planning</button>
       </section>
       </div>
 
       <div class="settings-page" hidden data-page="releases" data-title="Release dates" data-keywords="upcoming release dates tba">
       <h2 class="settings-page-title">Release dates</h2>
-      <p class="hint">Re-asks each unreleased backlog item's own source for its date — a "TBA" gets one, a date slips. It changes nothing else. Steam, RAWG, TMDB and AniList items can be checked; Open Library, Google Books, MusicBrainz and Jikan items are skipped.</p>
-      <section class="settings-section">
-        <label>Check automatically, when you open the app
-          <select id="releasesAutoRefreshDays">
-            <option value="0">Never (manual only)</option>
-            <option value="1">Every day</option>
-            <option value="3">Every 3 days</option>
-            <option value="7">Every week</option>
-            <option value="30">Every month</option>
-          </select>
-        </label>
-        <button id="refreshReleasesBtn" type="button" class="btn">🔭 Re-check upcoming release dates</button>
+      <p class="hint page-lede">Re-asks each unreleased backlog item's own source for its date — a "TBA" gets one, a date slips. It changes nothing else. Steam, RAWG, TMDB and AniList items can be checked; Open Library, Google Books, MusicBrainz and Jikan items are skipped.</p>
+      <section class="sgroup">
+        <div class="sgroup-card">
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Check automatically</span><span class="sitem-sub">When you open the app</span></span>
+            <select id="releasesAutoRefreshDays">
+              <option value="0">Never (manual only)</option>
+              <option value="1">Every day</option>
+              <option value="3">Every 3 days</option>
+              <option value="7">Every week</option>
+              <option value="30">Every month</option>
+            </select>
+          </label>
+          <button id="refreshReleasesBtn" type="button" class="sitem sitem-go">🔭 Re-check upcoming release dates</button>
+        </div>
       </section>
       </div>
 
@@ -1340,16 +1405,18 @@
         <button class="btn btn-icon" id="closeViewOptionsBtn" title="Close" aria-label="Close view options">✕</button>
       </div>
 
-      <section class="settings-section" data-for="timeline">
-        <div class="row">
-          <label>Cover art
+      <section class="sgroup" data-for="timeline">
+        <div class="sgroup-card">
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Cover art</span></span>
             <select id="timelineCoverSize">
               <option value="none">None</option>
               <option value="small">Small</option>
               <option value="big">Big</option>
             </select>
           </label>
-          <label>Month cards
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Month cards</span></span>
             <select id="timelineMonthSummary">
               <option value="hide">Total only</option>
               <option value="show">Show breakdown</option>
@@ -1359,48 +1426,53 @@
         <p class="hint">The breakdown is a line per category under a month, with how many entries it got. A month with one category doesn't need it.</p>
       </section>
 
-      <section class="settings-section" data-for="backlog">
-        <div class="row">
-          <label>Cover art
+      <section class="sgroup" data-for="backlog">
+        <div class="sgroup-card">
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Cover art</span></span>
             <select id="backlogCoverSize">
               <option value="none">None</option>
               <option value="small">Small</option>
               <option value="big">Big</option>
             </select>
           </label>
-          <label>Descriptions
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Descriptions</span><span class="sitem-sub">Hiding one doesn't delete it</span></span>
             <select id="backlogSummaries">
               <option value="show">Show in the list</option>
               <option value="hide">Hide</option>
             </select>
           </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Set-aside items</span><span class="sitem-sub">In a category's count</span></span>
+            <select id="backlogCounts">
+              <option value="split">Counted separately</option>
+              <option value="total">Included in the total</option>
+            </select>
+          </label>
         </div>
-        <label>Set-aside items in a category's count
-          <select id="backlogCounts">
-            <option value="split">Counted separately</option>
-            <option value="total">Included in the total</option>
-          </select>
-        </label>
         <p class="hint">Separately reads <em>300 (+12 EA, +43 unreleased, +8 dropped)</em> rather than 363 — the first number is what you could start today.</p>
 
-        <h4>Set-aside bands</h4>
-        <p class="hint">Whether each block at the end of a category can fold behind a bar like <em>▸ Unreleased 12</em>, and how it starts. A folded block isn't drawn at all.</p>
-        <div class="row row-stack">
-          <label>Early Access
+        <h3 class="sgroup-label">Set-aside bands</h3>
+        <div class="sgroup-card">
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Early Access</span></span>
             <select id="backlogFoldEa">
               <option value="open">Foldable, start open</option>
               <option value="collapsed">Foldable, start folded</option>
               <option value="always">Always open</option>
             </select>
           </label>
-          <label>Unreleased
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Unreleased</span></span>
             <select id="backlogFoldUnreleased">
               <option value="open">Foldable, start open</option>
               <option value="collapsed">Foldable, start folded</option>
               <option value="always">Always open</option>
             </select>
           </label>
-          <label>Dropped
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Dropped</span></span>
             <select id="backlogFoldDropped">
               <option value="open">Foldable, start open</option>
               <option value="collapsed">Foldable, start folded</option>
@@ -1408,17 +1480,20 @@
             </select>
           </label>
         </div>
+        <p class="hint">Whether each block at the end of a category can fold behind a bar like <em>▸ Unreleased 12</em>, and how it starts. A folded block isn't drawn at all.</p>
       </section>
 
-      <section class="settings-section" data-for="finance">
-        <div class="row">
-          <label>Month cards
+      <section class="sgroup" data-for="finance">
+        <div class="sgroup-card">
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Month cards</span></span>
             <select id="ledgerMonthSummary">
               <option value="show">Show breakdown</option>
               <option value="hide">Total only</option>
             </select>
           </label>
-          <label>Currency <span class="muted">(syncs)</span>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Currency</span><span class="sitem-sub">Syncs to your other devices</span></span>
             <select id="currency">
               <option value="ILS">₪ Shekel (ILS)</option>
               <option value="USD">$ Dollar (USD)</option>
@@ -1427,20 +1502,22 @@
             </select>
           </label>
         </div>
-        <p class="hint">The breakdown is a line per category under a month, with what you spent on each. Currency follows you to your other devices; everything else here is this device only.</p>
+        <p class="hint">The breakdown is a line per category under a month, with what you spent on each. Everything here but the currency is this device only.</p>
       </section>
 
-      <section class="settings-section" data-for="timeline finance">
-        <h4>Month card width</h4>
-        <div class="row">
-          <label>Min (px)
+      <section class="sgroup" data-for="timeline finance">
+        <h3 class="sgroup-label">Month card width</h3>
+        <div class="sgroup-card">
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Minimum</span><span class="sitem-sub">Smaller fits more months to a row</span></span>
             <input id="monthMin" type="number" min="80" max="600" step="10" />
           </label>
-          <label>Max (px)
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Maximum</span><span class="sitem-sub">0 lets them stretch</span></span>
             <input id="monthMax" type="number" min="0" max="1000" step="10" />
           </label>
         </div>
-        <p class="hint">Shared by the Timeline and the Ledger. A smaller minimum fits more months to a row; a maximum of 0 lets them stretch.</p>
+        <p class="hint">In pixels, and shared by the Timeline and the Ledger.</p>
       </section>
     </div>
   </div>
@@ -1539,25 +1616,25 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/platform.js?v=0.186.0"></script>
-  <script defer src="src/reconcile.js?v=0.186.0"></script>
-  <script defer src="src/qr.js?v=0.186.0"></script>
-  <script defer src="src/media.js?v=0.186.0"></script>
-  <script defer src="src/merge.js?v=0.186.0"></script>
-  <script defer src="src/storage.js?v=0.186.0"></script>
-  <script defer src="src/finance.js?v=0.186.0"></script>
-  <script defer src="src/settings.js?v=0.186.0"></script>
-  <script defer src="src/wheel.js?v=0.186.0"></script>
-  <script defer src="src/backlog.js?v=0.186.0"></script>
-  <script defer src="src/journal.js?v=0.186.0"></script>
-  <script defer src="src/notes.js?v=0.186.0"></script>
-  <script defer src="src/todos.js?v=0.186.0"></script>
-  <script defer src="src/io.js?v=0.186.0"></script>
-  <script defer src="src/sync.js?v=0.186.0"></script>
-  <script defer src="src/habits.js?v=0.186.0"></script>
-  <script defer src="src/recap.js?v=0.186.0"></script>
-  <script defer src="src/reminders.js?v=0.186.0"></script>
-  <script defer src="src/widgets.js?v=0.186.0"></script>
-  <script defer src="src/app.js?v=0.186.0"></script>
+  <script defer src="src/platform.js?v=0.187.0"></script>
+  <script defer src="src/reconcile.js?v=0.187.0"></script>
+  <script defer src="src/qr.js?v=0.187.0"></script>
+  <script defer src="src/media.js?v=0.187.0"></script>
+  <script defer src="src/merge.js?v=0.187.0"></script>
+  <script defer src="src/storage.js?v=0.187.0"></script>
+  <script defer src="src/finance.js?v=0.187.0"></script>
+  <script defer src="src/settings.js?v=0.187.0"></script>
+  <script defer src="src/wheel.js?v=0.187.0"></script>
+  <script defer src="src/backlog.js?v=0.187.0"></script>
+  <script defer src="src/journal.js?v=0.187.0"></script>
+  <script defer src="src/notes.js?v=0.187.0"></script>
+  <script defer src="src/todos.js?v=0.187.0"></script>
+  <script defer src="src/io.js?v=0.187.0"></script>
+  <script defer src="src/sync.js?v=0.187.0"></script>
+  <script defer src="src/habits.js?v=0.187.0"></script>
+  <script defer src="src/recap.js?v=0.187.0"></script>
+  <script defer src="src/reminders.js?v=0.187.0"></script>
+  <script defer src="src/widgets.js?v=0.187.0"></script>
+  <script defer src="src/app.js?v=0.187.0"></script>
 </body>
 </html>

@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.187.0] - 2026-09-25
+
+### Changed
+- **Inside each Settings page, the same cards as the list.** Every setting
+  is a row: its name, and a line under it when it needs one, on the left,
+  its control on the right. Related rows share a card. On/off settings (App
+  lock, the Tabs page) are switches. Actions are rows with a › — "Set PIN",
+  "Sync Steam Wishlist" — and the ones that remove something are red.
+  Import & export is two rows per kind, Export and Import, with the formats
+  as small buttons. The View options use the same rows.
+- **Media sources side by side**: each category's source and fallback sit
+  on one line instead of wrapping.
+- App lock's "Stay unlocked for" reads **Not at all** rather than "Always
+  require unlock".
+- Search results say which group a setting is in, e.g. "Media lookups →
+  API keys".
+
 ## [0.186.0] - 2026-09-25
 
 ### Changed

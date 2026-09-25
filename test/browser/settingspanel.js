@@ -232,7 +232,7 @@ const shown = (page, sel) => page.evaluate((q) => {
     await c.close();
   }
 
-  // ---- 8. a checkbox and its label are not jammed together ----
+  // ---- 8. a switch and its label are not jammed together ----
   // `.modal label { display: block }` outranked `.toggle-label`'s flex row,
   // so the 8px gap never applied anywhere in the app — including the privacy
   // toggle, which shipped that way. Measured rather than asserted on the
@@ -250,10 +250,13 @@ const shown = (page, sel) => page.evaluate((q) => {
         const row = document.querySelector(q);
         if (!row) return null;
         const box = row.querySelector("input");
-        const txt = [...row.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
+        const walk = document.createTreeWalker(row, NodeFilter.SHOW_TEXT, { acceptNode: (n) => n.textContent.trim() ? 1 : 3 });
+        const txt = walk.nextNode();
         if (!box || !txt) return null;
         const r = document.createRange(); r.selectNode(txt);
-        return Math.round(r.getBoundingClientRect().left - box.getBoundingClientRect().right);
+        const t = r.getBoundingClientRect(), b = box.getBoundingClientRect();
+        // The switch sits on either side of its label depending on the row.
+        return Math.round(b.left >= t.right ? b.left - t.right : t.left - b.right);
       }, sel);
       await p3.click("#settingsBackBtn");
       await p3.waitForTimeout(200);

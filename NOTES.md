@@ -16,6 +16,15 @@ what was decided against and why.
 
 ---
 
+- **Settings rows (0.187.0).** Inside a page the list's cards carry on:
+  `.sitem` is a row (label left, control right), `.sitem-stack` puts a text
+  field under its label, `.sitem-go` is an action with a chevron. Actions
+  that other code relabels ("Checking… 3/12", "Change PIN") are plain-text
+  buttons with the chevron drawn by CSS, so setting textContent can't break
+  them. Search reads `.sitem-title`, so a new row is findable if it has one.
+  Checkboxes that are on/off settings are `.switch`; the app's own checkbox
+  styling stays for picking items from a list.
+
 - **Settings is a list, and a view's options live on the view (0.186.0).**
   Seven tabs scrolled sideways on a phone and gave each page equal weight,
   which is why two reshuffles of their contents didn't help. The list is

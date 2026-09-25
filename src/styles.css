@@ -1765,37 +1765,87 @@ kbd {
 .gh-fields[hidden] { display: none; }
 .gh-fields.connected .gh-steps, .gh-fields.connected .gh-how { display: none; }
 #ghEditBtn { margin-bottom: 12px; }
-.settings-section[hidden] { display: none; }
-.settings-section > .btn { margin-bottom: 12px; }
-.settings-page .hint, .view-options .hint { margin-bottom: 12px; }
-.view-options h4 { margin-top: 18px; }
-.modal .row.row-stack { flex-direction: column; gap: 0; }
+
+/* Inside a page: the list's cards again, a row per setting — its label on
+   the left and its control on the right. */
+.settings-page [hidden], .view-options [hidden] { display: none !important; }
+.settings-page > .sgroup, .settings-page > div > .sgroup, .view-options > .sgroup { margin-top: 20px; }
+.settings-page > .page-lede { margin: 0 0 4px; }
+.modal .sgroup-label { margin: 0; }
+.sgroup > .sgroup-label:not(:first-child) { margin-top: 12px; }
+.sgroup > .hint, .sgroup > .muted, .sgroup > .warn { margin: 2px 6px 0; }
+.sgroup-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-right: 2px; }
+.modal .sitem {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 50px; margin: 0;
+  padding: 10px 14px; background: none; border: 0; border-radius: 0;
+  font: inherit; font-size: 14px; color: var(--text); text-align: left;
+}
+.modal .sgroup-card > * + * { border-top: 1px solid var(--border); }
+.sitem-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sitem-title { font-size: 14px; font-weight: 550; color: var(--text); }
+.sitem-sub { font-size: 12px; line-height: 1.4; color: var(--text-dim); }
+.sitem-sub:empty { display: none; }
+.sitem-sub a { color: var(--accent); }
+.sitem-sub br { content: ""; display: block; margin-top: 4px; }
+.modal .sitem select {
+  flex: 0 1 auto; width: auto; max-width: 58%; margin: 0; padding: 8px 10px; font-size: 13px;
+}
+.modal .sitem input[type=number] { flex: 0 0 96px; width: 96px; margin: 0; padding: 8px 10px; }
+.modal .sitem.sitem-stack { flex-direction: column; align-items: stretch; gap: 8px; }
+.modal .sitem.sitem-stack input:not([type=checkbox]) { margin: 0; }
+.modal .sitem-stack > .hint, .modal .sitem-stack > .warn { margin: 0; }
+.sitem-btns { display: flex; gap: 6px; flex-shrink: 0; }
+.modal button.sitem { cursor: pointer; color: var(--accent); font-weight: 550; transition: background var(--dur-fast) var(--ease); }
+.modal button.sitem:hover:not(:disabled) { background: var(--hover-bg); }
+.modal button.sitem:disabled { opacity: .5; cursor: default; }
+.sitem-go::after { content: "›"; margin-left: auto; padding-left: 8px; color: var(--text-faint); font-size: 18px; line-height: 1; }
+.modal button.sitem.sitem-danger { color: var(--danger); }
+.history-card:empty { display: none; }
+.sgroup-card > .history-row, .sgroup-card > .media-cat-row { padding: 10px 14px; border-bottom: 0; }
+.sgroup-card > .media-cat-row { flex-direction: column; align-items: stretch; gap: 8px; }
+.sgroup-card .media-cat-name { color: var(--text); font-size: 14px; font-weight: 550; }
+.sgroup-card .media-cat-sels {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px;
+}
+.sgroup-card .media-cat-sel { width: 100%; min-width: 0; padding: 8px 10px; font-size: 13px; }
+.sgroup-card > .muted { margin: 0; padding: 12px 14px; }
+.gh-fields.sitem { margin: 0; }
+.gh-fields .btn-row { margin-top: 2px; }
+
+/* A switch, for on/off rows. */
+.modal input.switch {
+  -webkit-appearance: none; appearance: none; position: relative; flex: 0 0 auto;
+  width: 40px; height: 24px; margin: 0; border: 0; border-radius: 12px; cursor: pointer;
+  background: var(--border-strong); transition: background var(--dur-fast) var(--ease);
+}
+.modal input.switch::before {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, .3);
+  clip-path: none; transform: none; transition: transform var(--dur-fast) var(--ease);
+}
+.modal input.switch:checked { background: var(--accent); }
+.modal input.switch:checked::before { transform: translateX(16px); }
+.modal input.switch:disabled { cursor: default; }
+.modal input.switch:focus-visible { border-radius: 12px; outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .modal input.switch, .modal input.switch::before { transition: none; } }
 
 /* A view's own options (the View button in the header). */
 .modal.view-options { width: 520px; }
-.view-options > .settings-section { border-top: 0; padding: 4px 0 12px; }
-.view-options > .settings-section:not([hidden]) ~ .settings-section:not([hidden]) { border-top: 1px solid var(--border); padding-top: 16px; }
-.settings-section { border-top: 1px solid var(--border); padding: 16px 0; }
-.settings-section:first-of-type { border-top: none; }
-.settings-section h3 { margin: 0 0 10px; font-size: 14px; }
-.settings-section h4 {
-  margin: 18px 0 8px; font-size: 11px; font-weight: 600;
-  color: var(--text-faint); text-transform: uppercase; letter-spacing: .5px;
-}
-.settings-section h4:first-of-type { margin-top: 0; }
+.view-options > .modal-head { margin-bottom: 0; }
+.view-options > .sgroup:not([hidden]) ~ .sgroup { margin-top: 22px; }
 /* The out-of-date notice: tinted rather than shouted, since nothing is
    broken — the device still saves and syncs, it's just behind. */
 .version-skew {
   border: 1px solid var(--danger); border-radius: var(--radius);
   background: var(--danger-bg); padding: 12px 14px; margin-bottom: 14px;
 }
-.version-skew h3 { color: var(--danger-text); }
+.version-skew h3 { margin: 0 0 6px; font-size: 14px; color: var(--danger-text); }
+.version-skew .hint { margin-top: 6px; }
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
-.gh-fields { display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+.gh-fields { display: flex; flex-direction: column; gap: 10px; }
 .gh-fields label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-dim); }
 .gh-fields .row { gap: 12px; }
 .gh-fields .row label { flex: 1; }
-.settings-section h3 .muted { font-weight: 400; font-size: 12px; }
 .gh-steps { margin: 0 0 2px; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--text-dim); }
 .gh-steps a { color: var(--accent); }
 /* Per-item "keep my own value" foldout at the bottom of the entry/backlog
@@ -2488,39 +2538,15 @@ html.force-mobile .modal.view-options {
 }
 .recap-open-btn:hover { background: var(--accent-hover); }
 
-/* Tab/mode switches in Settings → Appearance. The modes are indented under
+/* Tab/mode switches in Settings → Tabs. The modes are indented under
    their tab because they are a detail of it, not a peer — and greyed rather
    than removed while the tab itself is off, so turning it back on shows you
    what its modes were left set to. */
-.tab-toggles { display: flex; flex-direction: column; gap: 4px; }
-.tab-toggle-view { font-weight: 600; }
-.tab-toggle-modes {
-  display: flex; flex-direction: column; gap: 3px;
-  margin: 0 0 8px 24px; padding-left: 10px;
-  border-left: 1px solid var(--border);
-}
-.tab-toggle-modes .toggle-label { font-size: 12.5px; color: var(--text-dim); }
-.tab-toggle-modes input:disabled + * { opacity: .5; }
+.tab-toggles { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
+.modal .tab-toggle-modes .sitem + .sitem { border-top: 1px solid var(--border); }
+.modal .tab-toggle-modes .sitem { min-height: 44px; padding-left: 30px; }
+.tab-toggle-modes .sitem-title { font-size: 13px; font-weight: 450; color: var(--text-dim); }
 .tab-toggle-modes label:has(input:disabled) { opacity: .5; cursor: default; }
-
-/* A settings section's second-level grouping — the Backlog's set-aside bands
-   under its own heading, rather than as a fourth peer section. */
-.settings-section h4 {
-  margin: 14px 0 2px; font-size: 12.5px; font-weight: 600;
-  color: var(--text-dim); text-transform: none;
-}
-/* Something you set once and then forget, folded away rather than given the
-   same weight as the things you change. Force-layout is the whole of this
-   category today; anything else that earns it goes here too. */
-.settings-advanced { margin-top: 12px; }
-.settings-advanced > summary {
-  cursor: pointer; font-size: 12.5px; color: var(--text-dim);
-  padding: 4px 0; list-style: none;
-}
-.settings-advanced > summary::-webkit-details-marker { display: none; }
-.settings-advanced > summary::before { content: "▸ "; color: var(--text-faint); }
-.settings-advanced[open] > summary::before { content: "▾ "; }
-.settings-advanced > summary:hover { color: var(--text); }
 
 /* ---------- recap: the slides that show things rather than count them ---- */
 /* A scrolling slide has to coexist with the player's own gestures. It takes

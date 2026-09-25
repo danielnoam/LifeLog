@@ -558,26 +558,28 @@
   // ---------- search ----------
   // Read off the pages themselves rather than kept as a list here, so a
   // control added to a page is findable without anyone remembering to say so.
-  // What a person reads: headings, labels, buttons, and a select's choices
-  // (search "nord" and Color scheme comes up). Not the hints — they'd match
-  // half the words in the language. The lists that rows are drawn into (tab
+  // What a person reads: group headings, each row's title, action rows, and
+  // a row's small print, buttons and choices (search "nord" and Color scheme
+  // comes up; "csv" finds the Export rows). Not the hints — they'd match half
+  // the words in the language. The lists that rows are drawn into (tab
   // switches, history, categories) are data, not settings, and are skipped.
   const DYNAMIC = "#tabToggles, #mediaCatRows, #historyList, #trashList";
   const VIEW_NAMES = { timeline: "Timeline", backlog: "Backlog", finance: "Ledger" };
-  const ownText = (n) => [...n.childNodes].filter((c) => c.nodeType === 3).map((c) => c.textContent).join(" ")
-    .replace(/\s+/g, " ").replace(/[…:]+\s*$/, "").trim();
+  const squash = (t) => (t || "").replace(/\s+/g, " ").replace(/[…:]+\s*$/, "").trim();
   const shownIn = (n, root) => { for (let x = n; x && x !== root; x = x.parentElement) if (x.hidden) return false; return true; };
 
   function searchEntries() {
     const out = [];
     const add = (root, where, go) => {
-      for (const n of root.querySelectorAll("h3, h4, label, button.btn")) {
+      for (const n of root.querySelectorAll(".sgroup-label, .sitem")) {
         if (n.closest(DYNAMIC) || !shownIn(n, root)) continue;
-        const text = n.matches("button") ? n.textContent.replace(/\s+/g, " ").trim() : ownText(n);
+        const title = n.querySelector(".sitem-title");
+        const text = squash(title ? title.textContent : n.matches(".sitem-stack") ? "" : n.textContent);
         if (!text) continue;
-        const extra = n.matches("label")
-          ? [...n.querySelectorAll("option, .muted")].map((o) => o.textContent).join(" ") : "";
-        out.push({ text, where, go, el: n, extra });
+        const group = n.closest(".sgroup");
+        const head = group && !n.matches(".sgroup-label") && group.querySelector(".sgroup-label");
+        const extra = [...n.querySelectorAll(".sitem-sub, option, .btn")].map((o) => o.textContent).join(" ");
+        out.push({ text, where: head && squash(head.textContent) !== text ? where + " → " + squash(head.textContent) : where, go, el: n, extra });
       }
     };
     document.querySelectorAll("#settingsModal .settings-page").forEach((p) => {
@@ -653,14 +655,14 @@
     if (!node) return;
     const d = node.closest("details");
     if (d) d.open = true;
-    const target = node.closest(".row > label") || node;
+    const target = node;
     target.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
     target.classList.remove("search-hit");
     void target.offsetWidth;
     target.classList.add("search-hit");
     setTimeout(() => target.classList.remove("search-hit"), 1600);
     // A phone would open its keyboard over the thing you just found.
-    const field = node.matches("label") ? node.querySelector("input, select") : null;
+    const field = node.matches("label") ? node.querySelector("input:not([type=checkbox]), select") : null;
     if (field && !onePane()) field.focus({ preventScroll: true });
   }
 
@@ -834,33 +836,39 @@
     const offViews = state.visual.disabledViews || [];
     const offModes = state.visual.disabledModes || {};
 
-    for (const [view, label, modes] of VIEW_TOGGLES) {
-      const viewOn = !offViews.includes(view);
-      const row = el("label", "toggle-label tab-toggle-view");
+    // A card per tab: its switch, and its modes' switches under it.
+    const switchRow = (cls, label) => {
+      const row = el("label", "sitem toggle-label " + cls);
+      const text = el("span", "sitem-text");
+      text.appendChild(el("span", "sitem-title", label));
+      row.appendChild(text);
       const box = document.createElement("input");
       box.type = "checkbox";
+      box.className = "switch";
+      row.appendChild(box);
+      return [row, box];
+    };
+    for (const [view, label, modes] of VIEW_TOGGLES) {
+      const viewOn = !offViews.includes(view);
+      const card = el("div", "sgroup-card");
+      const [row, box] = switchRow("tab-toggle-view", label);
       box.checked = viewOn;
       box.onchange = () => setViewEnabled(view, box.checked);
-      row.appendChild(box);
-      row.appendChild(document.createTextNode(label));
-      wrap.appendChild(row);
+      card.appendChild(row);
 
       const sub = el("div", "tab-toggle-modes");
       for (const [id, modeLabel] of modes) {
-        const mrow = el("label", "toggle-label");
-        const mbox = document.createElement("input");
-        mbox.type = "checkbox";
+        const [mrow, mbox] = switchRow("tab-toggle-mode", modeLabel);
         mbox.checked = !(offModes[view] || []).includes(id);
         // A mode of a tab you've turned off is not a separate decision —
         // greyed rather than hidden, so turning the tab back on shows you
         // what its modes were still set to.
         mbox.disabled = !viewOn;
         mbox.onchange = () => setModeEnabled(view, id, mbox.checked);
-        mrow.appendChild(mbox);
-        mrow.appendChild(document.createTextNode(modeLabel));
         sub.appendChild(mrow);
       }
-      wrap.appendChild(sub);
+      if (modes.length) card.appendChild(sub);
+      wrap.appendChild(card);
     }
   }
 
