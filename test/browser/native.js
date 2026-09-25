@@ -359,10 +359,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
   async function pasteLink(page) {
     await page.click("#settingsBtn");
     await page.waitForTimeout(300);
-    await page.evaluate(() => {
-      const t = [...document.querySelectorAll(".settings-tabs button, .settings-tabs [data-tab]")].find((b) => /data|sync/i.test(b.textContent));
-      if (t) t.click();
-    });
+    await page.click('.srow[data-page="sync"]');
     await page.waitForTimeout(200);
     await page.fill("#ghToken", LINK);
     await page.click("#ghConnectBtn");
@@ -444,10 +441,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
   const openSync = async (page) => {
     await page.click("#settingsBtn");
     await page.waitForTimeout(300);
-    await page.evaluate(() => {
-      const t = [...document.querySelectorAll(".settings-tabs button, .settings-tabs [data-tab]")].find((b) => /data|sync/i.test(b.textContent));
-      if (t) t.click();
-    });
+    await page.click('.srow[data-page="sync"]');
     await page.waitForTimeout(200);
   };
   const scanShown = (page) => page.evaluate(() => {
@@ -761,7 +755,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
   const exportFrom = async (page) => {
     await page.click("#settingsBtn");
     await page.waitForTimeout(300);
-    await page.click('.stab[data-stab="backup"]');
+    await page.click('.srow[data-page="io"]');
     await page.waitForTimeout(200);
     await page.evaluate(() => {
       window.__linkDownloads = [];
@@ -1114,7 +1108,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await a.page.reload({ waitUntil: "load" });
     await a.page.waitForTimeout(900);
     await a.page.evaluate(() => { document.querySelector("#settingsBtn").click(); });
-    await a.page.click('.stab[data-stab="privacy"]');
+    await a.page.click('.srow[data-page="lock"]');
     await a.page.waitForTimeout(300);
     check("the app offers fingerprint unlock, which the WebView alone never could",
       await a.page.evaluate(() => !document.querySelector("#setBioBtn").hidden && document.querySelector("#privacyBioUnavailable").hidden));
@@ -1156,7 +1150,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     // A phone that could, with nothing set up.
     const f = await openApp(browser, { widgets: { queue: [], action: null, bio: "none-enrolled" } });
     await f.page.evaluate(() => { document.querySelector("#settingsBtn").click(); });
-    await f.page.click('.stab[data-stab="privacy"]');
+    await f.page.click('.srow[data-page="lock"]');
     await f.page.waitForTimeout(300);
     check("with no fingerprint on the phone, Settings says where to add one",
       await f.page.evaluate(() => !document.querySelector("#privacyBioUnavailable").hidden && /Android's settings/.test(document.querySelector("#privacyBioUnavailable").textContent) && document.querySelector("#setBioBtn").hidden));
@@ -1166,7 +1160,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     // The browser keeps its own way (WebAuthn), which headless Chromium lacks.
     const g = await openApp(browser, { native: false });
     await g.page.evaluate(() => { document.querySelector("#settingsBtn").click(); });
-    await g.page.click('.stab[data-stab="privacy"]');
+    await g.page.click('.srow[data-page="lock"]');
     await g.page.waitForTimeout(300);
     check("a browser still asks WebAuthn, not the app's plugin",
       await g.page.evaluate(() => !window.__cap && /this device or browser/.test(document.querySelector("#privacyBioUnavailable").textContent)));

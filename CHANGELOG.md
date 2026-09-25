@@ -4,6 +4,38 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.186.0] - 2026-09-25
+
+### Changed
+- **Settings is a list of pages instead of seven tabs.** It opens on three
+  groups — Your data, This device, Connected services — and every row says
+  where things stand: "GitHub · you/lifelog-data", "PIN + fingerprint ·
+  asks after 5 minutes", "Not synced — on this device only". On a phone a
+  row opens its page and back (the button, a swipe right, Escape, Android's
+  back gesture) returns to the list. On a computer the list stays on the
+  left beside the open page.
+- **The old tabs are split where they mixed things.** Data became **Sync**;
+  History became **History** and **Recently deleted**; Privacy became **App
+  lock**; Appearance's tab switches have their own **Tabs** page; Media
+  became **Media lookups**, **Imports** (Steam, AniList) and **Release
+  dates**. Nothing was removed.
+- **Each view's options moved onto that view.** The Timeline, Backlog and
+  Ledger have a **View** button beside ⚙ that opens their own options —
+  cover art, month breakdowns, the Backlog's counts and set-aside bands,
+  currency, and the month card widths. The Views tab is gone.
+- **Shorter explanations.** Most hints are a line or two now. The how-to
+  for connecting GitHub only shows while you're not connected; once you
+  are, changing the token sits behind **Change token or repository**, and
+  **Disconnect** is at the bottom of the page, in red.
+- "Force a layout" is now Appearance → **Layout**, a plain choice rather
+  than a fold-out.
+
+### Added
+- **Search in Settings.** Type "key" and every API key is listed with the
+  page it's on; a result opens that page and highlights the setting. Choices
+  inside a menu count ("dracula" finds the color scheme), and a view's
+  option ("currency") opens that view's options on that view.
+
 ## [0.185.0] - 2026-09-25
 
 ### Added

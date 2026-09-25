@@ -625,7 +625,7 @@
   async function searchSteamGridDB(title, apiKey, proxyUrl) {
     if (!apiKey) return [];
     if (!proxyUrl) {
-      lastError = "SteamGridDB needs the CORS proxy URL set (Settings → Media) — it's CORS-blocked without it";
+      lastError = "SteamGridDB needs the CORS proxy URL set (Settings → Media lookups) — it's CORS-blocked without it";
       return [];
     }
     const auth = { Authorization: "Bearer " + apiKey };

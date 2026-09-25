@@ -514,7 +514,7 @@
   async function backfillRawgForSteamGames() {
     const rawgKey = state.data.settings.mediaKeys?.rawg;
     const proxyUrl = ((state.data.settings.steam || {}).proxyUrl || "").trim().replace(/\/+$/, "");
-    if (!rawgKey && !proxyUrl) { toast("Set a RAWG API key or your proxy URL first (Settings → Media)", true); return; }
+    if (!rawgKey && !proxyUrl) { toast("Set a RAWG API key or your proxy URL first (Settings → Media lookups)", true); return; }
     const targets = steamGamesNeedingInfo();
     if (!targets.length) { toast("Nothing to backfill"); return; }
     const btn = $("#steamBackfillRawgBtn");
@@ -561,7 +561,7 @@
     if (count) btn.textContent = `🎮 Backfill missing game info (${count})`;
   }
 
-  // A quiet periodic check, paced by Settings → Media → "Check
+  // A quiet periodic check, paced by Settings → Imports → "Check
   // automatically" (days between checks; 0 = never runs). Only counts how
   // many wishlist games aren't in the backlog/Journal yet and toasts that
   // count — never opens the review picker or adds anything on its own, and
@@ -592,7 +592,7 @@
         );
         const newCount = items.filter((it) => !existingSteamIds.has(String(it.appid))).length;
         if (newCount > 0) {
-          toast(`🎮 ${newCount} new Steam wishlist game${newCount === 1 ? "" : "s"} — Settings → Media to sync`);
+          toast(`🎮 ${newCount} new Steam wishlist game${newCount === 1 ? "" : "s"} — Settings → Imports to sync`);
         }
       }
     } catch (e) {
@@ -808,7 +808,7 @@
         }
       }
       if (newCount > 0) {
-        toast(`📺 ${newCount} new AniList planning title${newCount === 1 ? "" : "s"} — Settings → Media to sync`);
+        toast(`📺 ${newCount} new AniList planning title${newCount === 1 ? "" : "s"} — Settings → Imports to sync`);
       }
     } catch (e) {
       // quiet — this is an unattended background check, not a user action

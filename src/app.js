@@ -128,7 +128,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.185.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.186.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1425,6 +1425,7 @@
       updateTabUnderline();
       updateTabModeDots();
       placeFilterbar();
+      SettingsUI.syncViewOptionsButton(state.view);
       // #viewBody, not #content: the filterbar is #content's other child and
       // is rebuilt in place rather than thrown away with the view.
       const c = $("#viewBody");
@@ -1459,7 +1460,7 @@
           body: "Log the things you experience — a game you finished, a book you read, a trip you took. They'll stack up here by year and month.",
           action: "Add your first entry",
           onAction: () => Journal.openEntryModal(null),
-          hint: "Tip: you can also import an existing lifelog.json from Settings → Import / Export.",
+          hint: "Tip: you can also import an existing lifelog.json from Settings → Import & export.",
         }));
         return;
       }
@@ -2912,7 +2913,7 @@
     else if (ghOn) txt = "Synced to " + (gi ? gi.owner + "/" + gi.repo : "GitHub");
     else if (fileOn) txt = "Saved to " + (Storage.fileName || "file");
     else if (Storage.fileName && Storage.needsReconnect) { cls = "storage-status local"; txt = "File needs reconnect — open Settings"; }
-    else { cls = "storage-status local"; txt = Storage.fsSupported ? "Browser only — set up Data in Settings" : "Browser storage (this browser only)"; }
+    else { cls = "storage-status local"; txt = Storage.fsSupported ? "Browser only — set up Sync in Settings" : "Browser storage (this browser only)"; }
     // A 401/403 from GitHub is a *persistent* failure (revoked/expired token,
     // or one missing the `repo` scope) — "will sync when online" is misleading
     // there, because it never will until the token is fixed, leaving the user
@@ -3616,10 +3617,10 @@
     window.addEventListener("pointerdown", () => { fanConsumedClick = false; }, true);
     window.addEventListener("pointerup", () => { cancelHold(); closeModeFan(); });
     window.addEventListener("pointercancel", () => { cancelHold(); closeModeFan(); });
-    // The storage status doubles as a shortcut into Settings → Data, so its
-    // hints ("Reconnect in Settings", "set up Data in Settings", "GitHub
+    // The storage status doubles as a shortcut into Settings → Sync, so its
+    // hints ("Reconnect in Settings", "set up Sync in Settings", "GitHub
     // rejected your token…") are one tap away from where you'd act on them.
-    $("#storageStatus").onclick = () => SettingsUI.openSettings();
+    $("#storageStatus").onclick = () => SettingsUI.openSettings("sync");
 
     let scrollSaveTimer;
     window.addEventListener("scroll", () => {
@@ -3729,12 +3730,14 @@
       // arrows move through it rather than doing whatever they'd otherwise do.
       if (Recap.handleKey(e)) return;
       if (e.key === "Escape") {
+        if (SettingsUI.settingsBack()) return;
         Journal.closeEntryModal(); Journal.closeAchModal(); Journal.cancelCategoryModal(); Backlog.closeBacklogModal();
         Backlog.closePickModal(); Wheel.closeWheel();
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
         Finance.closePauseModal(); Finance.cancelFinanceCatModal(); Todos.closeTodoCatModal();
         Habits.closeHabitModal();
         SettingsUI.closeSettings();
+        SettingsUI.closeViewOptions();
         closeShortcutsModal();
         closeBulkProgressPanel();
         $("#addMenu").hidden = true;
@@ -3964,7 +3967,7 @@
       resetBtn.onclick = async () => {
         const recoverable = Storage.githubConnected || Storage.fileConnected;
         const msg = recoverable
-          ? "Reset app lock on this device? This clears the PIN/fingerprint and wipes this device's local copy of your data, and disconnects GitHub/the local file — their actual contents are untouched. You'll start from an empty log here; reconnect in Settings → Sync/Backup afterward to get your data back."
+          ? "Reset app lock on this device? This clears the PIN/fingerprint and wipes this device's local copy of your data, and disconnects GitHub/the local file — their actual contents are untouched. You'll start from an empty log here; reconnect in Settings → Sync afterward to get your data back."
           : "Reset app lock on this device? This device isn't connected to GitHub or a backup file, so this will permanently delete all your data with no way to recover it.";
         if (!confirm(msg)) return;
         const typed = prompt('Type "reset" to confirm — this cannot be undone from this device.');
@@ -4395,6 +4398,7 @@
     saveVisualSettings, savePrivacySettings, attachSwipe,
     applyMonthLayout, applyFont, applyTheme, applyForceLayout,
     prefersReducedMotion, biometricAvailable, biometricState, hashPin, randomHex, registerBiometric,
+    isMobileLayout, switchToView,
     updateSteamRetryUnresolvedButton: Sync.updateSteamRetryUnresolvedButton,
     updateSteamBackfillRawgButton: Sync.updateSteamBackfillRawgButton,
     syncSteamWishlist: Sync.syncSteamWishlist,

@@ -1138,7 +1138,7 @@
         glyph: "🔭",
         title: "Nothing on the horizon",
         body: "Backlog items that haven't come out yet show up here in date order — the next episode of something airing, a game with a release date, a film still months away.",
-        hint: "Release dates arrive with the cover art when you sync an item to a media source. Settings → Media → Upcoming releases keeps them current.",
+        hint: "Release dates arrive with the cover art when you sync an item to a media source. Settings → Release dates keeps them current.",
       }));
       return;
     }
@@ -1318,7 +1318,7 @@
 
   function discoverUnavailableNote(source) {
     return (MEDIA_SOURCE_LABELS[source] || source) +
-      " publishes no popularity list of its own. Set a RAWG key in Settings → Media and this fills in from RAWG instead.";
+      " publishes no popularity list of its own. Set a RAWG key in Settings → Media lookups and this fills in from RAWG instead.";
   }
 
   function discoverCache() {
@@ -1635,9 +1635,9 @@
       // something you set up, the other is a chip you can click off.
       root.appendChild(emptyState(state.activeCats.size
         ? "Nothing to discover in the categories you've narrowed to — none of them uses a source that publishes a popularity list. " +
-          "Clear the category chips to see the rest, or set a source in Settings → Media."
+          "Clear the category chips to see the rest, or set a source in Settings → Media lookups."
         : "Discover follows the media sources your categories use, and none of the ones you've set publishes a popularity list. " +
-          "RAWG, TMDB, AniList and Jikan do — set one for a category in Settings → Media."));
+          "RAWG, TMDB, AniList and Jikan do — set one for a category in Settings → Media lookups."));
       return;
     }
     const sources = [...lists.keys()];
@@ -1664,7 +1664,7 @@
       if (!run || run.status === "loading") {
         parts.push({ key: "__loading", kind: "note", text: "Loading…" });
       } else if (!run.rows.length) {
-        parts.push({ key: "__none", kind: "note", text: "Nothing came back. Check this source's API key in Settings → Media." });
+        parts.push({ key: "__none", kind: "note", text: "Nothing came back. Check this source's API key in Settings → Media lookups." });
       } else if (!rows.length) {
         parts.push({ key: "__owned", kind: "note", text: "You already have all " + run.rows.length + " of these." });
       } else {

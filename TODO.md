@@ -49,14 +49,6 @@ todo:
   OPTION_APPWIDGET_MIN_WIDTH / MAX_HEIGHT, the way the habits widget already
   counts how many rows fit.
 
-- **settings, again.** 0.169.0 regrouped Settings by where each change lands,
-  and it still doesn't look good — Appearance was the specific complaint the
-  first time. Before touching it, pin down what reads badly: spacing and
-  hierarchy inside a panel, the tab strip on a phone, controls of mismatched
-  sizes sitting in one row, or long hint paragraphs doing a label's job. A
-  screenshot of each panel at 390px and at desktop width, marked up, is the
-  place to start rather than another reshuffle.
-
 ---
 
 Ideas that turned out not to be worth doing, or not to be possible, live in

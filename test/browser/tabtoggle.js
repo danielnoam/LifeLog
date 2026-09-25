@@ -205,7 +205,7 @@ const activeView = (page) => page.evaluate(() => {
     const { page, ctx, errs: e } = await app(browser);
     await page.click("#settingsBtn");
     await page.waitForSelector("#settingsModal:not([hidden])", { timeout: 5000 });
-    await page.click('.settings-tab[data-panel="appearance"], nav.settings-tabs button:has-text("Appearance")').catch(() => {});
+    await page.click('.srow[data-page="tabs"]');
     await page.waitForTimeout(300);
     const rows = await page.evaluate(() => ({
       views: document.querySelectorAll("#tabToggles .tab-toggle-view").length,

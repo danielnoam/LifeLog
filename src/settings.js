@@ -1,4 +1,4 @@
-// LifeLog — the Settings modal: tab switching, the Data panel (local file +
+// LifeLog — the Settings modal: its list of pages and search, the Sync page (local file +
 // GitHub sync connections, backend info, version history), Appearance
 // controls, media source/key settings incl. the Steam wishlist section's
 // inputs, and the privacy/app-lock panel. Extracted from app.js; shared app
@@ -15,6 +15,7 @@
     saveVisualSettings, savePrivacySettings, attachSwipe,
     applyMonthLayout, applyFont, applyTheme, applyForceLayout,
     prefersReducedMotion, biometricAvailable, biometricState, hashPin, randomHex, registerBiometric,
+    isMobileLayout, switchToView,
     updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
     syncSteamWishlist, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
     syncAniListPlanning,
@@ -27,6 +28,7 @@
       saveVisualSettings, savePrivacySettings, attachSwipe,
       applyMonthLayout, applyFont, applyTheme, applyForceLayout,
       prefersReducedMotion, biometricAvailable, biometricState, hashPin, randomHex, registerBiometric,
+      isMobileLayout, switchToView,
       VIEW_TOGGLES, settleDisabled,
       updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
       syncSteamWishlist, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
@@ -52,6 +54,7 @@
     }
   }
 
+  let ghEditing = false;
   function updateGithubInfo() {
     const info = $("#ghInfo");
     const conn = $("#ghConnectBtn");
@@ -63,7 +66,15 @@
       $("#ghPath").value = gi.path;
       $("#ghBranch").value = gi.branch;
     }
-    if (Storage.githubConnected && gi) {
+    const on = !!(Storage.githubConnected && gi);
+    // Connected, the token box is only for changing the connection, so it
+    // waits behind a button, and the how-to goes: it's for getting here.
+    if (!on) ghEditing = false;
+    $(".gh-fields").classList.toggle("connected", on);
+    $(".gh-fields").hidden = on && !ghEditing;
+    $("#ghEditBtn").hidden = !on || ghEditing;
+    $("#ghDisconnectSection").hidden = !on;
+    if (on) {
       info.textContent = "Connected: " + gi.owner + "/" + gi.repo + " (" + gi.path + " on " + gi.branch + "), auto-syncing.";
       conn.textContent = "Update connection";
       disc.hidden = false;
@@ -94,7 +105,7 @@
     }
   }
 
-  // ---------- version history (Settings → Data tab) ----------
+  // ---------- version history (Settings → History) ----------
   let historyCache = []; // last fetched list, so restore can look it up
 
   function formatHistoryDate(iso) {
@@ -425,39 +436,280 @@
     }
   }
 
-  // Swiping between panels on a phone, the same gesture the views use. The
-  // ends are the ends rather than wrapping: a swipe is a nudge in a
-  // direction, and jumping from Data to Media because you nudged once more
-  // is not what that gesture means. (cycleMode makes the same choice; the
-  // tab bar's stepMode wraps because a tap there is a discrete "next".)
-  function stepSettingsTab(delta) {
-    const tabs = [...document.querySelectorAll(".stab")];
-    const i = tabs.findIndex((t) => t.classList.contains("active"));
-    const next = tabs[i + delta];
-    if (i < 0 || !next) return;
-    setSettingsTab(next.dataset.stab);
-  }
+  // ---------- pages (0.186.0) ----------
+  // Settings opens on a list of pages, each row saying where things stand,
+  // rather than on seven tabs that had outgrown a phone's width. On a phone
+  // the list and a page take turns, and back (the button, Escape, Android's
+  // gesture, a swipe right) returns to the list. On a wider screen the list
+  // stays beside the page, so a page is always open there.
+  let currentPage = "";
+  const box = () => $("#settingsModal .settings-modal");
+  const onePane = () => isMobileLayout();
 
-  function setSettingsTab(name) {
-    document.querySelectorAll(".stab").forEach((t) => {
-      const on = t.dataset.stab === name;
-      t.classList.toggle("active", on);
-      // Seven tabs don't fit a phone, so the strip scrolls. Without this a tab
-      // reached by swiping could end up active while off-screen, which reads
-      // as the swipe having done nothing. "nearest" is a no-op when the tab
-      // is already visible, so clicking is unaffected.
-      if (on && t.scrollIntoView) t.scrollIntoView({ block: "nearest", inline: "nearest" });
-    });
-    document.querySelectorAll(".settings-panel").forEach((p) => {
-      const isActive = p.dataset.panel === name;
-      p.classList.toggle("active", isActive);
-      if (!isActive && p.contains(document.activeElement)) document.activeElement.blur();
-      if (isActive && !prefersReducedMotion()) {
+  function showPage(name) {
+    currentPage = name || "";
+    box().dataset.page = currentPage;
+    document.querySelectorAll("#settingsModal .settings-page").forEach((p) => {
+      const on = p.dataset.page === currentPage;
+      if (!on && p.contains(document.activeElement)) document.activeElement.blur();
+      p.hidden = !on;
+      if (on && !prefersReducedMotion()) {
         p.classList.remove("view-fade-in");
         void p.offsetWidth; // force reflow so the animation replays
         p.classList.add("view-fade-in");
       }
     });
+    document.querySelectorAll("#settingsModal .srow[data-page]").forEach((r) => {
+      const on = r.dataset.page === currentPage;
+      r.classList.toggle("active", on);
+      if (on) r.setAttribute("aria-current", "page"); else r.removeAttribute("aria-current");
+    });
+    const pages = $("#settingsModal .settings-pages");
+    if (pages) pages.scrollTop = 0;
+    if (!currentPage) updateStatuses();
+  }
+
+  // True when it stepped back to the list, so whoever asked (Escape, back)
+  // knows not to close Settings as well.
+  function settingsBack() {
+    if ($("#settingsModal").hidden || !currentPage || !onePane()) return false;
+    showPage("");
+    return true;
+  }
+
+  // ---------- the status line under each row ----------
+  const EVERY = { "1": "every day", "3": "every 3 days", "7": "every week", "30": "every month" };
+  const THEMES = { default: "Dark", light: "Light", nord: "Nord", dracula: "Dracula" };
+  const FONTS = { system: "system typeface", serif: "serif", mono: "monospace", rounded: "rounded" };
+  const KEY_NAMES = { rawg: "RAWG", tmdb: "TMDB", ggdeals: "GG.deals", steamgriddb: "SteamGridDB" };
+  const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
+
+  function statusOf(page) {
+    const set = state.data.settings || {};
+    switch (page) {
+      case "sync": {
+        const gi = Storage.githubInfo;
+        const file = Storage.fileName && !Storage.needsReconnect;
+        if (Storage.githubConnected && gi) return { text: "GitHub · " + gi.owner + "/" + gi.repo + (file ? " · backup file" : ""), tone: "ok" };
+        if (Storage.fileName && Storage.needsReconnect) return { text: "The backup file needs permission again", tone: "warn" };
+        if (file) return { text: "Backup file only · " + Storage.fileName };
+        return { text: "Not synced — on this device only", tone: "warn" };
+      }
+      case "io": return { text: "Back up, or bring in a spreadsheet" };
+      case "history": {
+        const n = historyCache.length;
+        return { text: n ? "Undo or restore any of " + plural(n, "save", "saves") : "Undo or restore a recent save" };
+      }
+      case "deleted": {
+        const n = computeRecentlyDeleted().length;
+        return { text: n ? plural(n, "item", "items") + " you can bring back" : "Nothing to bring back" };
+      }
+      case "lock": {
+        const p = state.privacy;
+        if (!p.pinHash) return { text: "Off" };
+        const how = p.credentialId ? "PIN + fingerprint" : "PIN";
+        if (!p.enabled) return { text: how + " set up, not required" };
+        const g = +p.graceMinutes || 0;
+        return { text: how + " · " + (g ? "asks after " + (g === 60 ? "an hour" : plural(g, "minute", "minutes")) : "asks every time") };
+      }
+      case "appearance": {
+        const v = state.visual;
+        const forced = v.forceLayout === "mobile" ? " · phone layout" : v.forceLayout === "pc" ? " · computer layout" : "";
+        return { text: (THEMES[v.theme] || THEMES.default) + " · " + (FONTS[v.fontFamily] || FONTS.system) + forced };
+      }
+      case "tabs": {
+        const offViews = state.visual.disabledViews || [];
+        const on = VIEW_TOGGLES.filter(([v]) => !offViews.includes(v)).length;
+        const offModes = Object.entries(state.visual.disabledModes || {})
+          .filter(([v]) => !offViews.includes(v))
+          .reduce((n, [, m]) => n + (m || []).length, 0);
+        return { text: on === VIEW_TOGGLES.length && !offModes ? "All tabs on"
+          : on + " of " + VIEW_TOGGLES.length + " tabs on" + (offModes ? " · " + plural(offModes, "mode", "modes") + " off" : "") };
+      }
+      case "media": {
+        const keys = Object.entries(set.mediaKeys || {}).filter(([, v]) => v).map(([k]) => KEY_NAMES[k] || k);
+        const cats = Object.values(set.mediaCategorySources || {}).filter((v) => v && (typeof v === "string" || v.primary)).length;
+        if (!keys.length && !cats) return { text: "No sources set up yet" };
+        return { text: [keys.length ? keys.join(", ") : "", cats ? plural(cats, "category", "categories") + " set up" : ""].filter(Boolean).join(" · ") };
+      }
+      case "imports": {
+        const parts = [];
+        if (set.steam && set.steam.steamId) parts.push("Steam wishlist" + (set.steam.wishlistCategory ? " → " + set.steam.wishlistCategory : ""));
+        if (set.anilist && set.anilist.userName) parts.push("AniList");
+        return { text: parts.length ? parts.join(" · ") : "Steam wishlist, AniList" };
+      }
+      case "releases": {
+        const d = String((set.releases && set.releases.autoRefreshDays) || "0");
+        return { text: EVERY[d] ? "Checked " + EVERY[d] : "Checked when you ask" };
+      }
+    }
+    return null;
+  }
+
+  function updateStatuses() {
+    document.querySelectorAll("#settingsHome [data-status]").forEach((node) => {
+      let s = null;
+      try { s = statusOf(node.dataset.status); } catch (e) { /* a status line is never worth an error */ }
+      node.textContent = s ? s.text : "";
+      node.dataset.tone = (s && s.tone) || "";
+    });
+  }
+
+  // ---------- search ----------
+  // Read off the pages themselves rather than kept as a list here, so a
+  // control added to a page is findable without anyone remembering to say so.
+  // What a person reads: headings, labels, buttons, and a select's choices
+  // (search "nord" and Color scheme comes up). Not the hints — they'd match
+  // half the words in the language. The lists that rows are drawn into (tab
+  // switches, history, categories) are data, not settings, and are skipped.
+  const DYNAMIC = "#tabToggles, #mediaCatRows, #historyList, #trashList";
+  const VIEW_NAMES = { timeline: "Timeline", backlog: "Backlog", finance: "Ledger" };
+  const ownText = (n) => [...n.childNodes].filter((c) => c.nodeType === 3).map((c) => c.textContent).join(" ")
+    .replace(/\s+/g, " ").replace(/[…:]+\s*$/, "").trim();
+  const shownIn = (n, root) => { for (let x = n; x && x !== root; x = x.parentElement) if (x.hidden) return false; return true; };
+
+  function searchEntries() {
+    const out = [];
+    const add = (root, where, go) => {
+      for (const n of root.querySelectorAll("h3, h4, label, button.btn")) {
+        if (n.closest(DYNAMIC) || !shownIn(n, root)) continue;
+        const text = n.matches("button") ? n.textContent.replace(/\s+/g, " ").trim() : ownText(n);
+        if (!text) continue;
+        const extra = n.matches("label")
+          ? [...n.querySelectorAll("option, .muted")].map((o) => o.textContent).join(" ") : "";
+        out.push({ text, where, go, el: n, extra });
+      }
+    };
+    document.querySelectorAll("#settingsModal .settings-page").forEach((p) => {
+      out.push({ text: p.dataset.title, where: "Settings", go: { page: p.dataset.page }, el: null, extra: p.dataset.keywords || "" });
+      add(p, p.dataset.title, { page: p.dataset.page });
+    });
+    document.querySelectorAll("#viewOptionsModal [data-for]").forEach((sec) => {
+      const view = sec.dataset.for.split(" ")[0];
+      const where = sec.dataset.for.split(" ").map((v) => VIEW_NAMES[v]).join(" and ") + " → View";
+      add(sec, where, { view });
+    });
+    return out;
+  }
+
+  function searchSettings(query) {
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (!words.length) return [];
+    const seen = new Set();
+    const hits = [];
+    for (const e of searchEntries()) {
+      const title = e.text.toLowerCase();
+      const hay = title + " " + e.where.toLowerCase() + " " + e.extra.toLowerCase();
+      if (!words.every((w) => hay.includes(w))) continue;
+      const key = e.text + "|" + e.where;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const score = title.startsWith(words[0]) ? 0 : words.every((w) => title.includes(w)) ? 1 : 2;
+      hits.push({ ...e, score });
+    }
+    return hits.sort((a, b) => a.score - b.score).slice(0, 30);
+  }
+
+  function highlight(text, query) {
+    const frag = document.createDocumentFragment();
+    const w = query.trim().split(/\s+/)[0] || "";
+    const i = w ? text.toLowerCase().indexOf(w.toLowerCase()) : -1;
+    if (i < 0) { frag.appendChild(document.createTextNode(text)); return frag; }
+    frag.appendChild(document.createTextNode(text.slice(0, i)));
+    frag.appendChild(el("mark", "", text.slice(i, i + w.length)));
+    frag.appendChild(document.createTextNode(text.slice(i + w.length)));
+    return frag;
+  }
+
+  function renderSearch() {
+    const q = $("#settingsSearch").value;
+    const out = $("#settingsResults");
+    const searching = !!q.trim();
+    $("#settingsHome").hidden = searching;
+    out.hidden = !searching;
+    out.innerHTML = "";
+    if (!searching) return;
+    const hits = searchSettings(q);
+    out.appendChild(el("div", "sgroup-label", hits.length ? plural(hits.length, "result", "results") : "No results"));
+    const card = el("div", "sgroup-card");
+    if (!hits.length) card.appendChild(el("p", "srow-empty", "Nothing matches. Try “key”, “sync” or “theme”."));
+    for (const h of hits) {
+      const row = el("button", "srow srow-result");
+      row.type = "button";
+      const text = el("span", "srow-text");
+      const title = el("span", "srow-title");
+      title.appendChild(highlight(h.text, q));
+      text.appendChild(title);
+      text.appendChild(el("span", "srow-status", h.where));
+      row.appendChild(text);
+      row.appendChild(el("span", "srow-chev", "›"));
+      row.onclick = () => goToResult(h);
+      card.appendChild(row);
+    }
+    out.appendChild(card);
+  }
+
+  function flash(node) {
+    if (!node) return;
+    const d = node.closest("details");
+    if (d) d.open = true;
+    const target = node.closest(".row > label") || node;
+    target.scrollIntoView({ block: "center", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    target.classList.remove("search-hit");
+    void target.offsetWidth;
+    target.classList.add("search-hit");
+    setTimeout(() => target.classList.remove("search-hit"), 1600);
+    // A phone would open its keyboard over the thing you just found.
+    const field = node.matches("label") ? node.querySelector("input, select") : null;
+    if (field && !onePane()) field.focus({ preventScroll: true });
+  }
+
+  function goToResult(h) {
+    if (h.go.view) {
+      closeSettings();
+      openViewOptions(h.go.view);
+    } else {
+      showPage(h.go.page);
+    }
+    flash(h.el);
+  }
+
+  // ---------- a view's own options (the View button) ----------
+  const hasViewOptions = (view) => !!document.querySelector('#viewOptionsModal [data-for~="' + view + '"]');
+
+  function fillViewOptions() {
+    $("#monthMin").value = state.visual.monthMinWidth;
+    $("#monthMax").value = state.visual.monthMaxWidth;
+    $("#currency").value = state.data.settings.currency;
+    $("#timelineCoverSize").value = state.visual.timelineCoverSize || "small";
+    $("#backlogCoverSize").value = state.visual.backlogCoverSize || "big";
+    $("#backlogSummaries").value = state.visual.backlogSummaries || "show";
+    $("#ledgerMonthSummary").value = state.visual.ledgerMonthSummary || "show";
+    $("#timelineMonthSummary").value = state.visual.timelineMonthSummary || "hide";
+    $("#backlogCounts").value = state.visual.backlogCounts;
+    $("#backlogFoldEa").value = state.visual.backlogFoldEa;
+    $("#backlogFoldUnreleased").value = state.visual.backlogFoldUnreleased;
+    $("#backlogFoldDropped").value = state.visual.backlogFoldDropped;
+  }
+
+  // Opened from a search result for another tab, it goes to that tab first:
+  // the options are for seeing their effect, which needs the list under them.
+  function openViewOptions(view) {
+    view = view || state.view;
+    if (!hasViewOptions(view)) return;
+    if (view !== state.view && switchToView) switchToView(view);
+    fillViewOptions();
+    $("#viewOptionsTitle").textContent = (VIEW_NAMES[view] || "View") + " view";
+    document.querySelectorAll("#viewOptionsModal [data-for]").forEach((sec) => {
+      sec.hidden = !sec.dataset.for.split(" ").includes(view);
+    });
+    $("#viewOptionsModal").hidden = false;
+  }
+  function closeViewOptions() { $("#viewOptionsModal").hidden = true; }
+
+  function syncViewOptionsButton(view) {
+    const b = $("#viewOptionsBtn");
+    if (b) b.hidden = !hasViewOptions(view);
   }
 
   function renderMediaCatRows() {
@@ -683,33 +935,29 @@
       `This device is running LifeLog v${APP_VERSION}, but your data has already been saved by v${behind} on another device.`;
   }
 
-  function openSettings() {
-    setSettingsTab("storage");
+  // page: open straight onto one (the storage line in the header opens Sync).
+  // Otherwise a phone starts on the list and a wider screen on the first page.
+  function openSettings(page) {
+    $("#settingsSearch").value = "";
+    renderSearch();
+    ghEditing = false;
+    $("#settingsVersion").textContent = "LifeLog v" + APP_VERSION;
     updateVersionSkew();
     updateBackendInfo();
     updateFileInfo();
     updateGithubInfo();
     updateHistoryPanel();
     $("#ghPollInterval").value = String(state.visual.pollInterval);
-    $("#monthMin").value = state.visual.monthMinWidth;
-    $("#monthMax").value = state.visual.monthMaxWidth;
     $("#fontFamily").value = state.visual.fontFamily;
     $("#themeSelect").value = state.visual.theme || "default";
     $("#forceLayout").value = state.visual.forceLayout || "none";
-    $("#currency").value = state.data.settings.currency;
-    $("#timelineCoverSize").value = state.visual.timelineCoverSize || "small";
-    $("#backlogCoverSize").value = state.visual.backlogCoverSize || "big";
-    $("#backlogSummaries").value = state.visual.backlogSummaries || "show";
-    $("#ledgerMonthSummary").value = state.visual.ledgerMonthSummary || "show";
-    $("#timelineMonthSummary").value = state.visual.timelineMonthSummary || "hide";
-    $("#backlogCounts").value = state.visual.backlogCounts;
-    $("#backlogFoldEa").value = state.visual.backlogFoldEa;
-    $("#backlogFoldUnreleased").value = state.visual.backlogFoldUnreleased;
-    $("#backlogFoldDropped").value = state.visual.backlogFoldDropped;
+    fillViewOptions();
     renderTabToggles();
     updateMediaSettings();
     updatePrivacySettings();
     $("#settingsModal").hidden = false;
+    showPage(typeof page === "string" ? page : onePane() ? "" : "sync");
+    updateStatuses();
   }
 
   // ---------- privacy / app lock settings ----------
@@ -978,19 +1226,27 @@
   function wire() {
     $("#settingsBtn").onclick = openSettings;
     $("#closeSettingsBtn").onclick = closeSettings;
-    document.querySelectorAll(".stab").forEach((t) => t.onclick = () => setSettingsTab(t.dataset.stab));
-    // On the panels, not the tab strip: the strip scrolls horizontally under
-    // the same finger. requireHorizontal keeps a vertical drag down a long
-    // panel from being read as a tab change.
-    const panels = $(".settings-panels");
-    if (panels) {
-      attachSwipe(panels, {
-        onLeft: () => stepSettingsTab(1),
-        onRight: () => stepSettingsTab(-1),
-        threshold: 60,
-        requireHorizontal: true,
-      });
-    }
+    $("#closeSettingsPageBtn").onclick = closeSettings;
+    $("#settingsBackBtn").onclick = () => showPage("");
+    document.querySelectorAll("#settingsHome .srow[data-page]").forEach((r) => r.onclick = () => showPage(r.dataset.page));
+    const search = $("#settingsSearch");
+    search.oninput = renderSearch;
+    search.onkeydown = (e) => {
+      // Escape clears a search before it closes anything.
+      if (e.key === "Escape" && search.value) { e.stopPropagation(); search.value = ""; renderSearch(); }
+      if (e.key === "Enter") { const first = $("#settingsResults .srow-result"); if (first) first.click(); }
+    };
+    // A swipe right on a page is back, as on the rest of the phone.
+    // requireHorizontal keeps a vertical drag down a long page from counting.
+    attachSwipe($("#settingsModal .settings-main"), {
+      onLeft: () => {},
+      onRight: () => settingsBack(),
+      threshold: 60,
+      requireHorizontal: true,
+    });
+    $("#ghEditBtn").onclick = () => { ghEditing = true; updateGithubInfo(); $("#ghToken").focus(); };
+    $("#viewOptionsBtn").onclick = () => openViewOptions();
+    $("#closeViewOptionsBtn").onclick = closeViewOptions;
     $("#connectFileBtn").onclick = connectFile;
     $("#reconnectFileBtn").onclick = reconnectFile;
     $("#disconnectFileBtn").onclick = disconnectFile;
@@ -1138,5 +1394,9 @@
     wire,
     openSettings,
     closeSettings, // Escape handler in app.js
+    settingsBack, // Escape and Android's back step out of a page first
+    openViewOptions,
+    closeViewOptions,
+    syncViewOptionsButton,
   };
 })();

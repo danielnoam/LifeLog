@@ -82,7 +82,7 @@ async function openApp(browser) {
   await page.waitForTimeout(1200);
   await page.click("#settingsBtn");
   await page.waitForTimeout(300);
-  await page.click('.stab[data-stab="history"]');
+  await page.click('.srow[data-page="history"]');
   await page.waitForTimeout(1200);
   return { page, ctx, errs, dialogs, puts };
 }
@@ -114,9 +114,9 @@ const cached = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     const last = puts[puts.length - 1];
     check("and the restored settings are saved to GitHub for every device",
       !!last && last.settings.mediaKeys.rawg === "RAWG-SECRET" && last.notes.length === 2, last && last.settings.mediaKeys);
-    await page.click('.stab[data-stab="media"]');
+    await page.evaluate(() => document.querySelector('.srow[data-page="media"]').click());
     await page.waitForTimeout(300);
-    check("the Media tab shows them straight away", await page.evaluate(() => document.querySelector("#rawgKey").value === "RAWG-SECRET"));
+    check("the Media lookups page shows them straight away", await page.evaluate(() => document.querySelector("#rawgKey").value === "RAWG-SECRET"));
     errs.push(...e);
     await ctx.close();
   }

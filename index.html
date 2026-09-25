@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.185.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.186.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
 </head>
 <body>
-  <!-- App lock screen (per-device privacy lock; see Settings → Privacy) -->
+  <!-- App lock screen (per-device privacy lock; see Settings → App lock) -->
   <div class="lock-screen" id="lockScreen" hidden>
     <div class="lock-box">
       <div class="lock-icon">🔒</div>
@@ -103,7 +103,11 @@
       </div>
     </div>
 
+    <!-- View sits beside Settings rather than in the tab bar: it is this
+         tab's options, and the tab bar is for moving between tabs. Hidden on
+         the tabs that have none. -->
     <div class="settings-corner">
+      <button id="viewOptionsBtn" class="btn btn-icon" type="button" title="View options" aria-label="View options" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg></button>
       <button id="settingsBtn" class="btn btn-icon" title="Settings" aria-label="Settings">⚙</button>
       <span class="version-badge" id="appVersion"></span>
     </div>
@@ -925,46 +929,75 @@
     </div>
   </div>
 
-  <!-- Settings modal -->
+  <!-- Settings modal: a list of pages rather than a strip of tabs (0.186.0).
+       On a phone the list and a page take turns; on a wider screen the list
+       stays on the left beside the page. Control ids are unchanged, so every
+       handler in settings.js still finds its control. What changes one view
+       rather than the app lives on that view instead — see #viewOptionsModal. -->
   <div class="modal-overlay" id="settingsModal" hidden>
-    <div class="modal modal-wide settings-modal">
-      <div class="modal-head">
-        <h2>Settings</h2>
-        <button class="btn btn-icon" id="closeSettingsBtn" title="Close" aria-label="Close settings">✕</button>
-      </div>
-
-      <nav class="settings-tabs">
-        <button class="stab active" data-stab="storage" type="button">Data</button>
-        <button class="stab" data-stab="history" type="button">History</button>
-        <button class="stab" data-stab="backup" type="button">Import / Export</button>
-        <button class="stab" data-stab="privacy" type="button">Privacy</button>
-        <button class="stab" data-stab="appearance" type="button">Appearance</button>
-        <button class="stab" data-stab="views" type="button">Views</button>
-        <button class="stab" data-stab="media" type="button">Media</button>
-      </nav>
-
-      <div class="settings-panels">
-      <div class="settings-panel active" data-panel="storage">
-      <section class="settings-section version-skew" id="versionSkew" hidden>
-        <h3>This device is out of date</h3>
-        <p class="muted" id="versionSkewInfo"></p>
-        <p class="hint">Nothing is being blocked or dropped — this device still loads, merges and saves normally, and it won't delete anything it doesn't recognise. It just can't show or edit whatever the newer version added. If this is a phone or tablet, close the app fully and reopen it twice: the first launch fetches the new version, the second runs it.</p>
-      </section>
-      <section class="settings-section">
-        <h3>Storage backend</h3>
-        <p class="muted" id="backendInfo"></p>
-
-        <h4>Local file</h4>
-        <p class="muted" id="fileInfo"></p>
-        <div class="btn-row">
-          <button class="btn" id="connectFileBtn">Choose data file…</button>
-          <button class="btn" id="reconnectFileBtn" hidden>Reconnect file</button>
-          <button class="btn" id="disconnectFileBtn" hidden>Disconnect</button>
+    <div class="modal modal-wide settings-modal" data-page="">
+      <aside class="settings-side">
+        <div class="modal-head">
+          <h2>Settings</h2>
+          <button class="btn btn-icon" id="closeSettingsBtn" title="Close" aria-label="Close settings">✕</button>
         </div>
-        <p class="hint">Stores your data in a <code>.json</code> file on this computer — handy as a local backup or for syncing via a shared Google Drive/Dropbox folder. Desktop Chrome/Edge only, not supported on phones.</p>
+        <label class="settings-search">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6" /><path d="M20 20l-4.5-4.5" /></svg>
+          <input id="settingsSearch" type="search" placeholder="Search settings" aria-label="Search settings" autocomplete="off" spellcheck="false" />
+        </label>
 
-        <h4>GitHub sync <span class="muted">(works on all devices)</span></h4>
+        <section class="settings-banner version-skew" id="versionSkew" hidden>
+          <h3>This device is out of date</h3>
+          <p class="muted" id="versionSkewInfo"></p>
+          <p class="hint">It still loads, merges and saves normally and won't delete anything it doesn't recognise — it just can't show what the newer version added. On a phone, close the app fully and reopen it twice: the first launch fetches the update, the second runs it.</p>
+        </section>
+
+        <div class="settings-results" id="settingsResults" hidden></div>
+
+        <nav class="settings-home" id="settingsHome" aria-label="Settings pages">
+          <div class="sgroup">
+            <div class="sgroup-label">Your data</div>
+            <div class="sgroup-card">
+              <button type="button" class="srow" data-page="sync"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3" /><path d="M18 3v4h-4M6 21v-4h4" /></svg></span><span class="srow-text"><span class="srow-title">Sync</span><span class="srow-status" data-status="sync"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="io"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5" /><path d="M4 17v3h16v-3" /></svg></span><span class="srow-text"><span class="srow-title">Import &amp; export</span><span class="srow-status" data-status="io"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="history"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6" /><path d="M4 4v4h4M12 8v4l3 2" /></svg></span><span class="srow-text"><span class="srow-title">History</span><span class="srow-status" data-status="history"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="deleted"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13" /></svg></span><span class="srow-text"><span class="srow-title">Recently deleted</span><span class="srow-status" data-status="deleted"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+            </div>
+          </div>
+          <div class="sgroup">
+            <div class="sgroup-label">This device</div>
+            <div class="sgroup-card">
+              <button type="button" class="srow" data-page="lock"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg></span><span class="srow-text"><span class="srow-title">App lock</span><span class="srow-status" data-status="lock"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="appearance"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor" /></svg></span><span class="srow-text"><span class="srow-title">Appearance</span><span class="srow-status" data-status="appearance"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="tabs"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M4 9h16M9 4v5" /></svg></span><span class="srow-text"><span class="srow-title">Tabs</span><span class="srow-status" data-status="tabs"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+            </div>
+          </div>
+          <div class="sgroup">
+            <div class="sgroup-label">Connected services</div>
+            <div class="sgroup-card">
+              <button type="button" class="srow" data-page="media"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l2.4 5 5.6.6-4.2 3.8 1.2 5.6L12 16.3 7 19l1.2-5.6L4 9.6 9.6 9z" /></svg></span><span class="srow-text"><span class="srow-title">Media lookups</span><span class="srow-status" data-status="media"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="imports"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V9M7 14l5-5 5 5" /><path d="M4 7V4h16v3" /></svg></span><span class="srow-text"><span class="srow-title">Imports</span><span class="srow-status" data-status="imports"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="releases"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 3v4M15 3v4" /></svg></span><span class="srow-text"><span class="srow-title">Release dates</span><span class="srow-status" data-status="releases"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+            </div>
+          </div>
+          <p class="settings-foot"><span id="settingsVersion"></span> · Press <kbd>?</kbd> anywhere for keyboard shortcuts</p>
+        </nav>
+      </aside>
+
+      <div class="settings-main">
+        <div class="settings-page-head">
+          <button type="button" class="settings-back" id="settingsBackBtn" aria-label="Back to all settings">‹ Settings</button>
+          <button class="btn btn-icon settings-page-close" id="closeSettingsPageBtn" title="Close" aria-label="Close settings">✕</button>
+        </div>
+        <div class="settings-pages">
+
+      <div class="settings-page" hidden data-page="sync" data-title="Sync" data-keywords="github token repository repo backup file qr code device link connect disconnect auto-sync interval">
+      <h2 class="settings-page-title">Sync</h2>
+      <p class="muted" id="backendInfo"></p>
+      <section class="settings-section">
+        <h3>GitHub <span class="muted">(works on every device)</span></h3>
         <p class="muted" id="ghInfo"></p>
+        <button class="btn" id="ghEditBtn" type="button" hidden>Change token or repository</button>
         <div class="gh-fields">
           <ol class="gh-steps">
             <li><a href="https://github.com/settings/tokens/new?description=LifeLog&amp;scopes=repo" target="_blank" rel="noopener">Create a GitHub token →</a>, click <strong>Generate token</strong>, and copy it.</li>
@@ -987,33 +1020,13 @@
               </label>
             </div>
           </details>
-        </div>
-        <div class="btn-row">
-          <button class="btn" id="ghConnectBtn">Connect GitHub</button>
-          <button class="btn" id="ghScanBtn" type="button" hidden>Scan QR code</button>
-          <button class="btn" id="ghDisconnectBtn" hidden>Disconnect</button>
-        </div>
-        <p class="hint">Keeps your phone and desktop in sync via a private GitHub repo — every save becomes a commit, giving you a version history. Your token stays in this browser only.</p>
-      </section>
-
-      <section class="settings-section">
-        <h3>GitHub sync settings</h3>
-
-        <div class="gh-share" id="ghShare" hidden>
-          <h4>Add another device</h4>
-          <p class="hint">Scan the QR code with your phone camera (or open the link) to connect a new device instantly — no manual setup needed. For the Android app, use <strong>Scan QR code</strong> inside the app instead: the camera opens links in the browser, not in the app.</p>
-          <p class="warn" id="ghLocalWarn" hidden>You're on a local/localhost URL, so this link only works on this computer. Open your published site (e.g. GitHub Pages) and copy the link from there to use it on other devices.</p>
-          <div class="gh-qr" id="ghQr" hidden></div>
-          <p class="warn" id="ghQrTooLong" hidden>The setup link is too long for a QR code — use the copy button below to share it instead.</p>
-          <div class="row">
-            <input id="ghSetupLink" type="text" readonly onclick="this.select()" />
-            <button class="btn" id="ghCopyLinkBtn" type="button">Copy</button>
+          <div class="btn-row">
+            <button class="btn" id="ghConnectBtn">Connect GitHub</button>
+            <button class="btn" id="ghScanBtn" type="button" hidden>Scan QR code</button>
           </div>
-          <p class="hint">This link contains your access token — only share it with your own devices.</p>
+          <p class="hint gh-how">Every save becomes a commit in a private repo, so your devices stay in sync and you get a history. The token stays on this device.</p>
         </div>
-
-        <h4>Auto-sync interval</h4>
-        <label>Check for remote changes
+        <label>Check for changes from your other devices
           <select id="ghPollInterval">
             <option value="0">Off</option>
             <option value="10">Every 10 seconds</option>
@@ -1022,52 +1035,54 @@
             <option value="300">Every 5 minutes</option>
           </select>
         </label>
-        <p class="hint">When enabled, LifeLog periodically pulls changes saved from your other devices.</p>
       </section>
 
-      </div><!-- /storage panel -->
-
-      <div class="settings-panel" data-panel="history">
-      <section class="settings-section">
-        <h3>Recently deleted</h3>
-        <p class="hint">Entries, backlog items, and finance/recurring expenses deleted within your local save history below — restoring pulls back just that one item, without touching anything else. Bounded by the same ~40-save window as Version history, so nothing needs separate cleanup.</p>
-        <p class="muted" id="trashEmptyState" hidden>Nothing recently deleted.</p>
-        <div id="trashList"></div>
-      </section>
-
-      <section class="settings-section">
-        <h3>Version history</h3>
-        <p class="hint">A short rollback history, not a full audit log — keeps roughly your last 40 saves so you can undo a mistake, works fully offline, and shows what actually changed in each one. Restoring saves that version as your new current one; nothing already in your history is ever deleted. When GitHub sync is connected, older saves beyond that local window fill in from its commit log too.</p>
-
-        <p class="muted" id="historyEmptyState" hidden>No saves yet — your history will appear here once you make your first change.</p>
-
-        <div id="historyControls" hidden>
-          <div class="btn-row">
-            <button class="btn" id="historyRefreshBtn" type="button">Refresh</button>
-            <button class="btn" id="historyFillSettingsBtn" type="button">Bring back missing settings</button>
-          </div>
-          <p class="hint">Lost API keys or media sources? <strong>Bring back missing settings</strong> finds the newest save that still had them and fills in only what's empty now — your log and every other setting stay as they are. <strong>Restore</strong> on a row rolls <em>everything</em> back to that save.</p>
-          <p class="muted" id="historyStatus"></p>
-          <div id="historyList"></div>
+      <section class="settings-section gh-share" id="ghShare" hidden>
+        <h3>Add another device</h3>
+        <p class="hint">Scan the code with the new device's camera, or open the link there. In the Android app use <strong>Scan QR code</strong> instead — the camera opens links in the browser, not the app.</p>
+        <p class="warn" id="ghLocalWarn" hidden>You're on a local/localhost URL, so this link only works on this computer. Open your published site (e.g. GitHub Pages) and copy the link from there to use it on other devices.</p>
+        <div class="gh-qr" id="ghQr" hidden></div>
+        <p class="warn" id="ghQrTooLong" hidden>The setup link is too long for a QR code — use the copy button below to share it instead.</p>
+        <div class="row">
+          <input id="ghSetupLink" type="text" readonly onclick="this.select()" aria-label="Setup link" />
+          <button class="btn" id="ghCopyLinkBtn" type="button">Copy</button>
         </div>
+        <p class="hint">The link contains your access token — only share it with your own devices.</p>
       </section>
-      </div><!-- /history panel -->
 
-      <div class="settings-panel" data-panel="backup">
       <section class="settings-section">
-        <h3>Full backup</h3>
-        <p class="hint">Download everything (entries, categories, backlog, achievements, finance, recurring expenses) in one file, or restore from a previous backup.</p>
+        <h3>Backup file</h3>
+        <p class="muted" id="fileInfo"></p>
+        <div class="btn-row">
+          <button class="btn" id="connectFileBtn">Choose data file…</button>
+          <button class="btn" id="reconnectFileBtn" hidden>Reconnect file</button>
+          <button class="btn btn-danger" id="disconnectFileBtn" hidden>Disconnect</button>
+        </div>
+        <p class="hint">Every save is also written to a <code>.json</code> file on this computer — a local backup, or a way to sync through a shared Drive/Dropbox folder. Chrome and Edge on a computer only.</p>
+      </section>
+
+      <section class="settings-section" id="ghDisconnectSection" hidden>
+        <h3>Disconnect</h3>
+        <button class="btn btn-danger" id="ghDisconnectBtn" hidden>Disconnect GitHub</button>
+        <p class="hint">Your data stays on this device and on GitHub.</p>
+      </section>
+      </div>
+
+      <div class="settings-page" hidden data-page="io" data-title="Import &amp; export" data-keywords="backup export import json csv spreadsheet download">
+      <h2 class="settings-page-title">Import &amp; export</h2>
+      <p class="hint">Importing always merges with what you have — it never replaces it — and opens a review screen first: pick items, switch whole years or months off, choose which new categories to add. Anything you already have is skipped.</p>
+      <section class="settings-section">
+        <h3>Everything</h3>
+        <p class="hint">Entries, categories, backlog, achievements, finance and recurring expenses, in one file.</p>
         <div class="btn-row">
           <button class="btn" id="exportJsonBtn">Export JSON</button>
           <button class="btn" id="importJsonBtn">Import JSON…</button>
         </div>
         <input type="file" id="importJsonInput" accept="application/json,.json" hidden />
-        <p class="hint">Importing merges with your current data — it does not replace it. You'll get a review screen to pick which items, periods, and new categories to bring in.</p>
       </section>
 
       <section class="settings-section">
-        <h3>Journal data <span class="muted">(Timeline, Categories, Backlog)</span></h3>
-        <p class="hint">Export or import just your timeline entries and backlog, as JSON or CSV.</p>
+        <h3>Journal <span class="muted">(Timeline, categories, Backlog)</span></h3>
         <div class="btn-row">
           <button class="btn" id="exportJournalJsonBtn">Export JSON</button>
           <button class="btn" id="exportJournalCsvBtn">Export CSV</button>
@@ -1076,12 +1091,10 @@
         </div>
         <input type="file" id="importJournalJsonInput" accept="application/json,.json" hidden />
         <input type="file" id="importJournalCsvInput" accept="text/csv,.csv" hidden />
-        <p class="hint">Importing opens a review screen: pick individual items, disable whole years/months at once, choose which new categories to add, and skip anything already in your data.</p>
       </section>
 
       <section class="settings-section">
-        <h3>Finance data</h3>
-        <p class="hint">Export or import your finance entries, categories, and recurring expenses, as JSON or CSV.</p>
+        <h3>Finance <span class="muted">(entries, categories, recurring)</span></h3>
         <div class="btn-row">
           <button class="btn" id="exportFinanceJsonBtn">Export JSON</button>
           <button class="btn" id="exportFinanceCsvBtn">Export CSV…</button>
@@ -1090,19 +1103,41 @@
         </div>
         <input type="file" id="importFinanceJsonInput" accept="application/json,.json" hidden />
         <input type="file" id="importFinanceCsvInput" accept="text/csv,.csv" hidden />
-        <p class="hint">Finance CSV import expects the yearly pivot format exported from a Google Sheets export (year blocks, 12 month columns, a note on each real transaction); big one-off purchases recorded against a year rather than a month land on 1 January. Every import goes through the same review screen as Journal data.</p>
+        <p class="hint">The CSV import reads the yearly pivot a Google Sheets export makes: year blocks, 12 month columns, a note on each real transaction. A purchase recorded against a year rather than a month lands on 1 January.</p>
       </section>
-      </div><!-- /backup panel -->
+      </div>
 
-      <div class="settings-panel" data-panel="privacy">
+      <div class="settings-page" hidden data-page="history" data-title="History" data-keywords="version undo restore rollback saves commits missing settings">
+      <h2 class="settings-page-title">History</h2>
+      <p class="hint">Your last ~40 saves, kept on this device and shown with what changed in each. <strong>Undo</strong> takes back one change and keeps everything since; <strong>Restore</strong> rolls everything back to that save, as a new save — nothing in the list is ever deleted. With GitHub connected, older saves come from its commit log.</p>
+      <p class="muted" id="historyEmptyState" hidden>No saves yet — your history will appear here once you make your first change.</p>
+      <div id="historyControls" hidden>
+        <div class="btn-row">
+          <button class="btn" id="historyRefreshBtn" type="button">Refresh</button>
+          <button class="btn" id="historyFillSettingsBtn" type="button">Bring back missing settings</button>
+        </div>
+        <p class="hint">Lost API keys or media sources? <strong>Bring back missing settings</strong> finds the newest save that still had them and fills in only what's empty now.</p>
+        <p class="muted" id="historyStatus"></p>
+        <div id="historyList"></div>
+      </div>
+      </div>
+
+      <div class="settings-page" hidden data-page="deleted" data-title="Recently deleted" data-keywords="trash bin undelete restore removed">
+      <h2 class="settings-page-title">Recently deleted</h2>
+      <p class="hint">Entries, backlog items, notes, to-dos and expenses deleted within your save history. Restoring one brings back just that item and touches nothing else.</p>
+      <p class="muted" id="trashEmptyState" hidden>Nothing recently deleted.</p>
+      <div id="trashList"></div>
+      </div>
+
+      <div class="settings-page" hidden data-page="lock" data-title="App lock" data-keywords="privacy pin fingerprint face id biometric password security">
+      <h2 class="settings-page-title">App lock</h2>
+      <p class="hint">Asks for a PIN or fingerprint to open LifeLog on this device. It doesn't encrypt your data. Forgot the PIN? The lock screen can wipe this device's copy — reconnect GitHub or your backup file afterwards to get it back, or it's gone.</p>
       <section class="settings-section">
-        <h3>App lock <span class="muted">(this device only)</span></h3>
-        <p class="hint">Require a PIN or fingerprint/Face ID to open LifeLog — this device only, not synced elsewhere, and it doesn't encrypt your data. Forgetting your PIN wipes this device's local copy via the lock screen's reset option (not a free bypass); reconnect GitHub or a local file afterward to get your data back, or it's gone for good.</p>
         <label class="toggle-label">
           <input type="checkbox" id="privacyEnabled" />
           Require unlock to open this app
         </label>
-        <label>Stay unlocked for
+        <label>Stay unlocked after unlocking for
           <select id="privacyGrace">
             <option value="0">Always require unlock</option>
             <option value="1">1 minute</option>
@@ -1111,57 +1146,43 @@
             <option value="60">1 hour</option>
           </select>
         </label>
-        <p class="hint">Skips the unlock prompt for this long after you last unlocked.</p>
-
-        <h4>Unlock methods</h4>
-        <p class="hint">A PIN is required first — fingerprint/Face ID is an optional addition on top of it, with the PIN as a fallback if biometrics fail.</p>
-
-        <div>
-          <div class="row" id="privacyPinForm" hidden>
-            <label>New PIN <span class="muted">(4–8 digits)</span>
-              <input id="newPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" />
-            </label>
-            <label>Confirm PIN
-              <input id="confirmPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" />
-            </label>
-          </div>
-          <p class="muted" id="privacyPinStatus"></p>
-          <div class="btn-row">
-            <button class="btn" id="setPinBtn" type="button">Set PIN</button>
-            <button class="btn btn-primary" id="savePinBtn" type="button" hidden>Save PIN</button>
-            <button class="btn" id="cancelPinBtn" type="button" hidden>Cancel</button>
-            <button class="btn btn-danger" id="removePinBtn" type="button" hidden>Remove PIN</button>
-          </div>
-        </div>
-
-        <div>
-          <p class="warn" id="privacyBioUnavailable" hidden>Fingerprint/Face ID isn't available on this device or browser.</p>
-          <p class="muted" id="privacyBioStatus"></p>
-          <div class="btn-row">
-            <button class="btn" id="setBioBtn" type="button">Set up Fingerprint / Face ID</button>
-            <button class="btn btn-danger" id="removeBioBtn" type="button" hidden>Remove</button>
-          </div>
-        </div>
-      </section>
-      </div><!-- /privacy panel -->
-
-      <div class="settings-panel" data-panel="appearance">
-      <!-- Appearance is now only what applies to the whole app: what is on
-           screen at all, what it looks like, and how it is laid out. Anything
-           that changes one list rather than the app moved to the Views panel
-           below — see NOTES.md on why that split is by where the effect lands
-           rather than by what kind of control it is. -->
-      <section class="settings-section">
-        <h3>Tabs</h3>
-        <p class="hint">Turn off the parts of the app you don't use — they leave the
-          tab bar entirely. This device only. You can't turn off everything: the
-          last tab standing stays.</p>
-        <div class="tab-toggles" id="tabToggles"></div>
       </section>
 
       <section class="settings-section">
-        <h3>Theme</h3>
-        <p class="hint">This device only.</p>
+        <h3>PIN</h3>
+        <div class="row" id="privacyPinForm" hidden>
+          <label>New PIN <span class="muted">(4–8 digits)</span>
+            <input id="newPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" />
+          </label>
+          <label>Confirm PIN
+            <input id="confirmPin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" />
+          </label>
+        </div>
+        <p class="muted" id="privacyPinStatus"></p>
+        <div class="btn-row">
+          <button class="btn" id="setPinBtn" type="button">Set PIN</button>
+          <button class="btn btn-primary" id="savePinBtn" type="button" hidden>Save PIN</button>
+          <button class="btn" id="cancelPinBtn" type="button" hidden>Cancel</button>
+          <button class="btn btn-danger" id="removePinBtn" type="button" hidden>Remove PIN</button>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <h3>Fingerprint / Face ID</h3>
+        <p class="hint">On top of the PIN, which stays as the fallback.</p>
+        <p class="warn" id="privacyBioUnavailable" hidden>Fingerprint/Face ID isn't available on this device or browser.</p>
+        <p class="muted" id="privacyBioStatus"></p>
+        <div class="btn-row">
+          <button class="btn" id="setBioBtn" type="button">Set up Fingerprint / Face ID</button>
+          <button class="btn btn-danger" id="removeBioBtn" type="button" hidden>Remove</button>
+        </div>
+      </section>
+      </div>
+
+      <div class="settings-page" hidden data-page="appearance" data-title="Appearance" data-keywords="theme dark light colour color font typeface layout phone computer desktop mobile">
+      <h2 class="settings-page-title">Appearance</h2>
+      <p class="hint">This device only.</p>
+      <section class="settings-section">
         <div class="row">
           <label>Color scheme
             <select id="themeSelect">
@@ -1180,44 +1201,146 @@
             </select>
           </label>
         </div>
+        <label>Layout
+          <select id="forceLayout">
+            <option value="none">Automatic</option>
+            <option value="mobile">Always the phone layout</option>
+            <option value="pc">Always the computer layout</option>
+          </select>
+        </label>
+        <p class="hint">Automatic picks by screen width. Forcing one is like a browser's "Request desktop site".</p>
+        <p class="hint">Cover art, month card sizes and each list's options are on that tab's <strong>View</strong> button.</p>
+      </section>
+      </div>
+
+      <div class="settings-page" hidden data-page="tabs" data-title="Tabs" data-keywords="hide show views modes notes habits timeline backlog ledger">
+      <h2 class="settings-page-title">Tabs</h2>
+      <p class="hint">Turn off the parts of the app you don't use and they leave the tab bar. This device only. The last tab on stays on.</p>
+      <div class="tab-toggles" id="tabToggles"></div>
+      </div>
+
+      <div class="settings-page" hidden data-page="media" data-title="Media lookups" data-keywords="api keys rawg tmdb steamgriddb gg.deals proxy cors cover art metadata sources">
+      <h2 class="settings-page-title">Media lookups</h2>
+      <p class="hint">Where cover art, ratings, lengths and release dates come from. Keys and sources sync to your other devices.</p>
+      <section class="settings-section">
+        <h3>Source per category</h3>
+        <p class="hint">A primary source and an optional fallback per category; "None" fetches nothing. Background checks only try the fallback when the primary finds nothing, while <strong>🔄 Sync</strong> on an item searches both and tags each match with its source. "Steam" takes a Steam App ID from the store URL instead of a search. "RAWG + Steam + GG.deals" also finds the Steam ID through RAWG, for cover, rating, length and price at once.</p>
+        <div id="mediaCatRows"></div>
       </section>
 
       <section class="settings-section">
-        <h3>Layout</h3>
-        <p class="hint">How wide a month card gets in the Timeline and the Ledger.
-          A smaller minimum fits more months per row; a maximum of 0 lets them
-          stretch to fill the space.</p>
-        <div class="row">
-          <label>Month card min (px)
-            <input id="monthMin" type="number" min="80" max="600" step="10" />
-          </label>
-          <label>Month card max (px)
-            <input id="monthMax" type="number" min="0" max="1000" step="10" />
-          </label>
-        </div>
-        <details class="settings-advanced">
-          <summary>Force a layout</summary>
-          <p class="hint">Overrides which responsive layout this device uses, whatever
-            the screen size — like a browser's "Request desktop site". For previewing
-            the other one, or pinning one down on an in-between screen.</p>
-          <label>Layout
-            <select id="forceLayout">
-              <option value="none">None (automatic)</option>
-              <option value="mobile">Mobile</option>
-              <option value="pc">PC</option>
-            </select>
-          </label>
-        </details>
+        <h3>API keys</h3>
+        <p class="hint">Open Library, AniList, Jikan, Google Books and MusicBrainz need no key.</p>
+        <label>RAWG key <span class="muted">(games — free at rawg.io/apidocs)</span>
+          <input id="rawgKey" type="password" placeholder="Paste your RAWG API key…" autocomplete="off" spellcheck="false" />
+        </label>
+        <label>TMDB key <span class="muted">(movies &amp; shows — free at themoviedb.org)</span>
+          <input id="tmdbKey" type="password" placeholder="Paste your TMDB API key…" autocomplete="off" spellcheck="false" />
+        </label>
+        <label>GG.deals key <span class="muted">(game prices — free at gg.deals/api; needs the proxy)</span>
+          <input id="ggdealsKey" type="password" placeholder="Paste your GG.deals API key…" autocomplete="off" spellcheck="false" />
+        </label>
+        <label>SteamGridDB key <span class="muted">(game covers — free at steamgriddb.com, Preferences → API; needs the proxy)</span>
+          <input id="steamgriddbKey" type="password" placeholder="Paste your SteamGridDB API key…" autocomplete="off" spellcheck="false" />
+        </label>
       </section>
 
-      </div><!-- /appearance panel -->
-
-      <!-- Views: everything that changes what one list shows, grouped by the
-           list it changes. Tuning the Backlog used to mean finding four
-           sections scattered down a ten-section panel; here it is one group. -->
-      <div class="settings-panel" data-panel="views">
       <section class="settings-section">
-        <h3>Timeline</h3>
+        <h3>CORS proxy</h3>
+        <p class="hint">A proxy of your own for the sources a browser can't call directly: SteamGridDB, GG.deals and the Steam wishlist import. Setup is in <code>proxy/README.md</code>. Leave it blank if you use none of those.</p>
+        <label>Proxy URL
+          <input id="steamProxyUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://your-worker.workers.dev" />
+        </label>
+      </section>
+      </div>
+
+      <div class="settings-page" hidden data-page="imports" data-title="Imports" data-keywords="steam wishlist anilist planning anime manga">
+      <h2 class="settings-page-title">Imports</h2>
+      <p class="hint">Both open a review screen before anything is added, and never re-add what's already in your backlog. The automatic check only counts what's new and tells you.</p>
+      <section class="settings-section">
+        <h3>Steam wishlist</h3>
+        <p class="hint">Your wishlist must be public (Steam → Privacy Settings → Game details), and this goes through the CORS proxy on Media lookups.</p>
+        <label>SteamID64
+          <input id="steamId64" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 76561198012345678" />
+        </label>
+        <p class="hint"><a href="https://steamid.io/" target="_blank" rel="noopener">Find your SteamID64 →</a></p>
+        <label>Add imported games to
+          <select id="steamWishlistCategory"></select>
+        </label>
+        <label>Check automatically
+          <select id="steamAutoSyncDays">
+            <option value="0">Never (manual only)</option>
+            <option value="1">Every day</option>
+            <option value="3">Every 3 days</option>
+            <option value="7">Every week</option>
+            <option value="30">Every month</option>
+          </select>
+        </label>
+        <button id="steamWishlistSyncBtn" type="button" class="btn">🔄 Sync Steam Wishlist</button>
+        <button id="steamRetryUnresolvedBtn" type="button" class="btn" hidden>🔁 Retry unresolved Steam titles</button>
+        <p class="hint" id="steamRetryUnresolvedHint" hidden>Looks up again the items still called "Steam app &lt;id&gt;" (usually Steam rate-limiting a large first sync) and fixes the ones that resolve.</p>
+        <button id="steamBackfillRawgBtn" type="button" class="btn" hidden>🎮 Backfill missing game info</button>
+        <p class="hint" id="steamBackfillRawgHint" hidden>Fills in what Steam-synced games lack: rating, length and year from RAWG (needs a RAWG key), and Steam's description (needs the proxy). Never touches title, cover or App ID.</p>
+      </section>
+
+      <section class="settings-section">
+        <h3>AniList planning list</h3>
+        <p class="hint">Needs no key or proxy, but the list must be public (AniList → Settings → Lists → untick "Set anime/manga list to private"). Set one side to "Don't import" to bring in only the other.</p>
+        <label>AniList username
+          <input id="anilistUserName" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. YourAniListName" />
+        </label>
+        <label>Add planned anime to
+          <select id="anilistAnimeCategory"></select>
+        </label>
+        <label>Add planned manga to
+          <select id="anilistMangaCategory"></select>
+        </label>
+        <label>Check automatically
+          <select id="anilistAutoSyncDays">
+            <option value="0">Never (manual only)</option>
+            <option value="1">Every day</option>
+            <option value="3">Every 3 days</option>
+            <option value="7">Every week</option>
+            <option value="30">Every month</option>
+          </select>
+        </label>
+        <button id="anilistSyncBtn" type="button" class="btn">🔄 Sync AniList Planning</button>
+      </section>
+      </div>
+
+      <div class="settings-page" hidden data-page="releases" data-title="Release dates" data-keywords="upcoming release dates tba">
+      <h2 class="settings-page-title">Release dates</h2>
+      <p class="hint">Re-asks each unreleased backlog item's own source for its date — a "TBA" gets one, a date slips. It changes nothing else. Steam, RAWG, TMDB and AniList items can be checked; Open Library, Google Books, MusicBrainz and Jikan items are skipped.</p>
+      <section class="settings-section">
+        <label>Check automatically, when you open the app
+          <select id="releasesAutoRefreshDays">
+            <option value="0">Never (manual only)</option>
+            <option value="1">Every day</option>
+            <option value="3">Every 3 days</option>
+            <option value="7">Every week</option>
+            <option value="30">Every month</option>
+          </select>
+        </label>
+        <button id="refreshReleasesBtn" type="button" class="btn">🔭 Re-check upcoming release dates</button>
+      </section>
+      </div>
+
+        </div><!-- /settings-pages -->
+      </div><!-- /settings-main -->
+    </div>
+  </div>
+
+  <!-- A view's own options, from the View button in the header — what used to
+       be Settings → Views, plus the month card widths. Each section says which
+       views it belongs to; the rest are hidden while it's open. -->
+  <div class="modal-overlay view-options-overlay" id="viewOptionsModal" hidden>
+    <div class="modal view-options" role="dialog" aria-labelledby="viewOptionsTitle">
+      <div class="modal-head">
+        <h2 id="viewOptionsTitle">View</h2>
+        <button class="btn btn-icon" id="closeViewOptionsBtn" title="Close" aria-label="Close view options">✕</button>
+      </div>
+
+      <section class="settings-section" data-for="timeline">
         <div class="row">
           <label>Cover art
             <select id="timelineCoverSize">
@@ -1233,13 +1356,10 @@
             </select>
           </label>
         </div>
-        <p class="hint">The breakdown is a line per category under each month card,
-          saying how many entries each one got. It never appears on a month with only
-          one category in it — the header already says the number.</p>
+        <p class="hint">The breakdown is a line per category under a month, with how many entries it got. A month with one category doesn't need it.</p>
       </section>
 
-      <section class="settings-section">
-        <h3>Backlog</h3>
+      <section class="settings-section" data-for="backlog">
         <div class="row">
           <label>Cover art
             <select id="backlogCoverSize">
@@ -1255,27 +1375,17 @@
             </select>
           </label>
         </div>
-        <p class="hint">Hiding a description doesn't delete it — open the item and
-          it's still there.</p>
-
         <label>Set-aside items in a category's count
           <select id="backlogCounts">
             <option value="split">Counted separately</option>
             <option value="total">Included in the total</option>
           </select>
         </label>
-        <p class="hint">Counted separately reads <em>300 (+12 EA, +43 unreleased, +8
-          dropped)</em> rather than a flat 363, so the number is things you could
-          actually sit down and get through.</p>
+        <p class="hint">Separately reads <em>300 (+12 EA, +43 unreleased, +8 dropped)</em> rather than 363 — the first number is what you could start today.</p>
 
         <h4>Set-aside bands</h4>
-        <p class="hint">Whether each block at the end of a category can fold away
-          behind a bar reading <em>▸ Unreleased 12</em>, and what it starts as. A
-          folded block isn't rendered at all, so a long shelf of things you're
-          waiting on costs nothing to scroll past. One setting each, because they're
-          set aside for three different reasons and which you want hidden isn't one
-          question.</p>
-        <div class="row">
+        <p class="hint">Whether each block at the end of a category can fold behind a bar like <em>▸ Unreleased 12</em>, and how it starts. A folded block isn't drawn at all.</p>
+        <div class="row row-stack">
           <label>Early Access
             <select id="backlogFoldEa">
               <option value="open">Foldable, start open</option>
@@ -1300,8 +1410,7 @@
         </div>
       </section>
 
-      <section class="settings-section">
-        <h3>Ledger</h3>
+      <section class="settings-section" data-for="finance">
         <div class="row">
           <label>Month cards
             <select id="ledgerMonthSummary">
@@ -1318,116 +1427,21 @@
             </select>
           </label>
         </div>
-        <p class="hint">The breakdown is a line per category under each month card,
-          saying what you spent on each. Currency is the one setting on this page
-          that follows you between devices — it describes your money, not this
-          screen.</p>
+        <p class="hint">The breakdown is a line per category under a month, with what you spent on each. Currency follows you to your other devices; everything else here is this device only.</p>
       </section>
 
-      </div><!-- /appearance panel -->
-
-      <div class="settings-panel" data-panel="media">
-      <section class="settings-section">
-        <h3>Media sources</h3>
-
-        <h4>CORS proxy</h4>
-        <p class="hint">A small proxy of your own that the metadata sources which don't send CORS headers get routed through, since a browser can't call them directly. Right now that's SteamGridDB cover art, GG.deals prices, and the Steam Wishlist import further down — all three share this one URL. One-time setup: see <code>proxy/README.md</code>. Leave it blank if you don't use any of those; RAWG, TMDB, Open Library, AniList, Jikan, Google Books, and MusicBrainz all work without it. Any source added later that's CORS-blocked will route through here too.</p>
-        <label>Proxy URL
-          <input id="steamProxyUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://your-worker.workers.dev" />
-        </label>
-
-        <h4>API keys</h4>
-        <p class="hint">Synced across your devices like the rest of your data — paste a key once and it's available everywhere.</p>
-        <label>RAWG key <span class="muted">(games — free at rawg.io/apidocs)</span>
-          <input id="rawgKey" type="password" placeholder="Paste your RAWG API key…" autocomplete="off" spellcheck="false" />
-        </label>
-        <label>TMDB key <span class="muted">(movies &amp; shows — free at themoviedb.org)</span>
-          <input id="tmdbKey" type="password" placeholder="Paste your TMDB API key…" autocomplete="off" spellcheck="false" />
-        </label>
-        <label>GG.deals key <span class="muted">(game prices — free at gg.deals/api; fetched through the CORS proxy set above)</span>
-          <input id="ggdealsKey" type="password" placeholder="Paste your GG.deals API key…" autocomplete="off" spellcheck="false" />
-        </label>
-        <label>SteamGridDB key <span class="muted">(games cover art — free at steamgriddb.com, Preferences → API; needs the CORS proxy URL set above, since SteamGridDB is CORS-blocked without it)</span>
-          <input id="steamgriddbKey" type="password" placeholder="Paste your SteamGridDB API key…" autocomplete="off" spellcheck="false" />
-        </label>
-        <p class="hint">Open Library, AniList, Jikan, Google Books, and MusicBrainz all work without a key.</p>
-
-        <h4>Source per category</h4>
-        <p class="hint">Choose which API to use for each of your categories, plus an optional fallback. Bulk sync and the background checks only try the fallback when the primary finds no matches; the manual "🔄 Sync" button searches both at once and lists the matches together, each tagged with the source it came from, so you can pick from either — whichever source answers first appears first, and the other's fill in underneath when they arrive. Categories set to "None" won't fetch metadata. These assignments sync across your devices. Categories set to "Steam" show a manual Steam App ID field instead of search (Steam has no browser-callable search API) — paste the ID from the game's store URL to get cover art and, once a GG.deals key is set above, current lowest prices. "RAWG + Steam + GG.deals" searches RAWG as normal, but also looks up a Steam App ID via RAWG's own store links for whichever result you pick — when found, that entry gets cover, rating, length, and current price all at once, no manual App ID needed; when the game isn't on Steam, it falls back to a plain RAWG entry.</p>
-        <div id="mediaCatRows"></div>
+      <section class="settings-section" data-for="timeline finance">
+        <h4>Month card width</h4>
+        <div class="row">
+          <label>Min (px)
+            <input id="monthMin" type="number" min="80" max="600" step="10" />
+          </label>
+          <label>Max (px)
+            <input id="monthMax" type="number" min="0" max="1000" step="10" />
+          </label>
+        </div>
+        <p class="hint">Shared by the Timeline and the Ledger. A smaller minimum fits more months to a row; a maximum of 0 lets them stretch.</p>
       </section>
-
-      <section class="settings-section">
-        <h3>Upcoming releases</h3>
-        <p class="hint">Backlog items that haven't come out yet are the only thing here that goes out of date on its own — a "TBA" gets a date, a date slips, a season starts airing. This re-asks each waiting item's own source using the media ID already stored on it, and updates just its release date. It never renames, re-covers, adds, or removes anything. Only items still waiting are checked, so it's a handful of requests even on a large backlog. Steam, RAWG, TMDB, and AniList items can be re-checked; Open Library, Google Books, MusicBrainz, and Jikan items are skipped (no reliable lookup by ID, and books and albums rarely sit in a backlog unreleased).</p>
-        <button id="refreshReleasesBtn" type="button" class="btn">🔭 Re-check upcoming release dates</button>
-        <label>Check automatically
-          <select id="releasesAutoRefreshDays">
-            <option value="0">Never (manual only)</option>
-            <option value="1">Every day</option>
-            <option value="3">Every 3 days</option>
-            <option value="7">Every week</option>
-            <option value="30">Every month</option>
-          </select>
-        </label>
-        <p class="hint">Runs quietly when you open the app, at most this often, so the Next Releases list is current without you asking. It only ever changes release dates on items you already have.</p>
-      </section>
-
-      <section class="settings-section">
-        <h3>Steam Wishlist import</h3>
-        <p class="hint">Pulls your whole Steam wishlist in one request and lets you review it before anything's added — nothing is added automatically, and re-syncing later won't re-add titles already in your backlog. Your Steam wishlist must be set to Public (Steam → Privacy Settings → Game details) or this comes back empty. Goes through the CORS proxy set above (Steam's endpoint isn't browser-callable), so set that first if you haven't.</p>
-        <label>SteamID64
-          <input id="steamId64" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 76561198012345678" />
-        </label>
-        <p class="hint"><a href="https://steamid.io/" target="_blank" rel="noopener">Find your SteamID64 →</a></p>
-        <label>Add imported games to
-          <select id="steamWishlistCategory"></select>
-        </label>
-        <button id="steamWishlistSyncBtn" type="button" class="btn">🔄 Sync Steam Wishlist</button>
-        <label>Check automatically
-          <select id="steamAutoSyncDays">
-            <option value="0">Never (manual only)</option>
-            <option value="1">Every day</option>
-            <option value="3">Every 3 days</option>
-            <option value="7">Every week</option>
-            <option value="30">Every month</option>
-          </select>
-        </label>
-        <p class="hint">A quiet check when you open the app, at most this often — just looks for new wishlist additions and lets you know; it never adds anything or opens the review picker on its own.</p>
-        <button id="steamRetryUnresolvedBtn" type="button" class="btn" hidden>🔁 Retry unresolved Steam titles</button>
-        <p class="hint" id="steamRetryUnresolvedHint" hidden>For backlog items already added with a placeholder "Steam app &lt;id&gt;" title (usually from Steam rate-limiting a large first sync) — looks up just those again and updates the ones that resolve this time, without re-importing or duplicating anything.</p>
-        <button id="steamBackfillRawgBtn" type="button" class="btn" hidden>🎮 Backfill missing game info</button>
-        <p class="hint" id="steamBackfillRawgHint" hidden>Fills in what Steam-synced games are missing: rating/length/release year via RAWG for games with none of it (needs a RAWG key above), and Steam's own description for games with none (needs the proxy URL above) — never touches title, cover, or the Steam app ID.</p>
-      </section>
-
-      <section class="settings-section">
-        <h3>AniList Planning import</h3>
-        <p class="hint">Pulls your AniList "Planning" (plan-to-watch / plan-to-read) list into your backlog and lets you review it before anything's added — nothing is added automatically, and re-syncing later won't re-add titles already in your backlog or Journal. No proxy or API key needed (AniList allows browser requests), but your list must be public: AniList → Settings → Lists → uncheck "Set anime/manga list to private". Anime and manga are pulled separately into whichever categories you choose below — leave one as "Don't import" to sync only the other.</p>
-        <label>AniList username
-          <input id="anilistUserName" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. YourAniListName" />
-        </label>
-        <label>Add planned anime to
-          <select id="anilistAnimeCategory"></select>
-        </label>
-        <label>Add planned manga to
-          <select id="anilistMangaCategory"></select>
-        </label>
-        <button id="anilistSyncBtn" type="button" class="btn">🔄 Sync AniList Planning</button>
-        <label>Check automatically
-          <select id="anilistAutoSyncDays">
-            <option value="0">Never (manual only)</option>
-            <option value="1">Every day</option>
-            <option value="3">Every 3 days</option>
-            <option value="7">Every week</option>
-            <option value="30">Every month</option>
-          </select>
-        </label>
-        <p class="hint">A quiet check when you open the app, at most this often — just counts planned titles not yet in your backlog or Journal and lets you know; it never adds anything or opens the review picker on its own.</p>
-      </section>
-      </div><!-- /media panel -->
-      </div><!-- /settings-panels -->
-
-      <p class="hint">Press <kbd>?</kbd> anywhere in the app for a list of keyboard shortcuts.</p>
     </div>
   </div>
 
@@ -1503,7 +1517,7 @@
   <div class="modal-overlay" id="conflictModal" hidden>
     <div class="modal modal-wide">
       <h2>Couldn't automatically merge these versions</h2>
-      <p class="muted">This is unusual — normally differences between devices merge on their own. Pick the version to keep and it'll be copied to the others; nothing is deleted, so anything unique to the version you don't pick may still be recoverable from Settings → History afterward.</p>
+      <p class="muted">This is unusual — normally differences between devices merge on their own. Pick the version to keep and it'll be copied to the others; nothing is deleted, so anything unique to the version you don't pick may still be recoverable from Settings → History afterwards.</p>
       <div class="conflict-list" id="conflictList"></div>
     </div>
   </div>
@@ -1525,25 +1539,25 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/platform.js?v=0.185.0"></script>
-  <script defer src="src/reconcile.js?v=0.185.0"></script>
-  <script defer src="src/qr.js?v=0.185.0"></script>
-  <script defer src="src/media.js?v=0.185.0"></script>
-  <script defer src="src/merge.js?v=0.185.0"></script>
-  <script defer src="src/storage.js?v=0.185.0"></script>
-  <script defer src="src/finance.js?v=0.185.0"></script>
-  <script defer src="src/settings.js?v=0.185.0"></script>
-  <script defer src="src/wheel.js?v=0.185.0"></script>
-  <script defer src="src/backlog.js?v=0.185.0"></script>
-  <script defer src="src/journal.js?v=0.185.0"></script>
-  <script defer src="src/notes.js?v=0.185.0"></script>
-  <script defer src="src/todos.js?v=0.185.0"></script>
-  <script defer src="src/io.js?v=0.185.0"></script>
-  <script defer src="src/sync.js?v=0.185.0"></script>
-  <script defer src="src/habits.js?v=0.185.0"></script>
-  <script defer src="src/recap.js?v=0.185.0"></script>
-  <script defer src="src/reminders.js?v=0.185.0"></script>
-  <script defer src="src/widgets.js?v=0.185.0"></script>
-  <script defer src="src/app.js?v=0.185.0"></script>
+  <script defer src="src/platform.js?v=0.186.0"></script>
+  <script defer src="src/reconcile.js?v=0.186.0"></script>
+  <script defer src="src/qr.js?v=0.186.0"></script>
+  <script defer src="src/media.js?v=0.186.0"></script>
+  <script defer src="src/merge.js?v=0.186.0"></script>
+  <script defer src="src/storage.js?v=0.186.0"></script>
+  <script defer src="src/finance.js?v=0.186.0"></script>
+  <script defer src="src/settings.js?v=0.186.0"></script>
+  <script defer src="src/wheel.js?v=0.186.0"></script>
+  <script defer src="src/backlog.js?v=0.186.0"></script>
+  <script defer src="src/journal.js?v=0.186.0"></script>
+  <script defer src="src/notes.js?v=0.186.0"></script>
+  <script defer src="src/todos.js?v=0.186.0"></script>
+  <script defer src="src/io.js?v=0.186.0"></script>
+  <script defer src="src/sync.js?v=0.186.0"></script>
+  <script defer src="src/habits.js?v=0.186.0"></script>
+  <script defer src="src/recap.js?v=0.186.0"></script>
+  <script defer src="src/reminders.js?v=0.186.0"></script>
+  <script defer src="src/widgets.js?v=0.186.0"></script>
+  <script defer src="src/app.js?v=0.186.0"></script>
 </body>
 </html>

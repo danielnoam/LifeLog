@@ -167,7 +167,7 @@
     await persist();
   }
 
-  // No confirm: it's one line of text, and Settings → Data → Recently
+  // No confirm: it's one line of text, and Settings → Recently
   // deleted has it if the tap was an accident.
   async function deleteTodo(id) {
     state.data.todos = state.data.todos.filter((t) => t.id !== id);

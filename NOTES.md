@@ -16,6 +16,24 @@ what was decided against and why.
 
 ---
 
+- **Settings is a list, and a view's options live on the view (0.186.0).**
+  Seven tabs scrolled sideways on a phone and gave each page equal weight,
+  which is why two reshuffles of their contents didn't help. The list is
+  the pattern Android's own Settings, Daylio and Obsidian use, and each row
+  carries a status line so the list is useful before anything is opened.
+  What changes how one tab looks (cover size, breakdowns, folding, month
+  widths) went to that tab's View button, the way reminders moved onto the
+  habit cards in 0.184.0: an option next to its effect is found without
+  looking for it. Currency went with the Ledger even though it syncs — it's
+  where it shows. Search reads headings, labels, buttons and menu choices
+  off the pages themselves, never a hand-kept list, so a new control is
+  findable the day it's added; hints are left out because they'd match
+  everything. The how-to for connecting GitHub hides once connected rather
+  than being deleted: it's still the first thing a new device needs. Every
+  control id stayed the same, so no handler moved. One pane or two follows
+  the same rule as the rest of the app's mobile layout (720px, or Appearance
+  → Layout), read through isMobileLayout rather than restated.
+
 - **undo is a merge with the save as the ancestor (0.185.0).** The toast's
   Undo lasts eight seconds; the one for the next morning lives in History.
   Restore already existed and is the wrong tool for "take that back": it

@@ -440,7 +440,8 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
    width never affects the header's flex layout, mirroring how the sync status
    line hangs under the logo on the left. The topbar's extra bottom padding
    reserves room for both. */
-.settings-corner { order: 5; position: relative; display: flex; align-items: center; }
+.settings-corner { order: 5; position: relative; display: flex; align-items: center; gap: 6px; }
+#viewOptionsBtn[hidden] { display: none; }
 .version-badge {
   position: absolute; top: 100%; right: 0; margin-top: 10px;
   font-size: 11px; color: var(--text-faint); white-space: nowrap; pointer-events: none;
@@ -1682,31 +1683,99 @@ kbd {
 .conflict-info { display: flex; flex-direction: column; gap: 4px; }
 .conflict-info strong { font-size: 13.5px; }
 
-.settings-tabs { display: flex; justify-content: center; gap: 4px; margin: 4px 0 4px; border-bottom: 1px solid var(--border); }
-.stab {
-  background: transparent; border: none; border-bottom: 2px solid transparent;
-  color: var(--text-dim); padding: 8px 14px; font-weight: 550; cursor: pointer;
-  font-size: 13px; margin-bottom: -1px; flex: 0 0 auto; white-space: nowrap;
-  transition: color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+/* Settings (0.186.0): a list of pages beside the open page. On a phone the
+   two take turns — see the mobile rules below and showPage() in settings.js.
+   data-page on .settings-modal is the open page, "" for the list. */
+.modal.settings-modal {
+  width: 920px; height: 90vh; padding: 0; overflow: hidden;
+  display: grid; grid-template-columns: 310px minmax(0, 1fr);
 }
-.stab:hover { color: var(--text); }
-.stab.active { color: var(--text); border-bottom-color: var(--accent); }
-.settings-modal {
-  display: flex; flex-direction: column; overflow-y: hidden;
-  /* Every panel is now position:absolute (see .settings-panel) so none of
-     them contribute intrinsic height — .settings-panels needs a definite
-     height, not just the inherited max-height, for its flex:1 1 auto to
-     have anything real to fill. */
-  height: 90vh;
+.settings-side {
+  border-right: 1px solid var(--border); padding: 20px 14px 18px; min-height: 0;
+  overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 14px;
 }
-.settings-panels { display: grid; position: relative; flex: 1 1 auto; min-height: 0; }
-.settings-panel {
-  grid-row: 1; grid-column: 1; padding-top: 4px; padding-bottom: 32px; visibility: hidden;
-  position: absolute; inset: 0; overflow-y: auto;
+.settings-side .modal-head { margin: 0 4px; }
+.settings-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.settings-page-head { display: none; align-items: center; justify-content: space-between; padding: 12px 14px 0; }
+.settings-back {
+  background: none; border: 0; padding: 6px 4px; color: var(--accent); font: inherit;
+  font-size: 14px; font-weight: 600; cursor: pointer;
 }
-.settings-panel.active { visibility: visible; }
+.settings-pages { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 22px 28px 36px; }
+.settings-page { max-width: 620px; }
+.settings-page[hidden] { display: none; }
+.modal h2.settings-page-title { font-size: 20px; margin: 0 0 8px; }
+.settings-page > .hint:first-of-type { margin-top: 0; }
+
+.modal .settings-search {
+  display: flex; align-items: center; gap: 8px; margin: 0; padding: 0 10px;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text-faint);
+}
+.modal .settings-search:focus-within { border-color: var(--accent); }
+.settings-search svg { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+#settingsSearch {
+  flex: 1; min-width: 0; margin: 0; padding: 9px 0; border: 0; border-radius: 0;
+  background: transparent; outline: none; box-shadow: none; color: var(--text);
+}
+.settings-home, .settings-results { display: flex; flex-direction: column; gap: 16px; }
+.settings-home[hidden], .settings-results[hidden] { display: none; }
+.sgroup { display: flex; flex-direction: column; gap: 6px; }
+.sgroup-label {
+  padding: 0 6px; font-size: 11px; font-weight: 600; color: var(--text-faint);
+  text-transform: uppercase; letter-spacing: .5px;
+}
+.sgroup-card { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.srow {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  width: 100%; padding: 10px 12px; background: none; border: 0; border-radius: 0;
+  color: var(--text); font: inherit; text-align: left; cursor: pointer;
+  transition: background var(--dur-fast) var(--ease);
+}
+.srow + .srow { border-top: 1px solid var(--border); }
+.srow:hover { background: var(--hover-bg); }
+.srow.active { background: var(--accent-soft); }
+.srow-ic {
+  width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent);
+}
+.srow.active .srow-ic { background: var(--accent); color: var(--text-on-accent); }
+.srow-ic svg, #viewOptionsBtn svg {
+  width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round; display: block;
+}
+#viewOptionsBtn svg { width: 15px; height: 15px; stroke-width: 2; }
+.srow-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.srow-title { font-size: 14px; font-weight: 600; }
+.srow-title mark { background: var(--accent-soft); color: inherit; border-radius: 3px; }
+.srow-status { font-size: 12px; color: var(--text-dim); }
+.srow-status:empty { display: none; }
+.srow-status[data-tone="ok"] { color: var(--success); }
+.srow-status[data-tone="warn"] { color: var(--warning); }
+.srow-chev { color: var(--text-faint); font-size: 18px; line-height: 1; }
+.srow-result { grid-template-columns: minmax(0, 1fr) auto; }
+.srow-empty { margin: 0; padding: 12px; font-size: 13px; color: var(--text-dim); }
+.settings-foot { margin: 2px 6px 0; font-size: 11.5px; color: var(--text-faint); }
+/* Where a search result lands: a brief tint, so the eye finds it. */
+.search-hit { animation: search-hit 1.6s var(--ease); border-radius: 8px; }
+@keyframes search-hit {
+  0%, 45% { background: var(--accent-soft); box-shadow: 0 0 0 6px var(--accent-soft); }
+  100% { background: transparent; box-shadow: 0 0 0 6px transparent; }
+}
+@media (prefers-reduced-motion: reduce) { .search-hit { animation: none; outline: 2px solid var(--accent); outline-offset: 4px; } }
+.gh-fields[hidden] { display: none; }
+.gh-fields.connected .gh-steps, .gh-fields.connected .gh-how { display: none; }
+#ghEditBtn { margin-bottom: 12px; }
+.settings-section[hidden] { display: none; }
+.settings-section > .btn { margin-bottom: 12px; }
+.settings-page .hint, .view-options .hint { margin-bottom: 12px; }
+.view-options h4 { margin-top: 18px; }
+.modal .row.row-stack { flex-direction: column; gap: 0; }
+
+/* A view's own options (the View button in the header). */
+.modal.view-options { width: 520px; }
+.view-options > .settings-section { border-top: 0; padding: 4px 0 12px; }
+.view-options > .settings-section:not([hidden]) ~ .settings-section:not([hidden]) { border-top: 1px solid var(--border); padding-top: 16px; }
 .settings-section { border-top: 1px solid var(--border); padding: 16px 0; }
-.settings-panel > .settings-section:first-child { border-top: none; }
 .settings-section:first-of-type { border-top: none; }
 .settings-section h3 { margin: 0 0 10px; font-size: 14px; }
 .settings-section h4 {
@@ -2159,24 +2228,32 @@ html.force-mobile .backlog-section-head {
   position: sticky; top: var(--topbar-h, 0px); z-index: 4; background: var(--surface-card);
 }
 
-/* Settings tabs: shrink just enough to keep all 6 on one line, no
-   scrolling — tiered by available width so common phones (390-430px)
-   stay roomy and only genuinely narrow screens get squeezed. */
-@media (max-width: 560px) {
-  .settings-tabs { gap: 4px; }
-  .stab { padding: 8px 8px; font-size: 12px; }
+/* Settings on a phone: the list and a page take turns, and View options
+   rise from the bottom. Written twice, as the mobile rules above are — once
+   under the breakpoint, once for "Always the phone layout". */
+@media (max-width: 720px) {
+  html:not(.force-pc) .modal.settings-modal { grid-template-columns: minmax(0, 1fr); }
+  html:not(.force-pc) .settings-modal:not([data-page=""]) .settings-side,
+  html:not(.force-pc) .settings-modal[data-page=""] .settings-main { display: none; }
+  html:not(.force-pc) .settings-side { border-right: 0; }
+  html:not(.force-pc) .settings-page-head { display: flex; }
+  html:not(.force-pc) .settings-pages { padding: 4px 18px 36px; }
+  html:not(.force-pc) .modal-overlay.view-options-overlay { align-items: flex-end; padding: 20px 0 0; }
+  html:not(.force-pc) .modal.view-options {
+    width: 100%; max-height: 85vh; border-radius: 18px 18px 0 0; border-bottom: 0;
+    padding-bottom: calc(22px + var(--sab, 0px));
+  }
 }
-@media (max-width: 460px) {
-  .settings-tabs { gap: 3px; }
-  .stab { padding: 8px 6px; font-size: 11.5px; }
-}
-@media (max-width: 420px) {
-  .settings-tabs { gap: 2px; }
-  .stab { padding: 8px 5px; font-size: 11px; }
-}
-@media (max-width: 380px) {
-  .settings-tabs { gap: 1px; }
-  .stab { padding: 8px 3px; font-size: 10.5px; }
+html.force-mobile .modal.settings-modal { grid-template-columns: minmax(0, 1fr); }
+html.force-mobile .settings-modal:not([data-page=""]) .settings-side,
+html.force-mobile .settings-modal[data-page=""] .settings-main { display: none; }
+html.force-mobile .settings-side { border-right: 0; }
+html.force-mobile .settings-page-head { display: flex; }
+html.force-mobile .settings-pages { padding: 4px 18px 36px; }
+html.force-mobile .modal-overlay.view-options-overlay { align-items: flex-end; padding: 20px 0 0; }
+html.force-mobile .modal.view-options {
+  width: 100%; max-height: 85vh; border-radius: 18px 18px 0 0; border-bottom: 0;
+  padding-bottom: calc(22px + var(--sab, 0px));
 }
 
 /* ---------- app lock screen ---------- */
