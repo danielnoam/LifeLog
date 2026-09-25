@@ -13,6 +13,33 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## Data encryption
+
+Decided against for now (2026-09-25). The analysis, kept in case that
+changes:
+
+Nothing is encrypted today. The data file sits in a
+private GitHub repo in plain JSON, readable by GitHub and by anything
+holding the token; the browser's copy and the phone's are plain too. The
+app lock guards opening the app, not the data. Decide which of these it's
+for before building, because they're different jobs:
+- **At rest on GitHub (end to end).** Encrypt the file before it's pushed
+  (Web Crypto, AES-GCM, key from a passphrase via PBKDF2 or similar), and
+  decrypt on load. Merging still works, since it happens on the decrypted
+  copy on each device. The costs: every device needs the passphrase, which
+  a setup link must not carry beside the token; a lost passphrase means
+  the data is gone with no recovery; GitHub's history becomes opaque blobs,
+  so History's GitHub entries (restore, undo, bring back settings) have to
+  decrypt too; and the 1MB large-file path reads the blob the same way.
+- **At rest on the device.** localStorage, IndexedDB history and the
+  widgets' snapshot are plain. Encrypting them means the key has to be in
+  memory to show anything, which ties it to the app lock (PIN or
+  fingerprint unlocks the key) — and the widgets and reminders, which run
+  without the app, could no longer read their snapshot, or would need a
+  plain copy of just what they show.
+Probably worth doing only the first, with a clear warning about the
+passphrase, and leaving device storage to the phone's own encryption.
+
 ## Google Drive backup
 
 A scheduled copy of the data file in Google Drive, as a backup beside GitHub
