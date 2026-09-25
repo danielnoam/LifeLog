@@ -38,6 +38,24 @@ todo:
   Probably worth doing only the first, with a clear warning about the
   passphrase, and leaving device storage to the phone's own encryption.
 
+- **Restore settings from a backup.** The full backup (JSON) carries the
+  `settings` key, but no import applies it: importing adds data and never
+  replaces, and settings are one device's preferences, so bringing them in
+  unasked would overwrite another device's (see NOTES.md, 0.191.0). What's
+  missing is an explicit way to do it on purpose: a "Restore settings from
+  this file" step in the import review, or a button beside Everything's
+  import, showing what would change before it does. History's "bring back
+  settings" already restores them from a save, so the merge logic exists.
+
+- **Branch cleanup from a cloud session.** Step 8 of the release checklist
+  (`.claude/skills/release-checklist/SKILL.md`) says to delete finished
+  branches, but a cloud session's git access refuses it (403 on
+  `git push --delete`), and the GitHub tools it has can create branches but
+  not delete them. Either change step 8 to list the finished branches for
+  the owner to delete, or find an access setting that allows it. GitHub's
+  "Automatically delete head branches" only helps with branches merged
+  through a PR, which this repo no longer uses.
+
 ---
 
 Ideas that turned out not to be worth doing, or not to be possible, live in
