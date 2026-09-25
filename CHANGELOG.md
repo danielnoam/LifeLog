@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.190.1] - 2026-09-25
+
+### Fixed
+- **The scrollbar no longer runs behind the top and bottom bars.** The
+  page's scrollbar spanned the whole window, so its thumb slid up under the
+  header and down under the bottom tab bar. It now starts below the header
+  and stops above the tab bar, in every view. (Chrome, Edge and the desktop
+  app; Firefox can't inset a scrollbar, so there it still runs full height.)
+
 ## [0.190.0] - 2026-09-25
 
 ### Fixed

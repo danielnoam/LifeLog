@@ -16,6 +16,17 @@ what was decided against and why.
 
 ---
 
+- **The page scrollbar is inset by the bars, styled through `body` (0.190.1).**
+  The app scrolls as the document, so the window's scrollbar spans the full
+  height behind the sticky `.topbar` and the fixed mobile `#topbarBottom`.
+  `body::-webkit-scrollbar-track` takes a top/bottom margin of `--topbar-h`
+  / `--bottombar-h` (both measured live in app.js). It has to be `body`:
+  Chromium reads the viewport scrollbar's style from the body, and
+  `html::`/`:root::` rules for it are silently ignored. Making `#content` its
+  own scroll container would have fixed Firefox too, but every sticky header,
+  the mode pager and all the `window.scrollY` bookkeeping assume document
+  scroll — not worth that for a scrollbar.
+
 - **Small widgets pick their own layout by size (0.189.0).** Read from the
   widget's options (portrait's width and height) on every draw and redrawn
   in onAppWidgetOptionsChanged, on every Android version, rather than

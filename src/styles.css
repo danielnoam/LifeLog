@@ -286,6 +286,16 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
     background: var(--scroll-thumb-hover); background-clip: padding-box;
   }
   ::-webkit-scrollbar-corner { background: transparent; }
+  /* The page scrolls as the document, so its bar spans the whole window —
+     up behind the sticky top bar and down behind the fixed bottom one.
+     Inset the track by both (measured live in app.js; the bottom one is 0
+     on desktop, where #topbarBottom is display:contents). `body`, not
+     `html`: Chromium takes the page scrollbar's style from the body and
+     ignores html::/:root:: here. Firefox has no track margin, so its bar
+     still runs full height. */
+  body::-webkit-scrollbar-track {
+    margin-top: var(--topbar-h, 0px); margin-bottom: var(--bottombar-h, 0px);
+  }
 }
 
 /* ---------- top bar ---------- */
