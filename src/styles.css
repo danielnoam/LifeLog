@@ -296,7 +296,25 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
   body::-webkit-scrollbar-track {
     margin-top: var(--topbar-h, 0px); margin-bottom: var(--bottombar-h, 0px);
   }
+  /* The bar's column sits beside the bars, not under them, so the header
+     and the tab bar stopped 12px short of the edge. Paint the ends of the
+     column as the bars, their 1px borders included, so both read full width. */
+  body::-webkit-scrollbar {
+    background: linear-gradient(to bottom,
+      var(--bg-elev) calc(var(--topbar-h, 0px) - 1px), var(--border) 0 var(--topbar-h, 0px),
+      transparent 0 calc(100% - var(--bottombar-h, 0px)),
+      var(--border) 0 calc(100% - var(--bottombar-h, 0px) + 1px), var(--bg-elev) 0);
+  }
 }
+
+/* The Android app's page scrollbar (wireScrollThumb in app.js). Under the
+   bars (30/40), the add button (35) and every sheet. */
+.page-thumb {
+  position: fixed; top: 0; right: 2px; width: 4px; border-radius: 99px;
+  background: var(--scroll-thumb); opacity: 0; pointer-events: none; z-index: 25;
+  transition: opacity .4s var(--ease);
+}
+.page-thumb.is-on { opacity: .8; transition-duration: .1s; }
 
 /* ---------- top bar ---------- */
 .topbar {

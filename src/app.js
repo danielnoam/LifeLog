@@ -128,7 +128,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.190.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.190.2"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -4198,6 +4198,7 @@
       if (window.LifeLogReminders) window.LifeLogReminders.start({ $, el, Platform, toast, changed: Widgets.changed, render });
       wireBackButton();
       wirePullToRefresh();
+      wireScrollThumb();
     } else if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").then(watchForUpdate).catch(() => {});
     }
@@ -4298,6 +4299,35 @@
   // How far the page moves for a finger that has moved dy: easy at first,
   // then harder and harder, never past PULL_REACH.
   const pullDistance = (dy) => (1 - 1 / (Math.max(0, dy) * 0.55 / PULL_REACH + 1)) * PULL_REACH;
+
+  // The app's page scrollbar. WidgetsPlugin turns off the WebView's own,
+  // which Android draws over the header and the tab bar; this one stays in
+  // the band between them (--topbar-h / --bottombar-h) and, like Android's,
+  // shows only while the page moves.
+  function wireScrollThumb() {
+    const thumb = el("div", "page-thumb");
+    document.body.appendChild(thumb);
+    let hideTimer;
+    const place = () => {
+      const root = document.documentElement, css = getComputedStyle(root);
+      const top = parseFloat(css.getPropertyValue("--topbar-h")) || 0;
+      const bottom = parseFloat(css.getPropertyValue("--bottombar-h")) || 0;
+      const view = innerHeight, range = root.scrollHeight - view;
+      if (range <= 0) return false;
+      const track = view - top - bottom;
+      const h = Math.max(32, track * view / root.scrollHeight);
+      const y = top + (track - h) * Math.min(1, Math.max(0, scrollY / range));
+      thumb.style.height = h + "px";
+      thumb.style.transform = "translateY(" + y + "px)";
+      return true;
+    };
+    window.addEventListener("scroll", () => {
+      if (!place()) return;
+      thumb.classList.add("is-on");
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => thumb.classList.remove("is-on"), 800);
+    }, { passive: true });
+  }
 
   function wirePullToRefresh() {
     const root = document.documentElement;

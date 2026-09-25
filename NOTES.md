@@ -16,6 +16,17 @@ what was decided against and why.
 
 ---
 
+- **In the Android app the page scrollbar is ours (0.190.2).** The
+  WebView's own is drawn by Android's View, over the whole WebView, and no
+  CSS reaches it: not the `body::-webkit-scrollbar` inset from 0.190.1, not
+  the `(pointer: fine)` styles. `WidgetsPlugin.load()` turns it off
+  (`setVerticalScrollBarEnabled(false)`) and `wireScrollThumb()` draws a
+  fixed thumb inside `--topbar-h` / `--bottombar-h`. Sheets and other inner
+  scrollers keep Blink's overlay bars, which that call doesn't touch.
+  On a computer the scrollbar's strip sits beside the bars rather than under
+  them, so `body::-webkit-scrollbar` paints its two ends as the bars (1px
+  border included); without it they looked 12px short of the window.
+
 - **The page scrollbar is inset by the bars, styled through `body` (0.190.1).**
   The app scrolls as the document, so the window's scrollbar spans the full
   height behind the sticky `.topbar` and the fixed mobile `#topbarBottom`.

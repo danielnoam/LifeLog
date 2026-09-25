@@ -49,6 +49,10 @@ public class WidgetsPlugin extends Plugin {
     public void load() {
         live = new WeakReference<>(this);
         readAction(getActivity().getIntent());
+        // The WebView's own scrollbar runs the full height of the screen, over
+        // the header and the tab bar, and no CSS reaches it. The page draws its
+        // own between them instead (wireScrollThumb in app.js).
+        getActivity().runOnUiThread(() -> getBridge().getWebView().setVerticalScrollBarEnabled(false));
     }
 
     // Capacitor calls this for the launch intent too, not just later ones.

@@ -1196,6 +1196,36 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await g.ctx.close();
   }
 
+  // ---- 15. the page scrollbar stays between the header and the tab bar ----
+  {
+    const notes = Array.from({ length: 80 }, (_, i) => note("n" + i, "Note " + i + "\n" + "line\n".repeat(4), "2026-01-01T00:00:00Z"));
+    const a = await openApp(browser, { cache: doc(notes, null) });
+    const at = async (y) => {
+      await a.page.evaluate((y) => scrollTo(0, y), y);
+      await a.page.waitForTimeout(150);
+      return a.page.evaluate(() => {
+        const t = document.querySelector(".page-thumb").getBoundingClientRect();
+        const top = document.querySelector(".topbar").getBoundingClientRect().bottom;
+        const bottom = document.querySelector("#topbarBottom").getBoundingClientRect().top;
+        return { t: Math.round(t.top), b: Math.round(t.bottom), top: Math.round(top), bottom: Math.round(bottom),
+          on: getComputedStyle(document.querySelector(".page-thumb")).opacity !== "0" };
+      });
+    };
+    const first = await at(1);
+    check("the thumb starts under the header", first.t >= first.top - 1 && first.on, first);
+    const last = await at(1e6);
+    check("and ends above the tab bar", last.b <= last.bottom + 1 && last.b > last.bottom - 4, last);
+    await a.page.waitForTimeout(1300);
+    check("then fades out, like Android's", await a.page.evaluate(() => !document.querySelector(".page-thumb").classList.contains("is-on")));
+    errs.push(...a.errs);
+    await a.ctx.close();
+
+    const b = await openApp(browser, { native: false });
+    check("a browser keeps its own scrollbar", await b.page.evaluate(() => !document.querySelector(".page-thumb")));
+    errs.push(...b.errs);
+    await b.ctx.close();
+  }
+
   await browser.close();
   console.log("\nerrors:", errs.length ? errs : "none");
   console.log(`\n${pass} passed, ${fail} failed`);

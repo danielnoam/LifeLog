@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.190.2] - 2026-09-25
+
+### Fixed
+- **The scrollbar stays out from behind the bars in the Android app too.**
+  0.190.1 only reached browsers on a computer. The app's scrollbar is drawn
+  by Android, over the whole screen. It is now turned off, and the app draws
+  its own in its place: a thin thumb that runs between the header and the
+  tab bar and shows only while the page moves, as Android's did.
+- **The header and tab bar reach the edge of the window again** on a
+  computer. The scrollbar's strip sat beside them and cut them 12px short;
+  its ends are now painted in the bars' colour.
+
 ## [0.190.1] - 2026-09-25
 
 ### Fixed
