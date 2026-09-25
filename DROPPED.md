@@ -13,6 +13,20 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## Google Drive backup
+
+A scheduled copy of the data file in Google Drive, as a backup beside GitHub
+(never a second sync source, which would need merging between the two).
+
+Not wanted. GitHub already keeps every save as a commit, each device keeps
+its own copy and last ~40 saves, and in the Android app Export → Everything
+opens the share sheet, where "Save to Drive" is one tap. What Drive would add
+is a copy that doesn't depend on GitHub, and the cost is large for that: a
+Google Cloud project and OAuth client, hour-long browser tokens with no
+refresh, and in the Android app a native Google sign-in, since Google blocks
+OAuth inside a WebView. If losing GitHub ever becomes the real worry, the
+cheaper route is the scheduled backup file on the phone in TODO.md.
+
 ## Times-per-week habits, and a streak milestone becoming an accomplishment
 
 Both were left out of habits' first cut (0.171.0) on purpose and kept on the
