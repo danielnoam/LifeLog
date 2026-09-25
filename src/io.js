@@ -8,16 +8,37 @@
 // exposed on window.LifeLogIO.
 (function () {
   // Shared app plumbing, provided by app.js via init(ctx).
-  let state, $, el, toast, persist, afterDataChange, ensureCategories,
+  let state, $, el, uid, toast, persist, afterDataChange, ensureCategories, ensureProjects,
     CATEGORY_PALETTE, MONTHS, MONTHS_SHORT, colorOf,
     financeColorOf, formatMoney, financeKey, recurringKey,
-    sanitizeFinanceEntry, sanitizeRecurring, sanitizeEntry, sanitizeBacklog, isOverridden;
+    sanitizeFinanceEntry, sanitizeRecurring, sanitizeProject, sanitizeEntry, sanitizeBacklog,
+    sanitizeNote, sanitizeTodo, sanitizeHabit, isOverridden;
 
   function init(ctx) {
-    ({ state, $, el, toast, persist, afterDataChange, ensureCategories,
+    ({ state, $, el, uid, toast, persist, afterDataChange, ensureCategories, ensureProjects,
       CATEGORY_PALETTE, MONTHS, MONTHS_SHORT, colorOf,
       financeColorOf, formatMoney, financeKey, recurringKey,
-      sanitizeFinanceEntry, sanitizeRecurring, sanitizeEntry, sanitizeBacklog, isOverridden } = ctx);
+      sanitizeFinanceEntry, sanitizeRecurring, sanitizeProject, sanitizeEntry, sanitizeBacklog,
+      sanitizeNote, sanitizeTodo, sanitizeHabit, isOverridden } = ctx);
+  }
+
+  // What each tab holds, keyed by its view name. A tab's export carries all
+  // of it, and a tab's import takes only its own kinds out of whatever file
+  // it is given — so a full backup can be imported one tab at a time.
+  const TAB_KINDS = {
+    notes: ["note", "todo", "habit"],
+    timeline: ["entry", "achievement"],
+    backlog: ["backlog"],
+    finance: ["finance", "recurring"],
+  };
+  const TAB_LABEL = { notes: "Notes", timeline: "Timeline", backlog: "Backlog", finance: "Ledger" };
+  const TAB_FILE = { notes: "notes", timeline: "timeline", backlog: "backlog", finance: "ledger" };
+  function tabPayload(tab) {
+    const d = state.data;
+    if (tab === "notes") return { notes: d.notes, todos: d.todos, todoCategories: d.todoCategories, habits: d.habits };
+    if (tab === "timeline") return { entries: d.entries, categories: d.categories, accomplishments: d.accomplishments };
+    if (tab === "backlog") return { backlog: d.backlog, categories: d.categories };
+    return { financeEntries: d.financeEntries, recurringExpenses: d.recurringExpenses, financeCategories: d.financeCategories, projects: d.projects };
   }
 
   // Every export goes through here. In the Android app a download link does
@@ -46,32 +67,92 @@
     s = String(s == null ? "" : s);
     return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   }
-  function exportJournalJson() {
-    const payload = { entries: state.data.entries, backlog: state.data.backlog, categories: state.data.categories };
-    download("lifelog-journal.json", JSON.stringify(payload, null, 2), "application/json");
+  function exportTabJson(tab) {
+    const payload = { lifelog: tab, exportedAt: new Date().toISOString(), ...tabPayload(tab) };
+    download("lifelog-" + TAB_FILE[tab] + ".json", JSON.stringify(payload, null, 2), "application/json");
   }
   // journal CSV covers both Timeline entries (dated, Year+Month) and Backlog
   // items (undated) — the Kind column tells them apart on re-import. Row-
   // building is split out from the actual download() call so the export
   // side of the CSV round-trip (paired with parseJournalCsv below) can be
   // exercised directly in tests, without a browser Blob/URL.
-  function journalCsvRows(entries, backlog) {
+  function journalCsvRows(entries, backlog, accomplishments) {
     const rows = [["Kind", "Year", "Month", "Category", "Title", "Added"]];
     entries.slice()
       .sort((a, b) => (a.year - b.year) || (a.month - b.month))
       .forEach((e) => rows.push(["Entry", e.year, MONTHS[e.month], e.category, e.title,
         e.createdAt ? e.createdAt.slice(0, 10) : ""]));
+    Object.keys(accomplishments || {}).sort().forEach((y) => (accomplishments[y] || []).forEach((a) =>
+      rows.push(["Achievement", y, "", "", a.text, a.createdAt ? a.createdAt.slice(0, 10) : ""])));
     backlog.slice()
       .sort((a, b) => (a.title || "").localeCompare(b.title || ""))
       .forEach((b) => rows.push(["Backlog", "", "", b.category, b.title,
         b.createdAt ? b.createdAt.slice(0, 10) : ""]));
     return rows;
   }
-  function journalCsvText(entries, backlog) {
-    return journalCsvRows(entries, backlog).map((r) => r.map(csvEsc).join(",")).join("\n");
+  function journalCsvText(entries, backlog, accomplishments) {
+    return journalCsvRows(entries, backlog, accomplishments).map((r) => r.map(csvEsc).join(",")).join("\n");
   }
-  function exportJournalCsv() {
-    download("lifelog-journal.csv", journalCsvText(state.data.entries, state.data.backlog), "text/csv");
+
+  // The Notes tab's three kinds in one sheet. Columns a kind has no use for
+  // stay empty. A habit's history rides in one cell — its marked days, each
+  // with "*n" when it was done more than once — so a re-import keeps the
+  // streaks; "Done" is when a to-do was ticked or a habit archived.
+  const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  function notesCsvRows(notes, todos, habits) {
+    const rows = [["Kind", "Date", "Category", "Text", "Done", "Days", "Target", "Marks", "Color"]];
+    (notes || []).forEach((n) => rows.push(["Note", n.createdAt || "", "", n.text, "", "", "", "", ""]));
+    (todos || []).forEach((t) => rows.push(["To-do", t.createdAt || "", t.category || "", t.text, t.done ? (t.doneAt || "yes") : "", "", "", "", ""]));
+    (habits || []).forEach((h) => rows.push(["Habit", h.startedAt || "", "", h.name, h.archivedAt || "",
+      h.cadence && h.cadence.days ? h.cadence.days.map((d) => DAY_LABELS[d]).join(" ") : "daily",
+      h.target || 1,
+      Object.keys(h.marks || {}).sort().map((d) => (h.marks[d] > 1 ? d + "*" + h.marks[d] : d)).join(" "),
+      h.color || ""]));
+    return rows;
+  }
+  function notesCsvText(notes, todos, habits) {
+    return notesCsvRows(notes, todos, habits).map((r) => r.map(csvEsc).join(",")).join("\n");
+  }
+  function parseNotesCsv(text) {
+    const notes = [], todos = [], habits = [];
+    const iso = (s) => { const d = new Date(s); return s && !isNaN(d) ? d.toISOString() : null; };
+    for (const row of parseCsv(text)) {
+      const kind = (row[0] || "").trim().toLowerCase();
+      const txt = (row[3] || "").trim();
+      if (!txt) continue;
+      const date = (row[1] || "").trim(), done = (row[4] || "").trim();
+      if (kind === "note") notes.push({ text: row[3], createdAt: iso(date) });
+      else if (kind === "to-do" || kind === "todo") {
+        const t = { text: txt, createdAt: iso(date) };
+        if ((row[2] || "").trim()) t.category = row[2].trim();
+        if (done) { t.done = true; t.doneAt = iso(done); }
+        todos.push(t);
+      } else if (kind === "habit") {
+        const days = (row[5] || "").trim().split(/\s+/).map((d) => DAY_LABELS.findIndex((l) => l.toLowerCase() === d.toLowerCase())).filter((i) => i >= 0);
+        const marks = {};
+        for (const m of (row[7] || "").trim().split(/\s+/).filter(Boolean)) {
+          const [d, n] = m.split("*");
+          marks[d] = +n || 1;
+        }
+        const h = { name: txt, target: +row[6] || 1, marks };
+        if (/^\d{4}-\d{2}-\d{2}$/.test(date)) h.startedAt = date;
+        if (days.length) h.cadence = { days };
+        if (/^\d{4}-\d{2}-\d{2}$/.test(done)) h.archivedAt = done;
+        if ((row[8] || "").trim()) h.color = row[8].trim();
+        habits.push(h);
+      }
+    }
+    if (!notes.length && !todos.length && !habits.length) throw new Error("No rows found — is this a Notes CSV export?");
+    return { notes, todos, habits };
+  }
+
+  // Ledger's CSV is finance.js's own (it has a picker and reads the Sheets
+  // pivot too); the other tabs' are here.
+  function exportTabCsv(tab) {
+    const d = state.data;
+    if (tab === "notes") return download("lifelog-notes.csv", notesCsvText(d.notes, d.todos, d.habits), "text/csv");
+    if (tab === "timeline") return download("lifelog-timeline.csv", journalCsvText(d.entries, [], d.accomplishments), "text/csv");
+    if (tab === "backlog") return download("lifelog-backlog.csv", journalCsvText([], d.backlog), "text/csv");
   }
   let MONTH_NAME_TO_NUM;
   function parseJournalCsv(text) {
@@ -81,14 +162,19 @@
     const rows = parseCsv(text);
     const entries = [];
     const backlog = [];
+    const accomplishments = {};
     for (const row of rows) {
       const kind = (row[0] || "").trim().toLowerCase();
-      if (kind !== "entry" && kind !== "backlog") continue; // skips header row + blank lines
+      if (kind !== "entry" && kind !== "backlog" && kind !== "achievement") continue; // skips header row + blank lines
       const category = (row[3] || "Other").trim() || "Other";
       const title = (row[4] || "").trim();
       const createdAt = (row[5] || "").trim();
       if (!title) continue;
-      if (kind === "entry") {
+      if (kind === "achievement") {
+        const year = parseInt(row[1], 10);
+        if (!year) continue;
+        (accomplishments[year] = accomplishments[year] || []).push({ text: title, createdAt: createdAt ? new Date(createdAt).toISOString() : null });
+      } else if (kind === "entry") {
         const year = parseInt(row[1], 10);
         const month = MONTH_NAME_TO_NUM[(row[2] || "").trim().toLowerCase()];
         if (!year || !month) continue;
@@ -97,25 +183,29 @@
         backlog.push({ title, category, createdAt: createdAt ? new Date(createdAt).toISOString() : null });
       }
     }
-    if (!entries.length && !backlog.length) throw new Error("No rows found — is this a Journal CSV export?");
-    return { entries, backlog };
+    if (!entries.length && !backlog.length && !Object.keys(accomplishments).length) throw new Error("No rows found — is this a Timeline or Backlog CSV export?");
+    return { entries, backlog, accomplishments };
   }
 
   // ---------- unified import review ----------
   // Builds the mixed-kind item list + new-category list for the picker,
   // scoped to "journal" (entries/backlog), "finance" (finance/recurring), or
   // "all" (everything) — shared by every JSON/CSV importer below.
-  function buildNewCategoryList(items, incomingCats, knownCategories) {
-    const known = new Set(knownCategories.map((c) => c.name));
-    const colorByName = {};
-    for (const c of incomingCats || []) if (c.name) colorByName[c.name] = c.color;
-    const names = new Set((incomingCats || []).map((c) => c.name).filter(Boolean));
-    for (const it of items) if (it.entry.category) names.add(it.entry.category);
+  // `scope` says which list a name belongs to: "journal", "finance", "todo"
+  // (the to-do list's own categories) or "project", which is read off the
+  // items' `project` field rather than `category`.
+  function buildNewCategoryList(items, incomingCats, knownCategories, scope, field = "category") {
+    const known = new Set((knownCategories || []).map((c) => c.name));
+    const srcByName = {};
+    for (const c of incomingCats || []) if (c && c.name) srcByName[c.name] = c;
+    const names = new Set(Object.keys(srcByName));
+    for (const it of items) if (it.entry[field]) names.add(it.entry[field]);
     const out = [];
     let pi = 0;
     names.forEach((name) => {
       if (known.has(name)) return;
-      out.push({ name, color: colorByName[name] || CATEGORY_PALETTE[pi++ % CATEGORY_PALETTE.length], scope: knownCategories === state.data.financeCategories ? "finance" : "journal", add: true });
+      const src = srcByName[name];
+      out.push({ name, color: (src && src.color) || CATEGORY_PALETTE[pi++ % CATEGORY_PALETTE.length], scope, src, add: true });
     });
     return out;
   }
@@ -268,7 +358,14 @@
     return Object.assign({ kind, entry: rec, dup, checked: !dup }, extra);
   }
 
-  function buildImportItems({ entries, backlog, financeEntries, recurringExpenses, categories, financeCategories }) {
+  // `kinds`, when given, keeps only those kinds out of the file (a tab's
+  // import); without it everything in the file is offered.
+  function buildImportItems(incoming, kinds) {
+    const want = (k) => !kinds || kinds.includes(k);
+    const pick = (k, list) => (want(k) ? list || [] : []);
+    const entries = pick("entry", incoming.entries), backlog = pick("backlog", incoming.backlog);
+    const financeEntries = pick("finance", incoming.financeEntries), recurringExpenses = pick("recurring", incoming.recurringExpenses);
+    const { categories, financeCategories } = incoming;
     const items = [];
     const backlogKey = (b) => titleCatKey(b.title, b.category);
     const existingEntryKeys = new Set(state.data.entries.map(entryKey));
@@ -321,9 +418,43 @@
       items.push(buildImportRow("recurring", r, existingRecurKeys.has(recurringKey(r))));
     });
 
+    // The rest are matched on what you'd call them: a note's words, a
+    // to-do's words in its list, a habit's name, an achievement's text in its
+    // year. Or on id, which catches the same item edited since the file was
+    // made — that's an item you already have, not a new one.
+    const low = (s) => String(s == null ? "" : s).trim().toLowerCase();
+    const simple = (kind, list, sanitize, label, key, existing) => {
+      const ids = new Set(existing.map((x) => x.id)), keys = new Set(existing.map(key));
+      for (const raw of list) {
+        const rec = sanitize(raw);
+        if (!low(label(rec))) continue;
+        const dup = ids.has(rec.id) || keys.has(key(rec));
+        items.push({ kind, entry: rec, dup, checked: !dup });
+      }
+    };
+    if (want("note")) simple("note", incoming.notes || [], sanitizeNote, (n) => n.text, (n) => low(n.text), state.data.notes || []);
+    if (want("todo")) simple("todo", incoming.todos || [], sanitizeTodo, (t) => t.text, (t) => low(t.category) + "|" + low(t.text), state.data.todos || []);
+    if (want("habit")) simple("habit", incoming.habits || [], sanitizeHabit, (h) => h.name, (h) => low(h.name), state.data.habits || []);
+    if (want("achievement")) {
+      const have = state.data.accomplishments || {};
+      for (const [y, list] of Object.entries(incoming.accomplishments || {})) {
+        const keys = new Set((have[y] || []).map((a) => low(a.text)));
+        const ids = new Set((have[y] || []).map((a) => a.id));
+        for (const a of list || []) {
+          const rec = typeof a === "string" ? { text: a, createdAt: null } : { ...a };
+          if (!low(rec.text)) continue;
+          const dup = keys.has(low(rec.text)) || (!!rec.id && ids.has(rec.id));
+          items.push({ kind: "achievement", entry: rec, year: +y, dup, checked: !dup });
+        }
+      }
+    }
+
+    const of = (...ks) => items.filter((i) => ks.includes(i.kind));
     const newCategories = [
-      ...buildNewCategoryList(items.filter((i) => i.kind === "entry" || i.kind === "backlog"), categories, state.data.categories),
-      ...buildNewCategoryList(items.filter((i) => i.kind === "finance" || i.kind === "recurring"), financeCategories, state.data.financeCategories),
+      ...buildNewCategoryList(of("entry", "backlog"), want("entry") || want("backlog") ? categories : [], state.data.categories, "journal"),
+      ...buildNewCategoryList(of("finance", "recurring"), want("finance") || want("recurring") ? financeCategories : [], state.data.financeCategories, "finance"),
+      ...buildNewCategoryList(of("todo"), want("todo") ? incoming.todoCategories : [], state.data.todoCategories, "todo"),
+      ...buildNewCategoryList(of("finance", "recurring"), want("finance") || want("recurring") ? incoming.projects : [], state.data.projects, "project", "project"),
     ];
     return { items, newCategories };
   }
@@ -332,8 +463,17 @@
   // single summary toast across every kind that was touched
   async function applyImportSelection(selected, addCats) {
     if (!selected.length) { toast("Nothing selected"); return; }
+    const d = state.data;
     for (const c of addCats) {
-      const target = c.scope === "finance" ? state.data.financeCategories : state.data.categories;
+      if (c.scope === "project") {
+        d.projects = d.projects || [];
+        if (d.projects.some((x) => x.name === c.name)) continue;
+        const p = sanitizeProject({ ...(c.src || {}), name: c.name, color: c.color });
+        if (d.projects.some((x) => x.id === p.id)) p.id = uid();
+        d.projects.push(p);
+        continue;
+      }
+      const target = c.scope === "finance" ? d.financeCategories : c.scope === "todo" ? (d.todoCategories = d.todoCategories || []) : d.categories;
       if (!target.some((x) => x.name === c.name)) target.push({ id: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: c.name, color: c.color });
     }
     // Updates are applied in place against the item they matched; only the
@@ -366,22 +506,54 @@
       // actually changed. Touching it by hand would be the manual "touch"
       // call that function exists to make unnecessary.
     }
-    const byKind = { entry: [], backlog: [], finance: [], recurring: [] };
-    selected.filter((i) => !i.update).forEach((i) => byKind[i.kind].push(i.entry));
-    state.data.entries.push(...byKind.entry);
-    state.data.backlog.push(...byKind.backlog);
-    state.data.financeEntries.push(...byKind.finance);
-    state.data.recurringExpenses.push(...byKind.recurring);
-    ensureCategories(state.data.categories, [...byKind.entry, ...byKind.backlog]);
-    ensureCategories(state.data.financeCategories, [...byKind.finance, ...byKind.recurring]);
+    const byKind = { entry: [], backlog: [], finance: [], recurring: [], note: [], todo: [], habit: [], achievement: [] };
+    selected.filter((i) => !i.update).forEach((i) => byKind[i.kind].push(i));
+    // A new item whose id is already taken — the same item, changed since the
+    // file was made, re-imported as a copy on purpose — gets an id of its own:
+    // two items sharing one would be folded into one by the next sync.
+    const add = (list, recs) => {
+      const ids = new Set(list.map((x) => x.id));
+      for (const r of recs) {
+        if (!r.id || ids.has(r.id)) r.id = uid();
+        ids.add(r.id);
+        list.push(r);
+      }
+    };
+    const recs = (k) => byKind[k].map((i) => i.entry);
+    // Hand-ordered lists: what comes in goes after what's there.
+    const after = (list, k) => {
+      let n = list.reduce((m, x) => Math.max(m, +x.order || 0), 0);
+      return recs(k).map((r) => ({ ...r, order: ++n }));
+    };
+    add(d.entries, recs("entry"));
+    add(d.backlog, recs("backlog"));
+    add(d.financeEntries, recs("finance"));
+    add(d.recurringExpenses, recs("recurring"));
+    add(d.notes = d.notes || [], recs("note"));
+    add(d.todos = d.todos || [], after(d.todos, "todo"));
+    add(d.habits = d.habits || [], after(d.habits, "habit"));
+    d.accomplishments = d.accomplishments || {};
+    for (const i of byKind.achievement) {
+      const list = d.accomplishments[i.year] = d.accomplishments[i.year] || [];
+      add(list, [i.entry]);
+    }
+    ensureCategories(d.categories, [...recs("entry"), ...recs("backlog")]);
+    ensureCategories(d.financeCategories, [...recs("finance"), ...recs("recurring")]);
+    ensureCategories(d.todoCategories = d.todoCategories || [], recs("todo").filter((t) => t.category));
+    if (ensureProjects) ensureProjects(d.projects = d.projects || [], [...recs("finance"), ...recs("recurring")]);
 
     afterDataChange();
     await persist();
     const parts = [];
-    if (byKind.entry.length) parts.push(`${byKind.entry.length} entries`);
-    if (byKind.backlog.length) parts.push(`${byKind.backlog.length} backlog items`);
-    if (byKind.finance.length) parts.push(`${byKind.finance.length} finance entries`);
-    if (byKind.recurring.length) parts.push(`${byKind.recurring.length} recurring expenses`);
+    const count = (k, one, many) => { const n = byKind[k].length; if (n) parts.push(n + " " + (n === 1 ? one : many)); };
+    count("entry", "entry", "entries");
+    count("achievement", "achievement", "achievements");
+    count("backlog", "backlog item", "backlog items");
+    count("note", "note", "notes");
+    count("todo", "to-do", "to-dos");
+    count("habit", "habit", "habits");
+    count("finance", "finance entry", "finance entries");
+    count("recurring", "recurring expense", "recurring expenses");
     if (updates.length) {
       parts.push(`filled ${filled} field${filled === 1 ? "" : "s"} on ${updates.length} existing item${updates.length === 1 ? "" : "s"}`);
     }
@@ -389,18 +561,6 @@
     toast(`Imported ${parts.join(", ")}`);
   }
 
-  function mergeAccomplishments(accIn) {
-    let added = 0;
-    for (const y of Object.keys(accIn || {})) {
-      state.data.accomplishments[y] = state.data.accomplishments[y] || [];
-      const existingTexts = new Set(state.data.accomplishments[y].map((a) => (a.text || "").toLowerCase()));
-      for (const a of accIn[y] || []) {
-        const out = typeof a === "string" ? { text: a, createdAt: null } : { text: a.text || "", createdAt: a.createdAt || null, ...(a.notes ? { notes: a.notes } : {}) };
-        if (out.text && !existingTexts.has(out.text.toLowerCase())) { state.data.accomplishments[y].push(out); existingTexts.add(out.text.toLowerCase()); added++; }
-      }
-    }
-    return added;
-  }
   function reviewAndImport(title, hint, built, extraOnConfirm) {
     if (!built.items.length) { toast("No items found in this file"); return; }
     openImportPicker({
@@ -412,43 +572,32 @@
       },
     });
   }
-  function importJsonAll(file) {
+  const IMPORT_HINT = "Review what to bring in — pick individual items, toggle whole periods on/off, and choose which new categories to add. Items already in your data are hidden by default.";
+  function readFile(file, then) {
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        const incoming = JSON.parse(reader.result);
-        if (!Array.isArray(incoming.entries) && !Array.isArray(incoming.backlog) && !Array.isArray(incoming.financeEntries)) throw new Error("not a LifeLog file");
-        const built = buildImportItems(incoming);
-        reviewAndImport("Import full backup", "Review what to bring in — pick individual items, toggle whole periods on/off, and choose which new categories to add. Items already in your data are hidden by default.", built, () => {
-          const added = mergeAccomplishments(incoming.accomplishments);
-          if (added) toast(`Also imported ${added} accomplishment${added === 1 ? "" : "s"}`);
-        });
-      } catch (e) { toast("Import failed: " + (e.message || e), true); }
+      try { then(reader.result); } catch (e) { toast("Import failed: " + (e.message || e), true); }
     };
     reader.readAsText(file);
   }
-  function importJournalJson(file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const incoming = JSON.parse(reader.result);
-        if (!Array.isArray(incoming.entries) && !Array.isArray(incoming.backlog)) throw new Error("not a Journal export");
-        const built = buildImportItems(incoming);
-        reviewAndImport("Import journal data", "Review what to bring in — pick individual items, toggle whole periods on/off, and choose which new categories to add. Items already in your data are hidden by default.", built);
-      } catch (e) { toast("Import failed: " + (e.message || e), true); }
-    };
-    reader.readAsText(file);
+  // A whole backup (tab omitted) or one tab's share of any LifeLog JSON —
+  // a tab's own export, a full backup, or the older Journal/Finance files.
+  function importJson(file, tab) {
+    readFile(file, (text) => {
+      const incoming = JSON.parse(text);
+      if (!incoming || typeof incoming !== "object") throw new Error("not a LifeLog file");
+      const built = buildImportItems(incoming, tab ? TAB_KINDS[tab] : null);
+      if (!built.items.length) throw new Error(tab ? "no " + TAB_LABEL[tab] + " data in this file" : "not a LifeLog file");
+      reviewAndImport(tab ? "Import " + TAB_LABEL[tab] : "Import full backup", IMPORT_HINT, built);
+    });
   }
-  function importJournalCsv(file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const { entries, backlog } = parseJournalCsv(reader.result);
-        const built = buildImportItems({ entries, backlog });
-        reviewAndImport("Import journal CSV", "Review what to bring in — pick individual items, toggle whole periods on/off, and choose which new categories to add. Items already in your data are hidden by default.", built);
-      } catch (e) { toast("Import failed: " + (e.message || e), true); }
-    };
-    reader.readAsText(file);
+  function importTabCsv(file, tab) {
+    readFile(file, (text) => {
+      const incoming = tab === "notes" ? parseNotesCsv(text) : parseJournalCsv(text);
+      const built = buildImportItems(incoming, TAB_KINDS[tab]);
+      if (!built.items.length) throw new Error("no " + TAB_LABEL[tab] + " rows in this file");
+      reviewAndImport("Import " + TAB_LABEL[tab] + " CSV", IMPORT_HINT, built);
+    });
   }
   // parses CSV text into rows of cells, honoring quoted fields (with
   // "" escapes) that may contain commas or newlines — needed because
@@ -489,7 +638,8 @@
     if (item.kind === "finance") return e.date || "";
     if (item.kind === "entry") return `${e.year}-${String(e.month).padStart(2, "0")}`;
     if (item.kind === "recurring") return e.startDate || "";
-    return ""; // backlog has no date
+    if (item.kind === "note") return (e.createdAt || "").slice(0, 10);
+    return ""; // backlog, to-dos, habits and achievements have no month to group by
   }
   function importBucketKey(item) {
     const ds = importItemDateStr(item);
@@ -527,6 +677,15 @@
       row.appendChild(el("span", "fdate", `${MONTHS_SHORT[e.month]} ${e.year}`));
       const t = el("span", "etitle", e.title); t.title = e.title; row.appendChild(t);
       row.appendChild(el("span", "ecat", e.category));
+    } else if (item.kind === "note" || item.kind === "todo" || item.kind === "habit" || item.kind === "achievement") {
+      const date = item.kind === "note" ? (e.createdAt || "").slice(0, 10)
+        : item.kind === "achievement" ? String(item.year)
+        : item.kind === "habit" ? (e.startedAt || "") : "—";
+      row.appendChild(el("span", "fdate", date || "—"));
+      const text = item.kind === "habit" ? e.name : (e.text || "").split("\n")[0];
+      const t = el("span", "etitle", (item.kind === "todo" && e.done ? "✓ " : "") + text); t.title = e.text || e.name; row.appendChild(t);
+      if (e.category) row.appendChild(el("span", "ecat", e.category));
+      row.appendChild(el("span", "dup-tag", { note: "note", todo: "to-do", habit: "habit", achievement: "achievement" }[item.kind]));
     } else { // backlog
       row.appendChild(el("span", "fdate", "—"));
       const t = el("span", "etitle", e.title); t.title = e.title; row.appendChild(t);
@@ -580,14 +739,14 @@
       const dot = el("span", "dot"); dot.style.background = nc.color;
       dot.style.width = "9px"; dot.style.height = "9px"; dot.style.borderRadius = "50%"; dot.style.display = "inline-block";
       row.appendChild(dot);
-      row.appendChild(document.createTextNode(nc.name));
+      row.appendChild(document.createTextNode(nc.name + (nc.scope === "project" ? " (project)" : nc.scope === "todo" ? " (to-do list)" : "")));
       newCatsList.appendChild(row);
     });
 
     function matchesSearch(i) {
       if (!searchTerm) return true;
       const e = i.entry;
-      const hay = [e.note, e.category, String(e.amount)].filter(Boolean).join(" ").toLowerCase();
+      const hay = [e.note, e.category, e.title, e.text, e.name, e.amount != null ? String(e.amount) : ""].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(searchTerm);
     }
     function visibleItems() {
@@ -653,12 +812,11 @@
   window.LifeLogIO = {
     init,
     download, csvEsc, parseCsv,
-    exportJson, exportJournalJson, exportJournalCsv,
-    importJsonAll, importJournalJson, importJournalCsv,
+    exportJson, exportTabJson, exportTabCsv, importJson, importTabCsv, TAB_KINDS,
     buildImportItems,
     importItemIncomplete, reviewAndImport, openImportPicker,
     // pure helpers (exported for test/io.test.js)
-    importItemDateStr, importBucketKey, journalCsvText, parseJournalCsv,
-    fillableFields, findImportTarget,
+    importItemDateStr, importBucketKey, journalCsvText, parseJournalCsv, notesCsvText, parseNotesCsv,
+    fillableFields, findImportTarget, applyImportSelection,
   };
 })();

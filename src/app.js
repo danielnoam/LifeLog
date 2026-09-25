@@ -128,7 +128,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.190.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.191.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3734,14 +3734,23 @@
 
     $("#exportJsonBtn").onclick = IO.exportJson;
     $("#importJsonBtn").onclick = () => $("#importJsonInput").click();
-    $("#importJsonInput").onchange = (e) => { if (e.target.files[0]) IO.importJsonAll(e.target.files[0]); e.target.value = ""; };
+    $("#importJsonInput").onchange = (e) => { if (e.target.files[0]) IO.importJson(e.target.files[0]); e.target.value = ""; };
 
-    $("#exportJournalJsonBtn").onclick = IO.exportJournalJson;
-    $("#exportJournalCsvBtn").onclick = IO.exportJournalCsv;
-    $("#importJournalJsonBtn").onclick = () => $("#importJournalJsonInput").click();
-    $("#importJournalJsonInput").onchange = (e) => { if (e.target.files[0]) IO.importJournalJson(e.target.files[0]); e.target.value = ""; };
-    $("#importJournalCsvBtn").onclick = () => $("#importJournalCsvInput").click();
-    $("#importJournalCsvInput").onchange = (e) => { if (e.target.files[0]) IO.importJournalCsv(e.target.files[0]); e.target.value = ""; };
+    // Each tab's section: data-tab names the tab, data-io what to do with it.
+    // The imports share two file inputs, so which tab asked is kept until the
+    // file comes back. Ledger's CSV pair is finance.js's own.
+    let importTab = null;
+    document.querySelectorAll("[data-io]").forEach((btn) => {
+      const tab = btn.dataset.tab;
+      btn.onclick = {
+        "export-json": () => IO.exportTabJson(tab),
+        "export-csv": () => IO.exportTabCsv(tab),
+        "import-json": () => { importTab = tab; $("#importTabJsonInput").click(); },
+        "import-csv": () => { importTab = tab; $("#importTabCsvInput").click(); },
+      }[btn.dataset.io];
+    });
+    $("#importTabJsonInput").onchange = (e) => { if (e.target.files[0]) IO.importJson(e.target.files[0], importTab); e.target.value = ""; };
+    $("#importTabCsvInput").onchange = (e) => { if (e.target.files[0]) IO.importTabCsv(e.target.files[0], importTab); e.target.value = ""; };
 
 
     // close modals on overlay click / Escape (the conflict picker is modal —
@@ -4474,12 +4483,14 @@
   // buildImportItems/reviewAndImport, and both need the cross-module
   // sanitizers/cover setters the other view modules expose.
   IO.init({
-    state, $, el, toast, persist, afterDataChange, ensureCategories,
+    state, $, el, uid, toast, persist, afterDataChange, ensureCategories, ensureProjects,
     CATEGORY_PALETTE, MONTHS, MONTHS_SHORT, colorOf,
     financeColorOf: Finance.financeColorOf, formatMoney: Finance.formatMoney,
     financeKey: Finance.financeKey, recurringKey: Finance.recurringKey,
     sanitizeFinanceEntry: Finance.sanitizeFinanceEntry, sanitizeRecurring: Finance.sanitizeRecurring,
+    sanitizeProject: Finance.sanitizeProject,
     sanitizeEntry: Journal.sanitizeEntry, sanitizeBacklog: Backlog.sanitizeBacklog,
+    sanitizeNote: Notes.sanitizeNote, sanitizeTodo: Todos.sanitizeTodo, sanitizeHabit: Habits.sanitizeHabit,
     isOverridden,
   });
   Sync.init({

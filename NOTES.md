@@ -16,6 +16,21 @@ what was decided against and why.
 
 ---
 
+- **Import & export is per tab, with one importer underneath (0.191.0).**
+  `TAB_KINDS` in io.js says which kinds a tab owns; a tab's export writes all
+  of them and a tab's import passes them to `buildImportItems(incoming,
+  kinds)`, which ignores the rest of the file. That's why any LifeLog file
+  works in any tab's import, and why the old Journal/Finance buttons could go
+  without breaking their files. Notes, to-dos and habits have no fill-in
+  update path (IMPORT_FILLABLE): they match on their words or name, or on id,
+  and a match is simply "already added". Projects and to-do categories ride
+  the new-categories list with a `scope`, like journal and finance
+  categories. CSV is one sheet per tab with a Kind column; a habit's history
+  fits in one cell ("2026-01-05*2 2026-01-07"). The Ledger CSV stays in
+  finance.js because it shares a parser with the Sheets pivot import.
+  Settings (the `settings` key) are exported in the full backup but never
+  imported: they're this device's preferences, not data.
+
 - **In the Android app the page scrollbar is ours (0.190.2).** The
   WebView's own is drawn by Android's View, over the whole WebView, and no
   CSS reaches it: not the `body::-webkit-scrollbar` inset from 0.190.1, not

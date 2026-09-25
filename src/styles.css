@@ -1725,10 +1725,17 @@ kbd {
 .settings-side .modal-head { margin: 0 4px; }
 .settings-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .settings-page-head { display: none; align-items: center; justify-content: space-between; padding: 12px 14px 0; }
+/* A thumb's worth: 44px tall, reaching from the edge, with the chevron
+   drawn big enough to read as the thing to press. */
 .settings-back {
-  background: none; border: 0; padding: 6px 4px; color: var(--accent); font: inherit;
-  font-size: 14px; font-weight: 600; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 4px; min-height: 44px;
+  margin-left: -6px; padding: 6px 14px 6px 6px; border: 0; border-radius: 10px;
+  background: none; color: var(--accent); font: inherit;
+  font-size: 16px; font-weight: 600; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
+.settings-back-chev { font-size: 28px; line-height: 1; margin-top: -3px; }
+.settings-back:active { background: var(--accent-soft); }
 .settings-pages { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 22px 28px 36px; }
 .settings-page { max-width: 620px; }
 .settings-page[hidden] { display: none; }

@@ -30,6 +30,7 @@ because something shipped broken that no unit test could have caught:
 | `btnaudit` | no pressable anywhere draws the browser's tap-highlight |
 | `press` | a tap still visibly responds now that the highlight is gone |
 | `v151`, `importkinds`, `importmodes` | import updates: what gets filled, for which kinds, and never a duplicate |
+| `tabio` | every tab's JSON and CSV export comes back whole through that tab's import, and the full backup through Everything |
 | `match` | auto-sync asks both sources and refuses a near-miss |
 | `realloop` | the real bulk-sync loop feeds the progress panel live |
 | `projadd` | the project pill's + opens the form already on that project |

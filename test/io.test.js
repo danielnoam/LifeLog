@@ -12,6 +12,9 @@ global.window = {};
 require("../src/finance.js");
 require("../src/journal.js");
 require("../src/backlog.js");
+require("../src/notes.js");
+require("../src/todos.js");
+require("../src/habits.js");
 require("../src/io.js");
 
 let idCounter = 0;
@@ -32,9 +35,13 @@ const keepUnknown = (src, out, known) => {
   for (const key of Object.keys(src || {})) if (!known.has(key)) out[key] = src[key];
   return out;
 };
-global.window.LifeLogFinance.init({ uid, backfillUpdatedAt, keepUnknown });
+global.window.LifeLogFinance.init({ uid, backfillUpdatedAt, keepUnknown,
+  csvEsc: (...a) => global.window.LifeLogIO.csvEsc(...a), parseCsv: (...a) => global.window.LifeLogIO.parseCsv(...a) });
 global.window.LifeLogJournal.init({ uid, backfillUpdatedAt, sanitizeOverrides, keepUnknown });
 global.window.LifeLogBacklog.init({ uid, backfillUpdatedAt, sanitizeOverrides, keepUnknown });
+global.window.LifeLogNotes.init({ uid, backfillUpdatedAt, keepUnknown });
+global.window.LifeLogTodos.init({ uid, backfillUpdatedAt, keepUnknown });
+global.window.LifeLogHabits.init({ uid, backfillUpdatedAt, keepUnknown });
 
 const state = {
   data: {
@@ -47,8 +54,17 @@ const CATEGORY_PALETTE = ["#aaa", "#bbb", "#ccc"];
 const MONTHS = ["", "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"];
 const IO = global.window.LifeLogIO;
+// What applyImportSelection calls on its way out; the tests read state.
+const ensureCategories = (cats, items) => {
+  for (const i of items) if (!cats.some((c) => c.name === i.category)) cats.push({ id: i.category, name: i.category, color: "#000" });
+};
 IO.init({
-  state, CATEGORY_PALETTE, MONTHS,
+  state, CATEGORY_PALETTE, MONTHS, uid, ensureCategories,
+  toast: () => {}, persist: async () => {}, afterDataChange: () => {},
+  sanitizeProject: global.window.LifeLogFinance.sanitizeProject,
+  sanitizeNote: global.window.LifeLogNotes.sanitizeNote,
+  sanitizeTodo: global.window.LifeLogTodos.sanitizeTodo,
+  sanitizeHabit: global.window.LifeLogHabits.sanitizeHabit,
   financeKey: global.window.LifeLogFinance.financeKey,
   recurringKey: global.window.LifeLogFinance.recurringKey,
   sanitizeEntry: global.window.LifeLogJournal.sanitizeEntry,
@@ -58,7 +74,8 @@ IO.init({
 });
 
 const { parseCsv, csvEsc, buildImportItems, importItemDateStr, importBucketKey, journalCsvText, parseJournalCsv,
-  fillableFields, findImportTarget, importItemIncomplete } = IO;
+  fillableFields, findImportTarget, importItemIncomplete, notesCsvText, parseNotesCsv, applyImportSelection, TAB_KINDS } = IO;
+const { financeCsvText, parseFlatFinanceCsv } = global.window.LifeLogFinance;
 
 let passed = 0;
 function test(name, fn) {
@@ -438,7 +455,134 @@ test("importItemIncomplete still answers for the backlog by default", () => {
     "recurring"), false);
 });
 
+
+// ---------- every tab, both ways ----------
+// Each tab's export has to come back through that tab's import: JSON whole,
+// CSV as far as a row goes. These start from a full set of every kind, run it
+// out and back in against an empty app, and look at what arrived.
+const blank = () => ({
+  entries: [], backlog: [], financeEntries: [], recurringExpenses: [], notes: [], todos: [], habits: [],
+  accomplishments: {}, categories: [], financeCategories: [], todoCategories: [], projects: [],
+});
+const FULL = {
+  entries: [{ id: "e1", title: "Outer Wilds", category: "Games", year: 2026, month: 3, rating: 5, notes: "wow" }],
+  backlog: [{ id: "b1", title: "Hades II", category: "Games" }],
+  accomplishments: { 2026: [{ id: "a1", text: "Ran a 10k", createdAt: "2026-04-01T00:00:00.000Z" }] },
+  categories: [{ id: "games", name: "Games", color: "#123456" }],
+  notes: [{ id: "n1", text: "A thought,\nwith a comma", createdAt: "2026-05-01T10:00:00.000Z" }],
+  todos: [{ id: "t1", text: "Call mum", category: "Home", createdAt: "2026-05-02T00:00:00.000Z" },
+    { id: "t2", text: "Done thing", done: true, doneAt: "2026-05-03T00:00:00.000Z", createdAt: "2026-05-01T00:00:00.000Z" }],
+  todoCategories: [{ id: "home", name: "Home", color: "#abcdef" }],
+  habits: [{ id: "h1", name: "Read", color: "#00aa00", cadence: { days: [1, 3] }, target: 2, startedAt: "2026-01-01", marks: { "2026-01-05": 2, "2026-01-07": 1 } }],
+  financeEntries: [{ id: "f1", date: "2026-02-03", amount: 42.5, category: "Food", note: "Lunch, big", project: "Trip" }],
+  recurringExpenses: [{ id: "r1", startDate: "2026-01-01", interval: "monthly", amount: 9.99, category: "Subs", note: "Music", endDate: "2026-12-01" }],
+  financeCategories: [{ id: "subs", name: "Subs", color: "#ff0000" }],
+  projects: [{ id: "p1", name: "Trip", color: "#0000ff" }],
+};
+const importAll = async (incoming, kinds) => {
+  const built = buildImportItems(incoming, kinds);
+  await applyImportSelection(built.items.filter((i) => i.checked), built.newCategories.filter((c) => c.add));
+  return built;
+};
+const asyncTests = [];
+const atest = (name, fn) => asyncTests.push([name, fn]);
+
+atest("every tab's JSON brings back all of its kinds, and only its kinds", async () => {
+  const want = {
+    notes: { notes: 1, todos: 2, habits: 1, entries: 0, financeEntries: 0 },
+    timeline: { entries: 1, backlog: 0, notes: 0 },
+    backlog: { backlog: 1, entries: 0 },
+    finance: { financeEntries: 1, recurringExpenses: 1, notes: 0, backlog: 0 },
+  };
+  for (const tab of Object.keys(TAB_KINDS)) {
+    state.data = blank();
+    await importAll(JSON.parse(JSON.stringify(FULL)), TAB_KINDS[tab]);
+    for (const [k, n] of Object.entries(want[tab])) assert.strictEqual(state.data[k].length, n, tab + " → " + k);
+  }
+});
+
+atest("a full backup import brings everything, with its categories, projects and achievements", async () => {
+  state.data = blank();
+  await importAll(JSON.parse(JSON.stringify(FULL)));
+  const d = state.data;
+  assert.deepStrictEqual([d.entries.length, d.backlog.length, d.notes.length, d.todos.length, d.habits.length, d.financeEntries.length, d.recurringExpenses.length], [1, 1, 1, 2, 1, 1, 1]);
+  assert.strictEqual(d.accomplishments[2026][0].text, "Ran a 10k");
+  assert.strictEqual(d.entries[0].notes, "wow");
+  assert.deepStrictEqual(d.habits[0].marks, { "2026-01-05": 2, "2026-01-07": 1 });
+  assert.strictEqual(d.todoCategories.find((c) => c.name === "Home").color, "#abcdef");
+  assert.strictEqual(d.projects.find((p) => p.name === "Trip").color, "#0000ff");
+  assert.strictEqual(d.financeCategories.find((c) => c.name === "Subs").color, "#ff0000");
+});
+
+atest("importing the same file twice adds nothing the second time", async () => {
+  state.data = blank();
+  await importAll(JSON.parse(JSON.stringify(FULL)));
+  const again = buildImportItems(JSON.parse(JSON.stringify(FULL)));
+  assert.deepStrictEqual(again.items.filter((i) => !i.dup && !i.update).map((i) => i.kind), []);
+  assert.deepStrictEqual(again.newCategories, []);
+});
+
+atest("an item changed since the export still matches on id, and a copy imported anyway gets an id of its own", async () => {
+  state.data = blank();
+  await importAll({ notes: [{ id: "n1", text: "old words", createdAt: "2026-01-01T00:00:00.000Z" }] });
+  state.data.notes[0].text = "new words";
+  const built = buildImportItems({ notes: [{ id: "n1", text: "old words" }] });
+  assert.strictEqual(built.items[0].dup, true, "same id is the same note");
+  // Taken ids are never shared, even when a copy is imported on purpose.
+  await applyImportSelection(built.items, []);
+  assert.strictEqual(new Set(state.data.notes.map((n) => n.id)).size, 2);
+});
+
+atest("Notes CSV round trip keeps notes, to-dos and habits with their history", async () => {
+  const text = notesCsvText(FULL.notes, FULL.todos, FULL.habits);
+  const back = parseNotesCsv(text);
+  assert.strictEqual(back.notes[0].text, "A thought,\nwith a comma");
+  assert.strictEqual(back.notes[0].createdAt, "2026-05-01T10:00:00.000Z");
+  assert.strictEqual(back.todos[0].category, "Home");
+  assert.strictEqual(back.todos[1].done, true);
+  assert.strictEqual(back.todos[1].doneAt, "2026-05-03T00:00:00.000Z");
+  const h = back.habits[0];
+  assert.deepStrictEqual([h.name, h.target, h.startedAt, h.color], ["Read", 2, "2026-01-01", "#00aa00"]);
+  assert.deepStrictEqual(h.cadence, { days: [1, 3] });
+  assert.deepStrictEqual(h.marks, { "2026-01-05": 2, "2026-01-07": 1 });
+  state.data = blank();
+  await importAll(back, TAB_KINDS.notes);
+  assert.deepStrictEqual([state.data.notes.length, state.data.todos.length, state.data.habits.length], [1, 2, 1]);
+});
+
+atest("Timeline CSV carries achievements alongside entries", async () => {
+  const back = parseJournalCsv(journalCsvText(FULL.entries, [], FULL.accomplishments));
+  assert.strictEqual(back.entries[0].title, "Outer Wilds");
+  assert.strictEqual(back.accomplishments[2026][0].text, "Ran a 10k");
+  state.data = blank();
+  await importAll(back, TAB_KINDS.timeline);
+  assert.strictEqual(state.data.accomplishments[2026].length, 1);
+});
+
+atest("Ledger CSV round trip keeps expenses and recurring expenses", async () => {
+  const back = parseFlatFinanceCsv(financeCsvText(FULL.financeEntries, FULL.recurringExpenses));
+  assert.deepStrictEqual(back.financeEntries[0], { amount: 42.5, category: "Food", note: "Lunch, big", project: "Trip", date: "2026-02-03" });
+  const r = back.recurringExpenses[0];
+  assert.deepStrictEqual([r.startDate, r.interval, r.amount, r.note, r.endDate], ["2026-01-01", "monthly", 9.99, "Music", "2026-12-01"]);
+  state.data = blank();
+  await importAll(back, TAB_KINDS.finance);
+  assert.deepStrictEqual([state.data.financeEntries.length, state.data.recurringExpenses.length], [1, 1]);
+  assert.ok(state.data.projects.some((p) => p.name === "Trip"), "a project named on an expense comes with it");
+});
+
+atest("a Ledger CSV from before the Kind column still reads, and a Sheets pivot is left alone", async () => {
+  const old = parseFlatFinanceCsv("Date,Amount,Category,Note\n2026-01-02,5,Food,Coffee");
+  assert.deepStrictEqual(old.financeEntries.map((f) => f.note), ["Coffee"]);
+  assert.strictEqual(parseFlatFinanceCsv(",January,,,February\n2026,,,"), null);
+});
+
 seed();
 
-console.log(`\n${passed} test(s) passed.`);
-if (process.exitCode) console.log("Some tests FAILED — see above.");
+(async () => {
+  for (const [name, fn] of asyncTests) {
+    try { await fn(); passed++; console.log("  ok - " + name); }
+    catch (e) { console.error("  FAIL - " + name); console.error("    " + e.message); process.exitCode = 1; }
+  }
+  console.log(`\n${passed} test(s) passed.`);
+  if (process.exitCode) console.log("Some tests FAILED — see above.");
+})();

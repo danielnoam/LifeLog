@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.190.2" />
+  <link rel="stylesheet" href="src/styles.css?v=0.191.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -986,7 +986,7 @@
 
       <div class="settings-main">
         <div class="settings-page-head">
-          <button type="button" class="settings-back" id="settingsBackBtn" aria-label="Back to all settings">‹ Settings</button>
+          <button type="button" class="settings-back" id="settingsBackBtn" aria-label="Back to all settings"><span class="settings-back-chev" aria-hidden="true">‹</span>Settings</button>
           <button class="btn btn-icon settings-page-close" id="closeSettingsPageBtn" title="Close" aria-label="Close settings">✕</button>
         </div>
         <div class="settings-pages">
@@ -1081,14 +1081,14 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="io" data-title="Import &amp; export" data-keywords="backup export import json csv spreadsheet download">
+      <div class="settings-page" hidden data-page="io" data-title="Import &amp; export" data-keywords="backup export import json csv spreadsheet download notes to-do habits timeline achievements backlog ledger finance projects">
       <h2 class="settings-page-title">Import &amp; export</h2>
-      <p class="hint page-lede">Importing adds to what you have, never replaces it, and lets you pick what comes in first. Anything you already have is skipped.</p>
+      <p class="hint page-lede">Importing adds to what you have, never replaces it, and lets you pick what comes in first. Anything you already have is skipped. JSON keeps everything; CSV is for spreadsheets and keeps what fits in a row, so an entry's cover, rating and notes stay behind. A tab's import takes its own part of any LifeLog file, a full backup included.</p>
       <section class="sgroup">
         <h3 class="sgroup-label">Everything</h3>
         <div class="sgroup-card">
           <div class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Export</span><span class="sitem-sub">Entries, categories, backlog, achievements, finance and recurring expenses, in one file</span></span>
+            <span class="sitem-text"><span class="sitem-title">Export</span><span class="sitem-sub">Every tab, in one file</span></span>
             <span class="sitem-btns"><button class="btn btn-small" id="exportJsonBtn">JSON</button></span>
           </div>
           <div class="sitem">
@@ -1100,37 +1100,64 @@
       </section>
 
       <section class="sgroup">
-        <h3 class="sgroup-label">Journal</h3>
+        <h3 class="sgroup-label">Notes</h3>
         <div class="sgroup-card">
           <div class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Export</span><span class="sitem-sub">Timeline entries, categories and the Backlog</span></span>
-            <span class="sitem-btns"><button class="btn btn-small" id="exportJournalJsonBtn">JSON</button><button class="btn btn-small" id="exportJournalCsvBtn">CSV</button></span>
+            <span class="sitem-text"><span class="sitem-title">Export</span><span class="sitem-sub">Notes, to-dos with their categories, and habits with their history</span></span>
+            <span class="sitem-btns"><button class="btn btn-small" data-io="export-json" data-tab="notes">JSON</button><button class="btn btn-small" data-io="export-csv" data-tab="notes">CSV</button></span>
           </div>
           <div class="sitem">
             <span class="sitem-text"><span class="sitem-title">Import</span></span>
-            <span class="sitem-btns"><button class="btn btn-small" id="importJournalJsonBtn">JSON…</button><button class="btn btn-small" id="importJournalCsvBtn">CSV…</button></span>
+            <span class="sitem-btns"><button class="btn btn-small" data-io="import-json" data-tab="notes">JSON…</button><button class="btn btn-small" data-io="import-csv" data-tab="notes">CSV…</button></span>
           </div>
         </div>
-        <input type="file" id="importJournalJsonInput" accept="application/json,.json" hidden />
-        <input type="file" id="importJournalCsvInput" accept="text/csv,.csv" hidden />
       </section>
 
       <section class="sgroup">
-        <h3 class="sgroup-label">Finance</h3>
+        <h3 class="sgroup-label">Timeline</h3>
         <div class="sgroup-card">
           <div class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Export</span><span class="sitem-sub">Entries, categories and recurring expenses</span></span>
-            <span class="sitem-btns"><button class="btn btn-small" id="exportFinanceJsonBtn">JSON</button><button class="btn btn-small" id="exportFinanceCsvBtn">CSV…</button></span>
+            <span class="sitem-text"><span class="sitem-title">Export</span><span class="sitem-sub">Entries, their categories, and achievements</span></span>
+            <span class="sitem-btns"><button class="btn btn-small" data-io="export-json" data-tab="timeline">JSON</button><button class="btn btn-small" data-io="export-csv" data-tab="timeline">CSV</button></span>
           </div>
           <div class="sitem">
             <span class="sitem-text"><span class="sitem-title">Import</span></span>
-            <span class="sitem-btns"><button class="btn btn-small" id="importFinanceJsonBtn">JSON…</button><button class="btn btn-small" id="importFinanceCsvBtn">CSV…</button></span>
+            <span class="sitem-btns"><button class="btn btn-small" data-io="import-json" data-tab="timeline">JSON…</button><button class="btn btn-small" data-io="import-csv" data-tab="timeline">CSV…</button></span>
           </div>
         </div>
-        <input type="file" id="importFinanceJsonInput" accept="application/json,.json" hidden />
-        <input type="file" id="importFinanceCsvInput" accept="text/csv,.csv" hidden />
-        <p class="hint">The CSV import reads the yearly pivot a Google Sheets export makes: year blocks, 12 month columns, a note on each real transaction. A purchase recorded against a year rather than a month lands on 1 January.</p>
       </section>
+
+      <section class="sgroup">
+        <h3 class="sgroup-label">Backlog</h3>
+        <div class="sgroup-card">
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Export</span><span class="sitem-sub">Backlog items and their categories</span></span>
+            <span class="sitem-btns"><button class="btn btn-small" data-io="export-json" data-tab="backlog">JSON</button><button class="btn btn-small" data-io="export-csv" data-tab="backlog">CSV</button></span>
+          </div>
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Import</span></span>
+            <span class="sitem-btns"><button class="btn btn-small" data-io="import-json" data-tab="backlog">JSON…</button><button class="btn btn-small" data-io="import-csv" data-tab="backlog">CSV…</button></span>
+          </div>
+        </div>
+      </section>
+
+      <section class="sgroup">
+        <h3 class="sgroup-label">Ledger</h3>
+        <div class="sgroup-card">
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Export</span><span class="sitem-sub">Expenses, recurring expenses, categories and projects</span></span>
+            <span class="sitem-btns"><button class="btn btn-small" data-io="export-json" data-tab="finance">JSON</button><button class="btn btn-small" id="exportFinanceCsvBtn">CSV…</button></span>
+          </div>
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Import</span></span>
+            <span class="sitem-btns"><button class="btn btn-small" data-io="import-json" data-tab="finance">JSON…</button><button class="btn btn-small" id="importFinanceCsvBtn">CSV…</button></span>
+          </div>
+        </div>
+        <input type="file" id="importFinanceCsvInput" accept="text/csv,.csv" hidden />
+        <p class="hint">CSV import also reads the yearly pivot a Google Sheets export makes: year blocks, 12 month columns, a note on each real transaction. A purchase recorded against a year rather than a month lands on 1 January.</p>
+      </section>
+      <input type="file" id="importTabJsonInput" accept="application/json,.json" hidden />
+      <input type="file" id="importTabCsvInput" accept="text/csv,.csv" hidden />
       </div>
 
       <div class="settings-page" hidden data-page="history" data-title="History" data-keywords="version undo restore rollback saves commits missing settings">
@@ -1615,25 +1642,25 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/platform.js?v=0.190.2"></script>
-  <script defer src="src/reconcile.js?v=0.190.2"></script>
-  <script defer src="src/qr.js?v=0.190.2"></script>
-  <script defer src="src/media.js?v=0.190.2"></script>
-  <script defer src="src/merge.js?v=0.190.2"></script>
-  <script defer src="src/storage.js?v=0.190.2"></script>
-  <script defer src="src/finance.js?v=0.190.2"></script>
-  <script defer src="src/settings.js?v=0.190.2"></script>
-  <script defer src="src/wheel.js?v=0.190.2"></script>
-  <script defer src="src/backlog.js?v=0.190.2"></script>
-  <script defer src="src/journal.js?v=0.190.2"></script>
-  <script defer src="src/notes.js?v=0.190.2"></script>
-  <script defer src="src/todos.js?v=0.190.2"></script>
-  <script defer src="src/io.js?v=0.190.2"></script>
-  <script defer src="src/sync.js?v=0.190.2"></script>
-  <script defer src="src/habits.js?v=0.190.2"></script>
-  <script defer src="src/recap.js?v=0.190.2"></script>
-  <script defer src="src/reminders.js?v=0.190.2"></script>
-  <script defer src="src/widgets.js?v=0.190.2"></script>
-  <script defer src="src/app.js?v=0.190.2"></script>
+  <script defer src="src/platform.js?v=0.191.0"></script>
+  <script defer src="src/reconcile.js?v=0.191.0"></script>
+  <script defer src="src/qr.js?v=0.191.0"></script>
+  <script defer src="src/media.js?v=0.191.0"></script>
+  <script defer src="src/merge.js?v=0.191.0"></script>
+  <script defer src="src/storage.js?v=0.191.0"></script>
+  <script defer src="src/finance.js?v=0.191.0"></script>
+  <script defer src="src/settings.js?v=0.191.0"></script>
+  <script defer src="src/wheel.js?v=0.191.0"></script>
+  <script defer src="src/backlog.js?v=0.191.0"></script>
+  <script defer src="src/journal.js?v=0.191.0"></script>
+  <script defer src="src/notes.js?v=0.191.0"></script>
+  <script defer src="src/todos.js?v=0.191.0"></script>
+  <script defer src="src/io.js?v=0.191.0"></script>
+  <script defer src="src/sync.js?v=0.191.0"></script>
+  <script defer src="src/habits.js?v=0.191.0"></script>
+  <script defer src="src/recap.js?v=0.191.0"></script>
+  <script defer src="src/reminders.js?v=0.191.0"></script>
+  <script defer src="src/widgets.js?v=0.191.0"></script>
+  <script defer src="src/app.js?v=0.191.0"></script>
 </body>
 </html>

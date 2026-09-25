@@ -4,6 +4,38 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.191.0] - 2026-09-25
+
+### Added
+- **Every tab exports and imports on its own.** Settings → Import & export
+  now has a section per tab — Notes, Timeline, Backlog and Ledger — each
+  with JSON and CSV, both ways:
+  - **Notes**: notes, to-dos with their categories, and habits with their
+    whole history. Never exportable or importable on their own before.
+  - **Timeline**: entries, their categories, and achievements, which only
+    ever travelled inside the full backup.
+  - **Backlog**: on its own now, rather than tied to the Timeline.
+  - **Ledger**: expenses, recurring expenses, categories, and now projects.
+  JSON keeps everything. CSV keeps what fits in a row, and every tab's CSV
+  now reads back in. A tab's import takes only its own part of whatever
+  LifeLog file you give it, so a full backup can be brought in one tab at
+  a time; older Journal and Finance files still work.
+
+### Fixed
+- **Importing a full backup lost your notes, to-dos, habits and projects.**
+  It only brought in entries, the backlog, finance and achievements; the
+  rest of the file was ignored without a word. Everything in it now comes
+  in, through the same pick-what-you-want review as the rest.
+- **A Ledger CSV the app exported couldn't be imported again.** The import
+  only read the Google Sheets yearly layout. It now reads its own export
+  too, recurring expenses included, and files from before this version.
+- **Settings' back button is bigger.** "‹ Settings" at the top of a page
+  on a phone was a small line of text; it's now a full 44px tap target with
+  a chevron you can see.
+- **Re-importing an item you'd edited since the export** could leave two
+  items sharing one id, which the next sync would fold into one. An
+  imported copy now always gets an id of its own.
+
 ## [0.190.2] - 2026-09-25
 
 ### Fixed

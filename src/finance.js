@@ -2786,26 +2786,6 @@
   }
 
   // ---------- import / export ----------
-  function exportFinanceJson() {
-    const payload = {
-      financeEntries: state.data.financeEntries,
-      financeCategories: state.data.financeCategories,
-      recurringExpenses: state.data.recurringExpenses,
-    };
-    download("lifelog-finance.json", JSON.stringify(payload, null, 2), "application/json");
-  }
-  function importFinanceJson(file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const incoming = JSON.parse(reader.result);
-        if (!Array.isArray(incoming.financeEntries) && !Array.isArray(incoming.recurringExpenses)) throw new Error("not a Finance export");
-        const built = buildImportItems(incoming);
-        reviewAndImport("Import finance data", "Review what to bring in — pick individual items, toggle whole periods on/off, and choose which new categories to add. Items already in your data are hidden by default.", built);
-      } catch (e) { toast("Import failed: " + (e.message || e), true); }
-    };
-    reader.readAsText(file);
-  }
   function parseMoneyCell(s) {
     return parseFloat(String(s || "").replace(/[^0-9.\-]/g, "")) || 0;
   }
@@ -2860,33 +2840,70 @@
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const { monthly, undated } = parseFinanceCsv(reader.result);
-        const incoming = [...monthly, ...undated];
-        const built = buildImportItems({ financeEntries: incoming });
-        reviewAndImport("Import Finance CSV", "Pick which entries to add, disable whole years/months at once, and choose which new categories to bring in. Entries already in your data are hidden by default — turn on the toggle below to review and re-import them anyway.", built);
+        const flat = parseFlatFinanceCsv(reader.result);
+        const built = flat ? buildImportItems(flat) : (() => {
+          const { monthly, undated } = parseFinanceCsv(reader.result);
+          return buildImportItems({ financeEntries: [...monthly, ...undated] });
+        })();
+        reviewAndImport("Import Ledger CSV", "Pick which entries to add, disable whole years/months at once, and choose which new categories to bring in. Entries already in your data are hidden by default — turn on the toggle below to review and re-import them anyway.", built);
       } catch (e) { toast("Import failed: " + (e.message || e), true); }
     };
     reader.readAsText(file);
   }
+  // The Ledger's own CSV, as financeCsvText writes it: a Kind column, then
+  // one row per expense or recurring plan. Files from before the Kind column
+  // (expenses only, starting at Date) read too. Anything else is null, and
+  // left to the Sheets pivot parser.
+  const FINANCE_CSV_HEADER = ["Kind", "Date", "Amount", "Category", "Note", "Project", "Currency", "Paid", "Rate", "Repeats", "Ends"];
+  function financeCsvText(entries, recurring) {
+    // Amount stays the home figure so the column still sums in a
+    // spreadsheet (filter Kind to Expense); what was paid rides beside it.
+    const rows = [FINANCE_CSV_HEADER];
+    entries.slice().sort((a, b) => b.date.localeCompare(a.date)).forEach((f) =>
+      rows.push(["Expense", f.date, f.amount, f.category, f.note || "",
+        f.project || "", f.currency || "", f.fxAmount || "", f.rate || "", "", ""]));
+    recurring.slice().sort((a, b) => b.startDate.localeCompare(a.startDate)).forEach((r) =>
+      rows.push(["Recurring", r.startDate, r.amount, r.category, r.note || "",
+        r.project || "", r.currency || "", r.fxAmount || "", r.rate || "", r.interval, r.endDate || ""]));
+    return rows.map((r) => r.map(csvEsc).join(",")).join("\n");
+  }
+  function parseFlatFinanceCsv(text) {
+    const rows = parseCsv(text);
+    const head = (rows[0] || []).map((c) => String(c).trim().toLowerCase());
+    const kinded = head[0] === "kind" && head[1] === "date";
+    if (!kinded && !(head[0] === "date" && head[1] === "amount")) return null;
+    const financeEntries = [], recurringExpenses = [];
+    for (const row of rows.slice(1)) {
+      const [kind, date, amount, category, note, project, currency, paid, rate, repeats, ends] = kinded ? row : ["Expense", ...row];
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || "").trim())) continue;
+      const rec = { amount: parseMoneyCell(amount), category: (category || "").trim() || "Other" };
+      if ((note || "").trim()) rec.note = note.trim();
+      if ((project || "").trim()) rec.project = project.trim();
+      if ((currency || "").trim()) { rec.currency = currency.trim(); rec.fxAmount = parseMoneyCell(paid); rec.rate = +rate; }
+      if (String(kind).trim().toLowerCase() === "recurring") {
+        recurringExpenses.push({ ...rec, startDate: date.trim(), interval: (repeats || "").trim(), ...((ends || "").trim() ? { endDate: ends.trim() } : {}) });
+      } else financeEntries.push({ ...rec, date: date.trim() });
+    }
+    if (!financeEntries.length && !recurringExpenses.length) throw new Error("No rows found — is this a Ledger CSV export?");
+    return { financeEntries, recurringExpenses };
+  }
   function exportFinanceCsv() {
-    if (!state.data.financeEntries.length) { toast("No finance entries to export"); return; }
-    const items = state.data.financeEntries.map((entry) => ({ kind: "finance", entry, dup: false, checked: true }));
+    if (!state.data.financeEntries.length && !state.data.recurringExpenses.length) { toast("Nothing in the Ledger to export"); return; }
+    const items = [
+      ...state.data.financeEntries.map((entry) => ({ kind: "finance", entry, dup: false, checked: true })),
+      ...state.data.recurringExpenses.map((entry) => ({ kind: "recurring", entry, dup: false, checked: true })),
+    ];
     openImportPicker({
-      title: "Export Finance CSV",
-      hint: "Pick which entries to export.",
+      title: "Export Ledger CSV",
+      hint: "Pick which expenses and recurring expenses to export.",
       mode: "export",
       items,
       confirmLabel: "Export",
       onConfirm: (selected) => {
         if (!selected.length) { toast("Nothing selected"); return; }
-        // Amount stays the home figure so the column still sums in a
-        // spreadsheet; what was paid rides in three columns beside it.
-        const rows = [["Date", "Amount", "Category", "Note", "Project", "Currency", "Paid", "Rate"]];
-        selected.map((i) => i.entry).sort((a, b) => b.date.localeCompare(a.date)).forEach((f) =>
-          rows.push([f.date, f.amount, f.category, f.note || "",
-            f.project || "", f.currency || "", f.fxAmount || "", f.rate || ""]));
-        download("lifelog-finance.csv", rows.map((r) => r.map(csvEsc).join(",")).join("\n"), "text/csv");
-        toast(`Exported ${selected.length} entr${selected.length === 1 ? "y" : "ies"}`);
+        const of = (k) => selected.filter((i) => i.kind === k).map((i) => i.entry);
+        download("lifelog-ledger.csv", financeCsvText(of("finance"), of("recurring")), "text/csv");
+        toast(`Exported ${selected.length} row${selected.length === 1 ? "" : "s"}`);
       },
     });
   }
@@ -3199,10 +3216,7 @@
       $("#recurringModal").hidden = true;
       openProjectModal(null, { returnTo: { modal: "#recurringModal", select: "#recProject" } });
     };
-    $("#exportFinanceJsonBtn").onclick = exportFinanceJson;
     $("#exportFinanceCsvBtn").onclick = exportFinanceCsv;
-    $("#importFinanceJsonBtn").onclick = () => $("#importFinanceJsonInput").click();
-    $("#importFinanceJsonInput").onchange = (e) => { if (e.target.files[0]) importFinanceJson(e.target.files[0]); e.target.value = ""; };
     $("#importFinanceCsvBtn").onclick = () => $("#importFinanceCsvInput").click();
     $("#importFinanceCsvInput").onchange = (e) => { if (e.target.files[0]) importFinanceCsv(e.target.files[0]); e.target.value = ""; };
   }
@@ -3217,6 +3231,8 @@
     sanitizeRecurring,
     financeKey,
     recurringKey,
+    // the Ledger CSV round trip (test/finance.test.js)
+    financeCsvText, parseFlatFinanceCsv,
     // pure date/recurrence math (exported for test/finance.test.js)
     recurringOccurrences,
     occurrenceFx,
