@@ -4,6 +4,32 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.188.0] - 2026-09-25
+
+### Added
+- **Reorder tabs and modes.** Settings → Tabs has ↑ ↓ on every tab and
+  every mode. The tab bar, the swipe between tabs, the mode dots, the mode
+  fan and the number keys all follow the order you set. This device only.
+- **Choose the mode a tab opens on.** The ★ on a mode makes it the one you
+  land on when you go to that tab. A tab with three modes always opens on
+  the middle one, so the other two are one swipe either side: starring an
+  end mode moves it into the middle, and moving modes around moves the ★
+  with whatever lands there.
+
+### Changed
+- **Notes and the Backlog list their modes with the one they open on in the
+  middle**: To-do · Notes · Habits, and Next releases · Entries · Discover.
+  They still open where they always did.
+- **The number keys are the tab bar as it stands**: 1 is your leftmost tab,
+  whatever you've moved or turned off. Shift and a number goes to the mode
+  after the one that tab opens on.
+- **Settings, tidied further.** Connecting GitHub is rows now: a link to
+  create the token, the token field, the repository/file/branch fold-out
+  and Connect. A menu too wide for its row drops under its label instead of
+  being cut off. Each category's media source and fallback are labelled
+  rows. The introductions at the top of each page are a line or two, and
+  the Sync page's repeat of what its rows already say is gone.
+
 ## [0.187.0] - 2026-09-25
 
 ### Changed

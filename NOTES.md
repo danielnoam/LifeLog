@@ -16,6 +16,23 @@ what was decided against and why.
 
 ---
 
+- **Tab and mode order, and where a tab opens (0.188.0).** Two orders and
+  a default per tab, all device-local like turning tabs off, all read
+  through app.js's enabledViews/modeEntries/landingMode so every consumer
+  (bar, swipes, dots, fan, number keys, Settings) agrees without knowing.
+  A saved order is merged against what exists: unknown ids dropped, new ones
+  appended, so a mode added later can't be lost to an old preference. The
+  three-mode rule — open on the middle — came from wanting the other two a
+  swipe either side of where you land. It makes "default" and "order" one
+  thing for those tabs, so the ★ moves a mode to the middle rather than
+  being a second setting that could contradict the order. The out-of-the-box
+  orders put Notes and Entries in the middle so nothing opens differently
+  on update. Number keys follow the bar's order now rather than being fixed
+  to views: "on-screen order" was always the stated rule, and reordering
+  made the fixed map stop meaning that. jumpSectionSelector asks for the
+  view's first *defined* mode (the list with year headers), not the first in
+  your order.
+
 - **Settings rows (0.187.0).** Inside a page the list's cards carry on:
   `.sitem` is a row (label left, control right), `.sitem-stack` puts a text
   field under its label, `.sitem-go` is an action with a chevron. Actions

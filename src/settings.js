@@ -20,7 +20,7 @@
     syncSteamWishlist, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
     syncAniListPlanning,
     refreshUpcomingReleases, updateRefreshReleasesButton,
-    DEFAULT_SETTINGS, VIEW_TOGGLES, settleDisabled;
+    DEFAULT_SETTINGS, viewToggles, settleDisabled;
 
   function init(ctx) {
     ({ state, $, el, toast, persist, render, normalize, afterDataChange,
@@ -29,29 +29,12 @@
       applyMonthLayout, applyFont, applyTheme, applyForceLayout,
       prefersReducedMotion, biometricAvailable, biometricState, hashPin, randomHex, registerBiometric,
       isMobileLayout, switchToView,
-      VIEW_TOGGLES, settleDisabled,
+      viewToggles, settleDisabled,
       updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
       syncSteamWishlist, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
       syncAniListPlanning,
       refreshUpcomingReleases, updateRefreshReleasesButton,
       DEFAULT_SETTINGS } = ctx);
-  }
-
-  function updateBackendInfo() {
-    const info = $("#backendInfo");
-    if (!info) return;
-    const ghOn = Storage.githubConnected;
-    const fileOn = Storage.fileConnected;
-    const gi = Storage.githubInfo;
-    if (ghOn && fileOn) {
-      info.textContent = "Live sync: GitHub → " + gi.owner + "/" + gi.repo + ". Your local file (" + Storage.fileName + ") mirrors every save as an on-disk backup.";
-    } else if (ghOn) {
-      info.textContent = "Live sync: GitHub → " + gi.owner + "/" + gi.repo + ". Add a local file below for an automatic on-disk backup too.";
-    } else if (fileOn) {
-      info.textContent = "Saving to local file → " + Storage.fileName + ". Connect GitHub below to also sync to your phone (it becomes the live source, the file stays as backup).";
-    } else {
-      info.textContent = "Browser storage only. Connect a local file and/or GitHub below — data is written to every one you connect.";
-    }
   }
 
   let ghEditing = false;
@@ -74,6 +57,7 @@
     $(".gh-fields").hidden = on && !ghEditing;
     $("#ghEditBtn").hidden = !on || ghEditing;
     $("#ghDisconnectSection").hidden = !on;
+    $(".gh-how").hidden = on;
     if (on) {
       info.textContent = "Connected: " + gi.owner + "/" + gi.repo + " (" + gi.path + " on " + gi.branch + "), auto-syncing.";
       conn.textContent = "Update connection";
@@ -98,7 +82,7 @@
         share.hidden = false;
       } else share.hidden = true;
     } else {
-      info.textContent = "Not connected. Syncs your log to a private GitHub repo so your phone and desktop stay in sync.";
+      info.textContent = "Not connected";
       conn.textContent = "Connect GitHub";
       disc.hidden = true;
       share.hidden = true;
@@ -519,12 +503,14 @@
       }
       case "tabs": {
         const offViews = state.visual.disabledViews || [];
-        const on = VIEW_TOGGLES.filter(([v]) => !offViews.includes(v)).length;
+        const tabs = viewToggles();
+        const on = tabs.filter(([v]) => !offViews.includes(v)).length;
         const offModes = Object.entries(state.visual.disabledModes || {})
           .filter(([v]) => !offViews.includes(v))
           .reduce((n, [, m]) => n + (m || []).length, 0);
-        return { text: on === VIEW_TOGGLES.length && !offModes ? "All tabs on"
-          : on + " of " + VIEW_TOGGLES.length + " tabs on" + (offModes ? " · " + plural(offModes, "mode", "modes") + " off" : "") };
+        const head = on === tabs.length && !offModes ? "All tabs on"
+          : on + " of " + tabs.length + " tabs on" + (offModes ? " · " + plural(offModes, "mode", "modes") + " off" : "");
+        return { text: head + " · " + tabs.filter(([v]) => !offViews.includes(v)).map(([, label]) => label).join(", ") };
       }
       case "media": {
         const keys = Object.entries(set.mediaKeys || {}).filter(([, v]) => v).map(([k]) => KEY_NAMES[k] || k);
@@ -762,7 +748,6 @@
         sel.appendChild(opt);
       });
 
-      const arrow = el("span", "media-cat-arrow", "→");
       const fallbackSel = el("select", "media-cat-sel media-cat-fallback");
       const noneOpt = el("option", null, "No fallback");
       noneOpt.value = "";
@@ -785,9 +770,14 @@
         await persist();
       };
 
-      selWrap.appendChild(sel);
-      selWrap.appendChild(arrow);
-      selWrap.appendChild(fallbackSel);
+      // Labelled rather than joined by an arrow: two selects side by side
+      // don't fit a phone without cutting the source names off.
+      for (const [text, select] of [["Source", sel], ["Fallback", fallbackSel]]) {
+        const pick = el("label", "media-cat-pick");
+        pick.appendChild(el("span", "media-cat-pick-label", text));
+        pick.appendChild(select);
+        selWrap.appendChild(pick);
+      }
       row.appendChild(selWrap);
       container.appendChild(row);
     }
@@ -825,51 +815,120 @@
     sel.value = (cur && state.data.categories.some((c) => c.name === cur)) ? cur : "";
   }
 
-  // One row per tab, each with its modes indented under it. Built rather
-  // than written into index.html because the modes are VIEW_MODES' business
-  // and a second copy of that list here would be one waiting to disagree
-  // with it — the Backlog's three came from backlog.js in the first place.
+  // A card per tab: its row, and its modes' rows indented under it. Built
+  // rather than written into index.html because the modes are VIEW_MODES'
+  // business and a second copy of that list here would be one waiting to
+  // disagree with it — the Backlog's three came from backlog.js.
+  //
+  // Each row has ↑ ↓ to move it (0.188.0), and each mode a ★ for the one the
+  // tab opens on. With three modes that's always the middle one (app.js's
+  // landingMode), so starring an end mode moves it into the middle and
+  // moving the modes around moves the star with whatever lands there.
   function renderTabToggles() {
     const wrap = $("#tabToggles");
     if (!wrap) return;
     wrap.innerHTML = "";
     const offViews = state.visual.disabledViews || [];
     const offModes = state.visual.disabledModes || {};
+    const tabs = viewToggles();
 
-    // A card per tab: its switch, and its modes' switches under it.
-    const switchRow = (cls, label) => {
-      const row = el("label", "sitem toggle-label " + cls);
+    const iconBtn = (cls, text, label, disabled, onclick) => {
+      const b = el("button", "btn btn-icon tab-order-btn " + cls, text);
+      b.type = "button";
+      b.title = label;
+      b.setAttribute("aria-label", label);
+      b.disabled = disabled;
+      b.onclick = onclick;
+      return b;
+    };
+    const row = (cls, label, sub) => {
+      const r = el("div", "sitem " + cls);
       const text = el("span", "sitem-text");
       text.appendChild(el("span", "sitem-title", label));
-      row.appendChild(text);
+      if (sub) text.appendChild(el("span", "sitem-sub", sub));
+      r.appendChild(text);
+      return r;
+    };
+    const toggle = (label, checked, disabled, onchange) => {
       const box = document.createElement("input");
       box.type = "checkbox";
       box.className = "switch";
-      row.appendChild(box);
-      return [row, box];
+      box.checked = checked;
+      box.disabled = disabled;
+      box.setAttribute("aria-label", label);
+      box.onchange = () => onchange(box.checked);
+      return box;
     };
-    for (const [view, label, modes] of VIEW_TOGGLES) {
+
+    tabs.forEach(([view, label, modes, landing], ti) => {
       const viewOn = !offViews.includes(view);
       const card = el("div", "sgroup-card");
-      const [row, box] = switchRow("tab-toggle-view", label);
-      box.checked = viewOn;
-      box.onchange = () => setViewEnabled(view, box.checked);
-      card.appendChild(row);
+      const r = row("tab-toggle-view", label);
+      r.appendChild(iconBtn("tab-up", "↑", "Move " + label + " left", ti === 0, () => moveView(view, -1)));
+      r.appendChild(iconBtn("tab-down", "↓", "Move " + label + " right", ti === tabs.length - 1, () => moveView(view, 1)));
+      r.appendChild(toggle("Show " + label, viewOn, false, (on) => setViewEnabled(view, on)));
+      card.appendChild(r);
 
-      const sub = el("div", "tab-toggle-modes");
-      for (const [id, modeLabel] of modes) {
-        const [mrow, mbox] = switchRow("tab-toggle-mode", modeLabel);
-        mbox.checked = !(offModes[view] || []).includes(id);
-        // A mode of a tab you've turned off is not a separate decision —
-        // greyed rather than hidden, so turning the tab back on shows you
-        // what its modes were still set to.
-        mbox.disabled = !viewOn;
-        mbox.onchange = () => setModeEnabled(view, id, mbox.checked);
-        sub.appendChild(mrow);
+      if (modes.length) {
+        const sub = el("div", "tab-toggle-modes");
+        modes.forEach(([id, modeLabel], mi) => {
+          const modeOn = !(offModes[view] || []).includes(id);
+          const isDefault = id === landing && modes.length > 1;
+          const m = row("tab-toggle-mode" + (isDefault ? " is-default" : ""), modeLabel, isDefault ? "Opens here" : "");
+          const star = iconBtn("mode-default", isDefault ? "★" : "☆",
+            isDefault ? label + " opens on " + modeLabel : "Open " + label + " on " + modeLabel,
+            !viewOn || !modeOn || modes.length < 2, () => setDefaultMode(view, id));
+          star.setAttribute("aria-pressed", String(isDefault));
+          m.appendChild(star);
+          m.appendChild(iconBtn("mode-up", "↑", "Move " + modeLabel + " earlier", mi === 0, () => moveMode(view, id, -1)));
+          m.appendChild(iconBtn("mode-down", "↓", "Move " + modeLabel + " later", mi === modes.length - 1, () => moveMode(view, id, 1)));
+          // A mode of a tab you've turned off is not a separate decision —
+          // greyed rather than hidden, so turning the tab back on shows you
+          // what its modes were still set to.
+          m.appendChild(toggle("Show " + modeLabel, modeOn, !viewOn, (on) => setModeEnabled(view, id, on)));
+          sub.appendChild(m);
+        });
+        card.appendChild(sub);
       }
-      if (modes.length) card.appendChild(sub);
       wrap.appendChild(card);
-    }
+    });
+  }
+
+  const swap = (list, a, b) => { const out = list.slice(); [out[a], out[b]] = [out[b], out[a]]; return out; };
+
+  function moveView(view, delta) {
+    const order = viewToggles().map(([v]) => v);
+    const i = order.indexOf(view);
+    if (i < 0 || !order[i + delta]) return;
+    state.visual.viewOrder = swap(order, i, i + delta);
+    commitToggles();
+  }
+
+  const modeOrderOf = (view) => ((viewToggles().find(([v]) => v === view) || [])[2] || []).map(([id]) => id);
+  const onModesOf = (view, order) => order.filter((id) => !((state.visual.disabledModes || {})[view] || []).includes(id));
+
+  function saveModeOrder(view, order) {
+    state.visual.modeOrder = { ...(state.visual.modeOrder || {}), [view]: order };
+    // Three modes open on the middle one; saying so keeps the choice if one
+    // of them is later turned off and the rule stops applying.
+    const on = onModesOf(view, order);
+    if (on.length === 3) state.visual.defaultModes = { ...(state.visual.defaultModes || {}), [view]: on[1] };
+  }
+
+  function moveMode(view, id, delta) {
+    const order = modeOrderOf(view);
+    const i = order.indexOf(id);
+    if (i < 0 || !order[i + delta]) return;
+    saveModeOrder(view, swap(order, i, i + delta));
+    commitToggles();
+  }
+
+  function setDefaultMode(view, id) {
+    const order = modeOrderOf(view);
+    const on = onModesOf(view, order);
+    if (on.length === 3 && on[1] !== id) saveModeOrder(view, swap(order, order.indexOf(id), order.indexOf(on[1])));
+    state.visual.defaultModes = { ...(state.visual.defaultModes || {}), [view]: id };
+    commitToggles();
   }
 
   // The last tab cannot be turned off, and the last mode of a tab cannot
@@ -879,7 +938,7 @@
   function setViewEnabled(view, on) {
     const off = new Set(state.visual.disabledViews || []);
     if (on) off.delete(view); else off.add(view);
-    if (off.size >= VIEW_TOGGLES.length) {
+    if (off.size >= viewToggles().length) {
       toast("Something has to be on screen — keep at least one tab", true);
       renderTabToggles();
       return;
@@ -889,7 +948,7 @@
   }
 
   function setModeEnabled(view, mode, on) {
-    const all = (VIEW_TOGGLES.find((t) => t[0] === view) || [])[2] || [];
+    const all = (viewToggles().find((t) => t[0] === view) || [])[2] || [];
     const map = { ...(state.visual.disabledModes || {}) };
     const off = new Set(map[view] || []);
     if (on) off.delete(mode); else off.add(mode);
@@ -951,7 +1010,6 @@
     ghEditing = false;
     $("#settingsVersion").textContent = "LifeLog v" + APP_VERSION;
     updateVersionSkew();
-    updateBackendInfo();
     updateFileInfo();
     updateGithubInfo();
     updateHistoryPanel();
@@ -1086,7 +1144,7 @@
     try {
       const name = await Storage.connectFile(state.data);
       refreshStorageStatus();
-      updateBackendInfo(); updateFileInfo();
+      updateFileInfo();
       toast(Storage.githubConnected ? "Local backup file connected: " + name : "Connected & saved to " + name);
     } catch (e) {
       if (e && e.name === "AbortError") return;
@@ -1099,14 +1157,14 @@
       const fresh = await (await Storage.load()).data; // re-read from file
       if (fresh) { state.data = normalize(fresh); afterDataChange(); }
       await persist();
-      refreshStorageStatus(); updateBackendInfo(); updateFileInfo();
+      refreshStorageStatus(); updateFileInfo();
       toast("Reconnected");
     } else toast("Permission denied", true);
   }
   async function disconnectFile() {
     await Storage.disconnect();
     refreshStorageStatus();
-    updateBackendInfo(); updateFileInfo();
+    updateFileInfo();
     toast(Storage.githubConnected ? "Local backup file disconnected (GitHub still syncing)" : "Local file disconnected (browser storage only)");
   }
 
@@ -1162,7 +1220,7 @@
       }
       $("#ghToken").value = "";
       refreshStorageStatus();
-      updateBackendInfo(); updateGithubInfo(); updateFileInfo(); updateHistoryPanel();
+      updateGithubInfo(); updateFileInfo(); updateHistoryPanel();
       schedulePoll();
       toast(Storage.fileConnected ? "GitHub connected — syncing, file kept as backup" : "GitHub connected — syncing here");
     } catch (e) {
@@ -1222,7 +1280,7 @@
   async function disconnectGithub() {
     await Storage.disconnectGithub();
     refreshStorageStatus();
-    updateBackendInfo(); updateGithubInfo(); updateFileInfo(); updateHistoryPanel();
+    updateGithubInfo(); updateFileInfo(); updateHistoryPanel();
     schedulePoll();
     toast(Storage.fileConnected ? "GitHub disconnected (still saving to local file)" : "GitHub disconnected (browser storage only)");
   }

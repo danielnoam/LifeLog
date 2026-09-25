@@ -128,27 +128,14 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.187.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.188.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
-  // Left-to-right order of the mobile bottom tab bar (see the `order:`
-  // values on .tab in styles.css) — used for swipe-to-switch, so a swipe
-  // moves to the visually adjacent tab, not just the next one in DOM order.
+  // Every view there is, in the order the tab bar starts in. Settings → Tabs
+  // can reorder them (orderedViews below), so anything that walks the tabs
+  // left to right — the swipe, the number keys — asks enabledViews().
   const VIEW_ORDER = ["notes", "timeline", "backlog", "finance"];
-  // Number-key shortcuts (see wire()'s keydown handler) — deliberately the
-  // on-screen tab order (left-to-right in #viewTabs), not VIEW_ORDER above,
-  // since that's what the shortcuts cheat-sheet shows and what a user
-  // scanning the tab bar would expect "3" etc. to mean.
-  const SHORTCUT_VIEWS = { 1: "notes", 2: "timeline", 3: "backlog", 4: "finance" };
-  // Shift and the same digit goes to that tab's second mode — Shift+2 is the
-  // Timeline's Stats, which is what the merge into modes would otherwise have
-  // cost a keyboard. Keyed on e.code rather than e.key because Shift+2 is "@"
-  // on a US layout and something else again elsewhere; the physical digit is
-  // the thing the cheat-sheet is describing. A view with a third mode (the
-  // Backlog) doesn't get a key for it — two is where a digit row runs out of
-  // sensible meanings.
-  const SHORTCUT_CODES = { Digit1: "notes", Digit2: "timeline", Digit3: "backlog", Digit4: "finance" };
 
   function loadVisualSettings() {
     try {
@@ -200,7 +187,11 @@
   // be the same screen here, but on luck rather than on purpose.
   const MODE_MIGRATIONS = { backlog: { category: "entries" } };
   function applySavedUi(ui) {
-    if (!ui) return;
+    if (!ui) {
+      for (const spec of Object.values(VIEW_MODES)) spec.set(landingMode(spec));
+      settleDisabled();
+      return;
+    }
     let view = ui.view;
     const moved = UI_MIGRATIONS[view];
     if (moved) { view = moved.view; VIEW_MODES[view].set(moved.mode); }
@@ -233,10 +224,11 @@
     const order = enabledViews();
     if (!order.includes(state.view)) state.view = order[0];
     // Same one level down: a mode you have disabled is not somewhere the app
-    // may be sitting.
+    // may be sitting. And every tab but the one you're on waits in the mode
+    // it opens on — which Settings can have just changed.
     for (const spec of Object.values(VIEW_MODES)) {
       const ids = modeIds(spec);
-      if (!ids.includes(spec.get())) spec.set(ids[0]);
+      if (spec.key !== state.view || !ids.includes(spec.get())) spec.set(landingMode(spec));
     }
   }
 
@@ -620,6 +612,42 @@
       set: (m) => { state.financeMode = m; },
     },
   };
+  // ---------- the order of tabs and modes, and where a tab opens ----------
+  // Settings → Tabs (0.188.0). Both orders belong to this device, like
+  // turning tabs off. A saved order is a preference, never the list of what
+  // exists: ids it names that no longer exist are dropped, and anything it
+  // doesn't name (a mode added since) goes on the end.
+  //
+  // A tab with three modes opens on the middle one, so the other two are a
+  // swipe either side of where you land; choosing another default in Settings
+  // moves that one to the middle. The out-of-the-box orders put the mode each
+  // tab has always opened on in the middle, so nothing opens differently
+  // until you change it. With two modes the default is simply the one you
+  // choose, the first until you do.
+  const DEFAULT_MODE_ORDER = { notes: ["todo", "notes", "habits"], backlog: ["upcoming", "entries", "discover"] };
+  const mergeOrder = (saved, all) => {
+    const known = [...new Set((saved || []).filter((x) => all.includes(x)))];
+    return known.concat(all.filter((x) => !known.includes(x)));
+  };
+  const orderedViews = () => mergeOrder(state.visual.viewOrder, VIEW_ORDER);
+  const orderedModes = (spec) => {
+    const saved = (state.visual.modeOrder || {})[spec.key] || DEFAULT_MODE_ORDER[spec.key];
+    return mergeOrder(saved, spec.modes.map(([id]) => id)).map((id) => spec.modes.find(([m]) => m === id));
+  };
+  function landingMode(spec) {
+    const ids = modeIds(spec);
+    if (ids.length === 3) return ids[1];
+    const chosen = (state.visual.defaultModes || {})[spec.key];
+    return ids.includes(chosen) ? chosen : ids[0];
+  }
+  // Shift and a tab's number goes to its other mode: the one after where it
+  // opens, so with two modes it is simply the other one.
+  function otherMode(spec) {
+    const ids = modeIds(spec);
+    if (ids.length < 2) return null;
+    return ids[(ids.indexOf(landingMode(spec)) + 1) % ids.length];
+  }
+
   // ---------- turning tabs and modes off ----------
   // Not everyone wants four tabs. Someone using this as a ledger should be
   // able to have Finance and nothing else; someone who only journals
@@ -636,8 +664,9 @@
   // this is the second line of defence for a hand-edited or synced-in value.
   const enabledViews = () => {
     const off = state.visual.disabledViews || [];
-    const on = VIEW_ORDER.filter((v) => !off.includes(v));
-    return on.length ? on : VIEW_ORDER;
+    const order = orderedViews();
+    const on = order.filter((v) => !off.includes(v));
+    return on.length ? on : order;
   };
   const viewEnabled = (v) => enabledViews().includes(v);
   // Asked by the other modules before they offer a way into a mode — see
@@ -651,8 +680,9 @@
   // triples — the fan, the tab menu and the dots all want the labels too.
   const modeEntries = (spec) => {
     const off = (state.visual.disabledModes || {})[spec.key] || [];
-    const on = spec.modes.filter(([id]) => !off.includes(id));
-    return on.length ? on : spec.modes;
+    const all = orderedModes(spec);
+    const on = all.filter(([id]) => !off.includes(id));
+    return on.length ? on : all;
   };
   const modeIds = (spec) => modeEntries(spec).map(([id]) => id);
   // Habits has no VIEW_MODES entry on purpose: it is one screen, so there is
@@ -1099,7 +1129,7 @@
     // that rule, so nothing else has to remember to reset anything — the fan
     // sets the *incoming* view's mode and is untouched by this.
     const leaving = VIEW_MODES[state.view];
-    if (leaving && view !== state.view) leaving.set(modeIds(leaving)[0]);
+    if (leaving && view !== state.view) leaving.set(landingMode(leaving));
     state.view = view;
     state.bulk.active = false;
     state.bulk.selected.clear();
@@ -1416,6 +1446,7 @@
     scrollAnchor = inPlace ? captureScrollAnchor() : null;
     if (activeLazySections) { activeLazySections.destroy(); activeLazySections = null; }
     try {
+      placeTabs();
       document.querySelectorAll(".tab").forEach((t) => {
         // A disabled tab goes out of the bar entirely rather than being
         // greyed: it isn't unavailable, it's something you said you don't use.
@@ -1547,7 +1578,7 @@
     // Stats, Summary and To-do are fixed layouts with no headers to page
     // between, so the row goes — which is a per-mode question now that each
     // of them shares a tab with a list that does have them.
-    if (spec && spec.get() !== modeIds(spec)[0]) return null;
+    if (spec && spec.get() !== spec.modes[0][0]) return null;
     return ".year-head";
   }
   function jumpLabelFor(sectionEl) {
@@ -1674,6 +1705,20 @@
         dot.classList.toggle("is-on", id === spec.get());
         row.appendChild(dot);
       }
+    }
+  }
+
+  // The tab bar in the order Settings → Tabs has it. Moved only when it
+  // differs: re-inserting a node that's already in place still blurs it.
+  function placeTabs() {
+    const nav = $("#viewTabs");
+    const want = orderedViews();
+    const have = [...nav.querySelectorAll(".tab")].map((t) => t.dataset.view);
+    if (have.join() === want.join()) return;
+    const anchor = $("#tabUnderline");
+    for (const v of want) {
+      const t = nav.querySelector('.tab[data-view="' + v + '"]');
+      if (t) nav.insertBefore(t, anchor);
     }
   }
 
@@ -3003,7 +3048,9 @@
       d.appendChild(el("dd", null, text));
       wrap.appendChild(d);
     };
-    const digits = Object.entries(SHORTCUT_VIEWS).filter(([, v]) => viewEnabled(v));
+    // The number keys are the tab bar as it stands: 1 is the leftmost tab you
+    // have, whatever you've moved or turned off.
+    const digits = enabledViews().map((v, i) => [String(i + 1), v]);
     for (const [digit, view] of digits) {
       const tab = document.querySelector('#viewTabs .tab[data-view="' + view + '"]');
       row([digit], (tab && tab.textContent) || view);
@@ -3011,15 +3058,16 @@
     const seconds = digits
       .map(([digit, view]) => {
         const spec = VIEW_MODES[view];
-        const second = spec && modeEntries(spec)[1];
-        return second ? { digit, label: second[1] } : null;
+        const other = spec && otherMode(spec);
+        const entry = other && modeEntries(spec).find(([id]) => id === other);
+        return entry ? { digit, label: entry[1] } : null;
       })
       .filter(Boolean);
     if (seconds.length) {
       const span = seconds.length > 1
         ? [seconds[0].digit, "–", seconds[seconds.length - 1].digit]
         : [seconds[0].digit];
-      row(["⇧", ...span], "That tab's second mode — " + seconds.map((x) => x.label).join(", "));
+      row(["⇧", ...span], "That tab's other mode — " + seconds.map((x) => x.label).join(", "));
     }
   }
 
@@ -3752,18 +3800,21 @@
       if (e.key === "/") { e.preventDefault(); $("#search").focus(); return; }
       if (e.key === "n" || e.key === "N") { e.preventDefault(); Journal.openEntryModal(null); return; }
       // After ? and N, both of which are themselves shifted keys.
-      if (e.shiftKey && SHORTCUT_CODES[e.code]) {
+      // Keyed on e.code for Shift: Shift+2 is "@" on a US layout and something
+      // else again elsewhere, and the physical digit is what the cheat-sheet
+      // describes.
+      const digit = /^Digit([1-9])$/.exec(e.code || "");
+      const byDigit = digit && enabledViews()[+digit[1] - 1];
+      if (e.shiftKey && byDigit) {
         e.preventDefault();
-        const view = SHORTCUT_CODES[e.code];
-        if (!viewEnabled(view)) return;
-        const spec = VIEW_MODES[view];
-        // [1] only where there is a second mode left to reach.
-        const ids = modeIds(spec);
-        if (spec && ids[1]) spec.set(ids[1]);
-        if (view !== state.view) switchToView(view); else commitModeChange();
+        const spec = VIEW_MODES[byDigit];
+        // Only where there is another mode left to reach.
+        const other = spec && otherMode(spec);
+        if (other) spec.set(other);
+        if (byDigit !== state.view) switchToView(byDigit); else commitModeChange();
         return;
       }
-      if (SHORTCUT_VIEWS[e.key]) { e.preventDefault(); switchToView(SHORTCUT_VIEWS[e.key]); return; }
+      if (byDigit && !e.shiftKey) { e.preventDefault(); switchToView(byDigit); return; }
     });
 
     // Retry a pending save and check for remote updates as soon as the
@@ -4380,17 +4431,22 @@
     reviewAndImport: IO.reviewAndImport,
     setBacklogCover: Backlog.setBacklogCover, setEntryCover: Journal.setEntryCover,
   });
+  // A tab's label as the bar has it: its own text, not the mode dots or
+  // search badge drawn into it.
+  const tabLabel = (v) => {
+    const t = document.querySelector('#viewTabs .tab[data-view="' + v + '"]');
+    return t ? [...t.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim() : v;
+  };
   SettingsUI.init({
-    // The tab/mode list Settings draws its switches from, built here so
-    // VIEW_MODES stays the one place that knows what a view's modes are. The
-    // tab labels are the ones on the tabs themselves, read off the bar rather
-    // than restated, for the same reason.
-    // Habits has no VIEW_MODES entry — it is one screen — so its modes list
-    // is empty and Settings shows it a switch with nothing under it.
-    VIEW_TOGGLES: VIEW_ORDER.map((v) => [
+    // The tab/mode list Settings draws its switches from, asked for each time
+    // so it follows the current order, and built here so VIEW_MODES stays the
+    // one place that knows what a view's modes are: [view, label, modes in
+    // order, the mode it opens on].
+    viewToggles: () => orderedViews().map((v) => [
       v,
-      (document.querySelector('#viewTabs .tab[data-view="' + v + '"]') || {}).textContent || v,
-      ((VIEW_MODES[v] || {}).modes || []).map(([id, label]) => [id, label]),
+      tabLabel(v) || v,
+      VIEW_MODES[v] ? orderedModes(VIEW_MODES[v]).map(([id, label]) => [id, label]) : [],
+      VIEW_MODES[v] ? landingMode(VIEW_MODES[v]) : null,
     ]),
     settleDisabled,
     state, $, el, toast, persist, render, normalize, afterDataChange,

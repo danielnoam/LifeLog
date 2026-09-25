@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.187.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.188.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -997,52 +997,50 @@
            label; .sitem-go is an action, drawn as a row with a chevron. -->
       <div class="settings-page" hidden data-page="sync" data-title="Sync" data-keywords="github token repository repo backup file qr code device link connect disconnect auto-sync interval">
       <h2 class="settings-page-title">Sync</h2>
-      <p class="muted page-lede" id="backendInfo"></p>
       <section class="sgroup">
         <div class="sgroup-card">
           <div class="sitem">
             <span class="sitem-text"><span class="sitem-title">GitHub</span><span class="sitem-sub" id="ghInfo"></span></span>
           </div>
-          <div class="sitem sitem-stack gh-fields">
-            <ol class="gh-steps">
-              <li><a href="https://github.com/settings/tokens/new?description=LifeLog&amp;scopes=repo" target="_blank" rel="noopener">Create a GitHub token →</a>, click <strong>Generate token</strong>, and copy it.</li>
-              <li>Paste it below and press <strong>Connect</strong> — a private data repo is created for you automatically.</li>
-            </ol>
-            <label>Access token <span class="muted">— or a setup link from a device that's already connected</span>
+          <div class="gh-fields">
+            <a class="sitem sitem-go gh-steps" href="https://github.com/settings/tokens/new?description=LifeLog&amp;scopes=repo" target="_blank" rel="noopener">
+              <span class="sitem-text"><span class="sitem-title">Create a token on GitHub</span><span class="sitem-sub">Press Generate token there, then copy it</span></span>
+            </a>
+            <label class="sitem sitem-stack">
+              <span class="sitem-text"><span class="sitem-title">Access token</span><span class="sitem-sub">Paste it here — or a setup link from a device that's already connected</span></span>
               <input id="ghToken" type="password" placeholder="ghp_… or github_pat_… or a setup link" autocomplete="off" spellcheck="false" />
             </label>
             <details class="gh-advanced">
-              <summary>Advanced</summary>
-              <label>Repository <span class="muted">owner/repo — leave blank to use your account / lifelog-data</span>
+              <summary class="sitem sitem-go">Repository, file and branch</summary>
+              <label class="sitem sitem-stack">
+                <span class="sitem-text"><span class="sitem-title">Repository</span><span class="sitem-sub">owner/repo — leave blank for yourname/lifelog-data, created for you</span></span>
                 <input id="ghRepo" type="text" placeholder="(auto: yourname/lifelog-data)" autocomplete="off" spellcheck="false" />
               </label>
-              <div class="row">
-                <label>File path
-                  <input id="ghPath" type="text" placeholder="lifelog.json" autocomplete="off" spellcheck="false" />
-                </label>
-                <label>Branch
-                  <input id="ghBranch" type="text" placeholder="main" autocomplete="off" spellcheck="false" />
-                </label>
-              </div>
+              <label class="sitem">
+                <span class="sitem-text"><span class="sitem-title">File path</span></span>
+                <input id="ghPath" type="text" placeholder="lifelog.json" autocomplete="off" spellcheck="false" />
+              </label>
+              <label class="sitem">
+                <span class="sitem-text"><span class="sitem-title">Branch</span></span>
+                <input id="ghBranch" type="text" placeholder="main" autocomplete="off" spellcheck="false" />
+              </label>
             </details>
-            <div class="btn-row">
-              <button class="btn btn-primary" id="ghConnectBtn">Connect GitHub</button>
-              <button class="btn" id="ghScanBtn" type="button" hidden>Scan QR code</button>
-            </div>
-            <p class="hint gh-how">Every save becomes a commit in a private repo, so your devices stay in sync and you get a history. The token stays on this device.</p>
+            <button type="button" class="sitem sitem-go" id="ghConnectBtn">Connect GitHub</button>
+            <button type="button" class="sitem sitem-go" id="ghScanBtn" hidden>Scan QR code</button>
           </div>
           <button type="button" class="sitem sitem-go" id="ghEditBtn" hidden>Change token or repository</button>
           <label class="sitem">
             <span class="sitem-text"><span class="sitem-title">Check for changes</span><span class="sitem-sub">From your other devices</span></span>
             <select id="ghPollInterval">
               <option value="0">Off</option>
-              <option value="10">Every 10 seconds</option>
-              <option value="30">Every 30 seconds</option>
+              <option value="10">Every 10 s</option>
+              <option value="30">Every 30 s</option>
               <option value="60">Every minute</option>
-              <option value="300">Every 5 minutes</option>
+              <option value="300">Every 5 min</option>
             </select>
           </label>
         </div>
+        <p class="hint gh-how">Every save becomes a commit in a private repo, so your devices stay in sync and you get a history. The token stays on this device.</p>
       </section>
 
       <section class="sgroup gh-share" id="ghShare" hidden>
@@ -1085,7 +1083,7 @@
 
       <div class="settings-page" hidden data-page="io" data-title="Import &amp; export" data-keywords="backup export import json csv spreadsheet download">
       <h2 class="settings-page-title">Import &amp; export</h2>
-      <p class="hint page-lede">Importing always merges with what you have — it never replaces it — and opens a review screen first: pick items, switch whole years or months off, choose which new categories to add. Anything you already have is skipped.</p>
+      <p class="hint page-lede">Importing adds to what you have, never replaces it, and lets you pick what comes in first. Anything you already have is skipped.</p>
       <section class="sgroup">
         <h3 class="sgroup-label">Everything</h3>
         <div class="sgroup-card">
@@ -1137,7 +1135,7 @@
 
       <div class="settings-page" hidden data-page="history" data-title="History" data-keywords="version undo restore rollback saves commits missing settings">
       <h2 class="settings-page-title">History</h2>
-      <p class="hint page-lede">Your last ~40 saves, kept on this device and shown with what changed in each. <strong>Undo</strong> takes back one change and keeps everything since; <strong>Restore</strong> rolls everything back to that save, as a new save — nothing in the list is ever deleted. With GitHub connected, older saves come from its commit log.</p>
+      <p class="hint page-lede">Your last ~40 saves, plus older ones from GitHub when it's connected. <strong>Undo</strong> takes back one change; <strong>Restore</strong> rolls everything back to that save. Neither deletes anything here.</p>
       <p class="muted" id="historyEmptyState" hidden>No saves yet — your history will appear here once you make your first change.</p>
       <div id="historyControls" hidden>
         <section class="sgroup">
@@ -1159,14 +1157,14 @@
 
       <div class="settings-page" hidden data-page="deleted" data-title="Recently deleted" data-keywords="trash bin undelete restore removed">
       <h2 class="settings-page-title">Recently deleted</h2>
-      <p class="hint page-lede">Entries, backlog items, notes, to-dos and expenses deleted within your save history. Restoring one brings back just that item and touches nothing else.</p>
+      <p class="hint page-lede">Anything deleted within your save history. Restoring one brings back just that item.</p>
       <p class="muted" id="trashEmptyState" hidden>Nothing recently deleted.</p>
       <div class="sgroup-card history-card" id="trashList"></div>
       </div>
 
       <div class="settings-page" hidden data-page="lock" data-title="App lock" data-keywords="privacy pin fingerprint face id biometric password security">
       <h2 class="settings-page-title">App lock</h2>
-      <p class="hint page-lede">Asks for a PIN or fingerprint to open LifeLog on this device. It doesn't encrypt your data. Forgot the PIN? The lock screen can wipe this device's copy — reconnect GitHub or your backup file afterwards to get it back, or it's gone.</p>
+      <p class="hint page-lede">This device only. It keeps people out of the app; it doesn't encrypt your data.</p>
       <section class="sgroup">
         <div class="sgroup-card">
           <label class="sitem toggle-label">
@@ -1206,6 +1204,7 @@
           <button type="button" class="sitem sitem-go" id="cancelPinBtn" hidden>Cancel</button>
           <button type="button" class="sitem sitem-go sitem-danger" id="removePinBtn" hidden>Remove PIN</button>
         </div>
+        <p class="hint">Forgot it? The lock screen can wipe this device's copy; reconnect sync afterwards to get your data back.</p>
       </section>
 
       <section class="sgroup">
@@ -1256,19 +1255,19 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="tabs" data-title="Tabs" data-keywords="hide show views modes notes habits timeline backlog ledger">
+      <div class="settings-page" hidden data-page="tabs" data-title="Tabs" data-keywords="hide show views modes order reorder move default opens notes habits timeline backlog ledger">
       <h2 class="settings-page-title">Tabs</h2>
-      <p class="hint page-lede">Turn off the parts of the app you don't use and they leave the tab bar. This device only. The last tab on stays on.</p>
+      <p class="hint page-lede">This device only. ↑ ↓ reorder, ★ is the mode a tab opens on — with three modes, the middle one. Tabs you turn off leave the tab bar.</p>
       <div class="tab-toggles" id="tabToggles"></div>
       </div>
 
       <div class="settings-page" hidden data-page="media" data-title="Media lookups" data-keywords="api keys rawg tmdb steamgriddb gg.deals proxy cors cover art metadata sources">
       <h2 class="settings-page-title">Media lookups</h2>
-      <p class="hint page-lede">Where cover art, ratings, lengths and release dates come from. Keys and sources sync to your other devices.</p>
+      <p class="hint page-lede">Where covers, ratings and release dates come from. Syncs to your other devices.</p>
       <section class="sgroup">
         <h3 class="sgroup-label">Source per category</h3>
         <div class="sgroup-card" id="mediaCatRows"></div>
-        <p class="hint">A primary source and an optional fallback per category; "None" fetches nothing. Background checks only try the fallback when the primary finds nothing, while <strong>🔄 Sync</strong> on an item searches both and tags each match with its source. "Steam" takes a Steam App ID from the store URL instead of a search. "RAWG + Steam + GG.deals" also finds the Steam ID through RAWG, for cover, rating, length and price at once.</p>
+        <p class="hint">The fallback is tried when the source finds nothing; <strong>🔄 Sync</strong> on an item searches both. "Steam" takes an App ID from the store URL. "RAWG + Steam + GG.deals" also finds the Steam ID, for a price too.</p>
       </section>
 
       <section class="sgroup">
@@ -1308,7 +1307,7 @@
 
       <div class="settings-page" hidden data-page="imports" data-title="Imports" data-keywords="steam wishlist anilist planning anime manga">
       <h2 class="settings-page-title">Imports</h2>
-      <p class="hint page-lede">Both open a review screen before anything is added, and never re-add what's already in your backlog. The automatic check only counts what's new and tells you.</p>
+      <p class="hint page-lede">You pick what comes in, and nothing already in your backlog is added twice. The automatic check only tells you what's new.</p>
       <section class="sgroup">
         <h3 class="sgroup-label">Steam wishlist</h3>
         <div class="sgroup-card">
@@ -1317,13 +1316,13 @@
             <input id="steamId64" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 76561198012345678" />
           </label>
           <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Add imported games to</span></span>
+            <span class="sitem-text"><span class="sitem-title">Add games to</span></span>
             <select id="steamWishlistCategory"></select>
           </label>
           <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Check automatically</span></span>
+            <span class="sitem-text"><span class="sitem-title">Auto-check</span></span>
             <select id="steamAutoSyncDays">
-              <option value="0">Never (manual only)</option>
+              <option value="0">Never</option>
               <option value="1">Every day</option>
               <option value="3">Every 3 days</option>
               <option value="7">Every week</option>
@@ -1347,17 +1346,17 @@
             <input id="anilistUserName" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. YourAniListName" />
           </label>
           <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Add planned anime to</span></span>
+            <span class="sitem-text"><span class="sitem-title">Add anime to</span></span>
             <select id="anilistAnimeCategory"></select>
           </label>
           <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Add planned manga to</span></span>
+            <span class="sitem-text"><span class="sitem-title">Add manga to</span></span>
             <select id="anilistMangaCategory"></select>
           </label>
           <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Check automatically</span></span>
+            <span class="sitem-text"><span class="sitem-title">Auto-check</span></span>
             <select id="anilistAutoSyncDays">
-              <option value="0">Never (manual only)</option>
+              <option value="0">Never</option>
               <option value="1">Every day</option>
               <option value="3">Every 3 days</option>
               <option value="7">Every week</option>
@@ -1372,13 +1371,13 @@
 
       <div class="settings-page" hidden data-page="releases" data-title="Release dates" data-keywords="upcoming release dates tba">
       <h2 class="settings-page-title">Release dates</h2>
-      <p class="hint page-lede">Re-asks each unreleased backlog item's own source for its date — a "TBA" gets one, a date slips. It changes nothing else. Steam, RAWG, TMDB and AniList items can be checked; Open Library, Google Books, MusicBrainz and Jikan items are skipped.</p>
+      <p class="hint page-lede">Asks each unreleased backlog item's source for its date again, and changes nothing else. Steam, RAWG, TMDB and AniList items only.</p>
       <section class="sgroup">
         <div class="sgroup-card">
           <label class="sitem">
             <span class="sitem-text"><span class="sitem-title">Check automatically</span><span class="sitem-sub">When you open the app</span></span>
             <select id="releasesAutoRefreshDays">
-              <option value="0">Never (manual only)</option>
+              <option value="0">Never</option>
               <option value="1">Every day</option>
               <option value="3">Every 3 days</option>
               <option value="7">Every week</option>
@@ -1616,25 +1615,25 @@
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
        them in document order once the DOM is ready. app.js (last) calls
        init()/wire() against the DOM, which defer guarantees is fully parsed. -->
-  <script defer src="src/platform.js?v=0.187.0"></script>
-  <script defer src="src/reconcile.js?v=0.187.0"></script>
-  <script defer src="src/qr.js?v=0.187.0"></script>
-  <script defer src="src/media.js?v=0.187.0"></script>
-  <script defer src="src/merge.js?v=0.187.0"></script>
-  <script defer src="src/storage.js?v=0.187.0"></script>
-  <script defer src="src/finance.js?v=0.187.0"></script>
-  <script defer src="src/settings.js?v=0.187.0"></script>
-  <script defer src="src/wheel.js?v=0.187.0"></script>
-  <script defer src="src/backlog.js?v=0.187.0"></script>
-  <script defer src="src/journal.js?v=0.187.0"></script>
-  <script defer src="src/notes.js?v=0.187.0"></script>
-  <script defer src="src/todos.js?v=0.187.0"></script>
-  <script defer src="src/io.js?v=0.187.0"></script>
-  <script defer src="src/sync.js?v=0.187.0"></script>
-  <script defer src="src/habits.js?v=0.187.0"></script>
-  <script defer src="src/recap.js?v=0.187.0"></script>
-  <script defer src="src/reminders.js?v=0.187.0"></script>
-  <script defer src="src/widgets.js?v=0.187.0"></script>
-  <script defer src="src/app.js?v=0.187.0"></script>
+  <script defer src="src/platform.js?v=0.188.0"></script>
+  <script defer src="src/reconcile.js?v=0.188.0"></script>
+  <script defer src="src/qr.js?v=0.188.0"></script>
+  <script defer src="src/media.js?v=0.188.0"></script>
+  <script defer src="src/merge.js?v=0.188.0"></script>
+  <script defer src="src/storage.js?v=0.188.0"></script>
+  <script defer src="src/finance.js?v=0.188.0"></script>
+  <script defer src="src/settings.js?v=0.188.0"></script>
+  <script defer src="src/wheel.js?v=0.188.0"></script>
+  <script defer src="src/backlog.js?v=0.188.0"></script>
+  <script defer src="src/journal.js?v=0.188.0"></script>
+  <script defer src="src/notes.js?v=0.188.0"></script>
+  <script defer src="src/todos.js?v=0.188.0"></script>
+  <script defer src="src/io.js?v=0.188.0"></script>
+  <script defer src="src/sync.js?v=0.188.0"></script>
+  <script defer src="src/habits.js?v=0.188.0"></script>
+  <script defer src="src/recap.js?v=0.188.0"></script>
+  <script defer src="src/reminders.js?v=0.188.0"></script>
+  <script defer src="src/widgets.js?v=0.188.0"></script>
+  <script defer src="src/app.js?v=0.188.0"></script>
 </body>
 </html>

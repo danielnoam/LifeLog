@@ -1763,7 +1763,7 @@ kbd {
 }
 @media (prefers-reduced-motion: reduce) { .search-hit { animation: none; outline: 2px solid var(--accent); outline-offset: 4px; } }
 .gh-fields[hidden] { display: none; }
-.gh-fields.connected .gh-steps, .gh-fields.connected .gh-how { display: none; }
+.gh-fields.connected .gh-steps { display: none; }
 #ghEditBtn { margin-bottom: 12px; }
 
 /* Inside a page: the list's cards again, a row per setting — its label on
@@ -1781,17 +1781,18 @@ kbd {
   font: inherit; font-size: 14px; color: var(--text); text-align: left;
 }
 .modal .sgroup-card > * + * { border-top: 1px solid var(--border); }
-.sitem-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sitem-text { flex: 1 1 8em; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .sitem-title { font-size: 14px; font-weight: 550; color: var(--text); }
 .sitem-sub { font-size: 12px; line-height: 1.4; color: var(--text-dim); }
 .sitem-sub:empty { display: none; }
 .sitem-sub a { color: var(--accent); }
 .sitem-sub br { content: ""; display: block; margin-top: 4px; }
 .modal .sitem select {
-  flex: 0 1 auto; width: auto; max-width: 58%; margin: 0; padding: 8px 10px; font-size: 13px;
+  flex: 0 1 auto; width: auto; max-width: 100%; margin: 0; padding: 8px 10px; font-size: 13px;
 }
 .modal .sitem input[type=number] { flex: 0 0 96px; width: 96px; margin: 0; padding: 8px 10px; }
 .modal .sitem.sitem-stack { flex-direction: column; align-items: stretch; gap: 8px; }
+.modal .sitem-stack > .sitem-text { flex: 0 0 auto; }
 .modal .sitem.sitem-stack input:not([type=checkbox]) { margin: 0; }
 .modal .sitem-stack > .hint, .modal .sitem-stack > .warn { margin: 0; }
 .sitem-btns { display: flex; gap: 6px; flex-shrink: 0; }
@@ -1804,14 +1805,24 @@ kbd {
 .sgroup-card > .history-row, .sgroup-card > .media-cat-row { padding: 10px 14px; border-bottom: 0; }
 .sgroup-card > .media-cat-row { flex-direction: column; align-items: stretch; gap: 8px; }
 .sgroup-card .media-cat-name { color: var(--text); font-size: 14px; font-weight: 550; }
-.sgroup-card .media-cat-sels {
-  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px;
-}
-.sgroup-card .media-cat-sel { width: 100%; min-width: 0; padding: 8px 10px; font-size: 13px; }
+.sgroup-card .media-cat-sels { display: flex; flex-direction: column; gap: 6px; }
+.modal .media-cat-pick { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; font-size: 13px; color: var(--text-dim); }
+.sgroup-card .media-cat-sel { flex: 0 1 auto; max-width: 70%; min-width: 0; padding: 8px 10px; font-size: 13px; }
 .sgroup-card > .muted { margin: 0; padding: 12px 14px; }
-.gh-fields.sitem { margin: 0; }
-.gh-fields .btn-row { margin-top: 2px; }
-
+.modal a.sitem { text-decoration: none; }
+.modal a.sitem .sitem-title { color: var(--accent); }
+.modal .sitem:not(.sitem-stack) input[type=text] { flex: 0 1 55%; width: auto; min-width: 0; margin: 0; }
+/* A menu that doesn't fit beside its label drops under it rather than being
+   cut off: the label keeps at least 8em, and the menu asks for its whole
+   width. */
+.modal .sitem:not(.sitem-stack) { flex-wrap: wrap; }
+.modal .sitem > select { margin-left: auto; }
+.modal #tabToggles .sitem { flex-wrap: nowrap; gap: 6px; }
+.tab-order-btn { padding: 5px 8px; min-width: 30px; font-size: 13px; }
+.tab-order-btn:disabled { opacity: .3; cursor: default; }
+.mode-default { color: var(--text-faint); }
+.mode-default[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
+.tab-toggle-view .sitem-text, .tab-toggle-mode .sitem-text { flex-basis: 0; }
 /* A switch, for on/off rows. */
 .modal input.switch {
   -webkit-appearance: none; appearance: none; position: relative; flex: 0 0 auto;
@@ -1842,12 +1853,6 @@ kbd {
 .version-skew h3 { margin: 0 0 6px; font-size: 14px; color: var(--danger-text); }
 .version-skew .hint { margin-top: 6px; }
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
-.gh-fields { display: flex; flex-direction: column; gap: 10px; }
-.gh-fields label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-dim); }
-.gh-fields .row { gap: 12px; }
-.gh-fields .row label { flex: 1; }
-.gh-steps { margin: 0 0 2px; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--text-dim); }
-.gh-steps a { color: var(--accent); }
 /* Per-item "keep my own value" foldout at the bottom of the entry/backlog
    modals — collapsed by default, since pinning a field against sync is a
    rare, deliberate thing to reach for. */
@@ -1883,9 +1888,12 @@ kbd {
 .advanced .steam-field {
   margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);
 }
-.gh-advanced { font-size: 12px; color: var(--text-faint); }
-.gh-advanced summary { cursor: pointer; margin-bottom: 10px; color: var(--text-dim); }
-.gh-advanced label { margin-bottom: 0; }
+.modal .gh-fields > * + *, .modal .gh-advanced > * + *, .modal .gh-advanced[open] > summary { border-top: 1px solid var(--border); }
+.modal .gh-advanced > summary.sitem { list-style: none; cursor: pointer; color: var(--text-dim); font-weight: 450; }
+.gh-advanced > summary::-webkit-details-marker { display: none; }
+.gh-advanced > summary.sitem-go::after { transition: transform var(--dur-fast) var(--ease); }
+.gh-advanced[open] > summary.sitem-go::after { transform: rotate(90deg); }
+.modal .gh-advanced[open] > summary { border-top: 0; border-bottom: 1px solid var(--border); }
 .gh-share .row { display: flex; gap: 8px; align-items: center; }
 .gh-share input[readonly] {
   flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border);
@@ -1920,8 +1928,6 @@ kbd {
 .media-cat-row:last-child { border-bottom: none; }
 .media-cat-name { color: var(--text-dim); }
 .media-cat-sels { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.media-cat-arrow { color: var(--text-faint); font-size: 11px; }
-.media-cat-arrow[hidden] { display: none; }
 .media-cat-sel {
   background: var(--bg); border: 1px solid var(--border); color: var(--text);
   padding: 5px 8px; border-radius: 7px; font-size: 12px;
@@ -2544,9 +2550,9 @@ html.force-mobile .modal.view-options {
    what its modes were left set to. */
 .tab-toggles { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
 .modal .tab-toggle-modes .sitem + .sitem { border-top: 1px solid var(--border); }
-.modal .tab-toggle-modes .sitem { min-height: 44px; padding-left: 30px; }
+.modal .tab-toggle-modes .sitem { min-height: 44px; padding-left: 26px; }
 .tab-toggle-modes .sitem-title { font-size: 13px; font-weight: 450; color: var(--text-dim); }
-.tab-toggle-modes label:has(input:disabled) { opacity: .5; cursor: default; }
+.tab-toggle-modes .sitem:has(.switch:disabled) { opacity: .5; }
 
 /* ---------- recap: the slides that show things rather than count them ---- */
 /* A scrolling slide has to coexist with the player's own gestures. It takes

@@ -209,7 +209,7 @@ const activeView = (page) => page.evaluate(() => {
     await page.waitForTimeout(300);
     const rows = await page.evaluate(() => ({
       views: document.querySelectorAll("#tabToggles .tab-toggle-view").length,
-      modes: document.querySelectorAll("#tabToggles .tab-toggle-modes .toggle-label").length,
+      modes: document.querySelectorAll("#tabToggles .tab-toggle-modes .tab-toggle-mode").length,
     }));
     // Counted off the app rather than written down, for the same reason the
     // tab list is: "9" was right until Notes grew a third mode.
@@ -247,6 +247,104 @@ const activeView = (page) => page.evaluate(() => {
     const left = await page.evaluate(() => (JSON.parse(localStorage.getItem("lifelog-visual-settings-v1")).disabledViews || []).length);
     check("you cannot turn off the last tab", left === ALL_VIEWS.length - 1, { left, of: ALL_VIEWS.length });
     check("so one tab is still on screen", (await shownTabs(page)).length === 1, await shownTabs(page));
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 6a. the order of tabs and modes, and where a tab opens (0.188.0) ----
+  {
+    const { page, ctx, errs: e } = await app(browser, { ui: { view: "timeline", timelineMode: "entries" } });
+    const ui = () => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-ui-v1")));
+    const visual = () => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-visual-settings-v1") || "{}"));
+    const barOrder = () => page.evaluate(() => [...document.querySelectorAll("#viewTabs .tab")].map((t) => t.dataset.view));
+    const press = async (label, cls) => {
+      await page.evaluate(({ l, c }) => {
+        const r = [...document.querySelectorAll("#tabToggles .sitem")].find((x) => x.querySelector(".sitem-title").textContent === l);
+        r.querySelector("." + c).click();
+      }, { l: label, c: cls });
+      await page.waitForTimeout(250);
+    };
+    const tabRows = (tab) => page.evaluate((t) => {
+      const card = [...document.querySelectorAll("#tabToggles .sgroup-card")].find((c) => c.querySelector(".tab-toggle-view .sitem-title").textContent === t);
+      return [...card.querySelectorAll(".tab-toggle-mode")].map((r) => r.querySelector(".sitem-title").textContent + (r.classList.contains("is-default") ? "*" : ""));
+    }, tab);
+
+    const openTabsPage = async () => {
+      await page.click("#settingsBtn");
+      await page.waitForSelector("#settingsModal:not([hidden])", { timeout: 5000 });
+      await page.click('.srow[data-page="tabs"]');
+      await page.waitForTimeout(300);
+    };
+    await openTabsPage();
+    check("out of the box a three-mode tab lists the mode it has always opened on in the middle",
+      JSON.stringify(await tabRows("Backlog")) === JSON.stringify(["Next releases", "Entries*", "Discover"]) &&
+      JSON.stringify(await tabRows("Notes")) === JSON.stringify(["To-do", "Notes*", "Habits"]),
+      { backlog: await tabRows("Backlog"), notes: await tabRows("Notes") });
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+    await page.click('#viewTabs .tab[data-view="backlog"]');
+    await page.waitForTimeout(300);
+    check("so going to it still lands there", (await ui()).backlogMode === "entries", (await ui()).backlogMode);
+    await page.click('#viewTabs .tab[data-view="timeline"]');
+    await page.waitForTimeout(300);
+    await openTabsPage();
+
+    await press("Ledger", "tab-up");
+    check("↑ moves a tab left, and the tab bar follows",
+      JSON.stringify(await barOrder()) === JSON.stringify(["notes", "timeline", "finance", "backlog"]) &&
+      JSON.stringify((await visual()).viewOrder) === JSON.stringify(["notes", "timeline", "finance", "backlog"]),
+      { bar: await barOrder(), stored: (await visual()).viewOrder });
+    check("and so does the list in Settings", await page.evaluate(() =>
+      [...document.querySelectorAll("#tabToggles .tab-toggle-view .sitem-title")].map((t) => t.textContent).join() === "Notes,Timeline,Ledger,Backlog"));
+
+    await press("Discover", "mode-default");
+    check("starring an end mode of a three-mode tab moves it into the middle",
+      JSON.stringify(await tabRows("Backlog")) === JSON.stringify(["Next releases", "Discover*", "Entries"]), await tabRows("Backlog"));
+    await press("Stats", "mode-default");
+    check("starring a mode of a two-mode tab leaves the order alone",
+      JSON.stringify(await tabRows("Timeline")) === JSON.stringify(["Entries", "Stats*"]), await tabRows("Timeline"));
+    await press("Habits", "mode-up");
+    check("moving a three-mode tab's modes moves the star with whatever lands in the middle",
+      JSON.stringify(await tabRows("Notes")) === JSON.stringify(["To-do", "Habits*", "Notes"]) &&
+      (await visual()).defaultModes.notes === "habits", { rows: await tabRows("Notes"), stored: (await visual()).defaultModes });
+
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(200);
+    await page.click('#viewTabs .tab[data-view="backlog"]');
+    await page.waitForTimeout(300);
+    check("a tab opens on its starred mode", (await ui()).backlogMode === "discover", (await ui()).backlogMode);
+    await page.click('#viewTabs .tab[data-view="notes"]');
+    await page.waitForTimeout(300);
+    check("including one starred by moving it", (await ui()).notesMode === "habits", (await ui()).notesMode);
+    check("the mode dots follow the order", await page.evaluate(() => {
+      const dots = [...document.querySelectorAll('#viewTabs .tab[data-view="notes"] .tab-mode-dot')];
+      return dots.length === 3 && dots[1].classList.contains("is-on");
+    }));
+
+    await page.keyboard.press("3");
+    await page.waitForTimeout(300);
+    check("the number keys follow the tab bar as it now is", (await ui()).view === "finance", (await ui()).view);
+    await page.keyboard.press("Shift+Digit2");
+    await page.waitForTimeout(300);
+    const after = await ui();
+    check("and Shift goes to the mode after the one a tab opens on",
+      after.view === "timeline" && after.timelineMode === "entries", after);
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 6a2. a saved order that names a mode the app no longer has ----
+  {
+    const { page, ctx, errs: e } = await app(browser, {
+      ui: { view: "backlog", backlogMode: "entries" },
+      visual: { modeOrder: { backlog: ["gone", "discover", "entries"] }, viewOrder: ["finance", "nope"] },
+    });
+    const dots = await page.evaluate(() => document.querySelectorAll('#viewTabs .tab[data-view="backlog"] .tab-mode-dot').length);
+    const bar = await page.evaluate(() => [...document.querySelectorAll("#viewTabs .tab")].map((t) => t.dataset.view));
+    check("unknown ids in a saved order are dropped and missing ones added at the end",
+      dots === 3 && JSON.stringify(bar) === JSON.stringify(["finance", "notes", "timeline", "backlog"]), { dots, bar });
     errs.push(...e);
     await ctx.close();
   }
