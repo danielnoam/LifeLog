@@ -74,6 +74,20 @@ todo:
   hit early). Exports need a place too: PNG/SVG out, and boards in the
   Notes tab's JSON.
 
+  Rough sizes, as vectors in JSON (estimates, not measured):
+  - A shape, arrow or text box: ~100–200 bytes. A 50-shape diagram ≈ 10 KB.
+  - A freehand stroke, raw: ~1–1.5 KB (a 1.5 s stroke sampled at ~60 Hz is
+    ~90 points at ~12 bytes each). Simplified on save to 15–25 points:
+    ~250–400 bytes, about a quarter.
+  - 200 strokes: ≈ 250 KB raw, ≈ 60 KB simplified. A handwritten page of
+    ~1,000 strokes, simplified: ≈ 300 KB. A PNG of the same is 50–300 KB,
+    so vectors win for diagrams and roughly tie for dense handwriting.
+  What decides where boards live is that every save uploads the whole data
+  file: inside lifelog.json, ticking a habit re-sends every board, and two
+  or three handwritten pages would push it past GitHub's 1 MB mark. History
+  is not the worry: JSON compresses 5–10x, so a 300 KB board adds roughly
+  30–60 KB of repo per save.
+
 ---
 
 Ideas that turned out not to be worth doing, or not to be possible, live in
