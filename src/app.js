@@ -128,7 +128,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.189.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.190.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3835,7 +3835,34 @@
   // `shortcuts`, arriving as ?action=) and the Android widgets' (through the
   // Widgets plugin — see widgets.js). Neither list can know what you've
   // turned off, so this is where one for a disabled tab or mode stops.
+  // The form each widget action opens. A second tap after leaving the app
+  // with one form still up used to open the new form underneath it — the
+  // overlays stack in page order, so Backlog's stayed over Note's — and the
+  // app looked as if it hadn't heard (0.190.0).
+  const ACTION_SHEETS = {
+    "add-entry": "entryModal", "add-expense": "financeModal", "add-backlog": "backlogModal",
+    "add-note": "noteModal", "add-habit": "habitModal",
+  };
+  // Left up whatever arrives: questions the app is waiting on an answer to.
+  const KEEP_OPEN = ["conflictModal", "bulkProgressModal", "financePickerModal"];
+
+  // Clears the way for an action from outside the app. Returns true when the
+  // form it asks for is already the one open — then it's left as it is, so a
+  // half-written note survives a second tap on Note.
+  function clearForAction(action) {
+    const target = ACTION_SHEETS[action];
+    const already = !!target && !$("#" + target).hidden;
+    for (const o of document.querySelectorAll(".modal-overlay:not([hidden])")) {
+      if (o.id === target || KEEP_OPEN.includes(o.id)) continue;
+      o.hidden = true;
+    }
+    $("#addMenu").hidden = true;
+    if (Recap.isOpen()) Recap.closeRecap();
+    return already;
+  }
+
   function runAction(action) {
+    if (clearForAction(action)) return;
     const goTo = (view, mode) => {
       VIEW_MODES[view].set(mode);
       if (view !== state.view) switchToView(view); else commitModeChange();

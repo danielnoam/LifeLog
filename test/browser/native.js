@@ -1001,6 +1001,34 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     check("the quick-add widget's Backlog button opens the backlog form", await page.evaluate(() => !document.querySelector("#backlogModal").hidden));
     const snap = await page.evaluate(() => window.__cap.widgetSnaps[window.__cap.widgetSnaps.length - 1]);
     check("and is offered while the Backlog tab is on", !!snap && snap.actions.includes("add-backlog"), snap && snap.actions);
+
+    // Leave the app with that form up, and press another button: Android
+    // hands the running app the new action, which used to open its form
+    // underneath the old one.
+    const press = async (action) => {
+      await page.evaluate((a) => {
+        window.__widgetPlan.action = a;
+        for (const cb of window.__cap.widgetListeners.action || []) cb({});
+      }, action);
+      await page.waitForTimeout(400);
+    };
+    const onTop = () => page.evaluate(() => {
+      const hit = document.elementFromPoint(innerWidth / 2, innerHeight / 2);
+      const o = hit && hit.closest(".modal-overlay");
+      return o ? o.id : null;
+    });
+    await press("add-note");
+    check("a second quick-add button while the first form is still up shows its own form",
+      (await onTop()) === "noteModal" && await page.evaluate(() => document.querySelector("#backlogModal").hidden), await onTop());
+    await page.fill("#nText", "Half a thought");
+    await press("add-note");
+    check("pressing the same one again keeps what you'd started",
+      (await onTop()) === "noteModal" && (await page.inputValue("#nText")) === "Half a thought", await page.inputValue("#nText"));
+    await press("add-expense");
+    check("and any other replaces it", (await onTop()) === "financeModal", await onTop());
+    await press("open-habits");
+    check("an open-the-app button closes the form rather than opening underneath it",
+      (await onTop()) === null && await page.evaluate(() => !document.querySelector(".modal-overlay:not([hidden])")), await onTop());
     errs.push(...e);
     await ctx.close();
   }

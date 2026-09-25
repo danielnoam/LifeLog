@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.190.0] - 2026-09-25
+
+### Fixed
+- **A second quick-add button did nothing visible.** Press one (say
+  Backlog), leave the app with its form still open, then press another
+  (Note): the new form opened underneath the old one, so the app seemed to
+  ignore it. A widget button now closes whatever form is up first. Pressing
+  the same button again leaves its form as it is, so a half-written note
+  isn't wiped. The same goes for the app's home-screen shortcuts.
+
 ## [0.189.0] - 2026-09-25
 
 ### Changed
