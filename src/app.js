@@ -128,7 +128,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.184.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.185.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3052,13 +3052,13 @@
     if (!res || !res.changed) return { outcome: "unchanged" };
     {
       // Re-check: a save may have started while checkRemote() was in flight.
+      // Backing off is safe now: checkRemote left the sha alone, so whatever
+      // saves next meets a 409 and merges (0.185.0).
       if (syncInFlight || isAnyModalOpen() || state.pendingSync) return { outcome: "busy" };
       const remoteData = normalize(res.data);
       // Merge rather than blindly adopting remote: this device may have
       // edits queued for its next save (see persist()), and they are already
-      // stamped in state.data. Bailing out here instead would be worse than
-      // it looks — checkRemote() has moved the sha on, so the queued save
-      // would replace GitHub's copy without ever having seen it.
+      // stamped in state.data.
       let merged = remoteData, contributedLocally = false, summary = "", conflictSummary = "";
       if (window.LifeLogMerge) {
         try {
@@ -3070,6 +3070,8 @@
         } catch (e) { merged = remoteData; }
       }
       state.data = merged;
+      // Only now is GitHub's copy part of this one — see checkRemote.
+      Storage.acceptRemote(res.sha);
       Storage._cache(state.data);
       afterDataChange();
       noticeVersionSkew();
@@ -3097,6 +3099,9 @@
   async function reconcileFromSources() {
     if (syncInFlight || state.pendingSync) return; // a save owns the data; the poll will pick this up
     let result;
+    // load() takes GitHub's sha and moves the merge ancestor as it reads.
+    // If what it read can't be taken in below, both go back — see checkRemote.
+    const point = Storage.syncPoint();
     try {
       result = await Storage.load(() => {
         // The live document has to carry accurate timestamps before it can be
@@ -3129,7 +3134,11 @@
     // Re-checked after the await, exactly as pollForUpdates does: a save may
     // have started while GitHub was answering, and its data is newer than
     // anything this merge saw.
-    if (syncInFlight || state.pendingSync || isAnyModalOpen()) { refreshStorageStatus(); return; }
+    if (syncInFlight || state.pendingSync || isAnyModalOpen()) {
+      Storage.restoreSyncPoint(point);
+      refreshStorageStatus();
+      return;
+    }
 
     // Normalized local against a raw sync base is the same footing
     // pollForUpdates has always merged on — normalize() is deterministic and
@@ -3782,6 +3791,7 @@
     else if (action === "add-backlog" && viewEnabled("backlog")) Backlog.openBacklogModal(null);
     else if (action === "add-note" && modeEnabled("notes", "notes")) Notes.openNoteModal(null);
     else if (action === "add-habit" && modeEnabled("notes", "habits")) { goTo("notes", "habits"); Habits.openHabitModal(null); }
+    else if (action === "open-finance" && viewEnabled("finance")) goTo("finance", "entries");
     else if (action === "open-habits" && modeEnabled("notes", "habits")) goTo("notes", "habits");
     else if (action.startsWith("open-habit:") && modeEnabled("notes", "habits")) {
       // A habit tapped on the widget: its card, brought into view and lit
@@ -3803,6 +3813,41 @@
       if (box) box.focus();
     }
   }
+  // The spend widget's numbers (0.185.0): this month so far — everything that
+  // left the account, projects included, which is the Ledger's question
+  // rather than the summary's — against last month up to the same day, and
+  // the three categories most of it went on. Formatted here, where the
+  // currency is known; the widget only draws strings.
+  function widgetSpend() {
+    if (!viewEnabled("finance")) return null;
+    const now = new Date();
+    const y = now.getFullYear(), m = now.getMonth() + 1, day = now.getDate();
+    const monthKey = (yy, mm) => yy + "-" + String(mm).padStart(2, "0");
+    const prevY = m === 1 ? y - 1 : y, prevM = m === 1 ? 12 : m - 1;
+    const thisKey = monthKey(y, m), prevKey = monthKey(prevY, prevM);
+    let total = 0, prev = 0;
+    const byCat = new Map();
+    for (const f of Finance.getEffectiveFinanceEntries()) {
+      const d = String(f.date || ""), n = +f.amount || 0;
+      if (d.slice(0, 7) === thisKey) {
+        total += n;
+        byCat.set(f.category, (byCat.get(f.category) || 0) + n);
+      } else if (d.slice(0, 7) === prevKey && +d.slice(8, 10) <= day) {
+        prev += n;
+      }
+    }
+    const money = (n) => Finance.formatMoney(Math.round(n)).replace(/\.00$/, "");
+    const cats = [...byCat].filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]).slice(0, 3)
+      .map(([name, n]) => ({ name: name || "Other", amount: money(n), color: Finance.financeColorOf(name) }));
+    return {
+      month: thisKey,
+      label: MONTHS[m],
+      total: money(total),
+      compare: prev > 0 ? money(prev) + " by this day in " + MONTHS[prevM] : "",
+      cats,
+    };
+  }
+
   // The quick-add widget's buttons, less any for a tab or mode that's off.
   const quickActions = () => [
     viewEnabled("timeline") && "add-entry",
@@ -4068,7 +4113,7 @@
       // The app's files are already on the device; a worker would only be a
       // second cache of them, and its "new version" isn't the app's.
       checkForNewerApp();
-      Widgets.start({ state, Platform, persist, afterDataChange, toast, runAction, quickActions });
+      Widgets.start({ state, Platform, persist, afterDataChange, toast, runAction, quickActions, spend: widgetSpend });
       if (window.LifeLogReminders) window.LifeLogReminders.start({ $, el, Platform, toast, changed: Widgets.changed, render });
       wireBackButton();
       wirePullToRefresh();

@@ -13,6 +13,22 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## Times-per-week habits, and a streak milestone becoming an accomplishment
+
+Both were left out of habits' first cut (0.171.0) on purpose and kept on the
+TODO list to revisit once habits had been lived with. They have been, and
+neither is wanted.
+
+Times-per-week ("the gym, three times, any days") would have made a streak a
+run of satisfied weeks rather than days — different logic, and a different
+thing to explain on every card — for a cadence nobody reached for.
+
+A hundred-day run offering to write itself into the year's accomplishments
+was a nice connection the app is shaped for, and it stays nice on paper. In
+use, the streak on the card already says it.
+
+---
+
 ## A tab of its own for Habits
 
 Shipped in 0.171.0, moved into Notes in 0.171.1 after one version on screen.

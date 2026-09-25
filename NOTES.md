@@ -16,6 +16,44 @@ what was decided against and why.
 
 ---
 
+- **undo is a merge with the save as the ancestor (0.185.0).** The toast's
+  Undo lasts eight seconds; the one for the next morning lives in History.
+  Restore already existed and is the wrong tool for "take that back": it
+  rolls everything back to a save, taking every later change with it. Undo
+  runs mergeAllSources(after, today, before) — the save as the common
+  ancestor, today as one side, the save before it as the other — so exactly
+  the difference between the two saves is reversed onto today and nothing
+  else moves. No new machinery: an item edited again since is "changed on
+  both sides", and the merge's existing rule keeps the later edit; habit
+  marks go through mergeHabits like any sync. merge.test.js pins the five
+  cases. The before-state is simply the next older entry in the list, local
+  snapshot or GitHub commit, which is why the oldest listed has no Undo.
+
+- **GitHub's sha is taken only when its data is (0.185.0).** checkRemote used
+  to adopt the new sha the moment it saw one, and the poll then sometimes
+  backed off before merging — a save in flight, a form just opened. That
+  left the device holding GitHub's sha without GitHub's data, so its next
+  save matched the sha, got no 409, and wrote the other device's changes
+  away. checkRemote now only reports the sha; the poll takes it with
+  acceptRemote at the moment it adopts the merge. Boot's reconcile reads
+  through load(), which moves the sha and the merge ancestor as it goes, so
+  when it has to back off it puts both back (syncPoint / restoreSyncPoint).
+  savecoalesce.js section 7 stages it — the change found, a form opened
+  mid-read — and loses the note on the old code.
+
+- **widgets, second round (0.185.0).** The spend widget draws strings the
+  app formats (widgetSpend in app.js: the currency and recurring charges
+  live there), and counts what left the account — projects included, the
+  Ledger's question rather than the summary's — against last month up to
+  the same day, since a whole month against part of one always looks
+  thrifty. When the month has turned over since the app last ran it says so
+  instead of showing the old total. From Android 12 the to-do list is filled
+  with RemoteCollectionItems in the update itself, with ids that stay put
+  (a to-do's is its own, a heading's is its panel's) so a partial update
+  hands the rows to the list's existing adapter and the scroll holds; the
+  service stays for 11 and below, and both draw with ListService.rowView.
+  Picker previews are static layouts (previewLayout, Android 12+).
+
 - **reminders are set on the habit cards, not in Settings (0.184.0).**
   0.183.0 put the switch, the permission state and every habit's time in
   Settings → Views. A reminder is a property of one habit, and Settings is

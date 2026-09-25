@@ -185,8 +185,11 @@ test("a layout that needs Android 12 is only ever used behind a check for it", (
     assert.ok(uses.length, name + " is never used");
     // The one method that inflates it is only called behind SDK_INT >= S.
     assert.ok(/SDK_INT >= Build\.VERSION_CODES\.S\) return checkboxRow\(/.test(javaSrc), "checkboxRow isn't guarded");
-    const owner = javaSrc.slice(javaSrc.indexOf("private RemoteViews checkboxRow("));
-    assert.ok(owner.indexOf("R.layout." + name) > -1 && owner.indexOf("R.layout." + name) < owner.indexOf("\n        }\n"), name + " is used outside checkboxRow");
+    const start = javaSrc.search(/RemoteViews checkboxRow\(/);
+    assert.ok(start > -1, "no checkboxRow");
+    const owner = javaSrc.slice(start, javaSrc.indexOf("\n    }\n", start));
+    assert.ok(owner.includes("R.layout." + name), name + " isn't inflated in checkboxRow");
+    assert.strictEqual(uses.length, 1, name + " is used outside checkboxRow");
   }
 });
 
@@ -212,7 +215,7 @@ test("dark mode redefines every widget colour, so none is left light-on-dark", (
 
 test("each widget is declared, with its definition, and the list service is bound", () => {
   const manifest = read(WIDGETS, "AndroidManifest.xml");
-  for (const w of ["HabitsWidget", "TodosWidget", "QuickAddWidget"]) {
+  for (const w of ["HabitsWidget", "TodosWidget", "QuickAddWidget", "SpendWidget"]) {
     const block = manifest.slice(manifest.indexOf("widgets." + w + '"'), manifest.indexOf("</receiver>", manifest.indexOf("widgets." + w + '"')));
     assert.ok(block.includes("android.appwidget.action.APPWIDGET_UPDATE"), w + " never hears it should draw");
     const info = (block.match(/@xml\/(\w+)/) || [])[1];

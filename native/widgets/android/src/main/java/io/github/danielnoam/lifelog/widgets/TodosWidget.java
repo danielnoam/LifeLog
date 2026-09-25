@@ -39,6 +39,27 @@ public class TodosWidget extends AppWidgetProvider {
         WidgetsPlugin.onQueued();
     }
 
+    /**
+     * Android 12's way of filling a list: the rows themselves, with ids that
+     * stay put across updates so the list keeps its place.
+     */
+    static RemoteViews.RemoteCollectionItems items(Context c) {
+        RemoteViews.RemoteCollectionItems.Builder b = new RemoteViews.RemoteCollectionItems.Builder()
+            .setHasStableIds(true)
+            .setViewTypeCount(4);
+        String panel = "";
+        for (WidgetStore.Row r : WidgetStore.todoRows(c)) {
+            if (r.type == WidgetStore.ROW_HEADER) panel = r.text;
+            b.addItem(itemId(r, panel), ListService.rowView(c, r));
+        }
+        return b.build();
+    }
+
+    static long itemId(WidgetStore.Row r, String panel) {
+        String key = r.type == WidgetStore.ROW_TODO ? "todo:" + r.id : r.type + ":" + panel;
+        return key.hashCode();
+    }
+
     static void refresh(Context c) {
         String[] text = text(c);
         ListWidget.refresh(c, TodosWidget.class, ListWidget.header(c, text[0], text[1], text[2]));

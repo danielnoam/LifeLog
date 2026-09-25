@@ -47,7 +47,10 @@ function fakeGitHub(page, { putDelay = 0, dropPuts = false } = {}) {
       return say(200, { content: { sha: gh.sha } });
     }
     if (/\/commits/.test(req.url())) return say(200, []);
-    return say(200, { sha: gh.sha, size: 1000, encoding: "base64", content: b64(gh.remote) });
+    // Read before waiting, so a slow answer is what GitHub held when asked.
+    const answer = { sha: gh.sha, size: 1000, encoding: "base64", content: b64(gh.remote) };
+    if (gh.getDelay) await new Promise((r) => setTimeout(r, gh.getDelay));
+    return say(200, answer);
   }).then(() => gh);
 }
 
@@ -202,6 +205,35 @@ const keysOf = (gh) => gh.puts.map((p) => ((p.data.settings || {}).mediaKeys || 
       await page.evaluate(() => !JSON.parse(localStorage.getItem("lifelog-cache-v1")).notes.some((n) => n.id === "b1")));
     check("a save made before the merge was fetched merges again instead of dropping the note",
       last.notes.some((n) => n.id === "b1") && last.settings.mediaKeys.rawg === "ONETWO", { notes: last.notes.map((n) => n.id), key: last.settings.mediaKeys.rawg });
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 7. a poll that finds a change and then has to back off ----
+  // Until 0.185.0 the poll took GitHub's new sha as soon as it saw it. If it
+  // then backed off — here, a form opened while GitHub was answering — this
+  // device held the new sha without the new data, and its next save went
+  // through with no 409 and wrote the other device's note away.
+  {
+    const { page, ctx, errs: e, gh } = await openApp(browser);
+    gh.remote = { ...gh.remote, notes: [{ id: "b1", text: "From the other device", createdAt: STAMP, updatedAt: "2026-09-02T00:00:00.000Z" }], exportedAt: "2026-09-02T00:00:00.000Z" };
+    gh.sha = "sha-B";
+    gh.getDelay = 700;
+    await page.evaluate(() => window.dispatchEvent(new Event("online")));
+    await page.waitForTimeout(150);
+    await page.evaluate(() => { document.querySelector("#shortcutsModal").hidden = false; });
+    await page.waitForTimeout(900);
+    await page.evaluate(() => { document.querySelector("#shortcutsModal").hidden = true; });
+    check("with a form open, the poll backed off without taking the note in",
+      await page.evaluate(() => !JSON.parse(localStorage.getItem("lifelog-cache-v1")).notes.some((n) => n.id === "b1")));
+    gh.getDelay = 0;
+    await typeKey(page, "AFTER");
+    await settled(page);
+    await page.waitForTimeout(800);
+    const last = gh.puts[gh.puts.length - 1].data;
+    check("the next save still keeps the other device's note", last.notes.some((n) => n.id === "b1"), last.notes);
+    check("because it met a 409 and merged, rather than writing straight over", gh.conflicts >= 1, gh.conflicts);
+    check("and has this device's edit", last.settings.mediaKeys.rawg === "AFTER", last.settings.mediaKeys);
     errs.push(...e);
     await ctx.close();
   }

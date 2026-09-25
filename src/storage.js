@@ -672,14 +672,39 @@
     // last loaded/saved it, { changed: false } if it's the same, or null if
     // GitHub isn't connected or unreachable (e.g. offline) — callers should
     // treat null as "nothing to report" and try again later.
+    //
+    // It doesn't take the new sha as this device's own — the caller does
+    // that with acceptRemote once it has actually merged the data in. Taking
+    // it here was the last way to overwrite another device (0.185.0): a poll
+    // that found a change and then backed off (a save in flight, a form just
+    // opened) left this device holding GitHub's new sha without GitHub's new
+    // data, so its next save sailed through with no 409 to stop it.
     async checkRemote() {
       if (!gh || !gh.token) return null;
       try {
         const f = await ghGetFile();
         if (!f || f.sha === gh.sha) return { changed: false };
-        gh.sha = f.sha; saveGhCfg();
-        return { changed: true, data: f.data };
+        return { changed: true, data: f.data, sha: f.sha };
       } catch (e) { return { changed: false, error: e }; }
+    },
+    acceptRemote(sha) {
+      if (!gh || !sha) return;
+      gh.sha = sha; saveGhCfg();
+    },
+    // What this device believes about GitHub — the sha it writes against and
+    // the merge ancestor — so a caller that has read GitHub but can't take
+    // the result in yet can put the belief back, and the next save meets a
+    // 409 and merges rather than writing over what it never saw.
+    syncPoint() {
+      return { sha: gh ? gh.sha : null, base: localStorage.getItem(SYNC_BASE_KEY) };
+    },
+    restoreSyncPoint(p) {
+      if (!p) return;
+      if (gh) { gh.sha = p.sha; saveGhCfg(); }
+      try {
+        if (p.base == null) localStorage.removeItem(SYNC_BASE_KEY);
+        else localStorage.setItem(SYNC_BASE_KEY, p.base);
+      } catch (e) { /* the base is a convenience; the 409 is what protects */ }
     },
     // What a failure means, for callers that report one themselves (the
     // Android app's pull to refresh). The same reading the status line uses.

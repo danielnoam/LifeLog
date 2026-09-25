@@ -1811,8 +1811,11 @@ kbd {
   padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 13px;
 }
 .history-row:last-child { border-bottom: none; }
-.history-row-head { display: flex; align-items: center; gap: 10px; }
-.history-row-head .btn-small { margin-left: auto; flex: 0 0 auto; }
+.history-row-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.history-row-head .btn-small { flex: 0 0 auto; }
+/* The first button takes the slack, so the row's buttons sit together on
+   the right rather than spreading out between each other. */
+.history-row-head .btn-small:first-of-type { margin-left: auto; }
 .history-date { color: var(--text-dim); white-space: nowrap; font-size: 12px; }
 .history-msg {
   display: block; margin-top: 3px; color: var(--text-faint); font-size: 12px;

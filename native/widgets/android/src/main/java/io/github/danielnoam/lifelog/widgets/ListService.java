@@ -9,12 +9,58 @@ import android.widget.RemoteViewsService;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Feeds the to-do list its rows. (The habits widget has plain rows — see HabitsWidget.) */
+/**
+ * Feeds the to-do list its rows before Android 12. From 12 the rows go into
+ * the widget update itself (RemoteCollectionItems, see TodosWidget) and this
+ * service isn't bound at all; both draw rows with rowView, so they can't
+ * drift apart.
+ */
 public class ListService extends RemoteViewsService {
 
     @Override
     public RemoteViewsFactory onGetViewFactory(Intent intent) {
         return new Factory(getApplicationContext());
+    }
+
+    /** One row of the to-do list, however it gets there. */
+    static RemoteViews rowView(Context c, WidgetStore.Row r) {
+        if (r.type == WidgetStore.ROW_HEADER || r.type == WidgetStore.ROW_SEP) {
+            RemoteViews v = new RemoteViews(c.getPackageName(),
+                r.type == WidgetStore.ROW_HEADER ? R.layout.widget_row_header : R.layout.widget_row_sep);
+            v.setTextViewText(R.id.row_text, r.text);
+            if (r.color != 0) v.setTextColor(R.id.row_text, r.color);
+            return v;
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return checkboxRow(c, r);
+        RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_row_todo);
+        v.setTextViewText(R.id.row_text, r.text);
+        v.setTextViewText(R.id.row_tick, r.done ? "✓" : "");
+        int flags = Paint.ANTI_ALIAS_FLAG | (r.done ? Paint.STRIKE_THRU_TEXT_FLAG : 0);
+        v.setInt(R.id.row_text, "setPaintFlags", flags);
+        v.setTextColor(R.id.row_text, c.getResources().getColor(r.done ? R.color.widget_muted : R.color.widget_text, null));
+        v.setInt(R.id.row_tick, "setBackgroundResource", r.done ? R.drawable.widget_tick_on : R.drawable.widget_tick_off);
+        Intent fill = new Intent();
+        fill.putExtra(ListWidget.EXTRA_ID, r.id);
+        v.setOnClickFillInIntent(R.id.row, fill);
+        return v;
+    }
+
+    /**
+     * Android 12 and up: the row is a real checkbox, so a tap animates the
+     * tick on the home screen itself, the way the app's rows do, instead
+     * of the whole row being redrawn with the answer.
+     */
+    private static RemoteViews checkboxRow(Context c, WidgetStore.Row r) {
+        RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_row_check);
+        v.setTextViewText(R.id.row_check, r.text);
+        v.setCompoundButtonChecked(R.id.row_check, r.done);
+        int flags = Paint.ANTI_ALIAS_FLAG | (r.done ? Paint.STRIKE_THRU_TEXT_FLAG : 0);
+        v.setInt(R.id.row_check, "setPaintFlags", flags);
+        v.setTextColor(R.id.row_check, c.getResources().getColor(r.done ? R.color.widget_muted : R.color.widget_text, null));
+        Intent fill = new Intent();
+        fill.putExtra(ListWidget.EXTRA_ID, r.id);
+        v.setOnCheckedChangeResponse(R.id.row_check, RemoteViews.RemoteResponse.fromFillInIntent(fill));
+        return v;
     }
 
     private static final class Factory implements RemoteViewsService.RemoteViewsFactory {
@@ -45,45 +91,7 @@ public class ListService extends RemoteViewsService {
         @Override
         public RemoteViews getViewAt(int position) {
             if (position < 0 || position >= rows.size()) return null;
-            WidgetStore.Row r = rows.get(position);
-            if (r.type == WidgetStore.ROW_HEADER || r.type == WidgetStore.ROW_SEP) {
-                RemoteViews v = new RemoteViews(c.getPackageName(),
-                    r.type == WidgetStore.ROW_HEADER ? R.layout.widget_row_header : R.layout.widget_row_sep);
-                v.setTextViewText(R.id.row_text, r.text);
-                if (r.color != 0) v.setTextColor(R.id.row_text, r.color);
-                return v;
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return checkboxRow(r);
-            RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_row_todo);
-            v.setTextViewText(R.id.row_text, r.text);
-            v.setTextViewText(R.id.row_tick, r.done ? "✓" : "");
-            int flags = Paint.ANTI_ALIAS_FLAG | (r.done ? Paint.STRIKE_THRU_TEXT_FLAG : 0);
-            v.setInt(R.id.row_text, "setPaintFlags", flags);
-            v.setTextColor(R.id.row_text, c.getResources().getColor(r.done ? R.color.widget_muted : R.color.widget_text, null));
-            v.setInt(R.id.row_tick, "setBackgroundResource", r.done ? R.drawable.widget_tick_on : R.drawable.widget_tick_off);
-
-            Intent fill = new Intent();
-            fill.putExtra(ListWidget.EXTRA_ID, r.id);
-            v.setOnClickFillInIntent(R.id.row, fill);
-            return v;
-        }
-
-        /**
-         * Android 12 and up: the row is a real checkbox, so a tap animates the
-         * tick on the home screen itself, the way the app's rows do, instead
-         * of the whole row being redrawn with the answer.
-         */
-        private RemoteViews checkboxRow(WidgetStore.Row r) {
-            RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_row_check);
-            v.setTextViewText(R.id.row_check, r.text);
-            v.setCompoundButtonChecked(R.id.row_check, r.done);
-            int flags = Paint.ANTI_ALIAS_FLAG | (r.done ? Paint.STRIKE_THRU_TEXT_FLAG : 0);
-            v.setInt(R.id.row_check, "setPaintFlags", flags);
-            v.setTextColor(R.id.row_check, c.getResources().getColor(r.done ? R.color.widget_muted : R.color.widget_text, null));
-            Intent fill = new Intent();
-            fill.putExtra(ListWidget.EXTRA_ID, r.id);
-            v.setOnCheckedChangeResponse(R.id.row_check, RemoteViews.RemoteResponse.fromFillInIntent(fill));
-            return v;
+            return rowView(c, rows.get(position));
         }
 
         @Override

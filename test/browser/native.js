@@ -1019,6 +1019,54 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await ctx.close();
   }
 
+  // ---- 14b. the spend widget's numbers ----
+  {
+    const pad = (n) => String(n).padStart(2, "0");
+    const d = new Date();
+    const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+    const thisM = y + "-" + pad(m), prevY = m === 1 ? y - 1 : y, prevM = m === 1 ? 12 : m - 1;
+    const lastM = prevY + "-" + pad(prevM);
+    const fe = (id, date, amount, category) => ({ id, date, amount, category, note: "", createdAt: date + "T10:00:00.000Z", updatedAt: date + "T10:00:00.000Z" });
+    const withMoney = {
+      ...doc([], "2026-09-01T00:00:00.000Z"),
+      settings: { currency: "ILS" },
+      financeCategories: [{ name: "Groceries", color: "#3bb2e2" }, { name: "Rent", color: "#e2723b" }, { name: "Books", color: "#b23be2" }, { name: "Fun", color: "#22aa66" }],
+      financeEntries: [
+        fe("a", thisM + "-01", 1200, "Rent"),
+        fe("b", thisM + "-01", 340.4, "Groceries"),
+        fe("c", thisM + "-01", 90, "Books"),
+        fe("d", thisM + "-01", 20, "Fun"),
+        fe("e", lastM + "-01", 500, "Groceries"),
+        // Later in last month than today's date: not "by this day".
+        ...(day < 28 ? [fe("f", lastM + "-28", 9999, "Groceries")] : []),
+      ],
+    };
+    const { page, ctx, errs: e } = await openApp(browser, { cache: withMoney, widgets: { queue: [], action: null } });
+    await page.waitForTimeout(600);
+    const snap = await page.evaluate(() => window.__cap.widgetSnaps[window.__cap.widgetSnaps.length - 1]);
+    const sp = snap && snap.spend;
+    check("the spend widget gets this month's total, in whole shekels", !!sp && sp.total === "₪1,650" && sp.month === thisM, sp);
+    check("against last month by this day, not the whole of it", !!sp && /^₪500 by this day in /.test(sp.compare), sp && sp.compare);
+    check("and the three categories most of it went on, with their colours",
+      !!sp && sp.cats.map((c) => c.name + " " + c.amount).join(", ") === "Rent ₪1,200, Groceries ₪340, Books ₪90" && sp.cats[0].color === "#e2723b", sp && sp.cats);
+    await page.evaluate(() => {
+      window.__widgetPlan.action = "open-finance";
+      (window.__cap.widgetListeners.action || []).forEach((cb) => cb({}));
+    });
+    await page.waitForTimeout(300);
+    check("tapping it opens the Ledger", await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-ui-v1")).view === "finance"));
+    errs.push(...e);
+    await ctx.close();
+  }
+  {
+    const { page, ctx, errs: e } = await openApp(browser, { visual: { disabledViews: ["finance"] }, widgets: { queue: [], action: null } });
+    await page.waitForTimeout(500);
+    const snap = await page.evaluate(() => window.__cap.widgetSnaps[window.__cap.widgetSnaps.length - 1]);
+    check("with the Ledger turned off, there's no spending to send", !!snap && snap.spend === null, snap && snap.spend);
+    errs.push(...e);
+    await ctx.close();
+  }
+
   // ---- 14a. a habit tapped on the widget opens on that habit ----
   {
     const withHabits = {

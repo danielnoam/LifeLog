@@ -6,11 +6,13 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.view.View;
 import android.widget.RemoteViews;
 
 /**
- * The frame the habits and to-do widgets share: header, + button, list.
+ * The to-do widget's frame: header, + button, list. (Named for when the
+ * habits widget shared it; it has plain rows since 0.184.0.)
  *
  * Drawn whole only when Android asks (onUpdate: placed, rebooted, the app
  * updated). Every other redraw — a tick, a new snapshot from the app — is a
@@ -50,12 +52,17 @@ final class ListWidget {
     ) {
         RemoteViews v = header(c, title, subtitle, empty);
 
-        Intent adapter = new Intent(c, ListService.class);
-        adapter.putExtra(EXTRA_KIND, kind);
-        adapter.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId);
-        // Without distinct data, two widgets of the same kind share one factory.
-        adapter.setData(Uri.parse(adapter.toUri(Intent.URI_INTENT_SCHEME)));
-        v.setRemoteAdapter(R.id.widget_list, adapter);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // From Android 12 the rows travel in the update itself.
+            v.setRemoteAdapter(R.id.widget_list, TodosWidget.items(c));
+        } else {
+            Intent adapter = new Intent(c, ListService.class);
+            adapter.putExtra(EXTRA_KIND, kind);
+            adapter.putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, widgetId);
+            // Without distinct data, two widgets of the same kind share one factory.
+            adapter.setData(Uri.parse(adapter.toUri(Intent.URI_INTENT_SCHEME)));
+            v.setRemoteAdapter(R.id.widget_list, adapter);
+        }
         v.setEmptyView(R.id.widget_list, R.id.widget_empty);
 
         v.setOnClickPendingIntent(R.id.widget_header, WidgetStore.openApp(c, openAction, requestBase));
@@ -74,11 +81,21 @@ final class ListWidget {
         return v;
     }
 
-    /** Header text and list contents, keeping the list where it's scrolled to. */
+    /**
+     * Header text and list contents, keeping the list where it's scrolled to.
+     * Before 12 that's a partial update and a data-changed nudge for the
+     * service; from 12 the new rows ride in the partial update, which hands
+     * them to the list's existing adapter rather than replacing it.
+     */
     static void refresh(Context c, Class<?> provider, RemoteViews header) {
         AppWidgetManager manager = AppWidgetManager.getInstance(c);
         int[] ids = ids(c, provider);
         if (ids.length == 0) return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            header.setRemoteAdapter(R.id.widget_list, TodosWidget.items(c));
+            manager.partiallyUpdateAppWidget(ids, header);
+            return;
+        }
         manager.partiallyUpdateAppWidget(ids, header);
         manager.notifyAppWidgetViewDataChanged(ids, R.id.widget_list);
     }

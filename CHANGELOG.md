@@ -4,6 +4,37 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.185.0] - 2026-09-25
+
+### Added
+- **Undo one change from History.** Settings → History now has an **Undo**
+  on every save: it takes back just what that save changed — a note added,
+  a to-do deleted, a day ticked, settings a bad sync emptied — and keeps
+  everything done since. Something you've changed again since keeps its
+  later version. It tells you what it's about to take back before doing it,
+  and the toast after has **Put it back**. **Restore**, which rolls
+  everything back to a save, is still there beside it.
+- **A spending widget in the Android app**: this month so far, against last
+  month up to the same day, and the three categories most of it went on.
+  Tapping it opens the Ledger. After the month turns over it says so,
+  rather than showing last month's total as this one's, until LifeLog runs.
+- **Previews in the widget picker** (Android 12+): each LifeLog widget shows
+  what it looks like, instead of the app's icon.
+
+### Changed
+- **The to-do widget fills its list the Android 12 way** — the rows come
+  with each update rather than through a background service — which is
+  quicker to redraw. Older Android keeps the service.
+
+### Fixed
+- **The last way to overwrite another device's changes.** When LifeLog
+  noticed a change from your other device but had to hold off taking it in
+  — because a save was still going, or you'd just opened a form — it had
+  already marked GitHub's copy as seen. Its next save then went straight
+  over the other device's changes. Now GitHub's copy only counts as seen
+  once it has actually been merged in, so that save meets the conflict and
+  merges instead.
+
 ## [0.184.0] - 2026-09-24
 
 ### Added

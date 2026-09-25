@@ -6,6 +6,8 @@
     <string name="widget_todos_description">Your to-do list, ticked without opening the app</string>
     <string name="widget_quickadd_label">LifeLog quick add</string>
     <string name="widget_quickadd_description">Add an entry, an expense, a backlog item, a note or a to-do</string>
+    <string name="widget_spend_label">LifeLog spending</string>
+    <string name="widget_spend_description">What this month has cost so far, and where it went</string>
     <string name="widget_add">Add</string>
     <string name="widget_add_entry">✎\nEntry</string>
     <string name="widget_add_expense">₪\nExpense</string>

@@ -147,6 +147,32 @@ public class WidgetLogicTest {
         assertEquals(1, HabitsWidget.rowsThatFit(40));   // never none
     }
 
+    // ---- the spend widget ----
+
+    @Test
+    public void spendingFromAMonthThatHasEndedIsSaidToBeSo() {
+        assertFalse(SpendWidget.stale("2026-09", "2026-09-30"));
+        assertTrue(SpendWidget.stale("2026-09", "2026-10-01"));
+        assertTrue(SpendWidget.stale("", D));
+    }
+
+    // ---- the to-do list's ids, which keep its place (Android 12+) ----
+
+    @Test
+    public void aToDoKeepsItsIdWhereverItMovesAndPanelsKeepTheirs() throws Exception {
+        List<WidgetStore.Row> rows = WidgetStore.todoRows(todos(), NONE);
+        WidgetStore.Row t2 = null;
+        for (WidgetStore.Row r : rows) if ("t2".equals(r.id)) t2 = r;
+        long before = TodosWidget.itemId(t2, "To do");
+        // Ticked, it moves under the line; its id doesn't change.
+        JSONArray q = new JSONArray("[{\"kind\":\"todo\",\"id\":\"t2\",\"done\":true}]");
+        for (WidgetStore.Row r : WidgetStore.todoRows(todos(), q)) if ("t2".equals(r.id)) assertEquals(before, TodosWidget.itemId(r, "To do"));
+        // Two panels' "done" lines are different items.
+        WidgetStore.Row sep = new WidgetStore.Row();
+        sep.type = WidgetStore.ROW_SEP;
+        assertTrue(TodosWidget.itemId(sep, "To do") != TodosWidget.itemId(sep, "Work"));
+    }
+
     // ---- the to-do list, as the app's panels ----
 
     private static String rows(JSONObject snap, JSONArray q) {

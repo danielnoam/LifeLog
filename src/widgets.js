@@ -39,7 +39,7 @@
   // showing — a button for a tab you've turned off opens nothing.
   // remindAt and runBefore come from reminders.js and habits.js in the app;
   // left out, nothing is reminded and every run starts at nought.
-  function snapshotOf(data, { today, actions = [], remindAt = () => "", runBefore = () => 0 } = {}) {
+  function snapshotOf(data, { today, actions = [], remindAt = () => "", runBefore = () => 0, spend = null } = {}) {
     const since = addDays(today, -MARK_DAYS);
     const until = addDays(today, 1);
     const habits = (data.habits || [])
@@ -89,7 +89,7 @@
       for (const t of open) todos.push(row(t));
       for (const t of done.slice(0, DONE_PER_PANEL)) todos.push(row(t));
     }
-    return { v: 3, today, habits, todos, doneCount, actions };
+    return { v: 4, today, habits, todos, doneCount, actions, spend };
   }
 
   // Ticks from a widget, onto the data. Anything that has gone since the
@@ -136,6 +136,7 @@
       actions: ctx.quickActions(),
       remindAt: R ? R.remindAt : undefined,
       runBefore: H ? H.runBefore : undefined,
+      spend: ctx.spend ? ctx.spend() : null,
     });
     Promise.resolve(W.update({ json: JSON.stringify(snap) })).catch(() => { /* the widget keeps its last copy */ });
   }

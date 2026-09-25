@@ -463,6 +463,7 @@ final class WidgetStore {
         HabitsWidget.refresh(c);
         TodosWidget.refresh(c);
         QuickAddWidget.refresh(c);
+        SpendWidget.refresh(c);
     }
 
     static String pendingNote(Context c) {

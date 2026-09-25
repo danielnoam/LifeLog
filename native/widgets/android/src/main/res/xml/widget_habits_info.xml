@@ -3,6 +3,7 @@
      it recomputes which habits are due today, without the app. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_habits_description"
+    android:previewLayout="@layout/widget_habits_preview"
     android:initialLayout="@layout/widget_habits"
     android:minWidth="180dp"
     android:minHeight="110dp"

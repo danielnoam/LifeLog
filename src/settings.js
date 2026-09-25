@@ -237,9 +237,20 @@
           only.onclick = () => restoreSettingsFrom(c);
           head.appendChild(only);
         }
+        // Undoing needs the save before it, to know what the change was, so
+        // the oldest one listed can't be undone.
+        const older = combined[i + 1];
+        if (older) {
+          const undo = el("button", "btn btn-small", "Undo");
+          undo.type = "button";
+          undo.title = "Undo just this change, and keep everything since";
+          undo.onclick = () => undoHistoryChange(c, older);
+          head.appendChild(undo);
+        }
         const btn = el("button", "btn btn-small", i === 0 ? "Current" : "Restore");
         btn.type = "button";
         btn.disabled = i === 0;
+        btn.title = i === 0 ? "" : "Go back to exactly this save, dropping everything since";
         btn.onclick = () => restoreHistoryVersion(c);
         head.appendChild(btn);
         row.appendChild(head);
@@ -275,6 +286,47 @@
       toast("Restore failed: " + (e.message || e), true);
       refreshStorageStatus();
     }
+  }
+
+  // ---------- undoing one change (0.185.0) ----------
+  // The toast's Undo lasts eight seconds; this is the one for the next
+  // morning. Restore rolls everything back to a save, which takes every later
+  // change with it. Undo takes back only what one save changed: a three-way
+  // merge with that save as the ancestor, today's data as one side and the
+  // save before it as the other — so exactly the difference between the two
+  // is reversed onto today, and anything since stays. Something edited again
+  // later keeps its later edit, because the merge's rules for "both sides
+  // changed it" already decide that.
+  async function undoHistoryChange(entry, older) {
+    const when = formatHistoryDate(entry.savedAt);
+    let after, before;
+    try {
+      [after, before] = await Promise.all([
+        entry.snapshot || Storage.getVersion(entry.sha),
+        older.snapshot || Storage.getVersion(older.sha),
+      ]);
+    } catch (e) { toast("Couldn't read that save: " + (e.message || e), true); return; }
+    const M = window.LifeLogMerge;
+    const next = normalize(M.mergeAllSources(normalize(structuredClone(after)), state.data, normalize(structuredClone(before))));
+    const summary = M.diffSnapshots(state.data, next);
+    if (summary === "No changes") {
+      toast("Nothing to undo there — later changes have already replaced it");
+      return;
+    }
+    if (!confirm("Undo the change from " + when + "?\n\n" +
+      "It was: " + (entry.summary || "(no summary)") + "\n" +
+      "Undoing it: " + summary + "\n\n" +
+      "Everything since stays as it is.")) return;
+    const was = state.data;
+    state.data = next;
+    afterDataChange();
+    await persist();
+    await refreshHistoryList();
+    refreshTrashList();
+    toast("Undid the change from " + when, false, {
+      label: "Put it back",
+      onClick: async () => { state.data = was; afterDataChange(); await persist(); await refreshHistoryList(); },
+    });
   }
 
   // ---------- bringing back settings a bad merge emptied ----------

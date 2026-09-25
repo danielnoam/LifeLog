@@ -487,5 +487,49 @@ test("fill: a version with nothing missing fills nothing, and keeps the current 
   assert.strictEqual(r.settings.updatedAt, "t9");
 });
 
+// ---- undoing one change from History (settings.js undoHistoryChange) ----
+// The merge with the save as ancestor, today as one side and the save before
+// it as the other. These pin what "undo just this change" means.
+const note = (id, text, t) => ({ id, text, createdAt: "2026-01-01T00:00:00.000Z", updatedAt: t });
+const docOf = (notes, extra) => ({ notes, entries: [], backlog: [], todos: [], settings: {}, accomplishments: {}, ...extra });
+const undo = (before, after, today) => mergeAllSources(after, today, before);
+const texts = (d) => d.notes.map((n) => n.text).sort();
+
+test("undo: something added in that save goes, and what came after stays", () => {
+  const before = docOf([note("a", "A", "t1")]);
+  const after = docOf([note("a", "A", "t1"), note("b", "B", "t2")]);
+  const today = docOf([note("a", "A", "t1"), note("b", "B", "t2"), note("c", "C", "t3")]);
+  assert.deepStrictEqual(texts(undo(before, after, today)), ["A", "C"]);
+});
+
+test("undo: something deleted in that save comes back", () => {
+  const before = docOf([note("a", "A", "t1"), note("b", "B", "t1")]);
+  const after = docOf([note("a", "A", "t1")]);
+  const today = docOf([note("a", "A", "t1"), note("c", "C", "t3")]);
+  assert.deepStrictEqual(texts(undo(before, after, today)), ["A", "B", "C"]);
+});
+
+test("undo: an edit in that save goes back to what it was", () => {
+  const before = docOf([note("a", "first", "t1")]);
+  const after = docOf([note("a", "second", "t2")]);
+  const today = docOf([note("a", "second", "t2")]);
+  assert.deepStrictEqual(texts(undo(before, after, today)), ["first"]);
+});
+
+test("undo: something edited again since keeps its later edit", () => {
+  const before = docOf([note("a", "first", "t1")]);
+  const after = docOf([note("a", "second", "t2")]);
+  const today = docOf([note("a", "third", "t3")]);
+  assert.deepStrictEqual(texts(undo(before, after, today)), ["third"]);
+});
+
+test("undo: a habit day ticked in that save is unticked, the others kept", () => {
+  const h = (marks, t) => ({ id: "h", name: "Read", marks, updatedAt: t });
+  const before = docOf([], { habits: [h({ "2026-09-20": 1 }, "t1")] });
+  const after = docOf([], { habits: [h({ "2026-09-20": 1, "2026-09-21": 1 }, "t2")] });
+  const today = docOf([], { habits: [h({ "2026-09-20": 1, "2026-09-21": 1, "2026-09-22": 1 }, "t3")] });
+  assert.deepStrictEqual(Object.keys(undo(before, after, today).habits[0].marks).sort(), ["2026-09-20", "2026-09-22"]);
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

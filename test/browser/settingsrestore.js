@@ -144,6 +144,32 @@ const cached = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     await ctx.close();
   }
 
+  // ---- undoing one save: the wipe itself (0.185.0) ----
+  // Restore would take the note added since with it; Undo takes back only
+  // what the wipe changed.
+  {
+    const { page, ctx, errs: e, dialogs } = await openApp(browser);
+    const rows = await page.evaluate(() => [...document.querySelectorAll(".history-row")].map((r) => ({
+      msg: r.querySelector(".history-msg").textContent, undo: !!r.querySelector('button[title^="Undo just"]'),
+    })));
+    check("every save but the oldest listed can be undone on its own",
+      rows.length >= 3 && rows.slice(0, -1).every((r) => r.undo) && !rows[rows.length - 1].undo, rows);
+    await page.evaluate(() => {
+      const row = [...document.querySelectorAll(".history-row")].find((r) => /the wipe/.test(r.querySelector(".history-msg").textContent));
+      row.querySelector('button[title^="Undo just"]').click();
+    });
+    await page.waitForTimeout(1200);
+    await settled(page);
+    const d = await cached(page);
+    check("undoing the wipe brings the keys back", d.settings.mediaKeys.rawg === "RAWG-SECRET" && d.settings.mediaKeys.tmdb === "TMDB-SECRET", d.settings.mediaKeys);
+    check("and the media sources the wipe emptied", d.settings.mediaCategorySources.Games === "rawg", d.settings.mediaCategorySources);
+    check("while the note added since stays", d.notes.some((n) => n.text === "Added after the wipe"), d.notes.map((n) => n.text));
+    check("and so does a setting changed on purpose since", d.settings.backlogSort === "added-new", d.settings.backlogSort);
+    check("it said what it was about to take back before doing it", dialogs.some((m) => /Undo the change from/.test(m) && /Everything since stays/.test(m)), dialogs);
+    errs.push(...e);
+    await ctx.close();
+  }
+
   await browser.close();
   console.log("\nerrors:", errs.length ? errs : "none");
   console.log(`\n${pass} passed, ${fail} failed`);
