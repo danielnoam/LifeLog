@@ -28,7 +28,7 @@ const EMPTY = { categories: [], entries: [], accomplishments: {}, backlog: [], n
   financeCategories: [], financeEntries: [], recurringExpenses: [], projects: [], settings: {} };
 const COUNT = (d) => ({
   entries: d.entries.length, achievements: Object.values(d.accomplishments || {}).flat().length, backlog: d.backlog.length,
-  notes: d.notes.length, todos: d.todos.length, habits: d.habits.length,
+  notes: d.notes.length, todos: (d.todos || []).length, habits: d.habits.length,
   finance: d.financeEntries.length, recurring: d.recurringExpenses.length, projects: (d.projects || []).length,
 });
 const NONE = { entries: 0, achievements: 0, backlog: 0, notes: 0, todos: 0, habits: 0, finance: 0, recurring: 0, projects: 0 };
