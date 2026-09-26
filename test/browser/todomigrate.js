@@ -74,8 +74,12 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
   check("the lists are drawn as panels", await page.evaluate(() => document.querySelectorAll(".note-card.is-list .todo-row").length === 3));
 
   // Make a change so it's saved, then look at what GitHub got.
+  // Waits for the save to reach GitHub rather than a fixed time: under a
+  // loaded run it could land after 1.5s, and everything below is built on it.
+  const putsBefore = gh.puts;
   await page.locator('.note-card:has-text("Shopping") .todo-check').first().click();
-  await page.waitForTimeout(1500);
+  for (let t = 0; t < 100 && gh.puts === putsBefore; t++) await page.waitForTimeout(100);
+  await page.waitForTimeout(300);
   let remote = gh.file.data;
   check("the save carries the lists, and no to-dos", (remote.todos || []).length === 0 &&
     remote.notes.filter((n) => n.kind === "list").length === 2, { todos: remote.todos, notes: remote.notes.map((n) => n.id) });
