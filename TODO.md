@@ -25,28 +25,15 @@ todo:
   "Automatically delete head branches" only helps with branches merged
   through a PR, which this repo no longer uses.
 
-- **Notes, stages 2 and 3: the To-do mode becomes list notes.** Stage 1
-  (0.195.0) gave notes kinds (plain, list, quote), categories, a kind
-  switch and a sort. Decided with the owner: to-do categories are really
-  separate lists, so each becomes a list note; the widget and quick-add work
-  across every unticked item.
-  - **Stage 2, the migration.** Each to-do category → a list note titled
-    with it (category-less to-dos → one "To-do" list), items keeping their
-    text, ticks, doneAt and order. Two devices migrate on their own, so the
-    list and item ids must come out the same on both (derived from the
-    category's and the to-do's ids, not minted), and it must run once
-    (a marker in settings) and be safe against a device still on an older
-    APK writing `todos` after the others moved on — merge those in rather
-    than lose them. Keep `todos` until stage 3 ships so a rollback loses
-    nothing.
-  - **Stage 3, the switch.** The Todos widget reads unticked items across
-    list notes, grouped by note, ticking still works from the home screen;
-    quick-add ("add-todo"/the widget's +) goes into a default list you pick;
-    Recap's "to-dos done" counts list items; then the To-do mode, todos.js,
-    `todos`/`todoCategories`, their CSV rows and the to-do category modal go.
-  - An "Open items" view — every unticked item across lists — as a chip or
-    filter in Notes, since "what's left to do" shouldn't need opening each
-    list.
+- **Notes, stage 3: remove the To-do mode's leftovers.** Stage 2 (0.197.0)
+  moved every to-do into list notes and switched the widget, quick add,
+  Recap, search and import over. What's left is dead code and data: the
+  To-do mode's UI in todos.js, the to-do category modal and its CSS,
+  `todos`/`todoCategories` in the data (the fold in `normalize()` stays
+  until no device runs an APK older than 0.197.0), and the to-do rows in
+  the CSV export. Also worth doing then: an "Open items" filter in Notes —
+  every unticked item across lists — since "what's left" shouldn't need
+  opening each list.
 
 - **Note widgets (Android).**
   - **A note widget:** one note you pick, shown on the home screen, tapping

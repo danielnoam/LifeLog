@@ -405,14 +405,14 @@
   function renderBoards(root) {
     if (!doc) {
       root.appendChild(el("p", "muted boards-loading", "Loading boards…"));
-      ensureLoaded().then(() => { if (isBoardsMode()) render(); });
+      ensureLoaded().then(() => { if (isBoardsMode()) render({ keepSnapshots: true }); });
       return;
     }
     // Picks up another device's drawing when you come back to the list.
     if (Date.now() - loadedAt > 60000 && !editing && !changedSince) {
-      ensureLoaded(true).then(() => { if (isBoardsMode() && !editing) render(); });
+      ensureLoaded(true).then(() => { if (isBoardsMode() && !editing) render({ keepSnapshots: true }); });
     }
-    fontReady().then((fresh) => { if (fresh && isBoardsMode() && !editing) render(); });
+    fontReady().then((fresh) => { if (fresh && isBoardsMode() && !editing) render({ keepSnapshots: true }); });
     const q = (state.search || "").trim().toLowerCase();
     const list = boards().filter((b) => !q || b.name.toLowerCase().includes(q))
       .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));

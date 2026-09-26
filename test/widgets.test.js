@@ -21,16 +21,19 @@ const data = () => ({
     { id: "h1", name: "Read", order: 0, target: 3, cadence: "daily", startedAt: "2026-01-01", marks: { [TODAY]: 2 } },
     { id: "h3", name: "Old", order: 2, archivedAt: "2026-05-01", marks: {} },
   ],
-  todos: [
-    { id: "t1", text: "Milk", category: "Errands", order: 0 },
-    { id: "t2", text: "Call mum", order: 1 },
-    { id: "t3", text: "Done already", done: true, doneAt: "2026-09-20T00:00:00.000Z", order: 2 },
-    { id: "t4", text: "Taxes", category: "Work", order: 0 },
-    { id: "t5", text: "Bread", category: "Errands", order: -1 },
-    { id: "t6", text: "Orphan", category: "Gone", order: 0 },
+  // The widget's to-dos are list notes' items since 0.197.0.
+  notes: [
+    { id: "Lg", kind: "list", text: "To-do", createdAt: "2026-01-01", items: [
+      { id: "t2", text: "Call mum" }, { id: "t3", text: "Done already", done: true, doneAt: "2026-09-20T00:00:00.000Z" }] },
+    { id: "Lw", kind: "list", text: "Work", category: "Work", createdAt: "2026-01-02", items: [{ id: "t4", text: "Taxes" }] },
+    { id: "Le", kind: "list", text: "Errands", category: "Errands", createdAt: "2026-01-03", items: [
+      { id: "t5", text: "Bread" }, { id: "t1", text: "Milk" }] },
+    { id: "Lf", kind: "list", text: "Later", fav: true, createdAt: "2026-05-01", items: [{ id: "t6", text: "Someday" }] },
+    { id: "N", text: "A plain note is no one's to-do" },
   ],
-  todoCategories: [{ name: "Work", color: "#ff0000" }, { name: "Errands", color: "#00ff00" }],
+  noteCategories: [{ name: "Work", color: "#ff0000" }, { name: "Errands", color: "#00ff00" }],
 });
+const allItems = (d) => d.notes.flatMap((n) => n.items || []);
 
 console.log("\nwhat the widgets are shown");
 
@@ -53,36 +56,39 @@ test("only the last week of marks, not a habit's whole history", () => {
   assert.deepStrictEqual(run.marks, { "2026-09-23": 1 });
 });
 
-test("to-dos in the to-do view's panel order, each panel's finished ones at its foot", () => {
+test("a panel per list: favourites first, then oldest first; each list's own order, finished at its foot", () => {
   const s = W.snapshotOf(data(), { today: TODAY });
-  // General first (its open one, then its done one), then the categories in
-  // their list's order, then one a to-do names that the list has lost; hand
-  // order inside each.
-  assert.deepStrictEqual(s.todos.map((t) => t.id), ["t2", "t3", "t4", "t5", "t1", "t6"]);
+  assert.deepStrictEqual(s.todos.map((t) => t.id), ["t6", "t2", "t3", "t4", "t5", "t1"]);
+  assert.deepStrictEqual(s.todos.map((t) => t.category), ["Later", "To-do", "To-do", "Work", "Errands", "Errands"]);
   assert.deepStrictEqual(s.todos.filter((t) => t.done).map((t) => t.id), ["t3"]);
-  assert.deepStrictEqual(s.doneCount, { "": 1 });
+  assert.deepStrictEqual(s.doneCount, { "To-do": 1 });
+});
+
+test("two lists with one title stay two panels", () => {
+  const d = data();
+  d.notes.push({ id: "L2", kind: "list", text: "Work", createdAt: "2026-06-01", items: [{ id: "x", text: "Other work" }] });
+  const s = W.snapshotOf(d, { today: TODAY });
+  assert.deepStrictEqual([...new Set(s.todos.map((t) => t.category))], ["Later", "To-do", "Work", "Errands", "Work (2)"]);
 });
 
 test("finished ones newest first, as the panel shows them, and only the latest few", () => {
-  const d = data();
-  d.todos = [];
+  const items = [];
   for (let i = 0; i < W.DONE_PER_PANEL + 5; i++) {
-    d.todos.push({ id: "d" + i, text: "x", done: true, doneAt: "2026-09-" + String(1 + (i % 28)).padStart(2, "0") + "T00:00:" + String(i % 60).padStart(2, "0") + ".000Z" });
+    items.push({ id: "d" + i, text: "x", done: true, doneAt: "2026-09-" + String(1 + (i % 28)).padStart(2, "0") + "T00:00:" + String(i % 60).padStart(2, "0") + ".000Z" });
   }
-  d.todos.push({ id: "newest", text: "y", done: true, doneAt: "2026-09-30T00:00:00.000Z" });
-  const s = W.snapshotOf(d, { today: TODAY });
+  items.push({ id: "newest", text: "y", done: true, doneAt: "2026-09-30T00:00:00.000Z" });
+  const s = W.snapshotOf({ notes: [{ id: "L", kind: "list", text: "Done pile", items }] }, { today: TODAY });
   assert.strictEqual(s.todos[0].id, "newest");
   assert.strictEqual(s.todos.length, W.DONE_PER_PANEL);
   // The line under the list still counts every one of them.
-  assert.strictEqual(s.doneCount[""], W.DONE_PER_PANEL + 6);
+  assert.strictEqual(s.doneCount["Done pile"], W.DONE_PER_PANEL + 6);
 });
 
-test("a categorised to-do brings its category's colour", () => {
+test("a list in a category brings the category's colour", () => {
   const s = W.snapshotOf(data(), { today: TODAY });
   assert.strictEqual(s.todos.find((t) => t.id === "t4").color, "#ff0000");
   // An empty string, never null: Android's org.json reads a null as "null".
   assert.strictEqual(s.todos.find((t) => t.id === "t2").color, "");
-  assert.strictEqual(s.todos.find((t) => t.id === "t2").category, "");
 });
 
 test("the quick-add buttons are passed through as given", () => {
@@ -117,7 +123,7 @@ test("a tick that changes nothing isn't counted, so no save is made for it", () 
 test("a to-do ticked on the widget is done as of when it was ticked", () => {
   const d = data();
   W.applyQueue(d, [{ kind: "todo", id: "t1", done: true, at: "2026-09-24T08:00:00.000Z" }]);
-  const t = d.todos.find((x) => x.id === "t1");
+  const t = allItems(d).find((x) => x.id === "t1");
   assert.strictEqual(t.done, true);
   assert.strictEqual(t.doneAt, "2026-09-24T08:00:00.000Z");
 });
@@ -125,7 +131,7 @@ test("a to-do ticked on the widget is done as of when it was ticked", () => {
 test("unticking a to-do clears it the way the app does", () => {
   const d = data();
   W.applyQueue(d, [{ kind: "todo", id: "t3", done: false }]);
-  const t = d.todos.find((x) => x.id === "t3");
+  const t = allItems(d).find((x) => x.id === "t3");
   assert.ok(!("done" in t) && !("doneAt" in t));
 });
 
@@ -137,7 +143,7 @@ test("a tick for something deleted since is dropped, not recreated", () => {
     { kind: "habit", id: "h1", date: "not a date", value: 1 },
   ]);
   assert.strictEqual(n, 0);
-  assert.strictEqual(d.todos.length, 6);
+  assert.strictEqual(allItems(d).length, 6);
 });
 
 console.log(`\n${passed} test(s) passed.`);

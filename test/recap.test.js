@@ -158,12 +158,15 @@ test("the year-on-year spend line is a percentage of the right direction", () =>
   assert.ok(/50% more than 2025/.test(byId(build(data, 2026), "spend").foot));
 });
 
+// To-dos are list notes' items since 0.197.0; a list written last year still
+// counts what was ticked on it this year.
+const listOf = (items) => ({ notes: [{ id: "L" + Math.random(), kind: "list", text: "Jobs", createdAt: "2025-01-01T00:00:00.000Z", items }] });
 test("only to-dos finished in that year count, and only if there are a few", () => {
-  const td = (y, done = true) => ({ id: "t" + Math.random(), done, doneAt: y + "-05-01T00:00:00.000Z" });
-  assert.strictEqual(byId(build({ todos: [td(2026), td(2026)] }, 2026), "todos"), undefined, "two is not a story");
-  const s = byId(build({ todos: [td(2026), td(2026), td(2026), td(2025)] }, 2026), "todos");
+  const td = (y, done = true) => ({ id: "t" + Math.random(), text: "x", done, doneAt: y + "-05-01T00:00:00.000Z" });
+  assert.strictEqual(byId(build(listOf([td(2026), td(2026)]), 2026), "todos"), undefined, "two is not a story");
+  const s = byId(build(listOf([td(2026), td(2026), td(2026), td(2025)]), 2026), "todos");
   assert.strictEqual(s.value, 3);
-  assert.strictEqual(byId(build({ todos: [td(2026, false), td(2026, false), td(2026, false)] }, 2026), "todos"), undefined,
+  assert.strictEqual(byId(build(listOf([td(2026, false), td(2026, false), td(2026, false)]), 2026), "todos"), undefined,
     "unfinished to-dos are not ticked off");
 });
 
@@ -177,8 +180,8 @@ test("achievements come through verbatim", () => {
 test("no big slide says its own number twice", () => {
   const data = {
     entries: [entry({ title: "A" }), entry({ title: "B" })],
-    notes: [{ id: "n", createdAt: "2026-04-01T00:00:00.000Z" }],
-    todos: Array.from({ length: 4 }, (_, i) => ({ id: "t" + i, done: true, doneAt: "2026-05-01T00:00:00.000Z" })),
+    notes: [{ id: "n", createdAt: "2026-04-01T00:00:00.000Z" },
+      { id: "L", kind: "list", createdAt: "2025-01-01T00:00:00.000Z", items: Array.from({ length: 4 }, (_, i) => ({ id: "t" + i, done: true, doneAt: "2026-05-01T00:00:00.000Z" })) }],
     backlog: Array.from({ length: 5 }, (_, i) => ({ id: "b" + i, createdAt: "2026-02-01T00:00:00.000Z" })),
   };
   for (const s of build(data, 2026)) {
@@ -390,8 +393,8 @@ const rich = () => ({
   entries: [entry({ title: "A", rating: 5 }), entry({ title: "A" }), entry({ title: "B", month: 7 }),
     entry({ title: "C", category: "Film", backlogAddedAt: "2024-01-01T00:00:00.000Z" })],
   backlog: Array.from({ length: 5 }, (_, i) => ({ id: "b" + i, createdAt: "2026-02-01T00:00:00.000Z" })),
-  notes: [{ id: "n", createdAt: "2026-04-01T00:00:00.000Z" }],
-  todos: Array.from({ length: 4 }, (_, i) => ({ id: "t" + i, done: true, doneAt: "2026-05-01T00:00:00.000Z" })),
+  notes: [{ id: "n", createdAt: "2026-04-01T00:00:00.000Z" },
+    { id: "L", kind: "list", createdAt: "2025-01-01T00:00:00.000Z", items: Array.from({ length: 4 }, (_, i) => ({ id: "t" + i, done: true, doneAt: "2026-05-01T00:00:00.000Z" })) }],
   financeEntries: [{ id: "f", amount: 50, category: "Food", date: "2026-03-01" }],
   accomplishments: { 2026: [{ text: "Ran a half marathon" }] },
 });
@@ -415,10 +418,9 @@ test("turning off the Backlog takes both of its slides", () => {
   assert.ok(!s.some((x) => ["backlog", "backlog-grew"].includes(x.id)), s.map((x) => x.id));
 });
 
-test("a mode counts too — to-dos go with the Notes tab's To-do mode", () => {
-  const noTodoMode = Recap.buildRecap(rich(), 2026, money, (v, m) => !(v === "notes" && m === "todo"));
-  assert.ok(!noTodoMode.some((x) => x.id === "todos"), "the To-do mode is off");
-  assert.ok(noTodoMode.some((x) => x.id === "notes"), "but Notes itself is still on, so its slide stays");
+test("a mode counts too — to-dos go with the Notes mode, where the lists are", () => {
+  const noNotes = Recap.buildRecap(rich(), 2026, money, (v, m) => !(v === "notes" && m === "notes"));
+  assert.ok(!noNotes.some((x) => x.id === "todos"), "the lists' mode is off");
   const noStats = Recap.buildRecap(rich(), 2026, money, (v, m) => !(v === "timeline" && m === "stats"));
   assert.ok(!noStats.some((x) => x.id === "achievements"), "achievements are read in Stats");
   assert.ok(noStats.some((x) => x.id === "logged"), "the Timeline's own slides stay");

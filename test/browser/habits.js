@@ -240,7 +240,7 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
       active: (document.querySelector("#viewTabs .tab.active") || {}).dataset,
     }));
     check("habits has no tab of its own", !bar.tabs.includes("habits") && bar.tabs.length === 4, bar.tabs);
-    check("it is one of Notes' modes", bar.notesDots === 4 && bar.active.view === "notes", bar);
+    check("it is one of Notes' modes", bar.notesDots === 3 && bar.active.view === "notes", bar);
     check("and the card still renders there", await page.evaluate(() => !!document.querySelector(".habit-card")));
 
     // Anyone who left the app on 0.171.0's tab has view: "habits" saved.

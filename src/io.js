@@ -492,7 +492,11 @@
     // it's called and what it matches on.
     const noteWords = (n) => [n.text, ...(n.items || []).map((i) => i.text)].join("\n");
     if (want("note")) simple("note", incoming.notes || [], sanitizeNote, noteWords, (n) => low(noteWords(n)), state.data.notes || []);
-    if (want("todo")) simple("todo", incoming.todos || [], sanitizeTodo, (t) => t.text, (t) => low(t.category) + "|" + low(t.text), state.data.todos || []);
+    // A to-do you already have is an item of a list note now (0.197.0): the
+    // same id, or the same words in the list its category became.
+    const asTodos = (state.data.notes || []).filter((n) => n.kind === "list")
+      .flatMap((n) => (n.items || []).map((i) => ({ id: i.id, text: i.text, category: n.text === "To-do" ? "" : n.text })));
+    if (want("todo")) simple("todo", incoming.todos || [], sanitizeTodo, (t) => t.text, (t) => low(t.category) + "|" + low(t.text), [...(state.data.todos || []), ...asTodos]);
     if (want("habit")) simple("habit", incoming.habits || [], sanitizeHabit, (h) => h.name, (h) => low(h.name), state.data.habits || []);
     // Names like "Board 3" repeat across devices, so a board matches on its
     // name and how much is on it, or on id.
@@ -608,6 +612,10 @@
     ensureCategories(d.financeCategories, [...recs("finance"), ...recs("recurring")]);
     ensureCategories(d.todoCategories = d.todoCategories || [], recs("todo").filter((t) => t.category));
     ensureCategories(d.noteCategories = d.noteCategories || [], recs("note").filter((n) => n.category));
+    // To-dos from an older file land in their list notes (0.197.0), the way
+    // they do when an older device syncs them.
+    const Notes = window.LifeLogNotes;
+    if (byKind.todo.length && Notes && Notes.foldTodosIntoLists(d)) d.notes = d.notes.map(sanitizeNote);
     if (ensureProjects) ensureProjects(d.projects = d.projects || [], [...recs("finance"), ...recs("recurring")]);
     if (byKind.board.length && addBoards) await addBoards(recs("board"));
 

@@ -4,6 +4,30 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.197.0] - 2026-09-26
+
+### Changed
+- **To-dos are lists now.** The To-do mode is gone from Notes: each to-do
+  category became a list note with its name (to-dos without one went into a
+  list called "To-do"), keeping every item's text, tick, order and when it
+  was done. If you'd left the app on To-do, it opens on Notes showing
+  Lists. Notes has three modes: Habits, Notes, Boards.
+- The home-screen To-do widget shows every list's unticked items, one panel
+  per list, favourites first, and ticking from the home screen still works.
+- Quick add (the widget's + and the "Add a to-do" shortcut) opens a list's
+  add line, ready to type. "Quick add goes here" in a list's sheet picks
+  which list; otherwise it's the one you last worked on.
+- Recap's "to-dos done" counts ticked list items.
+
+### Fixed
+- Notes opened on Habits instead of Notes when Boards was turned off.
+- Swiping back from Boards showed the other page's name instead of the page
+  itself; Boards loading its drawings threw away the pictures of the other
+  modes.
+- A phone still on an older version keeps working: to-dos it adds or ticks
+  after this update land in the matching list when it syncs, not lost and
+  not doubled.
+
 ## [0.196.0] - 2026-09-26
 
 ### Changed

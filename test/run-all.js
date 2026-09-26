@@ -16,9 +16,13 @@ const files = fs.readdirSync(__dirname)
   .sort();
 
 let anyFailed = false;
+const failedFiles = [];
 for (const f of files) {
   console.log(`\n=== ${f} ===`);
   const result = spawnSync(process.execPath, [path.join(__dirname, f)], { stdio: "inherit" });
-  if (result.status !== 0) anyFailed = true;
+  if (result.status !== 0) { anyFailed = true; failedFiles.push(f); }
 }
+// A file that crashes before its first test prints a stack trace and no
+// FAIL line at all, so the verdict names every file that didn't finish clean.
+console.log(anyFailed ? `\nFAILED: ${failedFiles.join(", ")}` : `\nAll ${files.length} test files passed.`);
 if (anyFailed) process.exitCode = 1;

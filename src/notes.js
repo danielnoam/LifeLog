@@ -64,6 +64,62 @@
     return keepUnknown(n, out, KNOWN_NOTE_KEYS);
   }
   const kindOf = (n) => n.kind || "text";
+
+  // ---------- the To-do mode's lists, as list notes (0.197.0) ----------
+  // Every to-do moves into a list note: one per to-do category, titled with
+  // it, and one "To-do" list for the ones with none. Deterministic, so two
+  // devices doing it on their own arrive at the same notes and the same
+  // items — the list's id comes from the category's, each item keeps its
+  // to-do's id — and the merge unites them rather than doubling them.
+  //
+  // It runs whenever `todos` has anything in it, not once: a device still on
+  // an older build keeps writing to-dos until it updates, and those land in
+  // the right list on the next sync. A to-do that's already an item (by id,
+  // or by its words in that list) brings its words and tick across instead
+  // of adding a second one — that's an older device's edit. The to-do
+  // categories are kept (unseen) so a later to-do finds the same list.
+  // Returns whether anything moved.
+  const LIST_BY_ID = "todos-";
+  function foldTodosIntoLists(data) {
+    const todos = data.todos || [];
+    if (!todos.length) return false;
+    const notes = data.notes = data.notes || [];
+    const cats = data.todoCategories || [];
+    const listFor = (name) => {
+      const cat = name ? cats.find((c) => c.name === name) : null;
+      const id = LIST_BY_ID + (cat ? cat.id : name ? name.toLowerCase().replace(/[^a-z0-9]+/g, "-") : "general");
+      let n = notes.find((x) => x.id === id)
+        || notes.find((x) => x.kind === "list" && x.id.startsWith(LIST_BY_ID) && x.text === (name || "To-do"));
+      if (!n) {
+        n = { id, kind: "list", text: name || "To-do", items: [], createdAt: null, updatedAt: "1970-01-01T00:00:00.000Z" };
+        notes.push(n);
+      }
+      n.items = n.items || [];
+      return n;
+    };
+    const byOrderThenAge = (a, b) => ((+a.order || 0) - (+b.order || 0)) || String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
+    const open = todos.filter((t) => !t.done).sort(byOrderThenAge);
+    const done = todos.filter((t) => t.done).sort((a, b) => String(b.doneAt || "").localeCompare(String(a.doneAt || "")));
+    for (const t of [...open, ...done]) {
+      const text = String(t.text || "").trim();
+      if (!text) continue;
+      const n = listFor(t.category || "");
+      const low = text.toLowerCase();
+      let it = n.items.find((i) => i.id === t.id) || n.items.find((i) => String(i.text).toLowerCase() === low && !!i.done === !!t.done);
+      if (!it) {
+        it = { id: t.id, text };
+        // Open ones go after the list's open items, finished ones at the end.
+        const lastOpen = n.items.map((i) => !i.done).lastIndexOf(true);
+        if (t.done) n.items.push(it); else n.items.splice(lastOpen + 1, 0, it);
+      }
+      it.text = text;
+      if (t.done) { it.done = true; it.doneAt = t.doneAt || t.updatedAt || null; } else { delete it.done; delete it.doneAt; }
+      if (!n.createdAt || (t.createdAt && t.createdAt < n.createdAt)) n.createdAt = t.createdAt || n.createdAt;
+      if (t.updatedAt && t.updatedAt > n.updatedAt) n.updatedAt = t.updatedAt;
+    }
+    data.todos = [];
+    return true;
+  }
   // Everything a search should find, whatever the kind.
   const noteHaystack = (n) => [n.text, n.author, n.source, n.category, ...(n.items || []).map((i) => i.text)]
     .filter(Boolean).join("\n").toLowerCase();
@@ -470,6 +526,36 @@
     n.items = n.items.filter((i) => !i.done);
     await saveList(n, true);
     toast(`Cleared ${count}`);
+  }
+
+  // ---------- quick add (0.197.0) ----------
+  // The widget's and the home-screen shortcut's "To-do" lands in a list: the
+  // one ticked "Quick add goes here" in its sheet, else the one most
+  // recently worked on, else a new "To-do" list.
+  function quickList() {
+    const lists = state.data.notes.filter((n) => n.kind === "list");
+    const chosen = lists.find((n) => n.id === state.data.settings.quickList);
+    if (chosen) return chosen;
+    const worked = (n) => String(n.editedAt || n.updatedAt || n.createdAt || "");
+    return lists.sort((a, b) => worked(b).localeCompare(worked(a)))[0] || null;
+  }
+  async function focusQuickList() {
+    let n = quickList();
+    if (!n) {
+      const now = new Date().toISOString();
+      n = sanitizeNote({ kind: "list", text: "To-do", items: [], createdAt: now, updatedAt: now });
+      state.data.notes.unshift(n);
+      persist();
+    }
+    render();
+    const id = n.id;
+    requestAnimationFrame(() => {
+      const input = document.querySelector(`.note-card[data-id="${id}"] .note-list-compose input`);
+      // Its section may not be drawn yet on a long feed; the sheet always is.
+      if (!input) { openNoteModal(findList(id)); return; }
+      input.scrollIntoView({ block: "center" });
+      input.focus();
+    });
   }
 
   // ---------- reordering a list (the To-do mode's gesture) ----------
@@ -895,6 +981,7 @@
     $("#nSource").value = (note && note.source) || "";
     $("#nNewItem").value = "";
     sheetItems = note && note.items ? note.items.map((i) => ({ ...i })) : [];
+    $("#nQuickList").checked = !!note && state.data.settings.quickList === note.id;
     renderSheetItems();
     fillCategorySelect(note ? note.category : ([...state.noteActiveCats].find(Boolean) || ""));
     $("#deleteNoteBtn").hidden = !note;
@@ -946,6 +1033,12 @@
     } else {
       state.data.notes.unshift(sanitizeNote({ ...fields, category, createdAt: now, updatedAt: now }));
     }
+    // Which list quick add goes into — a setting, as it's one list for all
+    // your devices, not something the note itself carries.
+    const savedId = editingNoteId || (state.data.notes[0] && state.data.notes[0].id);
+    const settings = state.data.settings;
+    if (kind === "list" && $("#nQuickList").checked) settings.quickList = savedId;
+    else if (settings.quickList === savedId) delete settings.quickList;
     closeNoteModal();
     render();
     await persist();
@@ -992,7 +1085,8 @@
   window.LifeLogNotes = {
     init, wire,
     sanitizeNote, noteYears, getFilteredNotes, noteCats, openNoteCatModal, closeNoteCatModal, noteHaystack,
-    renderNotes,
+    foldTodosIntoLists, listNotes: () => state.data.notes.filter((n) => n.kind === "list"),
+    renderNotes, focusQuickList,
     openNoteModal, closeNoteModal,
     // pure helpers (test/notes.test.js)
     noteDate, noteYear, splitNoteForEntry,

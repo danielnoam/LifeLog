@@ -202,4 +202,65 @@ test("a favourite is kept as true, and a note that isn't carries nothing", () =>
   assert.ok(!("fav" in sn({ text: "a", fav: false })));
 });
 
+// ---------- the To-do mode's lists become list notes (0.197.0) ----------
+const fold = Notes.foldTodosIntoLists;
+const todoData = () => ({
+  notes: [],
+  todoCategories: [{ id: "c-shop", name: "Shopping", color: "#f00" }],
+  todos: [
+    { id: "t1", text: "Milk", category: "Shopping", order: 2, createdAt: "2026-01-02" },
+    { id: "t2", text: "Eggs", category: "Shopping", order: 1, createdAt: "2026-01-01" },
+    { id: "t3", text: "Call mum", order: 0, createdAt: "2026-01-03" },
+    { id: "t4", text: "Old thing", done: true, doneAt: "2026-01-05", createdAt: "2025-12-01" },
+  ],
+});
+test("each to-do category becomes a list, the rest one \"To-do\" list, items in their order", () => {
+  const d = todoData();
+  assert.strictEqual(fold(d), true);
+  assert.deepStrictEqual(d.todos, []);
+  const shop = d.notes.find((n) => n.text === "Shopping"), gen = d.notes.find((n) => n.text === "To-do");
+  assert.strictEqual(shop.id, "todos-c-shop", "the list's id comes from the category's");
+  assert.deepStrictEqual(shop.items.map((i) => i.id), ["t2", "t1"], "hand order kept; each item keeps its to-do's id");
+  assert.deepStrictEqual(gen.items.map((i) => [i.text, !!i.done]), [["Call mum", false], ["Old thing", true]]);
+  assert.strictEqual(shop.createdAt, "2026-01-01");
+});
+test("two devices folding on their own make the same notes, and merging them doubles nothing", () => {
+  const a = todoData(), b = todoData();
+  fold(a); fold(b);
+  assert.deepStrictEqual(a.notes, b.notes);
+  const M = require("../src/merge.js");
+  const merged = M.mergeNotes([], a.notes, b.notes);
+  assert.strictEqual(merged.length, 2);
+  assert.strictEqual(merged.find((n) => n.text === "Shopping").items.length, 2);
+});
+test("a to-do written later by a device on an older build lands in its list", () => {
+  const d = todoData();
+  fold(d);
+  d.todos = [{ id: "t9", text: "Bread", category: "Shopping", createdAt: "2026-02-01" }];
+  fold(d);
+  const shop = d.notes.find((n) => n.text === "Shopping");
+  assert.deepStrictEqual(shop.items.map((i) => i.text), ["Eggs", "Milk", "Bread"]);
+  assert.strictEqual(d.notes.length, 2);
+});
+test("an older device's tick or edit to a folded to-do comes across instead of doubling it", () => {
+  const d = todoData();
+  fold(d);
+  d.todos = [{ id: "t1", text: "Oat milk", category: "Shopping", done: true, doneAt: "2026-03-01" }];
+  fold(d);
+  const it = d.notes.find((n) => n.text === "Shopping").items.find((i) => i.id === "t1");
+  assert.deepStrictEqual([it.text, it.done, it.doneAt], ["Oat milk", true, "2026-03-01"]);
+});
+test("a to-do with no id match but the same words in the same list isn't added twice", () => {
+  const d = todoData();
+  fold(d);
+  d.todos = [{ id: "fresh", text: "eggs", category: "Shopping" }];
+  fold(d);
+  assert.strictEqual(d.notes.find((n) => n.text === "Shopping").items.length, 2);
+});
+test("nothing to fold is a no-op", () => {
+  const d = { notes: [{ id: "n", text: "x" }], todos: [] };
+  assert.strictEqual(fold(d), false);
+  assert.deepStrictEqual(d.notes, [{ id: "n", text: "x" }]);
+});
+
 console.log(`\n${passed} test(s) passed.`);

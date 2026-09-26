@@ -134,7 +134,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.196.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.197.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -156,6 +156,22 @@
         v.backlogFoldEa = v.backlogBandFold;
         v.backlogFoldUnreleased = v.backlogBandFold;
         delete v.backlogBandFold;
+      }
+      // 0.197.0: the To-do mode is gone — its lists are list notes. A saved
+      // order that had it keeps opening Notes on the mode it opened on: with
+      // three left that's the middle one, so that one is moved there.
+      if (v.defaultModes && v.defaultModes.notes === "todo") v.defaultModes = { ...v.defaultModes, notes: "notes" };
+      const saved = v.modeOrder && v.modeOrder.notes;
+      if (Array.isArray(saved) && saved.includes("todo")) {
+        const order = saved.filter((m) => m !== "todo");
+        const off = (v.disabledModes && v.disabledModes.notes) || [];
+        const on = order.filter((m) => !off.includes(m));
+        const land = (v.defaultModes && v.defaultModes.notes) || "notes";
+        if (on.length === 3 && on[1] !== land && on.includes(land)) {
+          const a = order.indexOf(land), b = order.indexOf(on[1]);
+          [order[a], order[b]] = [order[b], order[a]];
+        }
+        v.modeOrder = { ...v.modeOrder, notes: order };
       }
       return v;
     } catch (e) {}
@@ -205,6 +221,13 @@
     else if (view === "timeline" && (ui.timelineMode === "notes" || ui.timelineMode === "todo")) {
       view = "notes";
       state.notesMode = ui.timelineMode;
+    }
+    // The To-do mode is the lists among the notes now (0.197.0): someone who
+    // left the app on it comes back to them.
+    if (ui.notesMode === "todo" || (ui.view === "timeline" && ui.timelineMode === "todo")) {
+      ui = { ...ui, notesMode: "notes" };
+      state.notesMode = "notes";
+      state.noteKind = "list";
     }
     if (VIEW_ORDER.includes(view)) state.view = view;
     for (const [key, spec] of Object.entries(VIEW_MODES)) {
@@ -592,7 +615,8 @@
       // log: what you wrote, what you mean to do once, and what you mean to
       // keep doing. Habits was briefly its own tab (0.171.0) and reads
       // better here — see NOTES.md.
-      modes: [["notes", "Notes", "▤"], ["todo", "To-do", "☑"], ["habits", "Habits", "✓"], ["boards", "Boards", "✎"]],
+      // The To-do mode's lists became list notes in 0.197.0.
+      modes: [["notes", "Notes", "▤"], ["habits", "Habits", "✓"], ["boards", "Boards", "✎"]],
       // The only view whose two modes don't show the same chips: the years
       // come from the notes themselves, and a to-do has neither a year worth
       // filtering nor a category. So here the filterbar is part of the
@@ -634,9 +658,10 @@
   // tab has always opened on in the middle, so nothing opens differently
   // until you change it. With two modes the default is simply the one you
   // choose, the first until you do.
-  const DEFAULT_MODE_ORDER = { notes: ["todo", "notes", "habits", "boards"], backlog: ["upcoming", "entries", "discover"] };
-  // With more than three there's no middle, so a tab opens on your choice or,
-  // until you make one, on the mode it has always opened on.
+  const DEFAULT_MODE_ORDER = { notes: ["habits", "notes", "boards"], backlog: ["upcoming", "entries", "discover"] };
+  // With more than three there's no middle — and with fewer, the first may
+  // not be the one it has always opened on — so a tab opens on your choice
+  // or, until you make one, on this.
   const DEFAULT_LANDING = { notes: "notes" };
   const mergeOrder = (saved, all) => {
     const known = [...new Set((saved || []).filter((x) => all.includes(x)))];
@@ -652,7 +677,9 @@
     if (ids.length === 3) return ids[1];
     const chosen = (state.visual.defaultModes || {})[spec.key];
     if (ids.includes(chosen)) return chosen;
-    return ids.length > 3 && ids.includes(DEFAULT_LANDING[spec.key]) ? DEFAULT_LANDING[spec.key] : ids[0];
+    // Not only past three: with the To-do mode gone (0.197.0) and Boards
+    // turned off, Notes has two, and its first is Habits.
+    return ids.includes(DEFAULT_LANDING[spec.key]) ? DEFAULT_LANDING[spec.key] : ids[0];
   }
   // Shift and a tab's number goes to its other mode: the one after where it
   // opens, so with two modes it is simply the other one.
@@ -740,7 +767,7 @@
     // are, so the count goes here. The other views' own headers already do —
     // and so does Habits, whose "2 of 3 done today" is a better line than any
     // count this bar could put above it.
-    if (state.notesMode === "notes" || state.notesMode === "todo") {
+    if (state.notesMode === "notes") {
       const count = state.notesMode === "notes"
         ? state.data.notes.length
         : state.data.todos.filter((t) => !t.done).length;
@@ -1434,7 +1461,10 @@
   }
 
   // ---------- rendering ----------
-  function render() {
+  // `keepSnapshots`: a redraw of the current mode that can't have changed
+  // what the others show (Boards arriving from storage), so swiping back
+  // still shows those pages rather than their names.
+  function render({ keepSnapshots = false } = {}) {
     // Clearing #content below momentarily collapses the page to whatever
     // height the topbar/nav alone take up, and browsers clamp window.scrollY
     // down to fit — permanently, even once the full content is rebuilt right
@@ -1455,7 +1485,7 @@
     const spec = VIEW_MODES[state.view];
     const inPlace = state.view === lastRenderedView && (!spec || spec.get() === lastRenderedMode);
     // An edit, a filter or a sync may have changed what the other modes show.
-    if (inPlace) modeSnapshots.clear();
+    if (inPlace && !keepSnapshots) modeSnapshots.clear();
     const prevScrollY = window.scrollY;
     scrollAnchor = inPlace ? captureScrollAnchor() : null;
     if (activeLazySections) { activeLazySections.destroy(); activeLazySections = null; }
@@ -1489,7 +1519,6 @@
       if (state.view === "notes") {
         if (state.notesMode === "habits") Habits.renderHabits(c);
         else if (state.notesMode === "boards") Boards.renderBoards(c);
-        else if (state.notesMode === "todo") Todos.renderTodos(c);
         else Notes.renderNotes(c);
         return;
       }
@@ -1556,7 +1585,7 @@
   function updateSearchMatchBadges() {
     const q = state.search.trim();
     const counts = q ? {
-      notes: Notes.getFilteredNotes().length + Todos.getFilteredTodos().length + Habits.getFilteredHabits().length,
+      notes: Notes.getFilteredNotes().length + Habits.getFilteredHabits().length,
       timeline: getFiltered().length,
       backlog: Backlog.getFilteredBacklog().length,
       finance: Finance.getFilteredFinance().length,
@@ -3335,6 +3364,9 @@
     data.backlog = (data.backlog || []).map(Backlog.sanitizeBacklog);
     data.notes = (data.notes || []).map(Notes.sanitizeNote);
     data.todos = Todos.assignMissingOrder((data.todos || []).map(Todos.sanitizeTodo));
+    // To-dos become list notes (0.197.0) — every time there are any, since a
+    // device on an older build can still be writing them. See notes.js.
+    if (Notes.foldTodosIntoLists(data)) data.notes = data.notes.map(Notes.sanitizeNote);
     data.habits = (data.habits || []).map(Habits.sanitizeHabit);
     // A checklist's categories are its own — "Errands", "Work" — and have
     // nothing to say about what you've watched or bought, so they're a third
@@ -3936,10 +3968,13 @@
         setTimeout(() => card.classList.remove("habit-flash"), 1600);
       }
     }
-    else if ((action === "open-todos" || action === "add-todo") && modeEnabled("notes", "todo")) {
-      goTo("notes", "todo");
-      const box = action === "add-todo" && $("#todoCompose");
-      if (box) box.focus();
+    // The to-do widget and quick-add's "To-do" (0.197.0): the lists among
+    // the notes, and for adding, the list chosen for quick add — or the one
+    // most recently worked on, or a new "To-do" list if there's none.
+    else if ((action === "open-todos" || action === "add-todo") && modeEnabled("notes", "notes")) {
+      state.noteKind = "list";
+      goTo("notes", "notes");
+      if (action === "add-todo") Notes.focusQuickList();
     }
   }
   // The spend widget's numbers (0.185.0): this month so far — everything that
@@ -3983,7 +4018,7 @@
     viewEnabled("finance") && "add-expense",
     viewEnabled("backlog") && "add-backlog",
     modeEnabled("notes", "notes") && "add-note",
-    modeEnabled("notes", "todo") && "add-todo",
+    modeEnabled("notes", "notes") && "add-todo",
   ].filter(Boolean);
 
   // Show the app-lock screen and resolve once the user unlocks it. Blocks

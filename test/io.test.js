@@ -489,7 +489,8 @@ const atest = (name, fn) => asyncTests.push([name, fn]);
 
 atest("every tab's JSON brings back all of its kinds, and only its kinds", async () => {
   const want = {
-    notes: { notes: 1, todos: 2, habits: 1, entries: 0, financeEntries: 0 },
+    // Two to-dos land as two list notes (0.197.0): "Home", and "To-do" for the one with no category.
+    notes: { notes: 3, todos: 0, habits: 1, entries: 0, financeEntries: 0 },
     timeline: { entries: 1, backlog: 0, notes: 0 },
     backlog: { backlog: 1, entries: 0 },
     finance: { financeEntries: 1, recurringExpenses: 1, notes: 0, backlog: 0 },
@@ -505,7 +506,10 @@ atest("a full backup import brings everything, with its categories, projects and
   state.data = blank();
   await importAll(JSON.parse(JSON.stringify(FULL)));
   const d = state.data;
-  assert.deepStrictEqual([d.entries.length, d.backlog.length, d.notes.length, d.todos.length, d.habits.length, d.financeEntries.length, d.recurringExpenses.length], [1, 1, 1, 2, 1, 1, 1]);
+  assert.deepStrictEqual([d.entries.length, d.backlog.length, d.notes.length, d.todos.length, d.habits.length, d.financeEntries.length, d.recurringExpenses.length], [1, 1, 3, 0, 1, 1, 1]);
+  const lists = d.notes.filter((n) => n.kind === "list");
+  assert.deepStrictEqual(lists.map((n) => n.text).sort(), ["Home", "To-do"]);
+  assert.strictEqual(lists.find((n) => n.text === "To-do").items[0].done, true, "a finished to-do is a ticked item");
   assert.strictEqual(d.accomplishments[2026][0].text, "Ran a 10k");
   assert.strictEqual(d.entries[0].notes, "wow");
   assert.deepStrictEqual(d.habits[0].marks, { "2026-01-05": 2, "2026-01-07": 1 });
@@ -547,7 +551,7 @@ atest("Notes CSV round trip keeps notes, to-dos and habits with their history", 
   assert.deepStrictEqual(h.marks, { "2026-01-05": 2, "2026-01-07": 1 });
   state.data = blank();
   await importAll(back, TAB_KINDS.notes);
-  assert.deepStrictEqual([state.data.notes.length, state.data.todos.length, state.data.habits.length], [1, 2, 1]);
+  assert.deepStrictEqual([state.data.notes.length, state.data.todos.length, state.data.habits.length], [3, 0, 1]);
 });
 
 atest("Notes CSV round trip keeps a list's items and ticks, a quote's author, and categories", async () => {
@@ -597,7 +601,7 @@ atest("everything in one CSV comes back as every kind, each block to its own par
   await importAll(back);
   const d = state.data;
   assert.deepStrictEqual([d.notes.length, d.todos.length, d.habits.length, d.entries.length, d.backlog.length,
-    d.accomplishments[2026].length, d.financeEntries.length, d.recurringExpenses.length], [1, 2, 1, 1, 1, 1, 1, 1]);
+    d.accomplishments[2026].length, d.financeEntries.length, d.recurringExpenses.length], [3, 0, 1, 1, 1, 1, 1, 1]);
   // A habit's date column is a plain date, which the Ledger parser would
   // read as an expense if it looked past its own block.
   assert.deepStrictEqual(d.financeEntries.map((f) => f.note), ["Lunch, big"]);

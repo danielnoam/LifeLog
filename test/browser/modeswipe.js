@@ -18,7 +18,6 @@ const T = "2026-09-01T00:00:00.000Z";
 const SEED = {
   categories: [], entries: [], backlog: [], projects: [], todoCategories: [],
   notes: [{ id: "n1", text: "A note on the first page", createdAt: T, updatedAt: T }],
-  todos: [{ id: "t1", text: "A to-do on the second page", order: 0, createdAt: T, updatedAt: T }],
   habits: [{ id: "h1", name: "Habit on the third page", color: "#5b8cff", cadence: "daily", target: 1, order: 1,
     startedAt: "2026-09-01", createdAt: T, updatedAt: T }],
   financeEntries: [], recurringExpenses: [], financeCategories: [], settings: {}, accomplishments: {},
@@ -58,10 +57,10 @@ async function drag(page, dx, { hold = false, steps = 10 } = {}) {
     localStorage.clear();
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" }));
     localStorage.setItem("lifelog-cache-v1", JSON.stringify(seed));
-    // The pager, not the order: pinned so "next" is the to-do list whatever
-    // order Notes' modes ship in (0.188.0 moved Notes to the middle).
-    // And Boards (0.193.0) off, so this stays the three-page pager it tests.
-    localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify({ modeOrder: { notes: ["notes", "todo", "habits"] }, disabledModes: { notes: ["boards"] } }));
+    // The pager, not the order: pinned so "next" is Boards whatever order
+    // Notes' modes ship in (0.188.0 moved Notes to the middle; 0.197.0 folded
+    // the To-do mode into Notes).
+    localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify({ modeOrder: { notes: ["notes", "boards", "habits"] } }));
   }, SEED);
   await page.reload({ waitUntil: "load" });
   await page.waitForTimeout(800);
@@ -91,7 +90,7 @@ async function drag(page, dx, { hold = false, steps = 10 } = {}) {
   check("and doesn't fade while it does — a page being turned is still a page", mid.opacity === "1", mid.opacity);
   check("the mode it's heading for is beside it, one page-width along",
     mid.layer && Math.abs(mid.peekX - (W + GAP - 120)) < 2, { peekX: mid.peekX, want: W + GAP - 120 });
-  check("never visited yet, it shows that mode's name", /To-do/.test(mid.label), mid.label);
+  check("never visited yet, it shows that mode's name", /Boards/.test(mid.label), mid.label);
   check("where you can actually see it, in the part of the page uncovered so far",
     mid.labelBox && mid.labelBox.left >= 0 && mid.labelBox.right <= mid.labelBox.width, mid.labelBox);
 
@@ -110,7 +109,7 @@ async function drag(page, dx, { hold = false, steps = 10 } = {}) {
     };
   });
   check("mid-turn, the page being left is still on screen", /A note on the first page/.test(turning.leavingText), turning.leavingText.slice(0, 60));
-  check("and the real next page is already there beside it", /A to-do on the second page/.test(turning.arrivingText), turning.arrivingText.slice(0, 60));
+  check("and the real next page is already there beside it", /No boards yet/.test(turning.arrivingText), turning.arrivingText.slice(0, 60));
   check("side by side, exactly one page-width and the gap apart — one strip",
     turning.leavingX < 0 && turning.arrivingX > 0 && Math.abs((turning.arrivingX - turning.leavingX) - (W + GAP)) < 3,
     { leavingX: turning.leavingX, arrivingX: turning.arrivingX, want: W + GAP });
@@ -121,7 +120,7 @@ async function drag(page, dx, { hold = false, steps = 10 } = {}) {
     transform: getComputedStyle(document.querySelector("#content")).transform,
     viewBodies: document.querySelectorAll("#viewBody").length,
   }));
-  check("it lands on the next mode", (await mode(page)) === "todo", await mode(page));
+  check("it lands on the next mode", (await mode(page)) === "boards", await mode(page));
   check("and cleans up after itself: no pictures left, nothing held on the page",
     after.layers === 0 && after.transform === "none" && after.viewBodies === 1, after);
 

@@ -62,32 +62,36 @@
         };
       });
 
-    // The to-do view's panels, in its order: the general list, then each
-    // category in the order its list holds them, then any a to-do names that
-    // the list has lost — todos.js's panelGroups. Inside each, the same as a
-    // panel: open ones by hand order, then the finished ones, newest first,
-    // which the widget draws under an "N done" line. Finished ones are capped
-    // per panel (DONE_PER_PANEL) — they pile up until cleared, and this goes
-    // out on every save; `doneCount` keeps the line honest about the rest.
-    const cats = data.todoCategories || [];
-    const colorOf = (name) => (cats.find((c) => c.name === name) || {}).color || null;
-    const groups = new Map([["", []]]);
-    for (const c of cats) groups.set(c.name, []);
-    for (const t of data.todos || []) {
-      const key = t.category || "";
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(t);
-    }
+    // The to-do widget's panels are the list notes (0.197.0): a panel per
+    // list, favourites first, then oldest first — so the lists that came from
+    // the To-do mode keep the order its panels had. The rows are the shape
+    // the widget has always drawn (a panel is its `category`), so no new APK
+    // is needed. Inside each: open items in the list's order, then the
+    // finished ones, newest first, under an "N done" line. Finished ones are
+    // capped per panel (DONE_PER_PANEL) — they pile up until cleared, and this
+    // goes out on every save; `doneCount` keeps the line honest about the
+    // rest. Two lists with one title get told apart, since the widget groups
+    // by the name.
+    const noteCats = data.noteCategories || [];
+    const colorOf = (name) => (noteCats.find((c) => c.name === name) || {}).color || "";
+    const lists = (data.notes || []).filter((n) => n.kind === "list")
+      .sort((a, b) => (!!b.fav - !!a.fav) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
     const todos = [];
     const doneCount = {};
-    for (const [name, list] of groups) {
-      const color = (name && colorOf(name)) || "";
-      const row = (t) => ({ id: t.id, text: t.text, category: name, color, done: !!t.done });
-      const open = list.filter((t) => !t.done).sort(byOrder);
-      const done = list.filter((t) => t.done).sort(byNewestDone);
+    const seen = new Map();
+    for (const n of lists) {
+      const base = n.text || "List";
+      const k = (seen.get(base) || 0) + 1;
+      seen.set(base, k);
+      const name = k > 1 ? `${base} (${k})` : base;
+      const color = n.category ? colorOf(n.category) : "";
+      const row = (it) => ({ id: it.id, text: it.text, category: name, color, done: !!it.done });
+      const items = n.items || [];
+      const open = items.filter((it) => !it.done);
+      const done = items.filter((it) => it.done).sort(byNewestDone);
       if (done.length) doneCount[name] = done.length;
-      for (const t of open) todos.push(row(t));
-      for (const t of done.slice(0, DONE_PER_PANEL)) todos.push(row(t));
+      for (const it of open) todos.push(row(it));
+      for (const it of done.slice(0, DONE_PER_PANEL)) todos.push(row(it));
     }
     return { v: 4, today, habits, todos, doneCount, actions, spend };
   }
@@ -109,7 +113,12 @@
         if (Object.keys(marks).length) h.marks = marks; else delete h.marks;
         changed++;
       } else if (it.kind === "todo") {
-        const t = (data.todos || []).find((x) => x.id === it.id);
+        // An item of a list note now (0.197.0); the widget still calls it a to-do.
+        let t = null;
+        for (const n of data.notes || []) {
+          if (n.kind === "list") t = (n.items || []).find((x) => x.id === it.id) || t;
+          if (t) break;
+        }
         if (!t || !!t.done === !!it.done) continue;
         if (it.done) { t.done = true; t.doneAt = it.at || new Date().toISOString(); }
         else { delete t.done; delete t.doneAt; }

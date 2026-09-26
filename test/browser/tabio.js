@@ -33,7 +33,9 @@ const COUNT = (d) => ({
 });
 const NONE = { entries: 0, achievements: 0, backlog: 0, notes: 0, todos: 0, habits: 0, finance: 0, recurring: 0, projects: 0 };
 const TABS = {
-  notes: { notes: 1, todos: 1, habits: 1 },
+  // The seeded to-do opens as a "Home" list note (0.197.0), so the Notes
+  // tab carries two notes and no to-dos.
+  notes: { notes: 2, habits: 1 },
   timeline: { entries: 1, achievements: 1 },
   backlog: { backlog: 1 },
   finance: { finance: 1, recurring: 1, projects: 1 },

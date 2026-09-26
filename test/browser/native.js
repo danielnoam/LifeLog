@@ -845,6 +845,9 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
       ],
     });
     const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+    // Seeded as the To-do mode's to-dos, which open as a "To-do" list note
+    // (0.197.0) — the widget's ticks find them there by the same ids.
+    const item = (d, id) => d.notes.filter((n) => n.kind === "list").flatMap((n) => n.items).find((i) => i.id === id);
     const lastSnap = (page) => page.evaluate(() => window.__cap.widgetSnaps[window.__cap.widgetSnaps.length - 1] || null);
 
     // Ticks made on the widgets while the app was closed.
@@ -859,13 +862,13 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     let d = await stored(page);
     check("a habit ticked on the widget is ticked in the app when it opens", d.habits[0].marks && d.habits[0].marks[today] === 1, d.habits[0]);
     check("and a to-do ticked there is done, as of when it was ticked",
-      d.todos[0].done === true && d.todos[0].doneAt === "2026-09-24T07:01:00.000Z", d.todos[0]);
+      item(d, "t1").done === true && item(d, "t1").doneAt === "2026-09-24T07:01:00.000Z", item(d, "t1"));
     check("the app says where the ticks came from", /2 ticks from your home-screen widget/.test(await page.evaluate(() => document.querySelector("#toast").textContent)));
     let snap = await lastSnap(page);
     check("the widgets are sent the list with the ticks in it",
       !!snap && snap.todos.filter((t) => !t.done).map((t) => t.id).join() === "t2" && snap.habits[0].marks[today] === 1, snap);
     check("the finished one goes too, under the open ones, for the widget's done list",
-      !!snap && snap.todos.map((t) => t.id + (t.done ? "✓" : "")).join() === "t2,t1✓" && snap.doneCount[""] === 1, snap && snap.todos);
+      !!snap && snap.todos.map((t) => t.id + (t.done ? "✓" : "")).join() === "t2,t1✓" && snap.doneCount["To-do"] === 1, snap && snap.todos);
     check("and the quick-add buttons for every tab that's on",
       !!snap && ["add-entry", "add-expense", "add-note", "add-todo"].every((a) => snap.actions.includes(a)), snap && snap.actions);
 
@@ -876,7 +879,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     }, today);
     await page.waitForTimeout(700);
     d = await stored(page);
-    check("a tick made while the app is open lands straight away", d.todos[1].done === true, d.todos[1]);
+    check("a tick made while the app is open lands straight away", item(d, "t2").done === true, item(d, "t2"));
 
     // The widget's +, with the app already open.
     const before = await page.evaluate(() => window.__cap.widgetSnaps.length);
@@ -886,10 +889,10 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     });
     await page.waitForTimeout(500);
     const ui = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-ui-v1")));
-    check("the widget's + opens the to-do list, ready to type into",
-      ui.view === "notes" && ui.notesMode === "todo" && await page.evaluate(() => (document.activeElement || {}).id === "todoCompose"), ui);
-    await page.fill("#todoCompose", "From the widget's +");
-    await page.press("#todoCompose", "Enter");
+    check("the widget's + opens a list's add line, ready to type into",
+      ui.view === "notes" && ui.notesMode === "notes" && await page.evaluate(() => !!(document.activeElement && document.activeElement.closest(".note-list-compose"))), ui);
+    await page.keyboard.type("From the widget's +");
+    await page.keyboard.press("Enter");
     await page.waitForTimeout(900);
     snap = await lastSnap(page);
     check("and what's added in the app goes back out to the widget",

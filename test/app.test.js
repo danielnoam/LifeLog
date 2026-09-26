@@ -52,6 +52,10 @@ require("../src/todos.js");
 // something opens it), so app.js's Recap.init(ctx) has something to call.
 require("../src/habits.js");
 require("../src/recap.js");
+// Real as well: boards.js is pure at load (0.193.0), and app.js hands its
+// functions to IO's init at its top level — without it this file crashed
+// before running a single test.
+require("../src/boards.js");
 // app.js calls .init(ctx) on these unconditionally at its own top
 // level; normalize() doesn't depend on their behavior, so no-op stubs.
 global.window.LifeLogIO = { init: () => {} };

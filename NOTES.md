@@ -16,6 +16,28 @@ what was decided against and why.
 
 ---
 
+- **The To-do mode folded into list notes (0.197.0).** `foldTodosIntoLists`
+  in notes.js runs in `normalize()` on every load and on the remote copy
+  before each merge, whenever `todos` is non-empty — not once behind a
+  marker. That's what lets a device still on an older APK keep writing
+  `todos`: the next time anyone newer loads, those to-dos fold in. Ids are
+  derived, never minted — list `todos-<category id>` (`todos-general` for
+  no category), item = the to-do's id — so two devices folding the same
+  data independently produce the same notes and the merge sees no conflict.
+  An item is matched by id, or by text and done state for a to-do an old
+  device re-created; a match takes the to-do's text and tick (that's the
+  older device's edit). `todos` is emptied after the fold rather than kept
+  "for rollback" as first planned: kept, it would re-fold every load and
+  fight edits made to the lists. The data isn't lost on a rollback, just
+  invisible to a build that doesn't know list notes. `todoCategories` stay
+  until stage 3 so the fold can still name lists for late to-dos.
+  - The widget snapshot kept its v4 shape (panels of rows keyed by panel
+    name), built from list notes instead, so the Java side didn't change.
+    Duplicate list titles get " (2)" since the panel name is the key.
+  - `landingMode` now applies `DEFAULT_LANDING` whatever the number of
+    modes; the old "more than three" condition meant that with To-do gone
+    and Boards off, Notes opened on Habits.
+
 - **A list note is the old To-do panel, not a preview of one (0.196.0).**
   Same classes (todo-row, todo-check, todo-text, todo-del, todo-done-sep,
   todo-compose), so it looks the same without a second set of styles, and

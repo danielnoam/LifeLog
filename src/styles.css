@@ -3043,3 +3043,4 @@ html.force-mobile .modal.view-options {
    their heading, full width. */
 .note-favs .month-card { background: none; border: 0; padding: 0; }
 .note-favs .month-grid { grid-template-columns: 1fr; }
+.note-quick-list { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; font-size: 12.5px; color: var(--text-dim); }

@@ -251,24 +251,25 @@ const activeView = (page) => page.evaluate(() => {
     await ctx.close();
   }
 
-  // ---- 6. Notes' four modes (0.193.0): no middle, so it opens on Notes ----
-  {
-    const { page, ctx, errs: e } = await app(browser, { ui: { view: "timeline", timelineMode: "entries" } });
+  // ---- 6. Notes opens on Notes: three modes since the To-do mode became
+  // list notes (0.197.0), and two with Boards off, where Habits is first ----
+  for (const [visual, n, label] of [[null, 3, "Notes has three modes and opens on Notes"],
+    [{ disabledModes: { notes: ["boards"] } }, 2, "with Boards off it has two, and still opens on Notes rather than the first"]]) {
+    const { page, ctx, errs: e } = await app(browser, { ui: { view: "timeline", timelineMode: "entries" }, visual });
     await page.click('#viewTabs .tab[data-view="notes"]');
     await page.waitForTimeout(300);
     const r = await page.evaluate(() => ({
       mode: JSON.parse(localStorage.getItem("lifelog-ui-v1")).notesMode,
       dots: document.querySelectorAll('#viewTabs .tab[data-view="notes"] .tab-mode-dot').length,
     }));
-    check("with Boards, Notes has four modes and still opens on Notes", r.mode === "notes" && r.dots === 4, r);
+    check(label, r.mode === "notes" && r.dots === n, r);
     errs.push(...e);
     await ctx.close();
   }
 
   // ---- 6a. the order of tabs and modes, and where a tab opens (0.188.0) ----
-  // Boards off, so Notes is the three-mode tab these steps are about.
   {
-    const { page, ctx, errs: e } = await app(browser, { ui: { view: "timeline", timelineMode: "entries" }, visual: { disabledModes: { notes: ["boards"] } } });
+    const { page, ctx, errs: e } = await app(browser, { ui: { view: "timeline", timelineMode: "entries" } });
     const ui = () => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-ui-v1")));
     const visual = () => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-visual-settings-v1") || "{}"));
     const barOrder = () => page.evaluate(() => [...document.querySelectorAll("#viewTabs .tab")].map((t) => t.dataset.view));
@@ -293,7 +294,7 @@ const activeView = (page) => page.evaluate(() => {
     await openTabsPage();
     check("out of the box a three-mode tab lists the mode it has always opened on in the middle",
       JSON.stringify(await tabRows("Backlog")) === JSON.stringify(["Next releases", "Entries*", "Discover"]) &&
-      JSON.stringify(await tabRows("Notes")) === JSON.stringify(["To-do", "Notes*", "Habits", "Boards"]),
+      JSON.stringify(await tabRows("Notes")) === JSON.stringify(["Habits", "Notes*", "Boards"]),
       { backlog: await tabRows("Backlog"), notes: await tabRows("Notes") });
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
@@ -319,10 +320,10 @@ const activeView = (page) => page.evaluate(() => {
     await press("Stats", "mode-default");
     check("starring a mode of a two-mode tab leaves the order alone",
       JSON.stringify(await tabRows("Timeline")) === JSON.stringify(["Entries", "Stats*"]), await tabRows("Timeline"));
-    await press("Habits", "mode-up");
+    await press("Boards", "mode-up");
     check("moving a three-mode tab's modes moves the star with whatever lands in the middle",
-      JSON.stringify(await tabRows("Notes")) === JSON.stringify(["To-do", "Habits*", "Notes", "Boards"]) &&
-      (await visual()).defaultModes.notes === "habits", { rows: await tabRows("Notes"), stored: (await visual()).defaultModes });
+      JSON.stringify(await tabRows("Notes")) === JSON.stringify(["Habits", "Boards*", "Notes"]) &&
+      (await visual()).defaultModes.notes === "boards", { rows: await tabRows("Notes"), stored: (await visual()).defaultModes });
 
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
@@ -332,7 +333,7 @@ const activeView = (page) => page.evaluate(() => {
     check("a tab opens on its starred mode", (await ui()).backlogMode === "discover", (await ui()).backlogMode);
     await page.click('#viewTabs .tab[data-view="notes"]');
     await page.waitForTimeout(300);
-    check("including one starred by moving it", (await ui()).notesMode === "habits", (await ui()).notesMode);
+    check("including one starred by moving it", (await ui()).notesMode === "boards", (await ui()).notesMode);
     check("the mode dots follow the order", await page.evaluate(() => {
       const dots = [...document.querySelectorAll('#viewTabs .tab[data-view="notes"] .tab-mode-dot')];
       return dots.length === 3 && dots[1].classList.contains("is-on");
