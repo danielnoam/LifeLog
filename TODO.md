@@ -25,25 +25,13 @@ todo:
   "Automatically delete head branches" only helps with branches merged
   through a PR, which this repo no longer uses.
 
-- **An "Open items" view in Notes.** Every unticked item across lists, as
-  a chip or filter, since "what's left to do" shouldn't need opening each
-  list. (Was part of the To-do → lists plan; stages 1–3 shipped in
-  0.195.0–0.198.0.)
-
-- **Note widgets (Android).**
-  - **A note widget:** one note you pick, shown on the home screen, tapping
-    through to it in the app. Configured when placed (Android's widget
-    configure activity), like choosing which habit a widget shows.
-  - **A random note widget:** a different note each time, for resurfacing
-    old ones. Settings: which categories and kinds it draws from
-    (note categories shipped in 0.195.0; a quotes-only one is the obvious
-    setting), how often it changes (every hour, day, or on tap),
-    and whether it shows the date. Tapping opens the note; a small ↻ draws
-    another.
-  Both read the widget snapshot widgets.js already sends (WidgetStore);
-  notes would join it, capped in size, since a snapshot of every note in
-  full could get large. Built like TodosWidget/ListWidget, with small and
-  large layouts like the others (WidgetSize).
+- **Check the new widgets on a phone.** 0.199.0's note, random note and
+  To-do list choice were compiled and unit-tested against Android 15's
+  classes, but nothing here can place a widget. The part most likely to
+  misbehave: tapping a list's name on a To-do widget showing several lists
+  starts the app from the widget's broadcast receiver (see NOTES.md). If a
+  launcher blocks that, the fallback is a transparent trampoline activity
+  as the list's click template.
 
 ---
 

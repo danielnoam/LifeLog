@@ -25,6 +25,8 @@ final class ListWidget {
 
     static final String EXTRA_KIND = "io.github.danielnoam.lifelog.widgets.KIND";
     static final String EXTRA_ID = "io.github.danielnoam.lifelog.widgets.ID";
+    /** On a list's heading: the action to open the app with, rather than a tick. */
+    static final String EXTRA_OPEN = "io.github.danielnoam.lifelog.widgets.OPEN";
 
     private ListWidget() {}
 
@@ -60,7 +62,7 @@ final class ListWidget {
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // From Android 12 the rows travel in the update itself.
-            v.setRemoteAdapter(R.id.widget_list, TodosWidget.items(c));
+            v.setRemoteAdapter(R.id.widget_list, TodosWidget.items(c, widgetId));
         } else {
             Intent adapter = new Intent(c, ListService.class);
             adapter.putExtra(EXTRA_KIND, kind);
@@ -74,7 +76,13 @@ final class ListWidget {
         v.setOnClickPendingIntent(R.id.widget_root, WidgetStore.openApp(c, openAction, requestBase));
         v.setOnClickPendingIntent(R.id.widget_header, WidgetStore.openApp(c, openAction, requestBase));
         v.setOnClickPendingIntent(R.id.widget_empty, WidgetStore.openApp(c, openAction, requestBase));
-        v.setOnClickPendingIntent(R.id.widget_add, WidgetStore.openApp(c, addAction, requestBase + 1));
+        // No + when there's no one list for it to add to (0.199.0): each
+        // list's heading has its own then.
+        v.setViewVisibility(R.id.widget_add, addAction == null ? View.GONE : View.VISIBLE);
+        if (addAction != null) {
+            v.setOnClickPendingIntent(R.id.widget_add, WidgetStore.openAppOn(c, addAction, requestBase + 1,
+                Uri.parse("lifelog-widget://add/" + widgetId)));
+        }
 
         Intent tick = new Intent(c, provider);
         tick.setAction(tickAction);
@@ -99,10 +107,9 @@ final class ListWidget {
         int[] ids = ids(c, provider);
         if (ids.length == 0) return;
         boolean inUpdate = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S;
-        RemoteViews.RemoteCollectionItems items = inUpdate ? TodosWidget.items(c) : null;
         for (int id : ids) {
             RemoteViews header = headerFor.apply(id);
-            if (inUpdate) header.setRemoteAdapter(R.id.widget_list, items);
+            if (inUpdate) header.setRemoteAdapter(R.id.widget_list, TodosWidget.items(c, id));
             manager.partiallyUpdateAppWidget(id, header);
         }
         if (!inUpdate) manager.notifyAppWidgetViewDataChanged(ids, R.id.widget_list);

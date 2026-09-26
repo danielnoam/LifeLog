@@ -6,15 +6,25 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.RemoteViews;
+import org.json.JSONObject;
 
 /**
  * The to-do list: every panel, scrollable, each item ticked in place. Small,
  * it's the list alone with a + in the corner (0.189.0) — the header took a
  * third of a two-row widget.
+ *
+ * Its settings (TodosSettingsActivity, 0.199.0) choose which lists it shows.
+ * Set to one, it's named after it and its + adds to it. Showing more, there's
+ * no one list for a + to mean, so each list's heading adds to that list.
  */
 public class TodosWidget extends AppWidgetProvider {
 
     static final String ACTION_TICK = "io.github.danielnoam.lifelog.widgets.TICK_TODO";
+
+    @Override
+    public void onDeleted(Context c, int[] ids) {
+        for (int id : ids) WidgetStore.dropConfig(c, id);
+    }
 
     @Override
     public void onUpdate(Context c, AppWidgetManager manager, int[] ids) {
@@ -41,16 +51,30 @@ public class TodosWidget extends AppWidgetProvider {
         return compact(size.width, size.height) ? R.layout.widget_list_compact : R.layout.widget_list;
     }
 
-    private static RemoteViews whole(Context c, AppWidgetManager manager, int id) {
-        String[] text = text(c);
+    static RemoteViews whole(Context c, AppWidgetManager manager, int id) {
+        String[] text = text(c, id);
+        JSONObject one = WidgetStore.singleList(WidgetStore.snapshot(c), WidgetStore.listsOf(WidgetStore.config(c, id)));
         return ListWidget.whole(c, id, layoutFor(manager, id), TodosWidget.class, "todos", ACTION_TICK,
-            text[0], text[1], text[2], "open-todos", "add-todo", 200);
+            text[0], text[1], text[2], "open-todos", one == null ? null : "add-todo:" + WidgetStore.str(one, "id"), 200);
     }
 
     @Override
     public void onReceive(Context c, Intent intent) {
         if (!ACTION_TICK.equals(intent.getAction())) {
             super.onReceive(c, intent);
+            return;
+        }
+        // A list's heading: open the app on that list's add line. The
+        // template has to be a broadcast for ticks to stay on the home
+        // screen, so this is started from here; the tap that sent it is what
+        // lets a widget's receiver bring the app up.
+        String open = intent.getStringExtra(ListWidget.EXTRA_OPEN);
+        if (open != null) {
+            try {
+                c.startActivity(WidgetStore.launch(c, open));
+            } catch (RuntimeException e) {
+                // Refused: the heading does nothing rather than crash the widget.
+            }
             return;
         }
         // From Android 12 the row is a real checkbox, which has already
@@ -69,12 +93,12 @@ public class TodosWidget extends AppWidgetProvider {
      * Android 12's way of filling a list: the rows themselves, with ids that
      * stay put across updates so the list keeps its place.
      */
-    static RemoteViews.RemoteCollectionItems items(Context c) {
+    static RemoteViews.RemoteCollectionItems items(Context c, int widgetId) {
         RemoteViews.RemoteCollectionItems.Builder b = new RemoteViews.RemoteCollectionItems.Builder()
             .setHasStableIds(true)
             .setViewTypeCount(4);
         String panel = "";
-        for (WidgetStore.Row r : WidgetStore.todoRows(c)) {
+        for (WidgetStore.Row r : WidgetStore.todoRows(c, widgetId)) {
             if (r.type == WidgetStore.ROW_HEADER) panel = r.text;
             b.addItem(itemId(r, panel), ListService.rowView(c, r));
         }
@@ -87,18 +111,24 @@ public class TodosWidget extends AppWidgetProvider {
     }
 
     static void refresh(Context c) {
-        String[] text = text(c);
         AppWidgetManager manager = AppWidgetManager.getInstance(c);
-        ListWidget.refresh(c, TodosWidget.class, (id) -> ListWidget.header(c, layoutFor(manager, id), text[0], text[1], text[2]));
+        ListWidget.refresh(c, TodosWidget.class, (id) -> {
+            String[] text = text(c, id);
+            return ListWidget.header(c, layoutFor(manager, id), text[0], text[1], text[2]);
+        });
     }
 
-    private static String[] text(Context c) {
-        boolean loaded = WidgetStore.snapshot(c) != null;
-        int open = WidgetStore.openTodoCount(c);
+    private static String[] text(Context c, int widgetId) {
+        JSONObject snap = WidgetStore.snapshot(c);
+        boolean loaded = snap != null;
+        JSONObject one = WidgetStore.singleList(snap, WidgetStore.listsOf(WidgetStore.config(c, widgetId)));
+        int open = WidgetStore.openTodoCount(WidgetStore.todoRows(c, widgetId));
         String subtitle = loaded ? (open == 0 ? "All done" : open + " to do") : null;
         String pending = WidgetStore.pendingNote(c);
         if (pending != null) subtitle = subtitle == null ? pending : subtitle + " · " + pending;
-        String empty = loaded ? "Nothing to do — tap + to add something" : "Open LifeLog once to bring your list here";
-        return new String[] { "To-do", subtitle, empty };
+        String empty = !loaded ? "Open LifeLog once to bring your list here"
+            : one != null ? "Nothing to do — tap + to add something"
+            : "Nothing to do";
+        return new String[] { one != null ? WidgetStore.str(one, "name") : "To-do", subtitle, empty };
     }
 }

@@ -109,7 +109,7 @@
   const TRASH_COLLECTIONS = {
     entries: { kind: "Entry", label: (e) => e.title },
     backlog: { kind: "Backlog item", label: (b) => b.title },
-    notes: { kind: "Note", label: (n) => (n.text || "").split("\n")[0].slice(0, 60) },
+    notes: { kind: "Note", label: (n) => (n.title || n.text || "").split("\n")[0].slice(0, 60) },
     financeEntries: { kind: "Finance entry", label: (f) => f.note || f.category },
     recurringExpenses: { kind: "Recurring expense", label: (r) => r.note || r.category },
   };
@@ -224,13 +224,6 @@
         const head = el("div", "history-row-head");
         head.appendChild(el("span", "history-date", formatHistoryDate(c.savedAt)));
         if (i === 0) head.appendChild(el("span", "history-badge", "Current"));
-        if (i > 0) {
-          const only = el("button", "btn btn-small", "Settings only");
-          only.type = "button";
-          only.title = "Fill in settings that are empty now from this save, and change nothing else";
-          only.onclick = () => restoreSettingsFrom(c);
-          head.appendChild(only);
-        }
         // Undoing needs the save before it, to know what the change was, so
         // the oldest one listed can't be undone.
         const older = combined[i + 1];
@@ -323,12 +316,8 @@
     });
   }
 
-  // ---------- bringing back settings a bad merge emptied ----------
-  // Restore above rolls the whole log back to a save, which is the wrong tool
-  // for "my API keys are gone": everything added since would go with it.
-  // These fill in only the settings that are blank now (see
-  // LifeLogMerge.fillBlankSettings) — the recovery for 0.174.0, where joining
-  // by setup link could push a fresh install's empty settings everywhere.
+  // What a backup's settings are called when Restore settings asks about
+  // them (below). Values are never shown — half of these are API keys.
   const SETTING_LABELS = {
     "mediaKeys.rawg": "RAWG API key", "mediaKeys.tmdb": "TMDB API key",
     "mediaKeys.ggdeals": "GG.deals API key", "mediaKeys.steamgriddb": "SteamGridDB API key",
@@ -344,28 +333,6 @@
     const m = path.match(/^mediaCategory(Fallback)?Sources\.(.+)$/);
     if (m) return m[2] + (m[1] ? " fallback source" : " media source");
     return path;
-  }
-
-  async function settingsOf(entry) {
-    const data = entry.snapshot ? entry.snapshot : await Storage.getVersion(entry.sha);
-    return (data && data.settings) || {};
-  }
-
-  async function restoreSettingsFrom(entry) {
-    let older;
-    try { older = await settingsOf(entry); }
-    catch (e) { toast("Couldn't read that save: " + (e.message || e), true); return; }
-    const { settings, filled } = window.LifeLogMerge.fillBlankSettings(state.data.settings, older);
-    const when = formatHistoryDate(entry.savedAt);
-    if (!filled.length) { toast("That save has nothing that's missing now"); return; }
-    const names = filled.map(settingLabel);
-    const list = names.slice(0, 10).join("\n  • ") + (names.length > 10 ? "\n  • and " + (names.length - 10) + " more" : "");
-    if (!confirm(`Bring back ${filled.length} setting${filled.length === 1 ? "" : "s"} from ${when}?\n\n  • ${list}\n\nOnly settings that are empty now are filled in. Your log and every other setting stay exactly as they are.`)) return;
-    state.data.settings = settings;
-    afterDataChange();
-    updateMediaSettings();
-    await persist();
-    toast(`Brought back ${filled.length} setting${filled.length === 1 ? "" : "s"} from ${when}`);
   }
 
   // Settings → Import & export → Restore settings: a full backup's settings,
@@ -395,29 +362,6 @@
       toast(`Restored ${n} setting${n === 1 ? "" : "s"}`);
     };
     reader.readAsText(file);
-  }
-
-  // Walks the history newest first and offers the first save that has
-  // anything to give back — so nobody has to guess which one still had the
-  // keys. Local snapshots are instant; older GitHub saves are fetched one at
-  // a time and the walk stops at the first hit.
-  async function fillMissingSettings() {
-    const btn = $("#historyFillSettingsBtn");
-    btn.disabled = true;
-    try {
-      if (!historyCache.length) await refreshHistoryList();
-      for (const entry of historyCache.slice(1)) {
-        let older;
-        try { older = await settingsOf(entry); } catch (e) { continue; }
-        if (window.LifeLogMerge.fillBlankSettings(state.data.settings, older).filled.length) {
-          await restoreSettingsFrom(entry);
-          return;
-        }
-      }
-      toast("None of your saved versions has a setting that's missing now");
-    } finally {
-      btn.disabled = false;
-    }
   }
 
   function updateFileInfo() {
@@ -542,12 +486,9 @@
       }
       case "io": return { text: "Back up, or bring in a spreadsheet" };
       case "history": {
-        const n = historyCache.length;
-        return { text: n ? "Undo or restore any of " + plural(n, "save", "saves") : "Undo or restore a recent save" };
-      }
-      case "deleted": {
-        const n = computeRecentlyDeleted().length;
-        return { text: n ? plural(n, "item", "items") + " you can bring back" : "Nothing to bring back" };
+        const n = historyCache.length, gone = computeRecentlyDeleted().length;
+        const saves = n ? "Undo or restore any of " + plural(n, "save", "saves") : "Undo or restore a recent save";
+        return { text: saves + (gone ? " · " + plural(gone, "deleted item", "deleted items") : "") };
       }
       case "lock": {
         const p = state.privacy;
@@ -1387,7 +1328,6 @@
     $("#disconnectBoardsFileBtn").onclick = async () => { await Storage.boards.disconnectFile(); updateBoardsFileInfo(); toast("Boards file disconnected"); };
     $("#boardHistoryBtn").onclick = () => window.LifeLogBoards.renderHistory($("#boardHistoryList"), $("#boardHistoryStatus"));
     $("#ghConnectBtn").onclick = connectGithub;
-    $("#historyFillSettingsBtn").onclick = fillMissingSettings;
     // Only where there's a scanner to ask: a browser already has the camera.
     $("#ghScanBtn").hidden = !scanner();
     $("#ghScanBtn").onclick = scanSetupQr;

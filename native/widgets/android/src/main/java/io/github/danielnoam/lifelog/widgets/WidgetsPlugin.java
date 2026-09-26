@@ -22,6 +22,8 @@ import org.json.JSONArray;
  *   update({ json })   the snapshot the widgets draw from
  *   takeQueue()        ticks made on a widget since last asked, and forgets them
  *   takeLaunchAction() what a widget button asked the app to open, once
+ *   notePins()         the notes placed note widgets show, which the app
+ *                      always sends however many notes there are
  *   notificationState(), askForNotifications(), openNotificationSettings()
  *                      for habit reminders (see Reminders)
  *   biometricState(), authenticate({ title, subtitle })
@@ -168,6 +170,15 @@ public class WidgetsPlugin extends Plugin {
             ret.put("message", message);
             call.resolve(ret);
         }));
+    }
+
+    @PluginMethod
+    public void notePins(PluginCall call) {
+        JSArray ids = new JSArray();
+        for (String id : NoteWidget.pins(getContext())) ids.put(id);
+        JSObject ret = new JSObject();
+        ret.put("ids", ids);
+        call.resolve(ret);
     }
 
     @PluginMethod

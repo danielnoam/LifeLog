@@ -64,14 +64,26 @@ final class WidgetStore {
         return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
-    static JSONObject snapshot(Context c) {
+    private static String parsedFrom;
+    private static JSONObject parsed;
+
+    /**
+     * Parsed once per snapshot rather than once per call: a redraw asks for
+     * it a dozen times, and since 0.199.0 it carries the notes. Preferences
+     * hand back the same String until it's replaced, so identity is enough.
+     * Nothing may change what this returns.
+     */
+    static synchronized JSONObject snapshot(Context c) {
         String s = prefs(c).getString(KEY_SNAPSHOT, null);
         if (s == null) return null;
+        if (s == parsedFrom) return parsed;
         try {
-            return new JSONObject(s);
+            parsed = new JSONObject(s);
         } catch (JSONException e) {
-            return null;
+            parsed = null;
         }
+        parsedFrom = s;
+        return parsed;
     }
 
     static void saveSnapshot(Context c, String json) {
@@ -296,18 +308,43 @@ final class WidgetStore {
     }
 
     /**
-     * The to-do view's panels, as the app draws them: a heading per category
-     * (left off when the general list is the only one), the open to-dos in
-     * hand order, then an "N done" line and the finished ones, newest first.
-     * Something ticked on the widget joins the top of the finished ones
-     * straight away, and one unticked goes back to the foot of the open ones,
-     * before the app has seen either.
+     * The to-do view's panels, as the app draws them: a heading per list
+     * (left off when only one is showing), the open to-dos in hand order,
+     * then an "N done" line and the finished ones, newest first. Something
+     * ticked on the widget joins the top of the finished ones straight away,
+     * and one unticked goes back to the foot of the open ones, before the app
+     * has seen either. A widget set to certain lists (0.199.0) gets theirs.
      */
-    static List<Row> todoRows(Context c) {
-        return todoRows(snapshot(c), queue(c));
+    static List<Row> todoRows(Context c, int widgetId) {
+        return todoRows(snapshot(c), queue(c), listsOf(config(c, widgetId)));
     }
 
     static List<Row> todoRows(JSONObject snap, JSONArray q) {
+        return todoRows(snap, q, null);
+    }
+
+    /** The list ids a to-do widget is set to, or null for all of them. */
+    static java.util.Set<String> listsOf(JSONObject cfg) {
+        JSONArray a = cfg == null ? null : cfg.optJSONArray("lists");
+        if (a == null || a.length() == 0) return null;
+        java.util.Set<String> out = new java.util.HashSet<>();
+        for (int i = 0; i < a.length(); i++) out.add(a.optString(i));
+        return out;
+    }
+
+    /** The one list a to-do widget shows, as { id, name, color }, when it's set to exactly one that still exists. */
+    static JSONObject singleList(JSONObject snap, java.util.Set<String> lists) {
+        if (snap == null || lists == null || lists.size() != 1) return null;
+        JSONArray all = snap.optJSONArray("lists");
+        String id = lists.iterator().next();
+        for (int i = 0; all != null && i < all.length(); i++) {
+            JSONObject l = all.optJSONObject(i);
+            if (l != null && id.equals(str(l, "id"))) return l;
+        }
+        return null;
+    }
+
+    static List<Row> todoRows(JSONObject snap, JSONArray q, java.util.Set<String> lists) {
         List<Row> rows = new ArrayList<>();
         if (snap == null) return rows;
         JSONArray todos = snap.optJSONArray("todos");
@@ -315,22 +352,36 @@ final class WidgetStore {
         JSONObject doneCount = snap.optJSONObject("doneCount");
 
         Map<String, List<JSONObject>> panels = new LinkedHashMap<>();
+        Map<String, String> panelList = new LinkedHashMap<>();
+        Map<String, Integer> panelColor = new LinkedHashMap<>();
+        // Every list shown gets its panel, empty ones too: its heading is
+        // where you add to it (0.199.0). Older snapshots haven't the lists.
+        JSONArray all = snap.optJSONArray("lists");
+        for (int i = 0; all != null && i < all.length(); i++) {
+            JSONObject l = all.optJSONObject(i);
+            if (l == null || (lists != null && !lists.contains(str(l, "id")))) continue;
+            panels.put(str(l, "name"), new ArrayList<>());
+            panelList.put(str(l, "name"), str(l, "id"));
+            panelColor.put(str(l, "name"), parseColor(str(l, "color"), 0));
+        }
         for (int i = 0; i < todos.length(); i++) {
             JSONObject t = todos.optJSONObject(i);
             if (t == null) continue;
+            if (lists != null && !lists.contains(str(t, "list"))) continue;
             String cat = str(t, "category");
             List<JSONObject> list = panels.get(cat);
             if (list == null) panels.put(cat, list = new ArrayList<>());
             list.add(t);
+            panelList.put(cat, str(t, "list"));
         }
-        boolean titled = panels.size() > 1 || (panels.size() == 1 && !panels.containsKey(""));
+        boolean titled = panels.size() > 1 || (panels.size() == 1 && !panels.containsKey("") && (lists == null || lists.size() != 1));
 
         for (Map.Entry<String, List<JSONObject>> panel : panels.entrySet()) {
             String cat = panel.getKey();
             List<Row> open = new ArrayList<>();
             List<Row> justDone = new ArrayList<>();
             List<Row> done = new ArrayList<>();
-            int color = 0;
+            int color = panelColor.containsKey(cat) ? panelColor.get(cat) : 0;
             int unticked = 0;
             for (JSONObject t : panel.getValue()) {
                 Row r = new Row();
@@ -357,6 +408,7 @@ final class WidgetStore {
             if (titled) {
                 Row h = new Row();
                 h.type = ROW_HEADER;
+                h.id = panelList.get(cat);
                 h.text = cat.isEmpty() ? "To do" : cat;
                 h.color = color;
                 rows.add(h);
@@ -378,9 +430,9 @@ final class WidgetStore {
         return rows;
     }
 
-    static int openTodoCount(Context c) {
+    static int openTodoCount(List<Row> rows) {
         int n = 0;
-        for (Row r : todoRows(c)) if (r.type == ROW_TODO && !r.done) n++;
+        for (Row r : rows) if (r.type == ROW_TODO && !r.done) n++;
         return n;
     }
 
@@ -391,7 +443,7 @@ final class WidgetStore {
      */
     static void tickTodo(Context c, String id, Boolean checked) {
         if (id == null) return;
-        for (Row r : todoRows(c)) {
+        for (Row r : todoRows(snapshot(c), queue(c))) {
             if (r.type != ROW_TODO || !r.id.equals(id)) continue;
             boolean to = checked != null ? checked : !r.done;
             if (to == r.done) return;
@@ -407,6 +459,44 @@ final class WidgetStore {
             }
             return;
         }
+    }
+
+    // ---- notes (0.199.0) ----
+
+    /** The notes the app sent, or null from an app older than the note widgets. */
+    static JSONArray notes(JSONObject snap) {
+        return snap == null ? null : snap.optJSONArray("notes");
+    }
+
+    static JSONObject noteById(JSONArray notes, String id) {
+        if (notes == null || id == null || id.isEmpty()) return null;
+        for (int i = 0; i < notes.length(); i++) {
+            JSONObject n = notes.optJSONObject(i);
+            if (n != null && id.equals(str(n, "id"))) return n;
+        }
+        return null;
+    }
+
+    /**
+     * A placed widget's own settings (0.199.0): which note, what a random one
+     * draws from, which lists a to-do widget shows.
+     */
+    static JSONObject config(Context c, int widgetId) {
+        String s = prefs(c).getString("widget:" + widgetId, null);
+        if (s == null) return null;
+        try {
+            return new JSONObject(s);
+        } catch (JSONException e) {
+            return null;
+        }
+    }
+
+    static void saveConfig(Context c, int widgetId, JSONObject cfg) {
+        prefs(c).edit().putString("widget:" + widgetId, cfg.toString()).commit();
+    }
+
+    static void dropConfig(Context c, int widgetId) {
+        prefs(c).edit().remove("widget:" + widgetId).apply();
     }
 
     // ---- what the quick-add buttons may offer ----
@@ -435,6 +525,15 @@ final class WidgetStore {
         return (int) (s.length() == 7 ? v | 0xFF000000L : v);
     }
 
+    /** What opens the app with an action for it to run (see WidgetsPlugin). */
+    static Intent launch(Context c, String action) {
+        Intent i = c.getPackageManager().getLaunchIntentForPackage(c.getPackageName());
+        if (i == null) i = new Intent();
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        if (action != null) i.putExtra(EXTRA_ACTION, action);
+        return i;
+    }
+
     /** Opens the app with an action for it to run (see WidgetsPlugin). */
     static PendingIntent openApp(Context c, String action, int requestCode) {
         return openAppOn(c, action, requestCode, null);
@@ -445,10 +544,7 @@ final class WidgetStore {
      * where the request code alone would give every row the first one's.
      */
     static PendingIntent openAppOn(Context c, String action, int requestCode, android.net.Uri data) {
-        Intent i = c.getPackageManager().getLaunchIntentForPackage(c.getPackageName());
-        if (i == null) i = new Intent();
-        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        if (action != null) i.putExtra(EXTRA_ACTION, action);
+        Intent i = launch(c, action);
         if (data != null) i.setData(data);
         return PendingIntent.getActivity(c, requestCode, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
@@ -464,6 +560,8 @@ final class WidgetStore {
         TodosWidget.refresh(c);
         QuickAddWidget.refresh(c);
         SpendWidget.refresh(c);
+        NoteWidget.refresh(c);
+        RandomNoteWidget.refresh(c);
     }
 
     static String pendingNote(Context c) {

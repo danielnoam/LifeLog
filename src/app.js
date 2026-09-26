@@ -133,7 +133,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.198.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.199.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3952,13 +3952,21 @@
         setTimeout(() => card.classList.remove("habit-flash"), 1600);
       }
     }
+    // A note widget (0.199.0): the note, opened. It may have gone since the
+    // widget last heard from the app.
+    else if (action.startsWith("open-note:") && modeEnabled("notes", "notes")) {
+      const note = state.data.notes.find((n) => n.id === action.slice("open-note:".length));
+      goTo("notes", "notes");
+      if (note) Notes.openNoteModal(note); else toast("That note has been deleted", true);
+    }
     // The to-do widget and quick-add's "To-do" (0.197.0): the lists among
-    // the notes, and for adding, the list chosen for quick add — or the one
-    // most recently worked on, or a new "To-do" list if there's none.
-    else if ((action === "open-todos" || action === "add-todo") && modeEnabled("notes", "notes")) {
+    // the notes, and for adding, the list most recently worked on, or a new
+    // "To-do" list if there's none. "add-todo:<id>" is a to-do widget's +
+    // or a list's heading on it (0.199.0): that list.
+    else if ((action === "open-todos" || action === "add-todo" || action.startsWith("add-todo:")) && modeEnabled("notes", "notes")) {
       state.noteKind = "list";
       goTo("notes", "notes");
-      if (action === "add-todo") Notes.focusQuickList();
+      if (action !== "open-todos") Notes.focusQuickList(action.slice("add-todo:".length));
     }
   }
   // The spend widget's numbers (0.185.0): this month so far — everything that

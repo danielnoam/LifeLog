@@ -1,12 +1,12 @@
-// Bringing back settings a bad merge emptied (0.175.0).
+// Getting settings back from History after a bad merge emptied them.
 //
 // 0.174.0's join by setup link, together with settings merging as one blob,
 // could push a fresh install's empty settings to every device — API keys,
 // media sources, Steam, AniList all blank. Every save is a commit, so they
 // were never gone; but Restore rolls the whole log back to a save, taking
-// everything added since with it. This is the other tool: fill in what's
-// empty now, from the newest save that has it, and touch nothing else.
-//
+// everything added since with it. Undo on the save that emptied them is the
+// tool for that. ("Bring back missing settings" and each save's "Settings
+// only" did the same job from another angle and went in 0.199.0.)//
 // GitHub is a fake with three saves: the current one (keys empty, plus a note
 // added after the wipe), the wipe itself, and an older one with the keys.
 const { chromium, BASE, settled } = require("./harness");
@@ -93,53 +93,13 @@ const cached = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
   const browser = await chromium.launch();
   const errs = [];
 
-  // ---- 1. one button finds the save that still had them ----
+  // ---- History is saves, deleted items and nothing else (0.199.0) ----
   {
-    const { page, ctx, errs: e, dialogs, puts } = await openApp(browser);
-    await page.click("#historyFillSettingsBtn");
-    await page.waitForTimeout(1500);
-    await settled(page);
-    const d = await cached(page);
-    check("the missing API keys come back", d.settings.mediaKeys.rawg === "RAWG-SECRET" && d.settings.mediaKeys.tmdb === "TMDB-SECRET", d.settings.mediaKeys);
-    check("and the media sources and Steam settings with them",
-      d.settings.mediaCategorySources.Games === "rawg" && d.settings.mediaCategorySources.Movies === "tmdb-movie" &&
-      d.settings.steam.proxyUrl === "https://proxy.example", d.settings);
-    check("it skipped the wipe itself and found the save before it",
-      dialogs.some((m) => /Bring back \d+ settings/.test(m)), dialogs);
-    check("a note added since the wipe is still there — the log isn't rolled back",
-      d.notes.some((n) => n.text === "Added after the wipe"), d.notes.map((n) => n.text));
-    check("a setting changed on purpose since isn't reverted", d.settings.backlogSort === "added-new", d.settings.backlogSort);
-    check("the question names what comes back without showing the keys themselves",
-      dialogs.some((m) => /RAWG API key/.test(m) && /Games media source/.test(m) && !/SECRET/.test(m)), dialogs);
-    const last = puts[puts.length - 1];
-    check("and the restored settings are saved to GitHub for every device",
-      !!last && last.settings.mediaKeys.rawg === "RAWG-SECRET" && last.notes.length === 2, last && last.settings.mediaKeys);
-    await page.evaluate(() => document.querySelector('.srow[data-page="media"]').click());
-    await page.waitForTimeout(300);
-    check("the Media lookups page shows them straight away", await page.evaluate(() => document.querySelector("#rawgKey").value === "RAWG-SECRET"));
-    errs.push(...e);
-    await ctx.close();
-  }
-
-  // ---- 2. a save with nothing to give says so, and changes nothing ----
-  {
-    const { page, ctx, errs: e, dialogs, puts } = await openApp(browser);
-    const rows = await page.$$(".history-row");
-    let clicked = false;
-    for (const r of rows) {
-      if (/the wipe/.test(await r.innerText())) {
-        const b = await r.$("button:has-text('Settings only')");
-        if (b) { await b.click(); clicked = true; }
-        break;
-      }
-    }
-    await page.waitForTimeout(800);
-    const t = await page.evaluate(() => { const x = document.querySelector("#toast"); return x && !x.hidden ? x.textContent : ""; });
-    check("'Settings only' on a save without the keys says there's nothing to bring back",
-      clicked && /nothing that's missing/.test(t) && dialogs.length === 0, { clicked, t, dialogs });
-    check("and saves nothing", puts.length === 0, puts.length);
-    check("the current save has no 'Settings only' button — it is what's there now",
-      await page.evaluate(() => !document.querySelector(".history-row").innerText.includes("Settings only")));
+    const { page, ctx, errs: e } = await openApp(browser);
+    check("no 'Bring back missing settings' and no 'Settings only' on any save", await page.evaluate(() =>
+      !document.querySelector("#historyFillSettingsBtn") && !/Settings only/.test(document.querySelector("#historyList").innerText)));
+    check("Recently deleted is a section of History, not a page of its own", await page.evaluate(() =>
+      !!document.querySelector('.settings-page[data-page="history"] #trashList') && !document.querySelector('[data-page="deleted"]')));
     errs.push(...e);
     await ctx.close();
   }

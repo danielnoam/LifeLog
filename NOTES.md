@@ -16,6 +16,50 @@ what was decided against and why.
 
 ---
 
+- **Open items, note widgets, lists chosen for the To-do widget (0.199.0).**
+  - "Open" isn't a kind: it's `state.noteKind === "open"`, filtering to
+    lists with an unticked item and drawing them without their finished rows,
+    in one flat block in the To-do widget's order (favourites, then oldest
+    first). Most recently worked on was tried: every tick or add moved the
+    list you were working in.
+  - The widget snapshot now carries the notes, each cut to what a widget
+    can show (NOTE_CHARS) and the lot to a budget (NOTES_BUDGET): pinned,
+    then favourites, then newest. Pinned notes are asked of the plugin
+    (`notePins`) on every push, so a pinned note is always sent however old
+    it is, and a pinned note missing from a snapshot really was deleted.
+    WidgetStore caches the parsed snapshot by String identity, since
+    SharedPreferences hands back the same instance until it's replaced and a
+    redraw asks for it a dozen times.
+  - Each placed widget's settings are one JSON string in the widgets'
+    preferences, `widget:<id>`, dropped in onDeleted. The settings screens
+    are plain framework Activities built in code with a Material dialog
+    theme: no AppCompat, no layouts to keep in step, and taskAffinity=""
+    so finishing one doesn't bring the app's task forward.
+  - The random widget turns over on Android's hourly updatePeriodMillis or
+    any redraw after the hour or day turns, whichever comes first. Nothing
+    wakes a widget exactly on the hour without an alarm, and an alarm for
+    this wasn't worth it.
+  - To-do widget: set to one list, the top + is `add-todo:<id>`; showing
+    more, it's gone and each list's heading carries the + instead. Headings
+    are rows of the collection, and collection rows can only use the one
+    click template, which has to be a broadcast so ticks stay on the home
+    screen. So a heading's tap is a broadcast that calls startActivity. The
+    widget host's click is what allows the receiver to do that. It's the
+    one part of this release that couldn't be checked off a real phone
+    (TODO.md). Empty lists get a panel (from the snapshot's `lists`), or a
+    widget of empty lists would have nowhere to add from.
+  - "Quick add goes here" went: a To-do widget set to one list is where that
+    choice belongs, and a switch in the sheet that did nothing visible read
+    as noise. An old `settings.quickList` is simply ignored.
+  - The list sheet lost its tick boxes. Ticking is the card's job, and in
+    the sheet they made writing a list look like filling in a form.
+  - History lost "Bring back missing settings" and each save's "Settings
+    only" (with LifeLogMerge.fillBlankSettings). They were the recovery for
+    0.174.0's emptied settings. That's long past, Undo on the save that
+    emptied them does it, and Restore settings covers a backup file.
+    Recently deleted moved into History because it's computed from the same
+    saves.
+
 - **The To-do mode's data went, the bridge stayed (0.198.0).** `todos` and
   `todoCategories` are deleted by `normalize()` after the fold, so they're
   never saved again. Two things stay on purpose: the fold itself (with a

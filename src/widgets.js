@@ -22,6 +22,13 @@
   // habit kept three years, sent on every save.
   const MARK_DAYS = 7;
   const DONE_PER_PANEL = 30;
+  // The note widgets' share (0.199.0). A widget shows a few hundred
+  // characters at most, so that's all a note sends; and the whole lot stops
+  // at a budget, pinned notes first, then favourites, then newest, since
+  // this goes out on every save and is parsed on every widget redraw.
+  const NOTE_CHARS = 400;
+  const NOTE_ITEMS = 8;
+  const NOTES_BUDGET = 150000;
 
   const pad = (n) => String(n).padStart(2, "0");
   const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -39,7 +46,7 @@
   // showing — a button for a tab you've turned off opens nothing.
   // remindAt and runBefore come from reminders.js and habits.js in the app;
   // left out, nothing is reminded and every run starts at nought.
-  function snapshotOf(data, { today, actions = [], remindAt = () => "", runBefore = () => 0, spend = null } = {}) {
+  function snapshotOf(data, { today, actions = [], remindAt = () => "", runBefore = () => 0, spend = null, pins = [] } = {}) {
     const since = addDays(today, -MARK_DAYS);
     const until = addDays(today, 1);
     const habits = (data.habits || [])
@@ -78,6 +85,9 @@
       .sort((a, b) => (!!b.fav - !!a.fav) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
     const todos = [];
     const doneCount = {};
+    // Every list, empty ones too, for the widget's settings to offer and a
+    // one-list widget to name (0.199.0). Rows say which list by id.
+    const listsOut = [];
     const seen = new Map();
     for (const n of lists) {
       const base = n.text || "List";
@@ -85,7 +95,8 @@
       seen.set(base, k);
       const name = k > 1 ? `${base} (${k})` : base;
       const color = n.category ? colorOf(n.category) : "";
-      const row = (it) => ({ id: it.id, text: it.text, category: name, color, done: !!it.done });
+      listsOut.push({ id: n.id, name, color });
+      const row = (it) => ({ id: it.id, text: it.text, category: name, list: n.id, color, done: !!it.done });
       const items = n.items || [];
       const open = items.filter((it) => !it.done);
       const done = items.filter((it) => it.done).sort(byNewestDone);
@@ -93,7 +104,42 @@
       for (const it of open) todos.push(row(it));
       for (const it of done.slice(0, DONE_PER_PANEL)) todos.push(row(it));
     }
-    return { v: 4, today, habits, todos, doneCount, actions, spend };
+    return { v: 4, today, habits, todos, doneCount, lists: listsOut, actions, spend, ...notesOf(data, pins) };
+  }
+
+  // What the note widgets pick from: each note cut to what a widget can
+  // show, a list as its title and first open items. `date` is formatted
+  // here, where the locale is the app's.
+  function notesOf(data, pins) {
+    const noteCats = data.noteCategories || [];
+    const colorOf = (name) => (noteCats.find((c) => c.name === name) || {}).color || "";
+    const cut = (t, n) => { t = String(t || "").trim(); return t.length > n ? t.slice(0, n - 1).trimEnd() + "…" : t; };
+    const pinned = new Set(pins);
+    const rank = (n) => (pinned.has(n.id) ? 2 : 0) + (n.fav ? 1 : 0);
+    const sorted = (data.notes || []).slice()
+      .sort((a, b) => rank(b) - rank(a) || String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+    const notes = [];
+    let used = 0;
+    for (const n of sorted) {
+      const kind = n.kind === "list" || n.kind === "quote" ? n.kind : "text";
+      const out = { id: n.id, kind, text: cut(n.text, NOTE_CHARS) };
+      if (kind === "text" && n.title) out.title = cut(n.title, 120);
+      if (n.category) { out.category = n.category; out.color = colorOf(n.category); }
+      if (n.fav) out.fav = true;
+      if (kind === "quote") for (const k of ["author", "source"]) if (n[k]) out[k] = cut(n[k], 80);
+      if (kind === "list") {
+        const open = (n.items || []).filter((it) => !it.done);
+        out.items = open.slice(0, NOTE_ITEMS).map((it) => cut(it.text, 80));
+        out.open = open.length;
+      }
+      const d = new Date(n.createdAt || 0);
+      if (n.createdAt && !isNaN(d)) out.date = d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+      if (!out.text && !out.title && !(out.items || []).length) continue;
+      used += JSON.stringify(out).length;
+      if (used > NOTES_BUDGET && !pinned.has(n.id)) break;
+      notes.push(out);
+    }
+    return { notes, noteCount: (data.notes || []).length, noteCats: noteCats.map((c) => ({ name: c.name, color: c.color || "" })) };
   }
 
   // Ticks from a widget, onto the data. Anything that has gone since the
@@ -133,11 +179,15 @@
   let pushTimer = null;
   const plugin = () => (ctx && ctx.Platform.plugin("Widgets")) || null;
 
-  function push() {
+  async function push() {
     clearTimeout(pushTimer);
     pushTimer = null;
     const W = plugin();
     if (!W) return;
+    // The notes pinned to a widget always travel, however far down the
+    // budget they'd fall. An APK older than 0.199.0 hasn't the method.
+    let pins = [];
+    try { pins = ((await W.notePins()) || {}).ids || []; } catch (e) { /* none */ }
     const R = window.LifeLogReminders;
     const H = window.LifeLogHabits;
     const snap = snapshotOf(ctx.state.data, {
@@ -146,6 +196,7 @@
       remindAt: R ? R.remindAt : undefined,
       runBefore: H ? H.runBefore : undefined,
       spend: ctx.spend ? ctx.spend() : null,
+      pins,
     });
     Promise.resolve(W.update({ json: JSON.stringify(snap) })).catch(() => { /* the widget keeps its last copy */ });
   }
@@ -202,5 +253,5 @@
     takeAction();
   }
 
-  window.LifeLogWidgets = { snapshotOf, applyQueue, start, changed, MARK_DAYS, DONE_PER_PANEL };
+  window.LifeLogWidgets = { snapshotOf, applyQueue, start, changed, MARK_DAYS, DONE_PER_PANEL, NOTE_CHARS, NOTES_BUDGET };
 })();

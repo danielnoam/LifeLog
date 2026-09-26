@@ -196,7 +196,7 @@ test("a layout that needs Android 12 is only ever used behind a check for it", (
 test("every view the Java reaches for is in a layout", () => {
   const declared = new Set();
   for (const f of layouts) for (const m of read(WIDGETS, "res", "layout", f).matchAll(/@\+id\/(\w+)/g)) declared.add(m[1]);
-  const used = [...new Set([...javaSrc.matchAll(/R\.id\.(\w+)/g)].map((m) => m[1]))];
+  const used = [...new Set([...javaSrc.matchAll(/(?<!android\.)R\.id\.(\w+)/g)].map((m) => m[1]))];
   assert.deepStrictEqual(used.filter((id) => !declared.has(id)), []);
 });
 
@@ -204,7 +204,7 @@ test("every layout, drawable and colour the Java names exists", () => {
   const have = (kind, name) => kind === "color"
     ? /<color name="/.test(read(WIDGETS, "res", "values", "colors.xml")) && read(WIDGETS, "res", "values", "colors.xml").includes('name="' + name + '"')
     : fs.existsSync(path.join(WIDGETS, "res", kind, name + ".xml"));
-  const missing = [...javaSrc.matchAll(/R\.(layout|drawable|color)\.(\w+)/g)].filter((m) => !have(m[1], m[2])).map((m) => m[0]);
+  const missing = [...javaSrc.matchAll(/(?<!android\.)R\.(layout|drawable|color)\.(\w+)/g)].filter((m) => !have(m[1], m[2])).map((m) => m[0]);
   assert.deepStrictEqual([...new Set(missing)], []);
 });
 
@@ -252,6 +252,20 @@ test("the app loads the plugin by the name the page calls it", () => {
   assert.ok(/plugin\("Widgets"\)/.test(fs.readFileSync(path.join(__dirname, "..", "src", "widgets.js"), "utf8")));
   const pkg = require("../package.json");
   assert.strictEqual(pkg.devDependencies["lifelog-widgets"], "file:native/widgets");
+});
+
+test("a widget's settings screen is declared where the launcher can start it", () => {
+  const manifest = read(WIDGETS, "AndroidManifest.xml");
+  const infos = fs.readdirSync(path.join(WIDGETS, "res", "xml")).map((f) => read(WIDGETS, "res", "xml", f));
+  const screens = infos.map((x) => (x.match(/android:configure="([^"]+)"/) || [])[1]).filter(Boolean);
+  assert.ok(screens.length >= 2, screens);
+  for (const name of screens) {
+    const at = manifest.indexOf('android:name="' + name + '"');
+    assert.ok(at > -1, name + " isn't in the manifest");
+    const tag = manifest.slice(manifest.lastIndexOf("<activity", at), manifest.indexOf("</activity>", at));
+    assert.ok(tag.includes('android:exported="true"') && tag.includes("APPWIDGET_CONFIGURE"), name);
+    assert.ok(fs.existsSync(path.join(JAVA, name.split(".").pop() + ".java")), name + " has no class");
+  }
 });
 
 test("every action a widget sends is one the app knows what to do with", () => {

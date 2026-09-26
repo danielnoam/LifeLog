@@ -4,6 +4,41 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.199.0] - 2026-09-26
+
+### Added
+- **Open items in Notes.** A new "Open" chip in the Notes bar shows how many
+  items are left to tick across all your lists. Tap it to see only the lists
+  with something left, and only their unticked items, in one place. Ticking
+  an item there works as usual, and a list drops out once it's done.
+- **Titles for notes.** A plain note can have an optional title, shown above
+  its text.
+- **Note widget (Android).** Pick one note when you place it and it stays on
+  your home screen. Tapping it opens the note in the app.
+- **Random note widget (Android).** Shows a different note to bring old ones
+  back. Its settings choose which kinds (notes, lists, quotes) and
+  categories it draws from, whether it changes every hour, every day or only
+  when you tap ↻, and whether it shows the date. Tapping the note opens it.
+- **Choose lists for the To-do widget (Android).** When you place it, or
+  later from its long-press menu, pick which lists it shows. With one list,
+  the widget is named after it and its + adds to it. With more, there's no
+  + at the top: tap a list's name on the widget to add to that list.
+
+### Changed
+- A list's sheet is tidier: the items are one panel of rows with an "Add an
+  item" line at the bottom, and the tick boxes are gone from the sheet. You
+  tick items on the list's card.
+- A quote's Author and Source sit side by side, on phones too.
+- Settings → Recently deleted is now a section inside Settings → History.
+
+### Removed
+- "Quick add goes here" in a list's sheet. Quick add's To-do goes to the
+  list you last worked on, and a To-do widget set to one list adds to that
+  one.
+- "Bring back missing settings" and each save's "Settings only" button in
+  History. Undo on the save that lost them does the same job, and Import &
+  export → Restore settings still works from a backup file.
+
 ## [0.198.0] - 2026-09-26
 
 ### Removed

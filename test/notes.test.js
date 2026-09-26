@@ -109,6 +109,26 @@ test("year and search narrow together, not separately", () => {
   assert.deepStrictEqual(getFilteredNotes().map((n) => n.id), ["a"]);
 });
 
+test("a plain note keeps a title, and search finds it; other kinds don't carry one", () => {
+  assert.strictEqual(sanitizeNote({ text: "body", title: "  Idea  " }).title, "Idea");
+  assert.strictEqual("title" in sanitizeNote({ text: "body", title: "  " }), false);
+  assert.strictEqual("title" in sanitizeNote({ kind: "quote", text: "q", title: "T" }), false);
+  assert.ok(Notes.noteHaystack({ title: "Groceries idea", text: "x" }).includes("groceries"));
+});
+
+test("Open shows only the lists with something left to tick", () => {
+  seed();
+  state.data.notes.push(
+    { id: "l1", kind: "list", text: "Shop", createdAt: "2026-09-01T10:00:00.000Z", items: [{ id: "i1", text: "Milk" }, { id: "i2", text: "Eggs", done: true }] },
+    { id: "l2", kind: "list", text: "Done", createdAt: "2026-09-01T10:00:00.000Z", items: [{ id: "i3", text: "All", done: true }] },
+    { id: "l3", kind: "list", text: "Empty", createdAt: "2026-09-01T10:00:00.000Z", items: [] });
+  state.noteKind = "open";
+  assert.deepStrictEqual(getFilteredNotes().map((n) => n.id), ["l1"]);
+  state.search = "eggs"; // a finished item still finds its list
+  assert.deepStrictEqual(getFilteredNotes().map((n) => n.id), ["l1"]);
+  state.noteKind = "";
+});
+
 console.log("\nsplitNoteForEntry");
 
 const { splitNoteForEntry } = Notes;

@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- updatePeriodMillis is what turns it over on the hour or the day with
+     the app closed; Android won't go below 30 minutes. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="io.github.danielnoam.lifelog.widgets.RandomNoteSettingsActivity"
+    android:description="@string/widget_randomnote_description"
+    android:initialLayout="@layout/widget_note"
+    android:previewLayout="@layout/widget_note_preview"
+    android:minWidth="160dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="100dp"
+    android:minResizeHeight="50dp"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="3"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="3600000"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable|configuration_optional" />

@@ -108,12 +108,12 @@
   const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   // A quote's author and source, and a list's items (one per line, "[x] "
   // when ticked), ride in three columns on the end (0.195.0), so a sheet
-  // from before them still reads.
+  // from before them still reads; a plain note's title (0.199.0) after them.
   const LIST_KIND = { list: "List", quote: "Quote" };
   function notesCsvRows(notes, habits) {
-    const rows = [["Kind", "Date", "Category", "Text", "Done", "Days", "Target", "Marks", "Color", "Author", "Source", "Items", "Favourite"]];
+    const rows = [["Kind", "Date", "Category", "Text", "Done", "Days", "Target", "Marks", "Color", "Author", "Source", "Items", "Favourite", "Title"]];
     (notes || []).forEach((n) => rows.push([LIST_KIND[n.kind] || "Note", n.createdAt || "", n.category || "", n.text, "", "", "", "", "",
-      n.author || "", n.source || "", (n.items || []).map((i) => (i.done ? "[x] " : "[ ] ") + i.text).join("\n"), n.fav ? "yes" : ""]));
+      n.author || "", n.source || "", (n.items || []).map((i) => (i.done ? "[x] " : "[ ] ") + i.text).join("\n"), n.fav ? "yes" : "", n.title || ""]));
     (habits || []).forEach((h) => rows.push(["Habit", h.startedAt || "", "", h.name, h.archivedAt || "",
       h.cadence && h.cadence.days ? h.cadence.days.map((d) => DAY_LABELS[d]).join(" ") : "daily",
       h.target || 1,
@@ -131,12 +131,13 @@
       const kind = (row[0] || "").trim().toLowerCase();
       const txt = (row[3] || "").trim();
       // A list may be all items and no title.
-      if (!txt && !((row[0] || "").trim().toLowerCase() === "list" && (row[11] || "").trim())) continue;
+      if (!txt && !((kind === "list" && (row[11] || "").trim()) || (kind === "note" && (row[13] || "").trim()))) continue;
       const date = (row[1] || "").trim(), done = (row[4] || "").trim();
       if (kind === "note" || kind === "quote" || kind === "list") {
         const n = { text: row[3], createdAt: iso(date) };
         if ((row[2] || "").trim()) n.category = row[2].trim();
         if ((row[12] || "").trim()) n.fav = true;
+        if (kind === "note" && (row[13] || "").trim()) n.title = row[13].trim();
         if (kind === "quote") { n.kind = "quote"; n.author = (row[9] || "").trim(); n.source = (row[10] || "").trim(); }
         if (kind === "list") {
           n.kind = "list";

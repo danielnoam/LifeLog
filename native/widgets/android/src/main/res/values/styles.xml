@@ -15,4 +15,9 @@
         <item name="android:textColor">@color/widget_text</item>
         <item name="android:textSize">12sp</item>
     </style>
+
+    <!-- The note widgets' settings: a plain dialog over the home screen. -->
+    <style name="LifeLogWidgetSettings" parent="@android:style/Theme.Material.Light.Dialog.MinWidth">
+        <item name="android:colorAccent">@color/widget_accent</item>
+    </style>
 </resources>

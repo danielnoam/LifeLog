@@ -57,6 +57,66 @@
         </receiver>
 
         <receiver
+            android:name="io.github.danielnoam.lifelog.widgets.NoteWidget"
+            android:exported="false"
+            android:label="@string/widget_note_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_note_info" />
+        </receiver>
+
+        <receiver
+            android:name="io.github.danielnoam.lifelog.widgets.RandomNoteWidget"
+            android:exported="false"
+            android:label="@string/widget_randomnote_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_randomnote_info" />
+        </receiver>
+
+        <!-- The widgets' settings. Exported because the launcher starts
+             them when a widget is placed; taskAffinity="" keeps them out of
+             the app's own task, so finishing one doesn't bring LifeLog up. -->
+        <activity
+            android:name="io.github.danielnoam.lifelog.widgets.NotePickActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity=""
+            android:theme="@style/LifeLogWidgetSettings">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="io.github.danielnoam.lifelog.widgets.TodosSettingsActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity=""
+            android:theme="@style/LifeLogWidgetSettings">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="io.github.danielnoam.lifelog.widgets.RandomNoteSettingsActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity=""
+            android:theme="@style/LifeLogWidgetSettings">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <receiver
             android:name="io.github.danielnoam.lifelog.widgets.ReminderReceiver"
             android:exported="false">
             <intent-filter>

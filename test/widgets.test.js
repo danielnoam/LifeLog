@@ -146,5 +146,52 @@ test("a tick for something deleted since is dropped, not recreated", () => {
   assert.strictEqual(allItems(d).length, 6);
 });
 
+console.log("\nwhat the note widgets are shown");
+
+test("every kind of note, a list as its title and open items, with its category's colour", () => {
+  const snap = W.snapshotOf(data(), { today: TODAY });
+  const byId = Object.fromEntries(snap.notes.map((n) => [n.id, n]));
+  assert.deepStrictEqual(byId.Lg.items, ["Call mum"]);
+  assert.strictEqual(byId.Lg.open, 1);
+  assert.strictEqual(byId.Lw.color, "#ff0000");
+  assert.strictEqual(byId.N.kind, "text");
+  assert.strictEqual(snap.noteCount, 5);
+  assert.deepStrictEqual(snap.noteCats.map((c) => c.name), ["Work", "Errands"]);
+});
+
+test("the to-do widget is told every list, empty ones too, and each row its list", () => {
+  const d = data();
+  d.notes.push({ id: "Lx", kind: "list", text: "Nothing yet", createdAt: "2026-06-01", items: [] });
+  const snap = W.snapshotOf(d, { today: TODAY });
+  assert.deepStrictEqual(snap.lists.map((l) => l.id), ["Lf", "Lg", "Lw", "Le", "Lx"]);
+  assert.strictEqual(snap.lists.find((l) => l.id === "Lw").color, "#ff0000");
+  assert.ok(snap.todos.every((t) => t.list && snap.lists.some((l) => l.id === t.list && l.name === t.category)));
+});
+
+test("a plain note's title travels with it", () => {
+  const d = data();
+  d.notes.push({ id: "T", title: "Idea", text: "", createdAt: "2026-09-01" });
+  assert.strictEqual(W.snapshotOf(d, { today: TODAY }).notes.find((n) => n.id === "T").title, "Idea");
+});
+
+test("a long note is cut to what a widget can show", () => {
+  const d = data();
+  d.notes.push({ id: "long", text: "x".repeat(5000), createdAt: "2026-09-01" });
+  const n = W.snapshotOf(d, { today: TODAY }).notes.find((x) => x.id === "long");
+  assert.strictEqual(n.text.length, W.NOTE_CHARS);
+  assert.ok(n.text.endsWith("…"));
+});
+
+test("past the budget the oldest go first, but a pinned note always travels", () => {
+  const d = { notes: [] };
+  for (let i = 0; i < 1000; i++) d.notes.push({ id: "n" + i, text: "y".repeat(300), createdAt: "2020-01-01T00:00:" + String(i % 60).padStart(2, "0") + "Z" });
+  d.notes.push({ id: "old", text: "the pinned one", createdAt: "2001-01-01" });
+  const plain = W.snapshotOf(d, { today: TODAY });
+  assert.ok(plain.notes.length < d.notes.length && !plain.notes.some((n) => n.id === "old"));
+  assert.ok(JSON.stringify(plain.notes).length <= W.NOTES_BUDGET + 500);
+  const pinned = W.snapshotOf(d, { today: TODAY, pins: ["old"] });
+  assert.strictEqual(pinned.notes[0].id, "old");
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

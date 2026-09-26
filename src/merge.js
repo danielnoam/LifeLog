@@ -261,36 +261,9 @@
     return localNewer ? local : remote;
   }
 
-  // Brings back settings that are blank now from an older version — and
-  // nothing else. For recovering what a bad merge emptied (0.174.0's join by
-  // setup link could push a fresh install's empty settings everywhere) without
-  // rolling the whole log back to that version, which is what Restore does.
-  // A setting set to something now is never touched, even if the older one
-  // differs: this only fills holes. Returns the settings and the paths filled.
-  function fillBlankSettings(current, older) {
-    const filled = [];
-    const walk = (cur, old, path) => {
-      if (isPlainObject(old)) {
-        const out = isPlainObject(cur) ? { ...cur } : {};
-        for (const k of Object.keys(old)) {
-          if (k === "updatedAt" && !path) continue;
-          const v = walk(out[k], old[k], path ? path + "." + k : k);
-          if (v !== undefined) out[k] = v;
-        }
-        return out;
-      }
-      if (isBlank(cur) && !isBlank(old)) { filled.push(path); return old; }
-      return cur;
-    };
-    const settings = walk(current || {}, older || {}, "");
-    if (current && current.updatedAt) settings.updatedAt = current.updatedAt;
-    return { settings, filled };
-  }
-
   // Settings restored on purpose from a backup file (Settings → Import &
-  // export → Restore settings). Unlike fillBlankSettings this also changes
-  // what's set now to what the file says — that's the point of asking for
-  // it — but a blank in the file never empties something that's set: a
+  // export → Restore settings). It changes what's set now to what the file
+  // says — that's the point of asking for it — but a blank in the file never empties something that's set: a
   // backup from before a key existed shouldn't take the key away. Returns
   // the settings and which paths it filled and which it changed.
   function settingsFromBackup(current, incoming) {
@@ -440,7 +413,7 @@
     COLLECTION_KEYS, byId, mergeBoards, sameContent, flattenAccomplishments, unflattenAccomplishments,
     compareVersions, maxVersion,
     stampChangedItems, diffCollection, diffSnapshots, summarizeConflicts,
-    mergeCollection, mergeAccomplishmentYears, mergeSettings, mergeAllSources, fillBlankSettings, settingsFromBackup,
+    mergeCollection, mergeAccomplishmentYears, mergeSettings, mergeAllSources, settingsFromBackup,
     mergeHabits, mergeMarks, mergeNotes,
   };
 

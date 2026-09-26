@@ -451,42 +451,6 @@ test("settings: the whole sync path keeps both edits, not just mergeSettings", (
   assert.strictEqual(out.settings.backlogSort, "release");
 });
 
-// ---- bringing back settings a bad merge emptied ----
-const { fillBlankSettings } = Merge;
-
-test("fill: keys that are blank now come back from the older version", () => {
-  const now = S({}, "t9");
-  const older = S({ mediaKeys: { ...KEYS_EMPTY, rawg: "RAWG-KEY", tmdb: "TMDB-KEY" }, steam: { proxyUrl: "https://p", steamId: "7656" } }, "t1");
-  const { settings, filled } = fillBlankSettings(now, older);
-  assert.strictEqual(settings.mediaKeys.rawg, "RAWG-KEY");
-  assert.strictEqual(settings.steam.proxyUrl, "https://p");
-  assert.deepStrictEqual(filled.sort(), ["mediaKeys.rawg", "mediaKeys.tmdb", "steam.proxyUrl", "steam.steamId"]);
-});
-
-test("fill: nothing set now is touched, even where the older version differs", () => {
-  const now = S({ backlogSort: "release", mediaKeys: { ...KEYS_EMPTY, rawg: "NEW" } }, "t9");
-  const older = S({ backlogSort: "title", mediaKeys: { ...KEYS_EMPTY, rawg: "OLD", tmdb: "T" } }, "t1");
-  const { settings, filled } = fillBlankSettings(now, older);
-  assert.strictEqual(settings.backlogSort, "release");
-  assert.strictEqual(settings.mediaKeys.rawg, "NEW");
-  assert.deepStrictEqual(filled, ["mediaKeys.tmdb"]);
-});
-
-test("fill: category sources missing now are brought back per category", () => {
-  const now = S({ mediaCategorySources: { Games: "rawg" } }, "t9");
-  const older = S({ mediaCategorySources: { Games: "steamgriddb", Movies: "tmdb-movie" } }, "t1");
-  const { settings, filled } = fillBlankSettings(now, older);
-  assert.deepStrictEqual(settings.mediaCategorySources, { Games: "rawg", Movies: "tmdb-movie" });
-  assert.deepStrictEqual(filled, ["mediaCategorySources.Movies"]);
-});
-
-test("fill: a version with nothing missing fills nothing, and keeps the current stamp", () => {
-  const now = S({ mediaKeys: { ...KEYS_EMPTY, rawg: "K" } }, "t9");
-  const r = fillBlankSettings(now, S({}, "t1"));
-  assert.deepStrictEqual(r.filled, []);
-  assert.strictEqual(r.settings.updatedAt, "t9");
-});
-
 // ---- undoing one change from History (settings.js undoHistoryChange) ----
 // The merge with the save as ancestor, today as one side and the save before
 // it as the other. These pin what "undo just this change" means.

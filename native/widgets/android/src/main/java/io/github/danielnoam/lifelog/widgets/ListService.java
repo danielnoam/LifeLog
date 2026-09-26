@@ -19,7 +19,8 @@ public class ListService extends RemoteViewsService {
 
     @Override
     public RemoteViewsFactory onGetViewFactory(Intent intent) {
-        return new Factory(getApplicationContext());
+        return new Factory(getApplicationContext(),
+            intent.getIntExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_ID, 0));
     }
 
     /** One row of the to-do list, however it gets there. */
@@ -29,6 +30,13 @@ public class ListService extends RemoteViewsService {
                 r.type == WidgetStore.ROW_HEADER ? R.layout.widget_row_header : R.layout.widget_row_sep);
             v.setTextViewText(R.id.row_text, r.text);
             if (r.color != 0) v.setTextColor(R.id.row_text, r.color);
+            // A list's heading, with more than one list showing, adds to
+            // that list (0.199.0).
+            if (r.type == WidgetStore.ROW_HEADER && !r.id.isEmpty()) {
+                Intent fill = new Intent();
+                fill.putExtra(ListWidget.EXTRA_OPEN, "add-todo:" + r.id);
+                v.setOnClickFillInIntent(R.id.row, fill);
+            }
             return v;
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return checkboxRow(c, r);
@@ -66,10 +74,12 @@ public class ListService extends RemoteViewsService {
     private static final class Factory implements RemoteViewsService.RemoteViewsFactory {
 
         private final Context c;
+        private final int widgetId;
         private List<WidgetStore.Row> rows = new ArrayList<>();
 
-        Factory(Context c) {
+        Factory(Context c, int widgetId) {
             this.c = c;
+            this.widgetId = widgetId;
         }
 
         @Override
@@ -77,7 +87,7 @@ public class ListService extends RemoteViewsService {
 
         @Override
         public void onDataSetChanged() {
-            rows = WidgetStore.todoRows(c);
+            rows = WidgetStore.todoRows(c, widgetId);
         }
 
         @Override

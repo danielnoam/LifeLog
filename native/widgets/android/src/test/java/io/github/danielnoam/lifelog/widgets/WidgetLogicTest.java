@@ -268,4 +268,114 @@ public class WidgetLogicTest {
     public void aLoneGeneralListNeedsNoHeading() throws Exception {
         assertEquals("o:a", rows(json("{\"todos\":[{\"id\":\"a\",\"text\":\"A\",\"category\":\"\",\"color\":\"\"}]}"), NONE));
     }
+
+    // ---- notes ----
+
+    @Test
+    public void aNoteCardShedsItsHeaderAndFitsItsLinesToTheHeight() {
+        assertFalse(NoteCard.compact(0, 0));
+        assertTrue(NoteCard.compact(250, 90));
+        assertTrue(NoteCard.compact(120, 200));
+        assertEquals(8, NoteCard.lines(0, false, 1));
+        assertTrue(NoteCard.lines(300, false, 0) > NoteCard.lines(300, false, 2));
+        assertEquals(1, NoteCard.lines(40, true, 0));
+    }
+
+    @Test
+    public void aListIsItsTitleAndWhatsLeftOnIt() throws Exception {
+        assertEquals("Shop\n• Milk\n• Eggs\n+3 more",
+            NoteCard.body(json("{\"kind\":\"list\",\"text\":\"Shop\",\"items\":[\"Milk\",\"Eggs\"],\"open\":5}")));
+        assertEquals("Shop\nAll done", NoteCard.body(json("{\"kind\":\"list\",\"text\":\"Shop\",\"items\":[],\"open\":0}")));
+        assertEquals("“Be kind”", NoteCard.body(json("{\"kind\":\"quote\",\"text\":\"Be kind\"}")));
+        assertEquals("— Ann, Letters", NoteCard.byline(json("{\"kind\":\"quote\",\"author\":\"Ann\",\"source\":\"Letters\"}")));
+        assertEquals("", NoteCard.byline(json("{\"kind\":\"text\",\"author\":\"Ann\"}")));
+        assertEquals("WORK", NoteCard.label(json("{\"kind\":\"quote\",\"category\":\"Work\"}")));
+        assertEquals("NOTE", NoteCard.label(json("{\"text\":\"plain\"}")));
+    }
+
+    private static JSONArray notes() throws Exception {
+        return new JSONArray("[{\"id\":\"a\",\"kind\":\"text\",\"text\":\"A\"},"
+            + "{\"id\":\"b\",\"kind\":\"quote\",\"text\":\"B\",\"category\":\"Books\"},"
+            + "{\"id\":\"c\",\"kind\":\"list\",\"text\":\"C\",\"category\":\"Work\"}]");
+    }
+
+    private static String ids(List<JSONObject> pool) {
+        StringBuilder b = new StringBuilder();
+        for (JSONObject n : pool) b.append(n.optString("id"));
+        return b.toString();
+    }
+
+    @Test
+    public void aRandomNoteDrawsFromTheKindsAndCategoriesChosenOrAllOfThem() throws Exception {
+        assertEquals("abc", ids(RandomNoteWidget.pool(notes(), RandomNoteWidget.defaults())));
+        assertEquals("b", ids(RandomNoteWidget.pool(notes(), json("{\"kinds\":[\"quote\"]}"))));
+        assertEquals("ac", ids(RandomNoteWidget.pool(notes(), json("{\"cats\":[\"\",\"Work\"]}"))));
+        assertEquals("", ids(RandomNoteWidget.pool(notes(), json("{\"kinds\":[\"text\"],\"cats\":[\"Work\"]}"))));
+        assertEquals("", ids(RandomNoteWidget.pool(null, RandomNoteWidget.defaults())));
+    }
+
+    @Test
+    public void anotherNoteIsNeverTheOneShowingWhileThereIsAnother() throws Exception {
+        List<JSONObject> pool = RandomNoteWidget.pool(notes(), RandomNoteWidget.defaults());
+        java.util.Random r = new java.util.Random(1);
+        for (int i = 0; i < 50; i++) assertFalse("b".equals(RandomNoteWidget.pick(pool, "b", r).optString("id")));
+        List<JSONObject> one = new ArrayList<>();
+        one.add(pool.get(1));
+        assertEquals("b", RandomNoteWidget.pick(one, "b", r).optString("id"));
+        assertEquals(null, RandomNoteWidget.pick(new ArrayList<>(), "b", r));
+    }
+
+    @Test
+    public void aRandomNoteTurnsOverOnTheHourTheDayOrOnlyWhenAsked() throws Exception {
+        long nine = at("2026-09-24 09:10"), later = at("2026-09-24 09:55"), ten = at("2026-09-24 10:01"), tomorrow = at("2026-09-25 00:01");
+        assertFalse(RandomNoteWidget.due("hour", nine, later));
+        assertTrue(RandomNoteWidget.due("hour", nine, ten));
+        assertFalse(RandomNoteWidget.due("day", nine, ten));
+        assertTrue(RandomNoteWidget.due("day", nine, tomorrow));
+        assertFalse(RandomNoteWidget.due("tap", nine, tomorrow));
+        assertTrue(RandomNoteWidget.due("tap", 0, nine));
+    }
+
+    // ---- a to-do widget set to certain lists (0.199.0) ----
+
+    private static JSONObject listed() throws Exception {
+        return json("{\"lists\":[{\"id\":\"L1\",\"name\":\"Shop\",\"color\":\"\"},{\"id\":\"L2\",\"name\":\"Work\",\"color\":\"#ff0000\"},"
+            + "{\"id\":\"L3\",\"name\":\"Empty\",\"color\":\"\"}],\"todos\":["
+            + "{\"id\":\"a\",\"text\":\"Milk\",\"category\":\"Shop\",\"list\":\"L1\"},"
+            + "{\"id\":\"b\",\"text\":\"Taxes\",\"category\":\"Work\",\"list\":\"L2\"}]}");
+    }
+
+    private static String rowsOf(JSONObject snap, java.util.Set<String> lists) {
+        List<String> out = new ArrayList<>();
+        for (WidgetStore.Row r : WidgetStore.todoRows(snap, NONE, lists)) {
+            if (r.type == WidgetStore.ROW_HEADER) out.add("[" + r.text + ":" + r.id + "]");
+            else out.add("o:" + r.id);
+        }
+        return String.join(" ", out);
+    }
+
+    private static java.util.Set<String> set(String... ids) {
+        return new java.util.HashSet<>(java.util.Arrays.asList(ids));
+    }
+
+    @Test
+    public void everyListHasAHeadingThatKnowsItsListEmptyOnesToo() throws Exception {
+        assertEquals("[Shop:L1] o:a [Work:L2] o:b [Empty:L3]", rowsOf(listed(), null));
+    }
+
+    @Test
+    public void aWidgetSetToListsShowsThoseAndOneListNeedsNoHeading() throws Exception {
+        assertEquals("[Work:L2] o:b [Empty:L3]", rowsOf(listed(), set("L2", "L3")));
+        assertEquals("o:b", rowsOf(listed(), set("L2")));
+        assertEquals("Work", WidgetStore.singleList(listed(), set("L2")).optString("name"));
+        assertEquals(null, WidgetStore.singleList(listed(), set("L2", "L3")));
+        assertEquals(null, WidgetStore.singleList(listed(), set("gone")));
+        assertEquals(null, WidgetStore.listsOf(json("{\"lists\":[]}")));
+    }
+
+    @Test
+    public void aNotesTitleGoesAboveItsWords() throws Exception {
+        assertEquals("Idea\nMore words", NoteCard.body(json("{\"kind\":\"text\",\"title\":\"Idea\",\"text\":\"More words\"}")));
+        assertEquals("Idea", NoteCard.body(json("{\"kind\":\"text\",\"title\":\"Idea\",\"text\":\"\"}")));
+    }
 }

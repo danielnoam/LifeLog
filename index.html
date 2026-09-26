@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.198.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.199.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -288,7 +288,7 @@
           <button type="button" role="radio" data-kind="list">List</button>
           <button type="button" role="radio" data-kind="quote">Quote</button>
         </div>
-        <label id="nTitleLabel" hidden>Title
+        <label id="nTitleLabel" hidden><span id="nTitleLabelText">Title</span>
           <input id="nTitle" type="text" autocomplete="off" placeholder="Shopping, packing, this week…" />
         </label>
         <label id="nTextLabel"><span id="nTextLabelText">Note</span>
@@ -296,15 +296,14 @@
         </label>
         <div id="nListEditor" class="note-list-editor" hidden>
           <div id="nItems" class="note-list-items"></div>
-          <input id="nNewItem" type="text" autocomplete="off" placeholder="Add an item, then Enter" aria-label="New item" />
-          <label class="toggle-label note-quick-list"><input type="checkbox" id="nQuickList" /> Quick add goes here — the widget's and the home screen's To-do</label>
+          <div class="note-list-new"><span aria-hidden="true">+</span><input id="nNewItem" type="text" autocomplete="off" placeholder="Add an item" aria-label="New item" /></div>
         </div>
         <div id="nQuoteFields" class="note-quote-fields" hidden>
           <label>Author
             <input id="nAuthor" type="text" autocomplete="off" placeholder="Who said it" />
           </label>
           <label>Source
-            <input id="nSource" type="text" autocomplete="off" placeholder="Book, film, talk… (optional)" />
+            <input id="nSource" type="text" autocomplete="off" placeholder="Book, film, talk…" />
           </label>
         </div>
         <label>Category
@@ -982,7 +981,6 @@
               <button type="button" class="srow" data-page="sync"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3" /><path d="M18 3v4h-4M6 21v-4h4" /></svg></span><span class="srow-text"><span class="srow-title">Sync</span><span class="srow-status" data-status="sync"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
               <button type="button" class="srow" data-page="io"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5" /><path d="M4 17v3h16v-3" /></svg></span><span class="srow-text"><span class="srow-title">Import &amp; export</span><span class="srow-status" data-status="io"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
               <button type="button" class="srow" data-page="history"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6" /><path d="M4 4v4h4M12 8v4l3 2" /></svg></span><span class="srow-text"><span class="srow-title">History</span><span class="srow-status" data-status="history"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-              <button type="button" class="srow" data-page="deleted"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13" /></svg></span><span class="srow-text"><span class="srow-title">Recently deleted</span><span class="srow-status" data-status="deleted"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
             </div>
           </div>
           <div class="sgroup">
@@ -1194,17 +1192,19 @@
       <input type="file" id="importTabCsvInput" accept="text/csv,.csv" hidden />
       </div>
 
-      <div class="settings-page" hidden data-page="history" data-title="History" data-keywords="version undo restore rollback saves commits missing settings">
+      <div class="settings-page" hidden data-page="history" data-title="History" data-keywords="version undo restore rollback saves commits trash bin undelete removed recently deleted">
       <h2 class="settings-page-title">History</h2>
       <p class="hint page-lede">Your last ~40 saves, plus older ones from GitHub when it's connected. <strong>Undo</strong> takes back one change; <strong>Restore</strong> rolls everything back to that save. Neither deletes anything here.</p>
       <p class="muted" id="historyEmptyState" hidden>No saves yet — your history will appear here once you make your first change.</p>
+      <section class="sgroup">
+        <div class="sgroup-head">
+          <h3 class="sgroup-label">Recently deleted</h3>
+        </div>
+        <p class="hint">Anything deleted within your save history. Restoring one brings back just that item.</p>
+        <p class="muted" id="trashEmptyState" hidden>Nothing recently deleted.</p>
+        <div class="sgroup-card history-card" id="trashList"></div>
+      </section>
       <div id="historyControls" hidden>
-        <section class="sgroup">
-          <div class="sgroup-card">
-            <button type="button" class="sitem sitem-go" id="historyFillSettingsBtn">Bring back missing settings</button>
-          </div>
-          <p class="hint">Lost API keys or media sources? This finds the newest save that still had them and fills in only what's empty now.</p>
-        </section>
         <section class="sgroup">
           <div class="sgroup-head">
             <h3 class="sgroup-label">Saves</h3>
@@ -1223,13 +1223,6 @@
         <p class="muted" id="boardHistoryStatus" hidden></p>
         <div class="sgroup-card history-card" id="boardHistoryList" hidden></div>
       </section>
-      </div>
-
-      <div class="settings-page" hidden data-page="deleted" data-title="Recently deleted" data-keywords="trash bin undelete restore removed">
-      <h2 class="settings-page-title">Recently deleted</h2>
-      <p class="hint page-lede">Anything deleted within your save history. Restoring one brings back just that item.</p>
-      <p class="muted" id="trashEmptyState" hidden>Nothing recently deleted.</p>
-      <div class="sgroup-card history-card" id="trashList"></div>
       </div>
 
       <div class="settings-page" hidden data-page="lock" data-title="App lock" data-keywords="privacy pin fingerprint face id biometric password security">
@@ -1727,26 +1720,26 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.198.0"></script>
-  <script defer src="src/reconcile.js?v=0.198.0"></script>
-  <script defer src="src/qr.js?v=0.198.0"></script>
-  <script defer src="src/media.js?v=0.198.0"></script>
-  <script defer src="src/merge.js?v=0.198.0"></script>
-  <script defer src="src/storage.js?v=0.198.0"></script>
-  <script defer src="src/finance.js?v=0.198.0"></script>
-  <script defer src="src/settings.js?v=0.198.0"></script>
-  <script defer src="src/wheel.js?v=0.198.0"></script>
-  <script defer src="src/backlog.js?v=0.198.0"></script>
-  <script defer src="src/journal.js?v=0.198.0"></script>
-  <script defer src="src/notes.js?v=0.198.0"></script>
-  <script defer src="src/io.js?v=0.198.0"></script>
-  <script defer src="src/sync.js?v=0.198.0"></script>
-  <script defer src="src/habits.js?v=0.198.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.198.0"></script>
-  <script defer src="src/boards.js?v=0.198.0"></script>
-  <script defer src="src/recap.js?v=0.198.0"></script>
-  <script defer src="src/reminders.js?v=0.198.0"></script>
-  <script defer src="src/widgets.js?v=0.198.0"></script>
-  <script defer src="src/app.js?v=0.198.0"></script>
+  <script defer src="src/platform.js?v=0.199.0"></script>
+  <script defer src="src/reconcile.js?v=0.199.0"></script>
+  <script defer src="src/qr.js?v=0.199.0"></script>
+  <script defer src="src/media.js?v=0.199.0"></script>
+  <script defer src="src/merge.js?v=0.199.0"></script>
+  <script defer src="src/storage.js?v=0.199.0"></script>
+  <script defer src="src/finance.js?v=0.199.0"></script>
+  <script defer src="src/settings.js?v=0.199.0"></script>
+  <script defer src="src/wheel.js?v=0.199.0"></script>
+  <script defer src="src/backlog.js?v=0.199.0"></script>
+  <script defer src="src/journal.js?v=0.199.0"></script>
+  <script defer src="src/notes.js?v=0.199.0"></script>
+  <script defer src="src/io.js?v=0.199.0"></script>
+  <script defer src="src/sync.js?v=0.199.0"></script>
+  <script defer src="src/habits.js?v=0.199.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.199.0"></script>
+  <script defer src="src/boards.js?v=0.199.0"></script>
+  <script defer src="src/recap.js?v=0.199.0"></script>
+  <script defer src="src/reminders.js?v=0.199.0"></script>
+  <script defer src="src/widgets.js?v=0.199.0"></script>
+  <script defer src="src/app.js?v=0.199.0"></script>
 </body>
 </html>

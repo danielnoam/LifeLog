@@ -31,14 +31,15 @@
   // is only true when saveNoteFromForm says so.
   //
   // The kinds (0.195.0), each absent-unless-used like every optional field:
-  //   plain text   no `kind` — every note written before there were kinds
+  //   plain text   no `kind` — every note written before there were kinds.
+  //                May have a `title` (0.199.0), shown above the text.
   //   "list"       `text` is the title, `items` the checklist: { id, text,
   //                done?, doneAt? }. Items have ids so two devices ticking
   //                different ones merge (merge.js mergeNotes).
   //   "quote"      `text` is the quote, with `author` and `source`.
   // `category` names one of state.data.noteCategories.
   const KINDS = ["text", "list", "quote"];
-  const KNOWN_NOTE_KEYS = new Set(["id", "text", "createdAt", "editedAt", "updatedAt", "kind", "category", "author", "source", "items", "fav"]);
+  const KNOWN_NOTE_KEYS = new Set(["id", "text", "title", "createdAt", "editedAt", "updatedAt", "kind", "category", "author", "source", "items", "fav"]);
   function sanitizeNote(n) {
     const out = {
       id: n.id || uid(),
@@ -49,6 +50,8 @@
     if (n.editedAt) out.editedAt = n.editedAt;
     if (n.fav) out.fav = true;
     if (n.kind === "list" || n.kind === "quote") out.kind = n.kind;
+    const title = String(n.title == null ? "" : n.title).trim();
+    if (title && !out.kind) out.title = title;
     const cat = String(n.category == null ? "" : n.category).trim();
     if (cat) out.category = cat;
     if (out.kind === "quote") {
@@ -64,6 +67,7 @@
     return keepUnknown(n, out, KNOWN_NOTE_KEYS);
   }
   const kindOf = (n) => n.kind || "text";
+  const openItems = (n) => (n.kind === "list" ? (n.items || []).filter((i) => !i.done) : []);
 
   // A to-do as the To-do mode stored it — still arriving from a device on a
   // build older than 0.197.0, and in old backups — tidied just enough for
@@ -140,7 +144,7 @@
     return true;
   }
   // Everything a search should find, whatever the kind.
-  const noteHaystack = (n) => [n.text, n.author, n.source, n.category, ...(n.items || []).map((i) => i.text)]
+  const noteHaystack = (n) => [n.title, n.text, n.author, n.source, n.category, ...(n.items || []).map((i) => i.text)]
     .filter(Boolean).join("\n").toLowerCase();
 
   // A note with no createdAt at all (hand-edited JSON, a bad import) still
@@ -158,14 +162,15 @@
 
   // Years, categories (the chip rows), the kind (the mode bar's switch) and
   // the shared search box all narrow this. A category chip keyed "" is the
-  // notes with none, as in the to-do list.
+  // notes with none, as in the to-do list. "open" isn't a kind: it's the
+  // lists with anything left to tick (0.199.0).
   function getFilteredNotes() {
     const q = state.search.trim().toLowerCase();
     const yf = state.activeYears, cf = state.noteActiveCats, kind = state.noteKind;
     return state.data.notes.filter((n) => {
       if (yf.size && !yf.has(noteYear(n))) return false;
       if (cf.size && !cf.has(n.category || "")) return false;
-      if (kind && kindOf(n) !== kind) return false;
+      if (kind === "open" ? !openItems(n).length : kind && kindOf(n) !== kind) return false;
       if (q && !noteHaystack(n).includes(q)) return false;
       return true;
     });
@@ -270,16 +275,20 @@
     const kinds = el("div", "notes-kinds");
     kinds.setAttribute("role", "group");
     kinds.setAttribute("aria-label", "Show");
-    for (const [k, label] of [["", "All"], ["text", "Notes"], ["list", "Lists"], ["quote", "Quotes"]]) {
+    const open = state.data.notes.reduce((sum, n) => sum + openItems(n).length, 0);
+    const choices = [["", "All"], ["text", "Notes"], ["list", "Lists"], ["quote", "Quotes"]];
+    if (open || state.noteKind === "open") choices.push(["open", "Open " + open]);
+    for (const [k, label] of choices) {
       const b = el("button", "notes-kind" + (state.noteKind === k ? " on" : ""), label);
+      if (k === "open") b.title = "Everything left to tick, across every list";
       b.type = "button";
       b.setAttribute("aria-pressed", String(state.noteKind === k));
       b.onclick = () => { state.noteKind = k; render(); };
       kinds.appendChild(b);
     }
     bar.appendChild(kinds);
-    const sort = sortSelect("notes", noteSort(), setNoteSort);
-    bar.appendChild(sort);
+    // Open has an order of its own, so a sort there would do nothing.
+    if (state.noteKind !== "open") bar.appendChild(sortSelect("notes", noteSort(), setNoteSort));
     root.appendChild(bar);
   }
 
@@ -350,7 +359,10 @@
     } else if (kind === "list") {
       if (state.bulk.active) card.appendChild(el("p", "note-text note-list-title", n.text || "Untitled list"));
       else listPanel(card, n);
-    } else card.appendChild(el("p", "note-text", n.text));
+    } else {
+      if (n.title) card.appendChild(el("h4", "note-title", n.title));
+      if (n.text) card.appendChild(el("p", "note-text", n.text));
+    }
     card.tabIndex = 0;
     card.setAttribute("role", "button");
     return card;
@@ -372,9 +384,11 @@
   const byNewestDone = (a, b) => String(b.doneAt || "").localeCompare(String(a.doneAt || ""));
   const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+  // Under "Open" only what's left shows: no finished rows and no Clear.
   function listPanel(card, n) {
+    const openOnly = state.noteKind === "open";
     const items = n.items || [];
-    const open = items.filter((i) => !i.done), done = items.filter((i) => i.done).sort(byNewestDone);
+    const open = items.filter((i) => !i.done), done = openOnly ? [] : items.filter((i) => i.done).sort(byNewestDone);
     const reordering = listReorderId === n.id && open.length > 1;
     card.classList.toggle("is-reordering", reordering);
 
@@ -548,18 +562,19 @@
   }
 
   // ---------- quick add (0.197.0) ----------
-  // The widget's and the home-screen shortcut's "To-do" lands in a list: the
-  // one ticked "Quick add goes here" in its sheet, else the one most
-  // recently worked on, else a new "To-do" list.
-  function quickList() {
+  // Quick add's and the home-screen shortcut's "To-do" lands in the list
+  // most recently worked on, else a new "To-do" list. (A list chosen for it
+  // in its sheet went in 0.199.0: a to-do widget showing one list adds to
+  // that one, which is where the choice belonged.) `id` is that widget's.
+  function quickList(id) {
     const lists = state.data.notes.filter((n) => n.kind === "list");
-    const chosen = lists.find((n) => n.id === state.data.settings.quickList);
+    const chosen = id && lists.find((n) => n.id === id);
     if (chosen) return chosen;
     const worked = (n) => String(n.editedAt || n.updatedAt || n.createdAt || "");
     return lists.sort((a, b) => worked(b).localeCompare(worked(a)))[0] || null;
   }
-  async function focusQuickList() {
-    let n = quickList();
+  async function focusQuickList(listId) {
+    let n = quickList(listId);
     if (!n) {
       const now = new Date().toISOString();
       n = sanitizeNote({ kind: "list", text: "To-do", items: [], createdAt: now, updatedAt: now });
@@ -769,29 +784,42 @@
     // note under when it was last edited, and runs newest first.
     const desc = noteSort() !== "oldest";
     const bySort = (a, b) => (desc ? sortDate(b) - sortDate(a) : sortDate(a) - sortDate(b));
+    // A block with no months: one card of notes under a heading of its own.
+    const flatBlock = (key, title, count, list) => {
+      const block = el("div", "year-block note-favs");
+      block.dataset.year = key;
+      const head = el("div", "year-head");
+      head.appendChild(el("h2", null, title));
+      head.appendChild(el("span", "ycount", count));
+      block.appendChild(head);
+      const grid = el("div", "month-grid");
+      block.appendChild(grid);
+      return {
+        key, header: head, node: block, bodyEl: grid, keepBody: true,
+        build: (body) => reconcile(body, [{ key }], {
+          keyOf: (c) => c.key,
+          create: () => el("div", "month-card"),
+          update: (card) => fillMonthCard(card, "", list, false, true),
+        }),
+      };
+    };
+    const sections = [];
+    // Open items (0.199.0) is a to-do list, not a feed: no years, and the
+    // lists in the to-do widget's order — favourites, then oldest first — so
+    // nothing jumps as you tick or add.
+    if (state.noteKind === "open") {
+      const lists = notes.slice().sort((a, b) => (!!b.fav - !!a.fav) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
+      const total = lists.reduce((sum, n) => sum + openItems(n).length, 0);
+      sections.push(flatBlock("open", "Open items",
+        `${total} in ${lists.length} list${lists.length === 1 ? "" : "s"}`, lists));
+    }
     // Favourites (0.196.0) sit above the years in a block of their own, and
     // not in their month as well: one place for each note. The filters still
     // apply to them, and they run in the same order as everything else.
     const favs = notes.filter((n) => n.fav).sort(bySort);
-    const byYear = groupBy(notes.filter((n) => !n.fav), (n) => sortDate(n).getFullYear());
-    const sections = [];
-    if (favs.length) {
-      const block = el("div", "year-block note-favs");
-      block.dataset.year = "favourites";
-      const head = el("div", "year-head");
-      head.appendChild(el("h2", null, "★ Favourites"));
-      head.appendChild(el("span", "ycount", `${favs.length} note${favs.length === 1 ? "" : "s"}`));
-      block.appendChild(head);
-      const grid = el("div", "month-grid");
-      block.appendChild(grid);
-      sections.push({
-        key: "favourites", header: head, node: block, bodyEl: grid, keepBody: true,
-        build: (body) => reconcile(body, [{ key: "favs" }], {
-          keyOf: (c) => c.key,
-          create: () => el("div", "month-card"),
-          update: (card) => fillMonthCard(card, "", favs, false, true),
-        }),
-      });
+    const byYear = sections.length ? {} : groupBy(notes.filter((n) => !n.fav), (n) => sortDate(n).getFullYear());
+    if (favs.length && !sections.length) {
+      sections.push(flatBlock("favourites", "★ Favourites", `${favs.length} note${favs.length === 1 ? "" : "s"}`, favs));
     }
     for (const y of Object.keys(byYear).sort((a, b) => (desc ? b - a : a - b))) {
       const block = el("div", "year-block");
@@ -905,7 +933,7 @@
     const n = state.data.notes.find((x) => x.id === editingNoteId);
     if (!n) return;
     const d = noteDate(n);
-    const { title, notes } = splitNoteForEntry(n.text);
+    const { title, notes } = n.title ? { title: n.title.slice(0, ENTRY_TITLE_MAX), notes: n.text } : splitNoteForEntry(n.text);
     closeNoteModal();
     openEntryModal(null, null, {
       year: d.getFullYear(),
@@ -930,7 +958,9 @@
       b.classList.toggle("on", on);
       b.setAttribute("aria-checked", String(on));
     });
-    $("#nTitleLabel").hidden = sheetKind !== "list";
+    $("#nTitleLabel").hidden = sheetKind === "quote";
+    $("#nTitleLabelText").textContent = sheetKind === "list" ? "Title" : "Title (optional)";
+    $("#nTitle").placeholder = sheetKind === "list" ? "Shopping, packing, this week…" : "";
     $("#nListEditor").hidden = sheetKind !== "list";
     $("#nTextLabel").hidden = sheetKind === "list";
     $("#nQuoteFields").hidden = sheetKind !== "quote";
@@ -945,15 +975,9 @@
     const wrap = $("#nItems");
     wrap.innerHTML = "";
     sheetItems.forEach((it, i) => {
+      // No tick here: that's the card's job. A finished item keeps its tick
+      // and shows struck through.
       const row = el("div", "note-list-row" + (it.done ? " is-done" : ""));
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.checked = !!it.done;
-      cb.setAttribute("aria-label", "Done");
-      cb.onchange = () => {
-        if (cb.checked) { it.done = true; it.doneAt = new Date().toISOString(); } else { delete it.done; delete it.doneAt; }
-        row.classList.toggle("is-done", cb.checked);
-      };
       const input = document.createElement("input");
       input.type = "text";
       input.value = it.text;
@@ -965,7 +989,7 @@
       del.type = "button";
       del.setAttribute("aria-label", "Remove item");
       del.onclick = () => { sheetItems.splice(i, 1); renderSheetItems(); };
-      row.append(cb, input, del);
+      row.append(input, del);
       wrap.appendChild(row);
     });
   }
@@ -995,12 +1019,11 @@
     editingNoteId = note ? note.id : "";
     $("#noteModalTitle").textContent = note ? "Edit note" : "New note";
     $("#nText").value = note && kindOf(note) !== "list" ? note.text : "";
-    $("#nTitle").value = note && kindOf(note) === "list" ? note.text : "";
+    $("#nTitle").value = !note ? "" : kindOf(note) === "list" ? note.text : (note.title || "");
     $("#nAuthor").value = (note && note.author) || "";
     $("#nSource").value = (note && note.source) || "";
     $("#nNewItem").value = "";
     sheetItems = note && note.items ? note.items.map((i) => ({ ...i })) : [];
-    $("#nQuickList").checked = !!note && state.data.settings.quickList === note.id;
     renderSheetItems();
     fillCategorySelect(note ? note.category : ([...state.noteActiveCats].find(Boolean) || ""));
     $("#deleteNoteBtn").hidden = !note;
@@ -1015,7 +1038,7 @@
       stamp.hidden = false;
     } else stamp.hidden = true;
     // A new note starts as the kind the list is showing.
-    setSheetKind(note ? kindOf(note) : (kind || state.noteKind || "text"));
+    setSheetKind(note ? kindOf(note) : (kind || (state.noteKind === "open" ? "list" : state.noteKind) || "text"));
     $("#noteModal").hidden = false;
     (sheetKind === "list" ? (note ? $("#nNewItem") : $("#nTitle")) : $("#nText")).focus();
   }
@@ -1027,11 +1050,12 @@
     const kind = sheetKind;
     const text = (kind === "list" ? $("#nTitle").value : $("#nText").value).trim();
     const items = sheetItems.map((i) => ({ ...i, text: i.text.trim() })).filter((i) => i.text);
-    if (kind === "list" ? !text && !items.length : !text) {
+    const title = $("#nTitle").value.trim();
+    if (kind === "list" ? !text && !items.length : kind === "text" ? !text && !title : !text) {
       toast(kind === "list" ? "Give the list a title or an item" : kind === "quote" ? "Write the quote" : "Write something first", true);
       return;
     }
-    const fields = { text, kind: kind === "text" ? undefined : kind };
+    const fields = { text, kind: kind === "text" ? undefined : kind, title: kind === "text" ? $("#nTitle").value.trim() : undefined };
     if (kind === "quote") { fields.author = $("#nAuthor").value.trim(); fields.source = $("#nSource").value.trim(); }
     if (kind === "list") fields.items = items;
     const category = $("#nCategory").value === NEW_CATEGORY ? "" : $("#nCategory").value;
@@ -1042,22 +1066,16 @@
         // Only a change to what the note says counts as an edit — reopening
         // one, ticking an item or filing it under a category doesn't
         // relabel it as edited.
-        const said = (x) => JSON.stringify([kindOf(x), x.text, x.author || "", x.source || "", (x.items || []).map((i) => i.text)]);
+        const said = (x) => JSON.stringify([kindOf(x), x.title || "", x.text, x.author || "", x.source || "", (x.items || []).map((i) => i.text)]);
         const before = said(n);
         const next = sanitizeNote({ ...n, ...fields, category });
-        for (const k of ["kind", "author", "source", "items", "category"]) delete n[k];
+        for (const k of ["kind", "title", "author", "source", "items", "category"]) delete n[k];
         Object.assign(n, next);
         if (said(n) !== before) n.editedAt = now;
       }
     } else {
       state.data.notes.unshift(sanitizeNote({ ...fields, category, createdAt: now, updatedAt: now }));
     }
-    // Which list quick add goes into — a setting, as it's one list for all
-    // your devices, not something the note itself carries.
-    const savedId = editingNoteId || (state.data.notes[0] && state.data.notes[0].id);
-    const settings = state.data.settings;
-    if (kind === "list" && $("#nQuickList").checked) settings.quickList = savedId;
-    else if (settings.quickList === savedId) delete settings.quickList;
     closeNoteModal();
     render();
     await persist();

@@ -1,13 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<TextView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/row_text"
+<!-- A list's heading in the to-do widget. With more than one list showing,
+     the whole heading adds to that list; the + says so (0.199.0). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/row"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:maxLines="1"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
     android:paddingStart="4dp"
     android:paddingTop="10dp"
-    android:paddingBottom="2dp"
-    android:textAllCaps="true"
-    android:textColor="@color/widget_muted"
-    android:textSize="11sp"
-    android:textStyle="bold" />
+    android:paddingBottom="2dp">
+
+    <TextView
+        android:id="@+id/row_text"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:maxLines="1"
+        android:textAllCaps="true"
+        android:textColor="@color/widget_muted"
+        android:textSize="11sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/row_add"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/widget_add"
+        android:paddingStart="12dp"
+        android:paddingEnd="6dp"
+        android:text="+"
+        android:textColor="@color/widget_muted"
+        android:textSize="15sp" />
+</LinearLayout>

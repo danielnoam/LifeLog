@@ -1048,6 +1048,7 @@ select:focus { outline: none; border-color: var(--accent); }
   margin: 0; font-size: 13px; color: var(--text); line-height: 1.45;
   white-space: pre-wrap; overflow-wrap: break-word;
 }
+.note-title { margin: 0 0 3px; font-size: 14px; font-weight: 650; color: var(--text); overflow-wrap: break-word; }
 /* Room to actually write in: the note modal is one field, so the textarea
    is the modal. */
 #noteForm textarea { min-height: 160px; resize: vertical; }
@@ -2989,29 +2990,37 @@ html.force-mobile .modal.view-options {
 .note-fav.on { color: #f5b301; }
 
 /* The checklist in the note sheet. */
-.note-list-editor { margin-bottom: 14px; }
-.note-list-items { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
-.note-list-row { display: flex; align-items: center; gap: 8px; }
+/* The sheet's checklist (0.199.0): one panel of rows, like the list on its
+   card, with the add line at its foot. No borders on the fields — the
+   panel is the box. */
+.note-list-editor {
+  margin-bottom: 14px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--bg); overflow: hidden;
+}
+.note-list-items:empty { display: none; }
+.note-list-row { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); }
 .note-list-row input[type="text"] { flex: 1; min-width: 0; margin: 0; }
 .note-list-row.is-done input[type="text"] { text-decoration: line-through; color: var(--text-faint); }
+.note-list-new { display: flex; align-items: center; gap: 2px; padding-left: 12px; color: var(--accent); font-size: 17px; }
 .note-list-del {
   flex: 0 0 auto; padding: 6px 8px; border: 0; background: transparent; border-radius: 6px;
   color: var(--text-faint); font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .note-list-del:hover { color: var(--danger); }
 .note-quote-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.note-quote-fields input { min-width: 0; }
 .note-quote-fields[hidden], .note-list-editor[hidden] { display: none; }
 /* The checklist's fields sit outside a label, where the modal's input style
    doesn't reach, so they take it here. */
 .note-list-editor input[type="text"] {
-  display: block; width: 100%; box-sizing: border-box; background: var(--bg);
-  border: 1px solid var(--border); color: var(--text); padding: 8px 10px;
-  border-radius: 8px; font: inherit; font-size: 14px;
+  display: block; width: 100%; box-sizing: border-box; background: transparent;
+  border: 0; color: var(--text); padding: 11px 12px;
+  font: inherit; font-size: 14px;
 }
-.note-list-editor input[type="text"]:focus { outline: none; border-color: var(--accent); }
-@media (max-width: 480px) { .note-quote-fields { grid-template-columns: 1fr; } }
+.note-list-editor input[type="text"]:focus { outline: none; }
+.note-list-editor:focus-within { border-color: var(--accent); }
 /* Favourites have no month to be a card of: the notes sit straight under
    their heading, full width. */
 .note-favs .month-card { background: none; border: 0; padding: 0; }
 .note-favs .month-grid { grid-template-columns: 1fr; }
-.note-quick-list { display: flex; align-items: center; gap: 8px; margin: 10px 0 0; font-size: 12.5px; color: var(--text-dim); }
+
