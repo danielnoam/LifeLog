@@ -60,6 +60,11 @@
   //   backlog   within each band (starred, ready, early access, unreleased,
   //             dropped), which stay as they are
   const SORTS = {
+    notes: [
+      ["newest", "Newest first"],
+      ["oldest", "Oldest first"],
+      ["edited", "Recently edited"],
+    ],
     timeline: [
       ["newest", "Newest first"],
       ["oldest", "Oldest first"],
@@ -129,7 +134,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.194.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.195.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -386,6 +391,10 @@
     // thing to filter to and so is a real member of this set rather than an
     // absence.
     todoActiveCats: new Set(),
+    // Notes' category chips ("" = no category, as above) and the kind the
+    // Notes mode is showing ("" = all).
+    noteActiveCats: new Set(),
+    noteKind: "",
     statsYear: null,
     financeStatsYear: null,
     bulk: { active: false, selected: new Set() },
@@ -405,7 +414,7 @@
   function emptyData() {
     return {
       version: 1, categories: [], entries: [], backlog: [], notes: [], todos: [], accomplishments: {},
-      todoCategories: [], habits: [],
+      todoCategories: [], noteCategories: [], habits: [],
       financeCategories: Finance.seedFinanceCategories(), financeEntries: [], recurringExpenses: [],
       projects: [],
       settings: { ...DEFAULT_SETTINGS },
@@ -2745,35 +2754,37 @@
   // the render that created it now, and the view may have changed under it.
   function activeCatSetFor(which) {
     if (which === "todo") return state.todoActiveCats;
+    if (which === "note") return state.noteActiveCats;
     if (which === "finance") return state.financeActiveCats;
     return state.activeCats;
   }
   function editCatFor(which) {
     if (which === "todo") return Todos.openTodoCatModal;
+    if (which === "note") return (cat) => Notes.openNoteCatModal(cat);
     if (which === "finance") return Finance.openFinanceCatModal;
     return Journal.openCategoryModal;
   }
 
   function buildCatFilter() {
     const wrap = $("#catFilter"); // not cleared — see buildYearFilter
-    // A note carries no category, so in Notes mode these chips would be a
-    // control that does nothing. Hidden rather than disabled — there's
-    // nothing to explain and nothing you could do about it. To-dos do carry
-    // one, from their own list, so the row is theirs in that mode.
+    // To-dos and notes each have a category list of their own (notes since
+    // 0.195.0), so in those modes the row is theirs. A habit carries no
+    // category — it carries a colour, which is its own and not shared with
+    // anything the chips could narrow — and a board has none either, so
+    // there the row goes.
     const todo = Todos.isTodoMode();
-    // A habit carries no category either — it carries a colour, which is its
-    // own and not shared with anything the chips could narrow.
-    const noCats = state.view === "notes" && !todo;
+    const note = state.view === "notes" && state.notesMode === "notes";
+    const noCats = state.view === "notes" && !todo && !note;
     $("#catFilterGroup").hidden = noCats;
     updateFilterbarVisibility();
     if (noCats) return;
     const finance = isFinanceView();
-    const cats = todo ? Todos.todoCats()
+    const cats = todo ? Todos.todoCats() : note ? Notes.noteCats()
       : finance ? state.data.financeCategories : state.data.categories;
-    const activeCats = todo ? state.todoActiveCats
+    const activeCats = todo ? state.todoActiveCats : note ? state.noteActiveCats
       : finance ? state.financeActiveCats : state.activeCats;
 
-    const addLabel = todo ? "Add to-do category"
+    const addLabel = note ? "Add note category" : todo ? "Add to-do category"
       : finance ? "Add finance category" : "Add category";
     // The + rides in the same keyed list under a reserved key, so it keeps its
     // place at the end without being rebuilt with the row.
@@ -2783,13 +2794,13 @@
     // 0.138.0 it was the one group you could not narrow to. getFilteredTodos
     // already keyed it as "" — only the chip was missing.
     const chips = [
-      ...(todo ? [{ key: "", cat: { name: "", color: "#7a8a99" }, general: true }] : []),
+      ...(todo || note ? [{ key: "", cat: { name: "", color: "#7a8a99" }, general: true }] : []),
       ...cats.map((c) => ({ key: c.name, cat: c })),
       { key: "__add", add: true },
     ];
     // Which of the three category lists these chips are — the same name can
     // exist in more than one, so a node must not be reused across the change.
-    const which = todo ? "todo" : finance ? "finance" : "journal";
+    const which = todo ? "todo" : note ? "note" : finance ? "finance" : "journal";
     reconcile(wrap, chips, {
       epoch: which,
       keyOf: (item) => item.key,
@@ -2820,7 +2831,7 @@
         // Nothing to edit on the general one — it isn't a category, it's
         // where a to-do lands when it doesn't name one.
         if (item.general) {
-          chip.title = "To-dos with no category";
+          chip.title = (note ? "Notes" : "To-dos") + " with no category";
           chip.replaceChildren(dot, document.createTextNode("No category"));
           return;
         }
@@ -2846,8 +2857,14 @@
   }
   function toggleAllCats() {
     const finance = isFinanceView();
-    const names = (finance ? state.data.financeCategories : state.data.categories).map((c) => c.name);
-    const activeCats = finance ? state.financeActiveCats : state.activeCats;
+    // The to-do list and notes have their own lists, and their chip rows
+    // lead with "No category" (""), which "all" includes.
+    const todo = Todos.isTodoMode(), note = state.view === "notes" && state.notesMode === "notes";
+    const names = todo ? ["", ...Todos.todoCats().map((c) => c.name)]
+      : note ? ["", ...Notes.noteCats().map((c) => c.name)]
+      : (finance ? state.data.financeCategories : state.data.categories).map((c) => c.name);
+    const activeCats = todo ? state.todoActiveCats : note ? state.noteActiveCats
+      : finance ? state.financeActiveCats : state.activeCats;
     if (activeCats.size === names.length) activeCats.clear();
     else { activeCats.clear(); names.forEach((n) => activeCats.add(n)); }
     buildCatFilter();
@@ -3323,6 +3340,8 @@
     // the to-dos that briefly used journal categories in 0.128.1.
     data.todoCategories = (data.todoCategories || []).map(sanitizeCategory);
     ensureCategories(data.todoCategories, data.todos.filter((t) => t.category));
+    data.noteCategories = (data.noteCategories || []).map(sanitizeCategory);
+    ensureCategories(data.noteCategories, data.notes.filter((n) => n.category));
     const incomingSettings = data.settings || {};
     // One-time migration: visual layout prefs used to be synced as part of
     // data.settings. Pull them into this device's local-only settings if it
@@ -3809,7 +3828,7 @@
         Backlog.closePickModal(); Wheel.closeWheel();
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
         Finance.closePauseModal(); Finance.cancelFinanceCatModal(); Todos.closeTodoCatModal();
-        Habits.closeHabitModal();
+        Habits.closeHabitModal(); Notes.closeNoteCatModal();
         SettingsUI.closeSettings();
         SettingsUI.closeViewOptions();
         closeShortcutsModal();
@@ -4579,7 +4598,7 @@
     monthCardHeader, emptyState, buildYearFilter, buildCatFilter, saveUiState,
     bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
     openEntryModal: Journal.openEntryModal,
-    backfillUpdatedAt, keepUnknown, MONTHS, DEFAULT_SETTINGS,
+    backfillUpdatedAt, keepUnknown, MONTHS, DEFAULT_SETTINGS, CATEGORY_PALETTE, sortSelect,
   });
 
   Backlog.init({

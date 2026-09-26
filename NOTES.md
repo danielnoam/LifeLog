@@ -16,6 +16,28 @@ what was decided against and why.
 
 ---
 
+- **Note kinds are a field on a note, not three collections (0.195.0).**
+  `kind` is absent for a plain note — every note from before — and "list"
+  or "quote" otherwise, so nothing had to be migrated and an older APK
+  still reads every note as text (keepUnknown carries the rest through).
+  A list's `text` is its title and `items` its checklist, each item with an
+  id: merge.js's mergeNotes merges a list both sides still have item by
+  item (the habits-marks / board-elements pattern), or a phone and a laptop
+  ticking different items would lose one. Ticking isn't editing — editedAt
+  moves only when what the note says changes, and filing it under a
+  category doesn't count either.
+  - *Categories* are a fourth list, `noteCategories`, with the to-do list's
+    rules (no fallback; deleting leaves notes uncategorised) and its own
+    modal rather than a shared one — the to-do modal goes away with the To-do
+    mode in stage 3 (see TODO.md).
+  - *Sort* is `settings.noteSort`; unset, it falls back to timelineSort,
+    which is what Notes followed before — so an upgrade moves nothing.
+    "Recently edited" files a note under its editedAt month. There's no
+    A–Z: most notes have no title to sort by.
+  - This is stage 1 of three. Stage 2 turns the To-do mode's lists into
+    list notes (one per to-do category); stage 3 moves the widget, quick-add
+    and Recap over and removes the To-do mode.
+
 - **Boards round two, and what boards really weigh (0.194.0).**
   - *Measured sizes*, replacing the TODO's estimates: 1,000 synthetic
     handwriting strokes (0.3–1s at 60Hz, letter-sized) kept 24% of their

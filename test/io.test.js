@@ -462,7 +462,7 @@ test("importItemIncomplete still answers for the backlog by default", () => {
 // out and back in against an empty app, and look at what arrived.
 const blank = () => ({
   entries: [], backlog: [], financeEntries: [], recurringExpenses: [], notes: [], todos: [], habits: [],
-  accomplishments: {}, categories: [], financeCategories: [], todoCategories: [], projects: [],
+  accomplishments: {}, categories: [], financeCategories: [], todoCategories: [], noteCategories: [], projects: [],
 });
 const FULL = {
   entries: [{ id: "e1", title: "Outer Wilds", category: "Games", year: 2026, month: 3, rating: 5, notes: "wow" }],
@@ -548,6 +548,26 @@ atest("Notes CSV round trip keeps notes, to-dos and habits with their history", 
   state.data = blank();
   await importAll(back, TAB_KINDS.notes);
   assert.deepStrictEqual([state.data.notes.length, state.data.todos.length, state.data.habits.length], [1, 2, 1]);
+});
+
+atest("Notes CSV round trip keeps a list's items and ticks, a quote's author, and categories", async () => {
+  const notes = [
+    { id: "q", text: "Words", kind: "quote", author: "Frost", source: "Poem", category: "Ideas", createdAt: "2026-01-01T00:00:00.000Z" },
+    { id: "l", text: "Shop", kind: "list", category: "Home", createdAt: "2026-01-02T00:00:00.000Z", items: [{ id: "a", text: "Milk, 2L", done: true }, { id: "b", text: "Eggs" }] },
+  ];
+  const back = parseNotesCsv(notesCsvText(notes, [], []));
+  assert.deepStrictEqual([back.notes[0].kind, back.notes[0].author, back.notes[0].source, back.notes[0].category], ["quote", "Frost", "Poem", "Ideas"]);
+  assert.deepStrictEqual(back.notes[1].items.map((i) => [i.text, !!i.done]), [["Milk, 2L", true], ["Eggs", false]]);
+  state.data = blank();
+  await importAll(back, TAB_KINDS.notes);
+  assert.deepStrictEqual(state.data.noteCategories.map((c) => c.name).sort(), ["Home", "Ideas"]);
+  assert.strictEqual(state.data.notes.find((n) => n.kind === "list").items.length, 2);
+});
+
+atest("a list with items and no title still imports", async () => {
+  state.data = blank();
+  await importAll({ notes: [{ id: "u", text: "", kind: "list", items: [{ text: "Only an item" }] }] }, TAB_KINDS.notes);
+  assert.strictEqual(state.data.notes.length, 1);
 });
 
 atest("Timeline CSV carries achievements alongside entries", async () => {

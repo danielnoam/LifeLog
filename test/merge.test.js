@@ -548,5 +548,26 @@ test("a blank in the backup never clears a setting that's set now", () => {
   assert.deepStrictEqual([filled, changed], [[], []]);
 });
 
+// ---------- checklist notes merge per item (0.195.0) ----------
+const listNote = (items, extra) => ({ id: "L", text: "Shop", kind: "list", updatedAt: "2026-01-01", items, ...extra });
+test("two devices ticking different items of one list both keep their tick", () => {
+  const base = [listNote([{ id: "a", text: "Milk" }, { id: "b", text: "Eggs" }])];
+  const local = [listNote([{ id: "a", text: "Milk", done: true, doneAt: "x" }, { id: "b", text: "Eggs" }], { updatedAt: "2026-01-02" })];
+  const remote = [listNote([{ id: "a", text: "Milk" }, { id: "b", text: "Eggs", done: true, doneAt: "y" }], { updatedAt: "2026-01-03" })];
+  const out = Merge.mergeAllSources({ notes: base }, { notes: local }, { notes: remote }).notes[0];
+  assert.deepStrictEqual(out.items.map((i) => [i.id, !!i.done]), [["a", true], ["b", true]]);
+});
+test("an item added on one device and one removed on the other both happen", () => {
+  const base = [listNote([{ id: "a", text: "Milk" }, { id: "b", text: "Eggs" }])];
+  const local = [listNote([{ id: "a", text: "Milk" }, { id: "b", text: "Eggs" }, { id: "c", text: "Bread" }])];
+  const remote = [listNote([{ id: "a", text: "Milk" }])];
+  const out = Merge.mergeNotes(base, local, remote)[0];
+  assert.deepStrictEqual(out.items.map((i) => i.id), ["a", "c"]);
+});
+test("plain notes still merge exactly as before", () => {
+  const out = Merge.mergeNotes([], [{ id: "n", text: "mine", updatedAt: "2" }], [{ id: "n", text: "theirs", updatedAt: "1" }]);
+  assert.deepStrictEqual(out, [{ id: "n", text: "mine", updatedAt: "2" }]);
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

@@ -7,7 +7,7 @@ require("../src/notes.js");
 const Notes = global.window.LifeLogNotes;
 
 let idCounter = 0;
-const state = { data: { notes: [], settings: {} }, search: "", activeYears: new Set() };
+const state = { data: { notes: [], settings: {} }, search: "", activeYears: new Set(), noteActiveCats: new Set(), noteKind: "" };
 Notes.init({
   state,
   uid: () => "test-id-" + (idCounter++),
@@ -167,6 +167,34 @@ test("an empty or junk note does not throw", () => {
   assert.deepStrictEqual(splitNoteForEntry(""), { title: "", notes: "" });
   assert.deepStrictEqual(splitNoteForEntry(null), { title: "", notes: "" });
   assert.deepStrictEqual(splitNoteForEntry(undefined), { title: "", notes: "" });
+});
+
+// ---------- kinds and categories (0.195.0) ----------
+const { sanitizeNote: sn } = Notes;
+test("a note with no kind stays a plain note, with nothing added to it", () => {
+  const n = sn({ id: "n1", text: "hi", createdAt: "2026-01-01T00:00:00.000Z" });
+  assert.deepStrictEqual(Object.keys(n).sort(), ["createdAt", "id", "text", "updatedAt"]);
+});
+test("a list keeps its items with ids, drops empty ones, and a tick keeps when it happened", () => {
+  const n = sn({ text: "Packing", kind: "list", items: [{ text: " Passport " }, { text: "" }, { id: "x", text: "Charger", done: true, doneAt: "2026-02-01" }] });
+  assert.strictEqual(n.kind, "list");
+  assert.deepStrictEqual(n.items.map((i) => i.text), ["Passport", "Charger"]);
+  assert.ok(n.items[0].id, "every item gets an id, so two devices ticking different ones can merge");
+  assert.deepStrictEqual([n.items[1].done, n.items[1].doneAt], [true, "2026-02-01"]);
+});
+test("a quote keeps its author and source; other kinds don't carry them", () => {
+  const q = sn({ text: "Words", kind: "quote", author: " Frost ", source: "" });
+  assert.deepStrictEqual([q.author, "source" in q], ["Frost", false]);
+  const t = sn({ text: "Plain", author: "Nobody", items: [{ text: "x" }] });
+  assert.ok(!("author" in t) && !("items" in t) && !("kind" in t));
+});
+test("a category is kept trimmed, and an empty one is no category", () => {
+  assert.strictEqual(sn({ text: "a", category: " Trip " }).category, "Trip");
+  assert.ok(!("category" in sn({ text: "a", category: "  " })));
+});
+test("an unknown kind falls back to a plain note rather than losing the text", () => {
+  const n = sn({ text: "future", kind: "drawing" });
+  assert.ok(!("kind" in n) && n.text === "future");
 });
 
 console.log(`\n${passed} test(s) passed.`);

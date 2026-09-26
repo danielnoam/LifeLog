@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.194.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.195.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -283,14 +283,59 @@
       <h2 id="noteModalTitle">New note</h2>
       <form id="noteForm">
         <p class="muted added-line" id="noteStampLine" hidden></p>
-        <label>Note
-          <textarea id="nText" rows="8" required autocomplete="off" placeholder="What happened, what you noticed…"></textarea>
+        <div class="note-kind-seg" id="noteKindSeg" role="radiogroup" aria-label="Kind of note">
+          <button type="button" role="radio" data-kind="text">Note</button>
+          <button type="button" role="radio" data-kind="list">List</button>
+          <button type="button" role="radio" data-kind="quote">Quote</button>
+        </div>
+        <label id="nTitleLabel" hidden>Title
+          <input id="nTitle" type="text" autocomplete="off" placeholder="Shopping, packing, this week…" />
+        </label>
+        <label id="nTextLabel"><span id="nTextLabelText">Note</span>
+          <textarea id="nText" rows="8" autocomplete="off" placeholder="What happened, what you noticed…"></textarea>
+        </label>
+        <div id="nListEditor" class="note-list-editor" hidden>
+          <div id="nItems" class="note-list-items"></div>
+          <input id="nNewItem" type="text" autocomplete="off" placeholder="Add an item, then Enter" aria-label="New item" />
+        </div>
+        <div id="nQuoteFields" class="note-quote-fields" hidden>
+          <label>Author
+            <input id="nAuthor" type="text" autocomplete="off" placeholder="Who said it" />
+          </label>
+          <label>Source
+            <input id="nSource" type="text" autocomplete="off" placeholder="Book, film, talk… (optional)" />
+          </label>
+        </div>
+        <label>Category
+          <select id="nCategory"></select>
         </label>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteNoteBtn" hidden>Delete</button>
           <button type="button" class="btn" id="noteToEntryBtn" hidden>Make entry</button>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelNoteBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="noteCatModal" hidden>
+    <div class="modal">
+      <h2 id="noteCatModalTitle">Add note category</h2>
+      <form id="noteCatForm">
+        <input type="hidden" id="noteCatOrigName" />
+        <label>Name
+          <input id="noteCatName" type="text" required autocomplete="off" />
+        </label>
+        <label>Colour
+          <input id="noteCatColorInput" type="color" />
+        </label>
+        <p class="muted" id="noteCatUses"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="deleteNoteCatBtn">Delete</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelNoteCatBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
         </div>
       </form>
@@ -1707,27 +1752,27 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.194.0"></script>
-  <script defer src="src/reconcile.js?v=0.194.0"></script>
-  <script defer src="src/qr.js?v=0.194.0"></script>
-  <script defer src="src/media.js?v=0.194.0"></script>
-  <script defer src="src/merge.js?v=0.194.0"></script>
-  <script defer src="src/storage.js?v=0.194.0"></script>
-  <script defer src="src/finance.js?v=0.194.0"></script>
-  <script defer src="src/settings.js?v=0.194.0"></script>
-  <script defer src="src/wheel.js?v=0.194.0"></script>
-  <script defer src="src/backlog.js?v=0.194.0"></script>
-  <script defer src="src/journal.js?v=0.194.0"></script>
-  <script defer src="src/notes.js?v=0.194.0"></script>
-  <script defer src="src/todos.js?v=0.194.0"></script>
-  <script defer src="src/io.js?v=0.194.0"></script>
-  <script defer src="src/sync.js?v=0.194.0"></script>
-  <script defer src="src/habits.js?v=0.194.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.194.0"></script>
-  <script defer src="src/boards.js?v=0.194.0"></script>
-  <script defer src="src/recap.js?v=0.194.0"></script>
-  <script defer src="src/reminders.js?v=0.194.0"></script>
-  <script defer src="src/widgets.js?v=0.194.0"></script>
-  <script defer src="src/app.js?v=0.194.0"></script>
+  <script defer src="src/platform.js?v=0.195.0"></script>
+  <script defer src="src/reconcile.js?v=0.195.0"></script>
+  <script defer src="src/qr.js?v=0.195.0"></script>
+  <script defer src="src/media.js?v=0.195.0"></script>
+  <script defer src="src/merge.js?v=0.195.0"></script>
+  <script defer src="src/storage.js?v=0.195.0"></script>
+  <script defer src="src/finance.js?v=0.195.0"></script>
+  <script defer src="src/settings.js?v=0.195.0"></script>
+  <script defer src="src/wheel.js?v=0.195.0"></script>
+  <script defer src="src/backlog.js?v=0.195.0"></script>
+  <script defer src="src/journal.js?v=0.195.0"></script>
+  <script defer src="src/notes.js?v=0.195.0"></script>
+  <script defer src="src/todos.js?v=0.195.0"></script>
+  <script defer src="src/io.js?v=0.195.0"></script>
+  <script defer src="src/sync.js?v=0.195.0"></script>
+  <script defer src="src/habits.js?v=0.195.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.195.0"></script>
+  <script defer src="src/boards.js?v=0.195.0"></script>
+  <script defer src="src/recap.js?v=0.195.0"></script>
+  <script defer src="src/reminders.js?v=0.195.0"></script>
+  <script defer src="src/widgets.js?v=0.195.0"></script>
+  <script defer src="src/app.js?v=0.195.0"></script>
 </body>
 </html>

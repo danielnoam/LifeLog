@@ -25,29 +25,37 @@ todo:
   "Automatically delete head branches" only helps with branches merged
   through a PR, which this repo no longer uses.
 
-- **Notes, round two: categories, filters and sorting.** A note today is
-  text and dates only; the Notes mode filters by year chips and search and
-  always lists newest first.
-  - **Categories** of their own, like the to-do list's (`todoCategories`):
-    a `noteCategories` list with colours, an optional `category` on a note,
-    picked in the note sheet, managed from the chip row. Needs the usual
-    trail: sanitizeNote, the merge's COLLECTION_KEYS, the Notes tab's
-    export/import (JSON, and a Category column in the CSV, which already
-    has one for to-dos) and the new-categories list in the import review.
-  - **Filter** by category with the chip row the to-do mode already uses
-    (buildCatFilter has a Notes-mode branch that hides it today), alongside
-    the year chips.
-  - **Sort:** newest, oldest, recently edited (`editedAt`), A–Z, through
-    the same sortSelect the Timeline, Ledger and Backlog use, saved per
-    device like theirs.
+- **Notes, stages 2 and 3: the To-do mode becomes list notes.** Stage 1
+  (0.195.0) gave notes kinds (plain, list, quote), categories, a kind
+  switch and a sort. Decided with the owner: to-do categories are really
+  separate lists, so each becomes a list note; the widget and quick-add work
+  across every unticked item.
+  - **Stage 2, the migration.** Each to-do category → a list note titled
+    with it (category-less to-dos → one "To-do" list), items keeping their
+    text, ticks, doneAt and order. Two devices migrate on their own, so the
+    list and item ids must come out the same on both (derived from the
+    category's and the to-do's ids, not minted), and it must run once
+    (a marker in settings) and be safe against a device still on an older
+    APK writing `todos` after the others moved on — merge those in rather
+    than lose them. Keep `todos` until stage 3 ships so a rollback loses
+    nothing.
+  - **Stage 3, the switch.** The Todos widget reads unticked items across
+    list notes, grouped by note, ticking still works from the home screen;
+    quick-add ("add-todo"/the widget's +) goes into a default list you pick;
+    Recap's "to-dos done" counts list items; then the To-do mode, todos.js,
+    `todos`/`todoCategories`, their CSV rows and the to-do category modal go.
+  - An "Open items" view — every unticked item across lists — as a chip or
+    filter in Notes, since "what's left to do" shouldn't need opening each
+    list.
 
 - **Note widgets (Android).**
   - **A note widget:** one note you pick, shown on the home screen, tapping
     through to it in the app. Configured when placed (Android's widget
     configure activity), like choosing which habit a widget shows.
   - **A random note widget:** a different note each time, for resurfacing
-    old ones. Settings: which categories it draws from (needs the
-    categories above), how often it changes (every hour, day, or on tap),
+    old ones. Settings: which categories and kinds it draws from
+    (note categories shipped in 0.195.0; a quotes-only one is the obvious
+    setting), how often it changes (every hour, day, or on tap),
     and whether it shows the date. Tapping opens the note; a small ↻ draws
     another.
   Both read the widget snapshot widgets.js already sends (WidgetStore);

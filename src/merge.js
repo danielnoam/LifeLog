@@ -4,7 +4,7 @@
 // in plain Node (see test/merge.test.js) — the merge logic is exactly what
 // gets tested, not a simulation of it.
 (function () {
-  const COLLECTION_KEYS = ["entries", "backlog", "notes", "todos", "financeEntries", "recurringExpenses", "categories", "todoCategories", "financeCategories", "projects", "habits"];
+  const COLLECTION_KEYS = ["entries", "backlog", "notes", "todos", "financeEntries", "recurringExpenses", "categories", "todoCategories", "noteCategories", "financeCategories", "projects", "habits"];
 
   function byId(arr) {
     const m = new Map();
@@ -358,12 +358,30 @@
     });
   }
 
+  // A checklist note (0.195.0) holds its items, and mergeCollection treats a
+  // note as atomic: a phone ticking one item and a laptop ticking another
+  // would be an edit conflict, one tick simply gone. So which notes survive
+  // is decided as for any item, and a checklist both sides still have merges
+  // its items one by one — the same shape as a habit's marks or a board's
+  // elements. An item both sides changed goes to this device.
+  function mergeNotes(baseArr, localArr, remoteArr) {
+    const merged = mergeCollection(baseArr || [], localArr || [], remoteArr || []).merged;
+    const b = byId(baseArr), l = byId(localArr), r = byId(remoteArr);
+    return merged.map((n) => {
+      const ln = l.get(n.id), rn = r.get(n.id);
+      if (!ln || !rn || !(Array.isArray(ln.items) || Array.isArray(rn.items))) return n;
+      const bn = b.get(n.id);
+      return { ...n, items: mergeCollection((bn && bn.items) || [], ln.items || [], rn.items || []).merged };
+    });
+  }
+
   function mergeAllSources(base, local, remote) {
     base = base || {}; local = local || {}; remote = remote || {};
     const out = {};
     for (const key of COLLECTION_KEYS) out[key] = mergeCollection(base[key] || [], local[key] || [], remote[key] || []).merged;
     // ...except habits, whose marks map has to survive both sides editing it.
     out.habits = mergeHabits(base.habits, local.habits, remote.habits);
+    out.notes = mergeNotes(base.notes, local.notes, remote.notes);
     out.accomplishments = mergeAccomplishmentYears(base.accomplishments, local.accomplishments, remote.accomplishments);
     out.settings = mergeSettings(base.settings, local.settings, remote.settings);
     out.version = local.version || remote.version || 1;
@@ -404,7 +422,7 @@
     compareVersions, maxVersion,
     stampChangedItems, diffCollection, diffSnapshots, summarizeConflicts,
     mergeCollection, mergeAccomplishmentYears, mergeSettings, mergeAllSources, fillBlankSettings, settingsFromBackup,
-    mergeHabits, mergeMarks,
+    mergeHabits, mergeMarks, mergeNotes,
   };
 
   if (typeof window !== "undefined") window.LifeLogMerge = api;

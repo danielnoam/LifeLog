@@ -4,6 +4,33 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.195.0] - 2026-09-26
+
+### Added
+- **Three kinds of note.** The note sheet has Note / List / Quote at the
+  top:
+  - **List:** a title and a checklist. Enter adds the next item, ✕ removes
+    one. Tick items straight from the card without opening the note; the
+    card shows what's still open and how many are done.
+  - **Quote:** the words in quote marks, with an author and, optionally,
+    where it's from.
+  - **Note:** as before. Every note you already have stays one.
+- **Note categories.** Pick one in the sheet, or "New category…" to make
+  one there. The Notes mode's chip row filters by them, with "No category"
+  for the rest, and ✎ on a chip edits or deletes it. Selected notes can be
+  moved to a category in one go.
+- **Show and sort.** Above the notes: All / Notes / Lists / Quotes, and a
+  sort of their own — newest, oldest, or recently edited. Until you choose
+  one, notes keep following the Timeline's order as they always have.
+- Search now finds a list by its items and a quote by its author.
+
+### Changed
+- Two devices ticking different items of the same list both keep their
+  ticks: a list merges item by item when it syncs.
+- The Notes JSON carries note categories, and the Notes CSV has three new
+  columns at the end — Author, Source and Items — so lists and quotes come
+  back whole. Older CSVs still import.
+
 ## [0.194.0] - 2026-09-26
 
 ### Added

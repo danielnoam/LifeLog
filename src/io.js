@@ -35,7 +35,7 @@
   const TAB_FILE = { notes: "notes", timeline: "timeline", backlog: "backlog", finance: "ledger" };
   function tabPayload(tab) {
     const d = state.data;
-    if (tab === "notes") return { notes: d.notes, todos: d.todos, todoCategories: d.todoCategories, habits: d.habits };
+    if (tab === "notes") return { notes: d.notes, noteCategories: d.noteCategories, todos: d.todos, todoCategories: d.todoCategories, habits: d.habits };
     if (tab === "timeline") return { entries: d.entries, categories: d.categories, accomplishments: d.accomplishments };
     if (tab === "backlog") return { backlog: d.backlog, categories: d.categories };
     return { financeEntries: d.financeEntries, recurringExpenses: d.recurringExpenses, financeCategories: d.financeCategories, projects: d.projects };
@@ -106,9 +106,14 @@
   // with "*n" when it was done more than once — so a re-import keeps the
   // streaks; "Done" is when a to-do was ticked or a habit archived.
   const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  // A quote's author and source, and a list's items (one per line, "[x] "
+  // when ticked), ride in three columns on the end (0.195.0), so a sheet
+  // from before them still reads.
+  const LIST_KIND = { list: "List", quote: "Quote" };
   function notesCsvRows(notes, todos, habits) {
-    const rows = [["Kind", "Date", "Category", "Text", "Done", "Days", "Target", "Marks", "Color"]];
-    (notes || []).forEach((n) => rows.push(["Note", n.createdAt || "", "", n.text, "", "", "", "", ""]));
+    const rows = [["Kind", "Date", "Category", "Text", "Done", "Days", "Target", "Marks", "Color", "Author", "Source", "Items"]];
+    (notes || []).forEach((n) => rows.push([LIST_KIND[n.kind] || "Note", n.createdAt || "", n.category || "", n.text, "", "", "", "", "",
+      n.author || "", n.source || "", (n.items || []).map((i) => (i.done ? "[x] " : "[ ] ") + i.text).join("\n")]));
     (todos || []).forEach((t) => rows.push(["To-do", t.createdAt || "", t.category || "", t.text, t.done ? (t.doneAt || "yes") : "", "", "", "", ""]));
     (habits || []).forEach((h) => rows.push(["Habit", h.startedAt || "", "", h.name, h.archivedAt || "",
       h.cadence && h.cadence.days ? h.cadence.days.map((d) => DAY_LABELS[d]).join(" ") : "daily",
@@ -126,9 +131,20 @@
     for (const row of parseCsv(text)) {
       const kind = (row[0] || "").trim().toLowerCase();
       const txt = (row[3] || "").trim();
-      if (!txt) continue;
+      // A list may be all items and no title.
+      if (!txt && !((row[0] || "").trim().toLowerCase() === "list" && (row[11] || "").trim())) continue;
       const date = (row[1] || "").trim(), done = (row[4] || "").trim();
-      if (kind === "note") notes.push({ text: row[3], createdAt: iso(date) });
+      if (kind === "note" || kind === "quote" || kind === "list") {
+        const n = { text: row[3], createdAt: iso(date) };
+        if ((row[2] || "").trim()) n.category = row[2].trim();
+        if (kind === "quote") { n.kind = "quote"; n.author = (row[9] || "").trim(); n.source = (row[10] || "").trim(); }
+        if (kind === "list") {
+          n.kind = "list";
+          n.items = String(row[11] || "").split("\n").map((l) => l.trim()).filter(Boolean)
+            .map((l) => { const m = /^\[( |x|X)\]\s*(.*)$/.exec(l); return m ? { text: m[2], done: m[1] !== " " } : { text: l }; });
+        }
+        notes.push(n);
+      }
       else if (kind === "to-do" || kind === "todo") {
         const t = { text: txt, createdAt: iso(date) };
         if ((row[2] || "").trim()) t.category = row[2].trim();
@@ -471,7 +487,10 @@
         items.push({ kind, entry: rec, dup, checked: !dup });
       }
     };
-    if (want("note")) simple("note", incoming.notes || [], sanitizeNote, (n) => n.text, (n) => low(n.text), state.data.notes || []);
+    // A checklist can be items and no title, so its items are part of what
+    // it's called and what it matches on.
+    const noteWords = (n) => [n.text, ...(n.items || []).map((i) => i.text)].join("\n");
+    if (want("note")) simple("note", incoming.notes || [], sanitizeNote, noteWords, (n) => low(noteWords(n)), state.data.notes || []);
     if (want("todo")) simple("todo", incoming.todos || [], sanitizeTodo, (t) => t.text, (t) => low(t.category) + "|" + low(t.text), state.data.todos || []);
     if (want("habit")) simple("habit", incoming.habits || [], sanitizeHabit, (h) => h.name, (h) => low(h.name), state.data.habits || []);
     // Names like "Board 3" repeat across devices, so a board matches on its
@@ -497,6 +516,7 @@
       ...buildNewCategoryList(of("entry", "backlog"), want("entry") || want("backlog") ? categories : [], state.data.categories, "journal"),
       ...buildNewCategoryList(of("finance", "recurring"), want("finance") || want("recurring") ? financeCategories : [], state.data.financeCategories, "finance"),
       ...buildNewCategoryList(of("todo"), want("todo") ? incoming.todoCategories : [], state.data.todoCategories, "todo"),
+      ...buildNewCategoryList(of("note"), want("note") ? incoming.noteCategories : [], state.data.noteCategories, "note"),
       ...buildNewCategoryList(of("finance", "recurring"), want("finance") || want("recurring") ? incoming.projects : [], state.data.projects, "project", "project"),
     ];
     return { items, newCategories };
@@ -516,7 +536,10 @@
         d.projects.push(p);
         continue;
       }
-      const target = c.scope === "finance" ? d.financeCategories : c.scope === "todo" ? (d.todoCategories = d.todoCategories || []) : d.categories;
+      const target = c.scope === "finance" ? d.financeCategories
+        : c.scope === "todo" ? (d.todoCategories = d.todoCategories || [])
+        : c.scope === "note" ? (d.noteCategories = d.noteCategories || [])
+        : d.categories;
       if (!target.some((x) => x.name === c.name)) target.push({ id: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: c.name, color: c.color });
     }
     // Updates are applied in place against the item they matched; only the
@@ -583,6 +606,7 @@
     ensureCategories(d.categories, [...recs("entry"), ...recs("backlog")]);
     ensureCategories(d.financeCategories, [...recs("finance"), ...recs("recurring")]);
     ensureCategories(d.todoCategories = d.todoCategories || [], recs("todo").filter((t) => t.category));
+    ensureCategories(d.noteCategories = d.noteCategories || [], recs("note").filter((n) => n.category));
     if (ensureProjects) ensureProjects(d.projects = d.projects || [], [...recs("finance"), ...recs("recurring")]);
     if (byKind.board.length && addBoards) await addBoards(recs("board"));
 
@@ -731,10 +755,12 @@
         : item.kind === "achievement" ? String(item.year)
         : item.kind === "habit" ? (e.startedAt || "") : "—";
       row.appendChild(el("span", "fdate", date || "—"));
-      const text = item.kind === "habit" || item.kind === "board" ? e.name : (e.text || "").split("\n")[0];
+      const text = item.kind === "habit" || item.kind === "board" ? e.name
+        : (e.text || (e.items || []).map((i) => i.text).join(", ")).split("\n")[0];
       const t = el("span", "etitle", (item.kind === "todo" && e.done ? "✓ " : "") + text); t.title = e.text || e.name; row.appendChild(t);
       if (e.category) row.appendChild(el("span", "ecat", e.category));
-      row.appendChild(el("span", "dup-tag", { note: "note", todo: "to-do", habit: "habit", achievement: "achievement", board: "board" }[item.kind]));
+      const tag = item.kind === "note" && e.kind ? e.kind : { note: "note", todo: "to-do", habit: "habit", achievement: "achievement", board: "board" }[item.kind];
+      row.appendChild(el("span", "dup-tag", tag));
     } else { // backlog
       row.appendChild(el("span", "fdate", "—"));
       const t = el("span", "etitle", e.title); t.title = e.title; row.appendChild(t);
@@ -788,7 +814,7 @@
       const dot = el("span", "dot"); dot.style.background = nc.color;
       dot.style.width = "9px"; dot.style.height = "9px"; dot.style.borderRadius = "50%"; dot.style.display = "inline-block";
       row.appendChild(dot);
-      row.appendChild(document.createTextNode(nc.name + (nc.scope === "project" ? " (project)" : nc.scope === "todo" ? " (to-do list)" : "")));
+      row.appendChild(document.createTextNode(nc.name + (nc.scope === "project" ? " (project)" : nc.scope === "todo" ? " (to-do list)" : nc.scope === "note" ? " (notes)" : "")));
       newCatsList.appendChild(row);
     });
 
