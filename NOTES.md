@@ -16,6 +16,40 @@ what was decided against and why.
 
 ---
 
+- **Boards round two, and what boards really weigh (0.194.0).**
+  - *Measured sizes*, replacing the TODO's estimates: 1,000 synthetic
+    handwriting strokes (0.3–1s at 60Hz, letter-sized) kept 24% of their
+    samples and stored in **108KB** — 110 bytes a stroke, 20KB gzipped,
+    which is roughly what a commit adds. A 50-element diagram is **5KB**.
+    The estimates were 300KB and 10KB; the delta encoding does better than
+    they assumed. `node tools/measure-boards.js` re-runs it.
+  - *Rotation* is an angle `a` only on rect, ellipse and text, turned about
+    their own centre; lines and strokes have their points turned instead,
+    so they stay plain. Bounds and hit tests take the angle into account.
+    Resizing a turned shape scales it in its own axes — exact when upright,
+    close when turned, the same trade Excalidraw makes for groups.
+  - *Resize handles* sit 8px outside the selection but scale by its own
+    corners, so the edge follows the finger exactly; the first cut scaled
+    the padded box and a 100px drag grew a shape 93px.
+  - *Fill* is rough.js hachure, rendered from placeholder colours ("S", "F")
+    swapped at draw time, so a recolour or theme change reuses the paths.
+  - *Virgil* (SIL OFL 1.1, licence in src/vendor) replaces the system font
+    on boards. Exports embed it as base64 because an SVG — and the PNG
+    drawn from one — can't reach the app's copy.
+  - *History* is a third IndexedDB store (boardsHistory, IDB version 3),
+    capped at 30, skipping a save identical to the last by a fingerprint in
+    localStorage rather than reading the last snapshot back. GitHub's side
+    is the commits to boards.json. Bringing back restores one board, never
+    the whole file. Deleting a board flushes first, or a board drawn and
+    deleted inside the 2.5s save delay had no version to come back to.
+  - *The boards file* is a second File System Access handle: a page can't
+    create a file beside the one it was given. Read on load only when this
+    device has no boards of its own yet.
+- **Restore settings from a backup (0.194.0)** is `settingsFromBackup`
+  beside fillBlankSettings: it also changes what's set, since asking for it
+  is the point, but a blank in the file never clears a value — a backup
+  from before a key existed mustn't take the key away.
+
 - **Boards are SVG, in their own file, merged per element (0.193.0).**
   - *Own file:* boards.json sits beside lifelog.json with its own sha and
     merge base (Storage.boards), both in IndexedDB — localStorage's 5MB

@@ -71,6 +71,42 @@ test("bounds cover every element", () => {
   assert.strictEqual(B.boundsOf([]), null);
 });
 
+// ---------- resize, rotate, fill (0.194.0) ----------
+test("resizing from a corner scales every kind about the opposite corner", () => {
+  const r = B.scaled(rect, 0, 0, 2, 3);
+  assert.deepStrictEqual([r.x, r.y, r.w, r.h], [0, 0, 200, 150]);
+  const a = B.scaled(arrow, 0, 0, 0.5, 0.5);
+  assert.deepStrictEqual([a.x2, a.y2], [50, 50]);
+  assert.deepStrictEqual(B.decodePoints(B.scaled(pen, 0, 0, 2, 1).p), [[0, 0], [200, 0]]);
+});
+test("resizing text changes its size and keeps its proportions", () => {
+  const t = B.scaled({ id: "t", t: "text", sw: 4, x: 0, y: 0, text: "hi" }, 0, 0, 2, 2);
+  assert.strictEqual(t.fs, 52);
+});
+test("a quarter turn turns a line's ends and a shape's angle", () => {
+  const l = B.rotated({ id: "l", t: "line", sw: 2, x: 0, y: 0, x2: 100, y2: 0 }, 0, 0, Math.PI / 2);
+  assert.deepStrictEqual([l.x2, l.y2], [0, 100]);
+  const r = B.rotated(rect, 50, 25, Math.PI / 2);
+  assert.ok(Math.abs(r.a - Math.PI / 2) < 1e-3);
+  assert.deepStrictEqual([r.x, r.y, r.w, r.h], [0, 0, 100, 50], "turned about its own centre, it stays put");
+});
+test("a full turn leaves no angle behind", () => {
+  const r = B.rotated(B.rotated(rect, 50, 25, Math.PI), 50, 25, Math.PI);
+  assert.ok(!("a" in r));
+});
+test("a turned shape's bounds and hits follow the turn", () => {
+  const turned = { ...rect, a: Math.PI / 2 }; // 100x50 stood on end: 50 wide, 100 tall, same centre
+  const b = B.bbox(turned);
+  assert.deepStrictEqual([Math.round(b.x), Math.round(b.y), Math.round(b.w), Math.round(b.h)], [25, -25, 50, 100]);
+  assert.ok(B.hitTest(turned, 25, 50, 3), "its left edge, where it now is");
+  assert.ok(!B.hitTest(turned, 0, 25, 3), "not where its old edge was");
+});
+test("a filled shape is hit inside as well as on its edge", () => {
+  assert.ok(B.hitTest({ ...rect, f: true }, 50, 25, 3));
+  assert.ok(B.hitTest({ ...ell, f: true }, 50, 25, 3));
+  assert.ok(!B.hitTest({ ...ell, f: true }, 2, 2, 1), "a filled ellipse's corner is still outside it");
+});
+
 // ---------- merging boards ----------
 const board = (id, elements, extra) => ({ id, name: "B", updatedAt: "2026-01-01", elements, ...extra });
 const s = (id) => ({ id, t: "pen", c: "ink", sw: 2, p: [0, 0, 1, 1] });

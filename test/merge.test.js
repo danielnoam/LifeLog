@@ -531,5 +531,22 @@ test("undo: a habit day ticked in that save is unticked, the others kept", () =>
   assert.deepStrictEqual(Object.keys(undo(before, after, today).habits[0].marks).sort(), ["2026-09-20", "2026-09-22"]);
 });
 
+// ---------- restoring settings from a backup (0.194.0) ----------
+test("a backup's settings fill what's empty and change what differs", () => {
+  const { settings, filled, changed } = Merge.settingsFromBackup(
+    { currency: "ILS", mediaKeys: { rawg: "mine", tmdb: "" }, updatedAt: "2026-01-01" },
+    { currency: "USD", mediaKeys: { rawg: "theirs", tmdb: "k" }, steam: { steamId: "1" }, updatedAt: "2025-01-01" });
+  assert.deepStrictEqual(filled.sort(), ["mediaKeys.tmdb", "steam.steamId"]);
+  assert.deepStrictEqual(changed.sort(), ["currency", "mediaKeys.rawg"]);
+  assert.strictEqual(settings.mediaKeys.rawg, "theirs");
+  assert.strictEqual(settings.updatedAt, "2026-01-01", "the stamp stays this device's");
+});
+test("a blank in the backup never clears a setting that's set now", () => {
+  const { settings, filled, changed } = Merge.settingsFromBackup(
+    { mediaKeys: { rawg: "mine" } }, { mediaKeys: { rawg: "" }, steam: { proxyUrl: null } });
+  assert.strictEqual(settings.mediaKeys.rawg, "mine");
+  assert.deepStrictEqual([filled, changed], [[], []]);
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

@@ -338,6 +338,7 @@
     "anilist.userName": "AniList user name", "anilist.animeCategory": "AniList anime category",
     "anilist.mangaCategory": "AniList manga category", "anilist.autoSyncDays": "AniList auto-sync",
     "releases.autoRefreshDays": "release-date refresh",
+    timelineSort: "Timeline sort", ledgerSort: "Ledger sort", backlogSort: "Backlog sort", currency: "Home currency",
   };
   function settingLabel(path) {
     if (SETTING_LABELS[path]) return SETTING_LABELS[path];
@@ -368,6 +369,35 @@
     toast(`Brought back ${filled.length} setting${filled.length === 1 ? "" : "s"} from ${when}`);
   }
 
+  // Settings → Import & export → Restore settings: a full backup's settings,
+  // on purpose. Importing never touches settings (they're this device's and
+  // the others' preferences, see NOTES.md 0.191.0); this is the one way in,
+  // and it says what it would fill and change before it does. Values are
+  // never shown — half of these are API keys.
+  function restoreSettingsFromFile(file) {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      let incoming;
+      try { incoming = JSON.parse(reader.result).settings; }
+      catch (e) { toast("That isn't a LifeLog backup: " + (e.message || e), true); return; }
+      if (!incoming || typeof incoming !== "object") { toast("That file has no settings in it — export Everything as JSON to get one that does", true); return; }
+      const { settings, filled, changed } = window.LifeLogMerge.settingsFromBackup(state.data.settings, incoming);
+      if (!filled.length && !changed.length) { toast("Your settings already match that file"); return; }
+      const lines = (paths) => paths.slice(0, 8).map((p) => "  • " + settingLabel(p)).join("\n") + (paths.length > 8 ? "\n  • and " + (paths.length - 8) + " more" : "");
+      const parts = [];
+      if (filled.length) parts.push(`Filled in (empty now):\n${lines(filled)}`);
+      if (changed.length) parts.push(`Changed to the file's:\n${lines(changed)}`);
+      const n = filled.length + changed.length;
+      if (!confirm(`Restore ${n} setting${n === 1 ? "" : "s"} from ${file.name}?\n\n${parts.join("\n\n")}\n\nNothing the file leaves empty is cleared, and your data isn't touched.`)) return;
+      state.data.settings = settings;
+      afterDataChange();
+      updateMediaSettings();
+      await persist();
+      toast(`Restored ${n} setting${n === 1 ? "" : "s"}`);
+    };
+    reader.readAsText(file);
+  }
+
   // Walks the history newest first and offers the first save that has
   // anything to give back — so nobody has to guess which one still had the
   // keys. Local snapshots are instant; older GitHub saves are fetched one at
@@ -392,6 +422,7 @@
   }
 
   function updateFileInfo() {
+    updateBoardsFileInfo();
     const info = $("#fileInfo");
     const connect = $("#connectFileBtn");
     const recon = $("#reconnectFileBtn");
@@ -418,6 +449,37 @@
       connect.textContent = "Choose data file…";
       recon.hidden = true; disc.hidden = true;
     }
+  }
+
+  // The boards' own backup file (0.194.0), beside the data file's.
+  async function updateBoardsFileInfo() {
+    const card = $("#boardsFileCard");
+    card.hidden = !Storage.fsSupported;
+    if (!Storage.fsSupported) return;
+    await Storage.boards.ensureFile();
+    const B = Storage.boards;
+    const info = $("#boardsFileInfo"), connect = $("#connectBoardsFileBtn"), recon = $("#reconnectBoardsFileBtn"), disc = $("#disconnectBoardsFileBtn");
+    if (B.fileConnected) {
+      info.textContent = "Connected: " + B.fileName + " (every board save goes here too).";
+      connect.textContent = "Change boards file…"; recon.hidden = true; disc.hidden = false;
+    } else if (B.fileNeedsReconnect) {
+      info.textContent = "File “" + B.fileName + "” needs permission again.";
+      connect.textContent = "Choose a different file…"; recon.hidden = false; disc.hidden = false;
+    } else {
+      info.textContent = "Not backed up to a file.";
+      connect.textContent = "Choose boards file…"; recon.hidden = true; disc.hidden = true;
+    }
+  }
+  async function connectBoardsFile() {
+    try {
+      const boards = await window.LifeLogBoards.boardsForExport();
+      const name = await Storage.boards.connectFile({ boards });
+      toast("Boards backed up to " + name);
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      toast("Couldn't connect file: " + (e.message || e), true);
+    }
+    updateBoardsFileInfo();
   }
 
   // ---------- pages (0.186.0) ----------
@@ -1290,6 +1352,8 @@
   // import/export buttons also live in the Settings modal but are wired
   // from app.js, where those handlers live.
   function wire() {
+    $("#restoreSettingsBtn").onclick = () => $("#restoreSettingsInput").click();
+    $("#restoreSettingsInput").onchange = (e) => { if (e.target.files[0]) restoreSettingsFromFile(e.target.files[0]); e.target.value = ""; };
     $("#settingsBtn").onclick = openSettings;
     $("#closeSettingsBtn").onclick = closeSettings;
     $("#closeSettingsPageBtn").onclick = closeSettings;
@@ -1316,6 +1380,13 @@
     $("#connectFileBtn").onclick = connectFile;
     $("#reconnectFileBtn").onclick = reconnectFile;
     $("#disconnectFileBtn").onclick = disconnectFile;
+    $("#connectBoardsFileBtn").onclick = connectBoardsFile;
+    $("#reconnectBoardsFileBtn").onclick = async () => {
+      if (await Storage.boards.reconnectFile()) { await window.LifeLogBoards.flush(); toast("Reconnected"); } else toast("Permission denied", true);
+      updateBoardsFileInfo();
+    };
+    $("#disconnectBoardsFileBtn").onclick = async () => { await Storage.boards.disconnectFile(); updateBoardsFileInfo(); toast("Boards file disconnected"); };
+    $("#boardHistoryBtn").onclick = () => window.LifeLogBoards.renderHistory($("#boardHistoryList"), $("#boardHistoryStatus"));
     $("#ghConnectBtn").onclick = connectGithub;
     $("#historyFillSettingsBtn").onclick = fillMissingSettings;
     // Only where there's a scanner to ask: a browser already has the camera.

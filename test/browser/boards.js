@@ -124,7 +124,7 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
 
     // Box select everything.
     await stroke(page, [[100, 150], [500, 500], [900, 700]]);
-    const selected = await page.evaluate(() => document.querySelectorAll("#boardSvg .board-sel").length);
+    const selected = await page.evaluate(() => document.querySelectorAll("#boardSvg rect.board-sel:not(.board-sel-group)").length);
     check("dragging a box over empty space selects what's inside it", selected === 5, selected);
 
     // The eraser takes the stroke it's dragged across.
@@ -200,6 +200,118 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
     const imported = await fresh.page.evaluate(() => window.LifeLogBoards.boardsNow().map((x) => x.elements.length));
     check("importing the Notes JSON brings the board back", JSON.stringify(imported) === "[5]", imported);
     await fresh.ctx.close();
+  }
+
+  // ---- round two (0.194.0): fill, resize, rotate, zoom, font, history ----
+  {
+    const { ctx, page } = await open();
+    page.on("dialog", (d) => d.accept());
+    await page.click("text=+ New board");
+    await page.waitForTimeout(200);
+    await page.click("#boardFill");
+    await page.click('[data-tool="rect"]');
+    await stroke(page, [[400, 300], [450, 350], [600, 400]]);
+    let r = (await els(page))[0];
+    check("with fill on, a rectangle is drawn filled", r.f === true && r.w === 200 && r.h === 100, r);
+    check("and its fill is drawn, as hachure", await page.evaluate(() =>
+      [...document.querySelectorAll(".board-world g path")].some((p) => (p.getAttribute("d").match(/M/g) || []).length > 10)));
+
+    await page.click('[data-tool="select"]');
+    await page.mouse.click(400, 350);
+    const handle = (name) => page.evaluate((n) => {
+      const b = document.querySelector(`.board-overlay [data-handle="${n}"]`).getBoundingClientRect();
+      return [b.x + b.width / 2, b.y + b.height / 2];
+    }, name);
+    const before = (await els(page))[0];
+    const se = await handle("se");
+    await stroke(page, [se, [se[0] + 50, se[1] + 25], [se[0] + 100, se[1] + 50]]);
+    r = (await els(page))[0];
+    check("dragging a corner handle grows it by as much as the finger moved, from the opposite corner",
+      r.w === 300 && r.h === 150 && r.x === before.x && r.y === before.y, { before, r });
+    const rot = await handle("rotate");
+    const c = [550, 375];
+    await stroke(page, [rot, [c[0] + 60, c[1] - 60], [c[0] + 150, c[1]]]);
+    r = (await els(page))[0];
+    check("dragging the round handle turns it", r.a > 1.4 && r.a < 1.75, r.a);
+    await page.keyboard.press("Control+z");
+    check("and Ctrl+Z turns it back", !("a" in (await els(page))[0]));
+
+    await page.click("#boardZoomBtn");
+    await page.click("#boardZoomIn");
+    check("zoom lives in one button, which shows the zoom", await page.evaluate(() => document.querySelector("#boardZoomBtn").textContent) === "125%");
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("0");
+    check("0 fits the drawing", await page.evaluate(() => document.querySelector("#boardZoomBtn").textContent) !== "125%");
+
+    await page.click('[data-tool="text"]');
+    await page.mouse.click(420, 500);
+    await page.waitForTimeout(100);
+    await page.keyboard.type("Virgil");
+    await page.keyboard.press("Escape");
+    await page.click("#boardMenuBtn");
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#boardExportSvg")]);
+    const f = path.join(dir, "font.svg");
+    await dl.saveAs(f);
+    check("an exported board with text carries the hand-drawn font inside it", /@font-face\{font-family:Virgil;src:url\(data:font\/woff2;base64,/.test(fs.readFileSync(f, "utf8")));
+
+    // Delete the board, then bring it back from History.
+    await page.click("#boardMenuBtn");
+    await page.click("#boardDeleteBoard");
+    await page.waitForTimeout(500);
+    check("the board is gone", await page.evaluate(() => window.LifeLogBoards.boardsNow().length === 0));
+    await page.click("#settingsBtn");
+    await page.click('.srow[data-page="history"]');
+    await page.click("#boardHistoryBtn");
+    await page.waitForTimeout(400);
+    const rows = await page.locator("#boardHistoryList .board-hist-row").count();
+    check("History lists the boards' own saves", rows >= 2, rows);
+    await page.locator("#boardHistoryList .board-hist-row button").nth(1).click();
+    await page.waitForTimeout(300);
+    check("an older version shows the deleted board as deleted since",
+      /Deleted since/.test(await page.locator("#boardHistoryList .board-hist-boards").nth(1).textContent()));
+    await page.locator("#boardHistoryList .board-hist-boards").nth(1).locator("text=Bring back").click();
+    await page.waitForTimeout(500);
+    const back = await page.evaluate(() => window.LifeLogBoards.boardsNow().map((b) => b.elements.length));
+    check("and Bring back puts it back", back.length === 1 && back[0] >= 1, back);
+    await ctx.close();
+  }
+
+  // ---- the boards file beside the local-file backup (0.194.0) ----
+  // No native save dialog in a headless browser: the picker hands back a
+  // real file handle from the origin-private file system instead, which
+  // writes, and goes into IndexedDB, the way a chosen file's does.
+  {
+    const { ctx, page } = await open();
+    await page.evaluate(() => {
+      window.showSaveFilePicker = async () => (await navigator.storage.getDirectory()).getFileHandle("boards.json", { create: true });
+      const proto = Object.getPrototypeOf(FileSystemFileHandle.prototype) && FileSystemFileHandle.prototype;
+      if (!proto.queryPermission) proto.queryPermission = async () => "granted";
+      if (!proto.requestPermission) proto.requestPermission = async () => "granted";
+    });
+    await page.click("text=+ New board");
+    await page.waitForTimeout(200);
+    await stroke(page, [[300, 300], [350, 330], [400, 300]]);
+    await page.click("#boardBack");
+    await page.waitForTimeout(300);
+    await page.click("#settingsBtn");
+    await page.click('.srow[data-page="sync"]');
+    await page.waitForTimeout(200);
+    const shown = await page.evaluate(() => !document.querySelector("#boardsFileCard").hidden);
+    check("Settings offers a boards file where the File System Access API is there", shown);
+    await page.click("#connectBoardsFileBtn");
+    await page.waitForTimeout(400);
+    const read = () => page.evaluate(async () => {
+      const f = await (await (await navigator.storage.getDirectory()).getFileHandle("boards.json")).getFile();
+      return JSON.parse(await f.text());
+    });
+    check("choosing it writes the boards there straight away", (await read()).boards[0].elements.length === 1);
+    await page.keyboard.press("Escape"); await page.keyboard.press("Escape");
+    await page.click(".board-card:not(.board-new)");
+    await stroke(page, [[300, 400], [350, 430], [400, 400]]);
+    await page.click("#boardBack");
+    await page.waitForTimeout(600);
+    check("and every save after goes there too", (await read()).boards[0].elements.length === 2);
+    await ctx.close();
   }
 
   // ---- touch: a finger draws, two pinch ----

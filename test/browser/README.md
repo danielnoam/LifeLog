@@ -30,7 +30,7 @@ because something shipped broken that no unit test could have caught:
 | `btnaudit` | no pressable anywhere draws the browser's tap-highlight |
 | `press` | a tap still visibly responds now that the highlight is gone |
 | `v151`, `importkinds`, `importmodes` | import updates: what gets filled, for which kinds, and never a duplicate |
-| `boards` | the drawing board: every tool with mouse and touch, undo, a reload, PNG/SVG/JSON out and back, and boards.json syncing and merging against a fake GitHub |
+| `boards` | the drawing board: every tool with mouse and touch, resize/rotate/fill, undo, a reload, PNG/SVG/JSON out and back, History bringing a board back, the boards file, and boards.json syncing and merging against a fake GitHub |
 | `tabio` | every tab's JSON and CSV export comes back whole through that tab's import, and the full backup through Everything |
 | `match` | auto-sync asks both sources and refuses a near-miss |
 | `realloop` | the real bulk-sync loop feeds the progress panel live |

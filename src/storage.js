@@ -16,6 +16,8 @@
   const IDB_STORE = "handles";
   const HANDLE_KEY = "dataFile";
   const IDB_HISTORY_STORE = "history";
+  const IDB_BOARDS_HISTORY = "boardsHistory"; // boards.json's own saves (0.194.0)
+  const BOARDS_HISTORY_CAP = 30;
   const HISTORY_CAP = 40; // a rollback aid, not a full audit log — oldest entries beyond this are pruned
 
   const fsSupported = "showSaveFilePicker" in window;
@@ -25,11 +27,12 @@
   // local-first history log) ----
   function idb() {
     return new Promise((resolve, reject) => {
-      const req = indexedDB.open(IDB_NAME, 2);
+      const req = indexedDB.open(IDB_NAME, 3);
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
         if (!db.objectStoreNames.contains(IDB_HISTORY_STORE)) db.createObjectStore(IDB_HISTORY_STORE, { keyPath: "id" });
+        if (!db.objectStoreNames.contains(IDB_BOARDS_HISTORY)) db.createObjectStore(IDB_BOARDS_HISTORY, { keyPath: "id" });
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
@@ -62,29 +65,29 @@
       tx.onerror = () => reject(tx.error);
     });
   }
-  async function idbAddHistory(entry) {
+  async function idbAddHistory(entry, store = IDB_HISTORY_STORE) {
     const db = await idb();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB_HISTORY_STORE, "readwrite");
-      tx.objectStore(IDB_HISTORY_STORE).put(entry);
+      const tx = db.transaction(store, "readwrite");
+      tx.objectStore(store).put(entry);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
   }
-  async function idbGetAllHistory() {
+  async function idbGetAllHistory(store = IDB_HISTORY_STORE) {
     const db = await idb();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB_HISTORY_STORE, "readonly");
-      const r = tx.objectStore(IDB_HISTORY_STORE).getAll();
+      const tx = db.transaction(store, "readonly");
+      const r = tx.objectStore(store).getAll();
       r.onsuccess = () => resolve(r.result || []);
       r.onerror = () => reject(r.error);
     });
   }
-  async function idbDeleteHistory(id) {
+  async function idbDeleteHistory(id, store = IDB_HISTORY_STORE) {
     const db = await idb();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(IDB_HISTORY_STORE, "readwrite");
-      tx.objectStore(IDB_HISTORY_STORE).delete(id);
+      const tx = db.transaction(store, "readwrite");
+      tx.objectStore(store).delete(id);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);
     });
@@ -311,9 +314,9 @@
 
   // Recent commits that touched the data file (newest first). Capped at 20 —
   // this is a rollback aid, not a full audit log.
-  async function ghListCommits() {
+  async function ghListCommits(path) {
     const url = `${API}/repos/${gh.owner}/${gh.repo}/commits` +
-      `?path=${encodeURIComponent(gh.path)}&sha=${encodeURIComponent(gh.branch)}&per_page=20`;
+      `?path=${encodeURIComponent(path || gh.path)}&sha=${encodeURIComponent(gh.branch)}&per_page=20`;
     const r = await fetch(url, { headers: ghHeaders(), cache: "no-store" });
     if (!r.ok) throw ghErr(r.status, await r.text(), r);
     const j = await r.json();
@@ -405,6 +408,58 @@
   });
   const idbGetSafe = (k) => idbGet(k).catch(() => null);
 
+  // Every save that changed something is kept here too, like lifelog.json's
+  // local history, so a board wiped by mistake — or by a merge — can be
+  // brought back offline and without GitHub. Identical saves in a row are
+  // skipped by comparing a fingerprint, rather than reading the last
+  // snapshot back each time.
+  const BOARDS_HIST_MARK = "lifelog-boards-history-mark";
+  function fingerprint(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+    return str.length + ":" + h;
+  }
+  async function recordBoardsHistory(doc) {
+    try {
+      const mark = fingerprint(JSON.stringify(doc.boards));
+      if (localStorage.getItem(BOARDS_HIST_MARK) === mark) return;
+      await idbAddHistory({ id: historyId(), savedAt: new Date().toISOString(), doc: { boards: doc.boards } }, IDB_BOARDS_HISTORY);
+      localStorage.setItem(BOARDS_HIST_MARK, mark);
+      const all = await idbGetAllHistory(IDB_BOARDS_HISTORY);
+      if (all.length > BOARDS_HISTORY_CAP) {
+        all.sort((a, b) => a.savedAt.localeCompare(b.savedAt));
+        for (const e of all.slice(0, all.length - BOARDS_HISTORY_CAP)) await idbDeleteHistory(e.id, IDB_BOARDS_HISTORY);
+      }
+    } catch (e) { /* a convenience — never blocks a save */ }
+  }
+
+  // The boards' own backup file: a second handle, since a page can't make a
+  // file beside the one it was given. Written on every save, like
+  // lifelog.json's; best-effort, never blocks.
+  const BOARDS_FILE_KEY = "boardsFile";
+  let boardsHandle = null, boardsNeedsReconnect = false, boardsHandleTried = false;
+  async function ensureBoardsHandle() {
+    if (!fsSupported || boardsHandle || boardsHandleTried) return;
+    boardsHandleTried = true;
+    try {
+      const saved = await idbGet(BOARDS_FILE_KEY);
+      if (saved) {
+        boardsHandle = saved;
+        boardsNeedsReconnect = (await saved.queryPermission({ mode: "readwrite" })) !== "granted";
+      }
+    } catch (e) { /* no file, then */ }
+  }
+  async function backupBoardsToFile(doc) {
+    await ensureBoardsHandle();
+    if (!boardsHandle || boardsNeedsReconnect) return false;
+    try {
+      const w = await boardsHandle.createWritable();
+      await w.write(JSON.stringify(doc));
+      await w.close();
+      return true;
+    } catch (e) { boardsNeedsReconnect = true; return false; }
+  }
+
   const Boards = {
     get error() { return boardsError; },
     // This device's copy, merged with GitHub's when it's connected and
@@ -412,7 +467,8 @@
     // yet (a save made offline, or the merge just now), for the caller to
     // save.
     async load() {
-      const local = await idbGetSafe(BOARDS_CACHE);
+      let local = await idbGetSafe(BOARDS_CACHE);
+      if (!local) { const f = await Boards.readFile(); if (f && Array.isArray(f.boards)) local = { boards: f.boards }; }
       if (!gh || !gh.token) return { doc: local || emptyBoards(), dirty: false };
       const base = await idbGetSafe(BOARDS_BASE);
       let remote;
@@ -430,6 +486,8 @@
     async save(doc) {
       doc = { boards: doc.boards, exportedAt: new Date().toISOString() };
       await idbSet(BOARDS_CACHE, doc).catch(() => {});
+      await recordBoardsHistory(doc);
+      await backupBoardsToFile(doc);
       if (!gh || !gh.token) return { doc, where: "cache", merged: false };
       const path = boardsPath();
       let out = doc;
@@ -453,6 +511,59 @@
       await idbDel(BOARDS_CACHE).catch(() => {});
       await idbDel(BOARDS_BASE).catch(() => {});
     },
+    // Past versions, newest first: this device's saves, then GitHub's
+    // commits to boards.json when it's connected. Each is { id, savedAt,
+    // source } — read one with version().
+    async history() {
+      const local = (await idbGetAllHistory(IDB_BOARDS_HISTORY).catch(() => []))
+        .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
+        .map((e) => ({ id: e.id, savedAt: e.savedAt, source: "device", doc: e.doc }));
+      let remote = [];
+      if (gh && gh.token) {
+        try { remote = (await ghListCommits(boardsPath())).map((c) => ({ id: c.sha, savedAt: c.date, source: "github", sha: c.sha })); }
+        catch (e) { remote = []; }
+      }
+      return local.concat(remote);
+    },
+    async version(entry) {
+      if (entry.doc) return entry.doc;
+      const f = await ghGetFile(entry.sha, boardsPath());
+      if (!f) throw new Error("That version of boards.json couldn't be found.");
+      return f.data;
+    },
+    // ---- a copy on disk (File System Access), beside the local-file backup ----
+    get fileName() { return boardsHandle ? boardsHandle.name : null; },
+    get fileConnected() { return !!(boardsHandle && !boardsNeedsReconnect); },
+    get fileNeedsReconnect() { return !!(boardsHandle && boardsNeedsReconnect); },
+    async connectFile(doc) {
+      if (!fsSupported) throw new Error("unsupported");
+      const h = await window.showSaveFilePicker({
+        suggestedName: "boards.json",
+        types: [{ description: "LifeLog boards", accept: { "application/json": [".json"] } }],
+      });
+      boardsHandle = h; boardsNeedsReconnect = false;
+      await idbSet(BOARDS_FILE_KEY, h);
+      if (doc) await h.createWritable().then(async (w) => { await w.write(JSON.stringify(doc)); await w.close(); });
+      return h.name;
+    },
+    async reconnectFile() {
+      if (!boardsHandle) return false;
+      const perm = await boardsHandle.requestPermission({ mode: "readwrite" });
+      boardsNeedsReconnect = perm !== "granted";
+      return !boardsNeedsReconnect;
+    },
+    async disconnectFile() {
+      boardsHandle = null; boardsNeedsReconnect = false;
+      await idbDel(BOARDS_FILE_KEY).catch(() => {});
+    },
+    // What's in the file, for a device that has no boards of its own yet —
+    // a new browser pointed at the same backup folder.
+    async readFile() {
+      await ensureBoardsHandle();
+      if (!boardsHandle || boardsNeedsReconnect) return null;
+      try { const f = await boardsHandle.getFile(); return JSON.parse(await f.text()); } catch (e) { return null; }
+    },
+    async ensureFile() { await ensureBoardsHandle(); },
   };
 
   const Storage = {

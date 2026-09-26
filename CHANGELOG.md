@@ -4,6 +4,40 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.194.0] - 2026-09-26
+
+### Added
+- **Restore settings from a backup.** Settings → Import & export →
+  Everything → Restore settings reads a full backup's settings and lists
+  what it would fill in and what it would change — by name; API keys are
+  never shown — before doing anything. A setting the file leaves empty is
+  never cleared. Importing a backup still never touches settings on its own.
+- **Boards, round two:**
+  - **Resize and rotate.** A selection has a handle at each corner to
+    resize it (Shift keeps the proportions; text always does) and a round
+    one above to turn it (Shift snaps to 15°).
+  - **Fill** rectangles and ellipses with hand-drawn hatching: the toggle
+    at the end of the colours row, for new shapes and the selected ones.
+  - **A hand-drawn font** for text: Virgil, Excalidraw's own. Exported SVGs
+    and PNGs carry it inside them. It has Latin letters only; Hebrew and
+    other scripts use the system font.
+  - **Zoom** moved from three buttons floating over the drawing to one in
+    the top bar that shows the zoom and opens zoom in, zoom out, actual size
+    and fit. The keys + − 0 do the same.
+  - **History for boards.** Settings → History → Boards lists the boards'
+    own saves, this device's and GitHub's. Open one to see each board
+    against now, and bring back any that changed or was deleted — alone,
+    without rolling the others back.
+  - **A boards file beside the backup file.** Settings → Sync → Backup
+    file can now also write boards.json to a file on this computer.
+
+### Fixed
+- Deleting a board right after drawing on it could leave History without
+  the last strokes; they're saved first now.
+- Escape with a board menu open closed the whole board; it closes the menu.
+- On a phone the board's name had shrunk to a few letters; the back button
+  is just its chevron there now.
+
 ## [0.193.0] - 2026-09-25
 
 ### Added

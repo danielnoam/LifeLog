@@ -283,6 +283,33 @@
     return { settings, filled };
   }
 
+  // Settings restored on purpose from a backup file (Settings → Import &
+  // export → Restore settings). Unlike fillBlankSettings this also changes
+  // what's set now to what the file says — that's the point of asking for
+  // it — but a blank in the file never empties something that's set: a
+  // backup from before a key existed shouldn't take the key away. Returns
+  // the settings and which paths it filled and which it changed.
+  function settingsFromBackup(current, incoming) {
+    const filled = [], changed = [];
+    const walk = (cur, inc, path) => {
+      if (isPlainObject(inc)) {
+        const out = isPlainObject(cur) ? { ...cur } : {};
+        for (const k of Object.keys(inc)) {
+          if (k === "updatedAt" && !path) continue;
+          const v = walk(out[k], inc[k], path ? path + "." + k : k);
+          if (v !== undefined) out[k] = v;
+        }
+        return out;
+      }
+      if (isBlank(inc) || sameValue(cur, inc)) return cur;
+      (isBlank(cur) ? filled : changed).push(path);
+      return inc;
+    };
+    const settings = walk(current || {}, incoming || {}, "");
+    if (current && current.updatedAt) settings.updatedAt = current.updatedAt;
+    return { settings, filled, changed };
+  }
+
   function mergeSettings(base, local, remote) {
     if (!local) return remote || {};
     if (!remote) return local;
@@ -376,7 +403,7 @@
     COLLECTION_KEYS, byId, mergeBoards, sameContent, flattenAccomplishments, unflattenAccomplishments,
     compareVersions, maxVersion,
     stampChangedItems, diffCollection, diffSnapshots, summarizeConflicts,
-    mergeCollection, mergeAccomplishmentYears, mergeSettings, mergeAllSources, fillBlankSettings,
+    mergeCollection, mergeAccomplishmentYears, mergeSettings, mergeAllSources, fillBlankSettings, settingsFromBackup,
     mergeHabits, mergeMarks,
   };
 

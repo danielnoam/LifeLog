@@ -76,7 +76,8 @@
     return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
   }
   const textLines = (e) => String(e.text || "").split("\n");
-  const textSize = (e) => TEXT_SIZE[e.sw] || TEXT_SIZE[4];
+  // `fs` once a text has been resized; its width's size until then.
+  const textSize = (e) => e.fs || TEXT_SIZE[e.sw] || TEXT_SIZE[4];
   // Measured rather than guessed when a DOM is there to measure with; the
   // guess (a little over half an em per character) is what tests and a
   // first draw get.
@@ -91,8 +92,30 @@
     }
     return line.length * size * 0.56;
   }
-  const BOARD_FONT = "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+  // Virgil (vendored, SIL OFL 1.1) is Excalidraw's hand-drawn face. It has
+  // Latin only; Hebrew and the rest fall through to the system font.
+  const FONT_URL = "src/vendor/Virgil.woff2";
+  const BOARD_FONT = "Virgil, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
+  const ROTATES = new Set(["rect", "ellipse", "text"]);
+  // A shape's own box, before any rotation: what `a` turns about its centre.
+  function rawBox(e) {
+    if (e.t === "rect" || e.t === "ellipse") return norm(e.x, e.y, e.w, e.h);
+    const size = textSize(e), lines = textLines(e);
+    return { x: e.x, y: e.y, w: Math.max(size / 2, ...lines.map((l) => textWidth(l, size))), h: lines.length * size * 1.25 };
+  }
+  function rotatePt(x, y, cx, cy, a) {
+    const c = Math.cos(a), s = Math.sin(a);
+    return [cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c];
+  }
   function bbox(e) {
+    if (ROTATES.has(e.t)) {
+      const r = rawBox(e);
+      if (!e.a) return r;
+      const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+      const pts = [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]].map(([x, y]) => rotatePt(x, y, cx, cy, e.a));
+      const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+      return { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+    }
     if (e.t === "pen") {
       const pts = decodePoints(e.p);
       let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
@@ -100,10 +123,7 @@
       const h = e.sw / 2;
       return { x: x1 - h, y: y1 - h, w: x2 - x1 + e.sw, h: y2 - y1 + e.sw };
     }
-    if (e.t === "rect" || e.t === "ellipse") return norm(e.x, e.y, e.w, e.h);
-    if (e.t === "line" || e.t === "arrow") return norm(e.x, e.y, e.x2 - e.x, e.y2 - e.y);
-    const size = textSize(e), lines = textLines(e);
-    return { x: e.x, y: e.y, w: Math.max(size / 2, ...lines.map((l) => textWidth(l, size))), h: lines.length * size * 1.25 };
+    return norm(e.x, e.y, e.x2 - e.x, e.y2 - e.y);
   }
   function norm(x, y, w, h) {
     return { x: Math.min(x, x + w), y: Math.min(y, y + h), w: Math.abs(w), h: Math.abs(h) };
@@ -117,10 +137,16 @@
     }
     return { x: x1, y: y1, w: x2 - x1, h: y2 - y1 };
   }
-  // Whether (x, y) is on the element, within `tol`. Shapes are hit on their
-  // outline, like Excalidraw's unfilled ones: tapping inside a box selects
-  // what's in it, not the box.
+  // Whether (x, y) is on the element, within `tol`. An unfilled shape is hit
+  // on its outline, like Excalidraw's: tapping inside a box selects what's
+  // in it, not the box. A filled one is hit anywhere. A rotated one is
+  // tested in its own frame.
   function hitTest(e, x, y, tol) {
+    if (e.a && ROTATES.has(e.t)) {
+      const r = rawBox(e);
+      [x, y] = rotatePt(x, y, r.x + r.w / 2, r.y + r.h / 2, -e.a);
+      e = { ...e, a: 0 };
+    }
     const reach = tol + (e.sw || 0) / 2;
     if (e.t === "pen") {
       const pts = decodePoints(e.p);
@@ -131,6 +157,7 @@
     if (e.t === "line" || e.t === "arrow") return segDist(x, y, e.x, e.y, e.x2, e.y2) <= reach;
     if (e.t === "rect") {
       const b = norm(e.x, e.y, e.w, e.h);
+      if (e.f && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return true;
       const c = [[b.x, b.y], [b.x + b.w, b.y], [b.x + b.w, b.y + b.h], [b.x, b.y + b.h]];
       return c.some((p, i) => segDist(x, y, p[0], p[1], c[(i + 1) % 4][0], c[(i + 1) % 4][1]) <= reach);
     }
@@ -139,6 +166,7 @@
       const rx = b.w / 2, ry = b.h / 2;
       if (!rx || !ry) return segDist(x, y, b.x, b.y, b.x + b.w, b.y + b.h) <= reach;
       const dx = (x - b.x - rx) / rx, dy = (y - b.y - ry) / ry;
+      if (e.f && Math.hypot(dx, dy) <= 1) return true;
       return Math.abs(Math.hypot(dx, dy) - 1) * Math.min(rx, ry) <= reach;
     }
     const b = bbox(e);
@@ -149,6 +177,49 @@
     if (e.t === "pen") { out.p = e.p.slice(); out.p[0] += Math.round(dx); out.p[1] += Math.round(dy); return out; }
     out.x = Math.round(e.x + dx); out.y = Math.round(e.y + dy);
     if (e.t === "line" || e.t === "arrow") { out.x2 = Math.round(e.x2 + dx); out.y2 = Math.round(e.y2 + dy); }
+    return out;
+  }
+  // Resizing: every point pushed away from (or towards) the anchor corner by
+  // sx, sy. A shape keeps its rotation and scales in its own axes, which is
+  // exact for an upright one and close for a turned one; text keeps its
+  // proportions and changes size.
+  function scaled(e, ax, ay, sx, sy) {
+    const S = (x, y) => [ax + (x - ax) * sx, ay + (y - ay) * sy];
+    const out = { ...e };
+    if (e.t === "pen") { out.p = encodePoints(decodePoints(e.p).map(([x, y]) => S(x, y))); return out; }
+    if (e.t === "line" || e.t === "arrow") {
+      [out.x, out.y] = S(e.x, e.y).map(Math.round);
+      [out.x2, out.y2] = S(e.x2, e.y2).map(Math.round);
+      return out;
+    }
+    const r = rawBox(e);
+    const [cx, cy] = S(r.x + r.w / 2, r.y + r.h / 2);
+    let w = r.w * sx, h = r.h * sy;
+    if (e.t === "text") {
+      const k = Math.sqrt(Math.abs(sx * sy));
+      out.fs = Math.max(6, Math.round(textSize(e) * k));
+      w = r.w * k; h = r.h * k;
+    } else { out.w = Math.max(1, Math.round(w)); out.h = Math.max(1, Math.round(h)); }
+    out.x = Math.round(cx - w / 2); out.y = Math.round(cy - h / 2);
+    return out;
+  }
+  // Rotating by `da` about (cx, cy). Lines and strokes turn their points;
+  // shapes and text move their centre round and add to their angle.
+  function rotated(e, cx, cy, da) {
+    const R = (x, y) => rotatePt(x, y, cx, cy, da);
+    const out = { ...e };
+    if (e.t === "pen") { out.p = encodePoints(decodePoints(e.p).map(([x, y]) => R(x, y))); return out; }
+    if (e.t === "line" || e.t === "arrow") {
+      [out.x, out.y] = R(e.x, e.y).map(Math.round);
+      [out.x2, out.y2] = R(e.x2, e.y2).map(Math.round);
+      return out;
+    }
+    const r = rawBox(e);
+    const [nx, ny] = R(r.x + r.w / 2, r.y + r.h / 2);
+    out.x = Math.round(nx - r.w / 2); out.y = Math.round(ny - r.h / 2);
+    const TAU = Math.PI * 2;
+    const a = (((e.a || 0) + da) % TAU + TAU) % TAU;
+    if (a < 1e-3 || TAU - a < 1e-3) delete out.a; else out.a = Math.round(a * 1e4) / 1e4;
     return out;
   }
   // A freehand path through the midpoints between samples, so a stroke drawn
@@ -250,6 +321,85 @@
     return JSON.parse(JSON.stringify(boards()));
   }
 
+  // ---------- history (Settings → History → Boards) ----------
+  // Versions of boards.json, this device's and GitHub's. Opening one lists
+  // its boards against what you have now; any that changed or has gone can
+  // be brought back on its own, without rolling the other boards back.
+  const sameBoard = (a, b) => a && b && a.name === b.name && JSON.stringify(a.elements) === JSON.stringify(b.elements);
+  async function renderHistory(list, status) {
+    status.hidden = false;
+    status.textContent = "Loading…";
+    list.innerHTML = "";
+    let versions;
+    try { await ensureLoaded(); versions = await Storage.boards.history(); }
+    catch (e) { status.textContent = "Couldn't load board history: " + (e.message || e); return; }
+    if (!versions.length) { status.textContent = "No board saves yet."; list.hidden = true; return; }
+    status.hidden = true;
+    list.hidden = false;
+    for (const v of versions) {
+      const row = el("div", "sitem board-hist-row");
+      const text = el("span", "sitem-text");
+      text.appendChild(el("span", "sitem-title", new Date(v.savedAt).toLocaleString()));
+      text.appendChild(el("span", "sitem-sub", v.source === "github" ? "GitHub" : "This device"));
+      row.appendChild(text);
+      const btns = el("span", "sitem-btns");
+      const open = el("button", "btn btn-small", "Open");
+      open.type = "button";
+      btns.appendChild(open);
+      row.appendChild(btns);
+      const inner = el("div", "board-hist-boards");
+      inner.hidden = true;
+      open.onclick = async () => {
+        if (!inner.hidden) { inner.hidden = true; open.textContent = "Open"; return; }
+        open.disabled = true;
+        try { fillVersion(inner, await Storage.boards.version(v), v); inner.hidden = false; open.textContent = "Close"; }
+        catch (e) { toast("Couldn't read that version: " + (e.message || e), true); }
+        open.disabled = false;
+      };
+      list.appendChild(row);
+      list.appendChild(inner);
+    }
+  }
+  function fillVersion(inner, version, v) {
+    inner.innerHTML = "";
+    const then = (version.boards || []).map(sanitizeBoard);
+    if (!then.length) { inner.appendChild(el("p", "muted board-hist-empty", "No boards in this version.")); return; }
+    for (const b of then) {
+      const now = findBoard(b.id);
+      const row = el("div", "sitem board-hist-board");
+      const text = el("span", "sitem-text");
+      text.appendChild(el("span", "sitem-title", b.name));
+      const status = !now ? "Deleted since" : sameBoard(now, b) ? "Same as now" : "Changed since";
+      text.appendChild(el("span", "sitem-sub", `${b.elements.length} element${b.elements.length === 1 ? "" : "s"} · ${status}`));
+      row.appendChild(text);
+      if (!sameBoard(now, b)) {
+        const btns = el("span", "sitem-btns");
+        const back = el("button", "btn btn-small", "Bring back");
+        back.type = "button";
+        back.onclick = async () => { if (await restoreBoard(b, v)) { back.remove(); text.lastChild.textContent = `${b.elements.length} elements · Brought back`; } };
+        btns.appendChild(back);
+        row.appendChild(btns);
+      }
+      inner.appendChild(row);
+    }
+  }
+  // Puts a past version of one board back: over the board where it still
+  // exists, as it was where it doesn't.
+  async function restoreBoard(b, v) {
+    await ensureLoaded();
+    const now = findBoard(b.id);
+    const when = new Date(v.savedAt).toLocaleString();
+    if (!confirm(now ? `Put "${b.name}" back to how it was on ${when}? What's on it now is replaced.` : `Bring back "${b.name}" as it was on ${when}?`)) return false;
+    const copy = { ...JSON.parse(JSON.stringify(b)), updatedAt: new Date().toISOString() };
+    if (now) doc.boards = doc.boards.map((x) => (x.id === b.id ? copy : x));
+    else doc.boards.push(copy);
+    changedSince++;
+    await flush();
+    toast(`Brought back "${b.name}"`);
+    if (isBoardsMode()) render();
+    return true;
+  }
+
   // ---------- the Boards mode ----------
   const isBoardsMode = () => state.view === "notes" && state.notesMode === "boards";
   function renderBoards(root) {
@@ -262,6 +412,7 @@
     if (Date.now() - loadedAt > 60000 && !editing && !changedSince) {
       ensureLoaded(true).then(() => { if (isBoardsMode() && !editing) render(); });
     }
+    fontReady().then((fresh) => { if (fresh && isBoardsMode() && !editing) render(); });
     const q = (state.search || "").trim().toLowerCase();
     const list = boards().filter((b) => !q || b.name.toLowerCase().includes(q))
       .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
@@ -328,10 +479,14 @@
   function roughPaths(e) {
     if (!window.rough) return null;
     roughGen = roughGen || window.rough.generator();
-    const key = JSON.stringify([e.t, e.x, e.y, e.w, e.h, e.x2, e.y2, e.sw, e.seed]);
+    const key = JSON.stringify([e.t, e.x, e.y, e.w, e.h, e.x2, e.y2, e.sw, e.seed, !!e.f]);
     const hit = roughCache.get(e.id);
     if (hit && hit.key === key) return hit.paths;
-    const o = { seed: e.seed || 1, roughness: 1.1, bowing: 1, strokeWidth: e.sw, stroke: "#000" };
+    // "S" and "F" stand in for the stroke and fill colour: the colour itself
+    // is applied at draw time, so a recolour or a theme change needs no new
+    // paths. A fill is rough.js's hachure — strokes, drawn in the fill colour.
+    const o = { seed: e.seed || 1, roughness: 1.1, bowing: 1, strokeWidth: e.sw, stroke: "S" };
+    if (e.f) Object.assign(o, { fill: "F", fillStyle: "hachure", hachureGap: 5 + e.sw, fillWeight: Math.max(1, e.sw / 2) });
     let drawables;
     if (e.t === "rect") drawables = [roughGen.rectangle(e.x, e.y, e.w, e.h, o)];
     else if (e.t === "ellipse") drawables = [roughGen.ellipse(e.x + e.w / 2, e.y + e.h / 2, Math.abs(e.w), Math.abs(e.h), o)];
@@ -339,7 +494,8 @@
       drawables = [roughGen.line(e.x, e.y, e.x2, e.y2, o)];
       if (e.t === "arrow") for (const [hx, hy] of arrowHead(e)) drawables.push(roughGen.line(e.x2, e.y2, hx, hy, o));
     }
-    const paths = drawables.flatMap((d) => roughGen.toPaths(d)).map((p) => p.d);
+    const paths = drawables.flatMap((d) => roughGen.toPaths(d))
+      .map((p) => ({ d: p.d, stroke: p.stroke !== "none", fill: !!p.fill && p.fill !== "none", w: p.strokeWidth }));
     roughCache.set(e.id, { key, paths });
     return paths;
   }
@@ -357,7 +513,7 @@
     }
     if (e.t === "text") {
       const size = textSize(e);
-      const t = svgEl("text", { x: e.x, y: e.y, fill: color, "font-size": size, "data-id": e.id, class: "board-text" });
+      const t = svgEl("text", { x: e.x, y: e.y, fill: color, "font-size": size, "data-id": e.id, class: "board-text", transform: turn(e) });
       textLines(e).forEach((line, i) => {
         const span = svgEl("tspan", { x: e.x, dy: i ? size * 1.25 : size * 0.95 });
         span.textContent = line || " ";
@@ -365,16 +521,22 @@
       });
       return t;
     }
-    const g = svgEl("g", { "data-id": e.id, stroke: color, "stroke-width": e.sw, fill: "none", "stroke-linecap": "round" });
+    const g = svgEl("g", { "data-id": e.id, stroke: color, "stroke-width": e.sw, fill: "none", "stroke-linecap": "round", transform: turn(e) });
     const paths = roughPaths(e);
-    if (paths) for (const d of paths) g.appendChild(svgEl("path", { d }));
-    else if (e.t === "rect") g.appendChild(svgEl("rect", norm(e.x, e.y, e.w, e.h)));
+    if (paths) {
+      for (const p of paths) g.appendChild(svgEl("path", { d: p.d, stroke: p.stroke ? color : "none", fill: p.fill ? color : "none", "stroke-width": p.w }));
+    } else if (e.t === "rect") g.appendChild(svgEl("rect", norm(e.x, e.y, e.w, e.h)));
     else if (e.t === "ellipse") g.appendChild(svgEl("ellipse", { cx: e.x + e.w / 2, cy: e.y + e.h / 2, rx: Math.abs(e.w / 2), ry: Math.abs(e.h / 2) }));
     else {
       g.appendChild(svgEl("line", { x1: e.x, y1: e.y, x2: e.x2, y2: e.y2 }));
       if (e.t === "arrow") for (const [hx, hy] of arrowHead(e)) g.appendChild(svgEl("line", { x1: e.x2, y1: e.y2, x2: hx, y2: hy }));
     }
     return g;
+  }
+  function turn(e) {
+    if (!e.a || !ROTATES.has(e.t)) return null;
+    const r = rawBox(e);
+    return `rotate(${e.a * 180 / Math.PI} ${r.x + r.w / 2} ${r.y + r.h / 2})`;
   }
   // A board as a standalone SVG: the list's thumbnails, and the export.
   function boardSvg(elements, { thumb = false, pad = 24 } = {}) {
@@ -388,7 +550,7 @@
   // ---------- the editor ----------
   let editing = null;        // the board open in the editor
   let view = { x: 0, y: 0, k: 1 };
-  let tool = "pen", color = "ink", width = 4;
+  let tool = "pen", color = "ink", width = 4, fill = false;
   let selection = new Set();
   let undoStack = [], redoStack = [];
   let op = null;             // what the pointer is doing
@@ -409,6 +571,14 @@
     fitView();
     redraw();
     syncToolbar();
+    fontReady().then((fresh) => { if (fresh && editing) redraw(); });
+  }
+  // Text is measured for its box, so the first draw before Virgil arrives
+  // is redone once it has. Resolves true the first time only.
+  let fontLoaded = false;
+  function fontReady() {
+    if (fontLoaded || typeof document === "undefined" || !document.fonts) return Promise.resolve(false);
+    return document.fonts.load("26px Virgil").then(() => { const first = !fontLoaded; fontLoaded = true; return first; }, () => false);
   }
   // Starts where the drawing is: centred on it at 100%, or smaller if it
   // doesn't fit.
@@ -439,6 +609,7 @@
     overlay.setAttribute("transform", world.getAttribute("transform"));
     liveLayer.setAttribute("transform", world.getAttribute("transform"));
     svg.style.backgroundPosition = `${view.x}px ${view.y}px`;
+    $("#boardZoomBtn").textContent = Math.round(view.k * 100) + "%";
     svg.style.backgroundSize = `${24 * view.k}px ${24 * view.k}px`;
     if (textInput && !textInput.hidden) placeTextInput();
   }
@@ -461,8 +632,13 @@
     selection = new Set([...selection].filter((id) => editing.elements.some((e) => e.id === id)));
     redraw();
   }
+  // The selection's handles: a square at each corner to resize from, and a
+  // round one above to turn it by. Sized in screen pixels, so they stay a
+  // finger's width at any zoom.
+  let handles = [];
   function drawSelection() {
     overlay.innerHTML = "";
+    handles = [];
     const els = editing.elements.filter((e) => selection.has(e.id));
     for (const e of els) {
       const b = bbox(e);
@@ -471,6 +647,27 @@
     if (op && op.kind === "box") {
       overlay.appendChild(svgEl("rect", { ...norm(op.x0, op.y0, op.x1 - op.x0, op.y1 - op.y0), class: "board-box" }));
     }
+    const busy = op && (op.kind === "box" || (op.kind === "move" && op.moved));
+    if (tool !== "select" || !els.length || busy) return;
+    const B = boundsOf(els), pad = 8 / view.k, hs = 5 / view.k;
+    const x1 = B.x - pad, y1 = B.y - pad, x2 = B.x + B.w + pad, y2 = B.y + B.h + pad;
+    if (els.length > 1) overlay.appendChild(svgEl("rect", { x: x1, y: y1, width: x2 - x1, height: y2 - y1, class: "board-sel board-sel-group" }));
+    // A corner handle sits `pad` outside the selection, but scales it by its
+    // own corners — so the drawing's edge follows the finger exactly.
+    const bx1 = B.x, by1 = B.y, bx2 = B.x + B.w, by2 = B.y + B.h;
+    for (const [corner, hx, hy, cx, cy, ax, ay] of [
+      ["nw", x1, y1, bx1, by1, bx2, by2], ["ne", x2, y1, bx2, by1, bx1, by2],
+      ["se", x2, y2, bx2, by2, bx1, by1], ["sw", x1, y2, bx1, by2, bx2, by1]]) {
+      handles.push({ kind: "resize", corner, x: hx, y: hy, cx, cy, ax, ay });
+      overlay.appendChild(svgEl("rect", { x: hx - hs, y: hy - hs, width: hs * 2, height: hs * 2, class: "board-handle", "data-handle": corner }));
+    }
+    const rx = (x1 + x2) / 2, ry = y1 - 26 / view.k;
+    handles.push({ kind: "rotate", x: rx, y: ry, cx: (x1 + x2) / 2, cy: (y1 + y2) / 2 });
+    overlay.appendChild(svgEl("line", { x1: rx, y1: ry, x2: rx, y2: y1, class: "board-sel" }));
+    overlay.appendChild(svgEl("circle", { cx: rx, cy: ry, r: hs * 1.2, class: "board-handle", "data-handle": "rotate" }));
+  }
+  function handleAt(x, y, tol) {
+    return handles.find((h) => Math.hypot(x - h.x, y - h.y) <= tol + 6 / view.k) || null;
   }
 
   const toWorld = (sx, sy) => [(sx - view.x) / view.k, (sy - view.y) / view.k];
@@ -540,6 +737,10 @@
     if (tool === "eraser") { op = { kind: "erase", gone: new Set(), last: [x, y] }; eraseAt(x, y, tolerance(ev)); return; }
     if (tool === "text") { op = { kind: "text", x, y }; return; }
     if (tool === "select") {
+      const h = handleAt(x, y, tolerance(ev));
+      const orig = () => editing.elements.filter((e) => selection.has(e.id)).map((e) => ({ ...e }));
+      if (h && h.kind === "resize") { op = { kind: "resize", h, orig: orig(), moved: false }; return; }
+      if (h && h.kind === "rotate") { op = { kind: "rotate", h, a0: Math.atan2(y - h.cy, x - h.cx), orig: orig(), moved: false }; return; }
       const hit = topHit(x, y, tolerance(ev));
       if (hit) {
         if (!selection.has(hit.id)) selection = ev.shiftKey ? new Set([...selection, hit.id]) : new Set([hit.id]);
@@ -553,6 +754,7 @@
     }
     // A shape: drawn live from where the pointer went down.
     const e = { id: uid(), t: tool, c: color, sw: width, seed: Math.floor(Math.random() * 2 ** 31) };
+    if (fill && (tool === "rect" || tool === "ellipse")) e.f = true;
     if (tool === "rect" || tool === "ellipse") Object.assign(e, { x: Math.round(x), y: Math.round(y), w: 0, h: 0 });
     else Object.assign(e, { x: Math.round(x), y: Math.round(y), x2: Math.round(x), y2: Math.round(y) });
     op = { kind: "shape", e };
@@ -594,6 +796,25 @@
       const byId = new Map(op.orig.map((e) => [e.id, moved(e, dx, dy)]));
       editing.elements = editing.elements.map((e) => byId.get(e.id) || e);
       redraw();
+    } else if (op.kind === "resize" || op.kind === "rotate") {
+      if (!op.moved) { remember(); op.moved = true; }
+      let next;
+      if (op.kind === "resize") {
+        const { ax, ay, cx, cy, x: hx, y: hy } = op.h;
+        const ux = x - (hx - cx), uy = y - (hy - cy);
+        // Never through zero: past the anchor it would turn inside out.
+        let sx = Math.max(0.05, (ux - ax) / ((cx - ax) || 1)), sy = Math.max(0.05, (uy - ay) / ((cy - ay) || 1));
+        const onlyText = op.orig.every((e) => e.t === "text");
+        if (ev.shiftKey || onlyText) sx = sy = Math.max(sx, sy);
+        next = (e) => scaled(e, ax, ay, sx, sy);
+      } else {
+        let da = Math.atan2(y - op.h.cy, x - op.h.cx) - op.a0;
+        if (ev.shiftKey) da = Math.round(da / (Math.PI / 12)) * (Math.PI / 12);
+        next = (e) => rotated(e, op.h.cx, op.h.cy, da);
+      }
+      const byId = new Map(op.orig.map((e) => [e.id, next(e)]));
+      editing.elements = editing.elements.map((e) => byId.get(e.id) || e);
+      redraw();
     } else if (op.kind === "box") {
       op.x1 = x; op.y1 = y;
       drawSelection();
@@ -621,6 +842,9 @@
       changed(editing); redraw();
     } else if (done.kind === "erase") {
       if (done.gone.size) changed(editing);
+    } else if (done.kind === "resize" || done.kind === "rotate") {
+      if (done.moved) changed(editing);
+      redraw();
     } else if (done.kind === "move") {
       if (done.moved) changed(editing);
       else if (done.tapped && done.tapped.t === "text") {
@@ -662,6 +886,10 @@
     redraw();
   }
   const clampZoom = (k) => Math.min(8, Math.max(0.1, k));
+  function zoomBy(f) {
+    const r = svg.getBoundingClientRect();
+    zoomAt(r.width / 2, r.height / 2, view.k * f);
+  }
   function zoomAt(sx, sy, k) {
     k = clampZoom(k);
     const wx = (sx - view.x) / view.k, wy = (sy - view.y) / view.k;
@@ -720,6 +948,8 @@
     document.querySelectorAll("#boardTools [data-tool]").forEach((b) => b.classList.toggle("on", b.dataset.tool === tool));
     document.querySelectorAll("#boardStyle [data-color]").forEach((b) => b.classList.toggle("on", b.dataset.color === color));
     document.querySelectorAll("#boardStyle [data-width]").forEach((b) => b.classList.toggle("on", +b.dataset.width === width));
+    $("#boardFill").classList.toggle("on", fill);
+    $("#boardFill").setAttribute("aria-pressed", String(fill));
     svg.dataset.tool = tool;
   }
   function setTool(t) {
@@ -729,11 +959,20 @@
     syncToolbar();
     if (editing) redraw();
   }
-  // Colour and width apply to what's selected as well as to what's drawn next.
+  // Colour, width and fill apply to what's selected as well as to what's
+  // drawn next — fill only to the shapes that can hold one, and a width to a
+  // resized text puts it back on the three sizes.
   function restyle(patch) {
-    if (!selection.size) return;
+    const fits = (e) => !("f" in patch) || e.t === "rect" || e.t === "ellipse";
+    if (!editing || !editing.elements.some((e) => selection.has(e.id) && fits(e))) return;
     remember();
-    editing.elements = editing.elements.map((e) => (selection.has(e.id) ? { ...e, ...patch } : e));
+    editing.elements = editing.elements.map((e) => {
+      if (!selection.has(e.id) || !fits(e)) return e;
+      const out = { ...e, ...patch };
+      if (out.f === false) delete out.f;
+      if ("sw" in patch && e.t === "text") delete out.fs;
+      return out;
+    });
     changed(editing); redraw();
   }
 
@@ -742,7 +981,9 @@
     const typing = textEditing && document.activeElement === textInput;
     if (e.key === "Escape") {
       e.preventDefault();
-      if (textEditing) commitText();
+      const menus = ["#boardMenu", "#boardZoomMenu"].map((m) => $(m)).filter((m) => !m.hidden);
+      if (menus.length) menus.forEach((m) => { m.hidden = true; });
+      else if (textEditing) commitText();
       else if (selection.size) { selection = new Set(); redraw(); }
       else closeBoard();
       return true;
@@ -754,6 +995,9 @@
     if (mod && e.key.toLowerCase() === "a") { e.preventDefault(); setTool("select"); selection = new Set(editing.elements.map((x) => x.id)); redraw(); return true; }
     if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSelection(); return true; }
     if (e.key === " ") { spaceDown = true; svg.classList.add("panning"); e.preventDefault(); return true; }
+    if (!mod && (e.key === "+" || e.key === "=")) { zoomBy(1.25); return true; }
+    if (!mod && e.key === "-") { zoomBy(1 / 1.25); return true; }
+    if (!mod && e.key === "0") { fitView(); applyView(); return true; }
     if (!mod && !e.altKey) {
       const t = TOOLS.find(([, , , key]) => key === e.key.toLowerCase());
       if (t) { setTool(t[0]); return true; }
@@ -765,27 +1009,46 @@
   }
 
   // ---------- export ----------
-  function resolvedSvg(b) {
+  // An exported SVG — and the PNG, which is drawn from one — can't reach the
+  // app's copy of Virgil, so a board with text carries the font inside it.
+  let fontData = null;
+  async function embeddedFont() {
+    if (fontData) return fontData;
+    const buf = await (await fetch(FONT_URL)).arrayBuffer();
+    let bin = "";
+    const bytes = new Uint8Array(buf);
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    fontData = btoa(bin);
+    return fontData;
+  }
+  async function resolvedSvg(b) {
     const out = boardSvg(b.elements, { pad: 32 });
+    if (b.elements.some((e) => e.t === "text")) {
+      try {
+        const style = svgEl("style", {});
+        style.textContent = `@font-face{font-family:Virgil;src:url(data:font/woff2;base64,${await embeddedFont()}) format("woff2")}`;
+        out.insertBefore(style, out.firstChild);
+      } catch (e) { /* the system font, then */ }
+    }
     const cs = getComputedStyle(document.body);
     out.setAttribute("xmlns", SVG);
     out.setAttribute("color", cs.color);
     out.setAttribute("font-family", BOARD_FONT);
     const vb = out.getAttribute("viewBox").split(" ").map(Number);
     out.setAttribute("width", Math.round(vb[2])); out.setAttribute("height", Math.round(vb[3]));
-    out.insertBefore(svgEl("rect", { x: vb[0], y: vb[1], width: vb[2], height: vb[3], fill: cs.backgroundColor }), out.firstChild);
+    out.insertBefore(svgEl("rect", { x: vb[0], y: vb[1], width: vb[2], height: vb[3], fill: cs.backgroundColor }), out.querySelector(":scope > :not(style)"));
     return { node: out, w: vb[2], h: vb[3] };
   }
   const fileName = (b, ext) => (b.name.replace(/[^\w\- ]+/g, "").trim().replace(/\s+/g, "-") || "board") + "." + ext;
-  function exportSvg() {
+  async function exportSvg() {
     if (!editing) return;
-    const { node } = resolvedSvg(editing);
+    const { node } = await resolvedSvg(editing);
     download(fileName(editing, "svg"), new XMLSerializer().serializeToString(node), "image/svg+xml");
   }
-  function exportPng() {
+  async function exportPng() {
     if (!editing) return;
     const b = editing;
-    const { node, w, h } = resolvedSvg(b);
+    const { node, w, h } = await resolvedSvg(b);
     const img = new Image();
     img.onload = () => {
       const scale = Math.min(2, 4096 / Math.max(w, h));
@@ -799,7 +1062,10 @@
   }
   async function deleteBoard() {
     if (!editing) return;
-    if (!confirm(`Delete "${editing.name}"? This can't be undone here.`)) return;
+    if (!confirm(`Delete "${editing.name}"? You can bring it back from Settings → History → Boards.`)) return;
+    // What was drawn in the last moments goes out first, so the version
+    // History keeps is the board as you last saw it.
+    if (saveTimer || changedSince) await flush();
     const id = editing.id;
     editing = null;
     $("#boardEditor").hidden = true;
@@ -841,6 +1107,7 @@
       b.onclick = () => { width = w; syncToolbar(); restyle({ sw: w }); };
       style.appendChild(b);
     }
+    style.appendChild($("#boardFill"));
 
     svg.addEventListener("pointerdown", onPointerDown);
     svg.addEventListener("pointermove", onPointerMove);
@@ -859,12 +1126,17 @@
     $("#boardUndo").onclick = undo;
     $("#boardRedo").onclick = redo;
     $("#boardDelete").onclick = deleteSelection;
-    $("#boardZoomIn").onclick = () => { const r = svg.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, view.k * 1.25); };
-    $("#boardZoomOut").onclick = () => { const r = svg.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, view.k / 1.25); };
+    // Zoom lives behind one button showing the zoom, rather than three
+    // floating over the drawing; the menu stays open for a run of presses.
+    $("#boardZoomIn").onclick = (e) => { e.stopPropagation(); zoomBy(1.25); };
+    $("#boardZoomOut").onclick = (e) => { e.stopPropagation(); zoomBy(1 / 1.25); };
+    $("#boardZoomReset").onclick = () => { const r = svg.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, 1); };
     $("#boardFit").onclick = () => { fitView(); applyView(); };
-    const menu = $("#boardMenu");
-    $("#boardMenuBtn").onclick = (e) => { e.stopPropagation(); menu.hidden = !menu.hidden; };
-    document.addEventListener("click", () => { menu.hidden = true; });
+    const menu = $("#boardMenu"), zoomMenu = $("#boardZoomMenu");
+    $("#boardMenuBtn").onclick = (e) => { e.stopPropagation(); zoomMenu.hidden = true; menu.hidden = !menu.hidden; };
+    $("#boardZoomBtn").onclick = (e) => { e.stopPropagation(); menu.hidden = true; zoomMenu.hidden = !zoomMenu.hidden; };
+    document.addEventListener("click", () => { menu.hidden = true; zoomMenu.hidden = true; });
+    $("#boardFill").onclick = () => { fill = !fill; syncToolbar(); restyle({ f: fill }); };
     $("#boardExportPng").onclick = exportPng;
     $("#boardExportSvg").onclick = exportSvg;
     $("#boardDeleteBoard").onclick = deleteBoard;
@@ -885,9 +1157,9 @@
 
   window.LifeLogBoards = {
     init, wire,
-    renderBoards, newBoard, openBoard, closeBoard, isEditing, handleKey, isBoardsMode,
+    renderBoards, newBoard, openBoard, closeBoard, isEditing, handleKey, isBoardsMode, renderHistory,
     ensureLoaded, flush, addBoards, boardsForExport, sanitizeBoard, boardsNow: () => boards(),
     // pure helpers (test/boards.test.js)
-    simplify, encodePoints, decodePoints, hitTest, bbox, boundsOf, moved, penPath, segDist,
+    simplify, encodePoints, decodePoints, hitTest, bbox, boundsOf, moved, scaled, rotated, penPath, segDist,
   };
 })();

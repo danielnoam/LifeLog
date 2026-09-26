@@ -16,15 +16,6 @@ todo:
   milestones. Reminders were there too until the Android app gave them a
   way in; they shipped in 0.183.0.
 
-- **Restore settings from a backup.** The full backup (JSON) carries the
-  `settings` key, but no import applies it: importing adds data and never
-  replaces, and settings are one device's preferences, so bringing them in
-  unasked would overwrite another device's (see NOTES.md, 0.191.0). What's
-  missing is an explicit way to do it on purpose: a "Restore settings from
-  this file" step in the import review, or a button beside Everything's
-  import, showing what would change before it does. History's "bring back
-  settings" already restores them from a save, so the merge logic exists.
-
 - **Branch cleanup from a cloud session.** Step 8 of the release checklist
   (`.claude/skills/release-checklist/SKILL.md`) says to delete finished
   branches, but a cloud session's git access refuses it (403 on
@@ -33,24 +24,6 @@ todo:
   the owner to delete, or find an access setting that allows it. GitHub's
   "Automatically delete head branches" only helps with branches merged
   through a PR, which this repo no longer uses.
-
-- **Boards, round two** (they shipped in 0.193.0). In rough order of worth:
-  - **Resize and rotate** a selected element: handles on the selection box.
-    Today a shape can only be moved, or redrawn.
-  - **History for boards.** The History page and its undo/restore cover
-    lifelog.json only; boards.json's commits are on GitHub but nowhere in
-    the app. A lost board today comes back only from GitHub's web UI.
-  - **The local-file backup** (File System Access) mirrors lifelog.json
-    only; boards.json could be a second file beside it.
-  - **Move the zoom out / fit / zoom in buttons somewhere better.** They
-    float on their own over the drawing: under the top bar on a computer,
-    and just above the toolbar on a phone, where they cover what you're
-    drawing near the bottom. Options: fold them into the top bar's button
-    group, into the tool row, or into one button that opens the three.
-  - **Fill** for rectangles and ellipses (rough.js hachure), and a
-    hand-drawn font for text, which would finish the Excalidraw look.
-  - **Measure the real sizes** against the estimates the board item had
-    (a diagram ≈ 10KB, a handwritten page ≈ 300KB once simplified).
 
 ---
 

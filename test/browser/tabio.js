@@ -22,7 +22,7 @@ const FULL = {
   financeEntries: [{ id: "f1", date: "2026-03-04", amount: 20, category: "Food", note: "lunch", project: "Trip", createdAt: T, updatedAt: T }],
   recurringExpenses: [{ id: "r1", startDate: "2026-01-01", interval: "monthly", amount: 10, category: "Food", note: "milk", createdAt: T, updatedAt: T }],
   projects: [{ id: "p1", name: "Trip", color: "#0000ff", updatedAt: T }],
-  settings: {},
+  settings: { currency: "USD", mediaKeys: { rawg: "rawg-key" } },
 };
 const EMPTY = { categories: [], entries: [], accomplishments: {}, backlog: [], notes: [], todos: [], todoCategories: [], habits: [],
   financeCategories: [], financeEntries: [], recurringExpenses: [], projects: [], settings: {} };
@@ -123,6 +123,18 @@ const TABS = {
   await load(EMPTY);
   const part = await importVia('[data-io="import-json"][data-tab="notes"]', full.file);
   check("a tab's import takes only its share of a full backup", JSON.stringify(part) === JSON.stringify({ ...NONE, ...TABS.notes }), part);
+
+  // Restore settings (0.194.0): the backup's settings, on purpose, after
+  // saying what changes.
+  await load(EMPTY);
+  let asked = "";
+  page.once("dialog", (d) => { asked = d.message(); d.accept(); });
+  const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.click("#restoreSettingsBtn")]);
+  await chooser.setFiles(full.file);
+  await page.waitForTimeout(500);
+  const restored = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).settings);
+  check("Restore settings says what it will fill, without showing the key", /RAWG API key/.test(asked) && !/rawg-key/.test(asked), asked);
+  check("and puts the backup's settings in place", restored.currency === "USD" && restored.mediaKeys.rawg === "rawg-key", restored);
 
   await ctx.close();
   await b.close();

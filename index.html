@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.193.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.194.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -1071,7 +1071,15 @@
           <button type="button" class="sitem sitem-go" id="reconnectFileBtn" hidden>Reconnect file</button>
           <button type="button" class="sitem sitem-go sitem-danger" id="disconnectFileBtn" hidden>Disconnect</button>
         </div>
-        <p class="hint">Every save is also written to a <code>.json</code> file on this computer — a local backup, or a way to sync through a shared Drive/Dropbox folder. Chrome and Edge on a computer only.</p>
+        <div class="sgroup-card" id="boardsFileCard" hidden>
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Boards file</span><span class="sitem-sub" id="boardsFileInfo"></span></span>
+          </div>
+          <button type="button" class="sitem sitem-go" id="connectBoardsFileBtn">Choose boards file…</button>
+          <button type="button" class="sitem sitem-go" id="reconnectBoardsFileBtn" hidden>Reconnect boards file</button>
+          <button type="button" class="sitem sitem-go sitem-danger" id="disconnectBoardsFileBtn" hidden>Disconnect</button>
+        </div>
+        <p class="hint">Every save is also written to a <code>.json</code> file on this computer — a local backup, or a way to sync through a shared Drive/Dropbox folder. Boards are a file of their own; put <code>boards.json</code> beside the data file. Chrome and Edge on a computer only.</p>
       </section>
 
       <section class="sgroup" id="ghDisconnectSection" hidden>
@@ -1096,8 +1104,13 @@
             <span class="sitem-text"><span class="sitem-title">Import</span></span>
             <span class="sitem-btns"><button class="btn btn-small" id="importJsonBtn">JSON…</button><button class="btn btn-small" data-io="import-csv" data-tab="all">CSV…</button></span>
           </div>
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Restore settings</span><span class="sitem-sub">API keys, imports and sort orders from a full backup. You see what would change first</span></span>
+            <span class="sitem-btns"><button class="btn btn-small" id="restoreSettingsBtn">JSON…</button></span>
+          </div>
         </div>
         <input type="file" id="importJsonInput" accept="application/json,.json" hidden />
+        <input type="file" id="restoreSettingsInput" accept="application/json,.json" hidden />
       </section>
 
       <section class="sgroup">
@@ -1181,6 +1194,15 @@
           <div class="sgroup-card history-card" id="historyList"></div>
         </section>
       </div>
+      <section class="sgroup">
+        <div class="sgroup-head">
+          <h3 class="sgroup-label">Boards</h3>
+          <button class="btn btn-small" id="boardHistoryBtn" type="button">Show versions</button>
+        </div>
+        <p class="hint">Boards keep their own history. Open a version to see its boards and bring back any that have changed or gone since.</p>
+        <p class="muted" id="boardHistoryStatus" hidden></p>
+        <div class="sgroup-card history-card" id="boardHistoryList" hidden></div>
+      </section>
       </div>
 
       <div class="settings-page" hidden data-page="deleted" data-title="Recently deleted" data-keywords="trash bin undelete restore removed">
@@ -1649,11 +1671,18 @@
        treats it as one; its own CSS makes it the whole screen. -->
   <div class="modal-overlay board-editor" id="boardEditor" hidden>
     <div class="board-top">
-      <button type="button" class="board-back" id="boardBack" aria-label="Back to boards"><span class="settings-back-chev" aria-hidden="true">‹</span>Boards</button>
+      <button type="button" class="board-back" id="boardBack" aria-label="Back to boards"><span class="settings-back-chev" aria-hidden="true">‹</span><span class="board-back-label">Boards</span></button>
       <input type="text" id="boardName" class="board-name-input" aria-label="Board name" maxlength="80" />
       <div class="board-top-btns">
         <button type="button" class="btn btn-icon" id="boardUndo" title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
         <button type="button" class="btn btn-icon" id="boardRedo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo">↷</button>
+        <button type="button" class="btn btn-icon board-zoom-btn" id="boardZoomBtn" title="Zoom (+ − 0)" aria-label="Zoom">100%</button>
+        <div class="menu-pop board-menu" id="boardZoomMenu" hidden>
+          <button type="button" id="boardZoomIn">Zoom in <kbd>+</kbd></button>
+          <button type="button" id="boardZoomOut">Zoom out <kbd>−</kbd></button>
+          <button type="button" id="boardZoomReset">Actual size (100%)</button>
+          <button type="button" id="boardFit">Fit the drawing <kbd>0</kbd></button>
+        </div>
         <button type="button" class="btn btn-icon" id="boardMenuBtn" title="More" aria-label="More">⋯</button>
         <div class="menu-pop board-menu" id="boardMenu" hidden>
           <button type="button" id="boardExportPng">Export PNG</button>
@@ -1669,40 +1698,36 @@
       <g class="board-overlay"></g>
     </svg>
     <textarea id="boardTextInput" class="board-text-input" hidden rows="1" aria-label="Text"></textarea>
-    <div class="board-zoom">
-      <button type="button" class="btn btn-icon" id="boardZoomOut" aria-label="Zoom out">−</button>
-      <button type="button" class="btn btn-icon" id="boardFit" aria-label="Fit the drawing" title="Fit the drawing">⤢</button>
-      <button type="button" class="btn btn-icon" id="boardZoomIn" aria-label="Zoom in">+</button>
-    </div>
     <div class="board-bar">
       <div class="board-style" id="boardStyle">
         <button type="button" class="board-delete" id="boardDelete" hidden aria-label="Delete selected" title="Delete selected (Del)">🗑</button>
+        <button type="button" class="board-fill" id="boardFill" aria-pressed="false" aria-label="Fill shapes" title="Fill rectangles and ellipses"></button>
       </div>
       <div class="board-tools" id="boardTools"></div>
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.193.0"></script>
-  <script defer src="src/reconcile.js?v=0.193.0"></script>
-  <script defer src="src/qr.js?v=0.193.0"></script>
-  <script defer src="src/media.js?v=0.193.0"></script>
-  <script defer src="src/merge.js?v=0.193.0"></script>
-  <script defer src="src/storage.js?v=0.193.0"></script>
-  <script defer src="src/finance.js?v=0.193.0"></script>
-  <script defer src="src/settings.js?v=0.193.0"></script>
-  <script defer src="src/wheel.js?v=0.193.0"></script>
-  <script defer src="src/backlog.js?v=0.193.0"></script>
-  <script defer src="src/journal.js?v=0.193.0"></script>
-  <script defer src="src/notes.js?v=0.193.0"></script>
-  <script defer src="src/todos.js?v=0.193.0"></script>
-  <script defer src="src/io.js?v=0.193.0"></script>
-  <script defer src="src/sync.js?v=0.193.0"></script>
-  <script defer src="src/habits.js?v=0.193.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.193.0"></script>
-  <script defer src="src/boards.js?v=0.193.0"></script>
-  <script defer src="src/recap.js?v=0.193.0"></script>
-  <script defer src="src/reminders.js?v=0.193.0"></script>
-  <script defer src="src/widgets.js?v=0.193.0"></script>
-  <script defer src="src/app.js?v=0.193.0"></script>
+  <script defer src="src/platform.js?v=0.194.0"></script>
+  <script defer src="src/reconcile.js?v=0.194.0"></script>
+  <script defer src="src/qr.js?v=0.194.0"></script>
+  <script defer src="src/media.js?v=0.194.0"></script>
+  <script defer src="src/merge.js?v=0.194.0"></script>
+  <script defer src="src/storage.js?v=0.194.0"></script>
+  <script defer src="src/finance.js?v=0.194.0"></script>
+  <script defer src="src/settings.js?v=0.194.0"></script>
+  <script defer src="src/wheel.js?v=0.194.0"></script>
+  <script defer src="src/backlog.js?v=0.194.0"></script>
+  <script defer src="src/journal.js?v=0.194.0"></script>
+  <script defer src="src/notes.js?v=0.194.0"></script>
+  <script defer src="src/todos.js?v=0.194.0"></script>
+  <script defer src="src/io.js?v=0.194.0"></script>
+  <script defer src="src/sync.js?v=0.194.0"></script>
+  <script defer src="src/habits.js?v=0.194.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.194.0"></script>
+  <script defer src="src/boards.js?v=0.194.0"></script>
+  <script defer src="src/recap.js?v=0.194.0"></script>
+  <script defer src="src/reminders.js?v=0.194.0"></script>
+  <script defer src="src/widgets.js?v=0.194.0"></script>
+  <script defer src="src/app.js?v=0.194.0"></script>
 </body>
 </html>
