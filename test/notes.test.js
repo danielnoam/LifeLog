@@ -197,4 +197,9 @@ test("an unknown kind falls back to a plain note rather than losing the text", (
   assert.ok(!("kind" in n) && n.text === "future");
 });
 
+test("a favourite is kept as true, and a note that isn't carries nothing", () => {
+  assert.strictEqual(sn({ text: "a", fav: "yes" }).fav, true);
+  assert.ok(!("fav" in sn({ text: "a", fav: false })));
+});
+
 console.log(`\n${passed} test(s) passed.`);

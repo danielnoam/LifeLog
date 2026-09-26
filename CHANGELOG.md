@@ -4,6 +4,27 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.196.0] - 2026-09-26
+
+### Changed
+- **Lists look and work like the To-do panels.** A list note is now a panel
+  in the feed, the same as the To-do mode's: its title, how many are open
+  and Clear in the header; a row per item — tick it, tap its words to edit
+  them in place, ✕ to delete; the finished ones under an "N done" rule,
+  struck through; and "Add a to-do…" at the bottom, where Enter adds the
+  next one and keeps you there. A long press reorders, with the same drag
+  handles. Tapping the header opens the note to rename it, change its
+  category or delete it.
+
+### Added
+- **Favourite notes.** ☆ on any note makes it a favourite, and favourites
+  sit in their own block above the years. The filters still apply to them,
+  and the Notes CSV has a Favourite column.
+
+### Fixed
+- A list reordered on one device keeps that order when it syncs with a
+  device that only added an item; the merge used to put the old order back.
+
 ## [0.195.0] - 2026-09-26
 
 ### Added

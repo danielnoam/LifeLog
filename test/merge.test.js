@@ -564,6 +564,15 @@ test("an item added on one device and one removed on the other both happen", () 
   const out = Merge.mergeNotes(base, local, remote)[0];
   assert.deepStrictEqual(out.items.map((i) => i.id), ["a", "c"]);
 });
+test("a list reordered on one device keeps that order when the other added an item", () => {
+  const ids = (xs) => xs.map((i) => ({ id: i, text: i }));
+  const base = [listNote(ids(["a", "b", "c"]))];
+  const local = [listNote(ids(["c", "a", "b"]))];
+  const remote = [listNote(ids(["a", "b", "c", "d"]))];
+  assert.deepStrictEqual(Merge.mergeNotes(base, local, remote)[0].items.map((i) => i.id), ["c", "a", "b", "d"]);
+  // …and the other way round: the reorder came from the other device.
+  assert.deepStrictEqual(Merge.mergeNotes(base, [listNote(ids(["a", "b", "c"]))], [listNote(ids(["b", "a", "c"]))])[0].items.map((i) => i.id), ["b", "a", "c"]);
+});
 test("plain notes still merge exactly as before", () => {
   const out = Merge.mergeNotes([], [{ id: "n", text: "mine", updatedAt: "2" }], [{ id: "n", text: "theirs", updatedAt: "1" }]);
   assert.deepStrictEqual(out, [{ id: "n", text: "mine", updatedAt: "2" }]);

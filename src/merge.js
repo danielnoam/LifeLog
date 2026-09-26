@@ -371,8 +371,23 @@
       const ln = l.get(n.id), rn = r.get(n.id);
       if (!ln || !rn || !(Array.isArray(ln.items) || Array.isArray(rn.items))) return n;
       const bn = b.get(n.id);
-      return { ...n, items: mergeCollection((bn && bn.items) || [], ln.items || [], rn.items || []).merged };
+      const items = mergeCollection((bn && bn.items) || [], ln.items || [], rn.items || []).merged;
+      return { ...n, items: inChosenOrder(items, (bn && bn.items) || [], ln.items || [], rn.items || []) };
     });
+  }
+  // A list's order is the order of its items, and dragging one changes no
+  // item — so mergeCollection, which walks the ancestor's order first, would
+  // quietly undo a reorder. The side that reordered wins (this device if
+  // both did); items it doesn't have keep their merged place at the end.
+  function inChosenOrder(items, base, local, remote) {
+    const ids = (arr) => arr.map((i) => i.id);
+    const kept = new Set(ids(items));
+    const seq = (arr) => ids(arr).filter((id) => kept.has(id));
+    const baseSeq = JSON.stringify(seq(base));
+    const ref = JSON.stringify(seq(local)) !== baseSeq ? local : JSON.stringify(seq(remote)) !== baseSeq ? remote : local;
+    const at = new Map(ids(ref).map((id, i) => [id, i]));
+    return items.map((it, i) => [it, at.has(it.id) ? at.get(it.id) : ref.length + i])
+      .sort((a, b) => a[1] - b[1]).map(([it]) => it);
   }
 
   function mergeAllSources(base, local, remote) {

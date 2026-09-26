@@ -2988,15 +2988,34 @@ html.force-mobile .modal.view-options {
 .note-card .note-quote::after { content: "\201D"; color: var(--accent); opacity: .8; font-style: normal; }
 .note-author { margin: 6px 0 0 22px; font-size: 12.5px; color: var(--text-dim); }
 
-.note-list-title { font-weight: 650; margin-bottom: 6px; }
-.note-items { display: flex; flex-direction: column; gap: 2px; }
-.note-item {
-  display: flex; align-items: flex-start; gap: 8px; padding: 3px 0; cursor: pointer;
-  font-size: 13px; line-height: 1.4; -webkit-tap-highlight-color: transparent;
+/* A list is the To-do mode's panel (0.196.0): its header, the old rows,
+   the done rule and the add line, on the panel's own surface. Only the
+   header opens the note, so the rest of the card isn't a pointer. */
+.note-card.is-list { background: var(--surface-card); cursor: default; padding: 10px 12px 12px; }
+.note-card.is-list:hover { border-color: var(--border-strong); }
+.note-list-head {
+  margin: 0 0 4px; padding: 2px 0 9px; border-bottom: 1px solid var(--border);
+  font-size: 13px; color: var(--text-dim); font-weight: 600;
+  display: flex; justify-content: space-between; align-items: center; gap: 8px; cursor: pointer;
 }
-.note-item input[type="checkbox"] { margin-top: 1px; }
-.note-item-text { min-width: 0; overflow-wrap: break-word; }
-.note-items-more { font-size: 11.5px; color: var(--text-faint); padding-top: 3px; }
+.note-list-head:hover .note-list-title { color: var(--text); }
+.note-list-head .mc { color: var(--text-faint); font-weight: 500; }
+.note-list-head .mc-left, .note-list-head .mc-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.note-list-head .mc-left .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
+.note-list-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-card.is-bulk .note-list-title { font-weight: 650; white-space: normal; }
+.note-list-rows > .dsc-note { margin: 6px 0 2px; }
+.note-list-compose { margin: 10px 0 0; }
+.note-card.is-list .todo-row { user-select: none; -webkit-user-select: none; }
+
+/* ☆ on every card; lit when it's a favourite. */
+.note-fav {
+  float: right; margin: -4px -4px 0 6px; padding: 2px 5px; border: 0; background: transparent;
+  color: var(--text-faint); font-size: 15px; line-height: 1; cursor: pointer; border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+.note-fav:hover { color: var(--text); }
+.note-fav.on { color: #f5b301; }
 
 /* The checklist in the note sheet. */
 .note-list-editor { margin-bottom: 14px; }
@@ -3020,3 +3039,7 @@ html.force-mobile .modal.view-options {
 }
 .note-list-editor input[type="text"]:focus { outline: none; border-color: var(--accent); }
 @media (max-width: 480px) { .note-quote-fields { grid-template-columns: 1fr; } }
+/* Favourites have no month to be a card of: the notes sit straight under
+   their heading, full width. */
+.note-favs .month-card { background: none; border: 0; padding: 0; }
+.note-favs .month-grid { grid-template-columns: 1fr; }

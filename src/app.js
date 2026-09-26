@@ -134,7 +134,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.195.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.196.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2546,6 +2546,9 @@
       // A long-press on the title text itself is left alone so it can still be
       // used to select/copy the text — only the rest of the row enters bulk mode.
       if (ev.target.closest(".etitle, .bl-title, .note-text")) return;
+      // A list note's rows and add line have a long press of their own:
+      // reordering, as in the old To-do panels.
+      if (ev.target.closest(".todo-row, .todo-compose")) return;
       start = { x: ev.clientX, y: ev.clientY };
       timer = setTimeout(() => {
         timer = null;

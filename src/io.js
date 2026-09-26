@@ -111,9 +111,9 @@
   // from before them still reads.
   const LIST_KIND = { list: "List", quote: "Quote" };
   function notesCsvRows(notes, todos, habits) {
-    const rows = [["Kind", "Date", "Category", "Text", "Done", "Days", "Target", "Marks", "Color", "Author", "Source", "Items"]];
+    const rows = [["Kind", "Date", "Category", "Text", "Done", "Days", "Target", "Marks", "Color", "Author", "Source", "Items", "Favourite"]];
     (notes || []).forEach((n) => rows.push([LIST_KIND[n.kind] || "Note", n.createdAt || "", n.category || "", n.text, "", "", "", "", "",
-      n.author || "", n.source || "", (n.items || []).map((i) => (i.done ? "[x] " : "[ ] ") + i.text).join("\n")]));
+      n.author || "", n.source || "", (n.items || []).map((i) => (i.done ? "[x] " : "[ ] ") + i.text).join("\n"), n.fav ? "yes" : ""]));
     (todos || []).forEach((t) => rows.push(["To-do", t.createdAt || "", t.category || "", t.text, t.done ? (t.doneAt || "yes") : "", "", "", "", ""]));
     (habits || []).forEach((h) => rows.push(["Habit", h.startedAt || "", "", h.name, h.archivedAt || "",
       h.cadence && h.cadence.days ? h.cadence.days.map((d) => DAY_LABELS[d]).join(" ") : "daily",
@@ -137,6 +137,7 @@
       if (kind === "note" || kind === "quote" || kind === "list") {
         const n = { text: row[3], createdAt: iso(date) };
         if ((row[2] || "").trim()) n.category = row[2].trim();
+        if ((row[12] || "").trim()) n.fav = true;
         if (kind === "quote") { n.kind = "quote"; n.author = (row[9] || "").trim(); n.source = (row[10] || "").trim(); }
         if (kind === "list") {
           n.kind = "list";

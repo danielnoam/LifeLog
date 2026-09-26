@@ -16,6 +16,22 @@ what was decided against and why.
 
 ---
 
+- **A list note is the old To-do panel, not a preview of one (0.196.0).**
+  Same classes (todo-row, todo-check, todo-text, todo-del, todo-done-sep,
+  todo-compose), so it looks the same without a second set of styles, and
+  the long-press reorder is todos.js's, brought across — it lives in
+  notes.js now so it survives the To-do mode going in stage 3. Only the
+  header and date line open the note; every row control stops its click at
+  the row. The card's own long press (bulk select) steps aside for rows and
+  the add line, or a press on an item started both gestures at once. What
+  you've half typed in a list's add line is kept per list across renders.
+  - *Order* is the items array. mergeCollection walks the ancestor's order,
+    so a drag — which changes no item — was undone by the next merge;
+    mergeNotes now takes the order of whichever side changed it (this device
+    if both did), with items it doesn't know at the end.
+  - *Favourites* are `fav: true`, shown in their own block above the years
+    and not also in their month — one place per note.
+
 - **Note kinds are a field on a note, not three collections (0.195.0).**
   `kind` is absent for a plain note — every note from before — and "list"
   or "quote" otherwise, so nothing had to be migrated and an older APK

@@ -77,7 +77,7 @@ const SEED = {
 
   // ---- ticking on the card ----
   const listId = list.id;
-  await page.locator(`.note-card[data-id="${listId}"] .note-item`).first().click();
+  await page.locator(`.note-card[data-id="${listId}"] .todo-check`).first().click();
   await page.waitForTimeout(250);
   d = await saved();
   const ticked = d.notes.find((n) => n.id === listId);
@@ -85,6 +85,69 @@ const SEED = {
     ticked.items[0].done === true && !!ticked.items[0].doneAt && await page.evaluate(() => document.querySelector("#noteModal").hidden));
   check("and a tick isn't an edit", !ticked.editedAt);
   check("the card then counts it as done", /1 done/.test(await page.locator(`.note-card[data-id="${listId}"]`).textContent()));
+
+  // ---- the list works like the old To-do panels (0.196.0) ----
+  const L = `.note-card[data-id="${listId}"]`;
+  const items = async () => (await saved()).notes.find((n) => n.id === listId).items;
+  check("it's drawn as a to-do panel: header, the old rows, the done rule, an add line", await page.evaluate((L) => {
+    const c = document.querySelector(L);
+    return !!c.querySelector(".note-list-head") && c.querySelectorAll(".todo-row").length === 4 &&
+      !!c.querySelector(".todo-done-sep") && !!c.querySelector(".todo-compose input");
+  }, L));
+  await page.fill(`${L} .note-list-compose input`, "Toothbrush");
+  await page.press(`${L} .note-list-compose input`, "Enter");
+  await page.waitForTimeout(300);
+  let its = await items();
+  check("the add line adds an item after the open ones", its.filter((i) => !i.done).map((i) => i.text).join() === "Charger,Jacket,Socks,Toothbrush", its.map((i) => i.text));
+  check("and keeps the focus there for the next one", await page.evaluate((L) => document.activeElement === document.querySelector(`${L} .note-list-compose input`), L));
+  check("clicking in the list doesn't open the note", await page.evaluate(() => document.querySelector("#noteModal").hidden));
+  await page.locator(`${L} .todo-row:not(.is-done) .todo-text`, { hasText: "Socks" }).click();
+  await page.fill(`${L} .todo-edit`, "Wool socks");
+  await page.press(`${L} .todo-edit`, "Enter");
+  await page.waitForTimeout(250);
+  check("tapping an item's words edits them in place", (await items()).some((i) => i.text === "Wool socks"));
+  await page.locator(`${L} .todo-row`, { hasText: "Jacket" }).locator(".todo-del").click();
+  await page.waitForTimeout(250);
+  check("✕ deletes an item", !(await items()).some((i) => i.text === "Jacket"));
+  check("changing the words of a list is an edit", !!(await saved()).notes.find((n) => n.id === listId).editedAt);
+
+  // Long-press to reorder, then drag Toothbrush to the top.
+  const row = (text) => page.locator(`${L} .todo-row`, { hasText: text });
+  const box = await row("Charger").boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(650);
+  await page.mouse.up();
+  await page.waitForTimeout(200);
+  check("a long press turns the list into drag handles", await page.evaluate((L) => document.querySelectorAll(`${L} .todo-row.is-reorder`).length === 3, L));
+  const from = await row("Toothbrush").boundingBox(), to = await row("Charger").boundingBox();
+  await page.mouse.move(from.x + 40, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x + 40, to.y + 2, { steps: 8 });
+  await page.mouse.up();
+  await page.waitForTimeout(300);
+  check("dragging reorders it", (await items()).filter((i) => !i.done)[0].text === "Toothbrush", (await items()).map((i) => i.text));
+  await page.locator(`${L} .note-list-head button`, { hasText: "Done" }).click();
+  await page.waitForTimeout(200);
+  await page.locator(`${L} .note-list-head button`, { hasText: "Clear" }).click();
+  await page.waitForTimeout(300);
+  check("Clear takes the finished items away", !(await items()).some((i) => i.done));
+  await page.locator(`${L} .note-list-title`).click();
+  await page.waitForTimeout(200);
+  check("its header opens the note", await page.evaluate(() => !document.querySelector("#noteModal").hidden));
+  await page.click("#cancelNoteBtn");
+
+  // ---- favourites ----
+  await page.locator('.note-card[data-id="old"] .note-fav').click();
+  await page.waitForTimeout(300);
+  check("☆ makes a note a favourite", (await saved()).notes.find((n) => n.id === "old").fav === true);
+  check("and it moves above the years, out of its month", await page.evaluate(() => {
+    const favs = document.querySelector(".note-favs");
+    const first = document.querySelector("#viewBody .year-block");
+    return first === favs && !!favs.querySelector('.note-card[data-id="old"]') &&
+      document.querySelectorAll('.note-card[data-id="old"]:not(.ll-exit)').length === 1;
+  }));
+  check("without opening it", await page.evaluate(() => document.querySelector("#noteModal").hidden));
 
   // ---- filters ----
   await page.click('.notes-kind:has-text("Lists")');

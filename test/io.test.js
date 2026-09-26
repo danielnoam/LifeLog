@@ -552,11 +552,12 @@ atest("Notes CSV round trip keeps notes, to-dos and habits with their history", 
 
 atest("Notes CSV round trip keeps a list's items and ticks, a quote's author, and categories", async () => {
   const notes = [
-    { id: "q", text: "Words", kind: "quote", author: "Frost", source: "Poem", category: "Ideas", createdAt: "2026-01-01T00:00:00.000Z" },
+    { id: "q", text: "Words", kind: "quote", author: "Frost", source: "Poem", category: "Ideas", fav: true, createdAt: "2026-01-01T00:00:00.000Z" },
     { id: "l", text: "Shop", kind: "list", category: "Home", createdAt: "2026-01-02T00:00:00.000Z", items: [{ id: "a", text: "Milk, 2L", done: true }, { id: "b", text: "Eggs" }] },
   ];
   const back = parseNotesCsv(notesCsvText(notes, [], []));
-  assert.deepStrictEqual([back.notes[0].kind, back.notes[0].author, back.notes[0].source, back.notes[0].category], ["quote", "Frost", "Poem", "Ideas"]);
+  assert.deepStrictEqual([back.notes[0].kind, back.notes[0].author, back.notes[0].source, back.notes[0].category, back.notes[0].fav], ["quote", "Frost", "Poem", "Ideas", true]);
+  assert.ok(!back.notes[1].fav);
   assert.deepStrictEqual(back.notes[1].items.map((i) => [i.text, !!i.done]), [["Milk, 2L", true], ["Eggs", false]]);
   state.data = blank();
   await importAll(back, TAB_KINDS.notes);

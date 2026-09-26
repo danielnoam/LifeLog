@@ -38,7 +38,7 @@
   //   "quote"      `text` is the quote, with `author` and `source`.
   // `category` names one of state.data.noteCategories.
   const KINDS = ["text", "list", "quote"];
-  const KNOWN_NOTE_KEYS = new Set(["id", "text", "createdAt", "editedAt", "updatedAt", "kind", "category", "author", "source", "items"]);
+  const KNOWN_NOTE_KEYS = new Set(["id", "text", "createdAt", "editedAt", "updatedAt", "kind", "category", "author", "source", "items", "fav"]);
   function sanitizeNote(n) {
     const out = {
       id: n.id || uid(),
@@ -47,6 +47,7 @@
       updatedAt: backfillUpdatedAt(n),
     };
     if (n.editedAt) out.editedAt = n.editedAt;
+    if (n.fav) out.fav = true;
     if (n.kind === "list" || n.kind === "quote") out.kind = n.kind;
     const cat = String(n.category == null ? "" : n.category).trim();
     if (cat) out.category = cat;
@@ -243,11 +244,22 @@
       const edited = formatEdited(n.editedAt);
       if (edited) stamp.appendChild(el("span", "note-edited", " · edited " + edited));
     }
-    if (n.category) {
+    // A list shows its category as its header's dot, as the old panels did.
+    if (n.category && (n.kind !== "list" || state.bulk.active)) {
       const cat = el("span", "note-cat");
       const dot = el("span", "dot"); dot.style.background = catColor(n.category);
       cat.append(dot, document.createTextNode(n.category));
       stamp.appendChild(cat);
+    }
+    // ★ keeps a note at the top, above the years (0.196.0).
+    if (!state.bulk.active) {
+      const fav = own(el("button", "note-fav" + (n.fav ? " on" : ""), n.fav ? "★" : "☆"));
+      fav.type = "button";
+      fav.title = n.fav ? "Remove from favourites" : "Add to favourites";
+      fav.setAttribute("aria-label", fav.title);
+      fav.setAttribute("aria-pressed", String(!!n.fav));
+      fav.onclick = () => toggleFav(n.id);
+      stamp.appendChild(fav);
     }
     card.appendChild(stamp);
     // textContent, never innerHTML: a note is whatever you typed, and the
@@ -261,45 +273,290 @@
       const by = [n.author, n.source].filter(Boolean).join(", ");
       if (by) card.appendChild(el("p", "note-author", "— " + by));
     } else if (kind === "list") {
-      if (n.text) card.appendChild(el("p", "note-text note-list-title", n.text));
-      card.appendChild(listPreview(n));
+      if (state.bulk.active) card.appendChild(el("p", "note-text note-list-title", n.text || "Untitled list"));
+      else listPanel(card, n);
     } else card.appendChild(el("p", "note-text", n.text));
     card.tabIndex = 0;
     card.setAttribute("role", "button");
     return card;
   }
 
-  // A checklist on its card: the open items, tickable right there, then how
-  // many are done. Ticking isn't editing — the text didn't change, so
-  // editedAt stays as it was.
-  const LIST_PREVIEW = 8;
-  function listPreview(n) {
-    const wrap = el("div", "note-items");
+  // ---------- a list on its card (0.196.0) ----------
+  // A list note is drawn as the To-do mode's panels were, and behaves like
+  // one: its title and open count in a header (with Clear for what's done),
+  // a row per item — tick it, tap its words to edit them in place, ✕ to
+  // delete — the finished ones under an "N done" rule, struck through, and a
+  // line at the bottom to add the next. A long press reorders, as it did
+  // there. Same classes as the old rows, so it looks the same too.
+  //
+  // Nothing in here opens the note: that's the header's job (title,
+  // category, delete). A tick isn't an edit; changing an item's words or
+  // adding one is.
+  const listDrafts = new Map(); // what's half-typed in a list's add line, by note id
+  let listReorderId = "", refocusListId = "";
+  const byNewestDone = (a, b) => String(b.doneAt || "").localeCompare(String(a.doneAt || ""));
+  const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function listPanel(card, n) {
     const items = n.items || [];
-    const open = items.filter((i) => !i.done), done = items.length - open.length;
-    for (const it of open.slice(0, LIST_PREVIEW)) {
-      const row = el("label", "note-item");
-      const cb = document.createElement("input");
-      cb.type = "checkbox";
-      cb.setAttribute("aria-label", "Done: " + it.text);
-      // The card opens the note on a click; a tick mustn't.
-      row.addEventListener("click", (ev) => ev.stopPropagation());
-      row.addEventListener("keydown", (ev) => ev.stopPropagation());
-      cb.onchange = () => tickItem(n.id, it.id, cb.checked);
-      row.append(cb, el("span", "note-item-text", it.text));
-      wrap.appendChild(row);
+    const open = items.filter((i) => !i.done), done = items.filter((i) => i.done).sort(byNewestDone);
+    const reordering = listReorderId === n.id && open.length > 1;
+    card.classList.toggle("is-reordering", reordering);
+
+    const h = el("h3", "note-list-head");
+    const left = el("span", "mc-left");
+    if (n.category) { const dot = el("span", "dot"); dot.style.background = catColor(n.category); left.appendChild(dot); }
+    left.appendChild(el("span", "note-list-title", reordering ? "Drag to reorder" : (n.text || "Untitled list")));
+    h.appendChild(left);
+    const right = el("span", "mc-right");
+    if (reordering) {
+      const btn = el("button", "btn btn-sm btn-primary", "Done");
+      btn.type = "button";
+      btn.onclick = (ev) => { ev.stopPropagation(); listReorderId = ""; render(); };
+      right.appendChild(btn);
+    } else {
+      right.appendChild(el("span", "mc", String(open.length)));
+      if (done.length) {
+        const btn = el("button", "btn btn-sm", "Clear");
+        btn.type = "button";
+        btn.title = "Delete this list's finished items";
+        btn.onclick = (ev) => { ev.stopPropagation(); clearDoneItems(n.id); };
+        right.appendChild(btn);
+      }
     }
-    const more = open.length - LIST_PREVIEW;
-    const tail = [more > 0 ? `+${more} more` : "", done ? `✓ ${done} done` : ""].filter(Boolean).join(" · ");
-    if (tail) wrap.appendChild(el("div", "note-items-more", tail));
-    if (!items.length) wrap.appendChild(el("div", "note-items-more", "Empty list"));
+    h.appendChild(right);
+    card.appendChild(h);
+
+    const rows = el("div", "note-list-rows");
+    if (!items.length) rows.appendChild(el("p", "dsc-note", "Nothing here."));
+    else if (!open.length) rows.appendChild(el("p", "dsc-note", "All done."));
+    for (const it of open) rows.appendChild(reordering ? reorderRow(n, it, rows) : itemRow(n, it));
+    if (done.length && !reordering) {
+      rows.appendChild(el("div", "todo-done-sep", done.length + " done"));
+      for (const it of done) rows.appendChild(itemRow(n, it));
+    }
+    card.appendChild(rows);
+    if (!reordering) card.appendChild(listCompose(n));
+  }
+
+  // Everything on a row stops at the row: the card underneath opens the note
+  // on a click, and none of these should.
+  const own = (node) => {
+    for (const t of ["click", "keydown"]) node.addEventListener(t, (ev) => ev.stopPropagation());
+    return node;
+  };
+
+  function itemRow(n, it) {
+    const row = own(el("div", "todo-row" + (it.done ? " is-done" : "")));
+    row.dataset.item = it.id;
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.className = "todo-check";
+    cb.checked = !!it.done;
+    cb.setAttribute("aria-label", (it.done ? "Mark as not done: " : "Mark as done: ") + it.text);
+    cb.onchange = () => tickItem(n.id, it.id, cb.checked);
+    row.appendChild(cb);
+    const text = el("span", "todo-text", it.text);
+    text.onclick = () => {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.className = "todo-edit";
+      input.value = it.text;
+      let closed = false;
+      const commit = () => { if (closed) return; closed = true; editItem(n.id, it.id, input.value); };
+      input.onkeydown = (ev) => {
+        if (ev.key === "Enter") { ev.preventDefault(); commit(); }
+        else if (ev.key === "Escape") { closed = true; render(); }
+      };
+      input.onblur = commit;
+      text.replaceWith(input);
+      input.focus();
+      input.setSelectionRange(input.value.length, input.value.length);
+    };
+    row.appendChild(text);
+    const del = el("button", "todo-del", "✕");
+    del.type = "button";
+    del.title = "Delete";
+    del.setAttribute("aria-label", "Delete: " + it.text);
+    del.onclick = () => deleteItem(n.id, it.id);
+    row.appendChild(del);
+    if (!it.done) attachLongPressReorder(row, n.id);
+    return row;
+  }
+
+  function listCompose(n) {
+    const wrap = own(el("div", "todo-compose note-list-compose"));
+    const input = document.createElement("input");
+    input.type = "text";
+    input.placeholder = "Add a to-do…";
+    input.autocomplete = "off";
+    input.setAttribute("aria-label", "Add to " + (n.text || "this list"));
+    input.value = listDrafts.get(n.id) || "";
+    const add = el("button", "btn btn-primary btn-sm", "Add");
+    add.type = "button";
+    add.disabled = !input.value.trim();
+    const submit = () => {
+      const v = input.value.trim();
+      if (!v) return;
+      listDrafts.delete(n.id);
+      refocusListId = n.id;
+      addItem(n.id, v);
+    };
+    add.onclick = submit;
+    input.oninput = () => { listDrafts.set(n.id, input.value); add.disabled = !input.value.trim(); };
+    input.onkeydown = (ev) => {
+      if (ev.key === "Enter") { ev.preventDefault(); submit(); }
+      else if (ev.key === "Escape") { input.value = ""; listDrafts.delete(n.id); add.disabled = true; }
+    };
+    wrap.append(input, add);
     return wrap;
   }
+
+  const findList = (id) => state.data.notes.find((x) => x.id === id);
+  async function saveList(n, edited) {
+    if (edited) n.editedAt = new Date().toISOString();
+    render();
+    if (refocusListId) {
+      const input = document.querySelector(`.note-card[data-id="${refocusListId}"] .note-list-compose input`);
+      refocusListId = "";
+      if (input) input.focus();
+    }
+    await persist();
+  }
+  async function toggleFav(noteId) {
+    const n = findList(noteId);
+    if (!n) return;
+    if (n.fav) delete n.fav; else n.fav = true;
+    render();
+    await persist();
+  }
   async function tickItem(noteId, itemId, done) {
-    const n = state.data.notes.find((x) => x.id === noteId);
+    const n = findList(noteId);
     const it = n && (n.items || []).find((i) => i.id === itemId);
     if (!it) return;
     if (done) { it.done = true; it.doneAt = new Date().toISOString(); } else { delete it.done; delete it.doneAt; }
+    await saveList(n, false);
+  }
+  async function addItem(noteId, text) {
+    const n = findList(noteId);
+    if (!n) return;
+    n.items = n.items || [];
+    // After the last open item, so it lands at the bottom of what's left to do.
+    const lastOpen = n.items.map((i) => !i.done).lastIndexOf(true);
+    n.items.splice(lastOpen + 1, 0, { id: uid(), text });
+    await saveList(n, true);
+  }
+  async function editItem(noteId, itemId, text) {
+    const n = findList(noteId);
+    const it = n && (n.items || []).find((i) => i.id === itemId);
+    if (!it) return;
+    text = text.trim();
+    if (!text) return deleteItem(noteId, itemId);
+    if (text === it.text) { render(); return; }
+    it.text = text;
+    await saveList(n, true);
+  }
+  async function deleteItem(noteId, itemId) {
+    const n = findList(noteId);
+    if (!n) return;
+    n.items = (n.items || []).filter((i) => i.id !== itemId);
+    await saveList(n, true);
+  }
+  async function clearDoneItems(noteId) {
+    const n = findList(noteId);
+    if (!n) return;
+    const count = (n.items || []).filter((i) => i.done).length;
+    if (!count || !confirm(`Clear ${count} finished item${count === 1 ? "" : "s"} from ${n.text ? "“" + n.text + "”" : "this list"}?`)) return;
+    n.items = n.items.filter((i) => !i.done);
+    await saveList(n, true);
+    toast(`Cleared ${count}`);
+  }
+
+  // ---------- reordering a list (the To-do mode's gesture) ----------
+  const LONG_PRESS_MS = 500;
+  function attachLongPressReorder(row, noteId) {
+    let timer = null, start = null;
+    const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } start = null; };
+    row.addEventListener("pointerdown", (ev) => {
+      if (listReorderId || state.bulk.active) return;
+      if (ev.target.closest(".todo-check, .todo-del, .todo-edit")) return;
+      start = { x: ev.clientX, y: ev.clientY };
+      timer = setTimeout(() => { timer = null; listReorderId = noteId; render(); }, LONG_PRESS_MS);
+    });
+    row.addEventListener("pointermove", (ev) => {
+      if (!start) return;
+      if (Math.abs(ev.clientX - start.x) > 10 || Math.abs(ev.clientY - start.y) > 10) cancel();
+    });
+    row.addEventListener("pointerup", cancel);
+    row.addEventListener("pointercancel", cancel);
+  }
+  function reorderRow(n, it, list) {
+    const row = own(el("div", "todo-row is-reorder"));
+    row.dataset.item = it.id;
+    const grip = el("span", "todo-grip", "⠿");
+    grip.setAttribute("aria-hidden", "true");
+    row.append(grip, el("span", "todo-text", it.text));
+    row.addEventListener("pointerdown", (ev) => beginRowDrag(ev, row, list, n.id));
+    return row;
+  }
+  // The dragged row snaps to its slot; what it displaced slides (FLIP).
+  function slideDisplaced(list, dragged, mutate) {
+    if (reducedMotion()) { mutate(); return; }
+    const rows = [...list.querySelectorAll(".todo-row")].filter((r) => r !== dragged);
+    const before = new Map(rows.map((r) => [r, r.getBoundingClientRect().top]));
+    mutate();
+    const moved = [];
+    for (const r of rows) {
+      const delta = before.get(r) - r.getBoundingClientRect().top;
+      if (!delta) continue;
+      r.style.transition = "none";
+      r.style.transform = "translateY(" + delta + "px)";
+      moved.push(r);
+    }
+    if (moved.length) requestAnimationFrame(() => requestAnimationFrame(() => {
+      for (const r of moved) { r.style.transition = ""; r.style.transform = ""; }
+    }));
+  }
+  // Listeners on the window, not a pointer capture on the row: insertBefore
+  // moves the row, which counts as leaving the DOM, and a captured element
+  // that leaves it loses the capture (see todos.js, where this was learnt).
+  function beginRowDrag(ev, row, list, noteId) {
+    ev.preventDefault();
+    row.classList.add("is-dragging");
+    const onMove = (e) => {
+      if (e.pointerId !== ev.pointerId) return;
+      for (const other of [...list.querySelectorAll(".todo-row")]) {
+        if (other === row) continue;
+        const box = other.getBoundingClientRect(), mid = box.top + box.height / 2;
+        const rowIsAfter = !!(other.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING);
+        if (e.clientY < mid && rowIsAfter) { slideDisplaced(list, row, () => list.insertBefore(row, other)); break; }
+        if (e.clientY > mid && !rowIsAfter) { slideDisplaced(list, row, () => list.insertBefore(row, other.nextSibling)); break; }
+      }
+    };
+    const onUp = (e) => {
+      if (e.pointerId !== ev.pointerId) return;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      row.classList.remove("is-dragging");
+      commitItemOrder(list, noteId);
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+  }
+  // The open items in the order the rows now stand, then the finished ones
+  // where they were. A reorder isn't an edit.
+  async function commitItemOrder(list, noteId) {
+    const n = findList(noteId);
+    if (!n) return;
+    const order = [...list.querySelectorAll(".todo-row")].map((r) => r.dataset.item);
+    const byId = new Map(n.items.map((i) => [i.id, i]));
+    const open = order.map((id) => byId.get(id)).filter(Boolean);
+    const rest = n.items.filter((i) => !order.includes(i.id));
+    const next = [...open, ...rest];
+    if (next.every((it, i) => it === n.items[i])) return;
+    n.items = next;
     render();
     await persist();
   }
@@ -323,7 +580,12 @@
       const n = (state.data.notes || []).find((x) => x.id === card.dataset.id);
       if (n) openNoteModal(n);
     };
-    card.onclick = activate;
+    // A list is a panel you work in, so only its header (and date line)
+    // opens it; every other note opens from anywhere on its card.
+    card.onclick = (ev) => {
+      if (!state.bulk.active && card.classList.contains("is-list") && !ev.target.closest(".note-list-head, .note-stamp")) return;
+      activate();
+    };
     card.onkeydown = (ev) => {
       if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); activate(); }
     };
@@ -334,8 +596,8 @@
   // A month's header plus its notes, keyed so a note keeps its card across a
   // render. The header rides in the same list under a reserved key, which
   // keeps the card's DOM shape exactly what it was.
-  function fillMonthCard(card, label, notes, current) {
-    const parts = [{ key: "__head", kind: "head", label, count: notes.length, current }];
+  function fillMonthCard(card, label, notes, current, noHead) {
+    const parts = noHead ? [] : [{ key: "__head", kind: "head", label, count: notes.length, current }];
     for (const n of notes) parts.push({ key: n.id, kind: "note", note: n });
     reconcile(card, parts, {
       animate: true,
@@ -401,8 +663,31 @@
     // oldest-first month would fight itself. "Recently edited" files each
     // note under when it was last edited, and runs newest first.
     const desc = noteSort() !== "oldest";
-    const byYear = groupBy(notes, (n) => sortDate(n).getFullYear());
+    const bySort = (a, b) => (desc ? sortDate(b) - sortDate(a) : sortDate(a) - sortDate(b));
+    // Favourites (0.196.0) sit above the years in a block of their own, and
+    // not in their month as well: one place for each note. The filters still
+    // apply to them, and they run in the same order as everything else.
+    const favs = notes.filter((n) => n.fav).sort(bySort);
+    const byYear = groupBy(notes.filter((n) => !n.fav), (n) => sortDate(n).getFullYear());
     const sections = [];
+    if (favs.length) {
+      const block = el("div", "year-block note-favs");
+      block.dataset.year = "favourites";
+      const head = el("div", "year-head");
+      head.appendChild(el("h2", null, "★ Favourites"));
+      head.appendChild(el("span", "ycount", `${favs.length} note${favs.length === 1 ? "" : "s"}`));
+      block.appendChild(head);
+      const grid = el("div", "month-grid");
+      block.appendChild(grid);
+      sections.push({
+        key: "favourites", header: head, node: block, bodyEl: grid, keepBody: true,
+        build: (body) => reconcile(body, [{ key: "favs" }], {
+          keyOf: (c) => c.key,
+          create: () => el("div", "month-card"),
+          update: (card) => fillMonthCard(card, "", favs, false, true),
+        }),
+      });
+    }
     for (const y of Object.keys(byYear).sort((a, b) => (desc ? b - a : a - b))) {
       const block = el("div", "year-block");
       block.dataset.year = y;
