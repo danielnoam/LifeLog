@@ -25,6 +25,36 @@ todo:
   "Automatically delete head branches" only helps with branches merged
   through a PR, which this repo no longer uses.
 
+- **Notes, round two: categories, filters and sorting.** A note today is
+  text and dates only; the Notes mode filters by year chips and search and
+  always lists newest first.
+  - **Categories** of their own, like the to-do list's (`todoCategories`):
+    a `noteCategories` list with colours, an optional `category` on a note,
+    picked in the note sheet, managed from the chip row. Needs the usual
+    trail: sanitizeNote, the merge's COLLECTION_KEYS, the Notes tab's
+    export/import (JSON, and a Category column in the CSV, which already
+    has one for to-dos) and the new-categories list in the import review.
+  - **Filter** by category with the chip row the to-do mode already uses
+    (buildCatFilter has a Notes-mode branch that hides it today), alongside
+    the year chips.
+  - **Sort:** newest, oldest, recently edited (`editedAt`), A–Z, through
+    the same sortSelect the Timeline, Ledger and Backlog use, saved per
+    device like theirs.
+
+- **Note widgets (Android).**
+  - **A note widget:** one note you pick, shown on the home screen, tapping
+    through to it in the app. Configured when placed (Android's widget
+    configure activity), like choosing which habit a widget shows.
+  - **A random note widget:** a different note each time, for resurfacing
+    old ones. Settings: which categories it draws from (needs the
+    categories above), how often it changes (every hour, day, or on tap),
+    and whether it shows the date. Tapping opens the note; a small ↻ draws
+    another.
+  Both read the widget snapshot widgets.js already sends (WidgetStore);
+  notes would join it, capped in size, since a snapshot of every note in
+  full could get large. Built like TodosWidget/ListWidget, with small and
+  large layouts like the others (WidgetSize).
+
 ---
 
 Ideas that turned out not to be worth doing, or not to be possible, live in
