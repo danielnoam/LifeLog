@@ -1,5 +1,5 @@
-// Open items (0.199.0): every unticked item across the lists, under one
-// chip in the Notes mode bar, and the note widgets' way back into the app
+// Open items (0.199.0): every unticked item across the lists, a filter
+// under Lists in the Notes mode bar, and the note widgets' way back into the app
 // (?action=open-note:<id>, which is what a widget's tap runs). At phone and
 // desktop widths.
 const { chromium, BASE, tally } = require("./harness");
@@ -37,8 +37,15 @@ async function run(b, width) {
   const at = " (" + width + "px)";
   const cards = () => page.evaluate(() => [...document.querySelectorAll(".note-card:not(.ll-exit)")].map((c) => c.dataset.id));
 
-  const chip = page.locator(".notes-kind", { hasText: "Open" });
-  check("the mode bar counts what's left to tick across every list" + at, (await chip.textContent()).trim() === "Open 3");
+  check("Open isn't one of the kinds, and isn't offered off Lists" + at, await page.evaluate(() =>
+    ![...document.querySelectorAll(".notes-kind")].some((b) => /Open/.test(b.textContent)) && !document.querySelector(".notes-subfilter")));
+  await page.locator(".notes-kind", { hasText: "Quotes" }).click();
+  await page.waitForTimeout(200);
+  check("nor under Quotes" + at, !(await page.$(".notes-subfilter")));
+  await page.locator(".notes-kind", { hasText: "Lists" }).click();
+  await page.waitForTimeout(200);
+  const chip = page.locator(".notes-subkind", { hasText: "Open" });
+  check("under Lists, a filter below the bar counts what's left to tick" + at, (await chip.textContent()).trim() === "Open items · 3");
   await chip.click();
   await page.waitForTimeout(300);
   check("Open shows only the lists with something left, in the to-do widget's order" + at,
@@ -53,7 +60,7 @@ async function run(b, width) {
   await page.locator('.note-card[data-id="work"] .todo-check').click();
   await page.waitForTimeout(500);
   check("ticking a list's last item takes the list off Open" + at, JSON.stringify(await cards()) === JSON.stringify(["shop"]), await cards());
-  check("and the count follows" + at, (await chip.textContent()).trim() === "Open 2");
+  check("and the count follows" + at, (await chip.textContent()).trim() === "Open items · 2");
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
   check("the tick is saved like any other" + at, saved.notes.find((n) => n.id === "work").items[0].done === true);
 

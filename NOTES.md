@@ -17,7 +17,8 @@ what was decided against and why.
 ---
 
 - **Open items, note widgets, lists chosen for the To-do widget (0.199.0).**
-  - "Open" isn't a kind: it's `state.noteKind === "open"`, filtering to
+  - "Open" isn't a kind: it's a filter under Lists (`state.noteOpenOnly`,
+    a row below the kind switch that only Lists shows), filtering to
     lists with an unticked item and drawing them without their finished rows,
     in one flat block in the To-do widget's order (favourites, then oldest
     first). Most recently worked on was tried: every tick or add moved the

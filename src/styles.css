@@ -2923,6 +2923,13 @@ html.force-mobile .modal.view-options {
 .board-hist-empty { padding: 8px 4px; }
 
 /* ---------- notes: kinds, categories, the toolbar (0.195.0) ---------- */
+.notes-subfilter { display: flex; gap: 6px; flex-wrap: wrap; margin: -6px 0 14px; }
+.notes-subkind {
+  border: 1px solid var(--border); background: transparent; color: var(--text-dim); font: inherit; font-size: 12.5px;
+  padding: 4px 11px; border-radius: 999px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.notes-subkind:hover { color: var(--text); }
+.notes-subkind.on { background: var(--accent-soft); border-color: transparent; color: var(--accent); font-weight: 600; }
 .notes-toolbar {
   display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
   margin-bottom: 14px;

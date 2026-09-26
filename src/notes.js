@@ -68,6 +68,8 @@
   }
   const kindOf = (n) => n.kind || "text";
   const openItems = (n) => (n.kind === "list" ? (n.items || []).filter((i) => !i.done) : []);
+  // Open items (0.199.0): a filter under Lists, not a kind of its own.
+  const openView = () => state.noteKind === "list" && state.noteOpenOnly;
 
   // A to-do as the To-do mode stored it — still arriving from a device on a
   // build older than 0.197.0, and in old backups — tidied just enough for
@@ -162,15 +164,16 @@
 
   // Years, categories (the chip rows), the kind (the mode bar's switch) and
   // the shared search box all narrow this. A category chip keyed "" is the
-  // notes with none, as in the to-do list. "open" isn't a kind: it's the
-  // lists with anything left to tick (0.199.0).
+  // notes with none, as in the to-do list. Under Lists, "Open" narrows to
+  // the ones with anything left to tick (0.199.0).
   function getFilteredNotes() {
     const q = state.search.trim().toLowerCase();
     const yf = state.activeYears, cf = state.noteActiveCats, kind = state.noteKind;
     return state.data.notes.filter((n) => {
       if (yf.size && !yf.has(noteYear(n))) return false;
       if (cf.size && !cf.has(n.category || "")) return false;
-      if (kind === "open" ? !openItems(n).length : kind && kindOf(n) !== kind) return false;
+      if (kind && kindOf(n) !== kind) return false;
+      if (openView() && !openItems(n).length) return false;
       if (q && !noteHaystack(n).includes(q)) return false;
       return true;
     });
@@ -275,12 +278,8 @@
     const kinds = el("div", "notes-kinds");
     kinds.setAttribute("role", "group");
     kinds.setAttribute("aria-label", "Show");
-    const open = state.data.notes.reduce((sum, n) => sum + openItems(n).length, 0);
-    const choices = [["", "All"], ["text", "Notes"], ["list", "Lists"], ["quote", "Quotes"]];
-    if (open || state.noteKind === "open") choices.push(["open", "Open " + open]);
-    for (const [k, label] of choices) {
+    for (const [k, label] of [["", "All"], ["text", "Notes"], ["list", "Lists"], ["quote", "Quotes"]]) {
       const b = el("button", "notes-kind" + (state.noteKind === k ? " on" : ""), label);
-      if (k === "open") b.title = "Everything left to tick, across every list";
       b.type = "button";
       b.setAttribute("aria-pressed", String(state.noteKind === k));
       b.onclick = () => { state.noteKind = k; render(); };
@@ -288,8 +287,26 @@
     }
     bar.appendChild(kinds);
     // Open has an order of its own, so a sort there would do nothing.
-    if (state.noteKind !== "open") bar.appendChild(sortSelect("notes", noteSort(), setNoteSort));
+    if (!openView()) bar.appendChild(sortSelect("notes", noteSort(), setNoteSort));
     root.appendChild(bar);
+    if (state.noteKind === "list") root.appendChild(listSubFilter());
+  }
+
+  // Under Lists: every list, or only what's left to tick across them.
+  function listSubFilter() {
+    const open = state.data.notes.reduce((sum, n) => sum + openItems(n).length, 0);
+    const row = el("div", "notes-subfilter");
+    row.setAttribute("role", "group");
+    row.setAttribute("aria-label", "Which lists");
+    for (const [on, label] of [[false, "All lists"], [true, "Open items · " + open]]) {
+      const b = el("button", "notes-subkind" + (!!state.noteOpenOnly === on ? " on" : ""), label);
+      b.type = "button";
+      b.setAttribute("aria-pressed", String(!!state.noteOpenOnly === on));
+      if (on) b.title = "Everything left to tick, across every list";
+      b.onclick = () => { state.noteOpenOnly = on; render(); };
+      row.appendChild(b);
+    }
+    return row;
   }
 
   // ---------- rendering ----------
@@ -386,7 +403,7 @@
 
   // Under "Open" only what's left shows: no finished rows and no Clear.
   function listPanel(card, n) {
-    const openOnly = state.noteKind === "open";
+    const openOnly = openView();
     const items = n.items || [];
     const open = items.filter((i) => !i.done), done = openOnly ? [] : items.filter((i) => i.done).sort(byNewestDone);
     const reordering = listReorderId === n.id && open.length > 1;
@@ -807,7 +824,7 @@
     // Open items (0.199.0) is a to-do list, not a feed: no years, and the
     // lists in the to-do widget's order — favourites, then oldest first — so
     // nothing jumps as you tick or add.
-    if (state.noteKind === "open") {
+    if (openView()) {
       const lists = notes.slice().sort((a, b) => (!!b.fav - !!a.fav) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
       const total = lists.reduce((sum, n) => sum + openItems(n).length, 0);
       sections.push(flatBlock("open", "Open items",
@@ -1038,7 +1055,7 @@
       stamp.hidden = false;
     } else stamp.hidden = true;
     // A new note starts as the kind the list is showing.
-    setSheetKind(note ? kindOf(note) : (kind || (state.noteKind === "open" ? "list" : state.noteKind) || "text"));
+    setSheetKind(note ? kindOf(note) : (kind || state.noteKind || "text"));
     $("#noteModal").hidden = false;
     (sheetKind === "list" ? (note ? $("#nNewItem") : $("#nTitle")) : $("#nText")).focus();
   }

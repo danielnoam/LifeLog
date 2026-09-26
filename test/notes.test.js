@@ -122,11 +122,15 @@ test("Open shows only the lists with something left to tick", () => {
     { id: "l1", kind: "list", text: "Shop", createdAt: "2026-09-01T10:00:00.000Z", items: [{ id: "i1", text: "Milk" }, { id: "i2", text: "Eggs", done: true }] },
     { id: "l2", kind: "list", text: "Done", createdAt: "2026-09-01T10:00:00.000Z", items: [{ id: "i3", text: "All", done: true }] },
     { id: "l3", kind: "list", text: "Empty", createdAt: "2026-09-01T10:00:00.000Z", items: [] });
-  state.noteKind = "open";
+  state.noteKind = "list";
+  assert.deepStrictEqual(getFilteredNotes().map((n) => n.id).sort(), ["l1", "l2", "l3"]);
+  state.noteOpenOnly = true;
   assert.deepStrictEqual(getFilteredNotes().map((n) => n.id), ["l1"]);
   state.search = "eggs"; // a finished item still finds its list
   assert.deepStrictEqual(getFilteredNotes().map((n) => n.id), ["l1"]);
-  state.noteKind = "";
+  state.noteKind = ""; // off Lists, the sub-filter doesn't apply
+  assert.deepStrictEqual(getFilteredNotes().map((n) => n.id), ["l1"]); // the search still narrows
+  state.noteOpenOnly = false;
 });
 
 console.log("\nsplitNoteForEntry");
