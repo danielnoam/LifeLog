@@ -10,8 +10,8 @@ the bottom of Settings.
 - **Open items in Notes.** Under Lists, a filter below the bar shows how
   many items are left to tick across all your lists. Tap "Open items" to see
   only the lists with something left, and only their unticked items, in one
-  place. Ticking
-  an item there works as usual, and a list drops out once it's done.
+  place. Ticking an item there works as usual, and a list drops out once
+  it's done.
 - **Titles for notes.** A plain note can have an optional title, shown above
   its text.
 - **Note widget (Android).** Pick one note when you place it and it stays on
