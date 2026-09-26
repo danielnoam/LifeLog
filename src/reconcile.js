@@ -148,7 +148,7 @@
   // With node identity in place, a list that reorders can show it: measure
   // where everything was, let the diff happen, then put each moved node back
   // where it started with a transform and release it. FLIP, the same
-  // technique todos.js already uses for its drag — the difference is that
+  // technique notes.js's list reorder uses for its drag — the difference is that
   // this one runs off the op list, so it covers every reorder in the app
   // rather than one gesture.
   //

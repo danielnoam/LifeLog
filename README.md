@@ -168,8 +168,7 @@ index.html          app shell + every modal
 src/styles.css      styling (dark theme)
 src/app.js          shell: state, routing, filters, shared helpers
 src/journal.js      Timeline and its Stats mode, entry modal, achievements
-src/notes.js        Notes: the note feed + modal
-src/todos.js        To-do: the checklist, the Notes tab's second mode
+src/notes.js        Notes: the feed, the sheet, lists (the old To-do) and quotes
 src/backlog.js      Backlog view, backlog modal, the random picker
 src/finance.js      Ledger and its Summary mode, expenses, recurring
 src/media.js        cover art + metadata from the eight media sources

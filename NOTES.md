@@ -16,6 +16,19 @@ what was decided against and why.
 
 ---
 
+- **The To-do mode's data went, the bridge stayed (0.198.0).** `todos` and
+  `todoCategories` are deleted by `normalize()` after the fold, so they're
+  never saved again. Two things stay on purpose: the fold itself (with a
+  small `sanitizeTodo` in notes.js), for devices and backups from before
+  0.197.0; and both keys in merge.js's `COLLECTION_KEYS`, because
+  storage.js's save-conflict merge runs on the un-normalized remote — drop
+  the keys and an older device's new to-dos vanish in that merge before
+  anything folds them. With the categories gone, a late to-do's list is
+  found by id when that device still sends its category, else by title
+  among the `todos-` lists; a list renamed since gets a new list of the old
+  name, which is visible rather than lost. Import no longer offers a to-do
+  category as a category to add: it's only the name of its list.
+
 - **The To-do mode folded into list notes (0.197.0).** `foldTodosIntoLists`
   in notes.js runs in `normalize()` on every load and on the remote copy
   before each merge, whenever `todos` is non-empty — not once behind a

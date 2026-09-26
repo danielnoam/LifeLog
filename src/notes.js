@@ -65,6 +65,24 @@
   }
   const kindOf = (n) => n.kind || "text";
 
+  // A to-do as the To-do mode stored it — still arriving from a device on a
+  // build older than 0.197.0, and in old backups — tidied just enough for
+  // the fold below. It never stays in the data.
+  const KNOWN_TODO_KEYS = new Set(["id", "text", "category", "done", "doneAt", "order", "createdAt", "updatedAt"]);
+  function sanitizeTodo(t) {
+    const out = {
+      id: t.id || uid(),
+      text: String(t.text == null ? "" : t.text).trim(),
+      createdAt: t.createdAt || null,
+      updatedAt: backfillUpdatedAt(t),
+    };
+    const cat = String(t.category == null ? "" : t.category).trim();
+    if (cat) out.category = cat;
+    if (t.done) { out.done = true; out.doneAt = t.doneAt || out.updatedAt; }
+    if (Number.isFinite(+t.order)) out.order = +t.order;
+    return keepUnknown(t, out, KNOWN_TODO_KEYS);
+  }
+
   // ---------- the To-do mode's lists, as list notes (0.197.0) ----------
   // Every to-do moves into a list note: one per to-do category, titled with
   // it, and one "To-do" list for the ones with none. Deterministic, so two
@@ -77,7 +95,8 @@
   // the right list on the next sync. A to-do that's already an item (by id,
   // or by its words in that list) brings its words and tick across instead
   // of adding a second one — that's an older device's edit. The to-do
-  // categories are kept (unseen) so a later to-do finds the same list.
+  // categories aren't kept any more (0.198.0), so a later to-do whose
+  // category this device no longer knows finds its list by title instead.
   // Returns whether anything moved.
   const LIST_BY_ID = "todos-";
   function foldTodosIntoLists(data) {
@@ -605,7 +624,7 @@
   }
   // Listeners on the window, not a pointer capture on the row: insertBefore
   // moves the row, which counts as leaving the DOM, and a captured element
-  // that leaves it loses the capture (see todos.js, where this was learnt).
+  // that leaves it loses the capture (learnt in the old To-do mode).
   function beginRowDrag(ev, row, list, noteId) {
     ev.preventDefault();
     row.classList.add("is-dragging");
@@ -1085,7 +1104,7 @@
   window.LifeLogNotes = {
     init, wire,
     sanitizeNote, noteYears, getFilteredNotes, noteCats, openNoteCatModal, closeNoteCatModal, noteHaystack,
-    foldTodosIntoLists, listNotes: () => state.data.notes.filter((n) => n.kind === "list"),
+    sanitizeTodo, foldTodosIntoLists, listNotes: () => state.data.notes.filter((n) => n.kind === "list"),
     renderNotes, focusQuickList,
     openNoteModal, closeNoteModal,
     // pure helpers (test/notes.test.js)

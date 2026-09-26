@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.197.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.198.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -950,32 +950,6 @@
     </div>
   </div>
 
-  <!-- To-do category add/edit. A third of these, after the journal's and the
-       Finance one — see DROPPED.md for why folding them into one
-       parameterised modal was tried and rejected. This one is the simplest:
-       cascade to one collection and have no "Other" to fall back to. -->
-  <div class="modal-overlay" id="todoCatModal" hidden>
-    <div class="modal">
-      <h2 id="todoCatModalTitle">Edit to-do category</h2>
-      <form id="todoCatForm">
-        <input type="hidden" id="todoCatOrigName" />
-        <label>Name
-          <input id="todoCatName" type="text" required autocomplete="off" />
-        </label>
-        <label>Colour
-          <input id="todoCatColorInput" type="color" />
-        </label>
-        <p class="muted" id="todoCatUses"></p>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="deleteTodoCatBtn">Delete</button>
-          <span class="spacer"></span>
-          <button type="button" class="btn" id="cancelTodoCatBtn">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
   <!-- Settings modal: a list of pages rather than a strip of tabs (0.186.0).
        On a phone the list and a page take turns; on a wider screen the list
        stays on the left beside the page. Control ids are unchanged, so every
@@ -1753,27 +1727,26 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.197.0"></script>
-  <script defer src="src/reconcile.js?v=0.197.0"></script>
-  <script defer src="src/qr.js?v=0.197.0"></script>
-  <script defer src="src/media.js?v=0.197.0"></script>
-  <script defer src="src/merge.js?v=0.197.0"></script>
-  <script defer src="src/storage.js?v=0.197.0"></script>
-  <script defer src="src/finance.js?v=0.197.0"></script>
-  <script defer src="src/settings.js?v=0.197.0"></script>
-  <script defer src="src/wheel.js?v=0.197.0"></script>
-  <script defer src="src/backlog.js?v=0.197.0"></script>
-  <script defer src="src/journal.js?v=0.197.0"></script>
-  <script defer src="src/notes.js?v=0.197.0"></script>
-  <script defer src="src/todos.js?v=0.197.0"></script>
-  <script defer src="src/io.js?v=0.197.0"></script>
-  <script defer src="src/sync.js?v=0.197.0"></script>
-  <script defer src="src/habits.js?v=0.197.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.197.0"></script>
-  <script defer src="src/boards.js?v=0.197.0"></script>
-  <script defer src="src/recap.js?v=0.197.0"></script>
-  <script defer src="src/reminders.js?v=0.197.0"></script>
-  <script defer src="src/widgets.js?v=0.197.0"></script>
-  <script defer src="src/app.js?v=0.197.0"></script>
+  <script defer src="src/platform.js?v=0.198.0"></script>
+  <script defer src="src/reconcile.js?v=0.198.0"></script>
+  <script defer src="src/qr.js?v=0.198.0"></script>
+  <script defer src="src/media.js?v=0.198.0"></script>
+  <script defer src="src/merge.js?v=0.198.0"></script>
+  <script defer src="src/storage.js?v=0.198.0"></script>
+  <script defer src="src/finance.js?v=0.198.0"></script>
+  <script defer src="src/settings.js?v=0.198.0"></script>
+  <script defer src="src/wheel.js?v=0.198.0"></script>
+  <script defer src="src/backlog.js?v=0.198.0"></script>
+  <script defer src="src/journal.js?v=0.198.0"></script>
+  <script defer src="src/notes.js?v=0.198.0"></script>
+  <script defer src="src/io.js?v=0.198.0"></script>
+  <script defer src="src/sync.js?v=0.198.0"></script>
+  <script defer src="src/habits.js?v=0.198.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.198.0"></script>
+  <script defer src="src/boards.js?v=0.198.0"></script>
+  <script defer src="src/recap.js?v=0.198.0"></script>
+  <script defer src="src/reminders.js?v=0.198.0"></script>
+  <script defer src="src/widgets.js?v=0.198.0"></script>
+  <script defer src="src/app.js?v=0.198.0"></script>
 </body>
 </html>

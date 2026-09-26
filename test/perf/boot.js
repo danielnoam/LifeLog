@@ -111,7 +111,7 @@ const MARKS = [
 // first-use-of-that-tab code. Stubbing them prices the 808KB: the app throws
 // once it wants one, which is after every number this run reads.
 const NOT_FIRST_PAINT = ["finance.js", "backlog.js", "media.js", "settings.js",
-  "sync.js", "io.js", "qr.js", "wheel.js", "notes.js", "todos.js"];
+  "sync.js", "io.js", "qr.js", "wheel.js", "notes.js"];
 
 async function boot(browser, { stub = false, trace = false } = {}) {
   // The service worker serves src/*.js from its cache on every visit after the

@@ -13,7 +13,6 @@ require("../src/finance.js");
 require("../src/journal.js");
 require("../src/backlog.js");
 require("../src/notes.js");
-require("../src/todos.js");
 require("../src/habits.js");
 require("../src/io.js");
 
@@ -40,7 +39,6 @@ global.window.LifeLogFinance.init({ uid, backfillUpdatedAt, keepUnknown,
 global.window.LifeLogJournal.init({ uid, backfillUpdatedAt, sanitizeOverrides, keepUnknown });
 global.window.LifeLogBacklog.init({ uid, backfillUpdatedAt, sanitizeOverrides, keepUnknown });
 global.window.LifeLogNotes.init({ uid, backfillUpdatedAt, keepUnknown });
-global.window.LifeLogTodos.init({ uid, backfillUpdatedAt, keepUnknown });
 global.window.LifeLogHabits.init({ uid, backfillUpdatedAt, keepUnknown });
 
 const state = {
@@ -63,7 +61,7 @@ IO.init({
   toast: () => {}, persist: async () => {}, afterDataChange: () => {},
   sanitizeProject: global.window.LifeLogFinance.sanitizeProject,
   sanitizeNote: global.window.LifeLogNotes.sanitizeNote,
-  sanitizeTodo: global.window.LifeLogTodos.sanitizeTodo,
+  sanitizeTodo: global.window.LifeLogNotes.sanitizeTodo,
   sanitizeHabit: global.window.LifeLogHabits.sanitizeHabit,
   financeKey: global.window.LifeLogFinance.financeKey,
   recurringKey: global.window.LifeLogFinance.recurringKey,
@@ -461,9 +459,11 @@ test("importItemIncomplete still answers for the backlog by default", () => {
 // CSV as far as a row goes. These start from a full set of every kind, run it
 // out and back in against an empty app, and look at what arrived.
 const blank = () => ({
-  entries: [], backlog: [], financeEntries: [], recurringExpenses: [], notes: [], todos: [], habits: [],
-  accomplishments: {}, categories: [], financeCategories: [], todoCategories: [], noteCategories: [], projects: [],
+  entries: [], backlog: [], financeEntries: [], recurringExpenses: [], notes: [], habits: [],
+  accomplishments: {}, categories: [], financeCategories: [], noteCategories: [], projects: [],
 });
+// A backup from before 0.198.0: its to-dos and their categories are how the
+// To-do mode kept them, and have to come in as list notes.
 const FULL = {
   entries: [{ id: "e1", title: "Outer Wilds", category: "Games", year: 2026, month: 3, rating: 5, notes: "wow" }],
   backlog: [{ id: "b1", title: "Hades II", category: "Games" }],
@@ -490,7 +490,7 @@ const atest = (name, fn) => asyncTests.push([name, fn]);
 atest("every tab's JSON brings back all of its kinds, and only its kinds", async () => {
   const want = {
     // Two to-dos land as two list notes (0.197.0): "Home", and "To-do" for the one with no category.
-    notes: { notes: 3, todos: 0, habits: 1, entries: 0, financeEntries: 0 },
+    notes: { notes: 3, habits: 1, entries: 0, financeEntries: 0 },
     timeline: { entries: 1, backlog: 0, notes: 0 },
     backlog: { backlog: 1, entries: 0 },
     finance: { financeEntries: 1, recurringExpenses: 1, notes: 0, backlog: 0 },
@@ -499,6 +499,7 @@ atest("every tab's JSON brings back all of its kinds, and only its kinds", async
     state.data = blank();
     await importAll(JSON.parse(JSON.stringify(FULL)), TAB_KINDS[tab]);
     for (const [k, n] of Object.entries(want[tab])) assert.strictEqual(state.data[k].length, n, tab + " → " + k);
+    assert.ok(!("todos" in state.data), tab + " leaves no to-dos behind");
   }
 });
 
@@ -506,14 +507,14 @@ atest("a full backup import brings everything, with its categories, projects and
   state.data = blank();
   await importAll(JSON.parse(JSON.stringify(FULL)));
   const d = state.data;
-  assert.deepStrictEqual([d.entries.length, d.backlog.length, d.notes.length, d.todos.length, d.habits.length, d.financeEntries.length, d.recurringExpenses.length], [1, 1, 3, 0, 1, 1, 1]);
+  assert.deepStrictEqual([d.entries.length, d.backlog.length, d.notes.length, d.habits.length, d.financeEntries.length, d.recurringExpenses.length], [1, 1, 3, 1, 1, 1]);
+  assert.ok(!("todos" in d) && !("todoCategories" in d), "the to-dos are list notes now, their categories the lists' names");
   const lists = d.notes.filter((n) => n.kind === "list");
   assert.deepStrictEqual(lists.map((n) => n.text).sort(), ["Home", "To-do"]);
   assert.strictEqual(lists.find((n) => n.text === "To-do").items[0].done, true, "a finished to-do is a ticked item");
   assert.strictEqual(d.accomplishments[2026][0].text, "Ran a 10k");
   assert.strictEqual(d.entries[0].notes, "wow");
   assert.deepStrictEqual(d.habits[0].marks, { "2026-01-05": 2, "2026-01-07": 1 });
-  assert.strictEqual(d.todoCategories.find((c) => c.name === "Home").color, "#abcdef");
   assert.strictEqual(d.projects.find((p) => p.name === "Trip").color, "#0000ff");
   assert.strictEqual(d.financeCategories.find((c) => c.name === "Subs").color, "#ff0000");
 });
@@ -537,8 +538,13 @@ atest("an item changed since the export still matches on id, and a copy imported
   assert.strictEqual(new Set(state.data.notes.map((n) => n.id)).size, 2);
 });
 
-atest("Notes CSV round trip keeps notes, to-dos and habits with their history", async () => {
-  const text = notesCsvText(FULL.notes, FULL.todos, FULL.habits);
+atest("Notes CSV round trip keeps notes and habits with their history, and an older sheet's to-dos", async () => {
+  // The export has no to-do rows any more (0.198.0); a sheet from before
+  // that still has them, and they come in as list notes.
+  const text = notesCsvText(FULL.notes, FULL.habits) +
+    "\nTo-do,2026-05-02T00:00:00.000Z,Home,Call mum,,,,,,,,," +
+    "\nTo-do,2026-05-01T00:00:00.000Z,,Done thing,2026-05-03T00:00:00.000Z,,,,,,,,";
+  assert.ok(!/^To-do,/m.test(notesCsvText(FULL.notes, FULL.habits)), "no to-do rows in a new export");
   const back = parseNotesCsv(text);
   assert.strictEqual(back.notes[0].text, "A thought,\nwith a comma");
   assert.strictEqual(back.notes[0].createdAt, "2026-05-01T10:00:00.000Z");
@@ -551,7 +557,8 @@ atest("Notes CSV round trip keeps notes, to-dos and habits with their history", 
   assert.deepStrictEqual(h.marks, { "2026-01-05": 2, "2026-01-07": 1 });
   state.data = blank();
   await importAll(back, TAB_KINDS.notes);
-  assert.deepStrictEqual([state.data.notes.length, state.data.todos.length, state.data.habits.length], [3, 0, 1]);
+  assert.deepStrictEqual([state.data.notes.length, state.data.habits.length], [3, 1]);
+  assert.deepStrictEqual(state.data.notes.filter((n) => n.kind === "list").map((n) => n.text).sort(), ["Home", "To-do"]);
 });
 
 atest("Notes CSV round trip keeps a list's items and ticks, a quote's author, and categories", async () => {
@@ -559,7 +566,7 @@ atest("Notes CSV round trip keeps a list's items and ticks, a quote's author, an
     { id: "q", text: "Words", kind: "quote", author: "Frost", source: "Poem", category: "Ideas", fav: true, createdAt: "2026-01-01T00:00:00.000Z" },
     { id: "l", text: "Shop", kind: "list", category: "Home", createdAt: "2026-01-02T00:00:00.000Z", items: [{ id: "a", text: "Milk, 2L", done: true }, { id: "b", text: "Eggs" }] },
   ];
-  const back = parseNotesCsv(notesCsvText(notes, [], []));
+  const back = parseNotesCsv(notesCsvText(notes, []));
   assert.deepStrictEqual([back.notes[0].kind, back.notes[0].author, back.notes[0].source, back.notes[0].category, back.notes[0].fav], ["quote", "Frost", "Poem", "Ideas", true]);
   assert.ok(!back.notes[1].fav);
   assert.deepStrictEqual(back.notes[1].items.map((i) => [i.text, !!i.done]), [["Milk, 2L", true], ["Eggs", false]]);
@@ -600,8 +607,9 @@ atest("everything in one CSV comes back as every kind, each block to its own par
   state.data = blank();
   await importAll(back);
   const d = state.data;
-  assert.deepStrictEqual([d.notes.length, d.todos.length, d.habits.length, d.entries.length, d.backlog.length,
-    d.accomplishments[2026].length, d.financeEntries.length, d.recurringExpenses.length], [3, 0, 1, 1, 1, 1, 1, 1]);
+  // FULL's to-dos are an old backup's, which the export doesn't write.
+  assert.deepStrictEqual([d.notes.length, d.habits.length, d.entries.length, d.backlog.length,
+    d.accomplishments[2026].length, d.financeEntries.length, d.recurringExpenses.length], [1, 1, 1, 1, 1, 1, 1]);
   // A habit's date column is a plain date, which the Ledger parser would
   // read as an expense if it looked past its own block.
   assert.deepStrictEqual(d.financeEntries.map((f) => f.note), ["Lunch, big"]);

@@ -958,18 +958,8 @@ select:focus { outline: none; border-color: var(--accent); }
    empty box is an invitation to press something that does nothing. */
 .todo-compose .btn { flex: 0 0 auto; transition: opacity .15s ease; }
 .todo-compose .btn:disabled { opacity: .35; cursor: default; }
-/* Which panel the next one lands in, remembered between adds, so a run for
-   the same thing is typed once and picked once. */
-.todo-cat-select {
-  flex: 0 0 auto; max-width: 40%;
-  background: var(--bg); color: var(--text-dim);
-  border: 1px solid var(--border); border-radius: 7px;
-  padding: 6px 8px; font-size: 12px; font-family: inherit;
-}
-.todo-cat-select:focus { outline: none; border-color: var(--accent); }
-
 /* A press anywhere but the checkbox and the ✕ can become the reorder
-   long-press (attachLongPressReorder in todos.js), so nothing here may start
+   long-press (attachLongPressReorder in notes.js), so nothing here may start
    a text selection under a held finger. Selecting the words is what tapping
    into the inline editor is for. */
 .todo-row {
@@ -992,27 +982,8 @@ select:focus { outline: none; border-color: var(--accent); }
   color: var(--text-faint); font-size: 13px; padding: 2px 4px; line-height: 1;
 }
 .todo-del:hover { color: var(--danger); }
-/* Which panel a to-do is in, and the way to move it: the dot alone when it
-   has no category, so an uncategorised row keeps its weight down while the
-   control stays in the same place on every row. */
-.todo-cat {
-  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
-  background: none; border: 1px solid transparent; border-radius: 999px;
-  width: 20px; height: 20px; padding: 0; cursor: pointer;
-}
-.todo-cat:hover { border-color: var(--border-strong); }
-.todo-cat .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
-/* A hollow ring rather than an almost-invisible dashed speck: with no
-   category there is no colour to show, and the control still has to look
-   like one you can press. */
-.todo-cat.is-none .dot {
-  width: 9px; height: 9px; background: none;
-  border: 1.5px solid var(--border-strong);
-}
-.todo-cat.is-none:hover .dot { border-color: var(--accent); }
 /* The panel's own category, beside its name in the heading. */
 .month-card .mc-left .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
-.todo-row .todo-cat-select { max-width: 46%; padding: 3px 6px; }
 /* The finished ones, under a rule at the foot of their own panel rather than
    swept into a Done panel of their own. */
 .todo-done-sep {
@@ -1030,7 +1001,7 @@ select:focus { outline: none; border-color: var(--accent); }
   -webkit-user-select: none; user-select: none;
 }
 .todo-row.is-reorder .todo-text { cursor: inherit; }
-/* What slideDisplaced (todos.js) hands the transform back to. Short: it has
+/* What slideDisplaced (notes.js) hands the transform back to. Short: it has
    to finish before the finger reaches the next neighbour's midpoint, or the
    list is animating one swap while you are asking for the next. */
 .todo-row.is-reorder { transition: transform .17s cubic-bezier(.22,1,.36,1); }

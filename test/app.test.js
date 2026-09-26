@@ -47,7 +47,6 @@ require("../src/finance.js");
 require("../src/journal.js");
 require("../src/backlog.js");
 require("../src/notes.js");
-require("../src/todos.js");
 // Real too: recap.js is pure at load (its player only touches the DOM once
 // something opens it), so app.js's Recap.init(ctx) has something to call.
 require("../src/habits.js");
@@ -222,16 +221,29 @@ test("a category carries a field it doesn't know about", () => {
   assert.strictEqual(out.somethingNew, 42);
 });
 
-test("normalize stamps every category collection, not just the to-do one", () => {
+test("normalize stamps every category collection", () => {
   const data = App.normalize({
     categories: [{ id: "c1", name: "Games", color: "#0f0", createdAt: "2026-01-02T00:00:00.000Z" }],
-    todoCategories: [{ id: "tc1", name: "Errands", color: "#00f" }],
+    noteCategories: [{ id: "nc1", name: "Ideas", color: "#00f" }],
     financeCategories: [{ id: "f1", name: "Food", color: "#f00", createdAt: "2026-01-03T00:00:00.000Z" }],
   });
-  for (const key of ["categories", "todoCategories", "financeCategories"]) {
+  for (const key of ["categories", "noteCategories", "financeCategories"]) {
     assert.ok(data[key].every((c) => !!c.updatedAt), key + " all stamped");
   }
   assert.strictEqual(data.financeCategories[0].updatedAt, "2026-01-03T00:00:00.000Z", "finance promotes its createdAt");
+});
+
+test("an older device's to-dos become list items, and the to-do data goes", () => {
+  const T = "2026-08-01T09:00:00.000Z";
+  const data = App.normalize({
+    notes: [],
+    todoCategories: [{ id: "c-shop", name: "Shopping", color: "#e03131" }],
+    todos: [{ id: "t1", text: "Milk", category: "Shopping", createdAt: T }, { id: "t2", text: "Call mum", done: true, createdAt: T }],
+  });
+  assert.ok(!("todos" in data) && !("todoCategories" in data), JSON.stringify(Object.keys(data)));
+  const lists = data.notes.filter((n) => n.kind === "list");
+  assert.deepStrictEqual(lists.map((n) => n.id).sort(), ["todos-c-shop", "todos-general"]);
+  assert.strictEqual(lists.find((n) => n.id === "todos-general").items[0].done, true);
 });
 
 console.log(`\n${passed} test(s) passed.`);

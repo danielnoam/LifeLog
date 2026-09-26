@@ -35,7 +35,7 @@
   const TAB_FILE = { notes: "notes", timeline: "timeline", backlog: "backlog", finance: "ledger" };
   function tabPayload(tab) {
     const d = state.data;
-    if (tab === "notes") return { notes: d.notes, noteCategories: d.noteCategories, todos: d.todos, todoCategories: d.todoCategories, habits: d.habits };
+    if (tab === "notes") return { notes: d.notes, noteCategories: d.noteCategories, habits: d.habits };
     if (tab === "timeline") return { entries: d.entries, categories: d.categories, accomplishments: d.accomplishments };
     if (tab === "backlog") return { backlog: d.backlog, categories: d.categories };
     return { financeEntries: d.financeEntries, recurringExpenses: d.recurringExpenses, financeCategories: d.financeCategories, projects: d.projects };
@@ -110,11 +110,10 @@
   // when ticked), ride in three columns on the end (0.195.0), so a sheet
   // from before them still reads.
   const LIST_KIND = { list: "List", quote: "Quote" };
-  function notesCsvRows(notes, todos, habits) {
+  function notesCsvRows(notes, habits) {
     const rows = [["Kind", "Date", "Category", "Text", "Done", "Days", "Target", "Marks", "Color", "Author", "Source", "Items", "Favourite"]];
     (notes || []).forEach((n) => rows.push([LIST_KIND[n.kind] || "Note", n.createdAt || "", n.category || "", n.text, "", "", "", "", "",
       n.author || "", n.source || "", (n.items || []).map((i) => (i.done ? "[x] " : "[ ] ") + i.text).join("\n"), n.fav ? "yes" : ""]));
-    (todos || []).forEach((t) => rows.push(["To-do", t.createdAt || "", t.category || "", t.text, t.done ? (t.doneAt || "yes") : "", "", "", "", ""]));
     (habits || []).forEach((h) => rows.push(["Habit", h.startedAt || "", "", h.name, h.archivedAt || "",
       h.cadence && h.cadence.days ? h.cadence.days.map((d) => DAY_LABELS[d]).join(" ") : "daily",
       h.target || 1,
@@ -122,8 +121,8 @@
       h.color || ""]));
     return rows;
   }
-  function notesCsvText(notes, todos, habits) {
-    return notesCsvRows(notes, todos, habits).map((r) => r.map(csvEsc).join(",")).join("\n");
+  function notesCsvText(notes, habits) {
+    return notesCsvRows(notes, habits).map((r) => r.map(csvEsc).join(",")).join("\n");
   }
   function parseNotesCsv(text) {
     const notes = [], todos = [], habits = [];
@@ -174,7 +173,7 @@
   // pivot too); the other tabs' are here.
   function exportTabCsv(tab) {
     const d = state.data;
-    if (tab === "notes") return download("lifelog-notes.csv", notesCsvText(d.notes, d.todos, d.habits), "text/csv");
+    if (tab === "notes") return download("lifelog-notes.csv", notesCsvText(d.notes, d.habits), "text/csv");
     if (tab === "timeline") return download("lifelog-timeline.csv", journalCsvText(d.entries, [], d.accomplishments), "text/csv");
     if (tab === "backlog") return download("lifelog-backlog.csv", journalCsvText([], d.backlog), "text/csv");
     if (tab === "all") return download("lifelog.csv", allCsvText(d), "text/csv");
@@ -186,7 +185,7 @@
   // back at those headers, so each block goes to the parser that wrote it.
   function allCsvText(d) {
     return [
-      notesCsvText(d.notes, d.todos, d.habits),
+      notesCsvText(d.notes, d.habits),
       journalCsvText(d.entries, d.backlog, d.accomplishments),
       window.LifeLogFinance.financeCsvText(d.financeEntries, d.recurringExpenses),
     ].join("\n\n");
@@ -247,8 +246,8 @@
   // Builds the mixed-kind item list + new-category list for the picker,
   // scoped to "journal" (entries/backlog), "finance" (finance/recurring), or
   // "all" (everything) — shared by every JSON/CSV importer below.
-  // `scope` says which list a name belongs to: "journal", "finance", "todo"
-  // (the to-do list's own categories) or "project", which is read off the
+  // `scope` says which list a name belongs to: "journal", "finance", "note"
+  // (notes' own categories) or "project", which is read off the
   // items' `project` field rather than `category`.
   function buildNewCategoryList(items, incomingCats, knownCategories, scope, field = "category") {
     const known = new Set((knownCategories || []).map((c) => c.name));
@@ -496,7 +495,7 @@
     // same id, or the same words in the list its category became.
     const asTodos = (state.data.notes || []).filter((n) => n.kind === "list")
       .flatMap((n) => (n.items || []).map((i) => ({ id: i.id, text: i.text, category: n.text === "To-do" ? "" : n.text })));
-    if (want("todo")) simple("todo", incoming.todos || [], sanitizeTodo, (t) => t.text, (t) => low(t.category) + "|" + low(t.text), [...(state.data.todos || []), ...asTodos]);
+    if (want("todo")) simple("todo", incoming.todos || [], sanitizeTodo, (t) => t.text, (t) => low(t.category) + "|" + low(t.text), asTodos);
     if (want("habit")) simple("habit", incoming.habits || [], sanitizeHabit, (h) => h.name, (h) => low(h.name), state.data.habits || []);
     // Names like "Board 3" repeat across devices, so a board matches on its
     // name and how much is on it, or on id.
@@ -520,7 +519,6 @@
     const newCategories = [
       ...buildNewCategoryList(of("entry", "backlog"), want("entry") || want("backlog") ? categories : [], state.data.categories, "journal"),
       ...buildNewCategoryList(of("finance", "recurring"), want("finance") || want("recurring") ? financeCategories : [], state.data.financeCategories, "finance"),
-      ...buildNewCategoryList(of("todo"), want("todo") ? incoming.todoCategories : [], state.data.todoCategories, "todo"),
       ...buildNewCategoryList(of("note"), want("note") ? incoming.noteCategories : [], state.data.noteCategories, "note"),
       ...buildNewCategoryList(of("finance", "recurring"), want("finance") || want("recurring") ? incoming.projects : [], state.data.projects, "project", "project"),
     ];
@@ -542,7 +540,6 @@
         continue;
       }
       const target = c.scope === "finance" ? d.financeCategories
-        : c.scope === "todo" ? (d.todoCategories = d.todoCategories || [])
         : c.scope === "note" ? (d.noteCategories = d.noteCategories || [])
         : d.categories;
       if (!target.some((x) => x.name === c.name)) target.push({ id: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: c.name, color: c.color });
@@ -610,12 +607,13 @@
     }
     ensureCategories(d.categories, [...recs("entry"), ...recs("backlog")]);
     ensureCategories(d.financeCategories, [...recs("finance"), ...recs("recurring")]);
-    ensureCategories(d.todoCategories = d.todoCategories || [], recs("todo").filter((t) => t.category));
     ensureCategories(d.noteCategories = d.noteCategories || [], recs("note").filter((n) => n.category));
     // To-dos from an older file land in their list notes (0.197.0), the way
-    // they do when an older device syncs them.
+    // they do when an older device syncs them; a to-do category is the name
+    // of its list, not a category to add.
     const Notes = window.LifeLogNotes;
     if (byKind.todo.length && Notes && Notes.foldTodosIntoLists(d)) d.notes = d.notes.map(sanitizeNote);
+    delete d.todos;
     if (ensureProjects) ensureProjects(d.projects = d.projects || [], [...recs("finance"), ...recs("recurring")]);
     if (byKind.board.length && addBoards) await addBoards(recs("board"));
 
@@ -823,7 +821,7 @@
       const dot = el("span", "dot"); dot.style.background = nc.color;
       dot.style.width = "9px"; dot.style.height = "9px"; dot.style.borderRadius = "50%"; dot.style.display = "inline-block";
       row.appendChild(dot);
-      row.appendChild(document.createTextNode(nc.name + (nc.scope === "project" ? " (project)" : nc.scope === "todo" ? " (to-do list)" : nc.scope === "note" ? " (notes)" : "")));
+      row.appendChild(document.createTextNode(nc.name + (nc.scope === "project" ? " (project)" : nc.scope === "note" ? " (notes)" : "")));
       newCatsList.appendChild(row);
     });
 

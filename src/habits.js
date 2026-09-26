@@ -274,8 +274,8 @@
   }
 
   // Habits is Notes' third mode (0.171.1), so "am I showing?" is a mode
-  // question. Mirrors Todos.isTodoMode, and is what the year/category chip
-  // rows ask before drawing controls a habit has no use for.
+  // question, and it's what the year/category chip rows ask before drawing
+  // controls a habit has no use for.
   const isHabitsMode = () => state.view === "notes" && state.notesMode === "habits";
 
   // The app-wide search, same contract as every other view's.

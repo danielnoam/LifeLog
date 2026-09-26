@@ -25,15 +25,10 @@ todo:
   "Automatically delete head branches" only helps with branches merged
   through a PR, which this repo no longer uses.
 
-- **Notes, stage 3: remove the To-do mode's leftovers.** Stage 2 (0.197.0)
-  moved every to-do into list notes and switched the widget, quick add,
-  Recap, search and import over. What's left is dead code and data: the
-  To-do mode's UI in todos.js, the to-do category modal and its CSS,
-  `todos`/`todoCategories` in the data (the fold in `normalize()` stays
-  until no device runs an APK older than 0.197.0), and the to-do rows in
-  the CSV export. Also worth doing then: an "Open items" filter in Notes —
-  every unticked item across lists — since "what's left" shouldn't need
-  opening each list.
+- **An "Open items" view in Notes.** Every unticked item across lists, as
+  a chip or filter, since "what's left to do" shouldn't need opening each
+  list. (Was part of the To-do → lists plan; stages 1–3 shipped in
+  0.195.0–0.198.0.)
 
 - **Note widgets (Android).**
   - **A note widget:** one note you pick, shown on the home screen, tapping

@@ -4,6 +4,10 @@
 // in plain Node (see test/merge.test.js) — the merge logic is exactly what
 // gets tested, not a simulation of it.
 (function () {
+  // "todos" and "todoCategories" are gone from the data (0.198.0) but stay
+  // here: a device on a build older than 0.197.0 still writes them, and a
+  // save that meets its copy merges before anything folds them into lists —
+  // leave them out and that merge would drop its new to-dos.
   const COLLECTION_KEYS = ["entries", "backlog", "notes", "todos", "financeEntries", "recurringExpenses", "categories", "todoCategories", "noteCategories", "financeCategories", "projects", "habits"];
 
   function byId(arr) {

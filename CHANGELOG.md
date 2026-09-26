@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.198.0] - 2026-09-26
+
+### Removed
+- **The old To-do mode's leftovers.** Its code, the to-do category window,
+  and the `todos` and `todoCategories` lists in your data are gone; your
+  to-dos have been list notes since 0.197.0. The Notes CSV no longer writes
+  To-do rows. A backup or sheet from before still imports, its to-dos
+  landing in lists, and a phone still on an older version still syncs its
+  to-dos into the matching lists.
+
+### Fixed
+- Settings → Recently deleted no longer lists every to-do that moved into a
+  list as deleted.
+
 ## [0.197.0] - 2026-09-26
 
 ### Changed

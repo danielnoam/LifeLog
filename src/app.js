@@ -6,7 +6,6 @@
   const Backlog = window.LifeLogBacklog;
   const Journal = window.LifeLogJournal;
   const Notes = window.LifeLogNotes;
-  const Todos = window.LifeLogTodos;
   const IO = window.LifeLogIO;
   const Sync = window.LifeLogSync;
   const Wheel = window.LifeLogWheel;
@@ -134,7 +133,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.197.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.198.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -413,7 +412,6 @@
     // The To-do mode's own chips. "" is the general panel, which is a real
     // thing to filter to and so is a real member of this set rather than an
     // absence.
-    todoActiveCats: new Set(),
     // Notes' category chips ("" = no category, as above) and the kind the
     // Notes mode is showing ("" = all).
     noteActiveCats: new Set(),
@@ -436,8 +434,8 @@
 
   function emptyData() {
     return {
-      version: 1, categories: [], entries: [], backlog: [], notes: [], todos: [], accomplishments: {},
-      todoCategories: [], noteCategories: [], habits: [],
+      version: 1, categories: [], entries: [], backlog: [], notes: [], accomplishments: {},
+      noteCategories: [], habits: [],
       financeCategories: Finance.seedFinanceCategories(), financeEntries: [], recurringExpenses: [],
       projects: [],
       settings: { ...DEFAULT_SETTINGS },
@@ -763,19 +761,14 @@
   function renderModeBar(root) {
     if (state.view !== "notes") return;
     const bar = el("div", "backlog-mode-bar");
-    // Notes and to-dos have no year/category chips to say how many there
-    // are, so the count goes here. The other views' own headers already do —
+    // Notes' year and category chips don't say how many there are, so the
+    // count goes here. The other views' own headers already do —
     // and so does Habits, whose "2 of 3 done today" is a better line than any
     // count this bar could put above it.
     if (state.notesMode === "notes") {
-      const count = state.notesMode === "notes"
-        ? state.data.notes.length
-        : state.data.todos.filter((t) => !t.done).length;
+      const count = state.data.notes.length;
       if (count) {
-        const word = state.notesMode === "notes"
-          ? (count === 1 ? " note" : " notes")
-          : " to do";
-        bar.appendChild(el("span", "backlog-mode-count", count + word));
+        bar.appendChild(el("span", "backlog-mode-count", count + (count === 1 ? " note" : " notes")));
       }
     }
     if (bar.firstChild) root.appendChild(bar);
@@ -2785,13 +2778,11 @@
   // Resolved when a chip is used, not when it is built: a chip node outlives
   // the render that created it now, and the view may have changed under it.
   function activeCatSetFor(which) {
-    if (which === "todo") return state.todoActiveCats;
     if (which === "note") return state.noteActiveCats;
     if (which === "finance") return state.financeActiveCats;
     return state.activeCats;
   }
   function editCatFor(which) {
-    if (which === "todo") return Todos.openTodoCatModal;
     if (which === "note") return (cat) => Notes.openNoteCatModal(cat);
     if (which === "finance") return Finance.openFinanceCatModal;
     return Journal.openCategoryModal;
@@ -2799,40 +2790,37 @@
 
   function buildCatFilter() {
     const wrap = $("#catFilter"); // not cleared — see buildYearFilter
-    // To-dos and notes each have a category list of their own (notes since
-    // 0.195.0), so in those modes the row is theirs. A habit carries no
+    // Notes have a category list of their own (0.195.0), so in that mode the
+    // row is theirs. A habit carries no
     // category — it carries a colour, which is its own and not shared with
     // anything the chips could narrow — and a board has none either, so
     // there the row goes.
-    const todo = Todos.isTodoMode();
     const note = state.view === "notes" && state.notesMode === "notes";
-    const noCats = state.view === "notes" && !todo && !note;
+    const noCats = state.view === "notes" && !note;
     $("#catFilterGroup").hidden = noCats;
     updateFilterbarVisibility();
     if (noCats) return;
     const finance = isFinanceView();
-    const cats = todo ? Todos.todoCats() : note ? Notes.noteCats()
+    const cats = note ? Notes.noteCats()
       : finance ? state.data.financeCategories : state.data.categories;
-    const activeCats = todo ? state.todoActiveCats : note ? state.noteActiveCats
+    const activeCats = note ? state.noteActiveCats
       : finance ? state.financeActiveCats : state.activeCats;
 
-    const addLabel = note ? "Add note category" : todo ? "Add to-do category"
+    const addLabel = note ? "Add note category"
       : finance ? "Add finance category" : "Add category";
     // The + rides in the same keyed list under a reserved key, so it keeps its
     // place at the end without being rebuilt with the row.
     //
-    // To-do gets one more, at the front: everything without a category shares
-    // the general panel, and that panel is not in the category list, so until
-    // 0.138.0 it was the one group you could not narrow to. getFilteredTodos
-    // already keyed it as "" — only the chip was missing.
+    // Notes get one more, at the front: "No category", keyed "", which is
+    // not in the category list but is a group you can narrow to.
     const chips = [
-      ...(todo || note ? [{ key: "", cat: { name: "", color: "#7a8a99" }, general: true }] : []),
+      ...(note ? [{ key: "", cat: { name: "", color: "#7a8a99" }, general: true }] : []),
       ...cats.map((c) => ({ key: c.name, cat: c })),
       { key: "__add", add: true },
     ];
     // Which of the three category lists these chips are — the same name can
     // exist in more than one, so a node must not be reused across the change.
-    const which = todo ? "todo" : note ? "note" : finance ? "finance" : "journal";
+    const which = note ? "note" : finance ? "finance" : "journal";
     reconcile(wrap, chips, {
       epoch: which,
       keyOf: (item) => item.key,
@@ -2861,9 +2849,9 @@
         chip.classList.toggle("on", activeCats.has(c.name));
         const dot = el("span", "dot"); dot.style.background = c.color;
         // Nothing to edit on the general one — it isn't a category, it's
-        // where a to-do lands when it doesn't name one.
+        // where a note is when it doesn't name one.
         if (item.general) {
-          chip.title = (note ? "Notes" : "To-dos") + " with no category";
+          chip.title = "Notes with no category";
           chip.replaceChildren(dot, document.createTextNode("No category"));
           return;
         }
@@ -2889,13 +2877,12 @@
   }
   function toggleAllCats() {
     const finance = isFinanceView();
-    // The to-do list and notes have their own lists, and their chip rows
-    // lead with "No category" (""), which "all" includes.
-    const todo = Todos.isTodoMode(), note = state.view === "notes" && state.notesMode === "notes";
-    const names = todo ? ["", ...Todos.todoCats().map((c) => c.name)]
-      : note ? ["", ...Notes.noteCats().map((c) => c.name)]
+    // Notes have their own list, and its chip row leads with "No category"
+    // (""), which "all" includes.
+    const note = state.view === "notes" && state.notesMode === "notes";
+    const names = note ? ["", ...Notes.noteCats().map((c) => c.name)]
       : (finance ? state.data.financeCategories : state.data.categories).map((c) => c.name);
-    const activeCats = todo ? state.todoActiveCats : note ? state.noteActiveCats
+    const activeCats = note ? state.noteActiveCats
       : finance ? state.financeActiveCats : state.activeCats;
     if (activeCats.size === names.length) activeCats.clear();
     else { activeCats.clear(); names.forEach((n) => activeCats.add(n)); }
@@ -3363,18 +3350,16 @@
     data.entries = (data.entries || []).map(Journal.sanitizeEntry);
     data.backlog = (data.backlog || []).map(Backlog.sanitizeBacklog);
     data.notes = (data.notes || []).map(Notes.sanitizeNote);
-    data.todos = Todos.assignMissingOrder((data.todos || []).map(Todos.sanitizeTodo));
-    // To-dos become list notes (0.197.0) — every time there are any, since a
-    // device on an older build can still be writing them. See notes.js.
-    if (Notes.foldTodosIntoLists(data)) data.notes = data.notes.map(Notes.sanitizeNote);
+    // To-dos became list notes (0.197.0), and the To-do mode and its data went
+    // in 0.198.0. The fold stays: a device still on an older build can go on
+    // writing to-dos, and they land in their lists here. See notes.js.
+    if (data.todos && data.todos.length) {
+      data.todos = data.todos.map(Notes.sanitizeTodo);
+      if (Notes.foldTodosIntoLists(data)) data.notes = data.notes.map(Notes.sanitizeNote);
+    }
+    delete data.todos;
+    delete data.todoCategories;
     data.habits = (data.habits || []).map(Habits.sanitizeHabit);
-    // A checklist's categories are its own — "Errands", "Work" — and have
-    // nothing to say about what you've watched or bought, so they're a third
-    // list rather than a third use of the journal's. Anything a to-do names
-    // that isn't in it yet is added here, which is also what carries across
-    // the to-dos that briefly used journal categories in 0.128.1.
-    data.todoCategories = (data.todoCategories || []).map(sanitizeCategory);
-    ensureCategories(data.todoCategories, data.todos.filter((t) => t.category));
     data.noteCategories = (data.noteCategories || []).map(sanitizeCategory);
     ensureCategories(data.noteCategories, data.notes.filter((n) => n.category));
     const incomingSettings = data.settings || {};
@@ -3795,7 +3780,6 @@
     Finance.wire(); // finance/recurring/finance-category modals + finance import/export
     Backlog.wire(); // backlog modal: sync, priority/dropped, title suggestions
     Wheel.wire(); // the random wheel modal (the Backlog's 🎡 Spin, in the bar and in the pick card)
-    Todos.wire(); // the to-do category modal
     SettingsUI.wire(); // the Settings modal: tabs, data/storage, appearance, media, privacy
 
     $("#exportJsonBtn").onclick = IO.exportJson;
@@ -3862,7 +3846,7 @@
         Journal.closeEntryModal(); Journal.closeAchModal(); Journal.cancelCategoryModal(); Backlog.closeBacklogModal();
         Backlog.closePickModal(); Wheel.closeWheel();
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
-        Finance.closePauseModal(); Finance.cancelFinanceCatModal(); Todos.closeTodoCatModal();
+        Finance.closePauseModal(); Finance.cancelFinanceCatModal();
         Habits.closeHabitModal(); Notes.closeNoteCatModal();
         SettingsUI.closeSettings();
         SettingsUI.closeViewOptions();
@@ -4564,7 +4548,7 @@
     sanitizeFinanceEntry: Finance.sanitizeFinanceEntry, sanitizeRecurring: Finance.sanitizeRecurring,
     sanitizeProject: Finance.sanitizeProject,
     sanitizeEntry: Journal.sanitizeEntry, sanitizeBacklog: Backlog.sanitizeBacklog,
-    sanitizeNote: Notes.sanitizeNote, sanitizeTodo: Todos.sanitizeTodo, sanitizeHabit: Habits.sanitizeHabit,
+    sanitizeNote: Notes.sanitizeNote, sanitizeTodo: Notes.sanitizeTodo, sanitizeHabit: Habits.sanitizeHabit,
     sanitizeBoard: Boards.sanitizeBoard, addBoards: Boards.addBoards, boardsForExport: Boards.boardsForExport, boardsNow: Boards.boardsNow,
     isOverridden,
   });
@@ -4619,10 +4603,6 @@
     pushOverrideValues, readOverrideChecks,
     applySteamAppId: Sync.applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
     DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled,
-  });
-  Todos.init({
-    state, $, el, uid, toast, persist, render, emptyState, backfillUpdatedAt, keepUnknown,
-    prefersReducedMotion, CATEGORY_PALETTE, buildCatFilter, activatable,
   });
   Habits.init({
     state, $, el, uid, toast, persist, render, emptyState, activatable,
