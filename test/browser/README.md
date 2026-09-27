@@ -32,7 +32,7 @@ because something shipped broken that no unit test could have caught:
 | `v151`, `importkinds`, `importmodes` | import updates: what gets filled, for which kinds, and never a duplicate |
 | `boards` | the drawing board: every tool with mouse and touch, resize/rotate/fill, undo, a reload, PNG/SVG/JSON out and back, History bringing a board back, the boards file, and boards.json syncing and merging against a fake GitHub |
 | `notekinds` | notes' three kinds through the sheet and the cards, categories and their chips, the kind switch, the sort, a list working like the old To-do panel (add, edit, delete, reorder, Clear), favourites, bulk move |
-| `openitems` | Notes' Open chip: its count, only unticked items in the lists that have them, ticking one off and adding from there; a note widget's tap opening its note |
+| `noteopen` | a note widget's tap opening its note, or saying it's gone; no Open items filter under Lists |
 | `mdimport` | Markdown files and a folder as notes: one row per file, a file's own category, filing the selected under an existing, new or folder category, lists from task files |
 | `collections` | a collection category: its notes off the feed and on the shelf, its own page of cards by name, the reader drawing Markdown (safe links only), Edit from there, the category sheet's switch; Boards as a kind of note |
 | `notesheet` | a plain note's optional title, a list's items without ticks or a quick-add switch, a quote's author and source side by side |

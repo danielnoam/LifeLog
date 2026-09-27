@@ -16,7 +16,7 @@ the bottom of Settings.
 - **One list of categories.** The shelf of collections above the feed is
   gone; the category chips already list them. A collection's chip is marked
   ▦ and opens it when tapped.
-- Under Lists, "Open items" is a single on/off switch; "All lists" is gone.
+- The Open items filter under Lists is gone. Lists show all their items.
 - The sort control is on the right in every view, phones included.
 - A habit's type reads just "Do" or "Avoid".
 

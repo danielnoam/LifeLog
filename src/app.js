@@ -429,7 +429,6 @@
     // Notes mode is showing ("" = all).
     noteActiveCats: new Set(),
     noteKind: "",
-    noteOpenOnly: false,
     statsYear: null,
     financeStatsYear: null,
     bulk: { active: false, selected: new Set() },

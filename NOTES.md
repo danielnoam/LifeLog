@@ -26,6 +26,8 @@ what was decided against and why.
   boards.json is loaded the first time the feed wants it, then the feed
   redraws. A board's `category` is a note category name, kept by
   sanitizeBoard and compared by sameBoard for history.
+  - Open items (0.199.0) went: asked for, then not used. Lists show all
+    their items again; `openItems` stays for a list card's preview.
   - The shelf (0.204.0) repeated the chip row. A collection's chip now
     carries ▦ in its colour and opens the collection on its own: tapping it
     clears the other chips, and tapping an ordinary chip closes it.

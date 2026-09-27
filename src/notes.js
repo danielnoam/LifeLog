@@ -68,8 +68,6 @@
   }
   const kindOf = (n) => n.kind || "text";
   const openItems = (n) => (n.kind === "list" ? (n.items || []).filter((i) => !i.done) : []);
-  // Open items (0.199.0): a filter under Lists, not a kind of its own.
-  const openView = () => state.noteKind === "list" && state.noteOpenOnly;
 
   // A to-do as the To-do mode stored it — still arriving from a device on a
   // build older than 0.197.0, and in old backups — tidied just enough for
@@ -162,10 +160,6 @@
     return [...new Set(state.data.notes.map(noteYear))].sort((a, b) => b - a);
   }
 
-  // Years, categories (the chip rows), the kind (the mode bar's switch) and
-  // the shared search box all narrow this. A category chip keyed "" is the
-  // notes with none, as in the to-do list. Under Lists, "Open" narrows to
-  // the ones with anything left to tick (0.199.0).
   // Boards in the feed and in collections (0.206.0): each one as a
   // note-shaped stand-in, keyed "board:<id>", which the cards know to draw
   // as a picture and open in the board editor. Only for All — the Boards
@@ -187,6 +181,9 @@
     }));
   }
 
+  // Years, categories (the chip rows), the kind (the mode bar's switch) and
+  // the shared search box all narrow this. A category chip keyed "" is the
+  // notes with none, as in the to-do list.
   function getFilteredNotes() {
     const q = state.search.trim().toLowerCase();
     const yf = state.activeYears, cf = state.noteActiveCats, kind = state.noteKind;
@@ -196,7 +193,6 @@
       if (yf.size && !openCollection() && !yf.has(noteYear(n))) return false;
       if (cf.size && !cf.has(n.category || "")) return false;
       if (kind && kindOf(n) !== kind) return false;
-      if (openView() && !openItems(n).length) return false;
       if (feedOnly() && isCollection(n.category)) return false;
       if (q && !noteHaystack(n).includes(q)) return false;
       return true;
@@ -341,27 +337,12 @@
       kinds.appendChild(b);
     }
     bar.appendChild(kinds);
-    // Open has an order of its own, so a sort there would do nothing; a
-    // collection sorts by name, and has its own.
+    // A collection sorts by name, and has its own.
     // Nothing to sort with no notes: the bar is only there to reach Boards.
     if (state.noteKind === "board" || !state.data.notes.length) { /* boards run newest first */ }
     else if (openCollection()) bar.appendChild(sortSelect("collection", collectionSort(), setCollectionSort));
-    else if (!openView()) bar.appendChild(sortSelect("notes", noteSort(), setNoteSort));
+    else bar.appendChild(sortSelect("notes", noteSort(), setNoteSort));
     root.appendChild(bar);
-    if (state.noteKind === "list") root.appendChild(listSubFilter());
-  }
-
-  // Under Lists: one switch (0.206.0), on for only what's left to tick.
-  function listSubFilter() {
-    const open = state.data.notes.reduce((sum, n) => sum + openItems(n).length, 0);
-    const row = el("div", "notes-subfilter");
-    const b = el("button", "notes-subkind" + (state.noteOpenOnly ? " on" : ""), "Open items · " + open);
-    b.type = "button";
-    b.setAttribute("aria-pressed", String(!!state.noteOpenOnly));
-    b.title = "Only what's left to tick, across every list";
-    b.onclick = () => { state.noteOpenOnly = !state.noteOpenOnly; render(); };
-    row.appendChild(b);
-    return row;
   }
 
   // ---------- rendering ----------
@@ -470,11 +451,9 @@
   const byNewestDone = (a, b) => String(b.doneAt || "").localeCompare(String(a.doneAt || ""));
   const reducedMotion = () => typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  // Under "Open" only what's left shows: no finished rows and no Clear.
   function listPanel(card, n) {
-    const openOnly = openView();
     const items = n.items || [];
-    const open = items.filter((i) => !i.done), done = openOnly ? [] : items.filter((i) => i.done).sort(byNewestDone);
+    const open = items.filter((i) => !i.done), done = items.filter((i) => i.done).sort(byNewestDone);
     const reordering = listReorderId === n.id && open.length > 1;
     card.classList.toggle("is-reordering", reordering);
 
@@ -908,15 +887,6 @@
       };
     };
     const sections = [];
-    // Open items (0.199.0) is a to-do list, not a feed: no years, and the
-    // lists in the to-do widget's order — favourites, then oldest first — so
-    // nothing jumps as you tick or add.
-    if (openView()) {
-      const lists = notes.slice().sort((a, b) => (!!b.fav - !!a.fav) || String(a.createdAt || "").localeCompare(String(b.createdAt || "")));
-      const total = lists.reduce((sum, n) => sum + openItems(n).length, 0);
-      sections.push(flatBlock("open", "Open items",
-        `${total} in ${lists.length} list${lists.length === 1 ? "" : "s"}`, lists));
-    }
     // Favourites (0.196.0) sit above the years in a block of their own, and
     // not in their month as well: one place for each note. The filters still
     // apply to them, and they run in the same order as everything else.
