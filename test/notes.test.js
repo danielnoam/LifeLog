@@ -116,6 +116,10 @@ test("a plain note keeps a title, and search finds it; other kinds don't carry o
   assert.ok(Notes.noteHaystack({ title: "Groceries idea", text: "x" }).includes("groceries"));
 });
 
+console.log("\nsplitNoteForEntry");
+
+const { splitNoteForEntry } = Notes;
+
 test("a one-line note is all title, and leaves the entry's notes empty", () => {
   // The duplication case: repeating the title in the notes field would be
   // the obvious implementation and the wrong one.
