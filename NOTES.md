@@ -16,6 +16,22 @@ what was decided against and why.
 
 ---
 
+- **A folder of Markdown files from the Android app (0.202.0).** Android's
+  WebView ignores `webkitdirectory` — the input opens a plain file picker —
+  and so does Chrome on Android. The app asks the plugin instead
+  (`pickMarkdownFolder`: ACTION_OPEN_DOCUMENT_TREE, then MarkdownFolder
+  walks it with DocumentsContract, no androidx.documentfile), and gets back
+  the files' text with the subfolder each sits in, the same shape
+  webkitRelativePath gives importMarkdown on a computer. Capped (3,000
+  files, 2 MB each, 40 MB in all) since it all crosses the bridge as one
+  answer. The Folder button shows in the app and on desktop browsers; a
+  phone's browser, which can't pick a folder, gets Files only.
+- **The note sheet is full-screen on a phone (0.202.0).** Only #noteModal:
+  the form is a flex column and the text box (or a list's rows) takes what
+  the other fields leave, with the buttons pinned to the bottom. The app's
+  copy pads it for the status and navigation bars itself, since the
+  overlay's own safe-area padding would leave a band above and below.
+
 - **Every widget has a settings screen (0.201.0).** One base,
   SettingsScreen: the widget id, a column of ticks built in code, and a Save
   that writes `widget:<id>` and redraws that one widget. Each yes/no setting

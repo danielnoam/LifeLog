@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.202.0] - 2026-09-27
+
+### Changed
+- **More room to write a note.** On a phone the note sheet fills the whole
+  screen and the text box takes all the space the other fields leave; on a
+  computer it's wider and the text box is half the window tall. The text
+  is a little larger too.
+
+### Fixed
+- **Importing a folder of Markdown files on your phone.** The Android app
+  now opens Android's own folder screen, and reads the Markdown files in the
+  folder you pick, subfolders included. A phone's browser can't pick a folder
+  at all, so there it offers files only, which you can select many of at
+  once.
+
 ## [0.201.0] - 2026-09-27
 
 ### Added

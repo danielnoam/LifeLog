@@ -1052,6 +1052,23 @@ select:focus { outline: none; border-color: var(--accent); }
 /* Room to actually write in: the note modal is one field, so the textarea
    is the modal. */
 #noteForm textarea { min-height: 160px; resize: vertical; }
+/* The note sheet is somewhere to write (0.202.0): wide on a computer, with
+   the text taking half the window, and the whole screen on a phone, the
+   text filling whatever the other fields leave. */
+#noteModal .modal { width: 680px; }
+#noteForm #nText { min-height: 45vh; font-size: 15px; line-height: 1.55; }
+@media (max-width: 720px) {
+  #noteModal { padding: 0; align-items: stretch; }
+  #noteModal .modal {
+    width: 100%; height: 100%; max-height: none; border: 0; border-radius: 0;
+    display: flex; flex-direction: column; padding: 16px 16px 12px;
+  }
+  #noteForm { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  #noteForm #nTextLabel:not([hidden]) { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  #noteForm #nText { flex: 1; min-height: 8em; resize: none; font-size: 16px; }
+  #noteForm .note-list-editor { flex: 0 1 auto; min-height: 0; overflow-y: auto; }
+  #noteForm .modal-actions { margin-top: auto; padding-top: 8px; }
+}
 
 .entry {
   display: flex; align-items: center; gap: 8px; padding: 5px 7px; border-radius: 7px;
@@ -1169,8 +1186,6 @@ select:focus { outline: none; border-color: var(--accent); }
 .picker-catbar select { flex: 1 1 140px; min-width: 0; max-width: 260px; }
 .picker-catbar[hidden] { display: none; }
 @media (max-width: 480px) { .picker-catbar > .muted { flex-basis: 100%; } }
-/* A folder can't be picked from inside the Android app's WebView. */
-html.native .web-only { display: none; }
 .picker-toolbar { display: flex; align-items: center; gap: 10px; margin: 10px 0 6px; font-size: 12px; }
 .picker-toolbar .link-btn {
   background: none; border: none; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0;
@@ -2032,6 +2047,10 @@ html.native {
   --sab: var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px));
 }
 html.native .topbar { border-top: var(--sat) solid var(--bg-elev); }
+@media (max-width: 720px) {
+  html.native #noteModal { padding: 0; }
+  html.native #noteModal .modal { padding-top: calc(16px + var(--sat)); padding-bottom: calc(12px + var(--sab)); }
+}
 html.native .modal-overlay,
 html.native .lock-screen { padding-top: calc(20px + var(--sat)); padding-bottom: calc(20px + var(--sab)); }
 html.native .recap { padding-top: calc(54px + var(--sat)); padding-bottom: calc(64px + var(--sab)); }

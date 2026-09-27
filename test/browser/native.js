@@ -87,6 +87,8 @@ const FAKE_BRIDGE = () => {
         update: async ({ json }) => { window.__cap.widgetSnaps.push(JSON.parse(json)); },
         takeQueue: async () => { const items = window.__widgetPlan.queue; window.__widgetPlan.queue = []; return { items }; },
         takeLaunchAction: async () => { const a = window.__widgetPlan.action; window.__widgetPlan.action = null; return a ? { action: a } : {}; },
+        // Android's folder screen, then what's in the folder (0.202.0).
+        pickMarkdownFolder: async () => window.__widgetPlan.folder || { files: [], cancelled: true },
         addListener: async (ev, cb) => { (window.__cap.widgetListeners[ev] = window.__cap.widgetListeners[ev] || []).push(cb); return { remove() {} }; },
         // Android's notification permission, for habit reminders.
         notificationState: async () => ({ state: window.__widgetPlan.notify || "prompt" }),
@@ -1227,6 +1229,32 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     check("a browser keeps its own scrollbar", await b.page.evaluate(() => !document.querySelector(".page-thumb")));
     errs.push(...b.errs);
     await b.ctx.close();
+  }
+
+  // ---- 16. a folder of Markdown files, through Android's folder screen ----
+  {
+    const { page, ctx, errs: e } = await openApp(browser, { widgets: { queue: [], action: null } });
+    await page.evaluate(() => {
+      window.__widgetPlan.folder = { files: [
+        { name: "Pancakes.md", folder: "Recipes", text: "# Pancakes\nFlour.", lastModified: 1700000000000 },
+        { name: "Loose.md", folder: "", text: "Loose words", lastModified: 1700000000000 },
+      ] };
+      document.querySelector("#settingsBtn").click();
+    });
+    await page.waitForTimeout(300);
+    await page.evaluate(() => document.querySelector('.srow[data-page="io"]').click());
+    await page.waitForTimeout(300);
+    check("the app offers a folder, which its WebView couldn't pick itself", await page.evaluate(() => !document.querySelector("#importMdFolderBtn").hidden));
+    await page.click("#importMdFolderBtn");
+    await page.waitForSelector("#financePickerModal:not([hidden])", { timeout: 4000 });
+    const titles = await page.evaluate(() => [...document.querySelectorAll("#financePickerList .etitle")].map((t) => t.textContent).sort());
+    check("the folder's files come in for review", titles.join() === "Loose,Pancakes", titles);
+    await page.selectOption("#financePickerCatSelect", "\u0000folder");
+    await page.click("#financePickerCatApply");
+    const cats = await page.evaluate(() => [...document.querySelectorAll("#financePickerList .picker-row")].map((r) => (r.querySelector(".ecat") || {}).textContent || ""));
+    check("and each file's folder is there to file it under", cats.sort().join() === ",Recipes", cats);
+    errs.push(...e);
+    await ctx.close();
   }
 
   await browser.close();

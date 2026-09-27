@@ -10,6 +10,8 @@ import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import androidx.activity.result.ActivityResult;
+import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
@@ -24,6 +26,9 @@ import org.json.JSONArray;
  *   takeLaunchAction() what a widget button asked the app to open, once
  *   notePins()         the notes placed note widgets show, which the app
  *                      always sends however many notes there are
+ *   pickMarkdownFolder()
+ *                      Android's folder screen, then the Markdown files in
+ *                      the folder picked (see MarkdownFolder)
  *   notificationState(), askForNotifications(), openNotificationSettings()
  *                      for habit reminders (see Reminders)
  *   biometricState(), authenticate({ title, subtitle })
@@ -179,6 +184,38 @@ public class WidgetsPlugin extends Plugin {
         JSObject ret = new JSObject();
         ret.put("ids", ids);
         call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void pickMarkdownFolder(PluginCall call) {
+        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        startActivityForResult(call, i, "markdownFolderPicked");
+    }
+
+    /** Resolves { files, cancelled }; read off the main thread, as a big folder takes a while. */
+    @ActivityCallback
+    private void markdownFolderPicked(PluginCall call, ActivityResult result) {
+        android.net.Uri tree = result.getResultCode() == android.app.Activity.RESULT_OK && result.getData() != null
+            ? result.getData().getData() : null;
+        if (tree == null) {
+            JSObject ret = new JSObject();
+            ret.put("files", new JSArray());
+            ret.put("cancelled", true);
+            call.resolve(ret);
+            return;
+        }
+        new Thread(() -> {
+            try {
+                JSONArray files = MarkdownFolder.read(getContext().getContentResolver(), tree);
+                JSArray arr = new JSArray();
+                for (int k = 0; k < files.length(); k++) arr.put(files.get(k));
+                JSObject ret = new JSObject();
+                ret.put("files", arr);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("Couldn't read that folder: " + e.getMessage());
+            }
+        }).start();
     }
 
     @PluginMethod

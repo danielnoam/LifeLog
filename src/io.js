@@ -696,6 +696,8 @@
     return { ...note, title, text: words };
   }
   const MD_HINT = "One note per file. Pick which to bring in, and put any of them in a category: select them, choose it below, Apply. Files already in your notes are hidden.";
+  // `files` are browser Files, or what the Android app's folder picker
+  // hands back (0.202.0): { name, folder, text, lastModified }.
   async function importMarkdown(files) {
     const picked = [...files].filter((f) => /\.(md|markdown|txt)$/i.test(f.name));
     if (!picked.length) { toast("No Markdown files in that selection", true); return; }
@@ -703,11 +705,12 @@
     // back line up one to one with these and each can be told its folder.
     const notes = [], folders = [];
     for (const f of picked) {
-      const n = parseMarkdownNote(await f.text(), f.name, f.lastModified);
+      const text = typeof f.text === "function" ? await f.text() : f.text;
+      const n = parseMarkdownNote(text, f.name, f.lastModified);
       if (n.items) n.items = n.items.filter((i) => i.text);
       if (!(n.title || n.text || (n.items || []).length)) continue;
       const parts = String(f.webkitRelativePath || "").split("/");
-      folders.push(parts.length > 2 ? parts[parts.length - 2] : "");
+      folders.push(typeof f.folder === "string" ? f.folder : parts.length > 2 ? parts[parts.length - 2] : "");
       notes.push(n);
     }
     if (!notes.length) { toast("Those files are empty", true); return; }
