@@ -16,15 +16,6 @@ todo:
   milestones. Reminders were there too until the Android app gave them a
   way in; they shipped in 0.183.0.
 
-- **Branch cleanup from a cloud session.** Step 8 of the release checklist
-  (`.claude/skills/release-checklist/SKILL.md`) says to delete finished
-  branches, but a cloud session's git access refuses it (403 on
-  `git push --delete`), and the GitHub tools it has can create branches but
-  not delete them. Either change step 8 to list the finished branches for
-  the owner to delete, or find an access setting that allows it. GitHub's
-  "Automatically delete head branches" only helps with branches merged
-  through a PR, which this repo no longer uses.
-
 ---
 
 Ideas that turned out not to be worth doing, or not to be possible, live in
