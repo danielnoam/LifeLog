@@ -243,6 +243,10 @@
       updatedAt: b.updatedAt || b.createdAt || "1970-01-01T00:00:00.000Z",
       elements: Array.isArray(b.elements) ? b.elements.filter((e) => e && e.id && e.t) : [],
     };
+    // A note category (0.206.0), so a board sits in the feed and in a
+    // collection beside the notes it belongs with.
+    const cat = String(b.category == null ? "" : b.category).trim();
+    if (cat) out.category = cat;
     return out;
   }
 
@@ -325,7 +329,7 @@
   // Versions of boards.json, this device's and GitHub's. Opening one lists
   // its boards against what you have now; any that changed or has gone can
   // be brought back on its own, without rolling the other boards back.
-  const sameBoard = (a, b) => a && b && a.name === b.name && JSON.stringify(a.elements) === JSON.stringify(b.elements);
+  const sameBoard = (a, b) => a && b && a.name === b.name && (a.category || "") === (b.category || "") && JSON.stringify(a.elements) === JSON.stringify(b.elements);
   async function renderHistory(list, status) {
     status.hidden = false;
     status.textContent = "Loading…";
@@ -568,6 +572,7 @@
     editing = b;
     selection = new Set(); undoStack = []; redoStack = []; op = null; pointers.clear(); pinch = null;
     $("#boardName").value = b.name;
+    fillCategory(b.category || "");
     const ov = $("#boardEditor");
     ov.hidden = false;
     fitView();
@@ -594,6 +599,15 @@
     view.x = w / 2 - (b.x + b.w / 2) * view.k;
     view.y = h / 2 - (b.y + b.h / 2) * view.k;
   }
+  // The note categories, for a board to be filed under.
+  function fillCategory(value) {
+    const sel = $("#boardCategory");
+    sel.innerHTML = "";
+    const opt = (v, label) => { const o = document.createElement("option"); o.value = v; o.textContent = label; sel.appendChild(o); };
+    opt("", "No category");
+    for (const c of state.data.noteCategories || []) opt(c.name, c.name);
+    sel.value = (state.data.noteCategories || []).some((c) => c.name === value) ? value : "";
+  }
   function closeBoard() {
     if (!editing) return;
     commitText();
@@ -602,7 +616,8 @@
     editing = null;
     $("#boardEditor").hidden = true;
     flush();
-    if (isBoardsMode()) render();
+    // Boards show in the notes feed too (0.206.0), so any Notes page redraws.
+    if (state.view === "notes") render();
   }
   const isEditing = () => !!editing;
 
@@ -1147,6 +1162,13 @@
       const name = $("#boardName").value.trim() || "Untitled board";
       if (name !== editing.name) { editing.name = name; changed(editing); }
     });
+    $("#boardCategory").addEventListener("change", () => {
+      if (!editing) return;
+      const cat = $("#boardCategory").value;
+      if (cat === (editing.category || "")) return;
+      if (cat) editing.category = cat; else delete editing.category;
+      changed(editing);
+    });
 
     // Closed by anything else — a widget's action clearing the way, say —
     // still saves.
@@ -1160,6 +1182,7 @@
   window.LifeLogBoards = {
     init, wire,
     renderBoards, newBoard, openBoard, closeBoard, isEditing, handleKey, isBoardsMode, renderHistory,
+    thumbnail: (b) => boardSvg(b.elements, { thumb: true }), isLoaded: () => !!doc,
     ensureLoaded, flush, addBoards, boardsForExport, sanitizeBoard, boardsNow: () => boards(),
     // pure helpers (test/boards.test.js)
     simplify, encodePoints, decodePoints, hitTest, bbox, boundsOf, moved, scaled, rotated, penPath, segDist,

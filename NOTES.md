@@ -16,6 +16,20 @@ what was decided against and why.
 
 ---
 
+- **Boards in the feed, and no shelf (0.206.0).** A board joins the notes
+  as a stand-in item keyed `board:<id>` (notes.js boardItems), built from
+  boards.js's own list each render, so boards.json stays the only place a
+  board lives. Only in the All kind (the Boards kind is boards.js's page),
+  and never while selecting — bulk move and delete work on notes, and a
+  board can't be half of that. The stand-in carries no `editedAt`: every
+  stroke updates a board, and "edited" on every card would say nothing.
+  boards.json is loaded the first time the feed wants it, then the feed
+  redraws. A board's `category` is a note category name, kept by
+  sanitizeBoard and compared by sameBoard for history.
+  - The shelf (0.204.0) repeated the chip row. A collection's chip now
+    carries ▦ in its colour and opens the collection on its own: tapping it
+    clears the other chips, and tapping an ordinary chip closes it.
+
 - **Switching Do ↔ Avoid rewrites the marks (0.205.0).** Marks mean
   opposite things in the two kinds (done counts vs slips), so reading the
   old marks under the new kind would turn a week's streak into a week of

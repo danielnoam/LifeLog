@@ -166,10 +166,32 @@
   // the shared search box all narrow this. A category chip keyed "" is the
   // notes with none, as in the to-do list. Under Lists, "Open" narrows to
   // the ones with anything left to tick (0.199.0).
+  // Boards in the feed and in collections (0.206.0): each one as a
+  // note-shaped stand-in, keyed "board:<id>", which the cards know to draw
+  // as a picture and open in the board editor. Only for All — the Boards
+  // kind is boards.js's own page — and not while selecting, since a board
+  // can't be moved or deleted with notes.
+  const BOARD = "board:";
+  const isBoardItem = (n) => n.kind === "board";
+  let boardsAsked = false;
+  function boardItems() {
+    const B = window.LifeLogBoards;
+    if (!B || state.bulk.active) return [];
+    if (!B.isLoaded()) {
+      if (!boardsAsked) { boardsAsked = true; B.ensureLoaded().then(() => render()).catch(() => {}); }
+      return [];
+    }
+    return B.boardsNow().map((b) => ({
+      id: BOARD + b.id, kind: "board", text: b.name, category: b.category,
+      createdAt: b.createdAt || b.updatedAt, updatedAt: b.updatedAt, board: b,
+    }));
+  }
+
   function getFilteredNotes() {
     const q = state.search.trim().toLowerCase();
     const yf = state.activeYears, cf = state.noteActiveCats, kind = state.noteKind;
-    return state.data.notes.filter((n) => {
+    const pool = kind === "" ? state.data.notes.concat(boardItems()) : state.data.notes;
+    return pool.filter((n) => {
       // A collection is by name, not by when: the year chips don't reach it.
       if (yf.size && !openCollection() && !yf.has(noteYear(n))) return false;
       if (cf.size && !cf.has(n.category || "")) return false;
@@ -329,20 +351,16 @@
     if (state.noteKind === "list") root.appendChild(listSubFilter());
   }
 
-  // Under Lists: every list, or only what's left to tick across them.
+  // Under Lists: one switch (0.206.0), on for only what's left to tick.
   function listSubFilter() {
     const open = state.data.notes.reduce((sum, n) => sum + openItems(n).length, 0);
     const row = el("div", "notes-subfilter");
-    row.setAttribute("role", "group");
-    row.setAttribute("aria-label", "Which lists");
-    for (const [on, label] of [[false, "All lists"], [true, "Open items · " + open]]) {
-      const b = el("button", "notes-subkind" + (!!state.noteOpenOnly === on ? " on" : ""), label);
-      b.type = "button";
-      b.setAttribute("aria-pressed", String(!!state.noteOpenOnly === on));
-      if (on) b.title = "Everything left to tick, across every list";
-      b.onclick = () => { state.noteOpenOnly = on; render(); };
-      row.appendChild(b);
-    }
+    const b = el("button", "notes-subkind" + (state.noteOpenOnly ? " on" : ""), "Open items · " + open);
+    b.type = "button";
+    b.setAttribute("aria-pressed", String(!!state.noteOpenOnly));
+    b.title = "Only what's left to tick, across every list";
+    b.onclick = () => { state.noteOpenOnly = !state.noteOpenOnly; render(); };
+    row.appendChild(b);
     return row;
   }
 
@@ -389,6 +407,7 @@
       cat.append(dot, document.createTextNode(n.category));
       stamp.appendChild(cat);
     }
+    if (isBoardItem(n)) return boardCard(card, n, stamp);
     // ★ keeps a note at the top, above the years (0.196.0).
     if (!state.bulk.active) {
       const fav = own(el("button", "note-fav" + (n.fav ? " on" : ""), n.fav ? "★" : "☆"));
@@ -417,6 +436,19 @@
       if (n.title) card.appendChild(el("h4", "note-title", n.title));
       if (n.text) card.appendChild(el("p", "note-text", n.text));
     }
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    return card;
+  }
+
+  // A board in the feed: its stamp and category, its name, its picture.
+  function boardCard(card, n, stamp) {
+    card.classList.add("is-board");
+    card.appendChild(stamp);
+    card.appendChild(el("p", "note-text note-list-title", "✎ " + n.text));
+    const thumb = el("div", "board-thumb-inline");
+    thumb.appendChild(window.LifeLogBoards.thumbnail(n.board));
+    card.appendChild(thumb);
     card.tabIndex = 0;
     card.setAttribute("role", "button");
     return card;
@@ -748,6 +780,7 @@
   function createNoteCard(id) {
     const card = el("div", "note-card");
     const activate = () => {
+      if (card.dataset.id.startsWith(BOARD)) { window.LifeLogBoards.openBoard(card.dataset.id.slice(BOARD.length)); return; }
       // While selecting, a tap is a tick. Opening the editor here would
       // close the selection you were halfway through building.
       if (state.bulk.active) { toggleBulkItem(card.dataset.id); return; }
@@ -763,7 +796,7 @@
     card.onkeydown = (ev) => {
       if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); activate(); }
     };
-    attachLongPressSelect(card, { id });
+    if (!id.startsWith(BOARD)) attachLongPressSelect(card, { id });
     return card;
   }
 
@@ -815,7 +848,6 @@
       root.appendChild(collectionView(coll));
       return;
     }
-    if (feedOnly() && collections().length) root.appendChild(shelf());
     root.appendChild(shell);
 
     const showEmpty = (node) => {
@@ -844,7 +876,7 @@
     const notes = getFilteredNotes();
     if (!notes.length) {
       showEmpty(emptyState(feedOnly() && collections().length
-        ? "Nothing in the feed yet — everything so far is in a collection above."
+        ? "Nothing in the feed yet — everything so far is in a collection (▦ in the categories above)."
         : "No notes match your filters."));
       return;
     }
@@ -1007,6 +1039,14 @@
     const card = el("button", "coll-card");
     card.type = "button";
     card.dataset.id = n.id;
+    if (isBoardItem(n)) {
+      card.appendChild(el("span", "coll-card-title", "✎ " + n.text));
+      const thumb = el("span", "board-thumb-inline");
+      thumb.appendChild(window.LifeLogBoards.thumbnail(n.board));
+      card.appendChild(thumb);
+      card.onclick = () => window.LifeLogBoards.openBoard(n.board.id);
+      return card;
+    }
     const { title, body } = splitTitle(n);
     const kind = kindOf(n);
     card.appendChild(el("span", "coll-card-title", (n.fav ? "★ " : "") + title));
@@ -1019,21 +1059,6 @@
     if (meta) card.appendChild(el("span", "coll-card-meta", meta));
     card.onclick = () => (kind === "list" ? openNoteModal(findList(n.id)) : openNoteReader(n.id));
     return card;
-  }
-
-  // The shelf: each collection, above the feed, one tap from its page.
-  function shelf() {
-    const wrap = el("div", "notes-shelf");
-    for (const c of collections()) {
-      const count = state.data.notes.filter((n) => n.category === c.name).length;
-      const b = el("button", "shelf-card");
-      b.type = "button";
-      const dot = el("span", "dot"); dot.style.background = c.color;
-      b.append(dot, el("span", "shelf-name", c.name), el("span", "shelf-count", String(count)));
-      b.onclick = () => { state.noteActiveCats.clear(); state.noteActiveCats.add(c.name); buildCatFilter(); render(); window.scrollTo(0, 0); };
-      wrap.appendChild(b);
-    }
-    return wrap;
   }
 
   // ---------- reading a note (0.204.0) ----------

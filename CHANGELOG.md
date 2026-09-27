@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.206.0] - 2026-09-27
+
+### Added
+- **Boards have a category, and show in All.** Pick a note category in a
+  board's top bar. Boards now appear in the All feed with your notes, as
+  their picture, and in a collection when their category is one. Boards
+  still has its own page in the Notes switch, with New board.
+
+### Changed
+- **One list of categories.** The shelf of collections above the feed is
+  gone; the category chips already list them. A collection's chip is marked
+  ▦ and opens it when tapped.
+- Under Lists, "Open items" is a single on/off switch; "All lists" is gone.
+- The sort control is on the right in every view, phones included.
+- A habit's type reads just "Do" or "Avoid".
+
 ## [0.205.0] - 2026-09-27
 
 ### Changed

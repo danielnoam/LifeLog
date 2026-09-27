@@ -45,7 +45,8 @@ async function run(b, width) {
   await page.locator(".notes-kind", { hasText: "Lists" }).click();
   await page.waitForTimeout(200);
   const chip = page.locator(".notes-subkind", { hasText: "Open" });
-  check("under Lists, a filter below the bar counts what's left to tick" + at, (await chip.textContent()).trim() === "Open items · 3");
+  check("under Lists, one switch below the bar counts what's left to tick" + at,
+    (await chip.textContent()).trim() === "Open items · 3" && (await page.$$(".notes-subkind")).length === 1);
   await chip.click();
   await page.waitForTimeout(300);
   check("Open shows only the lists with something left, in the to-do widget's order" + at,

@@ -1,5 +1,5 @@
 // Collections (0.204.0): a note category kept by name rather than by date —
-// its notes leave the dated feed for a shelf above it, open as a page of
+// its notes leave the dated feed (its chip, marked ▦, opens them), open as a page of
 // their own, and read as formatted Markdown. At phone and desktop widths.
 const { chromium, BASE, tally } = require("./harness");
 const { check, done } = tally();
@@ -39,14 +39,16 @@ async function run(b, width) {
   const shot = (name) => page.screenshot({ path: require("path").join(require("os").tmpdir(), "coll-" + name + "-" + width + ".png") });
   const feed = () => page.evaluate(() => [...document.querySelectorAll(".note-card:not(.ll-exit)")].map((c) => c.dataset.id).sort());
 
-  check("the shelf shows each collection with how many notes it holds" + at, await page.evaluate(() => {
-    const cards = [...document.querySelectorAll(".shelf-card")];
-    return cards.length === 1 && /Recipes/.test(cards[0].textContent) && /2/.test(cards[0].querySelector(".shelf-count").textContent);
-  }));
+  // No shelf since 0.206.0: the chip row already lists the categories, so a
+  // collection's chip is marked and opens it.
+  const collChip = (name) => page.locator("#catFilter .cat-chip.is-collection", { hasText: name });
+  check("a collection's chip is marked as one, and there's no second list of them" + at, await page.evaluate(() =>
+    [...document.querySelectorAll("#catFilter .cat-chip.is-collection")].map((c) => c.textContent.replace("✎", "").trim()).join() === "▦Recipes"
+    && !document.querySelector(".notes-shelf")));
   check("and the feed keeps only what isn't in one" + at, JSON.stringify(await feed()) === JSON.stringify(["day", "mtg"]), await feed());
   await shot("feed");
 
-  await page.click(".shelf-card");
+  await collChip("Recipes").click();
   await page.waitForTimeout(300);
   check("a collection is a page of cards, by name" + at, await page.evaluate(() =>
     [...document.querySelectorAll(".coll-card-title")].map((t) => t.textContent).join() === "Bread,Pancakes"));
@@ -86,8 +88,16 @@ async function run(b, width) {
 
   await page.click(".coll-head .btn:not(.btn-primary)");
   await page.waitForTimeout(300);
-  check("back to all notes brings the feed and the shelf back" + at,
-    JSON.stringify(await feed()) === JSON.stringify(["day", "mtg"]) && !!(await page.$(".shelf-card")), await feed());
+  check("back to all notes brings the feed back" + at,
+    JSON.stringify(await feed()) === JSON.stringify(["day", "mtg"]), await feed());
+  await page.locator("#catFilter .cat-chip", { hasText: "Work" }).click();
+  await page.waitForTimeout(200);
+  await collChip("Recipes").click();
+  await page.waitForTimeout(300);
+  check("a collection's chip opens it on its own, whatever else was on" + at, await page.evaluate(() =>
+    !!document.querySelector(".coll-head") && [...document.querySelectorAll("#catFilter .cat-chip.on")].length === 1));
+  await page.locator(".coll-head .btn:not(.btn-primary)").click();
+  await page.waitForTimeout(300);
 
   await page.fill("#search", "flour");
   await page.waitForTimeout(400);
@@ -98,8 +108,8 @@ async function run(b, width) {
   await page.check("#noteCatCollection");
   await page.click("#noteCatForm button[type=submit]");
   await page.waitForTimeout(400);
-  check("a category's sheet makes it a collection, and its notes move to the shelf" + at,
-    (await page.evaluate(() => [...document.querySelectorAll(".shelf-card .shelf-name")].map((x) => x.textContent).join())) === "Recipes,Work"
+  check("a category's sheet makes it a collection, and its notes leave the feed" + at,
+    (await page.evaluate(() => document.querySelectorAll("#catFilter .cat-chip.is-collection").length)) === 2
     && JSON.stringify(await feed()) === JSON.stringify(["day"]), await feed());
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).noteCategories.find((c) => c.name === "Work"));
   check("and it's saved on the category" + at, saved.layout === "collection", saved);
@@ -118,7 +128,30 @@ async function run(b, width) {
   await page.waitForTimeout(800);
   check("Board in the note sheet opens a new board to draw on" + at, await page.evaluate(() =>
     !document.querySelector("#boardEditor").hidden && document.querySelector("#noteModal").hidden && window.LifeLogBoards.boardsNow().length === 1));
+  check("a board picks its category in the editor" + at, await page.evaluate(() =>
+    [...document.querySelectorAll("#boardCategory option")].map((o) => o.value).join() === ",Recipes,Work"));
   await page.evaluate(() => window.LifeLogBoards.closeBoard());
+  await page.waitForTimeout(400);
+  await page.locator(".notes-kind", { hasText: "All" }).click();
+  await page.waitForTimeout(400);
+  check("and shows in All with the notes, as its picture" + at, await page.evaluate(() => {
+    const card = [...document.querySelectorAll(".note-card.is-board")];
+    return card.length === 1 && !!card[0].querySelector(".board-thumb-inline svg");
+  }));
+  await page.click(".note-card.is-board");
+  await page.waitForTimeout(400);
+  check("which opens the board" + at, await page.evaluate(() => !document.querySelector("#boardEditor").hidden));
+  await page.selectOption("#boardCategory", "Recipes");
+  await page.evaluate(() => window.LifeLogBoards.closeBoard());
+  await page.waitForTimeout(400);
+  const stored = await page.evaluate(() => window.LifeLogBoards.boardsNow()[0].category);
+  check("filed in a collection, it leaves the feed and joins the collection's cards" + at,
+    stored === "Recipes" && !(await page.$(".note-card.is-board")), stored);
+  await page.locator("#catFilter .cat-chip.is-collection", { hasText: "Recipes" }).click();
+  await page.waitForTimeout(300);
+  check("where it's a card like the notes" + at, await page.evaluate(() =>
+    [...document.querySelectorAll(".coll-card")].some((c) => /✎/.test(c.textContent) && c.querySelector("svg"))));
+  await page.locator(".coll-head .btn:not(.btn-primary)").click();
   await page.waitForTimeout(300);
 
   check("the page doesn't scroll sideways" + at, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
