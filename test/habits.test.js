@@ -406,5 +406,31 @@ test("kept days are every due day less the slips", () => {
   assert.strictEqual(r.done, 8);
 });
 
+test("switching Do → Avoid keeps the streak: missed days become slips, today stays open", () => {
+  const h = H.sanitizeHabit({ name: "Coffee", startedAt: "2026-03-01", marks: { "2026-03-01": 1, "2026-03-03": 1, "2026-03-04": 1, "2026-03-05": 1 } });
+  const before = H.streakOf(h, "2026-03-05");
+  const marks = H.convertMarks(h, true, { limit: 0 }, "2026-03-05");
+  assert.deepStrictEqual(marks, { "2026-03-02": 1 });
+  const after = H.sanitizeHabit({ ...h, avoid: true, limit: 0, marks });
+  assert.strictEqual(H.streakOf(after, "2026-03-05"), before);
+  // Not done yet today under Do: open, not a slip.
+  const open = H.convertMarks(H.sanitizeHabit({ ...h, marks: { "2026-03-04": 1 } }), true, {}, "2026-03-05");
+  assert.ok(!("2026-03-05" in open));
+});
+
+test("switching Avoid → Do keeps it too: kept days become done, slips go", () => {
+  const a = H.sanitizeHabit({ name: "No coffee", avoid: true, limit: 0, startedAt: "2026-03-01", marks: { "2026-03-02": 1 } });
+  const before = H.streakOf(a, "2026-03-05");
+  const marks = H.convertMarks(a, false, { target: 1 }, "2026-03-05");
+  assert.deepStrictEqual(Object.keys(marks).sort(), ["2026-03-01", "2026-03-03", "2026-03-04", "2026-03-05"]);
+  const after = H.sanitizeHabit({ ...a, avoid: false, limit: undefined, marks });
+  assert.strictEqual(H.streakOf(after, "2026-03-05"), before);
+});
+
+test("a switch writes only the days the habit asks for", () => {
+  const h = H.sanitizeHabit({ name: "Gym", cadence: { days: [1, 3] }, startedAt: "2026-03-02", marks: {} }); // Mon/Wed
+  assert.deepStrictEqual(H.convertMarks(h, true, {}, "2026-03-08"), { "2026-03-02": 1, "2026-03-04": 1 });
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

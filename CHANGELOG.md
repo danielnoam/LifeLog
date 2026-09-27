@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.205.0] - 2026-09-27
+
+### Changed
+- **Habits say less.** Each card is its name, how often, and its best run
+  and last-90-days figure as numbers. The lifetime count is in the numbers'
+  tooltip. The button reads "Mark done", "Done", "Kept" or "Slipped", and
+  the explanations in the habit sheet are down to one line.
+- **Switching a habit between Do and Avoid keeps its streak.** Days you did
+  it become days you kept away from it, days you missed become slips, and
+  the other way round. Today stays open if you haven't done it yet.
+- Slips in an avoided habit's grid are an outlined square, so they show on
+  a habit of any colour.
+
 ## [0.204.0] - 2026-09-27
 
 ### Added

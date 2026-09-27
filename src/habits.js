@@ -146,6 +146,29 @@
     return now >= capOf(habit) ? 0 : now + 1;
   }
 
+  // Switching a habit between doing and avoiding (0.205.0) keeps its history
+  // meaning the same thing, so a week's streak is still a week: a day it was
+  // kept stays kept, a day it wasn't becomes a slip, and the other way round.
+  // Today is left open when it was missed — it isn't over — and carried as
+  // done when it was kept, since the streak already counted it. Only due days
+  // are written; everything else asks nothing either way.
+  function convertMarks(habit, toAvoid, { target = 1, limit = 0 } = {}, todayDateStr) {
+    const today = todayDateStr || todayStr();
+    const first = firstMarkOf(habit);
+    let cursor = first && first < habit.startedAt ? first : habit.startedAt;
+    const end = habit.archivedAt && habit.archivedAt < today ? habit.archivedAt : today;
+    const out = {};
+    for (let guard = 0; guard < MAX_DAYS && cursor && cursor <= end; guard++) {
+      if (isDue({ ...habit, startedAt: cursor <= habit.startedAt ? cursor : habit.startedAt }, cursor)) {
+        const kept = isDone(habit, cursor);
+        if (toAvoid && !kept && cursor !== today) out[cursor] = Math.max(0, limit) + 1;
+        if (!toAvoid && kept) out[cursor] = Math.max(1, target);
+      }
+      cursor = addDaysStr(cursor, 1);
+    }
+    return out;
+  }
+
   // ---------- streaks ----------
   // A run of consecutive DUE days that were kept. A weekdays-only habit is
   // not broken by a Saturday, which is the whole reason cadence exists here:
@@ -338,8 +361,7 @@
     if (due.length) {
       const bar = el("div", "habit-today");
       bar.appendChild(el("span", "habit-today-count", kept.length + " of " + due.length));
-      bar.appendChild(el("span", "habit-today-label",
-        kept.length === due.length ? "done today — all of it" : "done today"));
+      bar.appendChild(el("span", "habit-today-label", "today"));
       root.appendChild(bar);
     }
 
@@ -395,25 +417,25 @@
     card.appendChild(head);
 
     const sub = el("div", "habit-sub");
+    // One short line (0.205.0): how often, and the best run and the last
+    // ninety days as numbers. The longer story is the grid's, and a tap
+    // away in the title.
     sub.appendChild(el("span", null, cadenceLabel(h) + (h.avoid
-      ? " · avoiding" + (limitOf(h) ? ", at most " + limitOf(h) + " a day" : "")
-      : h.target > 1 ? " · " + h.target + "× a day" : "")));
+      ? " · avoid" + (limitOf(h) ? " · ≤" + limitOf(h) : "")
+      : h.target > 1 ? " · " + h.target + "×" : "")));
     const best = bestStreakOf(h, today);
     const window90 = statsFor(h, addDaysStr(today, -89), today);
+    const life = statsFor(h, h.startedAt || today, today);
     const bits = [];
     if (best) bits.push("best " + best);
-    if (window90.due) bits.push(Math.round(window90.rate * 100) + "% of the last 90 days");
-    if (bits.length) sub.appendChild(el("span", "habit-sub-right", bits.join(" · ")));
-    card.appendChild(sub);
-
-    // What the card is otherwise silent about: everything longer than the
-    // last ninety days. Backfilling two years of history and watching the
-    // card look exactly as it did is the moment you wonder why you bothered.
-    const life = statsFor(h, h.startedAt || today, today);
-    if (life.due > window90.due) {
-      card.appendChild(el("p", "habit-life",
-        "Since " + prettyDate(h.startedAt) + " · " + life.done + " of " + life.due + " days kept"));
+    if (window90.due) bits.push(Math.round(window90.rate * 100) + "%");
+    if (bits.length) {
+      const right = el("span", "habit-sub-right", bits.join(" · "));
+      right.title = (window90.due ? Math.round(window90.rate * 100) + "% of the last 90 days. " : "")
+        + "Since " + prettyDate(h.startedAt) + ": " + life.done + " of " + life.due + " days kept.";
+      sub.appendChild(right);
     }
+    card.appendChild(sub);
 
     // Today's tick, the one control you use every day. On a habit you avoid
     // it logs a slip instead.
@@ -426,12 +448,12 @@
       btn.dataset.id = h.id;
       btn.appendChild(el("span", "habit-tick-mark", isDone(h, today) ? "✓" : (h.target > 1 ? String(n) : "")));
       btn.appendChild(el("span", "habit-tick-label",
-        h.target > 1 ? n + " of " + h.target + " today" : (isDone(h, today) ? "Done today" : "Tick for today")));
+        h.target > 1 ? n + " of " + h.target : (isDone(h, today) ? "Done" : "Mark done")));
       btn.style.setProperty("--habit-colour", h.color);
       btn.onclick = () => tick(h.id, today);
       card.appendChild(btn);
     } else {
-      card.appendChild(el("p", "habit-notdue", "Not due today — " + cadenceLabel(h)));
+      card.appendChild(el("p", "habit-notdue", "Not due today"));
     }
 
     card.appendChild(grid(h, today));
@@ -445,9 +467,8 @@
     btn.type = "button";
     btn.dataset.id = h.id;
     btn.appendChild(el("span", "habit-tick-mark", !kept ? "✕" : limit ? n + "/" + limit : "✓"));
-    btn.appendChild(el("span", "habit-tick-label", !kept
-      ? (limit ? "Over the limit today — tap to undo" : "Slipped today — tap to undo")
-      : limit ? n + " of at most " + limit + " today — tap to log one" : "Kept so far today — tap if you slipped"));
+    btn.appendChild(el("span", "habit-tick-label", !kept ? "Slipped" : limit ? n + " of " + limit : "Kept"));
+    btn.title = kept ? "Tap to log a slip" : "Tap to undo";
     btn.style.setProperty("--habit-colour", h.color);
     btn.onclick = () => tick(h.id, today);
     return btn;
@@ -847,7 +868,12 @@
       if (h) {
         const wasFrom = h.startedAt;
         undo = snapshot(h);
+        // Do ↔ Avoid: the history is carried across, not reread (see
+        // convertMarks), before the habit takes its new shape.
+        const switched = !!h.avoid !== avoid;
+        const carried = switched ? convertMarks(h, avoid, { target: shape.target, limit: shape.limit || 0 }) : null;
         Object.assign(h, shape);
+        if (carried) { if (Object.keys(carried).length) h.marks = carried; else delete h.marks; }
         if (!avoid) { delete h.avoid; delete h.limit; }
         // Moving the start back uncovers days that now ask for something and
         // have nothing recorded. Ticking fifty cells by hand is the
@@ -958,7 +984,7 @@
     sanitizeHabit,
     getFilteredHabits,
     // pure, and the point of the feature — see test/habits.test.js
-    isDue, cadenceLabel, markOf, isDone, nextMark, capOf, limitOf,
+    isDue, cadenceLabel, markOf, isDone, nextMark, capOf, limitOf, convertMarks,
     streakOf, bestStreakOf, runBefore, statsFor, blankDaysBetween,
     dueBetween, keptBetween, dueDaysBetween, orphanedMarks, firstMarkOf,
     windowStart, maxOffset, rangeLabel, prettyDate, GRID_WEEKS,

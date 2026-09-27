@@ -16,6 +16,16 @@ what was decided against and why.
 
 ---
 
+- **Switching Do ↔ Avoid rewrites the marks (0.205.0).** Marks mean
+  opposite things in the two kinds (done counts vs slips), so reading the
+  old marks under the new kind would turn a week's streak into a week of
+  slips. convertMarks walks the due days from the start (or the earliest
+  mark) to today and writes what the new kind needs for the same kept/not
+  kept outcome. Today: a missed one isn't made a slip (the day isn't over),
+  and a kept one is written as done, since the streak already counted it —
+  so a Do habit not yet done today shows one more going to Avoid, where
+  today is "kept so far". The save's Undo puts the old marks back.
+
 - **Collections, the reader, and Boards as a kind (0.204.0).**
   - The feed was made for daily notes; reference notes (recipes, software)
     had nothing but a date to be found by. Every serious notes app splits

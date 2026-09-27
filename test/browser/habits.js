@@ -110,7 +110,7 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
       label: document.querySelector(".habit-tick").innerText.replace(/\s+/g, " "),
       done: document.querySelector(".habit-tick").classList.contains("is-done"),
     }));
-    check("it starts at none of the target", /0 of 3 today/.test((await read()).label), (await read()).label);
+    check("it starts at none of the target", /0 of 3/.test((await read()).label), (await read()).label);
     for (const want of [1, 2, 3]) {
       await page.click(".habit-tick");
       await page.waitForTimeout(400);
@@ -121,7 +121,7 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     await page.click(".habit-tick");
     await page.waitForTimeout(400);
     check("and one more tap wraps back round to none",
-      /0 of 3 today/.test((await read()).label), (await read()).label);
+      /0 of 3/.test((await read()).label), (await read()).label);
     errs.push(...e);
     await ctx.close();
   }
@@ -240,7 +240,7 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
       active: (document.querySelector("#viewTabs .tab.active") || {}).dataset,
     }));
     check("habits has no tab of its own", !bar.tabs.includes("habits") && bar.tabs.length === 4, bar.tabs);
-    check("it is one of Notes' modes", bar.notesDots === 3 && bar.active.view === "notes", bar);
+    check("it is one of Notes' modes", bar.notesDots === 2 && bar.active.view === "notes", bar);
     check("and the card still renders there", await page.evaluate(() => !!document.querySelector(".habit-card")));
 
     // Anyone who left the app on 0.171.0's tab has view: "habits" saved.
@@ -409,10 +409,11 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     const { page, ctx, errs: e } = await app(browser, [habit({ startedAt: back(200), marks })]);
     await page.waitForSelector(".habit-card", { timeout: 8000 });
     const life = await page.evaluate(() => {
-      const n = document.querySelector(".habit-life");
-      return n ? n.textContent : null;
+      const n = document.querySelector(".habit-sub-right");
+      return n ? n.title : null;
     });
-    // 200 days of life, 150 of them kept — none of which the 90-day figure says.
+    // 200 days of life, 150 of them kept — none of which the 90-day figure
+    // says. Since 0.205.0 that's the numbers' tooltip, not a line of its own.
     check("a habit older than the 90-day window says how long and how much",
       life && /Since /.test(life) && /150 of 201 days kept/.test(life), life);
     await ctx.close();
@@ -423,7 +424,7 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
   {
     const { page, ctx, errs: e } = await app(browser, [habit({ startedAt: back(20) })]);
     await page.waitForSelector(".habit-card", { timeout: 8000 });
-    check("a young habit gets no lifetime line, because it would repeat the other one",
+    check("no habit gets a lifetime line on the card (0.205.0): the card stays short",
       await page.evaluate(() => !document.querySelector(".habit-life")));
     await ctx.close();
     errs.push(...e);
@@ -673,6 +674,37 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     await page.waitForTimeout(300);
     h = (await stored(page))[0];
     check("another tap takes it back", !h.marks, h);
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 13. switching Do ↔ Avoid keeps the streak (0.205.0) ----
+  {
+    const marks = {};
+    for (let i = 1; i <= 7; i++) marks[back(i)] = 1;
+    marks[back(9)] = 1; // the 8th back was missed
+    const { page, ctx, errs: e } = await app(browser, [habit({ name: "Coffee", startedAt: back(12), marks })]);
+    await page.waitForSelector(".habit-card", { timeout: 8000 });
+    const streak = () => page.evaluate(() => (document.querySelector(".habit-streak") || {}).textContent || "");
+    const before = await streak();
+    await page.click(".habit-name");
+    await page.selectOption("#habitKind", "avoid");
+    await page.click("#habitForm button[type=submit]");
+    await page.waitForTimeout(400);
+    const h = (await stored(page))[0];
+    // One more at most: today, not yet done as a habit you do, counts as kept
+    // so far as one you avoid.
+    const after = await streak();
+    check("Do → Avoid keeps the streak the card showed, today now counting as kept so far",
+      /7/.test(before) && /8/.test(after), { before, after });
+    check("the days that were missed are slips now, and today is still open",
+      h.avoid && h.marks[back(8)] === 1 && !h.marks[back(1)] && !h.marks[TODAY], h.marks);
+    await page.click(".habit-name");
+    await page.selectOption("#habitKind", "do");
+    await page.click("#habitForm button[type=submit]");
+    await page.waitForTimeout(400);
+    const back2 = (await stored(page))[0];
+    check("and back to Do keeps it too", /7|8/.test(await streak()) && !back2.avoid && back2.marks[back(1)] === 1 && !back2.marks[back(8)], { s: await streak(), m: back2.marks });
     errs.push(...e);
     await ctx.close();
   }

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.204.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.205.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -916,7 +916,7 @@
         <label>This is something to
           <select id="habitKind">
             <option value="do">Do</option>
-            <option value="avoid">Avoid — a day is kept unless you log a slip</option>
+            <option value="avoid">Avoid — tap only when you slip</option>
           </select>
         </label>
         <div class="field-row">
@@ -956,10 +956,7 @@
         <label class="toggle-label" id="habitFillLabel" hidden>
           <input type="checkbox" id="habitFill" /><span id="habitFillText"></span>
         </label>
-        <p class="hint">A day you never promised doesn't break a streak — a
-          weekdays habit survives the weekend untouched. Today never counts
-          against you until it's over. To fix a run of days at once, hold one
-          day in the grid and then tap the day the run ends on.</p>
+        <p class="hint">Hold a day in the grid, then tap another, to fill the run between.</p>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteHabitBtn" hidden>Delete</button>
           <button type="button" class="btn" id="archiveHabitBtn" hidden>⏸ Archive</button>
@@ -1753,27 +1750,27 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.204.0"></script>
-  <script defer src="src/reconcile.js?v=0.204.0"></script>
-  <script defer src="src/qr.js?v=0.204.0"></script>
-  <script defer src="src/media.js?v=0.204.0"></script>
-  <script defer src="src/merge.js?v=0.204.0"></script>
-  <script defer src="src/storage.js?v=0.204.0"></script>
-  <script defer src="src/finance.js?v=0.204.0"></script>
-  <script defer src="src/settings.js?v=0.204.0"></script>
-  <script defer src="src/wheel.js?v=0.204.0"></script>
-  <script defer src="src/backlog.js?v=0.204.0"></script>
-  <script defer src="src/journal.js?v=0.204.0"></script>
-  <script defer src="src/markdown.js?v=0.204.0"></script>
-  <script defer src="src/notes.js?v=0.204.0"></script>
-  <script defer src="src/io.js?v=0.204.0"></script>
-  <script defer src="src/sync.js?v=0.204.0"></script>
-  <script defer src="src/habits.js?v=0.204.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.204.0"></script>
-  <script defer src="src/boards.js?v=0.204.0"></script>
-  <script defer src="src/recap.js?v=0.204.0"></script>
-  <script defer src="src/reminders.js?v=0.204.0"></script>
-  <script defer src="src/widgets.js?v=0.204.0"></script>
-  <script defer src="src/app.js?v=0.204.0"></script>
+  <script defer src="src/platform.js?v=0.205.0"></script>
+  <script defer src="src/reconcile.js?v=0.205.0"></script>
+  <script defer src="src/qr.js?v=0.205.0"></script>
+  <script defer src="src/media.js?v=0.205.0"></script>
+  <script defer src="src/merge.js?v=0.205.0"></script>
+  <script defer src="src/storage.js?v=0.205.0"></script>
+  <script defer src="src/finance.js?v=0.205.0"></script>
+  <script defer src="src/settings.js?v=0.205.0"></script>
+  <script defer src="src/wheel.js?v=0.205.0"></script>
+  <script defer src="src/backlog.js?v=0.205.0"></script>
+  <script defer src="src/journal.js?v=0.205.0"></script>
+  <script defer src="src/markdown.js?v=0.205.0"></script>
+  <script defer src="src/notes.js?v=0.205.0"></script>
+  <script defer src="src/io.js?v=0.205.0"></script>
+  <script defer src="src/sync.js?v=0.205.0"></script>
+  <script defer src="src/habits.js?v=0.205.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.205.0"></script>
+  <script defer src="src/boards.js?v=0.205.0"></script>
+  <script defer src="src/recap.js?v=0.205.0"></script>
+  <script defer src="src/reminders.js?v=0.205.0"></script>
+  <script defer src="src/widgets.js?v=0.205.0"></script>
+  <script defer src="src/app.js?v=0.205.0"></script>
 </body>
 </html>
