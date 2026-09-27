@@ -25,15 +25,6 @@ todo:
   "Automatically delete head branches" only helps with branches merged
   through a PR, which this repo no longer uses.
 
-- **Check the new widgets on a phone.** 0.199.0's note, random note and
-  To-do list choice, and 0.201.0's settings screens for every widget, were
-  compiled and unit-tested against Android 15's classes, but nothing here
-  can place a widget. The part most likely to
-  misbehave: tapping a list's name on a To-do widget showing several lists
-  starts the app from the widget's broadcast receiver (see NOTES.md). If a
-  launcher blocks that, the fallback is a transparent trampoline activity
-  as the list's click template.
-
 ---
 
 Ideas that turned out not to be worth doing, or not to be possible, live in

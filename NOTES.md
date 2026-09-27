@@ -99,8 +99,9 @@ what was decided against and why.
     click template, which has to be a broadcast so ticks stay on the home
     screen. So a heading's tap is a broadcast that calls startActivity. The
     widget host's click is what allows the receiver to do that. It's the
-    one part of this release that couldn't be checked off a real phone
-    (TODO.md). Empty lists get a panel (from the snapshot's `lists`), or a
+    one part of this release that couldn't be checked off a real phone; if
+    a launcher blocks it, the fallback is a transparent trampoline activity
+    as the list's click template. Empty lists get a panel (from the snapshot's `lists`), or a
     widget of empty lists would have nowhere to add from.
   - "Quick add goes here" went: a To-do widget set to one list is where that
     choice belongs, and a switch in the sheet that did nothing visible read
