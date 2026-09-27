@@ -16,6 +16,32 @@ what was decided against and why.
 
 ---
 
+- **Edits made while boot's sync finishes are merged in, not replaced
+  (0.200.0).** Storage.load reads this device's copy through getLocal and
+  then still awaits GitHub's save of the merge, the file backup and the
+  history entry. reconcileFromSources used to assign load()'s result over
+  state.data, so anything changed in that window was lost, and persist(),
+  held behind the reconcile, then compared the result to itself and found
+  nothing to stamp. The widget's ticks are the edit that always lands in
+  that window: drain() runs as the app opens. The fix keeps a clone of what
+  getLocal handed over and, if state.data has moved since, merges it three
+  ways (ancestor = that clone) onto the result; lastPersistedSnapshot is set
+  to load()'s result, not the re-merged one, so the queued save stamps what
+  came in during the wait. An entry edited in place had survived by luck:
+  the merge hands back this device's own objects, so an in-place change
+  rode along. Habits' marks come out of mergeMarks as new objects, which is
+  why ticks were the ones lost (bootcache.js 3c and 3d).
+
+- **Markdown import (0.200.0).** parseMarkdownNote in io.js; one file, one
+  note, through the same review sheet and duplicate check as JSON and CSV.
+  A note's dup key now includes its title, or a titled note with no words
+  would have had no key at all. The sheet gained a category bar (only for
+  this import) because a folder of loose files has no categories to offer.
+  "Each file's folder" leaves a file that sits straight in the picked
+  folder as it was rather than clearing its category. The folder picker is
+  web-only (`webkitdirectory` doesn't exist in Android's WebView); files
+  work in both.
+
 - **Open items, note widgets, lists chosen for the To-do widget (0.199.0).**
   - "Open" isn't a kind: it's a filter under Lists (`state.noteOpenOnly`,
     a row below the kind switch that only Lists shows), filtering to

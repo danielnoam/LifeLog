@@ -25,6 +25,17 @@ todo:
   "Automatically delete head branches" only helps with branches merged
   through a PR, which this repo no longer uses.
 
+- **Better widget settings.** Each widget's settings screen (0.199.0 gave
+  the note, random note and To-do widgets one) could say more about how it
+  looks, not just what it shows:
+  - To-do: whether the header shows the "N to do" count (it always does
+    now), and whether finished items show under "N done".
+  - Quick add: which of its buttons it has, each optional, rather than
+    following which tabs are on. It has no settings screen yet.
+  - Habits: the same kind of thing — the streak, the "N of M today" line.
+  Settings live per placed widget in `widget:<id>` (WidgetStore.config), so
+  each copy of a widget can differ.
+
 - **Check the new widgets on a phone.** 0.199.0's note, random note and
   To-do list choice were compiled and unit-tested against Android 15's
   classes, but nothing here can place a widget. The part most likely to

@@ -89,6 +89,55 @@ function test(name, fn) {
 }
 
 // ---------- parseCsv ----------
+// ---------- Markdown files as notes (0.200.0) ----------
+const { parseMarkdownNote } = IO;
+test("a Markdown file's leading heading is its title and the rest its words", () => {
+  const n = parseMarkdownNote("# Trip ideas\n\nLisbon in **May**\n- trams", "trips.md", Date.UTC(2025, 4, 1));
+  assert.strictEqual(n.title, "Trip ideas");
+  assert.strictEqual(n.text, "Lisbon in **May**\n- trams");
+  assert.strictEqual(n.createdAt, "2025-05-01T00:00:00.000Z");
+});
+test("without a heading the file's name is the title, its folder dropped", () => {
+  const n = parseMarkdownNote("Just words", "Journal/2024 thoughts.md", 0);
+  assert.strictEqual(n.title, "2024 thoughts");
+  assert.strictEqual(n.text, "Just words");
+});
+test("front matter gives the title, date and category, and isn't part of the words", () => {
+  const n = parseMarkdownNote("---\ntitle: \"Real title\"\ndate: 2023-02-03\ncategory: Ideas\ntags: [a]\n---\n# Real title\nBody", "x.md", Date.UTC(2026, 0, 1));
+  assert.strictEqual(n.title, "Real title");
+  assert.strictEqual(n.text, "Body");
+  assert.strictEqual(n.category, "Ideas");
+  assert.strictEqual(n.createdAt.slice(0, 10), "2023-02-03");
+});
+test("a heading that isn't the front matter's title stays in the words", () => {
+  const n = parseMarkdownNote("---\ntitle: A\n---\n# B\ntext", "x.md", 0);
+  assert.strictEqual(n.title, "A");
+  assert.strictEqual(n.text, "# B\ntext");
+});
+test("a file of nothing but tasks is a list, ticks kept", () => {
+  const n = parseMarkdownNote("# Packing\n- [ ] Passport\n- [x] Charger\n* [X] Socks\n", "p.md", 0);
+  assert.strictEqual(n.kind, "list");
+  assert.strictEqual(n.text, "Packing");
+  assert.deepStrictEqual(n.items, [{ text: "Passport" }, { text: "Charger", done: true }, { text: "Socks", done: true }]);
+});
+test("a file of nothing but a blockquote is a quote, with its author", () => {
+  const n = parseMarkdownNote("> Stay hungry.\n> Stay foolish.\n> — Steve Jobs", "q.md", 0);
+  assert.strictEqual(n.kind, "quote");
+  assert.strictEqual(n.text, "Stay hungry.\nStay foolish.");
+  assert.strictEqual(n.author, "Steve Jobs");
+});
+test("Windows line endings and a byte-order mark don't leak into the note", () => {
+  const n = parseMarkdownNote("\uFEFF# T\r\nline one\r\nline two", "t.md", 0);
+  assert.strictEqual(n.title, "T");
+  assert.strictEqual(n.text, "line one\nline two");
+});
+test("an imported Markdown note already in your notes is a duplicate, title and all", () => {
+  state.data.notes = [{ id: "n1", title: "Same", text: "words", createdAt: "2026-01-01T00:00:00.000Z" }];
+  const built = buildImportItems({ notes: [parseMarkdownNote("# Same\nwords", "s.md", 0), parseMarkdownNote("# Other\nwords", "o.md", 0)] }, ["note"]);
+  assert.deepStrictEqual(built.items.map((i) => i.dup), [true, false]);
+  state.data.notes = [];
+});
+
 test("parseCsv splits plain rows on commas and newlines", () => {
   const rows = parseCsv("a,b,c\n1,2,3");
   assert.deepStrictEqual(rows, [["a", "b", "c"], ["1", "2", "3"]]);

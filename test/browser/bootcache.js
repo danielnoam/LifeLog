@@ -25,26 +25,27 @@ const doc = (entries, exportedAt) => ({
 
 const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branch: "main", token: "ghp_fake", sha: "sha-old" };
 
-async function openApp(browser, { cache, remote, latencyMs, connected = true }) {
+async function openApp(browser, { cache, remote, latencyMs, connected = true, putLatencyMs = 0, ui = { view: "timeline", timelineMode: "timeline" } }) {
   const ctx = await browser.newContext({ viewport: { width: 460, height: 1100 }, serviceWorkers: "block" });
   const page = await ctx.newPage();
   const errs = [];
   page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/404|Failed to load resource/.test(m.text())) errs.push("console: " + m.text()); });
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
-  await page.evaluate(({ cache, gh, connected }) => {
-    localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "timeline", timelineMode: "timeline" }));
+  await page.evaluate(({ cache, gh, connected, ui }) => {
+    localStorage.setItem("lifelog-ui-v1", JSON.stringify(ui));
     localStorage.setItem("lifelog-cache-v1", JSON.stringify(cache));
     localStorage.setItem("lifelog-sync-base-v1", JSON.stringify(cache));
     localStorage.removeItem("lifelog-visual-settings-v1");
     if (connected) localStorage.setItem("lifelog-github-v1", JSON.stringify(gh));
     else localStorage.removeItem("lifelog-github-v1");
-  }, { cache, gh: GH, connected });
+  }, { cache, gh: GH, connected, ui });
 
   const puts = [];
   await page.route("https://api.github.com/**", async (route) => {
     const req = route.request();
     if (req.method() === "PUT") {
+      if (putLatencyMs) await new Promise((r) => setTimeout(r, putLatencyMs));
       puts.push(JSON.parse(Buffer.from(JSON.parse(req.postData()).content, "base64").toString()));
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ content: { sha: "sha-new" } }) });
     }
@@ -139,6 +140,64 @@ const titles = (page) => page.evaluate(() => [...document.querySelectorAll(".ent
     const after = await titles(page);
     check("an edit made during the wait outranks the remote's older edit",
       after.includes("Local Edit") && !after.includes("Remote Edit"), after);
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 3c. an edit made while the boot merge is being written back ----
+  // (0.199.1) load() reads this device's copy, then still has GitHub's save
+  // of the merge, the file backup and the history entry to wait on. An edit
+  // in that window — a widget's ticks, applied the moment the app opens, are
+  // the usual one — was overwritten by the merge's result when it returned,
+  // and the save it had queued then saw nothing to stamp.
+  {
+    const cached = doc([entry("a", "Original", "2026-03-01T00:00:00.000Z")], "2026-03-01T00:00:00.000Z");
+    const remote = doc([entry("a", "Original", "2026-03-01T00:00:00.000Z"),
+                        entry("b", "Remote Only", "2026-03-02T00:00:00.000Z")], "2026-03-02T00:00:00.000Z");
+    const { page, ctx, errs: e, puts } = await openApp(browser, { cache: cached, remote, latencyMs: 50, putLatencyMs: 2500 });
+    await page.waitForSelector(".entry", { timeout: 2000 });
+    await page.waitForTimeout(600); // GitHub has answered; its merge is being saved
+    await page.click(".entry .etitle");
+    await page.waitForSelector("#entryModal:not([hidden])", { timeout: 4000 });
+    await page.fill("#fTitle", "Edited During The Save");
+    await page.click("#entryForm button[type=submit]");
+    await page.waitForSelector("#entryModal", { state: "hidden", timeout: 4000 });
+    await page.waitForFunction(() => document.body.innerText.includes("Remote Only"), null, { timeout: 20000 });
+    await page.waitForTimeout(6000); // past the slow save and the one queued behind it
+    const after = await titles(page);
+    check("an edit made while the boot merge is saving survives it",
+      after.includes("Edited During The Save") && after.some((t) => /Remote Only/.test(t)), after);
+    const lastPut = puts[puts.length - 1];
+    check("and is written to GitHub after it",
+      !!lastPut && lastPut.entries.some((x) => x.title === "Edited During The Save"),
+      lastPut && lastPut.entries.map((x) => x.title));
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 3d. the same, with a habit's tick — the widget's case ----
+  // An entry survived 3c by luck: the merge hands back the very objects this
+  // device had, so an edit made to one in place rode along. A habit's marks
+  // come out of the merge as a new object, so a tick made in the window was
+  // simply gone.
+  {
+    const pad = (n) => String(n).padStart(2, "0");
+    const now = new Date(), today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const habit = { id: "h1", name: "Read", target: 1, cadence: "daily", startedAt: "2026-01-01", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" };
+    const cached = { ...doc([], "2026-03-01T00:00:00.000Z"), habits: [habit] };
+    const remote = { ...doc([entry("b", "Remote Only", "2026-03-02T00:00:00.000Z")], "2026-03-02T00:00:00.000Z"), habits: [habit] };
+    const { page, ctx, errs: e, puts } = await openApp(browser, { cache: cached, remote, latencyMs: 50, putLatencyMs: 2500,
+      ui: { view: "notes", notesMode: "habits" } });
+    await page.waitForSelector(".habit-tick", { timeout: 4000 });
+    await page.waitForTimeout(600);
+    await page.click(".habit-tick");
+    await page.waitForTimeout(7000);
+    const d = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+    check("a habit ticked while the boot merge is saving stays ticked",
+      !!(d.habits[0].marks && d.habits[0].marks[today]), d.habits[0]);
+    const lastPut = puts[puts.length - 1];
+    check("and the tick reaches GitHub",
+      !!lastPut && !!(lastPut.habits[0].marks && lastPut.habits[0].marks[today]), lastPut && lastPut.habits);
     errs.push(...e);
     await ctx.close();
   }

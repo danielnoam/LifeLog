@@ -4,6 +4,25 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.200.0] - 2026-09-27
+
+### Added
+- **Import Markdown files as notes.** Settings → Import & export → Notes →
+  Markdown files: pick any number of .md files, or a whole folder on a
+  computer. Each file becomes a note titled by its first "# heading" or its
+  file name. A file of nothing but "- [ ]" tasks becomes a list, and one of
+  nothing but "> " lines becomes a quote. Front matter's title, date and
+  category are used when a file has them. Before anything comes in you pick
+  which files to import, and can put the selected ones in a category: one
+  you have, a new one, or each file's own folder. Files already in your
+  notes are hidden.
+
+### Fixed
+- A habit ticked on a home-screen widget could come undone when you opened
+  the app. The ticks were applied while the app was still syncing at
+  startup, and the sync's result then replaced them. Anything changed
+  while that sync finishes is now merged in instead.
+
 ## [0.199.0] - 2026-09-26
 
 ### Added

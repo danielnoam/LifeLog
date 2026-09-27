@@ -133,7 +133,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.199.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.200.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3195,6 +3195,7 @@
     // load() takes GitHub's sha and moves the merge ancestor as it reads.
     // If what it read can't be taken in below, both go back — see checkRemote.
     const point = Storage.syncPoint();
+    let taken = null; // this device's copy as load() read it
     try {
       result = await Storage.load(() => {
         // The live document has to carry accurate timestamps before it can be
@@ -3204,6 +3205,7 @@
         // base, so the merge takes the remote's older copy and the edit
         // silently reverts. That is a real failure; bootcache.js covers it.
         if (window.LifeLogMerge) window.LifeLogMerge.stampChangedItems(lastPersistedSnapshot, state.data);
+        taken = structuredClone(state.data);
         return state.data;
       });
     } catch (e) {
@@ -3237,13 +3239,27 @@
     // pollForUpdates has always merged on — normalize() is deterministic and
     // additive by design (see backfillUpdatedAt), so this is boot behaving
     // like a poll rather than a new hazard.
-    const next = result.data ? normalize(result.data) : state.data;
+    let next = result.data ? normalize(result.data) : state.data;
+    // load() still had GitHub's save of the merge, the file backup and the
+    // history to wait on after it read this device's copy, and anything done
+    // in that time — a widget's ticks, applied the moment the app opens, most
+    // of all (0.199.1) — isn't in its result. Taken in on top of it, three
+    // ways, with what load() read as the ancestor; the save that change
+    // queued then writes the lot.
+    const base = next;
+    if (taken && next !== state.data && window.LifeLogMerge
+        && window.LifeLogMerge.diffSnapshots(taken, state.data) !== "No changes") {
+      window.LifeLogMerge.stampChangedItems(taken, state.data);
+      next = normalize(window.LifeLogMerge.mergeAllSources(taken, state.data, next));
+    }
     const summary = window.LifeLogMerge
       ? window.LifeLogMerge.diffSnapshots(state.data, next) : null;
     const changed = summary == null ? result.data !== state.data : summary !== "No changes";
     if (changed) {
       state.data = next;
-      lastPersistedSnapshot = structuredClone(state.data);
+      // Against what load() settled on, so the save queued for what came in
+      // during the wait still sees it as a change and stamps it.
+      lastPersistedSnapshot = structuredClone(base);
       afterDataChange();
       noticeVersionSkew();
     }
@@ -3802,6 +3818,15 @@
     });
     $("#importTabJsonInput").onchange = (e) => { if (e.target.files[0]) IO.importJson(e.target.files[0], importTab); e.target.value = ""; };
     $("#importTabCsvInput").onchange = (e) => { if (e.target.files[0]) IO.importTabCsv(e.target.files[0], importTab); e.target.value = ""; };
+    $("#importMdBtn").onclick = () => $("#importMdInput").click();
+    $("#importMdFolderBtn").onclick = () => $("#importMdFolderInput").click();
+    for (const id of ["#importMdInput", "#importMdFolderInput"]) {
+      $(id).onchange = (e) => {
+        const files = [...e.target.files];
+        e.target.value = "";
+        if (files.length) IO.importMarkdown(files).catch((err) => toast("Import failed: " + (err.message || err), true));
+      };
+    }
 
 
     // close modals on overlay click / Escape (the conflict picker is modal —

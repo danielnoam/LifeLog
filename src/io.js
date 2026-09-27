@@ -490,7 +490,7 @@
     };
     // A checklist can be items and no title, so its items are part of what
     // it's called and what it matches on.
-    const noteWords = (n) => [n.text, ...(n.items || []).map((i) => i.text)].join("\n");
+    const noteWords = (n) => [n.title, n.text, ...(n.items || []).map((i) => i.text)].filter(Boolean).join("\n");
     if (want("note")) simple("note", incoming.notes || [], sanitizeNote, noteWords, (n) => low(noteWords(n)), state.data.notes || []);
     // A to-do you already have is an item of a list note now (0.197.0): the
     // same id, or the same words in the list its category became.
@@ -650,6 +650,77 @@
     });
   }
   const IMPORT_HINT = "Review what to bring in — pick individual items, toggle whole periods on/off, and choose which new categories to add. Items already in your data are hidden by default.";
+  // ---------- Markdown files as notes (0.200.0) ----------
+  // One file, one note. The title is the front matter's `title`, else a
+  // leading "# heading", else the file's name; a file that's nothing but
+  // "- [ ]" tasks is a list, and one that's nothing but "> " lines a quote
+  // (a last "— Name" line its author). The date is the front matter's
+  // `date` or `created`, else when the file was last changed; `category`
+  // there files it. The words stay as the Markdown they were written in.
+  const MD_TASK = /^\s*[-*+]\s+\[( |x|X)\]\s+(.*)$/;
+  function parseMarkdownNote(text, fileName, lastModified) {
+    let body = String(text == null ? "" : text).replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
+    const meta = {};
+    const fm = /^---\n([\s\S]*?)\n---[ \t]*(\n|$)/.exec(body);
+    if (fm) {
+      body = body.slice(fm[0].length);
+      for (const line of fm[1].split("\n")) {
+        const m = /^([A-Za-z][\w-]*):\s*(.*)$/.exec(line);
+        if (m) meta[m[1].toLowerCase()] = m[2].trim().replace(/^(["'])(.*)\1$/, "$2");
+      }
+    }
+    const lines = body.split("\n");
+    let title = meta.title || "";
+    const first = lines.findIndex((l) => l.trim());
+    const heading = first >= 0 ? /^#\s+(.+?)\s*#*$/.exec(lines[first].trim()) : null;
+    if (heading && (!title || heading[1] === title)) { title = heading[1]; lines.splice(first, 1); }
+    if (!title) title = String(fileName || "").replace(/^.*[\\/]/, "").replace(/\.(md|markdown|txt)$/i, "").trim();
+    const words = lines.join("\n").trim();
+    const filled = words.split("\n").filter((l) => l.trim());
+
+    const when = new Date(meta.date || meta.created || lastModified || NaN);
+    const note = { createdAt: isNaN(when) ? null : when.toISOString() };
+    if (meta.category) note.category = meta.category;
+    if (filled.length && filled.every((l) => MD_TASK.test(l))) {
+      return { ...note, kind: "list", text: title,
+        items: filled.map((l) => { const m = MD_TASK.exec(l); return m[1] === " " ? { text: m[2].trim() } : { text: m[2].trim(), done: true }; }) };
+    }
+    if (filled.length && filled.every((l) => /^\s*>/.test(l))) {
+      const quoted = filled.map((l) => l.replace(/^\s*>\s?/, ""));
+      const by = /^\s*(?:—|–|--?)\s*(.+)$/.exec(quoted[quoted.length - 1]);
+      if (by && quoted.length > 1) quoted.pop();
+      const q = { ...note, kind: "quote", text: quoted.join("\n").trim() };
+      if (by && quoted.length) q.author = by[1].trim();
+      return q;
+    }
+    return { ...note, title, text: words };
+  }
+  const MD_HINT = "One note per file. Pick which to bring in, and put any of them in a category: select them, choose it below, Apply. Files already in your notes are hidden.";
+  async function importMarkdown(files) {
+    const picked = [...files].filter((f) => /\.(md|markdown|txt)$/i.test(f.name));
+    if (!picked.length) { toast("No Markdown files in that selection", true); return; }
+    // Only notes with something in them, so the rows buildImportItems hands
+    // back line up one to one with these and each can be told its folder.
+    const notes = [], folders = [];
+    for (const f of picked) {
+      const n = parseMarkdownNote(await f.text(), f.name, f.lastModified);
+      if (n.items) n.items = n.items.filter((i) => i.text);
+      if (!(n.title || n.text || (n.items || []).length)) continue;
+      const parts = String(f.webkitRelativePath || "").split("/");
+      folders.push(parts.length > 2 ? parts[parts.length - 2] : "");
+      notes.push(n);
+    }
+    if (!notes.length) { toast("Those files are empty", true); return; }
+    const built = buildImportItems({ notes }, ["note"]);
+    if (built.items.length === notes.length) built.items.forEach((it, i) => { it.folder = folders[i]; });
+    openImportPicker({
+      title: `Import ${picked.length} Markdown file${picked.length === 1 ? "" : "s"}`,
+      hint: MD_HINT, mode: "import", items: built.items, newCategories: built.newCategories,
+      confirmLabel: "Import", searchable: picked.length > 8, categorize: "note",
+      onConfirm: applyImportSelection,
+    });
+  }
+
   function readFile(file, then) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -764,7 +835,7 @@
         : item.kind === "habit" ? (e.startedAt || "") : "—";
       row.appendChild(el("span", "fdate", date || "—"));
       const text = item.kind === "habit" || item.kind === "board" ? e.name
-        : (e.text || (e.items || []).map((i) => i.text).join(", ")).split("\n")[0];
+        : (e.title || e.text || (e.items || []).map((i) => i.text).join(", ")).split("\n")[0];
       const t = el("span", "etitle", (item.kind === "todo" && e.done ? "✓ " : "") + text); t.title = e.text || e.name; row.appendChild(t);
       if (e.category) row.appendChild(el("span", "ecat", e.category));
       const tag = item.kind === "note" && e.kind ? e.kind : { note: "note", todo: "to-do", habit: "habit", achievement: "achievement", board: "board" }[item.kind];
@@ -785,7 +856,7 @@
     } else if (item.dup) row.appendChild(el("span", "dup-tag", "already added"));
     return row;
   }
-  function openImportPicker({ title, hint, mode, items, newCategories, confirmLabel, onConfirm, searchable }) {
+  function openImportPicker({ title, hint, mode, items, newCategories, confirmLabel, onConfirm, searchable, categorize }) {
     items = items.slice().sort((a, b) => importItemDateStr(b).localeCompare(importItemDateStr(a)));
     newCategories = newCategories || [];
     $("#financePickerTitle").textContent = title;
@@ -810,6 +881,7 @@
     const newCatsWrap = $("#financePickerNewCats");
     const newCatsList = $("#financePickerNewCatsList");
 
+    function renderNewCats() {
     newCatsWrap.hidden = !newCategories.length;
     $("#financePickerNewCatsEyebrow").textContent =
       `${newCategories.length} new categor${newCategories.length === 1 ? "y" : "ies"} found — pick which ones to add`;
@@ -825,6 +897,52 @@
       row.appendChild(document.createTextNode(nc.name + (nc.scope === "project" ? " (project)" : nc.scope === "note" ? " (notes)" : "")));
       newCatsList.appendChild(row);
     });
+    }
+    renderNewCats();
+
+    // Filing the selected rows under a category (0.200.0, the Markdown
+    // import): what the files didn't say, said here. A name you don't have
+    // yet joins the new categories above, ticked.
+    const catBar = $("#financePickerCatBar");
+    catBar.hidden = !categorize;
+    if (categorize) {
+      const FOLDER = "\u0000folder", NEW = "\u0000new";
+      const sel = $("#financePickerCatSelect");
+      const fillSelect = () => {
+        sel.innerHTML = "";
+        const opt = (v, label) => { const o = document.createElement("option"); o.value = v; o.textContent = label; sel.appendChild(o); };
+        opt("", "No category");
+        const names = new Set([...(state.data.noteCategories || []).map((c) => c.name), ...newCategories.map((c) => c.name)]);
+        for (const n of [...names].sort((a, b) => a.localeCompare(b))) opt(n, n);
+        if (items.some((i) => i.folder)) opt(FOLDER, "Each file's folder");
+        opt(NEW, "New category…");
+      };
+      fillSelect();
+      const ensureCat = (name) => {
+        if (!name || (state.data.noteCategories || []).some((c) => c.name === name) || newCategories.some((c) => c.name === name)) return;
+        newCategories.push({ name, color: CATEGORY_PALETTE[newCategories.length % CATEGORY_PALETTE.length], scope: categorize, add: true });
+      };
+      $("#financePickerCatApply").onclick = () => {
+        let name = sel.value;
+        if (name === NEW) {
+          name = (prompt("Name of the new category") || "").trim();
+          if (!name) return;
+        }
+        const chosen = visibleItems().filter((i) => i.checked);
+        if (!chosen.length) { toast("Select the notes to file first"); return; }
+        for (const i of chosen) {
+          // A file straight in the folder you picked has no folder of its
+          // own to be filed under, so it keeps what it had.
+          if (name === FOLDER && !i.folder) continue;
+          const cat = name === FOLDER ? i.folder : name;
+          if (cat) { i.entry.category = cat; ensureCat(cat); } else delete i.entry.category;
+        }
+        renderNewCats();
+        fillSelect();
+        sel.value = name === FOLDER ? FOLDER : name;
+        render();
+      };
+    }
 
     function matchesSearch(i) {
       if (!searchTerm) return true;
@@ -895,11 +1013,11 @@
   window.LifeLogIO = {
     init,
     download, csvEsc, parseCsv,
-    exportJson, exportTabJson, exportTabCsv, importJson, importTabCsv, TAB_KINDS,
+    exportJson, exportTabJson, exportTabCsv, importJson, importTabCsv, importMarkdown, TAB_KINDS,
     buildImportItems,
     importItemIncomplete, reviewAndImport, openImportPicker,
     // pure helpers (exported for test/io.test.js)
-    importItemDateStr, importBucketKey, journalCsvText, parseJournalCsv, notesCsvText, parseNotesCsv, allCsvText, parseAllCsv,
+    importItemDateStr, importBucketKey, parseMarkdownNote, journalCsvText, parseJournalCsv, notesCsvText, parseNotesCsv, allCsvText, parseAllCsv,
     fillableFields, findImportTarget, applyImportSelection,
   };
 })();

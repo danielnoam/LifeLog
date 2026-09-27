@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.199.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.200.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -1142,6 +1142,10 @@
             <span class="sitem-text"><span class="sitem-title">Import</span></span>
             <span class="sitem-btns"><button class="btn btn-small" data-io="import-json" data-tab="notes">JSON…</button><button class="btn btn-small" data-io="import-csv" data-tab="notes">CSV…</button></span>
           </div>
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Markdown files</span><span class="sitem-sub">One note per .md file — pick files, or a whole folder. You choose which, and their categories, before anything comes in</span></span>
+            <span class="sitem-btns"><button class="btn btn-small" id="importMdBtn">Files…</button><button class="btn btn-small web-only" id="importMdFolderBtn">Folder…</button></span>
+          </div>
         </div>
       </section>
 
@@ -1190,6 +1194,8 @@
       </section>
       <input type="file" id="importTabJsonInput" accept="application/json,.json" hidden />
       <input type="file" id="importTabCsvInput" accept="text/csv,.csv" hidden />
+      <input type="file" id="importMdInput" accept=".md,.markdown,.txt,text/markdown,text/plain" multiple hidden />
+      <input type="file" id="importMdFolderInput" webkitdirectory multiple hidden />
       </div>
 
       <div class="settings-page" hidden data-page="history" data-title="History" data-keywords="version undo restore rollback saves commits trash bin undelete removed recently deleted">
@@ -1596,6 +1602,11 @@
         <div class="picker-newcats-list" id="financePickerNewCatsList"></div>
       </div>
       <div class="picker-buckets" id="financePickerBuckets" hidden></div>
+      <div class="picker-catbar" id="financePickerCatBar" hidden>
+        <span class="muted">Put the selected in</span>
+        <select id="financePickerCatSelect" aria-label="Category"></select>
+        <button type="button" class="btn btn-small" id="financePickerCatApply">Apply</button>
+      </div>
       <label class="toggle-label" id="financePickerDupRow" hidden>
         <input type="checkbox" id="financePickerShowDup" />
         Show entries already in your data
@@ -1720,26 +1731,26 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.199.0"></script>
-  <script defer src="src/reconcile.js?v=0.199.0"></script>
-  <script defer src="src/qr.js?v=0.199.0"></script>
-  <script defer src="src/media.js?v=0.199.0"></script>
-  <script defer src="src/merge.js?v=0.199.0"></script>
-  <script defer src="src/storage.js?v=0.199.0"></script>
-  <script defer src="src/finance.js?v=0.199.0"></script>
-  <script defer src="src/settings.js?v=0.199.0"></script>
-  <script defer src="src/wheel.js?v=0.199.0"></script>
-  <script defer src="src/backlog.js?v=0.199.0"></script>
-  <script defer src="src/journal.js?v=0.199.0"></script>
-  <script defer src="src/notes.js?v=0.199.0"></script>
-  <script defer src="src/io.js?v=0.199.0"></script>
-  <script defer src="src/sync.js?v=0.199.0"></script>
-  <script defer src="src/habits.js?v=0.199.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.199.0"></script>
-  <script defer src="src/boards.js?v=0.199.0"></script>
-  <script defer src="src/recap.js?v=0.199.0"></script>
-  <script defer src="src/reminders.js?v=0.199.0"></script>
-  <script defer src="src/widgets.js?v=0.199.0"></script>
-  <script defer src="src/app.js?v=0.199.0"></script>
+  <script defer src="src/platform.js?v=0.200.0"></script>
+  <script defer src="src/reconcile.js?v=0.200.0"></script>
+  <script defer src="src/qr.js?v=0.200.0"></script>
+  <script defer src="src/media.js?v=0.200.0"></script>
+  <script defer src="src/merge.js?v=0.200.0"></script>
+  <script defer src="src/storage.js?v=0.200.0"></script>
+  <script defer src="src/finance.js?v=0.200.0"></script>
+  <script defer src="src/settings.js?v=0.200.0"></script>
+  <script defer src="src/wheel.js?v=0.200.0"></script>
+  <script defer src="src/backlog.js?v=0.200.0"></script>
+  <script defer src="src/journal.js?v=0.200.0"></script>
+  <script defer src="src/notes.js?v=0.200.0"></script>
+  <script defer src="src/io.js?v=0.200.0"></script>
+  <script defer src="src/sync.js?v=0.200.0"></script>
+  <script defer src="src/habits.js?v=0.200.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.200.0"></script>
+  <script defer src="src/boards.js?v=0.200.0"></script>
+  <script defer src="src/recap.js?v=0.200.0"></script>
+  <script defer src="src/reminders.js?v=0.200.0"></script>
+  <script defer src="src/widgets.js?v=0.200.0"></script>
+  <script defer src="src/app.js?v=0.200.0"></script>
 </body>
 </html>

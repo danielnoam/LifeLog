@@ -1165,6 +1165,12 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .picker-search:focus { outline: none; border-color: var(--accent); }
 .picker-search[hidden] { display: none; }
+.picker-catbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0 2px; font-size: 12.5px; }
+.picker-catbar select { flex: 1 1 140px; min-width: 0; max-width: 260px; }
+.picker-catbar[hidden] { display: none; }
+@media (max-width: 480px) { .picker-catbar > .muted { flex-basis: 100%; } }
+/* A folder can't be picked from inside the Android app's WebView. */
+html.native .web-only { display: none; }
 .picker-toolbar { display: flex; align-items: center; gap: 10px; margin: 10px 0 6px; font-size: 12px; }
 .picker-toolbar .link-btn {
   background: none; border: none; color: var(--accent); cursor: pointer; font-size: 12px; padding: 0;
