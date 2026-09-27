@@ -234,7 +234,7 @@
   const catColor = (name) => (noteCats().find((c) => c.name === name) || {}).color || "#7a8a99";
   // A category can be a collection (0.204.0): reference notes — recipes,
   // how-tos, software — kept by name rather than by the day they were
-  // written. Their notes leave the dated feed and live on the shelf above it.
+  // written. Their notes leave the dated feed; the collection's chip opens them.
   const isCollection = (name) => !!name && (noteCats().find((c) => c.name === name) || {}).layout === "collection";
   const collections = () => noteCats().filter((c) => c.layout === "collection");
   // The collection being looked at: exactly one category chip on, and it's one.
@@ -245,7 +245,7 @@
     return isCollection(name) ? name : null;
   }
   // The feed proper: no category picked, no search, and showing all notes or
-  // plain ones. That's where collections' notes stand aside for the shelf.
+  // plain ones. That's where collections' notes stand aside.
   const feedOnly = () => !state.noteActiveCats.size && !state.search.trim() && (state.noteKind === "" || state.noteKind === "text");
   let catSaved = null; // what to do with a category made from the note sheet
   function openNoteCatModal(cat, onSaved) {
