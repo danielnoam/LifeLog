@@ -174,6 +174,15 @@ test("a plain note's title travels with it", () => {
   assert.strictEqual(W.snapshotOf(d, { today: TODAY }).notes.find((n) => n.id === "T").title, "Idea");
 });
 
+test("a habit you avoid goes with its limit, and no reminder", () => {
+  const d = data();
+  d.habits.push({ id: "h9", name: "No coffee", order: 3, avoid: true, limit: 1, startedAt: "2026-01-01" });
+  const h = W.snapshotOf(d, { today: TODAY, remindAt: () => "08:00" }).habits.find((x) => x.id === "h9");
+  assert.strictEqual(h.avoid, true);
+  assert.strictEqual(h.limit, 1);
+  assert.strictEqual(h.remind, "");
+});
+
 test("a long note is cut to what a widget can show", () => {
   const d = data();
   d.notes.push({ id: "long", text: "x".repeat(5000), createdAt: "2026-09-01" });

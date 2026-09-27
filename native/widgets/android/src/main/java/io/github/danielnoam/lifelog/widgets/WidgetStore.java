@@ -56,6 +56,9 @@ final class WidgetStore {
         /** A habit's reminder time on this phone, "HH:mm", or "". */
         String remind = "";
         int target = 1;
+        /** A habit you avoid (0.203.0): value is today's slips, kept while it's at most limit. */
+        boolean avoid;
+        int limit;
     }
 
     private WidgetStore() {}
@@ -212,20 +215,31 @@ final class WidgetStore {
      * the week of marks the snapshot carries, plus the widget's ticks; a due
      * day not kept ends the run. `day` itself only ever adds — it isn't over.
      */
+    /** Whether a day with `mark` is kept: reached the target, or for a habit you avoid, stayed within its limit. */
+    static boolean keptWith(JSONObject h, int mark) {
+        return h.optBoolean("avoid")
+            ? mark <= Math.max(0, h.optInt("limit", 0))
+            : mark >= Math.max(1, h.optInt("target", 1));
+    }
+
+    /** Where a tap wraps round: the target, or one past an avoided habit's limit. */
+    static int capOf(Row r) {
+        return r.avoid ? r.limit + 1 : r.target;
+    }
+
     static int streakOn(JSONObject h, JSONArray q, String snapToday, String day) {
-        int target = Math.max(1, h.optInt("target", 1));
         int run = 0;
         boolean broken = false;
         String d = addDays(day, -1);
         for (int guard = 0; guard < 400 && d.compareTo(snapToday) >= 0; guard++) {
             if (dueOn(h, d)) {
-                if (markOn(h, q, d) >= target) run++;
+                if (keptWith(h, markOn(h, q, d))) run++;
                 else { broken = true; break; }
             }
             d = addDays(d, -1);
         }
         if (!broken) run += Math.max(0, h.optInt("runBefore", 0));
-        if (dueOn(h, day) && markOn(h, q, day) >= target) run++;
+        if (dueOn(h, day) && keptWith(h, markOn(h, q, day))) run++;
         return run;
     }
 
@@ -249,7 +263,9 @@ final class WidgetStore {
             r.color = parseColor(str(h, "color"), 0xFF5B8CFF);
             r.target = Math.max(1, h.optInt("target", 1));
             r.value = markOn(h, q, today);
-            r.done = r.value >= r.target;
+            r.avoid = h.optBoolean("avoid");
+            r.limit = Math.max(0, h.optInt("limit", 0));
+            r.done = keptWith(h, r.value);
             r.streak = streakOn(h, q, snapToday, today);
             r.remind = str(h, "remind");
             rows.add(r);
@@ -283,7 +299,7 @@ final class WidgetStore {
         if (id == null) return;
         for (Row r : habitRows(c)) {
             if (!r.id.equals(id)) continue;
-            queueMark(c, id, r.value >= r.target ? 0 : r.value + 1);
+            queueMark(c, id, r.value >= capOf(r) ? 0 : r.value + 1);
             return;
         }
     }
@@ -292,7 +308,7 @@ final class WidgetStore {
     static void finishHabit(Context c, String id) {
         if (id == null) return;
         for (Row r : habitRows(c)) {
-            if (r.id.equals(id) && !r.done) queueMark(c, id, r.target);
+            if (r.id.equals(id) && !r.done && !r.avoid) queueMark(c, id, r.target);
         }
     }
 

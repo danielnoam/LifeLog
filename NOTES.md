@@ -16,6 +16,22 @@ what was decided against and why.
 
 ---
 
+- **Habits you avoid (0.203.0).** `avoid: true` and `limit`; the marks
+  are slips. Everything turns on isDone (kept = slips ≤ limit), so streaks,
+  runBefore, the 90-day rate and the grid needed no second code path;
+  keptBetween is the one place that counts off the marks, so for an avoided
+  habit it's due days less the slipped ones. A day with nothing recorded is
+  kept — the trade Streaks' "negative tasks" make the other way round (you
+  tick each day you resisted). Chosen because not doing something shouldn't
+  cost a tap; the price is that a day you forgot to log a slip reads as
+  kept. The tap wraps at limit + 1 (capOf), the same cycle as a counted
+  habit's target, so the widget's queue and the app's tick stay one shape;
+  WidgetStore.keptWith is the native twin of isDone. No backfill offer and
+  no reminders: both would be about days you *did* something. An older
+  build reads an avoided habit as an ordinary one, so its slips would show
+  as ticks there — the APK and the web copy ship together, so only a device
+  left on an old version sees that.
+
 - **A folder of Markdown files from the Android app (0.202.0).** Android's
   WebView ignores `webkitdirectory` — the input opens a plain file picker —
   and so does Chrome on Android. The app asks the plugin instead

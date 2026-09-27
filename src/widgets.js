@@ -65,7 +65,10 @@
           startedAt: h.startedAt || "",
           marks,
           runBefore: runBefore(h, today),
-          remind: remindAt(h.id) || "",
+          remind: h.avoid ? "" : remindAt(h.id) || "",
+          // Something you avoid (0.203.0): the marks are slips, kept while
+          // they stay at or under the limit.
+          ...(h.avoid ? { avoid: true, limit: +h.limit || 0 } : {}),
         };
       });
 

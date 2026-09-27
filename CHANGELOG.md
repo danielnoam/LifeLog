@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.203.0] - 2026-09-27
+
+### Added
+- **Habits you avoid.** A habit can be something to avoid, like "No coffee":
+  choose Avoid when you add or edit it. A day counts as kept unless you log
+  a slip, so there's nothing to tap on a good day. Tapping today logs a slip,
+  and tapping again takes it back. "At most" sets how many a day still count
+  as kept (at most 1 coffee, say). The streak counts the days since your
+  last slip, the grid shows slips in red, and the home-screen widget works
+  the same way. Avoided habits don't have reminders.
+
 ## [0.202.0] - 2026-09-27
 
 ### Changed

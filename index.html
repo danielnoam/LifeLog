@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.202.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.203.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -897,6 +897,12 @@
         <label>Name
           <input id="habitName" type="text" required autocomplete="off" placeholder="e.g. Read before bed" />
         </label>
+        <label>This is something to
+          <select id="habitKind">
+            <option value="do">Do</option>
+            <option value="avoid">Avoid — a day is kept unless you log a slip</option>
+          </select>
+        </label>
         <div class="field-row">
           <label>How often
             <select id="habitCadence">
@@ -904,7 +910,7 @@
               <option value="days">Certain days</option>
             </select>
           </label>
-          <label class="field-narrow">Times a day
+          <label class="field-narrow"><span id="habitTargetText">Times a day</span>
             <input id="habitTarget" type="number" min="1" max="99" step="1" value="1" />
           </label>
         </div>
@@ -1731,26 +1737,26 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.202.0"></script>
-  <script defer src="src/reconcile.js?v=0.202.0"></script>
-  <script defer src="src/qr.js?v=0.202.0"></script>
-  <script defer src="src/media.js?v=0.202.0"></script>
-  <script defer src="src/merge.js?v=0.202.0"></script>
-  <script defer src="src/storage.js?v=0.202.0"></script>
-  <script defer src="src/finance.js?v=0.202.0"></script>
-  <script defer src="src/settings.js?v=0.202.0"></script>
-  <script defer src="src/wheel.js?v=0.202.0"></script>
-  <script defer src="src/backlog.js?v=0.202.0"></script>
-  <script defer src="src/journal.js?v=0.202.0"></script>
-  <script defer src="src/notes.js?v=0.202.0"></script>
-  <script defer src="src/io.js?v=0.202.0"></script>
-  <script defer src="src/sync.js?v=0.202.0"></script>
-  <script defer src="src/habits.js?v=0.202.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.202.0"></script>
-  <script defer src="src/boards.js?v=0.202.0"></script>
-  <script defer src="src/recap.js?v=0.202.0"></script>
-  <script defer src="src/reminders.js?v=0.202.0"></script>
-  <script defer src="src/widgets.js?v=0.202.0"></script>
-  <script defer src="src/app.js?v=0.202.0"></script>
+  <script defer src="src/platform.js?v=0.203.0"></script>
+  <script defer src="src/reconcile.js?v=0.203.0"></script>
+  <script defer src="src/qr.js?v=0.203.0"></script>
+  <script defer src="src/media.js?v=0.203.0"></script>
+  <script defer src="src/merge.js?v=0.203.0"></script>
+  <script defer src="src/storage.js?v=0.203.0"></script>
+  <script defer src="src/finance.js?v=0.203.0"></script>
+  <script defer src="src/settings.js?v=0.203.0"></script>
+  <script defer src="src/wheel.js?v=0.203.0"></script>
+  <script defer src="src/backlog.js?v=0.203.0"></script>
+  <script defer src="src/journal.js?v=0.203.0"></script>
+  <script defer src="src/notes.js?v=0.203.0"></script>
+  <script defer src="src/io.js?v=0.203.0"></script>
+  <script defer src="src/sync.js?v=0.203.0"></script>
+  <script defer src="src/habits.js?v=0.203.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.203.0"></script>
+  <script defer src="src/boards.js?v=0.203.0"></script>
+  <script defer src="src/recap.js?v=0.203.0"></script>
+  <script defer src="src/reminders.js?v=0.203.0"></script>
+  <script defer src="src/widgets.js?v=0.203.0"></script>
+  <script defer src="src/app.js?v=0.203.0"></script>
 </body>
 </html>

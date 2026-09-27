@@ -644,6 +644,39 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     await ctx.close();
   }
 
+  // ---- 12. a habit you avoid (0.203.0) ----
+  {
+    const { page, ctx, errs: e } = await app(browser, []);
+    await page.evaluate(() => window.LifeLogHabits.openHabitModal(null));
+    await page.fill("#habitName", "No coffee");
+    await page.selectOption("#habitKind", "avoid");
+    check("choosing Avoid turns the number into a limit, starting at none", await page.evaluate(() =>
+      document.querySelector("#habitTargetText").textContent === "At most a day" && document.querySelector("#habitTarget").value === "0"));
+    await page.fill("#habitStart", back(5));
+    check("and offers no backfill: those days are kept already", await page.evaluate(() => document.querySelector("#habitFillLabel").hidden));
+    await page.click("#habitForm button[type=submit]");
+    await page.waitForTimeout(400);
+    let h = (await stored(page))[0];
+    check("it's saved as avoided, with no limit", h && h.avoid === true && h.limit === 0 && !h.marks, h);
+    check("a day with nothing logged is kept, so the streak runs from the start", await page.evaluate(() =>
+      document.querySelector(".habit-tick").classList.contains("is-done") && /6/.test(document.querySelector(".habit-streak").textContent)));
+    await page.click(".habit-tick");
+    await page.waitForTimeout(300);
+    h = (await stored(page))[0];
+    check("a tap logs a slip", h.marks && h.marks[TODAY] === 1, h);
+    check("which the card says, in red, and today stops counting", await page.evaluate(() => {
+      const t = document.querySelector(".habit-tick");
+      return t.classList.contains("is-slip") && /Slipped/.test(t.textContent) && /5/.test(document.querySelector(".habit-streak").textContent);
+    }));
+    check("and the grid marks it as a slip", await page.evaluate((d) => document.querySelector(`.habit-cell[data-date="${d}"]`).classList.contains("is-slip"), TODAY));
+    await page.click(".habit-tick");
+    await page.waitForTimeout(300);
+    h = (await stored(page))[0];
+    check("another tap takes it back", !h.marks, h);
+    errs.push(...e);
+    await ctx.close();
+  }
+
   await browser.close();
   console.log("\nerrors:", errs.length ? errs : "none");
   console.log(`\n${pass} passed, ${fail} failed`);

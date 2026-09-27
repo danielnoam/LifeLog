@@ -38,6 +38,8 @@ public class HabitsWidget extends AppWidgetProvider {
     /** A tick's height with its name and streak under it, its streak only, and neither. */
     static final int[] CHIP_H = { 40, 52, 68 };
     private static final int PAD_DP = 16;
+    /** A slip on a habit you avoid: the app's danger red. */
+    static final int SLIP = 0xFFE2554B;
 
     @Override
     public void onUpdate(Context c, AppWidgetManager manager, int[] ids) {
@@ -186,12 +188,23 @@ public class HabitsWidget extends AppWidgetProvider {
         return new String(Character.toChars(t.codePointAt(0))).toUpperCase(java.util.Locale.ROOT);
     }
 
+    /**
+     * What a habit's tick says: ✓ when kept, how far along a counted one is,
+     * and for one you avoid (0.203.0) its slips against the limit, or ✕ once
+     * they've passed it. `blank` is what an untouched habit you do shows.
+     */
+    static String tickText(WidgetStore.Row r, String blank) {
+        if (r.avoid) return !r.done ? "✕" : r.limit > 0 ? r.value + "/" + r.limit : "✓";
+        if (r.done) return "✓";
+        return r.target > 1 && r.value > 0 ? r.value + "/" + r.target : blank;
+    }
+
     private static RemoteViews chip(Context c, WidgetStore.Row r, int detail, boolean streaks) {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_chip_habit);
         boolean partway = !r.done && r.target > 1 && r.value > 0;
-        v.setTextViewText(R.id.chip_tick, r.done ? "✓" : partway ? r.value + "/" + r.target : initial(r.text));
+        v.setTextViewText(R.id.chip_tick, tickText(r, initial(r.text)));
         v.setTextColor(R.id.chip_tick, r.done ? c.getResources().getColor(R.color.widget_on_accent, null)
-            : partway ? c.getResources().getColor(R.color.widget_muted, null) : r.color);
+            : r.avoid ? SLIP : partway ? c.getResources().getColor(R.color.widget_muted, null) : r.color);
         v.setInt(R.id.chip_tick, "setBackgroundResource", r.done ? R.drawable.widget_tick_on : R.drawable.widget_tick_off);
         v.setTextViewText(R.id.chip_name, r.text);
         v.setViewVisibility(R.id.chip_name, detail >= 2 ? View.VISIBLE : View.GONE);
@@ -241,8 +254,9 @@ public class HabitsWidget extends AppWidgetProvider {
         v.setTextViewText(R.id.row_streak, streaks && r.streak > 0 ? "🔥" + r.streak : "");
         v.setViewVisibility(R.id.row_streak, streaks && r.streak > 0 ? View.VISIBLE : View.GONE);
         // A counted habit shows how far along today is until it's done.
-        v.setTextViewText(R.id.row_tick, r.done ? "✓" : (r.target > 1 && r.value > 0 ? r.value + "/" + r.target : ""));
-        v.setTextColor(R.id.row_tick, c.getResources().getColor(r.done ? R.color.widget_on_accent : R.color.widget_muted, null));
+        v.setTextViewText(R.id.row_tick, tickText(r, ""));
+        v.setTextColor(R.id.row_tick, r.avoid && !r.done ? SLIP
+            : c.getResources().getColor(r.done ? R.color.widget_on_accent : R.color.widget_muted, null));
         v.setInt(R.id.row_tick, "setBackgroundResource", r.done ? R.drawable.widget_tick_on : R.drawable.widget_tick_off);
 
         v.setOnClickPendingIntent(R.id.row_tick_hit, tickIntent(c, r.id));

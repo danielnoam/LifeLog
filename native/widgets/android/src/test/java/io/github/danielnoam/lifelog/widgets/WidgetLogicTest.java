@@ -406,4 +406,28 @@ public class WidgetLogicTest {
         assertFalse(QuickAddWidget.shows(true, noteOnly, "add-entry"));
         assertFalse(QuickAddWidget.shows(false, noteOnly, "add-note"));
     }
+
+    // ---- habits you avoid (0.203.0) ----
+
+    private static JSONObject noCoffee(int limit) throws Exception {
+        return json("{\"id\":\"h\",\"name\":\"No coffee\",\"startedAt\":\"2026-01-01\",\"target\":1,\"avoid\":true,\"limit\":" + limit + ",\"runBefore\":3,\"marks\":{}}");
+    }
+
+    @Test
+    public void anAvoidedHabitIsKeptUntilItsSlipsPassTheLimit() throws Exception {
+        assertTrue(WidgetStore.keptWith(noCoffee(0), 0));
+        assertFalse(WidgetStore.keptWith(noCoffee(0), 1));
+        assertTrue(WidgetStore.keptWith(noCoffee(1), 1));
+        assertFalse(WidgetStore.keptWith(noCoffee(1), 2));
+        JSONObject snap = new JSONObject().put("today", D).put("habits", new JSONArray().put(noCoffee(0)));
+        WidgetStore.Row r = WidgetStore.habitRows(snap, NONE, D).get(0);
+        assertTrue(r.avoid && r.done);
+        assertEquals(4, r.streak); // three before, and today so far
+        assertEquals("✓", HabitsWidget.tickText(r, ""));
+        JSONArray slipped = new JSONArray("[{\"kind\":\"habit\",\"id\":\"h\",\"date\":\"" + D + "\",\"value\":1}]");
+        r = WidgetStore.habitRows(snap, slipped, D).get(0);
+        assertFalse(r.done);
+        assertEquals("✕", HabitsWidget.tickText(r, ""));
+        assertEquals(1, WidgetStore.capOf(r));
+    }
 }

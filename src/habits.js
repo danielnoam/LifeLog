@@ -63,7 +63,7 @@
   const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const KNOWN_HABIT_KEYS = new Set([
     "id", "name", "color", "cadence", "target", "order",
-    "startedAt", "archivedAt", "createdAt", "updatedAt", "marks",
+    "startedAt", "archivedAt", "createdAt", "updatedAt", "marks", "avoid", "limit",
   ]);
 
   function sanitizeHabit(h) {
@@ -86,6 +86,14 @@
       : null;
     if (days && days.length && days.length < 7) out.cadence = { days };
     if (isDateStr(h.archivedAt)) out.archivedAt = h.archivedAt;
+    // Something you're keeping away from (0.203.0): marks count slips, and
+    // a day is kept while they stay at or under `limit` — 0 for "none at
+    // all", 1 for "at most one coffee". Absent on every habit you do.
+    if (h.avoid) {
+      out.avoid = true;
+      out.target = 1;
+      out.limit = Math.max(0, Math.min(99, Math.round(+h.limit) || 0));
+    }
     const marks = {};
     for (const [date, v] of Object.entries(h.marks || {})) {
       const n = Math.round(+v);
@@ -118,15 +126,24 @@
   }
 
   // ---------- marks ----------
+  // A habit you do is kept once its marks reach the target. One you avoid is
+  // kept until its slips pass the limit — so a day with nothing recorded is
+  // a kept day, which is the point: not doing something shouldn't take a tap.
   const markOf = (habit, dateStr) => (habit && habit.marks && +habit.marks[dateStr]) || 0;
-  const isDone = (habit, dateStr) => markOf(habit, dateStr) >= (habit.target || 1);
+  const limitOf = (habit) => Math.max(0, +habit.limit || 0);
+  const isDone = (habit, dateStr) => (habit.avoid
+    ? markOf(habit, dateStr) <= limitOf(habit)
+    : markOf(habit, dateStr) >= (habit.target || 1));
+  // Where a tap wraps round: the target for a habit you do, one past the
+  // limit (the first slip that breaks the day) for one you avoid.
+  const capOf = (habit) => (habit.avoid ? limitOf(habit) + 1 : habit.target || 1);
 
-  // One tap advances by one and wraps round at the target. For the ordinary
-  // habit (target 1) that is exactly a tick: on, then off.
+  // One tap advances by one and wraps round at the cap. For the ordinary
+  // habit (target 1) that is exactly a tick: on, then off; for "none at all"
+  // it's a slip, then not.
   function nextMark(habit, dateStr) {
-    const target = habit.target || 1;
     const now = markOf(habit, dateStr);
-    return now >= target ? 0 : now + 1;
+    return now >= capOf(habit) ? 0 : now + 1;
   }
 
   // ---------- streaks ----------
@@ -230,16 +247,17 @@
 
   // Counted off the marks rather than the calendar: a habit has far fewer
   // recorded days than elapsed ones, even when it has been kept perfectly.
+  // One you avoid is the other way round — its marks are the slips, so it's
+  // every due day less the ones they broke.
   function keptBetween(habit, fromStr, toStr) {
     if (!habit || !isDateStr(fromStr) || !isDateStr(toStr)) return 0;
     const range = clipRange(habit, fromStr, toStr);
     if (!range) return 0;
-    const target = habit.target || 1;
     let n = 0;
-    for (const [d, v] of Object.entries(habit.marks || {})) {
-      if (d >= range[0] && d <= range[1] && v >= target && isDue(habit, d)) n++;
+    for (const d of Object.keys(habit.marks || {})) {
+      if (d >= range[0] && d <= range[1] && isDue(habit, d) && isDone(habit, d) !== !!habit.avoid) n++;
     }
-    return n;
+    return habit.avoid ? dueBetween(habit, fromStr, toStr) - n : n;
   }
 
   // How many of the days it asked for were kept, over a window.
@@ -377,7 +395,9 @@
     card.appendChild(head);
 
     const sub = el("div", "habit-sub");
-    sub.appendChild(el("span", null, cadenceLabel(h) + (h.target > 1 ? " · " + h.target + "× a day" : "")));
+    sub.appendChild(el("span", null, cadenceLabel(h) + (h.avoid
+      ? " · avoiding" + (limitOf(h) ? ", at most " + limitOf(h) + " a day" : "")
+      : h.target > 1 ? " · " + h.target + "× a day" : "")));
     const best = bestStreakOf(h, today);
     const window90 = statsFor(h, addDaysStr(today, -89), today);
     const bits = [];
@@ -395,8 +415,11 @@
         "Since " + prettyDate(h.startedAt) + " · " + life.done + " of " + life.due + " days kept"));
     }
 
-    // Today's tick, the one control you use every day.
-    if (isDue(h, today)) {
+    // Today's tick, the one control you use every day. On a habit you avoid
+    // it logs a slip instead.
+    if (isDue(h, today) && h.avoid) {
+      card.appendChild(slipButton(h, today));
+    } else if (isDue(h, today)) {
       const n = markOf(h, today);
       const btn = el("button", "habit-tick" + (isDone(h, today) ? " is-done" : ""));
       btn.type = "button";
@@ -413,6 +436,21 @@
 
     card.appendChild(grid(h, today));
     return card;
+  }
+
+  // An avoided habit's button: kept (so far) until you say otherwise.
+  function slipButton(h, today) {
+    const n = markOf(h, today), limit = limitOf(h), kept = isDone(h, today);
+    const btn = el("button", "habit-tick habit-slip" + (kept ? " is-done" : " is-slip"));
+    btn.type = "button";
+    btn.dataset.id = h.id;
+    btn.appendChild(el("span", "habit-tick-mark", !kept ? "✕" : limit ? n + "/" + limit : "✓"));
+    btn.appendChild(el("span", "habit-tick-label", !kept
+      ? (limit ? "Over the limit today — tap to undo" : "Slipped today — tap to undo")
+      : limit ? n + " of at most " + limit + " today — tap to log one" : "Kept so far today — tap if you slipped"));
+    btn.style.setProperty("--habit-colour", h.color);
+    btn.onclick = () => tick(h.id, today);
+    return btn;
   }
 
   // Which twelve weeks a card is showing, by habit id. Module-level rather
@@ -523,9 +561,17 @@
         } else {
           const n = markOf(h, date);
           const done = isDone(h, date);
-          if (done) { cell.classList.add("is-done"); cell.style.background = h.color; }
-          else if (n) { cell.classList.add("is-part"); cell.style.background = h.color + "66"; }
-          cell.title = date + (done ? " — done" : n ? ` — ${n} of ${h.target}` : " — missed");
+          if (h.avoid) {
+            // Kept days carry the colour, as a habit you do; a slip is the
+            // mark that stands out.
+            if (done) { cell.classList.add("is-done"); cell.style.background = n ? h.color + "66" : h.color; }
+            else cell.classList.add("is-slip");
+            cell.title = date + (done ? (n ? ` — ${n} of at most ${limitOf(h)}` : " — kept") : " — slipped");
+          } else {
+            if (done) { cell.classList.add("is-done"); cell.style.background = h.color; }
+            else if (n) { cell.classList.add("is-part"); cell.style.background = h.color + "66"; }
+            cell.title = date + (done ? " — done" : n ? ` — ${n} of ${h.target}` : " — missed");
+          }
           if (anchor && anchor.id === h.id && anchor.date === date) cell.classList.add("is-anchor");
           cell.onclick = (ev) => onCellPress(h.id, date, ev);
         }
@@ -610,14 +656,17 @@
     const days = dueDaysBetween(h, fromStr, toStr);
     if (!days.length) { repaintGrid(id); return; }
     const undo = snapshot(h);
-    const clearing = days.every((d) => isDone(h, d));
+    // On a habit you avoid, a run is filled with slips: its days are kept
+    // already, so that's the only thing a run could need saying.
+    const hit = (d) => (h.avoid ? !isDone(h, d) : isDone(h, d));
+    const clearing = days.every(hit);
     const marks = { ...(h.marks || {}) };
     // Counted, not assumed: dragging over a run that is mostly done and being
     // told "filled in 8 days" when one day changed is the app describing your
     // gesture back to you instead of what it did.
     let n = 0;
     for (const d of days) {
-      const to = clearing ? 0 : h.target || 1;
+      const to = clearing ? 0 : capOf(h);
       if ((marks[d] || 0) === to) continue;
       if (to) marks[d] = to; else delete marks[d];
       n++;
@@ -626,7 +675,7 @@
     if (Object.keys(marks).length) h.marks = marks; else delete h.marks;
     render();
     await persist();
-    toast((clearing ? "Cleared " : "Filled in ") + n + (n === 1 ? " day" : " days"), false,
+    toast((clearing ? "Cleared " : h.avoid ? "Marked as slipped: " : "Filled in ") + n + (n === 1 ? " day" : " days"), false,
       { label: "Undo", onClick: () => revert(undo) });
   }
 
@@ -660,7 +709,8 @@
     editingId = habit ? habit.id : null;
     $("#habitModalTitle").textContent = habit ? "Edit habit" : "Add habit";
     $("#habitName").value = habit ? habit.name : "";
-    $("#habitTarget").value = habit ? habit.target : 1;
+    $("#habitKind").value = habit && habit.avoid ? "avoid" : "do";
+    $("#habitTarget").value = habit ? (habit.avoid ? limitOf(habit) : habit.target) : 1;
     $("#habitColor").value = habit ? habit.color : (CATEGORY_PALETTE[(state.data.habits || []).length % CATEGORY_PALETTE.length] || "#5b8cff");
     // Backfilling starts here: a habit you have been keeping for months
     // before you told the app about it has a start date in the past, and
@@ -681,10 +731,11 @@
     $("#archiveHabitBtn").hidden = !habit;
     $("#archiveHabitBtn").textContent = habit && habit.archivedAt ? "↩ Un-archive" : "⏸ Archive";
     applyCadenceUI();
+    applyKindUI();
     // Reminders live on the phone, not in the habit (see reminders.js).
     const R = window.LifeLogReminders;
     const remind = !!(R && R.available());
-    $("#habitRemindLabel").hidden = !remind;
+    $("#habitRemindLabel").hidden = !remind || $("#habitKind").value === "avoid";
     $("#habitRemind").value = remind && habit ? R.timeOf(habit.id) : "";
     $("#habitModal").hidden = false;
   }
@@ -692,6 +743,21 @@
 
   function applyCadenceUI() {
     $("#habitDaysLabel").hidden = $("#habitCadence").value !== "days";
+  }
+
+  // Do or avoid: the number beside it is how many times a day, or how many
+  // slips a day still counts as kept.
+  // `switched`: the kind was just changed, so the number's default for the
+  // other kind (1 a day, none at all) is swapped in.
+  function applyKindUI(switched) {
+    const avoid = $("#habitKind").value === "avoid";
+    $("#habitTargetText").textContent = avoid ? "At most a day" : "Times a day";
+    const t = $("#habitTarget");
+    t.min = avoid ? "0" : "1";
+    if (switched) t.value = avoid ? "0" : "1";
+    $("#habitName").placeholder = avoid ? "e.g. No coffee" : "e.g. Read before bed";
+    const R = window.LifeLogReminders;
+    $("#habitRemindLabel").hidden = !(R && R.available()) || avoid;
   }
 
   // The two things a start date can do, both answered before you press Save
@@ -718,7 +784,10 @@
       : "";
     hint.hidden = !orphans;
 
-    const days = isDateStr(v) && v < was ? backfillDays(h, v, addDaysStr(was, -1)) : [];
+    // A habit you avoid needs no filling in: a day with nothing recorded is
+    // already a kept one.
+    const avoiding = $("#habitKind").value === "avoid";
+    const days = !avoiding && isDateStr(v) && v < was ? backfillDays(h, v, addDaysStr(was, -1)) : [];
     const target = Math.max(1, Math.round(+$("#habitTarget").value) || 1);
     $("#habitFillText").textContent = days.length
       ? "Mark those " + days.length + (days.length === 1 ? " day" : " days") + " as done" +
@@ -761,10 +830,13 @@
     }
     const startedAt = isDateStr($("#habitStart").value) ? $("#habitStart").value : todayStr();
     if (startedAt > todayStr()) { toast("A habit can't start in the future", true); return; }
+    const avoid = $("#habitKind").value === "avoid";
     const shape = {
       name,
       color: $("#habitColor").value,
-      target: Math.max(1, Math.round(+$("#habitTarget").value) || 1),
+      target: avoid ? 1 : Math.max(1, Math.round(+$("#habitTarget").value) || 1),
+      avoid: avoid || undefined,
+      limit: avoid ? Math.max(0, Math.round(+$("#habitTarget").value) || 0) : undefined,
       cadence: $("#habitCadence").value === "days" ? { days } : "daily",
       startedAt,
     };
@@ -776,6 +848,7 @@
         const wasFrom = h.startedAt;
         undo = snapshot(h);
         Object.assign(h, shape);
+        if (!avoid) { delete h.avoid; delete h.limit; }
         // Moving the start back uncovers days that now ask for something and
         // have nothing recorded. Ticking fifty cells by hand is the
         // difference between backfilling being possible and being done — but
@@ -874,6 +947,7 @@
     $("#deleteHabitBtn").onclick = deleteCurrentHabit;
     $("#archiveHabitBtn").onclick = archiveCurrentHabit;
     $("#habitCadence").onchange = () => { applyCadenceUI(); applyStartUI(); };
+    $("#habitKind").onchange = () => { applyKindUI(true); applyStartUI(); };
     $("#habitStart").oninput = applyStartUI;
     $("#habitTarget").oninput = applyStartUI;
     $("#habitDays").oninput = applyStartUI;
@@ -884,7 +958,7 @@
     sanitizeHabit,
     getFilteredHabits,
     // pure, and the point of the feature — see test/habits.test.js
-    isDue, cadenceLabel, markOf, isDone, nextMark,
+    isDue, cadenceLabel, markOf, isDone, nextMark, capOf, limitOf,
     streakOf, bestStreakOf, runBefore, statsFor, blankDaysBetween,
     dueBetween, keptBetween, dueDaysBetween, orphanedMarks, firstMarkOf,
     windowStart, maxOffset, rangeLabel, prettyDate, GRID_WEEKS,

@@ -362,5 +362,49 @@ test("a missed day ends the run before it, even the day after", () => {
   assert.strictEqual(H.runBefore(h, "2026-03-05"), 0);
 });
 
+// ---------- habits you avoid (0.203.0) ----------
+const avoid = (marks, limit) => H.sanitizeHabit({ name: "No coffee", avoid: true, limit, startedAt: "2026-03-01", marks });
+
+test("an avoided habit keeps its kind and a limit, and a habit you do has neither", () => {
+  const a = avoid({}, 2);
+  assert.strictEqual(a.avoid, true);
+  assert.strictEqual(a.limit, 2);
+  assert.strictEqual(a.target, 1);
+  const d = H.sanitizeHabit({ name: "Read", limit: 3 });
+  assert.ok(!("avoid" in d) && !("limit" in d));
+  assert.strictEqual(avoid({}, -4).limit, 0);
+});
+
+test("a day with nothing recorded is kept; a slip past the limit breaks it", () => {
+  const none = avoid({ "2026-03-02": 1 }, 0);
+  assert.strictEqual(H.isDone(none, "2026-03-01"), true);
+  assert.strictEqual(H.isDone(none, "2026-03-02"), false);
+  const one = avoid({ "2026-03-02": 1, "2026-03-03": 2 }, 1);
+  assert.strictEqual(H.isDone(one, "2026-03-02"), true);
+  assert.strictEqual(H.isDone(one, "2026-03-03"), false);
+});
+
+test("a tap logs a slip and wraps one past the limit", () => {
+  assert.strictEqual(H.nextMark(avoid({}, 0), "2026-03-02"), 1);
+  assert.strictEqual(H.nextMark(avoid({ "2026-03-02": 1 }, 0), "2026-03-02"), 0);
+  assert.strictEqual(H.nextMark(avoid({ "2026-03-02": 1 }, 1), "2026-03-02"), 2);
+  assert.strictEqual(H.nextMark(avoid({ "2026-03-02": 2 }, 1), "2026-03-02"), 0);
+});
+
+test("the streak counts the days since the last slip, today included while it's kept", () => {
+  const h = avoid({ "2026-03-04": 1 }, 0);
+  assert.strictEqual(H.streakOf(h, "2026-03-10"), 6); // 5th to 10th
+  assert.strictEqual(H.bestStreakOf(h, "2026-03-10"), 6);
+  const slippedToday = avoid({ "2026-03-10": 1 }, 0);
+  assert.strictEqual(H.streakOf(slippedToday, "2026-03-10"), 9); // today isn't over
+});
+
+test("kept days are every due day less the slips", () => {
+  const h = avoid({ "2026-03-04": 1, "2026-03-05": 1 }, 0);
+  const r = H.statsFor(h, "2026-03-01", "2026-03-10");
+  assert.strictEqual(r.due, 10);
+  assert.strictEqual(r.done, 8);
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");
