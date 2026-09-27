@@ -26,6 +26,8 @@ import java.util.List;
  * Small, it's a grid of ticks instead (0.189.0): a header and named rows
  * don't survive being two cells wide or one row tall, and at that size what
  * you want from it is a thumb's-width target per habit and its streak.
+ *
+ * Its settings (0.201.0) can leave out the streaks and the "N of M today".
  */
 public class HabitsWidget extends AppWidgetProvider {
 
@@ -59,9 +61,18 @@ public class HabitsWidget extends AppWidgetProvider {
         super.onReceive(c, intent);
     }
 
+    @Override
+    public void onDeleted(Context c, int[] ids) {
+        for (int id : ids) WidgetStore.dropConfig(c, id);
+    }
+
     static void refresh(Context c) {
         AppWidgetManager manager = AppWidgetManager.getInstance(c);
-        for (int id : ListWidget.ids(c, HabitsWidget.class)) manager.updateAppWidget(id, build(c, manager, id));
+        for (int id : ListWidget.ids(c, HabitsWidget.class)) draw(c, manager, id);
+    }
+
+    static void draw(Context c, AppWidgetManager manager, int id) {
+        manager.updateAppWidget(id, build(c, manager, id));
     }
 
     /** How many rows the widget is tall enough for, portrait being the tighter. */
@@ -91,14 +102,17 @@ public class HabitsWidget extends AppWidgetProvider {
 
     private static RemoteViews build(Context c, AppWidgetManager manager, int widgetId) {
         WidgetSize size = WidgetSize.of(manager, widgetId);
-        if (compact(size.width, size.height)) return grid(c, size);
+        org.json.JSONObject cfg = WidgetStore.config(c, widgetId);
+        boolean streaks = WidgetStore.flag(cfg, "streak");
+        if (compact(size.width, size.height)) return grid(c, size, streaks);
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_habits);
         boolean loaded = WidgetStore.snapshot(c) != null;
         List<WidgetStore.Row> rows = WidgetStore.habitRows(c);
 
         int kept = 0;
         for (WidgetStore.Row r : rows) if (r.done) kept++;
-        String subtitle = !loaded ? null : rows.isEmpty() ? "Nothing due today" : kept + " of " + rows.size() + " today";
+        String subtitle = !loaded || !WidgetStore.flag(cfg, "summary") ? null
+            : rows.isEmpty() ? "Nothing due today" : kept + " of " + rows.size() + " today";
         String pending = WidgetStore.pendingNote(c);
         if (pending != null) subtitle = subtitle == null ? pending : subtitle + " · " + pending;
         v.setTextViewText(R.id.widget_title, "Habits");
@@ -118,7 +132,7 @@ public class HabitsWidget extends AppWidgetProvider {
         int fit = rowsThatFit(size.height);
         // Room for all of them, or all but one plus a line saying how many more.
         int shown = rows.size() <= fit ? rows.size() : Math.max(0, fit - 1);
-        for (int i = 0; i < shown; i++) v.addView(R.id.habit_rows, row(c, rows.get(i)));
+        for (int i = 0; i < shown; i++) v.addView(R.id.habit_rows, row(c, rows.get(i), streaks));
         if (shown < rows.size()) {
             RemoteViews more = new RemoteViews(c.getPackageName(), R.layout.widget_row_more);
             int rest = rows.size() - shown;
@@ -129,7 +143,7 @@ public class HabitsWidget extends AppWidgetProvider {
         return v;
     }
 
-    private static RemoteViews grid(Context c, WidgetSize size) {
+    private static RemoteViews grid(Context c, WidgetSize size, boolean streaks) {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_habits_compact);
         v.setOnClickPendingIntent(R.id.widget_root, WidgetStore.openApp(c, "open-habits", 100));
         v.removeAllViews(R.id.habit_grid);
@@ -143,6 +157,8 @@ public class HabitsWidget extends AppWidgetProvider {
 
         int[] grid = chipGrid(size.width, size.height);
         int detail = chipDetail(size.height);
+        // Without streaks, a chip has no second line to make room for.
+        if (!streaks && detail == 1) detail = 0;
         int room = grid[0] * grid[1];
         // All of them, or all but one and a last chip saying how many more.
         int shown = rows.size() <= room ? rows.size() : room - 1;
@@ -153,7 +169,7 @@ public class HabitsWidget extends AppWidgetProvider {
         for (int start = 0; start < cells; start += cols) {
             RemoteViews line = new RemoteViews(c.getPackageName(), R.layout.widget_chip_row);
             for (int i = start; i < start + cols; i++) {
-                if (i < shown) line.addView(R.id.chip_row, chip(c, rows.get(i), detail));
+                if (i < shown) line.addView(R.id.chip_row, chip(c, rows.get(i), detail, streaks));
                 else if (i < cells) line.addView(R.id.chip_row, moreChip(c, rows.size() - shown, detail));
                 // Blank chips keep the last row's ticks lined up under the ones above.
                 else line.addView(R.id.chip_row, blankChip(c, detail));
@@ -170,7 +186,7 @@ public class HabitsWidget extends AppWidgetProvider {
         return new String(Character.toChars(t.codePointAt(0))).toUpperCase(java.util.Locale.ROOT);
     }
 
-    private static RemoteViews chip(Context c, WidgetStore.Row r, int detail) {
+    private static RemoteViews chip(Context c, WidgetStore.Row r, int detail, boolean streaks) {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_chip_habit);
         boolean partway = !r.done && r.target > 1 && r.value > 0;
         v.setTextViewText(R.id.chip_tick, r.done ? "✓" : partway ? r.value + "/" + r.target : initial(r.text));
@@ -179,7 +195,9 @@ public class HabitsWidget extends AppWidgetProvider {
         v.setInt(R.id.chip_tick, "setBackgroundResource", r.done ? R.drawable.widget_tick_on : R.drawable.widget_tick_off);
         v.setTextViewText(R.id.chip_name, r.text);
         v.setViewVisibility(R.id.chip_name, detail >= 2 ? View.VISIBLE : View.GONE);
-        v.setTextViewText(R.id.chip_streak, r.streak > 0 ? "🔥" + r.streak : "");
+        v.setTextViewText(R.id.chip_streak, streaks && r.streak > 0 ? "🔥" + r.streak : "");
+        // Kept, empty, when streaks are off: the "more" and blank chips have
+        // the line too, and the row's ticks have to stay level.
         v.setViewVisibility(R.id.chip_streak, detail >= 1 ? View.VISIBLE : View.GONE);
         v.setContentDescription(R.id.chip, r.text + (r.done ? ", done" : ""));
         v.setOnClickPendingIntent(R.id.chip, tickIntent(c, r.id));
@@ -216,12 +234,12 @@ public class HabitsWidget extends AppWidgetProvider {
         return PendingIntent.getBroadcast(c, 102, tick, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
-    private static RemoteViews row(Context c, WidgetStore.Row r) {
+    private static RemoteViews row(Context c, WidgetStore.Row r, boolean streaks) {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_row_habit);
         v.setTextViewText(R.id.row_text, r.text);
         v.setTextColor(R.id.row_dot, r.color);
-        v.setTextViewText(R.id.row_streak, r.streak > 0 ? "🔥" + r.streak : "");
-        v.setViewVisibility(R.id.row_streak, r.streak > 0 ? View.VISIBLE : View.GONE);
+        v.setTextViewText(R.id.row_streak, streaks && r.streak > 0 ? "🔥" + r.streak : "");
+        v.setViewVisibility(R.id.row_streak, streaks && r.streak > 0 ? View.VISIBLE : View.GONE);
         // A counted habit shows how far along today is until it's done.
         v.setTextViewText(R.id.row_tick, r.done ? "✓" : (r.target > 1 && r.value > 0 ? r.value + "/" + r.target : ""));
         v.setTextColor(R.id.row_tick, c.getResources().getColor(r.done ? R.color.widget_on_accent : R.color.widget_muted, null));

@@ -16,6 +16,17 @@ what was decided against and why.
 
 ---
 
+- **Every widget has a settings screen (0.201.0).** One base,
+  SettingsScreen: the widget id, a column of ticks built in code, and a Save
+  that writes `widget:<id>` and redraws that one widget. Each yes/no setting
+  is read through WidgetStore.flag, which is true when it's missing, so a
+  widget placed before it had settings — or placed without opening them,
+  since they're configuration_optional from Android 12 — looks as it always
+  did. Quick add's chosen buttons narrow what the app offers
+  (`actions` in the snapshot); they can't add back one for a tab that's
+  off. Habits with streaks off keep the chip's streak line, empty, because
+  the grid's "+N" and blank chips have it and the ticks must stay level.
+
 - **Edits made while boot's sync finishes are merged in, not replaced
   (0.200.0).** Storage.load reads this device's copy through getLocal and
   then still awaits GitHub's save of the merge, the file backup and the

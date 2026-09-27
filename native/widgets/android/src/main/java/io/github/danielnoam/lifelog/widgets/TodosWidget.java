@@ -123,7 +123,8 @@ public class TodosWidget extends AppWidgetProvider {
         boolean loaded = snap != null;
         JSONObject one = WidgetStore.singleList(snap, WidgetStore.listsOf(WidgetStore.config(c, widgetId)));
         int open = WidgetStore.openTodoCount(WidgetStore.todoRows(c, widgetId));
-        String subtitle = loaded ? (open == 0 ? "All done" : open + " to do") : null;
+        String subtitle = !loaded || !WidgetStore.flag(WidgetStore.config(c, widgetId), "count") ? null
+            : open == 0 ? "All done" : open + " to do";
         String pending = WidgetStore.pendingNote(c);
         if (pending != null) subtitle = subtitle == null ? pending : subtitle + " · " + pending;
         String empty = !loaded ? "Open LifeLog once to bring your list here"

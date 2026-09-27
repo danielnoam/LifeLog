@@ -95,6 +95,28 @@
         </activity>
 
         <activity
+            android:name="io.github.danielnoam.lifelog.widgets.HabitsSettingsActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity=""
+            android:theme="@style/LifeLogWidgetSettings">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="io.github.danielnoam.lifelog.widgets.QuickAddSettingsActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:taskAffinity=""
+            android:theme="@style/LifeLogWidgetSettings">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <activity
             android:name="io.github.danielnoam.lifelog.widgets.TodosSettingsActivity"
             android:excludeFromRecents="true"
             android:exported="true"

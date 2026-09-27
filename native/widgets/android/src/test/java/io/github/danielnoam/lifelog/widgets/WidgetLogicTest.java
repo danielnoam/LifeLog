@@ -378,4 +378,32 @@ public class WidgetLogicTest {
         assertEquals("Idea\nMore words", NoteCard.body(json("{\"kind\":\"text\",\"title\":\"Idea\",\"text\":\"More words\"}")));
         assertEquals("Idea", NoteCard.body(json("{\"kind\":\"text\",\"title\":\"Idea\",\"text\":\"\"}")));
     }
+
+    // ---- each widget's settings (0.201.0) ----
+
+    @Test
+    public void aSettingIsOnUntilItsBeenTurnedOff() throws Exception {
+        assertTrue(WidgetStore.flag(null, "count"));
+        assertTrue(WidgetStore.flag(json("{\"lists\":[]}"), "count"));
+        assertFalse(WidgetStore.flag(json("{\"count\":false}"), "count"));
+    }
+
+    @Test
+    public void aToDoWidgetCanLeaveOutItsFinishedItems() throws Exception {
+        List<String> out = new ArrayList<>();
+        for (WidgetStore.Row r : WidgetStore.todoRows(todos(), NONE, null, false)) {
+            out.add(r.type == WidgetStore.ROW_HEADER ? "[" + r.text + "]" : r.type == WidgetStore.ROW_SEP ? "--" : (r.done ? "x:" : "o:") + r.id);
+        }
+        assertEquals("[To do] o:t2 o:t7 [Work] o:t4", String.join(" ", out));
+    }
+
+    @Test
+    public void aQuickAddButtonShowsWhenItsTabIsOnAndTheWidgetHasIt() throws Exception {
+        JSONArray noteOnly = new JSONArray("[\"add-note\"]");
+        assertTrue(QuickAddWidget.shows(true, null, "add-entry"));
+        assertTrue(QuickAddWidget.shows(true, new JSONArray(), "add-entry"));
+        assertTrue(QuickAddWidget.shows(true, noteOnly, "add-note"));
+        assertFalse(QuickAddWidget.shows(true, noteOnly, "add-entry"));
+        assertFalse(QuickAddWidget.shows(false, noteOnly, "add-note"));
+    }
 }

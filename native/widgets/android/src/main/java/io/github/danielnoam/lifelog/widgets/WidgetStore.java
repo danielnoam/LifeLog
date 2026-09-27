@@ -316,11 +316,16 @@ final class WidgetStore {
      * has seen either. A widget set to certain lists (0.199.0) gets theirs.
      */
     static List<Row> todoRows(Context c, int widgetId) {
-        return todoRows(snapshot(c), queue(c), listsOf(config(c, widgetId)));
+        JSONObject cfg = config(c, widgetId);
+        return todoRows(snapshot(c), queue(c), listsOf(cfg), flag(cfg, "done"));
     }
 
     static List<Row> todoRows(JSONObject snap, JSONArray q) {
-        return todoRows(snap, q, null);
+        return todoRows(snap, q, null, true);
+    }
+
+    static List<Row> todoRows(JSONObject snap, JSONArray q, java.util.Set<String> lists) {
+        return todoRows(snap, q, lists, true);
     }
 
     /** The list ids a to-do widget is set to, or null for all of them. */
@@ -344,7 +349,8 @@ final class WidgetStore {
         return null;
     }
 
-    static List<Row> todoRows(JSONObject snap, JSONArray q, java.util.Set<String> lists) {
+    /** `showDone` false (a widget's setting, 0.201.0) leaves out the "N done" line and what's under it. */
+    static List<Row> todoRows(JSONObject snap, JSONArray q, java.util.Set<String> lists, boolean showDone) {
         List<Row> rows = new ArrayList<>();
         if (snap == null) return rows;
         JSONArray todos = snap.optJSONArray("todos");
@@ -418,7 +424,7 @@ final class WidgetStore {
             // few finished ones travel in the snapshot.
             int savedDone = doneCount != null && doneCount.has(cat) ? doneCount.optInt(cat) : done.size() + unticked;
             int doneTotal = savedDone - unticked + justDone.size();
-            if (doneTotal > 0 && (justDone.size() + done.size()) > 0) {
+            if (showDone && doneTotal > 0 && (justDone.size() + done.size()) > 0) {
                 Row sep = new Row();
                 sep.type = ROW_SEP;
                 sep.text = doneTotal + " done";
@@ -489,6 +495,11 @@ final class WidgetStore {
         } catch (JSONException e) {
             return null;
         }
+    }
+
+    /** A widget's yes/no setting (0.201.0): on unless it's been turned off, so a widget with no settings shows everything. */
+    static boolean flag(JSONObject cfg, String key) {
+        return cfg == null || cfg.optBoolean(key, true);
     }
 
     static void saveConfig(Context c, int widgetId, JSONObject cfg) {

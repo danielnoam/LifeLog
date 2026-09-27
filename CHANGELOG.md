@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.201.0] - 2026-09-27
+
+### Added
+- **More widget settings (Android).** Long-press a widget and choose its
+  settings, or set them when you place it:
+  - **To-do:** whether the title shows how many are left, and whether
+    finished items show under "N done".
+  - **Habits:** whether each habit shows its streak, and whether the title
+    says how many are done today.
+  - **Quick add:** which buttons it has. A button for a tab you've turned
+    off in LifeLog still doesn't show.
+  Every setting starts on, so widgets you've already placed look the same
+  until you change them.
+
 ## [0.200.0] - 2026-09-27
 
 ### Added
