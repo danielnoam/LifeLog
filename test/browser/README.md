@@ -34,6 +34,7 @@ because something shipped broken that no unit test could have caught:
 | `notekinds` | notes' three kinds through the sheet and the cards, categories and their chips, the kind switch, the sort, a list working like the old To-do panel (add, edit, delete, reorder, Clear), favourites, bulk move |
 | `openitems` | Notes' Open chip: its count, only unticked items in the lists that have them, ticking one off and adding from there; a note widget's tap opening its note |
 | `mdimport` | Markdown files and a folder as notes: one row per file, a file's own category, filing the selected under an existing, new or folder category, lists from task files |
+| `collections` | a collection category: its notes off the feed and on the shelf, its own page of cards by name, the reader drawing Markdown (safe links only), Edit from there, the category sheet's switch; Boards as a kind of note |
 | `notesheet` | a plain note's optional title, a list's items without ticks or a quick-add switch, a quote's author and source side by side |
 | `todomigrate` | the To-do mode's lists become list notes: old data, whoever left the app on To-do, and an older device still adding and ticking to-dos through a fake GitHub |
 | `tabio` | every tab's JSON and CSV export comes back whole through that tab's import, and the full backup through Everything |

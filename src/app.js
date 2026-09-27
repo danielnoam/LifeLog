@@ -64,6 +64,12 @@
       ["oldest", "Oldest first"],
       ["edited", "Recently edited"],
     ],
+    // A collection of notes (0.204.0): by name, not by date.
+    collection: [
+      ["title", "A–Z"],
+      ["edited", "Recently edited"],
+      ["newest", "Newest first"],
+    ],
     timeline: [
       ["newest", "Newest first"],
       ["oldest", "Oldest first"],
@@ -133,7 +139,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.203.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.204.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -220,6 +226,13 @@
     else if (view === "timeline" && (ui.timelineMode === "notes" || ui.timelineMode === "todo")) {
       view = "notes";
       state.notesMode = ui.timelineMode;
+    }
+    // Boards are a kind of note now (0.204.0): someone who left the app on
+    // the Boards mode comes back to them.
+    if (ui.notesMode === "boards") {
+      ui = { ...ui, notesMode: "notes" };
+      state.notesMode = "notes";
+      state.noteKind = "board";
     }
     // The To-do mode is the lists among the notes now (0.197.0): someone who
     // left the app on it comes back to them.
@@ -615,7 +628,8 @@
       // keep doing. Habits was briefly its own tab (0.171.0) and reads
       // better here — see NOTES.md.
       // The To-do mode's lists became list notes in 0.197.0.
-      modes: [["notes", "Notes", "▤"], ["habits", "Habits", "✓"], ["boards", "Boards", "✎"]],
+      // Boards were a third mode until 0.204.0; they're a kind of note now.
+      modes: [["notes", "Notes", "▤"], ["habits", "Habits", "✓"]],
       // The only view whose two modes don't show the same chips: the years
       // come from the notes themselves, and a to-do has neither a year worth
       // filtering nor a category. So here the filterbar is part of the
@@ -657,7 +671,7 @@
   // tab has always opened on in the middle, so nothing opens differently
   // until you change it. With two modes the default is simply the one you
   // choose, the first until you do.
-  const DEFAULT_MODE_ORDER = { notes: ["habits", "notes", "boards"], backlog: ["upcoming", "entries", "discover"] };
+  const DEFAULT_MODE_ORDER = { notes: ["habits", "notes"], backlog: ["upcoming", "entries", "discover"] };
   // With more than three there's no middle — and with fewer, the first may
   // not be the one it has always opened on — so a tab opens on your choice
   // or, until you make one, on this.
@@ -1512,7 +1526,6 @@
       renderModeBar(slot);
       if (state.view === "notes") {
         if (state.notesMode === "habits") Habits.renderHabits(c);
-        else if (state.notesMode === "boards") Boards.renderBoards(c);
         else Notes.renderNotes(c);
         return;
       }
@@ -2795,8 +2808,8 @@
     // row is theirs. A habit carries no
     // category — it carries a colour, which is its own and not shared with
     // anything the chips could narrow — and a board has none either, so
-    // there the row goes.
-    const note = state.view === "notes" && state.notesMode === "notes";
+    // there the row goes — as it does for the Boards kind (0.204.0).
+    const note = state.view === "notes" && state.notesMode === "notes" && state.noteKind !== "board";
     const noCats = state.view === "notes" && !note;
     $("#catFilterGroup").hidden = noCats;
     updateFilterbarVisibility();
@@ -3781,7 +3794,8 @@
       else if (b.dataset.add === "backlog") Backlog.openBacklogModal(null);
       else if (b.dataset.add === "habit") Habits.openHabitModal(null);
       else if (b.dataset.add === "board") {
-        VIEW_MODES.notes.set("boards");
+        VIEW_MODES.notes.set("notes");
+        state.noteKind = "board";
         if (state.view !== "notes") switchToView("notes"); else commitModeChange();
         Boards.newBoard();
       }

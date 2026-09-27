@@ -170,10 +170,12 @@
     const q = state.search.trim().toLowerCase();
     const yf = state.activeYears, cf = state.noteActiveCats, kind = state.noteKind;
     return state.data.notes.filter((n) => {
-      if (yf.size && !yf.has(noteYear(n))) return false;
+      // A collection is by name, not by when: the year chips don't reach it.
+      if (yf.size && !openCollection() && !yf.has(noteYear(n))) return false;
       if (cf.size && !cf.has(n.category || "")) return false;
       if (kind && kindOf(n) !== kind) return false;
       if (openView() && !openItems(n).length) return false;
+      if (feedOnly() && isCollection(n.category)) return false;
       if (q && !noteHaystack(n).includes(q)) return false;
       return true;
     });
@@ -190,6 +192,12 @@
     const d = new Date(n.editedAt);
     return isNaN(d) ? noteDate(n) : d;
   }
+  const collectionSort = () => state.data.settings.collectionSort || "title";
+  async function setCollectionSort(value) {
+    state.data.settings.collectionSort = value;
+    render();
+    await persist();
+  }
   async function setNoteSort(value) {
     state.data.settings.noteSort = value;
     render();
@@ -202,6 +210,21 @@
   // notes uncategorised.
   const noteCats = () => state.data.noteCategories || (state.data.noteCategories = []);
   const catColor = (name) => (noteCats().find((c) => c.name === name) || {}).color || "#7a8a99";
+  // A category can be a collection (0.204.0): reference notes — recipes,
+  // how-tos, software — kept by name rather than by the day they were
+  // written. Their notes leave the dated feed and live on the shelf above it.
+  const isCollection = (name) => !!name && (noteCats().find((c) => c.name === name) || {}).layout === "collection";
+  const collections = () => noteCats().filter((c) => c.layout === "collection");
+  // The collection being looked at: exactly one category chip on, and it's one.
+  function openCollection() {
+    const cf = state.noteActiveCats;
+    if (cf.size !== 1) return null;
+    const name = [...cf][0];
+    return isCollection(name) ? name : null;
+  }
+  // The feed proper: no category picked, no search, and showing all notes or
+  // plain ones. That's where collections' notes stand aside for the shelf.
+  const feedOnly = () => !state.noteActiveCats.size && !state.search.trim() && (state.noteKind === "" || state.noteKind === "text");
   let catSaved = null; // what to do with a category made from the note sheet
   function openNoteCatModal(cat, onSaved) {
     const editing = !!cat;
@@ -210,6 +233,7 @@
     $("#noteCatOrigName").value = editing ? cat.name : "";
     $("#noteCatName").value = editing ? cat.name : "";
     $("#noteCatColorInput").value = editing ? cat.color : CATEGORY_PALETTE[noteCats().length % CATEGORY_PALETTE.length];
+    $("#noteCatCollection").checked = !!(editing && cat.layout === "collection");
     const uses = $("#noteCatUses");
     if (editing) {
       const n = state.data.notes.filter((x) => x.category === cat.name).length;
@@ -226,18 +250,20 @@
     const orig = $("#noteCatOrigName").value;
     const name = $("#noteCatName").value.trim();
     const color = $("#noteCatColorInput").value;
+    const layout = $("#noteCatCollection").checked ? "collection" : "";
     if (!name) return;
     const cats = noteCats();
     const clash = (c) => c.name.toLowerCase() === name.toLowerCase();
     const after = catSaved;
     if (!orig) {
       if (cats.some(clash)) { toast("That category already exists", true); return; }
-      cats.push({ id: uid(), name, color, updatedAt: new Date().toISOString() });
+      cats.push({ id: uid(), name, color, ...(layout ? { layout } : {}), updatedAt: new Date().toISOString() });
     } else {
       const cat = cats.find((c) => c.name === orig);
       if (!cat) return;
       if (name !== cat.name && cats.some((c) => c !== cat && clash(c))) { toast("A category with that name already exists", true); return; }
       cat.color = color;
+      if (layout) cat.layout = layout; else delete cat.layout;
       if (name !== cat.name) {
         // The id is the category's sync identity; only its name moves, and
         // every note holding the old one follows it.
@@ -272,22 +298,33 @@
   }
 
   // ---------- the mode bar: kind switch and sort ----------
+  // Boards are a kind of note since 0.204.0. A Boards mode turned off in
+  // Settings before then isn't honoured: with no mode left to turn back on,
+  // it would hide them for good.
+  const boardsOn = () => !!window.LifeLogBoards;
   function renderNotesToolbar(root) {
-    if (!state.data.notes.length) return;
+    if (!state.data.notes.length && !boardsOn()) return;
     const bar = el("div", "notes-toolbar");
     const kinds = el("div", "notes-kinds");
     kinds.setAttribute("role", "group");
     kinds.setAttribute("aria-label", "Show");
-    for (const [k, label] of [["", "All"], ["text", "Notes"], ["list", "Lists"], ["quote", "Quotes"]]) {
+    const kindChoices = [["", "All"], ["text", "Notes"], ["list", "Lists"], ["quote", "Quotes"]];
+    if (boardsOn()) kindChoices.push(["board", "Boards"]);
+    for (const [k, label] of kindChoices) {
       const b = el("button", "notes-kind" + (state.noteKind === k ? " on" : ""), label);
       b.type = "button";
       b.setAttribute("aria-pressed", String(state.noteKind === k));
-      b.onclick = () => { state.noteKind = k; render(); };
+      // Boards have no categories, so the chip row changes with this.
+      b.onclick = () => { state.noteKind = k; buildCatFilter(); render(); };
       kinds.appendChild(b);
     }
     bar.appendChild(kinds);
-    // Open has an order of its own, so a sort there would do nothing.
-    if (!openView()) bar.appendChild(sortSelect("notes", noteSort(), setNoteSort));
+    // Open has an order of its own, so a sort there would do nothing; a
+    // collection sorts by name, and has its own.
+    // Nothing to sort with no notes: the bar is only there to reach Boards.
+    if (state.noteKind === "board" || !state.data.notes.length) { /* boards run newest first */ }
+    else if (openCollection()) bar.appendChild(sortSelect("collection", collectionSort(), setCollectionSort));
+    else if (!openView()) bar.appendChild(sortSelect("notes", noteSort(), setNoteSort));
     root.appendChild(bar);
     if (state.noteKind === "list") root.appendChild(listSubFilter());
   }
@@ -763,6 +800,22 @@
     if (!notesRootEl) notesRootEl = document.createElement("div");
     const shell = notesRootEl;
     renderNotesToolbar(root);
+    // Boards (0.204.0): drawn by boards.js, which keeps their own file.
+    if (state.noteKind === "board" && boardsOn()) {
+      renderLazySections(shell, []);
+      if (notesBulkEl) { notesBulkEl.remove(); notesBulkEl = null; }
+      window.LifeLogBoards.renderBoards(root);
+      return;
+    }
+    // A collection is a page of its own; the feed's year sections stand down.
+    const coll = openCollection();
+    if (coll) {
+      renderLazySections(shell, []);
+      if (notesBulkEl) { notesBulkEl.remove(); notesBulkEl = null; }
+      root.appendChild(collectionView(coll));
+      return;
+    }
+    if (feedOnly() && collections().length) root.appendChild(shelf());
     root.appendChild(shell);
 
     const showEmpty = (node) => {
@@ -790,7 +843,9 @@
     }
     const notes = getFilteredNotes();
     if (!notes.length) {
-      showEmpty(emptyState("No notes match your filters."));
+      showEmpty(emptyState(feedOnly() && collections().length
+        ? "Nothing in the feed yet — everything so far is in a collection above."
+        : "No notes match your filters."));
       return;
     }
     if (notesEmptyEl) { notesEmptyEl.remove(); notesEmptyEl = null; }
@@ -893,6 +948,120 @@
       root.appendChild(notesBulkEl);
     }
   }
+
+  // ---------- collections (0.204.0) ----------
+  // What a note is called, and what's left once that's taken off the top: a
+  // plain note's title, else its first line (a "# heading" read as one).
+  function splitTitle(n) {
+    const kind = kindOf(n);
+    if (kind === "list") return { title: n.text || "Untitled list", body: "" };
+    if (kind === "quote") return { title: [n.author, n.source].filter(Boolean).join(", ") || "Quote", body: n.text };
+    if (n.title) return { title: n.title, body: n.text || "" };
+    const lines = String(n.text || "").split("\n");
+    const first = lines.findIndex((l) => l.trim());
+    if (first < 0) return { title: "Untitled", body: "" };
+    return { title: lines[first].replace(/^#+\s*/, "").trim(), body: lines.slice(first + 1).join("\n").trim() };
+  }
+  // A card's few lines of preview, without the Markdown's punctuation.
+  const plainPreview = (text) => String(text || "")
+    .replace(/```[\s\S]*?(```|$)/g, " ")
+    .replace(/^\s*(#+|>|[-*+](\s+\[[ xX]\])?|\d+[.)])\s*/gm, "")
+    .replace(/(\*\*|__|`|\*)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/\s+/g, " ").trim().slice(0, 220);
+
+  function sortCollection(notes) {
+    const by = collectionSort();
+    const cmp = by === "edited" ? (a, b) => String(b.editedAt || b.createdAt || "").localeCompare(String(a.editedAt || a.createdAt || ""))
+      : by === "newest" ? (a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || ""))
+      : (a, b) => splitTitle(a).title.localeCompare(splitTitle(b).title, undefined, { numeric: true, sensitivity: "base" });
+    return notes.slice().sort((a, b) => (!!b.fav - !!a.fav) || cmp(a, b));
+  }
+
+  function collectionView(name) {
+    const wrap = el("div", "coll");
+    const head = el("div", "coll-head");
+    const back = el("button", "btn btn-sm", "‹ All notes");
+    back.type = "button";
+    back.onclick = () => { state.noteActiveCats.clear(); buildCatFilter(); render(); };
+    const title = el("h2", "coll-title");
+    const dot = el("span", "dot"); dot.style.background = catColor(name);
+    title.append(dot, document.createTextNode(name));
+    const notes = sortCollection(getFilteredNotes());
+    const add = el("button", "btn btn-sm btn-primary", "+ Note");
+    add.type = "button";
+    add.onclick = () => openNoteModal(null);
+    head.append(back, title, el("span", "ycount", notes.length + (notes.length === 1 ? " note" : " notes")), add);
+    wrap.appendChild(head);
+    if (!notes.length) {
+      wrap.appendChild(emptyState(state.search.trim() || state.noteKind ? "Nothing here matches." : "Nothing in this collection yet."));
+      return wrap;
+    }
+    const grid = el("div", "coll-grid");
+    for (const n of notes) grid.appendChild(collectionCard(n));
+    wrap.appendChild(grid);
+    return wrap;
+  }
+
+  function collectionCard(n) {
+    const card = el("button", "coll-card");
+    card.type = "button";
+    card.dataset.id = n.id;
+    const { title, body } = splitTitle(n);
+    const kind = kindOf(n);
+    card.appendChild(el("span", "coll-card-title", (n.fav ? "★ " : "") + title));
+    const preview = kind === "list"
+      ? (() => { const open = openItems(n); return open.length ? open.map((i) => i.text).join(" · ") : "All done"; })()
+      : kind === "quote" ? "“" + plainPreview(body) + "”" : plainPreview(body);
+    if (preview) card.appendChild(el("span", "coll-card-text", preview));
+    const when = n.editedAt || n.createdAt;
+    const meta = [kind === "list" ? openItems(n).length + " left" : "", when ? formatEdited(when) : ""].filter(Boolean).join(" · ");
+    if (meta) card.appendChild(el("span", "coll-card-meta", meta));
+    card.onclick = () => (kind === "list" ? openNoteModal(findList(n.id)) : openNoteReader(n.id));
+    return card;
+  }
+
+  // The shelf: each collection, above the feed, one tap from its page.
+  function shelf() {
+    const wrap = el("div", "notes-shelf");
+    for (const c of collections()) {
+      const count = state.data.notes.filter((n) => n.category === c.name).length;
+      const b = el("button", "shelf-card");
+      b.type = "button";
+      const dot = el("span", "dot"); dot.style.background = c.color;
+      b.append(dot, el("span", "shelf-name", c.name), el("span", "shelf-count", String(count)));
+      b.onclick = () => { state.noteActiveCats.clear(); state.noteActiveCats.add(c.name); buildCatFilter(); render(); window.scrollTo(0, 0); };
+      wrap.appendChild(b);
+    }
+    return wrap;
+  }
+
+  // ---------- reading a note (0.204.0) ----------
+  // A note in a collection opens as a page, its Markdown drawn, with Edit a
+  // tap away — the note sheet is for writing, and a recipe is mostly read.
+  let readingId = "";
+  function openNoteReader(id) {
+    const n = findList(id);
+    if (!n) return;
+    readingId = id;
+    const { title, body } = splitTitle(n);
+    $("#noteReaderTitle").textContent = title;
+    const meta = [n.category, "Written " + formatEdited(n.createdAt || n.updatedAt), n.editedAt ? "edited " + formatEdited(n.editedAt) : ""]
+      .filter(Boolean).join(" · ");
+    $("#noteReaderMeta").textContent = meta;
+    const out = $("#noteReaderBody");
+    out.replaceChildren();
+    const md = window.LifeLogMarkdown;
+    if (kindOf(n) === "quote") {
+      const q = el("blockquote", "md-quote");
+      if (md) q.appendChild(md.render(n.text)); else q.textContent = n.text;
+      out.appendChild(q);
+    } else if (md) out.appendChild(md.render(body));
+    else out.appendChild(el("p", "note-text", body));
+    if (!out.childNodes.length) out.appendChild(el("p", "muted", "Nothing written under the title yet."));
+    $("#noteReader").hidden = false;
+  }
+  function closeNoteReader() { $("#noteReader").hidden = true; readingId = ""; }
 
   // ---------- bulk actions ----------
   // Move (0.195.0) and Delete. Syncing needs media, and turning a pile of
@@ -1110,10 +1279,21 @@
 
   function wire() {
     $("#noteForm").onsubmit = saveNoteFromForm;
+    $("#closeNoteReaderBtn").onclick = closeNoteReader;
+    $("#editNoteReaderBtn").onclick = () => {
+      const n = findList(readingId);
+      closeNoteReader();
+      if (n) openNoteModal(n);
+    };
     $("#cancelNoteBtn").onclick = closeNoteModal;
     $("#deleteNoteBtn").onclick = deleteNote;
     $("#noteToEntryBtn").onclick = makeEntryFromNote;
-    document.querySelectorAll("#noteKindSeg [data-kind]").forEach((b) => { b.onclick = () => setSheetKind(b.dataset.kind); });
+    document.querySelectorAll("#noteKindSeg [data-kind]").forEach((b) => {
+      // A board isn't written in this sheet: it opens the board editor.
+      b.onclick = b.dataset.kind === "board"
+        ? () => { closeNoteModal(); state.noteKind = "board"; buildCatFilter(); render(); window.LifeLogBoards.newBoard(); }
+        : () => setSheetKind(b.dataset.kind);
+    });
     $("#nNewItem").onkeydown = (ev) => {
       if (ev.key === "Enter") { ev.preventDefault(); addSheetItem(); }
       else if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") $("#noteForm").requestSubmit();
@@ -1140,9 +1320,9 @@
     init, wire,
     sanitizeNote, noteYears, getFilteredNotes, noteCats, openNoteCatModal, closeNoteCatModal, noteHaystack,
     sanitizeTodo, foldTodosIntoLists, listNotes: () => state.data.notes.filter((n) => n.kind === "list"),
-    renderNotes, focusQuickList,
+    renderNotes, focusQuickList, openNoteReader, closeNoteReader, isCollection,
     openNoteModal, closeNoteModal,
     // pure helpers (test/notes.test.js)
-    noteDate, noteYear, splitNoteForEntry,
+    noteDate, noteYear, splitNoteForEntry, splitTitle, plainPreview,
   };
 })();

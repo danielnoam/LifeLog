@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.203.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.204.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -124,7 +124,7 @@
       <button type="button" data-add="achievement" data-view="timeline">Add achievement</button>
       <button type="button" data-add="backlog" data-view="backlog">Add to backlog</button>
       <button type="button" data-add="habit" data-view="notes">Add habit</button>
-      <button type="button" data-add="board" data-view="notes" data-mode="boards">New board</button>
+      <button type="button" data-add="board" data-view="notes" data-mode="notes">New board</button>
       <div class="menu-pop-divider" role="separator" data-view="finance"></div>
       <button type="button" data-add="finance" data-view="finance">Add finance entry</button>
       <button type="button" data-add="recurring" data-view="finance">Add recurring expense</button>
@@ -287,6 +287,7 @@
           <button type="button" role="radio" data-kind="text">Note</button>
           <button type="button" role="radio" data-kind="list">List</button>
           <button type="button" role="radio" data-kind="quote">Quote</button>
+          <button type="button" role="radio" data-kind="board" title="A page to draw on — opens the board editor">Board</button>
         </div>
         <label id="nTitleLabel" hidden><span id="nTitleLabelText">Title</span>
           <input id="nTitle" type="text" autocomplete="off" placeholder="Shopping, packing, this week…" />
@@ -320,6 +321,19 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="noteReader" hidden>
+    <div class="modal note-reader">
+      <h2 id="noteReaderTitle"></h2>
+      <p class="muted note-reader-meta" id="noteReaderMeta"></p>
+      <div class="md" id="noteReaderBody"></div>
+      <div class="modal-actions">
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="closeNoteReaderBtn">Close</button>
+        <button type="button" class="btn btn-primary" id="editNoteReaderBtn">Edit</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="noteCatModal" hidden>
     <div class="modal">
       <h2 id="noteCatModalTitle">Add note category</h2>
@@ -331,6 +345,8 @@
         <label>Colour
           <input id="noteCatColorInput" type="color" />
         </label>
+        <label class="toggle-label"><input type="checkbox" id="noteCatCollection" /> A collection — kept by name, not by date</label>
+        <p class="hint">For notes you look things up in, like recipes or how-tos. They leave the dated feed for a shelf of their own above it, and open as a page you read.</p>
         <p class="muted" id="noteCatUses"></p>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteNoteCatBtn">Delete</button>
@@ -1737,26 +1753,27 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.203.0"></script>
-  <script defer src="src/reconcile.js?v=0.203.0"></script>
-  <script defer src="src/qr.js?v=0.203.0"></script>
-  <script defer src="src/media.js?v=0.203.0"></script>
-  <script defer src="src/merge.js?v=0.203.0"></script>
-  <script defer src="src/storage.js?v=0.203.0"></script>
-  <script defer src="src/finance.js?v=0.203.0"></script>
-  <script defer src="src/settings.js?v=0.203.0"></script>
-  <script defer src="src/wheel.js?v=0.203.0"></script>
-  <script defer src="src/backlog.js?v=0.203.0"></script>
-  <script defer src="src/journal.js?v=0.203.0"></script>
-  <script defer src="src/notes.js?v=0.203.0"></script>
-  <script defer src="src/io.js?v=0.203.0"></script>
-  <script defer src="src/sync.js?v=0.203.0"></script>
-  <script defer src="src/habits.js?v=0.203.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.203.0"></script>
-  <script defer src="src/boards.js?v=0.203.0"></script>
-  <script defer src="src/recap.js?v=0.203.0"></script>
-  <script defer src="src/reminders.js?v=0.203.0"></script>
-  <script defer src="src/widgets.js?v=0.203.0"></script>
-  <script defer src="src/app.js?v=0.203.0"></script>
+  <script defer src="src/platform.js?v=0.204.0"></script>
+  <script defer src="src/reconcile.js?v=0.204.0"></script>
+  <script defer src="src/qr.js?v=0.204.0"></script>
+  <script defer src="src/media.js?v=0.204.0"></script>
+  <script defer src="src/merge.js?v=0.204.0"></script>
+  <script defer src="src/storage.js?v=0.204.0"></script>
+  <script defer src="src/finance.js?v=0.204.0"></script>
+  <script defer src="src/settings.js?v=0.204.0"></script>
+  <script defer src="src/wheel.js?v=0.204.0"></script>
+  <script defer src="src/backlog.js?v=0.204.0"></script>
+  <script defer src="src/journal.js?v=0.204.0"></script>
+  <script defer src="src/markdown.js?v=0.204.0"></script>
+  <script defer src="src/notes.js?v=0.204.0"></script>
+  <script defer src="src/io.js?v=0.204.0"></script>
+  <script defer src="src/sync.js?v=0.204.0"></script>
+  <script defer src="src/habits.js?v=0.204.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.204.0"></script>
+  <script defer src="src/boards.js?v=0.204.0"></script>
+  <script defer src="src/recap.js?v=0.204.0"></script>
+  <script defer src="src/reminders.js?v=0.204.0"></script>
+  <script defer src="src/widgets.js?v=0.204.0"></script>
+  <script defer src="src/app.js?v=0.204.0"></script>
 </body>
 </html>

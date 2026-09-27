@@ -16,6 +16,35 @@ what was decided against and why.
 
 ---
 
+- **Collections, the reader, and Boards as a kind (0.204.0).**
+  - The feed was made for daily notes; reference notes (recipes, software)
+    had nothing but a date to be found by. Every serious notes app splits
+    the two — Day One vs a notes app, Obsidian's daily notes vs its vault,
+    Keep's labelled grid, Apple Notes' folders, Capacities' object types.
+    Here the split is per category (`layout: "collection"`), because the
+    user's categories already drew that line; per note would have been a
+    second decision on every note.
+  - A collection's notes leave the feed only in the plain feed (no
+    category chip, no search, kind All or Notes). Lists and Open items
+    still see every list, and search sees everything, so nothing becomes
+    unfindable by being filed. The year chips don't reach inside a
+    collection: a recipe isn't "from 2024".
+  - Opening a collection is the category chip filter with exactly that one
+    chip on — no new navigation state, so Back, the chip row and the kind
+    switch all keep working as they did.
+  - markdown.js builds DOM with createElement/textContent only, and keeps a
+    link only for http(s)/mailto: a note is untrusted text, imported .md
+    files most of all. Its parser is pure and tested in Node. Feed cards stay
+    plain text on purpose — a daily note is prose, and the reader is where
+    Markdown is worth drawing.
+  - Boards became the "board" kind rather than a note record: they keep
+    boards.json, its merge and history, untouched, and Notes just draws
+    boards.js's list when the kind is Boards. `notesMode: "boards"` in a
+    saved UI moves to Notes + the Boards kind. A Boards mode turned off in
+    Settings is ignored now — with no mode left to turn it back on it would
+    hide them for good. Notes has two modes, so its landing rule is the
+    starred mode or Notes; the three-mode tests moved to Backlog.
+
 - **Habits you avoid (0.203.0).** `avoid: true` and `limit`; the marks
   are slips. Everything turns on isDone (kept = slips ≤ limit), so streaks,
   runBefore, the 90-day rate and the grid needed no second code path;

@@ -64,8 +64,9 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
     JSON.stringify(L.map((l) => l.text).sort()) === JSON.stringify(["Shopping", "To-do"]), L);
   check("each item kept its to-do's id and its order",
     JSON.stringify(L.find((l) => l.text === "Shopping").items) === JSON.stringify(["t1", "t2"]), L);
-  check("the To-do mode is gone: Notes has three modes", await page.evaluate(() =>
-    document.querySelectorAll('#viewTabs .tab[data-view="notes"] .tab-mode-dot').length === 3));
+  // Two since 0.204.0, when Boards became a kind of note.
+  check("the To-do mode is gone: Notes has its two modes", await page.evaluate(() =>
+    document.querySelectorAll('#viewTabs .tab[data-view="notes"] .tab-mode-dot').length === 2));
   const ui = await page.evaluate(() => ({
     mode: JSON.parse(localStorage.getItem("lifelog-ui-v1") || "{}").notesMode,
     kind: document.querySelector(".notes-kind.on") && document.querySelector(".notes-kind.on").textContent,

@@ -1,0 +1,135 @@
+// Collections (0.204.0): a note category kept by name rather than by date —
+// its notes leave the dated feed for a shelf above it, open as a page of
+// their own, and read as formatted Markdown. At phone and desktop widths.
+const { chromium, BASE, tally } = require("./harness");
+const { check, done } = tally();
+
+const T = (d) => `2026-0${d}-01T09:00:00.000Z`;
+const SEED = {
+  categories: [], entries: [], accomplishments: {}, backlog: [], habits: [],
+  financeCategories: [], financeEntries: [], recurringExpenses: [], projects: [], settings: {},
+  noteCategories: [
+    { id: "recipes", name: "Recipes", color: "#e03131", layout: "collection" },
+    { id: "work", name: "Work", color: "#1971c2" },
+  ],
+  notes: [
+    { id: "pan", title: "Pancakes", text: "## Ingredients\n- [ ] flour\n- [x] eggs\n\n**Mix** well, see [this](https://example.com) and [that](javascript:alert(1)).\n\n```\nheat = 180\n```", category: "Recipes", createdAt: T(1), updatedAt: T(1) },
+    { id: "bread", text: "# Bread\nFlour, water, salt.", category: "Recipes", createdAt: T(3), updatedAt: T(3) },
+    { id: "day", text: "Went for a walk", createdAt: T(5), updatedAt: T(5) },
+    { id: "mtg", text: "Standup notes", category: "Work", createdAt: T(4), updatedAt: T(4) },
+  ],
+};
+
+async function run(b, width) {
+  const errs = [];
+  const ctx = await b.newContext({ viewport: { width, height: 900 } });
+  const page = await ctx.newPage();
+  page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
+  page.on("console", (m) => { if (m.type() === "error" && !/404|Failed to load resource/.test(m.text())) errs.push("console: " + m.text()); });
+  page.on("dialog", (d) => d.accept());
+  await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await page.evaluate((seed) => {
+    localStorage.clear();
+    localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" }));
+    localStorage.setItem("lifelog-cache-v1", JSON.stringify(seed));
+  }, SEED);
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForTimeout(400);
+  const at = " (" + width + "px)";
+  const shot = (name) => page.screenshot({ path: require("path").join(require("os").tmpdir(), "coll-" + name + "-" + width + ".png") });
+  const feed = () => page.evaluate(() => [...document.querySelectorAll(".note-card:not(.ll-exit)")].map((c) => c.dataset.id).sort());
+
+  check("the shelf shows each collection with how many notes it holds" + at, await page.evaluate(() => {
+    const cards = [...document.querySelectorAll(".shelf-card")];
+    return cards.length === 1 && /Recipes/.test(cards[0].textContent) && /2/.test(cards[0].querySelector(".shelf-count").textContent);
+  }));
+  check("and the feed keeps only what isn't in one" + at, JSON.stringify(await feed()) === JSON.stringify(["day", "mtg"]), await feed());
+  await shot("feed");
+
+  await page.click(".shelf-card");
+  await page.waitForTimeout(300);
+  check("a collection is a page of cards, by name" + at, await page.evaluate(() =>
+    [...document.querySelectorAll(".coll-card-title")].map((t) => t.textContent).join() === "Bread,Pancakes"));
+  check("a card previews the words, not the Markdown" + at, await page.evaluate(() =>
+    !/[#*`]/.test(document.querySelector('.coll-card[data-id="pan"] .coll-card-text').textContent)));
+  check("the feed's year sections step aside" + at, (await feed()).length === 0, await feed());
+  await shot("collection");
+
+  await page.click('.coll-card[data-id="pan"]');
+  await page.waitForSelector("#noteReader:not([hidden])", { timeout: 3000 });
+  check("a note opens as a page with its Markdown drawn" + at, await page.evaluate(() => {
+    const b = document.querySelector("#noteReaderBody");
+    return document.querySelector("#noteReaderTitle").textContent === "Pancakes" && !!b.querySelector("h3") &&
+      b.querySelectorAll("li.md-task").length === 2 && !!b.querySelector("li.md-task.is-done") && !!b.querySelector("strong") && !!b.querySelector("pre code");
+  }));
+  check("an http link is a link, a javascript: one isn't" + at, await page.evaluate(() => {
+    const links = [...document.querySelectorAll("#noteReaderBody a")];
+    return links.length === 1 && links[0].href === "https://example.com/" && links[0].rel.includes("noopener");
+  }));
+  await shot("reader");
+  await page.click("#editNoteReaderBtn");
+  await page.waitForTimeout(200);
+  check("Edit opens the note sheet on it" + at, await page.evaluate(() =>
+    document.querySelector("#noteReader").hidden && !document.querySelector("#noteModal").hidden && document.querySelector("#nTitle").value === "Pancakes"));
+  await page.click("#cancelNoteBtn");
+
+  await page.click('.coll-card[data-id="bread"]');
+  await page.waitForSelector("#noteReader:not([hidden])", { timeout: 3000 });
+  check("with no title, the first line is the title and stays out of the body" + at, await page.evaluate(() =>
+    document.querySelector("#noteReaderTitle").textContent === "Bread" && document.querySelector("#noteReaderBody").textContent.trim() === "Flour, water, salt."));
+  await page.click("#closeNoteReaderBtn");
+
+  await page.click(".coll-head .btn-primary");
+  await page.waitForTimeout(200);
+  check("a note added from a collection starts in it" + at, await page.evaluate(() => document.querySelector("#nCategory").value === "Recipes"));
+  await page.click("#cancelNoteBtn");
+
+  await page.click(".coll-head .btn:not(.btn-primary)");
+  await page.waitForTimeout(300);
+  check("back to all notes brings the feed and the shelf back" + at,
+    JSON.stringify(await feed()) === JSON.stringify(["day", "mtg"]) && !!(await page.$(".shelf-card")), await feed());
+
+  await page.fill("#search", "flour");
+  await page.waitForTimeout(400);
+  check("a search looks in the collections too" + at, (await feed()).includes("bread"), await feed());
+
+  await page.fill("#search", "");
+  await page.evaluate(() => window.LifeLogNotes.openNoteCatModal(JSON.parse(localStorage.getItem("lifelog-cache-v1")).noteCategories.find((c) => c.name === "Work")));
+  await page.check("#noteCatCollection");
+  await page.click("#noteCatForm button[type=submit]");
+  await page.waitForTimeout(400);
+  check("a category's sheet makes it a collection, and its notes move to the shelf" + at,
+    (await page.evaluate(() => [...document.querySelectorAll(".shelf-card .shelf-name")].map((x) => x.textContent).join())) === "Recipes,Work"
+    && JSON.stringify(await feed()) === JSON.stringify(["day"]), await feed());
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).noteCategories.find((c) => c.name === "Work"));
+  check("and it's saved on the category" + at, saved.layout === "collection", saved);
+
+  // ---- boards are a kind of note (0.204.0) ----
+  await page.locator(".notes-kind", { hasText: "Boards" }).click();
+  await page.waitForTimeout(600);
+  check("Boards is a kind beside Notes, Lists and Quotes, and shows the boards" + at, await page.evaluate(() =>
+    /No boards yet/.test(document.querySelector("#viewBody").textContent) && document.querySelector("#catFilterGroup").hidden));
+  check("with no Boards mode left" + at, await page.evaluate(() =>
+    document.querySelectorAll('#viewTabs .tab[data-view="notes"] .tab-mode-dot').length === 2));
+  await page.locator(".notes-kind", { hasText: "All" }).click();
+  await page.waitForTimeout(300);
+  await page.evaluate(() => window.LifeLogNotes.openNoteModal(null));
+  await page.click('#noteKindSeg [data-kind="board"]');
+  await page.waitForTimeout(800);
+  check("Board in the note sheet opens a new board to draw on" + at, await page.evaluate(() =>
+    !document.querySelector("#boardEditor").hidden && document.querySelector("#noteModal").hidden && window.LifeLogBoards.boardsNow().length === 1));
+  await page.evaluate(() => window.LifeLogBoards.closeBoard());
+  await page.waitForTimeout(300);
+
+  check("the page doesn't scroll sideways" + at, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  check("no errors" + at, errs.length === 0, errs);
+  await ctx.close();
+}
+
+(async () => {
+  const b = await chromium.launch();
+  await run(b, 1280);
+  await run(b, 390);
+  await b.close();
+  done();
+})();

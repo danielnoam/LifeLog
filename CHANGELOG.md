@@ -4,6 +4,28 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.204.0] - 2026-09-27
+
+### Added
+- **Collections.** A note category can be a collection, for notes you look
+  things up in rather than notes about a day: recipes, software, how-tos.
+  Tick "A collection" in the category's sheet. Its notes leave the dated
+  feed and sit on a shelf of cards above it. Tapping one opens a page of
+  that collection's notes as cards, sorted A–Z (or by recently edited, or
+  newest), with a + to add another. Year chips don't apply inside a
+  collection, and search still finds everything.
+- **Reading a note.** A note in a collection opens as a page with its
+  Markdown drawn: headings, lists and checkboxes, bold and italic, code,
+  quotes and links. Tap Edit to change it. On a phone the page fills the
+  screen.
+
+### Changed
+- **Boards are a kind of note.** They moved from their own mode into Notes'
+  switch, beside Notes, Lists and Quotes, so Notes has two modes now
+  (Notes and Habits). Choose Board in the new-note sheet to start drawing.
+  Boards are stored exactly as before. If you left the app on Boards, it
+  opens on them.
+
 ## [0.203.0] - 2026-09-27
 
 ### Added
