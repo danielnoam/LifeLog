@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.211.0] - 2026-09-28
+
+### Changed
+- **Everything you can press sinks a little and springs back** when you
+  let go: buttons, chips, tabs, switches and the bottom bar's labels.
+  Small things dip more than wide ones, so a chip answers clearly and a
+  full-width row doesn't lurch. The dim that went with a press is lighter.
+- **A category's ✎ is easier to hit and shows it was pressed**: a round
+  target with a tinted circle under your finger, and the chip around it
+  no longer dims as well.
+
+### Fixed
+- **"Recurring expenses" isn't cut off in the Ledger's bottom bar** on a
+  phone; it reads "Recurring" there. Any other name too long for the bar
+  now ends in "…" instead of being cut mid-letter.
+
 ## [0.210.0] - 2026-09-28
 
 ### Changed

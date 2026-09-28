@@ -2143,7 +2143,9 @@
     if (!active.length && !ended.length) return;
     const card = el("div", "recur-card");
     const head = el("div", "year-head");
-    head.appendChild(el("h2", null, "Recurring expenses"));
+    const h2 = el("h2", null, "Recurring expenses");
+    h2.dataset.jumpLabel = "Recurring"; // a third of a phone's bottom bar
+    head.appendChild(h2);
     head.appendChild(el("span", "ycount", `${active.length} active`));
     card.appendChild(head);
 

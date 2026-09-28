@@ -183,10 +183,12 @@ input, textarea, select { -webkit-user-select: auto; user-select: auto; }
    replacement every tap would go dead. Transient, so unlike a row's *state*
    it is fine on opacity (see NOTES.md on .ll-enter owning that property) —
    nothing animates for the length of a press.
-   :disabled is excluded: a button that can't act shouldn't answer. */
+   :disabled is excluded: a button that can't act shouldn't answer.
+   The movement that goes with it — a sink and a spring back — is
+   wirePressFeedback() in app.js (0.211.0); this dim is lighter since. */
 button:active:not(:disabled), [role="button"]:active, summary:active,
 .tab:active, .cat-chip:active, .chip-edit:active,
-.filter-label:active, .toggle-label:active { opacity: .6; }
+.filter-label:active, .toggle-label:active { opacity: .75; }
 /* The highlight is inherited, so the list above only ever reached what it
    named: every row and card that takes a tap as a whole (entries, backlog
    and ledger rows, notes, collection cards) still drew the browser's blue
@@ -1245,8 +1247,18 @@ img.cover-loading { opacity: 0; }
 }
 .picker-newcats-list { display: flex; flex-wrap: wrap; gap: 14px; }
 .bar-row.money { grid-template-columns: 120px 1fr 100px; }
-.chip-edit { margin-left: 2px; opacity: .6; font-size: 11px; }
+/* A round target a finger can find, with negative margins so the chip
+   doesn't grow, and a tinted circle on press: the glyph alone is 11px at
+   60%, and the app-wide dim would have made it brighter, not darker. */
+.chip-edit {
+  display: inline-grid; place-items: center; width: 22px; height: 22px;
+  margin: -4px -6px -4px -1px; border-radius: 50%; opacity: .6; font-size: 11px;
+  transition: opacity var(--dur-fast) var(--ease), background-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
 .chip-edit:hover { opacity: 1; color: var(--accent); }
+.chip-edit:active { opacity: 1; color: var(--accent); background: var(--accent-soft); }
+/* The ✎ answers for itself; the chip it sits in stays as it is. */
+.cat-chip:active:has(.chip-edit:active) { opacity: 1; }
 
 /* stats */
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
@@ -2259,7 +2271,9 @@ html.native, html.native body { overscroll-behavior-y: none; }
      highlight or (worse) let the browser start a text selection instead
      of registering as a tap, which is what produced the "weird lag". */
   html:not(.force-pc) .jump-item {
-    flex: 0 0 33.3334%; display: flex; align-items: center; justify-content: center;
+    /* A block, not a flex box: text-overflow only draws its … on a block,
+       so a long name was cut mid-letter. */
+    flex: 0 0 33.3334%; display: block; line-height: 41px; text-align: center;
     font-size: 12px; font-weight: 600; color: var(--text-faint); cursor: pointer;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px;
     transition: color .18s ease, font-size .18s ease;
@@ -2352,7 +2366,9 @@ html.force-mobile .jump-btn:focus-visible { outline-offset: -2px; }
 html.force-mobile .jump-carousel { flex: 1; overflow: hidden; position: relative; height: 100%; }
 html.force-mobile .jump-track { display: flex; height: 100%; transition: transform var(--dur) var(--ease); }
 html.force-mobile .jump-item {
-  flex: 0 0 33.3334%; display: flex; align-items: center; justify-content: center;
+  /* A block, not a flex box: text-overflow only draws its … on a block,
+     so a long name was cut mid-letter. */
+  flex: 0 0 33.3334%; display: block; line-height: 41px; text-align: center;
   font-size: 12px; font-weight: 600; color: var(--text-faint); cursor: pointer;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px;
   transition: color .18s ease, font-size .18s ease;

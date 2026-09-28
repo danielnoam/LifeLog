@@ -16,6 +16,18 @@ what was decided against and why.
 
 ---
 
+- **Press feedback is Web Animations, not CSS (0.211.0).** `:active` can
+  animate a press in, but the way back out uses whatever `transition` the
+  control's own rule declares, and dozens declare one without `scale` — so a
+  CSS spring would have snapped back on most of them. wirePressFeedback()
+  is one capture-phase pointerdown: it animates the `scale` property (which
+  composes with any transform) to 1 − min(.1, 4px / the longer side), and on
+  release springs back from wherever the press got to. The instant dim stays
+  in CSS (lighter, .75) so reduced motion and press.js still see a press.
+- **The bottom bar's slots are blocks (0.211.0).** A flex container's bare
+  text never shows text-overflow's "…", so a long label was cut mid-letter.
+  A section can name itself for the bar with `data-jump-label` on its h2.
+
 - **The tap highlight is off at the root (0.210.0).**
   `-webkit-tap-highlight-color` is inherited, so the pressables list in
   styles.css only ever covered what it named, and every row and card that

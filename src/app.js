@@ -139,7 +139,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.210.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.211.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1651,7 +1651,7 @@
     const el = state.view === "backlog"
       ? sectionEl.querySelector(".backlog-section-name")
       : sectionEl.querySelector("h2");
-    return el ? el.textContent : "";
+    return el ? el.dataset.jumpLabel || el.textContent : "";
   }
   // Snapshot the section the viewport is currently anchored on, for render()
   // to restore after an in-view rebuild — the last section header at or
@@ -3911,6 +3911,7 @@
     });
     syncModalOpenState();
 
+    wirePressFeedback();
     Habits.wire();
     Boards.wire();
     Recap.wire();
@@ -3977,6 +3978,38 @@
       if (saveTimer) flushSave();
     });
     window.addEventListener("pagehide", () => { if (saveTimer) flushSave(); });
+  }
+
+  // Every pressable sinks a little under the finger and springs back when
+  // let go (0.211.0) — the dim in styles.css alone was a flat, instant step.
+  // One delegated listener rather than CSS: :active can animate in, but the
+  // way back out takes whatever transition the control's own rule declares,
+  // and dozens of them declare one without `scale`. By a few pixels rather
+  // than a fixed ratio, so a chip dips visibly and a full-width row barely
+  // moves. `scale`, the property, composes with any transform already there.
+  const PRESSABLE = 'button, [role="button"], summary, .tab, .cat-chip, .chip-edit, .filter-label, .toggle-label, .jump-item';
+  function wirePressFeedback() {
+    let held = null;
+    const release = () => {
+      if (!held) return;
+      const { node, anim, to } = held;
+      held = null;
+      const p = anim.effect.getComputedTiming().progress || 0;
+      const from = 1 + (to - 1) * p;
+      anim.cancel();
+      node.animate([{ scale: from }, { scale: 1 }], { duration: 260, easing: "cubic-bezier(.34, 1.56, .64, 1)" });
+    };
+    document.addEventListener("pointerdown", (e) => {
+      release();
+      if (e.button > 0 || prefersReducedMotion()) return;
+      const node = e.target.closest && e.target.closest(PRESSABLE);
+      if (!node || node.disabled || node.closest(".board-svg")) return;
+      const r = node.getBoundingClientRect();
+      const to = 1 - Math.min(0.1, 4 / Math.max(r.width, r.height, 1));
+      const anim = node.animate([{ scale: 1 }, { scale: to }], { duration: 90, easing: "ease-out", fill: "forwards" });
+      held = { node, anim, to };
+    }, true);
+    for (const t of ["pointerup", "pointercancel", "blur"]) window.addEventListener(t, release, true);
   }
 
   // Where a shortcut from outside the app lands: the PWA's (manifest.json's
