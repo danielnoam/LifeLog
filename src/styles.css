@@ -2834,6 +2834,11 @@ html.force-mobile .modal.view-options {
 .board-meta { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 10px 12px; }
 .board-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .board-when { font-size: 12px; color: var(--text-faint); flex: 0 0 auto; }
+/* The name on a line of its own; the category and time share the next. */
+.board-meta:has(.board-cat) { flex-wrap: wrap; row-gap: 2px; }
+.board-meta:has(.board-cat) .board-name { flex: 1 0 100%; }
+.board-cat { flex: 1 1 auto; display: inline-flex; align-items: center; gap: 4px; min-width: 0; font-size: 11.5px; color: var(--text-dim); overflow: hidden; white-space: nowrap; }
+.board-cat .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
 .board-new {
   align-items: center; justify-content: center; gap: 6px; min-height: 150px;
   border-style: dashed; color: var(--text-dim); background: transparent;
@@ -2954,8 +2959,13 @@ html.force-mobile .modal.view-options {
 /* Right-hand, as in every other view, even once it wraps under the kinds. */
 .notes-toolbar .sort-select { margin-left: auto; }
 .board-cat-select {
-  flex: 0 1 auto; min-width: 0; max-width: 150px; background: var(--bg-elev-2); border: 1px solid var(--border);
-  color: var(--text-dim); border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 12.5px;
+  flex: 0 0 auto; max-width: 220px; height: 36px; background: var(--bg-elev); border: 1px solid var(--border);
+  color: var(--text); border-radius: 10px; padding: 0 8px; font: inherit; font-size: 13px; box-shadow: var(--shadow);
+}
+/* A phone's top bar has no room for it beside the name: it gets its own
+   line under the name, as wide as its category needs. */
+@media (max-width: 720px) {
+  .board-cat-select { position: absolute; top: calc(100% + 6px); left: 52px; max-width: calc(100% - 52px); }
 }
 .board-thumb-inline { display: block; width: 100%; max-height: 180px; margin-top: 4px; border-radius: 8px; background: var(--bg); overflow: hidden; }
 .board-thumb-inline svg { display: block; width: 100%; height: auto; max-height: 180px; }

@@ -16,6 +16,12 @@ what was decided against and why.
 
 ---
 
+- **The chip row stays for the Boards kind (0.207.0).** 0.204.0 hid it
+  there because boards had no categories; they do since 0.206.0, so
+  renderBoards narrows by state.noteActiveCats like the feed. On a phone the
+  editor's category select is positioned under the name (absolute, off the
+  top bar's flex row): beside it, name and category each got a few letters.
+
 - **Boards in the feed, and no shelf (0.206.0).** A board joins the notes
   as a stand-in item keyed `board:<id>` (notes.js boardItems), built from
   boards.js's own list each render, so boards.json stays the only place a

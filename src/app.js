@@ -139,7 +139,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.206.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.207.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2807,8 +2807,9 @@
     // row is theirs. A habit carries no
     // category — it carries a colour, which is its own and not shared with
     // anything the chips could narrow — and a board has none either, so
-    // there the row goes — as it does for the Boards kind (0.204.0).
-    const note = state.view === "notes" && state.notesMode === "notes" && state.noteKind !== "board";
+    // there the row goes. Boards have note categories (0.206.0), so the
+    // Boards kind keeps it.
+    const note = state.view === "notes" && state.notesMode === "notes";
     const noCats = state.view === "notes" && !note;
     $("#catFilterGroup").hidden = noCats;
     updateFilterbarVisibility();

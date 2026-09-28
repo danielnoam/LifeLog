@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.207.0] - 2026-09-28
+
+### Fixed
+- **A board's category isn't cut off any more.** On a phone it sits on its
+  own line under the board's name, instead of squeezed beside it.
+- **The Boards page shows the category chips.** Tap one to see only that
+  category's boards. Each board card shows its category.
+
 ## [0.206.0] - 2026-09-27
 
 ### Added

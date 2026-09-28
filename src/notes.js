@@ -332,7 +332,6 @@
       const b = el("button", "notes-kind" + (state.noteKind === k ? " on" : ""), label);
       b.type = "button";
       b.setAttribute("aria-pressed", String(state.noteKind === k));
-      // Boards have no categories, so the chip row changes with this.
       b.onclick = () => { state.noteKind = k; buildCatFilter(); render(); };
       kinds.appendChild(b);
     }

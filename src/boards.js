@@ -420,7 +420,9 @@
     }
     fontReady().then((fresh) => { if (fresh && isBoardsMode() && !editing) render({ keepSnapshots: true }); });
     const q = (state.search || "").trim().toLowerCase();
-    const list = boards().filter((b) => !q || b.name.toLowerCase().includes(q))
+    // The note category chips narrow boards too (0.207.0); "" is no category.
+    const cf = state.noteActiveCats;
+    const list = boards().filter((b) => (!q || b.name.toLowerCase().includes(q)) && (!cf || !cf.size || cf.has(b.category || "")))
       .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
     if (!boards().length) {
       root.appendChild(emptyState({
@@ -446,12 +448,19 @@
       card.appendChild(thumb);
       const meta = el("div", "board-meta");
       meta.appendChild(el("span", "board-name", b.name));
+      if (b.category) {
+        const cat = (state.data.noteCategories || []).find((c) => c.name === b.category);
+        const tag = el("span", "board-cat");
+        const dot = el("span", "dot"); dot.style.background = (cat && cat.color) || "#7a8a99";
+        tag.append(dot, document.createTextNode(b.category));
+        meta.appendChild(tag);
+      }
       meta.appendChild(el("span", "board-when", when(b.updatedAt)));
       card.appendChild(meta);
       card.onclick = () => openBoard(b.id);
       grid.appendChild(card);
     }
-    if (q && !list.length) root.appendChild(el("p", "muted", "No board is called that."));
+    if (!list.length) root.appendChild(el("p", "muted", q ? "No board is called that." : "No boards in that category."));
     root.appendChild(grid);
   }
   function when(iso) {

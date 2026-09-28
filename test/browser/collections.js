@@ -117,8 +117,8 @@ async function run(b, width) {
   // ---- boards are a kind of note (0.204.0) ----
   await page.locator(".notes-kind", { hasText: "Boards" }).click();
   await page.waitForTimeout(600);
-  check("Boards is a kind beside Notes, Lists and Quotes, and shows the boards" + at, await page.evaluate(() =>
-    /No boards yet/.test(document.querySelector("#viewBody").textContent) && document.querySelector("#catFilterGroup").hidden));
+  check("Boards is a kind beside Notes, Lists and Quotes, and shows the boards, with the category chips" + at, await page.evaluate(() =>
+    /No boards yet/.test(document.querySelector("#viewBody").textContent) && !document.querySelector("#catFilterGroup").hidden));
   check("with no Boards mode left" + at, await page.evaluate(() =>
     document.querySelectorAll('#viewTabs .tab[data-view="notes"] .tab-mode-dot').length === 2));
   await page.locator(".notes-kind", { hasText: "All" }).click();
@@ -152,6 +152,19 @@ async function run(b, width) {
   check("where it's a card like the notes" + at, await page.evaluate(() =>
     [...document.querySelectorAll(".coll-card")].some((c) => /✎/.test(c.textContent) && c.querySelector("svg"))));
   await page.locator(".coll-head .btn:not(.btn-primary)").click();
+  await page.waitForTimeout(300);
+
+  // The Boards page narrows by the chips too (0.207.0).
+  await page.locator(".notes-kind", { hasText: "Boards" }).click();
+  await page.waitForTimeout(400);
+  check("a board shows its category on the Boards page" + at, await page.evaluate(() =>
+    /Recipes/.test((document.querySelector(".board-card:not(.board-new) .board-cat") || {}).textContent || "")));
+  await page.locator("#catFilter .cat-chip", { hasText: "Work" }).click();
+  await page.waitForTimeout(300);
+  check("and a category chip narrows the boards" + at, await page.evaluate(() =>
+    !document.querySelector(".board-card:not(.board-new)") && /No boards in that category/.test(document.querySelector("#viewBody").textContent)));
+  await page.locator("#catFilter .cat-chip", { hasText: "Work" }).click();
+  await page.locator(".notes-kind", { hasText: "All" }).click();
   await page.waitForTimeout(300);
 
   check("the page doesn't scroll sideways" + at, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
