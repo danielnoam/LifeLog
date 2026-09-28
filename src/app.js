@@ -139,7 +139,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.208.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.209.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1204,6 +1204,22 @@
     return span;
   }
 
+  // A row's cover art, lazy, falling back to the placeholder on a broken URL
+  // instead of collapsing the space it held. One still on its way fades in
+  // rather than popping; one the browser already has shows at once, so a
+  // re-render doesn't flash every cover on the page.
+  function coverEl(src, alt, cls, category) {
+    const img = document.createElement("img");
+    img.loading = "lazy"; img.decoding = "async";
+    img.src = src; img.alt = alt; img.className = cls;
+    img.onerror = () => { img.replaceWith(emptyCoverEl(cls + " cover-empty", category)); };
+    if (!img.complete) {
+      img.classList.add("cover-loading");
+      img.addEventListener("load", () => img.classList.remove("cover-loading"), { once: true });
+    }
+    return img;
+  }
+
   // The year chips filter whatever the Journal side is currently showing, so
   // in Notes mode they're the years the notes fall in — otherwise a note
   // written in a year you logged nothing in would have no chip to survive.
@@ -2141,10 +2157,13 @@
     wrap.appendChild(el("div", "empty-glyph", glyph));
     wrap.appendChild(el("h2", null, title));
     wrap.appendChild(el("p", "empty-body", body));
-    const btn = el("button", "btn btn-primary", "+ " + action);
-    btn.type = "button";
-    btn.onclick = onAction;
-    wrap.appendChild(btn);
+    // Next releases has nothing to add from: its items arrive by syncing.
+    if (action) {
+      const btn = el("button", "btn btn-primary", "+ " + action);
+      btn.type = "button";
+      btn.onclick = onAction;
+      wrap.appendChild(btn);
+    }
     if (hint) wrap.appendChild(el("p", "empty-hint", hint));
     return wrap;
   }
@@ -4670,7 +4689,7 @@
   });
   Journal.init({
     state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
-    emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
+    emptyCoverEl, coverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect, sortSelect,
     startBulkRun, markBulkItem, finishBulkRun,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
@@ -4698,7 +4717,7 @@
   Backlog.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
     MEDIA_SOURCE_LABELS, saveVisualSettings, isMobileLayout,
-    emptyState, emptyCoverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
+    emptyState, emptyCoverEl, coverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect, sortSelect,
     startBulkRun, markBulkItem, finishBulkRun,
     openEntryModal: Journal.openEntryModal,

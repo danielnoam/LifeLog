@@ -435,19 +435,29 @@
   const box = () => $("#settingsModal .settings-modal");
   const onePane = () => isMobileLayout();
 
+  // On a phone a page pushes in from the right and back brings the list in
+  // from the left, the mode switch's slide; beside the list it just fades.
+  function replay(node, cls) {
+    if (!node || prefersReducedMotion()) return;
+    node.classList.remove("view-fade-in", "mode-slide-fwd", "mode-slide-back");
+    void node.offsetWidth; // force reflow so the animation replays
+    node.classList.add(cls);
+    // Or it replays whenever the node comes back from display: none — the
+    // list would slide in again on every reopen.
+    node.addEventListener("animationend", () => node.classList.remove(cls), { once: true });
+  }
+
   function showPage(name) {
+    const was = currentPage;
     currentPage = name || "";
     box().dataset.page = currentPage;
     document.querySelectorAll("#settingsModal .settings-page").forEach((p) => {
       const on = p.dataset.page === currentPage;
       if (!on && p.contains(document.activeElement)) document.activeElement.blur();
       p.hidden = !on;
-      if (on && !prefersReducedMotion()) {
-        p.classList.remove("view-fade-in");
-        void p.offsetWidth; // force reflow so the animation replays
-        p.classList.add("view-fade-in");
-      }
+      if (on) replay(p, onePane() ? "mode-slide-fwd" : "view-fade-in");
     });
+    if (onePane() && was && !currentPage && !$("#settingsModal").hidden) replay($("#settingsModal .settings-side"), "mode-slide-back");
     document.querySelectorAll("#settingsModal .srow[data-page]").forEach((r) => {
       const on = r.dataset.page === currentPage;
       r.classList.toggle("active", on);

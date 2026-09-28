@@ -10,7 +10,7 @@
 
   // Shared app plumbing, provided by app.js via init(ctx).
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
-    emptyState, emptyCoverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
+    emptyState, emptyCoverEl, coverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect, sortSelect, openEntryModal,
     startBulkRun, markBulkItem, finishBulkRun,
     fillCategorySelect, wireCategorySelect, titleSuggestions,
@@ -29,7 +29,7 @@
 
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
-      emptyState, emptyCoverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
+      emptyState, emptyCoverEl, coverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
       toggleBulkCategoryAll, attachLongPressSelect, sortSelect, openEntryModal,
       startBulkRun, markBulkItem, finishBulkRun,
       fillCategorySelect, wireCategorySelect, titleSuggestions,
@@ -834,11 +834,6 @@
   // with the list and so is always offered.
   function makePickGroup(items) {
     const right = el("div", "dsc-bar-right");
-    right.appendChild(sortSelect("backlog", backlogSort(), async (value) => {
-      state.data.settings.backlogSort = value;
-      render();
-      await persist();
-    }));
     const spin = el("button", "btn btn-sm", "🎡 Spin");
     spin.type = "button";
     spin.title = "A wheel of your own options";
@@ -855,6 +850,12 @@
       btn.onclick = () => openPickModal(eligible);
       right.appendChild(btn);
     }
+    // Last, so the sort sits at the far right as it does in every other view.
+    right.appendChild(sortSelect("backlog", backlogSort(), async (value) => {
+      state.data.settings.backlogSort = value;
+      render();
+      await persist();
+    }));
     return right;
   }
 
@@ -1081,12 +1082,7 @@
     row.dataset.id = b.id;
     if (state.bulk.active) row.appendChild(bulkCheckbox(b));
     if (rich && b.coverUrl) {
-      const img = document.createElement("img");
-      img.loading = "lazy";
-      img.src = b.coverUrl; img.alt = b.title;
-      img.className = "bl-cover cover-sm";
-      img.onerror = () => { img.replaceWith(emptyCoverEl("bl-cover cover-empty cover-sm", b.category)); };
-      row.appendChild(img);
+      row.appendChild(coverEl(b.coverUrl, b.title, "bl-cover cover-sm", b.category));
     } else if (rich) {
       row.appendChild(emptyCoverEl("bl-cover cover-empty cover-sm", b.category));
     }
@@ -1469,12 +1465,7 @@
     const rich = state.visual.backlogCoverSize !== "none";
     const row = el("div", rich ? "backlog-item-rich dsc-row" : "entry dsc-row");
     if (rich && r.coverUrl) {
-      const img = document.createElement("img");
-      img.loading = "lazy";
-      img.src = r.coverUrl; img.alt = r.title;
-      img.className = "bl-cover " + (state.visual.backlogCoverSize === "small" ? "cover-sm" : "cover-lg");
-      img.onerror = () => { img.replaceWith(emptyCoverEl("bl-cover cover-empty", catName)); };
-      row.appendChild(img);
+      row.appendChild(coverEl(r.coverUrl, r.title, "bl-cover " + (state.visual.backlogCoverSize === "small" ? "cover-sm" : "cover-lg"), catName));
     } else if (rich) {
       row.appendChild(emptyCoverEl("bl-cover cover-empty", catName));
     }
@@ -2039,14 +2030,7 @@
     if (state.bulk.active) row.appendChild(bulkCheckbox(b));
     const sizeClass = state.visual.backlogCoverSize === "small" ? "cover-sm" : "cover-lg";
     if (b.coverUrl) {
-      const img = document.createElement("img");
-      img.loading = "lazy";
-      img.src = b.coverUrl; img.alt = b.title;
-      img.className = "bl-cover " + sizeClass;
-      // On a broken URL, swap in the same empty placeholder used for items
-      // with no cover at all, instead of collapsing the space it held.
-      img.onerror = () => { img.replaceWith(emptyCoverEl("bl-cover cover-empty " + sizeClass, b.category)); };
-      row.appendChild(img);
+      row.appendChild(coverEl(b.coverUrl, b.title, "bl-cover " + sizeClass, b.category));
     } else {
       row.appendChild(emptyCoverEl("bl-cover cover-empty " + sizeClass, b.category));
     }

@@ -8,7 +8,7 @@
 (function () {
   // Shared app plumbing, provided by app.js via init(ctx).
   let state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
-    emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
+    emptyCoverEl, coverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect, sortSelect,
     startBulkRun, markBulkItem, finishBulkRun,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
@@ -25,7 +25,7 @@
 
   function init(ctx) {
     ({ state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
-      emptyCoverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
+      emptyCoverEl, coverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
       attachLongPressSelect, animatedNumberText, barRow, fillSelect, sortSelect,
       startBulkRun, markBulkItem, finishBulkRun,
       fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
@@ -162,14 +162,7 @@
     if (state.visual.timelineCoverSize !== "none") {
       const sizeClass = state.visual.timelineCoverSize === "big" ? "cover-lg" : "cover-sm";
       if (e.coverUrl) {
-        const img = document.createElement("img");
-        img.loading = "lazy";
-        img.src = e.coverUrl; img.alt = "";
-        img.className = "etn-cover " + sizeClass;
-        // On a broken URL, swap in the same empty placeholder used for entries
-        // with no cover at all, instead of collapsing the space it held.
-        img.onerror = () => { img.replaceWith(emptyCoverEl("etn-cover cover-empty " + sizeClass, e.category)); };
-        row.appendChild(img);
+        row.appendChild(coverEl(e.coverUrl, "", "etn-cover " + sizeClass, e.category));
       } else {
         row.appendChild(emptyCoverEl("etn-cover cover-empty " + sizeClass, e.category));
       }

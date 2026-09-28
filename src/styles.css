@@ -515,7 +515,9 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
    bottom padding on a phone is this plus the bar itself. */
 :root { --fab-clear: 76px; }
 .fab-wrap { position: fixed; right: 24px; bottom: 24px; z-index: 35; }
-.fab {
+/* .btn.fab: .btn comes later in this file and, at equal weight, was taking
+   the radius, padding and font size back — a rounded square with a 13px +. */
+.btn.fab {
   width: 52px; height: 52px; border-radius: 50%; padding: 0;
   font-size: 26px; line-height: 1; display: flex; align-items: center; justify-content: center;
   box-shadow: var(--shadow);
@@ -531,6 +533,12 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
   z-index: 20;
 }
 .menu-pop[hidden] { display: none; }
+/* Both menus open upward, so they rise into place — see .modal-overlay for
+   how a `hidden` toggle gets to animate. */
+.menu-pop { transition: opacity .12s var(--ease), translate .12s var(--ease), display .12s allow-discrete; }
+.menu-pop[hidden] { opacity: 0; translate: 0 4px; pointer-events: none; }
+@starting-style { .menu-pop { opacity: 0; translate: 0 6px; } }
+@media (prefers-reduced-motion: reduce) { .menu-pop { transition: none; } }
 .menu-pop button {
   background: transparent; border: none; color: var(--text); text-align: left;
   padding: 9px 12px; border-radius: 7px; cursor: pointer; font-size: 13.5px;
@@ -1107,6 +1115,11 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .entry .entry-cat .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .entry .etn-cover { object-fit: cover; border-radius: 3px; flex-shrink: 0; }
+/* Cover art on its way in (coverEl in app.js) fades up when it lands; its
+   size class already holds the space, so nothing shifts. */
+img.etn-cover, img.bl-cover { transition: opacity .25s var(--ease); }
+img.cover-loading { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { img.etn-cover, img.bl-cover { transition: none; } }
 /* Shared cover-art size options (Settings → Appearance → Cover art) — applied
    alongside .etn-cover / .bl-cover, independently for Timeline and Backlog. */
 .cover-sm { width: 22px; height: 30px; }
@@ -1462,6 +1475,8 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .dsc-row:hover .dsc-add { color: var(--accent); border-color: var(--accent); }
 .dsc-note { margin: 8px 2px; font-size: 12.5px; color: var(--text-faint); }
 .dsc-bar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* The same height as the sort menu beside them, not 5px short of it. */
+.dsc-bar-right > .btn-sm { padding-block: 6px; }
 .dsc-toggle {
   display: inline-flex; align-items: center; gap: 7px;
   font-size: 12.5px; color: var(--text-dim); cursor: pointer; user-select: none;
@@ -1478,6 +1493,31 @@ body.modal-open { overflow: hidden; }
   background: var(--bg-elev); border: 1px solid var(--border); border-radius: 14px;
   padding: 22px 24px; width: 420px; max-width: 100%; box-shadow: var(--shadow);
   max-height: 90vh; overflow-y: auto; overscroll-behavior: contain;
+}
+/* Sheets fade in and rise, and fade out on the way down, instead of popping
+   (0.209.0). Pure CSS so every open/close path — each module flips `hidden`
+   on its own — gets it for free: `display` transitions discretely, keeping a
+   closing sheet on screen for the fade, and @starting-style gives an opening
+   one somewhere to come from. `hidden` itself still changes at once, so
+   isAnyModalOpen() and everything else that reads it see the sheet closed
+   the moment it's asked to close; pointer-events keeps the fading one from
+   catching a tap meant for the page. Only translate, never scale: a scaled
+   sheet would measure wrong to anything sizing itself on open (the wheel). */
+.modal-overlay {
+  transition: opacity .2s var(--ll-move-ease), display .2s allow-discrete;
+}
+.modal-overlay[hidden] {
+  opacity: 0; pointer-events: none;
+  transition-duration: .14s; transition-timing-function: var(--ease);
+}
+.modal-overlay > .modal { transition: translate .24s var(--ll-move-ease); }
+.modal-overlay[hidden] > .modal { translate: 0 8px; transition-duration: .14s; transition-timing-function: var(--ease); }
+@starting-style {
+  .modal-overlay { opacity: 0; }
+  .modal-overlay > .modal { translate: 0 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay, .modal-overlay > .modal { transition: none; }
 }
 .modal-cover { position: relative; margin: -22px -24px 16px; overflow: hidden; border-radius: 14px 14px 0 0; max-height: 180px; }
 .modal-cover img { width: 100%; height: 180px; object-fit: cover; object-position: top; display: block; }
@@ -2000,6 +2040,11 @@ kbd {
   display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 16px;
 }
 .toast[hidden] { display: none; }
+/* `translate`, not `transform`: transform is already centring it. */
+.toast { transition: opacity .2s var(--ll-move-ease), translate .2s var(--ll-move-ease), display .2s allow-discrete; }
+.toast[hidden] { opacity: 0; translate: 0 8px; pointer-events: none; }
+@starting-style { .toast { opacity: 0; translate: 0 10px; } }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 
 /* Pull to refresh, in the Android app only (see wirePullToRefresh). The
    page comes down with the finger, and in the gap it opens an arrow drawn on
@@ -2332,6 +2377,9 @@ html.force-mobile .backlog-section-head {
     width: 100%; max-height: 85vh; border-radius: 18px 18px 0 0; border-bottom: 0;
     padding-bottom: calc(22px + var(--sab, 0px));
   }
+  /* A bottom sheet comes up from the edge it sits on. */
+  html:not(.force-pc) .view-options-overlay[hidden] > .modal { translate: 0 100%; }
+  @starting-style { html:not(.force-pc) .view-options-overlay > .modal { translate: 0 100%; } }
 }
 html.force-mobile .modal.settings-modal { grid-template-columns: minmax(0, 1fr); }
 html.force-mobile .settings-modal:not([data-page=""]) .settings-side,
@@ -2344,6 +2392,8 @@ html.force-mobile .modal.view-options {
   width: 100%; max-height: 85vh; border-radius: 18px 18px 0 0; border-bottom: 0;
   padding-bottom: calc(22px + var(--sab, 0px));
 }
+html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
+@starting-style { html.force-mobile .view-options-overlay > .modal { translate: 0 100%; } }
 
 /* ---------- app lock screen ---------- */
 .lock-screen {

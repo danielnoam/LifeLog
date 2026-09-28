@@ -16,6 +16,29 @@ what was decided against and why.
 
 ---
 
+- **Sheets, menus and the toast animate in CSS alone (0.209.0).** Every
+  module opens and closes its sheet by flipping `hidden`, twenty-odd
+  places, so wrapping them in an open/close helper would be a change to
+  each and a trap for the next one added. `transition: display …
+  allow-discrete` keeps a closing sheet rendered for its fade, and
+  `@starting-style` gives an opening one somewhere to come from, so the
+  attribute stays the truth: it changes at once, and isAnyModalOpen(),
+  Escape and the tests all see a sheet closed the moment it's closed. The
+  fading one gets `pointer-events: none` so a quick tap after closing
+  reaches the page. The sheet moves by `translate`, never `transform` or
+  scale: transform would make it the containing block for anything fixed
+  inside it and scale would change what it measures on open. Browsers
+  without discrete transitions (older Safari, Firefox) still open with the
+  fade and close instantly.
+- **`.btn.fab`, not `.fab` (0.209.0).** `.btn` is declared further down
+  the file and, at equal specificity, had been winning back the radius,
+  padding and font size since the + button took the .btn class — a
+  rounded square with a 13px plus that no test looked at.
+- **coverEl() in app.js (0.209.0)** replaces four copies of the same lazy
+  `<img>` with a placeholder on error. A cover that isn't `complete` when
+  it's made fades in; one the browser already has is shown as it is, or
+  every re-render would flash every cover on the page.
+
 - **A hold on a note's words selects it (0.208.0).** attachLongPressSelect
   skipped `.note-text` so the words could be held to copy, which left only
   the date line to hold — fine on a list's card, but a plain note or a

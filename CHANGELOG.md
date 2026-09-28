@@ -4,6 +4,28 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.209.0] - 2026-09-28
+
+### Changed
+- **Sheets fade in and rise into place**, and fade out when they close,
+  instead of popping on and off. The View sheet on a phone slides up from
+  the bottom edge. The + menu and the message bar at the bottom ease in
+  the same way.
+- **Settings on a phone moves like pages.** A page slides in from the
+  right, and back brings the list in from the left.
+- **Cover art fades in** as it loads instead of appearing all at once.
+- Backlog's sort menu is at the far right like every other view's, and the
+  Spin and Pick random buttons beside it are the same height as it.
+- The colour scheme called "Dark" in Settings' list is called Dark in its
+  menu too, not "Default".
+
+### Fixed
+- **The + button is round again**, with a full-size +. It had been drawn
+  as a rounded square with a small one.
+- The empty Next releases page no longer shows a "+ undefined" button.
+- A collection's explanation in the category sheet no longer mentions the
+  shelf that 0.206.0 removed.
+
 ## [0.208.0] - 2026-09-28
 
 ### Fixed
