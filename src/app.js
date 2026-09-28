@@ -4685,7 +4685,7 @@
     backfillUpdatedAt, keepUnknown, CATEGORY_PALETTE, buildCatFilter,
   });
   Recap.init({ state, $, el, toast, MONTHS, prefersReducedMotion });
-  Boards.init({ state, $, el, uid, toast, emptyState, render, Storage, download: IO.download });
+  Boards.init({ state, $, el, uid, toast, emptyState, render, Storage, download: IO.download, bulkCheckbox, toggleBulkItem, attachLongPressSelect });
 
   Notes.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy,

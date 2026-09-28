@@ -207,8 +207,30 @@ async function run(b, width) {
     !!document.querySelector(".bulk-bar") && !!document.querySelector('.note-card.is-selected[data-id="day"]')));
   await page.locator(".bulk-bar button", { hasText: "Cancel" }).click();
   await page.locator("#catFilter .cat-chip", { hasText: "No category" }).click();
-  await page.locator(".notes-kind", { hasText: "All" }).click();
+
+  // Boards are selected like notes: on the Boards page, and in the feed.
+  await page.locator(".notes-kind", { hasText: "Boards" }).click();
   await page.waitForTimeout(300);
+  await page.locator(".board-card:not(.board-new) .board-thumb").click({ delay: 700 });
+  await page.waitForTimeout(300);
+  check("holding a board on the Boards page selects it" + at, await page.evaluate(() =>
+    !!document.querySelector(".board-card.is-selected .bulk-check") && !!document.querySelector(".bulk-bar") && document.querySelector("#boardEditor").hidden));
+  await page.selectOption(".bulk-bar .bulk-move-select", "Work");
+  await page.waitForTimeout(500);
+  check("and Move sets its category" + at, await page.evaluate(() => window.LifeLogBoards.boardsNow()[0].category === "Work"));
+  await page.evaluate(() => window.LifeLogBoards.setCategory([window.LifeLogBoards.boardsNow()[0].id], ""));
+  await page.locator(".notes-kind", { hasText: "All" }).click();
+  await page.waitForTimeout(400);
+  await page.locator(".note-card.is-board .board-thumb-inline").click({ delay: 700 });
+  await page.waitForTimeout(300);
+  check("in All a board stays while selecting, and can be selected" + at, await page.evaluate(() =>
+    !!document.querySelector(".note-card.is-board.is-selected") && document.querySelector("#boardEditor").hidden));
+  await page.locator('.note-card[data-id="day"]').click();
+  await page.waitForTimeout(200);
+  await page.locator(".bulk-bar button", { hasText: "Delete" }).click();
+  await page.waitForTimeout(600);
+  check("and Delete takes boards and notes together" + at, await page.evaluate(() =>
+    !window.LifeLogBoards.boardsNow().length && !JSON.parse(localStorage.getItem("lifelog-cache-v1")).notes.some((n) => n.id === "day")));
 
   check("the page doesn't scroll sideways" + at, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   check("no errors" + at, errs.length === 0, errs);

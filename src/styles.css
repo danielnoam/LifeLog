@@ -2825,7 +2825,9 @@ html.force-mobile .modal.view-options {
   -webkit-tap-highlight-color: transparent;
 }
 .board-card:hover { border-color: var(--border-strong); }
-.board-card { position: relative; }
+.board-card { position: relative; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.board-card .bulk-check { position: absolute; top: 8px; left: 8px; margin: 0; }
+.board-card.is-selected { border-color: var(--accent); background: var(--accent-soft); }
 /* Over the picture's corner, where a note card keeps its ☆. */
 .board-card .board-fav {
   position: absolute; top: 6px; right: 6px; margin: 0; padding: 4px 6px;

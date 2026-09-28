@@ -15,10 +15,10 @@
 // the dark theme still reads in the light one. `seed` keeps a rough shape's
 // wobble the same every time it's drawn.
 (function () {
-  let state, $, el, toast, uid, emptyState, download, Storage, render;
+  let state, $, el, toast, uid, emptyState, download, Storage, render, bulkCheckbox, toggleBulkItem, attachLongPressSelect;
 
   function init(ctx) {
-    ({ state, $, el, toast, uid, emptyState, download, Storage, render } = ctx);
+    ({ state, $, el, toast, uid, emptyState, download, Storage, render, bulkCheckbox, toggleBulkItem, attachLongPressSelect } = ctx);
   }
 
   const COLORS = ["ink", "#e03131", "#1971c2", "#2f9e44", "#f08c00", "#9c36b5"];
@@ -329,6 +329,28 @@
     changed(b);
     render();
   }
+  // Selecting boards with notes (0.208.0): the bulk bar's Move and Delete.
+  // The caller asks before deleting and re-renders after.
+  async function setCategory(ids, category) {
+    await ensureLoaded();
+    let n = 0;
+    for (const b of boards()) {
+      if (!ids.includes(b.id)) continue;
+      if (category) b.category = category; else delete b.category;
+      changed(b);
+      n++;
+    }
+    if (n) await flush();
+    return n;
+  }
+  async function deleteBoards(ids) {
+    await ensureLoaded();
+    const before = boards().length;
+    doc.boards = doc.boards.filter((b) => !ids.includes(b.id));
+    const n = before - doc.boards.length;
+    if (n) { changedSince++; await flush(); }
+    return n;
+  }
   async function boardsForExport() {
     await ensureLoaded();
     return JSON.parse(JSON.stringify(boards()));
@@ -442,18 +464,30 @@
       return;
     }
     const grid = el("div", "board-grid");
-    const add = el("button", "board-card board-new");
-    add.type = "button";
-    add.appendChild(el("span", "board-new-plus", "+"));
-    add.appendChild(el("span", "board-new-label", "New board"));
-    add.onclick = () => newBoard();
-    grid.appendChild(add);
+    const bulk = state.bulk.active;
+    if (!bulk) {
+      const add = el("button", "board-card board-new");
+      add.type = "button";
+      add.appendChild(el("span", "board-new-plus", "+"));
+      add.appendChild(el("span", "board-new-label", "New board"));
+      add.onclick = () => newBoard();
+      grid.appendChild(add);
+    }
     for (const b of list) {
+      // Selected under the same "board:<id>" the feed's stand-ins use, so
+      // one bulk bar (notes.js) moves and deletes notes and boards alike.
+      const key = "board:" + b.id;
       const card = el("div", "board-card");
       card.tabIndex = 0;
       card.setAttribute("role", "button");
       card.dataset.id = b.id;
-      card.onkeydown = (ev) => { if (ev.target === card && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); openBoard(b.id); } };
+      const activate = () => (state.bulk.active ? toggleBulkItem(key) : openBoard(b.id));
+      card.onkeydown = (ev) => { if (ev.target === card && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); activate(); } };
+      if (bulk) {
+        card.classList.add("is-bulk");
+        card.classList.toggle("is-selected", state.bulk.selected.has(key));
+        card.appendChild(bulkCheckbox({ id: key }));
+      } else attachLongPressSelect(card, { id: key });
       const thumb = el("div", "board-thumb");
       thumb.appendChild(boardSvg(b.elements, { thumb: true }));
       card.appendChild(thumb);
@@ -468,8 +502,8 @@
       }
       meta.appendChild(el("span", "board-when", when(b.updatedAt)));
       card.appendChild(meta);
-      card.appendChild(favButton(b));
-      card.onclick = () => openBoard(b.id);
+      if (!bulk) card.appendChild(favButton(b));
+      card.onclick = activate;
       grid.appendChild(card);
     }
     if (!list.length) root.appendChild(el("p", "muted", q ? "No board is called that." : "No boards in that category."));
@@ -1213,7 +1247,7 @@
     init, wire,
     renderBoards, newBoard, openBoard, closeBoard, isEditing, handleKey, isBoardsMode, renderHistory,
     thumbnail: (b) => boardSvg(b.elements, { thumb: true }), isLoaded: () => !!doc,
-    ensureLoaded, flush, addBoards, boardsForExport, sanitizeBoard, boardsNow: () => boards(), toggleFav,
+    ensureLoaded, flush, addBoards, boardsForExport, sanitizeBoard, boardsNow: () => boards(), toggleFav, setCategory, deleteBoards,
     // pure helpers (test/boards.test.js)
     simplify, encodePoints, decodePoints, hitTest, bbox, boundsOf, moved, scaled, rotated, penPath, segDist,
   };

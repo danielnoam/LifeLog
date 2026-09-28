@@ -14,6 +14,10 @@ the bottom of Settings.
   not only its date line, so a long press works on Notes and Quotes, whose
   cards are mostly words. A collection's cards can be held and selected
   too, then moved or deleted. Copy a note's words from the note sheet.
+- **Boards can be selected too.** Hold a board on the Boards page, in All or
+  in a collection, then set a category for the selection or delete it.
+  Boards stay in All while you select. A deleted board can be brought back
+  from Settings → History → Boards.
 
 ## [0.207.0] - 2026-09-28
 

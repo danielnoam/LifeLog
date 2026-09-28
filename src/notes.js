@@ -163,14 +163,14 @@
   // Boards in the feed and in collections (0.206.0): each one as a
   // note-shaped stand-in, keyed "board:<id>", which the cards know to draw
   // as a picture and open in the board editor. Only for All — the Boards
-  // kind is boards.js's own page — and not while selecting, since a board
-  // can't be moved or deleted with notes.
+  // kind is boards.js's own page. Since 0.208.0 they stay while selecting:
+  // the bulk bar moves and deletes them with the notes.
   const BOARD = "board:";
   const isBoardItem = (n) => n.kind === "board";
   let boardsAsked = false;
   function boardItems() {
     const B = window.LifeLogBoards;
-    if (!B || state.bulk.active) return [];
+    if (!B) return [];
     if (!B.isLoaded()) {
       if (!boardsAsked) { boardsAsked = true; B.ensureLoaded().then(() => render()).catch(() => {}); }
       return [];
@@ -760,10 +760,10 @@
   function createNoteCard(id) {
     const card = el("div", "note-card");
     const activate = () => {
-      if (card.dataset.id.startsWith(BOARD)) { window.LifeLogBoards.openBoard(card.dataset.id.slice(BOARD.length)); return; }
       // While selecting, a tap is a tick. Opening the editor here would
       // close the selection you were halfway through building.
       if (state.bulk.active) { toggleBulkItem(card.dataset.id); return; }
+      if (card.dataset.id.startsWith(BOARD)) { window.LifeLogBoards.openBoard(card.dataset.id.slice(BOARD.length)); return; }
       const n = (state.data.notes || []).find((x) => x.id === card.dataset.id);
       if (n) openNoteModal(n);
     };
@@ -776,7 +776,7 @@
     card.onkeydown = (ev) => {
       if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); activate(); }
     };
-    if (!id.startsWith(BOARD)) attachLongPressSelect(card, { id });
+    attachLongPressSelect(card, { id });
     return card;
   }
 
@@ -818,6 +818,10 @@
       renderLazySections(shell, []);
       if (notesBulkEl) { notesBulkEl.remove(); notesBulkEl = null; }
       window.LifeLogBoards.renderBoards(root);
+      if (state.bulk.active) {
+        notesBulkEl = notesBulkBar();
+        root.appendChild(notesBulkEl);
+      }
       return;
     }
     // A collection is a page of its own; the feed's year sections stand down.
@@ -1019,21 +1023,23 @@
     card.setAttribute("role", "button");
     card.dataset.id = n.id;
     card.onkeydown = (ev) => { if (ev.target === card && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); card.onclick(); } };
-    if (!state.bulk.active) card.appendChild(favButton(n));
-    if (isBoardItem(n)) {
-      card.appendChild(el("span", "coll-card-title", "✎ " + n.text));
-      const thumb = el("span", "board-thumb-inline");
-      thumb.appendChild(window.LifeLogBoards.thumbnail(n.board));
-      card.appendChild(thumb);
-      card.onclick = () => window.LifeLogBoards.openBoard(n.board.id);
-      return card;
-    }
     // Selecting works here as in the feed (0.208.0): hold a card, tap the rest.
     if (state.bulk.active) {
       card.classList.add("is-bulk");
       card.classList.toggle("is-selected", state.bulk.selected.has(n.id));
       card.appendChild(bulkCheckbox({ id: n.id }));
-    } else attachLongPressSelect(card, { id: n.id });
+    } else {
+      card.appendChild(favButton(n));
+      attachLongPressSelect(card, { id: n.id });
+    }
+    if (isBoardItem(n)) {
+      card.appendChild(el("span", "coll-card-title", "✎ " + n.text));
+      const thumb = el("span", "board-thumb-inline");
+      thumb.appendChild(window.LifeLogBoards.thumbnail(n.board));
+      card.appendChild(thumb);
+      card.onclick = () => (state.bulk.active ? toggleBulkItem(n.id) : window.LifeLogBoards.openBoard(n.board.id));
+      return card;
+    }
     const { title, body } = splitTitle(n);
     const kind = kindOf(n);
     card.appendChild(el("span", "coll-card-title", title));
@@ -1083,26 +1089,37 @@
   // Move (0.195.0) and Delete. Syncing needs media, and turning a pile of
   // notes into entries at once would need a title and a category decided per
   // note — the single-note flow below.
+  // A selection can hold boards (as "board:<id>") beside notes; they live
+  // in boards.json, so boards.js moves and deletes those.
+  const selectedBoards = () => [...state.bulk.selected].filter((id) => id.startsWith(BOARD)).map((id) => id.slice(BOARD.length));
+  const counted = (notes, boards) => [
+    notes ? `${notes} note${notes === 1 ? "" : "s"}` : "",
+    boards ? `${boards} board${boards === 1 ? "" : "s"}` : "",
+  ].filter(Boolean).join(" and ") || "nothing";
+
   async function bulkMoveNotesSelected(category) {
-    const ids = state.bulk.selected;
+    const ids = state.bulk.selected, boardIds = selectedBoards();
     let n = 0;
     for (const note of state.data.notes) if (ids.has(note.id)) { note.category = category; n++; }
     state.bulk.active = false;
     state.bulk.selected.clear();
+    const b = boardIds.length ? await window.LifeLogBoards.setCategory(boardIds, category) : 0;
     render();
-    await persist();
-    toast(`Moved ${n} note${n === 1 ? "" : "s"} to ${category}`);
+    if (n) await persist();
+    toast(`Moved ${counted(n, b)} to ${category}`);
   }
   async function bulkDeleteNotesSelected() {
-    const ids = state.bulk.selected;
-    const n = ids.size;
-    if (!confirm(`Delete ${n} note${n === 1 ? "" : "s"}?`)) return;
+    const ids = state.bulk.selected, boardIds = selectedBoards();
+    const notes = state.data.notes.filter((x) => ids.has(x.id)).length;
+    const what = counted(notes, boardIds.length);
+    if (!confirm(`Delete ${what}?` + (boardIds.length ? " Boards can be brought back from Settings → History → Boards." : ""))) return;
     state.data.notes = state.data.notes.filter((x) => !ids.has(x.id));
     state.bulk.active = false;
     state.bulk.selected.clear();
+    if (boardIds.length) await window.LifeLogBoards.deleteBoards(boardIds);
     render();
-    await persist();
-    toast(`Deleted ${n} note${n === 1 ? "" : "s"}`);
+    if (notes) await persist();
+    toast(`Deleted ${what}`);
   }
 
   // ---------- note -> entry ----------

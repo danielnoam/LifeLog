@@ -50,7 +50,8 @@ const check = (n, ok, extra) => { ok ? pass++ : fail++; console.log((ok ? "  ok 
   check("and a field's text can still be typed and selected",
     typed.value === "Hello There" && typed.sel === "Hello", typed);
 
-  // Notes keep their deliberate text-selectability.
+  // Since 0.208.0 a note's words are part of the long press that selects it,
+  // so they don't start a text selection (copying is in the note sheet).
   const note = await page.evaluate(() => {
     const d = document.createElement("div");
     d.className = "note-card";
@@ -61,7 +62,7 @@ const check = (n, ok, extra) => { ok ? pass++ : fail++; console.log((ok ? "  ok 
     const r = { sel: cs.userSelect || cs.webkitUserSelect };
     d.remove(); return r;
   });
-  check("a note's own text stays selectable", note.sel === "text", note);
+  check("a note's own text is held to select the note, not its words", note.sel === "none", note);
 
   // --- press feedback exists and is transient ---
   const press = await page.evaluate(async () => {

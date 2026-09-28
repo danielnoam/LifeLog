@@ -24,7 +24,11 @@ what was decided against and why.
   cards (divs now, not buttons, so a ☆ and a checkbox can sit in them)
   take the same hold and share the feed's bulk bar. A board's `fav` is a
   field of the board in boards.json, stamped like any change so the merge
-  keeps the newer; boards still leave the feed while selecting.
+  keeps the newer. Boards are selected under their feed key `board:<id>`
+  everywhere (the Boards page too), so notes.js's one bulk bar splits the
+  selection: notes change in state.data, boards through boards.js
+  setCategory/deleteBoards, which save boards.json. That's why boards no
+  longer leave the feed while selecting.
 
 - **The chip row stays for the Boards kind (0.207.0).** 0.204.0 hid it
   there because boards had no categories; they do since 0.206.0, so
