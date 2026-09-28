@@ -264,6 +264,20 @@ test("a note's text comes through untouched, line breaks and all", () => {
   assert.strictEqual(s.cards[0].text, text);
 });
 
+test("a list, a quote and a Markdown note read as themselves, not as stored", () => {
+  const at = "2026-02-01T00:00:00.000Z";
+  const s = byId(build({ notes: [
+    { id: "l", kind: "list", text: "Groceries", items: [{ id: "a", text: "Milk" }, { id: "b", text: "Eggs", done: true }], createdAt: at },
+    { id: "q", kind: "quote", text: "Less is more.", author: "Mies", createdAt: "2026-02-02T00:00:00.000Z" },
+    { id: "m", text: "## Plan\n- **one**\n- [x] two\nSee [docs](https://x.y)", createdAt: "2026-02-03T00:00:00.000Z" },
+  ] }, 2026), "notes");
+  assert.deepStrictEqual(s.cards.map((c) => c.text), [
+    "Plan\n· one\n✓ two\nSee docs",
+    "“Less is more.”\n— Mies",
+    "Groceries\n· Milk\n✓ Eggs",
+  ]);
+});
+
 test("a year of heavy note-taking shows the recent ones and says so", () => {
   const many = Array.from({ length: 30 }, (_, i) => ({
     id: "n" + i, text: "note " + i,

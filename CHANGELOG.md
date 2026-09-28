@@ -4,6 +4,24 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.212.0] - 2026-09-28
+
+### Fixed
+- **Scrolling in the Year Recap stays on the slide.** Scrolling through the
+  wall of covers or your notes no longer jumps to the next slide when your
+  finger drifts sideways; only a clearly sideways swipe moves on. Tapping on
+  a scrolling part still moves through the recap like the rest of the screen.
+- **Recap slides fit the screen.** A long list, wall or set of notes scrolls
+  inside the slide instead of running off the bottom on a short phone.
+- **The recap's bar charts are centred** under their heading instead of
+  sitting off to the right.
+- The recap's notes show a list's items and a quote's author, and Markdown
+  without its # and ** marks. A list used to show as an empty card.
+- **The Recap button sits with the years** on Stats' "That year in numbers"
+  card, the same size as the year chips, and says which year it plays
+  ("▶ Recap 2026"). It used to hang in the card's corner between the
+  heading and the years.
+
 ## [0.211.0] - 2026-09-28
 
 ### Changed

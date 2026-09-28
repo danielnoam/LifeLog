@@ -255,7 +255,7 @@
         .slice()
         .sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")))
         .slice(0, NOTE_CARDS_MAX)
-        .map((n) => ({ text: String(n.text || ""), date: String(n.createdAt || "").slice(0, 10) }));
+        .map((n) => ({ text: noteCardText(n), date: String(n.createdAt || "").slice(0, 10) }));
       return {
         id: "notes", kind: "cards", view: "notes",
         value: g.notes.length,
@@ -358,6 +358,30 @@
   // spending, and the data is still all there the moment they switch it back.
   // Default is everything, so the unit tests and any caller that doesn't care
   // get the whole thing.
+  // A note as it reads, not as it's stored. A list keeps its title in `text`
+  // and its lines in `items`, so it came out as an empty card; Markdown came
+  // out with its #s and **s. Line breaks you typed stay (white-space on
+  // .recap-note-text), so this strips per line rather than flattening.
+  function noteCardText(n) {
+    if (n.kind === "list") {
+      return [n.title || n.text || "Untitled list"]
+        .concat((n.items || []).map((i) => (i.done ? "✓ " : "· ") + i.text)).join("\n");
+    }
+    if (n.kind === "quote") {
+      const by = [n.author, n.source].filter(Boolean).join(", ");
+      return "“" + String(n.text || "").trim() + "”" + (by ? "\n— " + by : "");
+    }
+    const body = String(n.text || "")
+      .replace(/^```.*$/gm, "")
+      .replace(/^(\s*)(#+\s+|>\s?)/gm, "$1")
+      .replace(/^(\s*)[-*+]\s+\[([ xX])\]\s+/gm, (m, sp, x) => sp + (x === " " ? "· " : "✓ "))
+      .replace(/^(\s*)[-*+]\s+/gm, "$1· ")
+      .replace(/(\*\*|__|`)/g, "")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .trim();
+    return n.title ? n.title + (body ? "\n" + body : "") : body;
+  }
+
   function buildRecap(data, year, fmt, reachable) {
     const g = gather(data || {}, year);
     const ok = reachable || (() => true);
@@ -405,14 +429,23 @@
     $("#recapNextBtn").onclick = () => step(1);
 
     const screen = $("#recapScreen");
-    let x0 = null;
-    screen.addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+    let x0 = null, y0 = null;
+    screen.addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; y0 = e.touches[0].clientY; }, { passive: true });
     screen.addEventListener("touchend", (e) => {
       if (x0 == null) return;
-      const dx = e.changedTouches[0].clientX - x0;
-      x0 = null;
-      if (Math.abs(dx) > 45) step(dx < 0 ? 1 : -1);
+      const dx = e.changedTouches[0].clientX - x0, dy = e.changedTouches[0].clientY - y0;
+      x0 = y0 = null;
+      // Mostly sideways, or it's a scroll through a slide's wall or notes
+      // that drifted — which used to flip to the next slide mid-read.
+      if (Math.abs(dx) > 45 && Math.abs(dx) > 2 * Math.abs(dy)) step(dx < 0 ? 1 : -1);
     }, { passive: true });
+    // A slide's scrolling part takes its own taps so it can scroll, which
+    // took them from the tap zones underneath. Passed on here by the same
+    // split: the left third goes back, the rest forward.
+    $("#recapStage").addEventListener("click", (e) => {
+      if (e.target.closest("a, button")) return;
+      step(e.clientX < window.innerWidth * 0.33 ? -1 : 1);
+    });
   }
 
   function isOpen() { return !$("#recapScreen").hidden; }

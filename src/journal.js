@@ -624,11 +624,6 @@
     // either, and this is the one that was always really a table.
     const head = el("div", "yir-head");
     head.appendChild(el("h2", null, "That year in numbers"));
-    const recapBtn = el("button", "recap-open-btn", "▶ Recap");
-    recapBtn.type = "button";
-    recapBtn.title = "Your year, one thing at a time";
-    recapBtn.onclick = () => window.LifeLogRecap.openRecap(state.statsYear);
-    head.appendChild(recapBtn);
     card.appendChild(head);
 
     const yearNav = el("div", "yir-years");
@@ -638,6 +633,14 @@
       btn.onclick = () => { state.statsYear = y; render(); };
       yearNav.appendChild(btn);
     }
+    // On the years' row rather than beside the heading (0.212.0): it plays
+    // the year chosen there, and says which. Beside the heading it was a
+    // button taller than the line it sat on, hanging between the two rows.
+    const recapBtn = el("button", "recap-open-btn", "▶ Recap " + state.statsYear);
+    recapBtn.type = "button";
+    recapBtn.title = "Your year, one thing at a time";
+    recapBtn.onclick = () => window.LifeLogRecap.openRecap(state.statsYear);
+    yearNav.appendChild(recapBtn);
     card.appendChild(yearNav);
 
     const yearEntries = allEntries.filter((e) => e.year === state.statsYear);

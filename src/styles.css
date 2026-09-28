@@ -2582,10 +2582,15 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 }
 .recap-close:hover { color: var(--text); }
 
+/* Never taller than the screen (0.212.0): the stage and the slide shrink to
+   the space between the progress bar and the count, and a slide's list,
+   wall or bars takes what's left and scrolls — it used to be capped at a
+   share of the viewport, so a long one ran off the bottom on a short phone. */
 .recap-stage {
   width: 100%; max-width: 520px; z-index: 1;
   pointer-events: none;   /* the tap zones below own the tap */
   text-align: center;
+  flex: 0 1 auto; min-height: 0; display: flex; flex-direction: column;
 }
 .recap-stage a, .recap-stage button { pointer-events: auto; }
 
@@ -2607,7 +2612,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   pointer-events: none;
 }
 
-.recap-slide { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.recap-slide { display: flex; flex-direction: column; gap: 10px; align-items: center; flex: 0 1 auto; min-height: 0; }
 .recap-year { font-size: 64px; font-weight: 800; letter-spacing: -2px; color: var(--accent); line-height: 1; }
 .recap-value {
   font-size: 52px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.05;
@@ -2618,14 +2623,17 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .recap-foot-note { margin: 6px 0 0; font-size: 12px; color: var(--text-faint); }
 
 .recap-bars { width: 100%; display: flex; flex-direction: column; gap: 9px; margin-top: 6px; }
-.recap-barrow { display: flex; align-items: center; gap: 10px; }
+/* The label and the count get equal columns, so the tracks sit in the
+   middle of the slide under its centred headline — a 34% label column
+   against a 22px count had pushed them well right of it. */
+.recap-barrow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) minmax(0, 1fr); align-items: center; gap: 10px; }
 .recap-barlabel {
-  flex: 0 0 34%; text-align: right; font-size: 13px; color: var(--text-dim);
+  text-align: right; font-size: 13px; color: var(--text-dim);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.recap-bartrack { flex: 1 1 auto; height: 10px; background: var(--bg-elev-2); border-radius: 5px; overflow: hidden; }
+.recap-bartrack { height: 10px; background: var(--bg-elev-2); border-radius: 5px; overflow: hidden; }
 .recap-barfill { display: block; height: 100%; border-radius: 5px; }
-.recap-barn { flex: 0 0 auto; font-size: 12px; color: var(--text-faint); font-variant-numeric: tabular-nums; min-width: 22px; text-align: left; }
+.recap-barn { font-size: 12px; color: var(--text-faint); font-variant-numeric: tabular-nums; text-align: left; }
 
 .recap-list { width: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
 .recap-listrow {
@@ -2646,19 +2654,18 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 @media (max-width: 480px) {
   .recap-year { font-size: 52px; }
   .recap-value { font-size: 42px; }
-  .recap-barlabel { flex-basis: 38%; font-size: 12px; }
+  .recap-barlabel { font-size: 12px; }
 }
 
-/* Its heading row on the stats card: the title on the left, the way in on
-   the right. */
-.yir-head { display: flex; align-items: center; gap: 12px; }
+.yir-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .yir-head h2 { margin: 0; }
 
-/* The button that opens it, on the stats card beside the year picker. */
+/* The button that opens it: the end of the year picker's row, a pill the
+   chips' own height, so it reads as "play this one". */
 .recap-open-btn {
-  background: var(--accent); color: var(--text-on-accent); border: none;
-  border-radius: 8px; padding: 7px 13px; font-size: 13px; font-weight: 600;
-  cursor: pointer; margin-left: auto;
+  background: var(--accent); color: var(--text-on-accent); border: 1px solid var(--accent);
+  border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600;
+  cursor: pointer; margin-left: auto; white-space: nowrap;
 }
 .recap-open-btn:hover { background: var(--accent-hover); }
 
@@ -2679,12 +2686,12 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
    still bubbles to #recapScreen and moves to the next slide, which is how you
    get out of a long wall of covers on a phone. The left/right tap zones stay
    reachable in the margins beside it. */
-.recap-grid, .recap-cards {
+.recap-grid, .recap-cards, .recap-list, .recap-bars {
   pointer-events: auto;
   touch-action: pan-y;
   overflow-y: auto;
   overscroll-behavior: contain;
-  max-height: 58vh;
+  flex: 0 1 auto; min-height: 0;
   width: 100%;
   -webkit-overflow-scrolling: touch;
 }
@@ -2746,7 +2753,6 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 
 @media (max-width: 480px) {
   .recap-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; }
-  .recap-grid, .recap-cards { max-height: 62vh; }
 }
 
 /* ---------- habits ---------- */

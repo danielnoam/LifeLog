@@ -16,6 +16,15 @@ what was decided against and why.
 
 ---
 
+- **The recap fits by flex, not by vh (0.212.0).** The stage, the slide and
+  the slide's scrolling part are a chain of `flex: 0 1 auto; min-height: 0`,
+  so the scroller gets exactly the room the headline and foot leave; the old
+  58vh/62vh caps ignored them and a short phone lost the bottom. Lists and
+  bars scroll the same way now, which means they take pointer events — so
+  #recapStage passes a tap on one on to step() with the zones' own
+  one-third split. The swipe needs |dx| > 2|dy| as well as 45px: with only
+  the first, a scroll through the wall that drifted sideways turned the page.
+
 - **Press feedback is Web Animations, not CSS (0.211.0).** `:active` can
   animate a press in, but the way back out uses whatever `transition` the
   control's own rule declares, and dozens declare one without `scale` — so a
