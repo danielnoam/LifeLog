@@ -331,9 +331,9 @@
 
   // ---------- the view ----------
   // One card per habit, each doing the three things a habit tracker has to:
-  // tick today, show the run, show the pattern. Today's tick is the biggest
-  // thing on the card because it is the only one you do daily — the grid and
-  // the numbers are there to be read, not operated.
+  // tick today, show the run, show the pattern. Today's tick sits beside the
+  // name, the one filled button on the card, because it is the only thing you
+  // do daily — the grid and the numbers are there to be read, not operated.
   const GRID_WEEKS = 12;
 
   function renderHabits(root) {
@@ -366,7 +366,10 @@
     }
 
     if (all.length) {
-      for (const h of all) root.appendChild(habitCard(h, today));
+      // Columns wherever there's room for a second card beside the first.
+      const list = el("div", "habit-list");
+      for (const h of all) list.appendChild(habitCard(h, today));
+      root.appendChild(list);
     } else {
       root.appendChild(emptyState(state.search.trim()
         ? "No habits match your search."

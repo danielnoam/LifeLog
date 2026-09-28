@@ -3,9 +3,10 @@ const { check, done } = tally();
 const errs = [];
 const SEED = require("./seeds/dropseed.json");
 
-// Anything a finger lands on: real buttons, ARIA buttons, and the spans and
-// labels this app uses as buttons.
-const SEL = 'button, [role="button"], summary, .cat-chip, .filter-label, .tab, .chip, .pill, label.toggle-label, .link-btn, .month-add-btn, .jump-btn, .bulk-check, .backlog-dropped-toggle';
+// Anything a finger lands on: real buttons, ARIA buttons, the spans and
+// labels this app uses as buttons, and the rows and cards that open on a tap
+// (these drew the blue box until 0.210.0 turned it off at the root).
+const SEL = 'button, [role="button"], summary, .cat-chip, .filter-label, .tab, .chip, .pill, label.toggle-label, .link-btn, .month-add-btn, .jump-btn, .bulk-check, .backlog-dropped-toggle, .entry, .backlog-item-rich, .recur-row, .note-card, .coll-card, .board-card';
 
 (async () => {
   const b = await chromium.launch();

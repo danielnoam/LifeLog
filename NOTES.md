@@ -16,6 +16,24 @@ what was decided against and why.
 
 ---
 
+- **The tap highlight is off at the root (0.210.0).**
+  `-webkit-tap-highlight-color` is inherited, so the pressables list in
+  styles.css only ever covered what it named, and every row and card that
+  opens on a tap still flashed blue. Rows get a background on :active and
+  cards a `scale` (not transform, which .ll-enter animates); both skip it
+  via `:not(:has(button:active, …))` when the press is on a control inside
+  them. The title's own opt-back-in to text selection (and its exemption
+  from the long press) went the way 0.208.0 took notes' words: it was most
+  of the row, so a hold was mostly a blue text selection. btnaudit now
+  walks rows and cards too.
+- **Habit cards are a small grid (0.210.0).** The cells were `flex: 1 1 0`
+  with aspect-ratio 1, so they grew with the card and a desktop habit was
+  ~800px tall. Now they're 16px and may shrink; the grid is `justify-self:
+  start` so its week arrows centre on it. The cells need a real `width` —
+  with only a flex-basis, fit-content sizing collapsed them to about 8px.
+  The tick moved beside the name (card is a two-column grid) and cards go
+  into `.habit-list`, columns of at least 330px.
+
 - **Sheets, menus and the toast animate in CSS alone (0.209.0).** Every
   module opens and closes its sheet by flipping `hidden`, twenty-odd
   places, so wrapping them in an open/close helper would be a change to

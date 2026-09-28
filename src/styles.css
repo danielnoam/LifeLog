@@ -187,6 +187,28 @@ input, textarea, select { -webkit-user-select: auto; user-select: auto; }
 button:active:not(:disabled), [role="button"]:active, summary:active,
 .tab:active, .cat-chip:active, .chip-edit:active,
 .filter-label:active, .toggle-label:active { opacity: .6; }
+/* The highlight is inherited, so the list above only ever reached what it
+   named: every row and card that takes a tap as a whole (entries, backlog
+   and ledger rows, notes, collection cards) still drew the browser's blue
+   box. Off at the root, it's off for anything added later too (0.210.0). */
+html { -webkit-tap-highlight-color: transparent; }
+/* Their press, in the place of that box: rows darken, cards give a little.
+   Not while the press is on a control inside one — a ✓ Done or a list's
+   tick answers for itself, and the row lighting up under it would read as
+   the row having been tapped. `scale`, not transform: .ll-enter animates
+   transform, and the two would fight. */
+.entry, .backlog-item-rich, .recur-row { transition: background-color var(--dur-fast) var(--ease); }
+.note-card, .coll-card { transition: border-color var(--dur-fast) var(--ease), scale var(--dur-fast) var(--ease); }
+:is(.entry, .backlog-item-rich, .recur-row):active:not(:has(button:active, input:active, select:active, a:active)) {
+  background: var(--hover-bg);
+}
+:is(.note-card, .coll-card):active:not(:has(button:active, input:active, select:active, a:active, .todo-row:active, .todo-compose:active)) {
+  scale: .98;
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-card, .coll-card { transition: none; }
+  :is(.note-card, .coll-card):active { scale: none; }
+}
 html, body {
   margin: 0;
   background: var(--bg);
@@ -1083,14 +1105,11 @@ select:focus { outline: none; border-color: var(--accent); }
   cursor: pointer; font-size: 13px;
   /* Long-press enters bulk-select mode — without these, touch devices treat the
      hold as "select text" / show the native copy callout instead, and the
-     custom gesture never gets a chance to fire. The title itself opts back in
-     below so it can still be long-pressed to select/copy. */
+     custom gesture never gets a chance to fire. The title too since 0.210.0:
+     it's most of the row, so a hold on it was mostly a blue text selection. */
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
 }
 .entry:hover { background: var(--bg-elev-2); }
-.entry .etitle, .backlog-item-rich .bl-title {
-  -webkit-touch-callout: default; -webkit-user-select: text; user-select: text;
-}
 .entry .bar { width: 3px; align-self: stretch; border-radius: 3px; min-height: 16px; }
 .entry .etitle { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entry .ecat { font-size: 11px; color: var(--text-faint); }
@@ -2723,10 +2742,23 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .habit-today-count { font-size: 22px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 .habit-today-label { font-size: 13px; color: var(--text-dim); }
 
+/* Smaller cards (0.210.0): the grid's cells had stretched to the card's
+   width, which on a computer made one habit most of a screen tall, and the
+   tick was a whole-width bar of its own. Now the cells stop at 16px, the
+   tick sits beside the name, and cards share a row wherever two fit. */
+.habit-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 330px), 1fr));
+  gap: 12px; align-items: start;
+}
 .habit-card {
   background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px;
-  padding: 12px 13px; margin-bottom: 12px;
+  padding: 12px 13px;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px;
 }
+.habit-card > * { grid-column: 1 / -1; }
+.habit-card > .habit-head { grid-column: 1; grid-row: 1; }
+.habit-card > .habit-sub { grid-column: 1; grid-row: 2; }
+.habit-card > .habit-tick, .habit-card > .habit-notdue { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
 .habit-head { display: flex; align-items: center; gap: 9px; }
 .habit-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
 .habit-name {
@@ -2743,13 +2775,13 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 }
 .habit-sub-right { text-align: right; }
 
-/* The one control you use every day, so it is the biggest thing on the card
-   and a whole-width target rather than a checkbox to aim at. */
+/* The one control you use every day: the only filled button on the card,
+   and a thumb-sized target beside the name rather than a checkbox to aim at. */
 .habit-tick {
-  display: flex; align-items: center; justify-content: center; gap: 9px;
-  width: 100%; margin: 11px 0 4px; padding: 13px 10px;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  min-width: 108px; min-height: 40px; margin: 0; padding: 8px 14px;
   background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: 10px;
-  color: var(--text-dim); font-size: 14px; font-weight: 600; cursor: pointer;
+  color: var(--text-dim); font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
     border-color var(--dur-fast) var(--ease);
 }
@@ -2763,21 +2795,24 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 /* Outlined, not filled: a red habit's kept days would hide a filled one. */
 .habit-cell.is-slip { background: transparent; box-shadow: inset 0 0 0 2px var(--danger); }
 .habit-tick-mark { font-size: 16px; line-height: 1; font-variant-numeric: tabular-nums; }
-.habit-notdue { margin: 10px 0 4px; font-size: 12.5px; color: var(--text-faint); font-style: italic; }
+.habit-tick-mark:empty { display: none; }
+.habit-notdue { margin: 0; font-size: 12.5px; color: var(--text-faint); font-style: italic; }
 /* Everything longer than the last ninety days, which is the only thing
    backfilling produces and the rest of the card never mentions. */
 .habit-life { margin: 6px 0 0 19px; font-size: 11.5px; color: var(--text-faint); }
 
 /* Twelve weeks, a row per weekday. Tapping a cell fixes a day you forgot,
    which is the only way a tracker survives being away from your phone. */
-.habit-grid { display: flex; flex-direction: column; gap: 3px; margin-top: 8px; }
+/* As wide as its cells, so the week arrows and range above it centre on the
+   grid rather than the card; fit-content still shrinks it on a narrow one. */
+.habit-grid { display: flex; flex-direction: column; gap: 3px; margin-top: 12px; justify-self: start; max-width: 100%; }
 .habit-grid-row { display: flex; align-items: center; gap: 3px; }
 .habit-grid-day {
   flex: 0 0 12px; font-size: 8.5px; color: var(--text-faint);
   text-align: right; line-height: 1;
 }
 .habit-cell {
-  flex: 1 1 0; aspect-ratio: 1; min-width: 0; padding: 0;
+  flex: 0 1 auto; width: 16px; aspect-ratio: 1; min-width: 0; padding: 0;
   background: var(--bg-elev-2); border: 1px solid transparent; border-radius: 3px;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }

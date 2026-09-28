@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.210.0] - 2026-09-28
+
+### Changed
+- **Habits take far less room.** Mark done sits beside the habit's name
+  instead of on a line of its own, the grid's squares stay small instead of
+  growing with the window, and on a wider screen habits sit side by side.
+  On a computer a habit used to be most of the screen tall.
+- **Rows and cards answer a tap.** Pressing an entry, a backlog or ledger
+  row, a note or a collection card darkens or gives a little, instead of
+  flashing the browser's blue box. Pressing a button inside one, like
+  ✓ Done, leaves the row alone.
+
+### Fixed
+- **Holding an entry's title selects the entry**, like holding the rest of
+  the row, instead of selecting the title's text in blue. The title can
+  still be copied from the entry's sheet.
+
 ## [0.209.0] - 2026-09-28
 
 ### Changed
