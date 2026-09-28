@@ -164,6 +164,49 @@ async function run(b, width) {
   check("and a category chip narrows the boards" + at, await page.evaluate(() =>
     !document.querySelector(".board-card:not(.board-new)") && /No boards in that category/.test(document.querySelector("#viewBody").textContent)));
   await page.locator("#catFilter .cat-chip", { hasText: "Work" }).click();
+  await page.waitForTimeout(300);
+
+  // ---- a board's ★, selecting in a collection and in a kind (0.208.0) ----
+  await page.click(".board-card:not(.board-new) .board-fav");
+  await page.waitForTimeout(300);
+  check("a board can be a favourite, from the Boards page" + at, await page.evaluate(() =>
+    window.LifeLogBoards.boardsNow()[0].fav === true && document.querySelector("#boardEditor").hidden
+    && document.querySelector(".board-card:not(.board-new) .board-fav").textContent === "★"));
+  await page.locator(".notes-kind", { hasText: "All" }).click();
+  await page.waitForTimeout(300);
+  await collChip("Recipes").click();
+  await page.waitForTimeout(300);
+  check("and shows it where it's filed, first" + at, await page.evaluate(() => {
+    const first = document.querySelector(".coll-card");
+    return /✎/.test(first.textContent) && first.querySelector(".note-fav.on");
+  }));
+  await page.locator(".coll-card .note-fav.on").click();
+  await page.waitForTimeout(300);
+  check("where ★ takes it off again" + at, await page.evaluate(() => !window.LifeLogBoards.boardsNow()[0].fav && document.querySelector("#boardEditor").hidden));
+
+  await page.locator('.coll-card[data-id="pan"]').click({ delay: 700 });
+  await page.waitForTimeout(300);
+  await page.locator('.coll-card[data-id="bread"]').click();
+  await page.waitForTimeout(300);
+  check("holding a collection's card selects it, and a tap adds the next" + at, await page.evaluate(() =>
+    !!document.querySelector(".bulk-bar") && document.querySelectorAll(".coll-card.is-selected").length === 2 && document.querySelector("#noteReader").hidden));
+  await page.selectOption(".bulk-bar .bulk-move-select", "Work");
+  await page.waitForTimeout(400);
+  check("and Move files them elsewhere" + at, await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("lifelog-cache-v1")).notes.filter((n) => n.category === "Work").length === 3));
+  await page.locator(".coll-head .btn:not(.btn-primary)").click();
+  await page.waitForTimeout(300);
+  if (await page.$(".bulk-bar")) await page.locator(".bulk-bar button", { hasText: "Cancel" }).click();
+
+  await page.locator("#catFilter .cat-chip", { hasText: "No category" }).click();
+  await page.locator(".notes-kind", { hasText: "Notes" }).click();
+  await page.waitForTimeout(300);
+  await page.locator('.note-card[data-id="day"] .note-text').click({ delay: 700 });
+  await page.waitForTimeout(300);
+  check("in a kind, holding a note's words selects it" + at, await page.evaluate(() =>
+    !!document.querySelector(".bulk-bar") && !!document.querySelector('.note-card.is-selected[data-id="day"]')));
+  await page.locator(".bulk-bar button", { hasText: "Cancel" }).click();
+  await page.locator("#catFilter .cat-chip", { hasText: "No category" }).click();
   await page.locator(".notes-kind", { hasText: "All" }).click();
   await page.waitForTimeout(300);
 

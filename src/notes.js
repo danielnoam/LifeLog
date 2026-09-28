@@ -177,7 +177,7 @@
     }
     return B.boardsNow().map((b) => ({
       id: BOARD + b.id, kind: "board", text: b.name, category: b.category,
-      createdAt: b.createdAt || b.updatedAt, updatedAt: b.updatedAt, board: b,
+      createdAt: b.createdAt || b.updatedAt, updatedAt: b.updatedAt, board: b, ...(b.fav ? { fav: true } : {}),
     }));
   }
 
@@ -387,17 +387,9 @@
       cat.append(dot, document.createTextNode(n.category));
       stamp.appendChild(cat);
     }
+    // ★ keeps a note at the top, above the years (0.196.0) — a board too (0.208.0).
+    if (!state.bulk.active) stamp.appendChild(favButton(n));
     if (isBoardItem(n)) return boardCard(card, n, stamp);
-    // ★ keeps a note at the top, above the years (0.196.0).
-    if (!state.bulk.active) {
-      const fav = own(el("button", "note-fav" + (n.fav ? " on" : ""), n.fav ? "★" : "☆"));
-      fav.type = "button";
-      fav.title = n.fav ? "Remove from favourites" : "Add to favourites";
-      fav.setAttribute("aria-label", fav.title);
-      fav.setAttribute("aria-pressed", String(!!n.fav));
-      fav.onclick = () => toggleFav(n.id);
-      stamp.appendChild(fav);
-    }
     card.appendChild(stamp);
     // textContent, never innerHTML: a note is whatever you typed, and the
     // white-space CSS is what keeps your line breaks.
@@ -419,6 +411,16 @@
     card.tabIndex = 0;
     card.setAttribute("role", "button");
     return card;
+  }
+
+  function favButton(n) {
+    const fav = own(el("button", "note-fav" + (n.fav ? " on" : ""), n.fav ? "★" : "☆"));
+    fav.type = "button";
+    fav.title = n.fav ? "Remove from favourites" : "Add to favourites";
+    fav.setAttribute("aria-label", fav.title);
+    fav.setAttribute("aria-pressed", String(!!n.fav));
+    fav.onclick = () => (isBoardItem(n) ? window.LifeLogBoards.toggleFav(n.board.id) : toggleFav(n.id));
+    return fav;
   }
 
   // A board in the feed: its stamp and category, its name, its picture.
@@ -824,6 +826,10 @@
       renderLazySections(shell, []);
       if (notesBulkEl) { notesBulkEl.remove(); notesBulkEl = null; }
       root.appendChild(collectionView(coll));
+      if (state.bulk.active) {
+        notesBulkEl = notesBulkBar();
+        root.appendChild(notesBulkEl);
+      }
       return;
     }
     root.appendChild(shell);
@@ -941,14 +947,15 @@
     // the timeline uses. Move files the selection under a note category.
     if (notesBulkEl) { notesBulkEl.remove(); notesBulkEl = null; }
     if (state.bulk.active) {
-      notesBulkEl = bulkActionBar({
-        categories: noteCats(),
-        onMove: noteCats().length ? bulkMoveNotesSelected : null,
-        onDelete: bulkDeleteNotesSelected,
-      });
+      notesBulkEl = notesBulkBar();
       root.appendChild(notesBulkEl);
     }
   }
+  const notesBulkBar = () => bulkActionBar({
+    categories: noteCats(),
+    onMove: noteCats().length ? bulkMoveNotesSelected : null,
+    onDelete: bulkDeleteNotesSelected,
+  });
 
   // ---------- collections (0.204.0) ----------
   // What a note is called, and what's left once that's taken off the top: a
@@ -1004,10 +1011,15 @@
     return wrap;
   }
 
+  // A div rather than a button: it holds the ☆ and, while selecting, a
+  // checkbox, and neither may sit inside a button.
   function collectionCard(n) {
-    const card = el("button", "coll-card");
-    card.type = "button";
+    const card = el("div", "coll-card");
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
     card.dataset.id = n.id;
+    card.onkeydown = (ev) => { if (ev.target === card && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); card.onclick(); } };
+    if (!state.bulk.active) card.appendChild(favButton(n));
     if (isBoardItem(n)) {
       card.appendChild(el("span", "coll-card-title", "✎ " + n.text));
       const thumb = el("span", "board-thumb-inline");
@@ -1016,9 +1028,15 @@
       card.onclick = () => window.LifeLogBoards.openBoard(n.board.id);
       return card;
     }
+    // Selecting works here as in the feed (0.208.0): hold a card, tap the rest.
+    if (state.bulk.active) {
+      card.classList.add("is-bulk");
+      card.classList.toggle("is-selected", state.bulk.selected.has(n.id));
+      card.appendChild(bulkCheckbox({ id: n.id }));
+    } else attachLongPressSelect(card, { id: n.id });
     const { title, body } = splitTitle(n);
     const kind = kindOf(n);
-    card.appendChild(el("span", "coll-card-title", (n.fav ? "★ " : "") + title));
+    card.appendChild(el("span", "coll-card-title", title));
     const preview = kind === "list"
       ? (() => { const open = openItems(n); return open.length ? open.map((i) => i.text).join(" · ") : "All done"; })()
       : kind === "quote" ? "“" + plainPreview(body) + "”" : plainPreview(body);
@@ -1026,7 +1044,11 @@
     const when = n.editedAt || n.createdAt;
     const meta = [kind === "list" ? openItems(n).length + " left" : "", when ? formatEdited(when) : ""].filter(Boolean).join(" · ");
     if (meta) card.appendChild(el("span", "coll-card-meta", meta));
-    card.onclick = () => (kind === "list" ? openNoteModal(findList(n.id)) : openNoteReader(n.id));
+    card.onclick = () => {
+      if (state.bulk.active) toggleBulkItem(n.id);
+      else if (kind === "list") openNoteModal(findList(n.id));
+      else openNoteReader(n.id);
+    };
     return card;
   }
 

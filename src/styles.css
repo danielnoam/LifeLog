@@ -1021,11 +1021,11 @@ select:focus { outline: none; border-color: var(--accent); }
   background: var(--bg-elev-2); border: 1px solid var(--border);
   margin-bottom: 6px;
   /* Same reason as .entry: without these a long-press is taken as "select
-     text" and the bulk-select gesture never fires. The note's own text opts
-     back in below, so it can still be held to select and copy. */
+     text" and the bulk-select gesture never fires. Since 0.208.0 that goes
+     for the note's words too — they're most of the card, and a hold on them
+     is a hold on the note. Copying is in the note sheet, a tap away. */
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
 }
-.note-card .note-text { -webkit-touch-callout: default; -webkit-user-select: text; user-select: text; }
 /* Bulk mode puts the box in a column of its own beside the note, spanning
    both rows. Placed explicitly rather than by flow: the box comes first in
    the DOM so the tab order is right, which auto-placement would read as
@@ -2825,6 +2825,12 @@ html.force-mobile .modal.view-options {
   -webkit-tap-highlight-color: transparent;
 }
 .board-card:hover { border-color: var(--border-strong); }
+.board-card { position: relative; }
+/* Over the picture's corner, where a note card keeps its ☆. */
+.board-card .board-fav {
+  position: absolute; top: 6px; right: 6px; margin: 0; padding: 4px 6px;
+  background: var(--bg-elev); border: 1px solid var(--border); font-size: 14px;
+}
 .board-card:active { transform: scale(.98); }
 .board-thumb {
   aspect-ratio: 4 / 3; background: var(--bg); border-bottom: 1px solid var(--border);
@@ -3084,6 +3090,12 @@ html.force-mobile .modal.view-options {
   font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .coll-card:hover { border-color: var(--accent); }
+.coll-card { position: relative; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+.coll-card .note-fav { position: absolute; top: 8px; right: 8px; margin: 0; float: none; }
+.coll-card .coll-card-title { padding-right: 22px; }
+.coll-card .bulk-check { position: absolute; top: 12px; left: 12px; margin: 0; }
+.coll-card.is-bulk { padding-left: 38px; }
+.coll-card.is-selected { border-color: var(--accent); background: var(--accent-soft); }
 .coll-card-title { font-weight: 650; font-size: 14.5px; overflow-wrap: anywhere; }
 .coll-card-text {
   color: var(--text-dim); font-size: 13px; line-height: 1.45; overflow: hidden;

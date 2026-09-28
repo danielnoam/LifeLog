@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.208.0] - 2026-09-28
+
+### Fixed
+- **Boards can be favourites.** A board has a ☆ like a note: on its card in
+  the feed, in a collection and on the Boards page. A favourite board sits
+  in ★ Favourites and first on the Boards page.
+- **Selecting works outside All.** Holding a note's words now selects it,
+  not only its date line, so a long press works on Notes and Quotes, whose
+  cards are mostly words. A collection's cards can be held and selected
+  too, then moved or deleted. Copy a note's words from the note sheet.
+
 ## [0.207.0] - 2026-09-28
 
 ### Fixed

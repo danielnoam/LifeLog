@@ -16,6 +16,16 @@ what was decided against and why.
 
 ---
 
+- **A hold on a note's words selects it (0.208.0).** attachLongPressSelect
+  skipped `.note-text` so the words could be held to copy, which left only
+  the date line to hold — fine on a list's card, but a plain note or a
+  quote is nearly all words, so outside All selecting looked broken. The
+  words are unselectable now; copying is in the note sheet. Collection
+  cards (divs now, not buttons, so a ☆ and a checkbox can sit in them)
+  take the same hold and share the feed's bulk bar. A board's `fav` is a
+  field of the board in boards.json, stamped like any change so the merge
+  keeps the newer; boards still leave the feed while selecting.
+
 - **The chip row stays for the Boards kind (0.207.0).** 0.204.0 hid it
   there because boards had no categories; they do since 0.206.0, so
   renderBoards narrows by state.noteActiveCats like the feed. On a phone the

@@ -247,6 +247,8 @@
     // collection beside the notes it belongs with.
     const cat = String(b.category == null ? "" : b.category).trim();
     if (cat) out.category = cat;
+    // ★, as a note has (0.208.0): first on the Boards page and in Favourites.
+    if (b.fav) out.fav = true;
     return out;
   }
 
@@ -320,6 +322,13 @@
     await flush();
     if (isBoardsMode()) render();
   }
+  function toggleFav(id) {
+    const b = findBoard(id);
+    if (!b) return;
+    if (b.fav) delete b.fav; else b.fav = true;
+    changed(b);
+    render();
+  }
   async function boardsForExport() {
     await ensureLoaded();
     return JSON.parse(JSON.stringify(boards()));
@@ -329,7 +338,7 @@
   // Versions of boards.json, this device's and GitHub's. Opening one lists
   // its boards against what you have now; any that changed or has gone can
   // be brought back on its own, without rolling the other boards back.
-  const sameBoard = (a, b) => a && b && a.name === b.name && (a.category || "") === (b.category || "") && JSON.stringify(a.elements) === JSON.stringify(b.elements);
+  const sameBoard = (a, b) => a && b && a.name === b.name && (a.category || "") === (b.category || "") && !!a.fav === !!b.fav && JSON.stringify(a.elements) === JSON.stringify(b.elements);
   async function renderHistory(list, status) {
     status.hidden = false;
     status.textContent = "Loading…";
@@ -423,7 +432,7 @@
     // The note category chips narrow boards too (0.207.0); "" is no category.
     const cf = state.noteActiveCats;
     const list = boards().filter((b) => (!q || b.name.toLowerCase().includes(q)) && (!cf || !cf.size || cf.has(b.category || "")))
-      .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+      .sort((a, b) => (!!b.fav - !!a.fav) || String(b.updatedAt).localeCompare(String(a.updatedAt)));
     if (!boards().length) {
       root.appendChild(emptyState({
         glyph: "✎", title: "No boards yet",
@@ -440,9 +449,11 @@
     add.onclick = () => newBoard();
     grid.appendChild(add);
     for (const b of list) {
-      const card = el("button", "board-card");
-      card.type = "button";
+      const card = el("div", "board-card");
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
       card.dataset.id = b.id;
+      card.onkeydown = (ev) => { if (ev.target === card && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); openBoard(b.id); } };
       const thumb = el("div", "board-thumb");
       thumb.appendChild(boardSvg(b.elements, { thumb: true }));
       card.appendChild(thumb);
@@ -457,11 +468,21 @@
       }
       meta.appendChild(el("span", "board-when", when(b.updatedAt)));
       card.appendChild(meta);
+      card.appendChild(favButton(b));
       card.onclick = () => openBoard(b.id);
       grid.appendChild(card);
     }
     if (!list.length) root.appendChild(el("p", "muted", q ? "No board is called that." : "No boards in that category."));
     root.appendChild(grid);
+  }
+  function favButton(b) {
+    const fav = el("button", "note-fav board-fav" + (b.fav ? " on" : ""), b.fav ? "★" : "☆");
+    fav.type = "button";
+    fav.title = b.fav ? "Remove from favourites" : "Add to favourites";
+    fav.setAttribute("aria-label", fav.title);
+    fav.setAttribute("aria-pressed", String(!!b.fav));
+    fav.onclick = (ev) => { ev.stopPropagation(); toggleFav(b.id); };
+    return fav;
   }
   function when(iso) {
     const d = new Date(iso);
@@ -1192,7 +1213,7 @@
     init, wire,
     renderBoards, newBoard, openBoard, closeBoard, isEditing, handleKey, isBoardsMode, renderHistory,
     thumbnail: (b) => boardSvg(b.elements, { thumb: true }), isLoaded: () => !!doc,
-    ensureLoaded, flush, addBoards, boardsForExport, sanitizeBoard, boardsNow: () => boards(),
+    ensureLoaded, flush, addBoards, boardsForExport, sanitizeBoard, boardsNow: () => boards(), toggleFav,
     // pure helpers (test/boards.test.js)
     simplify, encodePoints, decodePoints, hitTest, bbox, boundsOf, moved, scaled, rotated, penPath, segDist,
   };
