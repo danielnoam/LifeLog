@@ -1,6 +1,6 @@
 ---
 name: release-checklist
-description: Release checklist for the LifeLog app (danielnoam/lifelog) — bump APP_VERSION, add a matching CHANGELOG.md entry, file notes under TODO.md/NOTES.md/DROPPED.md, keep the vanilla JS/CSS app lean, verify mobile and desktop, push to main (which publishes the APK), and delete finished branches. Use this before shipping any change to LifeLog.
+description: Release checklist for the LifeLog app (danielnoam/lifelog) — bump APP_VERSION, add a matching CHANGELOG.md entry, file notes under TODO.md/NOTES.md/DROPPED.md, keep the vanilla JS/CSS app lean, verify mobile and desktop, and push to main (which publishes the APK). Use this before shipping any change to LifeLog.
 ---
 
 # LifeLog release checklist
@@ -115,14 +115,3 @@ Each holds one kind of thing; put an entry in exactly one of them.
 - After pushing, check the "Android app" run on `main` went green and the
   `app-v<version>` release exists. If the build failed, fix it in the next
   commit and push again; the app keeps offering the last release until then.
-
-## 8. Clean up branches
-
-- Delete every remote branch except `main` once its work is on `main`,
-  including the session branch you just shipped from
-  (`git push origin --delete <branch>`).
-- Changes land by squash or cherry-pick, so `git branch --merged` and
-  `git cherry` both call finished branches unmerged. Check by content: the
-  branch's last `APP_VERSION` has a CHANGELOG.md entry on `main`, or its
-  diff against `main` holds nothing new.
-- A branch with work that isn't on `main`: ask the owner before deleting.
