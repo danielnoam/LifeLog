@@ -209,6 +209,8 @@ async function run(b, width) {
   await page.locator("#catFilter .cat-chip", { hasText: "No category" }).click();
 
   // Boards are selected like notes: on the Boards page, and in the feed.
+  // Types add up since 0.214.0, so Notes goes off first: Boards alone is the page.
+  await page.locator("#kindFilter .cat-chip", { hasText: "Notes" }).click();
   await page.locator("#kindFilter .cat-chip", { hasText: "Boards" }).click();
   await page.waitForTimeout(300);
   await page.locator(".board-card:not(.board-new) .board-thumb").click({ delay: 700 });

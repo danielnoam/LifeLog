@@ -7,7 +7,7 @@ require("../src/notes.js");
 const Notes = global.window.LifeLogNotes;
 
 let idCounter = 0;
-const state = { data: { notes: [], settings: {} }, search: "", activeYears: new Set(), noteActiveCats: new Set(), noteKind: "" };
+const state = { data: { notes: [], settings: {} }, search: "", activeYears: new Set(), noteActiveCats: new Set(), noteKinds: new Set() };
 Notes.init({
   state,
   uid: () => "test-id-" + (idCounter++),

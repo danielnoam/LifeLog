@@ -438,7 +438,8 @@
   // ---------- boards in Notes ----------
   // A mode of its own until 0.204.0; now the Boards kind in the Notes mode's
   // switch, beside Notes, Lists and Quotes.
-  const isBoardsMode = () => state.view === "notes" && state.notesMode === "notes" && state.noteKind === "board";
+  const isBoardsMode = () => state.view === "notes" && state.notesMode === "notes"
+    && state.noteKinds.size === 1 && state.noteKinds.has("board");
   function renderBoards(root) {
     if (!doc) {
       root.appendChild(el("p", "muted boards-loading", "Loading boards…"));

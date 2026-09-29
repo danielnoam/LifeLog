@@ -181,18 +181,18 @@
     }));
   }
 
-  // Years, categories (the chip rows), the kind (the mode bar's switch) and
+  // Years, categories and types (the chip rows) and
   // the shared search box all narrow this. A category chip keyed "" is the
   // notes with none, as in the to-do list.
   function getFilteredNotes() {
     const q = state.search.trim().toLowerCase();
-    const yf = state.activeYears, cf = state.noteActiveCats, kind = state.noteKind;
-    const pool = kind === "" ? state.data.notes.concat(boardItems()) : state.data.notes;
+    const yf = state.activeYears, cf = state.noteActiveCats, kinds = state.noteKinds;
+    const pool = !kinds.size || kinds.has("board") ? state.data.notes.concat(boardItems()) : state.data.notes;
     return pool.filter((n) => {
       // A collection is by name, not by when: the year chips don't reach it.
       if (yf.size && !openCollection() && !yf.has(noteYear(n))) return false;
       if (cf.size && !cf.has(n.category || "")) return false;
-      if (kind && kindOf(n) !== kind) return false;
+      if (kinds.size && !kinds.has(kindOf(n))) return false;
       if (feedOnly() && isCollection(n.category)) return false;
       if (q && !noteHaystack(n).includes(q)) return false;
       return true;
@@ -242,7 +242,9 @@
   }
   // The feed proper: no category picked, no search, and showing all notes or
   // plain ones. That's where collections' notes stand aside.
-  const feedOnly = () => !state.noteActiveCats.size && !state.search.trim() && (state.noteKind === "" || state.noteKind === "text");
+  const feedOnly = () => !state.noteActiveCats.size && !state.search.trim() && (!state.noteKinds.size || state.noteKinds.has("text"));
+  // Boards on their own are the Boards page; beside anything else, cards.
+  const boardsPage = () => state.noteKinds.size === 1 && state.noteKinds.has("board");
   let catSaved = null; // what to do with a category made from the note sheet
   function openNoteCatModal(cat, onSaved) {
     const editing = !!cat;
@@ -321,7 +323,7 @@
   const boardsOn = () => !!window.LifeLogBoards;
   function renderNotesToolbar(root) {
     // Nothing to sort with no notes, and boards run newest first.
-    if (!state.data.notes.length || state.noteKind === "board") return;
+    if (!state.data.notes.length || boardsPage()) return;
     const bar = el("div", "notes-toolbar");
     // A collection sorts by name, and has its own.
     if (openCollection()) bar.appendChild(sortSelect("collection", collectionSort(), setCollectionSort));
@@ -799,7 +801,7 @@
     const shell = notesRootEl;
     renderNotesToolbar(root);
     // Boards (0.204.0): drawn by boards.js, which keeps their own file.
-    if (state.noteKind === "board" && boardsOn()) {
+    if (boardsPage() && boardsOn()) {
       renderLazySections(shell, []);
       if (notesBulkEl) { notesBulkEl.remove(); notesBulkEl = null; }
       window.LifeLogBoards.renderBoards(root);
@@ -991,7 +993,7 @@
     head.append(back, title, el("span", "ycount", notes.length + (notes.length === 1 ? " note" : " notes")), add);
     wrap.appendChild(head);
     if (!notes.length) {
-      wrap.appendChild(emptyState(state.search.trim() || state.noteKind ? "Nothing here matches." : "Nothing in this collection yet."));
+      wrap.appendChild(emptyState(state.search.trim() || state.noteKinds.size ? "Nothing here matches." : "Nothing in this collection yet."));
       return wrap;
     }
     const grid = el("div", "coll-grid");
@@ -1242,7 +1244,9 @@
       stamp.hidden = false;
     } else stamp.hidden = true;
     // A new note starts as the kind the list is showing.
-    setSheetKind(note ? kindOf(note) : (kind || state.noteKind || "text"));
+    // Only when it's showing one; with several there's no telling which.
+    const shown = state.noteKinds.size === 1 ? [...state.noteKinds][0] : "";
+    setSheetKind(note ? kindOf(note) : (kind || shown || "text"));
     $("#noteModal").hidden = false;
     (sheetKind === "list" ? (note ? $("#nNewItem") : $("#nTitle")) : $("#nText")).focus();
   }
@@ -1309,7 +1313,7 @@
     document.querySelectorAll("#noteKindSeg [data-kind]").forEach((b) => {
       // A board isn't written in this sheet: it opens the board editor.
       b.onclick = b.dataset.kind === "board"
-        ? () => { closeNoteModal(); state.noteKind = "board"; buildCatFilter(); render(); window.LifeLogBoards.newBoard(); }
+        ? () => { closeNoteModal(); state.noteKinds = new Set(["board"]); buildCatFilter(); render(); window.LifeLogBoards.newBoard(); }
         : () => setSheetKind(b.dataset.kind);
     });
     $("#nNewItem").onkeydown = (ev) => {

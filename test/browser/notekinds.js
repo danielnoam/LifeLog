@@ -150,9 +150,24 @@ const SEED = {
   check("without opening it", await page.evaluate(() => document.querySelector("#noteModal").hidden));
 
   // ---- filters ----
+  const everyCard = (await cards()).length;
   await page.click('#kindFilter .cat-chip:has-text("Lists")');
   check("the Types row narrows to lists", JSON.stringify(await cards()) === JSON.stringify([listId]), await cards());
-  await page.click('#kindFilter .cat-chip.on');
+  // Several at once, like the rows around it (0.214.0), and its label is all
+  // or none.
+  await page.click('#kindFilter .cat-chip:has-text("Quotes")');
+  await page.waitForTimeout(150);
+  check("two types show both", await page.evaluate(() =>
+    [...document.querySelectorAll(".note-card:not(.ll-exit)")].every((c) => c.classList.contains("is-list") || c.querySelector(".note-quote"))
+    && document.querySelectorAll(".note-card.is-list").length === 1 && !!document.querySelector(".note-card .note-quote")));
+  await page.click("#kindFilterLabel");
+  await page.waitForTimeout(150);
+  check("the Types label selects every type", await page.evaluate(() =>
+    [...document.querySelectorAll("#kindFilter .cat-chip")].every((c) => c.classList.contains("on"))));
+  await page.click("#kindFilterLabel");
+  await page.waitForTimeout(150);
+  check("and again, none, which is everything", await page.evaluate(() => !document.querySelector("#kindFilter .cat-chip.on"))
+    && (await cards()).length === everyCard, { cards: (await cards()).length, everyCard });
   await page.locator("#catFilter .cat-chip", { hasText: "Trip" }).click();
   await page.waitForTimeout(150);
   check("a category chip narrows to its notes", JSON.stringify(await cards()) === JSON.stringify([listId]), await cards());

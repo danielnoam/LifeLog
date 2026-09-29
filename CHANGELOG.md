@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.214.0] - 2026-09-29
+
+### Changed
+- **Pick more than one type**, like categories: Notes and Lists together,
+  say. Tap the Types label to select them all, and again for none, which
+  shows everything. Boards on its own is still the Boards page with New
+  board; picked with another type, boards show as cards among the notes,
+  as they do when nothing is picked.
+
 ## [0.213.0] - 2026-09-29
 
 ### Changed

@@ -16,6 +16,12 @@ what was decided against and why.
 
 ---
 
+- **Types is a set since 0.214.0** (`state.noteKinds`, empty = all), after
+  one release as a single choice. The reason for one — Boards is its own
+  page — only ever held for Boards alone: boards were already cards in the
+  All feed, so boardsPage() in notes.js (and isBoardsMode in boards.js) is
+  "exactly {board}", and any other mix is the feed filtered by kind. A new
+  note starts as the shown kind only when exactly one is shown.
 - **Notes' type is a filter row (0.213.0).** buildKindFilter in app.js, next
   to buildProjectFilter and shaped like it, called from buildCatFilter so
   every path that redraws the category row (a view or mode change, a

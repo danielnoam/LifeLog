@@ -139,7 +139,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.213.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.214.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -232,14 +232,14 @@
     if (ui.notesMode === "boards") {
       ui = { ...ui, notesMode: "notes" };
       state.notesMode = "notes";
-      state.noteKind = "board";
+      state.noteKinds = new Set(["board"]);
     }
     // The To-do mode is the lists among the notes now (0.197.0): someone who
     // left the app on it comes back to them.
     if (ui.notesMode === "todo" || (ui.view === "timeline" && ui.timelineMode === "todo")) {
       ui = { ...ui, notesMode: "notes" };
       state.notesMode = "notes";
-      state.noteKind = "list";
+      state.noteKinds = new Set(["list"]);
     }
     if (VIEW_ORDER.includes(view)) state.view = view;
     for (const [key, spec] of Object.entries(VIEW_MODES)) {
@@ -425,10 +425,10 @@
     // The To-do mode's own chips. "" is the general panel, which is a real
     // thing to filter to and so is a real member of this set rather than an
     // absence.
-    // Notes' category chips ("" = no category, as above) and the kind the
-    // Notes mode is showing ("" = all).
+    // Notes' category chips ("" = no category, as above) and the kinds the
+    // Notes mode is showing (none = all; "board" alone is the Boards page).
     noteActiveCats: new Set(),
-    noteKind: "",
+    noteKinds: new Set(),
     statsYear: null,
     financeStatsYear: null,
     bulk: { active: false, selected: new Set() },
@@ -2805,33 +2805,41 @@
   }
 
   // What kind of note, as a row of the filter bar like the Ledger's projects
-  // (0.213.0) — it was a segmented switch of its own below the filters. One
-  // at a time, unlike the rows around it: Boards is a page of its own and
-  // doesn't mix with notes. Nothing chosen is everything, so the old "All"
-  // is tapping the chosen one again.
+  // (0.213.0) — it was a segmented switch of its own below the filters. Any
+  // number at once, like the rows around it (0.214.0), and none is all; its
+  // label selects every one or none. Boards on its own is the Boards page,
+  // with New board; beside another kind they're cards in the feed, as in All.
   const NOTE_KIND_CHIPS = [["text", "Notes", "▤"], ["list", "Lists", "☑"], ["quote", "Quotes", "❝"], ["board", "Boards", "✎"]];
+  const noteKindChips = () => NOTE_KIND_CHIPS.filter(([k]) => k !== "board" || !!window.LifeLogBoards);
+  function toggleAllKinds() {
+    const all = noteKindChips().map(([k]) => k);
+    const set = state.noteKinds;
+    if (all.every((k) => set.has(k))) set.clear(); else all.forEach((k) => set.add(k));
+    buildCatFilter();
+    render();
+  }
   function buildKindFilter() {
     const group = $("#kindFilterGroup");
     if (!group) return;
-    const boards = !!window.LifeLogBoards;
-    const show = state.view === "notes" && state.notesMode === "notes" && (state.data.notes.length > 0 || boards);
+    const show = state.view === "notes" && state.notesMode === "notes" && (state.data.notes.length > 0 || !!window.LifeLogBoards);
     group.hidden = !show;
     if (!show) return;
-    const chips = NOTE_KIND_CHIPS.filter(([k]) => k !== "board" || boards).map(([key, label, ico]) => ({ key, label, ico }));
+    const chips = noteKindChips().map(([key, label, ico]) => ({ key, label, ico }));
     reconcile($("#kindFilter"), chips, {
       keyOf: (item) => item.key,
       create: (item) => {
         const chip = el("span", "cat-chip kind-chip");
         chip.dataset.kind = item.key;
         activatable(chip, () => {
-          state.noteKind = state.noteKind === item.key ? "" : item.key;
+          const set = state.noteKinds;
+          if (set.has(item.key)) set.delete(item.key); else set.add(item.key);
           buildCatFilter();
           render();
         });
         return chip;
       },
       update: (chip, item) => {
-        const on = state.noteKind === item.key;
+        const on = state.noteKinds.has(item.key);
         chip.classList.toggle("on", on);
         chip.setAttribute("aria-pressed", String(on));
         chip.replaceChildren(el("span", "kind-ico", item.ico), document.createTextNode(item.label));
@@ -3846,6 +3854,7 @@
     };
     $("#yearFilterLabel").onclick = toggleAllYears;
     $("#catFilterLabel").onclick = toggleAllCats;
+    $("#kindFilterLabel").onclick = toggleAllKinds;
 
     const addMenu = $("#addMenu");
     const closeAddMenu = () => { addMenu.hidden = true; };
@@ -3863,7 +3872,7 @@
       else if (b.dataset.add === "habit") Habits.openHabitModal(null);
       else if (b.dataset.add === "board") {
         VIEW_MODES.notes.set("notes");
-        state.noteKind = "board";
+        state.noteKinds = new Set(["board"]);
         if (state.view !== "notes") switchToView("notes"); else commitModeChange();
         Boards.newBoard();
       }
@@ -4119,7 +4128,7 @@
     // "To-do" list if there's none. "add-todo:<id>" is a to-do widget's +
     // or a list's heading on it (0.199.0): that list.
     else if ((action === "open-todos" || action === "add-todo" || action.startsWith("add-todo:")) && modeEnabled("notes", "notes")) {
-      state.noteKind = "list";
+      state.noteKinds = new Set(["list"]);
       goTo("notes", "notes");
       if (action !== "open-todos") Notes.focusQuickList(action.slice("add-todo:".length));
     }
