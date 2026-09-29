@@ -1328,6 +1328,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
    still holding the other end. */
 .backlog-mode-bar > :only-child { margin-left: auto; }
 .backlog-mode-count { font-size: 12px; color: var(--text-dim); }
+
 .seg {
   display: inline-flex; background: var(--bg-elev-2); border: 1px solid var(--border);
   border-radius: 8px; padding: 2px; gap: 2px;
@@ -3073,6 +3074,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 /* ---------- notes: kinds, categories, the toolbar (0.195.0) ---------- */
 /* Right-hand, as in every other view, even once it wraps under the kinds. */
 .notes-toolbar .sort-select { margin-left: auto; }
+.notes-count { font-size: 12px; color: var(--text-dim); }
 .board-cat-select {
   flex: 0 0 auto; max-width: 220px; height: 36px; background: var(--bg-elev); border: 1px solid var(--border);
   color: var(--text); border-radius: 10px; padding: 0 8px; font: inherit; font-size: 13px; box-shadow: var(--shadow);

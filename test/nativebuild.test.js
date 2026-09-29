@@ -144,6 +144,16 @@ test("the app may hand Android an APK to install — the in-app updater needs it
   assert.strictEqual(patch(out).split("REQUEST_INSTALL_PACKAGES").length - 1, 1);
 });
 
+test("the phone backup can write to Documents on every Android the app runs on", () => {
+  const out = patch(TEMPLATE);
+  assert.ok(/<application android:requestLegacyExternalStorage="true"\s/.test(out), "Android 10 needs the legacy flag");
+  const beforeApp = out.slice(0, out.indexOf("<application"));
+  assert.ok(beforeApp.includes('android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"'), "9 and earlier need the permission, and only they");
+  const twice = patch(out);
+  assert.strictEqual(twice.split("requestLegacyExternalStorage").length - 1, 1);
+  assert.strictEqual(twice.split("WRITE_EXTERNAL_STORAGE").length - 1, 1);
+});
+
 test("a manifest without <application> fails instead of shipping without the scanner", () => {
   assert.throws(() => patch("<manifest></manifest>"), /application/);
 });

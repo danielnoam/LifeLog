@@ -16,6 +16,31 @@ what was decided against and why.
 
 ---
 
+- **The phone backup rides on backupToFile (0.215.0).** Every moment the
+  desktop's local file is freshened (each save, a merge on load, GitHub
+  winning a load, a conflict resolved), so is the phone's copy, and the app
+  never has a local file (its WebView has no file picker), so the two never
+  both write. Writes queue behind each other (phoneQueue) so a burst of
+  saves can't interleave two copies of one file. Documents rather than the
+  app's own storage because the point is to outlive the app: clearing its
+  data or uninstalling it takes External and Data with it. Android 11+ lets
+  an app write files it creates there with no permission; 10 needs
+  requestLegacyExternalStorage and 9 and earlier WRITE_EXTERNAL_STORAGE
+  (maxSdkVersion 28), both added by tools/android-manifest.js. Opt-in,
+  because turning it on is what asks for storage on those older phones.
+- **Native HTTP is a stand-in proxy, not a rewrite of the callers
+  (0.215.0).** LifeLogPlatform.steamProxy() is what every "is a proxy set?"
+  now reads; in the app it answers https://native-proxy.lifelog.invalid,
+  and platform.js's fetch sends that host's routes through CapacitorHttp to
+  the same upstreams proxy/worker.js uses (keep the two route lists in
+  step). Not Capacitor's global fetch patch (`CapacitorHttp.enabled`): that
+  would move GitHub sync onto the native stack too, for no gain. In the app
+  it wins over a proxy URL you've set, because the setting is synced — it
+  is there for your browsers, and clearing it on the phone would clear it
+  for them.
+- **The Notes count moved into the sort's line (0.215.0)**; renderModeBar
+  only ever held it, so it's gone and #modeSlot is Backlog's alone.
+
 - **Types is a set since 0.214.0** (`state.noteKinds`, empty = all), after
   one release as a single choice. The reason for one — Boards is its own
   page — only ever held for Boards alone: boards were already cards in the

@@ -1365,7 +1365,7 @@
 
   async function loadDiscoverEarlyAccess(source, kind, rows, keys) {
     if (source !== "rawg-steam-gg" || !keys.rawg || !window.LifeLogMedia) return;
-    const proxyUrl = (state.data.settings.steam?.proxyUrl || "").trim().replace(/\/+$/, "");
+    const proxyUrl = window.LifeLogPlatform.steamProxy(state.data.settings.steam?.proxyUrl);
     if (!proxyUrl) return;
     const runKey = source + "|" + kind;
     if (discoverEaRuns.has(runKey)) return;

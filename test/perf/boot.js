@@ -96,15 +96,18 @@ const MARKS = [
    "    performance.mark('b'); const result = await Storage.load(); performance.measure('Storage.load()', 'b');"],
   ["normalize()", "      state.data = result.data ? normalize(result.data) : emptyData();",
    "      performance.mark('c'); state.data = result.data ? normalize(result.data) : emptyData(); performance.measure('normalize()', 'c');"],
-  ["afterDataChange()", "githubReached = Storage.githubReadOk;\n    afterDataChange();",
-   "githubReached = Storage.githubReadOk;\n    performance.mark('d'); afterDataChange(); performance.measure('afterDataChange()', 'd');"],
-  ["snapshot clone", "    lastPersistedSnapshot = structuredClone(state.data);\n    if (savedUi",
-   "    performance.mark('f'); lastPersistedSnapshot = structuredClone(state.data); performance.measure('snapshot clone', 'f');\n    if (savedUi"],
+  // The first sight of the data is showData() since boot grew a second path
+  // to it; these two were anchored on the old inline code and had silently
+  // stopped matching.
+  ["afterDataChange()", "    const showData = () => {\n      afterDataChange();",
+   "    const showData = () => {\n      performance.mark('d'); afterDataChange(); performance.measure('afterDataChange()', 'd');"],
+  ["snapshot clone", "      lastPersistedSnapshot = structuredClone(state.data);\n      if (savedUi",
+   "      performance.mark('f'); lastPersistedSnapshot = structuredClone(state.data); performance.measure('snapshot clone', 'f');\n      if (savedUi"],
   ["afterDataChange body",
-   "    applyForceLayout();\n    buildYearFilter();\n    buildCatFilter();\n    buildProjectFilter();\n    render();\n  }",
+   "    applyForceLayout();\n    buildYearFilter();\n    buildCatFilter();\n    buildProjectFilter();\n    render();\n    Widgets.changed();\n  }",
    "    applyForceLayout();\n    performance.mark('g');\n    buildYearFilter();\n    buildCatFilter();\n    buildProjectFilter();\n"
    + "    performance.measure('  ↳ filters', 'g'); performance.mark('e');\n    render();\n"
-   + "    performance.measure('  ↳ first render', 'e');\n  }"],
+   + "    performance.measure('  ↳ first render', 'e');\n    Widgets.changed();\n  }"],
 ];
 
 // Nothing here is needed to draw the Timeline — every one of them is
@@ -123,7 +126,7 @@ async function boot(browser, { stub = false, trace = false } = {}) {
   page.on("pageerror", (e) => errs.push(e.message.split("\n")[0]));
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
   await page.evaluate((seed) => {
-    localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "timeline", timelineMode: "timeline" }));
+    localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "timeline", timelineMode: "entries" }));
     localStorage.setItem("lifelog-cache-v1", JSON.stringify(seed));
     localStorage.removeItem("lifelog-visual-settings-v1");
   }, seedData(611, 250));

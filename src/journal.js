@@ -914,7 +914,7 @@
   async function resolveMediaIdentity(r, keys) {
     const plain = { mediaSource: r.source || "", mediaId: r.id || "", release: null, summary: "" };
     if (!window.LifeLogMedia) return plain;
-    const proxyUrl = (state.data.settings.steam?.proxyUrl || "").trim().replace(/\/+$/, "");
+    const proxyUrl = window.LifeLogPlatform.steamProxy(state.data.settings.steam?.proxyUrl);
     const onSteam = async (appId) => {
       // One response, two answers: mergeRelease reads only the release keys
       // off it, the summary is pulled out separately.
@@ -945,7 +945,7 @@
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     // SteamGridDB is the only source that needs the CORS proxy for its own
     // search (it's CORS-blocked direct); every other source ignores this arg.
-    const proxyUrl = (state.data.settings.steam?.proxyUrl || "").trim().replace(/\/+$/, "");
+    const proxyUrl = window.LifeLogPlatform.steamProxy(state.data.settings.steam?.proxyUrl);
     const stripped = stripMediaSearchSuffix(title);
     async function trySource(src) {
       if (!src) return [];

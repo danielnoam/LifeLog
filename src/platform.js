@@ -137,6 +137,57 @@
     } catch (e) { /* nothing to tidy */ }
   }
 
+  // ---- Steam and friends without the proxy (0.215.0) ----
+  // Steam's store API, SteamGridDB and GG.deals send no CORS headers, so a
+  // browser needs proxy/worker.js in front of them. The app doesn't: its
+  // native HTTP (CapacitorHttp, part of Capacitor itself) isn't a browser
+  // request and CORS doesn't apply. So with no proxy URL set, the app gets a
+  // stand-in one, and its fetch answers the stand-in's routes itself, mapped
+  // to the same upstream addresses the worker uses — every caller that builds
+  // `proxyUrl + "/steam-appdetails/…"` and checks for a proxy works unchanged.
+  // In the app this wins over a proxy URL you've set: the setting is synced,
+  // so it's there for your browsers, and clearing it on the phone would clear
+  // it for them too. The .invalid domain never resolves: if the interception
+  // were ever missed, the request fails instead of going somewhere.
+  const NATIVE_PROXY = "https://native-proxy.lifelog.invalid";
+  const nativeHttp = () => (native && cap.Plugins && cap.Plugins.CapacitorHttp) || null;
+  function upstreamFor(url) {
+    const u = new URL(url);
+    let m = /^\/steam-wishlist\/(\d{17})$/.exec(u.pathname);
+    if (m) return "https://api.steampowered.com/IWishlistService/GetWishlist/v1/?steamid=" + m[1];
+    m = /^\/steam-appdetails\/(\d+)$/.exec(u.pathname);
+    if (m) return "https://store.steampowered.com/api/appdetails?appids=" + m[1] + "&filters=basic,genres";
+    if (u.pathname.startsWith("/steamgriddb/")) return "https://www.steamgriddb.com/api/v2/" + u.pathname.slice("/steamgriddb/".length) + u.search;
+    if (u.pathname === "/gg-deals") return "https://api.gg.deals/v1/prices/by-steam-app-id/" + u.search;
+    return null;
+  }
+  function steamProxy(value) {
+    if (nativeHttp()) return NATIVE_PROXY;
+    return String(value || "").trim().replace(/\/+$/, "");
+  }
+  async function viaNative(url, init) {
+    const target = upstreamFor(url);
+    if (!target) return new Response("Not found", { status: 404 });
+    const headers = {};
+    new Headers((init && init.headers) || {}).forEach((v, k) => { headers[k] = v; });
+    let res;
+    try {
+      res = await nativeHttp().request({ url: target, method: "GET", headers, responseType: "text" });
+    } catch (e) {
+      throw new TypeError("Failed to fetch (" + ((e && e.message) || e) + ")");
+    }
+    const body = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
+    return new Response(body, { status: res.status || 502, headers: { "Content-Type": "application/json" } });
+  }
+  if (native) {
+    const webFetch = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const url = typeof input === "string" ? input : input && input.url;
+      if (url && url.startsWith(NATIVE_PROXY + "/") && nativeHttp()) return viaNative(url, init);
+      return webFetch(input, init);
+    };
+  }
+
   window.LifeLogPlatform = {
     native,
     ready,
@@ -145,6 +196,9 @@
     plugin(name) { return (native && cap.Plugins && cap.Plugins[name]) || null; },
     openOutside,
     saveAndShare,
+    // The Steam proxy to use: the app's own native route, else yours.
+    steamProxy,
+    get steamDirect() { return !!nativeHttp(); },
     downloadUpdate,
     openInstaller,
     clearOldUpdates,

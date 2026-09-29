@@ -139,7 +139,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.214.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.215.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -768,25 +768,6 @@
     content.classList.toggle("no-filters", !inContent);
   }
 
-  // What the slot carries besides the switch — the switch itself lives on
-  // the tab now, whichever the layout: held on a phone, hovered on a desktop
-  // (see openModeFan and openTabMenu). A row of buttons here as well would be
-  // the same control twice.
-  function renderModeBar(root) {
-    if (state.view !== "notes") return;
-    const bar = el("div", "backlog-mode-bar");
-    // Notes' year and category chips don't say how many there are, so the
-    // count goes here. The other views' own headers already do —
-    // and so does Habits, whose "2 of 3 done today" is a better line than any
-    // count this bar could put above it.
-    if (state.notesMode === "notes") {
-      const count = state.data.notes.length;
-      if (count) {
-        bar.appendChild(el("span", "backlog-mode-count", count + (count === 1 ? " note" : " notes")));
-      }
-    }
-    if (bar.firstChild) root.appendChild(bar);
-  }
   // Modes wrap (0.177.0): past the last is the first again, so you can keep
   // swiping one way round. The tab bar's own swipe still stops at its ends —
   // four tabs are a row you can see; a view's modes are a small loop you
@@ -1536,9 +1517,6 @@
       // the content they filter.
       fadeInOnViewChange($("#content"));
       if (state.view === "backlog") { Backlog.renderBacklog(c); return; }
-      // Before the mode draws: a view's own empty state returns early, and
-      // anything rendered inside it would go missing with it.
-      renderModeBar(slot);
       if (state.view === "notes") {
         if (state.notesMode === "habits") Habits.renderHabits(c);
         else Notes.renderNotes(c);

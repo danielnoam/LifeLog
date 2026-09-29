@@ -80,7 +80,7 @@
   async function loadBacklogPrices(items) {
     const apiKey = state.data.settings.mediaKeys?.ggdeals;
     if (!apiKey || !window.LifeLogMedia) return;
-    const proxyUrl = (state.data.settings.steam?.proxyUrl || "").trim().replace(/\/+$/, "");
+    const proxyUrl = window.LifeLogPlatform.steamProxy(state.data.settings.steam?.proxyUrl);
     const now = Date.now();
     // Items you've marked as bought are skipped: their price is no longer
     // rendered anywhere (see appendBacklogMeta in backlog.js), so fetching it
@@ -289,7 +289,7 @@
     hint: "Review which wishlisted games to add. Anything already in your backlog is marked — if this sync can fill in a cover, rating or release date it doesn't have, that row says so and is ticked.",
     plan() {
       const cfg = state.data.settings.steam || DEFAULT_SETTINGS.steam;
-      const proxyUrl = (cfg.proxyUrl || "").trim().replace(/\/+$/, "");
+      const proxyUrl = window.LifeLogPlatform.steamProxy(cfg.proxyUrl);
       const steamId = (cfg.steamId || "").trim();
       const category = cfg.wishlistCategory || "";
       if (!proxyUrl || !steamId) return { error: "Set your proxy URL and SteamID64 first" };
@@ -442,7 +442,7 @@
   // adds, removes, or duplicates anything.
   async function retryUnresolvedSteamTitles() {
     const cfg = state.data.settings.steam || DEFAULT_SETTINGS.steam;
-    const proxyUrl = (cfg.proxyUrl || "").trim().replace(/\/+$/, "");
+    const proxyUrl = window.LifeLogPlatform.steamProxy(cfg.proxyUrl);
     if (!proxyUrl) { toast("Set your proxy URL first", true); return; }
     const targets = unresolvedSteamBacklogItems();
     if (!targets.length) { toast("Nothing unresolved to retry"); return; }
@@ -513,7 +513,7 @@
   // Never touches title, cover, or mediaId.
   async function backfillRawgForSteamGames() {
     const rawgKey = state.data.settings.mediaKeys?.rawg;
-    const proxyUrl = ((state.data.settings.steam || {}).proxyUrl || "").trim().replace(/\/+$/, "");
+    const proxyUrl = window.LifeLogPlatform.steamProxy((state.data.settings.steam || {}).proxyUrl);
     if (!rawgKey && !proxyUrl) { toast("Set a RAWG API key or your proxy URL first (Settings → Media lookups)", true); return; }
     const targets = steamGamesNeedingInfo();
     if (!targets.length) { toast("Nothing to backfill"); return; }
@@ -573,7 +573,7 @@
     const cfg = state.data.settings.steam || DEFAULT_SETTINGS.steam;
     const days = parseInt(cfg.autoSyncDays, 10) || 0;
     if (!days) return;
-    const proxyUrl = (cfg.proxyUrl || "").trim().replace(/\/+$/, "");
+    const proxyUrl = window.LifeLogPlatform.steamProxy(cfg.proxyUrl);
     const steamId = (cfg.steamId || "").trim();
     if (!proxyUrl || !steamId) return;
     let last = null;
@@ -679,7 +679,7 @@
     const targets = backlogAwaitingRelease();
     if (!targets.length) { toast("Nothing in your backlog is waiting on a release"); return; }
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
-    const proxyUrl = ((state.data.settings.steam || {}).proxyUrl || "").trim().replace(/\/+$/, "");
+    const proxyUrl = window.LifeLogPlatform.steamProxy((state.data.settings.steam || {}).proxyUrl);
     const btn = $("#refreshReleasesBtn");
     if (btn) btn.disabled = true;
     let updated = 0, checked = 0;
@@ -734,7 +734,7 @@
     const targets = backlogAwaitingRelease();
     if (!targets.length) { markReleasesChecked(); return; }
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
-    const proxyUrl = ((state.data.settings.steam || {}).proxyUrl || "").trim().replace(/\/+$/, "");
+    const proxyUrl = window.LifeLogPlatform.steamProxy((state.data.settings.steam || {}).proxyUrl);
     let updated = 0;
     try {
       for (let i = 0; i < targets.length; i++) {

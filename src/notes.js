@@ -321,12 +321,16 @@
   // The kind switch that sat here is a row of the filter bar since 0.213.0
   // (buildKindFilter in app.js). Boards are a kind of note since 0.204.0.
   const boardsOn = () => !!window.LifeLogBoards;
+  // The count shares the sort's line (0.215.0); it had a strip of its own
+  // above, which on a phone was a whole row for "4 notes".
   function renderNotesToolbar(root) {
-    // Nothing to sort with no notes, and boards run newest first.
-    if (!state.data.notes.length || boardsPage()) return;
+    const count = state.data.notes.length;
+    if (!count) return;
     const bar = el("div", "notes-toolbar");
-    // A collection sorts by name, and has its own.
-    if (openCollection()) bar.appendChild(sortSelect("collection", collectionSort(), setCollectionSort));
+    bar.appendChild(el("span", "notes-count", count + (count === 1 ? " note" : " notes")));
+    // Boards run newest first; a collection sorts by name, and has its own.
+    if (boardsPage()) { /* nothing to sort */ }
+    else if (openCollection()) bar.appendChild(sortSelect("collection", collectionSort(), setCollectionSort));
     else bar.appendChild(sortSelect("notes", noteSort(), setNoteSort));
     root.appendChild(bar);
   }

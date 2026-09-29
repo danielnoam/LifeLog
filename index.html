@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.214.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.215.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -1102,7 +1102,20 @@
         <p class="hint">The link contains your access token — only share it with your own devices.</p>
       </section>
 
-      <section class="sgroup">
+      <!-- The Android app's own backup (0.215.0), where the local file below
+           can't be: a phone's browser view has no file picker to keep. -->
+      <section class="sgroup" id="phoneBackupSection" hidden>
+        <h3 class="sgroup-label">Backup on this phone</h3>
+        <div class="sgroup-card">
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">Save a copy on this phone</span><span class="sitem-sub" id="phoneBackupInfo"></span></span>
+            <input type="checkbox" class="switch" id="phoneBackupSwitch" />
+          </label>
+        </div>
+        <p class="hint">Every save is also written to <code>Documents/LifeLog</code>, where the Files app can see it and where it stays if the app is cleared or uninstalled, with one copy a day for the last two weeks in <code>daily</code>. To bring one back: Import &amp; export → Everything → Import, and pick the file.</p>
+      </section>
+
+      <section class="sgroup" id="backupFileSection">
         <h3 class="sgroup-label">Backup file</h3>
         <div class="sgroup-card">
           <div class="sitem">
@@ -1393,7 +1406,8 @@
             <input id="steamProxyUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://your-worker.workers.dev" />
           </label>
         </div>
-        <p class="hint">Setup is in <code>proxy/README.md</code>. Leave it blank if you use none of those.</p>
+        <p class="hint" id="steamProxyHint">Setup is in <code>proxy/README.md</code>. Leave it blank if you use none of those.</p>
+        <p class="hint" id="steamDirectHint" hidden>The Android app reaches these itself and doesn't use the proxy. Keep it set if you use them in a browser too.</p>
       </section>
       </div>
 
@@ -1755,27 +1769,27 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.214.0"></script>
-  <script defer src="src/reconcile.js?v=0.214.0"></script>
-  <script defer src="src/qr.js?v=0.214.0"></script>
-  <script defer src="src/media.js?v=0.214.0"></script>
-  <script defer src="src/merge.js?v=0.214.0"></script>
-  <script defer src="src/storage.js?v=0.214.0"></script>
-  <script defer src="src/finance.js?v=0.214.0"></script>
-  <script defer src="src/settings.js?v=0.214.0"></script>
-  <script defer src="src/wheel.js?v=0.214.0"></script>
-  <script defer src="src/backlog.js?v=0.214.0"></script>
-  <script defer src="src/journal.js?v=0.214.0"></script>
-  <script defer src="src/markdown.js?v=0.214.0"></script>
-  <script defer src="src/notes.js?v=0.214.0"></script>
-  <script defer src="src/io.js?v=0.214.0"></script>
-  <script defer src="src/sync.js?v=0.214.0"></script>
-  <script defer src="src/habits.js?v=0.214.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.214.0"></script>
-  <script defer src="src/boards.js?v=0.214.0"></script>
-  <script defer src="src/recap.js?v=0.214.0"></script>
-  <script defer src="src/reminders.js?v=0.214.0"></script>
-  <script defer src="src/widgets.js?v=0.214.0"></script>
-  <script defer src="src/app.js?v=0.214.0"></script>
+  <script defer src="src/platform.js?v=0.215.0"></script>
+  <script defer src="src/reconcile.js?v=0.215.0"></script>
+  <script defer src="src/qr.js?v=0.215.0"></script>
+  <script defer src="src/media.js?v=0.215.0"></script>
+  <script defer src="src/merge.js?v=0.215.0"></script>
+  <script defer src="src/storage.js?v=0.215.0"></script>
+  <script defer src="src/finance.js?v=0.215.0"></script>
+  <script defer src="src/settings.js?v=0.215.0"></script>
+  <script defer src="src/wheel.js?v=0.215.0"></script>
+  <script defer src="src/backlog.js?v=0.215.0"></script>
+  <script defer src="src/journal.js?v=0.215.0"></script>
+  <script defer src="src/markdown.js?v=0.215.0"></script>
+  <script defer src="src/notes.js?v=0.215.0"></script>
+  <script defer src="src/io.js?v=0.215.0"></script>
+  <script defer src="src/sync.js?v=0.215.0"></script>
+  <script defer src="src/habits.js?v=0.215.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.215.0"></script>
+  <script defer src="src/boards.js?v=0.215.0"></script>
+  <script defer src="src/recap.js?v=0.215.0"></script>
+  <script defer src="src/reminders.js?v=0.215.0"></script>
+  <script defer src="src/widgets.js?v=0.215.0"></script>
+  <script defer src="src/app.js?v=0.215.0"></script>
 </body>
 </html>

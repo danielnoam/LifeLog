@@ -17,6 +17,14 @@
 //   approves each install on Android's own screen, and once, in Settings,
 //   whether LifeLog may install apps at all.
 //
+// - Storage for the phone backup (0.215.0), which writes a copy of your data
+//   into the phone's shared Documents/LifeLog folder, where the Files app and
+//   a PC over USB can see it and where it outlives clearing the app's data.
+//   Android 11 and later let an app write files it creates there with no
+//   permission at all; 10 needs requestLegacyExternalStorage on
+//   <application>; 9 and earlier need WRITE_EXTERNAL_STORAGE, capped at 28
+//   so newer phones never show a storage prompt.
+//
 // Idempotent, and fails loudly if a tag it needs can't be found.
 const fs = require("fs");
 const path = require("path");
@@ -24,6 +32,11 @@ const path = require("path");
 const ENTRIES = [
   { inside: "application", xml: '<meta-data android:name="com.google.mlkit.vision.DEPENDENCIES" android:value="barcode_ui"/>' },
   { inside: "manifest", xml: '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />' },
+  { inside: "manifest", xml: '<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />' },
+];
+// Attributes on a tag rather than tags inside one.
+const ATTRS = [
+  { on: "application", attr: 'android:requestLegacyExternalStorage="true"' },
 ];
 
 function patch(xml) {
@@ -36,6 +49,14 @@ function patch(xml) {
     const end = out.indexOf(">", at) + 1;
     out = out.slice(0, end) + "\n    " + (inside === "application" ? "    " : "") + entry + out.slice(end);
   }
+  for (const { on, attr } of ATTRS) {
+    const name = attr.split("=")[0];
+    const m = new RegExp("<" + on + "\\b[^>]*>").exec(out);
+    if (!m) throw new Error("no <" + on + "> tag in AndroidManifest.xml");
+    if (m[0].includes(name + "=")) continue;
+    const tag = m[0].replace(new RegExp("^<" + on), "<" + on + " " + attr);
+    out = out.slice(0, m.index) + tag + out.slice(m.index + m[0].length);
+  }
   return out;
 }
 
@@ -43,6 +64,7 @@ if (require.main === module) {
   const file = path.resolve(__dirname, "..", "android", "app", "src", "main", "AndroidManifest.xml");
   const before = fs.readFileSync(file, "utf8");
   fs.writeFileSync(file, patch(before));
-  console.log("android: manifest " + (before === patch(before) ? "already has" : "gained") + " " + ENTRIES.length + " LifeLog entr" + (ENTRIES.length === 1 ? "y" : "ies"));
+    const n = ENTRIES.length + ATTRS.length;
+  console.log("android: manifest " + (before === patch(before) ? "already has" : "gained") + " " + n + " LifeLog entr" + (n === 1 ? "y" : "ies"));
 }
-module.exports = { patch, ENTRIES };
+module.exports = { patch, ENTRIES, ATTRS };

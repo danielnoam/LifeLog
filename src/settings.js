@@ -364,8 +364,40 @@
     reader.readAsText(file);
   }
 
+  // The phone backup (0.215.0): in the Android app it takes the file's place,
+  // which a phone can't keep hold of anyway.
+  function updatePhoneBackupInfo() {
+    const pb = Storage.phoneBackup;
+    $("#phoneBackupSection").hidden = !pb.available;
+    $("#backupFileSection").hidden = pb.available;
+    if (!pb.available) return;
+    $("#phoneBackupSwitch").checked = pb.on;
+    $("#phoneBackupInfo").textContent = !pb.on ? "Off — your data is on this phone only in the app"
+      : pb.error ? "Couldn't save: " + pb.error
+      : pb.last ? pb.folder + " · saved " + new Date(pb.last).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+      : pb.folder;
+  }
+  async function setPhoneBackup(on) {
+    const sw = $("#phoneBackupSwitch");
+    sw.disabled = true;
+    try {
+      if (on) {
+        const boards = window.LifeLogBoards ? { boards: await window.LifeLogBoards.boardsForExport(), exportedAt: new Date().toISOString() } : null;
+        await Storage.enablePhoneBackup(boards);
+        toast("Backed up to " + Storage.phoneBackup.folder);
+      } else Storage.disablePhoneBackup();
+    } catch (e) {
+      toast("Couldn't turn on the phone backup: " + (e.message || e), true);
+    } finally {
+      sw.disabled = false;
+      updatePhoneBackupInfo();
+      updateStatuses();
+    }
+  }
+
   function updateFileInfo() {
     updateBoardsFileInfo();
+    updatePhoneBackupInfo();
     const info = $("#fileInfo");
     const connect = $("#connectFileBtn");
     const recon = $("#reconnectFileBtn");
@@ -489,7 +521,9 @@
       case "sync": {
         const gi = Storage.githubInfo;
         const file = Storage.fileName && !Storage.needsReconnect;
-        if (Storage.githubConnected && gi) return { text: "GitHub · " + gi.owner + "/" + gi.repo + (file ? " · backup file" : ""), tone: "ok" };
+        const phone = Storage.phoneBackup.on ? " · phone backup" : "";
+        if (Storage.githubConnected && gi) return { text: "GitHub · " + gi.owner + "/" + gi.repo + (file ? " · backup file" : "") + phone, tone: "ok" };
+        if (phone) return { text: "Not synced · backed up on this phone" };
         if (Storage.fileName && Storage.needsReconnect) return { text: "The backup file needs permission again", tone: "warn" };
         if (file) return { text: "Backup file only · " + Storage.fileName };
         return { text: "Not synced — on this device only", tone: "warn" };
@@ -989,6 +1023,9 @@
     $("#ggdealsKey").value = state.data.settings.mediaKeys?.ggdeals || "";
     $("#steamgriddbKey").value = state.data.settings.mediaKeys?.steamgriddb || "";
     $("#steamProxyUrl").value = state.data.settings.steam?.proxyUrl || "";
+    const direct = !!(window.LifeLogPlatform && window.LifeLogPlatform.steamDirect);
+    $("#steamProxyHint").hidden = direct;
+    $("#steamDirectHint").hidden = !direct;
     $("#steamId64").value = state.data.settings.steam?.steamId || "";
     $("#steamAutoSyncDays").value = state.data.settings.steam?.autoSyncDays || "0";
     $("#anilistUserName").value = state.data.settings.anilist?.userName || "";
@@ -1330,6 +1367,7 @@
     $("#connectFileBtn").onclick = connectFile;
     $("#reconnectFileBtn").onclick = reconnectFile;
     $("#disconnectFileBtn").onclick = disconnectFile;
+    $("#phoneBackupSwitch").onchange = (e) => setPhoneBackup(e.target.checked);
     $("#connectBoardsFileBtn").onclick = connectBoardsFile;
     $("#reconnectBoardsFileBtn").onclick = async () => {
       if (await Storage.boards.reconnectFile()) { await window.LifeLogBoards.flush(); toast("Reconnected"); } else toast("Permission denied", true);

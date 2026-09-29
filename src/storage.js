@@ -157,11 +157,66 @@
       }
     } catch (e) { /* ignore */ }
   }
-  // Best-effort write to the local backup file; never throws.
+  // Best-effort write to the local backup file; never throws. The phone
+  // backup rides along: every moment the file is freshened, so is it.
   async function backupToFile(data) {
+    backupToPhone(data, "lifelog.json");
     if (!handle || needsReconnect) return false;
     try { await writeHandle(handle, data); return true; }
     catch (e) { needsReconnect = true; return false; }
+  }
+
+  // ---- the phone backup (0.215.0, the Android app only) ----
+  // A copy in the phone's shared Documents/LifeLog, which the Files app and a
+  // PC over USB can see, and which outlives clearing the app's data or
+  // uninstalling it — the cases where the cache is gone and a GitHub token
+  // may be too. lifelog.json (and boards.json) are the latest save; daily/
+  // keeps one copy per day, the day's last, for DAILY_KEEP days, to go back
+  // to. Opt-in: turning it on is also what asks Android 9 and earlier for
+  // storage (see tools/android-manifest.js). Writes are serialised, so a
+  // burst of saves can't interleave two copies of one file.
+  const PHONE_KEY = "lifelog-phone-backup-v1"; // { on, last, error }
+  const PHONE_DIR = "LifeLog";
+  const DAILY_KEEP = 14;
+  const phoneFs = () => (window.LifeLogPlatform && window.LifeLogPlatform.plugin("Filesystem")) || null;
+  function phoneCfg() {
+    try { return JSON.parse(localStorage.getItem(PHONE_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function setPhoneCfg(patch) {
+    const next = { ...phoneCfg(), ...patch };
+    try { localStorage.setItem(PHONE_KEY, JSON.stringify(next)); } catch (e) { /* full */ }
+    return next;
+  }
+  const localDay = (d = new Date()) =>
+    d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  let phoneQueue = Promise.resolve();
+  function backupToPhone(doc, name) {
+    const FS = phoneFs();
+    if (!FS || !phoneCfg().on || !doc) return phoneQueue;
+    phoneQueue = phoneQueue.then(() => writePhone(FS, doc, name)).catch(() => {});
+    return phoneQueue;
+  }
+  async function writePhone(FS, doc, name) {
+    const write = (path, text) => FS.writeFile({ path: PHONE_DIR + "/" + path, data: text, directory: "DOCUMENTS", encoding: "utf8", recursive: true });
+    try {
+      const text = JSON.stringify(doc, null, 2);
+      await write(name, text);
+      if (name === "lifelog.json") {
+        await write("daily/lifelog-" + localDay() + ".json", text);
+        await prunePhoneDaily(FS);
+      }
+      setPhoneCfg({ last: new Date().toISOString(), error: null });
+    } catch (e) {
+      setPhoneCfg({ error: String((e && e.message) || e).slice(0, 160) });
+    }
+  }
+  async function prunePhoneDaily(FS) {
+    const { files } = await FS.readdir({ path: PHONE_DIR + "/daily", directory: "DOCUMENTS" });
+    const days = (files || []).map((f) => (typeof f === "string" ? f : f.name))
+      .filter((n) => /^lifelog-\d{4}-\d{2}-\d{2}\.json$/.test(n)).sort();
+    for (const n of days.slice(0, Math.max(0, days.length - DAILY_KEEP))) {
+      await FS.deleteFile({ path: PHONE_DIR + "/daily/" + n, directory: "DOCUMENTS" });
+    }
   }
 
   // ---- GitHub backend ----
@@ -450,6 +505,7 @@
     } catch (e) { /* no file, then */ }
   }
   async function backupBoardsToFile(doc) {
+    backupToPhone(doc, "boards.json");
     await ensureBoardsHandle();
     if (!boardsHandle || boardsNeedsReconnect) return false;
     try {
@@ -577,6 +633,32 @@
     get githubProblem() { return describeGhError(githubError); },
     get githubReadOk() { return githubReadOk; },
     // public github info without exposing the token
+    // The phone backup, for Settings: whether this is somewhere it can be,
+    // whether it's on, and when it last wrote.
+    get phoneBackup() {
+      const c = phoneCfg();
+      return { available: !!phoneFs(), on: !!c.on, last: c.last || null, error: c.error || null, folder: "Documents/" + PHONE_DIR };
+    },
+    // Turning it on writes a copy straight away, so "on" never means "on,
+    // and empty until the next edit". `boards` is boards.json's current doc.
+    async enablePhoneBackup(boards) {
+      const FS = phoneFs();
+      if (!FS) throw new Error("Only in the Android app");
+      // Asks on Android 9 and earlier; later versions answer granted.
+      try {
+        const p = await FS.requestPermissions();
+        if (p && p.publicStorage && p.publicStorage !== "granted") throw new Error("LifeLog wasn't allowed to save files");
+      } catch (e) { if (/allowed/.test(e.message)) throw e; /* no such call on this build: try anyway */ }
+      setPhoneCfg({ on: true, error: null });
+      const cached = this.loadCache();
+      if (cached) await backupToPhone(cached.data, "lifelog.json");
+      if (boards) await backupToPhone(boards, "boards.json");
+      const c = phoneCfg();
+      if (c.error) { setPhoneCfg({ on: false }); throw new Error(c.error); }
+      return this.phoneBackup;
+    },
+    disablePhoneBackup() { setPhoneCfg({ on: false }); return this.phoneBackup; },
+
     get githubInfo() {
       return gh ? { owner: gh.owner, repo: gh.repo, path: gh.path, branch: gh.branch } : null;
     },

@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.215.0] - 2026-09-29
+
+### Added
+- **A backup on your phone (Android).** Settings → Sync → "Save a copy on
+  this phone" writes your data to Documents/LifeLog on every save, where
+  the Files app can see it and where it stays if the app is cleared or
+  uninstalled. It also keeps one copy per day for the last two weeks, in
+  Documents/LifeLog/daily. Boards get their own boards.json beside it. To
+  bring one back: Import & export → Everything → Import, and pick the file.
+- **Steam without the proxy (Android).** The app looks up Steam,
+  SteamGridDB and GG.deals itself, so the Steam wishlist import, SteamGridDB
+  covers and prices work there with no proxy set up. A proxy you've set is
+  still what your browsers use.
+
+### Changed
+- In Notes, the count and the sort share one line.
+
 ## [0.214.0] - 2026-09-29
 
 ### Changed

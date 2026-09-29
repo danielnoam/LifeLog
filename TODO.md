@@ -1,11 +1,11 @@
 todo:
 
-- **What the Android app could do that a browser can't**, in the order it's
-  worth doing: native HTTP (`CapacitorHttp` — Steam without the proxy), a real
-  file backup on the phone (the Filesystem plugin as a fourth backend in
-  storage.js — 0.179.0's export already writes files with that plugin and
-  shares them, so this is the same pair on a schedule). Widgets shipped in
-  0.181.0–0.185.0.
+- **What the Android app could do that a browser can't.** Native HTTP and a
+  file backup on the phone shipped in 0.215.0; widgets in 0.181.0–0.185.0.
+  Left to check on a real phone: that the Steam wishlist import and a
+  SteamGridDB search work with no proxy running, and that the backup lands
+  in Documents/LifeLog on Android 10 (the legacy-storage flag) and 9 or
+  earlier (the storage prompt). The browser suites fake both plugins.
 
   **iOS.** The same wrapper, plus $99/year for Apple's developer program and
   a macOS build job. Until there's a native feature worth that, iOS stays on
