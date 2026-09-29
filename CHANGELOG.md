@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.213.0] - 2026-09-29
+
+### Changed
+- **Notes' type is a row of the filters**, under Years and Categories and
+  styled like the Ledger's Projects: Notes, Lists, Quotes and Boards as
+  chips. Tap one to see only that type; tap it again to see everything.
+  It replaces the All / Notes / Lists / Quotes / Boards switch that sat
+  above the notes. The sort stays on the right.
+
 ## [0.212.0] - 2026-09-28
 
 ### Fixed

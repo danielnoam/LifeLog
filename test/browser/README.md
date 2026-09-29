@@ -31,7 +31,7 @@ because something shipped broken that no unit test could have caught:
 | `press` | a tap still visibly responds now that the highlight is gone |
 | `v151`, `importkinds`, `importmodes` | import updates: what gets filled, for which kinds, and never a duplicate |
 | `boards` | the drawing board: every tool with mouse and touch, resize/rotate/fill, undo, a reload, PNG/SVG/JSON out and back, History bringing a board back, the boards file, and boards.json syncing and merging against a fake GitHub |
-| `notekinds` | notes' three kinds through the sheet and the cards, categories and their chips, the kind switch, the sort, a list working like the old To-do panel (add, edit, delete, reorder, Clear), favourites, bulk move |
+| `notekinds` | notes' three kinds through the sheet and the cards, categories and their chips, the Types row, the sort, a list working like the old To-do panel (add, edit, delete, reorder, Clear), favourites, bulk move |
 | `noteopen` | a note widget's tap opening its note, or saying it's gone; no Open items filter under Lists |
 | `mdimport` | Markdown files and a folder as notes: one row per file, a file's own category, filing the selected under an existing, new or folder category, lists from task files |
 | `collections` | a collection category: its notes off the feed, its chip marked ▦, its own page of cards by name, the reader drawing Markdown (safe links only), Edit from there, the category sheet's switch; Boards as a kind of note, with a category and a ★; selecting in a collection and by holding a note's words |

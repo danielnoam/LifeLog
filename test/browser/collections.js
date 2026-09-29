@@ -115,13 +115,13 @@ async function run(b, width) {
   check("and it's saved on the category" + at, saved.layout === "collection", saved);
 
   // ---- boards are a kind of note (0.204.0) ----
-  await page.locator(".notes-kind", { hasText: "Boards" }).click();
+  await page.locator("#kindFilter .cat-chip", { hasText: "Boards" }).click();
   await page.waitForTimeout(600);
   check("Boards is a kind beside Notes, Lists and Quotes, and shows the boards, with the category chips" + at, await page.evaluate(() =>
     /No boards yet/.test(document.querySelector("#viewBody").textContent) && !document.querySelector("#catFilterGroup").hidden));
   check("with no Boards mode left" + at, await page.evaluate(() =>
     document.querySelectorAll('#viewTabs .tab[data-view="notes"] .tab-mode-dot').length === 2));
-  await page.locator(".notes-kind", { hasText: "All" }).click();
+  await page.locator("#kindFilter .cat-chip.on").click();
   await page.waitForTimeout(300);
   await page.evaluate(() => window.LifeLogNotes.openNoteModal(null));
   await page.click('#noteKindSeg [data-kind="board"]');
@@ -132,7 +132,7 @@ async function run(b, width) {
     [...document.querySelectorAll("#boardCategory option")].map((o) => o.value).join() === ",Recipes,Work"));
   await page.evaluate(() => window.LifeLogBoards.closeBoard());
   await page.waitForTimeout(400);
-  await page.locator(".notes-kind", { hasText: "All" }).click();
+  await page.locator("#kindFilter .cat-chip.on").click();
   await page.waitForTimeout(400);
   check("and shows in All with the notes, as its picture" + at, await page.evaluate(() => {
     const card = [...document.querySelectorAll(".note-card.is-board")];
@@ -155,7 +155,7 @@ async function run(b, width) {
   await page.waitForTimeout(300);
 
   // The Boards page narrows by the chips too (0.207.0).
-  await page.locator(".notes-kind", { hasText: "Boards" }).click();
+  await page.locator("#kindFilter .cat-chip", { hasText: "Boards" }).click();
   await page.waitForTimeout(400);
   check("a board shows its category on the Boards page" + at, await page.evaluate(() =>
     /Recipes/.test((document.querySelector(".board-card:not(.board-new) .board-cat") || {}).textContent || "")));
@@ -172,7 +172,7 @@ async function run(b, width) {
   check("a board can be a favourite, from the Boards page" + at, await page.evaluate(() =>
     window.LifeLogBoards.boardsNow()[0].fav === true && document.querySelector("#boardEditor").hidden
     && document.querySelector(".board-card:not(.board-new) .board-fav").textContent === "★"));
-  await page.locator(".notes-kind", { hasText: "All" }).click();
+  await page.locator("#kindFilter .cat-chip.on").click();
   await page.waitForTimeout(300);
   await collChip("Recipes").click();
   await page.waitForTimeout(300);
@@ -199,7 +199,7 @@ async function run(b, width) {
   if (await page.$(".bulk-bar")) await page.locator(".bulk-bar button", { hasText: "Cancel" }).click();
 
   await page.locator("#catFilter .cat-chip", { hasText: "No category" }).click();
-  await page.locator(".notes-kind", { hasText: "Notes" }).click();
+  await page.locator("#kindFilter .cat-chip", { hasText: "Notes" }).click();
   await page.waitForTimeout(300);
   await page.locator('.note-card[data-id="day"] .note-text').click({ delay: 700 });
   await page.waitForTimeout(300);
@@ -209,7 +209,7 @@ async function run(b, width) {
   await page.locator("#catFilter .cat-chip", { hasText: "No category" }).click();
 
   // Boards are selected like notes: on the Boards page, and in the feed.
-  await page.locator(".notes-kind", { hasText: "Boards" }).click();
+  await page.locator("#kindFilter .cat-chip", { hasText: "Boards" }).click();
   await page.waitForTimeout(300);
   await page.locator(".board-card:not(.board-new) .board-thumb").click({ delay: 700 });
   await page.waitForTimeout(300);
@@ -219,7 +219,7 @@ async function run(b, width) {
   await page.waitForTimeout(500);
   check("and Move sets its category" + at, await page.evaluate(() => window.LifeLogBoards.boardsNow()[0].category === "Work"));
   await page.evaluate(() => window.LifeLogBoards.setCategory([window.LifeLogBoards.boardsNow()[0].id], ""));
-  await page.locator(".notes-kind", { hasText: "All" }).click();
+  await page.locator("#kindFilter .cat-chip.on").click();
   await page.waitForTimeout(400);
   await page.locator(".note-card.is-board .board-thumb-inline").click({ delay: 700 });
   await page.waitForTimeout(300);

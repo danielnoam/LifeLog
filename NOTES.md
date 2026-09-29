@@ -16,6 +16,16 @@ what was decided against and why.
 
 ---
 
+- **Notes' type is a filter row (0.213.0).** buildKindFilter in app.js, next
+  to buildProjectFilter and shaped like it, called from buildCatFilter so
+  every path that redraws the category row (a view or mode change, a
+  category chip, data arriving) redraws this one too. Unlike the rows around
+  it, one type at a time: Boards is its own page and doesn't mix with notes,
+  and state.noteKind stays the single string the rest of notes.js and
+  boards.js already read. Nothing chosen is "All", so there's no All chip;
+  tapping the chosen one clears it. The chips carry `data-kind` so tests
+  don't have to read the glyph.
+
 - **The recap fits by flex, not by vh (0.212.0).** The stage, the slide and
   the slide's scrolling part are a chain of `flex: 0 1 auto; min-height: 0`,
   so the scroller gets exactly the room the headline and foot leave; the old

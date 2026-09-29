@@ -36,7 +36,7 @@ async function run(b, width) {
   // Lists show every item, ticked or not: the Open items filter (0.199.0)
   // went in 0.206.0.
   check("Lists has no Open items filter" + at, await page.evaluate(() =>
-    !document.querySelector(".notes-subkind") && ![...document.querySelectorAll(".notes-kind")].some((b) => /Open/.test(b.textContent))));
+    !document.querySelector(".notes-subkind") && ![...document.querySelectorAll("#kindFilter .cat-chip")].some((b) => /Open/.test(b.textContent))));
 
   // ---- a note widget's tap ----
   await page.goto(BASE + "/?action=open-note:plain", { waitUntil: "networkidle" });

@@ -315,31 +315,16 @@
     toast("Note category deleted");
   }
 
-  // ---------- the mode bar: kind switch and sort ----------
-  // Boards are a kind of note since 0.204.0. A Boards mode turned off in
-  // Settings before then isn't honoured: with no mode left to turn back on,
-  // it would hide them for good.
+  // ---------- the mode bar: the sort ----------
+  // The kind switch that sat here is a row of the filter bar since 0.213.0
+  // (buildKindFilter in app.js). Boards are a kind of note since 0.204.0.
   const boardsOn = () => !!window.LifeLogBoards;
   function renderNotesToolbar(root) {
-    if (!state.data.notes.length && !boardsOn()) return;
+    // Nothing to sort with no notes, and boards run newest first.
+    if (!state.data.notes.length || state.noteKind === "board") return;
     const bar = el("div", "notes-toolbar");
-    const kinds = el("div", "notes-kinds");
-    kinds.setAttribute("role", "group");
-    kinds.setAttribute("aria-label", "Show");
-    const kindChoices = [["", "All"], ["text", "Notes"], ["list", "Lists"], ["quote", "Quotes"]];
-    if (boardsOn()) kindChoices.push(["board", "Boards"]);
-    for (const [k, label] of kindChoices) {
-      const b = el("button", "notes-kind" + (state.noteKind === k ? " on" : ""), label);
-      b.type = "button";
-      b.setAttribute("aria-pressed", String(state.noteKind === k));
-      b.onclick = () => { state.noteKind = k; buildCatFilter(); render(); };
-      kinds.appendChild(b);
-    }
-    bar.appendChild(kinds);
     // A collection sorts by name, and has its own.
-    // Nothing to sort with no notes: the bar is only there to reach Boards.
-    if (state.noteKind === "board" || !state.data.notes.length) { /* boards run newest first */ }
-    else if (openCollection()) bar.appendChild(sortSelect("collection", collectionSort(), setCollectionSort));
+    if (openCollection()) bar.appendChild(sortSelect("collection", collectionSort(), setCollectionSort));
     else bar.appendChild(sortSelect("notes", noteSort(), setNoteSort));
     root.appendChild(bar);
   }

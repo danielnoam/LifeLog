@@ -3089,16 +3089,15 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
   margin-bottom: 14px;
 }
-.notes-kinds {
-  display: inline-flex; padding: 3px; gap: 2px; border-radius: 10px;
-  background: var(--bg-elev); border: 1px solid var(--border);
-}
-.notes-kind, .note-kind-seg button {
+.note-kind-seg button {
   border: 0; background: transparent; color: var(--text-dim); font: inherit; font-size: 13px;
   padding: 6px 12px; border-radius: 7px; cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
-.notes-kind:hover, .note-kind-seg button:hover { color: var(--text); }
-.notes-kind.on, .note-kind-seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.note-kind-seg button:hover { color: var(--text); }
+.note-kind-seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+/* A type chip's glyph sits where a category chip's dot does. */
+.kind-chip .kind-ico { width: 12px; text-align: center; font-size: 11px; line-height: 1; opacity: .75; }
+.kind-chip.on .kind-ico { opacity: 1; }
 .note-kind-seg {
   display: flex; padding: 3px; gap: 2px; border-radius: 10px; margin-bottom: 14px;
   background: var(--bg); border: 1px solid var(--border);

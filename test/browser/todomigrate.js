@@ -69,9 +69,9 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
     document.querySelectorAll('#viewTabs .tab[data-view="notes"] .tab-mode-dot').length === 2));
   const ui = await page.evaluate(() => ({
     mode: JSON.parse(localStorage.getItem("lifelog-ui-v1") || "{}").notesMode,
-    kind: document.querySelector(".notes-kind.on") && document.querySelector(".notes-kind.on").textContent,
+    kind: document.querySelector("#kindFilter .cat-chip.on") && document.querySelector("#kindFilter .cat-chip.on").dataset.kind,
   }));
-  check("someone who left the app on To-do comes back to their lists", ui.kind === "Lists", ui);
+  check("someone who left the app on To-do comes back to their lists", ui.kind === "list", ui);
   check("the lists are drawn as panels", await page.evaluate(() => document.querySelectorAll(".note-card.is-list .todo-row").length === 3));
 
   // Make a change so it's saved, then look at what GitHub got.

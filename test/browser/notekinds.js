@@ -150,9 +150,9 @@ const SEED = {
   check("without opening it", await page.evaluate(() => document.querySelector("#noteModal").hidden));
 
   // ---- filters ----
-  await page.click('.notes-kind:has-text("Lists")');
-  check("the kind switch narrows to lists", JSON.stringify(await cards()) === JSON.stringify([listId]), await cards());
-  await page.click('.notes-kind:has-text("All")');
+  await page.click('#kindFilter .cat-chip:has-text("Lists")');
+  check("the Types row narrows to lists", JSON.stringify(await cards()) === JSON.stringify([listId]), await cards());
+  await page.click('#kindFilter .cat-chip.on');
   await page.locator("#catFilter .cat-chip", { hasText: "Trip" }).click();
   await page.waitForTimeout(150);
   check("a category chip narrows to its notes", JSON.stringify(await cards()) === JSON.stringify([listId]), await cards());

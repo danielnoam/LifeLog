@@ -139,7 +139,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.212.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.213.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2749,7 +2749,7 @@
     const bar = $("#filterbar");
     if (!bar) return;
     bar.hidden = $("#yearFilterGroup").hidden && $("#catFilterGroup").hidden
-      && $("#projFilterGroup").hidden;
+      && $("#kindFilterGroup").hidden && $("#projFilterGroup").hidden;
   }
 
   // A second axis beside the categories, and only in the Ledger, where
@@ -2804,6 +2804,42 @@
     updateFilterbarVisibility();
   }
 
+  // What kind of note, as a row of the filter bar like the Ledger's projects
+  // (0.213.0) — it was a segmented switch of its own below the filters. One
+  // at a time, unlike the rows around it: Boards is a page of its own and
+  // doesn't mix with notes. Nothing chosen is everything, so the old "All"
+  // is tapping the chosen one again.
+  const NOTE_KIND_CHIPS = [["text", "Notes", "▤"], ["list", "Lists", "☑"], ["quote", "Quotes", "❝"], ["board", "Boards", "✎"]];
+  function buildKindFilter() {
+    const group = $("#kindFilterGroup");
+    if (!group) return;
+    const boards = !!window.LifeLogBoards;
+    const show = state.view === "notes" && state.notesMode === "notes" && (state.data.notes.length > 0 || boards);
+    group.hidden = !show;
+    if (!show) return;
+    const chips = NOTE_KIND_CHIPS.filter(([k]) => k !== "board" || boards).map(([key, label, ico]) => ({ key, label, ico }));
+    reconcile($("#kindFilter"), chips, {
+      keyOf: (item) => item.key,
+      create: (item) => {
+        const chip = el("span", "cat-chip kind-chip");
+        chip.dataset.kind = item.key;
+        activatable(chip, () => {
+          state.noteKind = state.noteKind === item.key ? "" : item.key;
+          buildCatFilter();
+          render();
+        });
+        return chip;
+      },
+      update: (chip, item) => {
+        const on = state.noteKind === item.key;
+        chip.classList.toggle("on", on);
+        chip.setAttribute("aria-pressed", String(on));
+        chip.replaceChildren(el("span", "kind-ico", item.ico), document.createTextNode(item.label));
+      },
+    });
+    equalizeChipWidths($("#kindFilter"));
+  }
+
   // Resolved when a chip is used, not when it is built: a chip node outlives
   // the render that created it now, and the view may have changed under it.
   function activeCatSetFor(which) {
@@ -2827,6 +2863,8 @@
     // Boards kind keeps it.
     const note = state.view === "notes" && state.notesMode === "notes";
     const noCats = state.view === "notes" && !note;
+    // The type row changes with the same things the category row does.
+    buildKindFilter();
     $("#catFilterGroup").hidden = noCats;
     updateFilterbarVisibility();
     if (noCats) return;
