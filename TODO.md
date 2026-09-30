@@ -1,5 +1,20 @@
 todo:
 
+- **A More… menu in the entry and backlog sheets**, instead of one-off
+  buttons along the bottom.
+  - Timeline entry sheet: "Move to backlog" goes into More…, beside a new
+    "Move to In progress" (back to the backlog with `startedAt` set, for
+    something you logged too early).
+  - Backlog sheet: "Mark as dropped" goes into More…, with Move to Dropped,
+    Move to In progress and Set as Done (the ✓ Done flow). The ▶ toggle in
+    the title row could then go too, or stay as the quick way.
+  - Reuse the recurring plan's More… (`.menu-wrap` / `.menu-pop`), so it's
+    one menu look, not a second.
+
+- **Backlog rows: ✓ without the word.** The row's quick action reads
+  "✓ Done"; make it just ✓, an icon button like the ▶ beside it, with
+  "Done" kept as its title and aria-label.
+
 - **A travel mode: places and an itinerary.** A trip with the places you
   want to go and a day-by-day plan. To decide: whether it's its own tab or
   part of an existing one (the Ledger already has projects, which a trip
