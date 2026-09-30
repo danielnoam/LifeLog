@@ -287,6 +287,55 @@ test("every action a widget sends is one the app knows what to do with", () => {
   assert.deepStrictEqual(sent.filter((a) => !run.includes('"' + a + '"')), []);
 });
 
+console.log("\nthe iOS project");
+const ios = require("../tools/ios-project.js");
+const PLIST_TEMPLATE = `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+	<key>CFBundleDisplayName</key>
+	<string>LifeLog</string>
+	<key>UIRequiredDeviceCapabilities</key>
+	<array>
+		<string>armv7</string>
+	</array>
+</dict>
+</plist>`;
+
+test("the backup is visible in the Files app, and the camera says why it's asked for", () => {
+  const out = ios.patchPlist(PLIST_TEMPLATE);
+  for (const k of ["UIFileSharingEnabled", "LSSupportsOpeningDocumentsInPlace", "NSCameraUsageDescription", "ITSAppUsesNonExemptEncryption"]) {
+    assert.ok(out.includes("<key>" + k + "</key>"), k);
+  }
+  assert.ok(/<key>UIFileSharingEnabled<\/key>\s*<true\/>/.test(out), out);
+  // Inside the top-level dict, after the nested array: the last </dict>.
+  assert.ok(out.indexOf("UIFileSharingEnabled") > out.indexOf("</array>") && out.trimEnd().endsWith("</dict>\n</plist>"), out);
+  assert.strictEqual(ios.patchPlist(out), out, "patching twice changes nothing");
+});
+
+test("a plist without a <dict> fails instead of shipping without them", () => {
+  assert.throws(() => ios.patchPlist("<plist></plist>"), /dict/);
+});
+
+test("iOS gets the version, and the same always-rising build number as Android", () => {
+  const pbx = "MARKETING_VERSION = 1.0;\nCURRENT_PROJECT_VERSION = 1;\nMARKETING_VERSION = 1.0;\nCURRENT_PROJECT_VERSION = 1;\n";
+  const out = ios.stampPbxproj(pbx, "0.216.0");
+  assert.strictEqual(out.split("MARKETING_VERSION = 0.216.0;").length - 1, 2, out);
+  assert.strictEqual(out.split("CURRENT_PROJECT_VERSION = 216000;").length - 1, 2, out);
+  assert.throws(() => ios.stampPbxproj("nothing here", "0.216.0"), /MARKETING_VERSION/);
+});
+
+test("the oldest iOS is ML Kit's, in the project and the Podfile alike", () => {
+  const pbx = ios.stampPbxproj("MARKETING_VERSION = 1.0;\nCURRENT_PROJECT_VERSION = 1;\nIPHONEOS_DEPLOYMENT_TARGET = 15.0;\nIPHONEOS_DEPLOYMENT_TARGET = 15.0;\n", "0.216.0");
+  assert.strictEqual(pbx.split("IPHONEOS_DEPLOYMENT_TARGET = " + ios.MIN_IOS + ";").length - 1, 2, pbx);
+  assert.ok(ios.raiseMinIos("x\nplatform :ios, '15.0'\ny").includes("platform :ios, '" + ios.MIN_IOS + "'"));
+  assert.throws(() => ios.raiseMinIos("no platform line"), /platform/);
+});
+
+test("the iOS platform is the same Capacitor as Android's", () => {
+  const pkg = require("../package.json");
+  assert.strictEqual(pkg.devDependencies["@capacitor/ios"], pkg.devDependencies["@capacitor/android"]);
+});
+
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

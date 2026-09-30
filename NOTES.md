@@ -16,6 +16,20 @@ what was decided against and why.
 
 ---
 
+- **The iOS app (0.216.0) is the Android build's shape, unsigned.** Same
+  bundle (tools/build-www.js), same Capacitor, generated fresh in CI
+  (.github/workflows/ios.yml, macos-15) and patched by tools/ios-project.js
+  the way android-manifest.js patches Android. CocoaPods, not Swift Package
+  Manager, because ML Kit only ships as pods; iOS 15.5 minimum for the same
+  reason. No developer account, so no signing: CODE_SIGNING_ALLOWED=NO and
+  an .ipa that AltStore/SideStore sign on install. The iOS job waits for the
+  Android job's release and uploads into it rather than creating one —
+  whichever created it first would make the other's "already released"
+  check skip its own file. In the page, LifeLogPlatform.ios/android replace
+  "native means Android": the APK updater, Google's scanner module and the
+  shared-Documents path are Android's; widgets, reminders and biometrics
+  need no guard because their plugin simply isn't in the iOS build.
+
 - **The phone backup rides on backupToFile (0.215.0).** Every moment the
   desktop's local file is freshened (each save, a merge on load, GitHub
   winning a load, a conflict resolved), so is the phone's copy, and the app

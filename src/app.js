@@ -24,7 +24,7 @@
   // so a second check — a pull to refresh — can't reset a bar that is
   // halfway through downloading it.
   let offeredUpdate = "";
-  const Platform = window.LifeLogPlatform || { native: false, ready: Promise.resolve(null), plugin: () => null, webUrl: () => null, apkUrl: () => null, openOutside: () => {} };
+  const Platform = window.LifeLogPlatform || { native: false, ios: false, android: false, ready: Promise.resolve(null), plugin: () => null, webUrl: () => null, apkUrl: () => null, openOutside: () => {} };
   const MONTHS = ["", "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"];
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -139,7 +139,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.215.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.216.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -4486,6 +4486,14 @@
       }
       install();
     };
+    // iOS installs nothing an app hands it: a sideloaded build is updated
+    // from AltStore or SideStore, so the bar points at the release instead.
+    if (Platform.ios) {
+      btn.onclick = () => Platform.openOutside(Platform.releasesUrl());
+      say("LifeLog " + version + " is out", "Get it");
+      $("#updateBar").hidden = false;
+      return;
+    }
     say("LifeLog " + version + " is out", "Update");
     $("#updateBar").hidden = false;
   }

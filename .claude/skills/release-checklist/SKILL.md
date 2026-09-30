@@ -112,6 +112,9 @@ Each holds one kind of thing; put an entry in exactly one of them.
   bump rebuilds but ships nothing to the app.
 - A push that only touches `**.md`, `test/**` or `.claude/**` doesn't run
   the workflow at all, which is correct: nothing in the app changed.
-- After pushing, check the "Android app" run on `main` went green and the
-  `app-v<version>` release exists. If the build failed, fix it in the next
+- The "iOS app" workflow (0.216.0) builds an unsigned `LifeLog.ipa` on a
+  Mac runner and uploads it into that same release once the Android job has
+  created it. It never creates the release itself.
+- After pushing, check the "Android app" and "iOS app" runs on `main` went
+  green and the `app-v<version>` release has both files. If the build failed, fix it in the next
   commit and push again; the app keeps offering the last release until then.

@@ -1290,6 +1290,9 @@
   // installed (tools/android-manifest.js). If it isn't there yet, ask for it
   // and wait for the install to finish rather than failing the first scan.
   async function ensureScannerModule(S) {
+    // iOS has no Play services: the plugin opens the camera itself (the
+    // reason is in Info.plist, see tools/ios-project.js).
+    if (window.LifeLogPlatform && window.LifeLogPlatform.ios) return;
     const { available } = await S.isGoogleBarcodeScannerModuleAvailable();
     if (available) return;
     toast("Getting the scanner ready…");

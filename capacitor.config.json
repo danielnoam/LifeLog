@@ -10,5 +10,9 @@
     "SystemBars": {
       "insetsHandling": "css"
     }
+  },
+  "ios": {
+    "backgroundColor": "#11141a",
+    "contentInset": "never"
   }
 }

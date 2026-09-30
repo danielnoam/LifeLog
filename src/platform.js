@@ -18,6 +18,10 @@
 (function () {
   const cap = window.Capacitor;
   const native = !!(cap && typeof cap.isNativePlatform === "function" && cap.isNativePlatform());
+  // Which phone, since the iOS app (0.216.0): most of the app is the same on
+  // both, and what isn't — the APK updater, Google's QR scanner, the widgets
+  // plugin, the storage flags — asks this rather than assuming Android.
+  const os = native ? String((cap.getPlatform && cap.getPlatform()) || "android") : "web";
 
   // Also baked into the app's index.html by tools/build-www.js, so the
   // edge-to-edge padding applies from the first frame; this is the same
@@ -106,6 +110,7 @@
   // again; null when the plugins aren't there (an app older than this).
   const APK_MIME = "application/vnd.android.package-archive";
   async function downloadUpdate(version, onProgress) {
+    if (os !== "android") return null;
     const FS = native && cap.Plugins && cap.Plugins.Filesystem;
     if (!FS || !(cap.Plugins && cap.Plugins.FileOpener) || !build || !build.repo) return null;
     const url = "https://github.com/" + build.repo + "/releases/download/app-v" + version + "/LifeLog.apk";
@@ -190,6 +195,8 @@
 
   window.LifeLogPlatform = {
     native,
+    ios: os === "ios",
+    android: os === "android",
     ready,
     get build() { return build; },
     // A native plugin, or null in a browser or when the build doesn't carry it.

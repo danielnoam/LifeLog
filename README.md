@@ -57,6 +57,25 @@ doesn't load or depend on anything the app build adds.
 - **Building locally** (needs the Android SDK): `npm install`,
   `npm run android:sync`, then open `android/` in Android Studio.
 
+## The iOS app
+
+The same files again, built for iPhone by `.github/workflows/ios.yml` on a
+Mac runner and attached to each release as `LifeLog.ipa`.
+
+- **It's unsigned.** Without Apple's developer programme ($99/year) there's
+  no way to sign it for other phones, so it's installed with
+  [AltStore](https://altstore.io) or [SideStore](https://sidestore.io),
+  which sign it with your own Apple ID. Apps installed that way last 7
+  days; AltStore/SideStore renew them in the background.
+- **What differs from Android:** no home-screen widgets, reminders or
+  fingerprint unlock (those are Android code); a newer release is offered
+  as a link to the release page, since an app can't install another; the
+  phone backup is in Files → On My iPhone → LifeLog. Everything else is
+  the same app.
+- **With a developer account** the workflow is where signing and a
+  TestFlight upload would go.
+- Until then, Safari's Add to Home Screen still works as it always has.
+
 ## Use it on your phone
 
 The app is an installable **PWA** (manifest + service worker), so once it's

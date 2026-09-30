@@ -1,0 +1,99 @@
+# Builds the iOS app from the same files as the web copy and the Android app
+# (0.216.0), and attaches it to the release the Android workflow publishes.
+#
+# There's no Apple developer account behind it yet, so it can't be signed:
+# what it makes is an unsigned LifeLog.ipa, which AltStore or SideStore sign
+# with your own Apple ID when they install it (and re-sign every 7 days).
+# With an account, this is where signing and a TestFlight upload go — see
+# NOTES.md ("the iOS app"). A public repo's macOS minutes are free.
+name: iOS app
+
+on:
+  push:
+    branches: [main, "claude/**"]
+    paths-ignore: ["**.md", "test/**", ".claude/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ipa:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Bundle the web app
+        run: node tools/build-www.js
+
+      # CocoaPods rather than Swift Package Manager: Google's ML Kit, which
+      # the QR scanner is built on, only ships as pods.
+      - name: Generate the iOS project
+        run: |
+          npx cap add ios --packagemanager CocoaPods
+          node tools/ios-project.js
+
+      - name: Icon and splash
+        run: >-
+          npx --yes @capacitor/assets@3 generate --ios
+          --iconBackgroundColor '#11141a' --iconBackgroundColorDark '#11141a'
+          --splashBackgroundColor '#11141a' --splashBackgroundColorDark '#11141a'
+
+      - name: Version
+        id: v
+        run: echo "version=$(node -p "require('./tools/build-www').appVersion()")" >> "$GITHUB_OUTPUT"
+
+      - run: npx cap sync ios
+
+      # The log's tail is where xcodebuild says what failed; the default shell
+      # runs with pipefail, so a failed build still fails the step.
+      - name: Build
+        working-directory: ios/App
+        run: >-
+          xcodebuild -workspace App.xcworkspace -scheme App -configuration Release
+          -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build
+          CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+          build 2>&1 | tail -80
+
+      # An .ipa is a zip of Payload/<name>.app — nothing more is needed for a
+      # sideloading tool to sign and install it.
+      - name: Package
+        run: |
+          mkdir -p Payload
+          cp -R ios/App/build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -qry LifeLog.ipa Payload
+          ls -lh LifeLog.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LifeLog-${{ steps.v.outputs.version }}-ios-unsigned
+          path: LifeLog.ipa
+
+      # The Android workflow creates the release; this waits for it rather than
+      # racing it, since whichever created it first would leave the other's
+      # "already released" check skipping its own upload.
+      - name: Attach to the release
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.v.outputs.version }}
+        run: |
+          for i in $(seq 1 40); do
+            if gh release view "app-v$V" >/dev/null 2>&1; then
+              gh release upload "app-v$V" LifeLog.ipa --clobber
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "No app-v$V release after 20 minutes (did the Android build publish one?)"; exit 1

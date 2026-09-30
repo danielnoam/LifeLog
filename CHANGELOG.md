@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.216.0] - 2026-09-30
+
+### Added
+- **An iPhone app, for sideloading.** Each release now has a
+  **LifeLog.ipa** beside the APK. It's unsigned, so install it with
+  AltStore or SideStore, which sign it with your own Apple ID. It's the
+  same app as on Android, without the home-screen widgets, reminders and
+  fingerprint unlock. When a newer version is out, the bar links to the
+  release. The phone backup is in Files → On My iPhone → LifeLog.
+
 ## [0.215.0] - 2026-09-29
 
 ### Added

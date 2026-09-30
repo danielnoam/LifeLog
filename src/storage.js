@@ -176,7 +176,11 @@
   // storage (see tools/android-manifest.js). Writes are serialised, so a
   // burst of saves can't interleave two copies of one file.
   const PHONE_KEY = "lifelog-phone-backup-v1"; // { on, last, error }
-  const PHONE_DIR = "LifeLog";
+  // On iOS, Documents is already the app's own folder, which the Files app
+  // shows as On My iPhone → LifeLog (tools/ios-project.js); a LifeLog folder
+  // inside it would only be a second one. Android's is the shared Documents.
+  const phoneIos = () => !!(window.LifeLogPlatform && window.LifeLogPlatform.ios);
+  const phonePath = (p) => (phoneIos() ? p : "LifeLog/" + p);
   const DAILY_KEEP = 14;
   const phoneFs = () => (window.LifeLogPlatform && window.LifeLogPlatform.plugin("Filesystem")) || null;
   function phoneCfg() {
@@ -197,7 +201,7 @@
     return phoneQueue;
   }
   async function writePhone(FS, doc, name) {
-    const write = (path, text) => FS.writeFile({ path: PHONE_DIR + "/" + path, data: text, directory: "DOCUMENTS", encoding: "utf8", recursive: true });
+    const write = (path, text) => FS.writeFile({ path: phonePath(path), data: text, directory: "DOCUMENTS", encoding: "utf8", recursive: true });
     try {
       const text = JSON.stringify(doc, null, 2);
       await write(name, text);
@@ -211,11 +215,11 @@
     }
   }
   async function prunePhoneDaily(FS) {
-    const { files } = await FS.readdir({ path: PHONE_DIR + "/daily", directory: "DOCUMENTS" });
+    const { files } = await FS.readdir({ path: phonePath("daily"), directory: "DOCUMENTS" });
     const days = (files || []).map((f) => (typeof f === "string" ? f : f.name))
       .filter((n) => /^lifelog-\d{4}-\d{2}-\d{2}\.json$/.test(n)).sort();
     for (const n of days.slice(0, Math.max(0, days.length - DAILY_KEEP))) {
-      await FS.deleteFile({ path: PHONE_DIR + "/daily/" + n, directory: "DOCUMENTS" });
+      await FS.deleteFile({ path: phonePath("daily/" + n), directory: "DOCUMENTS" });
     }
   }
 
@@ -637,7 +641,7 @@
     // whether it's on, and when it last wrote.
     get phoneBackup() {
       const c = phoneCfg();
-      return { available: !!phoneFs(), on: !!c.on, last: c.last || null, error: c.error || null, folder: "Documents/" + PHONE_DIR };
+      return { available: !!phoneFs(), on: !!c.on, last: c.last || null, error: c.error || null, folder: phoneIos() ? "Files → On My iPhone → LifeLog" : "Documents/LifeLog" };
     },
     // Turning it on writes a copy straight away, so "on" never means "on,
     // and empty until the next edit". `boards` is boards.json's current doc.

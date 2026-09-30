@@ -107,5 +107,7 @@ jobs:
             echo
             echo "---"
             echo "**Installing:** open this page on your phone, tap **LifeLog.apk**, and allow your browser to install apps the first time it asks. Updates install over the top and keep your data."
+            echo
+            echo "**iPhone:** **LifeLog.ipa** is added here a few minutes later. It's unsigned: install it with AltStore or SideStore, which sign it with your own Apple ID."
           } >> notes.md
           gh release create "app-v$V" LifeLog.apk --title "LifeLog $V" --notes-file notes.md

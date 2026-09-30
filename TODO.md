@@ -1,15 +1,16 @@
 todo:
 
-- **What the Android app could do that a browser can't.** Native HTTP and a
-  file backup on the phone shipped in 0.215.0; widgets in 0.181.0–0.185.0.
-  Left to check on a real phone: that the Steam wishlist import and a
-  SteamGridDB search work with no proxy running, and that the backup lands
-  in Documents/LifeLog on Android 10 (the legacy-storage flag) and 9 or
-  earlier (the storage prompt). The browser suites fake both plugins.
-
-  **iOS.** The same wrapper, plus $99/year for Apple's developer program and
-  a macOS build job. Until there's a native feature worth that, iOS stays on
-  Safari's Add to Home Screen, which already works.
+- **The iOS app, past its base.** 0.216.0 builds an unsigned LifeLog.ipa
+  on every release (.github/workflows/ios.yml). Left:
+  - Install it once with AltStore or SideStore and go through it on a real
+    iPhone: safe areas under the notch and the home bar, the pull to sync
+    against WKWebView's own bounce, the QR scanner's camera, the phone
+    backup showing in Files, Steam without the proxy.
+  - Widgets and reminders are Android code (native/widgets). iOS would need
+    a WidgetKit extension in Swift and local notifications — a project of
+    its own, worth it only once the app is used daily on an iPhone.
+  - With a developer account ($99/year): sign in CI, upload to TestFlight,
+    and the 7-day re-signing goes away.
 
   What was decided against outright is in DROPPED.md: habits feeding the
   to-do list, a habits tab of its own, times-per-week habits and streak
