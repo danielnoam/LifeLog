@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.218.0] - 2026-09-30
+
+### Added
+- **In progress.** What you've started and not finished has its own card at
+  the top of the Timeline, between the Backlog and your log. Start something
+  with ▶ on its Backlog row or in its sheet, or with the card's + for
+  something new. Each row says how long it's been going.
+- **✓ Done on something in progress** logs it with the months it took: it
+  started in the month you started it and finished this month, unless it
+  was all this month. You can still change either month before saving.
+- ↩ on a row puts it back in the Backlog. The Backlog says how many are in
+  progress, and tapping that takes you to them.
+
 ## [0.217.0] - 2026-09-30
 
 ### Added

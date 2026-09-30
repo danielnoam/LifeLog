@@ -504,5 +504,11 @@ test("title breaks every tie, so equal items don't swap places between renders",
   setSort("title");
 });
 
+test("an item in progress keeps the day it was started, and only a real day", () => {
+  assert.strictEqual(sanitizeBacklog({ title: "A", startedAt: "2026-07-10" }).startedAt, "2026-07-10");
+  assert.strictEqual(sanitizeBacklog({ title: "B", startedAt: "yesterday" }).startedAt, undefined);
+  assert.strictEqual(sanitizeBacklog({ title: "C" }).startedAt, undefined);
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

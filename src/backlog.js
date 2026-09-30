@@ -126,14 +126,127 @@
     return hasSteamPrice;
   }
 
+  // Whether the chips and the search let a backlog item through.
+  function passesFilters(b) {
+    const q = state.search.trim().toLowerCase();
+    const cf = state.activeCats;
+    if (cf.size && !cf.has(b.category)) return false;
+    if (q && !b.title.toLowerCase().includes(q) && !(b.notes || "").toLowerCase().includes(q)) return false;
+    return true;
+  }
+  // What the Backlog lists: everything not yet started. Something you're on
+  // (0.218.0) is on the Timeline's In progress card instead — one place each.
   function getFilteredBacklog() {
     const q = state.search.trim().toLowerCase();
     const cf = state.activeCats;
     return state.data.backlog.filter((b) => {
+      if (isStarted(b)) return false;
       if (cf.size && !cf.has(b.category)) return false;
       if (q && !b.title.toLowerCase().includes(q) && !(b.notes || "").toLowerCase().includes(q)) return false;
       return true;
     });
+  }
+
+  // ---------- in progress (0.218.0) ----------
+  // Between the backlog and the log: what you've started and haven't
+  // finished. It's still a backlog item, with the day you started it as
+  // `startedAt`, so it syncs and merges like any other field and an older
+  // copy of the app just sees a backlog item. Done is the backlog's own ✓ Done,
+  // which takes the start month from here (journal.js, openEntryModal).
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const localDay = (d = new Date()) => d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+  const isStarted = (b) => /^\d{4}-\d{2}-\d{2}$/.test(String((b && b.startedAt) || ""));
+
+  // The card's rows: the Timeline's category chips and the search apply, the
+  // year chips don't (nothing here has a year yet). Newest start first.
+  function inProgressItems() {
+    return state.data.backlog.filter((b) => isStarted(b) && passesFilters(b))
+      .sort((a, b) => String(b.startedAt).localeCompare(String(a.startedAt)) || a.title.localeCompare(b.title));
+  }
+
+  const showTimeline = () => { const t = document.querySelector('.tab[data-view="timeline"]'); if (t) t.click(); };
+
+  async function startItem(id) {
+    const b = state.data.backlog.find((x) => x.id === id);
+    if (!b) return;
+    b.startedAt = localDay();
+    delete b.dropped; // starting it is un-dropping it
+    render();
+    await persist();
+    toast("Started — it's at the top of your Timeline", false, state.view === "timeline" ? null : { label: "Show", onClick: showTimeline });
+  }
+
+  async function stopItem(id) {
+    const b = state.data.backlog.find((x) => x.id === id);
+    if (!b) return;
+    delete b.startedAt;
+    render();
+    await persist();
+    toast("Back in your backlog");
+  }
+
+  function sinceLabel(day) {
+    const d = new Date(day + "T00:00:00");
+    const days = Math.round((new Date(localDay() + "T00:00:00") - d) / 86400000);
+    const date = d.toLocaleDateString(undefined, { day: "numeric", month: "short", ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}) });
+    return "since " + date + (days <= 0 ? " · today" : days === 1 ? " · 1 day" : " · " + days + " days");
+  }
+
+  function inProgressRow(b) {
+    const row = el("div", "entry progress-row");
+    row.dataset.id = b.id;
+    if (state.visual.timelineCoverSize !== "none") {
+      const size = state.visual.timelineCoverSize === "big" ? "cover-lg" : "cover-sm";
+      row.appendChild(b.coverUrl ? coverEl(b.coverUrl, "", "etn-cover " + size, b.category) : emptyCoverEl("etn-cover cover-empty " + size, b.category));
+    }
+    const color = colorOf(b.category);
+    const chip = el("span", "entry-cat");
+    chip.style.background = color + "22";
+    chip.style.color = color;
+    const dot = el("span", "dot"); dot.style.background = color;
+    chip.appendChild(dot);
+    chip.appendChild(document.createTextNode(b.category));
+    row.appendChild(chip);
+    const text = el("span", "progress-text");
+    const t = el("span", "etitle", b.title); t.title = b.title;
+    text.appendChild(t);
+    text.appendChild(el("span", "progress-since", sinceLabel(b.startedAt)));
+    row.appendChild(text);
+    const stop = el("button", "btn btn-sm progress-stop", "↩");
+    stop.type = "button";
+    stop.title = "Not now — back to the backlog";
+    stop.setAttribute("aria-label", "Put " + b.title + " back in the backlog");
+    stop.onclick = (ev) => { ev.stopPropagation(); stopItem(b.id); };
+    row.appendChild(stop);
+    const done = el("button", "btn btn-sm", "✓ Done");
+    done.type = "button";
+    done.title = "Finished — log it";
+    done.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
+    row.appendChild(done);
+    row.onclick = () => openBacklogModal(b);
+    return row;
+  }
+
+  // The card at the top of the Timeline, or null when nothing's in progress
+  // (or nothing in progress passes the chips).
+  function inProgressCard() {
+    const items = inProgressItems();
+    if (!items.length) return null;
+    const block = el("div", "year-block progress-block");
+    const head = el("div", "year-head");
+    head.appendChild(el("h2", null, "▶ In progress"));
+    head.appendChild(el("span", "ycount", String(items.length)));
+    const add = el("button", "month-add-btn", "+");
+    add.type = "button";
+    add.title = "Start something new";
+    add.setAttribute("aria-label", "Start something new");
+    add.onclick = () => openBacklogModal(null, null, { started: true });
+    head.appendChild(add);
+    block.appendChild(head);
+    const card = el("div", "month-card progress-card");
+    for (const b of items) card.appendChild(inProgressRow(b));
+    block.appendChild(card);
+    return block;
   }
 
   // Every media-derived field on the backlog form. They're cleared as a set
@@ -1709,6 +1822,16 @@
       const n = upcomingItems().length;
       if (n) bar.appendChild(el("span", "backlog-mode-count", n + (n === 1 ? " title" : " titles") + " waiting"));
     } else if (state.backlogMode === "entries") {
+      // What's been started has left this list for the Timeline (0.218.0);
+      // this says so, and takes you there.
+      const going = inProgressItems().length;
+      if (going) {
+        const link = el("button", "link-btn backlog-progress-link", "▶ " + going + " in progress");
+        link.type = "button";
+        link.title = "On your Timeline";
+        link.onclick = showTimeline;
+        bar.appendChild(link);
+      }
       // Not in Discover: the draw is from your own list, and offering it
       // beside a wall of things you do not own reads as if it might pick one.
       const pick = makePickGroup(items);
@@ -2003,6 +2126,16 @@
     return rich ? "backlog-item-rich" : "entry";
   }
 
+  // ▶ beside ✓ Done: "I'm on this now" (0.218.0).
+  function startButton(b) {
+    const btn = el("button", "btn btn-sm bl-start", "▶");
+    btn.type = "button";
+    btn.title = "Start — move to In progress";
+    btn.setAttribute("aria-label", "Start " + b.title);
+    btn.onclick = (ev) => { ev.stopPropagation(); startItem(b.id); };
+    return btn;
+  }
+
   function backlogRow(b) {
     if (state.visual.backlogCoverSize !== "none") return backlogRowRich(b);
     const row = el("div", "entry");
@@ -2014,6 +2147,7 @@
     if (b.priority) row.appendChild(priorityBadge());
     if (b.bought) row.appendChild(boughtTag());
     if (!state.bulk.active) {
+      row.appendChild(startButton(b));
       const doneBtn = el("button", "btn btn-sm", "✓ Done");
       doneBtn.type = "button";
       doneBtn.title = "Move to your log";
@@ -2045,6 +2179,7 @@
     row.appendChild(body);
     // Done button at the right — same position as plain backlog rows
     if (!state.bulk.active) {
+      row.appendChild(startButton(b));
       const doneBtn = el("button", "btn btn-sm", "✓ Done");
       doneBtn.type = "button"; doneBtn.title = "Move to your log";
       doneBtn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
@@ -2269,7 +2404,7 @@
     else { coverDiv.hidden = true; coverImg.src = ""; paint(false); }
   }
 
-  function openBacklogModal(item, presetCategory) {
+  function openBacklogModal(item, presetCategory, opts) {
     const editing = !!item;
     $("#backlogModalTitle").textContent = editing ? "Edit backlog item" : "Add to backlog";
     $("#backlogId").value = editing ? item.id : "";
@@ -2289,6 +2424,8 @@
     $("#bPriority").checked = editing ? !!item.priority : false;
     updatePriorityBtn();
     $("#bBought").checked = editing ? !!item.bought : false;
+    $("#bStarted").checked = editing ? isStarted(item) : !!(opts && opts.started);
+    updateStartedBtn();
     updateBoughtBtn();
     $("#bDropped").checked = editing ? !!item.dropped : false;
     updateDroppedBtnLabel();
@@ -2356,6 +2493,19 @@
     setBacklogCover();
   }
 
+  function updateStartedBtn() {
+    const btn = $("#bStartedBtn");
+    const on = $("#bStarted").checked;
+    btn.classList.toggle("active", on);
+    btn.title = on ? "In progress — click to put it back in the backlog" : "Start — move to In progress";
+    btn.setAttribute("aria-label", btn.title);
+    btn.setAttribute("aria-pressed", String(on));
+  }
+  function toggleStarted() {
+    $("#bStarted").checked = !$("#bStarted").checked;
+    updateStartedBtn();
+  }
+
   async function saveBacklogFromForm(ev) {
     ev.preventDefault();
     // Ticked overrides are written into the hidden fields first, so
@@ -2387,7 +2537,9 @@
     const priority = $("#bPriority").checked ? 1 : 0;
     const bought = $("#bBought").checked;
     const dropped = $("#bDropped").checked;
+    const started = $("#bStarted").checked;
     if (!title) return;
+    let startedNow = false;
     if (id) {
       const b = state.data.backlog.find((x) => x.id === id);
       Object.assign(b, { title, category });
@@ -2405,6 +2557,9 @@
       if (bought) b.bought = true; else delete b.bought;
       if (dropped) b.dropped = true; else delete b.dropped;
       if (overrides) b.overrides = overrides; else delete b.overrides;
+      // Keeps the day it was started when it's already going.
+      if (started && !isStarted(b)) { b.startedAt = localDay(); startedNow = true; }
+      else if (!started) delete b.startedAt;
     } else {
       const item = { id: uid(), title, category, createdAt: new Date().toISOString() };
       if (notes) item.notes = notes;
@@ -2421,12 +2576,14 @@
       if (bought) item.bought = true;
       if (dropped) item.dropped = true;
       if (overrides) item.overrides = overrides;
+      if (started) { item.startedAt = localDay(); startedNow = true; }
       state.data.backlog.push(item);
     }
     closeBacklogModal();
     render();
     await persist();
-    toast(id ? "Backlog item updated" : "Added to backlog");
+    if (startedNow) toast("Started — it's at the top of your Timeline", false, state.view === "timeline" ? null : { label: "Show", onClick: showTimeline });
+    else toast(id ? "Backlog item updated" : "Added to backlog");
   }
 
   async function deleteCurrentBacklogItem() {
@@ -2444,7 +2601,7 @@
   const KNOWN_BACKLOG_KEYS = new Set([
     "id", "title", "category", "createdAt", "updatedAt", "notes", "coverUrl",
     "mediaId", "mediaSource", "summary", "releaseYear", ...RELEASE_FIELDS,
-    "externalRating", "length", "genres", "priority", "bought", "dropped", "overrides",
+    "externalRating", "length", "genres", "priority", "bought", "dropped", "overrides", "startedAt",
   ]);
   function sanitizeBacklog(b) {
     const out = {
@@ -2477,6 +2634,7 @@
     // elsewhere it just shows the badge and drops the price.
     if (b.bought) out.bought = true;
     if (b.dropped) out.dropped = true;
+    if (isStarted(b)) out.startedAt = b.startedAt;
     const overrides = sanitizeOverrides(b.overrides, OVERRIDE_KEYS);
     if (overrides) out.overrides = overrides;
     // Anything this build doesn't know about is carried through rather than
@@ -2495,6 +2653,7 @@
     $("#toggleDroppedBtn").onclick = toggleDropped;
     $("#bPriorityBtn").onclick = togglePriority;
     $("#bBoughtBtn").onclick = toggleBought;
+    $("#bStartedBtn").onclick = toggleStarted;
     $("#bTitle").oninput = renderBacklogTitleSuggestions;
     $("#bCategory").onchange = () => updateSyncBtnVisibility("b", $("#bCategory").value);
     $("#bSyncBtn").onclick = syncBacklogTitle;
@@ -2525,6 +2684,8 @@
   window.LifeLogBacklog = {
     init,
     wire,
+    // the Timeline's In progress card (0.218.0)
+    inProgressCard, inProgressItems, startItem, stopItem,
     // view (dispatched from app.js's render())
     renderBacklog,
     // cross-view search match count (app.js's tab match badges)

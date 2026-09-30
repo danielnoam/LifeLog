@@ -16,6 +16,19 @@ what was decided against and why.
 
 ---
 
+- **In progress is a backlog item with `startedAt` (0.218.0)**, not a third
+  collection or a kind of entry. It syncs and merges as a field, an older
+  copy of the app sees an ordinary backlog item (keepUnknown would carry it
+  anyway; it's a known key now so a malformed one is dropped), and ✓ Done is
+  the backlog's own done flow, which already turns an item into an entry.
+  getFilteredBacklog leaves started items out, so the Backlog's lists,
+  counts, Pick random and bulk mode all skip them without each knowing why;
+  the Timeline's card (inProgressCard, in its own slot above the years so the
+  lazy sections aren't touched) uses the same chips and search through
+  passesFilters. Done pre-fills the start month from `startedAt` and the
+  save's existing span check drops it when it's this month; the entry keeps
+  `startedAt` too, since the months are only what it was rounded to.
+
 - **The iOS widgets (0.217.0) are Android's, redrawn.** Same snapshot in,
   same queue out, same rules: native/widgets/ios/Shared is a port of
   WidgetStore.java's due/kept/streak/nextMark and is compiled into both the

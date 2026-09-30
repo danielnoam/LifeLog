@@ -1129,6 +1129,23 @@ select:focus { outline: none; border-color: var(--accent); }
    as its own fact next to the star's gold. */
 .bl-bought { font-size: 11px; color: var(--success); flex-shrink: 0; white-space: nowrap; }
 .bl-ea { font-size: 11px; color: var(--warning); flex-shrink: 0; white-space: nowrap; }
+/* The Timeline's In progress card (0.218.0): a year block's heading over
+   one card of rows, each the title with how long it's been going, a ↩ to put
+   it back and a ✓ Done to log it. */
+.progress-block { margin-bottom: 26px; }
+.progress-block .year-head { position: static; }
+.progress-block .year-head .month-add-btn { margin-left: auto; }
+.progress-card { display: flex; flex-direction: column; gap: 2px; }
+.progress-row { align-items: center; }
+.progress-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.progress-text .etitle { flex: none; }
+.progress-since { font-size: 11px; color: var(--text-faint); }
+.progress-row .btn-sm { flex: 0 0 auto; }
+.backlog-progress-link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; font-size: 12.5px; cursor: pointer; }
+/* ▶ on a backlog row, before ✓ Done: the quieter of the two. */
+.bl-start { color: var(--text-dim); padding-inline: 8px; }
+.bl-start:hover:not(:disabled) { color: var(--accent); }
+.backlog-item-rich .bl-start { margin-right: -2px; }
 .entry .entry-cat {
   display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
   padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;
@@ -1732,6 +1749,10 @@ kbd {
 .bought-toggle { flex: 0 0 auto; padding: 8px 10px; font-size: 14px; line-height: 1; color: var(--text-dim); }
 .bought-toggle.active { color: var(--success); border-color: var(--success); }
 .bought-toggle:hover { color: var(--success); }
+/* ▶ In progress (0.218.0), beside ☆ and ✓ in the backlog sheet. */
+.started-toggle { flex: 0 0 auto; padding: 8px 10px; font-size: 13px; line-height: 1; color: var(--text-dim); }
+.started-toggle.active { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
+.started-toggle:hover { color: var(--accent); }
 .sync-status { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--accent); }
 .sync-status[hidden] { display: none; }
 .sync-status .link-btn {

@@ -139,7 +139,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.217.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.218.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1528,7 +1528,11 @@
         return;
       }
       const entries = getFiltered();
-      if (!state.data.entries.length) {
+      // What you're on now (0.218.0), above the log — and shown even when
+      // nothing's logged yet or nothing matches, so it never hides behind
+      // an empty state.
+      const progress = state.timelineMode !== "stats" ? Backlog.inProgressCard() : null;
+      if (!state.data.entries.length && !progress) {
         c.appendChild(emptyState({
           glyph: "☰",
           title: "Nothing logged yet",
@@ -1540,13 +1544,14 @@
         return;
       }
       if (!entries.length) {
-        c.appendChild(emptyState("No entries match your filters."));
+        if (progress) c.appendChild(progress);
+        c.appendChild(emptyState(state.data.entries.length ? "No entries match your filters." : "Nothing logged yet — finish something in progress and it lands here."));
         return;
       }
       // Two readings of one filtered set — same entries, same chips, same
       // empty states above; only the last call differs.
       if (state.timelineMode === "stats") Journal.renderStats(c, entries);
-      else Journal.renderTimeline(c, entries);
+      else Journal.renderTimeline(c, entries, progress);
     } finally {
       // Whether the slot earned its space is only knowable once the view has
       // had its go at it — most views leave it empty.

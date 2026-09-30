@@ -1,18 +1,5 @@
 todo:
 
-- **In progress: what you're on now.** A card at the top of the Timeline,
-  like the ★ Favourites in Notes, for entries you've started but not
-  finished: between the Backlog and the Timeline.
-  - Move something there from the Backlog (a button on the item, and in
-    its sheet), or start one there directly.
-  - A way to mark one done, which moves it into the Timeline.
-  - Remember when it went in and when it came out, so the entry's start
-    month and month are filled in from those dates (the multi-month span
-    entries already have) unless you set them yourself.
-  - To decide: whether it's a flag on a backlog item or a status on an
-    entry, and what happens on the Backlog side (does it stay listed
-    there, marked, or leave?).
-
 - **A travel mode: places and an itinerary.** A trip with the places you
   want to go and a day-by-day plan. To decide: whether it's its own tab or
   part of an existing one (the Ledger already has projects, which a trip

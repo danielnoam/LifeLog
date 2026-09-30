@@ -42,14 +42,19 @@
   // toolbar that is refilled, and a section container that is reconciled.
   // Both empty states live in app.js's render() and never reach here, so this
   // function always has entries.
-  let tlRootEl = null, tlToolbarEl = null, tlSectionsEl = null, tlBulkEl = null;
+  let tlRootEl = null, tlToolbarEl = null, tlProgressEl = null, tlSectionsEl = null, tlBulkEl = null;
 
-  function renderTimeline(root, entries) {
+  // `progress` is the In progress card (0.218.0), or null: it sits between
+  // the toolbar and the years, in a slot of its own so the years' sections
+  // aren't disturbed when it comes and goes.
+  function renderTimeline(root, entries, progress) {
     if (!tlRootEl) {
       tlRootEl = document.createElement("div");
       tlToolbarEl = timelineToolbar();
+      tlProgressEl = document.createElement("div");
       tlSectionsEl = document.createElement("div");
       tlRootEl.appendChild(tlToolbarEl);
+      tlRootEl.appendChild(tlProgressEl);
       tlRootEl.appendChild(tlSectionsEl);
     } else {
       // The select's chosen option follows the setting; its handler sits on
@@ -57,6 +62,7 @@
       adopt(tlToolbarEl, timelineToolbar());
     }
     root.appendChild(tlRootEl);
+    if (progress) tlProgressEl.replaceChildren(progress); else tlProgressEl.replaceChildren();
 
     const byYear = groupBy(entries, (e) => e.year);
     const sections = [];
@@ -775,6 +781,14 @@
       editing && entry.startMonth ? entry.startMonth : "");
     $("#fStartYear").value = editing && entry.startYear ? entry.startYear
       : (editing ? entry.year : (preset ? preset.year : new Date().getFullYear()));
+    // Finishing something that was In progress (0.218.0): it started in the
+    // month you started it. The save drops it if that's this month.
+    const startedAt = !editing && fromBacklog && /^\d{4}-\d{2}-\d{2}$/.test(fromBacklog.startedAt || "") ? fromBacklog.startedAt : "";
+    $("#entryStartedAt").value = startedAt;
+    if (startedAt) {
+      $("#fStartMonth").value = String(+startedAt.slice(5, 7));
+      $("#fStartYear").value = startedAt.slice(0, 4);
+    }
     $("#deleteEntryBtn").hidden = !editing;
     $("#moveToBacklogBtn").hidden = !editing;
     const added = $("#addedLine");
@@ -1354,6 +1368,9 @@
       if (genres.length) newEntry.genres = genres;
       if (overrides) newEntry.overrides = overrides;
       if (backlogItem) newEntry.backlogAddedAt = backlogItem.createdAt || null;
+      // The day it went In progress, kept: the months above are all a span
+      // records, and this is what they were worked out from.
+      if ($("#entryStartedAt").value) newEntry.startedAt = $("#entryStartedAt").value;
       state.data.entries.push(newEntry);
     }
     if (fromBacklogId) state.data.backlog = state.data.backlog.filter((b) => b.id !== fromBacklogId);
@@ -1567,7 +1584,7 @@
   const KNOWN_ENTRY_KEYS = new Set([
     "id", "title", "category", "year", "month", "date", "createdAt", "updatedAt",
     "rating", "notes", "coverUrl", "mediaId", "mediaSource", "length", "genres",
-    "backlogAddedAt", "overrides", "startMonth", "startYear",
+    "backlogAddedAt", "overrides", "startMonth", "startYear", "startedAt",
   ]);
   function sanitizeEntry(e) {
     const out = {
@@ -1599,6 +1616,7 @@
     if (sm >= 1 && sm <= 12 && sy && (sy * 12 + sm) < (out.year * 12 + out.month)) {
       out.startMonth = sm; out.startYear = sy;
     }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(e.startedAt || "")) out.startedAt = e.startedAt;
     // Anything this build doesn't know about is carried through rather than
     // dropped — see keepUnknown in app.js for why that matters across devices.
     return keepUnknown(e, out, KNOWN_ENTRY_KEYS);
