@@ -2,10 +2,13 @@
   "name": "lifelog-widgets",
   "version": "1.0.0",
   "private": true,
-  "description": "LifeLog's Android home-screen widgets, as a local Capacitor plugin. No JavaScript: the app calls it as Capacitor.Plugins.Widgets.",
+  "description": "LifeLog's home-screen widgets, reminders and biometrics, as a local Capacitor plugin: Android (android/) and iOS (ios/, with the widget extension added by tools/ios-widgets.rb). No JavaScript: the app calls it as Capacitor.Plugins.Widgets.",
   "capacitor": {
     "android": {
       "src": "android"
+    },
+    "ios": {
+      "src": "ios"
     }
   }
 }

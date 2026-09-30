@@ -67,11 +67,15 @@ Mac runner and attached to each release as `LifeLog.ipa`.
   [AltStore](https://altstore.io) or [SideStore](https://sidestore.io),
   which sign it with your own Apple ID. Apps installed that way last 7
   days; AltStore/SideStore renew them in the background.
-- **What differs from Android:** no home-screen widgets, reminders or
-  fingerprint unlock (those are Android code); a newer release is offered
-  as a link to the release page, since an app can't install another; the
-  phone backup is in Files → On My iPhone → LifeLog. Everything else is
-  the same app.
+- **Widgets** (0.217.0): Habits and To-do, which tick from the home screen
+  (iOS 17), Quick add, This month and a Note. They read the snapshot the
+  app writes into an App Group; ticks wait there until the app opens.
+  Source in `native/widgets/ios`, added to the generated project by
+  `tools/ios-widgets.rb`. Habit reminders and Face ID for the app lock are
+  there too.
+- **What differs from Android:** a newer release is offered as a link to
+  the release page, since an app can't install another; the phone backup
+  is in Files → On My iPhone → LifeLog; no Markdown folder import.
 - **With a developer account** the workflow is where signing and a
   TestFlight upload would go.
 - Until then, Safari's Add to Home Screen still works as it always has.

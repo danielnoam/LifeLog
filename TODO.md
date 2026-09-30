@@ -1,16 +1,9 @@
 todo:
 
-- **The iOS app, past its base.** 0.216.0 builds an unsigned LifeLog.ipa
-  on every release (.github/workflows/ios.yml). Left:
-  - Install it once with AltStore or SideStore and go through it on a real
-    iPhone: safe areas under the notch and the home bar, the pull to sync
-    against WKWebView's own bounce, the QR scanner's camera, the phone
-    backup showing in Files, Steam without the proxy.
-  - Widgets and reminders are Android code (native/widgets). iOS would need
-    a WidgetKit extension in Swift and local notifications — a project of
-    its own, worth it only once the app is used daily on an iPhone.
-  - With a developer account ($99/year): sign in CI, upload to TestFlight,
-    and the 7-day re-signing goes away.
+- **An Apple developer account ($99/year)**, if the iOS app is ever used
+  for real: sign in CI, upload to TestFlight, and the 7-day re-signing that
+  AltStore/SideStore do goes away. Everything else for iOS is built (0.216.0
+  the app, 0.217.0 the widgets, reminders and Face ID).
 
   What was decided against outright is in DROPPED.md: habits feeding the
   to-do list, a habits tab of its own, times-per-week habits and streak

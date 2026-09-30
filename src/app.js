@@ -139,7 +139,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.216.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.217.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -348,7 +348,7 @@
     if (W) {
       // Proving it works once is the setting-up: Android holds the
       // fingerprints, so there's no credential of ours to store.
-      await nativeBiometricCheck(W, "Use your fingerprint for LifeLog");
+      await nativeBiometricCheck(W, Platform.ios ? "Use Face ID for LifeLog" : "Use your fingerprint for LifeLog");
       return NATIVE_BIOMETRIC;
     }
     const cred = await navigator.credentials.create({
@@ -3892,7 +3892,8 @@
     // folder picker), the browser's on a computer. A phone's browser can't
     // pick one at all, so it isn't offered there.
     const widgetsPlugin = Platform.plugin("Widgets");
-    $("#importMdFolderBtn").hidden = !widgetsPlugin && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    // iOS has no folder picker for an app to call, in Safari or the app.
+    $("#importMdFolderBtn").hidden = Platform.ios || (!widgetsPlugin && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent));
     $("#importMdFolderBtn").onclick = async () => {
       if (!widgetsPlugin) { $("#importMdFolderInput").click(); return; }
       try {

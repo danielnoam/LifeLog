@@ -18,6 +18,8 @@
 // - ITSAppUsesNonExemptEncryption = false: the app uses only the system's
 //   HTTPS. Harmless for a sideloaded build, and it spares a question on every
 //   upload once there's a developer account and TestFlight.
+// - The widgets' lifelog:// scheme, Face ID's reason and the App Group the
+//   widgets share (0.217.0) — see the list below.
 //
 // project.pbxproj gets MARKETING_VERSION = APP_VERSION and
 // CURRENT_PROJECT_VERSION = the same number Android's versionCode is, so a
@@ -38,6 +40,15 @@ const PLIST = [
   ["LSSupportsOpeningDocumentsInPlace", "<true/>"],
   ["NSCameraUsageDescription", "<string>LifeLog uses the camera to read the setup QR code from another device.</string>"],
   ["ITSAppUsesNonExemptEncryption", "<false/>"],
+  // The widgets (0.217.0): a tap on one opens lifelog://action/<action>,
+  // which src/widgets.js hands to runAction.
+  ["CFBundleURLTypes", "<array>\n\t\t<dict>\n\t\t\t<key>CFBundleURLName</key>\n\t\t\t<string>io.github.danielnoam.lifelog</string>\n\t\t\t<key>CFBundleURLSchemes</key>\n\t\t\t<array>\n\t\t\t\t<string>lifelog</string>\n\t\t\t</array>\n\t\t</dict>\n\t</array>"],
+  // The app lock's Face ID, through the Widgets plugin, as Android's fingerprint is.
+  ["NSFaceIDUsageDescription", "<string>LifeLog uses Face ID to unlock instead of your PIN.</string>"],
+  // The App Group the widgets read the app's snapshot through. AltStore and
+  // SideStore register it under a name of their own and rewrite this list,
+  // which native/widgets/ios/Shared reads before the name it was built with.
+  ["ALTAppGroups", "<array>\n\t\t<string>group.io.github.danielnoam.lifelog</string>\n\t</array>"],
 ];
 
 function patchPlist(xml) {

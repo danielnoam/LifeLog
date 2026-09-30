@@ -1090,7 +1090,7 @@
     $("#setBioBtn").hidden = !bioAvailable;
     $("#privacyBioUnavailable").hidden = bioAvailable;
     $("#privacyBioUnavailable").textContent = bio === "none-enrolled"
-      ? "This phone has no fingerprint or face unlock set up — add one in Android's settings, then come back here."
+      ? "This phone has no fingerprint or face unlock set up — add one in the phone's settings, then come back here."
       : "Fingerprint/Face ID isn't available on this device or browser.";
   }
 

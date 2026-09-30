@@ -303,13 +303,32 @@ const PLIST_TEMPLATE = `<?xml version="1.0" encoding="UTF-8"?>
 
 test("the backup is visible in the Files app, and the camera says why it's asked for", () => {
   const out = ios.patchPlist(PLIST_TEMPLATE);
-  for (const k of ["UIFileSharingEnabled", "LSSupportsOpeningDocumentsInPlace", "NSCameraUsageDescription", "ITSAppUsesNonExemptEncryption"]) {
+  for (const k of ["UIFileSharingEnabled", "LSSupportsOpeningDocumentsInPlace", "NSCameraUsageDescription", "ITSAppUsesNonExemptEncryption",
+    "CFBundleURLTypes", "NSFaceIDUsageDescription", "ALTAppGroups"]) {
     assert.ok(out.includes("<key>" + k + "</key>"), k);
   }
   assert.ok(/<key>UIFileSharingEnabled<\/key>\s*<true\/>/.test(out), out);
   // Inside the top-level dict, after the nested array: the last </dict>.
   assert.ok(out.indexOf("UIFileSharingEnabled") > out.indexOf("</array>") && out.trimEnd().endsWith("</dict>\n</plist>"), out);
   assert.strictEqual(ios.patchPlist(out), out, "patching twice changes nothing");
+});
+
+test("the widgets' links, Face ID and the App Group are declared the way the widgets use them", () => {
+  const out = ios.patchPlist(PLIST_TEMPLATE);
+  assert.ok(/<key>CFBundleURLSchemes<\/key>\s*<array>\s*<string>lifelog<\/string>/.test(out), out);
+  const swift = fs.readFileSync(path.join(__dirname, "..", "native", "widgets", "ios", "Shared", "LifeLogShared.swift"), "utf8");
+  assert.ok(swift.includes('"lifelog://action/"'), "the widgets link to the scheme the app registers");
+  const group = /static let fallback = "([^"]+)"/.exec(swift)[1];
+  assert.ok(out.includes("<string>" + group + "</string>"), "Info.plist's ALTAppGroups names the widgets' group");
+  for (const f of ["App.entitlements", "Extension/LifeLogWidgets.entitlements", "Extension/Info.plist"]) {
+    assert.ok(fs.readFileSync(path.join(__dirname, "..", "native", "widgets", "ios", f), "utf8").includes(group), f + " names the same group");
+  }
+  // Every method the app calls on Android's plugin exists on iOS's too.
+  const plugin = fs.readFileSync(path.join(__dirname, "..", "native", "widgets", "ios", "Plugin", "WidgetsPlugin.swift"), "utf8");
+  for (const m of ["update", "takeQueue", "takeLaunchAction", "notePins", "notificationState", "askForNotifications",
+    "openNotificationSettings", "biometricState", "authenticate", "pickMarkdownFolder"]) {
+    assert.ok(plugin.includes('CAPPluginMethod(name: "' + m + '"') && plugin.includes("@objc func " + m + "("), m);
+  }
 });
 
 test("a plist without a <dict> fails instead of shipping without them", () => {

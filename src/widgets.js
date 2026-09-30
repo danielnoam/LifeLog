@@ -241,11 +241,27 @@
     } catch (e) { /* nothing to open */ }
   }
 
+  // iOS (0.217.0): a widget opens lifelog://action/<action> — the App
+  // plugin hands the link over, whether it started the app or woke it.
+  const actionOfUrl = (url) => {
+    const m = /^lifelog:\/\/action\/(.+)$/.exec(String(url || ""));
+    if (!m) return "";
+    try { return decodeURIComponent(m[1]); } catch (e) { return ""; }
+  };
+  function listenForLinks() {
+    const App = ctx.Platform.plugin("App");
+    if (!App) return;
+    const go = (url) => { const a = actionOfUrl(url); if (a) ctx.runAction(a); };
+    App.addListener("appUrlOpen", (e) => go(e && e.url));
+    if (App.getLaunchUrl) Promise.resolve(App.getLaunchUrl()).then((r) => go(r && r.url)).catch(() => {});
+  }
+
   // ctx: { state, Platform, persist, afterDataChange, toast, runAction, quickActions }
   function start(c) {
     ctx = c;
     const W = plugin();
     if (!W) return;
+    if (ctx.Platform.ios) listenForLinks();
     W.addListener("queued", () => drain());
     W.addListener("action", () => takeAction());
     document.addEventListener("visibilitychange", () => {
@@ -256,5 +272,5 @@
     takeAction();
   }
 
-  window.LifeLogWidgets = { snapshotOf, applyQueue, start, changed, MARK_DAYS, DONE_PER_PANEL, NOTE_CHARS, NOTES_BUDGET };
+  window.LifeLogWidgets = { snapshotOf, applyQueue, actionOfUrl, start, changed, MARK_DAYS, DONE_PER_PANEL, NOTE_CHARS, NOTES_BUDGET };
 })();

@@ -40,7 +40,7 @@ because something shipped broken that no unit test could have caught:
 | `tabio` | every tab's JSON and CSV export comes back whole through that tab's import, and the full backup through Everything |
 | `match` | auto-sync asks both sources and refuses a near-miss |
 | `realloop` | the real bulk-sync loop feeds the progress panel live |
-| `ios` | the iOS app: a newer release offered as its page rather than an APK, the QR scan without Google's module, and the backup where Files shows it |
+| `ios` | the iOS app: a newer release offered as its page rather than an APK, the QR scan without Google's module, the backup where Files shows it, a widget's lifelog:// link opening the right thing, the widgets' snapshot, Face ID, no folder import |
 | `phonebackup` | the Android app's copy in Documents/LifeLog: off until turned on, written at once and on every save, a day's copy kept for fourteen days, refused storage said out loud, and no sign of it in a browser |
 | `nativehttp` | Steam, SteamGridDB and GG.deals from the app with no proxy: each route reaches the address the worker would, headers and query intact, nothing else relayed, and a browser's proxy untouched |
 | `projadd` | the project pill's + opens the form already on that project |

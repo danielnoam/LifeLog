@@ -994,7 +994,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await page.reload({ waitUntil: "load" });
     await page.waitForTimeout(1200);
     const warn = await page.evaluate(() => { const w = document.querySelector(".habit-remind-warn"); return w && !w.hidden ? w.textContent : ""; });
-    check("blocked notifications are named over the habits, with the way to Android's settings", /blocking/.test(warn) && /Android's settings/.test(warn), warn);
+    check("blocked notifications are named over the habits, with the way to the phone's settings", /Notifications are off/.test(warn) && /Open settings/.test(warn), warn);
     await page.click(".habit-remind-warn button");
     check("which the button opens", await page.evaluate(() => window.__cap.notifySettings) === 1);
     errs.push(...e);
@@ -1186,7 +1186,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await f.page.click('.srow[data-page="lock"]');
     await f.page.waitForTimeout(300);
     check("with no fingerprint on the phone, Settings says where to add one",
-      await f.page.evaluate(() => !document.querySelector("#privacyBioUnavailable").hidden && /Android's settings/.test(document.querySelector("#privacyBioUnavailable").textContent) && document.querySelector("#setBioBtn").hidden));
+      await f.page.evaluate(() => !document.querySelector("#privacyBioUnavailable").hidden && /phone's settings/.test(document.querySelector("#privacyBioUnavailable").textContent) && document.querySelector("#setBioBtn").hidden));
     errs.push(...f.errs);
     await f.ctx.close();
 

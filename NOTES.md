@@ -16,6 +16,26 @@ what was decided against and why.
 
 ---
 
+- **The iOS widgets (0.217.0) are Android's, redrawn.** Same snapshot in,
+  same queue out, same rules: native/widgets/ios/Shared is a port of
+  WidgetStore.java's due/kept/streak/nextMark and is compiled into both the
+  app's plugin (LifelogWidgets.podspec) and the extension, which
+  tools/ios-widgets.rb adds to the generated project with CocoaPods'
+  xcodeproj gem, referencing the files in place. Three things iOS forced:
+  - *The App Group's name is read, not assumed.* AltStore/SideStore register
+    it under a name of their own and rewrite Info.plist's ALTAppGroups;
+    LLGroup tries those before the built-in name.
+  - *The .ipa is ad-hoc signed.* An unsigned build carries no entitlements,
+    so the App Group wouldn't exist at all; codesign -s - in CI puts them in
+    the signature the sideloading tool reads.
+  - *Reminders are scheduled ahead.* iOS runs none of our code when one
+    rings, so LLReminders books today's and tomorrow's for each undone habit
+    and rebooks on every snapshot and widget tick; Android decides at ring
+    time. Taps arrive as lifelog://action/<action> through the App plugin,
+    since there's no launch intent to read.
+  Built without an iPhone to try it on: CI proves it compiles, the browser
+  suites prove the app's side (ios.js), nothing proves the home screen.
+
 - **The iOS app (0.216.0) is the Android build's shape, unsigned.** Same
   bundle (tools/build-www.js), same Capacitor, generated fresh in CI
   (.github/workflows/ios.yml, macos-15) and patched by tools/ios-project.js

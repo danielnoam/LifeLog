@@ -202,5 +202,15 @@ test("past the budget the oldest go first, but a pinned note always travels", ()
   assert.strictEqual(pinned.notes[0].id, "old");
 });
 
+test("an iOS widget's link is the action Android's widgets send, id and all", () => {
+  // What LLLink.action builds in native/widgets/ios/Shared/LifeLogShared.swift.
+  const link = (a) => "lifelog://action/" + encodeURI(a);
+  for (const a of ["add-note", "open-habits", "open-habit:h1", "add-todo:list-7", "open-note:n 2", "open-finance"]) {
+    assert.strictEqual(W.actionOfUrl(link(a)), a);
+  }
+  assert.strictEqual(W.actionOfUrl("https://example.com/action/add-note"), "");
+  assert.strictEqual(W.actionOfUrl("lifelog://action/%E0%A4%A"), "", "a broken link opens nothing rather than throwing");
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

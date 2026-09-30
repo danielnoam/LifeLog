@@ -1,4 +1,6 @@
-// LifeLog — habit reminders, in the Android app only (0.183.0).
+// LifeLog — habit reminders, in the Android app (0.183.0) and the iOS app
+// (0.217.0, scheduled ahead rather than decided at ring time — see
+// native/widgets/ios/Shared/LifeLogReminders.swift).
 //
 // Dropped once (see NOTES.md) because a browser can't do them well; the app
 // can. A reminder is a time per habit, set on its card in the Habits view
@@ -131,9 +133,9 @@
         if (now === "granted" || now === "unavailable" || !warn.isConnected) return;
         warn.hidden = false;
         warn.textContent = now === "denied"
-          ? "Android is blocking LifeLog's notifications, so none of these will ring. "
+          ? "Notifications are off for LifeLog in the phone's settings, so none of these will ring. "
           : "LifeLog needs your permission before any of these can ring. ";
-        const fix = el("button", "btn btn-sm", now === "denied" ? "Open Android's settings" : "Allow");
+        const fix = el("button", "btn btn-sm", now === "denied" ? "Open settings" : "Allow");
         fix.type = "button";
         fix.onclick = () => (now === "denied" ? plugin().openNotificationSettings() : ensureAllowed());
         warn.appendChild(fix);

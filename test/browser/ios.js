@@ -21,7 +21,21 @@ const FAKE_IOS = () => {
     isNativePlatform: () => true,
     getPlatform: () => "ios",
     Plugins: {
-      App: { addListener: () => Promise.resolve({ remove() {} }) },
+      App: {
+        addListener: (ev, cb) => { if (ev === "appUrlOpen") window.__ios.urlOpen = cb; return Promise.resolve({ remove() {} }); },
+        // Opened from a widget: the link it was opened with (0.217.0).
+        getLaunchUrl: async () => (window.__launchUrl ? { url: window.__launchUrl } : undefined),
+      },
+      // The iOS Widgets plugin (native/widgets/ios): snapshot out, queue in.
+      Widgets: {
+        update: async ({ json }) => { window.__ios.snaps = (window.__ios.snaps || 0) + 1; window.__ios.lastSnap = JSON.parse(json); },
+        takeQueue: async () => ({ items: (window.__ios.queue || []).splice(0) }),
+        takeLaunchAction: async () => ({}),
+        notePins: async () => ({ ids: [] }),
+        addListener: async () => ({ remove() {} }),
+        biometricState: async () => ({ state: "available" }),
+        notificationState: async () => ({ state: "granted" }),
+      },
       AppLauncher: { openUrl: async ({ url }) => { window.__ios.opened.push(url); return { completed: true }; } },
       Filesystem: {
         requestPermissions: async () => ({ publicStorage: "granted" }),
@@ -99,6 +113,27 @@ const FAKE_IOS = () => {
   check("and says where to find it", await page.evaluate(() =>
     /On My iPhone → LifeLog/.test(document.getElementById("phoneBackupInfo").textContent)),
     await page.evaluate(() => document.getElementById("phoneBackupInfo").textContent));
+
+  // ---- opened from a widget ----
+  await page.keyboard.press("Escape"); await page.keyboard.press("Escape");
+  await page.addInitScript(() => { window.__launchUrl = "lifelog://action/add-note"; });
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForTimeout(900);
+  check("opened by a widget's link, the app goes where the widget said", await page.evaluate(() => !document.getElementById("noteModal").hidden));
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => window.__ios.urlOpen({ url: "lifelog://action/open-habits" }));
+  await page.waitForTimeout(500);
+  check("and a link that arrives while it's open does too", await page.evaluate(() =>
+    document.querySelector('#viewTabs .tab[data-view="notes"]').classList.contains("active") && !!document.querySelector(".habit-today, .empty-state")));
+  check("the widgets get their snapshot", await page.evaluate(() => window.__ios.snaps > 0 && Array.isArray(window.__ios.lastSnap.notes)));
+  check("Face ID is offered for the app lock", await page.evaluate(async () => {
+    document.getElementById("settingsBtn").click();
+    await new Promise((r) => setTimeout(r, 300));
+    document.querySelector('.srow[data-page="lock"]').click();
+    await new Promise((r) => setTimeout(r, 400));
+    return !document.getElementById("setBioBtn").hidden && document.getElementById("privacyBioUnavailable").hidden;
+  }));
+  check("and no folder import an iPhone can't do", await page.evaluate(() => document.getElementById("importMdFolderBtn").hidden));
 
   await b.close();
   done(errs);

@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.217.0] - 2026-09-30
+
+### Added
+- **iPhone widgets.** Habits and To-do, which you can tick right on the
+  home screen (iOS 17 and later), Quick add, This month's spending, and a
+  Note that changes every few hours. Tapping one opens LifeLog on what you
+  tapped. A tick made on a widget syncs the next time you open the app.
+- **Habit reminders on iPhone**, like Android's: set a time on a habit and
+  it rings if the habit isn't done yet.
+- **Face ID** unlocks the app lock on iPhone, as the fingerprint does on
+  Android.
+
 ## [0.216.0] - 2026-09-30
 
 ### Added
