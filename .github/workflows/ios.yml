@@ -38,10 +38,14 @@ jobs:
         run: node tools/build-www.js
 
       # CocoaPods rather than Swift Package Manager: Google's ML Kit, which
-      # the QR scanner is built on, only ships as pods.
+      # the QR scanner is built on, only ships as pods. `cap add` runs its own
+      # pod install before there's a chance to raise the template's iOS 15.0
+      # to the 15.5 ML Kit needs, so that install is allowed to fail — as long
+      # as the project itself was written — and `cap sync` below runs it again
+      # on the patched Podfile.
       - name: Generate the iOS project
         run: |
-          npx cap add ios --packagemanager CocoaPods
+          npx cap add ios --packagemanager CocoaPods || test -f ios/App/Podfile
           node tools/ios-project.js
 
       - name: Icon and splash
