@@ -25,6 +25,14 @@
   // halfway through downloading it.
   let offeredUpdate = "";
   const Platform = window.LifeLogPlatform || { native: false, ios: false, android: false, ready: Promise.resolve(null), plugin: () => null, webUrl: () => null, apkUrl: () => null, openOutside: () => {} };
+  // iOS zooms the page into any field whose text is under 16px the moment
+  // it's focused, and leaves it zoomed (0.224.0). maximum-scale=1 stops that
+  // auto-zoom; iOS ignores it for pinch-zoom, which keeps working. iPhone and
+  // iPad only: on Android the same setting would block pinch-zoom.
+  if (Platform.ios || /iPhone|iPad|iPod/.test(navigator.userAgent)) {
+    const vp = document.querySelector('meta[name="viewport"]');
+    if (vp && !/maximum-scale/.test(vp.content)) vp.content += ", maximum-scale=1";
+  }
   const MONTHS = ["", "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"];
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -139,7 +147,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.223.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.224.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 

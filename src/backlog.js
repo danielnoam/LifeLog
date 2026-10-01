@@ -1361,7 +1361,7 @@
   // Nothing is fetched until you open the mode, and answers are cached for
   // six hours device-side: these lists move daily at most, and the app has
   // no business calling four APIs every time you glance at the Backlog.
-  const DISCOVER_KINDS = [["popular", "Popular now"], ["upcoming", "Coming soon"]];
+  const DISCOVER_KINDS = [["popular", "Popular"], ["upcoming", "Coming soon"]];
   const DISCOVER_CACHE_KEY = "lifelog-discover-v1";
   const DISCOVER_TTL_MS = 6 * 60 * 60 * 1000;
   let discoverKind = "popular";
@@ -1652,14 +1652,16 @@
       group.appendChild(btn);
     }
     bar.appendChild(group);
-    // The toggle and the refresh travel together as one right-hand group, so
-    // a phone drops the pair onto its own line instead of pushing the button
-    // off the edge.
+    // The toggle and the refresh are one right-hand group, on the right like
+    // every mode's (0.224.0). Short labels and an icon-only ↻ keep the whole
+    // bar on one line on a phone; the full wording is in the titles. If a
+    // wide font still wraps it, the group stays on the right.
     const right = el("div", "dsc-bar-right");
     right.appendChild(discoverHideOwnedToggle());
-    const refresh = el("button", "btn btn-sm", "↻ Refresh");
+    const refresh = el("button", "btn btn-sm dsc-refresh", "↻");
     refresh.type = "button";
-    refresh.title = "Fetch these lists again, ignoring the six-hour cache";
+    refresh.title = "Refresh: fetch these lists again, ignoring the six-hour cache";
+    refresh.setAttribute("aria-label", "Refresh");
     refresh.hidden = !sources.length;
     refresh.onclick = () => { ensureDiscover(sources, { force: true }); render(); };
     right.appendChild(refresh);
@@ -1680,7 +1682,7 @@
       render();
     };
     label.appendChild(cb);
-    label.appendChild(document.createTextNode("Hide what I have"));
+    label.appendChild(document.createTextNode("Hide owned"));
     label.title = "Leave out anything already in your backlog or already logged";
     return label;
   }

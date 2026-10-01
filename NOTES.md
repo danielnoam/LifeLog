@@ -16,6 +16,21 @@ what was decided against and why.
 
 ---
 
+- **Discover's bar and the Sort menu (0.224.0).** Discover's bar has two
+  groups (Popular/Coming soon, and Hide owned + Refresh), so on a phone the
+  right one wrapped, and `space-between` starts a wrapped line at the left;
+  every other mode's bar has one group, which `:only-child` puts right. Now
+  `.dsc-bar-right` always takes `margin-left: auto`, and the labels were cut
+  (~426px → ~327px) so it fits one line at 375: "Popular" for "Popular
+  now", "Hide owned" for "Hide what I have", an icon-only ↻ with
+  `aria-label="Refresh"`. At 320 it still wraps, now on the right.
+  The Sort menu went back to 13px and 36px tall: 0.222.0 had made it a
+  44px, 16px field to stop iOS zooming in on focus, which made it too big
+  beside its buttons and pushed it onto a line of its own. The zoom is
+  stopped instead by `maximum-scale=1` on the viewport, added from app.js on
+  iPhone/iPad only, since iOS ignores it for pinch-zoom but Android
+  wouldn't. The search and sheet fields keep their 44px/16px.
+
 - **The scale sweep (0.223.0).** Drift went to zero on all four lint
   counts (from ~170 spacing, ~100 font sizes, ~50 radii, 1 literal color).
   - *The scale grew before anything moved.* Several "off-scale" values

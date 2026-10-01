@@ -1639,6 +1639,10 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .dsc-row:hover .dsc-add { color: var(--accent); border-color: var(--accent); }
 .dsc-note { margin: 8px 2px; font-size: var(--fs-sm); color: var(--text-dim); }
 .dsc-bar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+/* Always the right-hand end, also when a narrow screen wraps it onto its own
+   line, where space-between alone would start it at the left (0.224.0). */
+.backlog-mode-bar > .dsc-bar-right { margin-left: auto; }
+.dsc-refresh { min-width: 32px; padding-inline: 8px; font-size: var(--fs-md); }
 /* The same height as the sort menu beside them, not 5px short of it. */
 .dsc-bar-right > .btn-sm { padding-block: 6px; }
 .dsc-toggle {
@@ -2312,7 +2316,10 @@ html.native, html.native body { overscroll-behavior-y: none; }
   html:not(.force-pc) .search-clear { width: 34px; font-size: var(--fs-sm); }
   /* Fields on a phone (0.222.0): 44px to hit, and 16px text, below which
      iOS zooms the page on focus. The header buttons match the search. */
-  html:not(.force-pc) .search, html:not(.force-pc) .sort-select { min-height: 44px; font-size: var(--fs-lg); }
+  html:not(.force-pc) .search { min-height: 44px; font-size: var(--fs-lg); }
+  /* Sort stays compact (0.224.0): it was a 44px, 16px field, too big beside
+     the buttons it sits with; iOS auto-zoom is stopped in app.js instead. */
+  html:not(.force-pc) .sort-select { min-height: 36px; }
   html:not(.force-pc) .settings-corner .btn-icon { min-height: 44px; min-width: 44px; }
   html:not(.force-pc) .modal label input:not([type=checkbox]):not([type=color]), html:not(.force-pc) .modal label select { min-height: 44px; font-size: var(--fs-lg); }
   html:not(.force-pc) .modal label textarea { font-size: var(--fs-lg); }
@@ -2462,7 +2469,8 @@ html.force-mobile .search-wrap { order: 2; margin-left: 0; width: auto; flex: 1 
 html.force-mobile .search-clear { width: 34px; font-size: var(--fs-sm); }
 /* Fields on a phone (0.222.0): 44px to hit, and 16px text, below which
    iOS zooms the page on focus. The header buttons match the search. */
-html.force-mobile .search, html.force-mobile .sort-select { min-height: 44px; font-size: var(--fs-lg); }
+html.force-mobile .search { min-height: 44px; font-size: var(--fs-lg); }
+html.force-mobile .sort-select { min-height: 36px; }
 html.force-mobile .settings-corner .btn-icon { min-height: 44px; min-width: 44px; }
 html.force-mobile .modal label input:not([type=checkbox]):not([type=color]), html.force-mobile .modal label select { min-height: 44px; font-size: var(--fs-lg); }
 html.force-mobile .modal label textarea { font-size: var(--fs-lg); }

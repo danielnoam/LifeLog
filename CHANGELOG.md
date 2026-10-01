@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.224.0] - 2026-10-01
+
+### Fixed
+- **Discover's bar on a phone:** "Hide owned" and ↻ (Refresh) stay on the
+  right, like every other mode, and the whole bar fits on one line. The
+  labels are shorter ("Popular", "Hide owned", ↻); the full wording is in
+  their tooltips.
+- **The Sort menu is compact again** on a phone; it had grown too big
+  beside the buttons next to it.
+- On iPhone, tapping a small field or menu no longer zooms the page in.
+
 ## [0.223.0] - 2026-10-01
 
 ### Changed

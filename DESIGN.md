@@ -344,7 +344,7 @@ and never blaming.
   with `tap-targets.js`, which probes what a finger actually reaches.
   Measured at 375px across Timeline, Backlog, Notes, Habits, Ledger,
   Settings and the sheets (0.219.0–0.222.0): Timeline went from 111
-  controls under 44 to a handful. Fields (search, Sort, sheet fields) are
+  controls under 44 to a handful. Fields (search, sheet fields) are
   44 tall on phones. What's still short, and why:
   - filter chips, 34 tall: 44 would mean visibly bigger chips, declined;
   - the habit grid's day cells, 16px: hundreds of days can't each be 44;
@@ -361,10 +361,16 @@ and never blaming.
   has `role="dialog"` and `aria-labelledby`.
 - **Motion:** `prefers-reduced-motion` is honored everywhere (Now, about 20
   blocks). Keep it that way.
-- **Fields on a phone are 44px tall with 16px text** (0.222.0: the search,
-  Sort, and every field in a sheet), so they're easy to hit and iOS doesn't
-  zoom the page
-  on focus.
+- **Fields on a phone are 44px tall with 16px text** (0.222.0: the search
+  and every field in a sheet), so they're easy to hit. Sort is the
+  exception: a compact 36px, 13px menu beside the buttons it sits with
+  (0.224.0). iOS's zoom-on-focus for small text is stopped by
+  `maximum-scale=1`, added on iPhone/iPad only in app.js (iOS still allows
+  pinch-zoom; on Android the same setting would block it).
+- **A bar's right-hand group stays on the right**, also when a narrow
+  screen wraps it (`.backlog-mode-bar > .dsc-bar-right`), and is kept short
+  enough not to wrap at 375px: icon-only buttons with their words in
+  `aria-label` and `title`.
 - **Color is never the only signal.** A category has a name as well as a
   dot, and money has a sign as well as a color.
 
