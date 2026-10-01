@@ -11,14 +11,6 @@ todo:
   day, or until you've seen it), and what its rows offer (▶ start, ✓ done,
   dismiss).
 
-- **Yearly recap: explain the spending.** Today there's one big number
-  ("spent across N expenses", the `spend` slide in recap.js). Break it
-  down per category and per month: which categories took the most, and
-  how the year moved month to month. Also, the slide headed "What you
-  spent it on" (`categories` in recap.js) actually counts *logged
-  entries* by category (games, shows…), not money; retitle it ("What you
-  spent your time on"?) or let the new money slide own that line.
-
 - **A travel mode: places and an itinerary.** A trip with the places you
   want to go and a day-by-day plan. To decide: whether it's its own tab or
   part of an existing one (the Ledger already has projects, which a trip

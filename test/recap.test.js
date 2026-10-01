@@ -142,6 +142,24 @@ test("spending is formatted by the caller, never by the recap", () => {
   assert.ok(/Most of it on Food \(₪160\.00\)/.test(s.sub), s.sub);
 });
 
+test("the spending is broken down by category and by month, in money", () => {
+  const data = { financeCategories: [{ name: "Food", color: "#4bc46a" }], financeEntries: [
+    { id: "f1", amount: 100, category: "Food", date: "2026-03-01" },
+    { id: "f2", amount: 40, category: "Fuel", date: "2026-04-01" },
+    { id: "f3", amount: 60, category: "Food", date: "2026-03-20" },
+  ] };
+  const slides = build(data, 2026);
+  const c = byId(slides, "spend-categories");
+  assert.deepStrictEqual(c.bars.map((b) => [b.label, b.n, b.text]), [["Food", 160, "₪160.00"], ["Fuel", 40, "₪40.00"]]);
+  assert.strictEqual(c.bars[0].color, "#4bc46a");
+  const m = byId(slides, "spend-months");
+  assert.deepStrictEqual(m.bars.map((b) => [b.label, b.n]), [["Mar", 160], ["Apr", 40]]);
+  assert.strictEqual(m.foot, "Most in March");
+  const one = build({ financeEntries: [{ id: "f", amount: 5, category: "Food", date: "2026-03-01" }] }, 2026);
+  assert.strictEqual(byId(one, "spend-categories"), undefined, "one category says nothing the number didn't");
+  assert.strictEqual(byId(one, "spend-months"), undefined);
+});
+
 test("a skipped expense is not spending", () => {
   const data = { financeEntries: [
     { id: "f1", amount: 100, category: "Food", date: "2026-03-01" },

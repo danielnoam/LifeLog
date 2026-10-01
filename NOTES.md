@@ -16,6 +16,12 @@ what was decided against and why.
 
 ---
 
+- **Recap spending slides (0.225.0).** The two money slides skip themselves
+  below two categories / two months, because one bar repeats the big number.
+  Amounts are summed as-is, like the `spend` slide: the recap has never
+  converted currencies. A bars slide now takes `text` for a formatted value
+  and shows `foot`, which `habits-kept` already set but never saw drawn.
+
 - **Recap gallery overlap (0.224.1).** The covers overlapped because
   `.recap-grid` was itself the scroller (`overflow-y: auto`, `min-height: 0`
   in a flex column): auto rows shrank to fit while the tiles, which are

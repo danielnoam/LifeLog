@@ -87,7 +87,8 @@
       const st = H.statsFor(h, from, to);
       return { habit: h, kept: st.done, due: st.due, rate: st.rate, best: H.bestStreakOf(h, to) };
     }).filter((x) => x.kept > 0);
-    return { year, entries, prevEntries, notes, prevNotes, todosDone, backlogAdded, spend, prevSpend, achievements, habits };
+    const spendCategories = data.financeCategories || [];
+    return { year, entries, prevEntries, notes, prevNotes, todosDone, backlogAdded, spend, prevSpend, spendCategories, achievements, habits };
   }
 
   // Each slide returns a spec or null. Order is the order you see them in:
@@ -137,7 +138,7 @@
       const top = topOf(counts, 4);
       return {
         id: "categories", kind: "bars", view: "timeline",
-        headline: "What you spent it on",
+        headline: "What you spent your time on",
         bars: top.map(([label, n]) => ({ label, n })),
         max: top[0][1],
       };
@@ -329,6 +330,44 @@
         headline: "spent across " + plural(g.spend.length, "expense", "expenses"),
         sub: topCat ? "Most of it on " + topCat + " (" + fmt(topAmount) + ")" : "",
         foot: prevTotal && pct ? (pct > 0 ? pct + "% more than " : Math.abs(pct) + "% less than ") + (g.year - 1) : "",
+      };
+    },
+
+    // "Where did it go": the same expenses as the big number, by category and
+    // by month. Needs two of either, or the bars say nothing the number
+    // didn't.
+    function spentOnWhat(g, fmt) {
+      const byCat = new Map();
+      for (const f of g.spend) byCat.set(f.category, (byCat.get(f.category) || 0) + (+f.amount || 0));
+      const top = topOf(byCat, 5).filter(([, n]) => n > 0);
+      if (top.length < 2) return null;
+      const colorOf = (name) => {
+        const c = ((g.spendCategories) || []).find((x) => x.name === name);
+        return c && c.color ? c.color : "";
+      };
+      return {
+        id: "spend-categories", kind: "bars", view: "finance",
+        headline: "Where the money went",
+        bars: top.map(([label, n]) => ({ label: label || "Other", n, text: fmt(n), color: colorOf(label) })),
+        max: top[0][1],
+      };
+    },
+
+    function spentByMonth(g, fmt) {
+      const byMonth = new Map();
+      for (const f of g.spend) {
+        const m = +String(f.date).slice(5, 7);
+        byMonth.set(m, (byMonth.get(m) || 0) + (+f.amount || 0));
+      }
+      const months = [...byMonth.entries()].filter(([, n]) => n > 0).sort((a, b) => a[0] - b[0]);
+      if (months.length < 2) return null;
+      const [peak, peakAmount] = months.reduce((a, b) => (b[1] > a[1] ? b : a));
+      return {
+        id: "spend-months", kind: "bars", view: "finance",
+        headline: "How the year moved",
+        bars: months.map(([m, n]) => ({ label: MONTHS_LONG()[m].slice(0, 3), n, text: fmt(n), color: "var(--accent)" })),
+        max: peakAmount,
+        foot: "Most in " + MONTHS_LONG()[peak],
       };
     },
 
@@ -549,10 +588,11 @@
         fill.style.background = b.color || colorFor(b.label);
         track.appendChild(fill);
         row.appendChild(track);
-        row.appendChild(el("span", "recap-barn", String(b.n)));
+        row.appendChild(el("span", "recap-barn", b.text || String(b.n)));
         wrap.appendChild(row);
       }
       card.appendChild(wrap);
+      if (spec.foot) card.appendChild(el("p", "recap-foot-note", spec.foot));
       return;
     }
     if (spec.kind === "gallery") {

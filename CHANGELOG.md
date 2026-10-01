@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.225.0] - 2026-10-01
+
+### Added
+- **Recap, spending in detail:** two new slides after the big spending
+  number: "Where the money went" (your top categories, in money) and "How
+  the year moved" (month by month, with the biggest month named).
+
+### Changed
+- **Recap:** the slide counting what you logged by category is now headed
+  "What you spent your time on", since the money has its own slides.
+
 ## [0.224.1] - 2026-10-01
 
 ### Fixed
