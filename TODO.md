@@ -1,5 +1,31 @@
 todo:
 
+- **Released today: a card that catches it before it leaves Next
+  releases.** When something on your backlog comes out today, it should
+  get its own card, "Out today", the way In progress has one, before it
+  drops off Next releases (Backlog's ◷ mode, `upcomingItems()` in
+  backlog.js). Plus a button on Next releases that brings that card back
+  if you missed it (dismissed it, or it's no longer today but still
+  recent). To decide: where the card lives (top of the Timeline like In
+  progress, top of Next releases, or both), how long "today" lasts (the
+  day, or until you've seen it), and what its rows offer (▶ start, ✓ done,
+  dismiss).
+
+- **Yearly recap: explain the spending.** Today there's one big number
+  ("spent across N expenses", the `spend` slide in recap.js). Break it
+  down per category and per month: which categories took the most, and
+  how the year moved month to month. Also, the slide headed "What you
+  spent it on" (`categories` in recap.js) actually counts *logged
+  entries* by category (games, shows…), not money; retitle it ("What you
+  spent your time on"?) or let the new money slide own that line.
+
+- **Yearly recap: "Everything you logged" is broken.** The gallery slide
+  (`gallery` in recap.js): cover art in it can overlap, and it's one long
+  wall sorted by category then rating, capped at `GALLERY_MAX`. Organise it
+  as you scroll, per category or per month (with a header for each group),
+  and fix the overlapping covers. Reproduce the overlap first: check
+  phone and desktop, covers vs. the tinted no-art tiles, and long titles.
+
 - **A travel mode: places and an itinerary.** A trip with the places you
   want to go and a day-by-day plan. To decide: whether it's its own tab or
   part of an existing one (the Ledger already has projects, which a trip
