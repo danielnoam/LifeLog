@@ -16,10 +16,11 @@ const all = args.includes("--all");
 const cssPath = args.find((a) => !a.startsWith("--")) || path.join(__dirname, "../../../../src/styles.css");
 const lines = fs.readFileSync(cssPath, "utf8").split("\n");
 
-const TYPE_SCALE = [11, 12, 13, 14, 16, 18, 22, 30, 52];
-const RADII = [0, 4, 6, 8, 10, 14, 999];
-const SPACE = [0, 1, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 40, 48, 64];
-const onSpaceScale = (n) => SPACE.includes(n);
+const TYPE_SCALE = [10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 26, 30, 42, 52, 64];
+const RADII = [0, 2, 4, 6, 8, 10, 12, 14, 18, 999];
+// 2px steps to 16, 4px steps to 64; past 64 it's a layout constant (a bar's
+// height, a fallback), not spacing, and isn't checked.
+const onSpaceScale = (n) => n <= 1 || (n <= 16 ? n % 2 === 0 : n <= 64 ? n % 4 === 0 : true);
 // Literal colors that are fine anywhere: pure black/white shadows and scrims
 // over photos, and the fixed category palette (see DESIGN.md, Color).
 const ALLOWED_COLOR = /rgba?\(0, ?0, ?0|rgba?\(255, ?255, ?255|#fff\b|#ffffff\b|#000\b|transparent/i;
@@ -53,7 +54,7 @@ lines.forEach((raw, i) => {
 
 const titles = {
   color: "Literal colors outside the theme blocks (use a token)",
-  space: `Spacing off the space scale (${SPACE.join(", ")})`,
+  space: "Spacing off the scale (2px steps to 16, 4px steps to 64)",
   type: `Font sizes off the type scale (${TYPE_SCALE.join(", ")})`,
   radius: `Radii off the radius scale (${RADII.join(", ")}, 50%)`,
 };

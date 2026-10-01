@@ -13,6 +13,15 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## Swipe actions on rows
+
+Decided against (2026-10-01): swiping a backlog or Timeline row sideways to
+reveal ✓ / ▶ / edit, as iOS Mail does. Every row already carries those as
+buttons (▶ ✓ on backlog rows, ↩ ✓ on In progress), holding a row selects
+it, and a sideways swipe on the bottom bar already switches tabs, so a
+second sideways gesture an inch above it would compete for the same thumb.
+Would come back if the row buttons ever have to go for space.
+
 ## Data encryption
 
 Decided against for now (2026-09-25). The analysis, kept in case that

@@ -55,8 +55,8 @@ async function run(b, width) {
   await page.waitForTimeout(400);
   const listed = () => page.evaluate(() => [...document.querySelectorAll("#viewBody [data-id]")].map((r) => r.dataset.id).filter((id) => ["g1", "g2", "b1"].includes(id)));
   check("the Backlog lists only what isn't started" + at, JSON.stringify(await listed()) === JSON.stringify(["g1"]), await listed());
-  check("and says how many are in progress, as a way to them" + at, await page.evaluate(() =>
-    /▶ 2 in progress/.test((document.querySelector(".backlog-progress-link") || {}).textContent || "")));
+  // The "▶ N in progress" link on the Backlog's bar was removed in 0.223.0.
+  check("and no longer links to them from its bar" + at, await page.evaluate(() => !document.querySelector(".backlog-progress-link")));
   await page.click('[data-id="g1"] .bl-start');
   await page.waitForTimeout(400);
   check("▶ on a backlog row starts it, and it leaves the Backlog" + at, (await listed()).length === 0

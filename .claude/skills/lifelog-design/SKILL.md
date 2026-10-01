@@ -40,10 +40,13 @@ existing class with a modifier instead of starting a parallel one.
 2. **Text you need to read is `--text` or `--text-dim`.** `--text-faint` is
    only for things you could hide without losing information. Text on an
    accent-colored fill sits on `--accent-fill`, never `--accent`.
-3. **Sizes come from the scales, as tokens:** `var(--fs-2xs…3xl)` for
-   font size, `var(--r-xs…pill)` for radius, `var(--space-2…48)` for new
-   spacing (old spacing is px on the same steps). No 12.5px, 7px or 5px in
-   new code. Springs are `var(--spring-snappy)` (~.35s) and
+3. **Sizes come from the scales, as tokens** (DESIGN.md §3–4 lists each
+   step and its role): every font size is a `var(--fs-*)` and every radius
+   a `var(--r-*)`; spacing is 2px steps to 16 and 4px steps to 64 (use
+   `var(--space-*)` in new rules). The lint is at zero drift, so any new
+   count is yours. If a value seems to need a size the scale lacks, that's
+   a missing role: add it to DESIGN.md and `:root` together, don't use a
+   one-off. Springs are `var(--spring-snappy)` (~.35s) and
    `var(--spring-soft)` (~.4s), always at the duration they were made for.
 4. **Touch targets are 44×44 on mobile.** A small glyph is fine if its hit
    area is padded out: an empty absolutely-positioned `::after` sized to

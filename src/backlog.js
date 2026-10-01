@@ -1821,16 +1821,8 @@
       const n = upcomingItems().length;
       if (n) bar.appendChild(el("span", "backlog-mode-count", n + (n === 1 ? " title" : " titles") + " waiting"));
     } else if (state.backlogMode === "entries") {
-      // What's been started has left this list for the Timeline (0.218.0);
-      // this says so, and takes you there.
-      const going = inProgressItems().length;
-      if (going) {
-        const link = el("button", "link-btn backlog-progress-link", "▶ " + going + " in progress");
-        link.type = "button";
-        link.title = "On your Timeline";
-        link.onclick = showTimeline;
-        bar.appendChild(link);
-      }
+      // What's been started is on the Timeline's In progress card (0.218.0).
+      // The "▶ N in progress" link that pointed there was removed in 0.223.0.
       // Not in Discover: the draw is from your own list, and offering it
       // beside a wall of things you do not own reads as if it might pick one.
       const pick = makePickGroup(items);

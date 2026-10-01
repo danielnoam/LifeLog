@@ -124,23 +124,28 @@ serif, mono, rounded). There's no brand typeface, on purpose: the app should
 feel like part of the phone it's on. `--font-mono` is for codes and keys.
 Boards use Virgil for their hand-drawn look, and only there.
 
-### Scale (Now, as tokens since 0.222.0)
+### Scale (Now; every font size is a token since 0.223.0)
 
-Every on-scale font size in styles.css is a `var(--fs-*)`. About 100 values
-are still off it (12.5, 11.5, 13.5, 10.5…) and move onto the nearest step
-when they're touched. The scale is:
+Every `font-size` in styles.css is a `var(--fs-*)`; the lint counts
+anything else as drift (zero as of 0.223.0). The scale was widened in
+0.223.0 to the roles the app actually has (reading text at 15, page titles
+at 20, stat numbers at 26), rather than forcing those onto neighbours:
 
 | Token | px | Use |
 |---|---|---|
+| `--fs-3xs` | 10 | micro labels: bottom-nav labels, chart axes, tiny tags |
 | `--fs-2xs` | 11 | badges, eyebrows (uppercase, +0.04em tracking), chart labels |
-| `--fs-xs` | 12 | meta lines, chips, secondary buttons |
-| `--fs-sm` | 13 | **body**: rows, buttons, inputs, toasts |
+| `--fs-xs` | 12 | meta lines, secondary buttons |
+| `--fs-sm` | 13 | **body**: rows, buttons, chips, toasts |
 | `--fs-md` | 14 | row titles, emphasized body |
-| `--fs-lg` | 16 | card and section headings; **every text input on mobile** (iOS zooms below 16) |
-| `--fs-xl` | 18 | sheet titles |
-| `--fs-2xl` | 22 | view titles, empty-state titles |
-| `--fs-3xl` | 30 | big numbers (Finance totals, stats) |
-| (display) | 52 | empty-state glyphs, Recap only |
+| `--fs-read` | 15 | reading text: note bodies, card and habit titles, quotes |
+| `--fs-lg` | 16 | card and section headings; **every field on a phone** (iOS zooms below 16) |
+| `--fs-xl` | 18 | sheet titles, nav glyphs |
+| `--fs-title` | 20 | page titles: empty states, Settings pages, collections |
+| `--fs-2xl` | 22 | view titles |
+| `--fs-stat` | 26 | stat numbers |
+| `--fs-3xl` | 30 | big totals (Finance), large glyphs |
+| `--fs-display-sm` / `--fs-display` / `--fs-display-lg` | 42 / 52 / 64 | Recap and empty-state glyphs only |
 
 Weights: **450** body, **550** buttons and controls, **600** titles and labels,
 **700** big numbers. 800 is for Recap only.
@@ -156,28 +161,33 @@ currency sits with the number (₪). Totals that change count up with
 
 ## 4. Space, shape, depth
 
-### Spacing (tokens defined; values still px)
+### Spacing (Now; on the scale since 0.223.0)
 
-The scale is **0, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 40, 48, 64**, plus
-1px for hairline nudges. That's a 2px base, which LifeLog's density needs,
-with bigger steps above 16. Odd values (5, 7, 9, 11, 13) are drift. The lint
-counts about 170 of them. `--space-2` … `--space-48` exist in `:root`; new
-rules use them, old ones keep their px until touched (the shorthand values
-read worse as tokens and buy nothing until a step changes).
+**2px steps up to 16, then 4px steps up to 64** (0, 2, 4 … 16, 20, 24 … 64),
+plus 1px for hairlines. A 2px base suits LifeLog's density; above 16 the
+steps get coarser. Past 64 a value is a layout constant (a bar's height, a
+fallback for a measured one), not spacing, and isn't checked. 0.223.0
+moved every stray onto the scale with one rule: odd values up by 1px,
+larger ones to the nearest 4 (ties up), so pairs such as a sheet's 22px
+padding and its cover's −22px margin moved together (both to 24).
+`--space-2` … `--space-48` exist for new rules; existing shorthands stay px.
 
-Defaults: a row is padded 6×8, a card 12×14, a sheet 22×24. Mobile content
+Defaults: a row is padded 6×8, a card 12×14, a sheet 24×24. Mobile content
 padding is 14. Gaps between rows are 2–4, between groups 12–16, between
 sections 24.
 
-### Radius (Now, as tokens since 0.222.0)
+### Radius (Now; every radius is a token since 0.223.0)
 
 | Token | px | Use |
 |---|---|---|
-| `--r-xs` | 4 | focus rings, tiny badges |
+| `--r-hair` | 2 | hairline bars (tab underline, progress segments) |
+| `--r-xs` | 4 | focus rings, tiny badges, thumbnails |
 | `--r-sm` | 6 | rows, list items, inner controls |
 | `--r-md` | 8 | buttons, inputs, segmented controls |
-| `--r-lg` | 10 (`--radius`, Now) | cards, month cards, toasts |
-| `--r-xl` | 14 | sheets, modals (18 on the top corners of a bottom sheet) |
+| `--r-lg` | 10 (`--radius`) | cards, month cards, toasts |
+| `--r-card` | 12 | larger cards: settings groups, habit and board cards, covers |
+| `--r-xl` | 14 | sheets, modals |
+| `--r-sheet` | 18 | the top corners of a bottom sheet |
 | `--r-pill` | 999 | chips, pills; 50% for dots and avatars |
 
 Nested corners: an inner radius equals the outer radius minus the padding
@@ -367,7 +377,7 @@ and never blaming.
 | Layout | top bar, pill tabs, grid of month cards | one column, bottom nav with glyph tabs, FAB, 14px padding |
 | Breakpoint | > 720px | ≤ 720px (`html.force-mobile` / `force-pc` override it) |
 | Sheets | centered, 420px wide | bottom sheet or full screen |
-| Input | hover states, keyboard shortcuts (see the `?` sheet) | press feedback, long-press, swipe-down on sheets (0.222.0); swipe actions on rows (Target) |
+| Input | hover states, keyboard shortcuts (see the `?` sheet) | press feedback, long-press, swipe-down on sheets (0.222.0). No swipe actions on rows (DROPPED.md) |
 | Native extras | none | `html.native`: safe-area padding (`--sat`/`--sab`), no WebView overscroll glow, the share sheet for exports |
 
 Test every UI change at **1280px and 375px**, in **all four themes**, and

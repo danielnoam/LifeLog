@@ -74,12 +74,15 @@
   /* Scales (0.222.0, DESIGN.md §3–4). Font sizes and radii use these;
      spacing is still written as px, on the same steps, and moves onto
      the tokens as rules are touched. */
-  --fs-2xs: 11px; --fs-xs: 12px; --fs-sm: 13px; --fs-md: 14px;
-  --fs-lg: 16px; --fs-xl: 18px; --fs-2xl: 22px; --fs-3xl: 30px;
+  --fs-3xs: 10px; --fs-2xs: 11px; --fs-xs: 12px; --fs-sm: 13px; --fs-md: 14px;
+  --fs-read: 15px; --fs-lg: 16px; --fs-xl: 18px; --fs-title: 20px; --fs-2xl: 22px;
+  --fs-stat: 26px; --fs-3xl: 30px;
+  --fs-display-sm: 42px; --fs-display: 52px; --fs-display-lg: 64px;
   --space-2: 2px; --space-4: 4px; --space-6: 6px; --space-8: 8px;
   --space-10: 10px; --space-12: 12px; --space-14: 14px; --space-16: 16px;
   --space-20: 20px; --space-24: 24px; --space-32: 32px; --space-48: 48px;
-  --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: var(--radius); --r-xl: 14px; --r-pill: 999px;
+  --r-hair: 2px; --r-xs: 4px; --r-sm: 6px; --r-md: 8px; --r-lg: var(--radius);
+  --r-card: 12px; --r-xl: 14px; --r-sheet: 18px; --r-pill: 999px;
   font-synthesis: none;
 }
 
@@ -285,7 +288,7 @@ input[type="checkbox"] {
   flex: 0 0 auto; width: 16px; height: 16px; margin: 0; padding: 0;
   display: inline-grid; place-content: center;
   background: var(--bg); border: 1.5px solid var(--border-strong);
-  border-radius: 5px; cursor: pointer;
+  border-radius: var(--r-sm); cursor: pointer;
   transition: background-color var(--dur-fast) var(--ease),
               border-color var(--dur-fast) var(--ease);
 }
@@ -314,10 +317,9 @@ input[type="checkbox"]:indeterminate::before {
   clip-path: inset(43% 13% 43% 13% round 1px); transform: scale(1);
 }
 input[type="checkbox"]:disabled { cursor: default; opacity: .45; }
-/* The app-wide focus ring sets border-radius:4px on whatever it lands on,
-   which would square the box off mid-focus; and 2px of offset crowds a
+/* The app-wide focus ring sets border-radius:4px on whatever it lands on, which would square the box off mid-focus; and 2px of offset crowds a
    control this small. */
-input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; }
+input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) {
   input[type="checkbox"], input[type="checkbox"]::before { transition: none; }
 }
@@ -342,7 +344,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb {
     background: var(--scroll-thumb); background-clip: padding-box;
-    border: 3px solid transparent; border-radius: 99px;
+    border: 3px solid transparent; border-radius: var(--r-pill);
   }
   ::-webkit-scrollbar-thumb:hover, ::-webkit-scrollbar-thumb:active {
     background: var(--scroll-thumb-hover); background-clip: padding-box;
@@ -372,7 +374,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 /* The Android app's page scrollbar (wireScrollThumb in app.js). Under the
    bars (30/40), the add button (35) and every sheet. */
 .page-thumb {
-  position: fixed; top: 0; right: 2px; width: 4px; border-radius: 99px;
+  position: fixed; top: 0; right: 2px; width: 4px; border-radius: var(--r-pill);
   background: var(--scroll-thumb); opacity: 0; pointer-events: none; z-index: 25;
   transition: opacity .4s var(--ease);
 }
@@ -392,9 +394,9 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
   top: 0;
   z-index: 20;
 }
-.brand { display: flex; align-items: center; gap: 9px; order: 1; position: relative; }
+.brand { display: flex; align-items: center; gap: 10px; order: 1; position: relative; }
 .brand-mark { color: var(--accent); font-size: var(--fs-xl); }
-.brand h1 { font-size: 17px; margin: 0; font-weight: 650; letter-spacing: .3px; }
+.brand h1 { font-size: var(--fs-xl); margin: 0; font-weight: 650; letter-spacing: .3px; }
 
 /* groups the view tabs; on desktop it's transparent to the flex layout,
    on mobile it becomes the fixed bottom nav bar */
@@ -410,7 +412,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 .tab {
   position: relative;
   background: transparent; border: none; color: var(--text-dim);
-  padding: 7px 14px; border-radius: var(--r-md); cursor: pointer; font-size: 13.5px;
+  padding: 8px 14px; border-radius: var(--r-md); cursor: pointer; font-size: var(--fs-md);
   font-weight: 550; transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 /* Search-match count on a tab other than the one you're looking at — lets
@@ -419,9 +421,9 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
    (you're already looking at its own filtered count). */
 .tab-match-badge {
   position: absolute; top: 2px; right: 2px;
-  min-width: 15px; height: 15px; padding: 0 3px; border-radius: var(--r-pill);
+  min-width: 15px; height: 15px; padding: 0 4px; border-radius: var(--r-pill);
   background: var(--accent-fill); color: var(--text-on-accent);
-  font-size: 10px; font-weight: 700; line-height: 15px; text-align: center;
+  font-size: var(--fs-3xs); font-weight: 700; line-height: 15px; text-align: center;
   pointer-events: none;
 }
 /* (hover: hover) keeps this off touchscreens — without it, tapping a tab
@@ -448,13 +450,13 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 }
 .tab-menu.is-open { opacity: 1; transform: none; }
 .tab-menu-item {
-  background: none; border: none; border-radius: 7px; cursor: pointer;
-  padding: 7px 12px; text-align: left; white-space: nowrap;
-  color: var(--text-dim); font-size: 12.5px; font-weight: 550;
+  background: none; border: none; border-radius: var(--r-md); cursor: pointer;
+  padding: 8px 12px; text-align: left; white-space: nowrap;
+  color: var(--text-dim); font-size: var(--fs-sm); font-weight: 550;
   font-family: inherit;
 }
 .tab-menu-item {
-  display: flex; align-items: center; gap: 9px;
+  display: flex; align-items: center; gap: 10px;
 }
 .tab-menu-item:hover { background: var(--bg-elev-3, var(--bg)); color: var(--text); }
 /* The mode's own glyph, matching the icons on the tabs themselves. Fixed
@@ -483,7 +485,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 .tab-modes {
   display: none;
   position: absolute; left: 0; right: 0; bottom: 6px;
-  justify-content: center; align-items: center; gap: 3px;
+  justify-content: center; align-items: center; gap: 4px;
   pointer-events: none;
 }
 .tab-mode-dot {
@@ -504,7 +506,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 .search-wrap { position: relative; display: block; width: 200px; order: 3; margin-left: auto; }
 .search {
   background: var(--bg); border: 1px solid var(--border); color: var(--text);
-  padding: 7px 30px 7px 12px; border-radius: var(--r-md); width: 100%; font-size: var(--fs-sm);
+  padding: 8px 32px 8px 12px; border-radius: var(--r-md); width: 100%; font-size: var(--fs-sm);
 }
 .search:focus { outline: none; border-color: var(--accent); }
 /* Chrome's own cancel button only exists while the field has focus, and
@@ -516,7 +518,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 .search-clear {
   position: absolute; right: 1px; top: 1px; bottom: 1px; width: 26px;
   display: flex; align-items: center; justify-content: center;
-  background: none; border: 0; border-radius: 0 7px 7px 0; padding: 0;
+  background: none; border: 0; border-radius: 0 8px 8px 0; padding: 0;
   color: var(--text-faint); font-size: var(--fs-xs); line-height: 1; cursor: pointer;
   transition: color var(--dur-fast) var(--ease);
 }
@@ -581,7 +583,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
    the radius, padding and font size back — a rounded square with a 13px +. */
 .btn.fab {
   width: 52px; height: 52px; border-radius: 50%; padding: 0;
-  font-size: 26px; line-height: 1; display: flex; align-items: center; justify-content: center;
+  font-size: var(--fs-stat); line-height: 1; display: flex; align-items: center; justify-content: center;
   box-shadow: var(--shadow);
 }
 /* The one popup-menu look, shared by the + button's menu and the recurring
@@ -591,7 +593,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 .menu-pop {
   min-width: 185px;
   background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-lg);
-  box-shadow: var(--shadow); padding: 5px; display: flex; flex-direction: column;
+  box-shadow: var(--shadow); padding: 6px; display: flex; flex-direction: column;
   z-index: 20;
 }
 .menu-pop[hidden] { display: none; }
@@ -603,7 +605,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 @media (prefers-reduced-motion: reduce) { .menu-pop { transition: none; } }
 .menu-pop button {
   background: transparent; border: none; color: var(--text); text-align: left;
-  padding: 9px 12px; border-radius: 7px; cursor: pointer; font-size: 13.5px;
+  padding: 10px 12px; border-radius: var(--r-md); cursor: pointer; font-size: var(--fs-md);
   white-space: nowrap;
 }
 .menu-pop button:hover:not(:disabled) { background: var(--bg-elev-2); }
@@ -629,7 +631,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 /* ---------- buttons ---------- */
 .btn {
   background: var(--bg-elev-2); color: var(--text); border: 1px solid var(--border);
-  padding: 7px 13px; border-radius: var(--r-md); cursor: pointer; font-size: var(--fs-sm);
+  padding: 8px 14px; border-radius: var(--r-md); cursor: pointer; font-size: var(--fs-sm);
   font-weight: 550; transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 .btn:hover:not(:disabled) { background: var(--hover-bg); }
@@ -640,7 +642,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 .btn-primary:hover:not(:disabled) { background: var(--accent-fill-hover); }
 .btn-danger { background: transparent; border-color: var(--danger); color: var(--danger); }
 .btn-danger:hover { background: var(--danger-bg); }
-.btn-icon { padding: 7px 10px; font-size: 15px; line-height: 1; }
+.btn-icon { padding: 8px 10px; font-size: var(--fs-read); line-height: 1; }
 .btn-sm { padding: 4px 8px; font-size: var(--fs-xs); }
 
 /* ---------- filter bar ---------- */
@@ -653,7 +655,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
    places it, and the rule under it is what separates it from the view rather
    than a full-bleed band. */
 .filterbar {
-  display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
   padding: 0 0 12px; margin-bottom: 16px;
   border-bottom: 1px solid var(--border);
 }
@@ -667,7 +669,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
    the same reason #content has it: a swipe starting on the chips still drags
    the view behind them. Empty whenever the bar is inside #content (Notes),
    where its padding would be a band of nothing. */
-.filter-slot { padding: 22px 20px 0; touch-action: pan-y; }
+.filter-slot { padding: 24px 20px 0; touch-action: pan-y; }
 .filter-slot:empty { padding: 0; }
 /* ...and #content stops supplying a top gap the slot has already left. */
 .content.no-filters { padding-top: 0; }
@@ -689,7 +691,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .cats { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
 .cat-chip {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer;
-  padding: 4px 10px; border-radius: 20px; font-size: 12.5px; font-weight: 550;
+  padding: 4px 10px; border-radius: var(--r-pill); font-size: var(--fs-sm); font-weight: 550;
   border: 1px solid var(--border); background: var(--bg-elev); color: var(--text);
   user-select: none; transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
@@ -708,7 +710,7 @@ select:focus { outline: none; border-color: var(--accent); }
    card that fits in 300px) the handler is on .content, and without this a
    swipe in the lower half of the screen lands on nothing and does nothing.
    It adds no scrolling — 70vh is less than the viewport. */
-.content { padding: 22px 20px 80px; max-width: 2400px; margin: 0 auto; touch-action: pan-y; min-height: 70vh; }
+.content { padding: 24px 20px 80px; max-width: 2400px; margin: 0 auto; touch-action: pan-y; min-height: 70vh; }
 
 /* Replayed on view switches only (see fadeInOnViewChange in app.js) — a
    short fade + 6px rise, no bounce. Skipped under prefers-reduced-motion. */
@@ -728,11 +730,11 @@ select:focus { outline: none; border-color: var(--accent); }
      tab's fan rises through, and behind it the last option was unreadable. */
   position: absolute; bottom: 100%; margin-bottom: 10px; z-index: 40;
   transform: translateX(-50%);
-  display: flex; flex-direction: column-reverse; gap: 7px;
+  display: flex; flex-direction: column-reverse; gap: 8px;
   min-width: 108px; max-width: 46vw;
 }
 .mode-fan-item {
-  display: flex; align-items: center; justify-content: center; gap: 7px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
   background: var(--bg-elev-2); color: var(--text);
   border: 1px solid var(--border); border-radius: var(--r-lg);
   padding: 10px 12px; font-size: var(--fs-xs); font-weight: 600; text-align: center;
@@ -776,7 +778,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .mode-peek-label {
   position: absolute; left: 0; width: 100%; box-sizing: border-box;
   display: flex; flex-direction: column; gap: 8px;
-  color: var(--text-dim); font-size: 15px; font-weight: 600;
+  color: var(--text-dim); font-size: var(--fs-read); font-weight: 600;
 }
 .mode-peek-label[data-side="right"] { align-items: flex-start; padding-left: 28px; }
 .mode-peek-label[data-side="left"] { align-items: flex-end; padding-right: 28px; }
@@ -812,11 +814,11 @@ select:focus { outline: none; border-color: var(--accent); }
 
 .sort-select {
   background: var(--bg-elev-2); border: 1px solid var(--border); color: var(--text-dim);
-  padding: 5px 8px; border-radius: var(--r-md); font: inherit; font-size: 12.5px; cursor: pointer;
+  padding: 6px 8px; border-radius: var(--r-md); font: inherit; font-size: var(--fs-sm); cursor: pointer;
   max-width: 100%;
 }
 .sort-select:hover { color: var(--text); border-color: var(--text-faint); }
-.year-block { margin-bottom: 30px; }
+.year-block { margin-bottom: 32px; }
 .year-head {
   display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px; margin: 0 0 14px;
   padding: 10px 0 14px; border-bottom: 1px solid var(--border);
@@ -824,16 +826,16 @@ select:focus { outline: none; border-color: var(--accent); }
 .year-head h2 { font-size: var(--fs-2xl); margin: 0; font-weight: 700; }
 .year-head .ycount { color: var(--text-dim); font-size: var(--fs-sm); }
 .year-head .accs {
-  margin-left: auto; max-width: 100%; color: var(--text-dim); font-size: 12.5px;
+  margin-left: auto; max-width: 100%; color: var(--text-dim); font-size: var(--fs-sm);
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
 }
-.year-head .accs .acc { background: var(--bg-elev-2); padding: 3px 9px; border-radius: 20px; cursor: pointer; border: 1px solid transparent; max-width: 100%; overflow-wrap: break-word; }
+.year-head .accs .acc { background: var(--bg-elev-2); padding: 4px 10px; border-radius: var(--r-pill); cursor: pointer; border: 1px solid transparent; max-width: 100%; overflow-wrap: break-word; }
 .year-head .accs .acc:hover { border-color: var(--accent); color: var(--text); }
 
 .month-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--month-min, 180px), var(--month-max, 1fr))); gap: 14px; align-items: start; }
-.month-card { background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 13px; }
+.month-card { background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
 .month-card h3 {
-  margin: 0 0 9px; padding: 4px 0 10px; border-bottom: 1px solid var(--border);
+  margin: 0 0 10px; padding: 4px 0 10px; border-bottom: 1px solid var(--border);
   font-size: var(--fs-sm); color: var(--text-dim); font-weight: 600; display:flex; justify-content:space-between;
 }
 .month-card h3 .mc { color: var(--text-dim); font-weight: 500; }
@@ -845,8 +847,8 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .month-add-btn:hover { color: var(--text); border-color: var(--accent); }
 .month-total {
-  display: flex; justify-content: space-between; margin-top: 8px; padding: 7px 7px 0;
-  border-top: 1px solid var(--border); font-size: 12.5px; font-weight: 600; color: var(--text-dim);
+  display: flex; justify-content: space-between; margin-top: 8px; padding: 8px 8px 0;
+  border-top: 1px solid var(--border); font-size: var(--fs-sm); font-weight: 600; color: var(--text-dim);
 }
 .month-total .famount { font-weight: 700; }
 /* Where a month's money went, between its entries and its total. The rule
@@ -854,16 +856,16 @@ select:focus { outline: none; border-color: var(--accent); }
    drops its own and leans on weight instead — one divider per card, not two. */
 .month-cats {
   display: flex; flex-direction: column; gap: 1px;
-  margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--border);
+  margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);
 }
-.month-cat { display: flex; align-items: center; gap: 7px; padding: 1px 7px; font-size: 11.5px; color: var(--text-dim); }
+.month-cat { display: flex; align-items: center; gap: 8px; padding: 1px 8px; font-size: var(--fs-xs); color: var(--text-dim); }
 .month-cat .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
 .month-cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .month-cat .famount { font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 /* The Timeline's count sits where the Ledger's amount does, without the
    money colour — same column, same alignment, different unit. */
 .month-cat-n { font-variant-numeric: tabular-nums; flex: 0 0 auto; }
-.month-cats + .month-total { border-top: none; margin-top: 5px; }
+.month-cats + .month-total { border-top: none; margin-top: 6px; }
 /* The ordinary-spending figure, under the total and quieter than it: it is
    context for the number above, not a second number competing with it. */
 /* Two fields on one line — amount and the currency it was paid in belong
@@ -905,7 +907,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .month-total.is-provisional .famount::after { content: " ~"; opacity: .7; }
 
 .month-total-ex {
-  text-align: right; padding: 2px 7px 0; font-size: var(--fs-2xs); color: var(--text-dim);
+  text-align: right; padding: 2px 8px 0; font-size: var(--fs-2xs); color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
 /* A project's line in the breakdown looks exactly like a category's. Its dot
@@ -924,8 +926,8 @@ select:focus { outline: none; border-color: var(--accent); }
   background: var(--proj-tint, transparent);
 }
 .proj-group-head {
-  display: flex; align-items: center; gap: 7px; padding: 5px 9px;
-  font-size: 11.5px; font-weight: 600; color: var(--text-dim);
+  display: flex; align-items: center; gap: 8px; padding: 6px 10px;
+  font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim);
   background: var(--proj-head, transparent);
 }
 .proj-group-head .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
@@ -961,7 +963,7 @@ select:focus { outline: none; border-color: var(--accent); }
    offered the chance to take. */
 .picker-row.is-update { border-left: 2px solid var(--accent); }
 .update-tag {
-  font-size: 10.5px; color: var(--accent); background: var(--accent-soft);
+  font-size: var(--fs-2xs); color: var(--accent); background: var(--accent-soft);
   border-radius: var(--r-pill); padding: 1px 8px; white-space: nowrap; flex: 0 0 auto;
   max-width: 45%; overflow: hidden; text-overflow: ellipsis;
 }
@@ -971,10 +973,10 @@ select:focus { outline: none; border-color: var(--accent); }
    reference list you scan, not a list you act on row by row. */
 .proj-expenses {
   max-height: 240px; overflow-y: auto; margin: 2px 0 12px;
-  border: 1px solid var(--border); border-radius: var(--r-md); padding: 3px;
+  border: 1px solid var(--border); border-radius: var(--r-md); padding: 4px;
 }
 .proj-expense {
-  display: flex; align-items: center; gap: 7px; padding: 4px 6px;
+  display: flex; align-items: center; gap: 8px; padding: 4px 6px;
   font-size: var(--fs-xs); color: var(--text-dim); border-radius: var(--r-sm); cursor: pointer;
 }
 .proj-expense:hover { background: var(--bg-elev-2); color: var(--text); }
@@ -987,13 +989,13 @@ select:focus { outline: none; border-color: var(--accent); }
    .bar-row's label column is a fixed 120px and ellipsised, so a tag appended
    inside it never shows. */
 .top-proj {
-  display: flex; align-items: center; gap: 5px;
+  display: flex; align-items: center; gap: 6px;
   margin: -4px 0 8px; font-size: var(--fs-2xs); color: var(--text-dim);
 }
 .top-proj .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
 
 /* Summary's Projects card: a bar per project. */
-.proj-stat { cursor: pointer; border-radius: 7px; padding: 2px 4px; margin: 0 -4px; }
+.proj-stat { cursor: pointer; border-radius: var(--r-md); padding: 2px 4px; margin: 0 -4px; }
 .proj-stat:hover { background: var(--bg-elev-2); }
 .proj-stat-meta { font-size: var(--fs-2xs); color: var(--text-dim); margin: -2px 0 8px; }
 /* The to-do box sits above both panels: press it, type, Enter. It's the
@@ -1008,19 +1010,19 @@ select:focus { outline: none; border-color: var(--accent); }
 .todo-compose {
   display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
   background: var(--surface-card); border: 1px solid var(--border);
-  border-radius: var(--radius); padding: 5px 6px 5px 14px;
+  border-radius: var(--radius); padding: 6px 6px 6px 14px;
   transition: border-color .15s ease, background .15s ease;
 }
 .todo-compose:focus-within { border-color: var(--accent); background: var(--bg-elev-2); }
 /* The affordance: says "start one here" without spending a line on a label. */
 .todo-compose::before {
   content: "+"; flex: 0 0 auto; color: var(--text-faint);
-  font-size: 17px; line-height: 1; transition: color .15s ease;
+  font-size: var(--fs-xl); line-height: 1; transition: color .15s ease;
 }
 .todo-compose:focus-within::before { color: var(--accent); }
 .todo-compose input {
   flex: 1 1 auto; min-width: 0; background: none; border: none; color: var(--text);
-  padding: 11px 0; font-size: var(--fs-md); font-family: inherit;
+  padding: 12px 0; font-size: var(--fs-md); font-family: inherit;
 }
 .todo-compose input:focus { outline: none; }
 .todo-compose input::placeholder { color: var(--text-faint); }
@@ -1033,7 +1035,7 @@ select:focus { outline: none; border-color: var(--accent); }
    a text selection under a held finger. Selecting the words is what tapping
    into the inline editor is for. */
 .todo-row {
-  display: flex; align-items: center; gap: 9px; padding: 6px 4px; font-size: var(--fs-sm);
+  display: flex; align-items: center; gap: 10px; padding: 6px 4px; font-size: var(--fs-sm);
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
 .todo-row + .todo-row { border-top: 1px solid var(--border); }
@@ -1043,7 +1045,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .todo-text { flex: 1 1 auto; min-width: 0; cursor: text; overflow-wrap: break-word; }
 .todo-row.is-done .todo-text { color: var(--text-faint); text-decoration: line-through; }
 .todo-edit {
-  flex: 1 1 auto; min-width: 0; font-size: var(--fs-sm); padding: 3px 7px;
+  flex: 1 1 auto; min-width: 0; font-size: var(--fs-sm); padding: 4px 8px;
   background: var(--bg); color: var(--text);
   border: 1px solid var(--accent); border-radius: var(--r-sm); font-family: inherit;
 }
@@ -1058,7 +1060,7 @@ select:focus { outline: none; border-color: var(--accent); }
    swept into a Done panel of their own. */
 .todo-done-sep {
   margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border);
-  color: var(--text-faint); font-size: 10.5px; font-weight: 600;
+  color: var(--text-faint); font-size: var(--fs-2xs); font-weight: 600;
   letter-spacing: .07em; text-transform: uppercase;
 }
 .todo-done-sep + .todo-row { border-top: none; }
@@ -1079,7 +1081,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .todo-grip { flex: 0 0 auto; width: 16px; text-align: center; color: var(--text-faint); font-size: var(--fs-sm); }
 .todo-row.is-dragging {
   cursor: grabbing; background: var(--bg-elev-2);
-  border-radius: 7px; box-shadow: var(--shadow); opacity: .95;
+  border-radius: var(--r-md); box-shadow: var(--shadow); opacity: .95;
 }
 
 /* A note is a panel rather than a row: it's a paragraph you wrote, not a
@@ -1118,7 +1120,7 @@ select:focus { outline: none; border-color: var(--accent); }
   margin: 0; font-size: var(--fs-sm); color: var(--text); line-height: 1.45;
   white-space: pre-wrap; overflow-wrap: break-word;
 }
-.note-title { margin: 0 0 3px; font-size: var(--fs-md); font-weight: 650; color: var(--text); overflow-wrap: break-word; }
+.note-title { margin: 0 0 4px; font-size: var(--fs-md); font-weight: 650; color: var(--text); overflow-wrap: break-word; }
 /* Room to actually write in: the note modal is one field, so the textarea
    is the modal. */
 #noteForm textarea { min-height: 160px; resize: vertical; }
@@ -1126,7 +1128,7 @@ select:focus { outline: none; border-color: var(--accent); }
    the text taking half the window, and the whole screen on a phone, the
    text filling whatever the other fields leave. */
 #noteModal .modal { width: 680px; }
-#noteForm #nText { min-height: 45vh; font-size: 15px; line-height: 1.55; }
+#noteForm #nText { min-height: 45vh; font-size: var(--fs-read); line-height: 1.55; }
 @media (max-width: 720px) {
   #noteModal { padding: 0; align-items: stretch; }
   #noteModal .modal {
@@ -1141,7 +1143,7 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 
 .entry {
-  display: flex; align-items: center; gap: 8px; padding: 5px 7px; border-radius: 7px;
+  display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--r-md);
   cursor: pointer; font-size: var(--fs-sm);
   /* Long-press enters bulk-select mode — without these, touch devices treat the
      hold as "select text" / show the native copy callout instead, and the
@@ -1150,7 +1152,7 @@ select:focus { outline: none; border-color: var(--accent); }
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
 }
 .entry:hover { background: var(--bg-elev-2); }
-.entry .bar { width: 3px; align-self: stretch; border-radius: 3px; min-height: 16px; }
+.entry .bar { width: 3px; align-self: stretch; border-radius: var(--r-xs); min-height: 16px; }
 .entry .etitle { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entry .ecat { font-size: var(--fs-2xs); color: var(--text-dim); }
 .entry .erating { font-size: var(--fs-2xs); color: var(--accent); letter-spacing: 1px; }
@@ -1158,7 +1160,7 @@ select:focus { outline: none; border-color: var(--accent); }
    metadata, next to but not competing with the category chip and rating. */
 .entry .espan {
   flex-shrink: 0; font-size: var(--fs-2xs); color: var(--text-dim); background: var(--bg-elev-2);
-  border: 1px solid var(--border); padding: 1px 7px; border-radius: var(--r-pill);
+  border: 1px solid var(--border); padding: 1px 8px; border-radius: var(--r-pill);
   white-space: nowrap; font-variant-numeric: tabular-nums;
 }
 .bpriority { font-size: var(--fs-2xs); color: var(--priority); letter-spacing: 1px; flex-shrink: 0; }
@@ -1170,7 +1172,7 @@ select:focus { outline: none; border-color: var(--accent); }
 /* The Timeline's In progress card (0.218.0): a year block's heading over
    one card of rows, each the title with how long it's been going, a ↩ to put
    it back and a ✓ Done to log it. */
-.progress-block { margin-bottom: 26px; }
+.progress-block { margin-bottom: 28px; }
 .progress-block .year-head { position: static; }
 .progress-block .year-head .month-add-btn { margin-left: auto; }
 .progress-card { display: flex; flex-direction: column; gap: 2px; }
@@ -1179,7 +1181,6 @@ select:focus { outline: none; border-color: var(--accent); }
 .progress-text .etitle { flex: none; }
 .progress-since { font-size: var(--fs-2xs); color: var(--text-dim); }
 .progress-row .btn-sm { flex: 0 0 auto; }
-.backlog-progress-link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; font-size: 12.5px; cursor: pointer; }
 /* ▶ on a backlog row, before ✓: the quieter of the two. ✓ keeps the full
    text color since it's the row's main action, and both are square icon
    buttons of the same width (0.220.0). */
@@ -1194,7 +1195,7 @@ select:focus { outline: none; border-color: var(--accent); }
   max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .entry .entry-cat .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-.entry .etn-cover { object-fit: cover; border-radius: 3px; flex-shrink: 0; }
+.entry .etn-cover { object-fit: cover; border-radius: var(--r-xs); flex-shrink: 0; }
 /* Cover art on its way in (coverEl in app.js) fades up when it lands; its
    size class already holds the space, so nothing shifts. */
 img.etn-cover, img.bl-cover { transition: opacity .25s var(--ease); }
@@ -1208,7 +1209,7 @@ img.cover-loading { opacity: 0; }
    URL) — keeps every row the same height as its cover-bearing neighbors
    instead of shrinking to fit bare text. */
 .cover-empty { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); font-size: var(--fs-xs); }
-.cover-lg.cover-empty { font-size: 20px; }
+.cover-lg.cover-empty { font-size: var(--fs-title); }
 
 /* finance */
 .picker-row .fdate { font-size: var(--fs-2xs); color: var(--text-dim); width: 78px; flex: 0 0 auto; }
@@ -1216,12 +1217,12 @@ img.cover-loading { opacity: 0; }
 .famount.fnegative { color: var(--danger); }
 .recur-badge { font-size: var(--fs-xs); color: var(--text-dim); flex: 0 0 auto; }
 .recur-card { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
-.recur-row { display: flex; align-items: center; gap: 8px; padding: 5px 7px; border-radius: 7px; font-size: var(--fs-sm); color: var(--text); }
+.recur-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--r-md); font-size: var(--fs-sm); color: var(--text); }
 .recur-row:hover { background: var(--bg-elev-2); }
 /* Stopped or superseded plans — still listed (and openable) so their
    history stays reachable, but visibly out of force. */
 .recur-row.is-ended { opacity: .58; }
-.recur-subhead { font-size: 11.5px; color: var(--text-dim); margin: 8px 0 2px; padding: 0 7px; }
+.recur-subhead { font-size: var(--fs-xs); color: var(--text-dim); margin: 8px 0 2px; padding: 0 8px; }
 .rec-occurrences { margin-top: 8px; }
 .rec-occ-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .rec-occ-head .hint { margin: 0; }
@@ -1237,7 +1238,7 @@ img.cover-loading { opacity: 0; }
 .plan-trail-list { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
 .plan-trail-row {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 5px 10px; font-size: 12.5px; color: var(--text-dim); cursor: pointer;
+  padding: 6px 10px; font-size: var(--fs-sm); color: var(--text-dim); cursor: pointer;
 }
 .plan-trail-row:not(:last-child) { border-bottom: 1px solid var(--border); }
 .plan-trail-row:hover { background: var(--bg-elev-2); }
@@ -1247,17 +1248,17 @@ img.cover-loading { opacity: 0; }
    index.html) — only the row's own accents differ. */
 .pause-row {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 5px 10px; font-size: 12.5px; color: var(--text-dim); cursor: pointer;
+  padding: 6px 10px; font-size: var(--fs-sm); color: var(--text-dim); cursor: pointer;
 }
 .pause-row:not(:last-child) { border-bottom: 1px solid var(--border); }
 .pause-row:hover { background: var(--bg-elev-2); }
 .pause-row.is-live { color: var(--text); }
 .pause-tag {
-  font-size: 10.5px; color: var(--text-dim); flex: 0 0 auto;
+  font-size: var(--fs-2xs); color: var(--text-dim); flex: 0 0 auto;
   border: 1px solid var(--border); border-radius: var(--r-lg); padding: 2px 8px;
 }
 .rec-occ-list { max-height: 160px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); }
-.rec-occ-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 10px; font-size: 12.5px; cursor: pointer; }
+.rec-occ-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; font-size: var(--fs-sm); cursor: pointer; }
 .rec-occ-row:not(:last-child) { border-bottom: 1px solid var(--border); }
 .rec-occ-row:hover { background: var(--bg-elev-2); }
 .rec-occ-row.is-overridden .rec-occ-date { color: var(--accent); }
@@ -1271,11 +1272,11 @@ img.cover-loading { opacity: 0; }
 
 .picker-search {
   display: block; width: 100%; background: var(--bg); border: 1px solid var(--border);
-  color: var(--text); padding: 8px 11px; border-radius: var(--r-md); font-size: var(--fs-sm); margin: 10px 0 0;
+  color: var(--text); padding: 8px 12px; border-radius: var(--r-md); font-size: var(--fs-sm); margin: 10px 0 0;
 }
 .picker-search:focus { outline: none; border-color: var(--accent); }
 .picker-search[hidden] { display: none; }
-.picker-catbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0 2px; font-size: 12.5px; }
+.picker-catbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0 2px; font-size: var(--fs-sm); }
 .picker-catbar select { flex: 1 1 140px; min-width: 0; max-width: 260px; }
 .picker-catbar[hidden] { display: none; }
 @media (max-width: 480px) { .picker-catbar > .muted { flex-basis: 100%; } }
@@ -1285,11 +1286,11 @@ img.cover-loading { opacity: 0; }
 }
 .picker-toolbar .link-btn:hover { text-decoration: underline; }
 .picker-list { display: flex; flex-direction: column; gap: 2px; max-height: 320px; overflow-y: auto; margin-bottom: 4px; }
-.modal label.picker-row { display: flex; align-items: center; gap: 8px; margin-bottom: 0; padding: 5px 7px; border-radius: 7px; font-size: var(--fs-sm); color: var(--text); }
+.modal label.picker-row { display: flex; align-items: center; gap: 8px; margin-bottom: 0; padding: 6px 8px; border-radius: var(--r-md); font-size: var(--fs-sm); color: var(--text); }
 .modal label.picker-row:hover { background: var(--bg-elev-2); }
 .picker-row.is-dup { opacity: .55; }
 .dup-tag {
-  font-size: 10.5px; color: var(--text-dim); flex: 0 0 auto;
+  font-size: var(--fs-2xs); color: var(--text-dim); flex: 0 0 auto;
   border: 1px solid var(--border); border-radius: var(--r-lg); padding: 2px 8px;
 }
 .picker-buckets { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
@@ -1301,7 +1302,7 @@ img.cover-loading { opacity: 0; }
   border: 1px solid transparent; border-radius: var(--r-lg);
 }
 .picker-newcats-eyebrow {
-  margin: 0 0 9px; font-size: var(--fs-xs); font-weight: 650; color: var(--accent);
+  margin: 0 0 10px; font-size: var(--fs-xs); font-weight: 650; color: var(--accent);
   text-transform: uppercase; letter-spacing: .5px;
 }
 .picker-newcats-list { display: flex; flex-wrap: wrap; gap: 14px; }
@@ -1357,11 +1358,9 @@ details.advanced > summary::after { content: ""; position: absolute; inset: -6px
 .bl-start::after, .bl-done::after, .progress-stop::after { content: ""; position: absolute; inset: -5px -3px; }
 /* A cover row is ~83px tall with ▶ ✓ near its top: room to reach 44. */
 .backlog-item-rich .bl-start::after, .backlog-item-rich .bl-done::after { inset: -6px -3px -13px; }
-/* The Backlog's bar: "N in progress" over Spin / Pick random, 10px apart
-   and the buttons 12px from each other. */
-.backlog-mode-bar .btn-sm, .backlog-progress-link { position: relative; }
+/* The Backlog's bar: Spin / Pick random, 12px from each other. */
+.backlog-mode-bar .btn-sm { position: relative; }
 .backlog-mode-bar .btn-sm::after { content: ""; position: absolute; inset: -5px -6px; }
-.backlog-progress-link::after { content: ""; position: absolute; inset: -10px -4px -5px; }
 /* Notes, Habits and Settings (0.222.0), measured the same way:
    - A list's ☐ and ✕ fill their 29px row and half the 9px gap beside them,
      never the text between them, which edits on a tap: 16 → 24×29, 19 → 27×29.
@@ -1398,29 +1397,29 @@ details.advanced > summary::after { content: ""; position: absolute; inset: -6px
 @media (max-width: 800px){ html:not(.force-pc) .stats-grid { grid-template-columns: 1fr; } }
 html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .stats-grid + .card { margin-top: 20px; }
-.card { background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
-.card h2 { margin: 0 0 14px; font-size: 15px; }
-.bar-row { display: grid; grid-template-columns: 120px 1fr 46px; align-items: center; gap: 10px; margin-bottom: 7px; font-size: var(--fs-sm); }
+.card { background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 20px; }
+.card h2 { margin: 0 0 14px; font-size: var(--fs-read); }
+.bar-row { display: grid; grid-template-columns: 120px 1fr 46px; align-items: center; gap: 10px; margin-bottom: 8px; font-size: var(--fs-sm); }
 .bar-row .lbl { color: var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .bar-track { background: var(--bg-elev-2); border-radius: var(--r-sm); height: 16px; overflow: hidden; }
 .bar-fill { height: 100%; border-radius: var(--r-sm); }
 .bar-row .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); font-weight:600; }
 .bar-row .val .val-unique { display: none; }
-.bar-row .val .val-unique-lbl { display: none; font-size: 9px; color: var(--accent); line-height: 1; }
+.bar-row .val .val-unique-lbl { display: none; font-size: var(--fs-3xs); color: var(--accent); line-height: 1; }
 .bar-row:hover .val .val-total { display: none; }
 .bar-row:hover .val .val-unique { display: block; color: var(--accent); }
 .bar-row:hover .val .val-unique-lbl { display: block; }
 .bar-row:hover .val { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
-.stat-big { display:flex; gap: 26px; flex-wrap: wrap; margin-bottom: 4px; }
-.stat-big .item .n { font-size: 26px; font-weight: 700; }
+.stat-big { display:flex; gap: 28px; flex-wrap: wrap; margin-bottom: 4px; }
+.stat-big .item .n { font-size: var(--fs-stat); font-weight: 700; }
 .stat-big .item .l { color: var(--text-dim); font-size: var(--fs-xs); }
 
 /* heatmap */
 .heatmap { overflow-x: auto; padding-bottom: 4px; }
-.heatmap-row { display: grid; grid-template-columns: 38px repeat(12, 1fr); gap: 3px; margin-bottom: 3px; align-items: center; }
-.heatmap-month-lbl { font-size: 9px; color: var(--text-faint); text-align: center; letter-spacing: .2px; }
+.heatmap-row { display: grid; grid-template-columns: 38px repeat(12, 1fr); gap: 4px; margin-bottom: 4px; align-items: center; }
+.heatmap-month-lbl { font-size: var(--fs-3xs); color: var(--text-faint); text-align: center; letter-spacing: .2px; }
 .heatmap-year-lbl { font-size: var(--fs-2xs); color: var(--text-dim); }
-.heatmap-cell { height: 18px; border-radius: 3px; background: var(--bg-elev-2); }
+.heatmap-cell { height: 18px; border-radius: var(--r-xs); background: var(--bg-elev-2); }
 .heatmap-cell.is-clickable { cursor: pointer; }
 .heatmap-cell.is-clickable:hover { opacity: .8; box-shadow: 0 0 0 2px var(--accent) inset; }
 .heatmap-cell.is-clickable:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
@@ -1430,7 +1429,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .yir-years { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
 .yir-year-btn {
   background: transparent; border: 1px solid var(--border); color: var(--text-dim);
-  padding: 4px 12px; border-radius: 20px; font-size: var(--fs-xs); font-weight: 600; cursor: pointer;
+  padding: 4px 12px; border-radius: var(--r-pill); font-size: var(--fs-xs); font-weight: 600; cursor: pointer;
 }
 .yir-year-btn:hover:not(.active) { background: var(--bg-elev-2); color: var(--text); }
 .yir-year-btn.active { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--text-on-accent); }
@@ -1440,7 +1439,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .yir-section { margin-top: 16px; }
 .yir-section h3 { font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); margin: 0 0 8px; font-weight: 600; }
 .yir-ach { display: flex; gap: 8px; align-items: baseline; margin-bottom: 6px; font-size: var(--fs-sm); }
-.yir-ach-bullet { color: var(--accent); font-size: 10px; flex-shrink: 0; }
+.yir-ach-bullet { color: var(--accent); font-size: var(--fs-3xs); flex-shrink: 0; }
 .yir-rated { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; font-size: var(--fs-sm); }
 .yir-rated-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .yir-rated-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1468,7 +1467,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 }
 .seg-btn {
   appearance: none; background: none; border: 0; color: var(--text-dim);
-  font: inherit; font-size: 12.5px; font-weight: 600; padding: 5px 12px;
+  font: inherit; font-size: var(--fs-sm); font-weight: 600; padding: 6px 12px;
   border-radius: var(--r-sm); cursor: pointer; white-space: nowrap;
 }
 .seg-btn:hover { color: var(--text); }
@@ -1477,7 +1476,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 /* next releases */
 .up-section-sub { font-size: var(--fs-2xs); color: var(--text-dim); }
 .up-cat-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
-.up-when { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; font-size: 11.5px; }
+.up-when { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: var(--fs-xs); }
 .up-date { color: var(--accent); }
 .up-countdown { color: var(--text-dim); }
 .entry.up-row { display: flex; align-items: center; gap: 8px; }
@@ -1506,10 +1505,10 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .backlog-section-count { margin-left: auto; font-size: var(--fs-sm); color: var(--text-dim); font-weight: 600; white-space: nowrap; }
 /* The "+N EA, +N unreleased" half of a split count — quieter than the number
    it qualifies, since it is the aside and not the headline. */
-.bl-count-pending { margin-left: 5px; font-size: var(--fs-2xs); font-weight: 500; color: var(--text-dim); }
+.bl-count-pending { margin-left: 6px; font-size: var(--fs-2xs); font-weight: 500; color: var(--text-dim); }
 .backlog-list { display: flex; flex-direction: column; gap: 2px; }
 .backlog-item-rich {
-  display: flex; align-items: flex-start; gap: 8px; padding: 6px 7px; border-radius: 7px; cursor: pointer;
+  display: flex; align-items: flex-start; gap: 8px; padding: 6px 8px; border-radius: var(--r-md); cursor: pointer;
   -webkit-touch-callout: none; -webkit-user-select: none; user-select: none;
 }
 .backlog-item-rich:hover { background: var(--bg-elev-2); }
@@ -1517,9 +1516,9 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
   object-fit: cover; border-radius: var(--r-xs); flex: 0 0 auto; margin-top: 1px;
 }
 .backlog-item-rich .bl-body {
-  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; padding-top: 2px;
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; padding-top: 2px;
 }
-.backlog-item-rich .bl-title-row { display: flex; align-items: center; gap: 5px; min-width: 0; }
+.backlog-item-rich .bl-title-row { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .backlog-item-rich .bl-title {
   flex: 0 1 auto; min-width: 0;
   font-size: var(--fs-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -1527,10 +1526,10 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .backlog-item-rich .bl-meta { font-size: var(--fs-2xs); color: var(--accent); }
 .backlog-item-rich .bl-price:empty { display: none; }
 .backlog-item-rich .bl-summary {
-  font-size: 11.5px; color: var(--text-dim); overflow: hidden;
+  font-size: var(--fs-xs); color: var(--text-dim); overflow: hidden;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
-.backlog-item-rich .ecat { align-self: flex-start; margin-top: 3px; flex-shrink: 0; }
+.backlog-item-rich .ecat { align-self: flex-start; margin-top: 4px; flex-shrink: 0; }
 .backlog-item-rich .btn-sm { align-self: flex-start; flex-shrink: 0; }
 
 .backlog-priority-sep, .backlog-ea-sep, .backlog-upcoming-sep, .backlog-dropped-sep { border-top: 1px dashed var(--border); margin: 6px 2px; }
@@ -1620,8 +1619,8 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
   display: flex; align-items: center; justify-content: center;
   background: var(--surface-card); border: 1px solid var(--border); color: var(--accent); font-size: var(--fs-3xl);
 }
-.empty-state h2 { margin: 0 0 10px; font-size: 20px; font-weight: 650; color: var(--text); }
-.empty-body { margin: 0 0 22px; font-size: 13.5px; line-height: 1.6; color: var(--text-dim); }
+.empty-state h2 { margin: 0 0 10px; font-size: var(--fs-title); font-weight: 650; color: var(--text); }
+.empty-body { margin: 0 0 24px; font-size: var(--fs-md); line-height: 1.6; color: var(--text-dim); }
 .empty-hint { margin: 20px 0 0; font-size: var(--fs-xs); color: var(--text-dim); line-height: 1.5; }
 
 /* ---------- Discover ---------- */
@@ -1630,21 +1629,21 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .dsc-source { font-size: var(--fs-2xs); font-weight: 500; color: var(--text-dim); text-transform: none; }
 .dsc-row { cursor: pointer; }
 .dsc-tag {
-  flex: 0 0 auto; font-size: 10.5px; color: var(--text-dim);
-  border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1px 7px;
+  flex: 0 0 auto; font-size: var(--fs-2xs); color: var(--text-dim);
+  border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1px 8px;
 }
 .dsc-add {
-  flex: 0 0 auto; align-self: flex-start; padding: 2px 9px;
+  flex: 0 0 auto; align-self: flex-start; padding: 2px 10px;
   font-size: var(--fs-md); line-height: 1.35; color: var(--text-dim);
 }
 .dsc-row:hover .dsc-add { color: var(--accent); border-color: var(--accent); }
-.dsc-note { margin: 8px 2px; font-size: 12.5px; color: var(--text-dim); }
+.dsc-note { margin: 8px 2px; font-size: var(--fs-sm); color: var(--text-dim); }
 .dsc-bar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 /* The same height as the sort menu beside them, not 5px short of it. */
 .dsc-bar-right > .btn-sm { padding-block: 6px; }
 .dsc-toggle {
-  display: inline-flex; align-items: center; gap: 7px;
-  font-size: 12.5px; color: var(--text-dim); cursor: pointer; user-select: none;
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: var(--fs-sm); color: var(--text-dim); cursor: pointer; user-select: none;
 }
 
 /* ---------- modals ---------- */
@@ -1656,7 +1655,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 body.modal-open { overflow: hidden; }
 .modal {
   background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-xl);
-  padding: 22px 24px; width: 420px; max-width: 100%; box-shadow: var(--shadow);
+  padding: 24px 24px; width: 420px; max-width: 100%; box-shadow: var(--shadow);
   max-height: 90vh; overflow-y: auto; overscroll-behavior: contain;
 }
 /* Sheets fade in and rise, and fade out on the way down, instead of popping
@@ -1684,13 +1683,13 @@ body.modal-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .modal-overlay, .modal-overlay > .modal { transition: none; }
 }
-.modal-cover { position: relative; margin: -22px -24px 16px; overflow: hidden; border-radius: 14px 14px 0 0; max-height: 180px; }
+.modal-cover { position: relative; margin: -24px -24px 16px; overflow: hidden; border-radius: 14px 14px 0 0; max-height: 180px; }
 .modal-cover img { width: 100%; height: 180px; object-fit: cover; object-position: top; display: block; }
 .modal-cover-links { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 6px; }
 .modal-cover-links:empty { display: none; }
 .cover-link-btn {
   background: rgba(0, 0, 0, .65); color: #fff; font-size: var(--fs-2xs); font-weight: 600;
-  padding: 4px 9px; border-radius: 20px; text-decoration: none; line-height: 1.3;
+  padding: 4px 10px; border-radius: var(--r-pill); text-decoration: none; line-height: 1.3;
   backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
 }
 .cover-link-btn:hover { background: rgba(0, 0, 0, .85); }
@@ -1710,7 +1709,7 @@ body.modal-open { overflow: hidden; }
 .pick-scope-cats[hidden] { display: none; }
 /* A button, not the filter bar's span — it needs the family the UA won't
    inherit for it, and the padding of a chip rather than a control. */
-.pick-cat { font-family: inherit; padding: 3px 10px; font-size: var(--fs-xs); }
+.pick-cat { font-family: inherit; padding: 4px 10px; font-size: var(--fs-xs); }
 .pick-scope-foot {
   display: flex; align-items: center; justify-content: space-between;
   gap: 6px 12px; margin-top: 10px; flex-wrap: wrap;
@@ -1721,14 +1720,14 @@ body.modal-open { overflow: hidden; }
    don't fit on one line in a phone-width modal. */
 .pick-scope-toggles { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
 .modal label.pick-scope-toggle {
-  display: inline-flex; align-items: center; gap: 7px; margin: 0;
-  font-size: 12.5px; color: var(--text-dim); cursor: pointer; user-select: none;
+  display: inline-flex; align-items: center; gap: 8px; margin: 0;
+  font-size: var(--fs-sm); color: var(--text-dim); cursor: pointer; user-select: none;
 }
-.pick-scope-count { font-size: 11.5px; color: var(--text-dim); }
+.pick-scope-count { font-size: var(--fs-xs); color: var(--text-dim); }
 /* Inset and fully rounded — this cover sits under the scope strip rather
    than against the modal's own top corners. */
-.pick-cover { margin: 0 0 14px; border-radius: 12px; max-height: 160px; }
-.pick-cover img { height: 160px; border-radius: 12px; }
+.pick-cover { margin: 0 0 14px; border-radius: var(--r-card); max-height: 160px; }
+.pick-cover img { height: 160px; border-radius: var(--r-card); }
 /* "Pick random" metadata block — same look as the edit-modal
    cover meta, reused for the richer random-picker card. */
 .pick-meta { margin: 2px 0 4px; }
@@ -1737,7 +1736,7 @@ body.modal-open { overflow: hidden; }
 .pick-meta .bl-summary { font-size: var(--fs-sm); color: var(--text-dim); margin: 6px 0 0; }
 .pick-meta .bl-price:empty { display: none; }
 .pick-genres { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.pick-genre { font-size: var(--fs-2xs); padding: 2px 8px; border-radius: 20px; background: var(--bg-elev-2); color: var(--text-dim); }
+.pick-genre { font-size: var(--fs-2xs); padding: 2px 8px; border-radius: var(--r-pill); background: var(--bg-elev-2); color: var(--text-dim); }
 .pick-note { font-size: var(--fs-xs); color: var(--text-dim); font-style: italic; margin: 8px 0 0; }
 /* Source/store links as a standalone row (not overlaying a cover), so they
    need a border to read against the card instead of an image. */
@@ -1785,17 +1784,17 @@ body.modal-open { overflow: hidden; }
 }
 .wheel-hub:active:not(:disabled) { transform: translate(-50%, -50%) scale(.98); }
 .wheel-hub:disabled { opacity: .5; cursor: default; }
-.wheel-hint { margin: -10px 0 14px; font-size: 12.5px; }
-.wheel-empty { margin: 14px 0 0; font-size: 12.5px; text-align: center; }
+.wheel-hint { margin: -10px 0 14px; font-size: var(--fs-sm); }
+.wheel-empty { margin: 14px 0 0; font-size: var(--fs-sm); text-align: center; }
 /* The answer you opened the modal for, so it gets a panel of its own rather
    than a line of text under the wheel. */
 .wheel-result {
-  margin: 18px 0 0; padding: 11px 14px; text-align: center;
+  margin: 20px 0 0; padding: 12px 14px; text-align: center;
   background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: var(--r-lg);
 }
 .wheel-result[hidden] { display: none; }
-.wheel-result-eyebrow { display: block; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }
-.wheel-result-text { display: block; margin-top: 4px; font-size: 19px; font-weight: 700; color: var(--text); }
+.wheel-result-eyebrow { display: block; font-size: var(--fs-2xs); letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }
+.wheel-result-text { display: block; margin-top: 4px; font-size: var(--fs-title); font-weight: 700; color: var(--text); }
 .wheel-edit { margin-top: 16px; }
 .wheel-edit[hidden] { display: none; }
 
@@ -1803,15 +1802,15 @@ body.modal-open { overflow: hidden; }
 .modal h2 { margin: 0 0 16px; font-size: var(--fs-xl); }
 .modal-head { display:flex; align-items:center; justify-content: space-between; margin-bottom: 14px; }
 .modal-head h2 { margin: 0; }
-.modal label { display: block; font-size: 12.5px; color: var(--text-dim); margin-bottom: 12px; }
+.modal label { display: block; font-size: var(--fs-sm); color: var(--text-dim); margin-bottom: 12px; }
 .modal label input:not([type=checkbox]), .modal label select, .modal label textarea {
-  display: block; width: 100%; margin-top: 5px; background: var(--bg);
-  border: 1px solid var(--border); color: var(--text); padding: 9px 11px;
+  display: block; width: 100%; margin-top: 6px; background: var(--bg);
+  border: 1px solid var(--border); color: var(--text); padding: 10px 12px;
   border-radius: var(--r-md); font-size: var(--fs-md);
 }
 .modal label textarea { font-family: inherit; resize: vertical; }
 .modal label input[type=color] {
-  width: 64px; height: 40px; padding: 3px; cursor: pointer;
+  width: 64px; height: 40px; padding: 4px; cursor: pointer;
 }
 .modal .row { display: flex; gap: 12px; }
 /* min-width:0 because a flex item defaults to min-width:auto, which refuses
@@ -1823,15 +1822,15 @@ body.modal-open { overflow: hidden; }
 kbd {
   display: inline-block; min-width: 20px; padding: 2px 6px; text-align: center;
   background: var(--bg-elev-2); border: 1px solid var(--border); border-bottom-width: 2px;
-  border-radius: 5px; font-family: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim);
+  border-radius: var(--r-sm); font-family: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim);
 }
 .shortcuts-list { margin: 0; display: flex; flex-direction: column; gap: 10px; }
 .shortcuts-list > div { display: flex; align-items: center; gap: 12px; }
 .shortcuts-list dt { flex: 0 0 44px; margin: 0; }
-.shortcuts-list dd { margin: 0; color: var(--text-dim); font-size: 13.5px; }
+.shortcuts-list dd { margin: 0; color: var(--text-dim); font-size: var(--fs-md); }
 .modal .row[hidden] { display: none; }
 .modal label[hidden] { display: none; }
-.rating-input { display: flex; gap: 4px; margin-top: 5px; }
+.rating-input { display: flex; gap: 4px; margin-top: 6px; }
 .rating-input .star { background: none; border: none; cursor: pointer; padding: 0; font-size: var(--fs-2xl); line-height: 1; color: var(--text-faint); }
 .rating-input .star.filled { color: var(--accent); }
 .rating-input .star:hover { color: var(--accent-hover); }
@@ -1839,11 +1838,11 @@ kbd {
 .modal-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 .modal-actions .spacer { flex: 1; }
 .modal-actions .link-btn {
-  background: none; border: none; color: var(--accent); cursor: pointer; font-size: 12.5px; padding: 0;
+  background: none; border: none; color: var(--accent); cursor: pointer; font-size: var(--fs-sm); padding: 0;
 }
 .modal-actions .link-btn:hover { text-decoration: underline; }
 
-.ac-wrap { position: relative; display: flex; align-items: center; gap: 6px; margin-top: 5px; }
+.ac-wrap { position: relative; display: flex; align-items: center; gap: 6px; margin-top: 6px; }
 .ac-wrap input { flex: 1; margin-top: 0; width: auto; }
 .sync-btn { flex: 0 0 auto; padding: 8px 10px; font-size: var(--fs-md); line-height: 1; }
 /* Spins the 🔄 while a lookup is in flight, so the press registers instantly
@@ -1884,25 +1883,25 @@ kbd {
 .ac-list[hidden] { display: none; }
 .ac-item {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  padding: 8px 11px; cursor: pointer; font-size: var(--fs-sm);
+  padding: 8px 12px; cursor: pointer; font-size: var(--fs-sm);
 }
 .ac-item:hover { background: var(--bg-elev-2); }
 .ac-item .ac-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ac-item .ac-meta { color: var(--text-dim); font-size: 11.5px; white-space: nowrap; }
+.ac-item .ac-meta { color: var(--text-dim); font-size: var(--fs-xs); white-space: nowrap; }
 .ac-item.ac-media { gap: 8px; }
-.ac-item .ac-thumb { width: 32px; height: 46px; object-fit: cover; border-radius: 3px; flex: 0 0 auto; }
+.ac-item .ac-thumb { width: 32px; height: 46px; object-fit: cover; border-radius: var(--r-xs); flex: 0 0 auto; }
 .ac-item .ac-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 /* Which API a match came from — the Sync button lists the category's primary
    and fallback sources in one list, and the choice sets the item's
    mediaSource. */
 .ac-item .ac-source {
-  flex: 0 0 auto; font-size: 10px; font-weight: 600; letter-spacing: .3px;
+  flex: 0 0 auto; font-size: var(--fs-3xs); font-weight: 600; letter-spacing: .3px;
   color: var(--text-dim); background: var(--bg-elev-2); border: 1px solid var(--border);
-  border-radius: var(--r-xs); padding: 2px 5px; white-space: nowrap;
+  border-radius: var(--r-xs); padding: 2px 6px; white-space: nowrap;
 }
 /* Placeholder for the source still being searched, replaced by its results. */
 .ac-pending {
-  padding: 8px 11px; font-size: var(--fs-xs); color: var(--text-dim); font-style: italic;
+  padding: 8px 12px; font-size: var(--fs-xs); color: var(--text-dim); font-style: italic;
 }
 .ac-divider { border-top: 1px solid var(--border); margin: 2px 0; }
 
@@ -1912,7 +1911,7 @@ kbd {
   padding: 12px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg);
 }
 .conflict-info { display: flex; flex-direction: column; gap: 4px; }
-.conflict-info strong { font-size: 13.5px; }
+.conflict-info strong { font-size: var(--fs-md); }
 
 /* Settings (0.186.0): a list of pages beside the open page. On a phone the
    two take turns — see the mobile rules below and showPage() in settings.js.
@@ -1922,7 +1921,7 @@ kbd {
   display: grid; grid-template-columns: 310px minmax(0, 1fr);
 }
 .settings-side {
-  border-right: 1px solid var(--border); padding: 20px 14px 18px; min-height: 0;
+  border-right: 1px solid var(--border); padding: 20px 14px 20px; min-height: 0;
   overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 14px;
 }
 .settings-side .modal-head { margin: 0 4px; }
@@ -1937,12 +1936,12 @@ kbd {
   font-size: var(--fs-lg); font-weight: 600; cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.settings-back-chev { font-size: 28px; line-height: 1; margin-top: -3px; }
+.settings-back-chev { font-size: var(--fs-3xl); line-height: 1; margin-top: -4px; }
 .settings-back:active { background: var(--accent-soft); }
-.settings-pages { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 22px 28px 36px; }
+.settings-pages { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 24px 28px 36px; }
 .settings-page { max-width: 620px; }
 .settings-page[hidden] { display: none; }
-.modal h2.settings-page-title { font-size: 20px; margin: 0 0 8px; }
+.modal h2.settings-page-title { font-size: var(--fs-title); margin: 0 0 8px; }
 .settings-page > .hint:first-of-type { margin-top: 0; }
 
 .modal .settings-search {
@@ -1952,7 +1951,7 @@ kbd {
 .modal .settings-search:focus-within { border-color: var(--accent); }
 .settings-search svg { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 #settingsSearch {
-  flex: 1; min-width: 0; margin: 0; padding: 9px 0; border: 0; border-radius: 0;
+  flex: 1; min-width: 0; margin: 0; padding: 10px 0; border: 0; border-radius: 0;
   background: transparent; outline: none; box-shadow: none; color: var(--text);
 }
 .settings-home, .settings-results { display: flex; flex-direction: column; gap: 16px; }
@@ -1962,7 +1961,7 @@ kbd {
   padding: 0 6px; font-size: var(--fs-2xs); font-weight: 600; color: var(--text-dim);
   text-transform: uppercase; letter-spacing: .5px;
 }
-.sgroup-card { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.sgroup-card { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; }
 .srow {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px;
   width: 100%; padding: 10px 12px; background: none; border: 0; border-radius: 0;
@@ -1973,7 +1972,7 @@ kbd {
 .srow:hover { background: var(--hover-bg); }
 .srow.active { background: var(--accent-soft); }
 .srow-ic {
-  width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: var(--r-lg); display: grid; place-items: center;
   background: var(--accent-soft); color: var(--accent);
 }
 .srow.active .srow-ic { background: var(--accent-fill); color: var(--text-on-accent); }
@@ -1984,7 +1983,7 @@ kbd {
 #viewOptionsBtn svg { width: 15px; height: 15px; stroke-width: 2; }
 .srow-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .srow-title { font-size: var(--fs-md); font-weight: 600; }
-.srow-title mark { background: var(--accent-soft); color: inherit; border-radius: 3px; }
+.srow-title mark { background: var(--accent-soft); color: inherit; border-radius: var(--r-xs); }
 .srow-status { font-size: var(--fs-xs); color: var(--text-dim); }
 .srow-status:empty { display: none; }
 .srow-status[data-tone="ok"] { color: var(--success); }
@@ -1992,7 +1991,7 @@ kbd {
 .srow-chev { color: var(--text-faint); font-size: var(--fs-xl); line-height: 1; }
 .srow-result { grid-template-columns: minmax(0, 1fr) auto; }
 .srow-empty { margin: 0; padding: 12px; font-size: var(--fs-sm); color: var(--text-dim); }
-.settings-foot { margin: 2px 6px 0; font-size: 11.5px; color: var(--text-dim); }
+.settings-foot { margin: 2px 6px 0; font-size: var(--fs-xs); color: var(--text-dim); }
 /* Where a search result lands: a brief tint, so the eye finds it. */
 .search-hit { animation: search-hit 1.6s var(--ease); border-radius: var(--r-md); }
 @keyframes search-hit {
@@ -2056,7 +2055,7 @@ kbd {
 .modal .sitem:not(.sitem-stack) { flex-wrap: wrap; }
 .modal .sitem > select { margin-left: auto; }
 .modal #tabToggles .sitem { flex-wrap: nowrap; gap: 6px; }
-.tab-order-btn { padding: 5px 8px; min-width: 30px; font-size: var(--fs-sm); }
+.tab-order-btn { padding: 6px 8px; min-width: 30px; font-size: var(--fs-sm); }
 .tab-order-btn:disabled { opacity: .3; cursor: default; }
 .mode-default { color: var(--text-faint); }
 .mode-default[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
@@ -2064,7 +2063,7 @@ kbd {
 /* A switch, for on/off rows. */
 .modal input.switch {
   -webkit-appearance: none; appearance: none; position: relative; flex: 0 0 auto;
-  width: 40px; height: 24px; margin: 0; border: 0; border-radius: 12px; cursor: pointer;
+  width: 40px; height: 24px; margin: 0; border: 0; border-radius: var(--r-card); cursor: pointer;
   background: var(--border-strong); transition: background var(--dur-fast) var(--ease);
 }
 .modal input.switch::before {
@@ -2075,13 +2074,13 @@ kbd {
 .modal input.switch:checked { background: var(--accent); }
 .modal input.switch:checked::before { transform: translateX(16px); }
 .modal input.switch:disabled { cursor: default; }
-.modal input.switch:focus-visible { border-radius: 12px; outline: 2px solid var(--accent); outline-offset: 2px; }
+.modal input.switch:focus-visible { border-radius: var(--r-card); outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (prefers-reduced-motion: reduce) { .modal input.switch, .modal input.switch::before { transition: none; } }
 
 /* A view's own options (the View button in the header). */
 .modal.view-options { width: 520px; }
 .view-options > .modal-head { margin-bottom: 0; }
-.view-options > .sgroup:not([hidden]) ~ .sgroup { margin-top: 22px; }
+.view-options > .sgroup:not([hidden]) ~ .sgroup { margin-top: 24px; }
 /* The out-of-date notice: tinted rather than shouted, since nothing is
    broken — the device still saves and syncs, it's just behind. */
 .version-skew {
@@ -2096,7 +2095,7 @@ kbd {
    rare, deliberate thing to reach for. */
 .advanced { margin: 4px 0 16px; }
 .advanced > summary {
-  cursor: pointer; font-size: 12.5px; color: var(--text-dim);
+  cursor: pointer; font-size: var(--fs-sm); color: var(--text-dim);
   padding: 4px 0; list-style-position: inside;
 }
 .advanced > summary:hover { color: var(--text); }
@@ -2105,11 +2104,11 @@ kbd {
 .ovr:last-child { margin-bottom: 0; }
 .ovr-head {
   display: flex !important; align-items: center; gap: 8px;
-  margin-bottom: 6px !important; color: var(--text-dim); font-size: 12.5px;
+  margin-bottom: 6px !important; color: var(--text-dim); font-size: var(--fs-sm);
 }
 .ovr input:not([type=checkbox]), .ovr select {
   display: block; width: 100%; background: var(--bg);
-  border: 1px solid var(--border); color: var(--text); padding: 9px 11px;
+  border: 1px solid var(--border); color: var(--text); padding: 10px 12px;
   border-radius: var(--r-md); font-size: var(--fs-md);
 }
 /* An unticked field still shows what the sync last found, so you can see the
@@ -2135,7 +2134,7 @@ kbd {
 .gh-share .row { display: flex; gap: 8px; align-items: center; }
 .gh-share input[readonly] {
   flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border);
-  color: var(--text-dim); border-radius: var(--r-md); padding: 8px 10px; font-size: 11.5px;
+  color: var(--text-dim); border-radius: var(--r-md); padding: 8px 10px; font-size: var(--fs-xs);
 }
 .gh-qr { display: flex; justify-content: center; margin: 4px 0 12px; }
 /* Hidden when the link is local-only or too long to encode; same empty-row
@@ -2160,7 +2159,7 @@ kbd {
 .modal .toggle-label[hidden] { display: none; }
 .media-cat-row {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 7px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sm);
+  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sm);
   flex-wrap: wrap;
 }
 .media-cat-row:last-child { border-bottom: none; }
@@ -2168,10 +2167,10 @@ kbd {
 .media-cat-sels { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .media-cat-sel {
   background: var(--bg); border: 1px solid var(--border); color: var(--text);
-  padding: 5px 8px; border-radius: 7px; font-size: var(--fs-xs);
+  padding: 6px 8px; border-radius: var(--r-md); font-size: var(--fs-xs);
 }
 .history-row {
-  padding: 7px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sm);
+  padding: 8px 0; border-bottom: 1px solid var(--border); font-size: var(--fs-sm);
 }
 .history-row:last-child { border-bottom: none; }
 .history-row-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
@@ -2181,15 +2180,15 @@ kbd {
 .history-row-head .btn-small:first-of-type { margin-left: auto; }
 .history-date { color: var(--text-dim); white-space: nowrap; font-size: var(--fs-xs); }
 .history-msg {
-  display: block; margin-top: 3px; color: var(--text-dim); font-size: var(--fs-xs);
+  display: block; margin-top: 4px; color: var(--text-dim); font-size: var(--fs-xs);
   white-space: normal; overflow-wrap: break-word;
 }
-.history-badge { font-size: var(--fs-2xs); color: var(--text-dim); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; flex: 0 0 auto; }
+.history-badge { font-size: var(--fs-2xs); color: var(--text-dim); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 1px 6px; flex: 0 0 auto; }
 .btn-small { padding: 4px 10px; font-size: var(--fs-xs); }
 .hint, .muted { color: var(--text-dim); font-size: var(--fs-xs); }
-.muted code { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; color: var(--text-dim); font-size: 11.5px; }
+.muted code { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 1px 6px; color: var(--text-dim); font-size: var(--fs-xs); }
 .muted strong { color: var(--text-dim); }
-.muted br { content: ""; display: block; margin-top: 5px; }
+.muted br { content: ""; display: block; margin-top: 6px; }
 .hint { margin: 10px 0 0; }
 .muted { margin: 0 0 10px; }
 
@@ -2198,7 +2197,7 @@ kbd {
 .toast {
   position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
   background: var(--bg-elev-2); border: 1px solid var(--border); color: var(--text);
-  padding: 11px 18px; border-radius: var(--r-lg); box-shadow: var(--shadow); z-index: 80;
+  padding: 12px 20px; border-radius: var(--r-lg); box-shadow: var(--shadow); z-index: 80;
   font-size: var(--fs-sm);
 }
 /* :not([hidden]) rather than a companion rule below: an author `display`
@@ -2231,7 +2230,7 @@ html.pulling #content, html.pulling #filterSlot { translate: 0 var(--pull); }
 html.pull-settling { transition: --pull .3s cubic-bezier(.22,1,.36,1); }
 .pull-icon {
   display: none; position: fixed; left: 50%; top: var(--topbar-h, 60px);
-  width: 26px; height: 26px; margin-left: -13px;
+  width: 26px; height: 26px; margin-left: -14px;
   z-index: 15; /* under the top bar, so it comes out from behind it */
   pointer-events: none; color: var(--text-dim);
   transform: translateY(calc(var(--pull) - 40px));
@@ -2267,14 +2266,14 @@ html.native .topbar { border-top: var(--sat) solid var(--bg-elev); }
 }
 html.native .modal-overlay,
 html.native .lock-screen { padding-top: calc(20px + var(--sat)); padding-bottom: calc(20px + var(--sab)); }
-html.native .recap { padding-top: calc(54px + var(--sat)); padding-bottom: calc(64px + var(--sab)); }
+html.native .recap { padding-top: calc(56px + var(--sat)); padding-bottom: calc(64px + var(--sab)); }
 html.native .recap-bar { top: calc(12px + var(--sat)); }
 html.native .recap-close { top: calc(24px + var(--sat)); }
 /* The WebView's own overscroll glow would answer the same pull. */
 html.native, html.native body { overscroll-behavior-y: none; }
 .toast-action {
-  flex: 0 0 auto; background: none; border: 1px solid var(--accent); border-radius: 7px;
-  padding: 5px 11px; color: var(--accent); font-size: 12.5px; font-weight: 600; cursor: pointer;
+  flex: 0 0 auto; background: none; border: 1px solid var(--accent); border-radius: var(--r-md);
+  padding: 6px 12px; color: var(--accent); font-size: var(--fs-sm); font-weight: 600; cursor: pointer;
 }
 .toast-action:hover { background: var(--accent-fill); color: var(--text-on-accent); }
 /* Sits where a toast does but doesn't leave on its own: there is nothing to
@@ -2284,7 +2283,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
   position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
   display: flex; align-items: center; gap: 12px;
   background: var(--bg-elev-2); border: 1px solid var(--accent); color: var(--text);
-  padding: 9px 12px 9px 16px; border-radius: var(--r-lg); box-shadow: var(--shadow); z-index: 90;
+  padding: 10px 12px 10px 16px; border-radius: var(--r-lg); box-shadow: var(--shadow); z-index: 90;
   font-size: var(--fs-sm); max-width: calc(100vw - 32px); white-space: nowrap;
 }
 .update-bar[hidden] { display: none; }
@@ -2302,7 +2301,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
      and the mode fan rises out of the bottom bar inside it — through
      exactly the corner the + button floats in — so no value on the fan
      itself could lift it clear. They never overlap at rest. */
-  html:not(.force-pc) .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 23px; z-index: 40; }
+  html:not(.force-pc) .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 24px; z-index: 40; }
   /* basis 0, not auto: flex wraps on hypothetical sizes before it shrinks
      anything, so a basis of "as wide as the input would like to be" puts the
      ⚙ on a second row the moment the field gets any wider — which the ✕'s
@@ -2341,8 +2340,8 @@ html.native, html.native body { overscroll-behavior-y: none; }
      swipe — without this, pressing a tab could show a stray selection
      highlight and a beat of lag before it responded. */
   html:not(.force-pc) .tab {
-    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-    padding: 12px 2px 11px; font-size: 10px; color: var(--text-dim);
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    padding: 12px 2px 12px; font-size: var(--fs-3xs); color: var(--text-dim);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
   }
@@ -2353,7 +2352,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
      companion rule the rest of this file carries next to every other
      author display. */
   html:not(.force-pc) .tab[hidden] { display: none; }
-  html:not(.force-pc) .tab::before { content: attr(data-icon); font-size: 17px; line-height: 1; }
+  html:not(.force-pc) .tab::before { content: attr(data-icon); font-size: var(--fs-xl); line-height: 1; }
   html:not(.force-pc) .tab.active { color: var(--accent); background: none; }
   html:not(.force-pc) .views { position: relative; }
   /* Slides under whichever tab is active — tapping a tab or swiping the
@@ -2423,7 +2422,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
     transition: color .18s ease, font-size .18s ease;
     -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
   }
-  html:not(.force-pc) .jump-item.is-active { color: var(--accent); font-size: 13.5px; cursor: default; }
+  html:not(.force-pc) .jump-item.is-active { color: var(--accent); font-size: var(--fs-md); cursor: default; }
 
   html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
   html:not(.force-pc) .filter-slot { padding: 14px 14px 0; }
@@ -2458,7 +2457,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
 }
 
 /* Above .fab-wrap (35) — see the note in the phone block above. */
-html.force-mobile .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 23px; z-index: 40; }
+html.force-mobile .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 24px; z-index: 40; }
 html.force-mobile .search-wrap { order: 2; margin-left: 0; width: auto; flex: 1 1 0; min-width: 0; }
 html.force-mobile .search-clear { width: 34px; font-size: var(--fs-sm); }
 /* Fields on a phone (0.222.0): 44px to hit, and 16px text, below which
@@ -2479,14 +2478,14 @@ html.force-mobile .topbar-bottom {
    sits above the tabs (order:0), tabs stay bottom-most (order:1). */
 html.force-mobile .views { flex: 1; display: flex; align-items: stretch; order: 1; }
 html.force-mobile .tab {
-  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  padding: 12px 2px 11px; font-size: 10px; color: var(--text-dim);
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: 12px 2px 12px; font-size: var(--fs-3xs); color: var(--text-dim);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
 }
 /* Same companion rule as the @media block above — see the note there. */
 html.force-mobile .tab[hidden] { display: none; }
-html.force-mobile .tab::before { content: attr(data-icon); font-size: 17px; line-height: 1; }
+html.force-mobile .tab::before { content: attr(data-icon); font-size: var(--fs-xl); line-height: 1; }
 html.force-mobile .tab.active { color: var(--accent); background: none; }
 html.force-mobile .views { position: relative; }
 html.force-mobile .tab-modes { display: flex; }
@@ -2524,7 +2523,7 @@ html.force-mobile .jump-item {
   transition: color .18s ease, font-size .18s ease;
   -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
 }
-html.force-mobile .jump-item.is-active { color: var(--accent); font-size: 13.5px; cursor: default; }
+html.force-mobile .jump-item.is-active { color: var(--accent); font-size: var(--fs-md); cursor: default; }
 
 html.force-mobile .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
 html.force-mobile .filter-slot { padding: 14px 14px 0; }
@@ -2556,11 +2555,11 @@ html.force-mobile .backlog-section-head {
   html:not(.force-pc) .settings-modal[data-page=""] .settings-main { display: none; }
   html:not(.force-pc) .settings-side { border-right: 0; }
   html:not(.force-pc) .settings-page-head { display: flex; }
-  html:not(.force-pc) .settings-pages { padding: 4px 18px 36px; }
+  html:not(.force-pc) .settings-pages { padding: 4px 20px 36px; }
   html:not(.force-pc) .modal-overlay.view-options-overlay { align-items: flex-end; padding: 20px 0 0; }
   html:not(.force-pc) .modal.view-options {
     width: 100%; max-height: 85vh; border-radius: 18px 18px 0 0; border-bottom: 0;
-    padding-bottom: calc(22px + var(--sab, 0px));
+    padding-bottom: calc(24px + var(--sab, 0px));
   }
   /* A bottom sheet comes up from the edge it sits on. */
   html:not(.force-pc) .view-options-overlay[hidden] > .modal { translate: 0 100%; }
@@ -2571,11 +2570,11 @@ html.force-mobile .settings-modal:not([data-page=""]) .settings-side,
 html.force-mobile .settings-modal[data-page=""] .settings-main { display: none; }
 html.force-mobile .settings-side { border-right: 0; }
 html.force-mobile .settings-page-head { display: flex; }
-html.force-mobile .settings-pages { padding: 4px 18px 36px; }
+html.force-mobile .settings-pages { padding: 4px 20px 36px; }
 html.force-mobile .modal-overlay.view-options-overlay { align-items: flex-end; padding: 20px 0 0; }
 html.force-mobile .modal.view-options {
   width: 100%; max-height: 85vh; border-radius: 18px 18px 0 0; border-bottom: 0;
-  padding-bottom: calc(22px + var(--sab, 0px));
+  padding-bottom: calc(24px + var(--sab, 0px));
 }
 html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 @starting-style { html.force-mobile .view-options-overlay > .modal { translate: 0 100%; } }
@@ -2589,12 +2588,12 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .lock-screen[hidden] { display: none; }
 .lock-box {
   background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-xl);
-  box-shadow: var(--shadow); padding: 30px 28px; width: 320px; max-width: 100%;
+  box-shadow: var(--shadow); padding: 32px 28px; width: 320px; max-width: 100%;
   text-align: center;
 }
 .lock-icon { font-size: var(--fs-3xl); margin-bottom: 6px; }
 .lock-box h2 { margin: 0 0 6px; font-size: var(--fs-xl); }
-.lock-box .muted { margin: 0 0 18px; }
+.lock-box .muted { margin: 0 0 20px; }
 /* Shake feedback on a wrong PIN / failed biometric check (see showLockScreen
    in app.js, which toggles this class off-and-on to force a replay). */
 @keyframes lock-shake { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-7px); } 40%, 80% { transform: translateX(7px); } }
@@ -2613,19 +2612,19 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .lock-pin-row { display: flex; gap: 8px; }
 .lock-pin-form input {
   flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border); color: var(--text);
-  padding: 9px 11px; border-radius: var(--r-md); font-size: var(--fs-lg); text-align: center; letter-spacing: 2px;
+  padding: 10px 12px; border-radius: var(--r-md); font-size: var(--fs-lg); text-align: center; letter-spacing: 2px;
 }
 .lock-pin-form input:focus { outline: none; border-color: var(--accent); }
 .lock-keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 4px; }
 .lock-key {
-  height: 50px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg-elev);
-  color: var(--text); font-size: 20px; font-family: var(--font-mono); cursor: pointer;
+  height: 50px; border-radius: var(--r-card); border: 1px solid var(--border); background: var(--bg-elev);
+  color: var(--text); font-size: var(--fs-title); font-family: var(--font-mono); cursor: pointer;
   transition: background var(--dur-fast) var(--ease);
 }
 .lock-key:hover { background: var(--hover-bg); }
 .lock-divider {
   display: flex; align-items: center; gap: 10px; margin: 14px 0;
-  color: var(--text-faint); font-size: 11.5px; text-transform: uppercase;
+  color: var(--text-faint); font-size: var(--fs-xs); text-transform: uppercase;
 }
 .lock-divider[hidden] { display: none; }
 .lock-divider::before, .lock-divider::after {
@@ -2640,7 +2639,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .lock-error[hidden] { display: none; }
 .lock-reset-btn {
   display: block; margin: 16px auto 0; background: none; border: none; cursor: pointer;
-  color: var(--text-dim); font-size: 11.5px; text-decoration: underline;
+  color: var(--text-dim); font-size: var(--fs-xs); text-decoration: underline;
 }
 .lock-reset-btn:hover { color: var(--accent); }
 
@@ -2711,7 +2710,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   position: fixed; inset: 0; z-index: 250;
   background: var(--bg);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
-  padding: 54px 20px 64px;
+  padding: 56px 20px 64px;
   overflow: hidden;
 }
 .recap[hidden] { display: none; }
@@ -2722,13 +2721,13 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   position: absolute; top: 12px; left: 14px; right: 14px;
   display: flex; gap: 4px; height: 3px;
 }
-.recap-seg { flex: 1 1 0; background: var(--border); border-radius: 2px; }
+.recap-seg { flex: 1 1 0; background: var(--border); border-radius: var(--r-hair); }
 .recap-seg.is-done { background: var(--accent); }
 
 .recap-close {
   position: absolute; top: 24px; right: 14px; z-index: 2;
   background: none; border: none; color: var(--text-faint);
-  font-size: 20px; line-height: 1; padding: 6px 8px; cursor: pointer;
+  font-size: var(--fs-title); line-height: 1; padding: 6px 8px; cursor: pointer;
 }
 .recap-close:hover { color: var(--text); }
 
@@ -2763,16 +2762,16 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 }
 
 .recap-slide { display: flex; flex-direction: column; gap: 10px; align-items: center; flex: 0 1 auto; min-height: 0; }
-.recap-year { font-size: 64px; font-weight: 800; letter-spacing: -2px; color: var(--accent); line-height: 1; }
+.recap-year { font-size: var(--fs-display-lg); font-weight: 800; letter-spacing: -2px; color: var(--accent); line-height: 1; }
 .recap-value {
-  font-size: 52px; font-weight: 800; letter-spacing: -1.5px; line-height: 1.05;
+  font-size: var(--fs-display); font-weight: 800; letter-spacing: -1.5px; line-height: 1.05;
   color: var(--accent); overflow-wrap: anywhere;
 }
-.recap-headline { margin: 0; font-size: 19px; font-weight: 600; color: var(--text); }
+.recap-headline { margin: 0; font-size: var(--fs-title); font-weight: 600; color: var(--text); }
 .recap-sub { margin: 0; font-size: var(--fs-md); color: var(--text-dim); }
 .recap-foot-note { margin: 6px 0 0; font-size: var(--fs-xs); color: var(--text-dim); }
 
-.recap-bars { width: 100%; display: flex; flex-direction: column; gap: 9px; margin-top: 6px; }
+.recap-bars { width: 100%; display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
 /* The label and the count get equal columns, so the tracks sit in the
    middle of the slide under its centred headline — a 34% label column
    against a 22px count had pushed them well right of it. */
@@ -2781,15 +2780,15 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   text-align: right; font-size: var(--fs-sm); color: var(--text-dim);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.recap-bartrack { height: 10px; background: var(--bg-elev-2); border-radius: 5px; overflow: hidden; }
-.recap-barfill { display: block; height: 100%; border-radius: 5px; }
+.recap-bartrack { height: 10px; background: var(--bg-elev-2); border-radius: var(--r-sm); overflow: hidden; }
+.recap-barfill { display: block; height: 100%; border-radius: var(--r-sm); }
 .recap-barn { font-size: var(--fs-xs); color: var(--text-dim); font-variant-numeric: tabular-nums; text-align: left; }
 
 .recap-list { width: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
 .recap-listrow {
-  display: flex; align-items: center; gap: 9px; text-align: left;
+  display: flex; align-items: center; gap: 10px; text-align: left;
   background: var(--bg-elev); border: 1px solid var(--border);
-  border-radius: 9px; padding: 9px 11px;
+  border-radius: var(--r-lg); padding: 10px 12px;
 }
 .recap-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
 .recap-listlabel { flex: 1 1 auto; min-width: 0; font-size: var(--fs-md); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -2802,8 +2801,8 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 @media (prefers-reduced-motion: reduce) { .recap-in { animation: none; } }
 
 @media (max-width: 480px) {
-  .recap-year { font-size: 52px; }
-  .recap-value { font-size: 42px; }
+  .recap-year { font-size: var(--fs-display); }
+  .recap-value { font-size: var(--fs-display-sm); }
   .recap-barlabel { font-size: var(--fs-xs); }
 }
 
@@ -2814,7 +2813,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
    chips' own height, so it reads as "play this one". */
 .recap-open-btn {
   background: var(--accent-fill); color: var(--text-on-accent); border: 1px solid var(--accent-fill);
-  border-radius: 20px; padding: 4px 12px; font-size: var(--fs-xs); font-weight: 600;
+  border-radius: var(--r-pill); padding: 4px 12px; font-size: var(--fs-xs); font-weight: 600;
   cursor: pointer; margin-left: auto; white-space: nowrap;
 }
 .recap-open-btn:hover { background: var(--accent-fill-hover); }
@@ -2825,7 +2824,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
    what its modes were left set to. */
 .tab-toggles { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; }
 .modal .tab-toggle-modes .sitem + .sitem { border-top: 1px solid var(--border); }
-.modal .tab-toggle-modes .sitem { min-height: 44px; padding-left: 26px; }
+.modal .tab-toggle-modes .sitem { min-height: 44px; padding-left: 28px; }
 .tab-toggle-modes .sitem-title { font-size: var(--fs-sm); font-weight: 450; color: var(--text-dim); }
 .tab-toggle-modes .sitem:has(.switch:disabled) { opacity: .5; }
 
@@ -2855,7 +2854,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
    category's colour and carries the title, so a book you typed in by hand
    sits on the wall beside a game that came with a picture. */
 .recap-tile {
-  position: relative; aspect-ratio: 2 / 3; border-radius: 7px; overflow: hidden;
+  position: relative; aspect-ratio: 2 / 3; border-radius: var(--r-md); overflow: hidden;
   background: var(--bg-elev-2); border: 1px solid var(--border);
   display: flex; align-items: flex-end;
 }
@@ -2863,8 +2862,8 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 /* The name rides on a gradient over the art, and fills the tile when there
    is none — one element doing both jobs, so the grid stays even either way. */
 .recap-tile-name {
-  position: relative; z-index: 1; width: 100%; padding: 14px 5px 4px;
-  font-size: 9.5px; line-height: 1.2; text-align: left; color: #fff;
+  position: relative; z-index: 1; width: 100%; padding: 14px 6px 4px;
+  font-size: var(--fs-3xs); line-height: 1.2; text-align: left; color: #fff;
   background: linear-gradient(to top, rgba(0, 0, 0, .78), rgba(0, 0, 0, 0));
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
   overflow: hidden;
@@ -2874,8 +2873,8 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
    this file depends on. */
 .recap-tile.is-empty { align-items: center; }
 .recap-tile.is-empty .recap-tile-name {
-  background: none; color: var(--text); text-align: center; padding: 6px 5px;
-  -webkit-line-clamp: 4; font-size: 10px;
+  background: none; color: var(--text); text-align: center; padding: 6px 6px;
+  -webkit-line-clamp: 4; font-size: var(--fs-3xs);
 }
 
 /* The notes themselves, newest first. Same shape the Notes tab uses: a stamp
@@ -2885,7 +2884,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   background: var(--bg-elev); border: 1px solid var(--border);
   border-radius: var(--r-lg); padding: 10px 12px; text-align: left;
 }
-.recap-note-date { font-size: 10.5px; color: var(--text-dim); margin-bottom: 4px; }
+.recap-note-date { font-size: var(--fs-2xs); color: var(--text-dim); margin-bottom: 4px; }
 .recap-note-text {
   margin: 0; font-size: var(--fs-sm); line-height: 1.45; color: var(--text);
   white-space: pre-wrap; overflow-wrap: anywhere;
@@ -2923,37 +2922,37 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   gap: 12px; align-items: start;
 }
 .habit-card {
-  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px;
-  padding: 12px 13px;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-card);
+  padding: 12px 14px;
   display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px;
 }
 .habit-card > * { grid-column: 1 / -1; }
 .habit-card > .habit-head { grid-column: 1; grid-row: 1; }
 .habit-card > .habit-sub { grid-column: 1; grid-row: 2; }
 .habit-card > .habit-tick, .habit-card > .habit-notdue { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
-.habit-head { display: flex; align-items: center; gap: 9px; }
+.habit-head { display: flex; align-items: center; gap: 10px; }
 .habit-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
 .habit-name {
   flex: 1 1 auto; min-width: 0; text-align: left;
   background: none; border: none; padding: 0; cursor: pointer;
-  color: var(--text); font-size: 15px; font-weight: 600;
+  color: var(--text); font-size: var(--fs-read); font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .habit-name:hover { color: var(--accent); }
 .habit-streak { flex: 0 0 auto; font-size: var(--fs-sm); font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
 .habit-sub {
   display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
-  margin: 3px 0 0 19px; font-size: 11.5px; color: var(--text-dim);
+  margin: 4px 0 0 20px; font-size: var(--fs-xs); color: var(--text-dim);
 }
 .habit-sub-right { text-align: right; }
 
 /* The one control you use every day: the only filled button on the card,
    and a thumb-sized target beside the name rather than a checkbox to aim at. */
 .habit-tick {
-  display: flex; align-items: center; justify-content: center; gap: 7px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
   min-width: 108px; min-height: 40px; margin: 0; padding: 8px 14px;
   background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: var(--r-lg);
-  color: var(--text-dim); font-size: 13.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  color: var(--text-dim); font-size: var(--fs-md); font-weight: 600; cursor: pointer; white-space: nowrap;
   transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease),
     border-color var(--dur-fast) var(--ease);
 }
@@ -2968,24 +2967,24 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .habit-cell.is-slip { background: transparent; box-shadow: inset 0 0 0 2px var(--danger); }
 .habit-tick-mark { font-size: var(--fs-lg); line-height: 1; font-variant-numeric: tabular-nums; }
 .habit-tick-mark:empty { display: none; }
-.habit-notdue { margin: 0; font-size: 12.5px; color: var(--text-dim); font-style: italic; }
+.habit-notdue { margin: 0; font-size: var(--fs-sm); color: var(--text-dim); font-style: italic; }
 /* Everything longer than the last ninety days, which is the only thing
    backfilling produces and the rest of the card never mentions. */
-.habit-life { margin: 6px 0 0 19px; font-size: 11.5px; color: var(--text-dim); }
+.habit-life { margin: 6px 0 0 20px; font-size: var(--fs-xs); color: var(--text-dim); }
 
 /* Twelve weeks, a row per weekday. Tapping a cell fixes a day you forgot,
    which is the only way a tracker survives being away from your phone. */
 /* As wide as its cells, so the week arrows and range above it centre on the
    grid rather than the card; fit-content still shrinks it on a narrow one. */
-.habit-grid { display: flex; flex-direction: column; gap: 3px; margin-top: 12px; justify-self: start; max-width: 100%; }
-.habit-grid-row { display: flex; align-items: center; gap: 3px; }
+.habit-grid { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; justify-self: start; max-width: 100%; }
+.habit-grid-row { display: flex; align-items: center; gap: 4px; }
 .habit-grid-day {
-  flex: 0 0 12px; font-size: 8.5px; color: var(--text-faint);
+  flex: 0 0 12px; font-size: var(--fs-3xs); color: var(--text-faint);
   text-align: right; line-height: 1;
 }
 .habit-cell {
   flex: 0 1 auto; width: 16px; aspect-ratio: 1; min-width: 0; padding: 0;
-  background: var(--bg-elev-2); border: 1px solid transparent; border-radius: 3px;
+  background: var(--bg-elev-2); border: 1px solid transparent; border-radius: var(--r-xs);
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .habit-cell:hover:not(:disabled) { border-color: var(--accent); }
@@ -2997,27 +2996,27 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
    An outline in --text rather than --accent, because a kept cell is already
    filled with the habit's colour and an accent ring on it is invisible. */
 .habit-cell.is-anchor { outline: 2px solid var(--text); outline-offset: 1px; }
-.habit-range-hint { margin: 7px 0 0; font-size: 11.5px; color: var(--accent); text-align: center; }
+.habit-range-hint { margin: 8px 0 0; font-size: var(--fs-xs); color: var(--accent); text-align: center; }
 
 /* Walking the window back, for a habit you kept longer than the grid is
    wide. Only drawn when there is somewhere to walk to. */
-.habit-grid-nav { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; padding-left: 15px; }
+.habit-grid-nav { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; padding-left: 16px; }
 .habit-page {
   flex: 0 0 auto; width: 20px; height: 20px; padding: 0;
-  background: none; border: 1px solid var(--border); border-radius: 5px;
+  background: none; border: 1px solid var(--border); border-radius: var(--r-sm);
   color: var(--text-dim); font-size: var(--fs-xs); line-height: 1; cursor: pointer;
 }
 .habit-page:hover:not(:disabled) { border-color: var(--accent); color: var(--text); }
 .habit-page:disabled { opacity: .3; cursor: default; }
 .habit-page-range {
   flex: 1 1 auto; min-width: 0; text-align: center;
-  font-size: 10.5px; color: var(--text-dim); font-variant-numeric: tabular-nums;
+  font-size: var(--fs-2xs); color: var(--text-dim); font-variant-numeric: tabular-nums;
 }
 
-.habit-archived { margin-top: 18px; }
+.habit-archived { margin-top: 20px; }
 .habit-archived .hint { margin: 0 0 6px; }
 .habit-archived-row {
-  display: flex; align-items: center; gap: 9px; width: 100%;
+  display: flex; align-items: center; gap: 10px; width: 100%;
   background: none; border: none; padding: 6px 2px; cursor: pointer;
   color: var(--text-dim); font-size: var(--fs-sm); text-align: left;
 }
@@ -3028,7 +3027,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 /* The day pickers in the habit modal: a row of small toggles rather than
    seven stacked label rows. */
 .habit-days { display: flex; flex-wrap: wrap; gap: 4px 12px; padding-top: 4px; }
-.habit-days .toggle-label { font-size: 12.5px; }
+.habit-days .toggle-label { font-size: var(--fs-sm); }
 
 /* Habit reminders, in the Habits view (0.184.0). On a card, a chip with
    the time; a time input lies invisibly over it so a tap opens the phone's
@@ -3102,13 +3101,13 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 /* The name on a line of its own; the category and time share the next. */
 .board-meta:has(.board-cat) { flex-wrap: wrap; row-gap: 2px; }
 .board-meta:has(.board-cat) .board-name { flex: 1 0 100%; }
-.board-cat { flex: 1 1 auto; display: inline-flex; align-items: center; gap: 4px; min-width: 0; font-size: 11.5px; color: var(--text-dim); overflow: hidden; white-space: nowrap; }
+.board-cat { flex: 1 1 auto; display: inline-flex; align-items: center; gap: 4px; min-width: 0; font-size: var(--fs-xs); color: var(--text-dim); overflow: hidden; white-space: nowrap; }
 .board-cat .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
 .board-new {
   align-items: center; justify-content: center; gap: 6px; min-height: 150px;
   border-style: dashed; color: var(--text-dim); background: transparent;
 }
-.board-new-plus { font-size: 32px; line-height: 1; color: var(--accent); }
+.board-new-plus { font-size: var(--fs-3xl); line-height: 1; color: var(--accent); }
 .board-new:hover { color: var(--text); border-color: var(--accent); }
 .boards-loading { padding: 20px 4px; }
 
@@ -3153,13 +3152,13 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .board-top > * { pointer-events: auto; }
 .board-back {
   display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 6px 14px 6px 8px;
-  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px;
-  color: var(--accent); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-card);
+  color: var(--accent); font: inherit; font-size: var(--fs-read); font-weight: 600; cursor: pointer;
   box-shadow: var(--shadow); -webkit-tap-highlight-color: transparent;
 }
 .board-name-input {
   flex: 0 1 260px; min-width: 0; height: 44px; padding: 0 12px; box-sizing: border-box;
-  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px;
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-card);
   color: var(--text); font: inherit; font-weight: 600; box-shadow: var(--shadow);
 }
 .board-name-input:focus { outline: none; border-color: var(--accent); }
@@ -3194,7 +3193,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   box-shadow: 0 0 0 1px var(--border-strong);
 }
 .board-swatch.on::before { box-shadow: 0 0 0 2px var(--bg-elev), 0 0 0 4px var(--accent); }
-.board-width-dot { width: 18px; border-radius: 99px; background: currentColor; }
+.board-width-dot { width: 18px; border-radius: var(--r-pill); background: currentColor; }
 .board-width.on { background: var(--accent-soft); color: var(--accent); }
 .board-delete { color: var(--danger); font-size: var(--fs-lg); }
 .board-fill::before {
@@ -3242,7 +3241,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 }
 .note-kind-seg button {
   border: 0; background: transparent; color: var(--text-dim); font: inherit; font-size: var(--fs-sm);
-  padding: 6px 12px; border-radius: 7px; cursor: pointer; -webkit-tap-highlight-color: transparent;
+  padding: 6px 12px; border-radius: var(--r-md); cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .note-kind-seg button:hover { color: var(--text); }
 .note-kind-seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
@@ -3250,27 +3249,27 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .kind-chip .kind-ico { width: 12px; text-align: center; font-size: var(--fs-2xs); line-height: 1; opacity: .75; }
 .kind-chip.on .kind-ico { opacity: 1; }
 .note-kind-seg {
-  display: flex; padding: 3px; gap: 2px; border-radius: var(--r-lg); margin-bottom: 14px;
+  display: flex; padding: 4px; gap: 2px; border-radius: var(--r-lg); margin-bottom: 14px;
   background: var(--bg); border: 1px solid var(--border);
 }
 .note-kind-seg button { flex: 1; }
 
 .note-cat {
-  display: inline-flex; align-items: center; gap: 5px; margin-left: 8px;
+  display: inline-flex; align-items: center; gap: 6px; margin-left: 8px;
   color: var(--text-dim);
 }
 .note-cat .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
 
 /* A quote reads as one: bigger, italic, hung inside its own marks. */
 .note-card .note-quote {
-  position: relative; padding: 2px 4px 0 22px; font-size: 15px; font-style: italic; line-height: 1.5;
+  position: relative; padding: 2px 4px 0 24px; font-size: var(--fs-read); font-style: italic; line-height: 1.5;
 }
 .note-card .note-quote::before {
   content: "\201C"; position: absolute; left: 0; top: -6px;
-  font-size: 34px; line-height: 1; font-style: normal; color: var(--accent); opacity: .8;
+  font-size: var(--fs-3xl); line-height: 1; font-style: normal; color: var(--accent); opacity: .8;
 }
 .note-card .note-quote::after { content: "\201D"; color: var(--accent); opacity: .8; font-style: normal; }
-.note-author { margin: 6px 0 0 22px; font-size: 12.5px; color: var(--text-dim); }
+.note-author { margin: 6px 0 0 24px; font-size: var(--fs-sm); color: var(--text-dim); }
 
 /* A list is the To-do mode's panel (0.196.0): its header, the old rows,
    the done rule and the add line, on the panel's own surface. Only the
@@ -3278,7 +3277,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .note-card.is-list { background: var(--surface-card); cursor: default; padding: 10px 12px 12px; }
 .note-card.is-list:hover { border-color: var(--border-strong); }
 .note-list-head {
-  margin: 0 0 4px; padding: 2px 0 9px; border-bottom: 1px solid var(--border);
+  margin: 0 0 4px; padding: 2px 0 10px; border-bottom: 1px solid var(--border);
   font-size: var(--fs-sm); color: var(--text-dim); font-weight: 600;
   display: flex; justify-content: space-between; align-items: center; gap: 8px; cursor: pointer;
 }
@@ -3294,12 +3293,12 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 
 /* ☆ on every card; lit when it's a favourite. */
 .note-fav {
-  float: right; margin: -4px -4px 0 6px; padding: 2px 5px; border: 0; background: transparent;
-  color: var(--text-faint); font-size: 15px; line-height: 1; cursor: pointer; border-radius: var(--r-sm);
+  float: right; margin: -4px -4px 0 6px; padding: 2px 6px; border: 0; background: transparent;
+  color: var(--text-faint); font-size: var(--fs-read); line-height: 1; cursor: pointer; border-radius: var(--r-sm);
   -webkit-tap-highlight-color: transparent;
 }
 .note-fav:hover { color: var(--text); }
-.note-fav.on { color: #f5b301; }
+.note-fav.on { color: var(--priority); }
 
 /* The checklist in the note sheet. */
 /* The sheet's checklist (0.199.0): one panel of rows, like the list on its
@@ -3313,7 +3312,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .note-list-row { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); }
 .note-list-row input[type="text"] { flex: 1; min-width: 0; margin: 0; }
 .note-list-row.is-done input[type="text"] { text-decoration: line-through; color: var(--text-faint); }
-.note-list-new { display: flex; align-items: center; gap: 2px; padding-left: 12px; color: var(--accent); font-size: 17px; }
+.note-list-new { display: flex; align-items: center; gap: 2px; padding-left: 12px; color: var(--accent); font-size: var(--fs-xl); }
 .note-list-del {
   flex: 0 0 auto; padding: 6px 8px; border: 0; background: transparent; border-radius: var(--r-sm);
   color: var(--text-faint); font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
@@ -3326,7 +3325,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
    doesn't reach, so they take it here. */
 .note-list-editor input[type="text"] {
   display: block; width: 100%; box-sizing: border-box; background: transparent;
-  border: 0; color: var(--text); padding: 11px 12px;
+  border: 0; color: var(--text); padding: 12px 12px;
   font: inherit; font-size: var(--fs-md);
 }
 .note-list-editor input[type="text"]:focus { outline: none; }
@@ -3340,31 +3339,31 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 /* ---------- note collections and reading a note (0.204.0) ---------- */
 .coll-title .dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
 .coll-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
-.coll-title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 20px; }
+.coll-title { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--fs-title); }
 .coll-head .btn-primary { margin-left: auto; }
 .coll-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
 .coll-card {
   display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 14px; text-align: left;
-  background: var(--bg-elev); border: 1px solid var(--border); border-radius: 12px; color: var(--text);
+  background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-card); color: var(--text);
   font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .coll-card:hover { border-color: var(--accent); }
 .coll-card { position: relative; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 .coll-card .note-fav { position: absolute; top: 8px; right: 8px; margin: 0; float: none; }
-.coll-card .coll-card-title { padding-right: 22px; }
+.coll-card .coll-card-title { padding-right: 24px; }
 .coll-card .bulk-check { position: absolute; top: 12px; left: 12px; margin: 0; }
-.coll-card.is-bulk { padding-left: 38px; }
+.coll-card.is-bulk { padding-left: 40px; }
 .coll-card.is-selected { border-color: var(--accent); background: var(--accent-soft); }
-.coll-card-title { font-weight: 650; font-size: 14.5px; overflow-wrap: anywhere; }
+.coll-card-title { font-weight: 650; font-size: var(--fs-read); overflow-wrap: anywhere; }
 .coll-card-text {
   color: var(--text-dim); font-size: var(--fs-sm); line-height: 1.45; overflow: hidden;
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
 }
-.coll-card-meta { color: var(--text-dim); font-size: 11.5px; margin-top: auto; }
+.coll-card-meta { color: var(--text-dim); font-size: var(--fs-xs); margin-top: auto; }
 
 #noteReader .modal { width: 720px; }
-.note-reader-meta { margin: -6px 0 14px; font-size: 12.5px; }
-.md { font-size: 15px; line-height: 1.6; color: var(--text); overflow-wrap: anywhere; }
+.note-reader-meta { margin: -6px 0 14px; font-size: var(--fs-sm); }
+.md { font-size: var(--fs-read); line-height: 1.6; color: var(--text); overflow-wrap: anywhere; }
 .md > :first-child { margin-top: 0; }
 .md h2, .md h3, .md h4, .md h5, .md h6, .md h7 { margin: 1.1em 0 .4em; line-height: 1.3; }
 .md h2 { font-size: 1.3em; } .md h3 { font-size: 1.15em; } .md h4, .md h5, .md h6 { font-size: 1em; }
@@ -3374,7 +3373,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .md li.md-task { list-style: none; margin-left: -1.3em; }
 .md .md-box { display: inline-block; width: 1.3em; color: var(--text-dim); }
 .md li.md-task.is-done { color: var(--text-faint); text-decoration: line-through; }
-.md code { font-family: "Consolas", "SF Mono", Menlo, monospace; font-size: .9em; background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; }
+.md code { font-family: "Consolas", "SF Mono", Menlo, monospace; font-size: .9em; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 1px 6px; }
 .md pre { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-md); padding: 10px 12px; overflow-x: auto; margin: 0 0 .9em; }
 .md pre code { background: none; border: 0; padding: 0; font-size: var(--fs-sm); }
 .md blockquote { margin: 0 0 .9em; padding: 2px 0 2px 14px; border-left: 3px solid var(--border); color: var(--text-dim); }

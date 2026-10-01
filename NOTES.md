@@ -16,6 +16,37 @@ what was decided against and why.
 
 ---
 
+- **The scale sweep (0.223.0).** Drift went to zero on all four lint
+  counts (from ~170 spacing, ~100 font sizes, ~50 radii, 1 literal color).
+  - *The scale grew before anything moved.* Several "off-scale" values
+    were roles the scale lacked, not drift: 15 is reading text (note
+    bodies, card and habit titles), 20 page titles, 26 stat numbers, 10
+    micro labels, 42/64 Recap display, 12 the large-card radius, 18 a
+    bottom sheet's corners, 2 hairline bars. Forcing those onto 14/16/22
+    would have damaged things that were right. A value that seems to need
+    a size the scale lacks is a missing role, not a one-off.
+  - *One rule for the rest*, so nothing was judged case by case: halves
+    and odd pixels go up (12.5→13, 7→8), spacing above 16 to the nearest
+    4 with ties up, radii 20/99 on pills to the pill token. Rounding the
+    same way everywhere kept paired values paired: the sheet's 22px
+    padding and its cover's −22px margin both became 24. Touch-area
+    `inset`s were left out; they're measured, not spacing.
+  - *Checked by layout diff*, old stylesheet against new on Timeline,
+    Backlog, Ledger and Notes at 375 and 1280: no sideways overflow
+    anywhere; the largest single change was the filter panel growing 19px
+    on a phone (15 chips a pixel taller each).
+  - The spacing lint now accepts 2px steps to 16 and 4px steps to 64, and
+    ignores anything past 64 as a layout constant (bar heights, fallbacks).
+- **The Backlog's "▶ N in progress" link is gone (0.223.0)**, at Daniel's
+  request; the Timeline's In progress card is where started things are.
+  The inprogress browser suite now checks it's absent.
+- **Focus goes back to a sheet's opener (0.223.0).** One hook on the
+  observer that already watches every sheet's `hidden`: remember
+  `activeElement` on open, restore it on close, but only if focus is still
+  in the sheet or nowhere (a sheet that opens another hands focus on),
+  never to a text field (the phone keyboard would pop), and not if the
+  opener was redrawn away meanwhile.
+
 - **Design tokens, springs and swipe-down (0.222.0).**
   - *Tokens:* every on-scale `font-size` and `border-radius` became its
     `var(--fs-*)` / `var(--r-*)` by a mechanical swap of exact values (187

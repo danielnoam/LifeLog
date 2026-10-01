@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.223.0] - 2026-10-01
+
+### Changed
+- **Sizes and spacing are consistent across the app.** Text, padding and
+  corners that were half a pixel or a pixel off the app's scale now sit on
+  it, so the same kind of thing is the same size everywhere. Most changes
+  are a pixel; chips and small labels read a little larger.
+- A favourite note's ★ is the same amber as the Backlog's stars.
+- Keyboard focus goes back to whatever opened a sheet when it closes.
+
+### Removed
+- The "▶ N in progress" button on the Backlog. What's in progress is at
+  the top of the Timeline.
+
 ## [0.222.0] - 2026-10-01
 
 ### Added

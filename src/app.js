@@ -139,7 +139,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.222.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.223.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3933,7 +3933,30 @@
     // covers every open/close path (button, backdrop, Escape) for all
     // modals without touching each open/close function individually.
     const syncModalOpenState = () => document.body.classList.toggle("modal-open", isAnyModalOpen());
-    const modalObserver = new MutationObserver(syncModalOpenState);
+    // Focus goes back to whatever opened a sheet when it closes (0.223.0), so
+    // a keyboard user lands where they were rather than at the top of the
+    // page. Only if focus is still in the sheet (or nowhere) when it closes,
+    // since a sheet that opens another one hands focus on; never onto a text
+    // field, which would pop the phone's keyboard; and not if the opener was
+    // redrawn away while the sheet was up.
+    const openers = new WeakMap();
+    const trackSheetFocus = (records) => {
+      for (const r of records) {
+        const ov = r.target;
+        if (!ov.hidden) {
+          const a = document.activeElement;
+          if (a && a !== document.body && !ov.contains(a)) openers.set(ov, a);
+          continue;
+        }
+        const back = openers.get(ov);
+        openers.delete(ov);
+        const a = document.activeElement;
+        if (!back || !back.isConnected || back.matches("input:not([type=checkbox]), textarea, select")) continue;
+        if (a && a !== document.body && !ov.contains(a)) continue;
+        back.focus({ preventScroll: true });
+      }
+    };
+    const modalObserver = new MutationObserver((records) => { syncModalOpenState(); trackSheetFocus(records); });
     document.querySelectorAll(".modal-overlay").forEach((ov) => {
       modalObserver.observe(ov, { attributes: true, attributeFilter: ["hidden"] });
     });
