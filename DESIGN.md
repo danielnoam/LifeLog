@@ -124,12 +124,13 @@ serif, mono, rounded). There's no brand typeface, on purpose: the app should
 feel like part of the phone it's on. `--font-mono` is for codes and keys.
 Boards use Virgil for their hand-drawn look, and only there.
 
-### Scale (Target)
+### Scale (Now, as tokens since 0.222.0)
 
-Today's CSS uses 19 font sizes, including 12.5, 11.5, 13.5 and 10.5. The
-scale is:
+Every on-scale font size in styles.css is a `var(--fs-*)`. About 100 values
+are still off it (12.5, 11.5, 13.5, 10.5…) and move onto the nearest step
+when they're touched. The scale is:
 
-| Token (proposed) | px | Use |
+| Token | px | Use |
 |---|---|---|
 | `--fs-2xs` | 11 | badges, eyebrows (uppercase, +0.04em tracking), chart labels |
 | `--fs-xs` | 12 | meta lines, chips, secondary buttons |
@@ -155,20 +156,22 @@ currency sits with the number (₪). Totals that change count up with
 
 ## 4. Space, shape, depth
 
-### Spacing (Target)
+### Spacing (tokens defined; values still px)
 
 The scale is **0, 2, 4, 6, 8, 10, 12, 14, 16, 20, 24, 32, 40, 48, 64**, plus
 1px for hairline nudges. That's a 2px base, which LifeLog's density needs,
 with bigger steps above 16. Odd values (5, 7, 9, 11, 13) are drift. The lint
-counts about 170 of them.
+counts about 170 of them. `--space-2` … `--space-48` exist in `:root`; new
+rules use them, old ones keep their px until touched (the shorthand values
+read worse as tokens and buy nothing until a step changes).
 
 Defaults: a row is padded 6×8, a card 12×14, a sheet 22×24. Mobile content
 padding is 14. Gaps between rows are 2–4, between groups 12–16, between
 sections 24.
 
-### Radius (Target)
+### Radius (Now, as tokens since 0.222.0)
 
-| Token (proposed) | px | Use |
+| Token | px | Use |
 |---|---|---|
 | `--r-xs` | 4 | focus rings, tiny badges |
 | `--r-sm` | 6 | rows, list items, inner controls |
@@ -222,14 +225,16 @@ lists. It's expensive in the Android WebView.
 - Nothing animates on load, on a timer, or in a loop. The one exception is
   the syncing LED, which is a status.
 
-### Springs (Target)
+### Springs (Now, 0.222.0)
 
-Spring curves go into tokens through CSS `linear()` (`--spring-snappy`,
-`--spring-soft`) so CSS transitions can overshoot the way the press already
-does. Bring in a JS physics library (Motion's plain-JS `animate()`, copied
-into `src/vendor`) only for **gesture-driven** movement: drag-to-dismiss
-sheets and swipe actions, where the motion has to follow a finger and carry
-its speed.
+`--spring-snappy` (~12% overshoot, for ~.35s) and `--spring-soft` (~1.5%,
+for ~.4s) are damped springs sampled into CSS `linear()`, so a plain
+transition can overshoot and settle. They're tied to the duration they were
+sampled for; don't stretch them. Swipe-down on sheets (`wireSheetSwipe` in
+app.js) follows the finger with plain touch events and springs back with
+`--spring-soft`: no physics library. Bring one in (Motion's plain-JS
+`animate()`, copied into `src/vendor`) only if a gesture needs to carry its
+speed into the settle, which nothing does yet.
 
 ---
 
@@ -283,7 +288,8 @@ An icon-only button **must** have an `aria-label` or a `title`.
   its bar stays pinned while it's on. It's a mode, so it has to be obvious
   that it's on and how to leave it.
 - **Sheets close** on Esc, the scrim, the back gesture (Android) and swipe
-  down (Target). Focus goes back to whatever opened them.
+  down (0.222.0; not the board editor, the wheel or the conflict picker).
+  Focus goes back to whatever opened them (Target, check each sheet).
 - **Settings** is a list of pages. On mobile you get one page at a time with
   a back header.
 - **Sync is always visible but never in the way**: an LED for state, and a
@@ -340,7 +346,9 @@ and never blaming.
   has `role="dialog"` and `aria-labelledby`.
 - **Motion:** `prefers-reduced-motion` is honored everywhere (Now, about 20
   blocks). Keep it that way.
-- **Text inputs on mobile are 16px or more**, so iOS doesn't zoom the page
+- **Fields on a phone are 44px tall with 16px text** (0.222.0: the search,
+  Sort, and every field in a sheet), so they're easy to hit and iOS doesn't
+  zoom the page
   on focus.
 - **Color is never the only signal.** A category has a name as well as a
   dot, and money has a sign as well as a color.
@@ -354,7 +362,7 @@ and never blaming.
 | Layout | top bar, pill tabs, grid of month cards | one column, bottom nav with glyph tabs, FAB, 14px padding |
 | Breakpoint | > 720px | ≤ 720px (`html.force-mobile` / `force-pc` override it) |
 | Sheets | centered, 420px wide | bottom sheet or full screen |
-| Input | hover states, keyboard shortcuts (see the `?` sheet) | press feedback, long-press, swipe (Target) |
+| Input | hover states, keyboard shortcuts (see the `?` sheet) | press feedback, long-press, swipe-down on sheets (0.222.0); swipe actions on rows (Target) |
 | Native extras | none | `html.native`: safe-area padding (`--sat`/`--sab`), no WebView overscroll glow, the share sheet for exports |
 
 Test every UI change at **1280px and 375px**, in **all four themes**, and

@@ -1,20 +1,15 @@
 todo:
 
-- **Design language: the measured gaps left** (DESIGN.md). Contrast is done
-  (0.219.0), and tap targets on Timeline, Backlog, Notes, Ledger and the
-  entry/backlog/finance sheets (0.219.0, 0.220.0). In order:
-  - Tap targets still short at 375px: filter chips are 34px tall (44 would
-    mean visibly bigger chips, a design call); the search field is 32px;
-    ↩ ✓ on plain (coverless) rows reach 35px, the row's own height; the
-    rating stars are 22px wide (4px apart); fields in the sheets are
-    36–40px; the year header's achievement pills (`.acc`) are 24px.
-  - Not audited yet, for want of data in the test profile: Habits,
-    Boards, Settings' pages, a Notes feed with notes in it, and Ledger rows.
-    Run `tap-targets.js` on a profile that has them.
-  - Tokens for the type, space and radius scales (`--fs-*`, `--space-*`,
-    `--r-*`), then move drift onto them as files are touched.
-  - Spring easing tokens via CSS `linear()`. Drag-to-dismiss on sheets is
-    where to decide on vendoring Motion.
+- **Design language: what's left** (DESIGN.md). Contrast, tap targets
+  across every view, phone fields, scale tokens, springs and swipe-down are
+  done (0.219.0–0.222.0). Left, all small:
+  - Off-scale values still in styles.css (lint-css.js: ~170 spacing, ~100
+    font sizes, ~50 radii). Move each onto the nearest step when its rule
+    is touched; no sweep.
+  - Focus returning to whatever opened a sheet, checked sheet by sheet.
+  - Swipe actions on rows (Target in DESIGN.md §10), if they're wanted.
+  - Filter chips stay 34px tall by choice (2026-10-01); the habit grid's
+    day cells stay 16px by necessity.
 
 - **A travel mode: places and an itinerary.** A trip with the places you
   want to go and a day-by-day plan. To decide: whether it's its own tab or

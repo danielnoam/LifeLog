@@ -16,6 +16,34 @@ what was decided against and why.
 
 ---
 
+- **Design tokens, springs and swipe-down (0.222.0).**
+  - *Tokens:* every on-scale `font-size` and `border-radius` became its
+    `var(--fs-*)` / `var(--r-*)` by a mechanical swap of exact values (187
+    and 69). Checked by comparing the computed font size and both corner
+    radii of all 4,669 elements under the old and new stylesheet: no
+    differences. Spacing tokens exist but values stay px: they're mostly
+    shorthands (`8px 10px`), which read worse as tokens and gain nothing
+    until a step changes. `--r-lg` aliases the older `--radius`.
+  - *Springs* are damped springs (ζ .55 and .8) sampled at 25 points into
+    `linear()`, so they only look right at the duration they were sampled
+    for (~.35s, ~.4s); the comment in `:root` says so.
+  - *Swipe-down* (`wireSheetSwipe`) uses touch events, not pointer events:
+    a pointer pull is taken over by the browser's scroll and cancelled. It
+    starts only on a downward pull with every scroller between the finger
+    and the sheet at its top, never from a field, a list row (they reorder
+    on a hold) or a canvas, and not at all on the board editor, the wheel
+    or the conflict picker. Closing dispatches a click on the sheet's own
+    backdrop, so each sheet closes exactly as a tap outside it does,
+    exceptions included, rather than a second list of close functions.
+  - *Fields 44 / 16px on phones:* the 16 is what stops iOS zooming the page
+    on focus, which every 13–14px field did. The header's two buttons went
+    to 44 to match the taller search.
+  - *Touch areas, round two:* Notes, Habits and Settings, measured with a
+    probe of free space in each direction. The habit name clips its
+    overflow (for the ellipsis), which clips an `::after` too, so it grows
+    by padding pulled back with a negative margin instead. The habit grid's
+    16px day cells are left alone: hundreds of days can't each have 44px.
+
 - **Note category chips all add up (0.221.0).** "Can't select more than
   one" turned out to be collections: since 0.206.0 a collection's chip
   cleared every other chip, because a collection opens as a page and the

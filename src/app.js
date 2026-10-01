@@ -139,7 +139,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.221.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.222.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3941,6 +3941,7 @@
 
     wirePressFeedback();
     wireSheetMenus();
+    wireSheetSwipe();
     Habits.wire();
     Boards.wire();
     Recap.wire();
@@ -4065,6 +4066,78 @@
       menu.hidden = !menu.hidden;
       btn.setAttribute("aria-expanded", String(!menu.hidden));
     });
+  }
+
+  // Swipe a sheet down to close it (0.222.0). Touch only, and only a pull
+  // that starts downward with the sheet (and whatever scrolls inside it,
+  // up to where the finger is) already at the top, so it never takes a
+  // scroll. It follows the finger; a flick or a pull past ~30% of the sheet
+  // closes it, anything less springs back (--spring-soft). Closing goes
+  // through the backdrop's own click, so each sheet closes exactly as a tap
+  // outside it would, including the ones that refuse to (conflict picker).
+  // Touch events rather than pointer events: a pointer pull would be taken
+  // over by the browser's scroll and cancelled.
+  function wireSheetSwipe() {
+    const SKIP = "input, textarea, select, [contenteditable], .todo-row, .note-list-row, canvas";
+    const NO_SWIPE = new Set(["conflictModal", "boardEditor", "wheelModal"]);
+    let drag = null;
+    const scrolledAbove = (node, sheet) => {
+      for (let n = node; n && n !== sheet.parentElement; n = n.parentElement) if (n.scrollTop > 0) return true;
+      return false;
+    };
+    const reset = (d) => {
+      d.sheet.style.transition = d.sheet.style.translate = "";
+      d.ov.style.transition = d.ov.style.opacity = "";
+    };
+    document.addEventListener("touchstart", (e) => {
+      drag = null;
+      if (e.touches.length !== 1 || !e.target.closest) return;
+      const sheet = e.target.closest(".modal-overlay:not([hidden]) > .modal");
+      if (!sheet || NO_SWIPE.has(sheet.parentElement.id) || e.target.closest(SKIP)) return;
+      const t = e.touches[0];
+      drag = { sheet, ov: sheet.parentElement, target: e.target, x: t.clientX, y: t.clientY, dy: 0, on: false, samples: [] };
+    }, { passive: true });
+    document.addEventListener("touchmove", (e) => {
+      if (!drag) return;
+      const t = e.touches[0];
+      if (!drag.on) {
+        const dx = t.clientX - drag.x, dy = t.clientY - drag.y;
+        if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+        if (dy <= 0 || Math.abs(dx) > dy || scrolledAbove(drag.target, drag.sheet)) { drag = null; return; }
+        drag.on = true;
+        drag.y = t.clientY; // from here, so the sheet doesn't jump the 8px of slop
+        drag.sheet.style.transition = drag.ov.style.transition = "none";
+      }
+      e.preventDefault();
+      drag.dy = Math.max(0, t.clientY - drag.y);
+      drag.sheet.style.translate = "0 " + drag.dy + "px";
+      drag.ov.style.opacity = String(Math.max(0.35, 1 - drag.dy / (drag.sheet.offsetHeight * 1.4)));
+      drag.samples.push({ y: t.clientY, t: e.timeStamp });
+      if (drag.samples.length > 5) drag.samples.shift();
+    }, { passive: false });
+    const end = () => {
+      const d = drag;
+      drag = null;
+      if (!d || !d.on) return;
+      const a = d.samples[0], b = d.samples[d.samples.length - 1];
+      const speed = a && b && b.t > a.t ? (b.y - a.y) / (b.t - a.t) : 0; // px per ms, downward
+      const close = d.dy > Math.min(160, d.sheet.offsetHeight * 0.3) || (speed > 0.5 && d.dy > 24);
+      const still = prefersReducedMotion();
+      if (close) {
+        d.sheet.style.transition = d.ov.style.transition = still ? "none" : "translate .2s var(--ease), opacity .2s var(--ease)";
+        d.sheet.style.translate = "0 " + window.innerHeight + "px";
+        d.ov.style.opacity = "0";
+        setTimeout(() => { d.ov.dispatchEvent(new MouseEvent("click", { bubbles: true })); reset(d); }, still ? 0 : 200);
+      } else {
+        d.sheet.style.transition = still ? "none" : "translate .4s var(--spring-soft)";
+        d.ov.style.transition = still ? "none" : "opacity .2s var(--ease)";
+        d.sheet.style.translate = "";
+        d.ov.style.opacity = "";
+        setTimeout(() => reset(d), still ? 0 : 400);
+      }
+    };
+    document.addEventListener("touchend", end);
+    document.addEventListener("touchcancel", end);
   }
 
   // Where a shortcut from outside the app lands: the PWA's (manifest.json's

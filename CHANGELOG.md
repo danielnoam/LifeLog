@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.222.0] - 2026-10-01
+
+### Added
+- **Swipe a sheet down to close it** on a phone. It follows your finger;
+  let go early and it springs back. It only starts from the top of a sheet,
+  so scrolling inside one still scrolls.
+
+### Changed
+- **Fields on a phone are bigger:** the search, the Sort menu and every
+  field in a sheet are 44 pixels tall with larger text, so they're easier
+  to tap and the iPhone no longer zooms in when you start typing.
+- **Easier to tap in Notes, Habits and Settings:** a list's ☐ and ✕, the
+  ☆ on a note, a list's Add, a habit's name and Mark done, Settings' ✕,
+  switches, export buttons and tab-order arrows all take a bigger tap
+  without looking any bigger.
+
 ## [0.221.0] - 2026-10-01
 
 ### Fixed
