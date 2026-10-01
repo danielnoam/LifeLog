@@ -139,7 +139,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.220.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.221.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2893,15 +2893,12 @@
         const name = item.cat.name;
         activatable(chip, () => {
           const set = activeCatSetFor(which);
-          // A note collection's chip opens it (0.206.0): on its own, rather
-          // than as one more filter beside others, and any other chip closes it.
-          const coll = which === "note" && Notes.isCollection(name);
+          // Every chip toggles, collections too (0.221.0). From 0.206.0 a
+          // collection's chip cleared the rest, so picking Software then
+          // Recipes swapped one for the other; notes.js decides what the
+          // selection shows (openCollections).
           if (set.has(name)) set.delete(name);
-          else if (coll) { set.clear(); set.add(name); }
-          else {
-            if (which === "note") [...set].forEach((n) => { if (Notes.isCollection(n)) set.delete(n); });
-            set.add(name);
-          }
+          else set.add(name);
           buildCatFilter();
           render();
         });
@@ -2928,7 +2925,7 @@
         // A collection says so, since its chip opens a page rather than filtering.
         const coll = which === "note" && c.layout === "collection";
         chip.classList.toggle("is-collection", coll);
-        chip.title = coll ? "A collection — tap to open it" : "";
+        chip.title = coll ? "A collection — its notes show as cards" : "";
         const mark = el("span", "coll-mark", "▦");
         mark.style.color = c.color;
         chip.replaceChildren(coll ? mark : dot, document.createTextNode(c.name), edit);

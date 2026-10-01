@@ -16,6 +16,19 @@ what was decided against and why.
 
 ---
 
+- **Note category chips all add up (0.221.0).** "Can't select more than
+  one" turned out to be collections: since 0.206.0 a collection's chip
+  cleared every other chip, because a collection opens as a page and the
+  page only knew one. Picking Software then Recipes swapped them, which
+  read as broken next to the Types row, where chips add up. Now every chip
+  toggles, and notes.js decides what the selection is: `openCollections()`
+  returns the names when *every* chip that's on is a collection (one page
+  of all their cards, the title naming each, the cards saying which they're
+  in), and null otherwise, so a collection beside a plain category is the
+  dated feed of both; getFilteredNotes already took a set. One note in two
+  categories, the other reading of the report, would need a note format
+  change and wasn't what was meant.
+
 - **More… in the sheets (0.220.0).** Each item *saves the sheet and
   moves it* in one tap, rather than flipping a field that Save applies
   later, which is what the old "Mark as dropped" button did. Two reasons:

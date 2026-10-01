@@ -94,9 +94,13 @@ async function run(b, width) {
   await page.waitForTimeout(200);
   await collChip("Recipes").click();
   await page.waitForTimeout(300);
-  check("a collection's chip opens it on its own, whatever else was on" + at, await page.evaluate(() =>
-    !!document.querySelector(".coll-head") && [...document.querySelectorAll("#catFilter .cat-chip.on")].length === 1));
-  await page.locator(".coll-head .btn:not(.btn-primary)").click();
+  // Chips add up, collections too (0.221.0): a plain category beside a
+  // collection is the feed, filtered to both.
+  check("a collection's chip adds to the others, and with a plain one it's the feed of both" + at, await page.evaluate(() =>
+    !document.querySelector(".coll-head") && [...document.querySelectorAll("#catFilter .cat-chip.on")].length === 2)
+    && (await feed()).includes("mtg") && (await feed()).includes("bread"), await feed());
+  await page.locator("#catFilter .cat-chip", { hasText: "Work" }).click();
+  await collChip("Recipes").click();
   await page.waitForTimeout(300);
 
   await page.fill("#search", "flour");
@@ -113,6 +117,21 @@ async function run(b, width) {
     && JSON.stringify(await feed()) === JSON.stringify(["day"]), await feed());
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).noteCategories.find((c) => c.name === "Work"));
   check("and it's saved on the category" + at, saved.layout === "collection", saved);
+
+  // Two collections on are one page of both, each card naming its own.
+  await collChip("Work").click();
+  await collChip("Recipes").click();
+  await page.waitForTimeout(300);
+  const both = await page.evaluate(() => ({
+    title: (document.querySelector(".coll-title") || {}).textContent || "",
+    cards: [...document.querySelectorAll(".coll-card")].map((c) => c.dataset.id),
+    meta: [...document.querySelectorAll(".coll-card-meta")].map((m) => m.textContent),
+  }));
+  check("two collections open as one page of both, each card saying which" + at,
+    both.title.includes("Work") && both.title.includes("Recipes") && both.cards.includes("mtg") && both.cards.includes("bread")
+    && both.meta.some((m) => m.startsWith("Work")) && both.meta.some((m) => m.startsWith("Recipes")), both);
+  await page.locator(".coll-head .btn:not(.btn-primary)").click();
+  await page.waitForTimeout(300);
 
   // ---- boards are a kind of note (0.204.0) ----
   await page.locator("#kindFilter .cat-chip", { hasText: "Boards" }).click();

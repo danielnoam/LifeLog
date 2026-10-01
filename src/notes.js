@@ -190,7 +190,7 @@
     const pool = !kinds.size || kinds.has("board") ? state.data.notes.concat(boardItems()) : state.data.notes;
     return pool.filter((n) => {
       // A collection is by name, not by when: the year chips don't reach it.
-      if (yf.size && !openCollection() && !yf.has(noteYear(n))) return false;
+      if (yf.size && !openCollections() && !yf.has(noteYear(n))) return false;
       if (cf.size && !cf.has(n.category || "")) return false;
       if (kinds.size && !kinds.has(kindOf(n))) return false;
       if (feedOnly() && isCollection(n.category)) return false;
@@ -233,12 +233,13 @@
   // written. Their notes leave the dated feed; the collection's chip opens them.
   const isCollection = (name) => !!name && (noteCats().find((c) => c.name === name) || {}).layout === "collection";
   const collections = () => noteCats().filter((c) => c.layout === "collection");
-  // The collection being looked at: exactly one category chip on, and it's one.
-  function openCollection() {
-    const cf = state.noteActiveCats;
-    if (cf.size !== 1) return null;
-    const name = [...cf][0];
-    return isCollection(name) ? name : null;
+  // The collections being looked at: every category chip that's on is a
+  // collection (0.221.0; it was exactly one until then). Several show as one
+  // page of cards. A collection beside a plain category is the feed instead,
+  // the two filtered together like any other chips.
+  function openCollections() {
+    const cf = [...state.noteActiveCats];
+    return cf.length && cf.every(isCollection) ? cf : null;
   }
   // The feed proper: no category picked, no search, and showing all notes or
   // plain ones. That's where collections' notes stand aside.
@@ -330,7 +331,7 @@
     bar.appendChild(el("span", "notes-count", count + (count === 1 ? " note" : " notes")));
     // Boards run newest first; a collection sorts by name, and has its own.
     if (boardsPage()) { /* nothing to sort */ }
-    else if (openCollection()) bar.appendChild(sortSelect("collection", collectionSort(), setCollectionSort));
+    else if (openCollections()) bar.appendChild(sortSelect("collection", collectionSort(), setCollectionSort));
     else bar.appendChild(sortSelect("notes", noteSort(), setNoteSort));
     root.appendChild(bar);
   }
@@ -816,7 +817,7 @@
       return;
     }
     // A collection is a page of its own; the feed's year sections stand down.
-    const coll = openCollection();
+    const coll = openCollections();
     if (coll) {
       renderLazySections(shell, []);
       if (notesBulkEl) { notesBulkEl.remove(); notesBulkEl = null; }
@@ -981,15 +982,18 @@
     return notes.slice().sort((a, b) => (!!b.fav - !!a.fav) || cmp(a, b));
   }
 
-  function collectionView(name) {
+  function collectionView(names) {
     const wrap = el("div", "coll");
     const head = el("div", "coll-head");
     const back = el("button", "btn btn-sm", "‹ All notes");
     back.type = "button";
     back.onclick = () => { state.noteActiveCats.clear(); buildCatFilter(); render(); };
     const title = el("h2", "coll-title");
-    const dot = el("span", "dot"); dot.style.background = catColor(name);
-    title.append(dot, document.createTextNode(name));
+    names.forEach((name, i) => {
+      const dot = el("span", "dot"); dot.style.background = catColor(name);
+      if (i) title.append(document.createTextNode(" · "));
+      title.append(dot, document.createTextNode(name));
+    });
     const notes = sortCollection(getFilteredNotes());
     const add = el("button", "btn btn-sm btn-primary", "+ Note");
     add.type = "button";
@@ -1001,14 +1005,15 @@
       return wrap;
     }
     const grid = el("div", "coll-grid");
-    for (const n of notes) grid.appendChild(collectionCard(n));
+    for (const n of notes) grid.appendChild(collectionCard(n, names.length > 1));
     wrap.appendChild(grid);
     return wrap;
   }
 
   // A div rather than a button: it holds the ☆ and, while selecting, a
   // checkbox, and neither may sit inside a button.
-  function collectionCard(n) {
+  // `showCat`: several collections are open, so each card says which it's in.
+  function collectionCard(n, showCat) {
     const card = el("div", "coll-card");
     card.tabIndex = 0;
     card.setAttribute("role", "button");
@@ -1039,7 +1044,7 @@
       : kind === "quote" ? "“" + plainPreview(body) + "”" : plainPreview(body);
     if (preview) card.appendChild(el("span", "coll-card-text", preview));
     const when = n.editedAt || n.createdAt;
-    const meta = [kind === "list" ? openItems(n).length + " left" : "", when ? formatEdited(when) : ""].filter(Boolean).join(" · ");
+    const meta = [showCat ? n.category : "", kind === "list" ? openItems(n).length + " left" : "", when ? formatEdited(when) : ""].filter(Boolean).join(" · ");
     if (meta) card.appendChild(el("span", "coll-card-meta", meta));
     card.onclick = () => {
       if (state.bulk.active) toggleBulkItem(n.id);

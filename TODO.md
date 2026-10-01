@@ -22,16 +22,6 @@ todo:
   could share for its spending), and what a place holds (name, address or
   map link, notes, visited).
 
-- **Notes: choosing more than one category.** Reported as "can't select
-  more than one". The chip row itself does multi-select (Work, Home and
-  No category together narrow to all three, checked 0.217.0), so it's
-  likely one of:
-  - a collection's chip, which opens that collection on its own and so
-    clears the others (by design since 0.206.0, but it reads as broken);
-  - giving one note several categories, which the data can't hold today
-    (a note has one `category`) and would be a change to the note format.
-  Find out which, then fix or build it.
-
 - **An Apple developer account ($99/year)**, if the iOS app is ever used
   for real: sign in CI, upload to TestFlight, and the 7-day re-signing that
   AltStore/SideStore do goes away. Everything else for iOS is built (0.216.0

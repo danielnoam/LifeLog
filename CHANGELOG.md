@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.221.0] - 2026-10-01
+
+### Fixed
+- **Choosing more than one note category.** Tapping a collection (like
+  Software) and then another (like Recipes) swapped one for the other; now
+  both stay on, like the Types. Two or more collections open as one page of
+  cards, each card saying which collection it's in. A collection beside an
+  ordinary category shows the feed, filtered to both.
+
 ## [0.220.0] - 2026-10-01
 
 ### Added
