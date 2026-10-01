@@ -4,6 +4,28 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.220.0] - 2026-10-01
+
+### Added
+- **More… in the entry and backlog sheets.** An entry's More… has Move to
+  backlog and a new **Move to In progress**, for something you logged
+  before you'd actually finished it. A backlog item's has Move to In
+  progress, Back to backlog, Move to Dropped and **Set as Done**. Each one
+  saves the sheet first, so nothing you just typed is lost.
+
+### Changed
+- Backlog rows and the In progress card show **✓** instead of "✓ Done",
+  matching the ▶ and ↩ beside it.
+- The empty rating stars in the entry sheet are visible now; they were
+  nearly the color of the sheet.
+- **Easier to tap in the sheets and the Backlog:** Cancel and Save, the
+  rating stars, Advanced, the ★ / bought / ▶ toggles, the ▶ ✓ ↩ on rows,
+  Spin and Pick random, and the "in progress" link all take a bigger tap
+  without looking any bigger.
+
+### Fixed
+- The entry sheet's buttons no longer run past its edge on a phone.
+
 ## [0.219.0] - 2026-10-01
 
 ### Changed

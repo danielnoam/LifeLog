@@ -1163,10 +1163,14 @@ select:focus { outline: none; border-color: var(--accent); }
 .progress-since { font-size: 11px; color: var(--text-dim); }
 .progress-row .btn-sm { flex: 0 0 auto; }
 .backlog-progress-link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; font-size: 12.5px; cursor: pointer; }
-/* ▶ on a backlog row, before ✓ Done: the quieter of the two. */
+/* ▶ on a backlog row, before ✓: the quieter of the two. ✓ keeps the full
+   text color since it's the row's main action, and both are square icon
+   buttons of the same width (0.220.0). */
 .bl-start { color: var(--text-dim); padding-inline: 8px; }
 .bl-start:hover:not(:disabled) { color: var(--accent); }
 .backlog-item-rich .bl-start { margin-right: -2px; }
+.bl-done { padding-inline: 8px; }
+.bl-done:hover:not(:disabled) { color: var(--success); }
 .entry .entry-cat {
   display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
   padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;
@@ -1316,6 +1320,31 @@ img.cover-loading { opacity: 0; }
    above them and the empty right-hand half of the sync line below, and the
    Years/Categories labels (16px of text that select or clear the whole
    group) take the height of the group beside them. */
+/* Sheets (0.220.0), measured at 375px on the entry, backlog and finance
+   sheets:
+   - Cancel/Save and the rest of the action row: 10px apart with 16px clear
+     above, so half the gap each side and 7px up and down, 31 → 45px tall.
+   - Rating stars sit 4px apart, so they can't widen without looking
+     bigger; they take the height of the field instead, 22 → 44px.
+   - "Advanced" has 12px above it and the action row below: 24 → 36px.
+   - The ★ / bought / ▶ toggles beside the title, 6px apart: 32 → 44px.
+   - ▶ ✓ ↩ on a row reach the row's own edges and stop there, so they
+     never take a tap from the row above or below. */
+.modal-actions .btn, .rating-input .star, details.advanced > summary,
+.priority-star, .bought-toggle, .started-toggle,
+.bl-start, .bl-done, .progress-stop { position: relative; }
+.modal-actions .btn::after { content: ""; position: absolute; inset: -7px -5px; }
+.rating-input .star::after { content: ""; position: absolute; inset: -11px -2px; }
+details.advanced > summary::after { content: ""; position: absolute; inset: -6px 0; }
+.priority-star::after, .bought-toggle::after, .started-toggle::after { content: ""; position: absolute; inset: -6px -3px; }
+.bl-start::after, .bl-done::after, .progress-stop::after { content: ""; position: absolute; inset: -5px -3px; }
+/* A cover row is ~83px tall with ▶ ✓ near its top: room to reach 44. */
+.backlog-item-rich .bl-start::after, .backlog-item-rich .bl-done::after { inset: -6px -3px -13px; }
+/* The Backlog's bar: "N in progress" over Spin / Pick random, 10px apart
+   and the buttons 12px from each other. */
+.backlog-mode-bar .btn-sm, .backlog-progress-link { position: relative; }
+.backlog-mode-bar .btn-sm::after { content: ""; position: absolute; inset: -5px -6px; }
+.backlog-progress-link::after { content: ""; position: absolute; inset: -10px -4px -5px; }
 .settings-corner .btn-icon, .filter-label { position: relative; }
 .settings-corner .btn-icon::after { content: ""; position: absolute; inset: -7px -3px; }
 .filter-label::after { content: ""; position: absolute; inset: -14px 0; }
@@ -1759,7 +1788,7 @@ kbd {
 .modal .row[hidden] { display: none; }
 .modal label[hidden] { display: none; }
 .rating-input { display: flex; gap: 4px; margin-top: 5px; }
-.rating-input .star { background: none; border: none; cursor: pointer; padding: 0; font-size: 22px; line-height: 1; color: var(--bg-elev-2); }
+.rating-input .star { background: none; border: none; cursor: pointer; padding: 0; font-size: 22px; line-height: 1; color: var(--text-faint); }
 .rating-input .star.filled { color: var(--accent); }
 .rating-input .star:hover { color: var(--accent-hover); }
 

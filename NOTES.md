@@ -16,6 +16,23 @@ what was decided against and why.
 
 ---
 
+- **More… in the sheets (0.220.0).** Each item *saves the sheet and
+  moves it* in one tap, rather than flipping a field that Save applies
+  later, which is what the old "Mark as dropped" button did. Two reasons:
+  a menu item is something you pick and see happen (the recurring plan's
+  More… already works that way), and a toggle inside a menu has nowhere to
+  show its state. Edits made before picking one are saved with it, so
+  nothing typed is lost. `saveBacklogFromForm(ev, opts)` takes `toast` and
+  `quiet` for this, and returns true once it has saved; Set as Done saves
+  quietly and then opens the entry form, so the form starts from what you
+  just typed. The ▶ in the sheet's title row stays, as the quick way, and
+  keeps the menu in step (`updateMoreMenu`). The menus are one delegated
+  listener in app.js (`wireSheetMenus`, `.sheet-more`), not a copy of
+  finance.js's wiring per sheet. Move to In progress on an entry keeps the
+  entry's own `startedAt` if it came from In progress, or starts today.
+  It's behind the same confirm as Move to backlog, since both delete the
+  entry's months and rating.
+
 - **Contrast and tap targets (0.219.0)**, the first release against
   DESIGN.md. Measured, not eyeballed: `contrast.js` and `tap-targets.js` in
   `.claude/skills/lifelog-ui-audit/scripts`.
@@ -47,9 +64,12 @@ what was decided against and why.
     what a finger gets rather than the box. Timeline at 375px went from 111
     controls under 44px to 46 at the top (mostly 34px chips) and 14
     mid-list.
-  - *Not fixed, already there:* the floating + covers the Sort select's
-    lower half at 375px, and the entry sheet's four buttons overflow it by
-    3px (the More… menu in TODO.md fixes that one).
+  - *Not a bug:* the floating + covering the Sort select at one scroll
+    position is what a floating button does; content scrolls under it, and
+    `.content`'s bottom padding (`--fab-clear`) keeps the end of every list
+    reachable. tap-targets.js reports it as a steal; ignore that one. The
+    entry sheet's buttons overflowing it by 3px was real, and 0.220.0's
+    More… menu fixed it.
   - *Testing note:* the Browser pane doesn't advance CSS transitions when
     it isn't painting, so a screenshot right after a theme switch shows the
     previous theme's colors on anything with a background transition.

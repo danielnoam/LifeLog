@@ -16,7 +16,7 @@
     isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
     pushOverrideValues, readOverrideChecks,
     applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
-    DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled;
+    DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled, closeSheetMenus;
 
   // Looked up at call time rather than captured: this file is required by the
   // Node tests, which have no DOM and never render.
@@ -33,7 +33,7 @@
     isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
     pushOverrideValues, readOverrideChecks,
       applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
-      DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled } = ctx);
+      DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled, closeSheetMenus } = ctx);
   }
 
   // ---------- timeline view ----------
@@ -790,7 +790,8 @@
       $("#fStartYear").value = startedAt.slice(0, 4);
     }
     $("#deleteEntryBtn").hidden = !editing;
-    $("#moveToBacklogBtn").hidden = !editing;
+    $("#entryMoreWrap").hidden = !editing;
+    closeSheetMenus();
     const added = $("#addedLine");
     if (editing && entry.createdAt) {
       added.textContent = "Added " + new Date(entry.createdAt).toLocaleDateString(undefined,
@@ -1393,12 +1394,15 @@
     toast("Entry deleted");
   }
 
-  async function moveEntryToBacklog() {
+  // `started` (0.220.0) sends it to In progress instead: for something
+  // logged before it was actually finished. It keeps the day it was started
+  // if it came from In progress in the first place, or starts today.
+  async function moveEntryToBacklog(started) {
     const id = $("#entryId").value;
     if (!id) return;
     const entry = state.data.entries.find((e) => e.id === id);
     if (!entry) return;
-    if (!confirm("Move this entry to your backlog?")) return;
+    if (!confirm(started ? "Move this entry back to In progress?" : "Move this entry to your backlog?")) return;
     const item = { id: uid(), title: entry.title, category: entry.category, createdAt: new Date().toISOString() };
     if (entry.notes) item.notes = entry.notes;
     if (entry.coverUrl) item.coverUrl = entry.coverUrl;
@@ -1406,13 +1410,18 @@
     if (entry.mediaSource) item.mediaSource = entry.mediaSource;
     if (entry.length) item.length = entry.length;
     if (entry.genres && entry.genres.length) item.genres = entry.genres.slice();
+    if (started) {
+      const d = new Date(), pad = (n) => String(n).padStart(2, "0");
+      item.startedAt = /^\d{4}-\d{2}-\d{2}$/.test(entry.startedAt || "") ? entry.startedAt
+        : d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+    }
     state.data.backlog.push(item);
     state.data.entries = state.data.entries.filter((e) => e.id !== id);
     closeEntryModal();
     buildYearFilter();
     render();
     await persist();
-    toast("Moved to backlog");
+    toast(started ? "Back in progress — it's at the top of your Timeline" : "Moved to backlog");
   }
 
   // ---------- achievements ----------
@@ -1642,7 +1651,8 @@
     $("#cancelEntryBtn").onclick = closeEntryModal;
     $("#entryForm").onsubmit = saveEntryFromForm;
     $("#deleteEntryBtn").onclick = deleteCurrentEntry;
-    $("#moveToBacklogBtn").onclick = moveEntryToBacklog;
+    $("#moveToBacklogBtn").onclick = () => moveEntryToBacklog(false);
+    $("#moveToProgressBtn").onclick = () => moveEntryToBacklog(true);
     $("#fTitle").oninput = renderTitleSuggestions;
     $("#fCategory").onchange = () => updateSyncBtnVisibility("f", $("#fCategory").value);
     $("#fSyncBtn").onclick = syncEntryTitle;

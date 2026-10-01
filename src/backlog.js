@@ -20,7 +20,7 @@
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId, importItemIncomplete,
     backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
-    DEFAULT_SETTINGS, DEFAULT_VISUAL;
+    DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus;
 
   // Looked up at call time rather than captured: this file is required by the
   // Node tests, which have no DOM and never render.
@@ -39,7 +39,7 @@
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId, importItemIncomplete,
       backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
-      DEFAULT_SETTINGS, DEFAULT_VISUAL } = ctx);
+      DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus } = ctx);
   }
 
   // Coarse "N days/months/years ago" for the backlog edit modal's aging line.
@@ -218,8 +218,7 @@
     stop.setAttribute("aria-label", "Put " + b.title + " back in the backlog");
     stop.onclick = (ev) => { ev.stopPropagation(); stopItem(b.id); };
     row.appendChild(stop);
-    const done = el("button", "btn btn-sm", "✓ Done");
-    done.type = "button";
+    const done = doneButton(b);
     done.title = "Finished — log it";
     done.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
     row.appendChild(done);
@@ -2126,7 +2125,18 @@
     return rich ? "backlog-item-rich" : "entry";
   }
 
-  // ▶ beside ✓ Done: "I'm on this now" (0.218.0).
+  // ✓ beside it: done, log it. Just the glyph since 0.220.0, an icon button
+  // like ▶ and ↩, with the word kept for the tooltip and screen readers.
+  function doneButton(b) {
+    const btn = el("button", "btn btn-sm bl-done", "✓");
+    btn.type = "button";
+    btn.title = "Done — move to your log";
+    btn.setAttribute("aria-label", "Done: " + b.title);
+    btn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
+    return btn;
+  }
+
+  // ▶ beside ✓: "I'm on this now" (0.218.0).
   function startButton(b) {
     const btn = el("button", "btn btn-sm bl-start", "▶");
     btn.type = "button";
@@ -2148,11 +2158,7 @@
     if (b.bought) row.appendChild(boughtTag());
     if (!state.bulk.active) {
       row.appendChild(startButton(b));
-      const doneBtn = el("button", "btn btn-sm", "✓ Done");
-      doneBtn.type = "button";
-      doneBtn.title = "Move to your log";
-      doneBtn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
-      row.appendChild(doneBtn);
+      row.appendChild(doneButton(b));
     }
     return row;
   }
@@ -2180,10 +2186,7 @@
     // Done button at the right — same position as plain backlog rows
     if (!state.bulk.active) {
       row.appendChild(startButton(b));
-      const doneBtn = el("button", "btn btn-sm", "✓ Done");
-      doneBtn.type = "button"; doneBtn.title = "Move to your log";
-      doneBtn.onclick = (ev) => { ev.stopPropagation(); openEntryModal(null, b); };
-      row.appendChild(doneBtn);
+      row.appendChild(doneButton(b));
     }
     return row;
   }
@@ -2428,7 +2431,9 @@
     updateStartedBtn();
     updateBoughtBtn();
     $("#bDropped").checked = editing ? !!item.dropped : false;
-    updateDroppedBtnLabel();
+    $("#backlogMoreWrap").hidden = !editing;
+    closeSheetMenus();
+    updateMoreMenu();
     const aging = $("#backlogAgingLine");
     if (editing && item.createdAt) {
       aging.textContent = "Added " + new Date(item.createdAt).toLocaleDateString(undefined,
@@ -2455,12 +2460,27 @@
   }
   function closeBacklogModal() { $("#backlogModal").hidden = true; }
 
-  function updateDroppedBtnLabel() {
-    $("#toggleDroppedBtn").textContent = $("#bDropped").checked ? "Restore" : "Mark as dropped";
+  // The sheet's More… (0.220.0): where it goes next. Each one saves the
+  // sheet as it stands, edits included, and moves it in the same tap; the
+  // menu offers only the moves that change something. Set as Done saves
+  // first too, so the log entry it opens starts from what you just typed.
+  function updateMoreMenu() {
+    const started = $("#bStarted").checked, dropped = $("#bDropped").checked;
+    $("#blMoveProgressBtn").hidden = started;
+    $("#blMoveBacklogBtn").hidden = !started && !dropped;
+    $("#blMoveDroppedBtn").hidden = dropped;
   }
-  function toggleDropped() {
-    $("#bDropped").checked = !$("#bDropped").checked;
-    updateDroppedBtnLabel();
+  async function moveFromSheet(to) {
+    $("#bStarted").checked = to === "progress";
+    $("#bDropped").checked = to === "dropped";
+    updateStartedBtn();
+    await saveBacklogFromForm(null, { toast: to === "dropped" ? "Moved to Dropped" : to === "backlog" ? "Back in your backlog" : null });
+  }
+  async function setDoneFromSheet() {
+    const id = $("#backlogId").value;
+    if (!(await saveBacklogFromForm(null, { quiet: true }))) return;
+    const b = state.data.backlog.find((x) => x.id === id);
+    if (b) openEntryModal(null, b);
   }
 
   function updatePriorityBtn() {
@@ -2504,10 +2524,13 @@
   function toggleStarted() {
     $("#bStarted").checked = !$("#bStarted").checked;
     updateStartedBtn();
+    updateMoreMenu();
   }
 
-  async function saveBacklogFromForm(ev) {
-    ev.preventDefault();
+  // `opts` is for the sheet's More… menu: `toast` replaces the usual
+  // message, `quiet` drops it. Returns true once it has saved.
+  async function saveBacklogFromForm(ev, opts = {}) {
+    if (ev) ev.preventDefault();
     // Ticked overrides are written into the hidden fields first, so
     // everything below reads one set of values and neither knows nor cares
     // which of them came from a sync and which you typed.
@@ -2582,8 +2605,10 @@
     closeBacklogModal();
     render();
     await persist();
+    if (opts.quiet) return true;
     if (startedNow) toast("Started — it's at the top of your Timeline", false, state.view === "timeline" ? null : { label: "Show", onClick: showTimeline });
-    else toast(id ? "Backlog item updated" : "Added to backlog");
+    else toast(opts.toast || (id ? "Backlog item updated" : "Added to backlog"));
+    return true;
   }
 
   async function deleteCurrentBacklogItem() {
@@ -2650,7 +2675,10 @@
     $("#cancelBacklogBtn").onclick = closeBacklogModal;
     $("#backlogForm").onsubmit = saveBacklogFromForm;
     $("#deleteBacklogBtn").onclick = deleteCurrentBacklogItem;
-    $("#toggleDroppedBtn").onclick = toggleDropped;
+    $("#blMoveProgressBtn").onclick = () => moveFromSheet("progress");
+    $("#blMoveBacklogBtn").onclick = () => moveFromSheet("backlog");
+    $("#blMoveDroppedBtn").onclick = () => moveFromSheet("dropped");
+    $("#blSetDoneBtn").onclick = setDoneFromSheet;
     $("#bPriorityBtn").onclick = togglePriority;
     $("#bBoughtBtn").onclick = toggleBought;
     $("#bStartedBtn").onclick = toggleStarted;

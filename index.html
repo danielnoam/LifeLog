@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.219.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.220.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -273,7 +273,13 @@
         </details>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteEntryBtn" hidden>Delete</button>
-          <button type="button" class="btn" id="moveToBacklogBtn" hidden>Move to backlog</button>
+          <span class="menu-wrap sheet-more" id="entryMoreWrap" hidden>
+            <button type="button" class="btn sheet-more-btn" aria-haspopup="menu" aria-controls="entryMoreMenu" aria-expanded="false">More…</button>
+            <div class="menu-pop" id="entryMoreMenu" role="menu" hidden>
+              <button type="button" role="menuitem" id="moveToBacklogBtn">↩ Move to backlog</button>
+              <button type="button" role="menuitem" id="moveToProgressBtn">▶ Move to In progress</button>
+            </div>
+          </span>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelEntryBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
@@ -510,7 +516,16 @@
         </details>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteBacklogBtn" hidden>Delete</button>
-          <button type="button" class="btn" id="toggleDroppedBtn">Mark as dropped</button>
+          <span class="menu-wrap sheet-more" id="backlogMoreWrap" hidden>
+            <button type="button" class="btn sheet-more-btn" aria-haspopup="menu" aria-controls="backlogMoreMenu" aria-expanded="false">More…</button>
+            <div class="menu-pop" id="backlogMoreMenu" role="menu" hidden>
+              <button type="button" role="menuitem" id="blMoveProgressBtn">▶ Move to In progress</button>
+              <button type="button" role="menuitem" id="blMoveBacklogBtn">↩ Back to backlog</button>
+              <button type="button" role="menuitem" id="blMoveDroppedBtn">⊘ Move to Dropped</button>
+              <div class="menu-pop-divider" role="separator"></div>
+              <button type="button" role="menuitem" id="blSetDoneBtn">✓ Set as Done</button>
+            </div>
+          </span>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelBacklogBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
@@ -1772,27 +1787,27 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.219.0"></script>
-  <script defer src="src/reconcile.js?v=0.219.0"></script>
-  <script defer src="src/qr.js?v=0.219.0"></script>
-  <script defer src="src/media.js?v=0.219.0"></script>
-  <script defer src="src/merge.js?v=0.219.0"></script>
-  <script defer src="src/storage.js?v=0.219.0"></script>
-  <script defer src="src/finance.js?v=0.219.0"></script>
-  <script defer src="src/settings.js?v=0.219.0"></script>
-  <script defer src="src/wheel.js?v=0.219.0"></script>
-  <script defer src="src/backlog.js?v=0.219.0"></script>
-  <script defer src="src/journal.js?v=0.219.0"></script>
-  <script defer src="src/markdown.js?v=0.219.0"></script>
-  <script defer src="src/notes.js?v=0.219.0"></script>
-  <script defer src="src/io.js?v=0.219.0"></script>
-  <script defer src="src/sync.js?v=0.219.0"></script>
-  <script defer src="src/habits.js?v=0.219.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.219.0"></script>
-  <script defer src="src/boards.js?v=0.219.0"></script>
-  <script defer src="src/recap.js?v=0.219.0"></script>
-  <script defer src="src/reminders.js?v=0.219.0"></script>
-  <script defer src="src/widgets.js?v=0.219.0"></script>
-  <script defer src="src/app.js?v=0.219.0"></script>
+  <script defer src="src/platform.js?v=0.220.0"></script>
+  <script defer src="src/reconcile.js?v=0.220.0"></script>
+  <script defer src="src/qr.js?v=0.220.0"></script>
+  <script defer src="src/media.js?v=0.220.0"></script>
+  <script defer src="src/merge.js?v=0.220.0"></script>
+  <script defer src="src/storage.js?v=0.220.0"></script>
+  <script defer src="src/finance.js?v=0.220.0"></script>
+  <script defer src="src/settings.js?v=0.220.0"></script>
+  <script defer src="src/wheel.js?v=0.220.0"></script>
+  <script defer src="src/backlog.js?v=0.220.0"></script>
+  <script defer src="src/journal.js?v=0.220.0"></script>
+  <script defer src="src/markdown.js?v=0.220.0"></script>
+  <script defer src="src/notes.js?v=0.220.0"></script>
+  <script defer src="src/io.js?v=0.220.0"></script>
+  <script defer src="src/sync.js?v=0.220.0"></script>
+  <script defer src="src/habits.js?v=0.220.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.220.0"></script>
+  <script defer src="src/boards.js?v=0.220.0"></script>
+  <script defer src="src/recap.js?v=0.220.0"></script>
+  <script defer src="src/reminders.js?v=0.220.0"></script>
+  <script defer src="src/widgets.js?v=0.220.0"></script>
+  <script defer src="src/app.js?v=0.220.0"></script>
 </body>
 </html>

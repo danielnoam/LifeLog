@@ -139,7 +139,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.219.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.220.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3943,6 +3943,7 @@
     syncModalOpenState();
 
     wirePressFeedback();
+    wireSheetMenus();
     Habits.wire();
     Boards.wire();
     Recap.wire();
@@ -4041,6 +4042,32 @@
       held = { node, anim, to };
     }, true);
     for (const t of ["pointerup", "pointercancel", "blur"]) window.addEventListener(t, release, true);
+  }
+
+  // The More… menu at the foot of the entry and backlog sheets (0.220.0):
+  // a .menu-wrap.sheet-more holding a button and its .menu-pop, the same
+  // menu the recurring plan has (finance.js wires that one itself). One
+  // delegated listener for all of them: the button toggles its own menu,
+  // picking an item or clicking anywhere else closes it. Each sheet's open
+  // function calls closeSheetMenus(), so a sheet never reopens with its
+  // menu already out.
+  function closeSheetMenus(except) {
+    document.querySelectorAll(".sheet-more").forEach((wrap) => {
+      if (wrap === except) return;
+      wrap.querySelector(".menu-pop").hidden = true;
+      wrap.querySelector(".sheet-more-btn").setAttribute("aria-expanded", "false");
+    });
+  }
+  function wireSheetMenus() {
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest && e.target.closest(".sheet-more-btn");
+      if (!btn) { closeSheetMenus(); return; }
+      const wrap = btn.closest(".sheet-more");
+      const menu = wrap.querySelector(".menu-pop");
+      closeSheetMenus(wrap);
+      menu.hidden = !menu.hidden;
+      btn.setAttribute("aria-expanded", String(!menu.hidden));
+    });
   }
 
   // Where a shortcut from outside the app lands: the PWA's (manifest.json's
@@ -4766,7 +4793,7 @@
     isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
     pushOverrideValues, readOverrideChecks,
     applySteamAppId: Sync.applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
-    DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled,
+    DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled, closeSheetMenus,
   });
   Habits.init({
     state, $, el, uid, toast, persist, render, emptyState, activatable,
@@ -4804,7 +4831,7 @@
     loadBacklogPrices: Sync.loadBacklogPrices, applySteamAppId: Sync.applySteamAppId,
     backlogPriceOf: Sync.backlogPriceOf, priceEpoch: Sync.priceEpoch,
     importItemIncomplete: IO.importItemIncomplete,
-    backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS, DEFAULT_VISUAL,
+    backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus,
   });
   Wheel.init({ $, toast, prefersReducedMotion });
   Finance.init({

@@ -248,7 +248,7 @@ where one exists. A new component goes in this list in the same change.
 | Card | `.card`, `.month-card` | Border, no shadow. `monthCardHeader()` for month groups. |
 | Row | `.entry`, `.backlog-item-rich`, `.recur-row` | The whole row is the tap target. It darkens on press. |
 | Sheet | `.modal-overlay` > `.modal` | Rises in and fades out (pure CSS, `@starting-style`). Full-screen on mobile for writing (notes); a bottom sheet for options (`.view-options`). Safe-area padding under `html.native`. |
-| Menu | `.menu-pop` | Opens upward from its trigger and rises into place. |
+| Menu | `.menu-pop` | Opens upward from its trigger and rises into place. A sheet's More… is `.menu-wrap.sheet-more` with a `.sheet-more-btn`; app.js wires every one, and each item saves the sheet and acts at once. |
 | Toast | `toast(msg, isErr, action)` | 2.6s, 6s for an error, 8s with an action. **Undo is a toast action**, never a confirm dialog after the fact. |
 | Empty state | `emptyState({ glyph, title, body, action, onAction, hint })` | A rich empty state for a view with no data yet. Pass a plain string for "nothing matches your filters", which gets no button. |
 | Animated number | `animatedNumberText(node, key, value, fmt)` | For totals that change in place. |
@@ -325,11 +325,13 @@ and never blaming.
   the free space around it (half the gap to each neighbour, so areas never
   overlap), and `z-index` a control that sits inside another one. Measure
   with `tap-targets.js`, which probes what a finger actually reaches.
-  Timeline at 375px, 0.219.0: the month + taps at 44 (was 20), ✎ at 35×34
+  At 375px after 0.220.0: the month + taps at 44 (was 20), ✎ at 35×34
   (was 22), chips at 34 tall (were 26), the jump arrows at 44×42 (were
-  30×24). Still short: chips (44 would mean bigger chips), the search field
-  (32), the year header's achievement pills (24), and the Sort select where
-  the floating + covers it. The other views haven't been audited yet.
+  30×24), sheet Cancel/Save at 45 tall (were 31), rating stars at 22×44
+  (were 18×22), row ▶ ✓ at 44 tall on cover rows (were 25). Still short:
+  chips (44 would mean bigger chips), the search field (32), ✓ ↩ on plain
+  rows (35, the row's height), fields in sheets (36–40). Habits, Boards
+  and Settings' pages are still to be measured.
 - **Focus:** one global `:focus-visible` ring (2px accent, 2px offset)
   covers every button, link and field (Now). Don't remove an outline without
   replacing it.

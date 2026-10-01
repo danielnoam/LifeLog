@@ -76,7 +76,10 @@ The full voice is DESIGN.md §8. The short version:
 
 ## 4. Check it
 
-1. `node --check` every edited `.js`.
+1. `node --check` every edited `.js`, then `node test/run-all.js` (the unit
+   tests). If Playwright is installed, `node test/browser/run-all.js
+   <suite>` for any suite in `test/browser/README.md` that covers what you
+   changed. Grep `test/` for ids and classes you renamed or removed.
 2. `node .claude/skills/lifelog-ui-audit/scripts/contrast.js` if you touched
    any theme value or token.
 3. `node .claude/skills/lifelog-ui-audit/scripts/lint-css.js`. Your change

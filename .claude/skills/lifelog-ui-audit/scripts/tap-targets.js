@@ -18,13 +18,16 @@
   const owner = (x, y) => { const e = document.elementFromPoint(x, y); return e && e.closest(SEL); };
   const reach = (n, cx, cy, dx, dy, max) => { let i = 0; while (i < max && owner(cx + dx * (i + 1), cy + dy * (i + 1)) === n) i++; return i; };
   const onScreen = (r) => r.width && r.height && r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth;
+  // Content of a closed <details> still reports a layout box in Chrome
+  // (content-visibility), though nothing there can be seen or tapped.
+  const folded = (n) => { const d = n.closest("details:not([open])"); return d && !n.closest("summary"); };
 
   const small = new Map();
   const steals = [];
   let measured = 0;
   for (const n of document.querySelectorAll(SEL)) {
     const r = n.getBoundingClientRect();
-    if (!onScreen(r) || n.closest("[hidden]")) continue;
+    if (!onScreen(r) || n.closest("[hidden]") || folded(n)) continue;
     const cx = r.x + r.width / 2, cy = r.y + r.height / 2;
     if (owner(cx, cy) !== n) continue; // covered (sticky header, an overlay): not tappable here
     measured++;
@@ -32,7 +35,7 @@
     const h = reach(n, cx, cy, 0, -1, 40) + reach(n, cx, cy, 0, 1, 40) + 1;
     for (const [fx, fy] of [[.1, .15], [.5, .15], [.9, .15], [.1, .85], [.5, .85], [.9, .85]]) {
       const o = owner(r.x + r.width * fx, r.y + r.height * fy);
-      if (o && o !== n && !n.contains(o) && !o.contains(n)) { steals.push(`${describe(n)} ← ${describe(o)}`); break; }
+      if (o && o !== n && !n.contains(o) && !o.contains(n) && !folded(o)) { steals.push(`${describe(n)} ← ${describe(o)}`); break; }
     }
     if (w >= MIN && h >= MIN) continue;
     const key = n.tagName.toLowerCase() + (typeof n.className === "string" && n.className.trim() ? "." + n.className.trim().split(/\s+/).join(".") : "");
