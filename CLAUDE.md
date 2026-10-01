@@ -9,9 +9,11 @@ and the iOS app (Capacitor). See README.md for the layout.
 
 - `git pull --ff-only` first. A clone here once sat 61 commits behind, and
   a refactor had to be redone.
-- Read the relevant entries in **NOTES.md** before changing something that
-  looks arbitrary; it usually isn't. **TODO.md** is the work, **DROPPED.md**
-  what was decided against and why.
+- Search **NOTES.md** for what you're about to change (a function, class,
+  feature or version) before changing something that looks arbitrary; it
+  usually isn't. Don't read it whole: it's ~60k tokens. Each entry starts
+  with a bold title and its version, so a search finds it. **TODO.md** is
+  the work, **DROPPED.md** what was decided against and why.
 
 ## UI work
 
