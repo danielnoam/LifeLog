@@ -85,6 +85,11 @@ Each holds one kind of thing; put an entry in exactly one of them.
   - Mobile width (≤720px, e.g. 390px): fixed bottom nav bar layout
   - Exercise the views/flows touched by this change at both sizes, and
     confirm zero console errors (`page.on('pageerror'/'console')`).
+- If the change is visual (CSS, a new or restyled control, user-facing
+  copy), it follows `DESIGN.md` (the `lifelog-design` skill), and
+  `node .claude/skills/lifelog-ui-audit/scripts/lint-css.js` shows no count
+  higher than before. Touching a theme value also means running
+  `contrast.js` from the same folder.
 - Kill the dev server and remove any temporary test scripts afterwards.
 
 ## 6. Commit & push to main

@@ -1,5 +1,18 @@
 todo:
 
+- **Design language: the measured gaps** (DESIGN.md, 2026-10-01). In order:
+  - Contrast: `--text-faint` fails AA in all four themes (1.94–3.87:1),
+    Default's primary button is 3.16:1 (white on `#5b8cff`), danger text is
+    2.46:1 on Nord, and the Light theme's stars are 1.97:1. Re-run
+    `.claude/skills/lifelog-ui-audit/scripts/contrast.js` until it passes.
+  - Touch targets on mobile: 111 under 44px on Timeline alone. Start with
+    `.month-add-btn` (20×20, one per month), `.chip-edit` (22×22) and
+    `.jump-btn` (30×24). Pad the hit area and keep the visual.
+  - Tokens for the type, space and radius scales (`--fs-*`, `--space-*`,
+    `--r-*`), then move drift onto them as files are touched.
+  - Spring easing tokens via CSS `linear()`. Drag-to-dismiss on sheets is
+    where to decide on vendoring Motion.
+
 - **A More… menu in the entry and backlog sheets**, instead of one-off
   buttons along the bottom.
   - Timeline entry sheet: "Move to backlog" goes into More…, beside a new
