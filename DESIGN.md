@@ -68,13 +68,13 @@ photo (cover-image buttons).
 |---|---|
 | Surfaces, low → high | `--bg` → `--bg-elev` / `--surface-card` → `--bg-elev-2` → `--hover-bg` |
 | Lines | `--border`, `--border-strong` |
-| Text | `--text` (content), `--text-dim` (secondary), `--text-faint` (decoration only, see below) |
+| Text | `--text` (content), `--text-dim` (secondary: anything you need to read), `--text-faint` (decoration only: glyphs, placeholders, done and disabled items) |
 | Text on fills | `--text-on-accent` (accent fills), `--text-on-fill` (category dots, badges) |
-| Action | `--accent`, `--accent-hover`, `--accent-soft` (tinted callouts, selected rows) |
+| Action | `--accent` (links, active labels, focus, indicators), `--accent-fill` / `--accent-fill-hover` (a fill with text on it: primary buttons, active tabs and chips), `--accent-soft` (tinted callouts, selected rows) |
 | Status | `--success`, `--warning`, `--danger` / `--danger-bg` / `--danger-text` |
 | Money | `--expense` (an alias of `--danger`, used by `.fnegative`); positive and income amounts use `--success` where they're colored at all |
 | Sync LEDs | `--led-idle`, `--led-connected`, `--led-local`, `--led-syncing` |
-| Fixed identity | `--priority` (amber stars), `CATEGORY_PALETTE` in app.js. These don't change with the theme |
+| Fixed identity | `--priority` (amber stars; deepened on Light only), `CATEGORY_PALETTE` in app.js. These keep their hue in every theme |
 | Overlay | `--scrim`, `--shadow`, `--nav-shadow` |
 
 A new theme overrides the same names; it never adds one-off tokens. If a
@@ -91,33 +91,27 @@ theme block in the same change.
   net) and for success and danger. Never both meanings on the same screen.
 - **Amber** is priority and warning. Stars are the only place it's large.
 
-### Contrast (Target, currently failing)
+### Contrast (Now)
 
-WCAG AA: **4.5:1** for text, **3:1** for large or bold text, icons and
-control borders. Measured with `lifelog-ui-audit/scripts/contrast.js`
-(2026-10-01):
+WCAG AA: **4.5:1** for text, **3:1** for icons, control borders and large or
+bold text. `lifelog-ui-audit/scripts/contrast.js` checks every theme and
+exits non-zero on a failure. **All four themes pass** as of 0.219.0, from 17
+failures before it.
 
-| Problem | Default | Light | Nord | Dracula |
-|---|---|---|---|---|
-| `--text-faint` on `--bg-elev` | 3.47 | 3.33 | 2.82 | 2.51 |
-| `--text-faint` on `--bg-elev-2` | 3.10 | 2.92 | 2.42 | 1.94 |
-| `--text-on-accent` on `--accent` (primary button) | **3.16** | ok | ok | ok |
-| `--danger` as text on `--bg-elev` | 4.43 | ok | **2.46** | 3.75 |
-| `--priority` on `--bg-elev` | ok | **1.97** | ok | ok |
+The rules that keep it passing:
 
-The fixes, decided 2026-10-01:
-
-- **Faint text, the hybrid fix.** Anything you need to *read* (dates,
-  amounts, counts, meta lines) moves to `--text-dim`. `--text-faint` stays
-  for things you can do without (separators, placeholders, a count beside a
-  label that already says it) and is lifted in every theme as far as it can
-  go while staying visibly below `--text-dim`. That keeps three text levels.
-- **Default accent: a darker blue** with white text (about `#4b73d1`,
-  4.51:1), not dark text on the current blue. Links and active chips move
-  with it, since they share `--accent`.
-- Danger used as *text* gets its own token (`--danger-text` already exists
-  for tinted backgrounds). Nord and Dracula need a lighter text value.
-- The Light theme's stars need an outline or a darker amber.
+- **Readable text is `--text` or `--text-dim`.** `--text-faint` is held to
+  the 3:1 icon bar only, so it may draw glyphs (✕ › grips), placeholders,
+  done and disabled items, and hover borders, never information.
+- **Text on an accent fill sits on `--accent-fill`**, not `--accent`. They
+  differ in the Default theme only: its blue is right for links on dark
+  surfaces and too light under white text. Fills without text (checkbox,
+  switch, dots, bars) use `--accent`.
+- **Red text is `--danger`**, which each theme sets light enough to read on
+  a card. On Nord that comes out pink (`#ea9aa1`): any red that passes on
+  Nord's mid-grey surfaces does.
+- A new theme, or any change to a theme value, reruns `contrast.js` in the
+  same change. A new token pair that carries text goes into its `PAIRS`.
 
 ---
 
@@ -326,11 +320,16 @@ and never blaming.
 
 ## 9. Accessibility
 
-- **Touch targets are at least 44×44px** on mobile (Target). Measured
-  2026-10-01, Timeline at 375px: 111 controls are under that. The worst are
-  the month + (20×20, ×56), the chip ✎ (22×22), the jump arrows (30×24) and
-  the search field and sort select (31 and 30 tall). A small *visual* is fine
-  if its hit area is padded out with a `::before` inset or a wrapping label.
+- **Touch targets are at least 44×44px** on mobile (Target). A small
+  *visual* is fine: give it an empty absolutely-positioned `::after` sized to
+  the free space around it (half the gap to each neighbour, so areas never
+  overlap), and `z-index` a control that sits inside another one. Measure
+  with `tap-targets.js`, which probes what a finger actually reaches.
+  Timeline at 375px, 0.219.0: the month + taps at 44 (was 20), ✎ at 35×34
+  (was 22), chips at 34 tall (were 26), the jump arrows at 44×42 (were
+  30×24). Still short: chips (44 would mean bigger chips), the search field
+  (32), the year header's achievement pills (24), and the Sort select where
+  the floating + covers it. The other views haven't been audited yet.
 - **Focus:** one global `:focus-visible` ring (2px accent, 2px offset)
   covers every button, link and field (Now). Don't remove an outline without
   replacing it.

@@ -38,7 +38,8 @@ existing class with a modifier instead of starting a parallel one.
    new token goes into `:root` and gets a value or alias in all three theme
    blocks in the same change.
 2. **Text you need to read is `--text` or `--text-dim`.** `--text-faint` is
-   only for things you could hide without losing information.
+   only for things you could hide without losing information. Text on an
+   accent-colored fill sits on `--accent-fill`, never `--accent`.
 3. **Sizes come from the scales:** font 11/12/13/14/16/18/22/30, spacing
    0/2/4/6/8/10/12/14/16/20/24/32…, radius 4/6/8/10/14/999. No 12.5px, 7px or
    5px in new code.

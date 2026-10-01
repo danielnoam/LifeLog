@@ -16,6 +16,46 @@ what was decided against and why.
 
 ---
 
+- **Contrast and tap targets (0.219.0)**, the first release against
+  DESIGN.md. Measured, not eyeballed: `contrast.js` and `tap-targets.js` in
+  `.claude/skills/lifelog-ui-audit/scripts`.
+  - *`--accent-fill` is its own token.* The agreed fix for the Default
+    theme's 3.16:1 Save button was a darker blue under white text. Darkening
+    `--accent` itself would have dropped the 87 places that draw the accent
+    as *text* (links, active labels) from 5.2–5.8:1 to 3.3–4.1:1 on the dark
+    surfaces, trading one failure for many. So text-bearing fills read
+    `--accent-fill` (Default `#4a71cf`) and everything else keeps `--accent`.
+    The other themes alias it straight back. Indicator-only fills (checkbox,
+    switch, PIN dots, bars) stay on `--accent`: there's no text on them.
+  - *Faint is decoration now.* About 65 uses of `--text-faint` that carried
+    information (dates, counts, meta lines, hints, settings labels, the
+    inactive bottom-nav labels) moved to `--text-dim`. The ~30 left are
+    glyphs, placeholders, done/disabled items and hover borders, and the
+    token was lifted 45% of the way to `--text-dim` in each theme, so it
+    clears 3:1 (the bar for icons) on every surface and the three text
+    levels stay distinct. contrast.js checks faint as "ui" for that reason.
+    Lifting faint far enough to pass 4.5:1 everywhere would have made it
+    nearly indistinguishable from dim on Default and Light.
+  - *Nord's red is pink on purpose.* Any red that reaches 4.5:1 on Nord's
+    mid-grey card (`#3b4252`) is this light; `#ea9aa1` keeps the hue.
+  - *Touch areas are empty `::after`s, never bigger visuals.* Each one is
+    sized to the free space around its control: the + buttons get the full
+    44px, chips take half the gap around them (8×10px rows, so 34px, no
+    overlap), ✎ sits above its chip with `z-index` so a tap on it stays an
+    edit. Verified by probing `elementFromPoint` outwards from each
+    control's centre; `tap-targets.js` now measures that way, so it counts
+    what a finger gets rather than the box. Timeline at 375px went from 111
+    controls under 44px to 46 at the top (mostly 34px chips) and 14
+    mid-list.
+  - *Not fixed, already there:* the floating + covers the Sort select's
+    lower half at 375px, and the entry sheet's four buttons overflow it by
+    3px (the More… menu in TODO.md fixes that one).
+  - *Testing note:* the Browser pane doesn't advance CSS transitions when
+    it isn't painting, so a screenshot right after a theme switch shows the
+    previous theme's colors on anything with a background transition.
+    Inject `*{transition:none!important}` in the tab before comparing
+    themes.
+
 - **In progress is a backlog item with `startedAt` (0.218.0)**, not a third
   collection or a kind of entry. It syncs and merges as a field, an older
   copy of the app sees an ordinary backlog item (keepUnknown would carry it

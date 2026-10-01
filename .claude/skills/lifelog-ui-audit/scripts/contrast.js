@@ -55,13 +55,15 @@ function lum([r, g, b]) {
 const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
 
 // [foreground, background, kind]. "text" needs 4.5:1, "ui" (borders of
-// controls, focus rings, large/bold text, icons) needs 3:1.
+// controls, focus rings, large/bold text, icons) needs 3:1. --text-faint is
+// "ui": since 0.219.0 it only draws glyphs, placeholders and done/disabled
+// items; anything to be read is --text-dim (DESIGN.md §2).
 const PAIRS = [
-  ["text", "bg", "text"], ["text-dim", "bg", "text"], ["text-faint", "bg", "text"],
-  ["text", "bg-elev", "text"], ["text-dim", "bg-elev", "text"], ["text-faint", "bg-elev", "text"],
-  ["text-dim", "bg-elev-2", "text"], ["text-faint", "bg-elev-2", "text"],
-  ["text-on-accent", "accent", "text"],
-  ["accent", "bg", "ui"], ["accent", "bg-elev", "ui"],
+  ["text", "bg", "text"], ["text-dim", "bg", "text"], ["text-faint", "bg", "ui"],
+  ["text", "bg-elev", "text"], ["text-dim", "bg-elev", "text"], ["text-faint", "bg-elev", "ui"],
+  ["text-dim", "bg-elev-2", "text"], ["text-faint", "bg-elev-2", "ui"],
+  ["text-on-accent", "accent-fill", "text"], ["text-on-accent", "accent-fill-hover", "text"],
+  ["accent", "bg", "text"], ["accent", "bg-elev", "text"],
   ["danger", "bg-elev", "text"], ["success", "bg-elev", "ui"], ["warning", "bg-elev", "ui"],
   ["priority", "bg-elev", "ui"],
 ];

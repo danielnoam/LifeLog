@@ -12,7 +12,9 @@
   --border-strong: var(--hover-bg);
   --text: #e6e9ef;
   --text-dim: #9aa3b2;
-  --text-faint: #6b7384;
+  /* Decoration only: placeholders, glyphs (✕ › grips), done and disabled
+     items. Anything you need to read is --text-dim (DESIGN.md §2). */
+  --text-faint: #808999;
   /* Text placed on top of a solid color fill (badges, filled category
      dots) vs. on top of the accent fill specifically (primary buttons,
      active tabs/chips) — these can differ per theme when the accent is
@@ -22,7 +24,14 @@
   --accent: #5b8cff;
   --accent-hover: #6f9bff;
   --accent-soft: rgba(91,140,255,.14);
-  --danger: #e2554b;
+  /* The accent as a fill under --text-on-accent (primary buttons, active
+     tabs and chips). Separate from --accent because the Default blue is
+     too light for white text, and darkening --accent itself would sink
+     every link and active label drawn in it on the dark surfaces. Themes
+     whose accent already passes alias it straight back. */
+  --accent-fill: #4a71cf;
+  --accent-fill-hover: #3f63ba;
+  --danger: #ec6b62;
   --danger-bg: rgba(226,85,75,.12);
   --danger-text: #ffcaca;
   --success: #4bd07a;
@@ -32,8 +41,9 @@
   --led-local: var(--warning);
   --led-syncing: var(--accent);
   /* Priority (backlog stars) is a fixed amber identity color, not a
-     theme-reactive status — it stays constant across every theme, same
-     as the category color ramp. */
+     theme-reactive status — it stays the same hue in every theme, same
+     as the category color ramp. Only the Light theme deepens it, because
+     this amber all but vanishes on white. */
   --priority: #e2b23b;
   --priority-hover: #f3ca6b;
   --warning: #e2b23b;
@@ -71,12 +81,17 @@ html.theme-light {
   --border-strong: var(--hover-bg);
   --text: #1b1f27;
   --text-dim: #545b6b;
-  --text-faint: #868d9c;
+  --text-faint: #707786;
   --text-on-fill: #ffffff;
   --text-on-accent: #ffffff;
   --accent: #3a66cc;
   --accent-hover: #2f55ad;
   --accent-soft: rgba(58,102,204,.10);
+  --accent-fill: var(--accent);
+  --accent-fill-hover: var(--accent-hover);
+  /* The amber stars are 1.97:1 on white; this keeps the hue and reaches 3:1. */
+  --priority: #b58e2f;
+  --priority-hover: #9c7a28;
   --danger: #c23b32;
   --danger-bg: rgba(194,59,50,.08);
   --danger-text: #8a1f17;
@@ -98,7 +113,7 @@ html.theme-nord {
   --border-strong: var(--hover-bg);
   --text: #eceff4;
   --text-dim: #d8dee9;
-  --text-faint: #7b88a1;
+  --text-faint: #a5afc1;
   --text-on-fill: #ffffff;
   /* Nord's accent (Frost cyan) is light — dark text reads far better on
      it than white. */
@@ -106,7 +121,11 @@ html.theme-nord {
   --accent: #88c0d0;
   --accent-hover: #8fbcbb;
   --accent-soft: rgba(136,192,208,.14);
-  --danger: #bf616a;
+  --accent-fill: var(--accent);
+  --accent-fill-hover: var(--accent-hover);
+  /* Nord's Aurora red (#bf616a) is 2.46:1 on a card. Any red that passes
+     on Nord's mid-grey surfaces comes out this light. */
+  --danger: #ea9aa1;
   --danger-bg: rgba(191,97,106,.15);
   --danger-text: #f2c6ca;
   --success: #a3be8c;
@@ -127,14 +146,16 @@ html.theme-dracula {
   --border-strong: var(--hover-bg);
   --text: #f8f8f2;
   --text-dim: #c1c4e0;
-  --text-faint: #6272a4;
+  --text-faint: #8d97bf;
   --text-on-fill: #ffffff;
   /* Dracula's accent (violet) is light — same reasoning as Nord above. */
   --text-on-accent: #21222c;
   --accent: #bd93f9;
   --accent-hover: #cfa9fb;
   --accent-soft: rgba(189,147,249,.16);
-  --danger: #ff5555;
+  --accent-fill: var(--accent);
+  --accent-fill-hover: var(--accent-hover);
+  --danger: #ff7575;
   --danger-bg: rgba(255,85,85,.15);
   --danger-text: #ffb3b3;
   --success: #50fa7b;
@@ -382,7 +403,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 .tab-match-badge {
   position: absolute; top: 2px; right: 2px;
   min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px;
-  background: var(--accent); color: var(--text-on-accent);
+  background: var(--accent-fill); color: var(--text-on-accent);
   font-size: 10px; font-weight: 700; line-height: 15px; text-align: center;
   pointer-events: none;
 }
@@ -393,7 +414,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 @media (hover: hover) {
   .tab:hover { background: var(--bg-elev-2); color: var(--text); }
 }
-.tab.active { background: var(--accent); color: var(--text-on-accent); }
+.tab.active { background: var(--accent-fill); color: var(--text-on-accent); }
 
 /* Hovering a tab drops its modes out of it — the desktop half of the phone's
    press-and-hold fan, and the reason there is no switch above the content on
@@ -506,7 +527,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
    overlapping the filter bar underneath. */
 .storage-status {
   position: absolute; top: 100%; left: 0; margin-top: 10px;
-  font-size: 11px; color: var(--text-faint); display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 6px;
   max-width: 260px; white-space: nowrap; cursor: pointer;
 }
 .storage-status:hover { color: var(--text-dim); }
@@ -598,8 +619,8 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
 /* A .btn had no disabled look at all until the picker got one it can turn
    off (Open/Pick again, with nothing left in scope to draw). */
 .btn:disabled { opacity: .45; cursor: default; }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
-.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+.btn-primary { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--text-on-accent); }
+.btn-primary:hover:not(:disabled) { background: var(--accent-fill-hover); }
 .btn-danger { background: transparent; border-color: var(--danger); color: var(--danger); }
 .btn-danger:hover { background: var(--danger-bg); }
 .btn-icon { padding: 7px 10px; font-size: 15px; line-height: 1; }
@@ -638,7 +659,7 @@ input[type="checkbox"]:focus-visible { border-radius: 5px; outline-offset: 3px; 
    the category group (Notes mode, where a note has no category) needs this
    said explicitly — same as .add-menu and the rest below. */
 .filter-group[hidden] { display: none; }
-.filter-group > label { color: var(--text-faint); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; min-width: 90px; }
+.filter-group > label { color: var(--text-dim); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; min-width: 90px; }
 .filter-label { cursor: pointer; user-select: none; }
 .filter-label:hover { color: var(--accent); }
 select {
@@ -656,7 +677,7 @@ select:focus { outline: none; border-color: var(--accent); }
   user-select: none; transition: background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
 }
 .cat-chip .dot { width: 9px; height: 9px; border-radius: 50%; }
-.cat-chip.on { border-color: transparent; background: var(--accent); color: var(--text-on-accent); }
+.cat-chip.on { border-color: transparent; background: var(--accent-fill); color: var(--text-on-accent); }
 .cat-chip.add-chip { padding: 4px 12px; font-weight: 700; color: var(--text-dim); min-width: 0 !important; }
 .cat-chip.add-chip:hover { color: var(--text); border-color: var(--accent); }
 
@@ -712,7 +733,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .mode-fan-item:nth-child(3) { transition-delay: .09s; }
 .mode-fan.is-open .mode-fan-item { opacity: 1; transform: none; }
 .mode-fan-item.is-armed {
-  background: var(--accent); border-color: var(--accent); color: var(--text-on-accent);
+  background: var(--accent-fill); border-color: var(--accent-fill); color: var(--text-on-accent);
 }
 @media (prefers-reduced-motion: reduce) {
   .mode-fan-item { transition: none; transition-delay: 0s; opacity: 1; transform: none; }
@@ -784,7 +805,7 @@ select:focus { outline: none; border-color: var(--accent); }
   padding: 10px 0 14px; border-bottom: 1px solid var(--border);
 }
 .year-head h2 { font-size: 22px; margin: 0; font-weight: 700; }
-.year-head .ycount { color: var(--text-faint); font-size: 13px; }
+.year-head .ycount { color: var(--text-dim); font-size: 13px; }
 .year-head .accs {
   margin-left: auto; max-width: 100%; color: var(--text-dim); font-size: 12.5px;
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
@@ -798,7 +819,7 @@ select:focus { outline: none; border-color: var(--accent); }
   margin: 0 0 9px; padding: 4px 0 10px; border-bottom: 1px solid var(--border);
   font-size: 13px; color: var(--text-dim); font-weight: 600; display:flex; justify-content:space-between;
 }
-.month-card h3 .mc { color: var(--text-faint); font-weight: 500; }
+.month-card h3 .mc { color: var(--text-dim); font-weight: 500; }
 .month-card h3 .mc-left, .month-card h3 .mc-right { display: flex; align-items: center; gap: 6px; }
 .month-add-btn {
   width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-elev-2);
@@ -818,7 +839,7 @@ select:focus { outline: none; border-color: var(--accent); }
   display: flex; flex-direction: column; gap: 1px;
   margin-top: 8px; padding-top: 7px; border-top: 1px solid var(--border);
 }
-.month-cat { display: flex; align-items: center; gap: 7px; padding: 1px 7px; font-size: 11.5px; color: var(--text-faint); }
+.month-cat { display: flex; align-items: center; gap: 7px; padding: 1px 7px; font-size: 11.5px; color: var(--text-dim); }
 .month-cat .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
 .month-cat-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .month-cat .famount { font-variant-numeric: tabular-nums; flex: 0 0 auto; }
@@ -846,7 +867,7 @@ select:focus { outline: none; border-color: var(--accent); }
 /* What you actually paid, beside what it came to. Quiet and monospaced-ish:
    it is provenance for the number next to it, not a second amount. */
 .fx-paid {
-  font-size: 11px; color: var(--text-faint); flex: 0 0 auto;
+  font-size: 11px; color: var(--text-dim); flex: 0 0 auto;
   font-variant-numeric: tabular-nums; white-space: nowrap;
 }
 /* A provisional figure came from a rate you called a guess, so it says so
@@ -867,7 +888,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .month-total.is-provisional .famount::after { content: " ~"; opacity: .7; }
 
 .month-total-ex {
-  text-align: right; padding: 2px 7px 0; font-size: 11px; color: var(--text-faint);
+  text-align: right; padding: 2px 7px 0; font-size: 11px; color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
 /* A project's line in the breakdown looks exactly like a category's. Its dot
@@ -941,7 +962,7 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .proj-expense:hover { background: var(--bg-elev-2); color: var(--text); }
 .proj-expense .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
-.proj-expense-date { font-variant-numeric: tabular-nums; color: var(--text-faint); flex: 0 0 auto; }
+.proj-expense-date { font-variant-numeric: tabular-nums; color: var(--text-dim); flex: 0 0 auto; }
 .proj-expense-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .proj-expense .famount { font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 
@@ -950,14 +971,14 @@ select:focus { outline: none; border-color: var(--accent); }
    inside it never shows. */
 .top-proj {
   display: flex; align-items: center; gap: 5px;
-  margin: -4px 0 8px; font-size: 11px; color: var(--text-faint);
+  margin: -4px 0 8px; font-size: 11px; color: var(--text-dim);
 }
 .top-proj .dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
 
 /* Summary's Projects card: a bar per project. */
 .proj-stat { cursor: pointer; border-radius: 7px; padding: 2px 4px; margin: 0 -4px; }
 .proj-stat:hover { background: var(--bg-elev-2); }
-.proj-stat-meta { font-size: 11px; color: var(--text-faint); margin: -2px 0 8px; }
+.proj-stat-meta { font-size: 11px; color: var(--text-dim); margin: -2px 0 8px; }
 /* The to-do box sits above both panels: press it, type, Enter. It's the
    whole "add" affordance, so it's always open rather than hidden behind a
    button — a checklist you have to unlock before writing in is a checklist
@@ -1074,7 +1095,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .note-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* After :hover, so a selected card stays marked while the pointer is over it. */
 .note-card.is-selected { border-color: var(--accent); background: var(--accent-soft); }
-.note-stamp { font-size: 11px; color: var(--text-faint); margin-bottom: 4px; }
+.note-stamp { font-size: 11px; color: var(--text-dim); margin-bottom: 4px; }
 .note-edited { font-style: italic; }
 .note-text {
   margin: 0; font-size: 13px; color: var(--text); line-height: 1.45;
@@ -1114,12 +1135,12 @@ select:focus { outline: none; border-color: var(--accent); }
 .entry:hover { background: var(--bg-elev-2); }
 .entry .bar { width: 3px; align-self: stretch; border-radius: 3px; min-height: 16px; }
 .entry .etitle { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.entry .ecat { font-size: 11px; color: var(--text-faint); }
+.entry .ecat { font-size: 11px; color: var(--text-dim); }
 .entry .erating { font-size: 11px; color: var(--accent); letter-spacing: 1px; }
 /* Multi-month span chip (e.g. "Jun–Aug") — a quiet, faint pill so it reads as
    metadata, next to but not competing with the category chip and rating. */
 .entry .espan {
-  flex-shrink: 0; font-size: 11px; color: var(--text-faint); background: var(--bg-elev-2);
+  flex-shrink: 0; font-size: 11px; color: var(--text-dim); background: var(--bg-elev-2);
   border: 1px solid var(--border); padding: 1px 7px; border-radius: 999px;
   white-space: nowrap; font-variant-numeric: tabular-nums;
 }
@@ -1139,7 +1160,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .progress-row { align-items: center; }
 .progress-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .progress-text .etitle { flex: none; }
-.progress-since { font-size: 11px; color: var(--text-faint); }
+.progress-since { font-size: 11px; color: var(--text-dim); }
 .progress-row .btn-sm { flex: 0 0 auto; }
 .backlog-progress-link { background: none; border: 0; padding: 0; color: var(--accent); font: inherit; font-size: 12.5px; cursor: pointer; }
 /* ▶ on a backlog row, before ✓ Done: the quieter of the two. */
@@ -1169,17 +1190,17 @@ img.cover-loading { opacity: 0; }
 .cover-lg.cover-empty { font-size: 20px; }
 
 /* finance */
-.picker-row .fdate { font-size: 11px; color: var(--text-faint); width: 78px; flex: 0 0 auto; }
+.picker-row .fdate { font-size: 11px; color: var(--text-dim); width: 78px; flex: 0 0 auto; }
 .finance-entry .famount { font-weight: 700; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .famount.fnegative { color: var(--danger); }
-.recur-badge { font-size: 12px; color: var(--text-faint); flex: 0 0 auto; }
+.recur-badge { font-size: 12px; color: var(--text-dim); flex: 0 0 auto; }
 .recur-card { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
 .recur-row { display: flex; align-items: center; gap: 8px; padding: 5px 7px; border-radius: 7px; font-size: 13px; color: var(--text); }
 .recur-row:hover { background: var(--bg-elev-2); }
 /* Stopped or superseded plans — still listed (and openable) so their
    history stays reachable, but visibly out of force. */
 .recur-row.is-ended { opacity: .58; }
-.recur-subhead { font-size: 11.5px; color: var(--text-faint); margin: 8px 0 2px; padding: 0 7px; }
+.recur-subhead { font-size: 11.5px; color: var(--text-dim); margin: 8px 0 2px; padding: 0 7px; }
 .rec-occurrences { margin-top: 8px; }
 .rec-occ-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .rec-occ-head .hint { margin: 0; }
@@ -1211,7 +1232,7 @@ img.cover-loading { opacity: 0; }
 .pause-row:hover { background: var(--bg-elev-2); }
 .pause-row.is-live { color: var(--text); }
 .pause-tag {
-  font-size: 10.5px; color: var(--text-faint); flex: 0 0 auto;
+  font-size: 10.5px; color: var(--text-dim); flex: 0 0 auto;
   border: 1px solid var(--border); border-radius: 10px; padding: 2px 8px;
 }
 .rec-occ-list { max-height: 160px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); }
@@ -1225,7 +1246,7 @@ img.cover-loading { opacity: 0; }
 .rec-occ-amount { font-weight: 600; font-variant-numeric: tabular-nums; color: var(--danger); }
 .finance-entry.is-skipped { opacity: 0.5; }
 .finance-entry.is-skipped .famount { text-decoration: line-through; }
-.skipped-badge { font-size: 11px; color: var(--text-faint); font-style: italic; flex: 0 0 auto; }
+.skipped-badge { font-size: 11px; color: var(--text-dim); font-style: italic; flex: 0 0 auto; }
 
 .picker-search {
   display: block; width: 100%; background: var(--bg); border: 1px solid var(--border);
@@ -1247,7 +1268,7 @@ img.cover-loading { opacity: 0; }
 .modal label.picker-row:hover { background: var(--bg-elev-2); }
 .picker-row.is-dup { opacity: .55; }
 .dup-tag {
-  font-size: 10.5px; color: var(--text-faint); flex: 0 0 auto;
+  font-size: 10.5px; color: var(--text-dim); flex: 0 0 auto;
   border: 1px solid var(--border); border-radius: 10px; padding: 2px 8px;
 }
 .picker-buckets { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
@@ -1277,6 +1298,28 @@ img.cover-loading { opacity: 0; }
 /* The ✎ answers for itself; the chip it sits in stays as it is. */
 .cat-chip:active:has(.chip-edit:active) { opacity: 1; }
 
+/* Touch areas (0.219.0, DESIGN.md §9). These controls stay the size they
+   look; an empty ::after widens what a finger can hit. Before this the
+   month + was a 20px target repeated on every month, and the ✎ was 22px.
+   - The + buttons sit alone in a header, so they get the full 44px.
+   - A chip claims half the gap around it (chip rows use 8px × 10px), so
+     neighbours never overlap: 26px tall becomes 34px. Growing past that
+     would mean visibly bigger chips.
+   - The ✎ claims the chip's full height and the gap beside it, and sits
+     above the chip's own area so a tap on it is still an edit. */
+.month-add-btn, .proj-group-add, .cat-chip { position: relative; }
+.month-add-btn::after, .proj-group-add::after { content: ""; position: absolute; inset: -12px; }
+.cat-chip::after { content: ""; position: absolute; inset: -4px -5px; }
+.chip-edit { position: relative; z-index: 1; }
+.chip-edit::after { content: ""; position: absolute; inset: -6px -5px -6px -8px; }
+/* The header's two icon buttons (31px tall, 6px apart) take the margin
+   above them and the empty right-hand half of the sync line below, and the
+   Years/Categories labels (16px of text that select or clear the whole
+   group) take the height of the group beside them. */
+.settings-corner .btn-icon, .filter-label { position: relative; }
+.settings-corner .btn-icon::after { content: ""; position: absolute; inset: -7px -3px; }
+.filter-label::after { content: ""; position: absolute; inset: -14px 0; }
+
 /* stats */
 .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px; }
 @media (max-width: 800px){ html:not(.force-pc) .stats-grid { grid-template-columns: 1fr; } }
@@ -1297,7 +1340,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .bar-row:hover .val { display: flex; flex-direction: column; align-items: flex-end; line-height: 1.2; }
 .stat-big { display:flex; gap: 26px; flex-wrap: wrap; margin-bottom: 4px; }
 .stat-big .item .n { font-size: 26px; font-weight: 700; }
-.stat-big .item .l { color: var(--text-faint); font-size: 12px; }
+.stat-big .item .l { color: var(--text-dim); font-size: 12px; }
 
 /* heatmap */
 .heatmap { overflow-x: auto; padding-bottom: 4px; }
@@ -1317,12 +1360,12 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
   padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer;
 }
 .yir-year-btn:hover:not(.active) { background: var(--bg-elev-2); color: var(--text); }
-.yir-year-btn.active { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
+.yir-year-btn.active { background: var(--accent-fill); border-color: var(--accent-fill); color: var(--text-on-accent); }
 .yir-highlights { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 4px; }
 .yir-highlights .item .n { font-size: 22px; font-weight: 700; }
-.yir-highlights .item .l { color: var(--text-faint); font-size: 11px; }
+.yir-highlights .item .l { color: var(--text-dim); font-size: 11px; }
 .yir-section { margin-top: 16px; }
-.yir-section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-faint); margin: 0 0 8px; font-weight: 600; }
+.yir-section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-dim); margin: 0 0 8px; font-weight: 600; }
 .yir-ach { display: flex; gap: 8px; align-items: baseline; margin-bottom: 6px; font-size: 13px; }
 .yir-ach-bullet { color: var(--accent); font-size: 10px; flex-shrink: 0; }
 .yir-rated { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; font-size: 13px; }
@@ -1359,11 +1402,11 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .seg-btn.active { background: var(--surface-card); color: var(--text); box-shadow: var(--shadow); }
 
 /* next releases */
-.up-section-sub { font-size: 11px; color: var(--text-faint); }
+.up-section-sub { font-size: 11px; color: var(--text-dim); }
 .up-cat-dot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; }
 .up-when { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; font-size: 11.5px; }
 .up-date { color: var(--accent); }
-.up-countdown { color: var(--text-faint); }
+.up-countdown { color: var(--text-dim); }
 .entry.up-row { display: flex; align-items: center; gap: 8px; }
 .entry.up-row .bl-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .backlog-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; align-items: start; }
@@ -1390,7 +1433,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .backlog-section-count { margin-left: auto; font-size: 13px; color: var(--text-dim); font-weight: 600; white-space: nowrap; }
 /* The "+N EA, +N unreleased" half of a split count — quieter than the number
    it qualifies, since it is the aside and not the headline. */
-.bl-count-pending { margin-left: 5px; font-size: 11px; font-weight: 500; color: var(--text-faint); }
+.bl-count-pending { margin-left: 5px; font-size: 11px; font-weight: 500; color: var(--text-dim); }
 .backlog-list { display: flex; flex-direction: column; gap: 2px; }
 .backlog-item-rich {
   display: flex; align-items: flex-start; gap: 8px; padding: 6px 7px; border-radius: 7px; cursor: pointer;
@@ -1424,7 +1467,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .backlog-dropped-toggle {
   display: flex; align-items: center; gap: 8px; width: 100%;
   background: none; border: 0; padding: 2px; margin: 6px 0 2px;
-  font: inherit; font-size: 12px; color: var(--text-faint); cursor: pointer;
+  font: inherit; font-size: 12px; color: var(--text-dim); cursor: pointer;
   /* Same three as every other pressable row in here: without them a tap
      draws the browser's blue highlight rect over the bar, and a press that
      lingers starts selecting the label text instead of opening the block. */
@@ -1478,7 +1521,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .bulkp-row.is-failed .bulkp-glyph { color: var(--danger); }
 .bulkp-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bulkp-detail {
-  flex: 0 1 auto; min-width: 0; color: var(--text-faint); font-size: 12px;
+  flex: 0 1 auto; min-width: 0; color: var(--text-dim); font-size: 12px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 45%;
 }
 /* Warning-coloured rather than a plain button: it names a problem, and the
@@ -1492,7 +1535,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
   padding: 6px 8px; border-radius: 8px; font-size: 12px;
 }
 
-.empty { text-align: center; color: var(--text-faint); padding: 60px 20px; }
+.empty { text-align: center; color: var(--text-dim); padding: 60px 20px; }
 
 /* First-run empty state (Timeline/Backlog/Finance with zero data): icon
    badge + title + body + primary CTA + hint. Distinct from the plain
@@ -1506,15 +1549,15 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 }
 .empty-state h2 { margin: 0 0 10px; font-size: 20px; font-weight: 650; color: var(--text); }
 .empty-body { margin: 0 0 22px; font-size: 13.5px; line-height: 1.6; color: var(--text-dim); }
-.empty-hint { margin: 20px 0 0; font-size: 12px; color: var(--text-faint); line-height: 1.5; }
+.empty-hint { margin: 20px 0 0; font-size: 12px; color: var(--text-dim); line-height: 1.5; }
 
 /* ---------- Discover ---------- */
 /* Rows here are things you don't own yet, so they lean on the backlog row's
    shape but say plainly which list they came from and offer one action. */
-.dsc-source { font-size: 11px; font-weight: 500; color: var(--text-faint); text-transform: none; }
+.dsc-source { font-size: 11px; font-weight: 500; color: var(--text-dim); text-transform: none; }
 .dsc-row { cursor: pointer; }
 .dsc-tag {
-  flex: 0 0 auto; font-size: 10.5px; color: var(--text-faint);
+  flex: 0 0 auto; font-size: 10.5px; color: var(--text-dim);
   border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px;
 }
 .dsc-add {
@@ -1522,7 +1565,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
   font-size: 14px; line-height: 1.35; color: var(--text-dim);
 }
 .dsc-row:hover .dsc-add { color: var(--accent); border-color: var(--accent); }
-.dsc-note { margin: 8px 2px; font-size: 12.5px; color: var(--text-faint); }
+.dsc-note { margin: 8px 2px; font-size: 12.5px; color: var(--text-dim); }
 .dsc-bar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 /* The same height as the sort menu beside them, not 5px short of it. */
 .dsc-bar-right > .btn-sm { padding-block: 6px; }
@@ -1582,7 +1625,7 @@ body.modal-open { overflow: hidden; }
    overflows its rounded corners, and these links sit right at its edge. */
 .cover-link-btn:focus-visible { outline-offset: -2px; }
 .modal-cover-meta { margin: -4px 0 16px; }
-.modal-cover-meta .bl-meta { font-size: 12px; color: var(--text-faint); }
+.modal-cover-meta .bl-meta { font-size: 12px; color: var(--text-dim); }
 .modal-cover-meta .bl-summary { font-size: 13px; color: var(--text-dim); margin: 4px 0 0; }
 .modal-cover-meta .bl-price:empty { display: none; }
 /* "Pick random" scope strip — the categories a draw is rolling on (each a
@@ -1608,7 +1651,7 @@ body.modal-open { overflow: hidden; }
   display: inline-flex; align-items: center; gap: 7px; margin: 0;
   font-size: 12.5px; color: var(--text-dim); cursor: pointer; user-select: none;
 }
-.pick-scope-count { font-size: 11.5px; color: var(--text-faint); }
+.pick-scope-count { font-size: 11.5px; color: var(--text-dim); }
 /* Inset and fully rounded — this cover sits under the scope strip rather
    than against the modal's own top corners. */
 .pick-cover { margin: 0 0 14px; border-radius: 12px; max-height: 160px; }
@@ -1617,12 +1660,12 @@ body.modal-open { overflow: hidden; }
    cover meta, reused for the richer random-picker card. */
 .pick-meta { margin: 2px 0 4px; }
 .pick-meta:empty { display: none; }
-.pick-meta .bl-meta { font-size: 12px; color: var(--text-faint); }
+.pick-meta .bl-meta { font-size: 12px; color: var(--text-dim); }
 .pick-meta .bl-summary { font-size: 13px; color: var(--text-dim); margin: 6px 0 0; }
 .pick-meta .bl-price:empty { display: none; }
 .pick-genres { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .pick-genre { font-size: 11px; padding: 2px 8px; border-radius: 20px; background: var(--bg-elev-2); color: var(--text-dim); }
-.pick-note { font-size: 12px; color: var(--text-faint); font-style: italic; margin: 8px 0 0; }
+.pick-note { font-size: 12px; color: var(--text-dim); font-style: italic; margin: 8px 0 0; }
 /* Source/store links as a standalone row (not overlaying a cover), so they
    need a border to read against the card instead of an image. */
 .pick-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
@@ -1664,7 +1707,7 @@ body.modal-open { overflow: hidden; }
               border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 .wheel-hub:hover:not(:disabled) {
-  background: var(--accent); border-color: var(--accent); color: var(--text-on-accent);
+  background: var(--accent-fill); border-color: var(--accent-fill); color: var(--text-on-accent);
   transform: translate(-50%, -50%) scale(1.04);
 }
 .wheel-hub:active:not(:disabled) { transform: translate(-50%, -50%) scale(.98); }
@@ -1678,7 +1721,7 @@ body.modal-open { overflow: hidden; }
   background: var(--bg-elev-2); border: 1px solid var(--border); border-radius: 10px;
 }
 .wheel-result[hidden] { display: none; }
-.wheel-result-eyebrow { display: block; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); }
+.wheel-result-eyebrow { display: block; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-dim); }
 .wheel-result-text { display: block; margin-top: 4px; font-size: 19px; font-weight: 700; color: var(--text); }
 .wheel-edit { margin-top: 16px; }
 .wheel-edit[hidden] { display: none; }
@@ -1756,7 +1799,7 @@ kbd {
 .sync-status { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--accent); }
 .sync-status[hidden] { display: none; }
 .sync-status .link-btn {
-  background: none; border: none; color: var(--text-faint); cursor: pointer;
+  background: none; border: none; color: var(--text-dim); cursor: pointer;
   font-size: 12px; padding: 0;
 }
 .sync-status .link-btn:hover { color: var(--danger); }
@@ -1781,12 +1824,12 @@ kbd {
    mediaSource. */
 .ac-item .ac-source {
   flex: 0 0 auto; font-size: 10px; font-weight: 600; letter-spacing: .3px;
-  color: var(--text-faint); background: var(--bg-elev-2); border: 1px solid var(--border);
+  color: var(--text-dim); background: var(--bg-elev-2); border: 1px solid var(--border);
   border-radius: 4px; padding: 2px 5px; white-space: nowrap;
 }
 /* Placeholder for the source still being searched, replaced by its results. */
 .ac-pending {
-  padding: 8px 11px; font-size: 12px; color: var(--text-faint); font-style: italic;
+  padding: 8px 11px; font-size: 12px; color: var(--text-dim); font-style: italic;
 }
 .ac-divider { border-top: 1px solid var(--border); margin: 2px 0; }
 
@@ -1831,7 +1874,7 @@ kbd {
 
 .modal .settings-search {
   display: flex; align-items: center; gap: 8px; margin: 0; padding: 0 10px;
-  background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text-faint);
+  background: var(--bg); border: 1px solid var(--border); border-radius: 10px; color: var(--text-dim);
 }
 .modal .settings-search:focus-within { border-color: var(--accent); }
 .settings-search svg { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
@@ -1843,7 +1886,7 @@ kbd {
 .settings-home[hidden], .settings-results[hidden] { display: none; }
 .sgroup { display: flex; flex-direction: column; gap: 6px; }
 .sgroup-label {
-  padding: 0 6px; font-size: 11px; font-weight: 600; color: var(--text-faint);
+  padding: 0 6px; font-size: 11px; font-weight: 600; color: var(--text-dim);
   text-transform: uppercase; letter-spacing: .5px;
 }
 .sgroup-card { background: var(--bg); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
@@ -1860,7 +1903,7 @@ kbd {
   width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center;
   background: var(--accent-soft); color: var(--accent);
 }
-.srow.active .srow-ic { background: var(--accent); color: var(--text-on-accent); }
+.srow.active .srow-ic { background: var(--accent-fill); color: var(--text-on-accent); }
 .srow-ic svg, #viewOptionsBtn svg {
   width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8;
   stroke-linecap: round; stroke-linejoin: round; display: block;
@@ -1876,7 +1919,7 @@ kbd {
 .srow-chev { color: var(--text-faint); font-size: 18px; line-height: 1; }
 .srow-result { grid-template-columns: minmax(0, 1fr) auto; }
 .srow-empty { margin: 0; padding: 12px; font-size: 13px; color: var(--text-dim); }
-.settings-foot { margin: 2px 6px 0; font-size: 11.5px; color: var(--text-faint); }
+.settings-foot { margin: 2px 6px 0; font-size: 11.5px; color: var(--text-dim); }
 /* Where a search result lands: a brief tint, so the eye finds it. */
 .search-hit { animation: search-hit 1.6s var(--ease); border-radius: 8px; }
 @keyframes search-hit {
@@ -2065,12 +2108,12 @@ kbd {
 .history-row-head .btn-small:first-of-type { margin-left: auto; }
 .history-date { color: var(--text-dim); white-space: nowrap; font-size: 12px; }
 .history-msg {
-  display: block; margin-top: 3px; color: var(--text-faint); font-size: 12px;
+  display: block; margin-top: 3px; color: var(--text-dim); font-size: 12px;
   white-space: normal; overflow-wrap: break-word;
 }
-.history-badge { font-size: 11px; color: var(--text-faint); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; flex: 0 0 auto; }
+.history-badge { font-size: 11px; color: var(--text-dim); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; flex: 0 0 auto; }
 .btn-small { padding: 4px 10px; font-size: 12px; }
-.hint, .muted { color: var(--text-faint); font-size: 12px; }
+.hint, .muted { color: var(--text-dim); font-size: 12px; }
 .muted code { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; padding: 1px 5px; color: var(--text-dim); font-size: 11.5px; }
 .muted strong { color: var(--text-dim); }
 .muted br { content: ""; display: block; margin-top: 5px; }
@@ -2160,7 +2203,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
   flex: 0 0 auto; background: none; border: 1px solid var(--accent); border-radius: 7px;
   padding: 5px 11px; color: var(--accent); font-size: 12.5px; font-weight: 600; cursor: pointer;
 }
-.toast-action:hover { background: var(--accent); color: #fff; }
+.toast-action:hover { background: var(--accent-fill); color: var(--text-on-accent); }
 /* Sits where a toast does but doesn't leave on its own: there is nothing to
    do about it except reload, and the whole point is that it waits until you
    do. Above the toast, since a transient message must not cover it. */
@@ -2220,7 +2263,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
      highlight and a beat of lag before it responded. */
   html:not(.force-pc) .tab {
     flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-    padding: 12px 2px 11px; font-size: 10px; color: var(--text-faint);
+    padding: 12px 2px 11px; font-size: 10px; color: var(--text-dim);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
   }
@@ -2269,7 +2312,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
   html:not(.force-pc) .jump-btn {
     background: transparent; border: none; color: var(--text-dim);
     font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
-    flex: 0 0 auto; z-index: 1; -webkit-tap-highlight-color: transparent;
+    flex: 0 0 auto; min-width: 44px; align-self: stretch; z-index: 1; -webkit-tap-highlight-color: transparent;
   }
   @media (hover: hover) {
     html:not(.force-pc) .jump-btn:hover:not(:disabled) { background: var(--bg-elev-2); color: var(--text); }
@@ -2296,7 +2339,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
     /* A block, not a flex box: text-overflow only draws its … on a block,
        so a long name was cut mid-letter. */
     flex: 0 0 33.3334%; display: block; line-height: 41px; text-align: center;
-    font-size: 12px; font-weight: 600; color: var(--text-faint); cursor: pointer;
+    font-size: 12px; font-weight: 600; color: var(--text-dim); cursor: pointer;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px;
     transition: color .18s ease, font-size .18s ease;
     -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
@@ -2352,7 +2395,7 @@ html.force-mobile .topbar-bottom {
 html.force-mobile .views { flex: 1; display: flex; align-items: stretch; order: 1; }
 html.force-mobile .tab {
   flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  padding: 12px 2px 11px; font-size: 10px; color: var(--text-faint);
+  padding: 12px 2px 11px; font-size: 10px; color: var(--text-dim);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
 }
@@ -2378,7 +2421,7 @@ html.force-mobile .jump-nav.is-active { height: 42px; border-bottom: 1px solid v
 html.force-mobile .jump-btn {
   background: transparent; border: none; color: var(--text-dim);
   font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: pointer;
-  flex: 0 0 auto; z-index: 1; -webkit-tap-highlight-color: transparent;
+  flex: 0 0 auto; min-width: 44px; align-self: stretch; z-index: 1; -webkit-tap-highlight-color: transparent;
 }
 @media (hover: hover) {
   html.force-mobile .jump-btn:hover:not(:disabled) { background: var(--bg-elev-2); color: var(--text); }
@@ -2391,7 +2434,7 @@ html.force-mobile .jump-item {
   /* A block, not a flex box: text-overflow only draws its … on a block,
      so a long name was cut mid-letter. */
   flex: 0 0 33.3334%; display: block; line-height: 41px; text-align: center;
-  font-size: 12px; font-weight: 600; color: var(--text-faint); cursor: pointer;
+  font-size: 12px; font-weight: 600; color: var(--text-dim); cursor: pointer;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 0 4px;
   transition: color .18s ease, font-size .18s ease;
   -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none;
@@ -2512,7 +2555,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .lock-error[hidden] { display: none; }
 .lock-reset-btn {
   display: block; margin: 16px auto 0; background: none; border: none; cursor: pointer;
-  color: var(--text-faint); font-size: 11.5px; text-decoration: underline;
+  color: var(--text-dim); font-size: 11.5px; text-decoration: underline;
 }
 .lock-reset-btn:hover { color: var(--accent); }
 
@@ -2630,7 +2673,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 
 .recap-foot {
   position: absolute; bottom: 18px; left: 0; right: 0;
-  text-align: center; color: var(--text-faint); font-size: 11px;
+  text-align: center; color: var(--text-dim); font-size: 11px;
   pointer-events: none;
 }
 
@@ -2642,7 +2685,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 }
 .recap-headline { margin: 0; font-size: 19px; font-weight: 600; color: var(--text); }
 .recap-sub { margin: 0; font-size: 14px; color: var(--text-dim); }
-.recap-foot-note { margin: 6px 0 0; font-size: 12px; color: var(--text-faint); }
+.recap-foot-note { margin: 6px 0 0; font-size: 12px; color: var(--text-dim); }
 
 .recap-bars { width: 100%; display: flex; flex-direction: column; gap: 9px; margin-top: 6px; }
 /* The label and the count get equal columns, so the tracks sit in the
@@ -2655,7 +2698,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 }
 .recap-bartrack { height: 10px; background: var(--bg-elev-2); border-radius: 5px; overflow: hidden; }
 .recap-barfill { display: block; height: 100%; border-radius: 5px; }
-.recap-barn { font-size: 12px; color: var(--text-faint); font-variant-numeric: tabular-nums; text-align: left; }
+.recap-barn { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; text-align: left; }
 
 .recap-list { width: 100%; display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
 .recap-listrow {
@@ -2665,7 +2708,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 }
 .recap-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
 .recap-listlabel { flex: 1 1 auto; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.recap-listnote { flex: 0 0 auto; font-size: 12px; color: var(--text-faint); }
+.recap-listnote { flex: 0 0 auto; font-size: 12px; color: var(--text-dim); }
 
 /* Each slide arrives rather than swapping, so moving through feels like
    moving. Short, because you may be tapping through fifteen of them. */
@@ -2685,11 +2728,11 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 /* The button that opens it: the end of the year picker's row, a pill the
    chips' own height, so it reads as "play this one". */
 .recap-open-btn {
-  background: var(--accent); color: var(--text-on-accent); border: 1px solid var(--accent);
+  background: var(--accent-fill); color: var(--text-on-accent); border: 1px solid var(--accent-fill);
   border-radius: 20px; padding: 4px 12px; font-size: 12px; font-weight: 600;
   cursor: pointer; margin-left: auto; white-space: nowrap;
 }
-.recap-open-btn:hover { background: var(--accent-hover); }
+.recap-open-btn:hover { background: var(--accent-fill-hover); }
 
 /* Tab/mode switches in Settings → Tabs. The modes are indented under
    their tab because they are a detail of it, not a peer — and greyed rather
@@ -2757,7 +2800,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   background: var(--bg-elev); border: 1px solid var(--border);
   border-radius: 10px; padding: 10px 12px; text-align: left;
 }
-.recap-note-date { font-size: 10.5px; color: var(--text-faint); margin-bottom: 4px; }
+.recap-note-date { font-size: 10.5px; color: var(--text-dim); margin-bottom: 4px; }
 .recap-note-text {
   margin: 0; font-size: 13px; line-height: 1.45; color: var(--text);
   white-space: pre-wrap; overflow-wrap: anywhere;
@@ -2815,7 +2858,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .habit-streak { flex: 0 0 auto; font-size: 13px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
 .habit-sub {
   display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
-  margin: 3px 0 0 19px; font-size: 11.5px; color: var(--text-faint);
+  margin: 3px 0 0 19px; font-size: 11.5px; color: var(--text-dim);
 }
 .habit-sub-right { text-align: right; }
 
@@ -2840,10 +2883,10 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .habit-cell.is-slip { background: transparent; box-shadow: inset 0 0 0 2px var(--danger); }
 .habit-tick-mark { font-size: 16px; line-height: 1; font-variant-numeric: tabular-nums; }
 .habit-tick-mark:empty { display: none; }
-.habit-notdue { margin: 0; font-size: 12.5px; color: var(--text-faint); font-style: italic; }
+.habit-notdue { margin: 0; font-size: 12.5px; color: var(--text-dim); font-style: italic; }
 /* Everything longer than the last ninety days, which is the only thing
    backfilling produces and the rest of the card never mentions. */
-.habit-life { margin: 6px 0 0 19px; font-size: 11.5px; color: var(--text-faint); }
+.habit-life { margin: 6px 0 0 19px; font-size: 11.5px; color: var(--text-dim); }
 
 /* Twelve weeks, a row per weekday. Tapping a cell fixes a day you forgot,
    which is the only way a tracker survives being away from your phone. */
@@ -2883,7 +2926,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .habit-page:disabled { opacity: .3; cursor: default; }
 .habit-page-range {
   flex: 1 1 auto; min-width: 0; text-align: center;
-  font-size: 10.5px; color: var(--text-faint); font-variant-numeric: tabular-nums;
+  font-size: 10.5px; color: var(--text-dim); font-variant-numeric: tabular-nums;
 }
 
 .habit-archived { margin-top: 18px; }
@@ -2895,7 +2938,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 }
 .habit-archived-row:hover { color: var(--text); }
 .habit-archived-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.habit-archived-when { flex: 0 0 auto; font-size: 11px; color: var(--text-faint); }
+.habit-archived-when { flex: 0 0 auto; font-size: 11px; color: var(--text-dim); }
 
 /* The day pickers in the habit modal: a row of small toggles rather than
    seven stacked label rows. */
@@ -2909,7 +2952,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .habit-remind-face {
   position: relative; display: inline-flex; align-items: center;
   padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border);
-  color: var(--text-faint); font-size: 12px; line-height: 1.6; cursor: pointer;
+  color: var(--text-dim); font-size: 12px; line-height: 1.6; cursor: pointer;
 }
 .habit-remind.is-set .habit-remind-face { color: var(--text); border-color: var(--accent); }
 .habit-remind.is-paused .habit-remind-face { color: var(--text-faint); border-color: var(--border); }
@@ -2923,7 +2966,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 }
 .habit-remind-bar {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
-  margin: 0 0 10px; font-size: 13px; color: var(--text-faint);
+  margin: 0 0 10px; font-size: 13px; color: var(--text-dim);
 }
 .habit-remind-bar-text { flex: 1 1 auto; }
 .habit-remind-warn { flex: 1 1 100%; margin: 0; color: var(--text); }
@@ -2970,7 +3013,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .board-thumb-svg { width: 100%; height: 100%; overflow: visible; }
 .board-meta { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 10px 12px; }
 .board-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.board-when { font-size: 12px; color: var(--text-faint); flex: 0 0 auto; }
+.board-when { font-size: 12px; color: var(--text-dim); flex: 0 0 auto; }
 /* The name on a line of its own; the category and time share the next. */
 .board-meta:has(.board-cat) { flex-wrap: wrap; row-gap: 2px; }
 .board-meta:has(.board-cat) .board-name { flex: 1 0 100%; }
@@ -3155,7 +3198,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   display: flex; justify-content: space-between; align-items: center; gap: 8px; cursor: pointer;
 }
 .note-list-head:hover .note-list-title { color: var(--text); }
-.note-list-head .mc { color: var(--text-faint); font-weight: 500; }
+.note-list-head .mc { color: var(--text-dim); font-weight: 500; }
 .note-list-head .mc-left, .note-list-head .mc-right { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .note-list-head .mc-left .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 .note-list-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -3232,7 +3275,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   color: var(--text-dim); font-size: 13px; line-height: 1.45; overflow: hidden;
   display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
 }
-.coll-card-meta { color: var(--text-faint); font-size: 11.5px; margin-top: auto; }
+.coll-card-meta { color: var(--text-dim); font-size: 11.5px; margin-top: auto; }
 
 #noteReader .modal { width: 720px; }
 .note-reader-meta { margin: -6px 0 14px; font-size: 12.5px; }

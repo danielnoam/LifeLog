@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.219.0] - 2026-10-01
+
+### Changed
+- **Easier to read, in every theme.** Dates, counts, categories, hints and
+  the line under each title are brighter, and so are the bottom bar's
+  labels. Every theme now meets the WCAG AA contrast standard; before this,
+  some of that text was as low as 2:1.
+- **The Save button and other filled buttons** in the default theme are a
+  deeper blue, so their white text is readable.
+- **Red text and Delete buttons** are brighter on Nord, Dracula and the
+  default theme. On Nord the red was nearly invisible on a card.
+- **Backlog stars** are a deeper amber on the Light theme.
+- **Easier to tap on a phone.** The month +, the ✎ on categories, the
+  year and category chips, the ◀ ▶ arrows, the two buttons at the top and
+  the Years/Categories labels all take a bigger tap now, without looking
+  any bigger. The month + went from 20 to 44 pixels.
+
 ## [0.218.0] - 2026-09-30
 
 ### Added

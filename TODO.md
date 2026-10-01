@@ -1,13 +1,13 @@
 todo:
 
-- **Design language: the measured gaps** (DESIGN.md, 2026-10-01). In order:
-  - Contrast: `--text-faint` fails AA in all four themes (1.94–3.87:1),
-    Default's primary button is 3.16:1 (white on `#5b8cff`), danger text is
-    2.46:1 on Nord, and the Light theme's stars are 1.97:1. Re-run
-    `.claude/skills/lifelog-ui-audit/scripts/contrast.js` until it passes.
-  - Touch targets on mobile: 111 under 44px on Timeline alone. Start with
-    `.month-add-btn` (20×20, one per month), `.chip-edit` (22×22) and
-    `.jump-btn` (30×24). Pad the hit area and keep the visual.
+- **Design language: the measured gaps left** (DESIGN.md). Contrast is done
+  (0.219.0); so are the worst tap targets. In order:
+  - Tap targets still short on Timeline at 375px: the floating + covers
+    the lower half of the Sort select; the search field is 32px tall;
+    filter chips are 34px (44 would mean visibly bigger chips, a design
+    call); the year header's achievement pills (`.acc`) are 24px. Then
+    audit the other views (Backlog, Notes, Ledger, Habits, Settings,
+    sheets) with `tap-targets.js`.
   - Tokens for the type, space and radius scales (`--fs-*`, `--space-*`,
     `--r-*`), then move drift onto them as files are touched.
   - Spring easing tokens via CSS `linear()`. Drag-to-dismiss on sheets is
