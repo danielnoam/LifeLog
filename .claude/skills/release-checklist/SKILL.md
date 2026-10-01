@@ -78,13 +78,23 @@ Each holds one kind of thing; put an entry in exactly one of them.
 
 ## 5. Verify mobile + desktop
 
-- `node --check` every edited `.js` file.
-- Start `node server.js` (port 5173) and drive it with Playwright
-  (`NODE_PATH=/opt/node22/lib/node_modules node script.js`):
+- `node --check` every edited `.js` file, then `node test/run-all.js`
+  (the unit tests; all must pass).
+- Browser suites: `node test/browser/run-all.js <suite>` for any suite in
+  `test/browser/README.md` that covers the change. They need Playwright,
+  which isn't a project dependency; if it isn't installed, say so in the
+  report rather than skipping silently, and grep `test/browser` for any
+  id, class or label the change renamed or removed. A suite that asserts
+  behaviour the change deliberately alters gets updated in the same commit.
+- Drive the app itself (the preview tool's "lifelog" server, or
+  `node server.js` on 5173):
   - Desktop width (~1280px): top bar with view tabs + Add/Settings buttons
-  - Mobile width (≤720px, e.g. 390px): fixed bottom nav bar layout
+  - Mobile width (≤720px, e.g. 375px): fixed bottom nav bar layout
   - Exercise the views/flows touched by this change at both sizes, and
-    confirm zero console errors (`page.on('pageerror'/'console')`).
+    confirm zero console errors.
+  - The `lifelog-ui-audit` skill's "Working in the preview" covers the
+    traps: cached assets after a version bump, transitions frozen in
+    screenshots, and seeding (then restoring) test data.
 - If the change is visual (CSS, a new or restyled control, user-facing
   copy), it follows `DESIGN.md` (the `lifelog-design` skill), and
   `node .claude/skills/lifelog-ui-audit/scripts/lint-css.js` shows no count

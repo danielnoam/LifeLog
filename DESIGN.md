@@ -252,7 +252,7 @@ where one exists. A new component goes in this list in the same change.
 | Tab and nav | `.tab` with `data-icon` | Text pills on desktop. On mobile the glyph from `data-icon` is drawn above the label (`.tab::before`, mobile blocks only). |
 | Card | `.card`, `.month-card` | Border, no shadow. `monthCardHeader()` for month groups. |
 | Row | `.entry`, `.backlog-item-rich`, `.recur-row` | The whole row is the tap target. It darkens on press. |
-| Sheet | `.modal-overlay` > `.modal` | Rises in and fades out (pure CSS, `@starting-style`). Full-screen on mobile for writing (notes); a bottom sheet for options (`.view-options`). Safe-area padding under `html.native`. |
+| Sheet | `.modal-overlay` > `.modal` | Rises in and fades out (pure CSS, `@starting-style`). Full-screen on mobile for writing (notes); a bottom sheet for options (`.view-options`). Safe-area padding under `html.native`. On a phone it swipes down to close (`wireSheetSwipe`, app.js), through the backdrop's own click. |
 | Menu | `.menu-pop` | Opens upward from its trigger and rises into place. A sheet's More… is `.menu-wrap.sheet-more` with a `.sheet-more-btn`; app.js wires every one, and each item saves the sheet and acts at once. |
 | Toast | `toast(msg, isErr, action)` | 2.6s, 6s for an error, 8s with an action. **Undo is a toast action**, never a confirm dialog after the fact. |
 | Empty state | `emptyState({ glyph, title, body, action, onAction, hint })` | A rich empty state for a view with no data yet. Pass a plain string for "nothing matches your filters", which gets no button. |
@@ -326,18 +326,23 @@ and never blaming.
 
 ## 9. Accessibility
 
-- **Touch targets are at least 44×44px** on mobile (Target). A small
+- **Touch targets are at least 44×44px** on mobile (Now, with the
+  exceptions below). A small
   *visual* is fine: give it an empty absolutely-positioned `::after` sized to
   the free space around it (half the gap to each neighbour, so areas never
   overlap), and `z-index` a control that sits inside another one. Measure
   with `tap-targets.js`, which probes what a finger actually reaches.
-  At 375px after 0.220.0: the month + taps at 44 (was 20), ✎ at 35×34
-  (was 22), chips at 34 tall (were 26), the jump arrows at 44×42 (were
-  30×24), sheet Cancel/Save at 45 tall (were 31), rating stars at 22×44
-  (were 18×22), row ▶ ✓ at 44 tall on cover rows (were 25). Still short:
-  chips (44 would mean bigger chips), the search field (32), ✓ ↩ on plain
-  rows (35, the row's height), fields in sheets (36–40). Habits, Boards
-  and Settings' pages are still to be measured.
+  Measured at 375px across Timeline, Backlog, Notes, Habits, Ledger,
+  Settings and the sheets (0.219.0–0.222.0): Timeline went from 111
+  controls under 44 to a handful. Fields (search, Sort, sheet fields) are
+  44 tall on phones. What's still short, and why:
+  - filter chips, 34 tall: 44 would mean visibly bigger chips, declined;
+  - the habit grid's day cells, 16px: hundreds of days can't each be 44;
+  - a list's ☐ ✕ (22×27, 28×30) and ✓ ↩ on coverless rows (35): they fill
+    their row, and the row is that tall;
+  - rating stars, 22 wide: they sit 4px apart;
+  - the habit name, 41 tall, and the year header's achievement pills, 24.
+  The Boards editor hasn't been measured.
 - **Focus:** one global `:focus-visible` ring (2px accent, 2px offset)
   covers every button, link and field (Now). Don't remove an outline without
   replacing it.

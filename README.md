@@ -206,6 +206,10 @@ src/qr.js           self-contained QR encoder for the device setup link
 server.js           tiny static server
 proxy/              optional Cloudflare Worker: CORS proxy for Steam/SteamGridDB
 test/               zero-dependency Node tests — `node test/run-all.js`
+DESIGN.md           the design language: tokens, type/space/radius scales, motion,
+                    components, voice, accessibility. Read before UI work
+.claude/skills/     how to build (lifelog-design), check (lifelog-ui-audit) and
+                    ship (release-checklist) a change
 TODO.md             work still worth doing
 NOTES.md            why what shipped is the way it is — read before changing
                     something that looks arbitrary
