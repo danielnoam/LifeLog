@@ -233,10 +233,10 @@ test("the wall groups by category, and sorts the best first inside each", () => 
 });
 
 test("a very full year says it is holding some back rather than showing 400 tiles", () => {
-  const many = Array.from({ length: 60 }, (_, i) => entry({ title: "T" + i }));
+  const many = Array.from({ length: 130 }, (_, i) => entry({ title: "T" + i }));
   const g = byId(build({ entries: many }, 2026), "gallery");
-  assert.strictEqual(g.items.length, 48);
-  assert.ok(/Showing the first 48/.test(g.foot), g.foot);
+  assert.strictEqual(g.items.length, 120);
+  assert.ok(/Showing the first 120/.test(g.foot), g.foot);
   const few = byId(build({ entries: many.slice(0, 10) }, 2026), "gallery");
   assert.strictEqual(few.foot, "", "and says nothing when it is showing everything");
 });

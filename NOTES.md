@@ -16,6 +16,14 @@ what was decided against and why.
 
 ---
 
+- **Recap gallery overlap (0.224.1).** The covers overlapped because
+  `.recap-grid` was itself the scroller (`overflow-y: auto`, `min-height: 0`
+  in a flex column): auto rows shrank to fit while the tiles, which are
+  `overflow: hidden`, kept their aspect-ratio height, so rows stacked on each
+  other. The scroller is now `.recap-wall` and the per-category grids inside
+  it don't scroll, with `grid-auto-rows: max-content`. Keep a grid of
+  aspect-ratio tiles out of any shrinkable scroll container.
+
 - **Discover's bar and the Sort menu (0.224.0).** Discover's bar has two
   groups (Popular/Coming soon, and Hide owned + Refresh), so on a phone the
   right one wrapped, and `space-between` starts a wrapped line at the left;

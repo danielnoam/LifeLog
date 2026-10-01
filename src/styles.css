@@ -2843,7 +2843,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
    still bubbles to #recapScreen and moves to the next slide, which is how you
    get out of a long wall of covers on a phone. The left/right tap zones stay
    reachable in the margins beside it. */
-.recap-grid, .recap-cards, .recap-list, .recap-bars {
+.recap-wall, .recap-cards, .recap-list, .recap-bars {
   pointer-events: auto;
   touch-action: pan-y;
   overflow-y: auto;
@@ -2852,9 +2852,19 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   width: 100%;
   -webkit-overflow-scrolling: touch;
 }
+/* The wall scrolls, the grids inside it don't: a grid that was itself the
+   scroller let its rows shrink to fit, and the covers stacked on each other.
+   max-content rows keep each at its tile's own height. */
+.recap-wall { margin-top: 10px; text-align: left; }
+.recap-group {
+  margin: 12px 0 6px; font-size: var(--fs-xs); font-weight: 600;
+  color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em;
+}
+.recap-group:first-child { margin-top: 0; }
 .recap-grid {
-  display: grid; gap: 8px; margin-top: 10px;
+  display: grid; gap: 8px;
   grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  grid-auto-rows: max-content;
   padding-bottom: 4px;
 }
 

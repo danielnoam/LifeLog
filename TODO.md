@@ -19,13 +19,6 @@ todo:
   entries* by category (games, shows…), not money; retitle it ("What you
   spent your time on"?) or let the new money slide own that line.
 
-- **Yearly recap: "Everything you logged" is broken.** The gallery slide
-  (`gallery` in recap.js): cover art in it can overlap, and it's one long
-  wall sorted by category then rating, capped at `GALLERY_MAX`. Organise it
-  as you scroll, per category or per month (with a header for each group),
-  and fix the overlapping covers. Reproduce the overlap first: check
-  phone and desktop, covers vs. the tinted no-art tiles, and long titles.
-
 - **A travel mode: places and an itinerary.** A trip with the places you
   want to go and a day-by-day plan. To decide: whether it's its own tab or
   part of an existing one (the Ledger already has projects, which a trip

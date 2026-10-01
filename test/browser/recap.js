@@ -174,7 +174,7 @@ const slide = (page) => page.evaluate(() => {
     check("there is a wall of everything you logged", await find("recap-gallery"));
     const wall = await page.evaluate(() => {
       const tiles = [...document.querySelectorAll(".recap-tile")];
-      const grid = document.querySelector(".recap-grid");
+      const grid = document.querySelector(".recap-wall");
       return {
         n: tiles.length,
         withArt: tiles.filter((t) => t.querySelector("img")).length,

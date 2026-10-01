@@ -24,7 +24,7 @@
   // and a chore at four hundred; a scroll back through your notes is a nice
   // thing to do for a dozen and a reading assignment beyond that. Both slides
   // say so on their own foot when they are holding something back.
-  const GALLERY_MAX = 48;
+  const GALLERY_MAX = 120;
   const NOTE_CARDS_MAX = 12;
 
   // Whether a tab (and, where a slide names one, a mode) is switched on. Read
@@ -163,13 +163,21 @@
         String(a.category).localeCompare(String(b.category))
         || b.rating - a.rating
         || a.title.localeCompare(b.title));
-      const withArt = items.filter((x) => x.coverUrl).length;
+      // Sorted by category already, so a group is a run of neighbours.
+      const shown = items.slice(0, GALLERY_MAX);
+      const groups = [];
+      for (const it of shown) {
+        const last = groups[groups.length - 1];
+        if (last && last.label === it.category) last.items.push(it);
+        else groups.push({ label: it.category, items: [it] });
+      }
       return {
         id: "gallery", kind: "gallery", view: "timeline",
         headline: "Everything you logged",
         sub: items.length + (items.length === 1 ? " thing" : " things") + ", all in one place",
-        items: items.slice(0, GALLERY_MAX),
-        foot: items.length > GALLERY_MAX ? "Showing the first " + GALLERY_MAX : (withArt ? "" : ""),
+        items: shown,
+        groups,
+        foot: items.length > GALLERY_MAX ? "Showing the first " + GALLERY_MAX : "",
       };
     },
 
@@ -550,9 +558,14 @@
     if (spec.kind === "gallery") {
       card.appendChild(el("h2", "recap-headline", spec.headline));
       if (spec.sub) card.appendChild(el("p", "recap-sub", spec.sub));
-      const grid = el("div", "recap-grid");
-      for (const item of spec.items) grid.appendChild(tile(item));
-      card.appendChild(grid);
+      const wall = el("div", "recap-wall");
+      for (const group of spec.groups) {
+        wall.appendChild(el("h3", "recap-group", group.label + " · " + group.items.length));
+        const grid = el("div", "recap-grid");
+        for (const item of group.items) grid.appendChild(tile(item));
+        wall.appendChild(grid);
+      }
+      card.appendChild(wall);
       if (spec.foot) card.appendChild(el("p", "recap-foot-note", spec.foot));
       return;
     }

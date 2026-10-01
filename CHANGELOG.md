@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.224.1] - 2026-10-01
+
+### Fixed
+- **Recap, "Everything you logged":** covers no longer pile on top of each
+  other. The slide is now grouped by category, each with its own header and
+  count, and shows up to 120 things instead of 48.
+
 ## [0.224.0] - 2026-10-01
 
 ### Fixed
