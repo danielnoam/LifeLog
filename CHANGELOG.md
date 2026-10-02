@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.226.0] - 2026-10-02
+
+### Added
+- **Out today:** a title on your backlog that comes out today gets a card at
+  the top of Next releases, with ▶ start, ✓ done and ✕ dismiss, before the
+  list drops it. ✕ hides it for the rest of the day on that device. The
+  "Out today" button in the bar brings the card back, along with a card of
+  what came out in the past week.
+
 ## [0.225.0] - 2026-10-01
 
 ### Added

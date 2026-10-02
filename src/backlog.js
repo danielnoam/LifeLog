@@ -1228,13 +1228,113 @@
     return row;
   }
 
+  // ---------- Out today ----------
+  // Next Releases drops a title the day after its date, which is exactly when
+  // you'd want to know it came out. So the day it's out it gets a card of its
+  // own above the list, with the actions that matter then: start it, log it,
+  // or wave it off. Dismissals are per device and per day, like the other
+  // glance-and-forget state (the pick history), and the button in the mode
+  // bar brings the card back along with the last week's releases.
+  const OUT_DISMISS_KEY = "lifelog-out-today-v1";
+  const OUT_RECENT_DAYS = 7;
+  let outRecall = false;
+
+  // The day an item is (or was) out, when a day is known. A month or a year
+  // is never "today", and an upcoming episode only counts on its own day.
+  function outDay(b) {
+    if (b.nextAt && isRealDate(b.nextAt) && b.nextAt === todayStr()) return b.nextAt;
+    const raw = (b.releaseDate || "").slice(0, 10);
+    return precisionOf(b) === "day" && isRealDate(raw) ? raw : "";
+  }
+  function outDismissed() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(OUT_DISMISS_KEY));
+      if (raw && raw.day === todayStr() && Array.isArray(raw.ids)) return new Set(raw.ids);
+    } catch (e) {}
+    return new Set();
+  }
+  function saveOutDismissed(ids) {
+    try { localStorage.setItem(OUT_DISMISS_KEY, JSON.stringify({ day: todayStr(), ids: [...ids] })); } catch (e) {}
+  }
+  function outItems() {
+    const today = todayStr();
+    const out = { today: [], recent: [] };
+    for (const b of getFilteredBacklog()) {
+      if (b.dropped || isStarted(b)) continue;
+      const day = outDay(b);
+      if (!day) continue;
+      if (day === today) out.today.push(b);
+      else if (day < today && daysUntil(day) >= -OUT_RECENT_DAYS) out.recent.push(b);
+    }
+    const byTitle = (a, b) => a.title.localeCompare(b.title);
+    out.today.sort(byTitle);
+    out.recent.sort((a, b) => (outDay(b) < outDay(a) ? -1 : outDay(b) > outDay(a) ? 1 : byTitle(a, b)));
+    return out;
+  }
+
+  function outTodayRow(b, onDismiss) {
+    const row = upcomingRow(b);
+    row.classList.add("out-row");
+    row.appendChild(startButton(b));
+    row.appendChild(doneButton(b));
+    if (onDismiss) {
+      const x = el("button", "btn btn-sm out-dismiss", "✕");
+      x.type = "button";
+      x.title = "Dismiss — hide it for today";
+      x.setAttribute("aria-label", "Dismiss " + b.title);
+      x.onclick = (ev) => { ev.stopPropagation(); onDismiss(); };
+      row.appendChild(x);
+    }
+    row.onclick = () => openBacklogModal(b);
+    return row;
+  }
+
+  function outCard(title, items, dismissable) {
+    const section = el("div", "backlog-section out-card");
+    const head = el("div", "backlog-section-head");
+    head.appendChild(el("span", "backlog-section-name", title));
+    head.appendChild(el("span", "backlog-section-count", String(items.length)));
+    section.appendChild(head);
+    const list = el("div", "backlog-list");
+    for (const b of items) {
+      list.appendChild(outTodayRow(b, dismissable ? () => {
+        const ids = outDismissed(); ids.add(b.id); saveOutDismissed(ids); render();
+      } : null));
+    }
+    section.appendChild(list);
+    return section;
+  }
+
+  // The cards to draw, and what they cover so the list below can leave those
+  // titles out rather than say each one twice.
+  function outCards() {
+    const { today, recent } = outItems();
+    const hidden = outDismissed();
+    const cards = [], shown = new Set();
+    const live = outRecall ? today : today.filter((b) => !hidden.has(b.id));
+    if (live.length) cards.push(outCard("Out today", live, !outRecall));
+    if (outRecall && recent.length) cards.push(outCard("Out this past week", recent, false));
+    for (const b of live.concat(outRecall ? recent : [])) shown.add(b.id);
+    return { cards, shown, recallable: today.length + recent.length > 0 };
+  }
+
+  function outRecallButton() {
+    const btn = el("button", "btn btn-sm out-recall", outRecall ? "Hide out today" : "Out today");
+    btn.type = "button";
+    btn.title = outRecall ? "Hide the releases card" : "Show what came out today and this past week";
+    btn.onclick = () => { outRecall = !outRecall; render(); };
+    return btn;
+  }
+
   // One card per month, in date order, then a card per year for the ones
   // narrowed no further than that, then a last card for the ones with
   // nothing announced at all. Items are grouped by the day they're actually
   // waiting on (see upcomingAt), so a show mid-season lands on its next
   // episode rather than the month it premiered years ago.
   function renderUpcoming(root) {
-    const items = upcomingItems();
+    const out = outCards();
+    for (const card of out.cards) root.appendChild(card);
+    const items = upcomingItems().filter((b) => !out.shown.has(b.id));
     if (!items.length) {
       // Distinguish "nothing is coming" from "your filters hid it" — the
       // advice below only makes sense for the former.
@@ -1822,6 +1922,7 @@
     if (state.backlogMode === "upcoming") {
       const n = upcomingItems().length;
       if (n) bar.appendChild(el("span", "backlog-mode-count", n + (n === 1 ? " title" : " titles") + " waiting"));
+      if (outCards().recallable) bar.appendChild(outRecallButton());
     } else if (state.backlogMode === "entries") {
       // What's been started is on the Timeline's In progress card (0.218.0).
       // The "▶ N in progress" link that pointed there was removed in 0.223.0.

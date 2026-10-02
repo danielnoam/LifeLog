@@ -1,16 +1,5 @@
 todo:
 
-- **Released today: a card that catches it before it leaves Next
-  releases.** When something on your backlog comes out today, it should
-  get its own card, "Out today", the way In progress has one, before it
-  drops off Next releases (Backlog's ◷ mode, `upcomingItems()` in
-  backlog.js). Plus a button on Next releases that brings that card back
-  if you missed it (dismissed it, or it's no longer today but still
-  recent). To decide: where the card lives (top of the Timeline like In
-  progress, top of Next releases, or both), how long "today" lasts (the
-  day, or until you've seen it), and what its rows offer (▶ start, ✓ done,
-  dismiss).
-
 - **A travel mode: places and an itinerary.** A trip with the places you
   want to go and a day-by-day plan. To decide: whether it's its own tab or
   part of an existing one (the Ledger already has projects, which a trip
