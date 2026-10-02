@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.227.0] - 2026-10-02
+
+### Added
+- **Out today sheet:** the first time you open the app each day, if
+  something on your backlog came out that day, a sheet shows it with covers.
+  Once a day per device, never when nothing is out. Settings → Release
+  dates → "Out today sheet" turns it off.
+
+### Changed
+- **Out today card:** always shown above Next releases when something is out.
+  The Out today button, the ✕ dismiss and the past-week card are gone.
+
 ## [0.226.0] - 2026-10-02
 
 ### Added

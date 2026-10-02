@@ -721,6 +721,7 @@
     $("#ledgerMonthSummary").value = state.visual.ledgerMonthSummary || "show";
     $("#timelineMonthSummary").value = state.visual.timelineMonthSummary || "hide";
     $("#backlogCounts").value = state.visual.backlogCounts;
+    $("#outTodaySheet").value = state.visual.outTodaySheet || "show";
     $("#backlogFoldEa").value = state.visual.backlogFoldEa;
     $("#backlogFoldUnreleased").value = state.visual.backlogFoldUnreleased;
     $("#backlogFoldDropped").value = state.visual.backlogFoldDropped;
@@ -1447,6 +1448,10 @@
       if (!state.data.settings.releases) state.data.settings.releases = { ...DEFAULT_SETTINGS.releases };
       state.data.settings.releases.autoRefreshDays = $("#releasesAutoRefreshDays").value;
       await persist();
+    };
+    $("#outTodaySheet").onchange = () => {
+      state.visual.outTodaySheet = $("#outTodaySheet").value;
+      saveVisualSettings(state.visual);
     };
     $("#refreshReleasesBtn").onclick = refreshUpcomingReleases;
 

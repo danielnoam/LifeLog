@@ -47,7 +47,7 @@
   // object, so a default declared here is the only one there is — a `||` at
   // the read site is a second copy that can drift from it.
   // maxWidth 0 = stretch.
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, ledgerMonthSummary: "show", timelineMonthSummary: "hide",
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, outTodaySheet: "show", ledgerMonthSummary: "show", timelineMonthSummary: "hide",
     // One per set-aside band: "always" (a plain rule, never folds), "open"
     // (foldable, starts open) or "collapsed" (foldable, starts folded).
     // Dropped starts folded because it is the band you gave up on; the other
@@ -147,7 +147,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.226.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.227.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3990,7 +3990,7 @@
       if (e.key === "Escape") {
         if (SettingsUI.settingsBack()) return;
         Journal.closeEntryModal(); Journal.closeAchModal(); Journal.cancelCategoryModal(); Backlog.closeBacklogModal();
-        Backlog.closePickModal(); Wheel.closeWheel();
+        Backlog.closePickModal(); Backlog.closeOutTodaySheet(); Wheel.closeWheel();
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
         Finance.closePauseModal(); Finance.cancelFinanceCatModal();
         Habits.closeHabitModal(); Notes.closeNoteCatModal();
@@ -4537,6 +4537,9 @@
     // app rather than over a blank page, and never while a modal or the lock
     // screen already has the screen.
     if (!isAnyModalOpen()) setTimeout(() => { if (!isAnyModalOpen()) Recap.maybeOfferRecap(); }, 700);
+    // Then, once a day, what came out today. After the recap's chance: if it
+    // took the screen, this waits for tomorrow rather than stacking on it.
+    if (!isAnyModalOpen()) setTimeout(() => { if (!isAnyModalOpen()) Backlog.maybeShowOutToday(); }, 1200);
     Sync.maybeAutoCheckSteamWishlist(); // fire-and-forget, doesn't block startup
     Sync.maybeAutoCheckAniList(); // same — quiet background check, never blocks startup
     Sync.maybeAutoRefreshReleases(); // same — keeps upcoming release dates current in the background

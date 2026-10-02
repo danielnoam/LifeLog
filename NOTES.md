@@ -16,18 +16,21 @@ what was decided against and why.
 
 ---
 
-- **Out today (0.226.0).** The card sits at the top of Next releases only,
-  not the Timeline: In progress already owns that spot, and a second card
-  there would crowd the main view. It lasts the calendar day (not "until
-  seen"), because "seen" would need synced state to be right across devices;
-  ✕ is per device and per day in localStorage, like the pick history. Only a
-  day-precision date, or an episode's `nextAt`, counts as "today": a month
-  or a year is never today, and `upcomingAt` clamps those to today, so it
-  can't be used here. A source that says `released` drops a title from the
-  list immediately, which is why the card is built independently of
-  `upcomingItems()`. Titles on the card are left out of the list below. The
-  recall button shows the past 7 days (`OUT_RECENT_DAYS`) of day-precision
-  releases, nothing older.
+- **Out today (0.226.0, reworked 0.227.0).** The card sits at the top of
+  Next releases only, not the Timeline: In progress already owns that spot.
+  It is always shown, with no dismiss or recall button (0.226.0 had both,
+  plus a past-week card; removed because a button to manage a card that is
+  only there for a day is more UI than the card). Only a day-precision date,
+  or an episode's `nextAt`, counts as "today": a month or a year is never
+  today, and `upcomingAt` clamps those to today, so it can't be used here. A
+  source that says `released` drops a title from the list immediately, which
+  is why the card is built independently of `upcomingItems()`. Titles on the
+  card are left out of the list below. The sheet (`maybeShowOutToday`) opens
+  once per device per calendar day, from start-up after the recap's chance,
+  and only marks the day seen when it actually opens, so an empty day or a
+  modal already up doesn't use it. It reads the whole backlog, not the
+  chip-filtered one. The setting is a visual (device-local) setting like the
+  seen-day itself.
 
 - **Recap spending slides (0.225.0).** The two money slides skip themselves
   below two categories / two months, because one bar repeats the big number.

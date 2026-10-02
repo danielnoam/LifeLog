@@ -1350,12 +1350,12 @@ img.cover-loading { opacity: 0; }
      never take a tap from the row above or below. */
 .modal-actions .btn, .rating-input .star, details.advanced > summary,
 .priority-star, .bought-toggle, .started-toggle,
-.bl-start, .bl-done, .progress-stop, .out-dismiss { position: relative; }
+.bl-start, .bl-done, .progress-stop { position: relative; }
 .modal-actions .btn::after { content: ""; position: absolute; inset: -7px -5px; }
 .rating-input .star::after { content: ""; position: absolute; inset: -11px -2px; }
 details.advanced > summary::after { content: ""; position: absolute; inset: -6px 0; }
 .priority-star::after, .bought-toggle::after, .started-toggle::after { content: ""; position: absolute; inset: -6px -3px; }
-.bl-start::after, .bl-done::after, .progress-stop::after, .out-dismiss::after { content: ""; position: absolute; inset: -5px -3px; }
+.bl-start::after, .bl-done::after, .progress-stop::after { content: ""; position: absolute; inset: -5px -3px; }
 /* A cover row is ~83px tall with ▶ ✓ near its top: room to reach 44. */
 .backlog-item-rich .bl-start::after, .backlog-item-rich .bl-done::after { inset: -6px -3px -13px; }
 /* The Backlog's bar: Spin / Pick random, 12px from each other. */
@@ -1460,14 +1460,20 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
    still holding the other end. */
 .backlog-mode-bar > :only-child { margin-left: auto; }
 .backlog-mode-count { font-size: var(--fs-xs); color: var(--text-dim); }
-.backlog-mode-bar > .out-recall { margin-left: auto; }
-
 /* Out today (0.226.0): the card above Next releases. Same rows as the list,
-   with ▶ ✓ ✕ at the end; the ✕ is the quietest of the three. */
+   with ▶ ✓ at the end. */
 .out-card { margin-bottom: 14px; }
 .out-card .btn-sm { flex: 0 0 auto; }
-.out-dismiss { color: var(--text-dim); padding-inline: 8px; }
-.out-dismiss:hover:not(:disabled) { color: var(--danger); }
+
+/* The once-a-day sheet: a wall of covers, name under each. */
+.out-grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); max-height: 60vh; overflow-y: auto; }
+.out-tile {
+  display: flex; flex-direction: column; gap: 4px; padding: 0; text-align: left;
+  background: none; border: 0; color: var(--text); cursor: pointer; font: inherit;
+}
+.out-tile-cover { width: 100%; aspect-ratio: 2 / 3; height: auto; object-fit: cover; border-radius: var(--r-md); }
+.out-tile-title { font-size: var(--fs-sm); font-weight: 600; overflow-wrap: anywhere; }
+.out-tile-cat { font-size: var(--fs-2xs); color: var(--text-dim); }
 
 .seg {
   display: inline-flex; background: var(--bg-elev-2); border: 1px solid var(--border);

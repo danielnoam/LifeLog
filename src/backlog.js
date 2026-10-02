@@ -1231,13 +1231,10 @@
   // ---------- Out today ----------
   // Next Releases drops a title the day after its date, which is exactly when
   // you'd want to know it came out. So the day it's out it gets a card of its
-  // own above the list, with the actions that matter then: start it, log it,
-  // or wave it off. Dismissals are per device and per day, like the other
-  // glance-and-forget state (the pick history), and the button in the mode
-  // bar brings the card back along with the last week's releases.
-  const OUT_DISMISS_KEY = "lifelog-out-today-v1";
-  const OUT_RECENT_DAYS = 7;
-  let outRecall = false;
+  // own above the list, with the actions that matter then: start it or log
+  // it. The first time the app opens that day, a sheet shows the same titles
+  // (once per device per day, and Settings → Release dates turns it off).
+  const OUT_SEEN_KEY = "lifelog-out-today-v1";
 
   // The day an item is (or was) out, when a day is known. A month or a year
   // is never "today", and an upcoming episode only counts on its own day.
@@ -1246,85 +1243,63 @@
     const raw = (b.releaseDate || "").slice(0, 10);
     return precisionOf(b) === "day" && isRealDate(raw) ? raw : "";
   }
-  function outDismissed() {
-    try {
-      const raw = JSON.parse(localStorage.getItem(OUT_DISMISS_KEY));
-      if (raw && raw.day === todayStr() && Array.isArray(raw.ids)) return new Set(raw.ids);
-    } catch (e) {}
-    return new Set();
-  }
-  function saveOutDismissed(ids) {
-    try { localStorage.setItem(OUT_DISMISS_KEY, JSON.stringify({ day: todayStr(), ids: [...ids] })); } catch (e) {}
-  }
-  function outItems() {
+  function outToday() {
     const today = todayStr();
-    const out = { today: [], recent: [] };
-    for (const b of getFilteredBacklog()) {
-      if (b.dropped || isStarted(b)) continue;
-      const day = outDay(b);
-      if (!day) continue;
-      if (day === today) out.today.push(b);
-      else if (day < today && daysUntil(day) >= -OUT_RECENT_DAYS) out.recent.push(b);
-    }
-    const byTitle = (a, b) => a.title.localeCompare(b.title);
-    out.today.sort(byTitle);
-    out.recent.sort((a, b) => (outDay(b) < outDay(a) ? -1 : outDay(b) > outDay(a) ? 1 : byTitle(a, b)));
-    return out;
+    return getFilteredBacklog()
+      .filter((b) => !b.dropped && !isStarted(b) && outDay(b) === today)
+      .sort((a, b) => a.title.localeCompare(b.title));
   }
 
-  function outTodayRow(b, onDismiss) {
+  function outTodayRow(b) {
     const row = upcomingRow(b);
     row.classList.add("out-row");
     row.appendChild(startButton(b));
     row.appendChild(doneButton(b));
-    if (onDismiss) {
-      const x = el("button", "btn btn-sm out-dismiss", "✕");
-      x.type = "button";
-      x.title = "Dismiss — hide it for today";
-      x.setAttribute("aria-label", "Dismiss " + b.title);
-      x.onclick = (ev) => { ev.stopPropagation(); onDismiss(); };
-      row.appendChild(x);
-    }
     row.onclick = () => openBacklogModal(b);
     return row;
   }
 
-  function outCard(title, items, dismissable) {
+  function outTodayCard(items) {
     const section = el("div", "backlog-section out-card");
     const head = el("div", "backlog-section-head");
-    head.appendChild(el("span", "backlog-section-name", title));
+    head.appendChild(el("span", "backlog-section-name", "Out today"));
     head.appendChild(el("span", "backlog-section-count", String(items.length)));
     section.appendChild(head);
     const list = el("div", "backlog-list");
-    for (const b of items) {
-      list.appendChild(outTodayRow(b, dismissable ? () => {
-        const ids = outDismissed(); ids.add(b.id); saveOutDismissed(ids); render();
-      } : null));
-    }
+    for (const b of items) list.appendChild(outTodayRow(b));
     section.appendChild(list);
     return section;
   }
 
-  // The cards to draw, and what they cover so the list below can leave those
-  // titles out rather than say each one twice.
-  function outCards() {
-    const { today, recent } = outItems();
-    const hidden = outDismissed();
-    const cards = [], shown = new Set();
-    const live = outRecall ? today : today.filter((b) => !hidden.has(b.id));
-    if (live.length) cards.push(outCard("Out today", live, !outRecall));
-    if (outRecall && recent.length) cards.push(outCard("Out this past week", recent, false));
-    for (const b of live.concat(outRecall ? recent : [])) shown.add(b.id);
-    return { cards, shown, recallable: today.length + recent.length > 0 };
+  // The sheet: covers and titles, nothing to operate. Tapping one opens it.
+  // Not marked seen until it actually opens, so a day with nothing out (or a
+  // modal already up at launch) doesn't use the day up.
+  function maybeShowOutToday() {
+    if (state.visual.outTodaySheet === "hide") return;
+    const today = todayStr();
+    try { if (JSON.parse(localStorage.getItem(OUT_SEEN_KEY)).day === today) return; } catch (e) {}
+    // Items from the whole backlog, not the Timeline's chip filter: a filter
+    // you left on yesterday shouldn't hide what came out.
+    const items = state.data.backlog
+      .filter((b) => !b.dropped && !isStarted(b) && outDay(b) === today)
+      .sort((a, b) => a.title.localeCompare(b.title));
+    if (!items.length) return;
+    try { localStorage.setItem(OUT_SEEN_KEY, JSON.stringify({ day: today })); } catch (e) {}
+    $("#outTodayCount").textContent = items.length === 1 ? "1 thing came out today" : items.length + " things came out today";
+    const grid = $("#outTodayGrid");
+    grid.textContent = "";
+    for (const b of items) {
+      const card = el("button", "out-tile");
+      card.type = "button";
+      card.appendChild(b.coverUrl ? coverEl(b.coverUrl, "", "out-tile-cover", b.category) : emptyCoverEl("out-tile-cover cover-empty", b.category));
+      card.appendChild(el("span", "out-tile-title", b.title));
+      card.appendChild(el("span", "out-tile-cat", b.category));
+      card.onclick = () => { closeOutTodaySheet(); openBacklogModal(b); };
+      grid.appendChild(card);
+    }
+    $("#outTodayModal").hidden = false;
   }
-
-  function outRecallButton() {
-    const btn = el("button", "btn btn-sm out-recall", outRecall ? "Hide out today" : "Out today");
-    btn.type = "button";
-    btn.title = outRecall ? "Hide the releases card" : "Show what came out today and this past week";
-    btn.onclick = () => { outRecall = !outRecall; render(); };
-    return btn;
-  }
+  function closeOutTodaySheet() { $("#outTodayModal").hidden = true; }
 
   // One card per month, in date order, then a card per year for the ones
   // narrowed no further than that, then a last card for the ones with
@@ -1332,9 +1307,10 @@
   // waiting on (see upcomingAt), so a show mid-season lands on its next
   // episode rather than the month it premiered years ago.
   function renderUpcoming(root) {
-    const out = outCards();
-    for (const card of out.cards) root.appendChild(card);
-    const items = upcomingItems().filter((b) => !out.shown.has(b.id));
+    const out = outToday();
+    if (out.length) root.appendChild(outTodayCard(out));
+    const outIds = new Set(out.map((b) => b.id));
+    const items = upcomingItems().filter((b) => !outIds.has(b.id));
     if (!items.length) {
       // Distinguish "nothing is coming" from "your filters hid it" — the
       // advice below only makes sense for the former.
@@ -1922,7 +1898,6 @@
     if (state.backlogMode === "upcoming") {
       const n = upcomingItems().length;
       if (n) bar.appendChild(el("span", "backlog-mode-count", n + (n === 1 ? " title" : " titles") + " waiting"));
-      if (outCards().recallable) bar.appendChild(outRecallButton());
     } else if (state.backlogMode === "entries") {
       // What's been started is on the Timeline's In progress card (0.218.0).
       // The "▶ N in progress" link that pointed there was removed in 0.223.0.
@@ -2796,6 +2771,7 @@
     $("#pickFavOnly").onchange = (ev) => { pickFavOnly = ev.target.checked; rerollPick(); };
     $("#pickBoughtOnly").onchange = (ev) => { pickBoughtOnly = ev.target.checked; rerollPick(); };
     $("#pickCloseBtn").onclick = closePickModal;
+    $("#closeOutTodayBtn").onclick = closeOutTodaySheet;
     document.addEventListener("click", (e) => {
       if (!e.target.closest("#backlogModal .ac-wrap")) {
         const bs = $("#bTitleSuggest");
@@ -2809,6 +2785,8 @@
     wire,
     // the Timeline's In progress card (0.218.0)
     inProgressCard, inProgressItems, startItem, stopItem,
+    // the Out today sheet (opened once a day from app.js's start-up)
+    maybeShowOutToday, closeOutTodaySheet,
     // view (dispatched from app.js's render())
     renderBacklog,
     // cross-view search match count (app.js's tab match badges)

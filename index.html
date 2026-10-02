@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.226.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.227.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -578,6 +578,19 @@
         <button type="button" class="btn" id="pickCloseBtn">Close</button>
         <button type="button" class="btn btn-primary" id="pickOpenBtn">Open</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Out today: opens once a day, the first time the app does, when
+       something on the backlog came out. Built by maybeShowOutToday(). -->
+  <div class="modal-overlay" id="outTodayModal" hidden>
+    <div class="modal" role="dialog" aria-labelledby="outTodayTitle">
+      <div class="modal-head">
+        <h2 id="outTodayTitle">Out today</h2>
+        <button class="btn btn-icon" id="closeOutTodayBtn" title="Close" aria-label="Close out today">✕</button>
+      </div>
+      <p class="muted" id="outTodayCount"></p>
+      <div class="out-grid" id="outTodayGrid"></div>
     </div>
   </div>
 
@@ -1508,6 +1521,13 @@
               <option value="30">Every month</option>
             </select>
           </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Out today sheet</span><span class="sitem-sub">Once a day, when something came out</span></span>
+            <select id="outTodaySheet">
+              <option value="show">Show</option>
+              <option value="hide">Don't show</option>
+            </select>
+          </label>
           <button id="refreshReleasesBtn" type="button" class="sitem sitem-go">🔭 Re-check upcoming release dates</button>
         </div>
       </section>
@@ -1787,27 +1807,27 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.226.0"></script>
-  <script defer src="src/reconcile.js?v=0.226.0"></script>
-  <script defer src="src/qr.js?v=0.226.0"></script>
-  <script defer src="src/media.js?v=0.226.0"></script>
-  <script defer src="src/merge.js?v=0.226.0"></script>
-  <script defer src="src/storage.js?v=0.226.0"></script>
-  <script defer src="src/finance.js?v=0.226.0"></script>
-  <script defer src="src/settings.js?v=0.226.0"></script>
-  <script defer src="src/wheel.js?v=0.226.0"></script>
-  <script defer src="src/backlog.js?v=0.226.0"></script>
-  <script defer src="src/journal.js?v=0.226.0"></script>
-  <script defer src="src/markdown.js?v=0.226.0"></script>
-  <script defer src="src/notes.js?v=0.226.0"></script>
-  <script defer src="src/io.js?v=0.226.0"></script>
-  <script defer src="src/sync.js?v=0.226.0"></script>
-  <script defer src="src/habits.js?v=0.226.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.226.0"></script>
-  <script defer src="src/boards.js?v=0.226.0"></script>
-  <script defer src="src/recap.js?v=0.226.0"></script>
-  <script defer src="src/reminders.js?v=0.226.0"></script>
-  <script defer src="src/widgets.js?v=0.226.0"></script>
-  <script defer src="src/app.js?v=0.226.0"></script>
+  <script defer src="src/platform.js?v=0.227.0"></script>
+  <script defer src="src/reconcile.js?v=0.227.0"></script>
+  <script defer src="src/qr.js?v=0.227.0"></script>
+  <script defer src="src/media.js?v=0.227.0"></script>
+  <script defer src="src/merge.js?v=0.227.0"></script>
+  <script defer src="src/storage.js?v=0.227.0"></script>
+  <script defer src="src/finance.js?v=0.227.0"></script>
+  <script defer src="src/settings.js?v=0.227.0"></script>
+  <script defer src="src/wheel.js?v=0.227.0"></script>
+  <script defer src="src/backlog.js?v=0.227.0"></script>
+  <script defer src="src/journal.js?v=0.227.0"></script>
+  <script defer src="src/markdown.js?v=0.227.0"></script>
+  <script defer src="src/notes.js?v=0.227.0"></script>
+  <script defer src="src/io.js?v=0.227.0"></script>
+  <script defer src="src/sync.js?v=0.227.0"></script>
+  <script defer src="src/habits.js?v=0.227.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.227.0"></script>
+  <script defer src="src/boards.js?v=0.227.0"></script>
+  <script defer src="src/recap.js?v=0.227.0"></script>
+  <script defer src="src/reminders.js?v=0.227.0"></script>
+  <script defer src="src/widgets.js?v=0.227.0"></script>
+  <script defer src="src/app.js?v=0.227.0"></script>
 </body>
 </html>

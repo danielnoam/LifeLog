@@ -1,6 +1,6 @@
 // Out today (0.226.0): a card above Next releases for what came out today,
-// before the list drops it; ✕ hides it for the day, and the bar's button
-// brings it back with the past week's releases.
+// before the list drops it, and a sheet the first time the app opens that
+// day (once, only if something is out, and Settings can turn it off).
 const { chromium, BASE, tally } = require("./harness");
 const { check, done } = tally();
 
@@ -34,6 +34,7 @@ async function run(b, width) {
     localStorage.clear();
     localStorage.setItem("lifelog-cache-v1", JSON.stringify(s));
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "backlog", backlogMode: "upcoming" }));
+    localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify({ outTodaySheet: "hide" }));
   }, SEED);
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForTimeout(500);
@@ -48,27 +49,55 @@ async function run(b, width) {
     await page.evaluate(() => [...document.querySelectorAll(".backlog-grid .up-row")].some((r) => r.dataset.id === "f1")));
   await page.screenshot({ path: require("path").join(require("os").tmpdir(), "outtoday-" + width + ".png") });
 
-  await page.locator('.out-row[data-id="t2"] .out-dismiss').click();
-  await page.waitForTimeout(250);
-  check("✕ hides it for the day" + at, JSON.stringify(await card()) === JSON.stringify(["t1"]), await card());
-  await page.reload({ waitUntil: "networkidle" });
-  await page.waitForTimeout(400);
-  check("and it stays hidden after a reload" + at, JSON.stringify(await card()) === JSON.stringify(["t1"]), await card());
-
-  await page.locator(".out-recall").click();
-  await page.waitForTimeout(250);
-  check("the button brings back the dismissed one" + at, (await card(".out-card:nth-of-type(1)")).includes("t2") || (await card()).includes("t2"), await card());
-  check("with last week's, as its own card" + at, JSON.stringify(await names()) === JSON.stringify(["Out today", "Out this past week"]) && (await card()).includes("r1"), await names());
-  check("but not what came out a month ago" + at, !(await card()).includes("o1"));
-  await page.locator(".out-recall").click();
-  await page.waitForTimeout(250);
-  check("pressing it again puts it away" + at, JSON.stringify(await card()) === JSON.stringify(["t1"]), await card());
+  check("there is no button or dismiss to manage it" + at, await page.evaluate(() => !document.querySelector(".out-recall, .out-dismiss")));
 
   await page.locator('.out-row[data-id="t1"] .bl-start').click();
   await page.waitForTimeout(300);
-  check("▶ starts it and it leaves the card" + at, (await card()).length === 0 && await page.evaluate(() => !!JSON.parse(localStorage.getItem("lifelog-cache-v1")).backlog.find((x) => x.id === "t1").startedAt));
+  check("▶ starts it and it leaves the card" + at, JSON.stringify(await card()) === JSON.stringify(["t2"]) && await page.evaluate(() => !!JSON.parse(localStorage.getItem("lifelog-cache-v1")).backlog.find((x) => x.id === "t1").startedAt));
 
   await page.close();
+
+  // ---- the sheet ----
+  const open = async (visual, backlog, view) => {
+    const p = await b.newPage({ viewport: { width, height: 900 } });
+    p.on("pageerror", (e) => errs.push("pageerror: " + e.message));
+    await p.goto(BASE + "/", { waitUntil: "networkidle" });
+    await p.evaluate(({ s, v, view }) => {
+      localStorage.clear();
+      localStorage.setItem("lifelog-cache-v1", JSON.stringify(s));
+      localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: view || "timeline", timelineMode: "entries" }));
+      if (v) localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify(v));
+    }, { s: { ...SEED, backlog }, v: visual, view });
+    await p.reload({ waitUntil: "networkidle" });
+    await p.waitForTimeout(2000);
+    return p;
+  };
+  const shown = (p) => p.evaluate(() => !document.querySelector("#outTodayModal").hidden);
+  let p = await open(null, SEED.backlog);
+  check("the first open of the day shows what came out" + at, await shown(p));
+  check("with a tile per title that's out, started ones not among them" + at,
+    await p.evaluate(() => [...document.querySelectorAll("#outTodayGrid .out-tile-title")].map((e) => e.textContent).sort().join()) === "Also Today,Out Now");
+  await p.screenshot({ path: require("path").join(require("os").tmpdir(), "outsheet-" + width + ".png") });
+  await p.keyboard.press("Escape");
+  check("Escape closes it" + at, !(await shown(p)));
+  await p.reload({ waitUntil: "networkidle" });
+  await p.waitForTimeout(2000);
+  check("and it doesn't come back the same day" + at, !(await shown(p)));
+  await p.evaluate(() => localStorage.setItem("lifelog-out-today-v1", JSON.stringify({ day: "2000-01-01" })));
+  await p.reload({ waitUntil: "networkidle" });
+  await p.waitForTimeout(2000);
+  check("but does the next day" + at, await shown(p));
+  await p.close();
+
+  p = await open(null, SEED.backlog.filter((x) => x.id === "f1" || x.id === "o1"));
+  check("with nothing out today it stays shut, and doesn't use the day up" + at,
+    !(await shown(p)) && await p.evaluate(() => !localStorage.getItem("lifelog-out-today-v1")));
+  await p.close();
+
+  p = await open({ outTodaySheet: "hide" }, SEED.backlog);
+  check("the setting turns it off" + at, !(await shown(p)));
+  await p.close();
+
   return errs;
 }
 

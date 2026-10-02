@@ -41,7 +41,7 @@ because something shipped broken that no unit test could have caught:
 | `match` | auto-sync asks both sources and refuses a near-miss |
 | `realloop` | the real bulk-sync loop feeds the progress panel live |
 | `ios` | the iOS app: a newer release offered as its page rather than an APK, the QR scan without Google's module, the backup where Files shows it, a widget's lifelog:// link opening the right thing, the widgets' snapshot, Face ID, no folder import |
-| `outtoday` | Out today: the card above Next releases for what's out today (not started ones), the list not repeating it, ✕ per day surviving a reload, the bar's button bringing it back with the past week, ▶ starting from it |
+| `outtoday` | Out today: the card above Next releases for what's out today (not started ones), the list not repeating it, and the once-a-day sheet: shown on the first open, not again, again next day, not on an empty day, off by setting |
 | `inprogress` | In progress: started from a backlog row, the sheet and the card's +, off the Backlog and onto the Timeline's card (chips apply), ↩ back, ✓ Done logging the months it took (or one month), and a reload keeping it |
 | `phonebackup` | the Android app's copy in Documents/LifeLog: off until turned on, written at once and on every save, a day's copy kept for fourteen days, refused storage said out loud, and no sign of it in a browser |
 | `nativehttp` | Steam, SteamGridDB and GG.deals from the app with no proxy: each route reaches the address the worker would, headers and query intact, nothing else relayed, and a browser's proxy untouched |
