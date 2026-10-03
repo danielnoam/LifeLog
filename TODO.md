@@ -6,6 +6,33 @@ todo:
   could share for its spending), and what a place holds (name, address or
   map link, notes, visited).
 
+- **Widgets that are current without opening the app.** Sometimes a widget
+  still shows old data after the app is opened. Find why, then whether the
+  widgets can sync on their own (a periodic background fetch) so opening
+  the app isn't what brings them up to date.
+
+- **Markdown, PDF and EPUB files as notes.** Import or attach them so they
+  open and read as notes.
+
+- **A custom look for the widgets' settings screens.** They're plain
+  framework dialogs built in code (0.201.0); give them LifeLog's own
+  visuals.
+
+- **"To-do" becomes "checklist" everywhere:** the notes kind, the widget,
+  settings, copy and code names, with old saved data still read.
+
+- **Distinct names for each tab and each mode inside a tab**, where a mode
+  shares its tab's name today.
+
+- **Faster ways to add an expense.** Look at reading the Google Pay (or
+  bank) notification on Android to prefill or log one.
+
+- **The habits panel doesn't show all the days.** Find which days go
+  missing and fix it.
+
+- **Rework the + button's options**, renamed and grouped into sections the
+  way the Ledger's are, maybe with icons.
+
 - **An Apple developer account ($99/year)**, if the iOS app is ever used
   for real: sign in CI, upload to TestFlight, and the 7-day re-signing that
   AltStore/SideStore do goes away. Everything else for iOS is built (0.216.0
