@@ -33,6 +33,10 @@ todo:
 - **Rework the + button's options**, renamed and grouped into sections the
   way the Ledger's are, maybe with icons.
 
+- **A pasted amount with a currency symbol sets the currency.** If a cost
+  is pasted into a finance entry with its symbol ("$12.50"), drop the
+  symbol from the field and switch the currency dropdown to match.
+
 - **An Apple developer account ($99/year)**, if the iOS app is ever used
   for real: sign in CI, upload to TestFlight, and the 7-day re-signing that
   AltStore/SideStore do goes away. Everything else for iOS is built (0.216.0
