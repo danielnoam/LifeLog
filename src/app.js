@@ -147,7 +147,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.230.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.231.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -647,7 +647,7 @@
     },
     timeline: {
       key: "timeline",
-      modes: [["entries", "Entries", "☰"], ["stats", "Stats", "◑"]],
+      modes: [["entries", "Log", "☰"], ["stats", "Stats", "◑"]],
       get: () => state.timelineMode,
       set: (m) => { state.timelineMode = m; },
     },
@@ -661,7 +661,7 @@
     },
     finance: {
       key: "finance",
-      modes: [["entries", "Entries", "₪"], ["summary", "Summary", "◑"]],
+      modes: [["entries", "Expenses", "₪"], ["summary", "Summary", "◑"]],
       get: () => state.financeMode,
       set: (m) => { state.financeMode = m; },
     },

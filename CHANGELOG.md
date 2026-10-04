@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.231.0] - 2026-10-04
+
+### Changed
+- **Every tab and mode has a name of its own.** The Notes tab is now
+  Notebook (its modes are still Notes and Habits). The first mode of the
+  other tabs, "Entries" in all three, is now Log on the Timeline, List on
+  the Backlog and Expenses in the Ledger.
+- **Widget settings in LifeLog's look:** the Android widgets' settings
+  screens use the widgets' own colours in light and dark, with a proper
+  title, each group's options on one rounded card, bigger rows, and Cancel
+  beside a filled Save.
+- **Combined recurring expenses** read "↻ 2 plans" in the list rather than
+  "yearly + monthly", which ran out of room on a phone.
+
 ## [0.230.0] - 2026-10-04
 
 ### Changed

@@ -106,8 +106,7 @@ const paste = (page, sel, text) => page.evaluate(([sel, text]) => {
   await page.click("#cancelRecurringBtn");
   const rows = await page.evaluate(() => [...document.querySelectorAll(".recur-row")].map((r) => r.textContent));
   const gymRows = rows.filter((t) => /Gym/.test(t));
-  check("the two read as one row, a month's worth together", gymRows.length === 1 && /yearly \+ monthly|monthly \+ yearly/.test(gymRows[0]) && /150/.test(gymRows[0]), gymRows);
-  await page.screenshot({ path: process.env.SHOT_DIR ? process.env.SHOT_DIR + "/recur-phone.png" : "/dev/null" });
+  check("the two read as one row, a month's worth together", gymRows.length === 1 && /2 plans/.test(gymRows[0]) && /150/.test(gymRows[0]), gymRows);
 
   await openPlan(page, "Gym");
   await page.click("#recMoreBtn");

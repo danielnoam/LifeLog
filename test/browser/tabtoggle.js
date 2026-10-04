@@ -294,9 +294,9 @@ const activeView = (page) => page.evaluate(() => {
     };
     await openTabsPage();
     check("out of the box a three-mode tab lists the mode it has always opened on in the middle",
-      JSON.stringify(await tabRows("Backlog")) === JSON.stringify(["Next releases", "Entries*", "Discover"]) &&
-      JSON.stringify(await tabRows("Notes")) === JSON.stringify(["Habits", "Notes*"]),
-      { backlog: await tabRows("Backlog"), notes: await tabRows("Notes") });
+      JSON.stringify(await tabRows("Backlog")) === JSON.stringify(["Next releases", "List*", "Discover"]) &&
+      JSON.stringify(await tabRows("Notebook")) === JSON.stringify(["Habits", "Notes*"]),
+      { backlog: await tabRows("Backlog"), notes: await tabRows("Notebook") });
     await page.keyboard.press("Escape");
     await page.keyboard.press("Escape");
     await page.waitForTimeout(200);
@@ -313,17 +313,17 @@ const activeView = (page) => page.evaluate(() => {
       JSON.stringify((await visual()).viewOrder) === JSON.stringify(["notes", "timeline", "finance", "backlog"]),
       { bar: await barOrder(), stored: (await visual()).viewOrder });
     check("and so does the list in Settings", await page.evaluate(() =>
-      [...document.querySelectorAll("#tabToggles .tab-toggle-view .sitem-title")].map((t) => t.textContent).join() === "Notes,Timeline,Ledger,Backlog"));
+      [...document.querySelectorAll("#tabToggles .tab-toggle-view .sitem-title")].map((t) => t.textContent).join() === "Notebook,Timeline,Ledger,Backlog"));
 
     await press("Discover", "mode-default");
     check("starring an end mode of a three-mode tab moves it into the middle",
-      JSON.stringify(await tabRows("Backlog")) === JSON.stringify(["Next releases", "Discover*", "Entries"]), await tabRows("Backlog"));
+      JSON.stringify(await tabRows("Backlog")) === JSON.stringify(["Next releases", "Discover*", "List"]), await tabRows("Backlog"));
     await press("Stats", "mode-default");
     check("starring a mode of a two-mode tab leaves the order alone",
-      JSON.stringify(await tabRows("Timeline")) === JSON.stringify(["Entries", "Stats*"]), await tabRows("Timeline"));
+      JSON.stringify(await tabRows("Timeline")) === JSON.stringify(["Log", "Stats*"]), await tabRows("Timeline"));
     await press("Discover", "mode-down");
     check("moving a three-mode tab's modes moves the star with whatever lands in the middle",
-      JSON.stringify(await tabRows("Backlog")) === JSON.stringify(["Next releases", "Entries*", "Discover"]) &&
+      JSON.stringify(await tabRows("Backlog")) === JSON.stringify(["Next releases", "List*", "Discover"]) &&
       (await visual()).defaultModes.backlog === "entries", { rows: await tabRows("Backlog"), stored: (await visual()).defaultModes });
 
     await page.keyboard.press("Escape");
@@ -389,7 +389,7 @@ const activeView = (page) => page.evaluate(() => {
     await page.waitForSelector("#shortcutsModal:not([hidden])", { timeout: 5000 });
     const sheet = await page.evaluate(() => document.querySelector(".shortcuts-list").innerText);
     check("the cheat sheet doesn't list a key for a disabled tab", !/Ledger/.test(sheet), sheet.replace(/\s+/g, " "));
-    check("it still lists the tabs you kept", /Notes/.test(sheet) && /Timeline/.test(sheet) && /Backlog/.test(sheet), sheet.replace(/\s+/g, " "));
+    check("it still lists the tabs you kept", /Notebook/.test(sheet) && /Timeline/.test(sheet) && /Backlog/.test(sheet), sheet.replace(/\s+/g, " "));
     check("and the Shift row names only second modes that still exist",
       /Stats/.test(sheet) && !/To-do/.test(sheet) && !/Summary/.test(sheet), sheet.replace(/\s+/g, " "));
     await page.keyboard.press("Escape");

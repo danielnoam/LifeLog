@@ -2463,8 +2463,11 @@
       const bar = el("div", "bar");
       bar.style.background = financeColorOf(lead.category);
       row.appendChild(bar);
-      const intervals = [...new Set(parts.map((r) => r.interval))];
-      row.appendChild(el("span", "recur-badge", "↻ " + (intervals.length > 1 ? intervals.join(" + ") : parts.length + " × " + intervals[0])));
+      // "2 plans" rather than "yearly + monthly": the row has a phone's width
+      // to share with a name, a category and the amount. The title says which.
+      const badge = el("span", "recur-badge", "↻ " + parts.length + " plans");
+      badge.title = parts.map((r) => r.interval).join(" + ");
+      row.appendChild(badge);
       const t = el("span", "etitle", lead.note || lead.category);
       t.title = parts.map((r) => (r.note || r.category) + ": " + formatMoney(r.amount) + " " + r.interval).join("\n");
       row.appendChild(t);

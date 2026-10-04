@@ -31,7 +31,7 @@
     backlog: ["backlog"],
     finance: ["finance", "recurring"],
   };
-  const TAB_LABEL = { notes: "Notes", timeline: "Timeline", backlog: "Backlog", finance: "Ledger", all: "everything" };
+  const TAB_LABEL = { notes: "Notebook", timeline: "Timeline", backlog: "Backlog", finance: "Ledger", all: "everything" };
   const TAB_FILE = { notes: "notes", timeline: "timeline", backlog: "backlog", finance: "ledger" };
   function tabPayload(tab) {
     const d = state.data;

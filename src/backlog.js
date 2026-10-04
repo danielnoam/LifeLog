@@ -1886,10 +1886,10 @@
   // Exported as ids so app.js's swipe-between-modes can read the same list
   // this bar draws from — two copies would be two orders waiting to disagree
   // about what a swipe left lands on.
-  // "Entries", matching every other tab's first mode. It was "By category"
-  // with the id "category" until 0.128.0; applySavedUi in app.js translates
-  // the stored one.
-  const MODES = [["entries", "Entries", "★"], ["upcoming", "Next releases", "◷"], ["discover", "Discover", "◎"]];
+  // "List" since 0.231.0, when each tab's first mode got a name of its own
+  // (it was "Entries", like the others'). It was "By category" with the id
+  // "category" until 0.128.0; applySavedUi in app.js translates the stored one.
+  const MODES = [["entries", "List", "★"], ["upcoming", "Next releases", "◷"], ["discover", "Discover", "◎"]];
   // The switch itself lives on the tab now on both layouts — held on a phone,
   // hovered on a desktop (see the mode fan and the tab menu in app.js) — so
   // only what the bar carries besides it is drawn here.

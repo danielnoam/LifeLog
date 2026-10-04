@@ -16,6 +16,21 @@ what was decided against and why.
 
 ---
 
+- **Tab and mode names (0.231.0).** Only labels changed: the view and mode
+  ids (`notes`, `entries`) are what's stored and synced, so saved orders,
+  default modes and older devices are unaffected. Chosen by Daniel from two
+  sets: Notebook / Log / List / Expenses over keeping the Notes tab and
+  calling its mode "All notes", which read oddly beside Habits. The + menu's
+  headings and the import titles read the tab's name, so they followed.
+- **Widget settings screens drawn in code (0.231.0).** SettingsScreen styles
+  everything itself (window background, title, headings, cards, buttons)
+  from the widgets' colour resources, which already have night values, and
+  hides the platform dialog's title (setTitle is overridden to fill our
+  own). A subclass still only calls heading/hint/check: a heading or hint
+  closes the current card, and the next check opens a new one. The note
+  picker (NotePickActivity) is a list with a search box, not a settings
+  screen, and kept the platform look.
+
 - **"Checklist" is a word, not a rename (0.230.0).** Only what a person
   reads changed. The data keys (`todos`, `todoCategories`, a note's
   `kind: "list"`), the widget classes (TodosWidget, whose class name is how

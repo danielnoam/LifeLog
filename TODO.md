@@ -14,13 +14,6 @@ todo:
 - **Markdown, PDF and EPUB files as notes.** Import or attach them so they
   open and read as notes.
 
-- **A custom look for the widgets' settings screens.** They're plain
-  framework dialogs built in code (0.201.0); give them LifeLog's own
-  visuals.
-
-- **Distinct names for each tab and each mode inside a tab**, where a mode
-  shares its tab's name today.
-
 - **Faster ways to add an expense.** Look at reading the Google Pay (or
   bank) notification on Android to prefill or log one.
 
