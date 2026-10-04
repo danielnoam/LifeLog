@@ -150,6 +150,57 @@ test("recurringOccurrences applies a per-date override's amount/note without tou
   assert.strictEqual(occs[2].amount, 50); // March unaffected
 });
 
+test("a monthly plan with its own charge day is charged on that day, from the first one on or after the start", () => {
+  const rec = { id: "r", startDate: "2026-01-20", interval: "monthly", amount: 10, category: "X", chargeDay: 15 };
+  const dates = recurringOccurrences(rec, new Date("2026-04-30T00:00:00")).map((o) => o.date);
+  assert.deepStrictEqual(dates, ["2026-02-15", "2026-03-15", "2026-04-15"]);
+  assert.strictEqual(nextOccurrenceDateAfter(rec, "2026-03-15"), "2026-04-15");
+});
+
+test("a charge day of the 31st lands on each month's last day and comes back to the 31st", () => {
+  const rec = { id: "r", startDate: "2026-01-01", interval: "monthly", amount: 10, category: "X", chargeDay: 31 };
+  const dates = recurringOccurrences(rec, new Date("2026-03-31T00:00:00")).map((o) => o.date);
+  assert.deepStrictEqual(dates, ["2026-01-31", "2026-02-28", "2026-03-31"]);
+});
+
+test("the sanitizer keeps a charge day only when it differs from the start date's day, on a monthly plan", () => {
+  const base = { id: "r", startDate: "2026-01-01", interval: "monthly", amount: 10, category: "X" };
+  assert.strictEqual(sanitizeRecurring({ ...base, chargeDay: 15 }).chargeDay, 15);
+  assert.strictEqual(sanitizeRecurring({ ...base, chargeDay: 1 }).chargeDay, undefined);
+  assert.strictEqual(sanitizeRecurring({ ...base, interval: "yearly", chargeDay: 15 }).chargeDay, undefined);
+  assert.strictEqual(sanitizeRecurring({ ...base, chargeDay: 40 }).chargeDay, undefined);
+});
+
+test("moving the charge day carries each override and frozen rate to its charge's new date", () => {
+  const before = { id: "r", startDate: "2026-01-01", interval: "monthly", amount: 10, category: "X",
+    overrides: { "2026-02-01": { amount: 12 } }, rates: { "2026-03-01": 3.7 } };
+  const rec = { ...before, chargeDay: 15 };
+  Finance.rekeyOccurrenceMaps(before, rec);
+  assert.deepStrictEqual(rec.overrides, { "2026-02-15": { amount: 12 } });
+  assert.deepStrictEqual(rec.rates, { "2026-03-15": 3.7 });
+});
+
+test("a changed interval leaves overrides where they were", () => {
+  const before = { id: "r", startDate: "2026-01-01", interval: "monthly", amount: 10, category: "X",
+    overrides: { "2026-02-01": { amount: 12 } } };
+  const rec = { ...before, interval: "yearly" };
+  Finance.rekeyOccurrenceMaps(before, rec);
+  assert.deepStrictEqual(rec.overrides, { "2026-02-01": { amount: 12 } });
+});
+
+test("combined plans are one group across a plan change of either part", () => {
+  const year = { id: "y", startDate: "2025-01-01", interval: "yearly", amount: 120, category: "X" };
+  const month = { id: "m", startDate: "2025-01-05", interval: "monthly", amount: 10, category: "X", combinedWith: "y" };
+  const other = { id: "o", startDate: "2025-01-05", interval: "monthly", amount: 5, category: "X" };
+  const { prev, created } = splitRecurring(year, "2026-01-01", { interval: "yearly", amount: 150, category: "X" }, "y2", "now");
+  const all = [prev, created, month, other];
+  assert.deepStrictEqual(Finance.combinedParts(all, created).map((r) => r.id).sort(), ["m", "y", "y2"]);
+  const split = splitRecurring(month, "2026-02-05", { interval: "monthly", amount: 12, category: "X" }, "m2", "now");
+  assert.strictEqual(split.created.combinedWith, "y", "the new version of a part stays in the group");
+  assert.deepStrictEqual(Finance.combinedParts(all, other).map((r) => r.id), ["o"]);
+  assert.strictEqual(sanitizeRecurring({ ...other, combinedWith: "o" }).combinedWith, undefined, "a plan can't join itself");
+});
+
 test("recurringOccurrences stops at endDate when it's earlier than the requested cutoff", () => {
   const occs = recurringOccurrences(
     { id: "r1", startDate: "2026-01-01", interval: "monthly", amount: 10, endDate: "2026-02-01" },
@@ -497,6 +548,20 @@ test("monthSortAsc puts the months in calendar order", () => {
   // The pseudo-month 0 it used to shepherd to the end went with yearly
   // entries in 0.150.0; every bucket is a real month now.
   assert.deepStrictEqual(["12", "3", "7", "1"].sort(Finance.monthSortAsc), ["1", "3", "7", "12"]);
+});
+
+// ---------- parsePastedAmount ----------
+test("a pasted price loses its symbol or code and names its currency", () => {
+  const p = Finance.parsePastedAmount;
+  assert.deepStrictEqual(p("$12.50"), { amount: "12.5", currency: "USD" });
+  assert.deepStrictEqual(p("12,50 €"), { amount: "12.5", currency: "EUR" }, "a decimal comma");
+  assert.deepStrictEqual(p("USD 1,200"), { amount: "1200", currency: "USD" }, "a thousands comma");
+  assert.deepStrictEqual(p("12 eur"), { amount: "12", currency: "EUR" });
+  assert.deepStrictEqual(p("CA$20"), { amount: "20", currency: "CAD" }, "the longer symbol wins over $");
+  assert.deepStrictEqual(p("kr 99"), { amount: "99", currency: null }, "a shared symbol names no currency");
+  assert.strictEqual(p("12.5"), null, "a bare number is left to the ordinary paste");
+  assert.strictEqual(p("50-25"), null, "so is a sum");
+  assert.strictEqual(p("abc"), null);
 });
 
 // ---------- evalMathExpr ----------

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.227.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.228.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -694,6 +694,11 @@
               <option value="yearly">Yearly</option>
             </select>
           </label>
+          <label id="recChargeDayLabel">Charged on
+            <select id="recChargeDay"></select>
+          </label>
+        </div>
+        <div class="field-row">
           <label>Amount
             <input id="recAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 12.50 or 50-25" required />
           </label>
@@ -718,9 +723,17 @@
           <input id="recNote" type="text" autocomplete="off" placeholder="Optional description…" />
         </label>
         <p class="hint">Generates an expense entry on this date every period, up to today (or the stop date). Saving here rewrites every past and future occurrence — to change the terms from a date onward instead, use “Change plan”.</p>
+        <div class="link-offer" id="recLinkOffer" hidden>
+          <span id="recLinkOfferText"></span>
+          <button type="button" class="btn" id="recLinkOfferBtn">Link…</button>
+        </div>
         <div class="plan-trail" id="recPlanTrail" hidden>
           <p class="hint">Plan history</p>
           <div class="plan-trail-list" id="recPlanTrailList"></div>
+        </div>
+        <div class="plan-trail" id="recCombined" hidden>
+          <p class="hint">Combined with · <span id="recCombinedTotal"></span></p>
+          <div class="plan-trail-list" id="recCombinedList"></div>
         </div>
         <div class="plan-trail" id="recPauses" hidden>
           <p class="hint">Paused</p>
@@ -742,6 +755,8 @@
               <button type="button" role="menuitem" id="convertRecurringBtn">⇄ Convert to entries</button>
               <button type="button" role="menuitem" id="recFetchRatesBtn" hidden>💱 Look up past rates</button>
               <button type="button" role="menuitem" id="linkPastExpensesBtn">🔗 Link past expenses</button>
+              <button type="button" role="menuitem" id="combineBtn">⊕ Combine with…</button>
+              <button type="button" role="menuitem" id="separateBtn" hidden>⊖ Separate from the others</button>
             </div>
           </span>
           <span class="spacer"></span>
@@ -1807,27 +1822,27 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.227.0"></script>
-  <script defer src="src/reconcile.js?v=0.227.0"></script>
-  <script defer src="src/qr.js?v=0.227.0"></script>
-  <script defer src="src/media.js?v=0.227.0"></script>
-  <script defer src="src/merge.js?v=0.227.0"></script>
-  <script defer src="src/storage.js?v=0.227.0"></script>
-  <script defer src="src/finance.js?v=0.227.0"></script>
-  <script defer src="src/settings.js?v=0.227.0"></script>
-  <script defer src="src/wheel.js?v=0.227.0"></script>
-  <script defer src="src/backlog.js?v=0.227.0"></script>
-  <script defer src="src/journal.js?v=0.227.0"></script>
-  <script defer src="src/markdown.js?v=0.227.0"></script>
-  <script defer src="src/notes.js?v=0.227.0"></script>
-  <script defer src="src/io.js?v=0.227.0"></script>
-  <script defer src="src/sync.js?v=0.227.0"></script>
-  <script defer src="src/habits.js?v=0.227.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.227.0"></script>
-  <script defer src="src/boards.js?v=0.227.0"></script>
-  <script defer src="src/recap.js?v=0.227.0"></script>
-  <script defer src="src/reminders.js?v=0.227.0"></script>
-  <script defer src="src/widgets.js?v=0.227.0"></script>
-  <script defer src="src/app.js?v=0.227.0"></script>
+  <script defer src="src/platform.js?v=0.228.0"></script>
+  <script defer src="src/reconcile.js?v=0.228.0"></script>
+  <script defer src="src/qr.js?v=0.228.0"></script>
+  <script defer src="src/media.js?v=0.228.0"></script>
+  <script defer src="src/merge.js?v=0.228.0"></script>
+  <script defer src="src/storage.js?v=0.228.0"></script>
+  <script defer src="src/finance.js?v=0.228.0"></script>
+  <script defer src="src/settings.js?v=0.228.0"></script>
+  <script defer src="src/wheel.js?v=0.228.0"></script>
+  <script defer src="src/backlog.js?v=0.228.0"></script>
+  <script defer src="src/journal.js?v=0.228.0"></script>
+  <script defer src="src/markdown.js?v=0.228.0"></script>
+  <script defer src="src/notes.js?v=0.228.0"></script>
+  <script defer src="src/io.js?v=0.228.0"></script>
+  <script defer src="src/sync.js?v=0.228.0"></script>
+  <script defer src="src/habits.js?v=0.228.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.228.0"></script>
+  <script defer src="src/boards.js?v=0.228.0"></script>
+  <script defer src="src/recap.js?v=0.228.0"></script>
+  <script defer src="src/reminders.js?v=0.228.0"></script>
+  <script defer src="src/widgets.js?v=0.228.0"></script>
+  <script defer src="src/app.js?v=0.228.0"></script>
 </body>
 </html>

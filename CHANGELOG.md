@@ -4,6 +4,26 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.228.0] - 2026-10-04
+
+### Added
+- **Charged on:** a monthly recurring expense has its own charge day, so a
+  plan that started on the 1st can bill on the 15th, or on the 31st (the
+  last day in shorter months). Moving it carries each charge's edits and
+  rates along.
+- **Combine recurring expenses:** More… → "Combine with…" makes several
+  plans, say a yearly membership and its monthly add-on, one row in the
+  recurring list with what they cost together a month. Each keeps its own
+  schedule and charges. "Separate from the others" splits them again.
+- **Pasting a price with its currency:** pasting "$12.50" or "12,50 €" into
+  an amount keeps the number and switches the currency to match.
+
+### Changed
+- **Linking past expenses:** expenses that look like a plan (the same note,
+  or the same category at about the same price) are offered in its sheet
+  and right after you add it, and come ticked in the picker. A foreign
+  expense keeps what it was billed and the rate it was paid at.
+
 ## [0.227.0] - 2026-10-02
 
 ### Added

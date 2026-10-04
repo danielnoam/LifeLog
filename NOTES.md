@@ -16,6 +16,26 @@ what was decided against and why.
 
 ---
 
+- **Recurring tools (0.228.0).** `chargeDay` is stored only when it differs
+  from the start date's day, so an ordinary plan carries nothing new; it
+  exists at all because a start date can't say "the 31st" in a 30-day month.
+  Changing a plan's start or charge day now re-keys its overrides and frozen
+  rates to the charge in the same month (year for yearly, within three days
+  for weekly), where before every one was orphaned. Nearest-date matching
+  was tried first and fails on exactly the common case: moving the 1st to the
+  15th puts the 1st equidistant from two charges. A changed interval still
+  orphans them; Change plan is the tool for that.
+  Combined plans stay separate plans (`combinedWith` names the plan a part
+  joined) because they really are separate charges on separate schedules;
+  only the recurring list folds them into one row, priced per month. A group
+  is named by the first plan of the joined plan's chain, so a plan change on
+  either side (new ids, see splitRecurring, which carries `combinedWith`
+  and `chargeDay` across) keeps the group whole.
+  The paste handler only acts when the text names a currency: a bare number
+  or a sum ("50-25") is the ordinary paste. "kr" is stripped but sets no
+  currency, since three currencies use it. A lookbehind regex was avoided
+  for older iOS WebViews.
+
 - **Out today (0.226.0, reworked 0.227.0).** The card sits at the top of
   Next releases only, not the Timeline: In progress already owns that spot.
   It is always shown, with no dismiss or recall button (0.226.0 had both,

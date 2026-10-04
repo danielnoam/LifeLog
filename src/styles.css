@@ -968,6 +968,16 @@ select:focus { outline: none; border-color: var(--accent); }
   max-width: 45%; overflow: hidden; text-overflow: ellipsis;
 }
 
+/* A plan's logged-by-hand charges, offered where you'll see them: the sheet
+   itself, rather than only under More…. */
+.link-offer {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 0 0 12px; padding: 8px 12px; font-size: var(--fs-sm); color: var(--text);
+  background: var(--accent-soft); border-radius: var(--r-md);
+}
+.link-offer[hidden] { display: none; }
+.link-offer .btn { flex: 0 0 auto; }
+
 /* Everything in a project, listed inside its own edit form. Sized like the
    month-card breakdown rather than like the expense rows, because this is a
    reference list you scan, not a list you act on row by row. */
@@ -2335,6 +2345,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
      the buttons it sits with; iOS auto-zoom is stopped in app.js instead. */
   html:not(.force-pc) .sort-select { min-height: 36px; }
   html:not(.force-pc) .settings-corner .btn-icon { min-height: 44px; min-width: 44px; }
+  html:not(.force-pc) .link-offer .btn { min-height: 44px; }
   html:not(.force-pc) .modal label input:not([type=checkbox]):not([type=color]), html:not(.force-pc) .modal label select { min-height: 44px; font-size: var(--fs-lg); }
   html:not(.force-pc) .modal label textarea { font-size: var(--fs-lg); }
 
@@ -2486,6 +2497,7 @@ html.force-mobile .search-clear { width: 34px; font-size: var(--fs-sm); }
 html.force-mobile .search { min-height: 44px; font-size: var(--fs-lg); }
 html.force-mobile .sort-select { min-height: 36px; }
 html.force-mobile .settings-corner .btn-icon { min-height: 44px; min-width: 44px; }
+html.force-mobile .link-offer .btn { min-height: 44px; }
 html.force-mobile .modal label input:not([type=checkbox]):not([type=color]), html.force-mobile .modal label select { min-height: 44px; font-size: var(--fs-lg); }
 html.force-mobile .modal label textarea { font-size: var(--fs-lg); }
 

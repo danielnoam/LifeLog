@@ -142,6 +142,57 @@
     return isFinite(v) ? Math.round(v * 100) / 100 : 0;
   }
 
+  // A pasted price often brings its currency along ("$12.50", "12,50 €",
+  // "USD 1,200"). Returns the bare number and the currency it named, or null
+  // when there's nothing to take off. A symbol several currencies share
+  // ("kr") is stripped but names none, so the dropdown stays as it was.
+  const AMBIGUOUS_SYMBOLS = new Set(["kr"]);
+  function parsePastedAmount(text) {
+    let s = String(text || "").trim();
+    if (!s || s.length > 40) return null;
+    let currency = null, found = false;
+    const code = s.match(/^([A-Za-z]{3})\s*([-\d.,].*)$/) || s.match(/^(.*[\d.,])\s*([A-Za-z]{3})$/);
+    const codeName = code && (/^[A-Za-z]{3}$/.test(code[1]) ? code[1] : code[2]).toUpperCase();
+    if (codeName && CURRENCY_SYMBOLS[codeName]) {
+      currency = codeName;
+      s = /^[A-Za-z]{3}$/.test(code[1]) ? code[2] : code[1];
+      found = true;
+    } else {
+      const bySymbolLength = Object.entries(CURRENCY_SYMBOLS).sort((a, b) => b[1].length - a[1].length);
+      for (const [c, sym] of bySymbolLength) {
+        const at = s.startsWith(sym) ? 0 : s.endsWith(sym) ? s.length - sym.length : -1;
+        if (at < 0) continue;
+        s = s.slice(0, at) + s.slice(at + sym.length);
+        currency = AMBIGUOUS_SYMBOLS.has(sym) ? null : c;
+        found = true;
+        break;
+      }
+    }
+    if (!found) return null;
+    s = s.replace(/\s/g, "");
+    if (!/^-?[\d.,]+$/.test(s)) return null;
+    // "12,50" is a decimal comma; "1,250" and "1,234.56" are thousands.
+    s = /^-?\d+,\d{2}$/.test(s) ? s.replace(",", ".") : s.replace(/,/g, "");
+    const n = parseFloat(s);
+    return isFinite(n) ? { amount: String(Math.abs(n)), currency } : null;
+  }
+
+  function attachCurrencyPaste(inputSel, currencySel) {
+    $(inputSel).addEventListener("paste", (e) => {
+      const got = parsePastedAmount(e.clipboardData && e.clipboardData.getData("text"));
+      if (!got) return;
+      e.preventDefault();
+      const input = $(inputSel), sel = $(currencySel);
+      input.value = got.amount;
+      if (got.currency && got.currency !== sel.value && [...sel.options].some((o) => o.value === got.currency)) {
+        sel.value = got.currency;
+        sel.onchange && sel.onchange();
+        toast("Currency set to " + got.currency);
+      }
+      input.dispatchEvent(new Event("input"));
+    });
+  }
+
   // Wires an amount input so a completed math expression auto-resolves to its
   // result: ~800ms after typing stops, and immediately on blur. Plain numbers
   // (and half-typed expressions like "50-") are left untouched.
@@ -266,6 +317,24 @@
     d.setDate(Math.min(day, daysInMonth));
     return d;
   }
+  // The day of the month a monthly plan is charged on. It is the start
+  // date's own day unless `chargeDay` says otherwise, which it only does when
+  // the two differ: a plan started on the 1st but billed on the 15th, or one
+  // billed on the 31st, which a start date in a 30-day month can't express.
+  function chargeDayOf(rec) {
+    if (rec.interval === "monthly" && +rec.chargeDay >= 1 && +rec.chargeDay <= 31) return +rec.chargeDay;
+    const start = new Date(rec.startDate + "T00:00:00");
+    return isNaN(start.getTime()) ? 1 : start.getDate();
+  }
+  // The first charge: the start date, or for a monthly plan with its own
+  // charge day, the first time that day comes round on or after it.
+  function firstChargeDate(rec) {
+    const start = new Date(rec.startDate + "T00:00:00");
+    if (isNaN(start.getTime()) || rec.interval !== "monthly") return start;
+    const day = chargeDayOf(rec);
+    const first = addMonthsClamped(start, 0, day);
+    return first < start ? addMonthsClamped(start, 1, day) : first;
+  }
   function nextRecurringDate(date, interval, anchorDay) {
     if (interval === "weekly") { const d = new Date(date); d.setDate(d.getDate() + 7); return d; }
     if (interval === "yearly") { const d = new Date(date); d.setFullYear(d.getFullYear() + 1); return d; }
@@ -328,11 +397,11 @@
   // generates every occurrence of a recurring template from its start date
   // up to (and including) `until`, capped at the template's stop date if set
   function recurringOccurrences(rec, until) {
-    const start = new Date(rec.startDate + "T00:00:00");
+    const start = firstChargeDate(rec);
     if (isNaN(start.getTime())) return [];
     const stop = rec.endDate ? new Date(rec.endDate + "T00:00:00") : null;
     const cutoff = stop && stop < until ? stop : until;
-    const anchorDay = start.getDate();
+    const anchorDay = chargeDayOf(rec);
     const out = [];
     let d = start;
     let n = 0;
@@ -381,9 +450,9 @@
   // mid-period. Ignores endDate on purpose: this answers "where would the
   // next period start", which is exactly the date you'd stop at.
   function nextOccurrenceDateAfter(rec, fromDateStr) {
-    const start = new Date(rec.startDate + "T00:00:00");
+    const start = firstChargeDate(rec);
     if (isNaN(start.getTime())) return fromDateStr;
-    const anchorDay = start.getDate();
+    const anchorDay = chargeDayOf(rec);
     let d = start;
     let guard = 0;
     while (localDateStr(d) <= fromDateStr && guard++ < 5000) d = nextRecurringDate(d, rec.interval, anchorDay);
@@ -412,6 +481,10 @@
       prevId: rec.id,
     };
     if (next.note) created.note = next.note;
+    // A new price doesn't move the billing day. effectiveFrom is normally a
+    // charge date already, so this only matters for the 29th to 31st.
+    if (next.interval === "monthly" && rec.interval === "monthly" && rec.chargeDay) created.chargeDay = rec.chargeDay;
+    if (rec.combinedWith) created.combinedWith = rec.combinedWith;
     // A plan change is a change of terms, not of currency: a dollar
     // subscription whose price went up is still a dollar subscription. The
     // new plan is billed the new figure in the same currency, at the same
@@ -505,6 +578,27 @@
     }
     return chain;
   }
+  // ---------- combined plans ----------
+  // Two plans that are one bill to you (a yearly membership and its monthly
+  // add-on) stay two plans, each charging on its own schedule, and read as
+  // one row in the recurring list. A part names the group by `combinedWith`,
+  // the id of the plan it joined. Ids change when a plan changes (see
+  // splitRecurring), so a group is named by the first plan of that plan's
+  // chain, which every later version of it shares.
+  function combineKeyOf(all, rec) {
+    const byId = new Map(all.map((r) => [r.id, r]));
+    const target = (rec.combinedWith && byId.get(rec.combinedWith)) || rec;
+    return planChain(all, target)[0].id;
+  }
+  function combinedParts(all, rec) {
+    const key = combineKeyOf(all, rec);
+    return all.filter((r) => combineKeyOf(all, r) === key);
+  }
+  // What a group costs a month: a yearly part counts a twelfth, a weekly
+  // one 52 twelfths.
+  const PER_MONTH = { weekly: 52 / 12, monthly: 1, yearly: 1 / 12 };
+  const perMonth = (plans) => Math.round(plans.reduce((t, r) => t + r.amount * PER_MONTH[r.interval], 0) * 100) / 100;
+
   // real finance entries plus every recurring template's occurrences through
   // today — the merged list everything else (list view, stats, filters)
   // should read instead of state.data.financeEntries directly
@@ -1552,6 +1646,7 @@
     $("#recStart").value = editing ? rec.startDate : (p.startDate || todayStr());
     $("#recEnd").value = editing ? (rec.endDate || "") : "";
     $("#recInterval").value = editing ? rec.interval : "monthly";
+    fillChargeDaySelect(editing ? chargeDayOf(rec) : +$("#recStart").value.slice(8, 10));
     // Foreign plan: the Amount box holds what you're billed, in that
     // currency — same as the expense form, where the typed figure is the one
     // you actually paid and `amount` is what it came to.
@@ -1583,6 +1678,8 @@
     $("#changePlanBtn").hidden = superseded;
     renderPlanTrail(rec, chain);
     renderPauses(rec);
+    renderLinkOffer(editing ? rec : null);
+    renderCombined(editing ? rec : null);
     // The pause button doubles as the resume button while a pause is in
     // force — resuming is the only thing you'd want from it right then, and
     // stacking a second button for it just to sit greyed out most of the
@@ -1629,6 +1726,23 @@
     $("#recurringModal").hidden = false;
     fillProjectSelect($("#recProject"), (rec && rec.project) || "");
   }
+  // "Charged on" only means something for a monthly plan: a weekly one is
+  // charged on the start date's weekday and a yearly one on its date. It
+  // follows the start date until you pick a day of your own.
+  const ordinal = (n) => n + (n >= 11 && n <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th");
+  function fillChargeDaySelect(day) {
+    const sel = $("#recChargeDay");
+    if (!sel.options.length) {
+      for (let d = 1; d <= 31; d++) sel.appendChild(new Option("the " + ordinal(d), String(d)));
+    }
+    sel.value = String(day || 1);
+    sel.dataset.followsStart = String(day === +$("#recStart").value.slice(8, 10));
+    applyChargeDayUI();
+  }
+  function applyChargeDayUI() {
+    $("#recChargeDayLabel").hidden = $("#recInterval").value !== "monthly";
+  }
+
   // A menu anchored to the button, the same one the + button drops (see
   // .menu-pop): the four errands are actions you pick, not a section of the
   // form, and laying them out inline made them look like fields.
@@ -1670,6 +1784,74 @@
       list.appendChild(row);
     });
     wrap.hidden = false;
+  }
+
+  function renderCombined(rec) {
+    const all = state.data.recurringExpenses;
+    const parts = rec ? combinedParts(all, rec) : [];
+    const others = parts.filter((r) => r.id !== rec.id);
+    const list = $("#recCombinedList");
+    list.innerHTML = "";
+    $("#recCombined").hidden = !others.length;
+    $("#combineBtn").hidden = !rec;
+    $("#separateBtn").hidden = !others.length;
+    if (!others.length) return;
+    others.forEach((r) => {
+      const row = el("div", "plan-trail-row");
+      row.appendChild(el("span", "plan-trail-range", r.note || r.category));
+      row.appendChild(el("span", "plan-trail-terms", formatMoney(r.amount) + " · " + r.interval));
+      row.title = "Open this plan";
+      row.onclick = () => openRecurringModal(r);
+      list.appendChild(row);
+    });
+    $("#recCombinedTotal").textContent = "Together " + formatMoney(perMonth(parts)) + " a month";
+  }
+
+  function openCombinePicker(rec) {
+    const all = state.data.recurringExpenses;
+    const today = todayStr();
+    const key = combineKeyOf(all, rec);
+    // Only plans still running: an ended one is history, and a superseded
+    // one already joins through the plan that replaced it.
+    const candidates = all.filter((r) => (!r.endDate || r.endDate >= today) && combineKeyOf(all, r) !== key);
+    if (!candidates.length) { toast("No other running plans to combine with", true); return; }
+    openImportPicker({
+      title: "Combine with…",
+      hint: `These join ${rec.note || rec.category} as one row in the recurring list. Each keeps its own schedule and charges.`,
+      mode: "link",
+      items: candidates.map((r) => ({ kind: "recurring", entry: r, dup: false, checked: false })),
+      searchable: true,
+      confirmLabel: "Combine",
+      onConfirm: async (selected) => {
+        if (!selected.length) return;
+        // Joining a plan that already leads a group brings its group along.
+        const joining = new Set(selected.flatMap((i) => combinedParts(all, i.entry).map((r) => r.id)));
+        for (const r of all) if (joining.has(r.id)) r.combinedWith = key;
+        render();
+        await persist();
+        toast(`Combined ${joining.size + 1} plans`);
+        openRecurringModal(rec);
+      },
+    });
+  }
+
+  // Takes this plan out of its group. If it was the plan the others
+  // joined, they join the next one instead; a group of one is no group.
+  async function separateCombined(rec) {
+    const all = state.data.recurringExpenses;
+    const key = combineKeyOf(all, rec);
+    const mine = new Set(planChain(all, rec).map((r) => r.id));
+    const rest = combinedParts(all, rec).filter((r) => !mine.has(r.id));
+    for (const r of all) if (mine.has(r.id)) delete r.combinedWith;
+    const heads = new Set(rest.map((r) => planChain(all, r)[0].id));
+    const newKey = heads.size < 2 ? null : (heads.has(key) ? key : [...heads][0]);
+    for (const r of rest) {
+      if (newKey && planChain(all, r)[0].id !== newKey) r.combinedWith = newKey; else delete r.combinedWith;
+    }
+    render();
+    await persist();
+    toast("Separated");
+    openRecurringModal(rec);
   }
 
   // ---------- pauses (list + modal) ----------
@@ -1899,6 +2081,8 @@
     const startDate = $("#recStart").value;
     const endDate = $("#recEnd").value;
     const interval = $("#recInterval").value;
+    const pickedDay = +$("#recChargeDay").value;
+    const chargeDay = interval === "monthly" && pickedDay !== +startDate.slice(8, 10) ? pickedDay : null;
     const typed = readAmount("#recAmount");
     const category = $("#recCategory").value;
     const note = $("#recNote").value.trim();
@@ -1915,9 +2099,13 @@
     }
     const amount = foreign ? Math.round(typed * rate * 100) / 100 : typed;
     const converted = pendingConvertEntryId;
+    let created = null;
     if (id) {
       const r = state.data.recurringExpenses.find((x) => x.id === id);
+      const before = { ...r };
       Object.assign(r, { startDate, interval, amount, category });
+      if (chargeDay) r.chargeDay = chargeDay; else delete r.chargeDay;
+      rekeyOccurrenceMaps(before, r);
       applyPlanCurrency(r, foreign ? { code, typed, rate } : null);
       const rProject = $("#recProject").value === ADD_PROJECT_OPTION ? "" : $("#recProject").value;
       if (rProject) r.project = rProject; else delete r.project;
@@ -1925,12 +2113,14 @@
       if (endDate) r.endDate = endDate; else delete r.endDate;
     } else {
       const item = { id: uid(), startDate, interval, amount, category, createdAt: new Date().toISOString() };
+      if (chargeDay) item.chargeDay = chargeDay;
       applyPlanCurrency(item, foreign ? { code, typed, rate } : null);
       const rProject = $("#recProject").value === ADD_PROJECT_OPTION ? "" : $("#recProject").value;
       if (rProject) item.project = rProject;
       if (note) item.note = note;
       if (endDate) item.endDate = endDate;
       state.data.recurringExpenses.push(item);
+      created = item;
       // The entry this was converted from is only dropped now that the
       // template exists — the template regenerates it as its first occurrence.
       if (converted) state.data.financeEntries = state.data.financeEntries.filter((x) => x.id !== converted);
@@ -1939,7 +2129,46 @@
     buildYearFilter();
     render();
     await persist();
-    toast(id ? "Recurring expense updated" : (converted ? "Converted to a recurring expense" : "Recurring expense added"));
+    const done = id ? "Recurring expense updated" : (converted ? "Converted to a recurring expense" : "Recurring expense added");
+    // A bill you just made recurring has usually been logged by hand before.
+    const toLink = created ? linkSuggestionCount(created) : 0;
+    if (toLink) toast(`${done}. ${toLink} past expense${toLink === 1 ? "" : "s"} look${toLink === 1 ? "s" : ""} like it.`, false,
+      { label: "Link", onClick: () => openLinkPastExpensesPicker(created) });
+    else toast(done);
+  }
+
+  // Moving a plan's schedule (its start, or the day it's charged on) moves
+  // every occurrence date, and overrides and frozen rates are keyed by those
+  // dates. Each one follows its charge to the new date in the same month (a
+  // yearly plan: the same year; a weekly one: within three days), so a bill
+  // moved from the 1st to the 15th keeps its edits and rates. A changed
+  // interval has no such counterpart; that is what "Change plan" is for, and
+  // those keys are left where they were.
+  function rekeyOccurrenceMaps(before, rec) {
+    if (before.interval !== rec.interval) return;
+    if (before.startDate === rec.startDate && chargeDayOf(before) === chargeDayOf(rec)) return;
+    const keys = [...Object.keys(rec.overrides || {}), ...Object.keys(rec.rates || {})];
+    if (!keys.length) return;
+    const last = keys.reduce((a, b) => (a > b ? a : b));
+    const until = new Date(addDaysStr(last, 400) + "T00:00:00");
+    const dates = recurringOccurrences({ ...rec, endDate: undefined, overrides: undefined, rates: undefined }, until)
+      .map((o) => o.date);
+    const counterpart = (date) => {
+      if (rec.interval === "monthly") return dates.find((d) => d.slice(0, 7) === date.slice(0, 7));
+      if (rec.interval === "yearly") return dates.find((d) => d.slice(0, 4) === date.slice(0, 4));
+      const t = new Date(date + "T00:00:00").getTime();
+      return dates.find((d) => Math.abs(new Date(d + "T00:00:00").getTime() - t) <= 3 * 86400000);
+    };
+    for (const field of ["overrides", "rates"]) {
+      const map = rec[field];
+      if (!map) continue;
+      const out = {};
+      for (const [date, v] of Object.entries(map)) {
+        const to = counterpart(date);
+        out[to && !(to in out) ? to : date] = v;
+      }
+      rec[field] = out;
+    }
   }
 
   // ---------- changing a plan ----------
@@ -2090,13 +2319,41 @@
   // per-occurrence override rather than silently snapping to the
   // template's current amount — a bill that changed price over time
   // shouldn't have its history rewritten by linking it.
+  // Which logged expenses look like charges of this plan: the same note, or
+  // the same category at about the same price (within 15%, compared in the
+  // plan's own currency when both were paid in it). Only ones up to the
+  // plan's stop date; a later expense with the same note is a different bill.
+  const sameNote = (a, b) => {
+    a = (a || "").trim().toLowerCase(); b = (b || "").trim().toLowerCase();
+    return !!a && !!b && (a === b || (Math.min(a.length, b.length) >= 4 && (a.includes(b) || b.includes(a))));
+  };
+  function linkCandidates(rec) {
+    const pfx = fxOf(rec);
+    const out = [];
+    for (const e of state.data.financeEntries) {
+      if (rec.endDate && e.date > rec.endDate) continue;
+      const noteMatch = sameNote(e.note, rec.note);
+      if (e.category !== rec.category && !noteMatch) continue;
+      const efx = fxOf(e);
+      const [have, want] = pfx && efx && efx.currency === pfx.currency ? [efx.amount, pfx.amount] : [+e.amount, +rec.amount];
+      const priceMatch = want > 0 && Math.abs(have - want) / want <= 0.15;
+      out.push({ entry: e, suggested: noteMatch || (e.category === rec.category && priceMatch) });
+    }
+    return out;
+  }
+  const linkSuggestionCount = (rec) => linkCandidates(rec).filter((c) => c.suggested).length;
+
   function openLinkPastExpensesPicker(rec) {
-    const candidates = state.data.financeEntries.filter((e) => e.category === rec.category);
-    if (!candidates.length) { toast("No existing expenses in this category to link", true); return; }
-    const items = candidates.map((e) => ({ kind: "finance", entry: e, dup: false, checked: false }));
+    const candidates = linkCandidates(rec);
+    if (!candidates.length) { toast("No expenses in " + rec.category + " to link", true); return; }
+    const suggested = candidates.filter((c) => c.suggested).length;
+    const items = candidates.map((c) => ({ kind: "finance", entry: c.entry, dup: false, checked: c.suggested }));
     openImportPicker({
       title: "Link past expenses",
-      hint: `Pick expenses you logged before this recurring expense existed (or a stray duplicate of one it already covers). Linked ones are removed — if any predate ${rec.startDate}, the start date moves back to cover them. Each one keeps its own original amount/note as an override, so a price that changed over time isn't flattened to the template's current amount.`,
+      hint: (suggested
+        ? `${suggested} look like this bill and are ticked. `
+        : "")
+        + `Linked expenses become this plan's charges and are removed from the list. Each keeps the amount and note it was logged with. If any predate ${rec.startDate}, the plan starts earlier to cover them.`,
       mode: "link",
       items,
       searchable: true,
@@ -2110,26 +2367,40 @@
         if (movedStart) rec.startDate = minDate;
 
         const today = new Date(); today.setHours(0, 0, 0, 0);
-        const occs = recurringOccurrences(rec, today);
+        const latest = selected.map((i) => i.entry.date).sort().pop();
+        const until = new Date(Math.max(today.getTime(), new Date(latest + "T00:00:00").getTime()));
+        const occs = recurringOccurrences(rec, until);
+        const pfx = fxOf(rec);
         selected.forEach((i) => {
           const e = i.entry;
+          const occDate = closestOccurrenceDate(occs, e.date) || e.date;
+          const efx = fxOf(e);
           const ov = {};
-          if (e.amount !== rec.amount) ov.amount = e.amount;
+          // A foreign plan's charge is what you were billed in its currency,
+          // at the rate you paid that day. Anything else is a home figure.
+          if (pfx && efx && efx.currency === pfx.currency) {
+            if (efx.amount !== pfx.amount) ov.fxAmount = efx.amount;
+            if (efx.rate > 0) rec.rates = { ...(rec.rates || {}), [occDate]: efx.rate };
+          } else if (e.amount !== rec.amount) ov.amount = e.amount;
           if ((e.note || "") !== (rec.note || "")) ov.note = e.note || "";
-          if (Object.keys(ov).length) {
-            const occDate = closestOccurrenceDate(occs, e.date) || e.date;
-            if (!rec.overrides) rec.overrides = {};
-            rec.overrides[occDate] = ov;
-          }
+          if (Object.keys(ov).length) rec.overrides = { ...(rec.overrides || {}), [occDate]: ov };
         });
 
         buildYearFilter();
         render();
         await persist();
-        toast(`Linked ${selected.length} expense${selected.length === 1 ? "" : "s"}` + (movedStart ? ` — now starts ${minDate}` : ""));
+        toast(`Linked ${selected.length} expense${selected.length === 1 ? "" : "s"}` + (movedStart ? `, now starts ${minDate}` : ""));
         openRecurringModal(rec);
       },
     });
+  }
+
+  // Shown in the plan's sheet while there's something to link, so the
+  // errand finds you rather than waiting in the More… menu.
+  function renderLinkOffer(rec) {
+    const n = rec ? linkSuggestionCount(rec) : 0;
+    $("#recLinkOffer").hidden = !n;
+    if (n) $("#recLinkOfferText").textContent = `${n} logged expense${n === 1 ? " looks" : "s look"} like this bill.`;
   }
 
   function renderRecurringCard(root) {
@@ -2154,7 +2425,9 @@
       const bar = el("div", "bar");
       bar.style.background = financeColorOf(r.category);
       row.appendChild(bar);
-      row.appendChild(el("span", "recur-badge", "↻ " + r.interval));
+      const badge = el("span", "recur-badge", "↻ " + r.interval);
+      if (r.interval === "monthly") badge.title = "Charged on the " + ordinal(chargeDayOf(r));
+      row.appendChild(badge);
       const t = el("span", "etitle", r.note || r.category);
       t.title = r.note || r.category;
       row.appendChild(t);
@@ -2183,14 +2456,52 @@
     // grouped rather than run-merged: this list is ordered by start date and
     // a trip's two subscriptions are rarely adjacent, so waiting for them to
     // touch would mean never grouping them at all.
+    // One row for a combined bill, opening the plan the others joined.
+    const addCombinedRow = (parts, isEnded, into) => {
+      const lead = parts.find((r) => !r.combinedWith) || parts[0];
+      const row = el("div", "recur-row is-combined" + (isEnded ? " is-ended" : ""));
+      const bar = el("div", "bar");
+      bar.style.background = financeColorOf(lead.category);
+      row.appendChild(bar);
+      const intervals = [...new Set(parts.map((r) => r.interval))];
+      row.appendChild(el("span", "recur-badge", "↻ " + (intervals.length > 1 ? intervals.join(" + ") : parts.length + " × " + intervals[0])));
+      const t = el("span", "etitle", lead.note || lead.category);
+      t.title = parts.map((r) => (r.note || r.category) + ": " + formatMoney(r.amount) + " " + r.interval).join("\n");
+      row.appendChild(t);
+      row.appendChild(el("span", "ecat", lead.category));
+      if (isEnded) row.appendChild(el("span", "recur-badge", "ended"));
+      const amt = el("span", "famount fnegative", "-" + formatMoney(perMonth(parts)) + "/mo");
+      amt.title = "Together, a month";
+      row.appendChild(amt);
+      row.onclick = () => openRecurringModal(lead);
+      (into || card).appendChild(row);
+    };
+    // Plans in a combined group collapse to one unit, placed where its
+    // earliest part would have been.
+    const addUnits = (plans, isEnded, into) => {
+      const done = new Set();
+      for (const r of plans) {
+        if (done.has(r.id)) continue;
+        const key = combineKeyOf(all, r);
+        const parts = plans.filter((x) => combineKeyOf(all, x) === key);
+        parts.forEach((x) => done.add(x.id));
+        if (parts.length > 1) addCombinedRow(parts, isEnded, into); else addRow(r, isEnded, into);
+      }
+    };
+
     const byProject = (plans, isEnded) => {
-      const loose = plans.filter((r) => !r.project);
-      const named = plans.filter((r) => r.project);
-      loose.forEach((r) => addRow(r, isEnded, card));
+      // A combined bill sits with its lead plan's project.
+      const projectOf = (r) => {
+        const lead = r.combinedWith && plans.find((x) => x.id === r.combinedWith);
+        return (lead || r).project;
+      };
+      const loose = plans.filter((r) => !projectOf(r));
+      const named = plans.filter((r) => projectOf(r));
+      addUnits(loose, isEnded, card);
       const seen = [];
-      for (const r of named) if (!seen.includes(r.project)) seen.push(r.project);
+      for (const r of named) if (!seen.includes(projectOf(r))) seen.push(projectOf(r));
       for (const name of seen) {
-        const mine = named.filter((r) => r.project === name);
+        const mine = named.filter((r) => projectOf(r) === name);
         const color = projectColorOf(name);
         const box = el("div", "proj-group");
         box.style.setProperty("--proj-tint", color + "12");
@@ -2217,7 +2528,7 @@
         head.appendChild(edit);
         box.appendChild(head);
         const list = el("div", "proj-group-list");
-        mine.forEach((r) => addRow(r, isEnded, list));
+        addUnits(mine, isEnded, list);
         box.appendChild(list);
         card.appendChild(box);
       }
@@ -2935,7 +3246,7 @@
   ]);
   const KNOWN_RECURRING_KEYS = new Set([
     "id", "startDate", "interval", "amount", "category", "createdAt", "updatedAt",
-    "note", "endDate", "prevId", "overrides", "pauses", "project",
+    "note", "endDate", "prevId", "overrides", "pauses", "project", "chargeDay", "combinedWith",
     // A plan billed in a currency that isn't yours: fxAmount is what you're
     // charged each period, rate is the fallback used for a date with no
     // frozen rate of its own, and rates freezes one per occurrence date.
@@ -3013,6 +3324,8 @@
     };
     if (r.note) out.note = r.note;
     if (r.endDate) out.endDate = r.endDate;
+    if (out.interval === "monthly" && Number.isInteger(+r.chargeDay) && +r.chargeDay >= 1 && +r.chargeDay <= 31
+      && +r.chargeDay !== +String(out.startDate).slice(8, 10)) out.chargeDay = +r.chargeDay;
     // Foreign billing. Kept only as a complete set — a currency with no rate
     // would make every occurrence's home figure a guess, and dropping the
     // lot is better than carrying half of it into a total.
@@ -3037,6 +3350,7 @@
     // The plan this one took over from — kept so a bill's history still
     // reads as one chain after an import/sync round-trip (see planChain).
     if (r.prevId) out.prevId = r.prevId;
+    if (r.combinedWith && r.combinedWith !== r.id) out.combinedWith = String(r.combinedWith);
     if (r.overrides && typeof r.overrides === "object") {
       const overrides = {};
       for (const [date, ov] of Object.entries(r.overrides)) {
@@ -3075,6 +3389,8 @@
     // Basic math in the amount fields: "50-25" auto-resolves to 25.
     attachMathInput("#finAmount");
     attachMathInput("#recAmount");
+    attachCurrencyPaste("#finAmount", "#finCurrency");
+    attachCurrencyPaste("#recAmount", "#recCurrency");
     attachMathInput("#recOccAmount");
     attachMathInput("#planAmount");
 
@@ -3101,8 +3417,19 @@
     $("#cancelPauseBtn").onclick = closePauseModal;
     $("#pauseForm").onsubmit = savePauseFromForm;
     $("#deletePauseBtn").onclick = deleteCurrentPause;
-    $("#linkPastExpensesBtn").onclick = () => {
+    $("#combineBtn").onclick = () => {
       const rec = state.data.recurringExpenses.find((x) => x.id === $("#recId").value);
+      setRecToolsOpen(false);
+      if (rec) openCombinePicker(rec);
+    };
+    $("#separateBtn").onclick = () => {
+      const rec = state.data.recurringExpenses.find((x) => x.id === $("#recId").value);
+      setRecToolsOpen(false);
+      if (rec) separateCombined(rec);
+    };
+    $("#linkPastExpensesBtn").onclick = $("#recLinkOfferBtn").onclick = () => {
+      const rec = state.data.recurringExpenses.find((x) => x.id === $("#recId").value);
+      setRecToolsOpen(false);
       if (rec) openLinkPastExpensesPicker(rec);
     };
     $("#cancelRecOccBtn").onclick = closeRecurringOccModal;
@@ -3140,6 +3467,14 @@
     // "Look up" asks for today's rate rather than a date's: a plan has no one
     // date, and this box is the fallback for dates that have no rate yet.
     $("#recCurrency").onchange = applyRecurringCurrencyUI;
+    $("#recInterval").onchange = applyChargeDayUI;
+    $("#recStart").addEventListener("change", () => {
+      const day = +$("#recStart").value.slice(8, 10);
+      if (day && $("#recChargeDay").dataset.followsStart === "true") $("#recChargeDay").value = String(day);
+    });
+    $("#recChargeDay").onchange = () => {
+      $("#recChargeDay").dataset.followsStart = String(+$("#recChargeDay").value === +$("#recStart").value.slice(8, 10));
+    };
     $("#recRate").oninput = applyRecurringCurrencyUI;
     $("#recRateFetchBtn").onclick = () =>
       runRateLookup($("#recRateFetchBtn"), $("#recCurrency").value, todayStr(), (got) => {
@@ -3252,6 +3587,8 @@
     addDaysStr,
     nextOccurrenceDateAfter,
     splitRecurring,
+    rekeyOccurrenceMaps,
+    combinedParts,
     planChain,
     isPausedOn,
     normalizePauses,
@@ -3263,6 +3600,7 @@
     parseMoneyCell,
     monthSortAsc,
     evalMathExpr,
+    parsePastedAmount,
     // shared lookups/formatting (used by the shared import picker rows)
     rebuildFinanceColorMap,
     financeColorOf,
