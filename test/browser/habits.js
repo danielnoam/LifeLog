@@ -134,8 +134,10 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
       rows: document.querySelectorAll(".habit-grid-row").length,
       future: document.querySelectorAll(".habit-cell.is-future").length,
       futureDisabled: [...document.querySelectorAll(".habit-cell.is-future")].every((c) => c.disabled),
+      days: [...document.querySelectorAll(".habit-grid-day")].map((d) => d.textContent).join(""),
     }));
     check("a daily habit gets all seven weekday rows", shape.rows === 7, shape);
+    check("and every row is labelled, not just Mon, Wed and Fri", shape.days === "SMTWTFS", shape.days);
     check("days that haven't happened yet are there but not tappable",
       shape.future > 0 && shape.futureDisabled, shape);
 

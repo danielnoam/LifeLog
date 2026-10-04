@@ -17,9 +17,6 @@ todo:
 - **Faster ways to add an expense.** Look at reading the Google Pay (or
   bank) notification on Android to prefill or log one.
 
-- **The habits panel doesn't show all the days.** Find which days go
-  missing and fix it.
-
 - **An AI chat about your data.** A section where you ask questions ("what
   did I spend on food this year?", "what did I finish in March?") and an AI
   answers from your LifeLog data. Connect to one of your choosing: a local

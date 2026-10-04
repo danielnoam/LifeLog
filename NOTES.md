@@ -16,6 +16,9 @@ what was decided against and why.
 
 ---
 
+- **Every habits-grid row has its letter (0.235.0).** A full week used to
+  label alternate rows (M, W, F), GitHub-style; Daniel read it as the habit
+  being due only on those days. Seven letters fit the 16px rows.
 - **Selects draw their own arrow (0.234.0).** The native one sat against
   the border on Android. `appearance: none` plus two gradient halves of a
   small triangle in `--text-dim`, so every theme gets it without an SVG per

@@ -567,8 +567,9 @@
     const rows = !c || c === "daily" ? [0, 1, 2, 3, 4, 5, 6] : c.days;
     for (const row of rows) {
       const line = el("div", "habit-grid-row");
-      const lbl = el("span", "habit-grid-day",
-        rows.length > 4 ? (row % 2 ? DAY_LABELS[row].slice(0, 1) : "") : DAY_LABELS[row].slice(0, 1));
+      // Every row named. Until 0.235.0 a full week labelled only Mon, Wed
+      // and Fri, the GitHub way, which read as a habit due on those days.
+      const lbl = el("span", "habit-grid-day", DAY_LABELS[row].slice(0, 1));
       line.appendChild(lbl);
       for (let col = 0; col < GRID_WEEKS; col++) {
         const date = addDaysStr(start, col * 7 + row);

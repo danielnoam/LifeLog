@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.235.0] - 2026-10-04
+
+### Fixed
+- **The habits grid names every day.** A habit due every day labelled only
+  M, W and F beside its seven rows, which read as a habit due on those
+  three days. Every row now has its letter.
+
 ## [0.234.0] - 2026-10-04
 
 ### Fixed
