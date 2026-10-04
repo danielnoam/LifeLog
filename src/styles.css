@@ -613,6 +613,18 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
 .menu-pop-divider { border-top: 1px solid var(--border); margin: 4px 6px; }
 
 .add-menu { position: absolute; right: 0; bottom: calc(100% + 10px); }
+/* One group per tab, the way the Ledger's two items used to sit apart: a
+   small heading with the tab's name, then what you can add there. A rule
+   above every group that has a visible one before it. */
+.add-group { display: flex; flex-direction: column; }
+.add-group[hidden] { display: none; }
+.add-group:not([hidden]) ~ .add-group:not([hidden]) { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px; }
+.add-head {
+  margin: 0; padding: 6px 12px 2px; font-size: var(--fs-2xs); font-weight: 600;
+  color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em;
+}
+.add-menu button { display: flex; align-items: center; gap: 10px; }
+.add-ico { width: 1.25em; text-align: center; color: var(--text-dim); flex: 0 0 auto; }
 
 /* Anchors a menu to the button that opens it. */
 .menu-wrap { position: relative; display: inline-flex; }
@@ -2346,6 +2358,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
   html:not(.force-pc) .sort-select { min-height: 36px; }
   html:not(.force-pc) .settings-corner .btn-icon { min-height: 44px; min-width: 44px; }
   html:not(.force-pc) .link-offer .btn { min-height: 44px; }
+  html:not(.force-pc) .add-menu button { min-height: 44px; }
   html:not(.force-pc) .modal label input:not([type=checkbox]):not([type=color]), html:not(.force-pc) .modal label select { min-height: 44px; font-size: var(--fs-lg); }
   html:not(.force-pc) .modal label textarea { font-size: var(--fs-lg); }
 
@@ -2498,6 +2511,7 @@ html.force-mobile .search { min-height: 44px; font-size: var(--fs-lg); }
 html.force-mobile .sort-select { min-height: 36px; }
 html.force-mobile .settings-corner .btn-icon { min-height: 44px; min-width: 44px; }
 html.force-mobile .link-offer .btn { min-height: 44px; }
+html.force-mobile .add-menu button { min-height: 44px; }
 html.force-mobile .modal label input:not([type=checkbox]):not([type=color]), html.force-mobile .modal label select { min-height: 44px; font-size: var(--fs-lg); }
 html.force-mobile .modal label textarea { font-size: var(--fs-lg); }
 

@@ -380,8 +380,8 @@ const activeView = (page) => page.evaluate(() => {
     check("the + menu drops the items that file into a disabled tab",
       !menu.includes("finance") && !menu.includes("recurring"), menu);
     check("and keeps the rest", menu.includes("entry") && menu.includes("note") && menu.includes("backlog"), menu);
-    check("the divider that headed the dropped group goes with it",
-      await page.evaluate(() => document.querySelector("#addMenu .menu-pop-divider").hidden === true));
+    check("the group, heading and all, goes with it",
+      await page.evaluate(() => document.querySelector('#addMenu .add-group[data-view="finance"]').hidden === true));
     await page.keyboard.press("Escape");
     await page.waitForTimeout(200);
 

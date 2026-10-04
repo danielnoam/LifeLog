@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.228.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.229.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -114,20 +114,32 @@
   </header>
 
   <div class="fab-wrap">
-    <!-- data-view is the tab each item files into, so turning that tab off
-         takes the item with it — see syncAddMenu() in app.js. An achievement
-         belongs to the Timeline because its Stats mode is where you read one
-         back. -->
+    <!-- One group per tab, headed with the tab's own name and kept in the
+         bar's order (syncAddMenu() in app.js), so turning a tab off takes its
+         group with it. An achievement belongs to the Timeline because its
+         Stats mode is where you read one back; a habit to Notes, where its
+         panel lives. -->
     <div class="add-menu menu-pop" id="addMenu" hidden>
-      <button type="button" data-add="entry" data-view="timeline">Add entry</button>
-      <button type="button" data-add="note" data-view="notes">Write a note</button>
-      <button type="button" data-add="achievement" data-view="timeline">Add achievement</button>
-      <button type="button" data-add="backlog" data-view="backlog">Add to backlog</button>
-      <button type="button" data-add="habit" data-view="notes">Add habit</button>
-      <button type="button" data-add="board" data-view="notes" data-mode="notes">New board</button>
-      <div class="menu-pop-divider" role="separator" data-view="finance"></div>
-      <button type="button" data-add="finance" data-view="finance">Add finance entry</button>
-      <button type="button" data-add="recurring" data-view="finance">Add recurring expense</button>
+      <div class="add-group" data-view="notes">
+        <p class="add-head" aria-hidden="true"></p>
+        <button type="button" data-add="note" data-view="notes"><span class="add-ico" aria-hidden="true">✎</span>Note</button>
+        <button type="button" data-add="board" data-view="notes" data-mode="notes"><span class="add-ico" aria-hidden="true">◫</span>Board</button>
+        <button type="button" data-add="habit" data-view="notes"><span class="add-ico" aria-hidden="true">✓</span>Habit</button>
+      </div>
+      <div class="add-group" data-view="timeline">
+        <p class="add-head" aria-hidden="true"></p>
+        <button type="button" data-add="entry" data-view="timeline"><span class="add-ico" aria-hidden="true">●</span>Entry</button>
+        <button type="button" data-add="achievement" data-view="timeline"><span class="add-ico" aria-hidden="true">✦</span>Achievement</button>
+      </div>
+      <div class="add-group" data-view="backlog">
+        <p class="add-head" aria-hidden="true"></p>
+        <button type="button" data-add="backlog" data-view="backlog"><span class="add-ico" aria-hidden="true">★</span>Title</button>
+      </div>
+      <div class="add-group" data-view="finance">
+        <p class="add-head" aria-hidden="true"></p>
+        <button type="button" data-add="finance" data-view="finance"><span class="add-ico" aria-hidden="true">¤</span>Expense</button>
+        <button type="button" data-add="recurring" data-view="finance"><span class="add-ico" aria-hidden="true">↻</span>Recurring expense</button>
+      </div>
     </div>
     <button id="addBtn" class="btn btn-primary fab" aria-label="Add">+</button>
   </div>
@@ -1822,27 +1834,27 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.228.0"></script>
-  <script defer src="src/reconcile.js?v=0.228.0"></script>
-  <script defer src="src/qr.js?v=0.228.0"></script>
-  <script defer src="src/media.js?v=0.228.0"></script>
-  <script defer src="src/merge.js?v=0.228.0"></script>
-  <script defer src="src/storage.js?v=0.228.0"></script>
-  <script defer src="src/finance.js?v=0.228.0"></script>
-  <script defer src="src/settings.js?v=0.228.0"></script>
-  <script defer src="src/wheel.js?v=0.228.0"></script>
-  <script defer src="src/backlog.js?v=0.228.0"></script>
-  <script defer src="src/journal.js?v=0.228.0"></script>
-  <script defer src="src/markdown.js?v=0.228.0"></script>
-  <script defer src="src/notes.js?v=0.228.0"></script>
-  <script defer src="src/io.js?v=0.228.0"></script>
-  <script defer src="src/sync.js?v=0.228.0"></script>
-  <script defer src="src/habits.js?v=0.228.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.228.0"></script>
-  <script defer src="src/boards.js?v=0.228.0"></script>
-  <script defer src="src/recap.js?v=0.228.0"></script>
-  <script defer src="src/reminders.js?v=0.228.0"></script>
-  <script defer src="src/widgets.js?v=0.228.0"></script>
-  <script defer src="src/app.js?v=0.228.0"></script>
+  <script defer src="src/platform.js?v=0.229.0"></script>
+  <script defer src="src/reconcile.js?v=0.229.0"></script>
+  <script defer src="src/qr.js?v=0.229.0"></script>
+  <script defer src="src/media.js?v=0.229.0"></script>
+  <script defer src="src/merge.js?v=0.229.0"></script>
+  <script defer src="src/storage.js?v=0.229.0"></script>
+  <script defer src="src/finance.js?v=0.229.0"></script>
+  <script defer src="src/settings.js?v=0.229.0"></script>
+  <script defer src="src/wheel.js?v=0.229.0"></script>
+  <script defer src="src/backlog.js?v=0.229.0"></script>
+  <script defer src="src/journal.js?v=0.229.0"></script>
+  <script defer src="src/markdown.js?v=0.229.0"></script>
+  <script defer src="src/notes.js?v=0.229.0"></script>
+  <script defer src="src/io.js?v=0.229.0"></script>
+  <script defer src="src/sync.js?v=0.229.0"></script>
+  <script defer src="src/habits.js?v=0.229.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.229.0"></script>
+  <script defer src="src/boards.js?v=0.229.0"></script>
+  <script defer src="src/recap.js?v=0.229.0"></script>
+  <script defer src="src/reminders.js?v=0.229.0"></script>
+  <script defer src="src/widgets.js?v=0.229.0"></script>
+  <script defer src="src/app.js?v=0.229.0"></script>
 </body>
 </html>

@@ -147,7 +147,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.228.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.229.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3193,12 +3193,22 @@
   }
 
   // Add "an expense" to a Ledger you have turned off and it lands somewhere
-  // you can't get to. Each item names the tab it files into (data-view in
-  // index.html); the divider carries one too, so the Finance group's rule
-  // goes with the group.
+  // you can't get to. Each group and item names the tab it files into
+  // (data-view in index.html). Groups follow the bar's order and take the
+  // tab's name as their heading, and each item's label reads under it.
   function syncAddMenu() {
-    document.querySelectorAll("#addMenu [data-view]").forEach((node) => {
+    const menu = $("#addMenu");
+    document.querySelectorAll("#viewTabs .tab").forEach((tab) => {
+      const group = menu.querySelector(`.add-group[data-view="${tab.dataset.view}"]`);
+      if (!group) return;
+      group.querySelector(".add-head").textContent = tab.textContent.trim();
+      menu.appendChild(group);
+    });
+    menu.querySelectorAll("[data-view]").forEach((node) => {
       node.hidden = !viewEnabled(node.dataset.view) || (!!node.dataset.mode && !modeEnabled(node.dataset.view, node.dataset.mode));
+    });
+    menu.querySelectorAll(".add-group button").forEach((b) => {
+      b.setAttribute("aria-label", "Add " + b.lastChild.textContent.trim().toLowerCase() + " to " + b.closest(".add-group").querySelector(".add-head").textContent);
     });
   }
 

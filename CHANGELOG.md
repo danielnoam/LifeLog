@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.229.0] - 2026-10-04
+
+### Changed
+- **The + menu** is grouped by tab, in the bar's order, each group headed
+  with the tab's name: Notes (Note, Board, Habit), Timeline (Entry,
+  Achievement), Backlog (Title), Ledger (Expense, Recurring expense). Every
+  item has an icon, and on a phone each is a full 44px tap.
+
 ## [0.228.0] - 2026-10-04
 
 ### Added

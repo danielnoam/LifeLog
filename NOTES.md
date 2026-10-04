@@ -16,6 +16,15 @@ what was decided against and why.
 
 ---
 
+- **The + menu by tab (0.229.0).** Groups are static markup that
+  syncAddMenu() reorders to the bar's order on every open and heads with the
+  tab button's own text, so a tab renamed or moved needs nothing here. Items
+  read as nouns under that heading ("Entry" under Timeline), which is why
+  each gets an aria-label that says the whole thing ("Add entry to
+  Timeline"): the heading is aria-hidden. A rule sits above every visible
+  group with a visible one before it, done in CSS with `~` so a disabled
+  tab's group can't leave a doubled or dangling rule.
+
 - **Recurring tools (0.228.0).** `chargeDay` is stored only when it differs
   from the start date's day, so an ordinary plan carries nothing new; it
   exists at all because a start date can't say "the 31st" in a 30-day month.
