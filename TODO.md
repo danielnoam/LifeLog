@@ -20,6 +20,15 @@ todo:
 - **The habits panel doesn't show all the days.** Find which days go
   missing and fix it.
 
+- **An AI chat about your data.** A section where you ask questions ("what
+  did I spend on food this year?", "what did I finish in March?") and an AI
+  answers from your LifeLog data. Connect to one of your choosing: a local
+  model (Ollama or LM Studio on your computer, reached over your home
+  network; the phone can't run one itself) or a hosted API with your own
+  key. To decide: how much data goes in each question (all of it won't fit
+  a small local model, so likely a summary plus the rows that match), and
+  making it plain what leaves the device when the model isn't local.
+
 - **An Apple developer account ($99/year)**, if the iOS app is ever used
   for real: sign in CI, upload to TestFlight, and the 7-day re-signing that
   AltStore/SideStore do goes away. Everything else for iOS is built (0.216.0
