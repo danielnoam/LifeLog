@@ -1876,6 +1876,13 @@ kbd {
 .rating-input .star:hover { color: var(--accent-hover); }
 
 .modal-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+/* The recurring sheet carries four buttons, and on a 360px phone Save ran
+   off the side. Tighter here rather than wrapping, which left Save alone on
+   a line of its own. */
+@media (max-width: 480px) {
+  #recurringForm .modal-actions { gap: 6px; }
+  #recurringForm .modal-actions .btn { padding-left: 10px; padding-right: 10px; }
+}
 .modal-actions .spacer { flex: 1; }
 .modal-actions .link-btn {
   background: none; border: none; color: var(--accent); cursor: pointer; font-size: var(--fs-sm); padding: 0;

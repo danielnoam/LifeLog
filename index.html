@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.232.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.233.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -740,7 +740,7 @@
           <button type="button" class="btn" id="recLinkOfferBtn">Link…</button>
         </div>
         <div class="plan-trail" id="recPlanTrail" hidden>
-          <p class="hint">Plan history</p>
+          <p class="hint">Price and schedule history</p>
           <div class="plan-trail-list" id="recPlanTrailList"></div>
         </div>
         <div class="plan-trail" id="recPauses" hidden>
@@ -759,6 +759,7 @@
             <button type="button" class="btn" id="recMoreBtn" aria-haspopup="menu" aria-controls="recMoreMenu" aria-expanded="false">More…</button>
             <div class="menu-pop" id="recMoreMenu" role="menu" hidden>
               <button type="button" role="menuitem" id="changePlanBtn">↻ Change plan…</button>
+              <button type="button" role="menuitem" id="addExtraBtn">+ Add a one-off charge…</button>
               <button type="button" role="menuitem" id="pauseBtn">⏸ Pause…</button>
               <button type="button" role="menuitem" id="convertRecurringBtn">⇄ Convert to entries</button>
               <button type="button" role="menuitem" id="recFetchRatesBtn" hidden>💱 Look up past rates</button>
@@ -851,8 +852,11 @@
       <h2 id="recurringOccModalTitle">Edit occurrence</h2>
       <form id="recurringOccForm">
         <input type="hidden" id="recOccRecId" />
-        <input type="hidden" id="recOccDate" />
-        <label class="toggle-label">
+        <input type="hidden" id="recOccExtraId" />
+        <label id="recOccDateLabel" hidden>Date
+          <input id="recOccDate" type="date" />
+        </label>
+        <label class="toggle-label" id="recOccSkipLabel">
           <input type="checkbox" id="recOccSkip" />
           Skip this occurrence (excluded from the Ledger and its Summary)
         </label>
@@ -870,7 +874,7 @@
         <label>Note
           <input id="recOccNote" type="text" autocomplete="off" placeholder="Optional description…" />
         </label>
-        <p class="hint">Only changes this one date — every other occurrence keeps following the template.</p>
+        <p class="hint" id="recOccHint">Only changes this one date — every other occurrence keeps following the template.</p>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="resetRecOccBtn" hidden>Reset to template</button>
           <span class="spacer"></span>
@@ -1836,27 +1840,27 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.232.0"></script>
-  <script defer src="src/reconcile.js?v=0.232.0"></script>
-  <script defer src="src/qr.js?v=0.232.0"></script>
-  <script defer src="src/media.js?v=0.232.0"></script>
-  <script defer src="src/merge.js?v=0.232.0"></script>
-  <script defer src="src/storage.js?v=0.232.0"></script>
-  <script defer src="src/finance.js?v=0.232.0"></script>
-  <script defer src="src/settings.js?v=0.232.0"></script>
-  <script defer src="src/wheel.js?v=0.232.0"></script>
-  <script defer src="src/backlog.js?v=0.232.0"></script>
-  <script defer src="src/journal.js?v=0.232.0"></script>
-  <script defer src="src/markdown.js?v=0.232.0"></script>
-  <script defer src="src/notes.js?v=0.232.0"></script>
-  <script defer src="src/io.js?v=0.232.0"></script>
-  <script defer src="src/sync.js?v=0.232.0"></script>
-  <script defer src="src/habits.js?v=0.232.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.232.0"></script>
-  <script defer src="src/boards.js?v=0.232.0"></script>
-  <script defer src="src/recap.js?v=0.232.0"></script>
-  <script defer src="src/reminders.js?v=0.232.0"></script>
-  <script defer src="src/widgets.js?v=0.232.0"></script>
-  <script defer src="src/app.js?v=0.232.0"></script>
+  <script defer src="src/platform.js?v=0.233.0"></script>
+  <script defer src="src/reconcile.js?v=0.233.0"></script>
+  <script defer src="src/qr.js?v=0.233.0"></script>
+  <script defer src="src/media.js?v=0.233.0"></script>
+  <script defer src="src/merge.js?v=0.233.0"></script>
+  <script defer src="src/storage.js?v=0.233.0"></script>
+  <script defer src="src/finance.js?v=0.233.0"></script>
+  <script defer src="src/settings.js?v=0.233.0"></script>
+  <script defer src="src/wheel.js?v=0.233.0"></script>
+  <script defer src="src/backlog.js?v=0.233.0"></script>
+  <script defer src="src/journal.js?v=0.233.0"></script>
+  <script defer src="src/markdown.js?v=0.233.0"></script>
+  <script defer src="src/notes.js?v=0.233.0"></script>
+  <script defer src="src/io.js?v=0.233.0"></script>
+  <script defer src="src/sync.js?v=0.233.0"></script>
+  <script defer src="src/habits.js?v=0.233.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.233.0"></script>
+  <script defer src="src/boards.js?v=0.233.0"></script>
+  <script defer src="src/recap.js?v=0.233.0"></script>
+  <script defer src="src/reminders.js?v=0.233.0"></script>
+  <script defer src="src/widgets.js?v=0.233.0"></script>
+  <script defer src="src/app.js?v=0.233.0"></script>
 </body>
 </html>

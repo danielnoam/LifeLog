@@ -4,6 +4,25 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.233.0] - 2026-10-04
+
+### Added
+- **One-off charges on a recurring expense:** More… → "Add a one-off
+  charge" adds a charge of its own, with its own date, amount and note,
+  outside the schedule: a one-time fee, a month billed twice. It shows in
+  the plan's charges and in the Ledger, and tapping it edits or deletes it.
+
+### Changed
+- **Merging keeps every charge.** Where two plans ran at the same time, the
+  older one's charges from then on become one-off charges on the merged
+  expense instead of being dropped, and nothing is asked first.
+- **A merged expense is one row.** The recurring list shows each bill once,
+  its latest plan; the earlier ones are in its sheet under "Price and
+  schedule history" (was "Plan history"), not in the Ended list.
+
+### Fixed
+- The recurring sheet's Save button ran off the side on a 360px phone.
+
 ## [0.232.0] - 2026-10-04
 
 ### Added

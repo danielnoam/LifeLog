@@ -189,27 +189,44 @@ test("a changed interval leaves overrides where they were", () => {
 });
 
 test("merging plans makes one plan history in date order, ending each before the next", () => {
-  const month = { id: "m", startDate: "2025-01-05", interval: "monthly", amount: 10, category: "X",
-    overrides: { "2025-02-05": { amount: 12 } } };
-  const year = { id: "y", startDate: "2025-06-01", interval: "yearly", amount: 100, category: "X", combinedWith: "m" };
+  const month = { id: "m", startDate: "2025-01-05", interval: "monthly", amount: 10, category: "X", note: "Gym",
+    overrides: { "2025-02-05": { amount: 12 }, "2025-07-05": { amount: 11 } } };
+  const year = { id: "y", startDate: "2025-06-01", interval: "yearly", amount: 100, category: "Y", note: "Gym yearly", combinedWith: "m" };
   const all = [year, month];
-  const { chain, dropped } = Finance.mergePlans(all, [year, month], "2025-08-01");
+  const { chain, kept } = Finance.mergePlans(all, [year, month], "2025-08-01");
   assert.deepStrictEqual(chain.map((r) => r.id), ["m", "y"]);
   assert.strictEqual(month.endDate, "2025-05-31", "the monthly plan stops the day before the yearly one starts");
   assert.strictEqual(year.prevId, "m");
   assert.strictEqual(year.combinedWith, undefined);
-  assert.deepStrictEqual(month.overrides, { "2025-02-05": { amount: 12 } }, "its own edits stay");
-  assert.strictEqual(dropped, 2, "June and July of the monthly plan overlapped the yearly one");
+  assert.strictEqual(month.overrides["2025-02-05"].amount, 12, "its own edits stay");
+  assert.strictEqual(kept, 2, "June and July of the monthly plan overlapped the yearly one");
+  assert.deepStrictEqual(year.extras.map((x) => [x.date, x.amount, x.note, x.category]),
+    [["2025-06-05", 10, "Gym", "X"], ["2025-07-05", 11, "Gym", "X"]], "and are kept as one-off charges, edits and all");
   assert.deepStrictEqual(planChain(all, month).map((r) => r.id), ["m", "y"]);
+  const charges = [...Finance.planCharges(month, new Date(2025, 7, 1)), ...Finance.planCharges(year, new Date(2025, 7, 1))];
+  assert.strictEqual(charges.reduce((t, o) => t + o.amount, 0), 10 + 12 + 10 + 10 + 10 + 10 + 11 + 100, "every charge is still there");
 });
 
-test("a plan that already ended before the next starts loses nothing in a merge", () => {
+test("a plan that already ended before the next starts gains nothing in a merge", () => {
   const a = { id: "a", startDate: "2024-01-01", endDate: "2024-03-31", interval: "monthly", amount: 10, category: "X" };
   const b = { id: "b", startDate: "2024-06-01", interval: "monthly", amount: 12, category: "X" };
-  const { dropped } = Finance.mergePlans([a, b], [b, a], "2024-08-01");
-  assert.strictEqual(dropped, 0);
+  const { kept } = Finance.mergePlans([a, b], [b, a], "2024-08-01");
+  assert.strictEqual(kept, 0);
+  assert.strictEqual(b.extras, undefined);
   assert.strictEqual(a.endDate, "2024-03-31");
   assert.strictEqual(b.prevId, "a");
+});
+
+test("one-off charges sit outside the schedule, its stop date and its pauses, and not past today", () => {
+  const r = { id: "r", startDate: "2026-01-01", endDate: "2026-02-15", interval: "monthly", amount: 10, category: "X", note: "Phone",
+    pauses: [{ from: "2026-03-01" }],
+    extras: [{ id: "e1", date: "2026-03-10", amount: 25, note: "Roaming" }, { id: "e2", date: "2026-09-01", amount: 5 }] };
+  const charges = Finance.planCharges(r, new Date(2026, 5, 1));
+  assert.deepStrictEqual(charges.map((o) => [o.date, o.amount, o.note, !!o.extra, o.skipped]),
+    [["2026-01-01", 10, "Phone", false, false], ["2026-02-01", 10, "Phone", false, false], ["2026-03-10", 25, "Roaming", true, false]]);
+  assert.deepStrictEqual(recurringOccurrences(r, new Date(2026, 5, 1)).map((o) => o.date), ["2026-01-01", "2026-02-01"], "the schedule alone is unchanged");
+  const clean = Finance.sanitizeRecurring({ ...r, extras: [...r.extras, { date: "nope", amount: 1 }, null] });
+  assert.deepStrictEqual(clean.extras.map((x) => x.id), ["e1", "e2"]);
 });
 
 test("recurringOccurrences stops at endDate when it's earlier than the requested cutoff", () => {

@@ -319,6 +319,7 @@
       ["pauses", "pauses"],
       ["overrides", "per-month changes"],
       ["prevId", "plan history"],
+      ["extras", "one-off charges"],
     ],
   };
 

@@ -498,7 +498,7 @@ test("importItemIncomplete still answers for the backlog by default", () => {
   assert.strictEqual(importItemIncomplete({ title: "X" }, "backlog"), true);
   // And says so per kind: a recurring plan with every optional part set.
   assert.strictEqual(importItemIncomplete(
-    { endDate: "2026-12-01", project: "P", pauses: [{ from: "x" }], overrides: { a: {} }, prevId: "r0" },
+    { endDate: "2026-12-01", project: "P", pauses: [{ from: "x" }], overrides: { a: {} }, prevId: "r0", extras: [{ date: "x" }] },
     "recurring"), false);
 });
 

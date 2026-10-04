@@ -437,6 +437,30 @@
     return out;
   }
 
+  // A plan's schedule plus its one-off charges: a charge that belongs to the
+  // bill but not to its schedule (a one-time fee, a month billed twice, or the
+  // charges of a plan merged into this one while the two overlapped). They
+  // stand outside the plan's dates, stop date and pauses, because each is a
+  // dated fact, not a forecast. recurringOccurrences stays the schedule alone,
+  // which is what splitting, re-keying and rate look-ups are about.
+  function planCharges(rec, until) {
+    const out = recurringOccurrences(rec, until);
+    const last = localDateStr(until);
+    for (const x of rec.extras || []) {
+      if (!x.date || x.date > last) continue;
+      out.push({
+        id: `${rec.id}:x:${x.id}`, date: x.date, type: "expense", amount: x.amount,
+        category: x.category || rec.category,
+        note: x.note != null ? x.note : rec.note,
+        createdAt: rec.createdAt,
+        project: rec.project || undefined,
+        recurringId: rec.id, virtual: true, extra: true, extraId: x.id, overridden: false, skipped: false, paused: false,
+        ...(x.currency ? { currency: x.currency, fxAmount: x.fxAmount, rate: x.rate, rateFrozen: true } : {}),
+      });
+    }
+    return out;
+  }
+
   function addDaysStr(dateStr, n) {
     const d = new Date(dateStr + "T00:00:00");
     if (isNaN(d.getTime())) return dateStr;
@@ -582,30 +606,38 @@
   // logged again as a yearly one) become one plan history, the shape Change
   // plan makes: in start-date order, each linked to the one before by prevId
   // and ended the day before the next one starts. Every plan keeps its own
-  // charges, overrides, rates and pauses. Where two overlap, the earlier one's
-  // charges from the later one's start are the only thing given up, and
-  // mergePlans says how many so the sheet can ask first.
+  // charges, overrides, rates and pauses. Where two overlap (you really paid
+  // both for a while), the earlier one's charges from the later one's start
+  // through today become one-off charges on the later plan, so nothing that
+  // happened is lost; only its forecast past today goes, since the bill now
+  // carries on as the later plan.
   function mergePlans(all, plans, today) {
     const ids = new Set();
     for (const p of plans) for (const r of planChain(all, p)) ids.add(r.id);
     const chain = all.filter((r) => ids.has(r.id))
       .sort((a, b) => a.startDate.localeCompare(b.startDate) || String(a.createdAt).localeCompare(String(b.createdAt)));
     const until = new Date(today + "T00:00:00");
-    const count = (r) => recurringOccurrences(r, until).length;
-    let dropped = 0;
+    let kept = 0;
     chain.forEach((r, i) => {
       delete r.combinedWith;
       if (!i) { delete r.prevId; return; }
       const prev = chain[i - 1];
       r.prevId = prev.id;
       const stop = addDaysStr(r.startDate, -1);
-      if (!prev.endDate || prev.endDate > stop) {
-        const before = count(prev);
-        prev.endDate = stop;
-        dropped += before - count(prev);
-      }
+      if (prev.endDate && prev.endDate <= stop) return;
+      const overlap = recurringOccurrences(prev, until).filter((o) => o.date > stop && !o.skipped);
+      prev.endDate = stop;
+      if (!overlap.length) return;
+      r.extras = [...(r.extras || []), ...overlap.map((o) => {
+        const x = { id: prev.id + "-" + o.date, date: o.date, amount: o.amount };
+        if (o.note != null && o.note !== r.note) x.note = o.note;
+        if (prev.category !== r.category) x.category = prev.category;
+        if (o.currency) Object.assign(x, { currency: o.currency, fxAmount: o.fxAmount, rate: o.rate });
+        return x;
+      })].sort((a, b) => a.date.localeCompare(b.date));
+      kept += overlap.length;
     });
-    return { chain, dropped };
+    return { chain, kept };
   }
 
   // real finance entries plus every recurring template's occurrences through
@@ -617,7 +649,7 @@
   // month/year counts and renderFinanceStats' `items`.
   function getEffectiveFinanceEntries() {
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const virtual = (state.data.recurringExpenses || []).flatMap((r) => recurringOccurrences(r, today));
+    const virtual = (state.data.recurringExpenses || []).flatMap((r) => planCharges(r, today));
     return [...state.data.financeEntries, ...virtual];
   }
   function financeYears() {
@@ -806,8 +838,9 @@
     t.title = f.note || f.category;
     row.appendChild(t);
     if (f.virtual) {
-      const badge = el("span", "recur-badge", f.overridden ? "↻*" : "↻");
-      badge.title = f.overridden ? "Recurring — custom amount/note for this date" : "Recurring";
+      const badge = el("span", "recur-badge", f.extra ? "↻+" : (f.overridden ? "↻*" : "↻"));
+      badge.title = f.extra ? "A one-off charge on a recurring expense"
+        : (f.overridden ? "Recurring — custom amount/note for this date" : "Recurring");
       row.appendChild(badge);
     }
     if (f.skipped) row.appendChild(el("span", "skipped-badge", f.paused ? "Paused" : "Skipped"));
@@ -1702,12 +1735,13 @@
     const occWrap = $("#recOccurrences");
     if (editing) {
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const occ = recurringOccurrences(rec, today).slice().sort((a, b) => b.date.localeCompare(a.date));
+      const occ = planCharges(rec, today).sort((a, b) => b.date.localeCompare(a.date));
       const list = $("#recOccList");
       list.innerHTML = "";
       occ.forEach((o) => {
         const row = el("div", "rec-occ-row" + (o.overridden ? " is-overridden" : "") + (o.skipped ? " is-skipped" : ""));
         row.appendChild(el("span", "rec-occ-date", o.date + (o.overridden ? " *" : "")));
+        if (o.extra) row.appendChild(el("span", "recur-badge", "one-off"));
         const ofx = fxOf(o);
         if (ofx && !o.skipped) {
           // What you were billed, beside what it came to — the same pairing
@@ -1724,7 +1758,7 @@
           : (o.skipped ? "Skipped — click to restore or edit"
             : (ofx && !o.rateFrozen
               ? "At the plan's fallback rate — use “Look up past rates” to freeze the rate this charge really had"
-              : "Edit this occurrence"));
+              : (o.extra ? "Edit this one-off charge" : "Edit this occurrence")));
         row.onclick = () => openRecurringOccModal(rec, o);
         list.appendChild(row);
       });
@@ -1811,7 +1845,7 @@
     if (!candidates.length) { toast("No other recurring expenses to merge with", true); return; }
     openImportPicker({
       title: "Merge with…",
-      hint: `The plans you pick and ${rec.note || rec.category} become one recurring expense, in date order, with one plan history. Each keeps its own charges, amounts and rates. Where two overlap, the earlier one stops the day before the later one starts.`,
+      hint: `The ones you pick and ${rec.note || rec.category} become one recurring expense, oldest first. Every charge stays: where two ran at the same time, the older one's charges from then on are kept as one-off charges.`,
       mode: "link",
       items: candidates.map((r) => ({ kind: "recurring", entry: r, dup: false, checked: false })),
       searchable: true,
@@ -1819,16 +1853,13 @@
       onConfirm: async (selected) => {
         if (!selected.length) return;
         const before = all.map((r) => JSON.parse(JSON.stringify(r)));
-        const trial = JSON.parse(JSON.stringify(all));
-        const pick = (list) => [rec, ...selected.map((i) => i.entry)].map((p) => list.find((r) => r.id === p.id));
-        const { dropped } = mergePlans(trial, pick(trial), todayStr());
-        if (dropped && !confirm(`${dropped} charge${dropped === 1 ? "" : "s"} overlap a later plan and will be dropped. Merge anyway?`)) return;
-        const { chain } = mergePlans(all, pick(all), todayStr());
+        const plans = [rec, ...selected.map((i) => i.entry)].map((p) => all.find((r) => r.id === p.id));
+        const { chain, kept } = mergePlans(all, plans, todayStr());
         const current = chain[chain.length - 1];
         buildYearFilter();
         render();
         await persist();
-        toast(`Merged ${chain.length} plans into one`, false, { label: "Undo", onClick: async () => {
+        toast(`Merged into one recurring expense` + (kept ? `, ${kept} overlapping charge${kept === 1 ? "" : "s"} kept as one-off` : ""), false, { label: "Undo", onClick: async () => {
           state.data.recurringExpenses = before;
           closeRecurringModal();
           buildYearFilter();
@@ -1939,10 +1970,29 @@
   // Edits one generated occurrence's amount/note without touching the
   // template or any other occurrence — stored as a sparse patch on
   // rec.overrides, keyed by that occurrence's date.
+  //
+  // A one-off charge (rec.extras) opens in the same sheet with its date
+  // editable and no skip: it isn't on the schedule, so there is nothing to
+  // skip or reset to, only the charge itself to change or delete. occ null
+  // adds a new one.
   function openRecurringOccModal(rec, occ) {
-    $("#recurringOccModalTitle").textContent = occ.date;
+    const extra = !occ || !!occ.extra;
+    if (!occ) {
+      const pfx = fxOf(rec);
+      occ = { date: todayStr(), amount: rec.amount, note: "",
+        ...(pfx ? { currency: pfx.currency, fxAmount: pfx.amount, rate: pfx.rate } : {}) };
+    }
+    $("#recurringOccModalTitle").textContent = extra ? (occ.extraId ? "One-off charge" : "Add a one-off charge") : occ.date;
     $("#recOccRecId").value = rec.id;
+    $("#recOccExtraId").value = extra ? (occ.extraId || "") : "";
     $("#recOccDate").value = occ.date;
+    $("#recOccDateLabel").hidden = !extra;
+    $("#recOccDate").required = extra;
+    $("#recOccSkipLabel").hidden = extra;
+    $("#recOccHint").textContent = extra
+      ? "A charge of its own on " + (rec.note || rec.category) + ", outside its schedule. Every other charge stays as it is."
+      : "Only changes this one date — every other occurrence keeps following the template.";
+    $("#resetRecOccBtn").textContent = extra ? "Delete" : "Reset to template";
     // On a foreign plan this box edits the sum you were billed, not the home
     // figure — that one is the rate's business, and it has its own box below.
     const ofx = fxOf(occ);
@@ -1958,7 +2008,9 @@
     $("#recOccSkip").checked = !!occ.skipped;
     $("#recOccSkip").disabled = !!occ.paused;
     $("#recOccPausedHint").hidden = !occ.paused;
-    $("#resetRecOccBtn").hidden = !occ.overridden;
+    $("#resetRecOccBtn").hidden = extra ? !occ.extraId : !occ.overridden;
+    // Opened from the plan's own sheet, the template is already right there.
+    $("#editRecTemplateBtn").hidden = !$("#recurringModal").hidden;
     $("#recurringOccModal").hidden = false;
   }
   // The occurrence editor's preview, which unlike the template's is about
@@ -1989,6 +2041,7 @@
     ev.preventDefault();
     const rec = state.data.recurringExpenses.find((x) => x.id === $("#recOccRecId").value);
     if (!rec) return;
+    if (!$("#recOccDateLabel").hidden) return saveExtraFromForm(rec);
     const date = $("#recOccDate").value;
     const typed = readAmount("#recOccAmount");
     const note = $("#recOccNote").value.trim();
@@ -2027,8 +2080,45 @@
     toast("Occurrence updated");
     if (reopenTemplate) openRecurringModal(rec);
   }
+  async function saveExtraFromForm(rec) {
+    const date = $("#recOccDate").value;
+    const typed = readAmount("#recOccAmount");
+    if (!date || !typed) return;
+    const m = /\(([A-Z]{3})\)/.exec($("#recOccAmountLabel").textContent);
+    const x = { id: $("#recOccExtraId").value || uid(), date, amount: typed };
+    if (m) {
+      const rate = parseFloat($("#recOccRate").value);
+      if (!isFinite(rate) || rate <= 0) { toast("Give a rate for " + m[1] + " on this date", true); return; }
+      Object.assign(x, { currency: m[1], fxAmount: typed, rate, amount: Math.round(typed * rate * 100) / 100 });
+    }
+    const note = $("#recOccNote").value.trim();
+    if (note && note !== (rec.note || "")) x.note = note;
+    const old = (rec.extras || []).find((e) => e.id === x.id);
+    if (old && old.category) x.category = old.category;
+    rec.extras = [...(rec.extras || []).filter((e) => e.id !== x.id), x].sort((a, b) => a.date.localeCompare(b.date));
+    const reopenTemplate = !$("#recurringModal").hidden;
+    closeRecurringOccModal();
+    buildYearFilter();
+    render();
+    await persist();
+    toast(old ? "One-off charge updated" : "One-off charge added");
+    if (reopenTemplate) openRecurringModal(rec);
+  }
   async function resetRecurringOcc() {
     const rec = state.data.recurringExpenses.find((x) => x.id === $("#recOccRecId").value);
+    const extraId = $("#recOccExtraId").value;
+    if (rec && !$("#recOccDateLabel").hidden && extraId) {
+      rec.extras = (rec.extras || []).filter((e) => e.id !== extraId);
+      if (!rec.extras.length) delete rec.extras;
+      const reopen = !$("#recurringModal").hidden;
+      closeRecurringOccModal();
+      buildYearFilter();
+      render();
+      await persist();
+      toast("One-off charge deleted");
+      if (reopen) openRecurringModal(rec);
+      return;
+    }
     const date = $("#recOccDate").value;
     if (rec && rec.overrides) {
       delete rec.overrides[date];
@@ -2230,7 +2320,7 @@
     const r = state.data.recurringExpenses.find((x) => x.id === id);
     if (!r) return;
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const occs = recurringOccurrences(r, today).filter((o) => !o.skipped);
+    const occs = planCharges(r, today).filter((o) => !o.skipped);
     if (!confirm(`Convert this recurring expense into ${occs.length} one-off entr${occs.length === 1 ? "y" : "ies"}? It stops generating new ones, and each entry becomes editable on its own.`)) return;
     const now = new Date().toISOString();
     occs.forEach((o) => {
@@ -2256,7 +2346,7 @@
     const r = state.data.recurringExpenses.find((x) => x.id === id);
     if (!r) return;
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const n = recurringOccurrences(r, today).length;
+    const n = planCharges(r, today).length;
     if (!confirm(`Delete this recurring expense and the ${n} occurrence${n === 1 ? "" : "s"} it generated? To keep that history, cancel and use “Convert to entries” instead.`)) return;
     state.data.recurringExpenses = state.data.recurringExpenses.filter((x) => x.id !== id);
     closeRecurringModal();
@@ -2391,13 +2481,19 @@
   }
 
   function renderRecurringCard(root) {
-    const all = state.data.recurringExpenses || [];
     const today = todayStr();
-    const active = all.filter((r) => !r.endDate || r.endDate >= today);
-    // Ended plans (stopped, or superseded by a plan change) still generate
-    // the history in the Ledger, so they need to stay openable — otherwise
-    // the only way back to one is hunting down one of its occurrences.
-    const ended = all.filter((r) => r.endDate && r.endDate < today);
+    // One row per bill: a plan another took over from (a plan change, or a
+    // merge) is part of that bill's history, opened from the sheet's history
+    // strip, not a row of its own. Before 0.233.0 each stayed in the list as
+    // "ended", which made a merge look as if nothing had happened.
+    const all = state.data.recurringExpenses || [];
+    const taken = new Set(all.map((r) => r.prevId).filter(Boolean));
+    const bills = all.filter((r) => !taken.has(r.id));
+    const active = bills.filter((r) => !r.endDate || r.endDate >= today);
+    // Bills that ended still generate their history in the Ledger, so they
+    // need to stay openable — otherwise the only way back to one is hunting
+    // down one of its occurrences.
+    const ended = bills.filter((r) => r.endDate && r.endDate < today);
     if (!active.length && !ended.length) return;
     const card = el("div", "recur-card");
     const head = el("div", "year-head");
@@ -3201,6 +3297,8 @@
     // frozen rate of its own, and rates freezes one per occurrence date.
     // `amount` stays the home-currency figure, same invariant as an expense.
     "currency", "fxAmount", "rate", "rates",
+    // One-off charges on the bill, outside its schedule (see planCharges).
+    "extras",
   ]);
   function sanitizeFinanceEntry(f) {
     const out = {
@@ -3317,6 +3415,19 @@
       }
       if (Object.keys(overrides).length) out.overrides = overrides;
     }
+    if (Array.isArray(r.extras)) {
+      const extras = [];
+      for (const x of r.extras) {
+        if (!x || typeof x !== "object" || !/^\d{4}-\d{2}-\d{2}$/.test(x.date)) continue;
+        const clean = { id: String(x.id || uid()), date: x.date, amount: Math.abs(+x.amount) || 0 };
+        if (x.note != null) clean.note = String(x.note);
+        if (x.category) clean.category = String(x.category);
+        const rate = +x.rate, fxAmount = Math.abs(+x.fxAmount);
+        if (x.currency && isFinite(rate) && rate > 0 && isFinite(fxAmount)) Object.assign(clean, { currency: String(x.currency), fxAmount, rate });
+        extras.push(clean);
+      }
+      if (extras.length) out.extras = extras;
+    }
     if (Array.isArray(r.pauses)) {
       const pauses = normalizePauses(r.pauses.map((p) => {
         if (!p || typeof p !== "object" || !p.from) return null;
@@ -3368,6 +3479,11 @@
     $("#cancelPauseBtn").onclick = closePauseModal;
     $("#pauseForm").onsubmit = savePauseFromForm;
     $("#deletePauseBtn").onclick = deleteCurrentPause;
+    $("#addExtraBtn").onclick = () => {
+      const rec = state.data.recurringExpenses.find((x) => x.id === $("#recId").value);
+      setRecToolsOpen(false);
+      if (rec) openRecurringOccModal(rec, null);
+    };
     $("#mergeBtn").onclick = () => {
       const rec = state.data.recurringExpenses.find((x) => x.id === $("#recId").value);
       setRecToolsOpen(false);
@@ -3527,6 +3643,7 @@
     financeCsvText, parseFlatFinanceCsv,
     // pure date/recurrence math (exported for test/finance.test.js)
     recurringOccurrences,
+    planCharges,
     occurrenceFx,
     nextRecurringDate,
     addMonthsClamped,

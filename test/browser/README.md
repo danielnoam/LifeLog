@@ -22,7 +22,7 @@ because something shipped broken that no unit test could have caught:
 | suite | what it pins down |
 |---|---|
 | `synctoast` | the offline warning doesn't fire while the status line says "Synced" |
-| `recurtools` | a pasted price's currency, a monthly plan's charge day and its overrides following it, the link offer ticking only lookalikes, plans merging into one history, and Undo putting them back |
+| `recurtools` | a pasted price's currency, a monthly plan's charge day and its overrides following it, the link offer ticking only lookalikes, plans merging into one history (overlap kept as one-off charges, one row in the list), Undo putting them back, and adding and deleting a one-off charge |
 | `fxrate` | rate lookup: URLs, fallback order, date pinning, precision, and the hint's spacing |
 | `bandfold` | each set-aside band folds on its own setting, and an all-one-band category still gets a bar |
 | `droppedfold` | the Dropped fold, including that its rows are dimmed on the frame they appear |

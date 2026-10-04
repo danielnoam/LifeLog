@@ -16,6 +16,23 @@ what was decided against and why.
 
 ---
 
+- **Merge keeps overlapping charges as one-offs (0.233.0).** 0.232.0 ended
+  the earlier plan the day before the later one starts and dropped its
+  charges past that; Daniel wanted nothing removed (he had really paid both
+  for a while). A chain can only run one plan at a time, so those charges
+  (through today, skips left out, edits and frozen rates baked in) become
+  `extras` on the later plan: dated one-off charges that `planCharges` emits
+  beside the schedule, ignoring the plan's dates, stop date and pauses.
+  `recurringOccurrences` stays the schedule alone on purpose, because
+  splitting, re-keying, linking and rate look-ups are about schedule dates;
+  everything that shows or totals money reads `planCharges`. The same
+  `extras` back "Add a one-off charge", in the occurrence sheet with a date
+  field and no skip. The forecast past today of the earlier plan does go,
+  since the bill carries on as the later plan.
+- **The recurring list shows one row per bill (0.233.0).** A plan another
+  took over from (prevId) is history, reached from the sheet's history
+  strip. Before, superseded plans sat in the Ended list, which made a merge
+  look as if it had done nothing.
 - **Merge replaced Combine (0.232.0).** Combine (0.228.0) kept plans apart
   and only folded them into one row; what Daniel wanted was one recurring
   expense. Merging reuses the plan chain Change plan already builds

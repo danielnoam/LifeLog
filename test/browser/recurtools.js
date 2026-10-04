@@ -1,6 +1,7 @@
 // Four Ledger changes from 0.228.0: a pasted price's currency symbol sets the
 // currency, a monthly plan has a charge day of its own, logged expenses that
 // look like a plan are offered for linking, and plans merge into one history.
+// One-off charges on a plan came with the merge rework in 0.233.0.
 const { chromium, BASE, tally } = require("./harness");
 const { check, done } = tally();
 
@@ -101,12 +102,40 @@ const paste = (page, sel, text) => page.evaluate(([sel, text]) => {
   await page.click("#financePickerConfirmBtn");
   await page.waitForTimeout(400);
   const gym = await plan(page, "gym"), gymx = await plan(page, "gymx");
-  check("the plans become one history, the earlier ending the day before", (gymx.prevId === "gym" && gym.endDate === "2026-01-04") || (gym.prevId === "gymx" && gymx.endDate === "2026-01-04"), { gym, gymx });
-  check("the sheet shows the plan history", await page.evaluate(() => !document.querySelector("#recPlanTrail").hidden));
+  const merged = (gymx.prevId === "gym" && gym.endDate === "2026-01-04") || (gym.prevId === "gymx" && gymx.endDate === "2026-01-04");
+  check("the plans become one history, the earlier ending the day before", merged, { gym, gymx });
+  const later = gymx.prevId === "gym" ? gymx : gym;
+  check("nothing is dropped: the overlap is kept as one-off charges", (later.extras || []).length > 0, later.extras);
+  check("the sheet shows the history", await page.evaluate(() => !document.querySelector("#recPlanTrail").hidden));
+  check("the list shows the merged bill once", await page.locator(".recur-row", { hasText: "Gym" }).count() === 1);
   await page.click(".toast-action");
   await page.waitForTimeout(400);
   const undone = await plan(page, "gymx");
-  check("Undo puts both plans back", !undone.prevId && !(await plan(page, "gym")).endDate, undone);
+  check("Undo puts both plans back", !undone.prevId && !(await plan(page, "gym")).endDate && !undone.extras, undone);
+  check("and both rows are back", await page.locator(".recur-row", { hasText: "Gym" }).count() === 2);
+
+  // ---- 5. a one-off charge ----
+  await openPlan(page, "Netflix");
+  await page.click("#recMoreBtn");
+  await page.click("#addExtraBtn");
+  await page.waitForSelector("#recurringOccModal:not([hidden])");
+  check("the one-off sheet asks for a date and has no skip", await page.evaluate(() =>
+    !document.querySelector("#recOccDateLabel").hidden && document.querySelector("#recOccSkipLabel").hidden));
+  await page.fill("#recOccDate", "2026-01-20");
+  await page.fill("#recOccAmount", "15");
+  await page.fill("#recOccNote", "Netflix extra screen");
+  await page.click("#recurringOccForm button[type=submit]");
+  await page.waitForTimeout(400);
+  net = await plan(page, "net");
+  check("it is stored on the plan", net.extras && net.extras.length === 1 && net.extras[0].amount === 15 && net.extras[0].note === "Netflix extra screen", net.extras);
+  const row = page.locator("#recOccList .rec-occ-row", { hasText: "one-off" });
+  check("the sheet lists it among the charges", await row.count() === 1);
+  check("the Ledger shows it", await page.locator(".finance-entry", { hasText: "Netflix extra screen" }).count() === 1);
+  await row.click();
+  await page.waitForSelector("#recurringOccModal:not([hidden])");
+  await page.click("#resetRecOccBtn");
+  await page.waitForTimeout(400);
+  check("Delete removes it", !(await plan(page, "net")).extras);
 
   await browser.close();
   done(errs);
