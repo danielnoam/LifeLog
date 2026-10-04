@@ -13,6 +13,21 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## Widgets syncing on their own
+
+Decided against (2026-10-04): a background job on the phone that fetches
+the data from GitHub every half hour and redraws the widgets, so an edit on
+another device shows without opening the phone app. The widgets can't run
+the app's code, so the job would have to work out again in Java (and Swift)
+what snapshotOf in widgets.js works out for them: the habits and their
+runs, the lists, the notes' budget, this month's spend with its recurring
+charges and currencies. Every later widget change would then be made twice.
+On iOS the system decides whether background refresh runs at all. What
+actually made the widgets stale was a timer that a frozen background app
+never ran (fixed in 0.237.0); edits from this phone reach the widgets at
+once. Would come back if most widget-worthy edits start happening on
+another device.
+
 ## Swipe actions on rows
 
 Decided against (2026-10-01): swiping a backlog or Timeline row sideways to

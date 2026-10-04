@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.237.0] - 2026-10-04
+
+### Fixed
+- **Widgets showing old data after you'd opened the app.** The sync that
+  starts when you open LifeLog often finishes after you've left it, and the
+  widgets were updated on a short timer that a backgrounded app may never
+  get to run (Android freezes it within seconds). A change that lands while
+  the app is out of sight now goes to the widgets at once.
+
 ## [0.236.0] - 2026-10-04
 
 ### Added

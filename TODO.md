@@ -6,11 +6,6 @@ todo:
   could share for its spending), and what a place holds (name, address or
   map link, notes, visited).
 
-- **Widgets that are current without opening the app.** Sometimes a widget
-  still shows old data after the app is opened. Find why, then whether the
-  widgets can sync on their own (a periodic background fetch) so opening
-  the app isn't what brings them up to date.
-
 - **Books as notes.** PDFs and EPUBs come in as text since 0.236.0, but
   only up to 300,000 characters, because every note lives in the one data
   file that syncs on each save and is cached in localStorage (about 5MB). A

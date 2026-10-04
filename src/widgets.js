@@ -204,10 +204,17 @@
     Promise.resolve(W.update({ json: JSON.stringify(snap) })).catch(() => { /* the widget keeps its last copy */ });
   }
 
-  // Called on every data change; one snapshot for a burst of them.
+  // Called on every data change; one snapshot for a burst of them. Not
+  // while the app is out of sight, though (0.237.0): the sync started when
+  // you opened it often lands after you've left, and by then a timer may
+  // never fire, since Android freezes an app's process seconds after it
+  // goes to the background. The widget kept what the app had before the
+  // sync until the next time it was opened, which is why it could show old
+  // data after you'd just looked at the new.
   function changed() {
     if (!plugin()) return;
     clearTimeout(pushTimer);
+    if (document.visibilityState === "hidden") { push(); return; }
     pushTimer = setTimeout(push, 400);
   }
 

@@ -899,6 +899,18 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     snap = await lastSnap(page);
     check("and what's added in the app goes back out to the widget",
       (await page.evaluate(() => window.__cap.widgetSnaps.length)) > before && snap.todos.some((t) => t.text === "From the widget's +"), snap && snap.todos);
+
+    // A change that lands after you've left (a sync finishing late) goes
+    // out at once: Android may freeze the app before a timer would fire.
+    const hiddenSent = await page.evaluate(async () => {
+      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+      const n = window.__cap.widgetSnaps.length;
+      window.LifeLogWidgets.changed();
+      await new Promise((r) => setTimeout(r, 60));
+      delete document.visibilityState;
+      return window.__cap.widgetSnaps.length - n;
+    });
+    check("a change while the app is in the background reaches the widget without waiting", hiddenSent === 1, hiddenSent);
     errs.push(...e);
     await ctx.close();
   }

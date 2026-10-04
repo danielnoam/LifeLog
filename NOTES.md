@@ -16,6 +16,14 @@ what was decided against and why.
 
 ---
 
+- **A widget update while hidden goes at once (0.237.0).** changed()
+  debounced the snapshot by 400ms, which is fine in the foreground. But the
+  sync started on opening the app often finishes after you've left, and
+  Android freezes a backgrounded app's process within seconds, so the timer
+  never ran and the widgets kept the pre-sync copy until the next open. That
+  is inferred from the code, not seen on a phone. Hidden, changed() now
+  pushes straight away. Background sync without the app was decided against;
+  DROPPED.md says why.
 - **PDF and EPUB read as text, with no library (0.236.0).** Daniel chose
   "text you read" over keeping the original files. src/docimport.js unzips
   an EPUB itself (central directory, DecompressionStream "deflate-raw") and
