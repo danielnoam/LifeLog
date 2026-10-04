@@ -14,7 +14,15 @@ the bridge knows what the app knows.
 ## Connect it to your data
 
 The bridge needs a GitHub token that can read and write your data repo.
-Make a fine-grained token on GitHub (Settings → Developer settings →
+
+**The quick way:** use the app's setup link. In LifeLog open Settings → Sync
+→ Add another device, press Copy, and put the link in
+`~/.lifelog-bridge/config.json` (or `LIFELOG_LINK`):
+`{ "link": "https://…/#t=…" }`. It carries the same token and repo your
+devices use, so it works at once. The catch is that it's the same token: the
+AI can do whatever your phone can, and revoking it disconnects everything.
+
+**The safer way:** a token for the bridge alone. Make a fine-grained token on GitHub (Settings → Developer settings →
 Fine-grained tokens) with access to **only** `lifelog-data`, and the
 permission **Contents: Read and write**. Then either:
 

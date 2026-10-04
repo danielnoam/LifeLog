@@ -36,6 +36,11 @@ what was decided against and why.
   which is what makes "keep the bridge updated" (CLAUDE.md) enforceable.
   Telemachus keeps a clone of this repo in ~/.odysseus/lifelog-code,
   pulled on each start, so it follows main without a release of its own.
+  The setup link (0.239.1) is accepted as config ("link" / LIFELOG_LINK),
+  parsed the way Storage.connectFromHash does, including the legacy
+  #setup= form. Explicit keys beat the link's. It shares the devices' token
+  on purpose, for a one-paste setup; the README offers a separate
+  fine-grained token for anyone who wants the AI revocable on its own.
 - **Google Wallet payments (0.238.0).** A NotificationListenerService
   (PaymentListener) sees every notification once access is given, and acts
   only on com.google.android.apps.walletnfcrel's, only with the switch on

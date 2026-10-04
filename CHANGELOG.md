@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.239.1] - 2026-10-04
+
+### Changed
+- **The AI bridge connects with the app's setup link.** Paste the link from
+  Settings → Sync → Add another device into the bridge's config as `link`,
+  instead of making a token. bridge/README.md says what that trades away.
+
 ## [0.239.0] - 2026-10-04
 
 ### Added

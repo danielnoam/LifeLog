@@ -258,6 +258,34 @@ test("a save that loses a race is made again on top of the newer file", async ()
   assert.ok(texts.includes("From the phone") && texts.includes("From the bridge"), texts.join());
 });
 
+test("the app's setup link connects the bridge, and loses to keys set outright", () => {
+  const { parseSetupLink, readConfig } = require("../bridge/store.js");
+  assert.deepStrictEqual(parseSetupLink("https://danielnoam.github.io/LifeLog/#t=github_pat_X"),
+    { token: "github_pat_X", owner: "", repo: "", path: "", branch: "" });
+  assert.deepStrictEqual(parseSetupLink("#t=tok&r=my-data&p=log.json&b=dev&o=org"),
+    { token: "tok", owner: "org", repo: "my-data", path: "log.json", branch: "dev" });
+  const legacy = Buffer.from(JSON.stringify({ t: "old", o: "me", r: "lifelog-data" })).toString("base64url");
+  assert.strictEqual(parseSetupLink("https://x/#setup=" + legacy).token, "old");
+  assert.throws(() => parseSetupLink("https://danielnoam.github.io/LifeLog/"), /no token/);
+  assert.throws(() => parseSetupLink("#setup=bm90anNvbg"), /damaged/);
+
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lifelog-link-"));
+  const file = path.join(dir, "config.json");
+  fs.writeFileSync(file, JSON.stringify({ link: "https://x/#t=fromlink&r=other", repo: "chosen" }));
+  const saved = { ...process.env };
+  try {
+    for (const k of Object.keys(process.env)) if (k.startsWith("LIFELOG_")) delete process.env[k];
+    process.env.LIFELOG_CONFIG = file;
+    const cfg = readConfig();
+    assert.strictEqual(cfg.token, "fromlink");
+    assert.strictEqual(cfg.repo, "chosen");
+    assert.strictEqual(cfg.path, "lifelog.json");
+  } finally {
+    for (const k of Object.keys(process.env)) if (!(k in saved)) delete process.env[k];
+    Object.assign(process.env, saved);
+  }
+});
+
 test("on GitHub: read with the sha, a big file through its blob, save on top, and a stale sha is retried", async () => {
   const { openStore } = require("../bridge/store.js");
   const calls = [];

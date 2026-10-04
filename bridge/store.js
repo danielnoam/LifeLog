@@ -8,6 +8,8 @@
 //   a JSON file  LIFELOG_CONFIG, else ~/.lifelog-bridge/config.json:
 //                { "token", "owner", "repo", "path", "branch", "localFile", "stateDir" }
 //                (the shape Telemachus already keeps in ~/.odysseus/lifelog.json)
+//   a setup link LIFELOG_LINK, or "link" in that file: the app's setup
+//                link (Settings → Sync → Add another device), which carries the same connection
 //
 // A save goes on top of the latest file, never over it: if anything saved in
 // between (a phone, the web app), GitHub refuses the stale sha and the change
@@ -21,6 +23,23 @@ const path = require("path");
 
 class SetupError extends Error {}
 
+// The app's setup link, from Storage.setupFragment(): #t=token&r=&p=&b=&o=,
+// or the older #setup=<base64url JSON>. Only the fragment matters.
+function parseSetupLink(link) {
+  const h = String(link || "").trim().replace(/^[^#]*#/, "");
+  if (!h) return {};
+  const legacy = h.match(/(?:^|&)setup=([A-Za-z0-9\-_]+)/);
+  if (legacy) {
+    let c;
+    try { c = JSON.parse(Buffer.from(legacy[1], "base64url").toString("utf8")); } catch (e) { c = null; }
+    if (!c || !c.t) throw new SetupError("That LifeLog setup link is damaged. Copy it again from the app.");
+    return { token: c.t, owner: c.o || "", repo: c.r || "", path: c.p || "", branch: c.b || "" };
+  }
+  const p = new URLSearchParams(h);
+  if (!p.get("t")) throw new SetupError("That isn't a LifeLog setup link (it has no token). Copy it from Settings → Sync → Add another device in the app.");
+  return { token: p.get("t"), owner: p.get("o") || "", repo: p.get("r") || "", path: p.get("p") || "", branch: p.get("b") || "" };
+}
+
 function readConfig() {
   const file = process.env.LIFELOG_CONFIG || path.join(os.homedir(), ".lifelog-bridge", "config.json");
   let cfg = {};
@@ -28,13 +47,14 @@ function readConfig() {
     if (e.code !== "ENOENT") throw new SetupError(file + " isn't valid JSON: " + e.message);
   }
   const env = process.env;
+  const link = parseSetupLink(env.LIFELOG_LINK || cfg.link);
   const [envOwner, envRepo] = String(env.LIFELOG_REPO || "").split("/");
   return {
-    token: (env.LIFELOG_TOKEN || cfg.token || "").trim(),
-    owner: envOwner || cfg.owner || "",
-    repo: envRepo || cfg.repo || "lifelog-data",
-    path: env.LIFELOG_FILE_PATH || cfg.path || "lifelog.json",
-    branch: env.LIFELOG_BRANCH || cfg.branch || "",
+    token: (env.LIFELOG_TOKEN || cfg.token || link.token || "").trim(),
+    owner: envOwner || cfg.owner || link.owner || "",
+    repo: envRepo || cfg.repo || link.repo || "lifelog-data",
+    path: env.LIFELOG_FILE_PATH || cfg.path || link.path || "lifelog.json",
+    branch: env.LIFELOG_BRANCH || cfg.branch || link.branch || "",
     localFile: env.LIFELOG_LOCAL_FILE || cfg.localFile || "",
     stateDir: env.LIFELOG_STATE_DIR || cfg.stateDir || path.join(os.homedir(), ".lifelog-bridge"),
     configFile: file,
@@ -148,4 +168,4 @@ function undoLog(cfg) {
   };
 }
 
-module.exports = { readConfig, openStore, undoLog, SetupError };
+module.exports = { readConfig, parseSetupLink, openStore, undoLog, SetupError };
