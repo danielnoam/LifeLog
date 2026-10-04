@@ -3445,3 +3445,10 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   .coll-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
   .coll-card { padding: 12px; }
 }
+
+/* What's new: CHANGELOG.md in the reader's type, with each version's
+   heading set apart so a long page scans by release. */
+.changelog { margin-bottom: 12px; }
+.changelog h3 { font-size: var(--fs-lg); padding-top: 14px; border-top: 1px solid var(--border); }
+.changelog > h3:first-child { border-top: none; padding-top: 0; }
+.changelog h4 { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--text-dim); margin-bottom: .2em; }

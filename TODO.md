@@ -20,9 +20,6 @@ todo:
 - **The habits panel doesn't show all the days.** Find which days go
   missing and fix it.
 
-- **The changelog inside the app.** A "What's new" in Settings (by the
-  version line) that shows CHANGELOG.md's entries, newest first.
-
 - **An Apple developer account ($99/year)**, if the iOS app is ever used
   for real: sign in CI, upload to TestFlight, and the 7-day re-signing that
   AltStore/SideStore do goes away. Everything else for iOS is built (0.216.0

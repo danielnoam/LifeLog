@@ -1,6 +1,6 @@
 // Four Ledger changes from 0.228.0: a pasted price's currency symbol sets the
 // currency, a monthly plan has a charge day of its own, logged expenses that
-// look like a plan are offered for linking, and plans combine into one row.
+// look like a plan are offered for linking, and plans merge into one history.
 const { chromium, BASE, tally } = require("./harness");
 const { check, done } = tally();
 
@@ -92,27 +92,21 @@ const paste = (page, sel, text) => page.evaluate(([sel, text]) => {
   check("linking removes them and starts the plan earlier", left.join() === "e3" && net.startDate === "2025-11-03", { left, start: net.startDate });
   await page.click("#cancelRecurringBtn");
 
-  // ---- 4. combine ----
-  await openPlan(page, "Gym");
+  // ---- 4. merge ----
+  await openPlan(page, "Gym classes");
   await page.click("#recMoreBtn");
-  await page.click("#combineBtn");
+  await page.click("#mergeBtn");
   await page.waitForTimeout(200);
-  await page.locator(".picker-row", { hasText: "Gym classes" }).locator("input").check();
+  await page.locator(".picker-row", { hasText: "Gym" }).filter({ hasNotText: "classes" }).locator("input").check();
   await page.click("#financePickerConfirmBtn");
   await page.waitForTimeout(400);
-  check("the part joins the plan it was combined with", (await plan(page, "gymx")).combinedWith === "gym");
-  check("the sheet lists the other part", await page.evaluate(() => /Gym classes/.test(document.querySelector("#recCombinedList").textContent)
-    && !document.querySelector("#recCombined").hidden));
-  await page.click("#cancelRecurringBtn");
-  const rows = await page.evaluate(() => [...document.querySelectorAll(".recur-row")].map((r) => r.textContent));
-  const gymRows = rows.filter((t) => /Gym/.test(t));
-  check("the two read as one row, a month's worth together", gymRows.length === 1 && /2 plans/.test(gymRows[0]) && /150/.test(gymRows[0]), gymRows);
-
-  await openPlan(page, "Gym");
-  await page.click("#recMoreBtn");
-  await page.click("#separateBtn");
+  const gym = await plan(page, "gym"), gymx = await plan(page, "gymx");
+  check("the plans become one history, the earlier ending the day before", (gymx.prevId === "gym" && gym.endDate === "2026-01-04") || (gym.prevId === "gymx" && gymx.endDate === "2026-01-04"), { gym, gymx });
+  check("the sheet shows the plan history", await page.evaluate(() => !document.querySelector("#recPlanTrail").hidden));
+  await page.click(".toast-action");
   await page.waitForTimeout(400);
-  check("separating leaves two plans of their own", !(await plan(page, "gymx")).combinedWith && !(await plan(page, "gym")).combinedWith);
+  const undone = await plan(page, "gymx");
+  check("Undo puts both plans back", !undone.prevId && !(await plan(page, "gym")).endDate, undone);
 
   await browser.close();
   done(errs);

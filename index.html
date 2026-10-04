@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.231.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.232.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -743,10 +743,6 @@
           <p class="hint">Plan history</p>
           <div class="plan-trail-list" id="recPlanTrailList"></div>
         </div>
-        <div class="plan-trail" id="recCombined" hidden>
-          <p class="hint">Combined with · <span id="recCombinedTotal"></span></p>
-          <div class="plan-trail-list" id="recCombinedList"></div>
-        </div>
         <div class="plan-trail" id="recPauses" hidden>
           <p class="hint">Paused</p>
           <div class="plan-trail-list" id="recPauseList"></div>
@@ -767,8 +763,7 @@
               <button type="button" role="menuitem" id="convertRecurringBtn">⇄ Convert to entries</button>
               <button type="button" role="menuitem" id="recFetchRatesBtn" hidden>💱 Look up past rates</button>
               <button type="button" role="menuitem" id="linkPastExpensesBtn">🔗 Link past expenses</button>
-              <button type="button" role="menuitem" id="combineBtn">⊕ Combine with…</button>
-              <button type="button" role="menuitem" id="separateBtn" hidden>⊖ Separate from the others</button>
+              <button type="button" role="menuitem" id="mergeBtn">⇢ Merge with…</button>
             </div>
           </span>
           <span class="spacer"></span>
@@ -1077,6 +1072,7 @@
             <div class="sgroup-card">
               <button type="button" class="srow" data-page="media"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l2.4 5 5.6.6-4.2 3.8 1.2 5.6L12 16.3 7 19l1.2-5.6L4 9.6 9.6 9z" /></svg></span><span class="srow-text"><span class="srow-title">Media lookups</span><span class="srow-status" data-status="media"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
               <button type="button" class="srow" data-page="imports"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V9M7 14l5-5 5 5" /><path d="M4 7V4h16v3" /></svg></span><span class="srow-text"><span class="srow-title">Imports</span><span class="srow-status" data-status="imports"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="whatsnew"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2 5 5 .5-3.8 3.4 1.1 5.1L12 14.5 7.7 17l1.1-5.1L5 8.5l5-.5z" /><path d="M5 21h14" /></svg></span><span class="srow-text"><span class="srow-title">What's new</span><span class="srow-status" data-status="whatsnew"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
               <button type="button" class="srow" data-page="releases"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 3v4M15 3v4" /></svg></span><span class="srow-text"><span class="srow-title">Release dates</span><span class="srow-status" data-status="releases"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
             </div>
           </div>
@@ -1533,6 +1529,12 @@
       </section>
       </div>
 
+      <div class="settings-page" hidden data-page="whatsnew" data-title="What's new" data-keywords="changelog changes version release notes update new">
+      <h2 class="settings-page-title">What's new</h2>
+      <div class="md changelog" id="changelogBody"></div>
+      <button type="button" class="btn" id="changelogMoreBtn" hidden>Show older versions</button>
+      </div>
+
       <div class="settings-page" hidden data-page="releases" data-title="Release dates" data-keywords="upcoming release dates tba">
       <h2 class="settings-page-title">Release dates</h2>
       <p class="hint page-lede">Asks each unreleased backlog item's source for its date again, and changes nothing else. Steam, RAWG, TMDB and AniList items only.</p>
@@ -1834,27 +1836,27 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.231.0"></script>
-  <script defer src="src/reconcile.js?v=0.231.0"></script>
-  <script defer src="src/qr.js?v=0.231.0"></script>
-  <script defer src="src/media.js?v=0.231.0"></script>
-  <script defer src="src/merge.js?v=0.231.0"></script>
-  <script defer src="src/storage.js?v=0.231.0"></script>
-  <script defer src="src/finance.js?v=0.231.0"></script>
-  <script defer src="src/settings.js?v=0.231.0"></script>
-  <script defer src="src/wheel.js?v=0.231.0"></script>
-  <script defer src="src/backlog.js?v=0.231.0"></script>
-  <script defer src="src/journal.js?v=0.231.0"></script>
-  <script defer src="src/markdown.js?v=0.231.0"></script>
-  <script defer src="src/notes.js?v=0.231.0"></script>
-  <script defer src="src/io.js?v=0.231.0"></script>
-  <script defer src="src/sync.js?v=0.231.0"></script>
-  <script defer src="src/habits.js?v=0.231.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.231.0"></script>
-  <script defer src="src/boards.js?v=0.231.0"></script>
-  <script defer src="src/recap.js?v=0.231.0"></script>
-  <script defer src="src/reminders.js?v=0.231.0"></script>
-  <script defer src="src/widgets.js?v=0.231.0"></script>
-  <script defer src="src/app.js?v=0.231.0"></script>
+  <script defer src="src/platform.js?v=0.232.0"></script>
+  <script defer src="src/reconcile.js?v=0.232.0"></script>
+  <script defer src="src/qr.js?v=0.232.0"></script>
+  <script defer src="src/media.js?v=0.232.0"></script>
+  <script defer src="src/merge.js?v=0.232.0"></script>
+  <script defer src="src/storage.js?v=0.232.0"></script>
+  <script defer src="src/finance.js?v=0.232.0"></script>
+  <script defer src="src/settings.js?v=0.232.0"></script>
+  <script defer src="src/wheel.js?v=0.232.0"></script>
+  <script defer src="src/backlog.js?v=0.232.0"></script>
+  <script defer src="src/journal.js?v=0.232.0"></script>
+  <script defer src="src/markdown.js?v=0.232.0"></script>
+  <script defer src="src/notes.js?v=0.232.0"></script>
+  <script defer src="src/io.js?v=0.232.0"></script>
+  <script defer src="src/sync.js?v=0.232.0"></script>
+  <script defer src="src/habits.js?v=0.232.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.232.0"></script>
+  <script defer src="src/boards.js?v=0.232.0"></script>
+  <script defer src="src/recap.js?v=0.232.0"></script>
+  <script defer src="src/reminders.js?v=0.232.0"></script>
+  <script defer src="src/widgets.js?v=0.232.0"></script>
+  <script defer src="src/app.js?v=0.232.0"></script>
 </body>
 </html>

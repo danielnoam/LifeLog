@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.232.0] - 2026-10-04
+
+### Added
+- **What's new** in Settings: this changelog, newest first, with older
+  versions a tap away. It works offline and in the apps.
+- **Merge recurring expenses:** More… → "Merge with…" makes several plans
+  one recurring expense with one plan history, in date order, the way
+  Change plan does. Each plan keeps its own charges, amounts and rates.
+  Where two overlap, the earlier one stops the day before the later one
+  starts, and the app asks first if that drops any charges. Undo in the
+  toast puts everything back.
+
+### Removed
+- **Combine with…** (0.228.0), which only grouped plans into one row. Plans
+  you combined are separate again; merge them instead.
+
 ## [0.231.0] - 2026-10-04
 
 ### Changed

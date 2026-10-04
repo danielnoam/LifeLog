@@ -479,7 +479,38 @@
     node.addEventListener("animationend", () => node.classList.remove(cls), { once: true });
   }
 
+  // ---------- what's new ----------
+  // CHANGELOG.md itself, the file every release already writes, so the page
+  // can't fall behind it. It ships with the app (sw.js's ASSETS), so it reads
+  // offline and in the Android and iOS apps too. Ten versions at first; the
+  // whole file is a few hundred of them.
+  const CHANGELOG_FIRST = 10;
+  let changelog = null;
+  async function renderChangelog(all) {
+    const body = $("#changelogBody");
+    const more = $("#changelogMoreBtn");
+    if (!changelog) {
+      try {
+        const res = await fetch("CHANGELOG.md?v=" + APP_VERSION);
+        if (!res.ok) throw new Error(res.status);
+        // "## [0.231.0] - 2026-10-04" reads as "0.231.0 · 4 Oct 2026".
+        changelog = (await res.text()).split(/\n(?=## \[)/).slice(1).map((v) => v
+          .replace(/^## \[([^\]]+)\]\s*-\s*(\d{4}-\d{2}-\d{2})/, (m, ver, d) =>
+            "## " + ver + " · " + new Date(d + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })));
+      } catch (e) {
+        body.textContent = "Couldn't load the changelog. It's on GitHub as CHANGELOG.md.";
+        more.hidden = true;
+        return;
+      }
+    }
+    const shown = all ? changelog : changelog.slice(0, CHANGELOG_FIRST);
+    body.textContent = "";
+    body.appendChild(window.LifeLogMarkdown.render(shown.join("\n")));
+    more.hidden = shown.length === changelog.length;
+  }
+
   function showPage(name) {
+    if (name === "whatsnew") renderChangelog(false);
     const was = currentPage;
     currentPage = name || "";
     box().dataset.page = currentPage;
@@ -518,6 +549,7 @@
   function statusOf(page) {
     const set = state.data.settings || {};
     switch (page) {
+      case "whatsnew": return { text: "Version " + APP_VERSION };
       case "sync": {
         const gi = Storage.githubInfo;
         const file = Storage.fileName && !Storage.needsReconnect;
@@ -1349,6 +1381,7 @@
     $("#closeSettingsBtn").onclick = closeSettings;
     $("#closeSettingsPageBtn").onclick = closeSettings;
     $("#settingsBackBtn").onclick = () => showPage("");
+    $("#changelogMoreBtn").onclick = () => renderChangelog(true);
     document.querySelectorAll("#settingsHome .srow[data-page]").forEach((r) => r.onclick = () => showPage(r.dataset.page));
     const search = $("#settingsSearch");
     search.oninput = renderSearch;

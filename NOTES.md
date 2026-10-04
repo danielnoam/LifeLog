@@ -16,6 +16,23 @@ what was decided against and why.
 
 ---
 
+- **Merge replaced Combine (0.232.0).** Combine (0.228.0) kept plans apart
+  and only folded them into one row; what Daniel wanted was one recurring
+  expense. Merging reuses the plan chain Change plan already builds
+  (`prevId`, each plan ended the day before the next starts), so the plan
+  history, the Ended list and every reader of `planChain` needed nothing
+  new, and every plan's charges, overrides and rates stay its own. Overlap is
+  the one lossy case: mergePlans counts the earlier plan's charges it cuts,
+  and the sheet asks before merging if there are any. Undo restores a deep
+  copy of the whole recurring list taken just before. `combinedWith` stays in
+  KNOWN_RECURRING_KEYS so the sanitizer drops it rather than keepUnknown
+  carrying it, which is what made the old groups separate again.
+- **What's new reads CHANGELOG.md (0.232.0).** One source, so the page can't
+  drift from the release notes. The file is in sw.js's ASSETS (so the apps
+  bundle it and it reads offline) and is fetched with `?v=APP_VERSION`, the
+  same cache-busting as the scripts. The markdown renderer drops a heading a
+  level, so a version is an h3 and its Added/Changed an h4.
+
 - **Tab and mode names (0.231.0).** Only labels changed: the view and mode
   ids (`notes`, `entries`) are what's stored and synced, so saved orders,
   default modes and older devices are unaffected. Chosen by Daniel from two

@@ -484,7 +484,6 @@
     // A new price doesn't move the billing day. effectiveFrom is normally a
     // charge date already, so this only matters for the 29th to 31st.
     if (next.interval === "monthly" && rec.interval === "monthly" && rec.chargeDay) created.chargeDay = rec.chargeDay;
-    if (rec.combinedWith) created.combinedWith = rec.combinedWith;
     // A plan change is a change of terms, not of currency: a dollar
     // subscription whose price went up is still a dollar subscription. The
     // new plan is billed the new figure in the same currency, at the same
@@ -578,26 +577,36 @@
     }
     return chain;
   }
-  // ---------- combined plans ----------
-  // Two plans that are one bill to you (a yearly membership and its monthly
-  // add-on) stay two plans, each charging on its own schedule, and read as
-  // one row in the recurring list. A part names the group by `combinedWith`,
-  // the id of the plan it joined. Ids change when a plan changes (see
-  // splitRecurring), so a group is named by the first plan of that plan's
-  // chain, which every later version of it shares.
-  function combineKeyOf(all, rec) {
-    const byId = new Map(all.map((r) => [r.id, r]));
-    const target = (rec.combinedWith && byId.get(rec.combinedWith)) || rec;
-    return planChain(all, target)[0].id;
+  // ---------- merging plans ----------
+  // Two plans that are really one bill (a monthly subscription you later
+  // logged again as a yearly one) become one plan history, the shape Change
+  // plan makes: in start-date order, each linked to the one before by prevId
+  // and ended the day before the next one starts. Every plan keeps its own
+  // charges, overrides, rates and pauses. Where two overlap, the earlier one's
+  // charges from the later one's start are the only thing given up, and
+  // mergePlans says how many so the sheet can ask first.
+  function mergePlans(all, plans, today) {
+    const ids = new Set();
+    for (const p of plans) for (const r of planChain(all, p)) ids.add(r.id);
+    const chain = all.filter((r) => ids.has(r.id))
+      .sort((a, b) => a.startDate.localeCompare(b.startDate) || String(a.createdAt).localeCompare(String(b.createdAt)));
+    const until = new Date(today + "T00:00:00");
+    const count = (r) => recurringOccurrences(r, until).length;
+    let dropped = 0;
+    chain.forEach((r, i) => {
+      delete r.combinedWith;
+      if (!i) { delete r.prevId; return; }
+      const prev = chain[i - 1];
+      r.prevId = prev.id;
+      const stop = addDaysStr(r.startDate, -1);
+      if (!prev.endDate || prev.endDate > stop) {
+        const before = count(prev);
+        prev.endDate = stop;
+        dropped += before - count(prev);
+      }
+    });
+    return { chain, dropped };
   }
-  function combinedParts(all, rec) {
-    const key = combineKeyOf(all, rec);
-    return all.filter((r) => combineKeyOf(all, r) === key);
-  }
-  // What a group costs a month: a yearly part counts a twelfth, a weekly
-  // one 52 twelfths.
-  const PER_MONTH = { weekly: 52 / 12, monthly: 1, yearly: 1 / 12 };
-  const perMonth = (plans) => Math.round(plans.reduce((t, r) => t + r.amount * PER_MONTH[r.interval], 0) * 100) / 100;
 
   // real finance entries plus every recurring template's occurrences through
   // today — the merged list everything else (list view, stats, filters)
@@ -1679,7 +1688,7 @@
     renderPlanTrail(rec, chain);
     renderPauses(rec);
     renderLinkOffer(editing ? rec : null);
-    renderCombined(editing ? rec : null);
+
     // The pause button doubles as the resume button while a pause is in
     // force — resuming is the only thing you'd want from it right then, and
     // stacking a second button for it just to sit greyed out most of the
@@ -1786,72 +1795,50 @@
     wrap.hidden = false;
   }
 
-  function renderCombined(rec) {
+  function openMergePicker(rec) {
     const all = state.data.recurringExpenses;
-    const parts = rec ? combinedParts(all, rec) : [];
-    const others = parts.filter((r) => r.id !== rec.id);
-    const list = $("#recCombinedList");
-    list.innerHTML = "";
-    $("#recCombined").hidden = !others.length;
-    $("#combineBtn").hidden = !rec;
-    $("#separateBtn").hidden = !others.length;
-    if (!others.length) return;
-    others.forEach((r) => {
-      const row = el("div", "plan-trail-row");
-      row.appendChild(el("span", "plan-trail-range", r.note || r.category));
-      row.appendChild(el("span", "plan-trail-terms", formatMoney(r.amount) + " · " + r.interval));
-      row.title = "Open this plan";
-      row.onclick = () => openRecurringModal(r);
-      list.appendChild(row);
-    });
-    $("#recCombinedTotal").textContent = "Together " + formatMoney(perMonth(parts)) + " a month";
-  }
-
-  function openCombinePicker(rec) {
-    const all = state.data.recurringExpenses;
-    const today = todayStr();
-    const key = combineKeyOf(all, rec);
-    // Only plans still running: an ended one is history, and a superseded
-    // one already joins through the plan that replaced it.
-    const candidates = all.filter((r) => (!r.endDate || r.endDate >= today) && combineKeyOf(all, r) !== key);
-    if (!candidates.length) { toast("No other running plans to combine with", true); return; }
+    const mine = new Set(planChain(all, rec).map((r) => r.id));
+    // Every other bill, ended ones included: the plan you stopped when you
+    // switched to yearly is exactly the one to merge.
+    const seen = new Set();
+    const candidates = [];
+    for (const r of all) {
+      if (mine.has(r.id) || seen.has(r.id)) continue;
+      const chain = planChain(all, r);
+      chain.forEach((x) => seen.add(x.id));
+      candidates.push(chain[chain.length - 1]);
+    }
+    if (!candidates.length) { toast("No other recurring expenses to merge with", true); return; }
     openImportPicker({
-      title: "Combine with…",
-      hint: `These join ${rec.note || rec.category} as one row in the recurring list. Each keeps its own schedule and charges.`,
+      title: "Merge with…",
+      hint: `The plans you pick and ${rec.note || rec.category} become one recurring expense, in date order, with one plan history. Each keeps its own charges, amounts and rates. Where two overlap, the earlier one stops the day before the later one starts.`,
       mode: "link",
       items: candidates.map((r) => ({ kind: "recurring", entry: r, dup: false, checked: false })),
       searchable: true,
-      confirmLabel: "Combine",
+      confirmLabel: "Merge",
       onConfirm: async (selected) => {
         if (!selected.length) return;
-        // Joining a plan that already leads a group brings its group along.
-        const joining = new Set(selected.flatMap((i) => combinedParts(all, i.entry).map((r) => r.id)));
-        for (const r of all) if (joining.has(r.id)) r.combinedWith = key;
+        const before = all.map((r) => JSON.parse(JSON.stringify(r)));
+        const trial = JSON.parse(JSON.stringify(all));
+        const pick = (list) => [rec, ...selected.map((i) => i.entry)].map((p) => list.find((r) => r.id === p.id));
+        const { dropped } = mergePlans(trial, pick(trial), todayStr());
+        if (dropped && !confirm(`${dropped} charge${dropped === 1 ? "" : "s"} overlap a later plan and will be dropped. Merge anyway?`)) return;
+        const { chain } = mergePlans(all, pick(all), todayStr());
+        const current = chain[chain.length - 1];
+        buildYearFilter();
         render();
         await persist();
-        toast(`Combined ${joining.size + 1} plans`);
-        openRecurringModal(rec);
+        toast(`Merged ${chain.length} plans into one`, false, { label: "Undo", onClick: async () => {
+          state.data.recurringExpenses = before;
+          closeRecurringModal();
+          buildYearFilter();
+          render();
+          await persist();
+          toast("Merge undone");
+        } });
+        openRecurringModal(current);
       },
     });
-  }
-
-  // Takes this plan out of its group. If it was the plan the others
-  // joined, they join the next one instead; a group of one is no group.
-  async function separateCombined(rec) {
-    const all = state.data.recurringExpenses;
-    const key = combineKeyOf(all, rec);
-    const mine = new Set(planChain(all, rec).map((r) => r.id));
-    const rest = combinedParts(all, rec).filter((r) => !mine.has(r.id));
-    for (const r of all) if (mine.has(r.id)) delete r.combinedWith;
-    const heads = new Set(rest.map((r) => planChain(all, r)[0].id));
-    const newKey = heads.size < 2 ? null : (heads.has(key) ? key : [...heads][0]);
-    for (const r of rest) {
-      if (newKey && planChain(all, r)[0].id !== newKey) r.combinedWith = newKey; else delete r.combinedWith;
-    }
-    render();
-    await persist();
-    toast("Separated");
-    openRecurringModal(rec);
   }
 
   // ---------- pauses (list + modal) ----------
@@ -2456,55 +2443,14 @@
     // grouped rather than run-merged: this list is ordered by start date and
     // a trip's two subscriptions are rarely adjacent, so waiting for them to
     // touch would mean never grouping them at all.
-    // One row for a combined bill, opening the plan the others joined.
-    const addCombinedRow = (parts, isEnded, into) => {
-      const lead = parts.find((r) => !r.combinedWith) || parts[0];
-      const row = el("div", "recur-row is-combined" + (isEnded ? " is-ended" : ""));
-      const bar = el("div", "bar");
-      bar.style.background = financeColorOf(lead.category);
-      row.appendChild(bar);
-      // "2 plans" rather than "yearly + monthly": the row has a phone's width
-      // to share with a name, a category and the amount. The title says which.
-      const badge = el("span", "recur-badge", "↻ " + parts.length + " plans");
-      badge.title = parts.map((r) => r.interval).join(" + ");
-      row.appendChild(badge);
-      const t = el("span", "etitle", lead.note || lead.category);
-      t.title = parts.map((r) => (r.note || r.category) + ": " + formatMoney(r.amount) + " " + r.interval).join("\n");
-      row.appendChild(t);
-      row.appendChild(el("span", "ecat", lead.category));
-      if (isEnded) row.appendChild(el("span", "recur-badge", "ended"));
-      const amt = el("span", "famount fnegative", "-" + formatMoney(perMonth(parts)) + "/mo");
-      amt.title = "Together, a month";
-      row.appendChild(amt);
-      row.onclick = () => openRecurringModal(lead);
-      (into || card).appendChild(row);
-    };
-    // Plans in a combined group collapse to one unit, placed where its
-    // earliest part would have been.
-    const addUnits = (plans, isEnded, into) => {
-      const done = new Set();
-      for (const r of plans) {
-        if (done.has(r.id)) continue;
-        const key = combineKeyOf(all, r);
-        const parts = plans.filter((x) => combineKeyOf(all, x) === key);
-        parts.forEach((x) => done.add(x.id));
-        if (parts.length > 1) addCombinedRow(parts, isEnded, into); else addRow(r, isEnded, into);
-      }
-    };
-
     const byProject = (plans, isEnded) => {
-      // A combined bill sits with its lead plan's project.
-      const projectOf = (r) => {
-        const lead = r.combinedWith && plans.find((x) => x.id === r.combinedWith);
-        return (lead || r).project;
-      };
-      const loose = plans.filter((r) => !projectOf(r));
-      const named = plans.filter((r) => projectOf(r));
-      addUnits(loose, isEnded, card);
+      const loose = plans.filter((r) => !r.project);
+      const named = plans.filter((r) => r.project);
+      loose.forEach((r) => addRow(r, isEnded, card));
       const seen = [];
-      for (const r of named) if (!seen.includes(projectOf(r))) seen.push(projectOf(r));
+      for (const r of named) if (!seen.includes(r.project)) seen.push(r.project);
       for (const name of seen) {
-        const mine = named.filter((r) => projectOf(r) === name);
+        const mine = named.filter((r) => r.project === name);
         const color = projectColorOf(name);
         const box = el("div", "proj-group");
         box.style.setProperty("--proj-tint", color + "12");
@@ -2531,7 +2477,7 @@
         head.appendChild(edit);
         box.appendChild(head);
         const list = el("div", "proj-group-list");
-        addUnits(mine, isEnded, list);
+        mine.forEach((r) => addRow(r, isEnded, list));
         box.appendChild(list);
         card.appendChild(box);
       }
@@ -3353,7 +3299,9 @@
     // The plan this one took over from — kept so a bill's history still
     // reads as one chain after an import/sync round-trip (see planChain).
     if (r.prevId) out.prevId = r.prevId;
-    if (r.combinedWith && r.combinedWith !== r.id) out.combinedWith = String(r.combinedWith);
+    // `combinedWith` (0.228.0 to 0.231.0) grouped plans into one row; merging
+    // replaced it in 0.232.0. It stays a known key so it is dropped here
+    // rather than carried, which puts every grouped plan back on its own.
     if (r.overrides && typeof r.overrides === "object") {
       const overrides = {};
       for (const [date, ov] of Object.entries(r.overrides)) {
@@ -3420,15 +3368,10 @@
     $("#cancelPauseBtn").onclick = closePauseModal;
     $("#pauseForm").onsubmit = savePauseFromForm;
     $("#deletePauseBtn").onclick = deleteCurrentPause;
-    $("#combineBtn").onclick = () => {
+    $("#mergeBtn").onclick = () => {
       const rec = state.data.recurringExpenses.find((x) => x.id === $("#recId").value);
       setRecToolsOpen(false);
-      if (rec) openCombinePicker(rec);
-    };
-    $("#separateBtn").onclick = () => {
-      const rec = state.data.recurringExpenses.find((x) => x.id === $("#recId").value);
-      setRecToolsOpen(false);
-      if (rec) separateCombined(rec);
+      if (rec) openMergePicker(rec);
     };
     $("#linkPastExpensesBtn").onclick = $("#recLinkOfferBtn").onclick = () => {
       const rec = state.data.recurringExpenses.find((x) => x.id === $("#recId").value);
@@ -3591,7 +3534,7 @@
     nextOccurrenceDateAfter,
     splitRecurring,
     rekeyOccurrenceMaps,
-    combinedParts,
+    mergePlans,
     planChain,
     isPausedOn,
     normalizePauses,

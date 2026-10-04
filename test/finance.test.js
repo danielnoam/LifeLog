@@ -188,17 +188,28 @@ test("a changed interval leaves overrides where they were", () => {
   assert.deepStrictEqual(rec.overrides, { "2026-02-01": { amount: 12 } });
 });
 
-test("combined plans are one group across a plan change of either part", () => {
-  const year = { id: "y", startDate: "2025-01-01", interval: "yearly", amount: 120, category: "X" };
-  const month = { id: "m", startDate: "2025-01-05", interval: "monthly", amount: 10, category: "X", combinedWith: "y" };
-  const other = { id: "o", startDate: "2025-01-05", interval: "monthly", amount: 5, category: "X" };
-  const { prev, created } = splitRecurring(year, "2026-01-01", { interval: "yearly", amount: 150, category: "X" }, "y2", "now");
-  const all = [prev, created, month, other];
-  assert.deepStrictEqual(Finance.combinedParts(all, created).map((r) => r.id).sort(), ["m", "y", "y2"]);
-  const split = splitRecurring(month, "2026-02-05", { interval: "monthly", amount: 12, category: "X" }, "m2", "now");
-  assert.strictEqual(split.created.combinedWith, "y", "the new version of a part stays in the group");
-  assert.deepStrictEqual(Finance.combinedParts(all, other).map((r) => r.id), ["o"]);
-  assert.strictEqual(sanitizeRecurring({ ...other, combinedWith: "o" }).combinedWith, undefined, "a plan can't join itself");
+test("merging plans makes one plan history in date order, ending each before the next", () => {
+  const month = { id: "m", startDate: "2025-01-05", interval: "monthly", amount: 10, category: "X",
+    overrides: { "2025-02-05": { amount: 12 } } };
+  const year = { id: "y", startDate: "2025-06-01", interval: "yearly", amount: 100, category: "X", combinedWith: "m" };
+  const all = [year, month];
+  const { chain, dropped } = Finance.mergePlans(all, [year, month], "2025-08-01");
+  assert.deepStrictEqual(chain.map((r) => r.id), ["m", "y"]);
+  assert.strictEqual(month.endDate, "2025-05-31", "the monthly plan stops the day before the yearly one starts");
+  assert.strictEqual(year.prevId, "m");
+  assert.strictEqual(year.combinedWith, undefined);
+  assert.deepStrictEqual(month.overrides, { "2025-02-05": { amount: 12 } }, "its own edits stay");
+  assert.strictEqual(dropped, 2, "June and July of the monthly plan overlapped the yearly one");
+  assert.deepStrictEqual(planChain(all, month).map((r) => r.id), ["m", "y"]);
+});
+
+test("a plan that already ended before the next starts loses nothing in a merge", () => {
+  const a = { id: "a", startDate: "2024-01-01", endDate: "2024-03-31", interval: "monthly", amount: 10, category: "X" };
+  const b = { id: "b", startDate: "2024-06-01", interval: "monthly", amount: 12, category: "X" };
+  const { dropped } = Finance.mergePlans([a, b], [b, a], "2024-08-01");
+  assert.strictEqual(dropped, 0);
+  assert.strictEqual(a.endDate, "2024-03-31");
+  assert.strictEqual(b.prevId, "a");
 });
 
 test("recurringOccurrences stops at endDate when it's earlier than the requested cutoff", () => {
