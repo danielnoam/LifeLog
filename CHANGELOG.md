@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.239.0] - 2026-10-04
+
+### Added
+- **A bridge for AI assistants.** `bridge/` lets any AI read and change your
+  LifeLog: an MCP server for apps like Telemachus, Claude or Cursor, and the
+  same tools as a command for anything that runs commands. It can answer
+  "how much did I spend in September" with rent and subscriptions counted,
+  show habits and streaks, search everything, and add or edit expenses,
+  timeline entries, backlog items, notes, checklists and habit marks. Every
+  change is checked against LifeLog's own rules first and can be undone. It
+  runs on your computer with your GitHub token; see bridge/README.md. The
+  app itself is unchanged.
+
 ## [0.238.0] - 2026-10-04
 
 ### Added

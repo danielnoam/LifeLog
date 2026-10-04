@@ -26,6 +26,20 @@ and the iOS app (Capacitor). See README.md for the layout.
   reduced-motion answer, touch targets are 44px on phones, and every theme
   (Default, Light, Nord, Dracula) is checked.
 
+## The AI bridge
+
+- `bridge/` is how other AIs read and change LifeLog (an MCP server and a
+  command line, see bridge/README.md). It runs the app's own `src/` code,
+  so most changes reach it on their own, but not all of them.
+- Any change to the data keeps the bridge right in the same commit: a new or
+  renamed field, collection or category kind; a sanitizer rule; how
+  something is counted (spending, recurring charges, streaks). Update
+  `bridge/DATA.md`, and `bridge/tools.js` when an AI should be able to read
+  or set the new thing. `test/bridge.test.js` fails on any field the
+  sanitizers keep that DATA.md doesn't describe.
+- Telemachus (github.com/danielnoam/telemachus) runs this bridge. A tool
+  renamed or removed here breaks its chats, so add rather than rename.
+
 ## Shipping
 
 - Use the `release-checklist` skill for every change: version bump (three

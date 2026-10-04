@@ -1,0 +1,151 @@
+// Where the bridge reads and writes LifeLog's data: the same lifelog.json the
+// app syncs, in your GitHub data repo, or a local copy of it (a backup file,
+// or a test).
+//
+// Config, first found wins for each key:
+//   environment  LIFELOG_TOKEN, LIFELOG_REPO ("owner/repo"), LIFELOG_FILE_PATH,
+//                LIFELOG_BRANCH, LIFELOG_LOCAL_FILE, LIFELOG_STATE_DIR
+//   a JSON file  LIFELOG_CONFIG, else ~/.lifelog-bridge/config.json:
+//                { "token", "owner", "repo", "path", "branch", "localFile", "stateDir" }
+//                (the shape Telemachus already keeps in ~/.odysseus/lifelog.json)
+//
+// A save goes on top of the latest file, never over it: if anything saved in
+// between (a phone, the web app), GitHub refuses the stale sha and the change
+// is applied again to the newer file. The app then folds it in with its
+// three-way merge, the way it takes another device's save.
+"use strict";
+
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+
+class SetupError extends Error {}
+
+function readConfig() {
+  const file = process.env.LIFELOG_CONFIG || path.join(os.homedir(), ".lifelog-bridge", "config.json");
+  let cfg = {};
+  try { cfg = JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) {
+    if (e.code !== "ENOENT") throw new SetupError(file + " isn't valid JSON: " + e.message);
+  }
+  const env = process.env;
+  const [envOwner, envRepo] = String(env.LIFELOG_REPO || "").split("/");
+  return {
+    token: (env.LIFELOG_TOKEN || cfg.token || "").trim(),
+    owner: envOwner || cfg.owner || "",
+    repo: envRepo || cfg.repo || "lifelog-data",
+    path: env.LIFELOG_FILE_PATH || cfg.path || "lifelog.json",
+    branch: env.LIFELOG_BRANCH || cfg.branch || "",
+    localFile: env.LIFELOG_LOCAL_FILE || cfg.localFile || "",
+    stateDir: env.LIFELOG_STATE_DIR || cfg.stateDir || path.join(os.homedir(), ".lifelog-bridge"),
+    configFile: file,
+  };
+}
+
+const API = "https://api.github.com";
+
+async function gh(cfg, method, url, body) {
+  const res = await fetch(API + url, {
+    method,
+    headers: {
+      Authorization: "Bearer " + cfg.token,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "LifeLog-bridge",
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(30000),
+  });
+  if (res.status === 401 || res.status === 403) {
+    throw new SetupError("GitHub refused the LifeLog token (expired, or no access to " + cfg.owner + "/" + cfg.repo + ").");
+  }
+  if (res.status === 404) throw new SetupError("GitHub has no " + cfg.owner + "/" + cfg.repo + "/" + cfg.path + " on " + cfg.branch + ".");
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error("GitHub " + res.status + ": " + (json.message || res.statusText));
+    err.status = res.status;
+    throw err;
+  }
+  return json;
+}
+
+function githubStore(cfg) {
+  let ready = null;
+  const prepare = () => (ready = ready || (async () => {
+    if (!cfg.owner) cfg.owner = (await gh(cfg, "GET", "/user")).login;
+    if (!cfg.branch) cfg.branch = (await gh(cfg, "GET", `/repos/${cfg.owner}/${cfg.repo}`)).default_branch;
+  })().catch((e) => { ready = null; throw e; }));
+  const filePath = () => `/repos/${cfg.owner}/${cfg.repo}/contents/${cfg.path.split("/").map(encodeURIComponent).join("/")}`;
+  return {
+    where: () => `GitHub ${cfg.owner || "?"}/${cfg.repo}/${cfg.path}`,
+    async read() {
+      await prepare();
+      const meta = await gh(cfg, "GET", filePath() + "?ref=" + encodeURIComponent(cfg.branch));
+      // Over 1MB the contents API leaves the content out; the blob has it.
+      const b64 = meta.content || (await gh(cfg, "GET", `/repos/${cfg.owner}/${cfg.repo}/git/blobs/${meta.sha}`)).content;
+      return { data: JSON.parse(Buffer.from(b64, "base64").toString("utf8")), version: meta.sha };
+    },
+    async write(data, version, message) {
+      try {
+        await gh(cfg, "PUT", filePath(), {
+          message,
+          // Pretty, as the app writes it, so the repo's diffs stay readable.
+          content: Buffer.from(JSON.stringify(data, null, 2), "utf8").toString("base64"),
+          branch: cfg.branch,
+          sha: version,
+        });
+        return true;
+      } catch (e) {
+        if (e.status === 409 || e.status === 422) return false; // saved in between
+        throw e;
+      }
+    },
+  };
+}
+
+function fileStore(cfg) {
+  const file = path.resolve(cfg.localFile);
+  const stamp = () => { try { return String(fs.statSync(file).mtimeMs); } catch (e) { return ""; } };
+  return {
+    where: () => file,
+    async read() {
+      try { return { data: JSON.parse(fs.readFileSync(file, "utf8")), version: stamp() }; } catch (e) {
+        throw new SetupError("Couldn't read " + file + ": " + e.message);
+      }
+    },
+    async write(data, version) {
+      if (stamp() !== version) return false;
+      const tmp = file + ".tmp";
+      fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+      fs.renameSync(tmp, file);
+      return true;
+    },
+  };
+}
+
+function openStore(cfg = readConfig()) {
+  if (cfg.localFile) return fileStore(cfg);
+  if (!cfg.token) {
+    throw new SetupError("LifeLog isn't connected: give the bridge a GitHub token (LIFELOG_TOKEN, or \"token\" in "
+      + cfg.configFile + ") with read and write access to your data repo, or a LIFELOG_LOCAL_FILE.");
+  }
+  return githubStore(cfg);
+}
+
+// The last changes the bridge made, so one can be undone. On this machine
+// only; the data file itself carries no trace of who changed what.
+function undoLog(cfg) {
+  const file = path.join(cfg.stateDir, "undo.json");
+  const read = () => { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) { return []; } };
+  const write = (stack) => {
+    fs.mkdirSync(cfg.stateDir, { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(stack.slice(-30)));
+  };
+  return {
+    push(rec) { write([...read(), rec]); },
+    peek() { const s = read(); return s[s.length - 1] || null; },
+    drop() { const s = read(); s.pop(); write(s); },
+  };
+}
+
+module.exports = { readConfig, openStore, undoLog, SetupError };

@@ -42,6 +42,7 @@ test("your data file, the tests and the docs never ship inside the app", () => {
     assert.ok(!shipped.includes(f), f + " was bundled");
   }
   assert.ok(!shipped.some((f) => f.startsWith("test/") || f.startsWith("tools/")), "test/ or tools/ was bundled");
+  assert.ok(!shipped.some((f) => f.startsWith("bridge/")), "the AI bridge runs on a computer, not in the app");
 });
 
 test("the changelog ships, for What's new in Settings", () => {

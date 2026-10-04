@@ -205,6 +205,8 @@ src/docimport.js    PDF and EPUB files read as text, for importing them as notes
 src/payments.js     the Android switch for Google Wallet payments offered to the Ledger
 src/settings.js     the Settings modal
 src/qr.js           self-contained QR encoder for the device setup link
+bridge/             how other AIs read and change LifeLog: MCP server, command line,
+                    data guide (bridge/README.md)
 server.js           tiny static server
 proxy/              optional Cloudflare Worker: CORS proxy for Steam/SteamGridDB
 test/               zero-dependency Node tests — `node test/run-all.js`

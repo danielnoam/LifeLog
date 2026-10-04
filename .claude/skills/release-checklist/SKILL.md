@@ -65,6 +65,16 @@ Each holds one kind of thing; put an entry in exactly one of them.
   come back if the reason stops being true. If an idea is a live one wrapped
   in a rejection, split it: the workable half stays in TODO.md.
 
+## 3b. Keep the AI bridge in step
+
+- If the change touches the data (a field, a collection, a sanitizer rule,
+  or how spending, recurring charges or streaks are worked out), update
+  `bridge/DATA.md` and, where an AI should use it, `bridge/tools.js`, with
+  a test in `test/bridge.test.js`. The test already fails on a sanitizer
+  field DATA.md doesn't describe.
+- Never rename or remove a bridge tool or argument without need: Telemachus
+  and any other AI set up against it call them by name.
+
 ## 4. Keep the app lean
 
 - No build step, no dependencies — stay vanilla JS/CSS/HTML.

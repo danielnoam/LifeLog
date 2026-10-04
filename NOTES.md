@@ -16,6 +16,26 @@ what was decided against and why.
 
 ---
 
+- **The AI bridge (0.239.0).** Daniel's Telemachus (an Odysseus fork) had a
+  Python MCP server of its own that re-implemented LifeLog's formats, and
+  had already drifted: ratings as 1-10 (they're 1-5 stars), and spending
+  totals without recurring bills. bridge/ replaces it, inside this repo, and
+  runs the app's own src/ in Node (load.js, the stubbing app.test.js
+  already proved), so sanitizers, planCharges, streaks and the merge's
+  updatedAt stamping are the app's, not copies. Writes are applied to the
+  latest file and PUT with its sha; a 409/422 means someone saved in
+  between, and the change is applied again on the newer file. Every written
+  item goes through its sanitizer, and a field the sanitizer drops is
+  refused rather than lost silently. Undo keeps each touched item's prior
+  state on the machine (not in the data), and refuses if the item's
+  updatedAt moved since, so it never undoes someone else's edit. Settings
+  are never shown (API keys). The MCP server is hand-written JSON-RPC over
+  stdio, no SDK, to keep the no-dependencies rule; it was checked against
+  the official Python MCP client. test/bridge.test.js parses every
+  KNOWN_*_KEYS list in src/ and fails on a field DATA.md doesn't describe,
+  which is what makes "keep the bridge updated" (CLAUDE.md) enforceable.
+  Telemachus keeps a clone of this repo in ~/.odysseus/lifelog-code,
+  pulled on each start, so it follows main without a release of its own.
 - **Google Wallet payments (0.238.0).** A NotificationListenerService
   (PaymentListener) sees every notification once access is given, and acts
   only on com.google.android.apps.walletnfcrel's, only with the switch on
