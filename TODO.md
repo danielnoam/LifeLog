@@ -18,9 +18,6 @@ todo:
   framework dialogs built in code (0.201.0); give them LifeLog's own
   visuals.
 
-- **"To-do" becomes "checklist" everywhere:** the notes kind, the widget,
-  settings, copy and code names, with old saved data still read.
-
 - **Distinct names for each tab and each mode inside a tab**, where a mode
   shares its tab's name today.
 

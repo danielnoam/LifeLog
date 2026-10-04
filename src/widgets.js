@@ -93,7 +93,7 @@
     const listsOut = [];
     const seen = new Map();
     for (const n of lists) {
-      const base = n.text || "List";
+      const base = n.text || "Checklist";
       const k = (seen.get(base) || 0) + 1;
       seen.set(base, k);
       const name = k > 1 ? `${base} (${k})` : base;

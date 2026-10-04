@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.230.0] - 2026-10-04
+
+### Changed
+- **To-do is now Checklist everywhere you read it:** the note kind (Checklist,
+  and Checklists in the Types row), the widget ("LifeLog checklist", on
+  Android and iOS), the quick-add button, the Recap ("checklist items ticked
+  off"), import and export, and a new list's default name. Your data is
+  untouched, and a Notes CSV with "List" rows still imports.
+
 ## [0.229.0] - 2026-10-04
 
 ### Changed

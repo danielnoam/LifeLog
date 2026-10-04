@@ -25,9 +25,9 @@ public class TodosSettingsActivity extends SettingsScreen {
 
     @Override
     protected void build() {
-        setTitle("To-do widget");
-        heading("Lists");
-        hint("Choose one and the widget's + adds to it. With more, tap a list's name on the widget to add to it. None ticked shows every list.");
+        setTitle("Checklist widget");
+        heading("Checklists");
+        hint("Choose one and the widget's + adds to it. With more, tap a checklist's name on the widget to add to it. None ticked shows every checklist.");
         Set<String> chosen = WidgetStore.listsOf(was);
         JSONObject snap = WidgetStore.snapshot(this);
         JSONArray lists = snap == null ? null : snap.optJSONArray("lists");
@@ -40,8 +40,8 @@ public class TodosSettingsActivity extends SettingsScreen {
         if (boxes.isEmpty()) {
             TextView none = new TextView(this);
             none.setText(lists == null
-                ? "Open LifeLog once to bring your lists here. Until then the widget shows every list."
-                : "No lists yet. The widget shows every list you make.");
+                ? "Open LifeLog once to bring your checklists here. Until then the widget shows every checklist."
+                : "No checklists yet. The widget shows every checklist you make.");
             box.addView(none);
         }
         heading("Show");

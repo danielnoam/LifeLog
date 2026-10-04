@@ -78,7 +78,7 @@ final class NoteCard {
         String cat = WidgetStore.str(note, "category");
         if (!cat.isEmpty()) return cat.toUpperCase(Locale.ROOT);
         String kind = WidgetStore.str(note, "kind");
-        return "quote".equals(kind) ? "QUOTE" : "list".equals(kind) ? "LIST" : "NOTE";
+        return "quote".equals(kind) ? "QUOTE" : "list".equals(kind) ? "CHECKLIST" : "NOTE";
     }
 
     static RemoteViews build(Context c, WidgetSize size, JSONObject note, boolean showDate, PendingIntent open, PendingIntent next) {

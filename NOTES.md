@@ -16,6 +16,16 @@ what was decided against and why.
 
 ---
 
+- **"Checklist" is a word, not a rename (0.230.0).** Only what a person
+  reads changed. The data keys (`todos`, `todoCategories`, a note's
+  `kind: "list"`), the widget classes (TodosWidget, whose class name is how
+  Android finds a placed widget, so renaming it would orphan every one on a
+  home screen) and the `add-todo` action all stay, so older devices still
+  sync. The migration that folds old to-dos into a list still names it
+  "To-do", because it finds an earlier fold by that name; a new list from
+  quick add is "Checklist". The Notes CSV writes "Checklist" in the Kind
+  column and reads "List" too.
+
 - **The + menu by tab (0.229.0).** Groups are static markup that
   syncAddMenu() reorders to the bar's order on every open and heads with the
   tab button's own text, so a tab renamed or moved needs nothing here. Items

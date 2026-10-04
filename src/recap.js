@@ -282,7 +282,7 @@
       return {
         id: "todos", kind: "big", view: "notes", mode: "notes",
         value: g.todosDone.length,
-        headline: "to-dos ticked off",
+        headline: "checklist items ticked off",
         sub: "",
       };
     },
@@ -384,7 +384,7 @@
       const bits = [];
       if (g.entries.length) bits.push(plural(g.entries.length, "thing logged", "things logged"));
       if (g.notes.length) bits.push(plural(g.notes.length, "note", "notes"));
-      if (g.todosDone.length) bits.push(plural(g.todosDone.length, "to-do done", "to-dos done"));
+      if (g.todosDone.length) bits.push(plural(g.todosDone.length, "checklist item done", "checklist items done"));
       const habitDays = g.habits.reduce((n, x) => n + x.kept, 0);
       if (habitDays) bits.push(plural(habitDays, "day of a habit kept", "days of habits kept"));
       if (!bits.length) return null;

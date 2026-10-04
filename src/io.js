@@ -109,7 +109,7 @@
   // A quote's author and source, and a list's items (one per line, "[x] "
   // when ticked), ride in three columns on the end (0.195.0), so a sheet
   // from before them still reads; a plain note's title (0.199.0) after them.
-  const LIST_KIND = { list: "List", quote: "Quote" };
+  const LIST_KIND = { list: "Checklist", quote: "Quote" };
   function notesCsvRows(notes, habits) {
     const rows = [["Kind", "Date", "Category", "Text", "Done", "Days", "Target", "Marks", "Color", "Author", "Source", "Items", "Favourite", "Title"]];
     (notes || []).forEach((n) => rows.push([LIST_KIND[n.kind] || "Note", n.createdAt || "", n.category || "", n.text, "", "", "", "", "",
@@ -128,7 +128,9 @@
     const notes = [], todos = [], habits = [];
     const iso = (s) => { const d = new Date(s); return s && !isNaN(d) ? d.toISOString() : null; };
     for (const row of parseCsv(text)) {
-      const kind = (row[0] || "").trim().toLowerCase();
+      // "List" until 0.230.0, "Checklist" since: a sheet from either reads.
+      const raw = (row[0] || "").trim().toLowerCase();
+      const kind = raw === "checklist" ? "list" : raw;
       const txt = (row[3] || "").trim();
       // A list may be all items and no title.
       if (!txt && !((kind === "list" && (row[11] || "").trim()) || (kind === "note" && (row[13] || "").trim()))) continue;
@@ -626,7 +628,7 @@
     count("achievement", "achievement", "achievements");
     count("backlog", "backlog item", "backlog items");
     count("note", "note", "notes");
-    count("todo", "to-do", "to-dos");
+    count("todo", "checklist item", "checklist items");
     count("habit", "habit", "habits");
     count("board", "board", "boards");
     count("finance", "finance entry", "finance entries");
@@ -841,7 +843,7 @@
         : (e.title || e.text || (e.items || []).map((i) => i.text).join(", ")).split("\n")[0];
       const t = el("span", "etitle", (item.kind === "todo" && e.done ? "✓ " : "") + text); t.title = e.text || e.name; row.appendChild(t);
       if (e.category) row.appendChild(el("span", "ecat", e.category));
-      const tag = item.kind === "note" && e.kind ? e.kind : { note: "note", todo: "to-do", habit: "habit", achievement: "achievement", board: "board" }[item.kind];
+      const tag = item.kind === "note" && e.kind ? e.kind : { note: "note", todo: "checklist item", habit: "habit", achievement: "achievement", board: "board" }[item.kind];
       row.appendChild(el("span", "dup-tag", tag));
     } else { // backlog
       row.appendChild(el("span", "fdate", "—"));

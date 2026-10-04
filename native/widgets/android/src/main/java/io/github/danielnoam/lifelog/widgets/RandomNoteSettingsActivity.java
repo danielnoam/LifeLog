@@ -19,7 +19,7 @@ import org.json.JSONObject;
  */
 public class RandomNoteSettingsActivity extends SettingsScreen {
 
-    private static final String[][] KINDS = { { "text", "Notes" }, { "list", "Lists" }, { "quote", "Quotes" } };
+    private static final String[][] KINDS = { { "text", "Notes" }, { "list", "Checklists" }, { "quote", "Quotes" } };
     private static final String[][] EVERY = {
         { RandomNoteWidget.EVERY_HOUR, "Every hour" },
         { RandomNoteWidget.EVERY_DAY, "Every day" },

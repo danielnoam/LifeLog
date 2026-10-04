@@ -2,10 +2,10 @@
 <resources>
     <string name="widget_habits_label">LifeLog habits</string>
     <string name="widget_habits_description">Today\'s habits, ticked without opening the app</string>
-    <string name="widget_todos_label">LifeLog to-do</string>
-    <string name="widget_todos_description">Your lists, or the ones you choose, ticked without opening the app</string>
+    <string name="widget_todos_label">LifeLog checklist</string>
+    <string name="widget_todos_description">Your checklists, or the ones you choose, ticked without opening the app</string>
     <string name="widget_quickadd_label">LifeLog quick add</string>
-    <string name="widget_quickadd_description">Add an entry, an expense, a backlog item, a note or a to-do</string>
+    <string name="widget_quickadd_description">Add an entry, an expense, a backlog item, a note or a checklist item</string>
     <string name="widget_spend_label">LifeLog spending</string>
     <string name="widget_spend_description">What this month has cost so far, and where it went</string>
     <string name="widget_note_label">LifeLog note</string>
@@ -18,5 +18,5 @@
     <string name="widget_add_expense">₪\nExpense</string>
     <string name="widget_add_backlog">★\nBacklog</string>
     <string name="widget_add_note">▤\nNote</string>
-    <string name="widget_add_todo">☑\nTo-do</string>
+    <string name="widget_add_todo">☑\nChecklist</string>
 </resources>

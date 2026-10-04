@@ -535,9 +535,9 @@
     const wrap = own(el("div", "todo-compose note-list-compose"));
     const input = document.createElement("input");
     input.type = "text";
-    input.placeholder = "Add a to-do…";
+    input.placeholder = "Add an item…";
     input.autocomplete = "off";
-    input.setAttribute("aria-label", "Add to " + (n.text || "this list"));
+    input.setAttribute("aria-label", "Add to " + (n.text || "this checklist"));
     input.value = listDrafts.get(n.id) || "";
     const add = el("button", "btn btn-primary btn-sm", "Add");
     add.type = "button";
@@ -635,7 +635,7 @@
     let n = quickList(listId);
     if (!n) {
       const now = new Date().toISOString();
-      n = sanitizeNote({ kind: "list", text: "To-do", items: [], createdAt: now, updatedAt: now });
+      n = sanitizeNote({ kind: "list", text: "Checklist", items: [], createdAt: now, updatedAt: now });
       state.data.notes.unshift(n);
       persist();
     }

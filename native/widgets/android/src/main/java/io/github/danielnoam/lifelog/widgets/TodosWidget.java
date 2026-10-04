@@ -130,6 +130,6 @@ public class TodosWidget extends AppWidgetProvider {
         String empty = !loaded ? "Open LifeLog once to bring your list here"
             : one != null ? "Nothing to do — tap + to add something"
             : "Nothing to do";
-        return new String[] { one != null ? WidgetStore.str(one, "name") : "To-do", subtitle, empty };
+        return new String[] { one != null ? WidgetStore.str(one, "name") : "Checklist", subtitle, empty };
     }
 }

@@ -18,7 +18,7 @@ public class QuickAddWidget extends AppWidgetProvider {
     private static final int[] BUTTONS = { R.id.add_entry, R.id.add_expense, R.id.add_backlog, R.id.add_note, R.id.add_todo };
     static final String[] ACTIONS = { "add-entry", "add-expense", "add-backlog", "add-note", "add-todo" };
     static final String[] ICONS = { "✎", "₪", "★", "▤", "☑" };
-    static final String[] LABELS = { "Entry", "Expense", "Backlog", "Note", "To-do" };
+    static final String[] LABELS = { "Entry", "Expense", "Backlog", "Note", "Checklist" };
     private static final int LABELLED_DP = 56;
 
     @Override
