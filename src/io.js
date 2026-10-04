@@ -701,26 +701,47 @@
   const MD_HINT = "One note per file. Pick which to bring in, and put any of them in a category: select them, choose it below, Apply. Files already in your notes are hidden.";
   // `files` are browser Files, or what the Android app's folder picker
   // hands back (0.202.0): { name, folder, text, lastModified }.
+  //
+  // A PDF or EPUB (0.236.0) comes in as its text, by docimport.js, and is
+  // refused past DOC_MAX characters: every note lives in the one data file
+  // that syncs on each save and is cached in localStorage, and a whole book
+  // there would make every save slow and could outgrow the cache.
+  const DOC_MAX = 300000;
+  const isDoc = (name) => /\.(pdf|epub)$/i.test(name);
   async function importMarkdown(files) {
-    const picked = [...files].filter((f) => /\.(md|markdown|txt)$/i.test(f.name));
-    if (!picked.length) { toast("No Markdown files in that selection", true); return; }
+    const picked = [...files].filter((f) => /\.(md|markdown|txt)$/i.test(f.name) || (isDoc(f.name) && typeof f.arrayBuffer === "function"));
+    if (!picked.length) { toast("No Markdown, PDF or EPUB files in that selection", true); return; }
     // Only notes with something in them, so the rows buildImportItems hands
     // back line up one to one with these and each can be told its folder.
-    const notes = [], folders = [];
+    const notes = [], folders = [], failed = [];
+    if (picked.some((f) => isDoc(f.name))) toast("Reading " + (picked.length === 1 ? picked[0].name : picked.length + " files") + "…");
     for (const f of picked) {
-      const text = typeof f.text === "function" ? await f.text() : f.text;
-      const n = parseMarkdownNote(text, f.name, f.lastModified);
+      let n;
+      if (isDoc(f.name)) {
+        try {
+          n = await window.LifeLogDocImport.fileToNote(new Uint8Array(await f.arrayBuffer()), f.name, f.lastModified);
+          if (n.text.length > DOC_MAX) throw new Error(`It's too long to keep as a note (${Math.round(n.text.length / 1000)}k characters, the limit is ${DOC_MAX / 1000}k)`);
+        } catch (err) { failed.push(f.name + ": " + (err.message || err)); continue; }
+      } else {
+        const text = typeof f.text === "function" ? await f.text() : f.text;
+        n = parseMarkdownNote(text, f.name, f.lastModified);
+      }
       if (n.items) n.items = n.items.filter((i) => i.text);
       if (!(n.title || n.text || (n.items || []).length)) continue;
       const parts = String(f.webkitRelativePath || "").split("/");
       folders.push(typeof f.folder === "string" ? f.folder : parts.length > 2 ? parts[parts.length - 2] : "");
       notes.push(n);
     }
+    // One file that can't be read says why; several say how many and the
+    // first reason, and the rest still come in.
+    if (failed.length && !notes.length) { toast(failed.length === 1 ? failed[0] : `None of those ${failed.length} files could be read. ${failed[0]}`, true); return; }
+    if (failed.length) toast(`${failed.length} file${failed.length === 1 ? "" : "s"} couldn't be read. ${failed[0]}`, true);
     if (!notes.length) { toast("Those files are empty", true); return; }
     const built = buildImportItems({ notes }, ["note"]);
     if (built.items.length === notes.length) built.items.forEach((it, i) => { it.folder = folders[i]; });
+    const n = notes.length;
     openImportPicker({
-      title: `Import ${picked.length} Markdown file${picked.length === 1 ? "" : "s"}`,
+      title: `Import ${n} file${n === 1 ? "" : "s"}`,
       hint: MD_HINT, mode: "import", items: built.items, newCategories: built.newCategories,
       confirmLabel: "Import", searchable: picked.length > 8, categorize: "note",
       onConfirm: applyImportSelection,

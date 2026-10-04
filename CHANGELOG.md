@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.236.0] - 2026-10-04
+
+### Added
+- **PDF and EPUB files as notes.** Settings → Import & export → Notes →
+  "Markdown, PDF and EPUB files" now takes PDFs and EPUBs too, and each
+  comes in as a note of its words: an EPUB's chapters as headings, with
+  bold, italic, lists and quotes; a PDF's paragraphs, with Hebrew and Arabic
+  read the right way round. A scanned PDF (pictures of words), a
+  password-protected one, a copy-protected EPUB, or a file over 300,000
+  characters is refused with the reason.
+
 ## [0.235.0] - 2026-10-04
 
 ### Fixed

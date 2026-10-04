@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.235.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.236.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -1202,7 +1202,7 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="io" data-title="Import &amp; export" data-keywords="backup export import json csv spreadsheet download notes checklist to-do habits timeline achievements backlog ledger finance projects">
+      <div class="settings-page" hidden data-page="io" data-title="Import &amp; export" data-keywords="backup export import json csv spreadsheet download notes checklist to-do habits timeline achievements backlog ledger finance projects markdown md pdf epub book document">
       <h2 class="settings-page-title">Import &amp; export</h2>
       <p class="hint page-lede">Importing adds to what you have, never replaces it, and lets you pick what comes in first. Anything you already have is skipped. JSON keeps everything; CSV is for spreadsheets and keeps what fits in a row, so an entry's cover, rating and notes stay behind. A tab's import takes its own part of any LifeLog file, a full backup included.</p>
       <section class="sgroup">
@@ -1237,7 +1237,7 @@
             <span class="sitem-btns"><button class="btn btn-small" data-io="import-json" data-tab="notes">JSON…</button><button class="btn btn-small" data-io="import-csv" data-tab="notes">CSV…</button></span>
           </div>
           <div class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Markdown files</span><span class="sitem-sub">One note per .md file — pick files, or a whole folder. You choose which, and their categories, before anything comes in</span></span>
+            <span class="sitem-text"><span class="sitem-title">Markdown, PDF and EPUB files</span><span class="sitem-sub">One note per file — pick files, or a whole folder. A PDF or EPUB comes in as its text. You choose which, and their categories, before anything comes in</span></span>
             <span class="sitem-btns"><button class="btn btn-small" id="importMdBtn">Files…</button><button class="btn btn-small" id="importMdFolderBtn" hidden>Folder…</button></span>
           </div>
         </div>
@@ -1288,7 +1288,7 @@
       </section>
       <input type="file" id="importTabJsonInput" accept="application/json,.json" hidden />
       <input type="file" id="importTabCsvInput" accept="text/csv,.csv" hidden />
-      <input type="file" id="importMdInput" accept=".md,.markdown,.txt,text/markdown,text/plain" multiple hidden />
+      <input type="file" id="importMdInput" accept=".md,.markdown,.txt,.pdf,.epub,text/markdown,text/plain,application/pdf,application/epub+zip" multiple hidden />
       <input type="file" id="importMdFolderInput" webkitdirectory multiple hidden />
       </div>
 
@@ -1840,27 +1840,28 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.235.0"></script>
-  <script defer src="src/reconcile.js?v=0.235.0"></script>
-  <script defer src="src/qr.js?v=0.235.0"></script>
-  <script defer src="src/media.js?v=0.235.0"></script>
-  <script defer src="src/merge.js?v=0.235.0"></script>
-  <script defer src="src/storage.js?v=0.235.0"></script>
-  <script defer src="src/finance.js?v=0.235.0"></script>
-  <script defer src="src/settings.js?v=0.235.0"></script>
-  <script defer src="src/wheel.js?v=0.235.0"></script>
-  <script defer src="src/backlog.js?v=0.235.0"></script>
-  <script defer src="src/journal.js?v=0.235.0"></script>
-  <script defer src="src/markdown.js?v=0.235.0"></script>
-  <script defer src="src/notes.js?v=0.235.0"></script>
-  <script defer src="src/io.js?v=0.235.0"></script>
-  <script defer src="src/sync.js?v=0.235.0"></script>
-  <script defer src="src/habits.js?v=0.235.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.235.0"></script>
-  <script defer src="src/boards.js?v=0.235.0"></script>
-  <script defer src="src/recap.js?v=0.235.0"></script>
-  <script defer src="src/reminders.js?v=0.235.0"></script>
-  <script defer src="src/widgets.js?v=0.235.0"></script>
-  <script defer src="src/app.js?v=0.235.0"></script>
+  <script defer src="src/platform.js?v=0.236.0"></script>
+  <script defer src="src/reconcile.js?v=0.236.0"></script>
+  <script defer src="src/qr.js?v=0.236.0"></script>
+  <script defer src="src/media.js?v=0.236.0"></script>
+  <script defer src="src/merge.js?v=0.236.0"></script>
+  <script defer src="src/storage.js?v=0.236.0"></script>
+  <script defer src="src/finance.js?v=0.236.0"></script>
+  <script defer src="src/settings.js?v=0.236.0"></script>
+  <script defer src="src/wheel.js?v=0.236.0"></script>
+  <script defer src="src/backlog.js?v=0.236.0"></script>
+  <script defer src="src/journal.js?v=0.236.0"></script>
+  <script defer src="src/markdown.js?v=0.236.0"></script>
+  <script defer src="src/notes.js?v=0.236.0"></script>
+  <script defer src="src/docimport.js?v=0.236.0"></script>
+  <script defer src="src/io.js?v=0.236.0"></script>
+  <script defer src="src/sync.js?v=0.236.0"></script>
+  <script defer src="src/habits.js?v=0.236.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.236.0"></script>
+  <script defer src="src/boards.js?v=0.236.0"></script>
+  <script defer src="src/recap.js?v=0.236.0"></script>
+  <script defer src="src/reminders.js?v=0.236.0"></script>
+  <script defer src="src/widgets.js?v=0.236.0"></script>
+  <script defer src="src/app.js?v=0.236.0"></script>
 </body>
 </html>

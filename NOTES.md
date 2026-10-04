@@ -16,6 +16,25 @@ what was decided against and why.
 
 ---
 
+- **PDF and EPUB read as text, with no library (0.236.0).** Daniel chose
+  "text you read" over keeping the original files. src/docimport.js unzips
+  an EPUB itself (central directory, DecompressionStream "deflate-raw") and
+  turns its XHTML into Markdown with regexes, enough for books, not general
+  HTML. For PDFs it scans for objects rather than trusting the xref (stale in
+  edited files), unpacks object streams, decodes Flate/ASCII85/ASCIIHex, maps
+  codes through each font's ToUnicode CMap, walks Form XObjects, and tracks
+  the CTM and text matrix so lines and paragraphs come from real positions:
+  same height means one line (a space where the pen jumps further than 0.15
+  of the font size, measured with the font's own glyph widths), and a gap
+  taller than 1.45 times the usual one (the 25th percentile, not the median:
+  a page of short paragraphs has as many paragraph gaps as line gaps) starts
+  a paragraph. PDFs draw Hebrew left to right glyph by glyph, so
+  logicalOrder turns RTL runs round, and on a mostly-RTL line the run order
+  too. Tested against Chromium's PDFs (Type0, Identity-H, ToUnicode, flipped
+  CTM) and ReportLab's (ASCII85 + Flate). Not handled: Type3 fonts, fonts
+  with no ToUnicode and a custom encoding, scans, encryption. The 300k
+  character cap is the data file's limit, not the parser's; see TODO.md
+  "Books as notes".
 - **Every habits-grid row has its letter (0.235.0).** A full week used to
   label alternate rows (M, W, F), GitHub-style; Daniel read it as the habit
   being due only on those days. Seven letters fit the 16px rows.

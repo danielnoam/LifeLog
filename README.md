@@ -201,6 +201,7 @@ src/storage.js      persistence: local-file / GitHub / localStorage backends
 src/merge.js        pure three-way merge for reconciling two devices' edits
 src/reconcile.js    keyed list reconciliation — update the DOM in place, not by rebuilding
 src/io.js           JSON/CSV import + export, and the shared review picker
+src/docimport.js    PDF and EPUB files read as text, for importing them as notes
 src/settings.js     the Settings modal
 src/qr.js           self-contained QR encoder for the device setup link
 server.js           tiny static server

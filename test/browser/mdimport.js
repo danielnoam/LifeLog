@@ -27,6 +27,14 @@ const files = {
 fs.writeFileSync(files.one, "# Standalone\nWritten elsewhere.");
 fs.writeFileSync(files.dup, "same words");
 fs.writeFileSync(files.skip, "not markdown");
+// A one-page PDF with a title, and one that only claims to be a PDF.
+const pdfObjs = ["<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+  "<< /Type /Page /Parent 2 0 R /Contents 4 0 R >>", "<< /Length 52 >>\nstream\nBT /F1 12 Tf 72 700 Td (Minutes of the meeting.) Tj ET\nendstream",
+  "<< /Title (Board meeting) /Producer (test) >>"];
+fs.writeFileSync(path.join(dir, "minutes.pdf"), "%PDF-1.4\n" + pdfObjs.map((o, i) => `${i + 1} 0 obj\n${o}\nendobj\n`).join("") + "trailer\n<< /Root 1 0 R >>\n%%EOF");
+fs.writeFileSync(path.join(dir, "broken.pdf"), "nothing here");
+files.pdf = path.join(dir, "minutes.pdf");
+files.badPdf = path.join(dir, "broken.pdf");
 
 async function run(b, width) {
   const errs = [];
@@ -73,6 +81,19 @@ async function run(b, width) {
   const standalone = d.notes.find((n) => n.title === "Standalone");
   check("and they come in as notes with their title, words and category" + at,
     !!standalone && standalone.text === "Written elsewhere." && standalone.category === "Ideas", standalone);
+
+  // ---- a PDF, beside one that can't be read ----
+  await page.setInputFiles("#importMdInput", [files.pdf, files.badPdf]);
+  await page.waitForSelector("#financePickerModal:not([hidden])", { timeout: 4000 });
+  r = await rows();
+  check("a PDF is a row under its own title" + at, r.length === 1 && r[0].title === "Board meeting", r);
+  check("and the one that isn't says why" + at, await page.evaluate(() =>
+    [...document.querySelectorAll(".toast")].some((t) => /broken\.pdf: This isn't a valid PDF/.test(t.textContent))));
+  await page.click("#financePickerConfirmBtn");
+  await page.waitForTimeout(400);
+  d = await saved();
+  const minutes = d.notes.find((n) => n.title === "Board meeting");
+  check("it comes in as a note of its words" + at, !!minutes && minutes.text === "Minutes of the meeting.", minutes);
 
   // ---- a folder ----
   if (width > 500) {

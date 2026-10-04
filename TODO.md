@@ -11,8 +11,12 @@ todo:
   widgets can sync on their own (a periodic background fetch) so opening
   the app isn't what brings them up to date.
 
-- **Markdown, PDF and EPUB files as notes.** Import or attach them so they
-  open and read as notes.
+- **Books as notes.** PDFs and EPUBs come in as text since 0.236.0, but
+  only up to 300,000 characters, because every note lives in the one data
+  file that syncs on each save and is cached in localStorage (about 5MB). A
+  whole book needs its text kept apart: in IndexedDB and a file of its own
+  in the sync repo, written once, with the note holding the title and a
+  reader that loads the rest.
 
 - **Faster ways to add an expense.** Look at reading the Google Pay (or
   bank) notification on Android to prefill or log one.
