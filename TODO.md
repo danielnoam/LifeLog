@@ -13,9 +13,6 @@ todo:
   in the sync repo, written once, with the note holding the title and a
   reader that loads the rest.
 
-- **Faster ways to add an expense.** Look at reading the Google Pay (or
-  bank) notification on Android to prefill or log one.
-
 - **An AI chat about your data.** A section where you ask questions ("what
   did I spend on food this year?", "what did I finish in March?") and an AI
   answers from your LifeLog data. Connect to one of your choosing: a local

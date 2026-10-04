@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.237.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.238.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -1469,7 +1469,7 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="imports" data-title="Imports" data-keywords="steam wishlist anilist planning anime manga">
+      <div class="settings-page" hidden data-page="imports" data-title="Imports" data-keywords="steam wishlist anilist planning anime manga google wallet pay payment notification expense">
       <h2 class="settings-page-title">Imports</h2>
       <p class="hint page-lede">You pick what comes in, and nothing already in your backlog is added twice. The automatic check only tells you what's new.</p>
       <section class="sgroup">
@@ -1530,6 +1530,22 @@
           <button id="anilistSyncBtn" type="button" class="sitem sitem-go">🔄 Sync AniList Planning</button>
         </div>
         <p class="hint">Needs no key or proxy, but the list must be public (AniList → Settings → Lists → untick "Set anime/manga list to private"). Set one side to "Don't import" to bring in only the other.</p>
+      </section>
+
+      <section class="sgroup" id="paymentsGroup" hidden>
+        <h3 class="sgroup-label">Google Wallet payments</h3>
+        <div class="sgroup-card">
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Offer each one to the Ledger</span><span class="sitem-sub" id="paymentsSub"></span></span>
+            <select id="paymentsOn">
+              <option value="off">Off</option>
+              <option value="on">On</option>
+            </select>
+          </label>
+          <button id="paymentsFixBtn" type="button" class="sitem sitem-go" hidden></button>
+        </div>
+        <p class="hint">When you pay with this phone, LifeLog offers to add it. <strong>Add</strong> files it where that place went last time; tapping the offer opens the form filled in. A payment in another currency only opens the form, for its rate.</p>
+        <p class="hint">Android has to give LifeLog notification access for this, which lets it see your notifications. It reads only Google Wallet's, and nothing leaves the phone. If Android says the setting is restricted, open LifeLog's App info, tap ⋮ and choose <em>Allow restricted settings</em>, then try again.</p>
       </section>
       </div>
 
@@ -1840,28 +1856,29 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.237.0"></script>
-  <script defer src="src/reconcile.js?v=0.237.0"></script>
-  <script defer src="src/qr.js?v=0.237.0"></script>
-  <script defer src="src/media.js?v=0.237.0"></script>
-  <script defer src="src/merge.js?v=0.237.0"></script>
-  <script defer src="src/storage.js?v=0.237.0"></script>
-  <script defer src="src/finance.js?v=0.237.0"></script>
-  <script defer src="src/settings.js?v=0.237.0"></script>
-  <script defer src="src/wheel.js?v=0.237.0"></script>
-  <script defer src="src/backlog.js?v=0.237.0"></script>
-  <script defer src="src/journal.js?v=0.237.0"></script>
-  <script defer src="src/markdown.js?v=0.237.0"></script>
-  <script defer src="src/notes.js?v=0.237.0"></script>
-  <script defer src="src/docimport.js?v=0.237.0"></script>
-  <script defer src="src/io.js?v=0.237.0"></script>
-  <script defer src="src/sync.js?v=0.237.0"></script>
-  <script defer src="src/habits.js?v=0.237.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.237.0"></script>
-  <script defer src="src/boards.js?v=0.237.0"></script>
-  <script defer src="src/recap.js?v=0.237.0"></script>
-  <script defer src="src/reminders.js?v=0.237.0"></script>
-  <script defer src="src/widgets.js?v=0.237.0"></script>
-  <script defer src="src/app.js?v=0.237.0"></script>
+  <script defer src="src/platform.js?v=0.238.0"></script>
+  <script defer src="src/reconcile.js?v=0.238.0"></script>
+  <script defer src="src/qr.js?v=0.238.0"></script>
+  <script defer src="src/media.js?v=0.238.0"></script>
+  <script defer src="src/merge.js?v=0.238.0"></script>
+  <script defer src="src/storage.js?v=0.238.0"></script>
+  <script defer src="src/finance.js?v=0.238.0"></script>
+  <script defer src="src/settings.js?v=0.238.0"></script>
+  <script defer src="src/wheel.js?v=0.238.0"></script>
+  <script defer src="src/backlog.js?v=0.238.0"></script>
+  <script defer src="src/journal.js?v=0.238.0"></script>
+  <script defer src="src/markdown.js?v=0.238.0"></script>
+  <script defer src="src/notes.js?v=0.238.0"></script>
+  <script defer src="src/docimport.js?v=0.238.0"></script>
+  <script defer src="src/io.js?v=0.238.0"></script>
+  <script defer src="src/sync.js?v=0.238.0"></script>
+  <script defer src="src/habits.js?v=0.238.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.238.0"></script>
+  <script defer src="src/boards.js?v=0.238.0"></script>
+  <script defer src="src/recap.js?v=0.238.0"></script>
+  <script defer src="src/reminders.js?v=0.238.0"></script>
+  <script defer src="src/widgets.js?v=0.238.0"></script>
+  <script defer src="src/payments.js?v=0.238.0"></script>
+  <script defer src="src/app.js?v=0.238.0"></script>
 </body>
 </html>

@@ -3,6 +3,7 @@ package io.github.danielnoam.lifelog.widgets;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.text.SimpleDateFormat;
@@ -429,5 +430,39 @@ public class WidgetLogicTest {
         assertFalse(r.done);
         assertEquals("✕", HabitsWidget.tickText(r, ""));
         assertEquals(1, WidgetStore.capOf(r));
+    }
+
+    private static String paid(String title, String text) {
+        PaymentText.Payment p = PaymentText.parse(title, text);
+        return p == null ? "none" : p.amount + " " + p.currency + " at " + p.merchant;
+    }
+
+    @Test
+    public void aWalletPaymentReadsAsAmountCurrencyAndMerchant() {
+        assertEquals("45.90 ILS at Starbucks", paid("Starbucks", "₪45.90 with Visa •••• 1234"));
+        // Hebrew: direction marks around the amount, a no-break space before ₪.
+        assertEquals("45.90 ILS at שופרסל", paid("שופרסל", "\u200f45.90\u00a0\u200f₪ באמצעות Visa •••• 1234"));
+        assertEquals("1234.56 EUR at Cafe", paid("Cafe", "€1.234,56 with Mastercard"));
+        assertEquals("12.50 EUR at Shop", paid("Shop", "12,50 EUR with card"));
+        assertEquals("1250 USD at Shop", paid("Shop", "USD 1,250 with card"));
+        assertEquals("12 CAD at Shop", paid("Shop", "CA$12 with Visa"));
+        // An older one-line form: the merchant is what follows "at".
+        assertEquals("4.50 USD at Starbucks", paid(null, "Paid $4.50 at Starbucks"));
+    }
+
+    @Test
+    public void walletNotificationsThatArentAPaymentAreLeftAlone() {
+        assertEquals("none", paid("Your card is ready", "You can now pay with Visa •••• 1234"));
+        assertEquals("none", paid("Boarding pass", "Gate 12 at 10:45"));
+        assertEquals("none", paid("Refund from Shop", "$4.50 back to Visa"));
+        assertEquals("none", paid("Shop", "$0.00 with Visa"));
+        assertNull(PaymentText.number("1,2,3x"));
+        assertEquals("1234567", PaymentText.number("1.234.567"));
+    }
+
+    @Test
+    public void aQueuedPaymentIsntCountedAsAWidgetTick() throws Exception {
+        JSONArray q = new JSONArray("[{\"kind\":\"habit\",\"id\":\"h\"},{\"kind\":\"expense\",\"id\":\"e\"},{\"kind\":\"todo\",\"id\":\"t\"}]");
+        assertEquals(2, WidgetStore.tickCount(q));
     }
 }

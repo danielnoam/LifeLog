@@ -33,6 +33,8 @@ import org.json.JSONArray;
  *                      for habit reminders (see Reminders)
  *   biometricState(), authenticate({ title, subtitle })
  *                      the app lock's fingerprint / face unlock (see Biometrics)
+ *   paymentsState(), setPayments({ on }), openPaymentAccess()
+ *                      Google Wallet payments offered to the Ledger (see Payments)
  *
  * "Widgets" is the name it started with; it has become the app's one native
  * plugin, and renaming it would only be churn.
@@ -153,6 +155,34 @@ public class WidgetsPlugin extends Plugin {
         i.putExtra(Settings.EXTRA_APP_PACKAGE, getContext().getPackageName());
         i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         getContext().startActivity(i);
+        call.resolve();
+    }
+
+    /** { on, access }: the switch in the app, and Android's notification access. */
+    @PluginMethod
+    public void paymentsState(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("on", Payments.isOn(getContext()));
+        ret.put("access", Payments.hasAccess(getContext()));
+        call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void setPayments(PluginCall call) {
+        Payments.setOn(getContext(), Boolean.TRUE.equals(call.getBoolean("on", false)));
+        paymentsState(call);
+    }
+
+    @PluginMethod
+    public void openPaymentAccess(PluginCall call) {
+        try {
+            getContext().startActivity(Payments.accessSettings(getContext()));
+        } catch (android.content.ActivityNotFoundException e) {
+            // A phone without the per-app page: the list of every listener.
+            Intent i = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS);
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(i);
+        }
         call.resolve();
     }
 

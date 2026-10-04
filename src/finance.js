@@ -1463,7 +1463,27 @@
     if (presetDate.year === now.getFullYear() && presetDate.month === now.getMonth() + 1) return todayStr();
     return `${presetDate.year}-${String(presetDate.month).padStart(2, "0")}-01`;
   }
-  function openFinanceModal(entry, presetDate) {
+  // "add-expense?amount=45.90&currency=ILS&note=Starbucks&date=2026-10-04"
+  // (0.238.0): a Google Wallet payment tapped on Android, or an iOS Shortcut
+  // opening lifelog://action/add-expense?… The amount may bring its own
+  // currency ("₪45.90"), as a Shortcut's Amount does.
+  function expensePrefill(query) {
+    const q = new URLSearchParams(String(query || ""));
+    const out = {};
+    const raw = String(q.get("amount") || "").trim();
+    const pasted = /^\d+(\.\d+)?$/.test(raw) ? { amount: raw, currency: null } : parsePastedAmount(raw);
+    if (pasted && +pasted.amount > 0) out.amount = pasted.amount;
+    const code = String(q.get("currency") || "").toUpperCase();
+    const currency = CURRENCY_SYMBOLS[code] ? code : pasted && pasted.currency;
+    if (currency) out.currency = currency;
+    const date = q.get("date") || "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) out.date = date;
+    const note = String(q.get("note") || "").trim().slice(0, 200);
+    if (note) out.note = note;
+    return out;
+  }
+
+  function openFinanceModal(entry, presetDate, prefill) {
     const editing = !!entry;
     $("#financeModalTitle").textContent = editing ? "Edit finance entry" : "Add finance entry";
     $("#financeId").value = editing ? entry.id : "";
@@ -1492,6 +1512,16 @@
     if (editing && fx) $("#finAmount").value = fx.amount;
     applyFinanceCurrencyUI();
     $("#finNote").value = editing ? (entry.note || "") : "";
+    if (!editing && prefill) {
+      if (prefill.date) $("#finDate").value = prefill.date;
+      if (prefill.currency) fillCurrencySelect($("#finCurrency"), prefill.currency);
+      if (prefill.amount) $("#finAmount").value = prefill.amount;
+      if (prefill.note) {
+        $("#finNote").value = prefill.note;
+        $("#finCategory").value = window.LifeLogWidgets.categoryFor(state.data, prefill.note);
+      }
+      applyFinanceCurrencyUI();
+    }
     $("#deleteFinanceBtn").hidden = !editing;
     applyFinanceModalUI();
     $("#financeModal").hidden = false;
@@ -3676,6 +3706,7 @@
     monthSortAsc,
     evalMathExpr,
     parsePastedAmount,
+    expensePrefill,
     // shared lookups/formatting (used by the shared import picker rows)
     rebuildFinanceColorMap,
     financeColorOf,

@@ -125,8 +125,37 @@ final class WidgetStore {
         prefs(c).edit().putString(KEY_QUEUE, out.toString()).commit();
     }
 
+    /**
+     * A Google Wallet payment's Add (0.238.0) rides the same queue; an id of
+     * its own each time, so two of one amount on one day are both kept.
+     */
+    static void queueExpense(Context c, String id, String date, String amount, String note) {
+        try {
+            JSONObject item = new JSONObject();
+            item.put("kind", "expense");
+            item.put("id", id);
+            item.put("date", date);
+            item.put("amount", amount);
+            if (!note.isEmpty()) item.put("note", note);
+            item.put("at", nowIso());
+            enqueue(c, item);
+        } catch (JSONException e) {
+            // Nothing to queue.
+        }
+    }
+
     static int pendingCount(Context c) {
-        return queue(c).length();
+        return tickCount(queue(c));
+    }
+
+    /** What the habit and to-do widgets' "N ticks sync…" line counts: not a payment. */
+    static int tickCount(JSONArray q) {
+        int n = 0;
+        for (int i = 0; i < q.length(); i++) {
+            JSONObject o = q.optJSONObject(i);
+            if (o != null && !"expense".equals(o.optString("kind"))) n++;
+        }
+        return n;
     }
 
     // ---- dates, the way the app writes them ----

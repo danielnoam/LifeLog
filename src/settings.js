@@ -600,6 +600,8 @@
         const parts = [];
         if (set.steam && set.steam.steamId) parts.push("Steam wishlist" + (set.steam.wishlistCategory ? " → " + set.steam.wishlistCategory : ""));
         if (set.anilist && set.anilist.userName) parts.push("AniList");
+        const wallet = window.LifeLogPayments && window.LifeLogPayments.summary();
+        if (wallet) parts.push(wallet);
         return { text: parts.length ? parts.join(" · ") : "Steam wishlist, AniList" };
       }
       case "releases": {

@@ -212,5 +212,35 @@ test("an iOS widget's link is the action Android's widgets send, id and all", ()
   assert.strictEqual(W.actionOfUrl("lifelog://action/%E0%A4%A"), "", "a broken link opens nothing rather than throwing");
 });
 
+test("a Google Wallet payment's Add becomes an expense, once, filed where that merchant was last time", () => {
+  const d = {
+    financeCategories: [{ name: "Food" }, { name: "Coffee" }],
+    financeEntries: [
+      { id: "f1", date: "2026-08-01", amount: 12, category: "Food", note: "Starbucks" },
+      { id: "f2", date: "2026-09-01", amount: 14, category: "Coffee", note: "starbucks " },
+    ],
+  };
+  const item = { kind: "expense", id: "p1", date: TODAY, amount: "45.90", note: "Starbucks", at: "2026-09-24T08:00:00.000Z" };
+  assert.strictEqual(W.applyQueue(d, [item]), 1);
+  assert.deepStrictEqual(d.financeEntries[2], { id: "p1", date: TODAY, amount: 45.9, category: "Coffee", createdAt: "2026-09-24T08:00:00.000Z", note: "Starbucks" });
+  assert.strictEqual(W.applyQueue(d, [item]), 0, "drained twice, added once");
+  W.applyQueue(d, [{ kind: "expense", id: "p2", date: TODAY, amount: "3" }, { kind: "expense", id: "p3", date: TODAY, amount: "0" }]);
+  assert.strictEqual(d.financeEntries.length, 4, "a zero is dropped");
+  assert.strictEqual(d.financeEntries[3].category, "Food", "a new merchant gets the first category");
+  assert.strictEqual(d.financeEntries[3].note, undefined);
+  const empty = {};
+  W.applyQueue(empty, [{ kind: "expense", id: "p4", date: TODAY, amount: "5", note: "Kiosk" }]);
+  assert.strictEqual(empty.financeEntries[0].category, "Other");
+});
+
+test("the snapshot says the home currency, so the phone knows which payments it can add by itself", () => {
+  assert.strictEqual(W.snapshotOf({ settings: { currency: "EUR" } }, { today: TODAY }).currency, "EUR");
+  assert.strictEqual(W.snapshotOf({}, { today: TODAY }).currency, "ILS");
+});
+
+test("a link's query stays encoded for runAction, so a merchant with & in it stays whole", () => {
+  assert.strictEqual(W.actionOfUrl("lifelog://action/add-expense?amount=4.50&note=A%26B"), "add-expense?amount=4.50&note=A%26B");
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

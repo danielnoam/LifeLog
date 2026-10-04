@@ -19,4 +19,5 @@
     <string name="widget_add_backlog">★\nBacklog</string>
     <string name="widget_add_note">▤\nNote</string>
     <string name="widget_add_todo">☑\nChecklist</string>
+    <string name="payments_listener_label">LifeLog: Google Wallet payments</string>
 </resources>

@@ -107,7 +107,10 @@
       for (const it of open) todos.push(row(it));
       for (const it of done.slice(0, DONE_PER_PANEL)) todos.push(row(it));
     }
-    return { v: 4, today, habits, todos, doneCount, lists: listsOut, actions, spend, ...notesOf(data, pins) };
+    // `currency` (0.238.0): a Google Wallet payment in it gets an Add button
+    // on the phone; one in any other needs the form, for its rate.
+    const currency = (data.settings && data.settings.currency) || "ILS";
+    return { v: 4, today, habits, todos, doneCount, lists: listsOut, actions, spend, currency, ...notesOf(data, pins) };
   }
 
   // What the note widgets pick from: each note cut to what a widget can
@@ -172,9 +175,31 @@
         if (it.done) { t.done = true; t.doneAt = it.at || new Date().toISOString(); }
         else { delete t.done; delete t.doneAt; }
         changed++;
+      } else if (it.kind === "expense") {
+        // A Google Wallet payment's Add (0.238.0), in the home currency.
+        // Its id is the queue's, so one drained twice is added once. The
+        // category is the one this merchant got last time, if any.
+        const entries = data.financeEntries || (data.financeEntries = []);
+        const amount = Math.round(parseFloat(it.amount) * 100) / 100;
+        if (!(amount > 0) || !isDate(it.date) || entries.some((f) => f.id === it.id)) continue;
+        const note = String(it.note || "").trim().slice(0, 200);
+        const item = { id: it.id, date: it.date, amount, category: categoryFor(data, note), createdAt: it.at || new Date().toISOString() };
+        if (note) item.note = note;
+        entries.push(item);
+        changed++;
       }
     }
     return changed;
+  }
+
+  // What an expense at `note` was filed under last time, or the first category.
+  function categoryFor(data, note) {
+    const cats = (data.financeCategories || []).map((c) => c.name);
+    const key = String(note || "").trim().toLowerCase();
+    const last = key && (data.financeEntries || [])
+      .filter((f) => String(f.note || "").trim().toLowerCase() === key && cats.includes(f.category))
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)))[0];
+    return last ? last.category : cats[0] || "Other";
   }
 
   // ---------- the app's side ----------
@@ -226,11 +251,17 @@
     draining = (async () => {
       try {
         const res = await W.takeQueue();
-        const n = applyQueue(ctx.state.data, (res && res.items) || []);
+        const data = ctx.state.data;
+        const before = (data.financeEntries || []).length;
+        const n = applyQueue(data, (res && res.items) || []);
         if (n) {
           ctx.afterDataChange();
           await ctx.persist();
-          ctx.toast(n === 1 ? "Added a tick from your home-screen widget" : "Added " + n + " ticks from your home-screen widget");
+          const paid = (data.financeEntries || []).length - before, ticks = n - paid;
+          const said = [];
+          if (ticks) said.push(ticks === 1 ? "a tick from your home-screen widget" : ticks + " ticks from your home-screen widget");
+          if (paid) said.push(paid === 1 ? "a Google Wallet payment to the Ledger" : paid + " Google Wallet payments to the Ledger");
+          ctx.toast("Added " + said.join(" and "));
         }
       } catch (e) { /* the queue stays for next time */ }
       finally { draining = null; }
@@ -250,10 +281,12 @@
 
   // iOS (0.217.0): a widget opens lifelog://action/<action> — the App
   // plugin hands the link over, whether it started the app or woke it.
+  // A query stays encoded (0.238.0): "add-expense?amount=4.50&note=A%26B"
+  // is read by runAction, and decoding it here would split "A&B" in two.
   const actionOfUrl = (url) => {
-    const m = /^lifelog:\/\/action\/(.+)$/.exec(String(url || ""));
+    const m = /^lifelog:\/\/action\/([^?]+)(\?.*)?$/.exec(String(url || ""));
     if (!m) return "";
-    try { return decodeURIComponent(m[1]); } catch (e) { return ""; }
+    try { return decodeURIComponent(m[1]) + (m[2] || ""); } catch (e) { return ""; }
   };
   function listenForLinks() {
     const App = ctx.Platform.plugin("App");
@@ -279,5 +312,5 @@
     takeAction();
   }
 
-  window.LifeLogWidgets = { snapshotOf, applyQueue, actionOfUrl, start, changed, MARK_DAYS, DONE_PER_PANEL, NOTE_CHARS, NOTES_BUDGET };
+  window.LifeLogWidgets = { snapshotOf, applyQueue, categoryFor, actionOfUrl, start, changed, MARK_DAYS, DONE_PER_PANEL, NOTE_CHARS, NOTES_BUDGET };
 })();

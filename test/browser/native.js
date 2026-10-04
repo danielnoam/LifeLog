@@ -23,7 +23,7 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
 const FAKE_BRIDGE = () => {
   window.__cap = { minimized: 0, opened: [], back: null, scans: 0, installs: 0, progress: [], barStyles: [], browsed: [],
     written: [], shared: [], downloads: [], fsProgress: [], installers: [], deleted: [], inAppTab: [],
-    widgetSnaps: [], widgetListeners: {}, askedToNotify: 0, notifySettings: 0, bioAsks: [] };
+    widgetSnaps: [], widgetListeners: {}, askedToNotify: 0, notifySettings: 0, bioAsks: [], paymentsSet: [], paymentAccessOpened: 0 };
   // What the widgets have waiting for the app; a test can set it at launch.
   window.__widgetPlan = window.__widgetPlanAtLaunch || { queue: [], action: null };
   // What the file plugins will do; tests change it before acting.
@@ -98,6 +98,14 @@ const FAKE_BRIDGE = () => {
           return { state: window.__widgetPlan.notify };
         },
         openNotificationSettings: async () => { window.__cap.notifySettings++; },
+        // Google Wallet payments (0.238.0): the switch, and notification access.
+        paymentsState: async () => ({ on: !!window.__widgetPlan.paymentsOn, access: !!window.__widgetPlan.paymentAccess }),
+        setPayments: async ({ on }) => {
+          window.__cap.paymentsSet.push(on);
+          window.__widgetPlan.paymentsOn = on;
+          return { on, access: !!window.__widgetPlan.paymentAccess };
+        },
+        openPaymentAccess: async () => { window.__cap.paymentAccessOpened++; },
         // Android's own fingerprint / face sheet, for the app lock.
         biometricState: async () => ({ state: window.__widgetPlan.bio || "available" }),
         authenticate: async ({ title }) => {
@@ -1267,6 +1275,70 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     check("and each file's folder is there to file it under", cats.sort().join() === ",Recipes", cats);
     errs.push(...e);
     await ctx.close();
+  }
+
+  // ---- 17. Google Wallet payments (0.238.0) ----
+  {
+    const today = new Date();
+    const ymd = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+    const withLedger = {
+      ...doc([], "2026-09-01T00:00:00.000Z"),
+      settings: { currency: "ILS" },
+      financeCategories: [{ name: "Groceries", color: "#3bb2e2" }, { name: "Coffee", color: "#e2723b" }],
+      financeEntries: [{ id: "old", date: "2026-08-01", amount: 14, category: "Coffee", note: "Starbucks", createdAt: "2026-08-01T10:00:00.000Z" }],
+    };
+    const paid = { kind: "expense", id: "pay-1", date: ymd, amount: "45.90", note: "Starbucks", at: today.toISOString() };
+    const { page, ctx, errs: e } = await openApp(browser, { cache: withLedger, widgets: { queue: [paid], action: null } });
+    await page.waitForTimeout(600);
+    const got = await page.evaluate(() => {
+      const d = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+      return { entry: (d.data || d).financeEntries.find((f) => f.id === "pay-1"), toast: (document.querySelector("#toast") || {}).textContent || "" };
+    });
+    check("a payment's Add lands in the Ledger, filed where that place went last time",
+      !!got.entry && got.entry.amount === 45.9 && got.entry.category === "Coffee" && got.entry.note === "Starbucks", got.entry);
+    check("and says so", /Google Wallet payment to the Ledger/.test(got.toast), got.toast);
+    const snap = await page.evaluate(() => window.__cap.widgetSnaps[window.__cap.widgetSnaps.length - 1]);
+    check("the phone is told the home currency, for which payments get an Add", !!snap && snap.currency === "ILS", snap && snap.currency);
+
+    await page.evaluate(() => {
+      window.__widgetPlan.action = "add-expense?amount=12.50&currency=EUR&date=2026-10-01&note=A%26B%20Caf%C3%A9";
+      (window.__cap.widgetListeners.action || []).forEach((cb) => cb({}));
+    });
+    await page.waitForTimeout(300);
+    const form = await page.evaluate(() => ({
+      open: !document.querySelector("#financeModal").hidden,
+      amount: document.querySelector("#finAmount").value, currency: document.querySelector("#finCurrency").value,
+      date: document.querySelector("#finDate").value, note: document.querySelector("#finNote").value,
+      rate: !document.querySelector("#finRateLabel").hidden,
+    }));
+    check("tapping a payment opens the add form filled in, a foreign one asking for its rate",
+      form.open && form.amount === "12.50" && form.currency === "EUR" && form.date === "2026-10-01" && form.note === "A&B Café" && form.rate, form);
+    await page.evaluate(() => { document.querySelector("#financeModal").hidden = true; document.querySelector("#settingsBtn").click(); });
+    await page.waitForTimeout(300);
+    await page.evaluate(() => document.querySelector('.srow[data-page="imports"]').click());
+    await page.waitForTimeout(300);
+    check("the switch is on Imports, in the app", await page.evaluate(() => !document.querySelector("#paymentsGroup").hidden));
+    await page.selectOption("#paymentsOn", "on");
+    await page.waitForTimeout(400);
+    const on = await page.evaluate(() => ({ set: window.__cap.paymentsSet, asked: window.__cap.askedToNotify, opened: window.__cap.paymentAccessOpened,
+      sub: document.querySelector("#paymentsSub").textContent, fix: document.querySelector("#paymentsFixBtn").hidden ? "" : document.querySelector("#paymentsFixBtn").textContent }));
+    check("turning it on asks for notifications, then goes to Android's notification access",
+      on.set.join() === "true" && on.asked === 1 && on.opened === 1, on);
+    check("and until access is given, says so with a way there", /notification access/.test(on.sub) && on.fix === "Give notification access", on);
+    await page.evaluate(() => {
+      window.__widgetPlan.paymentAccess = true;
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await page.waitForTimeout(300);
+    const after = await page.evaluate(() => ({ sub: document.querySelector("#paymentsSub").textContent, fix: document.querySelector("#paymentsFixBtn").hidden }));
+    check("back from Android's settings with access given, it's watching", /Watching/.test(after.sub) && after.fix, after);
+    errs.push(...e);
+    await ctx.close();
+
+    const web = await openApp(browser, { native: false });
+    check("a browser has no such switch", await web.page.evaluate(() => document.querySelector("#paymentsGroup").hidden));
+    errs.push(...web.errs);
+    await web.ctx.close();
   }
 
   await browser.close();

@@ -592,6 +592,18 @@ test("a pasted price loses its symbol or code and names its currency", () => {
   assert.strictEqual(p("abc"), null);
 });
 
+// ---------- expensePrefill ----------
+test("a payment or Shortcut link prefills the add form, and nothing malformed gets in", () => {
+  const p = Finance.expensePrefill;
+  assert.deepStrictEqual(p("amount=45.90&currency=ILS&date=2026-10-04&note=A%26B%20Caf%C3%A9"),
+    { amount: "45.90", currency: "ILS", date: "2026-10-04", note: "A&B Café" });
+  assert.deepStrictEqual(p("amount=%E2%82%AC12%2C50&note=Kiosk"), { amount: "12.5", currency: "EUR", note: "Kiosk" },
+    "a Shortcut's Amount brings its own currency");
+  assert.deepStrictEqual(p("amount=12&currency=usd"), { amount: "12", currency: "USD" });
+  assert.deepStrictEqual(p("amount=-3&currency=XYZ&date=tomorrow"), {});
+  assert.deepStrictEqual(p(""), {});
+});
+
 // ---------- evalMathExpr ----------
 test("evalMathExpr resolves plain subtraction like the user's 50-25", () => {
   assert.strictEqual(evalMathExpr("50-25"), 25);

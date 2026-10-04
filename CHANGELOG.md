@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.238.0] - 2026-10-04
+
+### Added
+- **Google Wallet payments, offered to the Ledger (Android).** Turn it on
+  in Settings → Imports → Google Wallet payments. When you pay with the
+  phone, LifeLog posts a notification with the amount and the place:
+  **Add** puts it in the Ledger under the category that place had last
+  time, and tapping the notification opens the add form filled in, to
+  change anything first. A payment in another currency only opens the form,
+  where its rate goes. It needs notification access, which Android asks you
+  to give in its own settings; LifeLog reads only Google Wallet's
+  notifications, and nothing leaves the phone. Needs the new APK.
+- **Expenses from a link.** `lifelog://action/add-expense?amount=…&note=…`
+  (also `currency` and `date`) opens the add form filled in, so an iPhone
+  Shortcut can do the same with Apple Pay's Transaction automation.
+
 ## [0.237.0] - 2026-10-04
 
 ### Fixed

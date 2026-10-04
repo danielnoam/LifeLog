@@ -16,6 +16,32 @@ what was decided against and why.
 
 ---
 
+- **Google Wallet payments (0.238.0).** A NotificationListenerService
+  (PaymentListener) sees every notification once access is given, and acts
+  only on com.google.android.apps.walletnfcrel's, only with the switch on
+  (a SharedPreferences flag, so it's this phone's, not synced data).
+  PaymentText reads a currency next to a number anywhere in the text rather
+  than matching Wallet's sentence, which changes with language and release:
+  merchant in the title, amount in the text ("₪45.90 with Visa •••• 1234"),
+  falling back to the older one-line "Paid $4.50 at X". It strips bidi marks
+  (Hebrew wraps the amount in them), takes the last of "." and "," as the
+  decimal point when both appear, and a lone comma only before exactly two
+  digits. Refunds and zero amounts are skipped. The exact text of a real
+  Wallet notification on Daniel's phone wasn't seen; the parser is written to
+  the shapes known, and a miss means no offer, never a wrong expense.
+  The same payment within two minutes is ignored (Wallet re-posts). Add
+  queues {kind:"expense"} on the widgets' queue, so it reaches the data the
+  way a widget tick does (applyQueue); the id is made on the phone, so a
+  queue drained twice adds it once. Add only shows when the currency is the
+  home one (the snapshot now carries `currency`): a foreign amount has no
+  rate on the phone, so it opens the form instead. The category is the one
+  the same note (merchant) last had, else the first. The form link is
+  "add-expense?query", kept encoded through actionOfUrl so a merchant with
+  "&" survives, and the same query works from an iOS Shortcut. On Android
+  13+, a sideloaded APK has notification access greyed out as a "restricted
+  setting" until App info → ⋮ → Allow restricted settings; the hint says so.
+  Bank apps' notifications would be another package and parser shape; not
+  done until there's a real notification to write it against.
 - **A widget update while hidden goes at once (0.237.0).** changed()
   debounced the snapshot by 400ms, which is fine in the foreground. But the
   sync started on opening the app often finishes after you've left, and

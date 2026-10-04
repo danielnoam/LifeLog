@@ -149,6 +149,23 @@
             </intent-filter>
         </receiver>
 
+        <!-- Google Wallet payments (Payments). Does nothing until the person
+             gives notification access in Android's settings and turns the
+             switch on in LifeLog's; even then it reads only Wallet's. -->
+        <service
+            android:name="io.github.danielnoam.lifelog.widgets.PaymentListener"
+            android:exported="true"
+            android:label="@string/payments_listener_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name="io.github.danielnoam.lifelog.widgets.PaymentReceiver"
+            android:exported="false" />
+
         <service
             android:name="io.github.danielnoam.lifelog.widgets.ListService"
             android:exported="false"
