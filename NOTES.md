@@ -16,6 +16,15 @@ what was decided against and why.
 
 ---
 
+- **Selects draw their own arrow (0.234.0).** The native one sat against
+  the border on Android. `appearance: none` plus two gradient halves of a
+  small triangle in `--text-dim`, so every theme gets it without an SVG per
+  theme. The selects that set a `background:` shorthand now set
+  `background-color`, since the shorthand would wipe the arrow; the
+  `padding-right` is !important so the selects with their own padding still
+  leave room for it.
+- **The Summary's Recurring card groups by bill (0.234.0)**, the last plan of
+  each planChain, the same rule as the recurring list's one row per bill.
 - **Merge keeps overlapping charges as one-offs (0.233.0).** 0.232.0 ended
   the earlier plan the day before the later one starts and dropped its
   charges past that; Daniel wanted nothing removed (he had really paid both

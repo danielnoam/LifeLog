@@ -1374,7 +1374,19 @@
   function renderRecurringSplitCard(root, expenseItems) {
     const recurring = expenseItems.filter((f) => f.virtual);
     if (!recurring.length) return;
-    const byRec = groupBy(recurring, (f) => f.recurringId);
+    // One bar per bill, not per plan: a price change or a merge splits a bill
+    // into a chain of plans, and its charges add up under the latest one.
+    const all = state.data.recurringExpenses || [];
+    const headOf = new Map();
+    const billOf = (id) => {
+      if (!headOf.has(id)) {
+        const rec = all.find((r) => r.id === id);
+        const chain = rec ? planChain(all, rec) : [];
+        headOf.set(id, chain.length ? chain[chain.length - 1].id : id);
+      }
+      return headOf.get(id);
+    };
+    const byRec = groupBy(recurring, (f) => billOf(f.recurringId));
     const rows = Object.keys(byRec).map((id) => {
       const group = byRec[id];
       const rec = state.data.recurringExpenses.find((r) => r.id === id);

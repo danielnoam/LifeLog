@@ -387,7 +387,7 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
   gap: 20px;
   /* extra bottom padding reserves real room for the sync status line under
      the logo (see .storage-status) so it never overlaps the filter bar. */
-  padding: 12px 20px 24px;
+  padding: 12px 20px 28px;
   background: var(--bg-elev);
   border-bottom: 1px solid var(--border);
   position: sticky;
@@ -545,7 +545,7 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
    topbar's extra bottom padding above reserves it real space instead of
    overlapping the filter bar underneath. */
 .storage-status {
-  position: absolute; top: 100%; left: 0; margin-top: 10px;
+  position: absolute; top: 100%; left: 0; margin-top: 14px;
   font-size: var(--fs-2xs); color: var(--text-dim); display: flex; align-items: center; gap: 6px;
   max-width: 260px; white-space: nowrap; cursor: pointer;
 }
@@ -694,9 +694,22 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
 .filter-label { cursor: pointer; user-select: none; }
 .filter-label:hover { color: var(--accent); }
 select {
-  background: var(--bg-elev); color: var(--text); border: 1px solid var(--border);
+  background-color: var(--bg-elev); color: var(--text); border: 1px solid var(--border);
   padding: 6px 10px; border-radius: var(--r-md); font-size: var(--fs-sm);
   transition: border-color var(--dur-fast) var(--ease);
+}
+/* The native arrow sat against the right border (on Android most of all).
+   Drawn here instead, as two gradient halves of a chevron in a token
+   colour so every theme gets it, with room kept for it on the right. The
+   !important on padding-right is what keeps that room under the dozen
+   selects that set their own padding. */
+select:not([multiple]) {
+  appearance: none; -webkit-appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--text-dim) 50%),
+    linear-gradient(135deg, var(--text-dim) 50%, transparent 50%);
+  background-position: calc(100% - 16px) calc(50% + 1px), calc(100% - 12px) calc(50% + 1px);
+  background-size: 4px 4px; background-repeat: no-repeat;
+  padding-right: 28px !important;
 }
 select:focus { outline: none; border-color: var(--accent); }
 
@@ -825,7 +838,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .rate-row .btn { flex: 0 0 auto; }
 
 .sort-select {
-  background: var(--bg-elev-2); border: 1px solid var(--border); color: var(--text-dim);
+  background-color: var(--bg-elev-2); border: 1px solid var(--border); color: var(--text-dim);
   padding: 6px 8px; border-radius: var(--r-md); font: inherit; font-size: var(--fs-sm); cursor: pointer;
   max-width: 100%;
 }
@@ -1639,7 +1652,7 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .bulk-preset:hover:not(:disabled) { background: var(--bg); }
 
 .bulk-move-select {
-  background: var(--bg); border: 1px solid var(--border); color: var(--text);
+  background-color: var(--bg); border: 1px solid var(--border); color: var(--text);
   padding: 6px 8px; border-radius: var(--r-md); font-size: var(--fs-xs);
 }
 
@@ -1844,7 +1857,7 @@ body.modal-open { overflow: hidden; }
 .modal-head h2 { margin: 0; }
 .modal label { display: block; font-size: var(--fs-sm); color: var(--text-dim); margin-bottom: 12px; }
 .modal label input:not([type=checkbox]), .modal label select, .modal label textarea {
-  display: block; width: 100%; margin-top: 6px; background: var(--bg);
+  display: block; width: 100%; margin-top: 6px; background-color: var(--bg);
   border: 1px solid var(--border); color: var(--text); padding: 10px 12px;
   border-radius: var(--r-md); font-size: var(--fs-md);
 }
@@ -2154,7 +2167,7 @@ kbd {
   margin-bottom: 6px !important; color: var(--text-dim); font-size: var(--fs-sm);
 }
 .ovr input:not([type=checkbox]), .ovr select {
-  display: block; width: 100%; background: var(--bg);
+  display: block; width: 100%; background-color: var(--bg);
   border: 1px solid var(--border); color: var(--text); padding: 10px 12px;
   border-radius: var(--r-md); font-size: var(--fs-md);
 }
@@ -2348,7 +2361,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
      and the mode fan rises out of the bottom bar inside it — through
      exactly the corner the + button floats in — so no value on the fan
      itself could lift it clear. They never overlap at rest. */
-  html:not(.force-pc) .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 24px; z-index: 40; }
+  html:not(.force-pc) .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 28px; z-index: 40; }
   /* basis 0, not auto: flex wraps on hypothetical sizes before it shrinks
      anything, so a basis of "as wide as the input would like to be" puts the
      ⚙ on a second row the moment the field gets any wider — which the ✕'s
@@ -2509,7 +2522,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
 }
 
 /* Above .fab-wrap (35) — see the note in the phone block above. */
-html.force-mobile .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 24px; z-index: 40; }
+html.force-mobile .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 28px; z-index: 40; }
 html.force-mobile .search-wrap { order: 2; margin-left: 0; width: auto; flex: 1 1 0; min-width: 0; }
 html.force-mobile .search-clear { width: 34px; font-size: var(--fs-sm); }
 /* Fields on a phone (0.222.0): 44px to hit, and 16px text, below which

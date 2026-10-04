@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.234.0] - 2026-10-04
+
+### Fixed
+- **Merged recurring expenses count as one in the Summary.** Its Recurring
+  card showed a bar per plan; it now adds a bill's plans up under its
+  latest one, whether they came from a merge or a plan change.
+- **Dropdown arrows had no room:** the arrow sat against the right border,
+  most of all on Android. Every dropdown now draws its own, inset from the
+  edge, in every theme.
+- **More space above the sync line** ("Synced to …") under the logo.
+
 ## [0.233.0] - 2026-10-04
 
 ### Added

@@ -17,6 +17,7 @@ const SEED = {
     { id: "net", startDate: "2026-01-01", interval: "monthly", amount: 39.9, category: "Entertainment", note: "Netflix",
       overrides: { "2026-02-01": { note: "Netflix, price test" } }, createdAt: T, updatedAt: T },
     { id: "gym", startDate: "2026-01-05", interval: "yearly", amount: 1200, category: "Entertainment", note: "Gym", createdAt: T, updatedAt: T },
+    { id: "old", startDate: "2025-06-01", endDate: "2025-10-31", interval: "monthly", amount: 30, category: "Entertainment", note: "Streaming", createdAt: T, updatedAt: T },
     { id: "gymx", startDate: "2026-01-05", interval: "monthly", amount: 50, category: "Entertainment", note: "Gym classes", createdAt: T, updatedAt: T },
   ],
   financeCategories: [{ id: "ent", name: "Entertainment", color: "#e2723b", updatedAt: T }],
@@ -136,6 +137,24 @@ const paste = (page, sel, text) => page.evaluate(([sel, text]) => {
   await page.click("#resetRecOccBtn");
   await page.waitForTimeout(400);
   check("Delete removes it", !(await plan(page, "net")).extras);
+
+  // ---- 6. a merged bill is one bar in the Summary ----
+  await page.click("#cancelRecurringBtn");
+  await openPlan(page, "Netflix");
+  await page.click("#recMoreBtn");
+  await page.click("#mergeBtn");
+  await page.waitForTimeout(200);
+  await page.locator(".picker-row", { hasText: "Streaming" }).locator("input").check();
+  await page.click("#financePickerConfirmBtn");
+  await page.waitForTimeout(400);
+  await page.evaluate(() => localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "finance", financeMode: "summary" })));
+  await page.reload({ waitUntil: "load" });
+  await page.waitForTimeout(800);
+  const bars = await page.evaluate(() => {
+    const card = [...document.querySelectorAll(".card")].find((c) => c.querySelector("h2") && c.querySelector("h2").textContent === "Recurring");
+    return card ? [...card.querySelectorAll(".lbl")].map((l) => l.textContent) : null;
+  });
+  check("the Summary counts the merged plans as one bill", bars && bars.includes("Netflix") && !bars.includes("Streaming"), bars);
 
   await browser.close();
   done(errs);
