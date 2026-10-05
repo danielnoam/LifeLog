@@ -147,7 +147,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.239.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.240.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3448,6 +3448,21 @@
     "monthMinWidth", "monthMaxWidth",
   ]);
 
+  function sanitizeAccomplishment(a, y) {
+    // Legacy accomplishments (or a plain string, the oldest shape) have
+    // no id — synthesize one deterministically from year+text (the same
+    // identity key mergeAccomplishments already uses for dedup) so two
+    // devices normalizing the same legacy data agree on it, instead of
+    // each minting a random one that would look like two different items.
+    if (typeof a === "string") {
+      return { id: "a-" + y + "-" + a.toLowerCase().replace(/[^a-z0-9]+/g, "-"), text: a, createdAt: null, updatedAt: "1970-01-01T00:00:00.000Z" };
+    }
+    const id = a.id || ("a-" + y + "-" + (a.text || "").toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+    const out = { id, text: a.text || "", createdAt: a.createdAt || null, updatedAt: backfillUpdatedAt(a) };
+    if (a.notes) out.notes = a.notes;
+    return keepUnknown(a, out, KNOWN_ACCOMPLISHMENT_KEYS);
+  }
+
   function normalize(data) {
     data = data || emptyData();
     data.categories = (data.categories || []).map(sanitizeCategory);
@@ -3527,20 +3542,7 @@
     const accIn = data.accomplishments || {};
     data.accomplishments = {};
     for (const y of Object.keys(accIn)) {
-      data.accomplishments[y] = (accIn[y] || []).map((a) => {
-        // Legacy accomplishments (or a plain string, the oldest shape) have
-        // no id — synthesize one deterministically from year+text (the same
-        // identity key mergeAccomplishments already uses for dedup) so two
-        // devices normalizing the same legacy data agree on it, instead of
-        // each minting a random one that would look like two different items.
-        if (typeof a === "string") {
-          return { id: "a-" + y + "-" + a.toLowerCase().replace(/[^a-z0-9]+/g, "-"), text: a, createdAt: null, updatedAt: "1970-01-01T00:00:00.000Z" };
-        }
-        const id = a.id || ("a-" + y + "-" + (a.text || "").toLowerCase().replace(/[^a-z0-9]+/g, "-"));
-        const out = { id, text: a.text || "", createdAt: a.createdAt || null, updatedAt: backfillUpdatedAt(a) };
-        if (a.notes) out.notes = a.notes;
-        return keepUnknown(a, out, KNOWN_ACCOMPLISHMENT_KEYS);
-      });
+      data.accomplishments[y] = (accIn[y] || []).map((a) => sanitizeAccomplishment(a, y));
     }
     // ensure every used category exists
     ensureCategories(data.categories, [...data.entries, ...data.backlog]);
@@ -4968,7 +4970,7 @@
   // its small pure helpers directly via require(), without needing this
   // whole file's real bootstrap (Storage.load, wire()'s DOM wiring, etc).
   window.LifeLogApp = {
-    normalize, backfillUpdatedAt, emptyData, ensureCategories, ensureProjects, sanitizeCategory,
+    normalize, sanitizeAccomplishment, backfillUpdatedAt, emptyData, ensureCategories, ensureProjects, sanitizeCategory,
     // The bulk-run tracker, exposed the same way: a run is otherwise only
     // reachable through a minute of real network, which is not a test.
     startBulkRun, markBulkItem, finishBulkRun, clearBulkRun,

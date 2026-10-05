@@ -290,7 +290,8 @@
         // every note holding the old one follows it.
         const old = cat.name;
         cat.name = name;
-        state.data.notes.forEach((n) => { if (n.category === old) n.category = name; });
+        renameNoteCategory(state.data, old, name);
+        window.LifeLogBoards.renameCategory(old, name);
         if (state.noteActiveCats.has(old)) { state.noteActiveCats.delete(old); state.noteActiveCats.add(name); }
       }
     }
@@ -300,6 +301,14 @@
     await persist();
     if (after) after(name);
   }
+  // Notes name their category; `to` null leaves them uncategorised. Boards
+  // carry the same names in their own file (LifeLogBoards.renameCategory).
+  function renameNoteCategory(data, from, to) {
+    for (const n of data.notes || []) {
+      if (n.category !== from) continue;
+      if (to) n.category = to; else delete n.category;
+    }
+  }
   async function deleteNoteCategory() {
     const cats = noteCats();
     const cat = cats.find((c) => c.name === $("#noteCatOrigName").value);
@@ -308,7 +317,8 @@
     if (!confirm(using.length
       ? `“${cat.name}” is used by ${using.length} note${using.length === 1 ? "" : "s"}. Delete it and leave them uncategorised?`
       : `Delete note category “${cat.name}”?`)) return;
-    using.forEach((n) => { delete n.category; });
+    renameNoteCategory(state.data, cat.name, null);
+    window.LifeLogBoards.renameCategory(cat.name, null);
     state.data.noteCategories = cats.filter((c) => c !== cat);
     state.noteActiveCats.delete(cat.name);
     closeNoteCatModal();
@@ -1349,7 +1359,7 @@
 
   window.LifeLogNotes = {
     init, wire,
-    sanitizeNote, noteYears, getFilteredNotes, noteCats, openNoteCatModal, closeNoteCatModal, noteHaystack,
+    sanitizeNote, renameNoteCategory, noteYears, getFilteredNotes, noteCats, openNoteCatModal, closeNoteCatModal, noteHaystack,
     sanitizeTodo, foldTodosIntoLists, listNotes: () => state.data.notes.filter((n) => n.kind === "list"),
     renderNotes, focusQuickList, openNoteReader, closeNoteReader, isCollection,
     openNoteModal, closeNoteModal,

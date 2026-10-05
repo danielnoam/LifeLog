@@ -13,6 +13,7 @@ const { spawn } = require("child_process");
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lifelog-bridge-"));
 const FILE = path.join(dir, "lifelog.json");
+const BOARDS = path.join(dir, "boards.json");
 process.env.LIFELOG_LOCAL_FILE = FILE;
 process.env.LIFELOG_STATE_DIR = path.join(dir, "state");
 process.env.LIFELOG_CONFIG = path.join(dir, "none.json");
@@ -52,15 +53,32 @@ function seed() {
         marks: { [daysAgo(1)]: 1, [daysAgo(2)]: 1 }, createdAt: T, updatedAt: T },
       { id: "h2", name: "No coffee", color: "#aa2266", cadence: "daily", target: 1, order: 1, startedAt: daysAgo(30), avoid: true, limit: 0, createdAt: T, updatedAt: T },
     ],
-    accomplishments: {},
+    accomplishments: { 2025: [{ id: "a1", text: "Ran a half marathon", createdAt: T, updatedAt: T }] },
     settings: { currency: "ILS", mediaKeys: { rawg: "SECRET-KEY-123" }, steam: { steamId: "7656119SECRET" } },
   };
 }
+const boardsSeed = () => ({ boards: [
+  { id: "bd1", name: "Kitchen plan", category: "Ideas", createdAt: T, updatedAt: T,
+    elements: [{ id: "t1", t: "text", c: "ink", sw: 4, x: 0, y: 0, text: "Island here" }, { id: "p1", t: "pen", c: "ink", sw: 2, p: [0, 0, 5, 5] }] },
+  { id: "bd2", name: "Doodle", createdAt: T, updatedAt: T, elements: [] },
+] });
+// Two more bills, for the tests about bills: one in a project with a one-off
+// charge, one billed in dollars.
+const withBills = () => {
+  const d = data();
+  d.recurringExpenses.push(
+    { id: "r2", startDate: "2026-05-15", interval: "monthly", amount: 40, category: "Food", note: "Gym", project: "Trip",
+      extras: [{ id: "xx1", date: "2026-06-01", amount: 10, category: "Food" }], createdAt: T, updatedAt: T },
+    { id: "r3", startDate: "2026-02-05", interval: "monthly", amount: 36, currency: "USD", fxAmount: 10, rate: 3.6, category: "Food", note: "Cloud", createdAt: T, updatedAt: T });
+  fs.writeFileSync(FILE, JSON.stringify(d, null, 2));
+};
 const reset = () => {
   fs.writeFileSync(FILE, JSON.stringify(seed(), null, 2));
+  fs.writeFileSync(BOARDS, JSON.stringify(boardsSeed()));
   fs.rmSync(process.env.LIFELOG_STATE_DIR, { recursive: true, force: true });
 };
 const data = () => JSON.parse(fs.readFileSync(FILE, "utf8"));
+const boards = () => JSON.parse(fs.readFileSync(BOARDS, "utf8")).boards;
 const call = async (name, args) => B.callTool(name, args);
 const ok = async (name, args) => {
   const r = await call(name, args);
@@ -286,6 +304,106 @@ test("the app's setup link connects the bridge, and loses to keys set outright",
   }
 });
 
+test("accomplishments are read, added, edited, moved between years and deleted", async () => {
+  reset();
+  assert.match(await ok("lifelog_accomplishments", {}), /2025: Ran a half marathon {2}\(a1\)/);
+  const added = await ok("lifelog_add_accomplishment", { text: "Shipped LifeLog 1.0", year: 2026, notes: "Finally" });
+  const id = /id (\S+)/.exec(added)[1];
+  let d = data();
+  assert.strictEqual(d.accomplishments["2026"][0].text, "Shipped LifeLog 1.0");
+  assert.strictEqual(d.accomplishments["2026"][0].createdAt, d.accomplishments["2026"][0].updatedAt);
+  await ok("lifelog_update_accomplishment", { item: "half marathon", year: 2024, notes: "In the rain" });
+  d = data();
+  assert.ok(!d.accomplishments["2025"], "an emptied year goes, as in the app");
+  assert.deepStrictEqual([d.accomplishments["2024"][0].id, d.accomplishments["2024"][0].notes], ["a1", "In the rain"]);
+  assert.notStrictEqual(d.accomplishments["2024"][0].updatedAt, T, "a move between years is a change the merge must see");
+  await ok("lifelog_undo", {});
+  assert.deepStrictEqual(data().accomplishments["2025"].map((a) => a.id), ["a1"]);
+  await ok("lifelog_delete_accomplishment", { item: id });
+  assert.ok(!data().accomplishments["2026"]);
+  assert.match(await ok("lifelog_search", { query: "marathon" }), /accomplishment: 2025: Ran a half marathon/);
+});
+
+test("renaming a category or project carries every item with it, as the app does", async () => {
+  reset(); withBills();
+  await refused("lifelog_rename_category", { kind: "expense", name: "Food", new_name: "rent" }, /already a expense category called "rent"/);
+  const t = await ok("lifelog_rename_category", { kind: "expense", name: "food", new_name: "Groceries", color: "#ABCDEF" });
+  assert.match(t, /Renamed the expense category "Food" to "Groceries"; 4 items follow/);
+  let d = data();
+  assert.deepStrictEqual(d.financeCategories.find((c) => c.id === "f1"), { ...d.financeCategories.find((c) => c.id === "f1"), name: "Groceries", color: "#abcdef" });
+  assert.ok(d.financeEntries.every((f) => f.category === "Groceries"));
+  assert.strictEqual(d.recurringExpenses.find((r) => r.id === "r2").extras[0].category, "Groceries", "a bill's one-off charge follows too");
+  await ok("lifelog_rename_category", { kind: "project", name: "Trip", new_name: "Japan" });
+  d = data();
+  assert.strictEqual(d.financeEntries.find((f) => f.id === "x2").project, "Japan");
+  assert.strictEqual(d.recurringExpenses.find((r) => r.id === "r2").project, "Japan", "a bill in the project follows (the Ledger's rename once missed it)");
+  await ok("lifelog_undo", {});
+  assert.strictEqual(data().recurringExpenses.find((r) => r.id === "r2").project, "Trip");
+  // A note category's boards live in boards.json, and follow too; one undo puts both files back.
+  assert.match(await ok("lifelog_rename_category", { kind: "note", name: "Ideas", new_name: "Plans" }), /1 board too/);
+  assert.strictEqual(data().notes.find((n) => n.id === "no1").category, "Plans");
+  assert.strictEqual(boards().find((b) => b.id === "bd1").category, "Plans");
+  await ok("lifelog_undo", {});
+  assert.strictEqual(data().notes.find((n) => n.id === "no1").category, "Ideas");
+  assert.strictEqual(boards().find((b) => b.id === "bd1").category, "Ideas");
+});
+
+test("one charge of a bill is changed, skipped or reset without touching the rest", async () => {
+  reset(); withBills();
+  await refused("lifelog_edit_recurring_charge", { bill: "Rent", date: "2026-03-02", amount: 3100 }, /no charge on 2026-03-02; the nearest is 2026-03-01/);
+  assert.match(await ok("lifelog_edit_recurring_charge", { bill: "Rent", date: "2026-03-01", amount: 3100, note: "Plus repairs" }), /3,100\.00 ILS — Plus repairs/);
+  assert.deepStrictEqual(data().recurringExpenses.find((r) => r.id === "r1").overrides, { "2026-03-01": { amount: 3100, note: "Plus repairs" } });
+  // A charge from before the price change belongs to the older plan in the chain.
+  await ok("lifelog_edit_recurring_charge", { bill: "Rent", date: "2025-06-01", skip: true });
+  assert.deepStrictEqual(data().recurringExpenses.find((r) => r.id === "r0").overrides, { "2025-06-01": { skip: true } });
+  const sept = await ok("lifelog_spending", { start_date: "2025-06-01", end_date: "2025-06-30", group_by: "none" });
+  assert.match(sept, /^0\.00 ILS over 0 expenses/, "a skipped charge counts for nothing");
+  await ok("lifelog_edit_recurring_charge", { bill: "Rent", date: "2026-03-01", reset: true });
+  assert.ok(!data().recurringExpenses.find((r) => r.id === "r1").overrides, "back on the plan's terms, nothing is stored");
+  // A foreign bill's amount is what was billed, at the date's rate, which is frozen.
+  await refused("lifelog_edit_recurring_charge", { bill: "Rent", date: "2026-03-01", rate: 4 }, /billed in ILS; it takes no rate/);
+  assert.match(await ok("lifelog_edit_recurring_charge", { bill: "Cloud", date: "2026-04-05", amount: 12, rate: 3.5 }), /42\.00 ILS \(12 USD at 3\.5\)/);
+  const cloud = data().recurringExpenses.find((r) => r.id === "r3");
+  assert.deepStrictEqual([cloud.overrides, cloud.rates], [{ "2026-04-05": { fxAmount: 12 } }, { "2026-04-05": 3.5 }]);
+});
+
+test("a bill is paused, resumed and has a pause removed", async () => {
+  reset(); withBills();
+  await ok("lifelog_pause_recurring", { bill: "Gym", from: "2026-07-01", to: "2026-08-31" });
+  assert.deepStrictEqual(data().recurringExpenses.find((r) => r.id === "r2").pauses, [{ from: "2026-07-01", to: "2026-08-31" }]);
+  const summer = await ok("lifelog_expenses", { start_date: "2026-07-01", end_date: "2026-08-31", query: "gym" });
+  assert.match(summer, /^0 expenses/);
+  await refused("lifelog_pause_recurring", { bill: "Gym", resume: true }, /isn't paused today/);
+  await ok("lifelog_pause_recurring", { bill: "Gym", from: daysAgo(10) });
+  assert.match(await ok("lifelog_recurring", {}), /Gym: .*paused now/);
+  await ok("lifelog_pause_recurring", { bill: "Gym", resume: true });
+  const p = data().recurringExpenses.find((r) => r.id === "r2").pauses;
+  assert.deepStrictEqual(p[p.length - 1], { from: daysAgo(10), to: daysAgo(1) });
+  await ok("lifelog_pause_recurring", { bill: "Gym", remove: "2026-07-01" });
+  assert.ok(!data().recurringExpenses.find((r) => r.id === "r2").pauses.some((x) => x.from === "2026-07-01"));
+  await refused("lifelog_pause_recurring", { bill: "Gym", remove: "2020-01-01" }, /no pause starting 2020-01-01/);
+});
+
+test("boards are listed with their text, renamed, filed, starred and deleted, and undone", async () => {
+  reset();
+  assert.match(await ok("lifelog_boards", {}), /Kitchen plan \[Ideas\]: 2 elements.*text: Island here {2}\(bd1\)/);
+  assert.match(await ok("lifelog_boards", { board: "kitchen" }), /Text on it:\n- Island here/);
+  await refused("lifelog_update_board", { board: "Doodle", category: "Nope" }, /No note category called "Nope"/);
+  await ok("lifelog_update_board", { board: "Doodle", name: "Sketches", category: "ideas", fav: true });
+  let b = boards().find((x) => x.id === "bd2");
+  assert.deepStrictEqual([b.name, b.category, b.fav], ["Sketches", "Ideas", true]);
+  assert.notStrictEqual(b.updatedAt, T);
+  assert.ok(!/\n/.test(fs.readFileSync(BOARDS, "utf8")), "boards.json stays compact, as the app writes it");
+  await ok("lifelog_delete_board", { board: "Kitchen plan" });
+  assert.deepStrictEqual(boards().map((x) => x.id), ["bd2"]);
+  await ok("lifelog_undo", {});
+  assert.deepStrictEqual(boards().map((x) => x.id).sort(), ["bd1", "bd2"]);
+  assert.match(await ok("lifelog_search", { query: "island" }), /board: Kitchen plan/);
+  // No boards file yet: an empty list, and the first change creates it.
+  fs.rmSync(BOARDS);
+  assert.match(await ok("lifelog_boards", {}), /^0 boards/);
+});
+
 test("on GitHub: read with the sha, a big file through its blob, save on top, and a stale sha is retried", async () => {
   const { openStore } = require("../bridge/store.js");
   const calls = [];
@@ -299,6 +417,7 @@ test("on GitHub: read with the sha, a big file through its blob, save on top, an
     if (url.endsWith("/user")) return json(200, { login: "me" });
     if (/\/repos\/me\/lifelog-data$/.test(url)) return json(200, { default_branch: "main" });
     if (url.includes("/git/blobs/")) return json(200, { content: b64 });
+    if (url.includes("/contents/data/boards.json") && opts.method === "GET") return json(404, { message: "Not Found" });
     if (opts.method === "PUT") {
       const body = JSON.parse(opts.body);
       calls.push("sha " + body.sha + " branch " + body.branch);
@@ -315,6 +434,12 @@ test("on GitHub: read with the sha, a big file through its blob, save on top, an
     assert.deepStrictEqual((await s.read()).data, file, "over 1MB, the content comes from the blob");
     assert.strictEqual(await s.write(file, "abc", "m"), true);
     assert.ok(calls.includes("sha abc branch main"));
+    // boards.json sits beside the data file; not there yet, it reads empty
+    // and the first save creates it, compact.
+    const bs = openStore({ token: "t", owner: "me", repo: "lifelog-data", path: "data/lifelog.json", branch: "main" }).sibling("boards.json", { boards: [] });
+    assert.deepStrictEqual(await bs.read(), { data: { boards: [] }, version: null });
+    assert.strictEqual(await bs.write({ boards: [] }, null, "m"), true);
+    assert.ok(calls.includes("PUT /repos/me/lifelog-data/contents/data/boards.json") && calls.includes("sha undefined branch main"));
     putStatus = 409;
     assert.strictEqual(await s.write(file, "old", "m"), false, "a stale sha says try again rather than throwing");
     global.fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });

@@ -15,7 +15,7 @@ const { load } = require("./load.js");
 const { readConfig, openStore, undoLog, SetupError } = require("./store.js");
 
 const L = load();
-const { Finance, Journal, Backlog, Notes, Habits, Merge, Widgets } = L;
+const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Merge, Widgets } = L;
 
 // ---------- the collections an AI may edit ----------
 // `cats` names the list a `category` must come from; notes may have none.
@@ -94,45 +94,88 @@ function cleanItem(data, coll, item, asked) {
 }
 
 // ---------- reading ----------
-let store = null, cfg = null;
-function storeOf() {
+// Two files: lifelog.json ("data") and the drawing boards' boards.json
+// beside it ("boards"), which the app keeps apart so drawing never slows a
+// save.
+let store = null, boardsStore = null, cfg = null;
+function storeOf(file) {
   if (!store) { cfg = readConfig(); store = openStore(cfg); }
-  return store;
+  if (file !== "boards") return store;
+  return boardsStore = boardsStore || store.sibling("boards.json", { boards: [] });
 }
 async function readData() { return (await storeOf().read()).data; }
+async function readBoards() {
+  const doc = (await storeOf("boards").read()).data;
+  return (doc.boards || []).map(Boards.sanitizeBoard);
+}
 
 // ---------- writing ----------
-// apply(data) changes `data` in place and returns { text, touched: [[coll, id]] }.
-// Applied to the latest file each attempt, so a save that lost a race is
-// simply made again on top of the newer one.
+// apply(doc) changes the file's contents in place and returns
+// { text, touched: [[coll, id]] }. Applied to the latest file each attempt,
+// so a save that lost a race is simply made again on top of the newer one.
 // One timestamp per change, so a new item's createdAt and updatedAt agree.
 let changeNow = null;
-async function change(summary, apply, { undoable = true } = {}) {
-  const s = storeOf();
+
+// An item as it stands, for undo. Accomplishments are kept by year rather
+// than in a list, so theirs carries the year as merge.js's __year does.
+function snapshotOf(doc, coll, id) {
+  if (coll === "accomplishments") {
+    for (const [y, list] of Object.entries(doc.accomplishments || {})) {
+      const a = (list || []).find((x) => x.id === id);
+      if (a) return { ...a, __year: y };
+    }
+    return null;
+  }
+  return (doc[coll] || []).find((x) => x.id === id) || null;
+}
+function restoreItem(doc, coll, id, before) {
+  if (coll === "accomplishments") {
+    removeAccomplishment(doc, id);
+    if (before) {
+      const { __year, ...a } = before;
+      (doc.accomplishments[__year] = doc.accomplishments[__year] || []).push(a);
+    }
+    return;
+  }
+  if (before) replaceItem(doc, coll, before);
+  else doc[coll] = (doc[coll] || []).filter((x) => x.id !== id);
+}
+
+// A board's updatedAt moves when it changes, as the app's changed() does;
+// merge.js's stamping covers lifelog.json's collections only.
+function stampBoards(before, doc, now) {
+  const was = new Map((before.boards || []).map((b) => [b.id, JSON.stringify({ ...b, updatedAt: 0 })]));
+  for (const b of doc.boards || []) if (was.get(b.id) !== JSON.stringify({ ...b, updatedAt: 0 })) b.updatedAt = now;
+}
+
+// One file's change, saved; returns its text and the undo record's items.
+async function commit(file, summary, apply) {
+  const s = storeOf(file);
   for (let attempt = 0; attempt < 5; attempt++) {
     const { data, version } = await s.read();
     const before = structuredClone(data);
     const now = changeNow = nowIso();
     let out;
     try { out = apply(data); } finally { changeNow = null; }
-    Merge.stampChangedItems(before, data, now);
-    data.exportedAt = now;
+    if (file === "boards") stampBoards(before, data, now);
+    else { Merge.stampChangedItems(before, data, now); data.exportedAt = now; }
     if (await s.write(data, version, "LifeLog bridge: " + summary)) {
-      if (undoable && out.touched.length) {
-        undoLog(cfg).push({
-          summary, at: now,
-          items: out.touched.map(([coll, id]) => ({
-            coll, id,
-            before: (before[coll] || []).find((x) => x.id === id) || null,
-            after: ((data[coll] || []).find((x) => x.id === id) || {}).updatedAt || null,
-          })),
-        });
-      }
-      return out.text;
+      const items = out.touched.map(([coll, id]) => ({
+        ...(file === "boards" ? { file } : {}), coll, id,
+        before: snapshotOf(before, coll, id),
+        after: (snapshotOf(data, coll, id) || {}).updatedAt || null,
+      }));
+      return { text: out.text, items, at: now };
     }
     await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
   }
   throw new Error("LifeLog kept changing while saving; try again.");
+}
+
+async function change(summary, apply, { undoable = true, file = "data" } = {}) {
+  const done = await commit(file, summary, apply);
+  if (undoable && done.items.length) undoLog(cfg).push({ summary, at: done.at, items: done.items });
+  return done.text;
 }
 
 function addItem(data, coll, item) {
@@ -148,6 +191,63 @@ function replaceItem(data, coll, item) {
   if (i < 0) list.push(item); else list[i] = item;
   data[coll] = list;
 }
+
+// ---------- accomplishments, bills, boards, category names ----------
+// Accomplishments are the timeline's year highlights, kept by year.
+function allAccomplishments(data) {
+  return Object.entries(data.accomplishments || {}).flatMap(([y, list]) => (list || []).map((a) => ({ ...a, year: y })));
+}
+function findAccomplishment(data, ident) {
+  const want = String(ident == null ? "" : ident).trim();
+  if (!want) fail("Say which accomplishment (its id or text).");
+  const all = allAccomplishments(data);
+  const hit = all.find((a) => a.id === want) || pickByText(all, want, (a) => a.text, "accomplishment");
+  return hit;
+}
+function removeAccomplishment(data, id) {
+  for (const y of Object.keys(data.accomplishments || {})) {
+    data.accomplishments[y] = data.accomplishments[y].filter((a) => a.id !== id);
+    if (!data.accomplishments[y].length) delete data.accomplishments[y];
+  }
+}
+function pickByText(list, want, textOf, what) {
+  const exact = list.filter((x) => lower(textOf(x)) === lower(want));
+  if (exact.length === 1) return exact[0];
+  const part = list.filter((x) => lower(textOf(x)).includes(lower(want)));
+  if (part.length === 1 && !exact.length) return part[0];
+  if (!part.length) fail(`No ${what} matches "${want}".`);
+  fail(`Several ${what}s match "${want}"; use an id: ${(exact.length ? exact : part).slice(0, 8).map((x) => `${x.id} (${cut(textOf(x), 40)})`).join("; ")}.`);
+}
+
+// A bill by any of its plans' ids, or by name among the bills the Ledger
+// shows: a bill whose price changed is a chain of plans sharing one name.
+function findBill(data, ident) {
+  const want = String(ident == null ? "" : ident).trim();
+  if (!want) fail("Say which recurring bill (its id or name).");
+  const all = data.recurringExpenses || [];
+  const byId = all.find((r) => r.id === want);
+  const rec = byId || pickByText(bills(data), want, (r) => r.note || r.category, "recurring bill");
+  const chain = Finance.planChain(all, rec);
+  return { latest: chain[chain.length - 1], chain };
+}
+
+function findBoard(list, ident) {
+  const want = String(ident == null ? "" : ident).trim();
+  if (!want) fail("Say which board (its id or name).");
+  return list.find((b) => b.id === want) || pickByText(list, want, (b) => b.name, "board");
+}
+function boardTexts(b) {
+  return (b.elements || []).filter((e) => e.t === "text" && String(e.text || "").trim()).map((e) => String(e.text).trim());
+}
+
+// The category lists by what the user calls them, and the rename that
+// carries a name through every item holding it: the app's own.
+const NAME_LISTS = {
+  timeline: { list: "categories", label: "timeline category", rename: (d, from, to) => Journal.renameCategory(d, from, to), uses: ["entries", "backlog"] },
+  expense: { list: "financeCategories", label: "expense category", rename: (d, from, to) => Finance.renameFinanceCategory(d, from, to), uses: ["financeEntries", "recurringExpenses"] },
+  note: { list: "noteCategories", label: "note category", rename: (d, from, to) => Notes.renameNoteCategory(d, from, to), uses: ["notes"] },
+  project: { list: "projects", label: "project", rename: (d, from, to) => Finance.renameProject(d, from, to), uses: ["financeEntries", "recurringExpenses"] },
+};
 
 // ---------- what reads see ----------
 // An expense row, recurring charges included, as the Ledger counts them.
@@ -250,7 +350,7 @@ const TOOLS = [
       const behind = d.appVersion && Merge.compareVersions(d.appVersion, L.version) > 0;
       return [
         `Today is ${today()}. Home currency: ${currencyOf(d)}. Data from ${storeOf().where()}.`,
-        `Timeline entries: ${(d.entries || []).length}. Backlog: ${(d.backlog || []).length}. Notes: ${(d.notes || []).length}. Expenses: ${(d.financeEntries || []).length}, plus ${bills(d).length} recurring bills. Habits: ${(d.habits || []).filter((h) => !h.archivedAt).length} active.`,
+        `Timeline entries: ${(d.entries || []).length}. Backlog: ${(d.backlog || []).length}. Notes: ${(d.notes || []).length}. Expenses: ${(d.financeEntries || []).length}, plus ${bills(d).length} recurring bills. Habits: ${(d.habits || []).filter((h) => !h.archivedAt).length} active. Accomplishments: ${allAccomplishments(d).length}. Drawing boards: see lifelog_boards.`,
         `Timeline and backlog categories: ${names("categories")}.`,
         `Expense categories: ${names("financeCategories")}.`,
         `Note categories: ${names("noteCategories")}.`,
@@ -276,7 +376,7 @@ const TOOLS = [
   },
   {
     name: "lifelog_search",
-    description: "Find anything by text across the timeline, backlog, notes, expenses, recurring bills and habits. Returns what each hit is and its id.",
+    description: "Find anything by text across the timeline, backlog, notes, expenses, recurring bills, habits, accomplishments and drawing boards. Returns what each hit is and its id.",
     readOnly: true,
     input: { query: S.str("Words to look for"), limit: S.limit },
     required: ["query"],
@@ -292,6 +392,10 @@ const TOOLS = [
       for (const f of d.financeEntries || []) look("financeEntries", f, [f.note, f.category, f.project].join(" "), `${f.date} ${money(d, f.amount)} [${f.category}] ${f.note || ""}`);
       for (const r of bills(d)) look("recurringExpenses", r, [r.note, r.category].join(" "), `${money(d, r.amount)} ${r.interval} [${r.category}] ${r.note || ""}`);
       for (const h of d.habits || []) look("habits", h, h.name, h.name);
+      for (const x of allAccomplishments(d)) if (lower(x.text + " " + (x.notes || "")).includes(q)) hits.push(`- accomplishment: ${x.year}: ${x.text} (${x.id})`);
+      try {
+        for (const b of await readBoards()) if (lower([b.name, ...boardTexts(b)].join(" ")).includes(q)) hits.push(`- board: ${b.name} (${b.id})`);
+      } catch (e) { /* boards are a second file; the rest still answers */ }
       const lim = limitOf(a, 40);
       return [head(hits.length, Math.min(lim, hits.length), "matches"), ...hits.slice(0, lim)].join("\n");
     },
@@ -461,6 +565,44 @@ const TOOLS = [
       const t = today();
       const rows = (d.habits || []).filter((h) => a.include_archived || !h.archivedAt).sort((x, y) => (x.order || 0) - (y.order || 0));
       return [`${rows.length} habits, today ${t}.`, ...rows.map((h) => habitLine(h, t))].join("\n");
+    },
+  },
+
+  {
+    name: "lifelog_accomplishments",
+    description: "The year's highlights from the timeline (accomplishments), by year, newest year first.",
+    readOnly: true,
+    input: { year: S.int("Only this year"), query: S.str("Text in the accomplishment or its notes") },
+    async run(a) {
+      const d = await readData();
+      const q = lower(a.query);
+      const rows = allAccomplishments(d).filter((x) => (!a.year || +x.year === +a.year) && (!q || lower(x.text + " " + (x.notes || "")).includes(q)))
+        .sort((x, y) => y.year.localeCompare(x.year) || String(x.createdAt || "").localeCompare(String(y.createdAt || "")));
+      return [`${rows.length} accomplishments`, ...rows.map((x) => `- ${x.year}: ${x.text}${x.notes ? " — " + cut(x.notes, 200) : ""}  (${x.id})`)].join("\n");
+    },
+  },
+  {
+    name: "lifelog_boards",
+    description: "The drawing boards (Notes → Boards): name, category, and the text written on each. Give board for one board's text in full. Drawings themselves aren't described.",
+    readOnly: true,
+    input: { board: S.str("One board's id or name"), query: S.str("Text in a board's name or its written text"), category: S.str("A note category"), limit: S.limit },
+    async run(a) {
+      const list = await readBoards();
+      if (a.board) {
+        const b = findBoard(list, a.board);
+        const texts = boardTexts(b);
+        return [`${b.name}${b.category ? " [" + b.category + "]" : ""}${b.fav ? " ★" : ""} (${b.id}), ${b.elements.length} elements, last changed ${String(b.updatedAt).slice(0, 10)}.`,
+          texts.length ? "Text on it:\n" + texts.map((t) => "- " + t).join("\n") : "No text on it."].join("\n");
+      }
+      const q = lower(a.query);
+      const rows = list.filter((b) => (!q || lower([b.name, ...boardTexts(b)].join(" ")).includes(q)) && (!a.category || lower(b.category) === lower(a.category)))
+        .sort((x, y) => (y.fav ? 1 : 0) - (x.fav ? 1 : 0) || String(y.updatedAt).localeCompare(String(x.updatedAt)));
+      const lim = limitOf(a, 40);
+      return [head(rows.length, Math.min(lim, rows.length), "boards"), ...rows.slice(0, lim).map((b) => {
+        const texts = boardTexts(b);
+        return `- ${b.name}${b.category ? " [" + b.category + "]" : ""}${b.fav ? " ★" : ""}: ${b.elements.length} elements, changed ${String(b.updatedAt).slice(0, 10)}`
+          + (texts.length ? `; text: ${cut(texts.join(" / "), 160)}` : "") + `  (${b.id})`;
+      })].join("\n");
     },
   },
 
@@ -684,6 +826,219 @@ const TOOLS = [
     },
   },
   {
+    name: "lifelog_add_accomplishment",
+    description: "Add a highlight to a year's accomplishments on the timeline.",
+    input: { text: S.str("What was accomplished"), year: S.int("Default this year"), notes: S.str("Optional") },
+    required: ["text"],
+    async run(a) {
+      const year = String(+a.year || new Date().getFullYear());
+      if (!/^\d{4}$/.test(year)) fail("year is four digits, like 2026.");
+      return change(`accomplishment "${a.text}"`, (d) => {
+        const item = App.sanitizeAccomplishment({ id: L.uid(), text: String(a.text).trim(), createdAt: changeNow, updatedAt: changeNow, ...(a.notes ? { notes: String(a.notes).trim() } : {}) }, year);
+        d.accomplishments = d.accomplishments || {};
+        (d.accomplishments[year] = d.accomplishments[year] || []).push(item);
+        return { text: `Added to ${year}'s accomplishments: "${item.text}". id ${item.id}`, touched: [["accomplishments", item.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_update_accomplishment",
+    description: "Change an accomplishment's text or notes, or move it to another year.",
+    input: { item: S.str("Its id or text"), text: S.str("New text"), notes: S.str("New notes; empty removes them"), year: S.int("Move it to this year") },
+    required: ["item"],
+    async run(a) {
+      if (a.text == null && a.notes == null && a.year == null) fail("Nothing to change: give text, notes or year.");
+      if (a.year != null && !/^\d{4}$/.test(String(a.year))) fail("year is four digits, like 2026.");
+      return change(`edit accomplishment "${a.item}"`, (d) => {
+        const old = findAccomplishment(d, a.item);
+        const { year: was, ...item } = old;
+        if (a.text != null) { if (!String(a.text).trim()) fail("An accomplishment needs text."); item.text = String(a.text).trim(); }
+        if (a.notes != null) { if (String(a.notes).trim()) item.notes = String(a.notes).trim(); else delete item.notes; }
+        const year = a.year != null ? String(a.year) : was;
+        removeAccomplishment(d, old.id);
+        (d.accomplishments[year] = d.accomplishments[year] || []).push(App.sanitizeAccomplishment(item, year));
+        return { text: `Updated the accomplishment ${old.id} (${year}): "${item.text}".`, touched: [["accomplishments", old.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_delete_accomplishment",
+    description: "Delete an accomplishment. Undoable with lifelog_undo.",
+    destructive: true,
+    input: { item: S.str("Its id or text") },
+    required: ["item"],
+    async run(a) {
+      return change(`delete accomplishment "${a.item}"`, (d) => {
+        const old = findAccomplishment(d, a.item);
+        removeAccomplishment(d, old.id);
+        return { text: `Deleted ${old.year}'s accomplishment "${cut(old.text, 60)}" (${old.id}).`, touched: [["accomplishments", old.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_rename_category",
+    description: "Rename a category or project, or change its colour. Every item filed under it follows, as when renaming in the app (a note category's boards too).",
+    input: {
+      kind: S.str("Which kind", { enum: Object.keys(NAME_LISTS) }), name: S.str("Its current name"),
+      new_name: S.str("The new name"), color: S.str("New colour, #rrggbb"),
+    },
+    required: ["kind", "name"],
+    async run(a) {
+      const spec = NAME_LISTS[a.kind] || fail("kind must be one of: " + Object.keys(NAME_LISTS).join(", "));
+      const to = a.new_name != null ? String(a.new_name).trim() : "";
+      if (!to && !a.color) fail("Nothing to change: give new_name and/or color.");
+      if (a.new_name != null && !to) fail("new_name can't be empty.");
+      if (a.color && !/^#[0-9a-f]{6}$/i.test(a.color)) fail("color is #rrggbb.");
+      let from = null;
+      const summary = `rename ${spec.label} "${a.name}"` + (to ? ` to "${to}"` : "");
+      const main = await commit("data", summary, (d) => {
+        from = nameIn(d, spec.list, a.name, spec.label);
+        const cat = d[spec.list].find((c) => c.name === from);
+        if (to && to !== from && d[spec.list].some((c) => c !== cat && lower(c.name) === lower(to))) fail(`There's already a ${spec.label} called "${to}".`);
+        const before = new Map(spec.uses.flatMap((k) => (d[k] || []).map((x) => [k + "\u0000" + x.id, JSON.stringify(x)])));
+        if (a.color) cat.color = a.color.toLowerCase();
+        if (to && to !== from) { cat.name = to; spec.rename(d, from, to); }
+        const moved = spec.uses.flatMap((k) => (d[k] || []).filter((x) => before.get(k + "\u0000" + x.id) !== JSON.stringify(x)).map((x) => [k, x.id]));
+        return { text: `${to && to !== from ? `Renamed the ${spec.label} "${from}" to "${to}"` : `Recoloured the ${spec.label} "${from}"`}; ${moved.length} item${moved.length === 1 ? "" : "s"} follow${moved.length === 1 ? "s" : ""}.`, touched: [[spec.list, cat.id], ...moved] };
+      });
+      let text = main.text, items = main.items;
+      if (a.kind === "note" && to && to !== from) {
+        const boards = await commit("boards", summary, (doc) => {
+          const hit = Boards.renameCategoryIn(doc.boards || [], from, to);
+          return { text: hit.length ? ` ${hit.length} board${hit.length === 1 ? "" : "s"} too.` : "", touched: hit.map((b) => ["boards", b.id]) };
+        });
+        text += boards.text;
+        items = items.concat(boards.items);
+      }
+      undoLog(cfg).push({ summary, at: main.at, items });
+      return text;
+    },
+  },
+  {
+    name: "lifelog_edit_recurring_charge",
+    description: "Change one charge of a recurring bill without touching the others: what it cost that time, its note, or skip it. reset puts it back to the bill's terms. Dates come from lifelog_expenses (the bill's charges).",
+    input: {
+      bill: S.str("The bill's id or name"), date: S.date("The charge's date"),
+      amount: S.num("What was billed this time; in the bill's own currency if it's billed in another"),
+      rate: S.num("For a bill in another currency: home currency per 1 unit on that date (default: the rate it has)"),
+      note: S.str("This charge's note"), skip: S.bool("Skip this charge (true) or bring it back (false)"),
+      reset: S.bool("Undo every change to this charge"),
+    },
+    required: ["bill", "date"],
+    async run(a) {
+      const date = requireDate(a.date, "date");
+      if (a.reset && (a.amount != null || a.note != null || a.skip != null || a.rate != null)) fail("reset takes nothing else.");
+      if (!a.reset && a.amount == null && a.note == null && a.skip == null && a.rate == null) fail("Nothing to change: give amount, rate, note, skip or reset.");
+      if (a.amount != null && !(+a.amount >= 0)) fail("amount can't be negative.");
+      return change(`charge ${date} of "${a.bill}"`, (d) => {
+        const { latest, chain } = findBill(d, a.bill);
+        const name = latest.note || latest.category;
+        const until = new Date(date + "T00:00:00");
+        let plan = null, occ = null;
+        for (const r of chain) {
+          const o = Finance.recurringOccurrences(r, until).find((x) => x.date === date);
+          if (o) { plan = r; occ = o; }
+        }
+        if (!occ) {
+          const far = new Date(until); far.setDate(far.getDate() + 400);
+          const near = Finance.closestOccurrenceDate(chain.flatMap((r) => Finance.recurringOccurrences(r, far)), date);
+          fail(`"${name}" has no charge on ${date}${near ? `; the nearest is ${near}` : ""}.`);
+        }
+        const rec = structuredClone(plan);
+        if (a.reset) Finance.resetOccurrence(rec, date);
+        else {
+          const ov = (plan.overrides || {})[date] || {};
+          const foreign = !!(rec.currency && rec.currency !== currencyOf(d) && Finance.occurrenceFx(rec, date, ov));
+          if (!foreign && a.rate != null) fail(`"${name}" is billed in ${currencyOf(d)}; it takes no rate.`);
+          const rate = foreign ? (a.rate != null ? +a.rate : occ.rate) : undefined;
+          if (foreign && !(rate > 0)) fail(`Give a rate for ${rec.currency} on ${date}.`);
+          Finance.setOccurrence(rec, date, {
+            amount: a.amount != null ? Math.round(+a.amount * 100) / 100 : (foreign ? occ.fxAmount : occ.amount),
+            note: a.note != null ? String(a.note).trim() : (occ.note || ""),
+            skip: a.skip != null ? !!a.skip : !!ov.skip,
+            rate,
+          });
+        }
+        const clean = cleanItem(d, "recurringExpenses", rec);
+        replaceItem(d, "recurringExpenses", clean);
+        const now = Finance.recurringOccurrences(clean, until).find((x) => x.date === date);
+        const fx = now.currency ? ` (${now.fxAmount} ${now.currency} at ${now.rate})` : "";
+        const state = now.paused ? "paused (the bill's pause covers it)" : now.skipped ? "skipped" : money(d, now.amount) + fx;
+        return { text: `"${name}" on ${date}: ${state}${now.note ? " — " + now.note : ""}${now.overridden ? "" : " (the bill's own terms)"}.`, touched: [["recurringExpenses", plan.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_pause_recurring",
+    description: "Pause a recurring bill (no charges from `from` to `to`; leave `to` out to pause until resumed), resume one that's paused today, or remove a pause by its start date.",
+    input: {
+      bill: S.str("The bill's id or name"), from: S.date("Pause from, default today"), to: S.date("Last paused day, optional"),
+      resume: S.bool("End the pause in force today; charges pick up from tomorrow"), remove: S.date("Remove the pause that starts on this date"),
+    },
+    required: ["bill"],
+    async run(a) {
+      const from = requireDate(a.from, "from"), to = requireDate(a.to, "to"), remove = requireDate(a.remove, "remove");
+      if ([a.resume, remove, from || to].filter(Boolean).length > 1) fail("Pause, resume or remove: one at a time.");
+      if (to && to < (from || today())) fail("A pause can't end before it starts.");
+      return change(`pause "${a.bill}"`, (d) => {
+        const { latest } = findBill(d, a.bill);
+        const name = latest.note || latest.category;
+        const rec = structuredClone(latest);
+        let text;
+        if (a.resume) {
+          if (!Finance.resumeOn(rec, today())) fail(`"${name}" isn't paused today.`);
+          text = `Resumed "${name}"; its charges pick up from tomorrow.`;
+        } else if (remove) {
+          const i = (rec.pauses || []).findIndex((p) => p.from === remove);
+          if (i < 0) fail(`"${name}" has no pause starting ${remove}. Its pauses: ${(rec.pauses || []).map((p) => p.from + (p.to ? " to " + p.to : " on")).join(", ") || "none"}.`);
+          Finance.setPause(rec, i, null);
+          text = `Removed the pause from ${remove} on "${name}"; those charges are back.`;
+        } else {
+          const start = from || today();
+          Finance.setPause(rec, null, to ? { from: start, to } : { from: start });
+          text = to ? `Paused "${name}" from ${start} to ${to}.` : `Paused "${name}" from ${start} until resumed.`;
+        }
+        replaceItem(d, "recurringExpenses", cleanItem(d, "recurringExpenses", rec));
+        return { text, touched: [["recurringExpenses", latest.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_update_board",
+    description: "Rename a drawing board, file it under a note category, or star it. Its drawing isn't touched.",
+    input: { board: S.str("Its id or name"), name: S.str("New name"), category: S.str("A note category; empty for none"), fav: S.bool("Starred") },
+    required: ["board"],
+    async run(a) {
+      if (a.name == null && a.category == null && a.fav == null) fail("Nothing to change: give name, category or fav.");
+      if (a.name != null && !String(a.name).trim()) fail("A board needs a name.");
+      const d = a.category ? await readData() : null;
+      const category = a.category ? nameIn(d, "noteCategories", a.category, "note category") : "";
+      return change(`edit board "${a.board}"`, (doc) => {
+        const b = findBoard((doc.boards || []).map(Boards.sanitizeBoard), a.board);
+        const next = { ...(doc.boards.find((x) => x.id === b.id)) };
+        if (a.name != null) next.name = String(a.name).trim();
+        if (a.category != null) { if (category) next.category = category; else delete next.category; }
+        if (a.fav != null) { if (a.fav) next.fav = true; else delete next.fav; }
+        replaceItem(doc, "boards", Boards.sanitizeBoard(next));
+        return { text: `Updated the board ${b.id}: "${next.name}"${next.category ? " [" + next.category + "]" : ""}${next.fav ? " ★" : ""}.`, touched: [["boards", b.id]] };
+      }, { file: "boards" });
+    },
+  },
+  {
+    name: "lifelog_delete_board",
+    description: "Delete a drawing board. Undoable with lifelog_undo.",
+    destructive: true,
+    input: { board: S.str("Its id or name") },
+    required: ["board"],
+    async run(a) {
+      return change(`delete board "${a.board}"`, (doc) => {
+        const b = findBoard((doc.boards || []).map(Boards.sanitizeBoard), a.board);
+        doc.boards = doc.boards.filter((x) => x.id !== b.id);
+        return { text: `Deleted the board "${b.name}" (${b.id}).`, touched: [["boards", b.id]] };
+      }, { file: "boards" });
+    },
+  },
+  {
     name: "lifelog_undo",
     description: "Undo the most recent change made through this bridge. Refuses if the item was edited elsewhere since, unless force is true.",
     destructive: true,
@@ -693,21 +1048,27 @@ const TOOLS = [
       const log = undoLog(cfg);
       const rec = log.peek();
       if (!rec) return "There's nothing to undo.";
-      const text = await change(`undo ${rec.summary}`, (d) => {
-        for (const it of rec.items) {
-          const cur = (d[it.coll] || []).find((x) => x.id === it.id);
+      const files = [...new Set(rec.items.map((it) => it.file || "data"))];
+      const check = (file, d) => {
+        for (const it of rec.items.filter((x) => (x.file || "data") === file)) {
+          const cur = snapshotOf(d, it.coll, it.id);
           if (cur && it.after && cur.updatedAt !== it.after && !a.force) {
             fail(`"${rec.summary}" was changed again since (${it.coll} ${it.id}); undoing would lose that. Pass force to undo anyway.`);
           }
         }
-        for (const it of rec.items) {
-          if (it.before) replaceItem(d, it.coll, it.before);
-          else d[it.coll] = (d[it.coll] || []).filter((x) => x.id !== it.id);
-        }
-        return { text: `Undid: ${rec.summary}.`, touched: [] };
-      }, { undoable: false });
+      };
+      // A change that spanned both files is checked in both before either
+      // is put back, so an undo never stops halfway.
+      if (files.length > 1) for (const f of files) check(f, (await storeOf(f).read()).data);
+      for (const f of files) {
+        await commit(f, `undo ${rec.summary}`, (d) => {
+          check(f, d);
+          for (const it of rec.items.filter((x) => (x.file || "data") === f)) restoreItem(d, it.coll, it.id, it.before);
+          return { text: "", touched: [] };
+        });
+      }
       log.drop();
-      return text;
+      return `Undid: ${rec.summary}.`;
     },
   },
 ];

@@ -13,14 +13,6 @@ todo:
   in the sync repo, written once, with the note holding the title and a
   reader that loads the rest.
 
-- **An AI chat inside LifeLog.** The data side is done: bridge/ gives any
-  AI the tools (0.239.0), and Telemachus is that chat today, on the phone
-  over Tailscale. A chat in the app itself would talk to Telemachus, and so
-  only work while the PC is on, with CORS and a token opened to the app. Do
-  it only if opening Telemachus turns out to be the friction.
-- **More for the bridge:** accomplishments, boards, renaming categories,
-  editing a recurring bill's single charge (overrides) and pausing one.
-
 - **An Apple developer account ($99/year)**, if the iOS app is ever used
   for real: sign in CI, upload to TestFlight, and the 7-day re-signing that
   AltStore/SideStore do goes away. Everything else for iOS is built (0.216.0

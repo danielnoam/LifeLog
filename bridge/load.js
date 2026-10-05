@@ -53,6 +53,7 @@ function load() {
     Notes: window.LifeLogNotes,
     Habits: window.LifeLogHabits,
     Widgets: window.LifeLogWidgets,
+    Boards: window.LifeLogBoards,
   };
   return loaded;
 }

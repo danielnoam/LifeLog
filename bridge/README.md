@@ -64,28 +64,32 @@ resource `lifelog://guide` and by the tool `lifelog_guide`.
 Reading: `lifelog_overview` (start here), `lifelog_guide`, `lifelog_search`,
 `lifelog_get`, `lifelog_timeline`, `lifelog_backlog`, `lifelog_notes`,
 `lifelog_expenses`, `lifelog_spending`, `lifelog_recurring`,
-`lifelog_habits`.
+`lifelog_habits`, `lifelog_accomplishments`, `lifelog_boards`.
 
 Changing: `lifelog_add_expense`, `lifelog_add_timeline_entry`,
 `lifelog_add_backlog_item`, `lifelog_finish_backlog_item`,
 `lifelog_add_note`, `lifelog_update_list`, `lifelog_mark_habit`,
-`lifelog_update_item`, `lifelog_delete_item`, `lifelog_undo`.
+`lifelog_update_item`, `lifelog_delete_item`,
+`lifelog_add_accomplishment`, `lifelog_update_accomplishment`,
+`lifelog_delete_accomplishment`, `lifelog_rename_category`,
+`lifelog_edit_recurring_charge`, `lifelog_pause_recurring`,
+`lifelog_update_board`, `lifelog_delete_board`, `lifelog_undo`.
 
 Every change is checked first: categories and projects must exist, and the
 result must be something the app itself would keep, or it's refused with the
 reason. `lifelog_undo` reverses the last change made through the bridge on
 this computer, and won't overwrite an edit made since without `force`.
 
-What it never does: show your settings (they hold API keys), rename
-categories, or touch boards.
+What it never does: show your settings (they hold API keys), or draw on a
+board.
 
 ## Files
 
 - `mcp.js`: the MCP server (JSON-RPC over stdio, no SDK).
 - `cli.js`: the same tools as a command.
 - `tools.js`: the tools themselves, one table for both.
-- `store.js`: reading and saving the file, on GitHub or local, and the undo
-  history.
+- `store.js`: reading and saving the files (`lifelog.json`, and
+  `boards.json` beside it), on GitHub or local, and the undo history.
 - `load.js`: loads the app's own modules into Node.
 - `DATA.md`: every collection and field.
 

@@ -74,8 +74,11 @@ backlog, `financeCategories` for expenses and recurring bills,
 
 - `id`, `name`, `color` (`#rrggbb`), `createdAt`, `updatedAt`
 
-Renaming one in the app renames it on every item that uses it. The bridge
-doesn't rename categories.
+Renaming one renames it on every item that uses it: a timeline category on
+entries and backlog items, an expense category on expenses, recurring bills
+and their one-off charges, a note category on notes and boards. The `id`
+stays put. `lifelog_rename_category` does this (and changes colours); don't
+rename by editing items one at a time.
 
 ## Notes (`notes`)
 
@@ -124,6 +127,11 @@ src/finance.js), which is how the bridge's spending totals include them.
   skipped charge counts for nothing.
 - `pauses`: `[{ from, to? }]`, ranges with no charges (`to` absent means
   paused from then on).
+
+Change one charge with `lifelog_edit_recurring_charge` and pause or resume a
+bill with `lifelog_pause_recurring`, rather than writing `overrides`,
+`rates` or `pauses` by hand: a charge of a bill whose price changed belongs
+to the older plan in its chain, which those tools find.
 - `extras`: one-off charges on the same bill, outside its schedule:
   `[{ id, date, amount, note?, category?, currency?, fxAmount?, rate? }]`.
 - `prevId`: the plan this one replaced when the price or schedule changed.
@@ -134,7 +142,8 @@ src/finance.js), which is how the bridge's spending totals include them.
 ## Projects (`projects`)
 
 Groups of expenses, like a trip: `id`, `name`, `color`, `createdAt`,
-`updatedAt`. Expenses and bills point at one by `name`.
+`updatedAt`. Expenses and bills point at one by `name`; renaming a project
+(`lifelog_rename_category`, kind `project`) carries them with it.
 
 ## Habits (`habits`)
 
@@ -156,7 +165,9 @@ break one, and today not done yet doesn't either.
 
 The timeline's year highlights, by year: `{ "2026": [ ... ] }`. Each has
 `id`, `text`, `notes` (optional), `createdAt` and `updatedAt`. `__year`
-exists only inside the merge. The bridge reads none of this yet.
+exists only inside the merge. A year with none left is removed. Read them
+with `lifelog_accomplishments`; add, edit (or move to another year) and
+delete with the `lifelog_*_accomplishment` tools.
 
 ## Settings (`settings`)
 
@@ -169,8 +180,19 @@ Keys: `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,
 `anilist`, `releases`, `updatedAt`. Old files may still carry `monthOrder`,
 `monthMinWidth` and `monthMaxWidth`, which the app drops or moves on load.
 
+## Boards (`boards.json`)
+
+The Notes tab's drawing boards, in a file of their own beside
+`lifelog.json` (so drawing never slows a save), written compact:
+`{ "boards": [ ... ] }`. Each board has `id`, `name`, `createdAt`,
+`updatedAt`, `elements`, and optionally `category` (a note category's name)
+and `fav` (starred). Elements are strokes, shapes and text
+(`{ id, t: "text", text, x, y, ... }`); only the text says anything an AI
+can use. `lifelog_boards` lists them with their text;
+`lifelog_update_board` renames, files and stars one; `lifelog_delete_board`
+deletes one. Nothing draws.
+
 ## Not in this file
 
-- Boards (the drawing canvases) are saved in their own `boards.json`.
 - Each device's look and layout (theme, tabs, widths) stay on that device.
 - Habit reminder times are per phone.

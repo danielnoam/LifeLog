@@ -41,6 +41,29 @@ what was decided against and why.
   #setup= form. Explicit keys beat the link's. It shares the devices' token
   on purpose, for a one-paste setup; the README offers a separate
   fine-grained token for anyone who wants the AI revocable on its own.
+- **The bridge's second round (0.240.0).** Accomplishments, boards,
+  renames, single charges and pauses. The rule from 0.239.0 held: the bridge
+  calls the app's code instead of copying it. So the renames
+  (Journal.renameCategory, Finance.renameFinanceCategory and renameProject,
+  Notes.renameNoteCategory, Boards.renameCategoryIn), the charge edits
+  (Finance.setOccurrence and resetOccurrence) and the pauses (setPause,
+  resumeOn) were pulled out of the Ledger's and the modals' save handlers
+  into pure functions, which the UI now calls too. The same is true of
+  App.sanitizeAccomplishment, which came out of normalize(). Writing them
+  down turned up three cascades the app had missed. A project rename or
+  delete left recurring bills on the old name. A note-category rename left
+  boards on it. An expense-category rename left a bill's one-off `extras`
+  on it. All three are fixed in those functions. Boards live in boards.json,
+  so the store gained a sibling file (read as empty when missing, written
+  compact as the app writes it), and an undo record can span both files.
+  Undo checks both files before putting either back, so a note-category
+  rename never undoes halfway. A charge is looked up across the bill's whole
+  prevId chain, because a date before a price change belongs to the older
+  plan. A bill named in a tool call matches only the latest plan of each
+  chain, otherwise every renamed plan would make the name ambiguous.
+  Telemachus's approval rule used to list write tools by name, so new ones
+  would have run without an OK. Telemachus PR #7 makes it ask the bridge's
+  readOnlyHint instead.
 - **Google Wallet payments (0.238.0).** A NotificationListenerService
   (PaymentListener) sees every notification once access is given, and acts
   only on com.google.android.apps.walletnfcrel's, only with the switch on

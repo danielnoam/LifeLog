@@ -79,7 +79,7 @@ async function gh(cfg, method, url, body) {
   if (res.status === 401 || res.status === 403) {
     throw new SetupError("GitHub refused the LifeLog token (expired, or no access to " + cfg.owner + "/" + cfg.repo + ").");
   }
-  if (res.status === 404) throw new SetupError("GitHub has no " + cfg.owner + "/" + cfg.repo + "/" + cfg.path + " on " + cfg.branch + ".");
+  if (res.status === 404) throw new SetupError("GitHub has no " + url.replace(/\?.*/, "") + " on " + cfg.branch + ".");
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = new Error("GitHub " + res.status + ": " + (json.message || res.statusText));
@@ -89,18 +89,28 @@ async function gh(cfg, method, url, body) {
   return json;
 }
 
-function githubStore(cfg) {
+// `file` is another file in the data folder (boards.json beside
+// lifelog.json): written compact, as the app writes it, and read as `empty`
+// when it doesn't exist yet. Its version is then null, which a write takes as
+// "create".
+function githubStore(cfg, file, empty) {
   let ready = null;
   const prepare = () => (ready = ready || (async () => {
     if (!cfg.owner) cfg.owner = (await gh(cfg, "GET", "/user")).login;
     if (!cfg.branch) cfg.branch = (await gh(cfg, "GET", `/repos/${cfg.owner}/${cfg.repo}`)).default_branch;
   })().catch((e) => { ready = null; throw e; }));
-  const filePath = () => `/repos/${cfg.owner}/${cfg.repo}/contents/${cfg.path.split("/").map(encodeURIComponent).join("/")}`;
+  const repoPath = file ? cfg.path.replace(/[^/]*$/, "") + file : cfg.path;
+  const filePath = () => `/repos/${cfg.owner}/${cfg.repo}/contents/${repoPath.split("/").map(encodeURIComponent).join("/")}`;
   return {
-    where: () => `GitHub ${cfg.owner || "?"}/${cfg.repo}/${cfg.path}`,
+    where: () => `GitHub ${cfg.owner || "?"}/${cfg.repo}/${repoPath}`,
+    sibling: (name, emptyDoc) => githubStore(cfg, name, emptyDoc),
     async read() {
       await prepare();
-      const meta = await gh(cfg, "GET", filePath() + "?ref=" + encodeURIComponent(cfg.branch));
+      let meta;
+      try { meta = await gh(cfg, "GET", filePath() + "?ref=" + encodeURIComponent(cfg.branch)); } catch (e) {
+        if (empty && e instanceof SetupError && /has no/.test(e.message)) return { data: structuredClone(empty), version: null };
+        throw e;
+      }
       // Over 1MB the contents API leaves the content out; the blob has it.
       const b64 = meta.content || (await gh(cfg, "GET", `/repos/${cfg.owner}/${cfg.repo}/git/blobs/${meta.sha}`)).content;
       return { data: JSON.parse(Buffer.from(b64, "base64").toString("utf8")), version: meta.sha };
@@ -109,10 +119,11 @@ function githubStore(cfg) {
       try {
         await gh(cfg, "PUT", filePath(), {
           message,
-          // Pretty, as the app writes it, so the repo's diffs stay readable.
-          content: Buffer.from(JSON.stringify(data, null, 2), "utf8").toString("base64"),
+          // lifelog.json pretty, as the app writes it, so the repo's diffs
+          // stay readable; boards.json compact, as the app writes it.
+          content: Buffer.from(file ? JSON.stringify(data) : JSON.stringify(data, null, 2), "utf8").toString("base64"),
           branch: cfg.branch,
-          sha: version,
+          ...(version ? { sha: version } : {}),
         });
         return true;
       } catch (e) {
@@ -123,12 +134,14 @@ function githubStore(cfg) {
   };
 }
 
-function fileStore(cfg) {
-  const file = path.resolve(cfg.localFile);
+function fileStore(cfg, name, empty) {
+  const file = name ? path.join(path.dirname(path.resolve(cfg.localFile)), name) : path.resolve(cfg.localFile);
   const stamp = () => { try { return String(fs.statSync(file).mtimeMs); } catch (e) { return ""; } };
   return {
     where: () => file,
+    sibling: (n, emptyDoc) => fileStore(cfg, n, emptyDoc),
     async read() {
+      if (empty && !fs.existsSync(file)) return { data: structuredClone(empty), version: "" };
       try { return { data: JSON.parse(fs.readFileSync(file, "utf8")), version: stamp() }; } catch (e) {
         throw new SetupError("Couldn't read " + file + ": " + e.message);
       }
@@ -136,7 +149,7 @@ function fileStore(cfg) {
     async write(data, version) {
       if (stamp() !== version) return false;
       const tmp = file + ".tmp";
-      fs.writeFileSync(tmp, JSON.stringify(data, null, 2));
+      fs.writeFileSync(tmp, name ? JSON.stringify(data) : JSON.stringify(data, null, 2));
       fs.renameSync(tmp, file);
       return true;
     },

@@ -343,6 +343,20 @@
     if (n) await flush();
     return n;
   }
+  // A note category renamed, or deleted (`to` null), in the Notes tab: the
+  // boards filed under it follow, as its notes do. Pure on a list, for the
+  // AI bridge, which edits boards.json itself; the boards changed come back.
+  function renameCategoryIn(list, from, to) {
+    const hit = list.filter((b) => b.category === from);
+    for (const b of hit) { if (to) b.category = to; else delete b.category; }
+    return hit;
+  }
+  async function renameCategory(from, to) {
+    try { await ensureLoaded(); } catch (e) { return; }
+    const hit = renameCategoryIn(boards(), from, to);
+    hit.forEach(changed);
+    if (hit.length) await flush();
+  }
   async function deleteBoards(ids) {
     await ensureLoaded();
     const before = boards().length;
@@ -1248,7 +1262,7 @@
     init, wire,
     renderBoards, newBoard, openBoard, closeBoard, isEditing, handleKey, isBoardsMode, renderHistory,
     thumbnail: (b) => boardSvg(b.elements, { thumb: true }), isLoaded: () => !!doc,
-    ensureLoaded, flush, addBoards, boardsForExport, sanitizeBoard, boardsNow: () => boards(), toggleFav, setCategory, deleteBoards,
+    ensureLoaded, flush, addBoards, boardsForExport, sanitizeBoard, boardsNow: () => boards(), toggleFav, setCategory, deleteBoards, renameCategory, renameCategoryIn,
     // pure helpers (test/boards.test.js)
     simplify, encodePoints, decodePoints, hitTest, bbox, boundsOf, moved, scaled, rotated, penPath, segDist,
   };

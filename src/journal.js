@@ -1544,14 +1544,18 @@
       // it automatically for anything that changed since the last save.)
       const old = cat.name;
       cat.name = newName;
-      state.data.entries.forEach((e) => { if (e.category === old) e.category = newName; });
-      state.data.backlog.forEach((b) => { if (b.category === old) b.category = newName; });
+      renameCategory(state.data, old, newName);
       if (state.activeCats.has(old)) { state.activeCats.delete(old); state.activeCats.add(newName); }
     }
     closeCategoryModal();
     rebuildColorMap(); buildCatFilter(); render();
     await persist();
     toast("Category saved");
+  }
+
+  // The timeline and the backlog name their category; a rename moves both.
+  function renameCategory(data, from, to) {
+    for (const x of [...(data.entries || []), ...(data.backlog || [])]) if (x.category === from) x.category = to;
   }
 
   function deleteCurrentCategory() {
@@ -1576,8 +1580,7 @@
         other = { id: "other", name: "Other", color: "#7a8a99", updatedAt: new Date().toISOString() };
         state.data.categories.push(other);
       }
-      state.data.entries.forEach((e) => { if (e.category === cat.name) e.category = "Other"; });
-      state.data.backlog.forEach((b) => { if (b.category === cat.name) b.category = "Other"; });
+      renameCategory(state.data, cat.name, "Other");
     } else {
       if (!confirm(`Delete category “${cat.name}”?`)) return;
     }
@@ -1713,6 +1716,7 @@
     setEntryCover, // app.js's applySteamAppId repaints the entry cover through this
     // data lifecycle (app.js's normalize)
     sanitizeEntry,
+    renameCategory,
     // display order within a month (test/journal.test.js)
     byNewestAdded,
     // pure helpers (exported for test/journal.test.js)

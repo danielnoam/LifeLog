@@ -4,6 +4,25 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.240.0] - 2026-10-05
+
+### Added
+- **The AI bridge covers the rest of LifeLog.** An AI can now read and
+  edit the year's accomplishments, read the text on drawing boards and
+  rename, file, star or delete a board, rename a category or project (and
+  recolour it) with every item following, change or skip one charge of a
+  recurring bill, and pause, resume or unpause a bill. One undo reverses
+  each change, a rename across notes and boards included.
+
+### Fixed
+- Renaming a project now moves the recurring bills in it too, and deleting a
+  project takes them out of it; before, they kept the old name and fell out
+  of the project's totals.
+- Renaming or deleting a note category now moves the boards filed under it,
+  as it does the notes.
+- Renaming or deleting an expense category now moves a recurring bill's
+  one-off charges that carry it.
+
 ## [0.239.1] - 2026-10-04
 
 ### Changed

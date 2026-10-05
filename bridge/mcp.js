@@ -15,7 +15,7 @@ const PROTOCOLS = ["2025-06-18", "2025-03-26", "2024-11-05"];
 const GUIDE_URI = "lifelog://guide";
 
 const INSTRUCTIONS = "LifeLog is the user's personal log: a timeline of what they did and finished, a backlog of what's next, "
-  + "notes and checklists, habits, and a ledger of expenses and recurring bills. Call lifelog_overview first for today's date, "
+  + "notes and checklists, drawing boards, habits, the year's accomplishments, and a ledger of expenses and recurring bills. Call lifelog_overview first for today's date, "
   + "the currency and the exact category names. Answer from the tools rather than guessing; amounts are in the home currency. "
   + "Every change is saved to the user's own data and syncs to their devices, so make changes only when asked, and say what "
   + "you changed. lifelog_undo reverses the last one.";

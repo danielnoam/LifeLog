@@ -13,6 +13,15 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## An AI chat inside LifeLog (for now)
+
+A chat panel in the app that talks to the user's AI. Set aside on
+2026-10-05. Telemachus is that chat already, on the phone over Tailscale,
+and the bridge (0.239.0, finished in 0.240.0) gives it every LifeLog tool.
+A chat inside the app would only be a front end for Telemachus, so it would
+work only while the PC is on, and it would need CORS and a token opened to
+the app. Bring it back if opening Telemachus turns out to be the friction.
+
 ## Widgets syncing on their own
 
 Decided against (2026-10-04): a background job on the phone that fetches

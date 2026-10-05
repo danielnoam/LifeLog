@@ -373,6 +373,54 @@
     }
     return out;
   }
+  // A pause added, edited (index) or removed (entry null), kept normalized.
+  function setPause(rec, index, entry) {
+    const pauses = (rec.pauses || []).slice();
+    if (index == null) pauses.push(entry);
+    else if (entry) pauses.splice(index, 1, entry);
+    else pauses.splice(index, 1);
+    if (pauses.length) rec.pauses = normalizePauses(pauses); else delete rec.pauses;
+  }
+  // The pause currently in force, if any — what "Resume now" acts on.
+  function livePauseIndex(rec, dateStr) {
+    return (rec.pauses || []).findIndex((p) => dateStr >= p.from && (!p.to || dateStr <= p.to));
+  }
+  // Ends whichever pause covers `today`, so the bill picks its schedule back
+  // up tomorrow. False when none does: you can't resume from a pause you're
+  // not in, and one that hasn't started yet is left alone.
+  function resumeOn(rec, today) {
+    const i = livePauseIndex(rec, today);
+    if (i < 0) return false;
+    const p = rec.pauses[i];
+    // A pause that began today never suppressed anything — drop it outright
+    // rather than leaving a zero-length range behind.
+    setPause(rec, i, p.from >= today ? null : { from: p.from, to: addDaysStr(today, -1) });
+    return true;
+  }
+
+  // One charge of a plan changed by hand, stored as a sparse patch on
+  // rec.overrides keyed by its date. `amount` is what was billed; on a
+  // foreign plan that's in the plan's currency, and `rate` (given only then)
+  // is frozen for the date. Whatever matches the plan's own terms isn't
+  // stored, so a charge put back the way the plan has it carries nothing.
+  function setOccurrence(rec, date, { amount, note, skip, rate }) {
+    const foreign = rate != null;
+    if (foreign) rec.rates = { ...(rec.rates || {}), [date]: rate };
+    const ov = {};
+    // A paused date is suppressed by its pause; a skip baked in here would
+    // outlive the pause.
+    if (skip && !isPausedOn(rec, date)) ov.skip = true;
+    if (foreign) { if (amount !== rec.fxAmount) ov.fxAmount = amount; }
+    else if (amount !== rec.amount) ov.amount = amount;
+    if (note !== (rec.note || "")) ov.note = note;
+    if (Object.keys(ov).length) rec.overrides = { ...(rec.overrides || {}), [date]: ov };
+    else resetOccurrence(rec, date);
+  }
+  function resetOccurrence(rec, date) {
+    if (!rec.overrides) return;
+    delete rec.overrides[date];
+    if (!Object.keys(rec.overrides).length) delete rec.overrides;
+  }
 
   // What one occurrence of a foreign plan cost, and whether that is a fact or
   // a forecast. null for an ordinary plan, which is most of them.
@@ -1937,11 +1985,6 @@
     wrap.hidden = false;
   }
 
-  // The pause currently in force, if any — what "Resume now" acts on.
-  function livePauseIndex(rec, dateStr) {
-    return (rec.pauses || []).findIndex((p) => dateStr >= p.from && (!p.to || dateStr <= p.to));
-  }
-
   function openPauseModal(rec, index) {
     const editing = index != null && index >= 0;
     const p = editing ? rec.pauses[index] : null;
@@ -1964,10 +2007,7 @@
     if (!from) return;
     if (to && to < from) { toast("A pause can't end before it starts", true); return; }
     const idxRaw = $("#pauseIndex").value;
-    const entry = to ? { from, to } : { from };
-    const pauses = (rec.pauses || []).slice();
-    if (idxRaw === "") pauses.push(entry); else pauses.splice(+idxRaw, 1, entry);
-    rec.pauses = normalizePauses(pauses);
+    setPause(rec, idxRaw === "" ? null : +idxRaw, to ? { from, to } : { from });
     closePauseModal();
     render();
     await persist();
@@ -1979,9 +2019,7 @@
     const rec = state.data.recurringExpenses.find((x) => x.id === $("#pauseRecId").value);
     const idxRaw = $("#pauseIndex").value;
     if (!rec || idxRaw === "") return;
-    const pauses = (rec.pauses || []).slice();
-    pauses.splice(+idxRaw, 1);
-    if (pauses.length) rec.pauses = pauses; else delete rec.pauses;
+    setPause(rec, +idxRaw, null);
     closePauseModal();
     render();
     await persist();
@@ -1993,16 +2031,7 @@
   // up from tomorrow. A pause that hadn't started yet is left alone — you
   // can't resume from something you're not in.
   async function resumeCurrentRecurring(rec) {
-    const today = todayStr();
-    const i = livePauseIndex(rec, today);
-    if (i < 0) return;
-    const p = rec.pauses[i];
-    const pauses = rec.pauses.slice();
-    // A pause that began today never suppressed anything — drop it outright
-    // rather than leaving a zero-length range behind.
-    if (p.from >= today) pauses.splice(i, 1);
-    else pauses.splice(i, 1, { from: p.from, to: addDaysStr(today, -1) });
-    if (pauses.length) rec.pauses = normalizePauses(pauses); else delete rec.pauses;
+    if (!resumeOn(rec, todayStr())) return;
     render();
     await persist();
     toast("Resumed — this bill is generating occurrences again");
@@ -2088,33 +2117,17 @@
     const typed = readAmount("#recOccAmount");
     const note = $("#recOccNote").value.trim();
     const planFx = fxOf(rec);
+    let rate;
     if (planFx) {
-      const rate = parseFloat($("#recOccRate").value);
+      rate = parseFloat($("#recOccRate").value);
       if (!isFinite(rate) || rate <= 0) {
         toast("Give a rate for " + planFx.currency + " on this date", true);
         return;
       }
-      // Freezing it here is the same act "Look up past rates" performs in
-      // bulk — a rate you set by hand is no less a fact than a fetched one.
-      rec.rates = { ...(rec.rates || {}), [date]: rate };
+      // Freezing it is the same act "Look up past rates" performs in bulk —
+      // a rate you set by hand is no less a fact than a fetched one.
     }
-    const amount = typed;
-    // A paused date's checkbox is ticked and locked purely to reflect the
-    // pause, so reading it here would bake a skip override in that outlives
-    // the pause. The pause is already the reason it's suppressed.
-    const skip = !isPausedOn(rec, date) && $("#recOccSkip").checked;
-    const ov = {};
-    if (skip) ov.skip = true;
-    if (planFx) { if (amount !== rec.fxAmount) ov.fxAmount = amount; }
-    else if (amount !== rec.amount) ov.amount = amount;
-    if (note !== (rec.note || "")) ov.note = note;
-    if (Object.keys(ov).length) {
-      if (!rec.overrides) rec.overrides = {};
-      rec.overrides[date] = ov;
-    } else if (rec.overrides) {
-      delete rec.overrides[date];
-      if (!Object.keys(rec.overrides).length) delete rec.overrides;
-    }
+    setOccurrence(rec, date, { amount: typed, note, skip: $("#recOccSkip").checked, rate });
     const reopenTemplate = !$("#recurringModal").hidden;
     closeRecurringOccModal();
     render();
@@ -2161,11 +2174,7 @@
       if (reopen) openRecurringModal(rec);
       return;
     }
-    const date = $("#recOccDate").value;
-    if (rec && rec.overrides) {
-      delete rec.overrides[date];
-      if (!Object.keys(rec.overrides).length) delete rec.overrides;
-    }
+    if (rec) resetOccurrence(rec, $("#recOccDate").value);
     const reopenTemplate = !$("#recurringModal").hidden;
     closeRecurringOccModal();
     render();
@@ -2756,7 +2765,7 @@
         // rename does.
         const old = proj.name;
         proj.name = name;
-        state.data.financeEntries.forEach((f) => { if (f.project === old) f.project = name; });
+        renameProject(state.data, old, name);
       }
     }
     closeProjectModal();
@@ -3067,13 +3076,13 @@
   async function deleteCurrentProject() {
     const proj = state.data.projects.find((p) => p.name === $("#projOrigName").value);
     if (!proj) return;
-    const n = state.data.financeEntries.filter((f) => f.project === proj.name).length;
+    const n = [...state.data.financeEntries, ...state.data.recurringExpenses].filter((f) => f.project === proj.name).length;
     // Un-grouped, not deleted, and not moved to a fallback: the expenses are
     // real and stay exactly where they are in their months. Only the grouping
     // goes, which is the thing being deleted.
     if (n > 0 && !confirm(`Delete “${proj.name}”? Its ${n} expense${n === 1 ? "" : "s"} stay where they are, just no longer grouped.`)) return;
     state.data.projects = state.data.projects.filter((p) => p !== proj);
-    state.data.financeEntries.forEach((f) => { if (f.project === proj.name) delete f.project; });
+    renameProject(state.data, proj.name, null);
     closeProjectModal();
     rebuildProjectColorMap();
     buildProjectFilter();
@@ -3143,8 +3152,7 @@
       // anything that changed since the last save.)
       const old = cat.name;
       cat.name = newName;
-      state.data.financeEntries.forEach((f) => { if (f.category === old) f.category = newName; });
-      state.data.recurringExpenses.forEach((r) => { if (r.category === old) r.category = newName; });
+      renameFinanceCategory(state.data, old, newName);
       if (state.financeActiveCats.has(old)) { state.financeActiveCats.delete(old); state.financeActiveCats.add(newName); }
     }
     closeFinanceCatModal();
@@ -3172,8 +3180,7 @@
       if (!confirm(`“${cat.name}” is used by ${n} entr${n === 1 ? "y" : "ies"}. Move them to “Other” and delete?`)) return;
       let other = state.data.financeCategories.find((c) => c.name === "Other");
       if (!other) { other = { id: "other", name: "Other", color: "#7a8a99" }; state.data.financeCategories.push(other); }
-      state.data.financeEntries.forEach((f) => { if (f.category === cat.name) f.category = "Other"; });
-      state.data.recurringExpenses.forEach((r) => { if (r.category === cat.name) r.category = "Other"; });
+      renameFinanceCategory(state.data, cat.name, "Other");
     } else {
       if (!confirm(`Delete category “${cat.name}”?`)) return;
     }
@@ -3387,6 +3394,24 @@
   // shape deliberately mirrors a finance category (name + colour, referenced
   // by name) and adds an optional date range, which is what lets the expense
   // form offer the right project for a date without being asked.
+  // Everything that names a category or project by its name, moved to a new
+  // one (or, for a project, `to` null takes the grouping off). The id stays
+  // put: it's the merge identity. A recurring bill and its one-off charges
+  // carry names too, which the Ledger's own rename once missed.
+  function renameFinanceCategory(data, from, to) {
+    for (const f of data.financeEntries || []) if (f.category === from) f.category = to;
+    for (const r of data.recurringExpenses || []) {
+      if (r.category === from) r.category = to;
+      for (const x of r.extras || []) if (x.category === from) x.category = to;
+    }
+  }
+  function renameProject(data, from, to) {
+    for (const f of [...(data.financeEntries || []), ...(data.recurringExpenses || [])]) {
+      if (f.project !== from) continue;
+      if (to) f.project = to; else delete f.project;
+    }
+  }
+
   function sanitizeProject(p) {
     const out = {
       id: p.id || uid(),
@@ -3697,6 +3722,8 @@
     planChain,
     isPausedOn,
     normalizePauses,
+    setPause, resumeOn, livePauseIndex, setOccurrence, resetOccurrence,
+    renameFinanceCategory, renameProject,
     localDateStr,
     closestOccurrenceDate,
     // exported for test/finance.test.js — the date-range reply's shape and
