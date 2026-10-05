@@ -309,11 +309,11 @@ const activeView = (page) => page.evaluate(() => {
 
     await press("Ledger", "tab-up");
     check("↑ moves a tab left, and the tab bar follows",
-      JSON.stringify(await barOrder()) === JSON.stringify(["notes", "timeline", "finance", "backlog"]) &&
-      JSON.stringify((await visual()).viewOrder) === JSON.stringify(["notes", "timeline", "finance", "backlog"]),
+      JSON.stringify(await barOrder()) === JSON.stringify(["notes", "timeline", "finance", "backlog", "travel"]) &&
+      JSON.stringify((await visual()).viewOrder) === JSON.stringify(["notes", "timeline", "finance", "backlog", "travel"]),
       { bar: await barOrder(), stored: (await visual()).viewOrder });
     check("and so does the list in Settings", await page.evaluate(() =>
-      [...document.querySelectorAll("#tabToggles .tab-toggle-view .sitem-title")].map((t) => t.textContent).join() === "Notebook,Timeline,Ledger,Backlog"));
+      [...document.querySelectorAll("#tabToggles .tab-toggle-view .sitem-title")].map((t) => t.textContent).join() === "Notebook,Timeline,Ledger,Backlog,Travel"));
 
     await press("Discover", "mode-default");
     check("starring an end mode of a three-mode tab moves it into the middle",
@@ -358,7 +358,7 @@ const activeView = (page) => page.evaluate(() => {
     const dots = await page.evaluate(() => document.querySelectorAll('#viewTabs .tab[data-view="backlog"] .tab-mode-dot').length);
     const bar = await page.evaluate(() => [...document.querySelectorAll("#viewTabs .tab")].map((t) => t.dataset.view));
     check("unknown ids in a saved order are dropped and missing ones added at the end",
-      dots === 3 && JSON.stringify(bar) === JSON.stringify(["finance", "notes", "timeline", "backlog"]), { dots, bar });
+      dots === 3 && JSON.stringify(bar) === JSON.stringify(["finance", "notes", "timeline", "backlog", "travel"]), { dots, bar });
     errs.push(...e);
     await ctx.close();
   }

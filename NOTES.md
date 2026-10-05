@@ -16,6 +16,28 @@ what was decided against and why.
 
 ---
 
+- **Travel (0.241.0).**
+  - *Its own file.* Trips and places live in travel.json beside
+    lifelog.json, not in it. Not for size (a trip is a few KB) but because
+    mergeAllSources builds a fresh object from the keys it knows: a build
+    older than 0.241.0 merging lifelog.json drops any root key it doesn't
+    know, and that deletion then wins on every device. keepUnknown only
+    protects fields inside known items. An older build never opens
+    travel.json. Storage.boards became `siblingStore()`, and Storage.travel
+    is a second one; the IndexedDB version went to 4 for travel's history
+    store, and connections now close on `versionchange` so a newer tab
+    can upgrade while an older one is open.
+  - *Places are their own list*, not an array inside the trip, so two
+    devices planning different places of one trip both keep their edits
+    (mergeTravel is mergeCollection twice). A place whose trip is gone is
+    dropped on read.
+  - *No mode for how planned a day is.* A place with a time is scheduled,
+    one with a day only is "that day", one with neither is "this trip". A
+    time is only kept with a day, so the sheet disables the time fields
+    until there is one.
+  - *No VIEW_MODES entry yet*: the tab is one screen (a trip list, then a
+    trip). By area and Map will be its modes.
+
 - **The AI bridge (0.239.0).** Daniel's Telemachus (an Odysseus fork) had a
   Python MCP server of its own that re-implemented LifeLog's formats, and
   had already drifted: ratings as 1-10 (they're 1-5 stars), and spending

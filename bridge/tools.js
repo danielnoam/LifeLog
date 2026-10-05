@@ -15,7 +15,7 @@ const { load } = require("./load.js");
 const { readConfig, openStore, undoLog, SetupError } = require("./store.js");
 
 const L = load();
-const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Merge, Widgets } = L;
+const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Travel, Merge, Widgets } = L;
 
 // ---------- the collections an AI may edit ----------
 // `cats` names the list a `category` must come from; notes may have none.
@@ -94,16 +94,24 @@ function cleanItem(data, coll, item, asked) {
 }
 
 // ---------- reading ----------
-// Two files: lifelog.json ("data") and the drawing boards' boards.json
-// beside it ("boards"), which the app keeps apart so drawing never slows a
-// save.
-let store = null, boardsStore = null, cfg = null;
+// Three files: lifelog.json ("data"), and beside it the drawing boards'
+// boards.json ("boards"), which the app keeps apart so drawing never slows a
+// save, and the trips' travel.json ("travel"), kept apart so a build older
+// than them can't drop them in a merge.
+const SIBLINGS = {
+  boards: { name: "boards.json", empty: { boards: [] }, keys: ["boards"] },
+  travel: { name: "travel.json", empty: { trips: [], places: [] }, keys: ["trips", "places"] },
+};
+let store = null, cfg = null;
+const siblingStores = {};
 function storeOf(file) {
   if (!store) { cfg = readConfig(); store = openStore(cfg); }
-  if (file !== "boards") return store;
-  return boardsStore = boardsStore || store.sibling("boards.json", { boards: [] });
+  const sib = SIBLINGS[file];
+  if (!sib) return store;
+  return siblingStores[file] = siblingStores[file] || store.sibling(sib.name, sib.empty);
 }
 async function readData() { return (await storeOf().read()).data; }
+async function readTravel() { return Travel.sanitizeDoc((await storeOf("travel").read()).data); }
 async function readBoards() {
   const doc = (await storeOf("boards").read()).data;
   return (doc.boards || []).map(Boards.sanitizeBoard);
@@ -141,11 +149,13 @@ function restoreItem(doc, coll, id, before) {
   else doc[coll] = (doc[coll] || []).filter((x) => x.id !== id);
 }
 
-// A board's updatedAt moves when it changes, as the app's changed() does;
-// merge.js's stamping covers lifelog.json's collections only.
-function stampBoards(before, doc, now) {
-  const was = new Map((before.boards || []).map((b) => [b.id, JSON.stringify({ ...b, updatedAt: 0 })]));
-  for (const b of doc.boards || []) if (was.get(b.id) !== JSON.stringify({ ...b, updatedAt: 0 })) b.updatedAt = now;
+// A board's or a trip's updatedAt moves when it changes, as the app's
+// changed() does; merge.js's stamping covers lifelog.json's collections only.
+function stampSibling(before, doc, keys, now) {
+  for (const k of keys) {
+    const was = new Map((before[k] || []).map((b) => [b.id, JSON.stringify({ ...b, updatedAt: 0 })]));
+    for (const b of doc[k] || []) if (was.get(b.id) !== JSON.stringify({ ...b, updatedAt: 0 })) b.updatedAt = now;
+  }
 }
 
 // One file's change, saved; returns its text and the undo record's items.
@@ -157,11 +167,11 @@ async function commit(file, summary, apply) {
     const now = changeNow = nowIso();
     let out;
     try { out = apply(data); } finally { changeNow = null; }
-    if (file === "boards") stampBoards(before, data, now);
+    if (SIBLINGS[file]) stampSibling(before, data, SIBLINGS[file].keys, now);
     else { Merge.stampChangedItems(before, data, now); data.exportedAt = now; }
     if (await s.write(data, version, "LifeLog bridge: " + summary)) {
       const items = out.touched.map(([coll, id]) => ({
-        ...(file === "boards" ? { file } : {}), coll, id,
+        ...(SIBLINGS[file] ? { file } : {}), coll, id,
         before: snapshotOf(before, coll, id),
         after: (snapshotOf(data, coll, id) || {}).updatedAt || null,
       }));
@@ -236,6 +246,38 @@ function findBoard(list, ident) {
   if (!want) fail("Say which board (its id or name).");
   return list.find((b) => b.id === want) || pickByText(list, want, (b) => b.name, "board");
 }
+function findTrip(list, ident) {
+  const want = String(ident == null ? "" : ident).trim();
+  if (!want) fail("Say which trip (its id or name).");
+  return list.find((t) => t.id === want) || pickByText(list, want, (t) => t.name, "trip");
+}
+function findPlace(doc, ident, trip) {
+  const want = String(ident == null ? "" : ident).trim();
+  if (!want) fail("Say which place (its id or name).");
+  const byId = doc.places.find((p) => p.id === want);
+  if (byId) return byId;
+  const list = trip ? doc.places.filter((p) => p.trip === findTrip(doc.trips, trip).id) : doc.places;
+  return pickByText(list, want, (p) => p.name, "place");
+}
+// One place as a line of a trip's plan.
+function placeLine(p) {
+  const when = p.time ? Travel.timeLabel(p) + " " : "";
+  const extra = [p.address, p.note].filter(Boolean).join(" · ");
+  return `- ${when}${p.name}${p.visited ? " ✓ visited" : ""}${extra ? " — " + cut(extra, 160) : ""}  (${p.id})`;
+}
+// The fields a place takes from a tool's arguments; an empty string clears.
+const PLACE_FIELDS = ["name", "day", "time", "endTime", "address", "note", "url", "lat", "lng", "visited"];
+function placeFields(a, into) {
+  for (const k of PLACE_FIELDS) {
+    if (a[k] == null) continue;
+    if (a[k] === "") delete into[k]; else into[k] = a[k];
+  }
+  if (a.day != null && a.day !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(a.day)) fail("day is a date, YYYY-MM-DD.");
+  for (const k of ["time", "endTime"]) if (a[k] && !/^\d{2}:\d{2}$/.test(a[k])) fail(`${k} is a time, HH:MM (24-hour).`);
+  if (into.time && !into.day) fail("A time needs a day: give day too.");
+  return into;
+}
+
 function boardTexts(b) {
   return (b.elements || []).filter((e) => e.t === "text" && String(e.text || "").trim()).map((e) => String(e.text).trim());
 }
@@ -350,7 +392,7 @@ const TOOLS = [
       const behind = d.appVersion && Merge.compareVersions(d.appVersion, L.version) > 0;
       return [
         `Today is ${today()}. Home currency: ${currencyOf(d)}. Data from ${storeOf().where()}.`,
-        `Timeline entries: ${(d.entries || []).length}. Backlog: ${(d.backlog || []).length}. Notes: ${(d.notes || []).length}. Expenses: ${(d.financeEntries || []).length}, plus ${bills(d).length} recurring bills. Habits: ${(d.habits || []).filter((h) => !h.archivedAt).length} active. Accomplishments: ${allAccomplishments(d).length}. Drawing boards: see lifelog_boards.`,
+        `Timeline entries: ${(d.entries || []).length}. Backlog: ${(d.backlog || []).length}. Notes: ${(d.notes || []).length}. Expenses: ${(d.financeEntries || []).length}, plus ${bills(d).length} recurring bills. Habits: ${(d.habits || []).filter((h) => !h.archivedAt).length} active. Accomplishments: ${allAccomplishments(d).length}. Drawing boards: see lifelog_boards. Trips: see lifelog_trips.`,
         `Timeline and backlog categories: ${names("categories")}.`,
         `Expense categories: ${names("financeCategories")}.`,
         `Note categories: ${names("noteCategories")}.`,
@@ -376,7 +418,7 @@ const TOOLS = [
   },
   {
     name: "lifelog_search",
-    description: "Find anything by text across the timeline, backlog, notes, expenses, recurring bills, habits, accomplishments and drawing boards. Returns what each hit is and its id.",
+    description: "Find anything by text across the timeline, backlog, notes, expenses, recurring bills, habits, accomplishments, drawing boards and trips. Returns what each hit is and its id.",
     readOnly: true,
     input: { query: S.str("Words to look for"), limit: S.limit },
     required: ["query"],
@@ -396,6 +438,14 @@ const TOOLS = [
       try {
         for (const b of await readBoards()) if (lower([b.name, ...boardTexts(b)].join(" ")).includes(q)) hits.push(`- board: ${b.name} (${b.id})`);
       } catch (e) { /* boards are a second file; the rest still answers */ }
+      try {
+        const tr = await readTravel();
+        for (const t of tr.trips) if (lower(t.name).includes(q)) hits.push(`- trip: ${t.name} (${t.id})`);
+        for (const p of tr.places) if (lower([p.name, p.address, p.note].join(" ")).includes(q)) {
+          const t = tr.trips.find((x) => x.id === p.trip);
+          hits.push(`- place in ${t ? t.name : "a trip"}: ${p.name} (${p.id})`);
+        }
+      } catch (e) { /* so are trips */ }
       const lim = limitOf(a, 40);
       return [head(hits.length, Math.min(lim, hits.length), "matches"), ...hits.slice(0, lim)].join("\n");
     },
@@ -603,6 +653,34 @@ const TOOLS = [
         return `- ${b.name}${b.category ? " [" + b.category + "]" : ""}${b.fav ? " ★" : ""}: ${b.elements.length} elements, changed ${String(b.updatedAt).slice(0, 10)}`
           + (texts.length ? `; text: ${cut(texts.join(" / "), 160)}` : "") + `  (${b.id})`;
       })].join("\n");
+    },
+  },
+
+  {
+    name: "lifelog_trips",
+    description: "Trips (the Travel tab): each trip's dates and places. Give trip for its plan day by day: scheduled places by time, then the day's other places, then the places with no day yet.",
+    readOnly: true,
+    input: { trip: S.str("One trip's id or name") },
+    async run(a) {
+      const doc = await readTravel();
+      if (!a.trip) {
+        if (!doc.trips.length) return "No trips yet.";
+        const t0 = today();
+        return [`${doc.trips.length} trip${doc.trips.length === 1 ? "" : "s"}`, ...Travel.sortTrips(doc.trips, t0).map((t) => {
+          const n = doc.places.filter((p) => p.trip === t.id).length;
+          return `- ${t.name}: ${Travel.rangeLabel(t.start, t.end) || "no dates"}, ${n} place${n === 1 ? "" : "s"} [${Travel.tripStatus(t, t0)}]  (${t.id})`;
+        })].join("\n");
+      }
+      const t = findTrip(doc.trips, a.trip);
+      const places = doc.places.filter((p) => p.trip === t.id);
+      const out = [`${t.name}: ${Travel.rangeLabel(t.start, t.end) || "no dates"}, ${places.length} places  (${t.id})`];
+      for (const day of Travel.tripDays(t, places)) {
+        const list = Travel.sortDay(places.filter((p) => p.day === day));
+        out.push(`${Travel.dayLabel(day)} (${day})${list.length ? "" : ": nothing planned"}`, ...list.map(placeLine));
+      }
+      const loose = Travel.sortDay(places.filter((p) => !p.day));
+      if (loose.length) out.push("No day yet", ...loose.map(placeLine));
+      return out.join("\n");
     },
   },
 
@@ -1036,6 +1114,115 @@ const TOOLS = [
         doc.boards = doc.boards.filter((x) => x.id !== b.id);
         return { text: `Deleted the board "${b.name}" (${b.id}).`, touched: [["boards", b.id]] };
       }, { file: "boards" });
+    },
+  },
+  {
+    name: "lifelog_add_trip",
+    description: "Start a trip in the Travel tab. Dates are optional; with them every day of the trip shows in its plan.",
+    input: { name: S.str("What to call it"), start: S.date("First day"), end: S.date("Last day") },
+    required: ["name"],
+    async run(a) {
+      return change(`add trip "${a.name}"`, (doc) => {
+        const now = changeNow || nowIso();
+        const t = Travel.sanitizeTrip({ id: L.uid(), name: a.name, start: a.start, end: a.end || a.start, createdAt: now, updatedAt: now });
+        (doc.trips = doc.trips || []).push(t);
+        return { text: `Added the trip "${t.name}"${t.start ? ", " + Travel.rangeLabel(t.start, t.end) : ""} (${t.id}).`, touched: [["trips", t.id]] };
+      }, { file: "travel" });
+    },
+  },
+  {
+    name: "lifelog_update_trip",
+    description: "Rename a trip or change its dates. An empty date clears it.",
+    input: { trip: S.str("Its id or name"), name: S.str("New name"), start: S.date("First day"), end: S.date("Last day") },
+    required: ["trip"],
+    async run(a) {
+      if (a.name == null && a.start == null && a.end == null) fail("Nothing to change: give name, start or end.");
+      return change(`edit trip "${a.trip}"`, (doc) => {
+        const t = findTrip(Travel.sanitizeDoc(doc).trips, a.trip);
+        const next = { ...(doc.trips.find((x) => x.id === t.id)) };
+        if (a.name != null) { if (!String(a.name).trim()) fail("A trip needs a name."); next.name = a.name; }
+        for (const k of ["start", "end"]) if (a[k] != null) { if (a[k] === "") delete next[k]; else next[k] = a[k]; }
+        const clean = Travel.sanitizeTrip(next);
+        replaceItem(doc, "trips", clean);
+        return { text: `Updated the trip "${clean.name}": ${Travel.rangeLabel(clean.start, clean.end) || "no dates"}.`, touched: [["trips", t.id]] };
+      }, { file: "travel" });
+    },
+  },
+  {
+    name: "lifelog_delete_trip",
+    description: "Delete a trip and every place in it. Undoable with lifelog_undo.",
+    destructive: true,
+    input: { trip: S.str("Its id or name") },
+    required: ["trip"],
+    async run(a) {
+      return change(`delete trip "${a.trip}"`, (doc) => {
+        const t = findTrip(Travel.sanitizeDoc(doc).trips, a.trip);
+        const gone = (doc.places || []).filter((p) => p.trip === t.id);
+        doc.trips = doc.trips.filter((x) => x.id !== t.id);
+        doc.places = (doc.places || []).filter((p) => p.trip !== t.id);
+        return { text: `Deleted the trip "${t.name}" and its ${gone.length} place${gone.length === 1 ? "" : "s"}.`, touched: [["trips", t.id], ...gone.map((p) => ["places", p.id])] };
+      }, { file: "travel" });
+    },
+  },
+  {
+    name: "lifelog_add_place",
+    description: "Add a place to a trip. Give day to plan it for that day, and time (and endTime) to schedule it; with neither it's somewhere to get to sometime during the trip.",
+    input: {
+      trip: S.str("The trip's id or name"), name: S.str("The place"), day: S.date("The day to go"),
+      time: S.str("Start time, HH:MM (needs day)"), endTime: S.str("End time, HH:MM"),
+      address: S.str("Address"), note: S.str("A note"), url: S.str("A Google Maps link"),
+      lat: S.num("Latitude"), lng: S.num("Longitude"),
+    },
+    required: ["trip", "name"],
+    async run(a) {
+      return change(`add place "${a.name}"`, (doc) => {
+        const t = findTrip(Travel.sanitizeDoc(doc).trips, a.trip);
+        const now = changeNow || nowIso();
+        const same = (doc.places || []).filter((p) => p.trip === t.id && (p.day || "") === (a.day || "") && typeof p.order === "number");
+        const raw = placeFields(a, { id: L.uid(), trip: t.id, createdAt: now, updatedAt: now, order: same.length ? Math.max(...same.map((p) => p.order)) + 1 : 0 });
+        const p = Travel.sanitizePlace(raw);
+        (doc.places = doc.places || []).push(p);
+        return { text: `Added "${p.name}" to ${t.name}${p.day ? " on " + Travel.dayLabel(p.day) + (p.time ? " at " + Travel.timeLabel(p) : "") : ", no day yet"} (${p.id}).`, touched: [["places", p.id]] };
+      }, { file: "travel" });
+    },
+  },
+  {
+    name: "lifelog_update_place",
+    description: "Change a place in a trip: move it to a day (empty day for no day), schedule or unschedule it (empty time), edit its details, or mark it visited.",
+    input: {
+      place: S.str("Its id, or its name"), trip: S.str("The trip, when the name alone is ambiguous"),
+      name: S.str("New name"), day: S.date("The day; empty for no day"),
+      time: S.str("Start time, HH:MM; empty to unschedule"), endTime: S.str("End time, HH:MM; empty to clear"),
+      address: S.str("Address"), note: S.str("A note"), url: S.str("A Google Maps link"),
+      lat: S.num("Latitude"), lng: S.num("Longitude"), visited: S.bool("Been there"),
+    },
+    required: ["place"],
+    async run(a) {
+      if (PLACE_FIELDS.every((k) => a[k] == null)) fail("Nothing to change.");
+      return change(`edit place "${a.place}"`, (doc) => {
+        const found = findPlace(Travel.sanitizeDoc(doc), a.place, a.trip);
+        const next = { ...(doc.places.find((x) => x.id === found.id)) };
+        if (a.day === "") { delete next.time; delete next.endTime; }
+        if (a.time === "") delete next.endTime;
+        placeFields({ ...a, visited: a.visited === false ? "" : a.visited }, next);
+        const p = Travel.sanitizePlace(next);
+        replaceItem(doc, "places", p);
+        return { text: `Updated "${p.name}": ${p.day ? Travel.dayLabel(p.day) + (p.time ? " at " + Travel.timeLabel(p) : "") : "no day yet"}${p.visited ? ", visited" : ""}.`, touched: [["places", p.id]] };
+      }, { file: "travel" });
+    },
+  },
+  {
+    name: "lifelog_delete_place",
+    description: "Remove a place from a trip. Undoable with lifelog_undo.",
+    destructive: true,
+    input: { place: S.str("Its id, or its name"), trip: S.str("The trip, when the name alone is ambiguous") },
+    required: ["place"],
+    async run(a) {
+      return change(`delete place "${a.place}"`, (doc) => {
+        const p = findPlace(Travel.sanitizeDoc(doc), a.place, a.trip);
+        doc.places = doc.places.filter((x) => x.id !== p.id);
+        return { text: `Removed "${p.name}".`, touched: [["places", p.id]] };
+      }, { file: "travel" });
     },
   },
   {

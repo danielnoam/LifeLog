@@ -37,6 +37,7 @@ because something shipped broken that no unit test could have caught:
 | `mdimport` | Markdown files, a PDF and a folder as notes: one row per file, an unreadable PDF saying why, a file's own category, filing the selected under an existing, new or folder category, lists from task files |
 | `collections` | a collection category: its notes off the feed, its chip marked ▦, its own page of cards by name, category chips adding up (several collections are one page of all their cards; one beside a plain category is the feed of both), the reader drawing Markdown (safe links only), Edit from there, the category sheet's switch; Boards as a kind of note, with a category and a ★; selecting in a collection and by holding a note's words |
 | `renames` | renaming a project, an expense category or a note category carries every expense, recurring bill, one-off charge, note and board that names it |
+| `travel` | the Travel tab: a trip from its empty state, places on a day with and without a time and with none, a day's order, ticking visited, a reload keeping it all, Undo after a delete, the trip list's card |
 | `notesheet` | a plain note's optional title, a list's items without ticks or a quick-add switch, a quote's author and source side by side |
 | `todomigrate` | the To-do mode's lists become list notes: old data, whoever left the app on To-do, and an older device still adding and ticking to-dos through a fake GitHub |
 | `tabio` | every tab's JSON and CSV export comes back whole through that tab's import, and the full backup through Everything |

@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.241.0] - 2026-10-05
+
+### Added
+- **Travel, a fifth tab.** Plan a trip: give it a name and, if you like,
+  its dates, then add the places you want to go. Put a place on a day to
+  plan it, and give it a time to schedule it; leave it without either and
+  it waits under "No day yet". So a day can be a tight timetable, a loose
+  list of places, or both. Tick a place once you've been, and ↗ opens it in
+  Google Maps. Trips sync between your devices in a file of their own,
+  `travel.json`, beside your data.
+- The AI bridge can read a trip's plan day by day and add, move, schedule
+  and remove places, and add, change or delete trips.
+
 ## [0.240.0] - 2026-10-05
 
 ### Added

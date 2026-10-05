@@ -14,6 +14,7 @@ const { spawn } = require("child_process");
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lifelog-bridge-"));
 const FILE = path.join(dir, "lifelog.json");
 const BOARDS = path.join(dir, "boards.json");
+const TRAVEL = path.join(dir, "travel.json");
 process.env.LIFELOG_LOCAL_FILE = FILE;
 process.env.LIFELOG_STATE_DIR = path.join(dir, "state");
 process.env.LIFELOG_CONFIG = path.join(dir, "none.json");
@@ -75,10 +76,12 @@ const withBills = () => {
 const reset = () => {
   fs.writeFileSync(FILE, JSON.stringify(seed(), null, 2));
   fs.writeFileSync(BOARDS, JSON.stringify(boardsSeed()));
+  fs.rmSync(TRAVEL, { force: true });
   fs.rmSync(process.env.LIFELOG_STATE_DIR, { recursive: true, force: true });
 };
 const data = () => JSON.parse(fs.readFileSync(FILE, "utf8"));
 const boards = () => JSON.parse(fs.readFileSync(BOARDS, "utf8")).boards;
+const travel = () => JSON.parse(fs.readFileSync(TRAVEL, "utf8"));
 const call = async (name, args) => B.callTool(name, args);
 const ok = async (name, args) => {
   const r = await call(name, args);
@@ -404,6 +407,39 @@ test("boards are listed with their text, renamed, filed, starred and deleted, an
   assert.match(await ok("lifelog_boards", {}), /^0 boards/);
 });
 
+test("trips: planned day by day, places moved and scheduled, a trip deleted with its places and undone", async () => {
+  reset();
+  assert.match(await ok("lifelog_trips", {}), /No trips yet/);
+  await ok("lifelog_add_trip", { name: "Rome", start: "2027-04-10", end: "2027-04-12" });
+  assert.ok(!/\n/.test(fs.readFileSync(TRAVEL, "utf8")), "travel.json is written compact, as the app writes it");
+  await ok("lifelog_add_place", { trip: "rome", name: "Trastevere walk", day: "2027-04-11" });
+  await ok("lifelog_add_place", { trip: "Rome", name: "Colosseum", day: "2027-04-11", time: "10:00", endTime: "11:30" });
+  await ok("lifelog_add_place", { trip: "Rome", name: "Giolitti", note: "gelato" });
+  await refused("lifelog_add_place", { trip: "Rome", name: "Vatican", time: "09:00" }, /A time needs a day/);
+  await refused("lifelog_add_place", { trip: "Paris", name: "Louvre" }, /No trip matches "Paris"/);
+  const plan = await ok("lifelog_trips", { trip: "Rome" });
+  assert.match(plan, /Sat 10 Apr \(2027-04-10\): nothing planned/);
+  assert.match(plan, /Sun 11 Apr \(2027-04-11\)\n- 10:00–11:30 Colosseum .*\n- Trastevere walk/, "a scheduled place comes first");
+  assert.match(plan, /No day yet\n- Giolitti — gelato/);
+  assert.match(await ok("lifelog_trips", {}), /Rome: 10–12 Apr 2027, 3 places/);
+
+  await ok("lifelog_update_place", { place: "giolitti", day: "2027-04-12", time: "16:00", visited: true });
+  let g = travel().places.find((p) => p.name === "Giolitti");
+  assert.deepStrictEqual([g.day, g.time, g.visited], ["2027-04-12", "16:00", true]);
+  assert.notStrictEqual(g.updatedAt, g.createdAt);
+  await ok("lifelog_update_place", { place: "Giolitti", day: "", visited: false });
+  g = travel().places.find((p) => p.name === "Giolitti");
+  assert.ok(!g.day && !g.time && !g.visited, "no day takes the time with it");
+  await ok("lifelog_update_trip", { trip: "Rome", name: "Rome in spring", end: "2027-04-13" });
+  assert.deepStrictEqual([travel().trips[0].name, travel().trips[0].end], ["Rome in spring", "2027-04-13"]);
+  assert.match(await ok("lifelog_search", { query: "colos" }), /place in Rome in spring: Colosseum/);
+
+  await ok("lifelog_delete_trip", { trip: "Rome in spring" });
+  assert.deepStrictEqual([travel().trips.length, travel().places.length], [0, 0]);
+  await ok("lifelog_undo", {});
+  assert.deepStrictEqual([travel().trips.length, travel().places.length], [1, 3], "one undo brings back the trip and its places");
+});
+
 test("on GitHub: read with the sha, a big file through its blob, save on top, and a stale sha is retried", async () => {
   const { openStore } = require("../bridge/store.js");
   const calls = [];
@@ -469,6 +505,7 @@ test("every field the app's sanitizers keep is described in DATA.md", () => {
     "## Habits (`habits`)": [["habits.js", "KNOWN_HABIT_KEYS"]],
     "## Accomplishments (`accomplishments`)": [["app.js", "KNOWN_ACCOMPLISHMENT_KEYS"]],
     "## Settings (`settings`)": [["app.js", "KNOWN_SETTINGS_KEYS"]],
+    "## Trips (`travel.json`)": [["travel.js", "KNOWN_TRIP_KEYS"], ["travel.js", "KNOWN_PLACE_KEYS"]],
   };
   const missing = [];
   for (const [heading, lists] of Object.entries(where)) {

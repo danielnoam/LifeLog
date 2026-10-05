@@ -11,6 +11,7 @@
   const Wheel = window.LifeLogWheel;
   const Habits = window.LifeLogHabits;
   const Boards = window.LifeLogBoards;
+  const Travel = window.LifeLogTravel;
   const Recap = window.LifeLogRecap;
   const Widgets = window.LifeLogWidgets || { changed() {}, start() {} };
   // Absent only under the unit tests, which load this file without a page.
@@ -147,14 +148,14 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.240.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.241.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
   // Every view there is, in the order the tab bar starts in. Settings → Tabs
   // can reorder them (orderedViews below), so anything that walks the tabs
   // left to right — the swipe, the number keys — asks enabledViews().
-  const VIEW_ORDER = ["notes", "timeline", "backlog", "finance"];
+  const VIEW_ORDER = ["notes", "timeline", "backlog", "finance", "travel"];
 
   function loadVisualSettings() {
     try {
@@ -1512,6 +1513,7 @@
       updateTabUnderline();
       updateTabModeDots();
       placeFilterbar();
+      updateFilterbarVisibility();
       SettingsUI.syncViewOptionsButton(state.view);
       // #viewBody, not #content: the filterbar is #content's other child and
       // is rebuilt in place rather than thrown away with the view.
@@ -1535,6 +1537,7 @@
         else Finance.renderFinanceEntries(c);
         return;
       }
+      if (state.view === "travel") { Travel.renderTravel(c); return; }
       const entries = getFiltered();
       // What you're on now (0.218.0), above the log — and shown even when
       // nothing's logged yet or nothing matches, so it never hides behind
@@ -2739,8 +2742,10 @@
   function updateFilterbarVisibility() {
     const bar = $("#filterbar");
     if (!bar) return;
-    bar.hidden = $("#yearFilterGroup").hidden && $("#catFilterGroup").hidden
-      && $("#kindFilterGroup").hidden && $("#projFilterGroup").hidden;
+    // Trips have nothing these chips narrow: no categories, and a trip is
+    // its own span of days rather than something filed under a year.
+    bar.hidden = state.view === "travel" || ($("#yearFilterGroup").hidden && $("#catFilterGroup").hidden
+      && $("#kindFilterGroup").hidden && $("#projFilterGroup").hidden);
   }
 
   // A second axis beside the categories, and only in the Ledger, where
@@ -3878,6 +3883,8 @@
       }
       else if (b.dataset.add === "finance") Finance.openFinanceModal(null);
       else if (b.dataset.add === "recurring") Finance.openRecurringModal(null);
+      else if (b.dataset.add === "trip") Travel.addTrip();
+      else if (b.dataset.add === "place") Travel.addPlace();
     });
     document.addEventListener("click", closeAddMenu);
 
@@ -3886,6 +3893,7 @@
     Journal.wire(); // timeline entry modal, achievements, category management
     Notes.wire(); // the note modal (Timeline's Notes mode + the + menu)
     Finance.wire(); // finance/recurring/finance-category modals + finance import/export
+    Travel.wire(); // the trip and place sheets
     Backlog.wire(); // backlog modal: sync, priority/dropped, title suggestions
     Wheel.wire(); // the random wheel modal (the Backlog's 🎡 Spin, in the bar and in the pick card)
     SettingsUI.wire(); // the Settings modal: tabs, data/storage, appearance, media, privacy
@@ -4006,6 +4014,7 @@
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
         Finance.closePauseModal(); Finance.cancelFinanceCatModal();
         Habits.closeHabitModal(); Notes.closeNoteCatModal();
+        Travel.closeTripModal(); Travel.closePlaceModal();
         SettingsUI.closeSettings();
         SettingsUI.closeViewOptions();
         closeShortcutsModal();
@@ -4922,6 +4931,7 @@
   });
   Recap.init({ state, $, el, toast, MONTHS, prefersReducedMotion });
   Boards.init({ state, $, el, uid, toast, emptyState, render, Storage, download: IO.download, bulkCheckbox, toggleBulkItem, attachLongPressSelect });
+  Travel.init({ state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader });
 
   Notes.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy,

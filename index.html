@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.240.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.241.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -87,6 +87,7 @@
         <button class="tab active" data-view="timeline" data-icon="☰">Timeline</button>
         <button class="tab" data-view="backlog" data-icon="★">Backlog</button>
         <button class="tab" data-view="finance" data-icon="₪">Ledger</button>
+        <button class="tab" data-view="travel" data-icon="✈︎">Travel</button>
         <span class="tab-underline" id="tabUnderline" hidden></span>
       </nav>
       <!-- Mobile-only quick-jump row: prev/next between the sticky year/category
@@ -139,6 +140,11 @@
         <p class="add-head" aria-hidden="true"></p>
         <button type="button" data-add="finance" data-view="finance"><span class="add-ico" aria-hidden="true">¤</span>Expense</button>
         <button type="button" data-add="recurring" data-view="finance"><span class="add-ico" aria-hidden="true">↻</span>Recurring expense</button>
+      </div>
+      <div class="add-group" data-view="travel">
+        <p class="add-head" aria-hidden="true"></p>
+        <button type="button" data-add="trip" data-view="travel"><span class="add-ico" aria-hidden="true">✈︎</span>Trip</button>
+        <button type="button" data-add="place" data-view="travel"><span class="add-ico" aria-hidden="true">⌖</span>Place</button>
       </div>
     </div>
     <button id="addBtn" class="btn btn-primary fab" aria-label="Add">+</button>
@@ -905,6 +911,72 @@
           <button type="button" class="link-btn" id="convertProjectBtn" hidden>Convert…</button>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelProjectBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="tripModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tripModalTitle">
+      <h2 id="tripModalTitle">New trip</h2>
+      <form id="tripForm">
+        <label>Name
+          <input id="tripName" type="text" required autocomplete="off" placeholder="e.g. Rome in spring" />
+        </label>
+        <div class="field-row">
+          <label>Starts
+            <input id="tripStart" type="date" />
+          </label>
+          <label>Ends
+            <input id="tripEnd" type="date" />
+          </label>
+        </div>
+        <p class="hint">Dates are optional. With them, every day of the trip gets its own place in the plan.</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="deleteTripBtn" hidden>Delete</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelTripBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="placeModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="placeModalTitle">
+      <h2 id="placeModalTitle">Add a place</h2>
+      <p class="muted place-modal-trip" id="placeTripName"></p>
+      <form id="placeForm">
+        <label>Name
+          <input id="placeName" type="text" required autocomplete="off" placeholder="e.g. Trevi Fountain" />
+        </label>
+        <label>Day
+          <input id="placeDay" type="date" />
+        </label>
+        <div class="field-row">
+          <label>From
+            <input id="placeTime" type="time" />
+          </label>
+          <label>Until
+            <input id="placeEndTime" type="time" />
+          </label>
+        </div>
+        <p class="hint" id="placeTimeHint">Pick a day to give it a time. Without one it's somewhere you'll get to sometime this trip.</p>
+        <label>Address
+          <input id="placeAddress" type="text" autocomplete="off" />
+        </label>
+        <label>Google Maps link
+          <input id="placeUrl" type="url" inputmode="url" autocomplete="off" placeholder="Paste it from Share in Google Maps" />
+        </label>
+        <label>Note
+          <textarea id="placeNote" rows="2" placeholder="Book ahead, try the cacio e pepe…"></textarea>
+        </label>
+        <label class="toggle-label"><input type="checkbox" id="placeVisited" /> Been there</label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="deletePlaceBtn" hidden>Delete</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelPlaceBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
         </div>
       </form>
@@ -1856,29 +1928,30 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.240.0"></script>
-  <script defer src="src/reconcile.js?v=0.240.0"></script>
-  <script defer src="src/qr.js?v=0.240.0"></script>
-  <script defer src="src/media.js?v=0.240.0"></script>
-  <script defer src="src/merge.js?v=0.240.0"></script>
-  <script defer src="src/storage.js?v=0.240.0"></script>
-  <script defer src="src/finance.js?v=0.240.0"></script>
-  <script defer src="src/settings.js?v=0.240.0"></script>
-  <script defer src="src/wheel.js?v=0.240.0"></script>
-  <script defer src="src/backlog.js?v=0.240.0"></script>
-  <script defer src="src/journal.js?v=0.240.0"></script>
-  <script defer src="src/markdown.js?v=0.240.0"></script>
-  <script defer src="src/notes.js?v=0.240.0"></script>
-  <script defer src="src/docimport.js?v=0.240.0"></script>
-  <script defer src="src/io.js?v=0.240.0"></script>
-  <script defer src="src/sync.js?v=0.240.0"></script>
-  <script defer src="src/habits.js?v=0.240.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.240.0"></script>
-  <script defer src="src/boards.js?v=0.240.0"></script>
-  <script defer src="src/recap.js?v=0.240.0"></script>
-  <script defer src="src/reminders.js?v=0.240.0"></script>
-  <script defer src="src/widgets.js?v=0.240.0"></script>
-  <script defer src="src/payments.js?v=0.240.0"></script>
-  <script defer src="src/app.js?v=0.240.0"></script>
+  <script defer src="src/platform.js?v=0.241.0"></script>
+  <script defer src="src/reconcile.js?v=0.241.0"></script>
+  <script defer src="src/qr.js?v=0.241.0"></script>
+  <script defer src="src/media.js?v=0.241.0"></script>
+  <script defer src="src/merge.js?v=0.241.0"></script>
+  <script defer src="src/storage.js?v=0.241.0"></script>
+  <script defer src="src/finance.js?v=0.241.0"></script>
+  <script defer src="src/settings.js?v=0.241.0"></script>
+  <script defer src="src/wheel.js?v=0.241.0"></script>
+  <script defer src="src/backlog.js?v=0.241.0"></script>
+  <script defer src="src/journal.js?v=0.241.0"></script>
+  <script defer src="src/markdown.js?v=0.241.0"></script>
+  <script defer src="src/notes.js?v=0.241.0"></script>
+  <script defer src="src/docimport.js?v=0.241.0"></script>
+  <script defer src="src/io.js?v=0.241.0"></script>
+  <script defer src="src/sync.js?v=0.241.0"></script>
+  <script defer src="src/habits.js?v=0.241.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.241.0"></script>
+  <script defer src="src/boards.js?v=0.241.0"></script>
+  <script defer src="src/travel.js?v=0.241.0"></script>
+  <script defer src="src/recap.js?v=0.241.0"></script>
+  <script defer src="src/reminders.js?v=0.241.0"></script>
+  <script defer src="src/widgets.js?v=0.241.0"></script>
+  <script defer src="src/payments.js?v=0.241.0"></script>
+  <script defer src="src/app.js?v=0.241.0"></script>
 </body>
 </html>

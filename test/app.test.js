@@ -55,6 +55,7 @@ require("../src/recap.js");
 // functions to IO's init at its top level — without it this file crashed
 // before running a single test.
 require("../src/boards.js");
+require("../src/travel.js");
 // app.js calls .init(ctx) on these unconditionally at its own top
 // level; normalize() doesn't depend on their behavior, so no-op stubs.
 global.window.LifeLogIO = { init: () => {} };

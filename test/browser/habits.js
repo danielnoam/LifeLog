@@ -241,7 +241,7 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
       notesDots: document.querySelectorAll('#viewTabs .tab[data-view="notes"] .tab-mode-dot').length,
       active: (document.querySelector("#viewTabs .tab.active") || {}).dataset,
     }));
-    check("habits has no tab of its own", !bar.tabs.includes("habits") && bar.tabs.length === 4, bar.tabs);
+    check("habits has no tab of its own", !bar.tabs.includes("habits") && bar.tabs.length === 5, bar.tabs);
     check("it is one of Notes' modes", bar.notesDots === 2 && bar.active.view === "notes", bar);
     check("and the card still renders there", await page.evaluate(() => !!document.querySelector(".habit-card")));
 

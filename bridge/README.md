@@ -64,7 +64,8 @@ resource `lifelog://guide` and by the tool `lifelog_guide`.
 Reading: `lifelog_overview` (start here), `lifelog_guide`, `lifelog_search`,
 `lifelog_get`, `lifelog_timeline`, `lifelog_backlog`, `lifelog_notes`,
 `lifelog_expenses`, `lifelog_spending`, `lifelog_recurring`,
-`lifelog_habits`, `lifelog_accomplishments`, `lifelog_boards`.
+`lifelog_habits`, `lifelog_accomplishments`, `lifelog_boards`,
+`lifelog_trips`.
 
 Changing: `lifelog_add_expense`, `lifelog_add_timeline_entry`,
 `lifelog_add_backlog_item`, `lifelog_finish_backlog_item`,
@@ -73,7 +74,9 @@ Changing: `lifelog_add_expense`, `lifelog_add_timeline_entry`,
 `lifelog_add_accomplishment`, `lifelog_update_accomplishment`,
 `lifelog_delete_accomplishment`, `lifelog_rename_category`,
 `lifelog_edit_recurring_charge`, `lifelog_pause_recurring`,
-`lifelog_update_board`, `lifelog_delete_board`, `lifelog_undo`.
+`lifelog_update_board`, `lifelog_delete_board`, `lifelog_add_trip`,
+`lifelog_update_trip`, `lifelog_delete_trip`, `lifelog_add_place`,
+`lifelog_update_place`, `lifelog_delete_place`, `lifelog_undo`.
 
 Every change is checked first: categories and projects must exist, and the
 result must be something the app itself would keep, or it's refused with the
@@ -89,7 +92,8 @@ board.
 - `cli.js`: the same tools as a command.
 - `tools.js`: the tools themselves, one table for both.
 - `store.js`: reading and saving the files (`lifelog.json`, and
-  `boards.json` beside it), on GitHub or local, and the undo history.
+  `boards.json` and `travel.json` beside it), on GitHub or local, and the
+  undo history.
 - `load.js`: loads the app's own modules into Node.
 - `DATA.md`: every collection and field.
 

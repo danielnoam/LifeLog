@@ -409,8 +409,20 @@
     });
   }
 
+  // Trips and their places (travel.json, 0.241.0): two plain collections,
+  // each merged item by item. Places are their own list rather than an
+  // array inside the trip so two devices planning different days of one
+  // trip both keep their changes.
+  function mergeTravel(base, local, remote) {
+    base = base || {}; local = local || {}; remote = remote || {};
+    return {
+      trips: mergeCollection(base.trips || [], local.trips || [], remote.trips || []).merged,
+      places: mergeCollection(base.places || [], local.places || [], remote.places || []).merged,
+    };
+  }
+
   const api = {
-    COLLECTION_KEYS, byId, mergeBoards, sameContent, flattenAccomplishments, unflattenAccomplishments,
+    COLLECTION_KEYS, byId, mergeBoards, mergeTravel, sameContent, flattenAccomplishments, unflattenAccomplishments,
     compareVersions, maxVersion,
     stampChangedItems, diffCollection, diffSnapshots, summarizeConflicts,
     mergeCollection, mergeAccomplishmentYears, mergeSettings, mergeAllSources, settingsFromBackup,

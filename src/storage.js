@@ -17,6 +17,7 @@
   const HANDLE_KEY = "dataFile";
   const IDB_HISTORY_STORE = "history";
   const IDB_BOARDS_HISTORY = "boardsHistory"; // boards.json's own saves (0.194.0)
+  const IDB_TRAVEL_HISTORY = "travelHistory"; // travel.json's (0.241.0)
   const BOARDS_HISTORY_CAP = 30;
   const HISTORY_CAP = 40; // a rollback aid, not a full audit log — oldest entries beyond this are pruned
 
@@ -27,14 +28,20 @@
   // local-first history log) ----
   function idb() {
     return new Promise((resolve, reject) => {
-      const req = indexedDB.open(IDB_NAME, 3);
+      const req = indexedDB.open(IDB_NAME, 4);
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
         if (!db.objectStoreNames.contains(IDB_HISTORY_STORE)) db.createObjectStore(IDB_HISTORY_STORE, { keyPath: "id" });
         if (!db.objectStoreNames.contains(IDB_BOARDS_HISTORY)) db.createObjectStore(IDB_BOARDS_HISTORY, { keyPath: "id" });
+        if (!db.objectStoreNames.contains(IDB_TRAVEL_HISTORY)) db.createObjectStore(IDB_TRAVEL_HISTORY, { keyPath: "id" });
       };
-      req.onsuccess = () => resolve(req.result);
+      req.onsuccess = () => {
+        // A newer build in another tab may need to upgrade the database; let
+        // it, rather than holding it at this version until this tab closes.
+        req.result.onversionchange = () => req.result.close();
+        resolve(req.result);
+      };
       req.onerror = () => reject(req.error);
     });
   }
@@ -391,11 +398,12 @@
   // old version is needed, and a file past 1MB now is one past 1MB then.
   const ghGetFileAtRef = (ref) => ghGetFile(ref);
 
-  // `path` and `pretty` are for boards.json, which is written compact: it's
-  // mostly numbers, and indenting them would double its size.
-  async function ghPut(data, sha, path, pretty = true) {
+  // `path`, `pretty` and `label` are for the files beside lifelog.json,
+  // which are written compact: boards.json is mostly numbers, and indenting
+  // them would double its size.
+  async function ghPut(data, sha, path, pretty = true, label = "lifelog") {
     const body = {
-      message: "Update " + (path ? "boards" : "lifelog") + " (" + new Date().toISOString() + ")",
+      message: "Update " + label + " (" + new Date().toISOString() + ")",
       content: b64encode(pretty ? JSON.stringify(data, null, 2) : JSON.stringify(data)),
       branch: gh.branch,
     };
@@ -450,7 +458,7 @@
     }
   }
 
-  // ---- boards (0.193.0) ----
+  // ---- files beside lifelog.json: boards (0.193.0), travel (0.241.0) ----
   // Drawing boards live in a file of their own, boards.json beside the data
   // file, so an ordinary save — ticking a habit — never uploads them, and a
   // heavy board can't push lifelog.json past GitHub's 1MB mark. The file has
@@ -458,177 +466,206 @@
   // localStorage because a few handwritten boards would crowd its 5MB. Unlike
   // lifelog.json, a merge here is adopted by the caller straight away (see
   // boards.js), so the sha and base move to whatever was written.
-  const BOARDS_CACHE = "boardsCache", BOARDS_BASE = "boardsBase";
-  let boardsError = null;
-  const boardsPath = () => gh.path.replace(/[^/]*$/, "") + "boards.json";
-  const emptyBoards = () => ({ boards: [] });
-  const mergeBoardDocs = (base, local, remote) => ({
-    boards: window.LifeLogMerge.mergeBoards(base && base.boards, local && local.boards, remote && remote.boards),
-  });
+  //
+  // Trips (travel.json) are small, but sit beside rather than inside for a
+  // different reason: mergeAllSources builds a fresh object from the keys it
+  // knows, so a build older than 0.241.0 merging lifelog.json would drop a
+  // new root key, and that deletion would then win everywhere. An older
+  // build never opens travel.json at all.
   const idbGetSafe = (k) => idbGet(k).catch(() => null);
 
-  // Every save that changed something is kept here too, like lifelog.json's
-  // local history, so a board wiped by mistake — or by a merge — can be
-  // brought back offline and without GitHub. Identical saves in a row are
-  // skipped by comparing a fingerprint, rather than reading the last
-  // snapshot back each time.
-  const BOARDS_HIST_MARK = "lifelog-boards-history-mark";
+  // Every save that changed something is kept on the device too, like
+  // lifelog.json's local history, so a board wiped by mistake — or by a
+  // merge — can be brought back offline and without GitHub. Identical saves
+  // in a row are skipped by comparing a fingerprint, rather than reading the
+  // last snapshot back each time.
   function fingerprint(str) {
     let h = 0;
     for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
     return str.length + ":" + h;
   }
-  async function recordBoardsHistory(doc) {
-    try {
-      const mark = fingerprint(JSON.stringify(doc.boards));
-      if (localStorage.getItem(BOARDS_HIST_MARK) === mark) return;
-      await idbAddHistory({ id: historyId(), savedAt: new Date().toISOString(), doc: { boards: doc.boards } }, IDB_BOARDS_HISTORY);
-      localStorage.setItem(BOARDS_HIST_MARK, mark);
-      const all = await idbGetAllHistory(IDB_BOARDS_HISTORY);
-      if (all.length > BOARDS_HISTORY_CAP) {
-        all.sort((a, b) => a.savedAt.localeCompare(b.savedAt));
-        for (const e of all.slice(0, all.length - BOARDS_HISTORY_CAP)) await idbDeleteHistory(e.id, IDB_BOARDS_HISTORY);
-      }
-    } catch (e) { /* a convenience — never blocks a save */ }
-  }
 
-  // The boards' own backup file: a second handle, since a page can't make a
-  // file beside the one it was given. Written on every save, like
-  // lifelog.json's; best-effort, never blocks.
-  const BOARDS_FILE_KEY = "boardsFile";
-  let boardsHandle = null, boardsNeedsReconnect = false, boardsHandleTried = false;
-  async function ensureBoardsHandle() {
-    if (!fsSupported || boardsHandle || boardsHandleTried) return;
-    boardsHandleTried = true;
-    try {
-      const saved = await idbGet(BOARDS_FILE_KEY);
-      if (saved) {
-        boardsHandle = saved;
-        boardsNeedsReconnect = (await saved.queryPermission({ mode: "readwrite" })) !== "granted";
-      }
-    } catch (e) { /* no file, then */ }
-  }
-  async function backupBoardsToFile(doc) {
-    backupToPhone(doc, "boards.json");
-    await ensureBoardsHandle();
-    if (!boardsHandle || boardsNeedsReconnect) return false;
-    try {
-      const w = await boardsHandle.createWritable();
-      await w.write(JSON.stringify(doc));
-      await w.close();
-      return true;
-    } catch (e) { boardsNeedsReconnect = true; return false; }
-  }
+  // One store per sibling file. `keys` are the arrays its document holds and
+  // `merge(base, local, remote)` returns a document of them.
+  function siblingStore(o) {
+    const { file, label, keys, merge, shaKey, cacheKey, baseKey, histStore, histCap, histMark, fileKey, fileType } = o;
+    let error = null;
+    const path = () => gh.path.replace(/[^/]*$/, "") + file;
+    const pick = (d) => { const out = {}; for (const k of keys) out[k] = (d && d[k]) || []; return out; };
+    const empty = () => pick(null);
+    const hasAny = (d) => keys.some((k) => d && d[k] && d[k].length);
+    const same = (a, b) => JSON.stringify(pick(a)) === JSON.stringify(pick(b));
 
-  const Boards = {
-    get error() { return boardsError; },
-    // This device's copy, merged with GitHub's when it's connected and
-    // reachable. `dirty` means this device holds changes GitHub doesn't have
-    // yet (a save made offline, or the merge just now), for the caller to
-    // save.
-    async load() {
-      let local = await idbGetSafe(BOARDS_CACHE);
-      if (!local) { const f = await Boards.readFile(); if (f && Array.isArray(f.boards)) local = { boards: f.boards }; }
-      if (!gh || !gh.token) return { doc: local || emptyBoards(), dirty: false };
-      const base = await idbGetSafe(BOARDS_BASE);
-      let remote;
-      try { remote = await ghGetFile(null, boardsPath()); boardsError = null; }
-      catch (e) { boardsError = e; return { doc: local || emptyBoards(), dirty: false }; }
-      if (!remote) return { doc: local || emptyBoards(), dirty: !!(local && local.boards.length) };
-      const doc = local ? mergeBoardDocs(base, local, remote.data) : { boards: remote.data.boards || [] };
-      gh.boardsSha = remote.sha; saveGhCfg();
-      await idbSet(BOARDS_BASE, remote.data).catch(() => {});
-      await idbSet(BOARDS_CACHE, doc).catch(() => {});
-      return { doc, dirty: JSON.stringify(doc.boards) !== JSON.stringify(remote.data.boards || []) };
-    },
-    // Resolves { doc, where, merged }: `doc` is what now stands — the caller's
-    // own, or a merge with a save another device made first.
-    async save(doc) {
-      doc = { boards: doc.boards, exportedAt: new Date().toISOString() };
-      await idbSet(BOARDS_CACHE, doc).catch(() => {});
-      await recordBoardsHistory(doc);
-      await backupBoardsToFile(doc);
-      if (!gh || !gh.token) return { doc, where: "cache", merged: false };
-      const path = boardsPath();
-      let out = doc;
-      for (let tries = 0; ; tries++) {
-        try {
-          gh.boardsSha = await ghPut(out, gh.boardsSha, path, false);
-          saveGhCfg(); boardsError = null;
-          await idbSet(BOARDS_BASE, out).catch(() => {});
-          if (out !== doc) await idbSet(BOARDS_CACHE, out).catch(() => {});
-          return { doc: out, where: "github", merged: out !== doc };
-        } catch (e) {
-          if ((e.status !== 409 && e.status !== 422) || tries >= 3) { boardsError = e; return { doc, where: "cache", merged: false }; }
-          let cur;
-          try { cur = await ghGetFile(null, path); } catch (e2) { boardsError = e2; return { doc, where: "cache", merged: false }; }
-          out = cur ? { ...mergeBoardDocs(await idbGetSafe(BOARDS_BASE), doc, cur.data), exportedAt: doc.exportedAt } : doc;
-          gh.boardsSha = cur ? cur.sha : null;
+    async function recordHistory(doc) {
+      try {
+        const mark = fingerprint(JSON.stringify(keys.length === 1 ? doc[keys[0]] : pick(doc)));
+        if (localStorage.getItem(histMark) === mark) return;
+        await idbAddHistory({ id: historyId(), savedAt: new Date().toISOString(), doc: pick(doc) }, histStore);
+        localStorage.setItem(histMark, mark);
+        const all = await idbGetAllHistory(histStore);
+        if (all.length > histCap) {
+          all.sort((a, b) => a.savedAt.localeCompare(b.savedAt));
+          for (const e of all.slice(0, all.length - histCap)) await idbDeleteHistory(e.id, histStore);
         }
-      }
-    },
-    async forget() {
-      await idbDel(BOARDS_CACHE).catch(() => {});
-      await idbDel(BOARDS_BASE).catch(() => {});
-    },
-    // Past versions, newest first: this device's saves, then GitHub's
-    // commits to boards.json when it's connected. Each is { id, savedAt,
-    // source } — read one with version().
-    async history() {
-      const local = (await idbGetAllHistory(IDB_BOARDS_HISTORY).catch(() => []))
-        .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
-        .map((e) => ({ id: e.id, savedAt: e.savedAt, source: "device", doc: e.doc }));
-      let remote = [];
-      if (gh && gh.token) {
-        try { remote = (await ghListCommits(boardsPath())).map((c) => ({ id: c.sha, savedAt: c.date, source: "github", sha: c.sha })); }
-        catch (e) { remote = []; }
-      }
-      return local.concat(remote);
-    },
-    async version(entry) {
-      if (entry.doc) return entry.doc;
-      const f = await ghGetFile(entry.sha, boardsPath());
-      if (!f) throw new Error("That version of boards.json couldn't be found.");
-      return f.data;
-    },
-    // ---- a copy on disk (File System Access), beside the local-file backup ----
-    get fileName() { return boardsHandle ? boardsHandle.name : null; },
-    get fileConnected() { return !!(boardsHandle && !boardsNeedsReconnect); },
-    get fileNeedsReconnect() { return !!(boardsHandle && boardsNeedsReconnect); },
-    async connectFile(doc) {
-      if (!fsSupported) throw new Error("unsupported");
-      const h = await window.showSaveFilePicker({
-        suggestedName: "boards.json",
-        types: [{ description: "LifeLog boards", accept: { "application/json": [".json"] } }],
-      });
-      boardsHandle = h; boardsNeedsReconnect = false;
-      await idbSet(BOARDS_FILE_KEY, h);
-      if (doc) await h.createWritable().then(async (w) => { await w.write(JSON.stringify(doc)); await w.close(); });
-      return h.name;
-    },
-    async reconnectFile() {
-      if (!boardsHandle) return false;
-      const perm = await boardsHandle.requestPermission({ mode: "readwrite" });
-      boardsNeedsReconnect = perm !== "granted";
-      return !boardsNeedsReconnect;
-    },
-    async disconnectFile() {
-      boardsHandle = null; boardsNeedsReconnect = false;
-      await idbDel(BOARDS_FILE_KEY).catch(() => {});
-    },
-    // What's in the file, for a device that has no boards of its own yet —
-    // a new browser pointed at the same backup folder.
-    async readFile() {
-      await ensureBoardsHandle();
-      if (!boardsHandle || boardsNeedsReconnect) return null;
-      try { const f = await boardsHandle.getFile(); return JSON.parse(await f.text()); } catch (e) { return null; }
-    },
-    async ensureFile() { await ensureBoardsHandle(); },
-  };
+      } catch (e) { /* a convenience — never blocks a save */ }
+    }
+
+    // The file's own backup copy: a second handle, since a page can't make a
+    // file beside the one it was given. Written on every save, like
+    // lifelog.json's; best-effort, never blocks.
+    let handle = null, needsReconnect = false, handleTried = false;
+    async function ensureHandle() {
+      if (!fsSupported || handle || handleTried) return;
+      handleTried = true;
+      try {
+        const saved = await idbGet(fileKey);
+        if (saved) {
+          handle = saved;
+          needsReconnect = (await saved.queryPermission({ mode: "readwrite" })) !== "granted";
+        }
+      } catch (e) { /* no file, then */ }
+    }
+    async function backupToFile(doc) {
+      backupToPhone(doc, file);
+      await ensureHandle();
+      if (!handle || needsReconnect) return false;
+      try {
+        const w = await handle.createWritable();
+        await w.write(JSON.stringify(doc));
+        await w.close();
+        return true;
+      } catch (e) { needsReconnect = true; return false; }
+    }
+
+    const store = {
+      get error() { return error; },
+      // This device's copy, merged with GitHub's when it's connected and
+      // reachable. `dirty` means this device holds changes GitHub doesn't
+      // have yet (a save made offline, or the merge just now), for the
+      // caller to save.
+      async load() {
+        let local = await idbGetSafe(cacheKey);
+        if (!local) { const f = await store.readFile(); if (f && keys.some((k) => Array.isArray(f[k]))) local = pick(f); }
+        if (!gh || !gh.token) return { doc: local || empty(), dirty: false };
+        const base = await idbGetSafe(baseKey);
+        let remote;
+        try { remote = await ghGetFile(null, path()); error = null; }
+        catch (e) { error = e; return { doc: local || empty(), dirty: false }; }
+        if (!remote) return { doc: local || empty(), dirty: hasAny(local) };
+        const doc = local ? merge(base, local, remote.data) : pick(remote.data);
+        gh[shaKey] = remote.sha; saveGhCfg();
+        await idbSet(baseKey, remote.data).catch(() => {});
+        await idbSet(cacheKey, doc).catch(() => {});
+        return { doc, dirty: !same(doc, remote.data) };
+      },
+      // Resolves { doc, where, merged }: `doc` is what now stands — the
+      // caller's own, or a merge with a save another device made first.
+      async save(doc) {
+        doc = { ...pick(doc), exportedAt: new Date().toISOString() };
+        await idbSet(cacheKey, doc).catch(() => {});
+        await recordHistory(doc);
+        await backupToFile(doc);
+        if (!gh || !gh.token) return { doc, where: "cache", merged: false };
+        const p = path();
+        let out = doc;
+        for (let tries = 0; ; tries++) {
+          try {
+            gh[shaKey] = await ghPut(out, gh[shaKey], p, false, label);
+            saveGhCfg(); error = null;
+            await idbSet(baseKey, out).catch(() => {});
+            if (out !== doc) await idbSet(cacheKey, out).catch(() => {});
+            return { doc: out, where: "github", merged: out !== doc };
+          } catch (e) {
+            if ((e.status !== 409 && e.status !== 422) || tries >= 3) { error = e; return { doc, where: "cache", merged: false }; }
+            let cur;
+            try { cur = await ghGetFile(null, p); } catch (e2) { error = e2; return { doc, where: "cache", merged: false }; }
+            out = cur ? { ...merge(await idbGetSafe(baseKey), doc, cur.data), exportedAt: doc.exportedAt } : doc;
+            gh[shaKey] = cur ? cur.sha : null;
+          }
+        }
+      },
+      async forget() {
+        await idbDel(cacheKey).catch(() => {});
+        await idbDel(baseKey).catch(() => {});
+      },
+      // Past versions, newest first: this device's saves, then GitHub's
+      // commits to the file when it's connected. Each is { id, savedAt,
+      // source } — read one with version().
+      async history() {
+        const local = (await idbGetAllHistory(histStore).catch(() => []))
+          .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
+          .map((e) => ({ id: e.id, savedAt: e.savedAt, source: "device", doc: e.doc }));
+        let remote = [];
+        if (gh && gh.token) {
+          try { remote = (await ghListCommits(path())).map((c) => ({ id: c.sha, savedAt: c.date, source: "github", sha: c.sha })); }
+          catch (e) { remote = []; }
+        }
+        return local.concat(remote);
+      },
+      async version(entry) {
+        if (entry.doc) return entry.doc;
+        const f = await ghGetFile(entry.sha, path());
+        if (!f) throw new Error("That version of " + file + " couldn't be found.");
+        return f.data;
+      },
+      // ---- a copy on disk (File System Access), beside the local-file backup ----
+      get fileName() { return handle ? handle.name : null; },
+      get fileConnected() { return !!(handle && !needsReconnect); },
+      get fileNeedsReconnect() { return !!(handle && needsReconnect); },
+      async connectFile(doc) {
+        if (!fsSupported) throw new Error("unsupported");
+        const h = await window.showSaveFilePicker({
+          suggestedName: file,
+          types: [{ description: fileType, accept: { "application/json": [".json"] } }],
+        });
+        handle = h; needsReconnect = false;
+        await idbSet(fileKey, h);
+        if (doc) await h.createWritable().then(async (w) => { await w.write(JSON.stringify(doc)); await w.close(); });
+        return h.name;
+      },
+      async reconnectFile() {
+        if (!handle) return false;
+        const perm = await handle.requestPermission({ mode: "readwrite" });
+        needsReconnect = perm !== "granted";
+        return !needsReconnect;
+      },
+      async disconnectFile() {
+        handle = null; needsReconnect = false;
+        await idbDel(fileKey).catch(() => {});
+      },
+      // What's in the file, for a device that has none of its own yet — a
+      // new browser pointed at the same backup folder.
+      async readFile() {
+        await ensureHandle();
+        if (!handle || needsReconnect) return null;
+        try { const f = await handle.getFile(); return JSON.parse(await f.text()); } catch (e) { return null; }
+      },
+      async ensureFile() { await ensureHandle(); },
+    };
+    return store;
+  }
+
+  const Boards = siblingStore({
+    file: "boards.json", label: "boards", keys: ["boards"],
+    merge: (base, local, remote) => ({
+      boards: window.LifeLogMerge.mergeBoards(base && base.boards, local && local.boards, remote && remote.boards),
+    }),
+    shaKey: "boardsSha", cacheKey: "boardsCache", baseKey: "boardsBase",
+    histStore: IDB_BOARDS_HISTORY, histCap: BOARDS_HISTORY_CAP, histMark: "lifelog-boards-history-mark",
+    fileKey: "boardsFile", fileType: "LifeLog boards",
+  });
+  const Travel = siblingStore({
+    file: "travel.json", label: "travel", keys: ["trips", "places"],
+    merge: (base, local, remote) => window.LifeLogMerge.mergeTravel(base, local, remote),
+    shaKey: "travelSha", cacheKey: "travelCache", baseKey: "travelBase",
+    histStore: IDB_TRAVEL_HISTORY, histCap: BOARDS_HISTORY_CAP, histMark: "lifelog-travel-history-mark",
+    fileKey: "travelFile", fileType: "LifeLog trips",
+  });
 
   const Storage = {
     fsSupported,
     boards: Boards,
+    travel: Travel,
     get needsReconnect() { return needsReconnect; },
     get fileName() { return handle ? handle.name : null; },
     get fileConnected() { return !!(handle && !needsReconnect); },
@@ -932,7 +969,8 @@
       if (gh && gh.token) await Storage.disconnectGithub();
       if (handle) await Storage.disconnect();
       await Boards.forget();
-      try { localStorage.removeItem(CACHE_KEY); } catch (e) {}
+      await Travel.forget();
+      try { localStorage.removeItem(CACHE_KEY); localStorage.removeItem("lifelog-travel-ui"); } catch (e) {}
     },
 
     // Lightweight poll for changes made elsewhere (e.g. another device).

@@ -192,6 +192,34 @@ can use. `lifelog_boards` lists them with their text;
 `lifelog_update_board` renames, files and stars one; `lifelog_delete_board`
 deletes one. Nothing draws.
 
+## Trips (`travel.json`)
+
+The Travel tab's trips, in a file of their own beside `lifelog.json`,
+written compact: `{ "trips": [ ... ], "places": [ ... ] }`. Kept apart
+because a build older than 0.241.0, merging `lifelog.json`, would drop a
+root key it doesn't know.
+
+- A trip has `id`, `name`, `createdAt`, `updatedAt`, and optionally `start`
+  and `end` (dates; an end before the start is swapped).
+- A place has `id`, `trip` (its trip's id), `name`, `createdAt`,
+  `updatedAt`, and optionally:
+  - `day`: the date it's planned for. Without one it's somewhere to get to
+    sometime during the trip.
+  - `time` and `endTime` (`HH:MM`): a place with a `time` is scheduled. A
+    time is only kept with a day, and an end only after the start.
+  - `order`: sorts a day's unscheduled places; scheduled ones go by time,
+    first.
+  - `address`, `note`, `url` (a Google Maps link), `lat` and `lng`,
+    `visited` (true when been there), `gid` (Google's place id) and
+    `source` (the Google Maps list it came from).
+- A place whose trip is gone is dropped when the file is read; deleting a
+  trip deletes its places.
+
+`lifelog_trips` lists trips, or one trip's plan day by day.
+`lifelog_add_trip`, `lifelog_update_trip`, `lifelog_delete_trip`,
+`lifelog_add_place`, `lifelog_update_place` and `lifelog_delete_place`
+change them.
+
 ## Not in this file
 
 - Each device's look and layout (theme, tabs, widths) stay on that device.
