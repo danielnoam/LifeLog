@@ -143,6 +143,7 @@
   }
 
   // ---- Steam and friends without the proxy (0.215.0) ----
+  // (Google Maps links and lists joined them in 0.242.0, for Travel's import.)
   // Steam's store API, SteamGridDB and GG.deals send no CORS headers, so a
   // browser needs proxy/worker.js in front of them. The app doesn't: its
   // native HTTP (CapacitorHttp, part of Capacitor itself) isn't a browser
@@ -164,6 +165,10 @@
     if (m) return "https://store.steampowered.com/api/appdetails?appids=" + m[1] + "&filters=basic,genres";
     if (u.pathname.startsWith("/steamgriddb/")) return "https://www.steamgriddb.com/api/v2/" + u.pathname.slice("/steamgriddb/".length) + u.search;
     if (u.pathname === "/gg-deals") return "https://api.gg.deals/v1/prices/by-steam-app-id/" + u.search;
+    m = /^\/gmaps-link\/([A-Za-z0-9_-]{4,64})$/.exec(u.pathname);
+    if (m) return "https://maps.app.goo.gl/" + m[1];
+    m = /^\/gmaps-list\/([A-Za-z0-9_-]{16,64})$/.exec(u.pathname);
+    if (m) return "https://www.google.com/maps/preview/entitylist/getlist?authuser=0&hl=en&gl=us&pb=!1m4!1s" + m[1] + "!2e1!3m1!1e1!2e2!3e2!4i500!16b1";
     return null;
   }
   function steamProxy(value) {
@@ -181,7 +186,16 @@
     } catch (e) {
       throw new TypeError("Failed to fetch (" + ((e && e.message) || e) + ")");
     }
-    const body = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
+    let body = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
+    // A short link, answered as the worker does: where it led. The native
+    // request follows the redirects itself, so that's its final address;
+    // on a page that hides it (Google's consent page), whatever list or
+    // place id the page carries.
+    if (target.startsWith("https://maps.app.goo.gl/")) {
+      const hint = /!11m\d+!2s[A-Za-z0-9_-]{16,}|placelists\/list\/[A-Za-z0-9_-]{16,}/.exec(body);
+      body = JSON.stringify({ url: String(res.url || "") + (hint ? " " + hint[0] : "") });
+      return new Response(body, { status: 200, headers: { "Content-Type": "application/json" } });
+    }
     return new Response(body, { status: res.status || 502, headers: { "Content-Type": "application/json" } });
   }
   if (native) {

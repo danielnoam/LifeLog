@@ -45,6 +45,18 @@
 //     GG.deals' API also has no Access-Control-Allow-Origin, so calling it
 //     directly from the browser silently fails (a caught fetch error, not
 //     even a visible network error) — this relays the query string as-is.
+//
+//   GET /gmaps-link/<code>
+//     -> https://maps.app.goo.gl/<code>, answered as {"url": "<where it leads>"}
+//     A shared Google Maps link is a short link; the list or place it names
+//     is only in the address it redirects to, and a browser can't read a
+//     redirect from another site. Follows short-link hops only, never the
+//     google.com page itself.
+//
+//   GET /gmaps-list/<list id>
+//     -> https://www.google.com/maps/preview/entitylist/getlist?…!1s<list id>…
+//     A saved list's places, from the endpoint Google Maps' own page reads
+//     (unofficial: Google has no API for lists). Travel's import (0.242.0).
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -84,9 +96,37 @@ export default {
       return proxyJson(target);
     }
 
+    const linkMatch = url.pathname.match(/^\/gmaps-link\/([A-Za-z0-9_-]{4,64})$/);
+    if (linkMatch) return resolveShortLink("https://maps.app.goo.gl/" + linkMatch[1]);
+
+    const listMatch = url.pathname.match(/^\/gmaps-list\/([A-Za-z0-9_-]{16,64})$/);
+    if (listMatch) {
+      const target = `https://www.google.com/maps/preview/entitylist/getlist?authuser=0&hl=en&gl=us&pb=!1m4!1s${listMatch[1]}!2e1!3m1!1e1!2e2!3e2!4i500!16b1`;
+      return proxyJson(target);
+    }
+
     return new Response("Not found", { status: 404, headers: CORS_HEADERS });
   },
 };
+
+async function resolveShortLink(start) {
+  const json = (body, status) => new Response(JSON.stringify(body), {
+    status: status || 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+  });
+  try {
+    let at = start;
+    for (let hop = 0; hop < 4; hop++) {
+      const res = await fetch(at, { redirect: "manual" });
+      const next = res.headers.get("Location");
+      if (!next) return res.ok && at !== start ? json({ url: at }) : json({ error: "no redirect" }, 404);
+      at = new URL(next, at).toString();
+      if (!/^https:\/\/(maps\.app\.goo\.gl|goo\.gl)\//.test(at)) return json({ url: at });
+    }
+    return json({ url: at });
+  } catch (e) {
+    return json({ error: "proxy fetch failed", detail: String(e && e.message || e) }, 502);
+  }
+}
 
 async function proxyJson(target, extraHeaders) {
   try {

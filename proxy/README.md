@@ -2,7 +2,8 @@
 
 A tiny Cloudflare Worker that unblocks the endpoints confirmed
 CORS-blocked directly from the browser: Steam's wishlist/app-details
-data and SteamGridDB. See `worker.js` for what it does and why.
+data, SteamGridDB, GG.deals, and Google Maps share links and saved
+lists (Travel's import). See `worker.js` for what it does and why.
 
 ### Git-connected deploys (already set up)
 

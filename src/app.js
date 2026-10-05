@@ -148,7 +148,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.241.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.242.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2092,6 +2092,9 @@
     let startX = null, startY = null, captured = false;
     el.addEventListener("pointerdown", (e) => {
       if (!isMobileLayout()) return;
+      // A surface with drags of its own (Travel's map, its rows while
+      // they're being arranged) keeps them: no swipe starts there.
+      if (e.target.closest && e.target.closest(".no-swipe")) { startX = null; return; }
       startX = e.clientX; startY = e.clientY; captured = false;
     });
     el.addEventListener("pointermove", (e) => {
@@ -3885,6 +3888,7 @@
       else if (b.dataset.add === "recurring") Finance.openRecurringModal(null);
       else if (b.dataset.add === "trip") Travel.addTrip();
       else if (b.dataset.add === "place") Travel.addPlace();
+      else if (b.dataset.add === "import-places") Travel.importPlaces();
     });
     document.addEventListener("click", closeAddMenu);
 
@@ -4014,7 +4018,7 @@
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
         Finance.closePauseModal(); Finance.cancelFinanceCatModal();
         Habits.closeHabitModal(); Notes.closeNoteCatModal();
-        Travel.closeTripModal(); Travel.closePlaceModal();
+        Travel.closeTripModal(); Travel.closePlaceModal(); Travel.closeImportModal();
         SettingsUI.closeSettings();
         SettingsUI.closeViewOptions();
         closeShortcutsModal();
@@ -4749,6 +4753,7 @@
     document.addEventListener("touchstart", (e) => {
       start = null;
       if (e.touches.length !== 1 || blocked() || !atTop()) return;
+      if (e.target.closest && e.target.closest(".no-swipe")) return;
       start = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       pulling = false;
       dist = 0;

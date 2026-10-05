@@ -210,15 +210,23 @@ root key it doesn't know.
   - `order`: sorts a day's unscheduled places; scheduled ones go by time,
     first.
   - `address`, `note`, `url` (a Google Maps link), `lat` and `lng`,
-    `visited` (true when been there), `gid` (Google's place id) and
-    `source` (the Google Maps list it came from).
+    `visited` (true when been there), `gid` (Google's place id, as Maps
+    writes it: `0x…:0x…`) and `source` (the id of the Google Maps list it
+    was imported from).
 - A place whose trip is gone is dropped when the file is read; deleting a
   trip deletes its places.
 
 `lifelog_trips` lists trips, or one trip's plan day by day.
 `lifelog_add_trip`, `lifelog_update_trip`, `lifelog_delete_trip`,
 `lifelog_add_place`, `lifelog_update_place` and `lifelog_delete_place`
-change them.
+change them. `lifelog_google_list` reads a shared Google Maps list (or one
+place) and `lifelog_import_google_list` adds its places to a trip with no
+day, skipping any already there (same `gid`, or the same name within 50 m).
+
+The app's By area view and `lifelog_google_list` group places the same way
+(`Travel.areas`): places within 15 km of each other are one area, named
+after the town most of their addresses give, else "Near" its most central
+place. Nothing about areas is stored.
 
 ## Not in this file
 

@@ -1,20 +1,11 @@
 todo:
 
 - **Travel, what's next** (design: the "LifeLog travel tab design" doc).
-  - *Import a Google Maps list.* A shared list link
-    (maps.app.goo.gl/…) redirects to a google.com/maps URL holding the list
-    id after `!2s`; `google.com/maps/preview/entitylist/getlist?…&pb=!1m4!1s<id>!2e1!3m1!1e1!2e2!3e2!4i500!16b1`
-    answers `)]}'` + JSON with every place's name, coordinates and Google
-    id (tested on a 27-place list, 2026-10-05). Unofficial, so it can
-    break. The apps can fetch it through CapacitorHttp; the web needs two
-    narrow routes on the Cloudflare worker. Then pick which places belong
-    to the trip, since one list spans several trips. `gid` and `source`
-    are already in the place's fields for it.
-  - *Map view* with Leaflet (vendored) and free tiles: the map on the top
-    half, the day's places below, pins numbered by the day's order. Check
-    which tile source allows use from an app, and the dark themes.
-  - *By area*: places grouped by town or neighbourhood, for open days.
-  - Reorder a day's unscheduled places by dragging (`order` is there).
+  - Name the "Near …" areas: a list's places often have no address, so
+    By area can only name those groups after a place. A reverse geocoder
+    (Nominatim, with its 1-a-second limit, cached) would give the town.
+  - The map in the import sheet, to pick a list's places by area on a map
+    rather than by group.
   - Settings → History for trips, and travel.json in the desktop file
     backup: Storage.travel already has both; nothing in Settings shows
     them yet.

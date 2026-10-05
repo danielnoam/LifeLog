@@ -65,7 +65,8 @@ Reading: `lifelog_overview` (start here), `lifelog_guide`, `lifelog_search`,
 `lifelog_get`, `lifelog_timeline`, `lifelog_backlog`, `lifelog_notes`,
 `lifelog_expenses`, `lifelog_spending`, `lifelog_recurring`,
 `lifelog_habits`, `lifelog_accomplishments`, `lifelog_boards`,
-`lifelog_trips`.
+`lifelog_trips`, `lifelog_google_list` (reads a shared Google Maps list or
+place straight from Google; the only tool that goes beyond your data).
 
 Changing: `lifelog_add_expense`, `lifelog_add_timeline_entry`,
 `lifelog_add_backlog_item`, `lifelog_finish_backlog_item`,
@@ -76,7 +77,8 @@ Changing: `lifelog_add_expense`, `lifelog_add_timeline_entry`,
 `lifelog_edit_recurring_charge`, `lifelog_pause_recurring`,
 `lifelog_update_board`, `lifelog_delete_board`, `lifelog_add_trip`,
 `lifelog_update_trip`, `lifelog_delete_trip`, `lifelog_add_place`,
-`lifelog_update_place`, `lifelog_delete_place`, `lifelog_undo`.
+`lifelog_update_place`, `lifelog_delete_place`,
+`lifelog_import_google_list`, `lifelog_undo`.
 
 Every change is checked first: categories and projects must exist, and the
 result must be something the app itself would keep, or it's refused with the

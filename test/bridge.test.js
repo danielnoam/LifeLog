@@ -102,7 +102,8 @@ const test = (name, fn) => tests.push([name, fn]);
 test("every read tool answers, and none of them ever shows an API key", async () => {
   reset();
   for (const t of B.TOOLS.filter((x) => x.readOnly)) {
-    const args = t.name === "lifelog_search" ? { query: "e" } : t.name === "lifelog_get" ? { collection: "notes", item: "no1" } : {};
+    const args = t.name === "lifelog_search" ? { query: "e" } : t.name === "lifelog_get" ? { collection: "notes", item: "no1" }
+      : t.name === "lifelog_google_list" ? { link: "https://www.google.com/maps/place/Pantheon/@41.8986,12.4769,17z" } : {};
     const text = await ok(t.name, args);
     assert.ok(!/SECRET/.test(text), t.name + " leaked a secret");
   }
@@ -438,6 +439,43 @@ test("trips: planned day by day, places moved and scheduled, a trip deleted with
   assert.deepStrictEqual([travel().trips.length, travel().places.length], [0, 0]);
   await ok("lifelog_undo", {});
   assert.deepStrictEqual([travel().trips.length, travel().places.length], [1, 3], "one undo brings back the trip and its places");
+});
+
+test("a Google Maps list: read straight from Google, then picked into a trip without doubles", async () => {
+  reset();
+  const { googleList, LIST_ID } = require("./fixtures/google-list.js");
+  const realFetch = global.fetch;
+  const asked = [];
+  global.fetch = async (url, init) => {
+    asked.push(String(url));
+    if (String(url).startsWith("https://maps.app.goo.gl/")) {
+      assert.strictEqual(init && init.redirect, "manual", "the short link's redirect is read, not followed");
+      return new Response(null, { status: 302, headers: { location: `https://www.google.com/maps/@/data=!4m3!11m2!2s${LIST_ID}!3e3` } });
+    }
+    return new Response(googleList(), { status: 200 });
+  };
+  try {
+    const listed = await ok("lifelog_google_list", { link: "https://maps.app.goo.gl/Code1?g_st=ac" });
+    assert.match(listed, /^Italy: 5 places/);
+    assert.match(listed, /\nMilano\n- Duomo di Milano — P\.za del Duomo/);
+    assert.ok(asked[1].includes("!1s" + LIST_ID), "the list is fetched by the id the link led to");
+    assert.ok(!/Someone/.test(listed), "the list's owner never reaches the AI");
+
+    await ok("lifelog_add_trip", { name: "Milan" });
+    const out = await ok("lifelog_import_google_list", { trip: "Milan", link: "https://maps.app.goo.gl/Code1", only: "milano" });
+    assert.match(out, /Added 2 places from "Italy" to Milan, no day yet/);
+    let ps = travel().places;
+    assert.deepStrictEqual(ps.map((p) => [p.name, p.gid, p.source, p.order]), [
+      ["Duomo di Milano", "0x1334f4aad1240001:0x2a", LIST_ID, 0], ["Sforzesco Castle", "0x1334f4aad1240002:0x2b", LIST_ID, 1]]);
+    assert.match(await ok("lifelog_import_google_list", { trip: "Milan", link: "https://maps.app.goo.gl/Code1", only: "milano" }), /Nothing to add: all 2 places are already in Milan/);
+    assert.match(await ok("lifelog_import_google_list", { trip: "Milan", link: "https://maps.app.goo.gl/Code1", only: "duomo, colosseo" }), /Added 1 place .*; 1 already there/);
+    await refused("lifelog_import_google_list", { trip: "Milan", link: "https://maps.app.goo.gl/Code1", only: "paris" }, /None of the 5 places/);
+    await refused("lifelog_google_list", { link: "https://example.com/x" }, /isn't a Google Maps list or place/);
+    await ok("lifelog_undo", {});
+    assert.strictEqual(travel().places.length, 2, "an import is undone in one step");
+  } finally {
+    global.fetch = realFetch;
+  }
 });
 
 test("on GitHub: read with the sha, a big file through its blob, save on top, and a stale sha is retried", async () => {

@@ -16,6 +16,52 @@ what was decided against and why.
 
 ---
 
+- **Travel's import, map and arranging (0.242.0).**
+  - *The Google list endpoint is unofficial.* Google has no API for saved
+    lists, and signing in with Google doesn't help (no scope reads them).
+    A shared list's short link redirects to a URL with the list id after
+    `!11m2!2s`; `maps/preview/entitylist/getlist` (the request Maps' own
+    page makes) answers `)]}'` + JSON. Indexes are in `parseGoogleList`;
+    if Google changes the shape, that function and its fixture
+    (test/fixtures/google-list.js, made up, shaped like a real 27-place
+    list) are the place. The list also carries its owner's name and
+    account id: they're never kept.
+  - *Three network paths, one parser.* `fetchGoogle(link, get)` does the
+    reading; `get` differs: the apps' native request (platform.js's
+    stand-in proxy, which follows the redirect itself and reports where it
+    landed), the Cloudflare worker for a browser (it reads the short link's
+    Location instead of following it, and only short-link hops), and plain
+    Node for the bridge. A long link (a place's /maps/place/ URL) needs no
+    network at all.
+  - *Google's place id* comes as two signed 64-bit decimals and Maps' links
+    write it as unsigned hex `0x…:0x…`, hence BigInt.asUintN. ↗ for an
+    imported place opens `maps?ftid=<gid>`, Google's own page for it.
+  - *Areas without geocoding.* A town is read off the address (the part
+    with the postcode, minus postcode and region code), and places within
+    15 km chain into one area. Lists often have no address for half their
+    places, so an area with none is "Near" its most central place. Asking a
+    geocoder (Nominatim) would name them, but means a third party and its
+    rate limit for a label. The walk order is nearest-neighbour from the
+    place furthest from the middle: not optimal, but never backtracks
+    across the town to start.
+  - *Modes on the trip page, not VIEW_MODES.* By time / By area / Map are
+    a `.seg` on the trip page, kept per device in lifelog-travel-ui. As
+    VIEW_MODES they'd apply to the trip list too, and the mode swipe would
+    fight the map's own panning. For the same reason the map's side and
+    rows being arranged carry `.no-swipe`, which attachSwipe and
+    pull-to-refresh now honour.
+  - *One Leaflet map for the page's life*, moved into each render's layout
+    and re-measured (invalidateSize), so a re-render doesn't reload tiles.
+    Leaflet is vendored (src/vendor, 1.9.4, BSD-2) and loaded the first
+    time Map is opened. Tiles are CARTO's basemaps (dark for Default, Nord
+    and Dracula, Voyager for Light): free for non-commercial use with the
+    credit shown. OpenStreetMap's own tile server asks apps not to use it.
+  - *Arranging* follows the To-do list's gesture (a long press, or the
+    button), with listeners on the window rather than a pointer capture,
+    since moving a row in the DOM drops a capture. A place dropped on No
+    day yet loses its time; scheduled places can change day but keep
+    sorting by time within it.
+
 - **Travel (0.241.0).**
   - *Its own file.* Trips and places live in travel.json beside
     lifelog.json, not in it. Not for size (a trip is a few KB) but because
@@ -35,8 +81,8 @@ what was decided against and why.
     one with a day only is "that day", one with neither is "this trip". A
     time is only kept with a day, so the sheet disables the time fields
     until there is one.
-  - *No VIEW_MODES entry yet*: the tab is one screen (a trip list, then a
-    trip). By area and Map will be its modes.
+  - *No VIEW_MODES entry*: the tab is one screen (a trip list, then a
+    trip). Its views became a switch on the trip page in 0.242.0.
 
 - **The AI bridge (0.239.0).** Daniel's Telemachus (an Odysseus fork) had a
   Python MCP server of its own that re-implemented LifeLog's formats, and

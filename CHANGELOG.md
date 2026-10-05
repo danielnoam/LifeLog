@@ -4,6 +4,26 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.242.0] - 2026-10-05
+
+### Added
+- **Import from Google Maps.** In a trip, ⇣ (or + → From Google Maps)
+  takes a link from Share in Google Maps. A saved list shows all its places,
+  grouped by area, to tick the ones for this trip; a single place comes in
+  on its own. Places keep their location and Google's own page for ↗, and
+  one already in the trip can't be added twice. The phone apps read Google
+  directly; a browser goes through the proxy set in Settings → Media.
+- **By time, By area and Map.** A trip can now be seen three ways. By area
+  groups its places by town, each group in an order you could walk it,
+  each row saying its day. Map puts the places on a map (the top half on a
+  phone, beside the list on a computer), with chips to show one day: its
+  pins numbered in the day's order with a line between them. Tap a pin to
+  find its row, tap a row to find its pin, tap again to open it.
+- **Arrange.** ⇅ Arrange, or a long press on a place, lets you drag places
+  into order or onto another day.
+- The AI bridge can read a shared Google Maps list or place, and import
+  its places (or just some of them) into a trip.
+
 ## [0.241.0] - 2026-10-05
 
 ### Added

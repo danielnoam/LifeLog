@@ -5,6 +5,7 @@ global.window = {};
 require("../src/travel.js");
 const M = require("../src/merge.js");
 const T = global.window.LifeLogTravel;
+const { googleList, LIST_ID } = require("./fixtures/google-list.js");
 T.init({ uid: (() => { let n = 0; return () => "u" + (n++); })() });
 
 let passed = 0;
@@ -79,6 +80,7 @@ test("dates read as people write them", () => {
 
 test("Open in Google Maps: the link given, else the coordinates, else a search", () => {
   assert.strictEqual(T.mapsUrl({ url: "https://maps.app.goo.gl/x", lat: 1, lng: 2 }), "https://maps.app.goo.gl/x");
+  assert.strictEqual(T.mapsUrl({ name: "A", gid: "0x1:0x2", lat: 41.9, lng: 12.4 }), "https://www.google.com/maps?ftid=0x1:0x2");
   assert.strictEqual(T.mapsUrl({ name: "A", lat: 41.9, lng: 12.4 }), "https://www.google.com/maps/search/?api=1&query=41.9,12.4");
   assert.strictEqual(T.mapsUrl({ name: "Trevi Fountain", address: "Rome" }), "https://www.google.com/maps/search/?api=1&query=Trevi%20Fountain%2C%20Rome");
 });
@@ -91,4 +93,91 @@ test("two devices planning different places of one trip both keep their changes"
   assert.deepStrictEqual(out.places.map((p) => [p.id, p.day]).sort(), [["p1", "2027-04-11"], ["p2", undefined]]);
 });
 
-console.log(`\n${passed} test(s) passed.`);
+test("a Google list: its name, and each place's name, note, address, coordinates and id, and nothing of its owner", () => {
+  const list = T.parseGoogleList(googleList());
+  assert.strictEqual(list.name, "Italy");
+  assert.strictEqual(list.id, LIST_ID);
+  assert.strictEqual(list.places.length, 5);
+  assert.deepStrictEqual(list.places[0], { name: "Colosseo", lat: 41.8902, lng: 12.4922, note: "Book the underground tour", gid: "0x132f604566693529:0xe8f4e4319c2df271" });
+  assert.strictEqual(list.places[3].address, "P.za del Duomo, 20122 Milano MI, Italy");
+  assert.ok(!JSON.stringify(list).includes("Someone"));
+  assert.throws(() => T.parseGoogleList("<html>"), /isn't a Google Maps list/);
+});
+
+test("Google's place id: two signed decimals become Maps' unsigned hex", () => {
+  assert.strictEqual(T.gidOf(["1", "-1"]), "0x1:0xffffffffffffffff");
+  assert.strictEqual(T.gidOf(["255", "16"]), "0xff:0x10");
+  assert.strictEqual(T.gidOf(["x", "1"]), null);
+  assert.strictEqual(T.gidOf(null), null);
+});
+
+test("a list id from every shape of link that holds one", () => {
+  const id = "KtcMn2kOOjTBNLIPNrHaAHbQqc1mWw";
+  assert.strictEqual(T.googleListId(`https://www.google.com/maps/@/data=!4m3!11m2!2s${id}!3e3?entry=tts`), id);
+  assert.strictEqual(T.googleListId(`https://consent.google.com/m?continue=https://www.google.com/maps/@/data%3D!4m3!11m2!2s${id}!3e3&gl=IT`), id);
+  assert.strictEqual(T.googleListId(`https://www.google.com/maps/placelists/list/${id}`), id);
+  assert.strictEqual(T.googleListId(id), id);
+  assert.strictEqual(T.googleListId("https://www.google.com/maps/place/Trevi"), null);
+  assert.strictEqual(T.googleShortCode("https://maps.app.goo.gl/FMe3YPZevJJeFY168?g_st=ac"), "FMe3YPZevJJeFY168");
+  assert.strictEqual(T.googleShortCode("goo.gl/maps/abc123"), "abc123");
+  assert.strictEqual(T.googleShortCode("https://example.com/x"), null);
+});
+
+test("a single shared place, from either URL a place link resolves to", () => {
+  assert.deepStrictEqual(T.parseGooglePlaceUrl("https://www.google.com/maps/place/Trevi+Fountain/@41.9,12.48,17z/data=!3m1!4b1!4m6!3m5!1s0x132f604f678640a9:0xcad165fa2036ce2c!8m2!3d41.9009!4d12.4833!16z"),
+    { name: "Trevi Fountain", lat: 41.9009, lng: 12.4833, gid: "0x132f604f678640a9:0xcad165fa2036ce2c" });
+  assert.deepStrictEqual(T.parseGooglePlaceUrl("https://maps.google.com/maps?q=Trevi+Fountain,+Piazza+di+Trevi,+00187+Roma+RM,+Italy&ftid=0x132f604f678640a9:0xcad165fa2036ce2c"),
+    { name: "Trevi Fountain", gid: "0x132f604f678640a9:0xcad165fa2036ce2c", address: "Piazza di Trevi, 00187 Roma RM, Italy" });
+  assert.strictEqual(T.parseGooglePlaceUrl("https://evil.example/maps/place/X"), null);
+});
+
+test("a town from an address, in the ways countries write them", () => {
+  assert.strictEqual(T.townOf("Piazza di Trevi, 00187 Roma RM, Italy"), "Roma");
+  assert.strictEqual(T.townOf("123 Main St, Springfield, IL 62701, USA"), "Springfield");
+  assert.strictEqual(T.townOf("10 Downing St, London SW1A 2AA, UK"), "London");
+  assert.strictEqual(T.townOf("1 Chome-1-2 Oshiage, Sumida City, Tokyo 131-0045, Japan"), "Tokyo");
+  assert.strictEqual(T.townOf(""), "");
+});
+
+test("areas: places a day's travel apart, named by their town or a place, in walking order", () => {
+  const list = T.parseGoogleList(googleList()).places;
+  const out = T.areas(list.concat([{ name: "Somewhere" }, { name: "Brera", address: "Via Brera, 20121 Milano MI, Italy" }]));
+  assert.deepStrictEqual(out.map((a) => [a.name, a.places.length]), [["Milano", 3], ["Near Trevi", 3], ["No location", 1]]);
+  // The walk starts at an end and goes to the nearest each time.
+  assert.deepStrictEqual(out[1].places.map((p) => p.name), ["Colosseo", "Trevi", "Pantheon"]);
+});
+
+test("the same place twice: by Google's id, else by name close by", () => {
+  assert.ok(T.samePlace({ gid: "0x1:0x2", name: "A" }, { gid: "0x1:0x2", name: "B" }));
+  assert.ok(!T.samePlace({ gid: "0x1:0x2", name: "A" }, { gid: "0x1:0x3", name: "A" }));
+  assert.ok(T.samePlace({ name: "Trevi", lat: 41.9009, lng: 12.4833 }, { name: "trevi", lat: 41.9010, lng: 12.4833 }));
+  assert.ok(!T.samePlace({ name: "Trevi", lat: 41.9009, lng: 12.4833 }, { name: "Trevi", lat: 45, lng: 9 }));
+});
+
+const later = [];
+const atest = (name, fn) => later.push([name, fn]);
+
+atest("a short link to a list: resolved, then fetched by its id", async () => {
+  const asked = [];
+  const got = await T.fetchGoogle("https://maps.app.goo.gl/abc?g_st=ac", async (kind, arg) => {
+    asked.push(kind + ":" + arg);
+    return kind === "resolve" ? `https://www.google.com/maps/@/data=!4m3!11m2!2s${LIST_ID}!3e3` : googleList();
+  });
+  assert.deepStrictEqual(asked, ["resolve:abc", "list:" + LIST_ID]);
+  assert.deepStrictEqual([got.name, got.source, got.places.length], ["Italy", LIST_ID, 5]);
+});
+
+atest("a long place link needs no network, and a stray link says what it isn't", async () => {
+  const got = await T.fetchGoogle("https://www.google.com/maps/place/Pantheon/@41.8986,12.4769,17z", () => { throw new Error("no network"); });
+  assert.deepStrictEqual(got.places, [{ name: "Pantheon", lat: 41.8986, lng: 12.4769 }]);
+  await assert.rejects(T.fetchGoogle("https://example.com/", async () => ""), /isn't a Google Maps list or place/);
+  await assert.rejects(T.fetchGoogle("  ", async () => ""), /Paste a Google Maps link/);
+});
+
+(async () => {
+  for (const [name, fn] of later) {
+    try { await fn(); passed++; console.log("  ok - " + name); }
+    catch (e) { console.error("  FAIL - " + name); console.error("    " + e.message); process.exitCode = 1; }
+  }
+  console.log(`\n${passed} test(s) passed.`);
+})();

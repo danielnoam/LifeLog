@@ -265,6 +265,36 @@ function placeLine(p) {
   const extra = [p.address, p.note].filter(Boolean).join(" · ");
   return `- ${when}${p.name}${p.visited ? " ✓ visited" : ""}${extra ? " — " + cut(extra, 160) : ""}  (${p.id})`;
 }
+// A Google Maps link's places, read the way the app reads them
+// (Travel.fetchGoogle) but straight from Google: Node isn't a browser, so
+// there's no CORS and no proxy. The short link's redirect is read, not
+// followed, the way proxy/worker.js does it.
+async function googleGet(kind, arg) {
+  try {
+    if (kind === "resolve") {
+      let at = "https://maps.app.goo.gl/" + arg;
+      for (let hop = 0; hop < 4; hop++) {
+        const res = await fetch(at, { redirect: "manual" });
+        const next = res.headers.get("location");
+        if (!next) break;
+        at = new URL(next, at).toString();
+        if (!/^https:\/\/(maps\.app\.goo\.gl|goo\.gl)\//.test(at)) return at;
+      }
+      fail("That link didn't lead anywhere. Copy it again from Share in Google Maps.");
+    }
+    const res = await fetch(Travel.googleListUrl(arg));
+    if (!res.ok) fail(`Google Maps didn't send that list (HTTP ${res.status}). Is it shared?`);
+    return await res.text();
+  } catch (e) {
+    if (e instanceof InputError) throw e;
+    fail("Couldn't reach Google Maps: " + ((e && e.message) || e));
+  }
+}
+async function readGoogle(link) {
+  try { return await Travel.fetchGoogle(link, googleGet); }
+  catch (e) { if (e instanceof InputError) throw e; fail(String((e && e.message) || e) + "."); }
+}
+
 // The fields a place takes from a tool's arguments; an empty string clears.
 const PLACE_FIELDS = ["name", "day", "time", "endTime", "address", "note", "url", "lat", "lng", "visited"];
 function placeFields(a, into) {
@@ -1222,6 +1252,63 @@ const TOOLS = [
         const p = findPlace(Travel.sanitizeDoc(doc), a.place, a.trip);
         doc.places = doc.places.filter((x) => x.id !== p.id);
         return { text: `Removed "${p.name}".`, touched: [["places", p.id]] };
+      }, { file: "travel" });
+    },
+  },
+  {
+    name: "lifelog_google_list",
+    description: "Read a Google Maps link: a shared saved list (maps.app.goo.gl/…) gives every place in it, grouped by area; a shared place gives that one. Nothing is changed; lifelog_import_google_list adds them to a trip.",
+    readOnly: true,
+    input: { link: S.str("The link from Share in Google Maps") },
+    required: ["link"],
+    async run(a) {
+      const got = await readGoogle(a.link);
+      const lines = [`${got.name}: ${got.places.length} place${got.places.length === 1 ? "" : "s"}`];
+      for (const area of Travel.areas(got.places)) {
+        lines.push("", area.name);
+        for (const p of area.places) lines.push(`- ${p.name}${[p.address, p.note].filter(Boolean).length ? " — " + cut([p.address, p.note].filter(Boolean).join(" · "), 160) : ""}`);
+      }
+      return lines.join("\n");
+    },
+  },
+  {
+    name: "lifelog_import_google_list",
+    description: "Add places from a Google Maps link (a shared saved list, or one place) to a trip, with no day yet. A list often spans several trips: give only to take just the places whose names (or towns, as lifelog_google_list groups them) contain one of its comma-separated words. Places already in the trip are skipped.",
+    input: {
+      trip: S.str("The trip's id or name"), link: S.str("The link from Share in Google Maps"),
+      only: S.str("Comma-separated: keep only places whose name or town contains one of these"),
+    },
+    required: ["trip", "link"],
+    async run(a) {
+      const got = await readGoogle(a.link);
+      const words = String(a.only || "").split(",").map(lower).filter(Boolean);
+      const town = new Map();
+      for (const area of Travel.areas(got.places)) for (const p of area.places) town.set(p, area.name);
+      const wanted = got.places.filter((p) => !words.length || words.some((w) => lower(p.name).includes(w) || lower(town.get(p)).includes(w)));
+      if (!wanted.length) fail(`None of the ${got.places.length} places in "${got.name}" matches "${a.only}".`);
+      const before = await readTravel();
+      const t0 = findTrip(before.trips, a.trip);
+      if (wanted.every((g) => before.places.some((h) => h.trip === t0.id && Travel.samePlace(h, g)))) {
+        return `Nothing to add: ${wanted.length === 1 ? "that place is" : `all ${wanted.length} places are`} already in ${t0.name}.`;
+      }
+      return change(`import ${wanted.length} places from "${got.name}"`, (doc) => {
+        const t = findTrip(Travel.sanitizeDoc(doc).trips, a.trip);
+        doc.places = doc.places || [];
+        const have = doc.places.filter((p) => p.trip === t.id);
+        const fresh = wanted.filter((g) => !have.some((h) => Travel.samePlace(h, g)));
+        const now = changeNow || nowIso();
+        const loose = have.filter((p) => !p.day && typeof p.order === "number");
+        let order = loose.length ? Math.max(...loose.map((p) => p.order)) + 1 : 0;
+        const added = fresh.map((g) => Travel.sanitizePlace({
+          ...g, id: L.uid(), trip: t.id, order: order++, createdAt: now, updatedAt: now,
+          source: got.source || undefined, url: got.url || undefined,
+        }));
+        doc.places.push(...added);
+        const skipped = wanted.length - fresh.length;
+        return {
+          text: `Added ${added.length} place${added.length === 1 ? "" : "s"} from "${got.name}" to ${t.name}, no day yet${skipped ? `; ${skipped} already there` : ""}.` + (added.length ? "\n" + added.map((p) => `- ${p.name}  (${p.id})`).join("\n") : ""),
+          touched: added.map((p) => ["places", p.id]),
+        };
       }, { file: "travel" });
     },
   },
