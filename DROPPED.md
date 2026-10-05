@@ -13,6 +13,15 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## Books in LifeLog
+
+Whole books kept and read inside LifeLog: the text stored apart from the
+data file (IndexedDB plus a file of its own in the sync repo) with a reader
+on top, and maybe Kindle highlights coming in as quotes. Decided against on
+2026-10-05: not needed. PDFs and EPUBs still import as note text up to
+300,000 characters (0.236.0), which is what stays. Bring it back if books
+start getting cut off at that limit.
+
 ## An AI chat inside LifeLog (for now)
 
 A chat panel in the app that talks to the user's AI. Set aside on

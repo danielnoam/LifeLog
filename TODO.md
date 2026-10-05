@@ -6,13 +6,6 @@ todo:
   could share for its spending), and what a place holds (name, address or
   map link, notes, visited).
 
-- **Books as notes.** PDFs and EPUBs come in as text since 0.236.0, but
-  only up to 300,000 characters, because every note lives in the one data
-  file that syncs on each save and is cached in localStorage (about 5MB). A
-  whole book needs its text kept apart: in IndexedDB and a file of its own
-  in the sync repo, written once, with the note holding the title and a
-  reader that loads the rest.
-
 - **An Apple developer account ($99/year)**, if the iOS app is ever used
   for real: sign in CI, upload to TestFlight, and the 7-day re-signing that
   AltStore/SideStore do goes away. Everything else for iOS is built (0.216.0
