@@ -970,8 +970,8 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await page.evaluate(() => { localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "habits" })); });
     await page.reload({ waitUntil: "load" });
     await page.waitForTimeout(1000);
-    const chips = await page.evaluate(() => [...document.querySelectorAll(".habit-card")].map((c) => [c.dataset.id, (c.querySelector(".habit-remind-face") || {}).textContent || null]));
-    check("each habit card shows its reminder, or a bell to set one", JSON.stringify(chips) === JSON.stringify([["h1", "🔔 21:30"], ["h2", "🔔"]]), chips);
+    const chips = await page.evaluate(() => [...document.querySelectorAll(".habit-card")].map((c) => { const f = c.querySelector(".habit-remind-face"); return [c.dataset.id, f ? ((f.querySelector(".ico") || {}).dataset || {}).ico + " " + f.textContent.trim() : null]; }));
+    check("each habit card shows its reminder, or a bell to set one", JSON.stringify(chips) === JSON.stringify([["h1", "bell 21:30"], ["h2", "bell "]]), chips);
     await page.evaluate(() => {
       const input = document.querySelector('.habit-card[data-id="h2"] .habit-remind-input');
       input.value = "07:15";
@@ -980,7 +980,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await page.waitForTimeout(700);
     snap = await lastSnap(page);
     check("a time set on the card goes to the phone", snap.habits.find((h) => h.id === "h2").remind === "07:15", snap.habits);
-    check("and the card says so", await page.evaluate(() => document.querySelector('.habit-card[data-id="h2"] .habit-remind-face').textContent === "🔔 07:15"));
+    check("and the card says so", await page.evaluate(() => document.querySelector('.habit-card[data-id="h2"] .habit-remind-face').textContent.trim() === "07:15"));
     check("one line above the cards counts them", await page.evaluate(() => /2 reminders on this phone/.test(document.querySelector(".habit-remind-bar").textContent)));
     await page.click('.habit-card[data-id="h2"] .habit-remind-clear');
     await page.waitForTimeout(700);
@@ -992,7 +992,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     snap = await lastSnap(page);
     check("pausing them sends no times, so nothing rings", snap.habits.every((h) => h.remind === ""), snap.habits);
     check("and the line and the card say they're paused",
-      await page.evaluate(() => /paused/.test(document.querySelector(".habit-remind-bar").textContent) && /🔕/.test(document.querySelector('.habit-card[data-id="h1"] .habit-remind-face').textContent)));
+      await page.evaluate(() => /paused/.test(document.querySelector(".habit-remind-bar").textContent) && !!document.querySelector('.habit-card[data-id="h1"] .habit-remind-face .ico[data-ico="bell-off"]')));
     check("the time is kept for resuming", await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-habit-reminders-v1")).times.h1 === "21:30"));
     await page.click(".habit-remind-bar button");
     await page.waitForTimeout(500);

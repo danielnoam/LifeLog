@@ -47,6 +47,7 @@
   // Shared app plumbing, provided by app.js via init(ctx). Everything below
   // (except seedFinanceCategories and the pure date/key helpers) assumes
   // init() has run.
+  const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, uid, groupBy, countBy, toast, persist, render, renderLazySections,
     buildYearFilter, buildCatFilter, buildProjectFilter, monthCardHeader, emptyState,
     bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
@@ -890,7 +891,8 @@
     t.title = f.note || f.category;
     row.appendChild(t);
     if (f.virtual) {
-      const badge = el("span", "recur-badge", f.extra ? "↻+" : (f.overridden ? "↻*" : "↻"));
+      const badge = el("span", "recur-badge");
+      badge.appendChild(window.LifeLogIcons.labelled("repeat", f.extra ? "+" : (f.overridden ? "*" : "")));
       badge.title = f.extra ? "A one-off charge on a recurring expense"
         : (f.overridden ? "Recurring — custom amount/note for this date" : "Recurring");
       row.appendChild(badge);
@@ -980,7 +982,8 @@
     fresh.appendChild(add);
     // Opens the project itself, not the expense — the head names the group,
     // so tapping it is how you rename or recolour it.
-    const edit = el("button", "proj-group-edit", "✎");
+    const edit = el("button", "proj-group-edit");
+    edit.appendChild(ico("pencil"));
     edit.type = "button";
     edit.title = "Edit " + project;
     edit.setAttribute("aria-label", edit.title);
@@ -1832,7 +1835,7 @@
     // stacking a second button for it just to sit greyed out most of the
     // time isn't worth the row.
     const pausedNow = editing && isPausedOn(rec, todayStr());
-    $("#pauseBtn").textContent = pausedNow ? "▶ Resume now" : "⏸ Pause…";
+    if (pausedNow) window.LifeLogIcons.setLabel($("#pauseBtn"), "play", "Resume now"); else window.LifeLogIcons.setLabel($("#pauseBtn"), "pause", "Pause…");
     $("#pauseBtn").title = pausedNow
       ? "End the current pause so this bill starts generating occurrences again"
       : "Suspend this bill for a stretch of time without deleting it";
@@ -2566,7 +2569,8 @@
     // glyph, its count and a +, over a card holding the rows.
     const block = el("div", "year-block recur-block");
     const head = el("div", "year-head");
-    const h2 = el("h2", null, "↻ Recurring");
+    const h2 = el("h2", null);
+    h2.appendChild(window.LifeLogIcons.labelled("repeat", "Recurring"));
     h2.dataset.jumpLabel = "Recurring"; // a third of a phone's bottom bar
     head.appendChild(h2);
     head.appendChild(el("span", "ycount", `${active.length} active`));
@@ -2650,7 +2654,8 @@
         head.appendChild(label);
         // Opens the project, not a plan — the head names the group, exactly
         // as it does in the Ledger.
-        const edit = el("button", "proj-group-edit", "✎");
+        const edit = el("button", "proj-group-edit");
+        edit.appendChild(ico("pencil"));
         edit.type = "button";
         edit.title = "Edit " + name;
         edit.setAttribute("aria-label", edit.title);
@@ -2739,7 +2744,8 @@
       name.title = (f.note ? f.note + " · " : "") + f.category;
       row.appendChild(name);
       if (f.virtual) {
-        const badge = el("span", "recur-badge", "↻");
+        const badge = el("span", "recur-badge");
+        badge.appendChild(ico("repeat"));
         badge.title = "From a recurring expense";
         row.appendChild(badge);
       }

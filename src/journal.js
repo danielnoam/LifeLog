@@ -7,6 +7,7 @@
 // setEntryCover) live here and are re-forwarded into backlog.js by app.js.
 (function () {
   // Shared app plumbing, provided by app.js via init(ctx).
+  const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
     emptyCoverEl, coverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect, sortSelect,
@@ -649,7 +650,8 @@
     // On the years' row rather than beside the heading (0.212.0): it plays
     // the year chosen there, and says which. Beside the heading it was a
     // button taller than the line it sat on, hanging between the two rows.
-    const recapBtn = el("button", "recap-open-btn", "▶ Recap " + state.statsYear);
+    const recapBtn = el("button", "recap-open-btn");
+    recapBtn.appendChild(window.LifeLogIcons.labelled("play", "Recap " + state.statsYear));
     recapBtn.type = "button";
     recapBtn.title = "Your year, one thing at a time";
     recapBtn.onclick = () => window.LifeLogRecap.openRecap(state.statsYear);
@@ -1269,7 +1271,7 @@
       const info = item.querySelector(".ac-info");
       const existing = info.querySelector(".ac-meta");
       if (existing) existing.remove();
-      info.appendChild(el("span", "ac-meta", `📋 In backlog · ${b.category}`));
+      info.appendChild(el("span", "ac-meta")).appendChild(window.LifeLogIcons.labelled("clipboard-list", `In backlog · ${b.category}`));
       list.appendChild(item);
     });
 

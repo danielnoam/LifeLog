@@ -333,6 +333,26 @@ what was decided against and why.
   copy of the whole recurring list taken just before. `combinedWith` stays in
   KNOWN_RECURRING_KEYS so the sanitizer drops it rather than keepUnknown
   carrying it, which is what made the old groups separate again.
+- **Icons (0.247.0).** Lucide, chosen over Tabler, Phosphor and Heroicons
+  because its 2px round stroke matched the SVGs Settings already had, so
+  nothing in the app reads as two generations. `src/icons.js` is generated
+  from the upstream SVG files (the bodies only, attributes set on the
+  element), and is the one place a drawing lives: `svg(name)` in code,
+  `data-ico` in markup, `labelled()`/`setLabel()` for a button that says
+  text too (`textContent = "↻ Sync"` was the common shape; it can't carry
+  an SVG). Names are Lucide's own, so a new one is a file fetched and a
+  line added. A name that isn't in the map throws in `svg()`, which is how
+  a typo is found; `hydrate()` logs instead, so one bad name in index.html
+  doesn't leave every other placeholder empty (it did, once). What stayed
+  text is in DESIGN.md §6. The browser suite asserted `textContent === "★"`
+  in one place (collections.js); it now looks for `.ico.is-fill`.
+  The app icon: `icon.svg` (web, with the tile) and `assets/logo.svg` plus
+  `assets/logo.png` (1024², the mark alone; `@capacitor/assets` in the
+  Android and iOS workflows draws the tile from `--iconBackgroundColor`).
+  No rsvg here, so the PNG is a Chromium screenshot of the SVG at 1024 with
+  a transparent background. The header's `.brand-mark` is the same mark
+  inline, in `currentColor`, with the dot's fill `var(--bg)` so it stays a
+  ring on every theme.
 - **About (0.246.0).** The What's new page became a section of About, so
   `data-page="whatsnew"` is gone and `about` has the row, in its own group
   under the Settings list rather than under Connected services where it sat.

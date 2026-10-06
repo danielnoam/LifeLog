@@ -4,6 +4,7 @@
 // quote with its author) and can carry a category of its own. Shared app
 // plumbing arrives via init(ctx), same as every other view module.
 (function () {
+  const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
     monthCardHeader, emptyState, backfillUpdatedAt, keepUnknown, MONTHS,
     bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
@@ -416,7 +417,8 @@
   }
 
   function favButton(n) {
-    const fav = own(el("button", "note-fav" + (n.fav ? " on" : ""), n.fav ? "★" : "☆"));
+    const fav = own(el("button", "note-fav" + (n.fav ? " on" : "")));
+    fav.appendChild(ico("star", n.fav ? "is-fill" : ""));
     fav.type = "button";
     fav.title = n.fav ? "Remove from favourites" : "Add to favourites";
     fav.setAttribute("aria-label", fav.title);
@@ -429,7 +431,7 @@
   function boardCard(card, n, stamp) {
     card.classList.add("is-board");
     card.appendChild(stamp);
-    card.appendChild(el("p", "note-text note-list-title", "✎ " + n.text));
+    card.appendChild(el("p", "note-text note-list-title")).appendChild(window.LifeLogIcons.labelled("presentation", n.text));
     const thumb = el("div", "board-thumb-inline");
     thumb.appendChild(window.LifeLogBoards.thumbnail(n.board));
     card.appendChild(thumb);
@@ -531,7 +533,8 @@
       input.setSelectionRange(input.value.length, input.value.length);
     };
     row.appendChild(text);
-    const del = el("button", "todo-del", "✕");
+    const del = el("button", "todo-del");
+    del.appendChild(ico("x"));
     del.type = "button";
     del.title = "Delete";
     del.setAttribute("aria-label", "Delete: " + it.text);
@@ -681,7 +684,8 @@
   function reorderRow(n, it, list) {
     const row = own(el("div", "todo-row is-reorder"));
     row.dataset.item = it.id;
-    const grip = el("span", "todo-grip", "⠿");
+    const grip = el("span", "todo-grip");
+    grip.appendChild(ico("grip-vertical"));
     grip.setAttribute("aria-hidden", "true");
     row.append(grip, el("span", "todo-text", it.text));
     row.addEventListener("pointerdown", (ev) => beginRowDrag(ev, row, list, n.id));
@@ -855,7 +859,7 @@
 
     if (!state.data.notes.length) {
       showEmpty(emptyState({
-        glyph: "✎",
+        glyph: "pencil",
         title: "No notes yet",
         body: "Write things down as you notice them. Each one keeps the date and time it was written, and you can edit it later.",
         action: "Write your first note",
@@ -904,7 +908,7 @@
     const favs = notes.filter((n) => n.fav).sort(bySort);
     const byYear = sections.length ? {} : groupBy(notes.filter((n) => !n.fav), (n) => sortDate(n).getFullYear());
     if (favs.length && !sections.length) {
-      sections.push(flatBlock("favourites", "★ Favourites", `${favs.length} note${favs.length === 1 ? "" : "s"}`, favs));
+      sections.push(flatBlock("favourites", "Favourites", `${favs.length} note${favs.length === 1 ? "" : "s"}`, favs));
     }
     for (const y of Object.keys(byYear).sort((a, b) => (desc ? b - a : a - b))) {
       const block = el("div", "year-block");
@@ -1039,7 +1043,7 @@
       attachLongPressSelect(card, { id: n.id });
     }
     if (isBoardItem(n)) {
-      card.appendChild(el("span", "coll-card-title", "✎ " + n.text));
+      card.appendChild(el("span", "coll-card-title")).appendChild(window.LifeLogIcons.labelled("presentation", n.text));
       const thumb = el("span", "board-thumb-inline");
       thumb.appendChild(window.LifeLogBoards.thumbnail(n.board));
       card.appendChild(thumb);
@@ -1212,7 +1216,8 @@
       input.oninput = () => { it.text = input.value; };
       // Enter in an item starts the next one, like any list app.
       input.onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); $("#nNewItem").focus(); } };
-      const del = el("button", "note-list-del", "✕");
+      const del = el("button", "note-list-del");
+      del.appendChild(ico("x"));
       del.type = "button";
       del.setAttribute("aria-label", "Remove item");
       del.onclick = () => { sheetItems.splice(i, 1); renderSheetItems(); };

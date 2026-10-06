@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.247.0] - 2026-10-06
+
+### Changed
+- **Icons.** Every icon in the app is now from Lucide, one set drawn to the
+  same rules: the tab bar and mode menus, the add menu, the controls on
+  rows (edit, remove, done, start, put back), badges, empty states, the
+  Settings rows and the drawing-board tools. They replace the mix of
+  unicode glyphs and emoji that had grown with the app, which differed by
+  platform and font. Lucide is credited in Settings → About.
+- **A new app icon.** A timeline: an axis with one event on it and its
+  note, in the app's blue on the dark tile. The old mark was a cyan that no
+  theme used. The web icon, the Android and iOS icons and the mark in the
+  header all change together.
+
 ## [0.246.0] - 2026-10-06
 
 ### Added

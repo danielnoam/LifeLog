@@ -139,7 +139,7 @@ const INCOMING = [
       summary: document.querySelector("#bulkProgressSummary").textContent,
       rows: [...document.querySelectorAll("#bulkProgressList .bulkp-row")].map((r) => ({
         cls: r.className, name: r.querySelector(".bulkp-name").textContent,
-        glyph: r.querySelector(".bulkp-glyph").textContent,
+        glyph: r.querySelector(".bulkp-glyph svg").dataset.ico,
         glyphColor: getComputedStyle(r.querySelector(".bulkp-glyph")).color,
         detail: r.querySelector(".bulkp-detail") ? r.querySelector(".bulkp-detail").textContent : "",
       })),

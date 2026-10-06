@@ -9,6 +9,7 @@
 // lifelog.json: a build older than this one merging that file would drop any
 // root key it doesn't know, and the deletion would then win everywhere.
 (function () {
+  const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader, activatable, updateFilterbarVisibility;
 
   function init(ctx) {
@@ -496,7 +497,7 @@
   // ---------- which trip is shown (this device's, like the tab you're on) ----------
   const UI_KEY = "lifelog-travel-ui";
   // A trip's three ways to look at it: the tab's modes (app.js VIEW_MODES).
-  const MODES = [["time", "By time", "◷"], ["area", "By area", "◎"], ["map", "Map", "⌖"]];
+  const MODES = [["time", "By time", "clock"], ["area", "By area", "map"], ["map", "Map", "map-pin"]];
   const mode = () => (state && state.travelMode) || "time";
   let openTripId = null;
   // The map's day ("all", a date, or "" for no day), the place picked on it,
@@ -530,7 +531,7 @@
     syncTripChips(trip);
     if (trip) { renderTrip(c, trip); return; }
     c.appendChild(emptyState({
-      glyph: "✈︎",
+      glyph: "plane",
       title: "No trips yet",
       body: "Plan a trip: the places you want to go, and which day you'll go to each — as tightly or as loosely as you like.",
       action: "Plan a trip",
@@ -560,7 +561,8 @@
       const status = tripStatus(trip, today());
       if (status === "now") chip.appendChild(el("span", "dot trip-now-dot"));
       chip.appendChild(document.createTextNode(trip.name));
-      const edit = el("span", "chip-edit", "✎");
+      const edit = el("span", "chip-edit");
+      edit.appendChild(ico("pencil"));
       edit.title = "Edit trip";
       activatable(edit, (ev) => { ev.stopPropagation(); openTripModal(trip); }, "Edit trip " + trip.name);
       chip.appendChild(edit);
@@ -594,7 +596,8 @@
       head.appendChild(done);
       head.classList.add("is-sorting");
     } else {
-      const imp = el("button", "btn btn-sm trip-import", "⇣ Import");
+      const imp = el("button", "btn btn-sm trip-import");
+      imp.appendChild(window.LifeLogIcons.labelled("download", "Import"));
       imp.type = "button";
       imp.title = "Import from Google Maps";
       imp.onclick = () => openImportModal(trip);
@@ -604,13 +607,14 @@
 
     if (!places.length && !trip.start) {
       const empty = emptyState({
-        glyph: "⌖",
+        glyph: "map-pin",
         title: "No places yet",
         body: "Add the places you want to go, or bring them in from a list you saved in Google Maps. Give one a day to plan it, and a time to schedule it.",
         action: "Add a place",
         onAction: () => openPlaceModal(null, { trip: trip.id }),
       });
-      const fromGoogle = el("button", "btn trip-empty-import", "⇣ Import from Google Maps");
+      const fromGoogle = el("button", "btn trip-empty-import");
+      fromGoogle.appendChild(window.LifeLogIcons.labelled("download", "Import from Google Maps"));
       fromGoogle.type = "button";
       fromGoogle.onclick = () => openImportModal(trip);
       empty.appendChild(fromGoogle);
@@ -685,13 +689,15 @@
       const body = el("span", "place-body");
       body.appendChild(el("span", "place-name", p.name));
       row.appendChild(body);
-      const grip = el("span", "place-grip", "⠿");
+      const grip = el("span", "place-grip");
+      grip.appendChild(ico("grip-vertical"));
       grip.setAttribute("aria-hidden", "true");
       row.appendChild(grip);
       row.addEventListener("pointerdown", (ev) => beginDrag(ev, row));
       return row;
     }
-    const tick = el("button", "place-tick", p.visited ? "✓" : "");
+    const tick = el("button", "place-tick");
+    if (p.visited) tick.appendChild(ico("check"));
     tick.type = "button";
     tick.setAttribute("aria-label", p.visited ? `Mark ${p.name} as not visited` : `Mark ${p.name} as visited`);
     tick.setAttribute("aria-pressed", p.visited ? "true" : "false");
@@ -710,7 +716,8 @@
     const meta = [p.address, p.note].filter(Boolean).join(" · ");
     if (meta) body.appendChild(el("span", "place-meta", meta));
     row.appendChild(body);
-    const go = el("a", "place-go", "↗");
+    const go = el("a", "place-go");
+    go.appendChild(ico("external-link"));
     go.href = mapsUrl(p);
     go.target = "_blank";
     go.rel = "noopener";
@@ -1438,7 +1445,9 @@
       box.appendChild(item);
     }
     if (d.googleMapsUri) {
-      const a = el("a", "place-google-link", "See it on Google Maps ↗");
+      const a = el("a", "place-google-link");
+      a.appendChild(document.createTextNode("See it on Google Maps "));
+      a.appendChild(ico("external-link"));
       a.href = d.googleMapsUri;
       a.target = "_blank";
       a.rel = "noopener";

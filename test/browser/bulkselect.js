@@ -72,7 +72,7 @@ const bar = (page) => page.evaluate(() => {
   let v = await bar(page);
   check("bulk mode offers the incomplete selection", !!v.preset, v);
   check("counting only what a source could actually fill",
-    /^⚠ Incomplete 3$/.test(v.preset.text), v.preset);
+    /^Incomplete 3$/.test(v.preset.text), v.preset);
   check("and saying what pressing it does", /press Sync/.test(v.preset.title), v.preset);
   check("it sits before the actions it changes the target of", v.preset.beforeSync === true, v.preset);
 
@@ -102,7 +102,7 @@ const bar = (page) => page.evaluate(() => {
   await load(page, { backlogFoldUnreleased: "collapsed" });
   await enterBulk(page);
   v = await bar(page);
-  check("a folded band's rows are not counted", /^⚠ Incomplete 2$/.test(v.preset.text), v.preset);
+  check("a folded band's rows are not counted", /^Incomplete 2$/.test(v.preset.text), v.preset);
   await page.evaluate(() => document.querySelector(".bulk-preset").click());
   await page.waitForTimeout(300);
   v = await bar(page);

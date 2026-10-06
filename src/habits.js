@@ -22,6 +22,7 @@
 // streaks and the rates are what this feature actually is, and they are
 // covered by test/habits.test.js without a browser.
 (function () {
+  const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, uid, toast, persist, render, emptyState, activatable,
     backfillUpdatedAt, keepUnknown, CATEGORY_PALETTE, buildCatFilter;
 
@@ -340,7 +341,7 @@
     const all = getFilteredHabits().slice().sort(byOrder);
     if (!(state.data.habits || []).length) {
       root.appendChild(emptyState({
-        glyph: "✓",
+        glyph: "square-check-big",
         title: "No habits yet",
         body: "A habit is something you keep doing rather than something you finish — reading before bed, running on Tuesdays, no screens after ten. Tick it each day and the streak takes care of itself.",
         action: "Add your first habit",
@@ -410,7 +411,8 @@
     head.appendChild(name);
     const run = streakOf(h, today);
     if (run) {
-      const s = el("span", "habit-streak", "🔥 " + run);
+      const s = el("span", "habit-streak");
+      s.appendChild(window.LifeLogIcons.labelled("flame", String(run)));
       s.title = run + (run === 1 ? " day" : " days") + " in a row";
       head.appendChild(s);
     }
@@ -449,7 +451,9 @@
       const btn = el("button", "habit-tick" + (isDone(h, today) ? " is-done" : ""));
       btn.type = "button";
       btn.dataset.id = h.id;
-      btn.appendChild(el("span", "habit-tick-mark", isDone(h, today) ? "✓" : (h.target > 1 ? String(n) : "")));
+      const mark = el("span", "habit-tick-mark", isDone(h, today) ? "" : (h.target > 1 ? String(n) : ""));
+      if (isDone(h, today)) mark.appendChild(ico("check"));
+      btn.appendChild(mark);
       btn.appendChild(el("span", "habit-tick-label",
         h.target > 1 ? n + " of " + h.target : (isDone(h, today) ? "Done" : "Mark done")));
       btn.style.setProperty("--habit-colour", h.color);
@@ -469,7 +473,9 @@
     const btn = el("button", "habit-tick habit-slip" + (kept ? " is-done" : " is-slip"));
     btn.type = "button";
     btn.dataset.id = h.id;
-    btn.appendChild(el("span", "habit-tick-mark", !kept ? "✕" : limit ? n + "/" + limit : "✓"));
+    const mark = el("span", "habit-tick-mark", kept && limit ? n + "/" + limit : "");
+    if (!kept) mark.appendChild(ico("x")); else if (!limit) mark.appendChild(ico("check"));
+    btn.appendChild(mark);
     btn.appendChild(el("span", "habit-tick-label", !kept ? "Slipped" : limit ? n + " of " + limit : "Kept"));
     btn.title = kept ? "Tap to log a slip" : "Tap to undo";
     btn.style.setProperty("--habit-colour", h.color);
@@ -759,7 +765,7 @@
     applyStartUI();
     $("#deleteHabitBtn").hidden = !habit;
     $("#archiveHabitBtn").hidden = !habit;
-    $("#archiveHabitBtn").textContent = habit && habit.archivedAt ? "↩ Un-archive" : "⏸ Archive";
+    if (habit && habit.archivedAt) window.LifeLogIcons.setLabel($("#archiveHabitBtn"), "undo-2", "Un-archive"); else window.LifeLogIcons.setLabel($("#archiveHabitBtn"), "archive", "Archive");
     applyCadenceUI();
     applyKindUI();
     // Reminders live on the phone, not in the habit (see reminders.js).

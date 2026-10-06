@@ -10,6 +10,7 @@
   const Storage = window.LifeLogStorage;
 
   // Shared app plumbing, provided by app.js via init(ctx).
+  const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, toast, persist, render, normalize, afterDataChange,
     setSyncing, refreshStorageStatus, versionBehind, APP_VERSION, schedulePoll,
     saveVisualSettings, savePrivacySettings, attachSwipe,
@@ -950,8 +951,10 @@
     const offModes = state.visual.disabledModes || {};
     const tabs = viewToggles();
 
-    const iconBtn = (cls, text, label, disabled, onclick) => {
-      const b = el("button", "btn btn-icon tab-order-btn " + cls, text);
+    const iconBtn = (cls, icon, label, disabled, onclick) => {
+      const b = el("button", "btn btn-icon tab-order-btn " + cls);
+      const [name, fill] = icon.split(" ");
+      b.appendChild(ico(name, fill));
       b.type = "button";
       b.title = label;
       b.setAttribute("aria-label", label);
@@ -982,8 +985,8 @@
       const viewOn = !offViews.includes(view);
       const card = el("div", "sgroup-card");
       const r = row("tab-toggle-view", label);
-      r.appendChild(iconBtn("tab-up", "↑", "Move " + label + " left", ti === 0, () => moveView(view, -1)));
-      r.appendChild(iconBtn("tab-down", "↓", "Move " + label + " right", ti === tabs.length - 1, () => moveView(view, 1)));
+      r.appendChild(iconBtn("tab-up", "arrow-up", "Move " + label + " left", ti === 0, () => moveView(view, -1)));
+      r.appendChild(iconBtn("tab-down", "arrow-down", "Move " + label + " right", ti === tabs.length - 1, () => moveView(view, 1)));
       r.appendChild(toggle("Show " + label, viewOn, false, (on) => setViewEnabled(view, on)));
       card.appendChild(r);
 
@@ -993,13 +996,13 @@
           const modeOn = !(offModes[view] || []).includes(id);
           const isDefault = id === landing && modes.length > 1;
           const m = row("tab-toggle-mode" + (isDefault ? " is-default" : ""), modeLabel, isDefault ? "Opens here" : "");
-          const star = iconBtn("mode-default", isDefault ? "★" : "☆",
+          const star = iconBtn("mode-default", isDefault ? "star is-fill" : "star",
             isDefault ? label + " opens on " + modeLabel : "Open " + label + " on " + modeLabel,
             !viewOn || !modeOn || modes.length < 2, () => setDefaultMode(view, id));
           star.setAttribute("aria-pressed", String(isDefault));
           m.appendChild(star);
-          m.appendChild(iconBtn("mode-up", "↑", "Move " + modeLabel + " earlier", mi === 0, () => moveMode(view, id, -1)));
-          m.appendChild(iconBtn("mode-down", "↓", "Move " + modeLabel + " later", mi === modes.length - 1, () => moveMode(view, id, 1)));
+          m.appendChild(iconBtn("mode-up", "arrow-up", "Move " + modeLabel + " earlier", mi === 0, () => moveMode(view, id, -1)));
+          m.appendChild(iconBtn("mode-down", "arrow-down", "Move " + modeLabel + " later", mi === modes.length - 1, () => moveMode(view, id, 1)));
           // A mode of a tab you've turned off is not a separate decision —
           // greyed rather than hidden, so turning the tab back on shows you
           // what its modes were still set to.

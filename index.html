@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.246.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.247.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -13,7 +13,7 @@
   <!-- App lock screen (per-device privacy lock; see Settings → App lock) -->
   <div class="lock-screen" id="lockScreen" hidden>
     <div class="lock-box">
-      <div class="lock-icon">🔒</div>
+      <div class="lock-icon" data-ico="lock"></div>
       <h2>LifeLog is locked</h2>
       <p class="muted" id="lockHint">Enter your PIN to continue.</p>
 
@@ -35,7 +35,7 @@
           <button type="button" class="lock-key" data-key="9">9</button>
           <span></span>
           <button type="button" class="lock-key" data-key="0">0</button>
-          <button type="button" class="lock-key" data-key="del" aria-label="Delete">⌫</button>
+          <button type="button" class="lock-key" data-key="del" aria-label="Delete"><span data-ico="delete"></span></button>
         </div>
       </form>
 
@@ -54,7 +54,7 @@
        src/recap.js; everything here is the frame they move through. -->
   <div class="recap" id="recapScreen" hidden>
     <div class="recap-bar" id="recapBar" aria-hidden="true"></div>
-    <button class="recap-close" id="recapCloseBtn" type="button" aria-label="Close recap">✕</button>
+    <button class="recap-close" id="recapCloseBtn" type="button" aria-label="Close recap"><span data-ico="x"></span></button>
     <div class="recap-stage" id="recapStage" role="region" aria-live="polite"></div>
     <!-- Tap zones sit under the stage so a link or button on a slide still
          wins the tap; they are how you move through it on a phone, where
@@ -68,7 +68,7 @@
 
   <header class="topbar">
     <div class="brand">
-      <span class="brand-mark">◆</span>
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 512 512" width="20" height="20"><g fill="none" stroke="currentColor" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"><path d="M168 96v320"/><path d="M262 224h130M262 304h80"/></g><circle cx="168" cy="224" r="52" fill="var(--bg)" stroke="currentColor" stroke-width="40"/></svg></span>
       <h1>LifeLog</h1>
       <div class="storage-status" id="storageStatus"></div>
     </div>
@@ -78,16 +78,16 @@
          you'd clicked away from meant clicking back into it first. -->
     <div class="search-wrap">
       <input id="search" class="search" type="search" placeholder="Search titles &amp; notes…" />
-      <button type="button" class="search-clear" id="searchClear" aria-label="Clear search" title="Clear search" hidden>✕</button>
+      <button type="button" class="search-clear" id="searchClear" aria-label="Clear search" title="Clear search" hidden><span data-ico="x"></span></button>
     </div>
 
     <div class="topbar-bottom" id="topbarBottom">
       <nav class="views" id="viewTabs">
-        <button class="tab" data-view="notes" data-icon="▤">Notebook</button>
-        <button class="tab active" data-view="timeline" data-icon="☰">Timeline</button>
-        <button class="tab" data-view="backlog" data-icon="★">Backlog</button>
-        <button class="tab" data-view="finance" data-icon="₪">Ledger</button>
-        <button class="tab" data-view="travel" data-icon="✈︎">Travel</button>
+        <button class="tab" data-view="notes"><span class="tab-ico" data-ico="notebook-pen"></span>Notebook</button>
+        <button class="tab active" data-view="timeline"><span class="tab-ico" data-ico="calendar-clock"></span>Timeline</button>
+        <button class="tab" data-view="backlog"><span class="tab-ico" data-ico="star"></span>Backlog</button>
+        <button class="tab" data-view="finance"><span class="tab-ico" data-ico="receipt"></span>Ledger</button>
+        <button class="tab" data-view="travel"><span class="tab-ico" data-ico="plane"></span>Travel</button>
         <span class="tab-underline" id="tabUnderline" hidden></span>
       </nav>
       <!-- Mobile-only quick-jump row: prev/next between the sticky year/category
@@ -96,11 +96,11 @@
            tabs that don't use it, so the bottom bar's height never shifts
            when switching tabs. -->
       <div class="jump-nav" id="jumpNav">
-        <button type="button" class="jump-btn" id="jumpPrevBtn" aria-label="Previous">◀</button>
+        <button type="button" class="jump-btn" id="jumpPrevBtn" aria-label="Previous"><span data-ico="chevron-left"></span></button>
         <div class="jump-carousel" id="jumpCarousel">
           <div class="jump-track" id="jumpTrack"></div>
         </div>
-        <button type="button" class="jump-btn" id="jumpNextBtn" aria-label="Next">▶</button>
+        <button type="button" class="jump-btn" id="jumpNextBtn" aria-label="Next"><span data-ico="chevron-right"></span></button>
       </div>
     </div>
 
@@ -111,8 +111,8 @@
       <!-- Shown while something takes a while (src/jobs.js): the ring is how
            far the first job is, the number how many are going. -->
       <button id="activityBtn" class="btn btn-icon activity-btn" type="button" title="Activity" aria-label="Activity" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="activity-track" cx="12" cy="12" r="8" /><circle class="activity-ring" cx="12" cy="12" r="8" pathLength="100" /></svg><span class="activity-count" id="activityCount"></span></button>
-      <button id="viewOptionsBtn" class="btn btn-icon" type="button" title="View options" aria-label="View options" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg></button>
-      <button id="settingsBtn" class="btn btn-icon" title="Settings" aria-label="Settings">⚙</button>
+      <button id="viewOptionsBtn" class="btn btn-icon" type="button" title="View options" aria-label="View options" hidden><span data-ico="sliders-horizontal"></span></button>
+      <button id="settingsBtn" class="btn btn-icon" title="Settings" aria-label="Settings"><span data-ico="settings"></span></button>
       <span class="version-badge" id="appVersion"></span>
     </div>
   </header>
@@ -131,29 +131,29 @@
     <div class="add-menu menu-pop" id="addMenu" hidden>
       <div class="add-group" data-view="notes">
         <p class="add-head" aria-hidden="true"></p>
-        <button type="button" data-add="note" data-view="notes"><span class="add-ico" aria-hidden="true">✎</span>Note</button>
-        <button type="button" data-add="board" data-view="notes" data-mode="notes"><span class="add-ico" aria-hidden="true">◫</span>Board</button>
-        <button type="button" data-add="habit" data-view="notes"><span class="add-ico" aria-hidden="true">✓</span>Habit</button>
+        <button type="button" data-add="note" data-view="notes"><span class="add-ico" aria-hidden="true" data-ico="pencil"></span>Note</button>
+        <button type="button" data-add="board" data-view="notes" data-mode="notes"><span class="add-ico" aria-hidden="true" data-ico="presentation"></span>Board</button>
+        <button type="button" data-add="habit" data-view="notes"><span class="add-ico" aria-hidden="true" data-ico="square-check-big"></span>Habit</button>
       </div>
       <div class="add-group" data-view="timeline">
         <p class="add-head" aria-hidden="true"></p>
-        <button type="button" data-add="entry" data-view="timeline"><span class="add-ico" aria-hidden="true">●</span>Entry</button>
-        <button type="button" data-add="achievement" data-view="timeline"><span class="add-ico" aria-hidden="true">✦</span>Achievement</button>
+        <button type="button" data-add="entry" data-view="timeline"><span class="add-ico" aria-hidden="true" data-ico="circle-dot"></span>Entry</button>
+        <button type="button" data-add="achievement" data-view="timeline"><span class="add-ico" aria-hidden="true" data-ico="trophy"></span>Achievement</button>
       </div>
       <div class="add-group" data-view="backlog">
         <p class="add-head" aria-hidden="true"></p>
-        <button type="button" data-add="backlog" data-view="backlog"><span class="add-ico" aria-hidden="true">★</span>Title</button>
+        <button type="button" data-add="backlog" data-view="backlog"><span class="add-ico" aria-hidden="true" data-ico="star"></span>Title</button>
       </div>
       <div class="add-group" data-view="finance">
         <p class="add-head" aria-hidden="true"></p>
-        <button type="button" data-add="finance" data-view="finance"><span class="add-ico" aria-hidden="true">¤</span>Expense</button>
-        <button type="button" data-add="recurring" data-view="finance"><span class="add-ico" aria-hidden="true">↻</span>Recurring expense</button>
+        <button type="button" data-add="finance" data-view="finance"><span class="add-ico" aria-hidden="true" data-ico="banknote"></span>Expense</button>
+        <button type="button" data-add="recurring" data-view="finance"><span class="add-ico" aria-hidden="true" data-ico="repeat"></span>Recurring expense</button>
       </div>
       <div class="add-group" data-view="travel">
         <p class="add-head" aria-hidden="true"></p>
-        <button type="button" data-add="trip" data-view="travel"><span class="add-ico" aria-hidden="true">✈︎</span>Trip</button>
-        <button type="button" data-add="place" data-view="travel"><span class="add-ico" aria-hidden="true">⌖</span>Place</button>
-        <button type="button" data-add="import-places" data-view="travel"><span class="add-ico" aria-hidden="true">⇣</span>From Google Maps</button>
+        <button type="button" data-add="trip" data-view="travel"><span class="add-ico" aria-hidden="true" data-ico="plane"></span>Trip</button>
+        <button type="button" data-add="place" data-view="travel"><span class="add-ico" aria-hidden="true" data-ico="map-pin"></span>Place</button>
+        <button type="button" data-add="import-places" data-view="travel"><span class="add-ico" aria-hidden="true" data-ico="download"></span>From Google Maps</button>
       </div>
     </div>
     <button id="addBtn" class="btn btn-primary fab" aria-label="Add">+</button>
@@ -234,11 +234,11 @@
           </div>
           <div class="sync-status" id="fSyncStatus" hidden>
             <span id="fSyncStatusText"></span>
-            <button type="button" class="link-btn" id="fUnsyncBtn">✕ Unsync</button>
+            <button type="button" class="link-btn" id="fUnsyncBtn"><span data-ico="x"></span> Unsync</button>
           </div>
           <div class="sync-status" id="fBacklogLinkStatus" hidden>
-            <span>📋 This is in your backlog — will be removed when saved</span>
-            <button type="button" class="link-btn" id="fBacklogUnlinkBtn">✕ Don't remove</button>
+            <span><span data-ico="clipboard-list"></span> This is in your backlog — will be removed when saved</span>
+            <button type="button" class="link-btn" id="fBacklogUnlinkBtn"><span data-ico="x"></span> Don't remove</button>
           </div>
         </label>
         <!-- Home for the App ID field while the category's own source is
@@ -307,8 +307,8 @@
           <span class="menu-wrap sheet-more" id="entryMoreWrap" hidden>
             <button type="button" class="btn sheet-more-btn" aria-haspopup="menu" aria-controls="entryMoreMenu" aria-expanded="false">More…</button>
             <div class="menu-pop" id="entryMoreMenu" role="menu" hidden>
-              <button type="button" role="menuitem" id="moveToBacklogBtn">↩ Move to backlog</button>
-              <button type="button" role="menuitem" id="moveToProgressBtn">▶ Move to In progress</button>
+              <button type="button" role="menuitem" id="moveToBacklogBtn"><span data-ico="undo-2"></span> Move to backlog</button>
+              <button type="button" role="menuitem" id="moveToProgressBtn"><span data-ico="play"></span> Move to In progress</button>
             </div>
           </span>
           <span class="spacer"></span>
@@ -482,15 +482,15 @@
         <label>Title
           <div class="ac-wrap">
             <input id="bTitle" type="text" required autocomplete="off" placeholder="e.g. The Last of Us Part II" />
-            <button type="button" class="btn btn-sm priority-star" id="bPriorityBtn" title="Prioritize" aria-label="Prioritize" aria-pressed="false">☆</button>
-            <button type="button" class="btn btn-sm bought-toggle" id="bBoughtBtn" title="Mark as already bought" aria-label="Mark as already bought" aria-pressed="false">✓</button>
-            <button type="button" class="btn btn-sm started-toggle" id="bStartedBtn" title="Start — move to In progress" aria-label="Start — move to In progress" aria-pressed="false">▶</button>
+            <button type="button" class="btn btn-sm priority-star" id="bPriorityBtn" title="Prioritize" aria-label="Prioritize" aria-pressed="false"><span data-ico="star"></span></button>
+            <button type="button" class="btn btn-sm bought-toggle" id="bBoughtBtn" title="Mark as already bought" aria-label="Mark as already bought" aria-pressed="false"><span data-ico="check"></span></button>
+            <button type="button" class="btn btn-sm started-toggle" id="bStartedBtn" title="Start — move to In progress" aria-label="Start — move to In progress" aria-pressed="false"><span data-ico="play"></span></button>
             <button type="button" class="btn btn-sm sync-btn" id="bSyncBtn" title="Look up cover, year &amp; rating" aria-label="Look up cover, year &amp; rating" hidden><span class="sync-icon">🔄</span></button>
             <div class="ac-list" id="bTitleSuggest" hidden></div>
           </div>
           <div class="sync-status" id="bSyncStatus" hidden>
             <span id="bSyncStatusText"></span>
-            <button type="button" class="link-btn" id="bUnsyncBtn">✕ Unsync</button>
+            <button type="button" class="link-btn" id="bUnsyncBtn"><span data-ico="x"></span> Unsync</button>
           </div>
           <div class="sync-status" id="bDuplicateStatus" hidden>
             <span id="bDuplicateStatusText"></span>
@@ -517,7 +517,7 @@
         </label>
         <details class="advanced" id="bAdvanced">
           <summary>Advanced</summary>
-          <p class="hint">Tick a field to keep your own value. Syncing this item, a bulk sync, and the 🔭 release re-check will then all leave it alone instead of overwriting it.</p>
+          <p class="hint">Tick a field to keep your own value. Syncing this item, a bulk sync, and the release re-check will then all leave it alone instead of overwriting it.</p>
           <div class="ovr">
             <label class="ovr-head"><input type="checkbox" id="bOvrRelease" /> Release date</label>
             <div class="ovr-row">
@@ -550,11 +550,11 @@
           <span class="menu-wrap sheet-more" id="backlogMoreWrap" hidden>
             <button type="button" class="btn sheet-more-btn" aria-haspopup="menu" aria-controls="backlogMoreMenu" aria-expanded="false">More…</button>
             <div class="menu-pop" id="backlogMoreMenu" role="menu" hidden>
-              <button type="button" role="menuitem" id="blMoveProgressBtn">▶ Move to In progress</button>
-              <button type="button" role="menuitem" id="blMoveBacklogBtn">↩ Back to backlog</button>
-              <button type="button" role="menuitem" id="blMoveDroppedBtn">⊘ Move to Dropped</button>
+              <button type="button" role="menuitem" id="blMoveProgressBtn"><span data-ico="play"></span> Move to In progress</button>
+              <button type="button" role="menuitem" id="blMoveBacklogBtn"><span data-ico="undo-2"></span> Back to backlog</button>
+              <button type="button" role="menuitem" id="blMoveDroppedBtn"><span data-ico="ban"></span> Move to Dropped</button>
               <div class="menu-pop-divider" role="separator"></div>
-              <button type="button" role="menuitem" id="blSetDoneBtn">✓ Set as Done</button>
+              <button type="button" role="menuitem" id="blSetDoneBtn"><span data-ico="check"></span> Set as Done</button>
             </div>
           </span>
           <span class="spacer"></span>
@@ -604,7 +604,7 @@
       <div id="pickLinks" class="pick-links"></div>
       <div class="modal-actions">
         <button type="button" class="btn" id="pickRerollBtn">Pick again</button>
-        <button type="button" class="btn" id="pickWheelBtn" title="Spin for it instead">🎡 Spin</button>
+        <button type="button" class="btn" id="pickWheelBtn" title="Spin for it instead"><span data-ico="dices"></span> Spin</button>
         <span class="spacer"></span>
         <button type="button" class="btn" id="pickCloseBtn">Close</button>
         <button type="button" class="btn btn-primary" id="pickOpenBtn">Open</button>
@@ -618,7 +618,7 @@
     <div class="modal" role="dialog" aria-labelledby="outTodayTitle">
       <div class="modal-head">
         <h2 id="outTodayTitle">Out today</h2>
-        <button class="btn btn-icon" id="closeOutTodayBtn" title="Close" aria-label="Close out today">✕</button>
+        <button class="btn btn-icon" id="closeOutTodayBtn" title="Close" aria-label="Close out today"><span data-ico="x"></span></button>
       </div>
       <p class="muted" id="outTodayCount"></p>
       <div class="out-grid" id="outTodayGrid"></div>
@@ -693,7 +693,7 @@
         </label>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteFinanceBtn" hidden>Delete</button>
-          <button type="button" class="link-btn" id="makeRecurringBtn" hidden>↻ Make recurring</button>
+          <button type="button" class="link-btn" id="makeRecurringBtn" hidden><span data-ico="repeat"></span> Make recurring</button>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelFinanceBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
@@ -777,13 +777,13 @@
           <span class="menu-wrap" id="recMoreWrap" hidden>
             <button type="button" class="btn" id="recMoreBtn" aria-haspopup="menu" aria-controls="recMoreMenu" aria-expanded="false">More…</button>
             <div class="menu-pop" id="recMoreMenu" role="menu" hidden>
-              <button type="button" role="menuitem" id="changePlanBtn">↻ Change plan…</button>
+              <button type="button" role="menuitem" id="changePlanBtn"><span data-ico="repeat"></span> Change plan…</button>
               <button type="button" role="menuitem" id="addExtraBtn">+ Add a one-off charge…</button>
-              <button type="button" role="menuitem" id="pauseBtn">⏸ Pause…</button>
-              <button type="button" role="menuitem" id="convertRecurringBtn">⇄ Convert to entries</button>
-              <button type="button" role="menuitem" id="recFetchRatesBtn" hidden>💱 Look up past rates</button>
-              <button type="button" role="menuitem" id="linkPastExpensesBtn">🔗 Link past expenses</button>
-              <button type="button" role="menuitem" id="mergeBtn">⇢ Merge with…</button>
+              <button type="button" role="menuitem" id="pauseBtn"><span data-ico="pause"></span> Pause…</button>
+              <button type="button" role="menuitem" id="convertRecurringBtn"><span data-ico="arrow-left-right"></span> Convert to entries</button>
+              <button type="button" role="menuitem" id="recFetchRatesBtn" hidden><span data-ico="coins"></span> Look up past rates</button>
+              <button type="button" role="menuitem" id="linkPastExpensesBtn"><span data-ico="link"></span> Link past expenses</button>
+              <button type="button" role="menuitem" id="mergeBtn"><span data-ico="merge"></span> Merge with…</button>
             </div>
           </span>
           <span class="spacer"></span>
@@ -1128,7 +1128,7 @@
         <p class="hint">Hold a day in the grid, then tap another, to fill the run between.</p>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteHabitBtn" hidden>Delete</button>
-          <button type="button" class="btn" id="archiveHabitBtn" hidden>⏸ Archive</button>
+          <button type="button" class="btn" id="archiveHabitBtn" hidden><span data-ico="archive"></span> Archive</button>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelHabitBtn">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
@@ -1147,10 +1147,10 @@
       <aside class="settings-side">
         <div class="modal-head">
           <h2>Settings</h2>
-          <button class="btn btn-icon" id="closeSettingsBtn" title="Close" aria-label="Close settings">✕</button>
+          <button class="btn btn-icon" id="closeSettingsBtn" title="Close" aria-label="Close settings"><span data-ico="x"></span></button>
         </div>
         <label class="settings-search">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6" /><path d="M20 20l-4.5-4.5" /></svg>
+          <span data-ico="search"></span>
           <input id="settingsSearch" type="search" placeholder="Search settings" aria-label="Search settings" autocomplete="off" spellcheck="false" />
         </label>
 
@@ -1166,32 +1166,32 @@
           <div class="sgroup">
             <div class="sgroup-label">Your data</div>
             <div class="sgroup-card">
-              <button type="button" class="srow" data-page="sync"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3" /><path d="M18 3v4h-4M6 21v-4h4" /></svg></span><span class="srow-text"><span class="srow-title">Sync</span><span class="srow-status" data-status="sync"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-              <button type="button" class="srow" data-page="io"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5" /><path d="M4 17v3h16v-3" /></svg></span><span class="srow-text"><span class="srow-title">Import &amp; export</span><span class="srow-status" data-status="io"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-              <button type="button" class="srow" data-page="history"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6" /><path d="M4 4v4h4M12 8v4l3 2" /></svg></span><span class="srow-text"><span class="srow-title">History</span><span class="srow-status" data-status="history"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-              <button type="button" class="srow" id="settingsActivityRow"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4" /></svg></span><span class="srow-text"><span class="srow-title">Activity</span><span class="srow-status" id="settingsActivityStatus"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="sync"><span class="srow-ic"><span data-ico="refresh-cw"></span></span><span class="srow-text"><span class="srow-title">Sync</span><span class="srow-status" data-status="sync"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="io"><span class="srow-ic"><span data-ico="arrow-down-up"></span></span><span class="srow-text"><span class="srow-title">Import &amp; export</span><span class="srow-status" data-status="io"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="history"><span class="srow-ic"><span data-ico="history"></span></span><span class="srow-text"><span class="srow-title">History</span><span class="srow-status" data-status="history"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" id="settingsActivityRow"><span class="srow-ic"><span data-ico="activity"></span></span><span class="srow-text"><span class="srow-title">Activity</span><span class="srow-status" id="settingsActivityStatus"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
             </div>
           </div>
           <div class="sgroup">
             <div class="sgroup-label">This device</div>
             <div class="sgroup-card">
-              <button type="button" class="srow" data-page="lock"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg></span><span class="srow-text"><span class="srow-title">App lock</span><span class="srow-status" data-status="lock"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-              <button type="button" class="srow" data-page="appearance"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8" /><path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor" /></svg></span><span class="srow-text"><span class="srow-title">Appearance</span><span class="srow-status" data-status="appearance"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-              <button type="button" class="srow" data-page="tabs"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M4 9h16M9 4v5" /></svg></span><span class="srow-text"><span class="srow-title">Tabs</span><span class="srow-status" data-status="tabs"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="lock"><span class="srow-ic"><span data-ico="lock"></span></span><span class="srow-text"><span class="srow-title">App lock</span><span class="srow-status" data-status="lock"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="appearance"><span class="srow-ic"><span data-ico="palette"></span></span><span class="srow-text"><span class="srow-title">Appearance</span><span class="srow-status" data-status="appearance"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="tabs"><span class="srow-ic"><span data-ico="layout-grid"></span></span><span class="srow-text"><span class="srow-title">Tabs</span><span class="srow-status" data-status="tabs"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
             </div>
           </div>
           <div class="sgroup">
             <div class="sgroup-label">Connected services</div>
             <div class="sgroup-card">
-              <button type="button" class="srow" data-page="media"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l2.4 5 5.6.6-4.2 3.8 1.2 5.6L12 16.3 7 19l1.2-5.6L4 9.6 9.6 9z" /></svg></span><span class="srow-text"><span class="srow-title">Media lookups</span><span class="srow-status" data-status="media"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-              <button type="button" class="srow" data-page="imports"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V9M7 14l5-5 5 5" /><path d="M4 7V4h16v3" /></svg></span><span class="srow-text"><span class="srow-title">Imports</span><span class="srow-status" data-status="imports"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-              <button type="button" class="srow" data-page="releases"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 3v4M15 3v4" /></svg></span><span class="srow-text"><span class="srow-title">Release dates</span><span class="srow-status" data-status="releases"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="media"><span class="srow-ic"><span data-ico="images"></span></span><span class="srow-text"><span class="srow-title">Media lookups</span><span class="srow-status" data-status="media"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="imports"><span class="srow-ic"><span data-ico="download"></span></span><span class="srow-text"><span class="srow-title">Imports</span><span class="srow-status" data-status="imports"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="releases"><span class="srow-ic"><span data-ico="calendar"></span></span><span class="srow-text"><span class="srow-title">Release dates</span><span class="srow-status" data-status="releases"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
             </div>
           </div>
           <div class="sgroup">
             <div class="sgroup-label">LifeLog</div>
             <div class="sgroup-card">
-              <button type="button" class="srow" data-page="about"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg></span><span class="srow-text"><span class="srow-title">About</span><span class="srow-status" data-status="about"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="about"><span class="srow-ic"><span data-ico="info"></span></span><span class="srow-text"><span class="srow-title">About</span><span class="srow-status" data-status="about"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
             </div>
           </div>
           <p class="settings-foot"><span id="settingsVersion"></span> · Press <kbd>?</kbd> anywhere for keyboard shortcuts</p>
@@ -1201,7 +1201,7 @@
       <div class="settings-main">
         <div class="settings-page-head">
           <button type="button" class="settings-back" id="settingsBackBtn" aria-label="Back to all settings"><span class="settings-back-chev" aria-hidden="true">‹</span>Settings</button>
-          <button class="btn btn-icon settings-page-close" id="closeSettingsPageBtn" title="Close" aria-label="Close settings">✕</button>
+          <button class="btn btn-icon settings-page-close" id="closeSettingsPageBtn" title="Close" aria-label="Close settings"><span data-ico="x"></span></button>
         </div>
         <div class="settings-pages">
 
@@ -1551,7 +1551,7 @@
 
       <div class="settings-page" hidden data-page="tabs" data-title="Tabs" data-keywords="hide show views modes order reorder move default opens notes habits timeline backlog ledger">
       <h2 class="settings-page-title">Tabs</h2>
-      <p class="hint page-lede">This device only. ↑ ↓ reorder, ★ is the mode a tab opens on — with three modes, the middle one. Tabs you turn off leave the tab bar.</p>
+      <p class="hint page-lede">This device only. The arrows reorder, the star is the mode a tab opens on — with three modes, the middle one. Tabs you turn off leave the tab bar.</p>
       <div class="tab-toggles" id="tabToggles"></div>
       </div>
 
@@ -1561,7 +1561,7 @@
       <section class="sgroup">
         <h3 class="sgroup-label">Source per category</h3>
         <div class="sgroup-card" id="mediaCatRows"></div>
-        <p class="hint">The fallback is tried when the source finds nothing; <strong>🔄 Sync</strong> on an item searches both. "Steam" takes an App ID from the store URL. "RAWG + Steam + GG.deals" also finds the Steam ID, for a price too.</p>
+        <p class="hint">The fallback is tried when the source finds nothing; <strong>Sync</strong> on an item searches both. "Steam" takes an App ID from the store URL. "RAWG + Steam + GG.deals" also finds the Steam ID, for a price too.</p>
       </section>
 
       <section class="sgroup">
@@ -1628,9 +1628,9 @@
               <option value="30">Every month</option>
             </select>
           </label>
-          <button id="steamWishlistSyncBtn" type="button" class="sitem sitem-go">🔄 Sync Steam Wishlist</button>
-          <button id="steamRetryUnresolvedBtn" type="button" class="sitem sitem-go" hidden>🔁 Retry unresolved Steam titles</button>
-          <button id="steamBackfillRawgBtn" type="button" class="sitem sitem-go" hidden>🎮 Backfill missing game info</button>
+          <button id="steamWishlistSyncBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Sync Steam Wishlist</button>
+          <button id="steamRetryUnresolvedBtn" type="button" class="sitem sitem-go" hidden><span data-ico="repeat"></span> Retry unresolved Steam titles</button>
+          <button id="steamBackfillRawgBtn" type="button" class="sitem sitem-go" hidden><span data-ico="gamepad-2"></span> Backfill missing game info</button>
         </div>
         <p class="hint">Your wishlist must be public (Steam → Privacy Settings → Game details), and this goes through the CORS proxy on Media lookups.</p>
         <p class="hint" id="steamRetryUnresolvedHint" hidden><strong>Retry</strong> looks up again the items still called "Steam app &lt;id&gt;" (usually Steam rate-limiting a large first sync) and fixes the ones that resolve.</p>
@@ -1662,7 +1662,7 @@
               <option value="30">Every month</option>
             </select>
           </label>
-          <button id="anilistSyncBtn" type="button" class="sitem sitem-go">🔄 Sync AniList Planning</button>
+          <button id="anilistSyncBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Sync AniList Planning</button>
         </div>
         <p class="hint">Needs no key or proxy, but the list must be public (AniList → Settings → Lists → untick "Set anime/manga list to private"). Set one side to "Don't import" to bring in only the other.</p>
       </section>
@@ -1706,6 +1706,7 @@
       <section class="sgroup">
         <div class="sgroup-label">Built with</div>
         <div class="sgroup-card">
+          <a class="sitem sitem-go" href="https://lucide.dev" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Lucide</span><span class="sitem-sub">Every icon in the app · ISC</span></span></a>
           <a class="sitem sitem-go" href="https://leafletjs.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Leaflet</span><span class="sitem-sub">The Travel maps · BSD 2-Clause</span></span></a>
           <a class="sitem sitem-go" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">OpenStreetMap contributors and CARTO</span><span class="sitem-sub">Map tiles, and town names through Nominatim · ODbL</span></span></a>
           <a class="sitem sitem-go" href="https://capacitorjs.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Capacitor</span><span class="sitem-sub">The Android and iOS apps around the web app · MIT</span></span></a>
@@ -1752,7 +1753,7 @@
               <option value="hide">Don't show</option>
             </select>
           </label>
-          <button id="refreshReleasesBtn" type="button" class="sitem sitem-go">🔭 Re-check upcoming release dates</button>
+          <button id="refreshReleasesBtn" type="button" class="sitem sitem-go"><span data-ico="telescope"></span> Re-check upcoming release dates</button>
         </div>
       </section>
       </div>
@@ -1769,7 +1770,7 @@
     <div class="modal view-options" role="dialog" aria-labelledby="viewOptionsTitle">
       <div class="modal-head">
         <h2 id="viewOptionsTitle">View</h2>
-        <button class="btn btn-icon" id="closeViewOptionsBtn" title="Close" aria-label="Close view options">✕</button>
+        <button class="btn btn-icon" id="closeViewOptionsBtn" title="Close" aria-label="Close view options"><span data-ico="x"></span></button>
       </div>
 
       <section class="sgroup" data-for="timeline">
@@ -1936,7 +1937,7 @@
     <div class="modal">
       <div class="modal-head">
         <h2>Keyboard shortcuts</h2>
-        <button class="btn btn-icon" id="closeShortcutsBtn" title="Close" aria-label="Close keyboard shortcuts">✕</button>
+        <button class="btn btn-icon" id="closeShortcutsBtn" title="Close" aria-label="Close keyboard shortcuts"><span data-ico="x"></span></button>
       </div>
       <!-- The tab rows are built by openShortcutsModal(): a cheat-sheet that
            lists a key for a tab you have turned off is telling you about a
@@ -1956,7 +1957,7 @@
     <div class="modal">
       <div class="modal-head">
         <h2 id="bulkProgressTitle">Syncing</h2>
-        <button class="btn btn-icon" id="closeBulkProgressBtn" title="Close" aria-label="Close sync progress">✕</button>
+        <button class="btn btn-icon" id="closeBulkProgressBtn" title="Close" aria-label="Close sync progress"><span data-ico="x"></span></button>
       </div>
       <p class="muted" id="bulkProgressSummary"></p>
       <div class="bulkp-list" id="bulkProgressList"></div>
@@ -1968,7 +1969,7 @@
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="activityTitle">
       <div class="modal-head">
         <h2 id="activityTitle">Activity</h2>
-        <button class="btn btn-icon" id="closeActivityBtn" type="button" title="Close" aria-label="Close activity">✕</button>
+        <button class="btn btn-icon" id="closeActivityBtn" type="button" title="Close" aria-label="Close activity"><span data-ico="x"></span></button>
       </div>
       <p class="hint" id="activityHint"></p>
       <div class="activity-list" id="activityList"></div>
@@ -2015,8 +2016,8 @@
       <input type="text" id="boardName" class="board-name-input" aria-label="Board name" maxlength="80" />
       <select id="boardCategory" class="board-cat-select" aria-label="Category" title="Category"></select>
       <div class="board-top-btns">
-        <button type="button" class="btn btn-icon" id="boardUndo" title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
-        <button type="button" class="btn btn-icon" id="boardRedo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo">↷</button>
+        <button type="button" class="btn btn-icon" id="boardUndo" title="Undo (Ctrl+Z)" aria-label="Undo"><span data-ico="undo-2"></span></button>
+        <button type="button" class="btn btn-icon" id="boardRedo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><span data-ico="redo-2"></span></button>
         <button type="button" class="btn btn-icon board-zoom-btn" id="boardZoomBtn" title="Zoom (+ − 0)" aria-label="Zoom">100%</button>
         <div class="menu-pop board-menu" id="boardZoomMenu" hidden>
           <button type="button" id="boardZoomIn">Zoom in <kbd>+</kbd></button>
@@ -2024,7 +2025,7 @@
           <button type="button" id="boardZoomReset">Actual size (100%)</button>
           <button type="button" id="boardFit">Fit the drawing <kbd>0</kbd></button>
         </div>
-        <button type="button" class="btn btn-icon" id="boardMenuBtn" title="More" aria-label="More">⋯</button>
+        <button type="button" class="btn btn-icon" id="boardMenuBtn" title="More" aria-label="More"><span data-ico="ellipsis"></span></button>
         <div class="menu-pop board-menu" id="boardMenu" hidden>
           <button type="button" id="boardExportPng">Export PNG</button>
           <button type="button" id="boardExportSvg">Export SVG</button>
@@ -2041,38 +2042,39 @@
     <textarea id="boardTextInput" class="board-text-input" hidden rows="1" aria-label="Text"></textarea>
     <div class="board-bar">
       <div class="board-style" id="boardStyle">
-        <button type="button" class="board-delete" id="boardDelete" hidden aria-label="Delete selected" title="Delete selected (Del)">🗑</button>
+        <button type="button" class="board-delete" id="boardDelete" hidden aria-label="Delete selected" title="Delete selected (Del)"><span data-ico="trash"></span></button>
         <button type="button" class="board-fill" id="boardFill" aria-pressed="false" aria-label="Fill shapes" title="Fill rectangles and ellipses"></button>
       </div>
       <div class="board-tools" id="boardTools"></div>
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.246.0"></script>
-  <script defer src="src/jobs.js?v=0.246.0"></script>
-  <script defer src="src/reconcile.js?v=0.246.0"></script>
-  <script defer src="src/qr.js?v=0.246.0"></script>
-  <script defer src="src/media.js?v=0.246.0"></script>
-  <script defer src="src/merge.js?v=0.246.0"></script>
-  <script defer src="src/storage.js?v=0.246.0"></script>
-  <script defer src="src/finance.js?v=0.246.0"></script>
-  <script defer src="src/settings.js?v=0.246.0"></script>
-  <script defer src="src/wheel.js?v=0.246.0"></script>
-  <script defer src="src/backlog.js?v=0.246.0"></script>
-  <script defer src="src/journal.js?v=0.246.0"></script>
-  <script defer src="src/markdown.js?v=0.246.0"></script>
-  <script defer src="src/notes.js?v=0.246.0"></script>
-  <script defer src="src/docimport.js?v=0.246.0"></script>
-  <script defer src="src/io.js?v=0.246.0"></script>
-  <script defer src="src/sync.js?v=0.246.0"></script>
-  <script defer src="src/habits.js?v=0.246.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.246.0"></script>
-  <script defer src="src/boards.js?v=0.246.0"></script>
-  <script defer src="src/travel.js?v=0.246.0"></script>
-  <script defer src="src/recap.js?v=0.246.0"></script>
-  <script defer src="src/reminders.js?v=0.246.0"></script>
-  <script defer src="src/widgets.js?v=0.246.0"></script>
-  <script defer src="src/payments.js?v=0.246.0"></script>
-  <script defer src="src/app.js?v=0.246.0"></script>
+  <script defer src="src/platform.js?v=0.247.0"></script>
+  <script defer src="src/icons.js?v=0.247.0"></script>
+  <script defer src="src/jobs.js?v=0.247.0"></script>
+  <script defer src="src/reconcile.js?v=0.247.0"></script>
+  <script defer src="src/qr.js?v=0.247.0"></script>
+  <script defer src="src/media.js?v=0.247.0"></script>
+  <script defer src="src/merge.js?v=0.247.0"></script>
+  <script defer src="src/storage.js?v=0.247.0"></script>
+  <script defer src="src/finance.js?v=0.247.0"></script>
+  <script defer src="src/settings.js?v=0.247.0"></script>
+  <script defer src="src/wheel.js?v=0.247.0"></script>
+  <script defer src="src/backlog.js?v=0.247.0"></script>
+  <script defer src="src/journal.js?v=0.247.0"></script>
+  <script defer src="src/markdown.js?v=0.247.0"></script>
+  <script defer src="src/notes.js?v=0.247.0"></script>
+  <script defer src="src/docimport.js?v=0.247.0"></script>
+  <script defer src="src/io.js?v=0.247.0"></script>
+  <script defer src="src/sync.js?v=0.247.0"></script>
+  <script defer src="src/habits.js?v=0.247.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.247.0"></script>
+  <script defer src="src/boards.js?v=0.247.0"></script>
+  <script defer src="src/travel.js?v=0.247.0"></script>
+  <script defer src="src/recap.js?v=0.247.0"></script>
+  <script defer src="src/reminders.js?v=0.247.0"></script>
+  <script defer src="src/widgets.js?v=0.247.0"></script>
+  <script defer src="src/payments.js?v=0.247.0"></script>
+  <script defer src="src/app.js?v=0.247.0"></script>
 </body>
 </html>

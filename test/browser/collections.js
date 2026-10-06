@@ -43,7 +43,7 @@ async function run(b, width) {
   // collection's chip is marked and opens it.
   const collChip = (name) => page.locator("#catFilter .cat-chip.is-collection", { hasText: name });
   check("a collection's chip is marked as one, and there's no second list of them" + at, await page.evaluate(() =>
-    [...document.querySelectorAll("#catFilter .cat-chip.is-collection")].map((c) => c.textContent.replace("✎", "").trim()).join() === "▦Recipes"
+    [...document.querySelectorAll("#catFilter .cat-chip.is-collection")].map((c) => c.textContent.trim()).join() === "Recipes"
     && !document.querySelector(".notes-shelf")));
   check("and the feed keeps only what isn't in one" + at, JSON.stringify(await feed()) === JSON.stringify(["day", "mtg"]), await feed());
   await shot("feed");
@@ -169,7 +169,7 @@ async function run(b, width) {
   await page.locator("#catFilter .cat-chip.is-collection", { hasText: "Recipes" }).click();
   await page.waitForTimeout(300);
   check("where it's a card like the notes" + at, await page.evaluate(() =>
-    [...document.querySelectorAll(".coll-card")].some((c) => /✎/.test(c.textContent) && c.querySelector("svg"))));
+    [...document.querySelectorAll(".coll-card")].some((c) => c.querySelector('.ico[data-ico="presentation"]') && c.querySelector("svg:not(.ico)"))));
   await page.locator(".coll-head .btn:not(.btn-primary)").click();
   await page.waitForTimeout(300);
 
@@ -190,14 +190,14 @@ async function run(b, width) {
   await page.waitForTimeout(300);
   check("a board can be a favourite, from the Boards page" + at, await page.evaluate(() =>
     window.LifeLogBoards.boardsNow()[0].fav === true && document.querySelector("#boardEditor").hidden
-    && document.querySelector(".board-card:not(.board-new) .board-fav").textContent === "★"));
+    && !!document.querySelector(".board-card:not(.board-new) .board-fav .ico.is-fill")));
   await page.locator("#kindFilter .cat-chip.on").click();
   await page.waitForTimeout(300);
   await collChip("Recipes").click();
   await page.waitForTimeout(300);
   check("and shows it where it's filed, first" + at, await page.evaluate(() => {
     const first = document.querySelector(".coll-card");
-    return /✎/.test(first.textContent) && first.querySelector(".note-fav.on");
+    return first.querySelector('.ico[data-ico="presentation"]') && first.querySelector(".note-fav.on");
   }));
   await page.locator(".coll-card .note-fav.on").click();
   await page.waitForTimeout(300);

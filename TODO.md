@@ -6,6 +6,11 @@ todo:
   swiping the app away mid-sync. Then, if wanted: the Markdown and EPUB/PDF
   imports as jobs (local and quick so far).
 
+- **fxrate's "sits on the rate's own row" check fails** on main before the
+  icon change too (the Look up button's centre is off the rate input's by
+  more than 3px at 1280). Either the sheet's layout drifted or the check is
+  too tight; look at `#finRateFetchBtn` beside `#finRate` and decide.
+
 - **Travel, check with real services.** Town names (OpenStreetMap) and
   Google's rating, hours and reviews were only tested against fakes here.
   Paste a Places key and open a few places, in the app and on the Pages

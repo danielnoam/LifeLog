@@ -15,6 +15,7 @@
 // the dark theme still reads in the light one. `seed` keeps a rough shape's
 // wobble the same every time it's drawn.
 (function () {
+  const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, toast, uid, emptyState, download, Storage, render, bulkCheckbox, toggleBulkItem, attachLongPressSelect;
 
   function init(ctx) {
@@ -25,10 +26,10 @@
   const WIDTHS = [2, 4, 8];
   const TEXT_SIZE = { 2: 18, 4: 26, 8: 40 };
   const TOOLS = [
-    ["select", "↖", "Select (V)", "v"], ["hand", "✋", "Move the board (H)", "h"],
-    ["pen", "✎", "Pen (P)", "p"], ["eraser", "⌫", "Eraser (E)", "e"],
-    ["rect", "▭", "Rectangle (R)", "r"], ["ellipse", "◯", "Ellipse (O)", "o"],
-    ["arrow", "→", "Arrow (A)", "a"], ["line", "╱", "Line (L)", "l"], ["text", "T", "Text (T)", "t"],
+    ["select", "mouse-pointer-2", "Select (V)", "v"], ["hand", "hand", "Move the board (H)", "h"],
+    ["pen", "pencil", "Pen (P)", "p"], ["eraser", "eraser", "Eraser (E)", "e"],
+    ["rect", "square", "Rectangle (R)", "r"], ["ellipse", "circle", "Ellipse (O)", "o"],
+    ["arrow", "arrow-up-right", "Arrow (A)", "a"], ["line", "slash", "Line (L)", "l"], ["text", "type", "Text (T)", "t"],
   ];
 
   // ---------- pure geometry (test/boards.test.js) ----------
@@ -472,7 +473,7 @@
       .sort((a, b) => (!!b.fav - !!a.fav) || String(b.updatedAt).localeCompare(String(a.updatedAt)));
     if (!boards().length) {
       root.appendChild(emptyState({
-        glyph: "✎", title: "No boards yet",
+        glyph: "presentation", title: "No boards yet",
         body: "A board is a page to draw on: sketches, diagrams, arrows and notes, in a hand-drawn style.",
         action: "New board", onAction: () => newBoard(),
       }));
@@ -525,7 +526,8 @@
     root.appendChild(grid);
   }
   function favButton(b) {
-    const fav = el("button", "note-fav board-fav" + (b.fav ? " on" : ""), b.fav ? "★" : "☆");
+    const fav = el("button", "note-fav board-fav" + (b.fav ? " on" : ""));
+    fav.appendChild(ico("star", b.fav ? "is-fill" : ""));
     fav.type = "button";
     fav.title = b.fav ? "Remove from favourites" : "Add to favourites";
     fav.setAttribute("aria-label", fav.title);
@@ -1181,7 +1183,8 @@
 
     const tools = $("#boardTools");
     for (const [id, icon, label] of TOOLS) {
-      const b = el("button", "board-tool", icon);
+      const b = el("button", "board-tool");
+      b.appendChild(ico(icon));
       b.type = "button"; b.dataset.tool = id; b.title = label; b.setAttribute("aria-label", label);
       b.onclick = () => setTool(id);
       tools.appendChild(b);

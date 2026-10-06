@@ -91,7 +91,7 @@
     const wrap = el("span", "habit-remind" + (t ? " is-set" : "") + (t && !isOn() ? " is-paused" : ""));
     const face = el("label", "habit-remind-face");
     face.title = t ? "Reminder at " + t + " — tap to change" : "Remind me about this habit";
-    face.appendChild(el("span", null, t ? (isOn() ? "🔔 " : "🔕 ") + t : "🔔"));
+    face.appendChild(el("span", null)).appendChild(t ? window.LifeLogIcons.labelled(isOn() ? "bell" : "bell-off", t) : window.LifeLogIcons.svg("bell"));
     const input = el("input", "habit-remind-input");
     input.type = "time";
     input.value = t;
@@ -100,7 +100,8 @@
     face.appendChild(input);
     wrap.appendChild(face);
     if (t) {
-      const clear = el("button", "habit-remind-clear", "✕");
+      const clear = el("button", "habit-remind-clear");
+      clear.appendChild(window.LifeLogIcons.svg("x"));
       clear.type = "button";
       clear.title = "No reminder";
       clear.setAttribute("aria-label", "Remove the reminder for " + habit.name);
@@ -118,9 +119,9 @@
     if (!set) return null;
     const { el } = ctx;
     const b = el("div", "habit-remind-bar");
-    b.appendChild(el("span", "habit-remind-bar-text", isOn()
-      ? "🔔 " + set + (set === 1 ? " reminder" : " reminders") + " on this phone"
-      : "🔕 Reminders paused on this phone"));
+    b.appendChild(el("span", "habit-remind-bar-text")).appendChild(isOn()
+      ? window.LifeLogIcons.labelled("bell", set + (set === 1 ? " reminder" : " reminders") + " on this phone")
+      : window.LifeLogIcons.labelled("bell-off", "Reminders paused on this phone"));
     const toggle = el("button", "btn btn-sm", isOn() ? "Pause" : "Resume");
     toggle.type = "button";
     toggle.onclick = () => setOn(!isOn());

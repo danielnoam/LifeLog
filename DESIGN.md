@@ -259,7 +259,7 @@ where one exists. A new component goes in this list in the same change.
 | Button | `.btn`, `.btn-primary`, `.btn-danger`, `.btn-icon` | One `.btn-primary` per sheet or screen. Danger is outlined, not filled. Disabled is 45% opacity and doesn't press. |
 | Segmented control | `.seg` > `.seg-btn` | For 2–4 mutually exclusive views or modes. |
 | Chip | `.cat-chip` (+ `.chip-edit` ✎, `.add-chip`, `.year-chip`) | Filters and categories. Active = accent fill. Category chips carry a `.dot`. |
-| Tab and nav | `.tab` with `data-icon` | Text pills on desktop. On mobile the glyph from `data-icon` is drawn above the label (`.tab::before`, mobile blocks only). |
+| Tab and nav | `.tab` with a `.tab-ico` | Text pills on desktop. On mobile the icon is drawn above the label (`.tab-ico`, mobile blocks only). |
 | Card | `.card`, `.month-card` | Border, no shadow. `monthCardHeader()` for month groups. |
 | Row | `.entry`, `.backlog-item-rich`, `.recur-row` | The whole row is the tap target. It darkens on press. |
 | Sheet | `.modal-overlay` > `.modal` | Rises in and fades out (pure CSS, `@starting-style`). Full-screen on mobile for writing (notes); a bottom sheet for options (`.view-options`). Safe-area padding under `html.native`. On a phone it swipes down to close (`wireSheetSwipe`, app.js), through the backdrop's own click. |
@@ -274,14 +274,20 @@ where one exists. A new component goes in this list in the same change.
 
 Two kinds, each with its own job:
 
-- **Unicode glyphs** inline with text and on controls: ☰ ▤ ★ ₪ ◑ ✎ ✓ ✕ +
-  ↻. They inherit the text color, follow the user's font, cost nothing, and
-  look like the rest of the text. One glyph per meaning, reused everywhere
-  (✎ = edit, ✕ = remove, ✓ = done, + = add).
-- **Inline SVG** (24×24 viewBox, `currentColor`, `aria-hidden="true"`) only
-  where a glyph can't draw the idea and the icon stands alone as a row's
-  leading mark: the Settings rows (`.srow-ic`). No icon font, and no SVG
-  sprite library.
+- **Lucide icons** (lucide.dev, ISC, 0.247.0) for everything that is an
+  icon: tabs and modes, the add menu, row controls, badges, empty states,
+  Settings rows. One source, `src/icons.js`: `LifeLogIcons.svg(name)` in
+  code, `<span data-ico="name"></span>` in index.html (filled at load). A
+  24×24 `viewBox`, 2px round stroke, `currentColor`, `aria-hidden`; sized by
+  `.ico` (1.2em beside text) or the holder's own rule (`.tab-ico`, `.srow-ic`,
+  `.btn-icon`, `.add-ico`). One icon per meaning, reused everywhere: pencil =
+  edit, x = remove, check = done, play = start, undo-2 = put back, repeat =
+  recurring, refresh-cw = sync. A toggle drawn as its filled shape (favourite,
+  priority, default mode) adds `.is-fill` when on. Add to the map, never
+  rename a name in it. No icon font, no sprite, no emoji.
+- **Text stays text**: + for add, › ‹ chevrons, the ★ of a rating, ✦
+  bullets, arrows and dashes in copy, currency signs. They inherit the font
+  and read as part of the sentence.
 
 An icon-only button **must** have an `aria-label` or a `title`.
 

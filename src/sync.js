@@ -522,7 +522,7 @@
     const count = unresolvedSteamBacklogItems().length;
     btn.hidden = !count;
     hint.hidden = !count;
-    if (count) btn.textContent = `🔁 Retry unresolved Steam titles (${count})`;
+    if (count) window.LifeLogIcons.setLabel(btn, "repeat", `Retry unresolved Steam titles (${count})`);
   }
 
   // Steam-sourced backlog items with a real title but none of RAWG's
@@ -610,7 +610,7 @@
     const count = steamGamesNeedingInfo().length;
     btn.hidden = !count;
     hint.hidden = !count;
-    if (count) btn.textContent = `🎮 Backfill missing game info (${count})`;
+    if (count) window.LifeLogIcons.setLabel(btn, "gamepad-2", `Backfill missing game info (${count})`);
   }
 
   // A quiet periodic check, paced by Settings → Imports → "Check
@@ -645,7 +645,7 @@
         );
         const newCount = items.filter((it) => !existingSteamIds.has(String(it.appid))).length;
         if (newCount > 0) {
-          toast(`🎮 ${newCount} new Steam wishlist game${newCount === 1 ? "" : "s"} — Settings → Imports to sync`);
+          toast(`${newCount} new Steam wishlist game${newCount === 1 ? "" : "s"} — Settings → Imports to sync`);
         }
         job.finish(newCount ? `${newCount} new on your wishlist` : "Nothing new on your wishlist");
       });
@@ -779,9 +779,7 @@
     if (!btn) return;
     const count = backlogAwaitingRelease().length;
     btn.disabled = !count;
-    btn.textContent = count
-      ? `🔭 Re-check upcoming release dates (${count})`
-      : "🔭 Re-check upcoming release dates";
+    window.LifeLogIcons.setLabel(btn, "telescope", count ? `Re-check upcoming release dates (${count})` : "Re-check upcoming release dates");
   }
 
   function markReleasesChecked() {
@@ -884,7 +882,7 @@
           }
         }
         if (newCount > 0) {
-          toast(`📺 ${newCount} new AniList planning title${newCount === 1 ? "" : "s"} — Settings → Imports to sync`);
+          toast(`${newCount} new AniList planning title${newCount === 1 ? "" : "s"} — Settings → Imports to sync`);
         }
         job.finish(newCount ? `${newCount} new on your planning list` : "Nothing new on your planning list");
       });

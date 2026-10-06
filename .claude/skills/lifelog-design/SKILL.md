@@ -80,7 +80,9 @@ The full voice is DESIGN.md §8. The short version:
   or "Submit".
 - Deleting acts at once and offers **Undo** in the toast action. Ask for
   confirmation only when nothing can bring the data back.
-- Glyphs: ✎ edit, ✕ remove, ✓ done, + add. One glyph per meaning.
+- Icons are Lucide, through `LifeLogIcons.svg(name)` or `data-ico` (DESIGN.md
+  §6): pencil edit, x remove, check done, play start, undo-2 put back. One
+  icon per meaning; + for add stays text. No emoji.
 
 ## 4. Check it
 

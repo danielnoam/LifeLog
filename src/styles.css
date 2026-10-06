@@ -395,7 +395,8 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
   z-index: 20;
 }
 .brand { display: flex; align-items: center; gap: 10px; order: 1; position: relative; }
-.brand-mark { color: var(--accent); font-size: var(--fs-xl); }
+.brand-mark { color: var(--accent); display: flex; }
+.brand-mark svg { display: block; width: 20px; height: 20px; }
 .brand h1 { font-size: var(--fs-xl); margin: 0; font-weight: 650; letter-spacing: .3px; }
 
 /* groups the view tabs; on desktop it's transparent to the flex layout,
@@ -462,9 +463,10 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
 /* The mode's own glyph, matching the icons on the tabs themselves. Fixed
    width so the labels line up whatever the glyph's own advance is. */
 .mode-ico {
-  flex: 0 0 auto; width: 15px; text-align: center;
+  flex: 0 0 auto; width: 15px; display: grid; place-items: center;
   font-size: var(--fs-sm); line-height: 1; opacity: .85;
 }
+.mode-ico .ico { width: 14px; height: 14px; display: block; }
 /* The mode you're in, said the same way the tab dots say it. */
 .tab-menu-item.is-on { color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
@@ -653,7 +655,8 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
   color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em;
 }
 .add-menu button { display: flex; align-items: center; gap: 10px; }
-.add-ico { width: 1.25em; text-align: center; color: var(--text-dim); flex: 0 0 auto; }
+.add-ico { width: 1.25em; display: grid; place-items: center; color: var(--text-dim); flex: 0 0 auto; }
+.add-ico .ico { width: 16px; height: 16px; display: block; }
 
 /* Anchors a menu to the button that opens it. */
 .menu-wrap { position: relative; display: inline-flex; }
@@ -685,6 +688,27 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
 .btn-danger:hover { background: var(--danger-bg); }
 .btn-icon { padding: 8px 10px; font-size: var(--fs-read); line-height: 1; }
 .btn-sm { padding: 4px 8px; font-size: var(--fs-xs); }
+
+/* ---------- icons ----------
+   Lucide, through src/icons.js. An icon sits at 1.2em so it matches the
+   text beside it; icon-only controls size it themselves below. .is-fill is
+   the "on" state of a toggle drawn as its filled shape (favourite, priority,
+   default mode). */
+.ico { width: 1.2em; height: 1.2em; flex: 0 0 auto; display: inline-block; vertical-align: -0.25em; }
+.ico.is-fill { fill: currentColor; }
+h2 .ico { width: .85em; height: .85em; vertical-align: -0.1em; margin-right: 2px; }
+.tab-ico { display: none; }
+.tab-ico .ico { width: 22px; height: 22px; display: block; }
+.btn-icon .ico, .jump-btn .ico, .search-clear .ico, .recap-close .ico, .lock-key .ico { width: 18px; height: 18px; display: block; margin: auto; }
+.empty-glyph .ico { width: 34px; height: 34px; }
+.recur-badge .ico { width: 12px; height: 12px; vertical-align: -0.15em; }
+.bulkp-glyph .ico, .activity-glyph .ico { width: 14px; height: 14px; display: block; margin: auto; }
+.todo-grip .ico, .place-grip .ico { width: 14px; height: 14px; display: block; }
+.kind-ico .ico, .coll-mark .ico { width: 13px; height: 13px; vertical-align: -0.15em; }
+.board-tool .ico { width: 18px; height: 18px; display: block; margin: auto; }
+.activity-row.is-running .activity-glyph .ico { animation: ico-spin 1.2s linear infinite; }
+@keyframes ico-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .activity-row.is-running .activity-glyph .ico { animation: none; } }
 
 /* ---------- filter bar ---------- */
 /* Inside #content and under the filters now (see #modeSlot in index.html),
@@ -837,6 +861,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .mode-peek-label[data-side="right"] { align-items: flex-start; padding-left: 28px; }
 .mode-peek-label[data-side="left"] { align-items: flex-end; padding-right: 28px; }
 .mode-peek-icon { font-size: var(--fs-3xl); line-height: 1; }
+.mode-peek-icon .ico { width: 30px; height: 30px; display: block; }
 @keyframes mode-slide-fwd { from { opacity: 0; transform: translateX(var(--mode-enter-x, 16px)); } to { opacity: 1; transform: none; } }
 @keyframes mode-slide-back { from { opacity: 0; transform: translateX(calc(-1 * var(--mode-enter-x, 16px))); } to { opacity: 1; transform: none; } }
 .mode-slide-fwd { animation: mode-slide-fwd .22s cubic-bezier(.22,1,.36,1) both; }
@@ -1230,7 +1255,8 @@ select:focus { outline: none; border-color: var(--accent); }
   border: 1px solid var(--border); padding: 1px 8px; border-radius: var(--r-pill);
   white-space: nowrap; font-variant-numeric: tabular-nums;
 }
-.bpriority { font-size: var(--fs-2xs); color: var(--priority); letter-spacing: 1px; flex-shrink: 0; }
+.bpriority { font-size: var(--fs-2xs); color: var(--priority); letter-spacing: 1px; flex-shrink: 0; display: inline-flex; }
+.bpriority .ico { width: 12px; height: 12px; fill: currentColor; }
 /* Either in the metadata line where the price would have been, or — in the
    two layouts that have no such line — beside the title. Green so it reads
    as its own fact next to the star's gold. */
@@ -2077,7 +2103,7 @@ kbd {
   background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-lg); color: var(--text-dim);
 }
 .modal .settings-search:focus-within { border-color: var(--accent); }
-.settings-search svg { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.settings-search .ico { width: 16px; height: 16px; flex-shrink: 0; }
 #settingsSearch {
   flex: 1; min-width: 0; margin: 0; padding: 10px 0; border: 0; border-radius: 0;
   background: transparent; outline: none; box-shadow: none; color: var(--text);
@@ -2104,11 +2130,8 @@ kbd {
   background: var(--accent-soft); color: var(--accent);
 }
 .srow.active .srow-ic { background: var(--accent-fill); color: var(--text-on-accent); }
-.srow-ic svg, #viewOptionsBtn svg {
-  width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8;
-  stroke-linecap: round; stroke-linejoin: round; display: block;
-}
-#viewOptionsBtn svg { width: 15px; height: 15px; stroke-width: 2; }
+.srow-ic .ico { width: 18px; height: 18px; display: block; }
+#viewOptionsBtn .ico { width: 15px; height: 15px; display: block; }
 .srow-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .srow-title { font-size: var(--fs-md); font-weight: 600; }
 .srow-title mark { background: var(--accent-soft); color: inherit; border-radius: var(--r-xs); }
@@ -2496,7 +2519,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
      companion rule the rest of this file carries next to every other
      author display. */
   html:not(.force-pc) .tab[hidden] { display: none; }
-  html:not(.force-pc) .tab::before { content: attr(data-icon); font-size: var(--fs-xl); line-height: 1; }
+  html:not(.force-pc) .tab-ico { display: block; }
   html:not(.force-pc) .tab.active { color: var(--accent); background: none; }
   html:not(.force-pc) .views { position: relative; }
   /* Slides under whichever tab is active — tapping a tab or swiping the
@@ -2639,7 +2662,7 @@ html.force-mobile .tab {
 }
 /* Same companion rule as the @media block above — see the note there. */
 html.force-mobile .tab[hidden] { display: none; }
-html.force-mobile .tab::before { content: attr(data-icon); font-size: var(--fs-xl); line-height: 1; }
+html.force-mobile .tab-ico { display: block; }
 html.force-mobile .tab.active { color: var(--accent); background: none; }
 html.force-mobile .views { position: relative; }
 html.force-mobile .tab-modes { display: flex; }
@@ -2752,7 +2775,8 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   box-shadow: var(--shadow); padding: 32px 28px; width: 320px; max-width: 100%;
   text-align: center;
 }
-.lock-icon { font-size: var(--fs-3xl); margin-bottom: 6px; }
+.lock-icon { font-size: var(--fs-3xl); margin-bottom: 6px; display: flex; justify-content: center; }
+.lock-icon .ico { width: 40px; height: 40px; }
 .lock-box h2 { margin: 0 0 6px; font-size: var(--fs-xl); }
 .lock-box .muted { margin: 0 0 20px; }
 /* Shake feedback on a wrong PIN / failed biometric check (see showLockScreen
@@ -3141,7 +3165,8 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .habit-cell.is-slip { background: var(--danger); }
 /* A kept day nothing was logged on: the habit's colour as an outline (set inline). */
 .habit-cell.is-kept { background: transparent; }
-.habit-tick-mark { font-size: var(--fs-lg); line-height: 1; font-variant-numeric: tabular-nums; }
+.habit-tick-mark { font-size: var(--fs-lg); line-height: 1; font-variant-numeric: tabular-nums; display: flex; align-items: center; justify-content: center; }
+.habit-tick-mark .ico { width: 18px; height: 18px; }
 .habit-tick-mark:empty { display: none; }
 .habit-notdue { margin: 0; font-size: var(--fs-sm); color: var(--text-dim); font-style: italic; }
 /* Everything longer than the last ninety days, which is the only thing

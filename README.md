@@ -220,7 +220,8 @@ NOTES.md            why what shipped is the way it is — read before changing
 DROPPED.md          decided against, and why, so it isn't re-litigated
 manifest.json       PWA manifest (installable)
 sw.js               service worker (offline cache)
-icon.svg            app icon
+icon.svg            app icon (assets/logo.svg is the same mark for the Android
+                    and iOS builds)
 lifelog.json        your data (seed = imported sheet)
 data/               one-time import: raw CSV + parse.js (kept for reference)
 ```

@@ -9,6 +9,7 @@
   const Wheel = window.LifeLogWheel;
 
   // Shared app plumbing, provided by app.js via init(ctx).
+  const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
     emptyState, emptyCoverEl, coverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect, sortSelect, openEntryModal,
@@ -55,7 +56,8 @@
   }
 
   function priorityBadge() {
-    const span = el("span", "bpriority", "★");
+    const span = el("span", "bpriority");
+    span.appendChild(ico("star"));
     span.title = "Prioritized";
     return span;
   }
@@ -212,7 +214,8 @@
     text.appendChild(t);
     text.appendChild(el("span", "progress-since", sinceLabel(b.startedAt)));
     row.appendChild(text);
-    const stop = el("button", "btn btn-sm progress-stop", "↩");
+    const stop = el("button", "btn btn-sm progress-stop");
+    stop.appendChild(ico("undo-2"));
     stop.type = "button";
     stop.title = "Not now — back to the backlog";
     stop.setAttribute("aria-label", "Put " + b.title + " back in the backlog");
@@ -233,7 +236,7 @@
     if (!items.length) return null;
     const block = el("div", "year-block progress-block");
     const head = el("div", "year-head");
-    head.appendChild(el("h2", null, "▶ In progress"));
+    head.appendChild(el("h2", null)).appendChild(window.LifeLogIcons.labelled("play", "In progress"));
     head.appendChild(el("span", "ycount", String(items.length)));
     const add = el("button", "month-add-btn", "+");
     add.type = "button";
@@ -359,7 +362,7 @@
       const info = item.querySelector(".ac-info");
       const existing = info.querySelector(".ac-meta");
       if (existing) existing.remove();
-      info.appendChild(el("span", "ac-meta", `📋 Already in backlog · ${b.category}`));
+      info.appendChild(el("span", "ac-meta")).appendChild(window.LifeLogIcons.labelled("clipboard-list", `Already in backlog · ${b.category}`));
       list.appendChild(item);
     });
 
@@ -383,7 +386,7 @@
       const info = item.querySelector(".ac-info");
       const existing = info.querySelector(".ac-meta");
       if (existing) existing.remove();
-      info.appendChild(el("span", "ac-meta", `✓ Logged ×${m.count} · last ${MONTHS_SHORT[m.month]} ${m.year}`));
+      info.appendChild(el("span", "ac-meta")).appendChild(window.LifeLogIcons.labelled("check", `Logged ×${m.count} · last ${MONTHS_SHORT[m.month]} ${m.year}`));
       list.appendChild(item);
     });
 
@@ -406,7 +409,7 @@
     const parts = [];
     if (inBacklog) parts.push("already in your backlog");
     if (inJournal) parts.push("already logged in your timeline");
-    $("#bDuplicateStatusText").textContent = "📋 This title is " + parts.join(" and ") + ".";
+    window.LifeLogIcons.setLabel($("#bDuplicateStatusText"), "clipboard-list", "This title is " + parts.join(" and ") + ".");
     status.hidden = false;
   }
 
@@ -946,7 +949,8 @@
   // with the list and so is always offered.
   function makePickGroup(items) {
     const right = el("div", "dsc-bar-right");
-    const spin = el("button", "btn btn-sm", "🎡 Spin");
+    const spin = el("button", "btn btn-sm");
+    spin.appendChild(window.LifeLogIcons.labelled("dices", "Spin"));
     spin.type = "button";
     spin.title = "A wheel of your own options";
     spin.onclick = () => Wheel.openWheel({
@@ -1319,7 +1323,7 @@
         return;
       }
       root.appendChild(emptyState({
-        glyph: "🔭",
+        glyph: "telescope",
         title: "Nothing on the horizon",
         body: "Backlog items that haven't come out yet show up here in date order — the next episode of something airing, a game with a release date, a film still months away.",
         hint: "Release dates arrive with the cover art when you sync an item to a media source. Settings → Release dates keeps them current.",
@@ -1383,7 +1387,7 @@
         onDelete: bulkDeleteSelected,
         onSync: bulkSyncSelected,
         preset: {
-          label: "⚠ Incomplete",
+          label: "Incomplete",
           count: syncableIncomplete().length,
           title: "Select everything here a sync could still fill in, then press Sync",
           apply: selectIncomplete,
@@ -1638,8 +1642,8 @@
   function discoverOwnedTag(title, owned) {
     const k = window.LifeLogMedia.titleKey(title);
     if (!k) return "";
-    if (owned.inBacklog.has(k)) return "📋 In backlog";
-    if (owned.logged.has(k)) return "✓ Logged";
+    if (owned.inBacklog.has(k)) return "In backlog";
+    if (owned.logged.has(k)) return "Logged";
     return "";
   }
 
@@ -1734,7 +1738,8 @@
     // wide font still wraps it, the group stays on the right.
     const right = el("div", "dsc-bar-right");
     right.appendChild(discoverHideOwnedToggle());
-    const refresh = el("button", "btn btn-sm dsc-refresh", "↻");
+    const refresh = el("button", "btn btn-sm dsc-refresh");
+    refresh.appendChild(ico("refresh-cw"));
     refresh.type = "button";
     refresh.title = "Refresh: fetch these lists again, ignoring the six-hour cache";
     refresh.setAttribute("aria-label", "Refresh");
@@ -1889,7 +1894,7 @@
   // "List" since 0.231.0, when each tab's first mode got a name of its own
   // (it was "Entries", like the others'). It was "By category" with the id
   // "category" until 0.128.0; applySavedUi in app.js translates the stored one.
-  const MODES = [["entries", "List", "★"], ["upcoming", "Next releases", "◷"], ["discover", "Discover", "◎"]];
+  const MODES = [["entries", "List", "star"], ["upcoming", "Next releases", "clock"], ["discover", "Discover", "compass"]];
   // The switch itself lives on the tab now on both layouts — held on a phone,
   // hovered on a desktop (see the mode fan and the tab menu in app.js) — so
   // only what the bar carries besides it is drawn here.
@@ -1970,7 +1975,7 @@
     if (state.backlogMode === "discover") { renderDiscover(root); return; }
     if (!state.data.backlog.length) {
       root.appendChild(emptyState({
-        glyph: "★",
+        glyph: "star",
         title: "Your backlog is empty",
         body: "Add things you want to get to. They sit here grouped by category and sorted by priority, until the day you log them.",
         action: "Add to backlog",
@@ -2124,7 +2129,7 @@
         onDelete: bulkDeleteSelected,
         onSync: bulkSyncSelected,
         preset: {
-          label: "⚠ Incomplete",
+          label: "Incomplete",
           count: syncableIncomplete().length,
           title: "Select everything here a sync could still fill in, then press Sync",
           apply: selectIncomplete,
@@ -2198,7 +2203,8 @@
   // ✓ beside it: done, log it. Just the glyph since 0.220.0, an icon button
   // like ▶ and ↩, with the word kept for the tooltip and screen readers.
   function doneButton(b) {
-    const btn = el("button", "btn btn-sm bl-done", "✓");
+    const btn = el("button", "btn btn-sm bl-done");
+    btn.appendChild(ico("check"));
     btn.type = "button";
     btn.title = "Done — move to your log";
     btn.setAttribute("aria-label", "Done: " + b.title);
@@ -2208,7 +2214,8 @@
 
   // ▶ beside ✓: "I'm on this now" (0.218.0).
   function startButton(b) {
-    const btn = el("button", "btn btn-sm bl-start", "▶");
+    const btn = el("button", "btn btn-sm bl-start");
+    btn.appendChild(ico("play"));
     btn.type = "button";
     btn.title = "Start — move to In progress";
     btn.setAttribute("aria-label", "Start " + b.title);
@@ -2562,7 +2569,7 @@
   function updatePriorityBtn() {
     const on = $("#bPriority").checked;
     const btn = $("#bPriorityBtn");
-    btn.textContent = on ? "★" : "☆";
+    btn.replaceChildren(ico("star", on ? "is-fill" : ""));
     btn.classList.toggle("active", on);
     btn.title = on ? "Prioritized — click to remove" : "Prioritize";
     btn.setAttribute("aria-label", btn.title);

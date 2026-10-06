@@ -148,7 +148,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.246.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.247.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -475,6 +475,7 @@
     return e;
   };
   const uid = () => "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   const reconcile = (...a) => window.LifeLogReconcile.reconcile(...a);
   const adopt = (...a) => window.LifeLogReconcile.adopt(...a);
   // A reused section node has to be refilled through the header and body it
@@ -639,7 +640,7 @@
       // better here — see NOTES.md.
       // The To-do mode's lists became list notes in 0.197.0.
       // Boards were a third mode until 0.204.0; they're a kind of note now.
-      modes: [["notes", "Notes", "▤"], ["habits", "Habits", "✓"]],
+      modes: [["notes", "Notes", "notebook-text"], ["habits", "Habits", "square-check-big"]],
       // The only view whose two modes don't show the same chips: the years
       // come from the notes themselves, and a to-do has neither a year worth
       // filtering nor a category. So here the filterbar is part of the
@@ -650,7 +651,7 @@
     },
     timeline: {
       key: "timeline",
-      modes: [["entries", "Log", "☰"], ["stats", "Stats", "◑"]],
+      modes: [["entries", "Log", "list"], ["stats", "Stats", "chart-pie"]],
       get: () => state.timelineMode,
       set: (m) => { state.timelineMode = m; },
     },
@@ -664,7 +665,7 @@
     },
     finance: {
       key: "finance",
-      modes: [["entries", "Expenses", "₪"], ["summary", "Summary", "◑"]],
+      modes: [["entries", "Expenses", "receipt"], ["summary", "Summary", "chart-pie"]],
       get: () => state.financeMode,
       set: (m) => { state.financeMode = m; },
     },
@@ -878,7 +879,7 @@
     for (const [id, label, icon] of modeEntries(spec)) {
       const item = el("div", "mode-fan-item");
       item.dataset.mode = id;
-      if (icon) item.appendChild(el("span", "mode-ico", icon));
+      if (icon) item.appendChild(el("span", "mode-ico")).appendChild(ico(icon));
       item.appendChild(document.createTextNode(label));
       fan.appendChild(item);
     }
@@ -931,7 +932,7 @@
     for (const [id, label, icon] of modeEntries(spec)) {
       const item = el("button", "tab-menu-item");
       item.type = "button";
-      if (icon) item.appendChild(el("span", "mode-ico", icon));
+      if (icon) item.appendChild(el("span", "mode-ico")).appendChild(ico(icon));
       item.appendChild(document.createTextNode(label));
       // Only ever "the one you're in" on the tab you're on: the mark would
       // otherwise claim a mode that opening the tab is about to reset.
@@ -1075,7 +1076,9 @@
       const label = el("div", "mode-peek-label");
       label.dataset.side = delta > 0 ? "right" : "left";
       label.style.top = Math.max(pageTop, 0) + 72 + "px";
-      label.appendChild(el("span", "mode-peek-icon", entry[2]));
+      const peekIcon = el("span", "mode-peek-icon");
+      if (entry[2]) peekIcon.appendChild(ico(entry[2]));
+      label.appendChild(peekIcon);
       label.appendChild(el("span", "mode-peek-name", entry[1]));
       layer.appendChild(label);
     }
@@ -1198,7 +1201,8 @@
   // Placeholder for entries/backlog items with no cover art (or a broken
   // cover URL) — tinted to the item's category so it's not just a blank box.
   function emptyCoverEl(cls, category) {
-    const span = el("span", cls, "🖼");
+    const span = el("span", cls);
+    span.appendChild(ico("image"));
     const color = colorOf(category);
     span.style.background = color + "22";
     span.style.color = color;
@@ -1569,7 +1573,7 @@
       const progress = state.timelineMode !== "stats" ? Backlog.inProgressCard() : null;
       if (!state.data.entries.length && !progress) {
         c.appendChild(emptyState({
-          glyph: "☰",
+          glyph: "list",
           title: "Nothing logged yet",
           body: "Log the things you experience — a game you finished, a book you read, a trip you took. They'll stack up here by year and month.",
           action: "Add your first entry",
@@ -2175,7 +2179,10 @@
     if (typeof msg === "string") return el("div", "empty", msg);
     const { glyph, title, body, action, onAction, hint } = msg;
     const wrap = el("div", "empty-state");
-    wrap.appendChild(el("div", "empty-glyph", glyph));
+    // An icon name, or text when it isn't one: the Ledger's is the currency sign.
+    const mark = el("div", "empty-glyph");
+    if (window.LifeLogIcons.has(glyph)) mark.appendChild(ico(glyph)); else mark.textContent = glyph;
+    wrap.appendChild(mark);
     wrap.appendChild(el("h2", null, title));
     wrap.appendChild(el("p", "empty-body", body));
     // Next releases has nothing to add from: its items arrive by syncing.
@@ -2516,7 +2523,7 @@
           return;
         }
         node.disabled = part.kind === "cancel" ? busy : (empty || busy);
-        if (part.kind === "sync") { node.__onSync = onSync; node.textContent = "🔄 Sync"; }
+        if (part.kind === "sync") { node.__onSync = onSync; window.LifeLogIcons.setLabel(node, "refresh-cw", "Sync"); }
         if (part.kind === "delete") { node.__onDelete = onDelete; node.textContent = "Delete"; }
         if (part.kind === "cancel") node.textContent = "Cancel";
       },
@@ -2584,7 +2591,7 @@
     else renderBulkProgressPanel();
   }
 
-  const BULK_GLYPH = { done: "✓", skipped: "⚠", failed: "✕", pending: "○" };
+  const BULK_GLYPH = { done: "check", skipped: "triangle-alert", failed: "x", pending: "circle" };
 
   function openBulkProgressPanel() {
     if (!bulkRun) return;
@@ -2610,7 +2617,7 @@
     const list = $("#bulkProgressList");
     list.replaceChildren(...rows.map((r) => {
       const row = el("div", "bulkp-row is-" + r.state);
-      row.appendChild(el("span", "bulkp-glyph", BULK_GLYPH[r.state] || "○"));
+      row.appendChild(el("span", "bulkp-glyph")).appendChild(ico(BULK_GLYPH[r.state] || "circle"));
       const name = el("span", "bulkp-name", r.title || "(untitled)");
       name.title = r.title || "";
       row.appendChild(name);
@@ -2629,7 +2636,7 @@
   // or after something failed until you've looked; Settings → Activity opens
   // it any time.
   const Jobs = window.LifeLogJobs;
-  const ACTIVITY_GLYPH = { queued: "○", running: "↻", done: "✓", failed: "✕", stopped: "■" };
+  const ACTIVITY_GLYPH = { queued: "circle", running: "loader", done: "check", failed: "x", stopped: "square" };
   let activitySeenFailure = 0, activitySeenLeft = false;
   let activityTick = null;
 
@@ -2662,7 +2669,7 @@
 
   function activityRow(job, now) {
     const row = el("div", "activity-row is-" + job.state);
-    row.appendChild(el("span", "activity-glyph", ACTIVITY_GLYPH[job.state] || "○"));
+    row.appendChild(el("span", "activity-glyph")).appendChild(ico(ACTIVITY_GLYPH[job.state] || "circle"));
     const text = el("div", "activity-text");
     text.appendChild(el("span", "activity-label", job.label));
     const meta = el("span", "activity-meta", activityMeta(job, now));
@@ -2691,7 +2698,7 @@
   // way to run it again, which picks up where it got to.
   function unfinishedRow(r) {
     const row = el("div", "activity-row is-unfinished");
-    row.appendChild(el("span", "activity-glyph", "!"));
+    row.appendChild(el("span", "activity-glyph")).appendChild(ico("triangle-alert"));
     const text = el("div", "activity-text");
     text.appendChild(el("span", "activity-label", r.label));
     text.appendChild(el("span", "activity-meta", "Didn't finish — the app was closed while it ran"));
@@ -2700,7 +2707,8 @@
     again.type = "button";
     again.onclick = () => Jobs.runAgain(r);
     row.appendChild(again);
-    const drop = el("button", "btn btn-icon btn-sm activity-dismiss", "✕");
+    const drop = el("button", "btn btn-icon btn-sm activity-dismiss");
+    drop.appendChild(ico("x"));
     drop.type = "button";
     drop.title = "Dismiss";
     drop.setAttribute("aria-label", "Dismiss " + r.label.toLowerCase());
@@ -3029,7 +3037,7 @@
   // number at once, like the rows around it (0.214.0), and none is all; its
   // label selects every one or none. Boards on its own is the Boards page,
   // with New board; beside another kind they're cards in the feed, as in All.
-  const NOTE_KIND_CHIPS = [["text", "Notes", "▤"], ["list", "Checklists", "☑"], ["quote", "Quotes", "❝"], ["board", "Boards", "✎"]];
+  const NOTE_KIND_CHIPS = [["text", "Notes", "notebook-text"], ["list", "Checklists", "list-checks"], ["quote", "Quotes", "quote"], ["board", "Boards", "presentation"]];
   const noteKindChips = () => NOTE_KIND_CHIPS.filter(([k]) => k !== "board" || !!window.LifeLogBoards);
   function toggleAllKinds() {
     const all = noteKindChips().map(([k]) => k);
@@ -3062,7 +3070,9 @@
         const on = state.noteKinds.has(item.key);
         chip.classList.toggle("on", on);
         chip.setAttribute("aria-pressed", String(on));
-        chip.replaceChildren(el("span", "kind-ico", item.ico), document.createTextNode(item.label));
+        const k = el("span", "kind-ico");
+        k.appendChild(ico(item.ico));
+        chip.replaceChildren(k, document.createTextNode(item.label));
       },
     });
     equalizeChipWidths($("#kindFilter"));
@@ -3156,14 +3166,16 @@
           chip.replaceChildren(dot, document.createTextNode("No category"));
           return;
         }
-        const edit = el("span", "chip-edit", "✎");
+        const edit = el("span", "chip-edit");
+        edit.appendChild(ico("pencil"));
         edit.title = "Edit category";
         activatable(edit, (ev) => { ev.stopPropagation(); editCatFor(which)(c); }, "Edit category " + c.name);
         // A collection says so, since its chip opens a page rather than filtering.
         const coll = which === "note" && c.layout === "collection";
         chip.classList.toggle("is-collection", coll);
         chip.title = coll ? "A collection — its notes show as cards" : "";
-        const mark = el("span", "coll-mark", "▦");
+        const mark = el("span", "coll-mark");
+        mark.appendChild(ico("layers"));
         mark.style.color = c.color;
         chip.replaceChildren(coll ? mark : dot, document.createTextNode(c.name), edit);
       },

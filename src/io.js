@@ -847,7 +847,7 @@
       row.appendChild(el("span", "famount fnegative", formatMoney(e.amount)));
     } else if (item.kind === "recurring") {
       row.appendChild(el("span", "fdate", e.startDate));
-      row.appendChild(el("span", "recur-badge", "↻ " + e.interval));
+      row.appendChild(el("span", "recur-badge")).appendChild(window.LifeLogIcons.labelled("repeat", e.interval));
       const t = el("span", "etitle", e.note || e.category); t.title = e.note || e.category; row.appendChild(t);
       row.appendChild(el("span", "ecat", e.category));
       row.appendChild(el("span", "famount fnegative", "-" + formatMoney(e.amount)));
