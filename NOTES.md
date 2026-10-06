@@ -333,6 +333,14 @@ what was decided against and why.
   copy of the whole recurring list taken just before. `combinedWith` stays in
   KNOWN_RECURRING_KEYS so the sanitizer drops it rather than keepUnknown
   carrying it, which is what made the old groups separate again.
+- **About (0.246.0).** The What's new page became a section of About, so
+  `data-page="whatsnew"` is gone and `about` has the row, in its own group
+  under the Settings list rather than under Connected services where it sat.
+  Nothing stored named the page. The credits list every host `src/` calls
+  (grep for `https://`) and the three things the app ships with (Leaflet,
+  the OSM/CARTO tiles, Capacitor); TMDB's terms want the "not endorsed or
+  certified" line verbatim. Add a row when a new service or vendored
+  library arrives, and when the icon pack lands.
 - **What's new reads CHANGELOG.md (0.232.0).** One source, so the page can't
   drift from the release notes. The file is in sw.js's ASSETS (so the apps
   bundle it and it reads offline) and is fetched with `?v=APP_VERSION`, the

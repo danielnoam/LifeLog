@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.246.0] - 2026-10-06
+
+### Added
+- **Settings → About.** The app's version and which build you're on, the
+  changelog (this file, as before under What's new), links to the source
+  code, the issue tracker and the downloads, and credits for what LifeLog
+  is built with and the services it gets data from. It has its own group at
+  the bottom of Settings; What's new was a row under Connected services.
+
 ## [0.245.1] - 2026-10-06
 
 A pass over the whole app at phone and desktop width, in every theme,

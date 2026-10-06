@@ -2136,6 +2136,11 @@ kbd {
 .settings-page [hidden], .view-options [hidden] { display: none !important; }
 .settings-page > .sgroup, .settings-page > div > .sgroup, .view-options > .sgroup { margin-top: 20px; }
 .settings-page > .page-lede { margin: 0 0 4px; }
+.about-head { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.about-icon { width: 56px; height: 56px; border-radius: var(--r-md); flex: 0 0 auto; }
+.about-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.about-name { font-size: var(--fs-xl); font-weight: 650; }
+.about-version { font-size: var(--fs-sm); color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .modal .sgroup-label { margin: 0; }
 .sgroup > .sgroup-label:not(:first-child) { margin-top: 12px; }
 .sgroup > .hint, .sgroup > .muted, .sgroup > .warn { margin: 2px 6px 0; }

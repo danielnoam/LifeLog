@@ -543,7 +543,11 @@
   }
 
   function showPage(name) {
-    if (name === "whatsnew") renderChangelog(false);
+    if (name === "about") {
+      const P = window.LifeLogPlatform;
+      $("#aboutVersion").textContent = "Version " + APP_VERSION + " · " + (P.android ? "Android app" : P.ios ? "iOS app" : "Web app");
+      renderChangelog(false);
+    }
     const was = currentPage;
     currentPage = name || "";
     box().dataset.page = currentPage;
@@ -582,7 +586,7 @@
   function statusOf(page) {
     const set = state.data.settings || {};
     switch (page) {
-      case "whatsnew": return { text: "Version " + APP_VERSION };
+      case "about": return { text: "Version " + APP_VERSION + " · what's new, credits" };
       case "sync": {
         const gi = Storage.githubInfo;
         const file = Storage.fileName && !Storage.needsReconnect;

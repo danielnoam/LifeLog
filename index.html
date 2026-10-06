@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.245.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.246.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -1185,8 +1185,13 @@
             <div class="sgroup-card">
               <button type="button" class="srow" data-page="media"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4l2.4 5 5.6.6-4.2 3.8 1.2 5.6L12 16.3 7 19l1.2-5.6L4 9.6 9.6 9z" /></svg></span><span class="srow-text"><span class="srow-title">Media lookups</span><span class="srow-status" data-status="media"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
               <button type="button" class="srow" data-page="imports"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21V9M7 14l5-5 5 5" /><path d="M4 7V4h16v3" /></svg></span><span class="srow-text"><span class="srow-title">Imports</span><span class="srow-status" data-status="imports"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
-              <button type="button" class="srow" data-page="whatsnew"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l2 5 5 .5-3.8 3.4 1.1 5.1L12 14.5 7.7 17l1.1-5.1L5 8.5l5-.5z" /><path d="M5 21h14" /></svg></span><span class="srow-text"><span class="srow-title">What's new</span><span class="srow-status" data-status="whatsnew"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
               <button type="button" class="srow" data-page="releases"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2" /><path d="M4 10h16M9 3v4M15 3v4" /></svg></span><span class="srow-text"><span class="srow-title">Release dates</span><span class="srow-status" data-status="releases"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+            </div>
+          </div>
+          <div class="sgroup">
+            <div class="sgroup-label">LifeLog</div>
+            <div class="sgroup-card">
+              <button type="button" class="srow" data-page="about"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></svg></span><span class="srow-text"><span class="srow-title">About</span><span class="srow-status" data-status="about"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
             </div>
           </div>
           <p class="settings-foot"><span id="settingsVersion"></span> · Press <kbd>?</kbd> anywhere for keyboard shortcuts</p>
@@ -1679,10 +1684,50 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="whatsnew" data-title="What's new" data-keywords="changelog changes version release notes update new">
-      <h2 class="settings-page-title">What's new</h2>
-      <div class="md changelog" id="changelogBody"></div>
-      <button type="button" class="btn" id="changelogMoreBtn" hidden>Show older versions</button>
+      <div class="settings-page" hidden data-page="about" data-title="About" data-keywords="about version changelog what's new changes release notes update github source code repo credits licence license open source">
+      <h2 class="settings-page-title">About</h2>
+      <div class="about-head">
+        <img class="about-icon" src="icon.svg" alt="" width="56" height="56" />
+        <div class="about-text"><span class="about-name">LifeLog</span><span class="about-version" id="aboutVersion"></span></div>
+      </div>
+      <p class="hint page-lede">What you did, what's next, what it cost. Yours, on your devices and in your own GitHub repo; nothing goes anywhere you didn't set up.</p>
+      <section class="sgroup">
+        <div class="sgroup-card">
+          <a class="sitem sitem-go" href="https://github.com/danielnoam/LifeLog" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Source code</span><span class="sitem-sub">Open source on GitHub, the whole app</span></span></a>
+          <a class="sitem sitem-go" href="https://github.com/danielnoam/LifeLog/issues" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Report a problem or suggest something</span><span class="sitem-sub">Issues on GitHub</span></span></a>
+          <a class="sitem sitem-go" href="https://github.com/danielnoam/LifeLog/releases/latest" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Downloads</span><span class="sitem-sub">The latest Android APK and iOS IPA</span></span></a>
+        </div>
+      </section>
+      <section class="sgroup">
+        <div class="sgroup-label">What's new</div>
+        <div class="md changelog" id="changelogBody"></div>
+        <button type="button" class="btn" id="changelogMoreBtn" hidden>Show older versions</button>
+      </section>
+      <section class="sgroup">
+        <div class="sgroup-label">Built with</div>
+        <div class="sgroup-card">
+          <a class="sitem sitem-go" href="https://leafletjs.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Leaflet</span><span class="sitem-sub">The Travel maps · BSD 2-Clause</span></span></a>
+          <a class="sitem sitem-go" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">OpenStreetMap contributors and CARTO</span><span class="sitem-sub">Map tiles, and town names through Nominatim · ODbL</span></span></a>
+          <a class="sitem sitem-go" href="https://capacitorjs.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Capacitor</span><span class="sitem-sub">The Android and iOS apps around the web app · MIT</span></span></a>
+        </div>
+      </section>
+      <section class="sgroup">
+        <div class="sgroup-label">Data from</div>
+        <p class="hint">Each one is asked only for what you add or connect, with the keys and accounts you set up under Connected services.</p>
+        <div class="sgroup-card">
+          <a class="sitem sitem-go" href="https://www.themoviedb.org" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">TMDB</span><span class="sitem-sub">Films and TV. This product uses the TMDB API but is not endorsed or certified by TMDB</span></span></a>
+          <a class="sitem sitem-go" href="https://rawg.io" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">RAWG</span><span class="sitem-sub">Games</span></span></a>
+          <a class="sitem sitem-go" href="https://www.steamgriddb.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">SteamGridDB</span><span class="sitem-sub">Game artwork</span></span></a>
+          <a class="sitem sitem-go" href="https://store.steampowered.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Steam</span><span class="sitem-sub">Your library and wishlist, and release dates</span></span></a>
+          <a class="sitem sitem-go" href="https://gg.deals" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">GG.deals</span><span class="sitem-sub">Game prices</span></span></a>
+          <a class="sitem sitem-go" href="https://anilist.co" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">AniList</span><span class="sitem-sub">Anime and manga, and your lists there</span></span></a>
+          <a class="sitem sitem-go" href="https://jikan.moe" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Jikan</span><span class="sitem-sub">MyAnimeList, unofficially</span></span></a>
+          <a class="sitem sitem-go" href="https://openlibrary.org" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Open Library</span><span class="sitem-sub">Books and covers</span></span></a>
+          <a class="sitem sitem-go" href="https://musicbrainz.org" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">MusicBrainz and the Cover Art Archive</span><span class="sitem-sub">Albums and covers</span></span></a>
+          <a class="sitem sitem-go" href="https://frankfurter.dev" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Frankfurter</span><span class="sitem-sub">Exchange rates for expenses in another currency</span></span></a>
+          <a class="sitem sitem-go" href="https://developers.google.com/maps/documentation/places/web-service" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Google Places</span><span class="sitem-sub">Place details in Travel, with your own key</span></span></a>
+        </div>
+      </section>
       </div>
 
       <div class="settings-page" hidden data-page="releases" data-title="Release dates" data-keywords="upcoming release dates tba">
@@ -2003,31 +2048,31 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.245.1"></script>
-  <script defer src="src/jobs.js?v=0.245.1"></script>
-  <script defer src="src/reconcile.js?v=0.245.1"></script>
-  <script defer src="src/qr.js?v=0.245.1"></script>
-  <script defer src="src/media.js?v=0.245.1"></script>
-  <script defer src="src/merge.js?v=0.245.1"></script>
-  <script defer src="src/storage.js?v=0.245.1"></script>
-  <script defer src="src/finance.js?v=0.245.1"></script>
-  <script defer src="src/settings.js?v=0.245.1"></script>
-  <script defer src="src/wheel.js?v=0.245.1"></script>
-  <script defer src="src/backlog.js?v=0.245.1"></script>
-  <script defer src="src/journal.js?v=0.245.1"></script>
-  <script defer src="src/markdown.js?v=0.245.1"></script>
-  <script defer src="src/notes.js?v=0.245.1"></script>
-  <script defer src="src/docimport.js?v=0.245.1"></script>
-  <script defer src="src/io.js?v=0.245.1"></script>
-  <script defer src="src/sync.js?v=0.245.1"></script>
-  <script defer src="src/habits.js?v=0.245.1"></script>
-  <script defer src="src/vendor/rough.js?v=0.245.1"></script>
-  <script defer src="src/boards.js?v=0.245.1"></script>
-  <script defer src="src/travel.js?v=0.245.1"></script>
-  <script defer src="src/recap.js?v=0.245.1"></script>
-  <script defer src="src/reminders.js?v=0.245.1"></script>
-  <script defer src="src/widgets.js?v=0.245.1"></script>
-  <script defer src="src/payments.js?v=0.245.1"></script>
-  <script defer src="src/app.js?v=0.245.1"></script>
+  <script defer src="src/platform.js?v=0.246.0"></script>
+  <script defer src="src/jobs.js?v=0.246.0"></script>
+  <script defer src="src/reconcile.js?v=0.246.0"></script>
+  <script defer src="src/qr.js?v=0.246.0"></script>
+  <script defer src="src/media.js?v=0.246.0"></script>
+  <script defer src="src/merge.js?v=0.246.0"></script>
+  <script defer src="src/storage.js?v=0.246.0"></script>
+  <script defer src="src/finance.js?v=0.246.0"></script>
+  <script defer src="src/settings.js?v=0.246.0"></script>
+  <script defer src="src/wheel.js?v=0.246.0"></script>
+  <script defer src="src/backlog.js?v=0.246.0"></script>
+  <script defer src="src/journal.js?v=0.246.0"></script>
+  <script defer src="src/markdown.js?v=0.246.0"></script>
+  <script defer src="src/notes.js?v=0.246.0"></script>
+  <script defer src="src/docimport.js?v=0.246.0"></script>
+  <script defer src="src/io.js?v=0.246.0"></script>
+  <script defer src="src/sync.js?v=0.246.0"></script>
+  <script defer src="src/habits.js?v=0.246.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.246.0"></script>
+  <script defer src="src/boards.js?v=0.246.0"></script>
+  <script defer src="src/travel.js?v=0.246.0"></script>
+  <script defer src="src/recap.js?v=0.246.0"></script>
+  <script defer src="src/reminders.js?v=0.246.0"></script>
+  <script defer src="src/widgets.js?v=0.246.0"></script>
+  <script defer src="src/payments.js?v=0.246.0"></script>
+  <script defer src="src/app.js?v=0.246.0"></script>
 </body>
 </html>
