@@ -2,21 +2,14 @@ todo:
 
 - **Activity, next.** Check on Daniel's phone that a Steam sync carries on
   with the app put away and the screen off, and that the notification's
-  Stop and tap work (not testable here). Then, if wanted: a job that was
-  interrupted by the app being killed offered again on the next open; the
-  Markdown and EPUB/PDF imports as jobs (local and quick so far).
+  Stop and tap work (not testable here), and that Run again shows after
+  swiping the app away mid-sync. Then, if wanted: the Markdown and EPUB/PDF
+  imports as jobs (local and quick so far).
 
-- **Travel, what's next** (design: the "LifeLog travel tab design" doc).
-  - Name the "Near …" areas: a list's places often have no address, so
-    By area can only name those groups after a place. A reverse geocoder
-    (Nominatim, with its 1-a-second limit, cached) would give the town.
-  - The map in the import sheet, to pick a list's places by area on a map
-    rather than by group.
-  - Settings → History for trips, and travel.json in the desktop file
-    backup: Storage.travel already has both; nothing in Settings shows
-    them yet.
-  - Later, if wanted: a trip's Ledger project, Google's reviews and hours
-    (Places API, needs a key; reviews can't be stored).
+- **Travel, check with real services.** Town names (OpenStreetMap) and
+  Google's rating, hours and reviews were only tested against fakes here.
+  Paste a Places key and open a few places, in the app and on the Pages
+  site, and import a list with places that have no address.
 
 - **An Apple developer account ($99/year)**, if the iOS app is ever used
   for real: sign in CI, upload to TestFlight, and the 7-day re-signing that

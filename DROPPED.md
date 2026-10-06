@@ -13,6 +13,13 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## A Ledger project per trip
+
+Each trip linked to a Ledger project, so its spending would add up under
+the trip. Decided against on 2026-10-06: Daniel doesn't need it. A trip's
+spending can still go in a project made by hand. Would come back if trips
+start needing their own budget.
+
 ## Books in LifeLog
 
 Whole books kept and read inside LifeLog: the text stored apart from the

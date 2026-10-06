@@ -16,6 +16,51 @@ what was decided against and why.
 
 ---
 
+- **Travel's town names, Google details and trips history (0.245.0).**
+  - Towns come from OpenStreetMap's Nominatim reverse lookup (free, no
+    key). Its policy is at most a request a second, cache what it answers,
+    and identify the app; a browser can't set User-Agent, so the request
+    carries the page's Referer (https://localhost in the apps). Hence the
+    `nominatim` lane with 1.1 s between requests, one request per *area*
+    (its centre), not per place, a device cache by spot (lat/lng to two
+    decimals, about a kilometre: lifelog-towns-v1), and the town written
+    onto every place of a named area as `town`, which syncs, so another
+    device or a later import doesn't ask again. A spot that answered no
+    town is cached as "" and not asked again. An address's own town still
+    wins over `town`.
+  - Google details need Places API (New) with Daniel's own key: Google has
+    no keyless way, and it bills per request (the free monthly credit
+    covers personal use). Google's terms allow keeping only the place id,
+    so `placeId` is all that's saved; rating, hours and reviews are asked
+    for each time the sheet opens, kept in memory for the session only.
+    Without a placeId it's a Text Search near the place (500 m bias), and
+    a match over 2 km away is treated as a different place of the same
+    name. The key is read from settings.mediaKeys like the other keys,
+    which the bridge never exposes.
+  - Trips history reuses the boards' pattern (per-trip Bring back with an
+    Undo toast, not a confirm). Comparing a version's trip to now sorts
+    fields first: a place changed in place (a placeId found later) has its
+    keys in a different order from a sanitized copy, and read as "Changed
+    since" when it wasn't.
+  - The import map's pins answer Enter and Space themselves: Leaflet's
+    keyboard Enter only opens a popup. Picked pins sit on top, since at a
+    whole list's zoom one city's pins overlap.
+
+- **Run again after the app is killed (0.245.0).** This reverses the
+  0.244.0 note below that remembering a killed job was pointless. A job
+  can't be resumed, but most passes don't need to be: they skip what's
+  already done (resolved titles, filled info, checked dates), so running
+  one again *is* resuming, provided what it did was saved. So those passes
+  persist every 5 items (SAVE_EVERY in sync.js) instead of only at the end,
+  and a job with `again` writes a note to localStorage
+  (lifelog-jobs-running-v1, keyed by a per-page id) while it runs and
+  removes it when it ends. A note from another page at startup is a pass
+  that never ended. Not covered: a bulk sync (begin/finish across files)
+  and the Google import (the sheet is gone with the app), and the automatic
+  checks, which re-run by themselves because their last-checked mark is
+  written in `finally`. Two tabs at once is the one misread: the second
+  may offer a pass the first is still running, which is harmless.
+
 - **Background work and Activity (0.244.0).** Daniel asked for syncs and
   imports to keep going with the phone app minimized, and a queue screen
   to see and stop them. What the phones allow decided the shape:

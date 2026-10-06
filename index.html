@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.244.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.245.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -986,6 +986,9 @@
           <textarea id="placeNote" rows="2" placeholder="Book ahead, try the cacio e pepe…"></textarea>
         </label>
         <label class="toggle-label"><input type="checkbox" id="placeVisited" /> Been there</label>
+        <!-- From Google (0.245.0): fetched each time the sheet opens, with
+             your Places key. Google's terms don't allow keeping it. -->
+        <section class="place-google" id="placeGoogle" hidden aria-live="polite"></section>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deletePlaceBtn" hidden>Delete</button>
           <span class="spacer"></span>
@@ -1005,6 +1008,7 @@
           <input id="importLink" type="url" inputmode="url" autocomplete="off" placeholder="Share → Copy link, in Google Maps" />
         </label>
         <p class="hint" id="importHint">A list brings all its places to choose from. A place brings just that one.</p>
+        <div class="trip-map import-map no-swipe" id="importMap" role="region" aria-label="Map of the list's places: tap a pin to pick it" hidden></div>
         <div class="import-pick" id="importPick" hidden></div>
         <div class="modal-actions">
           <span class="spacer"></span>
@@ -1296,7 +1300,15 @@
           <button type="button" class="sitem sitem-go" id="reconnectBoardsFileBtn" hidden>Reconnect boards file</button>
           <button type="button" class="sitem sitem-go sitem-danger" id="disconnectBoardsFileBtn" hidden>Disconnect</button>
         </div>
-        <p class="hint">Every save is also written to a <code>.json</code> file on this computer — a local backup, or a way to sync through a shared Drive/Dropbox folder. Boards are a file of their own; put <code>boards.json</code> beside the data file. Chrome and Edge on a computer only.</p>
+        <div class="sgroup-card" id="travelFileCard" hidden>
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Trips file</span><span class="sitem-sub" id="travelFileInfo"></span></span>
+          </div>
+          <button type="button" class="sitem sitem-go" id="connectTravelFileBtn">Choose trips file…</button>
+          <button type="button" class="sitem sitem-go" id="reconnectTravelFileBtn" hidden>Reconnect trips file</button>
+          <button type="button" class="sitem sitem-go sitem-danger" id="disconnectTravelFileBtn" hidden>Disconnect</button>
+        </div>
+        <p class="hint">Every save is also written to a <code>.json</code> file on this computer — a local backup, or a way to sync through a shared Drive/Dropbox folder. Boards and trips are files of their own; put <code>boards.json</code> and <code>travel.json</code> beside the data file. Chrome and Edge on a computer only.</p>
       </section>
 
       <section class="sgroup" id="ghDisconnectSection" hidden>
@@ -1428,6 +1440,15 @@
         <p class="muted" id="boardHistoryStatus" hidden></p>
         <div class="sgroup-card history-card" id="boardHistoryList" hidden></div>
       </section>
+      <section class="sgroup">
+        <div class="sgroup-head">
+          <h3 class="sgroup-label">Trips</h3>
+          <button class="btn btn-small" id="travelHistoryBtn" type="button">Show versions</button>
+        </div>
+        <p class="hint">Trips keep their own history too. Open a version to see its trips and bring back any that have changed or gone since, with their places.</p>
+        <p class="muted" id="travelHistoryStatus" hidden></p>
+        <div class="sgroup-card history-card" id="travelHistoryList" hidden></div>
+      </section>
       </div>
 
       <div class="settings-page" hidden data-page="lock" data-title="App lock" data-keywords="privacy pin fingerprint face id biometric password security">
@@ -1529,7 +1550,7 @@
       <div class="tab-toggles" id="tabToggles"></div>
       </div>
 
-      <div class="settings-page" hidden data-page="media" data-title="Media lookups" data-keywords="api keys rawg tmdb steamgriddb gg.deals proxy cors cover art metadata sources">
+      <div class="settings-page" hidden data-page="media" data-title="Media lookups" data-keywords="api keys rawg tmdb steamgriddb gg.deals google places reviews hours proxy cors cover art metadata sources">
       <h2 class="settings-page-title">Media lookups</h2>
       <p class="hint page-lede">Where covers, ratings and release dates come from. Syncs to your other devices.</p>
       <section class="sgroup">
@@ -1556,6 +1577,10 @@
           <label class="sitem sitem-stack">
             <span class="sitem-text"><span class="sitem-title">SteamGridDB key</span><span class="sitem-sub">Game covers — free at steamgriddb.com, Preferences → API; needs the proxy</span></span>
             <input id="steamgriddbKey" type="password" placeholder="Paste your SteamGridDB API key…" autocomplete="off" spellcheck="false" />
+          </label>
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">Google Places key</span><span class="sitem-sub">A Travel place's rating, opening hours and reviews — console.cloud.google.com, with Places API (New) turned on; billing must be on, though personal use stays inside the free monthly allowance</span></span>
+            <input id="googlePlacesKey" type="password" placeholder="Paste your Google Places API key…" autocomplete="off" spellcheck="false" />
           </label>
         </div>
         <p class="hint">Open Library, AniList, Jikan, Google Books and MusicBrainz need no key.</p>
@@ -1978,31 +2003,31 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.244.0"></script>
-  <script defer src="src/jobs.js?v=0.244.0"></script>
-  <script defer src="src/reconcile.js?v=0.244.0"></script>
-  <script defer src="src/qr.js?v=0.244.0"></script>
-  <script defer src="src/media.js?v=0.244.0"></script>
-  <script defer src="src/merge.js?v=0.244.0"></script>
-  <script defer src="src/storage.js?v=0.244.0"></script>
-  <script defer src="src/finance.js?v=0.244.0"></script>
-  <script defer src="src/settings.js?v=0.244.0"></script>
-  <script defer src="src/wheel.js?v=0.244.0"></script>
-  <script defer src="src/backlog.js?v=0.244.0"></script>
-  <script defer src="src/journal.js?v=0.244.0"></script>
-  <script defer src="src/markdown.js?v=0.244.0"></script>
-  <script defer src="src/notes.js?v=0.244.0"></script>
-  <script defer src="src/docimport.js?v=0.244.0"></script>
-  <script defer src="src/io.js?v=0.244.0"></script>
-  <script defer src="src/sync.js?v=0.244.0"></script>
-  <script defer src="src/habits.js?v=0.244.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.244.0"></script>
-  <script defer src="src/boards.js?v=0.244.0"></script>
-  <script defer src="src/travel.js?v=0.244.0"></script>
-  <script defer src="src/recap.js?v=0.244.0"></script>
-  <script defer src="src/reminders.js?v=0.244.0"></script>
-  <script defer src="src/widgets.js?v=0.244.0"></script>
-  <script defer src="src/payments.js?v=0.244.0"></script>
-  <script defer src="src/app.js?v=0.244.0"></script>
+  <script defer src="src/platform.js?v=0.245.0"></script>
+  <script defer src="src/jobs.js?v=0.245.0"></script>
+  <script defer src="src/reconcile.js?v=0.245.0"></script>
+  <script defer src="src/qr.js?v=0.245.0"></script>
+  <script defer src="src/media.js?v=0.245.0"></script>
+  <script defer src="src/merge.js?v=0.245.0"></script>
+  <script defer src="src/storage.js?v=0.245.0"></script>
+  <script defer src="src/finance.js?v=0.245.0"></script>
+  <script defer src="src/settings.js?v=0.245.0"></script>
+  <script defer src="src/wheel.js?v=0.245.0"></script>
+  <script defer src="src/backlog.js?v=0.245.0"></script>
+  <script defer src="src/journal.js?v=0.245.0"></script>
+  <script defer src="src/markdown.js?v=0.245.0"></script>
+  <script defer src="src/notes.js?v=0.245.0"></script>
+  <script defer src="src/docimport.js?v=0.245.0"></script>
+  <script defer src="src/io.js?v=0.245.0"></script>
+  <script defer src="src/sync.js?v=0.245.0"></script>
+  <script defer src="src/habits.js?v=0.245.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.245.0"></script>
+  <script defer src="src/boards.js?v=0.245.0"></script>
+  <script defer src="src/travel.js?v=0.245.0"></script>
+  <script defer src="src/recap.js?v=0.245.0"></script>
+  <script defer src="src/reminders.js?v=0.245.0"></script>
+  <script defer src="src/widgets.js?v=0.245.0"></script>
+  <script defer src="src/payments.js?v=0.245.0"></script>
+  <script defer src="src/app.js?v=0.245.0"></script>
 </body>
 </html>

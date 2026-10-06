@@ -213,6 +213,11 @@ root key it doesn't know.
     `visited` (true when been there), `gid` (Google's place id, as Maps
     writes it: `0x…:0x…`) and `source` (the id of the Google Maps list it
     was imported from).
+  - `town`: the town it's in, looked up from where it is (OpenStreetMap)
+    for a place whose address doesn't name one. The app fills it in.
+  - `placeId`: its id in Google's Places API, saved the first time its
+    sheet looks it up with a Places key. The rating, hours and reviews that
+    come with it are never stored (Google's terms), only fetched.
 - A place whose trip is gone is dropped when the file is read; deleting a
   trip deletes its places.
 
@@ -225,8 +230,8 @@ day, skipping any already there (same `gid`, or the same name within 50 m).
 
 The app's By area view and `lifelog_google_list` group places the same way
 (`Travel.areas`): places within 15 km of each other are one area, named
-after the town most of their addresses give, else "Near" its most central
-place. Nothing about areas is stored.
+after the town most of their places give (from the address, else `town`),
+else "Near" its most central place. Areas themselves aren't stored.
 
 ## Not in this file
 

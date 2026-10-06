@@ -147,6 +147,22 @@ test("areas: places a day's travel apart, named by their town or a place, in wal
   assert.deepStrictEqual(out[1].places.map((p) => p.name), ["Colosseo", "Trevi", "Pantheon"]);
 });
 
+test("areas with no address take a looked-up town, and say which place to look up", () => {
+  const list = T.parseGoogleList(googleList()).places.map((p) => ({ ...p, address: "" }));
+  const before = T.areas(list);
+  const rome = before.find((a) => a.places.some((p) => p.name === "Trevi"));
+  assert.ok(!rome.named && rome.name.startsWith("Near "), rome.name);
+  assert.ok(rome.places.includes(rome.centre));
+  // What the device has cached for that spot names it, before anything is saved…
+  const after = T.areas(list, (p) => (p === rome.centre ? "Roma" : ""));
+  assert.ok(after.some((a) => a.name === "Roma" && a.named));
+  // …and a place's own town (saved) does too; an address still wins over both.
+  const saved = list.map((p) => (p === rome.centre ? { ...p, town: "Rome" } : p));
+  assert.ok(T.areas(saved).some((a) => a.name === "Rome"));
+  assert.strictEqual(T.sanitizePlace({ name: "X", trip: "t", town: " Roma ", placeId: "ChIJ123" }).town, "Roma");
+  assert.strictEqual(T.sanitizePlace({ name: "X", trip: "t", placeId: "ChIJ123" }).placeId, "ChIJ123");
+});
+
 test("the same place twice: by Google's id, else by name close by", () => {
   assert.ok(T.samePlace({ gid: "0x1:0x2", name: "A" }, { gid: "0x1:0x2", name: "B" }));
   assert.ok(!T.samePlace({ gid: "0x1:0x2", name: "A" }, { gid: "0x1:0x3", name: "A" }));

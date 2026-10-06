@@ -39,6 +39,7 @@ because something shipped broken that no unit test could have caught:
 | `renames` | renaming a project, an expense category or a note category carries every expense, recurring bill, one-off charge, note and board that names it |
 | `travel` | the Travel tab: a trip from its empty state, places on a day with and without a time and with none, a day's order, ticking visited, a reload keeping it all, Undo after a delete, the trips as chips (picking, ✎, a second trip) |
 | `travelmap` | Travel's Google Maps import (faked proxy routes): a list picked by area, no place added twice, a single place link; a long press into sorting and a place dragged onto a day; the modes by swipe; By area; the map's pins, day chips, route and pin/row link, at phone and desktop width |
+| `travelmore` | Travel 0.245.0 (OpenStreetMap and Google Places faked): areas named after their town, asked once and cached; the import map's pins picking places, by keyboard too; Google's rating, hours, reviews and link on a place, only its id saved; Settings → History bringing a trip back, and Undo |
 | `notesheet` | a plain note's optional title, a list's items without ticks or a quick-add switch, a quote's author and source side by side |
 | `todomigrate` | the To-do mode's lists become list notes: old data, whoever left the app on To-do, and an older device still adding and ticking to-dos through a fake GitHub |
 | `tabio` | every tab's JSON and CSV export comes back whole through that tab's import, and the full backup through Everything |
@@ -48,7 +49,7 @@ because something shipped broken that no unit test could have caught:
 | `outtoday` | Out today: the card above Next releases for what's out today (not started ones), the list not repeating it, and the once-a-day sheet: shown on the first open, not again, again next day, not on an empty day, off by setting |
 | `inprogress` | In progress: started from a backlog row, the sheet and the card's +, off the Backlog and onto the Timeline's card (chips apply), ↩ back, ✓ Done logging the months it took (or one month), and a reload keeping it |
 | `phonebackup` | the Android app's copy in Documents/LifeLog: off until turned on, written at once and on every save, a day's copy kept for fourteen days, refused storage said out loud, and no sign of it in a browser |
-| `activity` | Activity and background work: a pass shows in the pill and the sheet with its progress, a second pass on the same site waits its turn, Stop keeps what was done, a failure stays up until seen, Settings → Activity, the desktop header button, and in a faked phone app the hold/release calls, the notification's Stop and tap |
+| `activity` | Activity and background work: a pass shows in the pill and the sheet with its progress, a second pass on the same site waits its turn, Stop keeps what was done, a failure stays up until seen, Settings → Activity, the desktop header button, and in a faked phone app the hold/release calls, the notification's Stop and tap; a pass the app was closed on offered again (Run again, ✕), with what it did saved every 5 |
 | `nativehttp` | Steam, SteamGridDB and GG.deals from the app with no proxy: each route reaches the address the worker would, headers and query intact, nothing else relayed, and a browser's proxy untouched |
 | `projadd` | the project pill's + opens the form already on that project |
 

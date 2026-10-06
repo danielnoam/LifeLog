@@ -157,6 +157,46 @@ async function open(b, { native } = {}) {
     await page.close();
   }
 
+  // ---- a pass the app was closed on (0.245.0) ----
+  {
+    const { page, errs: e } = await open(b);
+    page.evaluate(() => window.LifeLogSync.retryUnresolvedSteamTitles()).catch(() => {});
+    await page.waitForFunction(() => window.LifeLogJobs.active().length && window.LifeLogJobs.active()[0].done >= 5, null, { timeout: 8000 });
+    const note = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-jobs-running-v1") || "[]"));
+    check("a pass that can be run again is noted while it runs", note.length === 1 && note[0].again === "steamRetry", note);
+    // Closed mid-pass: a reload doesn't let it end.
+    await page.reload({ waitUntil: "networkidle" });
+    await page.waitForTimeout(300);
+    const kept = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).backlog.filter((x) => /^Game /.test(x.title)).length);
+    check("what it had done by then is saved, every 5", kept >= 5 && kept < 6, kept);
+    check("the next open says it didn't finish", await page.isVisible("#activityPill") && /Didn't finish/.test(await page.textContent("#activityPillText")), await page.textContent("#activityPill"));
+    await page.click("#activityPill");
+    await page.waitForSelector(".activity-row.is-unfinished");
+    check("Activity offers to run it again", (await page.textContent(".activity-row.is-unfinished .activity-label")) === "Retrying unresolved Steam titles"
+      && await page.isVisible(".activity-row.is-unfinished .activity-stop"));
+    await page.click(".activity-row.is-unfinished .activity-stop");
+    await page.waitForSelector(".activity-row.is-running", { timeout: 3000 });
+    check("Run again starts it", (await page.textContent(".activity-row.is-running .activity-label")) === "Retrying unresolved Steam titles"
+      && !(await page.$(".activity-row.is-unfinished")));
+    await page.waitForFunction(() => !window.LifeLogJobs.active().length, null, { timeout: 8000 });
+    check("and once it ends, the note goes", await page.evaluate(() => !localStorage.getItem("lifelog-jobs-running-v1")));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
+    // Dismissed rather than run.
+    await page.evaluate(() => localStorage.setItem("lifelog-jobs-running-v1", JSON.stringify([{ page: "gone", id: 1, again: "releases", label: "Re-checking release dates", at: Date.now() }])));
+    await page.reload({ waitUntil: "networkidle" });
+    await page.waitForTimeout(300);
+    await page.click("#activityPill");
+    await page.waitForSelector(".activity-row.is-unfinished");
+    await page.click(".activity-row.is-unfinished .activity-dismiss");
+    check("✕ lets it go", !(await page.$(".activity-row.is-unfinished")));
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
+    check("and the pill with it", await page.isHidden("#activityPill"));
+    errs.push(...e);
+    await page.close();
+  }
+
   // ---- the phone app ----
   {
     const { page, errs: e } = await open(b, { native: true });

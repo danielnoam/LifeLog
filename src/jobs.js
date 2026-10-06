@@ -17,6 +17,11 @@
 // Stopping is cooperative: a job's loop checks `stopping` between items and
 // keeps what it already did. `signal` aborts a fetch in flight, `sleep`
 // cuts its wait short.
+//
+// A job with `again` (a name registered with onAgain) is noted on this
+// device while it runs (0.245.0). If the app is killed before it ends, the
+// next open finds the note and Activity offers to run it again; the passes
+// that use it save as they go and skip what's done, so again is resume.
 (function () {
   const KEEP_FINISHED = 15;
   const BACKGROUND_EVERY_MS = 1000;
@@ -25,6 +30,30 @@
   let seq = 0;
   const jobs = [];
   const listeners = new Set();
+
+  // ---------- what was running when the app was last killed ----------
+  const RUNNING_KEY = "lifelog-jobs-running-v1";
+  const page = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  const againers = new Map();
+  function readRunning() {
+    try { const v = JSON.parse(localStorage.getItem(RUNNING_KEY) || "[]"); return Array.isArray(v) ? v : []; } catch (e) { return []; }
+  }
+  function writeRunning(list) {
+    try { if (list.length) localStorage.setItem(RUNNING_KEY, JSON.stringify(list)); else localStorage.removeItem(RUNNING_KEY); } catch (e) {}
+  }
+  // Another page's notes are this page's leftovers: read once and let go.
+  // (A second tab still running its own is the one case this misreads, and
+  // the worst it does is offer a pass that's already going.)
+  let leftovers = (typeof localStorage !== "undefined") ? readRunning().filter((r) => r.page !== page) : [];
+  if (leftovers.length) writeRunning(readRunning().filter((r) => r.page === page));
+  function noteRunning(job) {
+    if (!job.again) return;
+    writeRunning(readRunning().concat([{ page, id: job.id, again: job.again, label: job.label, at: Date.now() }]));
+  }
+  function forgetRunning(job) {
+    if (!job.again) return;
+    writeRunning(readRunning().filter((r) => !(r.page === page && r.id === job.id)));
+  }
 
   function emit() {
     for (const fn of listeners) { try { fn(); } catch (e) { /* a listener's own problem */ } }
@@ -44,6 +73,7 @@
       id: ++seq,
       label: spec.label || "Working",
       lane: spec.lane || "",
+      again: spec.again || "",
       listed: spec.listed !== false,
       stoppable: spec.stoppable !== false,
       state: "queued",
@@ -95,6 +125,7 @@
     job.failed = outcome === "failed";
     if (result != null && result !== "") job.result = result;
     job.endedAt = Date.now();
+    forgetRunning(job);
     if (job.wake) { const w = job.wake; job.wake = null; w(); }
     trim();
     emit();
@@ -104,6 +135,7 @@
   function start(job) {
     job.state = "running";
     job.startedAt = Date.now();
+    noteRunning(job);
     emit();
   }
 
@@ -159,8 +191,19 @@
   function stopAll() { for (const j of active()) j.stop(); }
   function clearFinished() {
     for (let i = jobs.length - 1; i >= 0; i--) if (!ACTIVE.has(jobs[i].state)) jobs.splice(i, 1);
+    leftovers = [];
     emit();
   }
+  // The passes that can be run again register how, by name.
+  function onAgain(name, fn) { againers.set(name, fn); emit(); }
+  const unfinished = () => leftovers.filter((r) => againers.has(r.again));
+  function runAgain(r) {
+    leftovers = leftovers.filter((x) => x !== r);
+    emit();
+    const fn = againers.get(r.again);
+    if (fn) fn();
+  }
+  function dismiss(r) { leftovers = leftovers.filter((x) => x !== r); emit(); }
   function subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); }
 
   // How long is left, from the pace so far; null until there's a pace.
@@ -219,5 +262,5 @@
     wireNative();
   }
 
-  window.LifeLogJobs = { run, begin, list, active, visible, busy, stopAll, clearFinished, subscribe, eta, summary };
+  window.LifeLogJobs = { run, begin, list, active, visible, busy, stopAll, clearFinished, subscribe, eta, summary, onAgain, unfinished, runAgain, dismiss };
 })();

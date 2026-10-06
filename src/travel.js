@@ -19,7 +19,7 @@
   const KNOWN_TRIP_KEYS = new Set(["id", "name", "start", "end", "createdAt", "updatedAt"]);
   const KNOWN_PLACE_KEYS = new Set([
     "id", "trip", "name", "lat", "lng", "address", "note", "url", "day", "time", "endTime",
-    "order", "visited", "gid", "source", "createdAt", "updatedAt",
+    "order", "visited", "gid", "source", "town", "placeId", "createdAt", "updatedAt",
   ]);
   // Fields this build doesn't know are carried through, so a newer build's
   // additions survive an older one saving (the same rule as app.js's).
@@ -61,7 +61,7 @@
     };
     const lat = num(p.lat), lng = num(p.lng);
     if (lat != null && lng != null && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) { out.lat = lat; out.lng = lng; }
-    for (const k of ["address", "note", "url", "gid", "source"]) { const v = text(p[k]); if (v) out[k] = v; }
+    for (const k of ["address", "note", "url", "gid", "source", "town", "placeId"]) { const v = text(p[k]); if (v) out[k] = v; }
     if (isDay(p.day)) out.day = p.day;
     // A time only means something on a day; an end time only after a start.
     if (out.day && isTime(p.time)) {
@@ -315,14 +315,19 @@
     }
     return strip(parts[parts.length - 1]);
   }
+  // A place's town: its address's, else the one looked up for where it is
+  // (0.245.0: `town`, from OpenStreetMap; `lookup` is the device's cache,
+  // for places not saved yet, such as an import's).
+  const townFor = (p, lookup) => townOf(p.address) || p.town || (lookup && p.lat != null ? lookup(p) : "") || "";
   const AREA_KM = 15;
   // Places in groups a day's travel apart: anything within AREA_KM of a
   // place in a group joins it. Each group is named after the town most of
-  // its addresses give, else "Near" its most central place, and is in
-  // walking order: from one end, always to the nearest place not yet seen.
-  // Places with no location join the town their address names, else "No
-  // location" at the end.
-  function areas(places) {
+  // its places give, else "Near" its most central place, and is in walking
+  // order: from one end, always to the nearest place not yet seen. Places
+  // with no location join the town their address names, else "No location"
+  // at the end. Each group says which place is its centre, which is the one
+  // whose town is looked up when none of them has one.
+  function areas(places, lookup) {
     const located = places.filter((p) => p.lat != null && p.lng != null);
     const parent = located.map((_, i) => i);
     const root = (i) => (parent[i] === i ? i : (parent[i] = root(parent[i])));
@@ -333,11 +338,11 @@
     located.forEach((p, i) => { const k = root(i); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(p); });
     const out = [...groups.values()].map((list) => {
       const towns = new Map();
-      for (const p of list) { const t = townOf(p.address); if (t) towns.set(t, (towns.get(t) || 0) + 1); }
+      for (const p of list) { const t = townFor(p, lookup); if (t) towns.set(t, (towns.get(t) || 0) + 1); }
       const town = [...towns.entries()].sort((a, b) => b[1] - a[1])[0];
       const c = { lat: list.reduce((s, p) => s + p.lat, 0) / list.length, lng: list.reduce((s, p) => s + p.lng, 0) / list.length };
       const central = list.slice().sort((a, b) => distanceKm(a, c) - distanceKm(b, c))[0];
-      return { name: town ? town[0] : "Near " + central.name, places: walkOrder(list, c) };
+      return { name: town ? town[0] : "Near " + central.name, named: !!town, centre: central, places: walkOrder(list, c) };
     });
     const rest = [];
     for (const p of places) {
@@ -419,6 +424,73 @@
     }).catch(() => {}).finally(() => { saving = null; });
     await saving;
     if (changedSince) scheduleSave(800);
+  }
+
+  // ---------- naming the "Near …" areas (0.245.0) ----------
+  // A Google list's places often have no address, so an area of them had
+  // only a place to be named after. Where it is gives the town instead:
+  // OpenStreetMap's Nominatim, one area's centre at a time. Its rules are a
+  // request a second at most and keeping what it answered, so answers are
+  // cached on this device by spot (about a kilometre) and written onto the
+  // saved place as `town`, which syncs, so each spot is asked about once.
+  const TOWNS_KEY = "lifelog-towns-v1";
+  const NOMINATIM = "https://nominatim.openstreetmap.org/reverse";
+  const spot = (p) => p.lat.toFixed(2) + "," + p.lng.toFixed(2);
+  let townCache = null;
+  function towns() {
+    if (!townCache) { try { townCache = JSON.parse(localStorage.getItem(TOWNS_KEY) || "{}"); } catch (e) { townCache = {}; } }
+    return townCache;
+  }
+  const cachedTown = (p) => towns()[spot(p)] || "";
+  // What's asked or being asked, so a re-render doesn't queue it again; a
+  // spot that came back with no town is "", and isn't asked again either.
+  const asking = new Set();
+  function townOfAnswer(j) {
+    const a = (j && j.address) || {};
+    return text(a.city || a.town || a.village || a.municipality || a.hamlet || a.suburb || a.county || a.state || (j && j.name));
+  }
+  async function askTown(p, job) {
+    const url = `${NOMINATIM}?format=jsonv2&zoom=10&lat=${p.lat}&lon=${p.lng}`;
+    const res = await fetch(url, { signal: job.signal, headers: { Accept: "application/json" } });
+    if (!res.ok) throw new Error(`OpenStreetMap answered ${res.status}`);
+    return townOfAnswer(await res.json());
+  }
+  // The centres of the areas still without a town, looked up in turn. Saved
+  // places get their town; `after` redraws whatever asked.
+  function nameAreas(groups, after) {
+    const todo = [];
+    for (const g of groups) {
+      if (g.named || !g.centre || g.centre.lat == null) continue;
+      const k = spot(g.centre);
+      if (asking.has(k)) continue;
+      if (k in towns()) {
+        // Known on this device: just put it on the saved place.
+        if (towns()[k] && findPlace(g.centre.id) && !g.centre.town) { g.centre.town = towns()[k]; changed(g.centre); }
+        continue;
+      }
+      asking.add(k);
+      todo.push(g.centre);
+    }
+    if (!todo.length || !window.LifeLogJobs) return;
+    window.LifeLogJobs.run({ label: "Naming places' areas", lane: "nominatim" }, async (job) => {
+      let named = 0;
+      for (let i = 0; i < todo.length && !job.stopping; i++) {
+        const p = todo[i];
+        job.progress(i, todo.length, "Near " + p.name);
+        let town;
+        try { town = await askTown(p, job); }
+        catch (e) { asking.delete(spot(p)); if (job.stopping) break; throw e; }
+        towns()[spot(p)] = town;
+        try { localStorage.setItem(TOWNS_KEY, JSON.stringify(towns())); } catch (e) {}
+        const saved = findPlace(p.id);
+        if (town && saved) { saved.town = town; changed(saved); }
+        if (town) named++;
+        job.progress(i + 1, todo.length);
+        if (i < todo.length - 1) await job.sleep(1100);
+      }
+      job.finish(`Named ${named} of ${todo.length} area${todo.length === 1 ? "" : "s"}`);
+      if (named) after();
+    }).catch(() => { /* in Activity; the areas keep their "Near …" names */ });
   }
 
   // ---------- which trip is shown (this device's, like the tab you're on) ----------
@@ -588,7 +660,9 @@
   function renderAreas(c, trip, places) {
     const days = tripDays(trip, places);
     const wrap = el("div", "trip-days");
-    for (const area of areas(places)) {
+    const groups = areas(places, cachedTown);
+    nameAreas(groups, () => { if (state.view === "travel" && mode() === "area") render({ keepSnapshots: true }); });
+    for (const area of groups) {
       const card = el("section", "month-card trip-day trip-area");
       card.appendChild(monthCardHeader(area.name, area.places.length, [], {}));
       for (const p of area.places) {
@@ -915,11 +989,13 @@
   }
   function closeImportModal() {
     $("#importPlacesModal").hidden = true;
+    dropImportMap();
     importTrip = null; found = null; picks = [];
     importRun++; importBusy = false;
     if (importJob) importJob.stop();
   }
   function resetImport() {
+    dropImportMap();
     found = null; picks = [];
     $("#importPick").hidden = true;
     $("#importPick").textContent = "";
@@ -1029,8 +1105,11 @@
 
   function showPicks() {
     const have = placesOf(importTrip.id);
-    picks = found.places.map((p) => ({ p, had: have.some((h) => samePlace(h, p)), on: false }));
-    if (picks.length === 1 && !picks[0].had) picks[0].on = true;
+    // Drawn again when the areas get their names: what's ticked stays.
+    const wasOn = new Set(picks.filter((x) => x.on).map((x) => x.p));
+    const again = picks.length && picks[0].p && found.places.includes(picks[0].p);
+    picks = found.places.map((p) => ({ p, had: have.some((h) => samePlace(h, p)), on: again && wasOn.has(p) }));
+    if (!again && picks.length === 1 && !picks[0].had) picks[0].on = true;
     const had = picks.filter((x) => x.had).length;
     if (!picks.length) importHint(`"${found.name}" has no places in it`, true);
     else if (picks.length === 1) importHint(had ? "That place is already in this trip" : "");
@@ -1039,7 +1118,11 @@
     box.textContent = "";
     box.hidden = !picks.length;
     const byPlace = new Map(picks.map((x) => [x.p, x]));
-    const groups = picks.length > 1 ? areas(found.places) : [{ name: "", places: found.places }];
+    const groups = picks.length > 1 ? areas(found.places, cachedTown) : [{ name: "", places: found.places }];
+    if (picks.length > 1) {
+      const shown = found;
+      nameAreas(groups, () => { if (found === shown && !$("#importPlacesModal").hidden) showPicks(); });
+    }
     for (const g of groups) {
       const items = g.places.map((p) => byPlace.get(p));
       const group = el("div", "import-group");
@@ -1067,7 +1150,11 @@
         cb.type = "checkbox";
         cb.checked = x.had || x.on;
         cb.disabled = x.had;
-        cb.onchange = () => { x.on = cb.checked; syncAll(); syncImportButton(); };
+        cb.onchange = () => { x.on = cb.checked; syncAll(); syncImportButton(); paintImportPin(x); };
+        x.cb = cb; x.syncAll = syncAll; x.row = row;
+        // The area's looked-up town goes with each of its places, not just
+        // the one it was asked about, so the trip doesn't ask again.
+        x.town = g.named && !townOf(x.p.address) ? g.name : "";
         boxes.push([cb, x]);
         row.appendChild(cb);
         const t = el("span", "import-text");
@@ -1079,7 +1166,7 @@
       }
       if (all) {
         all.onchange = () => {
-          for (const [cb, x] of boxes) if (!x.had) { x.on = all.checked; cb.checked = all.checked; }
+          for (const [cb, x] of boxes) if (!x.had) { x.on = all.checked; cb.checked = all.checked; paintImportPin(x); }
           syncAll(); syncImportButton();
         };
         syncAll();
@@ -1087,17 +1174,83 @@
       box.appendChild(group);
     }
     syncImportButton();
+    drawImportMap();
+  }
+
+  // The list's places on a map above it (0.245.0): a pin is a place to tick,
+  // the way its row is, so a list spanning several trips can be picked by
+  // where things are. Its own little map; the trip's one stays where it is.
+  let importMap = null, importPins = null;
+  function dropImportMap() {
+    if (importMap) { importMap.remove(); importMap = null; }
+    importPins = null;
+    const node = $("#importMap");
+    if (node) { node.hidden = true; node.textContent = ""; }
+  }
+  function paintImportPin(x) {
+    const m = importPins && importPins.get(x);
+    const e = m && m.getElement();
+    if (!e) return;
+    e.classList.toggle("is-on", !!x.on);
+    e.classList.toggle("is-had", !!x.had);
+    e.firstChild.textContent = x.on || x.had ? "✓" : "";
+    e.setAttribute("aria-pressed", String(!!(x.on || x.had)));
+    // Picked pins on top, where pins overlap at the whole list's zoom.
+    m.setZIndexOffset(x.on ? 1000 : x.had ? 500 : 0);
+  }
+  function drawImportMap() {
+    const located = picks.filter((x) => x.p.lat != null && x.p.lng != null);
+    if (located.length < 2) { dropImportMap(); return; }
+    const shown = found;
+    if (!window.L || !window.L.map) {
+      loadLeaflet().then(() => { if (found === shown && !$("#importPlacesModal").hidden) drawImportMap(); }).catch(() => dropImportMap());
+      return;
+    }
+    const L = window.L;
+    const node = $("#importMap");
+    dropImportMap();
+    node.hidden = false;
+    importMap = L.map(node, { worldCopyJump: true, zoomSnap: 0.5, attributionControl: true });
+    const dark = !document.documentElement.classList.contains("theme-light");
+    L.tileLayer(dark ? TILES.dark : TILES.light, { attribution: TILE_CREDIT, subdomains: "abcd", maxZoom: 20 }).addTo(importMap);
+    importPins = new Map();
+    for (const x of located) {
+      const icon = L.divIcon({ className: "trip-pin import-pin", html: el("span"), iconSize: [24, 24], iconAnchor: [12, 12] });
+      const m = L.marker([x.p.lat, x.p.lng], { icon, title: x.p.name, alt: x.p.name, keyboard: true }).addTo(importMap);
+      const pick = () => {
+        if (x.had) return;
+        x.on = !x.on;
+        x.cb.checked = x.on;
+        x.syncAll();
+        syncImportButton();
+        paintImportPin(x);
+        if (x.row) x.row.scrollIntoView({ block: "nearest", behavior: reducedMotion() ? "auto" : "smooth" });
+      };
+      m.on("click", pick);
+      // Leaflet's own Enter only opens a popup, and a pin is a button here.
+      m.on("keypress", (e) => { const k = e.originalEvent.key; if (k === "Enter" || k === " ") { e.originalEvent.preventDefault(); pick(); } });
+      importPins.set(x, m);
+      paintImportPin(x);
+    }
+    requestAnimationFrame(() => {
+      if (!importMap) return;
+      importMap.invalidateSize(false);
+      importMap.fitBounds(located.map((x) => [x.p.lat, x.p.lng]), { padding: [24, 24], maxZoom: 15, animate: false });
+    });
   }
 
   function addPicked() {
     const trip = findTrip(importTrip.id);
     if (!trip || !found) return;
-    const chosen = picks.filter((x) => x.on && !x.had).map((x) => x.p);
+    const picked = picks.filter((x) => x.on && !x.had);
+    const chosen = picked.map((x) => x.p);
     if (!chosen.length) return;
+    const townBy = new Map(picked.map((x) => [x.p, x.town]));
     const now = new Date().toISOString();
     let order = nextOrder(trip.id, "");
     const added = chosen.map((g) => sanitizePlace({
       ...g, id: newId(), trip: trip.id, order: order++, createdAt: now,
+      town: g.town || townBy.get(g) || (g.lat != null ? cachedTown(g) : "") || undefined,
       source: found.source || undefined, url: found.url || undefined,
     }));
     doc.places.push(...added);
@@ -1184,6 +1337,115 @@
     });
   }
 
+  // ---------- a place's rating, hours and reviews, from Google (0.245.0) ----------
+  // With your own Places API (New) key (Settings → Media lookups). Google's
+  // terms allow keeping a place's id but nothing it says about the place,
+  // so the id is saved (`placeId`) and the rest is asked for each time the
+  // sheet opens, kept only until the page reloads.
+  const PLACES = "https://places.googleapis.com/v1/";
+  const PLACE_FIELDS = ["id", "displayName", "location", "rating", "userRatingCount", "regularOpeningHours", "currentOpeningHours", "reviews", "googleMapsUri"];
+  const googleSeen = new Map();
+  let googleAsk = 0;
+  const placesKey = () => text(((state.data.settings || {}).mediaKeys || {}).googlePlaces);
+  function placesError(status, body) {
+    const said = (body && body.error && body.error.message) || "";
+    if (status === 400 && /key/i.test(said) || status === 403) return "Google turned the key down — check Places API (New) is on for it, and that its restrictions allow this app";
+    if (status === 429) return "Google's limit for the key is used up for now — try again later";
+    return `Google Places answered ${status} — try again in a moment`;
+  }
+  async function placesFetch(path, init, signal) {
+    let res;
+    try { res = await fetch(PLACES + path, { ...init, signal }); }
+    catch (e) { throw new Error("Couldn't reach Google Places — check your connection"); }
+    const body = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(placesError(res.status, body));
+    return body;
+  }
+  async function googleDetails(p, signal) {
+    const key = placesKey();
+    const lang = (navigator.language || "en").split("-")[0];
+    const headers = { "X-Goog-Api-Key": key, "Content-Type": "application/json" };
+    if (p.placeId) {
+      if (googleSeen.has(p.placeId)) return googleSeen.get(p.placeId);
+      const d = await placesFetch(`places/${encodeURIComponent(p.placeId)}?languageCode=${lang}`,
+        { headers: { ...headers, "X-Goog-FieldMask": PLACE_FIELDS.join(",") } }, signal);
+      googleSeen.set(p.placeId, d);
+      return d;
+    }
+    const body = { textQuery: [p.name, p.address].filter(Boolean).join(", "), maxResultCount: 1, languageCode: lang };
+    if (p.lat != null) body.locationBias = { circle: { center: { latitude: p.lat, longitude: p.lng }, radius: 500 } };
+    const got = await placesFetch("places:searchText", {
+      method: "POST", body: JSON.stringify(body),
+      headers: { ...headers, "X-Goog-FieldMask": PLACE_FIELDS.map((f) => "places." + f).join(",") },
+    }, signal);
+    const d = got && got.places && got.places[0];
+    // A match a long way off is a different place with the same name.
+    if (!d || (p.lat != null && d.location && distanceKm(p, { lat: d.location.latitude, lng: d.location.longitude }) > 2)) return null;
+    googleSeen.set(d.id, d);
+    const saved = findPlace(p.id);
+    if (saved && saved.placeId !== d.id) { saved.placeId = d.id; changed(saved); }
+    return d;
+  }
+  function showGoogle(p) {
+    const box = $("#placeGoogle");
+    const run = ++googleAsk;
+    box.textContent = "";
+    box.hidden = !p || !placesKey();
+    if (box.hidden) return;
+    box.appendChild(el("p", "place-google-note", "Looking it up on Google…"));
+    const ctl = typeof AbortController === "function" ? new AbortController() : null;
+    const timer = setTimeout(() => ctl && ctl.abort(), 15000);
+    googleDetails(p, ctl ? ctl.signal : undefined).then((d) => {
+      if (run !== googleAsk) return;
+      box.textContent = "";
+      if (!d) { box.appendChild(el("p", "place-google-note", "Google doesn't know a place by that name here")); return; }
+      fillGoogle(box, d);
+    }).catch((e) => {
+      if (run !== googleAsk) return;
+      box.textContent = "";
+      const msg = ctl && ctl.signal.aborted ? "Google didn't answer — try opening the place again" : e.message;
+      box.appendChild(el("p", "place-google-note is-error", msg));
+    }).finally(() => clearTimeout(timer));
+  }
+  function fillGoogle(box, d) {
+    const head = el("div", "place-google-head");
+    head.appendChild(el("span", "place-google-from", "From Google Maps"));
+    if (d.rating) {
+      const n = d.userRatingCount || 0;
+      head.appendChild(el("span", "place-google-rating", `★ ${d.rating.toFixed(1)}` + (n ? ` · ${n.toLocaleString()} review${n === 1 ? "" : "s"}` : "")));
+    }
+    const now = d.currentOpeningHours && typeof d.currentOpeningHours.openNow === "boolean" ? d.currentOpeningHours.openNow : null;
+    if (now != null) head.appendChild(el("span", "place-google-open" + (now ? " is-open" : ""), now ? "Open now" : "Closed now"));
+    box.appendChild(head);
+    const days = d.regularOpeningHours && d.regularOpeningHours.weekdayDescriptions;
+    if (days && days.length) {
+      const hours = el("details", "place-google-hours");
+      hours.appendChild(el("summary", null, "Opening hours"));
+      const list = el("ul");
+      for (const line of days) list.appendChild(el("li", null, line));
+      hours.appendChild(list);
+      box.appendChild(hours);
+    }
+    for (const r of (d.reviews || []).slice(0, 5)) {
+      const item = el("div", "place-google-review");
+      const who = (r.authorAttribution && r.authorAttribution.displayName) || "Someone";
+      const meta = el("div", "place-google-review-meta");
+      meta.appendChild(el("span", "place-google-review-who", who));
+      meta.appendChild(el("span", null, (r.rating ? "★".repeat(Math.round(r.rating)) + " · " : "") + (r.relativePublishTimeDescription || "")));
+      item.appendChild(meta);
+      const said = (r.text && r.text.text) || (r.originalText && r.originalText.text) || "";
+      if (said) item.appendChild(el("p", "place-google-review-text", said));
+      box.appendChild(item);
+    }
+    if (d.googleMapsUri) {
+      const a = el("a", "place-google-link", "See it on Google Maps ↗");
+      a.href = d.googleMapsUri;
+      a.target = "_blank";
+      a.rel = "noopener";
+      box.appendChild(a);
+    }
+  }
+
   // ---------- the place sheet ----------
   let editingPlace = null, placeTrip = null;
   function openPlaceModal(place, opts) {
@@ -1206,10 +1468,11 @@
     $("#placeVisited").checked = !!p.visited;
     syncTimeFields();
     $("#deletePlaceBtn").hidden = !place;
+    showGoogle(place);
     $("#placeModal").hidden = false;
     setTimeout(() => $("#placeName").focus(), 0);
   }
-  function closePlaceModal() { $("#placeModal").hidden = true; editingPlace = null; placeTrip = null; }
+  function closePlaceModal() { $("#placeModal").hidden = true; editingPlace = null; placeTrip = null; googleAsk++; }
   // A time is for a day: without one the time fields wait, rather than take
   // a time the save would then throw away.
   function syncTimeFields() {
@@ -1299,11 +1562,97 @@
     window.addEventListener("pagehide", () => { if (saveTimer) flush(); });
   }
 
+  // ---------- Settings → History: past versions of travel.json (0.245.0) ----------
+  // Like the boards' (boards.js renderHistory): open a version, see each of
+  // its trips against now, and bring one back with its places as they were.
+  const tripFingerprint = (t, places) => {
+    // Fields in any order: a saved copy has them in the order sanitizing
+    // gives, one changed in place (a placeId found later) in another.
+    const strip = (o) => Object.keys(o).filter((k) => k !== "updatedAt").sort().map((k) => [k, o[k]]);
+    return JSON.stringify([strip(t), places.slice().sort((a, b) => a.id.localeCompare(b.id)).map(strip)]);
+  };
+  async function renderHistory(list, status) {
+    status.hidden = false;
+    status.textContent = "Loading…";
+    list.textContent = "";
+    let versions;
+    try { await ensureLoaded(); versions = await Storage.travel.history(); }
+    catch (e) { status.textContent = "Couldn't load the trips' history — " + (e.message || e); return; }
+    if (!versions.length) { status.textContent = "No trip saves yet"; list.hidden = true; return; }
+    status.hidden = true;
+    list.hidden = false;
+    for (const v of versions) {
+      const row = el("div", "sitem board-hist-row");
+      const label = el("span", "sitem-text");
+      label.appendChild(el("span", "sitem-title", new Date(v.savedAt).toLocaleString()));
+      label.appendChild(el("span", "sitem-sub", v.source === "github" ? "GitHub" : "This device"));
+      row.appendChild(label);
+      const btns = el("span", "sitem-btns");
+      const open = el("button", "btn btn-small", "Open");
+      open.type = "button";
+      btns.appendChild(open);
+      row.appendChild(btns);
+      const inner = el("div", "board-hist-boards");
+      inner.hidden = true;
+      open.onclick = async () => {
+        if (!inner.hidden) { inner.hidden = true; open.textContent = "Open"; return; }
+        open.disabled = true;
+        try { fillVersion(inner, sanitizeDoc(await Storage.travel.version(v)), v); inner.hidden = false; open.textContent = "Close"; }
+        catch (e) { toast("Couldn't read that version — " + (e.message || e), true); }
+        open.disabled = false;
+      };
+      list.appendChild(row);
+      list.appendChild(inner);
+    }
+  }
+  function fillVersion(inner, version, v) {
+    inner.textContent = "";
+    if (!version.trips.length) { inner.appendChild(el("p", "muted board-hist-empty", "No trips in this version")); return; }
+    for (const t of version.trips) {
+      const then = version.places.filter((p) => p.trip === t.id);
+      const now = findTrip(t.id);
+      const same = now && tripFingerprint(now, placesOf(t.id)) === tripFingerprint(t, then);
+      const row = el("div", "sitem board-hist-board");
+      const label = el("span", "sitem-text");
+      label.appendChild(el("span", "sitem-title", t.name));
+      const sub = el("span", "sitem-sub", `${placesCount(then.length)} · ${!now ? "Deleted since" : same ? "Same as now" : "Changed since"}`);
+      label.appendChild(sub);
+      row.appendChild(label);
+      if (!same) {
+        const btns = el("span", "sitem-btns");
+        const back = el("button", "btn btn-small", "Bring back");
+        back.type = "button";
+        back.onclick = () => { restoreTrip(t, then, v); back.remove(); sub.textContent = `${placesCount(then.length)} · Brought back`; };
+        btns.appendChild(back);
+        row.appendChild(btns);
+      }
+      inner.appendChild(row);
+    }
+  }
+  // Puts a trip back as it was in that version, places and all; Undo puts
+  // back what was there before.
+  function restoreTrip(t, then, v) {
+    const before = { trip: findTrip(t.id) ? JSON.parse(JSON.stringify(findTrip(t.id))) : null, places: JSON.parse(JSON.stringify(placesOf(t.id))) };
+    const put = (trip, places) => {
+      doc.trips = doc.trips.filter((x) => x.id !== t.id);
+      doc.places = doc.places.filter((p) => p.trip !== t.id);
+      const stamp = new Date().toISOString();
+      if (trip) doc.trips.push({ ...trip, updatedAt: stamp });
+      for (const p of places) doc.places.push({ ...p, updatedAt: stamp });
+      changed();
+      if (state.view === "travel") render({ keepSnapshots: true });
+    };
+    put(JSON.parse(JSON.stringify(t)), JSON.parse(JSON.stringify(then)));
+    toast(`Brought back "${t.name}" as it was on ${new Date(v.savedAt).toLocaleDateString()}`, false, {
+      label: "Undo", onClick: () => put(before.trip, before.places),
+    });
+  }
+
   // For Settings' export: what travel.json holds.
   async function tripsForExport() { await ensureLoaded(); return JSON.parse(JSON.stringify(doc)); }
 
   const api = {
-    MODES, init, wire, renderTravel, endSort, ensureLoaded, flush, addTrip, addPlace, tripsForExport,
+    MODES, init, wire, renderTravel, endSort, ensureLoaded, flush, addTrip, addPlace, tripsForExport, renderHistory,
     openTripModal, closeTripModal, openPlaceModal, closePlaceModal, openImportModal, closeImportModal, importPlaces,
     // pure, for tests and the bridge
     sanitizeTrip, sanitizePlace, sanitizeDoc, tripDays, sortDay, tripStatus, sortTrips,

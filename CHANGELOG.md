@@ -4,6 +4,29 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.245.0] - 2026-10-06
+
+### Added
+- **Travel: areas named after their town.** Places from a Google list
+  often have no address, so an area was called "Near Trevi". Now it's
+  "Roma": the town is looked up once per area on OpenStreetMap and kept.
+- **The Google import shows a map.** The list's places are pins; tap one
+  to pick it (or pick it in the list and its pin lights up).
+- **Google's rating, opening hours and reviews on a place**, with a Google
+  Places API key pasted in Settings → Media lookups. Without a key nothing
+  changes. The key needs Places API (New) and billing on its Google Cloud
+  project.
+- **Trips have history.** Settings → History → Trips lists past saves of
+  your trips; open one and bring back a trip as it was, places and all,
+  with Undo.
+- **Trips get the file backup too**: Settings → Sync can keep a copy of
+  travel.json on disk, like lifelog.json's (Chrome and Edge on a computer).
+- **Work the app was closed on is offered again.** If the app is swiped
+  away in the middle of a Steam or AniList sync, retrying Steam titles,
+  filling in game info or re-checking release dates, the next open says it
+  didn't finish, with Run again. Those passes now save every few items as
+  they go, so running one again carries on where it stopped.
+
 ## [0.244.0] - 2026-10-06
 
 ### Added

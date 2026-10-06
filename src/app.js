@@ -42,7 +42,7 @@
   // timelineSort/ledgerSort/backlogSort replaced monthOrder in 0.157.0. Each
   // option is one complete statement about the whole list rather than a
   // direction bolted to a hidden field — see SORTS below.
-  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "" }, steam: { proxyUrl: "", steamId: "", wishlistCategory: "", autoSyncDays: "0" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0" }, releases: { autoRefreshDays: "0" } }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
+  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", googlePlaces: "" }, steam: { proxyUrl: "", steamId: "", wishlistCategory: "", autoSyncDays: "0" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0" }, releases: { autoRefreshDays: "0" } }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
   // Local to this device, not synced. Every key a view reads off state.visual
   // belongs here: loadVisualSettings fills the gaps in a stored blob from this
   // object, so a default declared here is the only one there is — a `||` at
@@ -148,7 +148,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.244.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.245.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2630,7 +2630,7 @@
   // it any time.
   const Jobs = window.LifeLogJobs;
   const ACTIVITY_GLYPH = { queued: "○", running: "↻", done: "✓", failed: "✕", stopped: "■" };
-  let activitySeenFailure = 0;
+  let activitySeenFailure = 0, activitySeenLeft = false;
   let activityTick = null;
 
   function spanText(ms) {
@@ -2687,6 +2687,28 @@
     return row;
   }
 
+  // A pass the app was killed in the middle of (0.245.0): what it was, and a
+  // way to run it again, which picks up where it got to.
+  function unfinishedRow(r) {
+    const row = el("div", "activity-row is-unfinished");
+    row.appendChild(el("span", "activity-glyph", "!"));
+    const text = el("div", "activity-text");
+    text.appendChild(el("span", "activity-label", r.label));
+    text.appendChild(el("span", "activity-meta", "Didn't finish — the app was closed while it ran"));
+    row.appendChild(text);
+    const again = el("button", "btn btn-sm activity-stop", "Run again");
+    again.type = "button";
+    again.onclick = () => Jobs.runAgain(r);
+    row.appendChild(again);
+    const drop = el("button", "btn btn-icon btn-sm activity-dismiss", "✕");
+    drop.type = "button";
+    drop.title = "Dismiss";
+    drop.setAttribute("aria-label", "Dismiss " + r.label.toLowerCase());
+    drop.onclick = () => Jobs.dismiss(r);
+    row.appendChild(drop);
+    return row;
+  }
+
   function renderActivity() {
     const modal = $("#activityModal");
     if (!modal || modal.hidden) { syncActivityButton(); return; }
@@ -2695,8 +2717,9 @@
     const going = jobs.filter((j) => j.state === "running" || j.state === "queued");
     const finished = jobs.filter((j) => !(j.state === "running" || j.state === "queued")).reverse();
     const list = $("#activityList");
-    list.replaceChildren(...going.map((j) => activityRow(j, now)), ...finished.map((j) => activityRow(j, now)));
-    if (!jobs.length) {
+    const left = Jobs.unfinished();
+    list.replaceChildren(...going.map((j) => activityRow(j, now)), ...left.map(unfinishedRow), ...finished.map((j) => activityRow(j, now)));
+    if (!jobs.length && !left.length) {
       list.appendChild(el("p", "activity-empty", "Nothing running. Imports, re-checks and syncs show here while they work, and for a while after."));
     }
     const hint = $("#activityHint");
@@ -2707,8 +2730,9 @@
         : "";
     hint.hidden = !hint.textContent;
     $("#activityStopAllBtn").hidden = going.filter((j) => j.stoppable && !j.stopping).length < 2;
-    $("#activityClearBtn").hidden = !finished.length;
+    $("#activityClearBtn").hidden = !finished.length && !left.length;
     activitySeenFailure = Math.max(activitySeenFailure, ...jobs.filter((j) => j.failed).map((j) => j.id), 0);
+    activitySeenLeft = true;
     syncActivityButton();
   }
 
@@ -2717,7 +2741,7 @@
     if (!btn) return;
     const jobs = Jobs.visible();
     const going = jobs.filter((j) => j.state === "running" || j.state === "queued");
-    const unseenFailure = jobs.some((j) => j.failed && j.id > activitySeenFailure);
+    const unseenFailure = jobs.some((j) => j.failed && j.id > activitySeenFailure) || (!activitySeenLeft && Jobs.unfinished().length > 0);
     btn.hidden = !going.length && !unseenFailure;
     btn.classList.toggle("is-failed", !going.length && unseenFailure);
     const lead = going.find((j) => j.state === "running") || going[0];
@@ -2739,7 +2763,7 @@
       pill.setAttribute("aria-label", "Activity: " + what);
       $("#activityPillText").textContent = going.length
         ? (lead && lead.total ? `${lead.done}/${lead.total} · ` : "") + (lead ? lead.label : "")
-        : "Didn't finish — see why";
+        : Jobs.unfinished().length && !activitySeenLeft ? "Didn't finish — run it again?" : "Didn't finish — see why";
       $("#activityPillMore").textContent = going.length > 1 ? `+${going.length - 1}` : "";
     }
     const status = $("#settingsActivityStatus");

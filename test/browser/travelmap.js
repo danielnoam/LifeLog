@@ -149,12 +149,12 @@ const SEED = {
   // ---- the map ----
   await swipe(-220);
   await swipe(-220);
-  await page.waitForSelector(".trip-map.leaflet-container .trip-pin", { timeout: 8000 });
+  await page.waitForSelector("#viewBody .trip-map.leaflet-container .trip-pin", { timeout: 8000 });
   check("every place with a location has a pin", (await page.$$(".trip-pin")).length === 4);
-  const side = await page.locator(".trip-map-side").boundingBox();
-  const before = await page.$$(".trip-area, .trip-map");
-  await (async () => { const m = await page.locator(".trip-map").boundingBox(); await page.mouse.move(m.x + 200, m.y + 150); await page.mouse.down(); for (let i = 1; i <= 10; i++) await page.mouse.move(m.x + 200 - i * 20, m.y + 150); await page.mouse.up(); await page.waitForTimeout(500); })();
-  check("dragging the map pans it rather than changing mode", (await page.$$(".trip-map.leaflet-container")).length === 1 && before.length === 1);
+  const side = await page.locator("#viewBody .trip-map-side").boundingBox();
+  const before = await page.$$(".trip-area, #viewBody .trip-map");
+  await (async () => { const m = await page.locator("#viewBody .trip-map").boundingBox(); await page.mouse.move(m.x + 200, m.y + 150); await page.mouse.down(); for (let i = 1; i <= 10; i++) await page.mouse.move(m.x + 200 - i * 20, m.y + 150); await page.mouse.up(); await page.waitForTimeout(500); })();
+  check("dragging the map pans it rather than changing mode", (await page.$$("#viewBody .trip-map.leaflet-container")).length === 1 && before.length === 1);
   check("on a phone the map is the top half, full width", side.width > 360 && side.height > 380 && side.height < 480, side);
   await page.evaluate(() => window.scrollTo(0, 400));
   await page.waitForTimeout(100);

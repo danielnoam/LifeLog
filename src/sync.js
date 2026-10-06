@@ -238,6 +238,11 @@
   // manually entered Steam App ID produces, so cover art and GG.deals
   // pricing (both already wired to that shape) pick it up with no
   // further work.
+  // The passes over the backlog keep what they've done every few items, so
+  // the app being killed halfway loses little, and running one again (from
+  // Activity, 0.245.0) only does what's left.
+  const SAVE_EVERY = 5;
+
   // ---------- the import runner ----------
   // Steam and AniList were two bespoke flows that did the same four things in
   // the same order and shared none of it: validate the settings, fetch with
@@ -269,7 +274,7 @@
     const label = btn ? btn.textContent : "";
     if (btn) { btn.disabled = true; btn.textContent = window.LifeLogJobs.busy(source.lane) ? "Waiting…" : "Syncing…"; }
     try {
-      await window.LifeLogJobs.run({ label: "Syncing " + source.label, lane: source.lane }, async (job) => {
+      await window.LifeLogJobs.run({ label: "Syncing " + source.label, lane: source.lane, again: source.id }, async (job) => {
         if (btn) btn.textContent = "Syncing…";
         const report = (done, total, detail) => {
           job.progress(done, total, detail);
@@ -471,7 +476,7 @@
     if (btn) { btn.disabled = true; btn.textContent = window.LifeLogJobs.busy("steam") ? "Waiting…" : "Retrying…"; }
     let resolved = 0, tried = 0;
     try {
-      await window.LifeLogJobs.run({ label: "Retrying unresolved Steam titles", lane: "steam" }, async (job) => {
+      await window.LifeLogJobs.run({ label: "Retrying unresolved Steam titles", lane: "steam", again: "steamRetry" }, async (job) => {
         for (let i = 0; i < targets.length && !job.stopping; i++) {
           if (btn) btn.textContent = `Retrying… ${i + 1}/${targets.length}`;
           job.progress(i, targets.length, targets[i].title);
@@ -484,6 +489,7 @@
             Object.assign(targets[i], mergeRelease(targets[i], info.release));
             targets[i].updatedAt = new Date().toISOString();
             resolved++;
+            if (resolved % SAVE_EVERY === 0) persist();
           }
           job.progress(i + 1, targets.length);
           if (i < targets.length - 1) await job.sleep(500);
@@ -554,7 +560,7 @@
     if (btn) { btn.disabled = true; btn.textContent = window.LifeLogJobs.busy("steam") ? "Waiting…" : "Backfilling…"; }
     let filled = 0, tried = 0;
     try {
-      await window.LifeLogJobs.run({ label: "Filling in missing game info", lane: "steam" }, async (job) => {
+      await window.LifeLogJobs.run({ label: "Filling in missing game info", lane: "steam", again: "steamBackfill" }, async (job) => {
         for (let i = 0; i < targets.length && !job.stopping; i++) {
           if (btn) btn.textContent = `Backfilling… ${i + 1}/${targets.length}`;
           job.progress(i, targets.length, targets[i].title);
@@ -575,6 +581,7 @@
           if (touched) {
             targets[i].updatedAt = new Date().toISOString();
             filled++;
+            if (filled % SAVE_EVERY === 0) persist();
           }
           job.progress(i + 1, targets.length);
           if (i < targets.length - 1) await job.sleep(300);
@@ -731,14 +738,14 @@
     if (btn) { btn.disabled = true; btn.textContent = window.LifeLogJobs.busy("media") ? "Waiting…" : "Checking…"; }
     let updated = 0, checked = 0;
     try {
-      await window.LifeLogJobs.run({ label: "Re-checking release dates", lane: "media" }, async (job) => {
+      await window.LifeLogJobs.run({ label: "Re-checking release dates", lane: "media", again: "releases" }, async (job) => {
         for (let i = 0; i < targets.length && !job.stopping; i++) {
           if (btn) btn.textContent = `Checking… ${i + 1}/${targets.length}`;
           job.progress(i, targets.length, targets[i].title);
           const fresh = await fetchItemRelease(targets[i], keys, proxyUrl);
           if (fresh) {
             checked++;
-            if (applyItemRelease(targets[i], fresh)) updated++;
+            if (applyItemRelease(targets[i], fresh) && ++updated % SAVE_EVERY === 0) persist();
           }
           job.progress(i + 1, targets.length);
           if (i < targets.length - 1) await job.sleep(300);
@@ -886,6 +893,14 @@
     } finally {
       try { localStorage.setItem(ANILIST_SYNC_KEY, JSON.stringify({ lastCheckedAt: new Date().toISOString() })); } catch (e) {}
     }
+  }
+
+  if (window.LifeLogJobs) {
+    window.LifeLogJobs.onAgain("steamWishlistSyncBtn", () => syncSteamWishlist());
+    window.LifeLogJobs.onAgain("anilistSyncBtn", () => syncAniListPlanning());
+    window.LifeLogJobs.onAgain("steamRetry", () => retryUnresolvedSteamTitles());
+    window.LifeLogJobs.onAgain("steamBackfill", () => backfillRawgForSteamGames());
+    window.LifeLogJobs.onAgain("releases", () => refreshUpcomingReleases());
   }
 
   window.LifeLogSync = {

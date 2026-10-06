@@ -321,6 +321,7 @@
   const SETTING_LABELS = {
     "mediaKeys.rawg": "RAWG API key", "mediaKeys.tmdb": "TMDB API key",
     "mediaKeys.ggdeals": "GG.deals API key", "mediaKeys.steamgriddb": "SteamGridDB API key",
+    "mediaKeys.googlePlaces": "Google Places API key",
     "steam.proxyUrl": "Steam proxy URL", "steam.steamId": "Steam ID",
     "steam.wishlistCategory": "Steam wishlist category", "steam.autoSyncDays": "Steam auto-sync",
     "anilist.userName": "AniList user name", "anilist.animeCategory": "AniList anime category",
@@ -397,6 +398,7 @@
 
   function updateFileInfo() {
     updateBoardsFileInfo();
+    updateTravelFileInfo();
     updatePhoneBackupInfo();
     const info = $("#fileInfo");
     const connect = $("#connectFileBtn");
@@ -455,6 +457,37 @@
       toast("Couldn't connect file: " + (e.message || e), true);
     }
     updateBoardsFileInfo();
+  }
+
+  // Trips' own backup file (0.245.0), the same as the boards'.
+  async function updateTravelFileInfo() {
+    const card = $("#travelFileCard");
+    card.hidden = !Storage.fsSupported;
+    if (!Storage.fsSupported) return;
+    await Storage.travel.ensureFile();
+    const T = Storage.travel;
+    const info = $("#travelFileInfo"), connect = $("#connectTravelFileBtn"), recon = $("#reconnectTravelFileBtn"), disc = $("#disconnectTravelFileBtn");
+    if (T.fileConnected) {
+      info.textContent = "Connected: " + T.fileName + " (every trip save goes here too).";
+      connect.textContent = "Change trips file…"; recon.hidden = true; disc.hidden = false;
+    } else if (T.fileNeedsReconnect) {
+      info.textContent = "File “" + T.fileName + "” needs permission again.";
+      connect.textContent = "Choose a different file…"; recon.hidden = false; disc.hidden = false;
+    } else {
+      info.textContent = "Not backed up to a file.";
+      connect.textContent = "Choose trips file…"; recon.hidden = true; disc.hidden = true;
+    }
+  }
+  async function connectTravelFile() {
+    try {
+      const doc = await window.LifeLogTravel.tripsForExport();
+      const name = await Storage.travel.connectFile(doc);
+      toast("Trips backed up to " + name);
+    } catch (e) {
+      if (e && e.name === "AbortError") return;
+      toast("Couldn't connect the file — " + (e.message || e), true);
+    }
+    updateTravelFileInfo();
   }
 
   // ---------- pages (0.186.0) ----------
@@ -543,7 +576,7 @@
   const EVERY = { "1": "every day", "3": "every 3 days", "7": "every week", "30": "every month" };
   const THEMES = { default: "Dark", light: "Light", nord: "Nord", dracula: "Dracula" };
   const FONTS = { system: "system typeface", serif: "serif", mono: "monospace", rounded: "rounded" };
-  const KEY_NAMES = { rawg: "RAWG", tmdb: "TMDB", ggdeals: "GG.deals", steamgriddb: "SteamGridDB" };
+  const KEY_NAMES = { rawg: "RAWG", tmdb: "TMDB", ggdeals: "GG.deals", steamgriddb: "SteamGridDB", googlePlaces: "Google Places" };
   const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
 
   function statusOf(page) {
@@ -1057,6 +1090,7 @@
     $("#tmdbKey").value = state.data.settings.mediaKeys?.tmdb || "";
     $("#ggdealsKey").value = state.data.settings.mediaKeys?.ggdeals || "";
     $("#steamgriddbKey").value = state.data.settings.mediaKeys?.steamgriddb || "";
+    $("#googlePlacesKey").value = state.data.settings.mediaKeys?.googlePlaces || "";
     $("#steamProxyUrl").value = state.data.settings.steam?.proxyUrl || "";
     const direct = !!(window.LifeLogPlatform && window.LifeLogPlatform.steamDirect);
     $("#steamProxyHint").hidden = direct;
@@ -1414,6 +1448,13 @@
     };
     $("#disconnectBoardsFileBtn").onclick = async () => { await Storage.boards.disconnectFile(); updateBoardsFileInfo(); toast("Boards file disconnected"); };
     $("#boardHistoryBtn").onclick = () => window.LifeLogBoards.renderHistory($("#boardHistoryList"), $("#boardHistoryStatus"));
+    $("#connectTravelFileBtn").onclick = connectTravelFile;
+    $("#reconnectTravelFileBtn").onclick = async () => {
+      if (await Storage.travel.reconnectFile()) { await window.LifeLogTravel.flush(); toast("Reconnected"); } else toast("Permission denied", true);
+      updateTravelFileInfo();
+    };
+    $("#disconnectTravelFileBtn").onclick = async () => { await Storage.travel.disconnectFile(); updateTravelFileInfo(); toast("Trips file disconnected"); };
+    $("#travelHistoryBtn").onclick = () => window.LifeLogTravel.renderHistory($("#travelHistoryList"), $("#travelHistoryStatus"));
     $("#ghConnectBtn").onclick = connectGithub;
     // Only where there's a scanner to ask: a browser already has the camera.
     $("#ghScanBtn").hidden = !scanner();
@@ -1454,6 +1495,7 @@
     $("#tmdbKey").oninput = () => setMediaKey("tmdb", $("#tmdbKey").value);
     $("#ggdealsKey").oninput = () => setMediaKey("ggdeals", $("#ggdealsKey").value);
     $("#steamgriddbKey").oninput = () => setMediaKey("steamgriddb", $("#steamgriddbKey").value);
+    $("#googlePlacesKey").oninput = () => setMediaKey("googlePlaces", $("#googlePlacesKey").value.trim());
 
     const setSteamSetting = async (field, value) => {
       if (!state.data.settings.steam) state.data.settings.steam = { ...DEFAULT_SETTINGS.steam };
