@@ -264,6 +264,7 @@ where one exists. A new component goes in this list in the same change.
 | Row | `.entry`, `.backlog-item-rich`, `.recur-row` | The whole row is the tap target. It darkens on press. |
 | Sheet | `.modal-overlay` > `.modal` | Rises in and fades out (pure CSS, `@starting-style`). Full-screen on mobile for writing (notes); a bottom sheet for options (`.view-options`). Safe-area padding under `html.native`. On a phone it swipes down to close (`wireSheetSwipe`, app.js), through the backdrop's own click. |
 | Menu | `.menu-pop` | Opens upward from its trigger and rises into place. A sheet's More… is `.menu-wrap.sheet-more` with a `.sheet-more-btn`; app.js wires every one, and each item saves the sheet and acts at once. |
+| Activity | `#activityBtn` (desktop header), `.activity-pill` (phones, floating across from the +), `.activity-row` in `#activityModal` | Long work runs through `LifeLogJobs` (src/jobs.js) and shows here by itself: a ring for the first job's progress, a bar and a Stop per row. Shown only while something runs, or after a failure until it's seen. |
 | Toast | `toast(msg, isErr, action)` | 2.6s, 6s for an error, 8s with an action. **Undo is a toast action**, never a confirm dialog after the fact. |
 | Empty state | `emptyState({ glyph, title, body, action, onAction, hint })` | A rich empty state for a view with no data yet. Pass a plain string for "nothing matches your filters", which gets no button. |
 | Animated number | `animatedNumberText(node, key, value, fmt)` | For totals that change in place. |

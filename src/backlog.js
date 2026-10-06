@@ -12,7 +12,7 @@
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
     emptyState, emptyCoverEl, coverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect, sortSelect, openEntryModal,
-    startBulkRun, markBulkItem, finishBulkRun,
+    startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
     fillCategorySelect, wireCategorySelect, titleSuggestions,
     backlogSuggestions, makeMediaAcItem, fetchMediaMatch, renderStreamedSuggestions,
     resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
@@ -31,7 +31,7 @@
     ({ state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
       emptyState, emptyCoverEl, coverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
       toggleBulkCategoryAll, attachLongPressSelect, sortSelect, openEntryModal,
-      startBulkRun, markBulkItem, finishBulkRun,
+      startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
       fillCategorySelect, wireCategorySelect, titleSuggestions,
       backlogSuggestions, makeMediaAcItem, fetchMediaMatch, renderStreamedSuggestions,
       resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
@@ -2388,6 +2388,12 @@
       // no reason to spend the rest of the selection proving it.
       if (streak >= 3) {
         ids.slice(ids.indexOf(id) + 1).forEach((rest) => markBulkItem(rest, "skipped", "stopped after 3 failures in a row"));
+        skipped += ids.length - ids.indexOf(id) - 1;
+        break;
+      }
+      // Stopped from Activity or the notification: what's synced stays.
+      if (bulkStopping()) {
+        ids.slice(ids.indexOf(id) + 1).forEach((rest) => markBulkItem(rest, "skipped", "stopped"));
         skipped += ids.length - ids.indexOf(id) - 1;
         break;
       }

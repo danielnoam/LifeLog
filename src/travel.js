@@ -917,6 +917,7 @@
     $("#importPlacesModal").hidden = true;
     importTrip = null; found = null; picks = [];
     importRun++; importBusy = false;
+    if (importJob) importJob.stop();
   }
   function resetImport() {
     found = null; picks = [];
@@ -945,7 +946,7 @@
   // Each step gives up after this long rather than spinning (0.243.2): the
   // apps' native requests have their own, shorter, timeouts too.
   const GOOGLE_WAIT_MS = 25000;
-  async function appGet(kind, arg) {
+  async function appGet(kind, arg, stop) {
     const P = window.LifeLogPlatform;
     const steam = (state.data.settings && state.data.settings.steam) || {};
     const proxy = P ? P.steamProxy(steam.proxyUrl) : "";
@@ -953,6 +954,7 @@
     const what = kind === "resolve" ? "opening the link" : "reading the list";
     const ctl = typeof AbortController === "function" ? new AbortController() : null;
     let timer;
+    if (stop && ctl) stop.addEventListener("abort", () => ctl.abort());
     const late = new Promise((_, reject) => {
       timer = setTimeout(() => {
         if (ctl) ctl.abort();
@@ -963,7 +965,10 @@
       const ask = (async () => {
         let res;
         try { res = await fetch(proxy + (kind === "resolve" ? "/gmaps-link/" : "/gmaps-list/") + encodeURIComponent(arg), ctl ? { signal: ctl.signal } : undefined); }
-        catch (e) { throw new Error(`Couldn't reach Google Maps while ${what} — check your connection and try again`); }
+        catch (e) {
+          if (stop && stop.aborted) throw new Error("Stopped");
+          throw new Error(`Couldn't reach Google Maps while ${what} — check your connection and try again`);
+        }
         if (!res.ok) {
           throw new Error(kind === "resolve"
             ? `Couldn't open that link (Google answered ${res.status}) — copy it again from Share in Google Maps`
@@ -984,7 +989,9 @@
 
   // Which lookup is current: closing the sheet or starting another makes an
   // older one's answer arrive to nobody.
-  let importRun = 0;
+  // The lookup is a job (src/jobs.js): it shows in Activity, keeps going with
+  // the phone app put away, and closing the sheet stops it.
+  let importRun = 0, importJob = null;
   async function submitImport() {
     if (importBusy || !importTrip) return;
     if (found) { addPicked(); return; }
@@ -992,9 +999,22 @@
     importBusy = true;
     syncImportButton();
     importHint("Looking at the link…");
+    const link = $("#importLink").value;
+    const lookup = async (job) => {
+      importJob = job;
+      const got = await fetchGoogle(link, (k, a) => appGet(k, a, job.signal), (msg) => {
+        job.note(msg);
+        if (run === importRun) importHint(msg);
+      });
+      job.finish(`${got.name || "Found"}: ${placesCount(got.places.length)}`);
+      return got;
+    };
     try {
-      const got = await fetchGoogle($("#importLink").value, appGet, (msg) => { if (run === importRun) importHint(msg); });
+      const got = window.LifeLogJobs
+        ? await window.LifeLogJobs.run({ label: "Reading a Google Maps link", lane: "google" }, lookup)
+        : await lookup({ note() {}, finish() {} });
       if (run !== importRun) return;
+      if (!got) { importHint("Stopped — Find places tries again"); return; }
       found = got;
       showPicks();
     } catch (e) {
@@ -1002,6 +1022,7 @@
       found = null;
       importHint((e && e.message) || "Couldn't read that link", true);
     } finally {
+      importJob = null;
       if (run === importRun) { importBusy = false; syncImportButton(); }
     }
   }

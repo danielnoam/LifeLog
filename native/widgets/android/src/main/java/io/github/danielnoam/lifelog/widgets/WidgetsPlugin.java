@@ -35,13 +35,17 @@ import org.json.JSONArray;
  *                      the app lock's fingerprint / face unlock (see Biometrics)
  *   paymentsState(), setPayments({ on }), openPaymentAccess()
  *                      Google Wallet payments offered to the Ledger (see Payments)
+ *   holdBackground({ title, text, done, total }), releaseBackground()
+ *                      keeps the app working while it's put away, with a
+ *                      notification showing the progress (see BackgroundWork)
  *
  * "Widgets" is the name it started with; it has become the app's one native
  * plugin, and renaming it would only be churn.
  *
- * and two events with nothing in them, each just a nudge to ask: "queued"
- * when a widget is ticked while the app is running, and "action" when a
- * widget button brings the running app to the front.
+ * and three events with nothing in them, each just a nudge: "queued" when a
+ * widget is ticked while the app is running, "action" when a widget button
+ * brings the running app to the front, and "stopWork" when the background
+ * work notification's Stop is pressed.
  */
 @CapacitorPlugin(
     name = "Widgets",
@@ -62,6 +66,18 @@ public class WidgetsPlugin extends Plugin {
         // the header and the tab bar, and no CSS reaches it. The page draws its
         // own between them instead (wireScrollThumb in app.js).
         getActivity().runOnUiThread(() -> getBridge().getWebView().setVerticalScrollBarEnabled(false));
+    }
+
+    @Override
+    protected void handleOnPause() {
+        super.handleOnPause();
+        BackgroundWork.onAppPaused(getContext());
+    }
+
+    @Override
+    protected void handleOnResume() {
+        super.handleOnResume();
+        BackgroundWork.onAppResumed(getContext());
     }
 
     // Capacitor calls this for the launch intent too, not just later ones.
@@ -254,5 +270,25 @@ public class WidgetsPlugin extends Plugin {
         if (pendingAction != null) ret.put("action", pendingAction);
         pendingAction = null;
         call.resolve(ret);
+    }
+
+    @PluginMethod
+    public void holdBackground(PluginCall call) {
+        BackgroundWork.hold(getContext(), call.getString("title"), call.getString("text"),
+            call.getInt("done", 0), call.getInt("total", 0));
+        call.resolve();
+    }
+
+    @PluginMethod
+    public void releaseBackground(PluginCall call) {
+        BackgroundWork.release(getContext());
+        call.resolve();
+    }
+
+    /** The notification's Stop: the app stops its jobs, which releases the service. */
+    static void stopWork(android.content.Context c) {
+        WidgetsPlugin p = live.get();
+        if (p != null) p.notifyListeners("stopWork", new JSObject());
+        else BackgroundWork.release(c);
     }
 }

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.243.2" />
+  <link rel="stylesheet" href="src/styles.css?v=0.244.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -108,11 +108,19 @@
          tab's options, and the tab bar is for moving between tabs. Hidden on
          the tabs that have none. -->
     <div class="settings-corner">
+      <!-- Shown while something takes a while (src/jobs.js): the ring is how
+           far the first job is, the number how many are going. -->
+      <button id="activityBtn" class="btn btn-icon activity-btn" type="button" title="Activity" aria-label="Activity" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="activity-track" cx="12" cy="12" r="8" /><circle class="activity-ring" cx="12" cy="12" r="8" pathLength="100" /></svg><span class="activity-count" id="activityCount"></span></button>
       <button id="viewOptionsBtn" class="btn btn-icon" type="button" title="View options" aria-label="View options" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg></button>
       <button id="settingsBtn" class="btn btn-icon" title="Settings" aria-label="Settings">⚙</button>
       <span class="version-badge" id="appVersion"></span>
     </div>
   </header>
+
+  <!-- Activity on a phone: the header has no room for a fourth button, so
+       while something runs it floats bottom-left, across from the +, and
+       says what it is. -->
+  <button id="activityPill" class="activity-pill" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="activity-track" cx="12" cy="12" r="8" /><circle class="activity-ring" cx="12" cy="12" r="8" pathLength="100" /></svg><span class="activity-pill-text" id="activityPillText"></span><span class="activity-pill-more" id="activityPillMore"></span></button>
 
   <div class="fab-wrap">
     <!-- One group per tab, headed with the tab's own name and kept in the
@@ -1157,6 +1165,7 @@
               <button type="button" class="srow" data-page="sync"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3" /><path d="M18 3v4h-4M6 21v-4h4" /></svg></span><span class="srow-text"><span class="srow-title">Sync</span><span class="srow-status" data-status="sync"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
               <button type="button" class="srow" data-page="io"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5" /><path d="M4 17v3h16v-3" /></svg></span><span class="srow-text"><span class="srow-title">Import &amp; export</span><span class="srow-status" data-status="io"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
               <button type="button" class="srow" data-page="history"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.3-5.6" /><path d="M4 4v4h4M12 8v4l3 2" /></svg></span><span class="srow-text"><span class="srow-title">History</span><span class="srow-status" data-status="history"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" id="settingsActivityRow"><span class="srow-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4" /></svg></span><span class="srow-text"><span class="srow-title">Activity</span><span class="srow-status" id="settingsActivityStatus"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
             </div>
           </div>
           <div class="sgroup">
@@ -1884,6 +1893,23 @@
     </div>
   </div>
 
+  <!-- Activity (0.244.0): what's running, waiting and done, from src/jobs.js. -->
+  <div class="modal-overlay" id="activityModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="activityTitle">
+      <div class="modal-head">
+        <h2 id="activityTitle">Activity</h2>
+        <button class="btn btn-icon" id="closeActivityBtn" type="button" title="Close" aria-label="Close activity">✕</button>
+      </div>
+      <p class="hint" id="activityHint"></p>
+      <div class="activity-list" id="activityList"></div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-danger" id="activityStopAllBtn" hidden>Stop all</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="activityClearBtn" hidden>Clear finished</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="conflictModal" hidden>
     <div class="modal modal-wide">
       <h2>Couldn't automatically merge these versions</h2>
@@ -1952,30 +1978,31 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.243.2"></script>
-  <script defer src="src/reconcile.js?v=0.243.2"></script>
-  <script defer src="src/qr.js?v=0.243.2"></script>
-  <script defer src="src/media.js?v=0.243.2"></script>
-  <script defer src="src/merge.js?v=0.243.2"></script>
-  <script defer src="src/storage.js?v=0.243.2"></script>
-  <script defer src="src/finance.js?v=0.243.2"></script>
-  <script defer src="src/settings.js?v=0.243.2"></script>
-  <script defer src="src/wheel.js?v=0.243.2"></script>
-  <script defer src="src/backlog.js?v=0.243.2"></script>
-  <script defer src="src/journal.js?v=0.243.2"></script>
-  <script defer src="src/markdown.js?v=0.243.2"></script>
-  <script defer src="src/notes.js?v=0.243.2"></script>
-  <script defer src="src/docimport.js?v=0.243.2"></script>
-  <script defer src="src/io.js?v=0.243.2"></script>
-  <script defer src="src/sync.js?v=0.243.2"></script>
-  <script defer src="src/habits.js?v=0.243.2"></script>
-  <script defer src="src/vendor/rough.js?v=0.243.2"></script>
-  <script defer src="src/boards.js?v=0.243.2"></script>
-  <script defer src="src/travel.js?v=0.243.2"></script>
-  <script defer src="src/recap.js?v=0.243.2"></script>
-  <script defer src="src/reminders.js?v=0.243.2"></script>
-  <script defer src="src/widgets.js?v=0.243.2"></script>
-  <script defer src="src/payments.js?v=0.243.2"></script>
-  <script defer src="src/app.js?v=0.243.2"></script>
+  <script defer src="src/platform.js?v=0.244.0"></script>
+  <script defer src="src/jobs.js?v=0.244.0"></script>
+  <script defer src="src/reconcile.js?v=0.244.0"></script>
+  <script defer src="src/qr.js?v=0.244.0"></script>
+  <script defer src="src/media.js?v=0.244.0"></script>
+  <script defer src="src/merge.js?v=0.244.0"></script>
+  <script defer src="src/storage.js?v=0.244.0"></script>
+  <script defer src="src/finance.js?v=0.244.0"></script>
+  <script defer src="src/settings.js?v=0.244.0"></script>
+  <script defer src="src/wheel.js?v=0.244.0"></script>
+  <script defer src="src/backlog.js?v=0.244.0"></script>
+  <script defer src="src/journal.js?v=0.244.0"></script>
+  <script defer src="src/markdown.js?v=0.244.0"></script>
+  <script defer src="src/notes.js?v=0.244.0"></script>
+  <script defer src="src/docimport.js?v=0.244.0"></script>
+  <script defer src="src/io.js?v=0.244.0"></script>
+  <script defer src="src/sync.js?v=0.244.0"></script>
+  <script defer src="src/habits.js?v=0.244.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.244.0"></script>
+  <script defer src="src/boards.js?v=0.244.0"></script>
+  <script defer src="src/travel.js?v=0.244.0"></script>
+  <script defer src="src/recap.js?v=0.244.0"></script>
+  <script defer src="src/reminders.js?v=0.244.0"></script>
+  <script defer src="src/widgets.js?v=0.244.0"></script>
+  <script defer src="src/payments.js?v=0.244.0"></script>
+  <script defer src="src/app.js?v=0.244.0"></script>
 </body>
 </html>

@@ -148,7 +148,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.243.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.244.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1297,6 +1297,15 @@
   let saveQueuedAt = 0;
   let saveDirty = false;   // an edit no save has picked up yet
   let saving = null;       // the save in flight
+  // From the edit until GitHub has it, a save is a job (src/jobs.js), not
+  // listed in Activity (the sync light says it), but there so the phone app
+  // keeps working when it's put away straight after an edit.
+  let saveJob = null;
+  function settleSaveJob() {
+    if (!saveJob || saveTimer || saving || saveDirty) return;
+    saveJob.finish();
+    saveJob = null;
+  }
 
   async function persist() {
     // Boot now renders before it has heard from GitHub, which opens a window
@@ -1319,6 +1328,9 @@
     lastPersistedSnapshot = structuredClone(state.data);
     Widgets.changed();
     saveDirty = true;
+    if (!saveJob && Storage.githubConnected && window.LifeLogJobs) {
+      saveJob = window.LifeLogJobs.begin({ label: "Saving to GitHub", listed: false, stoppable: false });
+    }
     const now = performance.now();
     if (!saveQueuedAt) saveQueuedAt = now;
     clearTimeout(saveTimer);
@@ -1336,7 +1348,7 @@
     saveTimer = null;
     saveQueuedAt = 0;
     if (saving) return saving.then(() => (saveDirty ? flushSave() : undefined));
-    if (!saveDirty && !state.pendingSync) return Promise.resolve();
+    if (!saveDirty && !state.pendingSync) { settleSaveJob(); return Promise.resolve(); }
     saveDirty = false;
     // A copy, so what's recorded as synced is exactly what was sent, however
     // the live document moves on while GitHub answers.
@@ -1348,6 +1360,7 @@
       catch (e) { /* kept on this device; retried like any failed save */ }
       finally { syncInFlight = false; saving = null; }
       refreshStorageStatus(where);
+      settleSaveJob();
       // Another device had saved first, and GitHub now holds both. Fetch it,
       // through the poll's merge and its guards (see ghSave).
       if (merged) pollForUpdates();
@@ -2529,13 +2542,21 @@
     closeBulkProgressPanel();
   }
 
+  // Each run is also a job (src/jobs.js), so it shows in Activity, keeps
+  // going with the phone app put away, and can be stopped there.
   function startBulkRun(rows) {
+    if (bulkRun && bulkRun.job) bulkRun.job.finish();
+    const total = rows.length;
     bulkRun = {
       rows: rows.map((r) => ({ ...r, state: "pending", detail: "" })),
-      total: rows.length, done: 0, active: true,
+      total, done: 0, active: true,
+      job: window.LifeLogJobs ? window.LifeLogJobs.begin({ label: `Syncing ${total} item${total === 1 ? "" : "s"} with their media info` }) : null,
     };
+    if (bulkRun.job) bulkRun.job.progress(0, total);
     renderBulkProgressPanel();
   }
+
+  const bulkStopping = () => !!(bulkRun && bulkRun.job && bulkRun.job.stopping);
 
   // `outcome`, not `state` — this file's `state` is the whole app's data, and
   // shadowing it here is one edit away from a very confusing bug.
@@ -2546,6 +2567,7 @@
     if (row.state === "pending") bulkRun.done++;
     row.state = outcome;
     row.detail = detail || "";
+    if (bulkRun.job) bulkRun.job.progress(bulkRun.done, bulkRun.total, row.title);
     renderBulkProgressPanel();
   }
 
@@ -2554,6 +2576,10 @@
   function finishBulkRun() {
     if (!bulkRun) return;
     bulkRun.active = false;
+    if (bulkRun.job) {
+      const n = bulkRun.rows.filter((r) => r.state === "done").length;
+      bulkRun.job.finish(`Synced ${n} of ${bulkRun.total}`);
+    }
     if (bulkRun.rows.some((r) => r.state !== "done")) openBulkProgressPanel();
     else renderBulkProgressPanel();
   }
@@ -2595,6 +2621,158 @@
       }
       return row;
     }));
+  }
+
+  // ---------- Activity (0.244.0) ----------
+  // Everything src/jobs.js is running, waiting on or has just finished, with
+  // a Stop on each. The header button shows only while something is going,
+  // or after something failed until you've looked; Settings → Activity opens
+  // it any time.
+  const Jobs = window.LifeLogJobs;
+  const ACTIVITY_GLYPH = { queued: "○", running: "↻", done: "✓", failed: "✕", stopped: "■" };
+  let activitySeenFailure = 0;
+  let activityTick = null;
+
+  function spanText(ms) {
+    const sec = Math.max(1, Math.round(ms / 1000));
+    if (sec < 60) return sec + "s";
+    const min = Math.round(sec / 60);
+    if (min < 60) return min + " min";
+    return Math.floor(min / 60) + " h " + (min % 60) + " min";
+  }
+
+  function activityMeta(job, now) {
+    if (job.state === "queued") {
+      const ahead = Jobs.list().find((j) => j.lane === job.lane && j.state === "running");
+      return ahead ? "Waiting for " + ahead.label.toLowerCase() : "Waiting";
+    }
+    if (job.state === "running") {
+      const parts = [];
+      if (job.total) parts.push(`${job.done} of ${job.total}`);
+      const left = Jobs.eta(job, now);
+      if (left != null) parts.push("about " + spanText(left) + " left");
+      else parts.push(spanText(now - job.startedAt) + " so far");
+      if (job.stopping) parts.push("stopping…");
+      else if (job.detail) parts.push(job.detail);
+      return parts.join(" · ");
+    }
+    const took = job.startedAt ? " · took " + spanText(job.endedAt - job.startedAt) : "";
+    return (job.result || (job.state === "stopped" ? "Stopped" : job.state === "failed" ? "Didn't finish" : "Done")) + took;
+  }
+
+  function activityRow(job, now) {
+    const row = el("div", "activity-row is-" + job.state);
+    row.appendChild(el("span", "activity-glyph", ACTIVITY_GLYPH[job.state] || "○"));
+    const text = el("div", "activity-text");
+    text.appendChild(el("span", "activity-label", job.label));
+    const meta = el("span", "activity-meta", activityMeta(job, now));
+    meta.title = meta.textContent;
+    text.appendChild(meta);
+    if (job.state === "running" || job.state === "queued") {
+      const bar = el("div", "activity-bar" + (job.total || job.state === "queued" ? "" : " is-unknown"));
+      const fill = el("span", "activity-fill");
+      if (job.total) fill.style.width = Math.min(100, Math.round((job.done / job.total) * 100)) + "%";
+      bar.appendChild(fill);
+      text.appendChild(bar);
+    }
+    row.appendChild(text);
+    if ((job.state === "running" || job.state === "queued") && job.stoppable) {
+      const stop = el("button", "btn btn-sm activity-stop", job.stopping ? "Stopping…" : "Stop");
+      stop.type = "button";
+      stop.disabled = job.stopping;
+      stop.setAttribute("aria-label", "Stop " + job.label.toLowerCase());
+      stop.onclick = () => job.stop();
+      row.appendChild(stop);
+    }
+    return row;
+  }
+
+  function renderActivity() {
+    const modal = $("#activityModal");
+    if (!modal || modal.hidden) { syncActivityButton(); return; }
+    const now = Date.now();
+    const jobs = Jobs.visible();
+    const going = jobs.filter((j) => j.state === "running" || j.state === "queued");
+    const finished = jobs.filter((j) => !(j.state === "running" || j.state === "queued")).reverse();
+    const list = $("#activityList");
+    list.replaceChildren(...going.map((j) => activityRow(j, now)), ...finished.map((j) => activityRow(j, now)));
+    if (!jobs.length) {
+      list.appendChild(el("p", "activity-empty", "Nothing running. Imports, re-checks and syncs show here while they work, and for a while after."));
+    }
+    const hint = $("#activityHint");
+    hint.textContent = going.length && Platform.android
+      ? "These keep going with the app put away; Android shows a notification while they do"
+      : going.length && Platform.ios
+        ? "iOS gives these about 30 seconds with the app put away, then they carry on when you're back"
+        : "";
+    hint.hidden = !hint.textContent;
+    $("#activityStopAllBtn").hidden = going.filter((j) => j.stoppable && !j.stopping).length < 2;
+    $("#activityClearBtn").hidden = !finished.length;
+    activitySeenFailure = Math.max(activitySeenFailure, ...jobs.filter((j) => j.failed).map((j) => j.id), 0);
+    syncActivityButton();
+  }
+
+  function syncActivityButton() {
+    const btn = $("#activityBtn");
+    if (!btn) return;
+    const jobs = Jobs.visible();
+    const going = jobs.filter((j) => j.state === "running" || j.state === "queued");
+    const unseenFailure = jobs.some((j) => j.failed && j.id > activitySeenFailure);
+    btn.hidden = !going.length && !unseenFailure;
+    btn.classList.toggle("is-failed", !going.length && unseenFailure);
+    const lead = going.find((j) => j.state === "running") || going[0];
+    const known = lead && lead.total ? Math.min(100, (lead.done / lead.total) * 100) : 0;
+    btn.classList.toggle("is-unknown", !!lead && !lead.total);
+    btn.style.setProperty("--activity-progress", String(known));
+    $("#activityCount").textContent = going.length > 1 ? String(going.length) : unseenFailure && !going.length ? "!" : "";
+    const what = going.length
+      ? `${going.length} running` + (lead ? ` — ${lead.label}${lead.total ? `, ${lead.done} of ${lead.total}` : ""}` : "")
+      : unseenFailure ? "Something didn't finish — open to see why" : "Activity";
+    btn.title = what;
+    btn.setAttribute("aria-label", "Activity: " + what);
+    const pill = $("#activityPill");
+    if (pill) {
+      pill.hidden = btn.hidden;
+      pill.className = btn.className.replace("btn btn-icon activity-btn", "activity-pill");
+      pill.style.setProperty("--activity-progress", String(known));
+      pill.title = what;
+      pill.setAttribute("aria-label", "Activity: " + what);
+      $("#activityPillText").textContent = going.length
+        ? (lead && lead.total ? `${lead.done}/${lead.total} · ` : "") + (lead ? lead.label : "")
+        : "Didn't finish — see why";
+      $("#activityPillMore").textContent = going.length > 1 ? `+${going.length - 1}` : "";
+    }
+    const status = $("#settingsActivityStatus");
+    if (status) status.textContent = going.length ? `${going.length} running` : "Nothing running";
+  }
+
+  function openActivity() {
+    $("#activityModal").hidden = false;
+    renderActivity();
+    clearInterval(activityTick);
+    // The times on screen move while something runs; nothing else does.
+    activityTick = setInterval(() => {
+      if ($("#activityModal").hidden) { clearInterval(activityTick); activityTick = null; return; }
+      if (Jobs.active().some((j) => j.listed)) renderActivity();
+    }, 1000);
+  }
+  function closeActivity() {
+    const m = $("#activityModal");
+    if (m) m.hidden = true;
+    clearInterval(activityTick);
+    activityTick = null;
+  }
+
+  function wireActivity() {
+    if (!Jobs) return;
+    Jobs.subscribe(renderActivity);
+    $("#activityBtn").onclick = openActivity;
+    $("#activityPill").onclick = openActivity;
+    $("#closeActivityBtn").onclick = closeActivity;
+    $("#activityStopAllBtn").onclick = () => Jobs.stopAll();
+    $("#activityClearBtn").onclick = () => Jobs.clearFinished();
+    $("#settingsActivityRow").onclick = () => { SettingsUI.closeSettings(); openActivity(); };
+    syncActivityButton();
   }
 
   // Long-pressing a row is the only way into bulk mode (there's no separate
@@ -4017,6 +4195,7 @@
     Recap.wire();
 
     $("#closeShortcutsBtn").onclick = closeShortcutsModal;
+    wireActivity();
     $("#closeBulkProgressBtn").onclick = closeBulkProgressPanel;
 
     document.addEventListener("keydown", (e) => {
@@ -4039,6 +4218,7 @@
         SettingsUI.closeViewOptions();
         closeShortcutsModal();
         closeBulkProgressPanel();
+        closeActivity();
         $("#addMenu").hidden = true;
         return;
       }
@@ -4243,6 +4423,9 @@
   }
 
   function runAction(action) {
+    // The background-work notification: Activity opens over whatever was
+    // up, since closing an import's sheet would stop the import.
+    if (action === "open-activity") { openActivity(); return; }
     if (clearForAction(action)) return;
     const goTo = (view, mode) => {
       VIEW_MODES[view].set(mode);
@@ -4938,7 +5121,7 @@
     state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
     emptyCoverEl, coverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect, sortSelect,
-    startBulkRun, markBulkItem, finishBulkRun,
+    startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
     rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
     isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
@@ -4967,7 +5150,7 @@
     MEDIA_SOURCE_LABELS, saveVisualSettings, isMobileLayout,
     emptyState, emptyCoverEl, coverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect, sortSelect,
-    startBulkRun, markBulkItem, finishBulkRun,
+    startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
     openEntryModal: Journal.openEntryModal,
     fillCategorySelect, wireCategorySelect,
     titleSuggestions: Journal.titleSuggestions,

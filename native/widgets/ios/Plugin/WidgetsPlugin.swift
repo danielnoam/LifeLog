@@ -27,7 +27,11 @@ public class WidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "biometricState", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "authenticate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pickMarkdownFolder", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "holdBackground", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "releaseBackground", returnType: CAPPluginReturnPromise),
     ]
+
+    private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
 
     private func reloadWidgets() {
         #if canImport(WidgetKit)
@@ -103,5 +107,34 @@ public class WidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
     // ---- what iOS doesn't have ----
     @objc func pickMarkdownFolder(_ call: CAPPluginCall) {
         call.unavailable("Pick the Markdown files themselves on iOS")
+    }
+
+    // ---- work that keeps going with the app put away (0.244.0) ----
+    // iOS has no foreground service: what it gives an app that asks is
+    // about 30 seconds after it's put away, then it's suspended until it's
+    // opened again, where src/jobs.js simply carries on. Asked for while
+    // the app is still in front, so the grace starts when it's put away.
+    @objc func holdBackground(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            if self.backgroundTask == .invalid {
+                self.backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "LifeLog work") { [weak self] in
+                    self?.endBackgroundTask()
+                }
+            }
+            call.resolve()
+        }
+    }
+
+    @objc func releaseBackground(_ call: CAPPluginCall) {
+        DispatchQueue.main.async {
+            self.endBackgroundTask()
+            call.resolve()
+        }
+    }
+
+    private func endBackgroundTask() {
+        guard backgroundTask != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(backgroundTask)
+        backgroundTask = .invalid
     }
 }

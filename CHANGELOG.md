@@ -4,6 +4,27 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.244.0] - 2026-10-06
+
+### Added
+- **Activity: everything that takes a while, in one place.** Steam and
+  AniList syncs, retrying Steam titles, filling in game info, re-checking
+  release dates, bulk media syncs and Google Maps imports each show what
+  they're doing, how far along they are and about how long is left, and
+  each has a Stop. Stopping keeps what was already done: a stopped Steam
+  sync still offers the games it had fetched for review.
+- While something runs, a ring by Settings (on a phone, a pill across from
+  the +) shows it; tap it for the list. Settings → Activity opens it any
+  time, with what finished recently and why anything didn't.
+- Work on the same site waits its turn (two Steam passes at once only get
+  each other rate-limited); work on different sites runs side by side.
+- **Android: work keeps going with the app put away.** Leave the app while
+  something runs, or right after an edit that hasn't reached GitHub yet,
+  and a notification shows the progress, with a Stop, until it's done.
+  Tap it to open Activity.
+- iOS asks for its extra time too, which is about 30 seconds; after that
+  the work pauses and carries on when you open the app again.
+
 ## [0.243.2] - 2026-10-06
 
 ### Fixed

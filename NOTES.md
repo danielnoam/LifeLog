@@ -16,6 +16,42 @@ what was decided against and why.
 
 ---
 
+- **Background work and Activity (0.244.0).** Daniel asked for syncs and
+  imports to keep going with the phone app minimized, and a queue screen
+  to see and stop them. What the phones allow decided the shape:
+  - Android freezes a backgrounded app's process within seconds (see the
+    widget entry for 0.237.0), WebView and all. Capacitor leaves JS timers
+    running when paused (KeepRunning defaults to true in Bridge.java), so
+    the only thing missing is staying alive: a foreground service
+    (BackgroundWork.java, type dataSync) with a partial wake lock. Android
+    requires its notification, so the notification is the progress.
+  - It starts in WidgetsPlugin.handleOnPause, not when a job starts. From
+    Android 12 a foreground service can't be started from the background,
+    and onPause is the last moment the app still counts as in front; and
+    with the app in front nothing needs keeping alive, so there's no
+    notification flashing up for every one-request check on opening the
+    app. Coming back stops it. JS only says busy (holdBackground, paced to
+    once a second) or done (releaseBackground).
+  - A GitHub save is a job from the edit (persist), not from the flush: the
+    flush often happens on visibilitychange, which arrives after onPause,
+    too late to start anything. Saves aren't listed (the sync light says
+    them) and can't be stopped.
+  - iOS has no equivalent. beginBackgroundTask gives about 30 seconds; then
+    the WebView is suspended, and awaits simply resume when the app comes
+    back. A request in flight at suspension can fail, which the job then
+    reports. Built without an iPhone: CI proves it compiles.
+  - Lanes (steam, anilist, media, google) serialize work that hits the
+    same rate-limited site; the rest runs side by side. Stopping is
+    cooperative (loops check job.stopping between items and keep what they
+    did; job.signal aborts a fetch; job.sleep wakes early), because a
+    half-written item is worse than one more request.
+  - Kept per session only: a job is a promise in memory, and one the app
+    was killed during can't be resumed, so remembering it would only list
+    something that will never finish. Covers aren't jobs: they're plain
+    images the WebView loads itself.
+  - On a phone the indicator is a floating pill, not a fourth header
+    button: with one, the search field shrank to "Sear" at 375px.
+
 - **The Google import hang (0.243.2).** In the apps, the short link was
   resolved by letting CapacitorHttp follow its redirects, which downloads
   Google Maps' full page to learn the final address; with no read timeout

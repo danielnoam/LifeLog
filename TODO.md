@@ -1,5 +1,11 @@
 todo:
 
+- **Activity, next.** Check on Daniel's phone that a Steam sync carries on
+  with the app put away and the screen off, and that the notification's
+  Stop and tap work (not testable here). Then, if wanted: a job that was
+  interrupted by the app being killed offered again on the next open; the
+  Markdown and EPUB/PDF imports as jobs (local and quick so far).
+
 - **Travel, what's next** (design: the "LifeLog travel tab design" doc).
   - Name the "Near …" areas: a list's places often have no address, so
     By area can only name those groups after a place. A reverse geocoder

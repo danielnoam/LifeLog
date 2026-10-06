@@ -100,7 +100,8 @@ const shown = (page, sel) => page.evaluate((q) => {
     }));
 
   // ---- 3. the list, and the page beside it ----
-  const rows = await page.evaluate(() => [...document.querySelectorAll("#settingsHome .srow")].map((r) => ({
+  // Activity (0.244.0) is a row that opens a sheet, not a page: test/browser/activity.js.
+  const rows = await page.evaluate(() => [...document.querySelectorAll("#settingsHome .srow[data-page]")].map((r) => ({
     page: r.dataset.page, status: r.querySelector(".srow-status").textContent,
   })));
   const pages = await page.evaluate(() => [...document.querySelectorAll(".settings-page")].map((p) => p.dataset.page));
