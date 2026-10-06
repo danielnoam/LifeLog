@@ -174,6 +174,16 @@ atest("a long place link needs no network, and a stray link says what it isn't",
   await assert.rejects(T.fetchGoogle("  ", async () => ""), /Paste a Google Maps link/);
 });
 
+atest("it says what it's doing, and why it stopped", async () => {
+  const steps = [];
+  await T.fetchGoogle("https://maps.app.goo.gl/abc", async (kind) => (kind === "resolve" ? `https://www.google.com/maps/@/data=!4m3!11m2!2s${LIST_ID}!3e3` : googleList()), (m) => steps.push(m));
+  assert.deepStrictEqual(steps, ["Opening the link…", "Reading the list…"]);
+  await assert.rejects(T.fetchGoogle("https://maps.app.goo.gl/abc", async (kind) => (kind === "resolve" ? `https://www.google.com/maps/@/data=!4m3!11m2!2s${LIST_ID}!3e3` : "<html>sign in</html>")),
+    /isn't a list — it may be private/);
+  await assert.rejects(T.fetchGoogle("https://maps.app.goo.gl/abc", async () => "https://www.google.com/maps/dir/Rome/Milan"),
+    /That link opened www\.google\.com\/maps\/dir\/Rome\/Milan, not a saved list or a place/);
+});
+
 (async () => {
   for (const [name, fn] of later) {
     try { await fn(); passed++; console.log("  ok - " + name); }

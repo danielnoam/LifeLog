@@ -16,6 +16,15 @@ what was decided against and why.
 
 ---
 
+- **The Google import hang (0.243.2).** In the apps, the short link was
+  resolved by letting CapacitorHttp follow its redirects, which downloads
+  Google Maps' full page to learn the final address; with no read timeout
+  that could hang on Android. Now it reads each hop's Location with
+  `disableRedirects` (as the worker does), every native request carries
+  connect and read timeouts, and the sheet's own wait gives up after 25 s.
+  Untested against live Google from the cloud sandbox: the nativehttp suite
+  fakes CapacitorHttp's answers.
+
 - **Travel's chips and modes, and the recurring block (0.243.0).**
   - *Trips are the chip row.* `#tripFilterGroup` sits in the filterbar,
     built by travel.js (`syncTripChips`) on every render, since the trips

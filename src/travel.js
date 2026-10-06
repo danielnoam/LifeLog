@@ -253,20 +253,35 @@
   // place. `get(kind, arg)` does the network part, which differs between the
   // app, a browser (the proxy) and the bridge (Node): "resolve" turns a
   // short link's code into where it leads, "list" fetches a list by id.
-  async function fetchGoogle(link, get) {
+  // `step(msg)`, when given, hears what it's doing as it goes (0.243.2).
+  async function fetchGoogle(link, get, step) {
+    const say = (msg) => { if (step) step(msg); };
     link = String(link || "").trim();
     if (!link) throw new Error("Paste a Google Maps link first");
     let where = link;
     const code = googleShortCode(link);
-    if (code) where = await get("resolve", code);
+    if (code) {
+      say("Opening the link…");
+      where = await get("resolve", code);
+    }
     const id = googleListId(where);
     if (id) {
-      const list = parseGoogleList(await get("list", id));
+      say("Reading the list…");
+      const body = await get("list", id);
+      let list;
+      try { list = parseGoogleList(body); }
+      catch (e) { throw new Error("Google sent something that isn't a list — it may be private. In Google Maps, open the list → Share, then copy that link"); }
       return { name: list.name, source: id, places: list.places };
     }
     const one = parseGooglePlaceUrl(where);
     if (one) return { name: one.name, source: "", places: [one], url: code ? link : "" };
+    if (code && where) throw new Error(`That link opened ${shortWhere(where)}, not a saved list or a place — share the list itself from Google Maps`);
     throw new Error("That link isn't a Google Maps list or place");
+  }
+  // Where a link led, short enough to read in a hint.
+  function shortWhere(url) {
+    try { const u = new URL(String(url).split(" ")[0]); const s = u.hostname + u.pathname; return s.length > 60 ? s.slice(0, 59) + "…" : s; }
+    catch (e) { return "a page"; }
   }
 
   // Already in the trip: the same Google place, or failing an id, the same
@@ -898,7 +913,11 @@
     $("#importPlacesModal").hidden = false;
     setTimeout(() => $("#importLink").focus(), 0);
   }
-  function closeImportModal() { $("#importPlacesModal").hidden = true; importTrip = null; found = null; picks = []; }
+  function closeImportModal() {
+    $("#importPlacesModal").hidden = true;
+    importTrip = null; found = null; picks = [];
+    importRun++; importBusy = false;
+  }
   function resetImport() {
     found = null; picks = [];
     $("#importPick").hidden = true;
@@ -923,38 +942,67 @@
   // The network half of fetchGoogle in the app: the proxy's two Google
   // routes. In the phone apps that "proxy" is the app's own native request
   // (platform.js), so only a browser needs one set up.
+  // Each step gives up after this long rather than spinning (0.243.2): the
+  // apps' native requests have their own, shorter, timeouts too.
+  const GOOGLE_WAIT_MS = 25000;
   async function appGet(kind, arg) {
     const P = window.LifeLogPlatform;
     const steam = (state.data.settings && state.data.settings.steam) || {};
     const proxy = P ? P.steamProxy(steam.proxyUrl) : "";
     if (!proxy) throw new Error("A browser can't read Google Maps lists by itself — add the proxy URL in Settings → Media, or import from the phone app");
-    let res;
-    try { res = await fetch(proxy + (kind === "resolve" ? "/gmaps-link/" : "/gmaps-list/") + encodeURIComponent(arg)); }
-    catch (e) { throw new Error("Couldn't reach Google Maps — check your connection and try again"); }
-    if (!res.ok) {
-      throw new Error(kind === "resolve"
-        ? "Couldn't open that link — copy it again from Share in Google Maps"
-        : "Google Maps didn't send that list — check it's shared (Share → Copy link)");
+    const what = kind === "resolve" ? "opening the link" : "reading the list";
+    const ctl = typeof AbortController === "function" ? new AbortController() : null;
+    let timer;
+    const late = new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        if (ctl) ctl.abort();
+        reject(new Error(`Google didn't answer while ${what} — try again in a moment`));
+      }, GOOGLE_WAIT_MS);
+    });
+    try {
+      const ask = (async () => {
+        let res;
+        try { res = await fetch(proxy + (kind === "resolve" ? "/gmaps-link/" : "/gmaps-list/") + encodeURIComponent(arg), ctl ? { signal: ctl.signal } : undefined); }
+        catch (e) { throw new Error(`Couldn't reach Google Maps while ${what} — check your connection and try again`); }
+        if (!res.ok) {
+          throw new Error(kind === "resolve"
+            ? `Couldn't open that link (Google answered ${res.status}) — copy it again from Share in Google Maps`
+            : `Google wouldn't send that list (it answered ${res.status}) — check it's shared: open it in Google Maps → Share`);
+        }
+        if (kind === "resolve") {
+          const j = await res.json().catch(() => ({}));
+          if (!j.url) throw new Error("Couldn't tell where that link leads — copy it again from Share in Google Maps");
+          return String(j.url);
+        }
+        return res.text();
+      })();
+      return await Promise.race([ask, late]);
+    } finally {
+      clearTimeout(timer);
     }
-    if (kind === "resolve") return String((await res.json()).url || "");
-    return res.text();
   }
 
+  // Which lookup is current: closing the sheet or starting another makes an
+  // older one's answer arrive to nobody.
+  let importRun = 0;
   async function submitImport() {
     if (importBusy || !importTrip) return;
     if (found) { addPicked(); return; }
+    const run = ++importRun;
     importBusy = true;
     syncImportButton();
-    importHint("");
+    importHint("Looking at the link…");
     try {
-      found = await fetchGoogle($("#importLink").value, appGet);
+      const got = await fetchGoogle($("#importLink").value, appGet, (msg) => { if (run === importRun) importHint(msg); });
+      if (run !== importRun) return;
+      found = got;
       showPicks();
     } catch (e) {
+      if (run !== importRun) return;
       found = null;
       importHint((e && e.message) || "Couldn't read that link", true);
     } finally {
-      importBusy = false;
-      syncImportButton();
+      if (run === importRun) { importBusy = false; syncImportButton(); }
     }
   }
 

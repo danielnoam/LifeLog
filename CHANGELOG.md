@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.243.2] - 2026-10-06
+
+### Fixed
+- **Importing from Google Maps no longer spins forever.** In the phone
+  apps, opening a shared link loaded Google Maps' whole page just to learn
+  where the link led, with no time limit, and could hang there. It now
+  reads where the link points without loading the page, and every step
+  gives up after a while instead of waiting forever.
+- The import sheet says what it's doing ("Opening the link…", "Reading
+  the list…"), and when it fails, why: what Google answered, a list that
+  may be private, or a link that leads somewhere that isn't a list.
+
 ## [0.243.1] - 2026-10-06
 
 ### Changed

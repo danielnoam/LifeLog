@@ -28,6 +28,10 @@ const SEED = {
   await page.route(PROXY + "/**", (route) => {
     const path = new URL(route.request().url()).pathname;
     asked.push(path);
+    if (path === "/gmaps-link/Slow") {
+      return new Promise((r) => setTimeout(r, 1500)).then(() => route.fulfill({ headers: CORS, contentType: "application/json", body: JSON.stringify({ url: `https://www.google.com/maps/@/data=!4m3!11m2!2s${LIST_ID}!3e3` }) }));
+    }
+    if (path === "/gmaps-link/Gone") return route.fulfill({ headers: CORS, status: 404, contentType: "application/json", body: "{}" });
     if (path === "/gmaps-link/ShareCode1") {
       return route.fulfill({ headers: CORS, contentType: "application/json", body: JSON.stringify({ url: `https://www.google.com/maps/@/data=!4m3!11m2!2s${LIST_ID}!3e3` }) });
     }
@@ -194,6 +198,21 @@ const SEED = {
     }
     await page.evaluate(() => { for (const c of ["theme-light", "theme-nord", "theme-dracula"]) document.documentElement.classList.remove(c); });
   }
+
+  // ---- it says what it's doing, and why it stopped ----
+  await page.click(".trip-import");
+  await page.fill("#importLink", "https://maps.app.goo.gl/Slow");
+  await page.click("#importGoBtn");
+  await page.waitForTimeout(400);
+  check("while it works, the sheet says which step it's on", (await page.textContent("#importHint")) === "Opening the link…"
+    && (await page.textContent("#importGoBtn")) === "Finding places…", await page.textContent("#importHint"));
+  await page.waitForSelector("#importPick:not([hidden]) .import-row", { timeout: 8000 });
+  check("and then shows what it found", (await page.textContent("#importHint")).startsWith("Italy: 5 places"));
+  await page.fill("#importLink", "https://maps.app.goo.gl/Gone");
+  await page.click("#importGoBtn");
+  await page.waitForSelector("#importHint.is-error");
+  check("a dead link says what Google answered", (await page.textContent("#importHint")).includes("Google answered 404"), await page.textContent("#importHint"));
+  await page.click("#cancelImportBtn");
 
   // ---- a proxy that can't be reached says so ----
   await page.route(PROXY + "/**", (route) => route.abort());
