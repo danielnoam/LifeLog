@@ -9,10 +9,10 @@
 // lifelog.json: a build older than this one merging that file would drop any
 // root key it doesn't know, and the deletion would then win everywhere.
 (function () {
-  let state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader;
+  let state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader, activatable, updateFilterbarVisibility;
 
   function init(ctx) {
-    ({ state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader } = ctx);
+    ({ state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader, activatable, updateFilterbarVisibility } = ctx);
   }
 
   // ---------- pure: cleaning, dates, ordering (test/travel.test.js) ----------
@@ -406,33 +406,29 @@
     if (changedSince) scheduleSave(800);
   }
 
-  // ---------- which trip is open, and how it's shown (this device's) ----------
+  // ---------- which trip is shown (this device's, like the tab you're on) ----------
   const UI_KEY = "lifelog-travel-ui";
-  // A trip's three ways to look at it (0.242.0).
-  const MODES = [["time", "By time"], ["area", "By area"], ["map", "Map"]];
-  let openTripId = null, tripMode = "time";
+  // A trip's three ways to look at it: the tab's modes (app.js VIEW_MODES).
+  const MODES = [["time", "By time", "◷"], ["area", "By area", "◎"], ["map", "Map", "⌖"]];
+  const mode = () => (state && state.travelMode) || "time";
+  let openTripId = null;
   // The map's day ("all", a date, or "" for no day), the place picked on it,
   // and whether the rows are out to be dragged: all for this visit only.
   let mapDay = "all", selectedId = null, arranging = false;
-  try {
-    const ui = JSON.parse(localStorage.getItem(UI_KEY) || "{}");
-    openTripId = ui.trip || null;
-    if (MODES.some(([k]) => k === ui.mode)) tripMode = ui.mode;
-  } catch (e) {}
-  function saveUi() {
-    try { localStorage.setItem(UI_KEY, JSON.stringify({ trip: openTripId, mode: tripMode })); } catch (e) {}
-  }
+  try { openTripId = JSON.parse(localStorage.getItem(UI_KEY) || "{}").trip || null; } catch (e) {}
   function setOpenTrip(id) {
     openTripId = id || null;
     mapDay = "all"; selectedId = null; arranging = false;
-    saveUi();
+    try { localStorage.setItem(UI_KEY, JSON.stringify({ trip: openTripId })); } catch (e) {}
   }
-  const openTrip = () => (openTripId ? findTrip(openTripId) : null);
+  // The trip picked in the chips, else the one under way or coming up next.
+  const openTrip = () => (openTripId && findTrip(openTripId)) || sortTrips(trips(), today())[0] || null;
   const reducedMotion = () => !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 
   // ---------- the tab ----------
   function renderTravel(c) {
     if (!doc) {
+      syncTripChips(null);
       c.appendChild(el("p", "travel-loading muted", "Loading your trips…"));
       ensureLoaded().then(() => { if (state.view === "travel") render(); });
       return;
@@ -442,72 +438,81 @@
     if (Date.now() - loadedAt > 60000 && !changedSince && !loading && !arranging) {
       ensureLoaded(true).then(() => { if (state.view === "travel") render({ keepSnapshots: true }); });
     }
+    if (mode() !== "time") arranging = false;
     const trip = openTrip();
-    if (trip) renderTrip(c, trip);
-    else { if (openTripId) setOpenTrip(null); renderTripList(c); }
+    syncTripChips(trip);
+    if (trip) { renderTrip(c, trip); return; }
+    c.appendChild(emptyState({
+      glyph: "✈︎",
+      title: "No trips yet",
+      body: "Plan a trip: the places you want to go, and which day you'll go to each — as tightly or as loosely as you like.",
+      action: "Plan a trip",
+      onAction: () => openTripModal(null),
+    }));
+    if (loadError) c.appendChild(el("p", "hint", "Couldn't reach GitHub — showing the trips saved on this device"));
   }
 
-  function renderTripList(c) {
-    if (!trips().length) {
-      c.appendChild(emptyState({
-        glyph: "✈︎",
-        title: "No trips yet",
-        body: "Plan a trip: the places you want to go, and which day you'll go to each — as tightly or as loosely as you like.",
-        action: "Plan a trip",
-        onAction: () => openTripModal(null),
-      }));
-      if (loadError) c.appendChild(el("p", "hint", "Couldn't reach GitHub — showing the trips saved on this device"));
-      return;
+  // The trips are the tab's chip row (0.243.0), where the other tabs have
+  // their years and categories: one is shown at a time, ✎ edits it, + adds
+  // one. Under way and coming up first, past ones last (sortTrips).
+  function syncTripChips(shown) {
+    const group = $("#tripFilterGroup"), wrap = $("#tripFilter");
+    if (!group || !wrap) return;
+    const list = doc ? sortTrips(trips(), today()) : [];
+    group.hidden = !list.length;
+    wrap.replaceChildren();
+    for (const trip of list) {
+      const chip = el("span", "cat-chip trip-chip" + (shown && trip.id === shown.id ? " on" : ""));
+      activatable(chip, () => {
+        if (shown && trip.id === shown.id) return;
+        setOpenTrip(trip.id);
+        render();
+        window.scrollTo(0, 0);
+      });
+      chip.setAttribute("aria-pressed", String(!!(shown && trip.id === shown.id)));
+      const status = tripStatus(trip, today());
+      if (status === "now") chip.appendChild(el("span", "dot trip-now-dot"));
+      chip.appendChild(document.createTextNode(trip.name));
+      const edit = el("span", "chip-edit", "✎");
+      edit.title = "Edit trip";
+      activatable(edit, (ev) => { ev.stopPropagation(); openTripModal(trip); }, "Edit trip " + trip.name);
+      chip.appendChild(edit);
+      wrap.appendChild(chip);
     }
-    const t0 = today();
-    const list = el("div", "trip-list");
-    for (const trip of sortTrips(trips(), t0)) {
-      const places = placesOf(trip.id);
-      const card = el("button", "trip-card");
-      card.type = "button";
-      const head = el("span", "trip-card-head");
-      head.appendChild(el("span", "trip-card-name", trip.name));
-      const status = tripStatus(trip, t0);
-      if (status === "now") head.appendChild(el("span", "trip-badge is-now", "Now"));
-      else if (status === "upcoming") {
-        const n = dayNum(trip.start) - dayNum(t0);
-        head.appendChild(el("span", "trip-badge", n === 1 ? "Tomorrow" : `In ${n} days`));
-      }
-      card.appendChild(head);
-      const meta = [rangeLabel(trip.start, trip.end) || "No dates yet", placesCount(places.length)];
-      const planned = new Set(places.filter((p) => p.day).map((p) => p.day)).size;
-      if (planned) meta.push(planned === 1 ? "1 day planned" : `${planned} days planned`);
-      card.appendChild(el("span", "trip-card-meta", meta.join(" · ")));
-      card.onclick = () => { setOpenTrip(trip.id); render(); window.scrollTo(0, 0); };
-      list.appendChild(card);
-    }
-    c.appendChild(list);
+    const add = el("span", "cat-chip add-chip", "+");
+    add.title = "Plan a trip";
+    activatable(add, (ev) => { ev.stopPropagation(); openTripModal(null); }, "Plan a trip");
+    wrap.appendChild(add);
+    updateFilterbarVisibility();
   }
   const placesCount = (n) => (n === 1 ? "1 place" : `${n} places`);
+  function whenLabel(trip) {
+    const status = tripStatus(trip, today());
+    if (status === "now") return "under way";
+    if (status !== "upcoming") return "";
+    const n = dayNum(trip.start) - dayNum(today());
+    return n === 1 ? "tomorrow" : `in ${n} days`;
+  }
 
   function renderTrip(c, trip) {
     const places = placesOf(trip.id);
-    const head = el("div", "trip-head");
-    const back = el("button", "btn trip-back", "‹ Trips");
-    back.type = "button";
-    back.onclick = () => { setOpenTrip(null); render(); };
-    head.appendChild(back);
-    const titles = el("div", "trip-titles");
-    titles.appendChild(el("h2", "trip-name", trip.name));
-    titles.appendChild(el("p", "trip-range", [rangeLabel(trip.start, trip.end) || "No dates yet", placesCount(places.length)].join(" · ")));
-    head.appendChild(titles);
-    const imp = el("button", "btn btn-icon", "⇣");
-    imp.type = "button";
-    imp.title = "Import from Google Maps";
-    imp.setAttribute("aria-label", "Import from Google Maps");
-    imp.onclick = () => openImportModal(trip);
-    head.appendChild(imp);
-    const edit = el("button", "btn btn-icon", "✎");
-    edit.type = "button";
-    edit.title = "Edit trip";
-    edit.setAttribute("aria-label", "Edit trip");
-    edit.onclick = () => openTripModal(trip);
-    head.appendChild(edit);
+    const head = el("div", "trip-meta");
+    const when = whenLabel(trip);
+    head.appendChild(el("p", "trip-range", [rangeLabel(trip.start, trip.end) || "No dates yet", placesCount(places.length), when].filter(Boolean).join(" · ")));
+    if (arranging) {
+      head.appendChild(el("span", "trip-sort-hint", "Drag a place into order, or onto another day"));
+      const done = el("button", "btn btn-sm btn-primary", "Done");
+      done.type = "button";
+      done.onclick = () => { arranging = false; render({ keepSnapshots: true }); };
+      head.appendChild(done);
+      head.classList.add("is-sorting");
+    } else {
+      const imp = el("button", "btn btn-sm trip-import", "⇣ Import");
+      imp.type = "button";
+      imp.title = "Import from Google Maps";
+      imp.onclick = () => openImportModal(trip);
+      head.appendChild(imp);
+    }
     c.appendChild(head);
 
     if (!places.length && !trip.start) {
@@ -525,43 +530,13 @@
       c.appendChild(empty);
       return;
     }
-    c.appendChild(tripBar());
-    if (tripMode === "area") renderAreas(c, trip, places);
-    else if (tripMode === "map") renderMapMode(c, trip, places);
+    if (mode() === "area") renderAreas(c, trip, places);
+    else if (mode() === "map") renderMapMode(c, trip, places);
     else {
-      if (arranging) c.appendChild(el("p", "hint trip-arrange-hint", "Drag a place to change its order, or onto another day"));
       const wrap = el("div", "trip-days" + (arranging ? " is-arranging" : ""));
       for (const card of dayCards(trip, places, null)) wrap.appendChild(card);
       c.appendChild(wrap);
     }
-  }
-
-  function tripBar() {
-    const bar = el("div", "trip-bar");
-    const seg = el("div", "seg");
-    for (const [mode, label] of MODES) {
-      const btn = el("button", "seg-btn", label);
-      btn.type = "button";
-      btn.classList.toggle("active", tripMode === mode);
-      btn.setAttribute("aria-pressed", String(tripMode === mode));
-      btn.onclick = () => {
-        if (tripMode === mode) return;
-        tripMode = mode; arranging = false; selectedId = null;
-        saveUi();
-        render({ keepSnapshots: true });
-      };
-      seg.appendChild(btn);
-    }
-    bar.appendChild(seg);
-    if (tripMode === "time") {
-      const arrange = el("button", "btn trip-arrange", arranging ? "✓ Done" : "⇅ Arrange");
-      arrange.type = "button";
-      arrange.title = arranging ? "Done arranging" : "Arrange: drag places into order, or onto another day";
-      arrange.setAttribute("aria-pressed", String(arranging));
-      arrange.onclick = () => { arranging = !arranging; render({ keepSnapshots: true }); };
-      bar.appendChild(arrange);
-    }
-    return bar;
   }
 
   // The day cards: every day of the trip and No day yet, or with `only` set
@@ -654,19 +629,19 @@
     go.setAttribute("aria-label", `Open ${p.name} in Google Maps`);
     go.onclick = (ev) => ev.stopPropagation();
     row.appendChild(go);
-    if (tripMode === "map" && p.id === selectedId) row.classList.add("is-selected");
+    if (mode() === "map" && p.id === selectedId) row.classList.add("is-selected");
     // On the map, the first tap finds it there and a second opens it.
     row.onclick = () => {
-      if (tripMode === "map" && p.lat != null && selectedId !== p.id) selectPlace(p.id, "row");
+      if (mode() === "map" && p.lat != null && selectedId !== p.id) selectPlace(p.id, "row");
       else openPlaceModal(p);
     };
-    if (tripMode === "time") attachLongPress(row);
+    if (mode() === "time") attachLongPress(row);
     return row;
   }
 
   // ---------- arranging: drag rows into order, or onto another day ----------
-  // A long press on a row (the To-do list's gesture), or the Arrange button,
-  // puts every row out with a grip; then a row follows the finger across
+  // A long press on a row (the To-do list's gesture) puts every row out with
+  // a grip, until Done; then a row follows the finger across
   // the day cards. Listeners on the window, not a pointer capture, because
   // moving the row in the DOM drops a capture (NOTES.md, the To-do list).
   const LONG_PRESS_MS = 500;
@@ -674,7 +649,7 @@
     let timer = null, start = null;
     const cancel = () => { clearTimeout(timer); timer = null; start = null; };
     row.addEventListener("pointerdown", (ev) => {
-      if (ev.pointerType === "mouse" || ev.target.closest(".place-tick, .place-go")) return;
+      if (ev.button > 0 || ev.target.closest(".place-tick, .place-go")) return;
       start = { x: ev.clientX, y: ev.clientY };
       timer = setTimeout(() => {
         timer = null;
@@ -759,6 +734,14 @@
     return moved;
   }
 
+  // Escape, like Done. True when there was a sort to end.
+  function endSort() {
+    if (!arranging) return false;
+    arranging = false;
+    render({ keepSnapshots: true });
+    return true;
+  }
+
   // ---------- the map (Leaflet, loaded the first time it's wanted) ----------
   // Tiles are CARTO's basemaps from OpenStreetMap data: free for
   // non-commercial use with the credit shown, with a dark set for the dark
@@ -838,7 +821,7 @@
     const node = mapNode();
     if (!window.L || !window.L.map) {
       loadLeaflet()
-        .then(() => { if (state.view === "travel" && tripMode === "map") render({ keepSnapshots: true }); })
+        .then(() => { if (state.view === "travel" && mode() === "map") render({ keepSnapshots: true }); })
         .catch(() => { node.textContent = ""; node.appendChild(el("p", "trip-map-none", "Couldn't load the map — check your connection")); });
       return;
     }
@@ -1251,7 +1234,7 @@
   async function tripsForExport() { await ensureLoaded(); return JSON.parse(JSON.stringify(doc)); }
 
   const api = {
-    init, wire, renderTravel, ensureLoaded, flush, addTrip, addPlace, tripsForExport,
+    MODES, init, wire, renderTravel, endSort, ensureLoaded, flush, addTrip, addPlace, tripsForExport,
     openTripModal, closeTripModal, openPlaceModal, closePlaceModal, openImportModal, closeImportModal, importPlaces,
     // pure, for tests and the bridge
     sanitizeTrip, sanitizePlace, sanitizeDoc, tripDays, sortDay, tripStatus, sortTrips,

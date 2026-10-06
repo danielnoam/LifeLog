@@ -4,6 +4,25 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.243.0] - 2026-10-06
+
+### Changed
+- **Travel's trips are its chips.** Like the years and categories in the
+  other tabs, your trips sit in a row at the top: tap one to show it, ✎ to
+  edit it, + to plan a new one. The trip list and the trip's own header are
+  gone, so the plan gets the screen.
+- **By time, By area and Map are Travel's modes**, a swipe apart like the
+  other tabs' modes, and listed under Settings → Tabs. Travel opens on By
+  time, with By area to its left and Map to its right. Dragging the map
+  still moves the map.
+- **Sorting a trip's places is a long press.** Hold a place and the rows
+  come out with grips; drag them into order or onto another day, then
+  Done. The Arrange button is gone.
+- **The Ledger's recurring expenses look like the Timeline's In progress
+  and the Notebook's Favourites**: a "↻ Recurring" heading with a + to add
+  one, over a card of rows that read like the Ledger's own, with when each
+  is charged under its name.
+
 ## [0.242.0] - 2026-10-05
 
 ### Added

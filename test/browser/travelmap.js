@@ -1,8 +1,9 @@
 // Travel's import, views and arranging (0.242.0): a Google Maps list
 // brought in through the proxy routes (faked here) and picked by area, a
 // second import that can't add the same place twice, a single shared place,
-// By area, dragging a place onto a day, and the map with its day chips, pins
-// and pin-to-row link, at phone and desktop width.
+// a long press into sorting and a place dragged onto a day, the modes by
+// swipe, By area, and the map with its day chips, pins and pin-to-row link,
+// at phone and desktop width.
 const { chromium, BASE } = require("./harness");
 const { googleList, LIST_ID } = require("../fixtures/google-list.js");
 let pass = 0, fail = 0;
@@ -49,10 +50,10 @@ const SEED = {
   await page.fill("#tripStart", "2027-04-10");
   await page.fill("#tripEnd", "2027-04-11");
   await page.evaluate(() => document.querySelector("#tripForm").requestSubmit());
-  await page.waitForSelector(".trip-head");
+  await page.waitForSelector(".trip-chip.on");
 
   // ---- import a list ----
-  await page.click('.trip-head [aria-label="Import from Google Maps"]');
+  await page.click(".trip-import");
   check("the import sheet opens", await page.isVisible("#importPlacesModal"));
   await page.fill("#importLink", "https://maps.app.goo.gl/ShareCode1?g_st=ac");
   await page.click("#importGoBtn");
@@ -74,7 +75,7 @@ const SEED = {
   check("its ↗ opens Google's page for it", (await page.getAttribute(`.place-row[data-id="${duomo.id}"] .place-go`, "href")) === "https://www.google.com/maps?ftid=0x1334f4aad1240001:0x2a");
 
   // ---- the same list again: what's in the trip can't be added twice ----
-  await page.click('.trip-head [aria-label="Import from Google Maps"]');
+  await page.click(".trip-import");
   await page.fill("#importLink", "https://maps.app.goo.gl/ShareCode1");
   await page.click("#importGoBtn");
   await page.waitForSelector("#importPick:not([hidden]) .import-row");
@@ -97,9 +98,15 @@ const SEED = {
   await page.waitForTimeout(200);
   check("and it's added", (await state()).places.length === 4);
 
-  // ---- arranging: drag a place onto Day 1 ----
-  await page.click(".trip-arrange");
-  check("Arrange puts grips on the rows", (await page.$$(".place-row.is-arrange .place-grip")).length === 4);
+  // ---- sorting: a long press, then drag a place onto Day 1 ----
+  const held = await page.locator(".place-row", { hasText: "Duomo" }).boundingBox();
+  await page.mouse.move(held.x + held.width / 2, held.y + held.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(650);
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  check("a long press puts grips on the rows", (await page.$$(".place-row.is-arrange .place-grip")).length === 4);
+  check("and doesn't open the place", await page.isHidden("#placeModal"));
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + "/travel-arrange-phone.png" });
   const src = await page.locator(".trip-day[data-day=''] .place-row", { hasText: "Colosseo" }).boundingBox();
   const dst = await page.locator('.trip-day[data-day="2027-04-10"]').boundingBox();
@@ -112,11 +119,23 @@ const SEED = {
   check("dropped on Day 1, it's on Day 1", d.places.find((p) => p.name === "Colosseo").day === "2027-04-10", d.places.map((p) => [p.name, p.day]));
   const loose = d.places.filter((p) => !p.day).map((p) => p.order);
   check("No day yet's places are numbered in order again", JSON.stringify(loose) === "[0,1,2]", loose);
-  await page.click(".trip-arrange");
+  await page.click(".trip-meta .btn-primary");
   check("Done puts the ticks back", (await page.$$(".place-row .place-tick")).length === 4);
 
+  // ---- the modes: By area · By time · Map, a swipe apart ----
+  const swipe = async (dx) => {
+    const box = await page.locator("#viewBody").boundingBox();
+    const x0 = 210, y0 = box.y + 120;
+    await page.mouse.move(x0, y0);
+    await page.mouse.down();
+    for (let i = 1; i <= 10; i++) { await page.mouse.move(x0 + (dx * i) / 10, y0 + i * 0.3); await page.waitForTimeout(16); }
+    await page.mouse.up();
+    await page.waitForTimeout(500);
+  };
+  await swipe(220);
+
   // ---- By area ----
-  await page.click('.trip-bar .seg-btn:has-text("By area")');
+  check("a swipe right from By time is By area", (await page.$$(".trip-area")).length > 0);
   if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + "/travel-area-phone.png" });
   const areaHeads = await page.$$eval(".trip-area h3 .mc-left", (n) => n.map((x) => x.textContent));
   check("By area groups the places by town", JSON.stringify(areaHeads.slice().sort()) === JSON.stringify(["Milano", "Near Pantheon"]), areaHeads);
@@ -124,10 +143,14 @@ const SEED = {
   check("each row says its day", JSON.stringify(tags) === JSON.stringify(["Day 1", "No day", "No day", "No day"]), tags);
 
   // ---- the map ----
-  await page.click('.trip-bar .seg-btn:has-text("Map")');
+  await swipe(-220);
+  await swipe(-220);
   await page.waitForSelector(".trip-map.leaflet-container .trip-pin", { timeout: 8000 });
   check("every place with a location has a pin", (await page.$$(".trip-pin")).length === 4);
   const side = await page.locator(".trip-map-side").boundingBox();
+  const before = await page.$$(".trip-area, .trip-map");
+  await (async () => { const m = await page.locator(".trip-map").boundingBox(); await page.mouse.move(m.x + 200, m.y + 150); await page.mouse.down(); for (let i = 1; i <= 10; i++) await page.mouse.move(m.x + 200 - i * 20, m.y + 150); await page.mouse.up(); await page.waitForTimeout(500); })();
+  check("dragging the map pans it rather than changing mode", (await page.$$(".trip-map.leaflet-container")).length === 1 && before.length === 1);
   check("on a phone the map is the top half, full width", side.width > 360 && side.height > 380 && side.height < 480, side);
   await page.evaluate(() => window.scrollTo(0, 400));
   await page.waitForTimeout(100);
@@ -174,7 +197,7 @@ const SEED = {
 
   // ---- a proxy that can't be reached says so ----
   await page.route(PROXY + "/**", (route) => route.abort());
-  await page.click('.trip-head [aria-label="Import from Google Maps"]');
+  await page.click(".trip-import");
   await page.fill("#importLink", "https://maps.app.goo.gl/Other");
   await page.click("#importGoBtn");
   await page.waitForSelector("#importHint.is-error");

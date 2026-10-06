@@ -2546,31 +2546,54 @@
     // down one of its occurrences.
     const ended = bills.filter((r) => r.endDate && r.endDate < today);
     if (!active.length && !ended.length) return;
-    const card = el("div", "recur-card");
+    // Dressed as the blocks other tabs pin above their years (0.243.0), the
+    // Timeline's In progress and the Notebook's Favourites: a heading with a
+    // glyph, its count and a +, over a card holding the rows.
+    const block = el("div", "year-block recur-block");
     const head = el("div", "year-head");
-    const h2 = el("h2", null, "Recurring expenses");
+    const h2 = el("h2", null, "↻ Recurring");
     h2.dataset.jumpLabel = "Recurring"; // a third of a phone's bottom bar
     head.appendChild(h2);
     head.appendChild(el("span", "ycount", `${active.length} active`));
-    card.appendChild(head);
+    const add = el("button", "month-add-btn", "+");
+    add.type = "button";
+    add.title = "Add a recurring expense";
+    add.setAttribute("aria-label", "Add a recurring expense");
+    add.onclick = () => openRecurringModal(null);
+    head.appendChild(add);
+    block.appendChild(head);
+    const card = el("div", "month-card recur-card");
+    block.appendChild(card);
 
+    // A row reads like the Ledger's own (the category pill, what it is, the
+    // amount), with when it's charged under the name, the way In progress
+    // puts "since" under its titles.
+    const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const shortDate = (d) => `${+d.slice(8, 10)} ${MONTHS_SHORT[+d.slice(5, 7) - 1]} ${d.slice(0, 4)}`;
     const addRow = (r, isEnded, into) => {
-      const row = el("div", "recur-row" + (isEnded ? " is-ended" : ""));
-      const bar = el("div", "bar");
-      bar.style.background = financeColorOf(r.category);
-      row.appendChild(bar);
-      const badge = el("span", "recur-badge", "↻ " + r.interval);
-      if (r.interval === "monthly") badge.title = "Charged on the " + ordinal(chargeDayOf(r));
-      row.appendChild(badge);
+      const row = el("div", "entry finance-entry recur-row" + (isEnded ? " is-ended" : ""));
+      const color = financeColorOf(r.category);
+      const chip = el("span", "entry-cat");
+      chip.style.background = color + "22";
+      chip.style.color = color;
+      const dot = el("span", "dot");
+      dot.style.background = color;
+      chip.appendChild(dot);
+      chip.appendChild(document.createTextNode(r.category));
+      row.appendChild(chip);
+      const text = el("span", "recur-text");
       const t = el("span", "etitle", r.note || r.category);
       t.title = r.note || r.category;
-      row.appendChild(t);
-      row.appendChild(el("span", "ecat", r.category));
-      if (isEnded) row.appendChild(el("span", "recur-badge", "ended " + r.endDate));
+      text.appendChild(t);
+      const when = [r.interval.charAt(0).toUpperCase() + r.interval.slice(1)];
+      if (r.interval === "monthly") when[0] += ", on the " + ordinal(chargeDayOf(r));
+      if (isEnded) when.push("ended " + shortDate(r.endDate));
       else if (isPausedOn(r, today)) {
         const p = r.pauses[livePauseIndex(r, today)];
-        row.appendChild(el("span", "pause-tag", p.to ? "paused until " + p.to : "paused"));
+        when.push(p.to ? "paused until " + shortDate(p.to) : "paused");
       }
+      text.appendChild(el("span", "recur-when", when.join(" · ")));
+      row.appendChild(text);
       // A foreign plan reads the same way its charges do in the Ledger: the
       // sum you're billed beside what it comes to.
       const rfx = fxOf(r);
@@ -2580,7 +2603,7 @@
           + " period, at " + rfx.rate + " " + homeCurrency() + " per " + rfx.currency;
         row.appendChild(tag);
       }
-      row.appendChild(el("span", "famount fnegative", "-" + formatMoney(r.amount)));
+      row.appendChild(el("span", "famount fnegative", formatMoney(r.amount)));
       row.onclick = () => openRecurringModal(r);
       (into || card).appendChild(row);
     };
@@ -2637,7 +2660,7 @@
       card.appendChild(sub);
       byProject(ended.slice().sort((a, b) => b.endDate.localeCompare(a.endDate)), true);
     }
-    root.appendChild(card);
+    root.appendChild(block);
   }
 
   // ---------- finance categories management ----------

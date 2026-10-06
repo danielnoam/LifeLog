@@ -16,6 +16,24 @@ what was decided against and why.
 
 ---
 
+- **Travel's chips and modes, and the recurring block (0.243.0).**
+  - *Trips are the chip row.* `#tripFilterGroup` sits in the filterbar,
+    built by travel.js (`syncTripChips`) on every render, since the trips
+    load late from their own file; updateFilterbarVisibility hides the
+    other rows on Travel and this one everywhere else. One trip shows at a
+    time (single-select, unlike categories): the one picked, else the one
+    under way or coming up. That took the trip list's cards with it.
+  - *The views are VIEW_MODES.travel* after all (0.242.0 kept them off it
+    so the swipe wouldn't fight the map; `.no-swipe` answered that). The
+    default order puts By time in the middle so it's where the tab opens.
+  - *Sorting is a long press only*, as Daniel asked, with a Done in the
+    line over the plan (and Escape). Mouse long-presses count too, so a
+    computer can still sort.
+  - *Recurring expenses* became a `year-block` like In progress and
+    Favourites; its card keeps `.recur-card` (the recurproject suite reads
+    its rows). Rows are `.finance-entry` now, so they share the Ledger's
+    pill and amount column.
+
 - **Travel's import, map and arranging (0.242.0).**
   - *The Google list endpoint is unofficial.* Google has no API for saved
     lists, and signing in with Google doesn't help (no scope reads them).
@@ -44,8 +62,8 @@ what was decided against and why.
     rate limit for a label. The walk order is nearest-neighbour from the
     place furthest from the middle: not optimal, but never backtracks
     across the town to start.
-  - *Modes on the trip page, not VIEW_MODES.* By time / By area / Map are
-    a `.seg` on the trip page, kept per device in lifelog-travel-ui. As
+  - *Modes on the trip page, not VIEW_MODES* (until 0.243.0, see above).
+    By time / By area / Map were a `.seg` on the trip page. As
     VIEW_MODES they'd apply to the trip list too, and the mode swipe would
     fight the map's own panning. For the same reason the map's side and
     rows being arranged carry `.no-swipe`, which attachSwipe and

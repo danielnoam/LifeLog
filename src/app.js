@@ -148,7 +148,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.242.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.243.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -198,7 +198,7 @@
     try {
       localStorage.setItem(UI_KEY, JSON.stringify({
         view: state.view, notesMode: state.notesMode, timelineMode: state.timelineMode,
-        backlogMode: state.backlogMode, financeMode: state.financeMode, scrollY: window.scrollY,
+        backlogMode: state.backlogMode, financeMode: state.financeMode, travelMode: state.travelMode, scrollY: window.scrollY,
       }));
     } catch (e) {}
   }
@@ -417,6 +417,8 @@
     // thing — the entries and their stats, the ledger and its summary — or,
     // for Notes, the two things you write yourself.
     notesMode: "notes",
+    // Travel's: a trip by time, by area or on the map (0.243.0).
+    travelMode: "time",
     financeActiveProjects: new Set(),
     // Which foldable backlog bands are open, keyed "<category>|<band>". In
     // memory rather than in saveUiState on purpose: a fold is a look, not a
@@ -666,6 +668,15 @@
       get: () => state.financeMode,
       set: (m) => { state.financeMode = m; },
     },
+    // A trip's three views (0.243.0). They were a switch on the trip page in
+    // 0.242.0; as modes they swipe and get the whole screen. The map keeps
+    // its own drags: its side is .no-swipe.
+    travel: {
+      key: "travel",
+      modes: Travel.MODES,
+      get: () => state.travelMode,
+      set: (m) => { state.travelMode = m; },
+    },
   };
   // ---------- the order of tabs and modes, and where a tab opens ----------
   // Settings → Tabs (0.188.0). Both orders belong to this device, like
@@ -679,7 +690,7 @@
   // tab has always opened on in the middle, so nothing opens differently
   // until you change it. With two modes the default is simply the one you
   // choose, the first until you do.
-  const DEFAULT_MODE_ORDER = { notes: ["habits", "notes"], backlog: ["upcoming", "entries", "discover"] };
+  const DEFAULT_MODE_ORDER = { notes: ["habits", "notes"], backlog: ["upcoming", "entries", "discover"], travel: ["area", "time", "map"] };
   // With more than three there's no middle — and with fewer, the first may
   // not be the one it has always opened on — so a tab opens on your choice
   // or, until you make one, on this.
@@ -2745,9 +2756,13 @@
   function updateFilterbarVisibility() {
     const bar = $("#filterbar");
     if (!bar) return;
-    // Trips have nothing these chips narrow: no categories, and a trip is
-    // its own span of days rather than something filed under a year.
-    bar.hidden = state.view === "travel" || ($("#yearFilterGroup").hidden && $("#catFilterGroup").hidden
+    // Travel's one row is its trips (0.243.0), built by travel.js: a trip
+    // has no categories, and is its own span of days rather than something
+    // filed under a year.
+    const travel = state.view === "travel";
+    if (travel) for (const id of ["#yearFilterGroup", "#catFilterGroup", "#kindFilterGroup", "#projFilterGroup"]) $(id).hidden = true;
+    else $("#tripFilterGroup").hidden = true;
+    bar.hidden = travel ? $("#tripFilterGroup").hidden : ($("#yearFilterGroup").hidden && $("#catFilterGroup").hidden
       && $("#kindFilterGroup").hidden && $("#projFilterGroup").hidden);
   }
 
@@ -4013,6 +4028,7 @@
       if (Boards.handleKey(e)) return;
       if (e.key === "Escape") {
         if (SettingsUI.settingsBack()) return;
+        if (state.view === "travel" && Travel.endSort()) return;
         Journal.closeEntryModal(); Journal.closeAchModal(); Journal.cancelCategoryModal(); Backlog.closeBacklogModal();
         Backlog.closePickModal(); Backlog.closeOutTodaySheet(); Wheel.closeWheel();
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
@@ -4936,7 +4952,7 @@
   });
   Recap.init({ state, $, el, toast, MONTHS, prefersReducedMotion });
   Boards.init({ state, $, el, uid, toast, emptyState, render, Storage, download: IO.download, bulkCheckbox, toggleBulkItem, attachLongPressSelect });
-  Travel.init({ state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader });
+  Travel.init({ state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader, activatable, updateFilterbarVisibility });
 
   Notes.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy,

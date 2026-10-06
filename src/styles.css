@@ -1207,9 +1207,9 @@ select:focus { outline: none; border-color: var(--accent); }
 /* The Timeline's In progress card (0.218.0): a year block's heading over
    one card of rows, each the title with how long it's been going, a ↩ to put
    it back and a ✓ Done to log it. */
-.progress-block { margin-bottom: 28px; }
-.progress-block .year-head { position: static; }
-.progress-block .year-head .month-add-btn { margin-left: auto; }
+.progress-block, .recur-block { margin-bottom: 28px; }
+.progress-block .year-head, .recur-block .year-head { position: static; }
+.progress-block .year-head .month-add-btn, .recur-block .year-head .month-add-btn { margin-left: auto; }
 .progress-card { display: flex; flex-direction: column; gap: 2px; }
 .progress-row { align-items: center; }
 .progress-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -1251,13 +1251,15 @@ img.cover-loading { opacity: 0; }
 .finance-entry .famount { font-weight: 700; font-variant-numeric: tabular-nums; flex: 0 0 auto; }
 .famount.fnegative { color: var(--danger); }
 .recur-badge { font-size: var(--fs-xs); color: var(--text-dim); flex: 0 0 auto; }
-.recur-card { display: flex; flex-direction: column; gap: 2px; margin-bottom: 14px; }
-.recur-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--r-md); font-size: var(--fs-sm); color: var(--text); }
-.recur-row:hover { background: var(--bg-elev-2); }
+.recur-card { display: flex; flex-direction: column; gap: 2px; }
+.recur-row { cursor: pointer; }
+.recur-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.recur-text .etitle { flex: none; }
+.recur-when { font-size: var(--fs-2xs); color: var(--text-dim); }
 /* Stopped or superseded plans — still listed (and openable) so their
    history stays reachable, but visibly out of force. */
 .recur-row.is-ended { opacity: .58; }
-.recur-subhead { font-size: var(--fs-xs); color: var(--text-dim); margin: 8px 0 2px; padding: 0 8px; }
+.recur-subhead { font-size: var(--fs-xs); color: var(--text-dim); margin: var(--space-8) 0 var(--space-2); padding: var(--space-8) var(--space-8) 0; border-top: 1px solid var(--border); }
 .rec-occurrences { margin-top: 8px; }
 .rec-occ-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .rec-occ-head .hint { margin: 0; }
@@ -3476,28 +3478,12 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 /* Travel (0.241.0): the trip list, a trip's days and its place rows. Day
    cards are month cards, place rows are entry rows; only what they add is
    here. */
-.trip-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-12); }
-.trip-card {
-  display: flex; flex-direction: column; align-items: stretch; gap: var(--space-6); text-align: left;
-  background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--r-card);
-  padding: 14px 16px; color: var(--text); font: inherit; cursor: pointer;
-  transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
-}
-.trip-card:hover { background: var(--bg-elev-2); border-color: var(--border-strong); }
-.trip-card-head { display: flex; align-items: center; gap: var(--space-8); }
-.trip-card-name { flex: 1; min-width: 0; font-size: var(--fs-read); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.trip-card-meta { font-size: var(--fs-xs); color: var(--text-dim); font-variant-numeric: tabular-nums; }
-.trip-badge {
-  flex-shrink: 0; font-size: var(--fs-2xs); color: var(--text-dim); background: var(--bg-elev-2);
-  border: 1px solid var(--border); padding: 1px 8px; border-radius: var(--r-pill); white-space: nowrap;
-}
-.trip-badge.is-now { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
-
-.trip-head { display: flex; align-items: center; gap: var(--space-12); margin-bottom: var(--space-16); max-width: 820px; }
-.trip-titles { flex: 1; min-width: 0; }
-.trip-name { margin: 0; font-size: var(--fs-2xl); font-weight: 600; overflow-wrap: anywhere; }
-.trip-range { margin: var(--space-2) 0 0; font-size: var(--fs-sm); color: var(--text-dim); font-variant-numeric: tabular-nums; }
-.trip-back { flex-shrink: 0; }
+.trip-meta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-8); margin-bottom: var(--space-12); max-width: 820px; min-height: 32px; }
+.trip-meta .trip-range { flex: 1; min-width: 0; margin: 0; }
+.trip-range { font-size: var(--fs-sm); color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.trip-meta.is-sorting { position: sticky; top: var(--topbar-h, 0px); z-index: 4; background: var(--bg); padding: var(--space-6) 0; }
+.trip-sort-hint { flex-basis: 100%; order: 3; font-size: var(--fs-xs); color: var(--text-dim); }
+.trip-chip .trip-now-dot { background: var(--success); }
 .trip-days { display: flex; flex-direction: column; gap: var(--space-12); max-width: 820px; }
 .trip-day.is-today { border-color: var(--accent); }
 .trip-day-empty { margin: var(--space-4) 0 0; font-size: var(--fs-xs); color: var(--text-dim); }
@@ -3524,24 +3510,17 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .place-go:hover { color: var(--accent); }
 .place-modal-trip { margin-top: -8px; }
 @media (prefers-reduced-motion: reduce) {
-  .trip-card, .place-tick { transition: none; }
+  .place-tick { transition: none; }
 }
 @media (max-width: 720px) {
-  .trip-list { grid-template-columns: 1fr; gap: var(--space-8); }
-  .trip-name { font-size: var(--fs-title); }
   .place-row { padding-top: 10px; padding-bottom: 10px; }
-  .trip-head .btn { min-width: 44px; min-height: 44px; }
+  .trip-meta .btn { min-height: 44px; }
 }
-html.force-mobile .trip-head .btn { min-width: 44px; min-height: 44px; }
-html.force-mobile .trip-list { grid-template-columns: 1fr; gap: var(--space-8); }
-html.force-mobile .trip-name { font-size: var(--fs-title); }
 html.force-mobile .place-row { padding-top: 10px; padding-bottom: 10px; }
+html.force-mobile .trip-meta .btn { min-height: 44px; }
 
 /* Travel (0.242.0): By time / By area / Map, arranging rows, the map and the
    Google Maps import. */
-.trip-bar { display: flex; align-items: center; gap: var(--space-8); margin-bottom: var(--space-12); max-width: 820px; }
-.trip-bar .trip-arrange { margin-left: auto; }
-.trip-arrange-hint { margin: 0 0 var(--space-12); }
 .trip-empty-import { margin-top: var(--space-8); }
 .trip-area .mc-left { font-weight: 600; }
 .place-tag.is-loose { color: var(--text-dim); font-weight: 400; }
@@ -3613,16 +3592,10 @@ html.force-mobile .place-row { padding-top: 10px; padding-bottom: 10px; }
   .trip-map-side { order: 0; top: var(--topbar-h, 0px); z-index: 5; height: 48vh; background: var(--bg); padding: var(--space-4) 0 var(--space-8); margin-top: calc(-1 * var(--space-4)); }
   .trip-map-list { width: 100%; }
   .trip-map-list .place-row { scroll-margin-top: calc(var(--topbar-h, 0px) + 48vh + var(--space-12)); }
-  .trip-bar .seg { flex: 1; }
-  .trip-bar .seg-btn { flex: 1; min-height: 44px; }
-  .trip-bar .trip-arrange { min-height: 44px; }
   .place-grip { padding: var(--space-8); margin: calc(-1 * var(--space-8)) 0; }
 }
 html.force-mobile .trip-map-layout { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-12); }
 html.force-mobile .trip-map-side { order: 0; top: var(--topbar-h, 0px); z-index: 5; height: 48vh; background: var(--bg); padding: var(--space-4) 0 var(--space-8); margin-top: calc(-1 * var(--space-4)); }
 html.force-mobile .trip-map-list { width: 100%; }
 html.force-mobile .trip-map-list .place-row { scroll-margin-top: calc(var(--topbar-h, 0px) + 48vh + var(--space-12)); }
-html.force-mobile .trip-bar .seg { flex: 1; }
-html.force-mobile .trip-bar .seg-btn { flex: 1; min-height: 44px; }
-html.force-mobile .trip-bar .trip-arrange { min-height: 44px; }
 html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(--space-8)) 0; }

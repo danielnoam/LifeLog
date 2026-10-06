@@ -1,4 +1,4 @@
-// The Travel tab (0.241.0): a trip from its empty state, places on a day
+// The Travel tab (0.241.0; trips as chips 0.243.0): a trip from its empty state, places on a day
 // with and without a time and with no day at all, the order a day shows
 // them in, ticking one as visited, a reload keeping all of it (travel.json's
 // device cache), Undo after a delete, and the trip list's card.
@@ -22,11 +22,11 @@ const SEED = {
     localStorage.setItem("lifelog-cache-v1", JSON.stringify(seed));
   }, SEED);
   await page.reload({ waitUntil: "networkidle" });
-  await page.waitForSelector(".empty-state, .trip-list", { timeout: 8000 });
+  await page.waitForSelector(".empty-state, .trip-chip", { timeout: 8000 });
   const state = () => page.evaluate(() => window.LifeLogTravel.tripsForExport());
 
   check("the Travel tab is in the bar", await page.isVisible('.tab[data-view="travel"]'));
-  check("no year or category chips over it", await page.evaluate(() => document.querySelector("#filterbar").hidden));
+  check("no chips at all before there's a trip", await page.evaluate(() => document.querySelector("#filterbar").hidden));
   check("an empty state offers a trip", (await page.textContent("#viewBody")).includes("No trips yet"));
 
   await page.click("#viewBody .btn-primary");
@@ -34,8 +34,10 @@ const SEED = {
   await page.fill("#tripStart", "2027-04-10");
   await page.fill("#tripEnd", "2027-04-12");
   await page.evaluate(() => document.querySelector("#tripForm").requestSubmit());
-  await page.waitForSelector(".trip-head");
-  check("saving opens the trip", (await page.textContent(".trip-name")) === "Rome");
+  await page.waitForSelector(".trip-chip.on");
+  check("saving shows the trip, picked in the chips", (await page.textContent(".trip-chip.on")).startsWith("Rome"));
+  check("the chip row is the trips alone", await page.evaluate(() => !document.querySelector("#filterbar").hidden
+    && document.querySelector("#yearFilterGroup").hidden && document.querySelector("#catFilterGroup").hidden));
   const heads = await page.$$eval(".trip-day h3 .mc-left", (n) => n.map((x) => x.textContent));
   check("every day of the trip, then No day yet", JSON.stringify(heads) === JSON.stringify(["Day 1 · Sat 10 Apr", "Day 2 · Sun 11 Apr", "Day 3 · Mon 12 Apr", "No day yet"]), heads);
 
@@ -71,8 +73,8 @@ const SEED = {
 
   await page.waitForTimeout(1200); // the save waits a moment after the last change
   await page.reload({ waitUntil: "networkidle" });
-  await page.waitForSelector(".trip-head", { timeout: 8000 });
-  check("a reload comes back to the open trip", (await page.textContent(".trip-name")) === "Rome");
+  await page.waitForSelector(".trip-chip.on", { timeout: 8000 });
+  check("a reload comes back to the trip", (await page.textContent(".trip-chip.on")).startsWith("Rome"));
   check("with its places", (await page.$$(".place-row")).length === 3);
 
   await page.click(".trip-day:last-child .place-row");
@@ -81,15 +83,24 @@ const SEED = {
   await page.click(".toast-action");
   check("Undo puts it back", (await page.$$(".place-row")).length === 3);
 
-  await page.click(".trip-back");
-  const card = await page.textContent(".trip-card");
-  check("the trip list's card", card.includes("Rome") && card.includes("10–12 Apr 2027") && card.includes("3 places") && card.includes("1 day planned"), card);
+  check("the line over the plan", (await page.textContent(".trip-range")).startsWith("10–12 Apr 2027 · 3 places"), await page.textContent(".trip-range"));
 
-  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + "/travel-list-phone.png" });
-  await page.click(".trip-card");
-  await page.waitForSelector(".trip-head");
+  // A second trip from the chips' +, then back to the first by its chip.
+  await page.click("#tripFilter .add-chip");
+  await page.fill("#tripName", "Lisbon");
+  await page.evaluate(() => document.querySelector("#tripForm").requestSubmit());
+  await page.waitForTimeout(200);
+  check("a new trip is picked as it's made", (await page.textContent(".trip-chip.on")).startsWith("Lisbon"));
+  const chips = await page.$$eval(".trip-chip", (n) => n.map((x) => x.firstChild.textContent));
+  check("dated trips before undated ones", JSON.stringify(chips) === '["Rome","Lisbon"]', chips);
+  await page.click('.trip-chip:has-text("Rome")');
+  check("a chip shows its trip", (await page.$$(".place-row")).length === 3);
+  await page.click('.trip-chip:has-text("Lisbon") .chip-edit');
+  check("✎ edits that trip", await page.isVisible("#tripModal") && (await page.inputValue("#tripName")) === "Lisbon");
+  await page.click("#cancelTripBtn");
+
+  if (process.env.SHOTS) await page.screenshot({ path: process.env.SHOTS + "/travel-trip-phone.png", fullPage: true });
   if (process.env.SHOTS) {
-    await page.screenshot({ path: process.env.SHOTS + "/travel-trip-phone.png", fullPage: true });
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.waitForTimeout(300);
     await page.screenshot({ path: process.env.SHOTS + "/travel-trip-desktop.png", fullPage: true });
