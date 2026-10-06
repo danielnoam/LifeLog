@@ -1072,7 +1072,9 @@
     const n = findList(id);
     if (!n) return;
     readingId = id;
-    const { title, body } = splitTitle(n);
+    let { title, body } = splitTitle(n);
+    // A one-line note has no title to split off: the line is the note.
+    if (!n.title && kindOf(n) === "text" && !body) { body = title; title = "Note"; }
     $("#noteReaderTitle").textContent = title;
     const meta = [n.category, "Written " + formatEdited(n.createdAt || n.updatedAt), n.editedAt ? "edited " + formatEdited(n.editedAt) : ""]
       .filter(Boolean).join(" · ");

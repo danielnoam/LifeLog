@@ -353,7 +353,10 @@ and never blaming.
     their row, and the row is that tall;
   - rating stars, 22 wide: they sit 4px apart;
   - the habit name, 41 tall, and the year header's achievement pills, 24.
-  The Boards editor hasn't been measured.
+  The Boards editor hasn't been measured. Re-measured in 0.245.1 across
+  every tab and sheet (the audit in /mnt/project-files/audits): nothing
+  new under 32 except the ones above; the Backlog's "Hide unreleased" is
+  28 tall and sits between rows whose ✓ already reach into the gap.
 - **Focus:** one global `:focus-visible` ring (2px accent, 2px offset)
   covers every button, link and field (Now). Don't remove an outline without
   replacing it.

@@ -587,10 +587,15 @@
           const n = markOf(h, date);
           const done = isDone(h, date);
           if (h.avoid) {
-            // Kept days carry the colour, as a habit you do; a slip is the
-            // mark that stands out.
-            if (done) { cell.classList.add("is-done"); cell.style.background = n ? h.color + "66" : h.color; }
-            else cell.classList.add("is-slip");
+            // A kept day you logged nothing on is an outline in the habit's
+            // colour (filled, a new habit was a solid wall of "kept" before
+            // you'd done anything); a slip under the limit fills lightly,
+            // and one over it is the red that stands out.
+            if (done) {
+              cell.classList.add("is-done");
+              if (n) cell.style.background = h.color + "66";
+              else { cell.classList.add("is-kept"); cell.style.boxShadow = `inset 0 0 0 2px ${h.color}`; }
+            } else cell.classList.add("is-slip");
             cell.title = date + (done ? (n ? ` — ${n} of at most ${limitOf(h)}` : " — kept") : " — slipped");
           } else {
             if (done) { cell.classList.add("is-done"); cell.style.background = h.color; }

@@ -1291,7 +1291,8 @@
 
     const thisYear = new Date().getFullYear();
     const yearTotal = (y) => items.filter((f) => financeYearOf(f) === y).reduce((s, f) => s + f.amount, 0);
-    const delta = yearTotal(thisYear) - yearTotal(thisYear - 1);
+    const lastYear = yearTotal(thisYear - 1);
+    const delta = yearTotal(thisYear) - lastYear;
 
     const card = el("div", "card");
     card.style.marginTop = "20px";
@@ -1316,10 +1317,13 @@
 
     // This calendar year vs last — a signed money delta (formatMoney already
     // prefixes "-" for negatives; add a leading "+" when spend went up).
-    const dItem = el("div", "item");
-    dItem.appendChild(el("div", "n", (delta > 0 ? "+" : "") + formatMoney(delta)));
-    dItem.appendChild(el("div", "l", "vs " + (thisYear - 1)));
-    row.appendChild(dItem);
+    // Nothing spent last year: the comparison would be with zero.
+    if (lastYear) {
+      const dItem = el("div", "item");
+      dItem.appendChild(el("div", "n", (delta > 0 ? "+" : "") + formatMoney(delta)));
+      dItem.appendChild(el("div", "l", "vs " + (thisYear - 1)));
+      row.appendChild(dItem);
+    }
 
     card.appendChild(row);
     root.appendChild(card);
@@ -1456,8 +1460,15 @@
   }
 
   // Top 5 largest single expense transactions in the filtered range.
+  // A recurring charge counts once, as the year's total of it: five
+  // "Netflix" rows said less than one.
   function renderTopExpensesCard(root, expenseItems) {
-    const top = expenseItems.slice().sort((a, b) => b.amount - a.amount).slice(0, 5);
+    const single = expenseItems.filter((f) => !f.recurringId);
+    const byRec = groupBy(expenseItems.filter((f) => f.recurringId), (f) => f.recurringId);
+    const grouped = Object.values(byRec).map((group) => ({
+      ...group[0], amount: group.reduce((s, f) => s + f.amount, 0), count: group.length,
+    }));
+    const top = single.concat(grouped).sort((a, b) => b.amount - a.amount).slice(0, 5);
     if (!top.length) return;
     const card = el("div", "card");
     card.style.marginTop = "20px";
@@ -1465,7 +1476,7 @@
     const max = Math.max(1, ...top.map((f) => f.amount));
     top.forEach((f) => {
       const label = f.note || f.category;
-      const row = barRow(label, f.amount, max, financeColorOf(f.category), null, formatMoney);
+      const row = barRow(label, f.amount, max, financeColorOf(f.category), f.count > 1 ? f.count : null, formatMoney, "charges");
       row.querySelector(".lbl").title = f.project ? label + " · " + f.project : label;
       card.appendChild(row);
       // The biggest expenses of a year are usually the trip ones, and "which

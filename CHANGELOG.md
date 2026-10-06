@@ -4,6 +4,37 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.245.1] - 2026-10-06
+
+A pass over the whole app at phone and desktop width, in every theme,
+looking for bugs and things that read wrong. Fixed:
+
+### Fixed
+- One long category name no longer makes every filter chip that wide: on
+  a phone the chips stacked one per row and the bar was taller than the
+  screen.
+- A one-line note opened in the reader as a big title over "Nothing
+  written under the title yet"; it's shown as the note now, and a long
+  unbroken word wraps.
+- The keyboard shortcuts sheet laid the tab rows out sideways and clipped
+  them at phone width.
+- "Been there" in the place sheet, the ↩ ✓ on an In progress row, the ☆ on
+  a note, the ✕ on a recap, a Ledger project's ✎ and +, the Backlog's
+  "Hide unreleased", the Settings switches and the Steam "Find yours" link
+  are easier to hit on a phone.
+
+### Changed
+- Stats no longer say "+3 vs 2025" or "+$290 vs 2025" when 2025 has
+  nothing in it.
+- A habit you avoid: a kept day you logged nothing on is an outline, not a
+  filled cell, so a new habit isn't a solid wall of "kept" before you've
+  done anything; a slip over the limit is the filled red one. Its "Kept"
+  button is the app's accent rather than the habit's colour (a red habit's
+  "you did well" was a red block).
+- Ledger → Summary → Top expenses counts a recurring charge once, with the
+  year's total, instead of one row per month.
+- Add entry: the started year is greyed until a started month is picked.
+
 ## [0.245.0] - 2026-10-06
 
 ### Added

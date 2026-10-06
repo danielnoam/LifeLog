@@ -518,8 +518,8 @@
     const topCat = Object.keys(catCounts).sort((a, b) => catCounts[b] - catCounts[a])[0];
 
     const thisYear = new Date().getFullYear();
-    const delta = entries.filter((e) => e.year === thisYear).length
-      - entries.filter((e) => e.year === thisYear - 1).length;
+    const lastYear = entries.filter((e) => e.year === thisYear - 1).length;
+    const delta = entries.filter((e) => e.year === thisYear).length - lastYear;
 
     const card = el("div", "card");
     // Sits directly below the Overview card (both plain .card, no grid gap
@@ -531,7 +531,8 @@
     row.appendChild(statItem(`${MONTHS_SHORT[(bestK % 12) + 1]} ${Math.floor(bestK / 12)}`, `busiest month (${monthCounts[bestK]})`, "hl:busiest"));
     row.appendChild(statItem(bestStreak, "month streak", "hl:streak"));
     row.appendChild(statItem(topCat, "top category", "hl:cat"));
-    row.appendChild(statItem((delta > 0 ? "+" : "") + delta, `vs ${thisYear - 1}`, "hl:yoy"));
+    // Nothing logged last year: the comparison would be with zero.
+    if (lastYear) row.appendChild(statItem((delta > 0 ? "+" : "") + delta, `vs ${thisYear - 1}`, "hl:yoy"));
     card.appendChild(row);
     root.appendChild(card);
   }
@@ -766,6 +767,11 @@
   // app: { year, month } from a month card's "+", plus optionally { title,
   // notes } when a note is being turned into an entry. It is ignored while
   // editing, where the entry itself is the source of truth.
+  // The started year is prefilled (one tap on the month makes a span), but
+  // a filled year beside "— none —" read as half a value: it waits, greyed,
+  // until a month is picked.
+  function syncStartYear() { $("#fStartYear").disabled = !$("#fStartMonth").value; }
+
   function openEntryModal(entry, fromBacklog, preset) {
     const editing = !!entry;
     $("#entryModalTitle").textContent = editing ? "Edit entry" : "Add entry";
@@ -795,6 +801,7 @@
       $("#fStartMonth").value = String(+startedAt.slice(5, 7));
       $("#fStartYear").value = startedAt.slice(0, 4);
     }
+    syncStartYear();
     $("#deleteEntryBtn").hidden = !editing;
     $("#entryMoreWrap").hidden = !editing;
     closeSheetMenus();
@@ -1664,6 +1671,7 @@
     $("#moveToProgressBtn").onclick = () => moveEntryToBacklog(true);
     $("#fTitle").oninput = renderTitleSuggestions;
     $("#fCategory").onchange = () => updateSyncBtnVisibility("f", $("#fCategory").value);
+    $("#fStartMonth").onchange = syncStartYear;
     $("#fSyncBtn").onclick = syncEntryTitle;
     $("#fUnsyncBtn").onclick = unsyncEntry;
     $("#fBacklogUnlinkBtn").onclick = () => { $("#entryFromBacklog").value = ""; updateBacklogLinkBanner(); };

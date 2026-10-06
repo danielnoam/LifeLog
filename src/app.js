@@ -148,7 +148,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.245.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.245.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2949,6 +2949,10 @@
     if (chips.length < 2) return;
     chips.forEach((c) => { c.style.minWidth = ""; });
     const max = Math.max(...chips.map((c) => c.offsetWidth));
+    // One long name ("Board games and tabletop") would otherwise pad every
+    // chip to its width: on a phone that's one chip per row and a bar
+    // taller than the screen. Past that point the chips hug their own text.
+    if (wrap.clientWidth && max > wrap.clientWidth * 0.45) return;
     chips.forEach((c) => { c.style.minWidth = max + "px"; });
   }
 

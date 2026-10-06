@@ -795,6 +795,37 @@ what was decided against and why.
     hide them for good. Notes has two modes, so its landing rule is the
     starred mode or Notes; the three-mode tests moved to Backlog.
 
+- **The 0.245.1 rundown.** A full walk of the app found no errors and a
+  handful of things worth writing down:
+  - `equalizeChipWidths` (app.js) pads every chip in a group to the widest,
+    which is the point ("Books" and "Video Games" as even pills) until one
+    name is long enough that every chip is a row of its own on a phone.
+    It now gives up past 45% of the group's width; the chips hug their
+    text then. Don't lower the cut much: "Television series" should still
+    equalize.
+  - `splitTitle` makes an untitled note's first line its title, so a
+    one-line note has an empty body. The reader shows such a note as the
+    body under "Note"; cards were already fine (they show the preview).
+  - `#shortcutViewRows` is a div inside the `dl` so app.js can rebuild the
+    tab rows; `display: contents` keeps the list's row layout, and its own
+    children need the row rule too.
+  - A pseudo-element doesn't render on an `<input>`, so the switches'
+    `::after` touch area never existed (tap-targets measured 24). The
+    switch grows by a transparent border with `background-clip:
+    padding-box` and negative margins instead: same look, 44 tall.
+    tap-targets.js still reports it as 23 (it probes from the visible
+    box, it seems); `getBoundingClientRect` and `elementFromPoint` on the
+    border say 44 and the input.
+  - An avoided habit's kept-but-unlogged day is now an outline in the
+    habit's colour (`is-kept`, inline box-shadow), and a slip over the
+    limit is filled `--danger`; the 0.203.0 reasoning below still holds
+    for the data (no mark = kept), this is only how it's drawn. A new
+    avoided habit used to appear as twelve weeks of solid colour and a
+    90-day streak before its first tap.
+  - The year-on-year stat (Timeline Stats, Ledger Highlights) is left out
+    when the previous year has nothing: a delta against zero is the total
+    again with a plus sign.
+
 - **Habits you avoid (0.203.0).** `avoid: true` and `limit`; the marks
   are slips. Everything turns on isDone (kept = slips ≤ limit), so streaks,
   runBefore, the 90-day rate and the grid needed no second code path;
