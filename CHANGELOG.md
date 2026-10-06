@@ -4,6 +4,12 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.243.1] - 2026-10-06
+
+### Changed
+- The Ledger's sort ("Newest first") sits above the recurring expenses,
+  where the Timeline's sits above In progress.
+
 ## [0.243.0] - 2026-10-06
 
 ### Changed

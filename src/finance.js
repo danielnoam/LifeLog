@@ -751,6 +751,11 @@
   let finRootEl = null;
 
   function renderFinanceEntries(root) {
+    // The sort sits above the recurring block, as the Timeline's sits above
+    // In progress (0.243.1): the page's controls first, then what's pinned,
+    // then the years. Only when there's a list for it to sort.
+    const sorting = (state.data.financeEntries.length || state.data.recurringExpenses.length) && getFilteredFinance().length;
+    if (sorting) root.appendChild(ledgerToolbar());
     renderRecurringCard(root);
     if (!state.data.financeEntries.length && !state.data.recurringExpenses.length) {
       root.appendChild(emptyState({
@@ -768,7 +773,6 @@
       root.appendChild(emptyState("No finance entries match your filters."));
       return;
     }
-    root.appendChild(ledgerToolbar());
     const sort = ledgerSort();
     // The two time options run the whole ledger their way; the two amount
     // ones reorder rows inside a month and leave the months where they are,
