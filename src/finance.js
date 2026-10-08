@@ -3743,6 +3743,9 @@
   window.LifeLogFinance = {
     init,
     wire,
+    // the search page (search.js, 0.251.0)
+    openRecurringModal,
+    amountText: (x) => (x && x.amount ? formatMoney(x.amount) : ""),
     // data lifecycle (used by app.js's emptyData/normalize/import infra)
     seedFinanceCategories,
     sanitizeFinanceEntry,

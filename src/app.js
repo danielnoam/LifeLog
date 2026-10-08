@@ -15,6 +15,7 @@
   const Recap = window.LifeLogRecap;
   const Widgets = window.LifeLogWidgets || { changed() {}, start() {} };
   const Share = window.LifeLogShare || { open() {}, close() {}, start() {} };
+  const Search = window.LifeLogSearch || { start() {}, setQuery() {}, clear() {}, refresh() {}, isOpen: () => false };
   // Absent only under the unit tests, which load this file without a page.
   // The status-bar style last sent to Android (see syncSystemBars). Up here
   // with the module's other state, not beside its function: applyTheme runs
@@ -152,7 +153,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.250.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.251.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -432,7 +433,8 @@
     bandOpen: new Set(),
     timelineMode: "entries",
     financeMode: "entries",
-    search: "",
+    search: "", // the tab filter; the box's own text is `query` (search.js)
+    query: "",
     activeYears: new Set(),
     activeCats: new Set(),
     financeActiveYears: new Set(),
@@ -1622,6 +1624,7 @@
       }
       updateJumpNav();
       updateSearchMatchBadges();
+      Search.refresh();
     }
   }
 
@@ -4081,18 +4084,17 @@
     // rather than through the debounce below — that delay is there to
     // collapse a burst of keystrokes, and a single click isn't one.
     const syncSearchClear = () => { $("#searchClear").hidden = !$("#search").value; };
+    // Typing opens the results page over the tab (search.js, 0.251.0);
+    // narrowing the tab itself is the page's Filter line.
     $("#search").oninput = (e) => {
-      state.search = e.target.value;
       syncSearchClear();
       clearTimeout(searchRenderTimer);
-      searchRenderTimer = setTimeout(render, 200);
+      searchRenderTimer = setTimeout(() => Search.setQuery(e.target.value), 150);
     };
     $("#searchClear").onclick = () => {
-      $("#search").value = "";
-      state.search = "";
-      syncSearchClear();
       clearTimeout(searchRenderTimer);
-      render();
+      Search.clear();
+      syncSearchClear();
       $("#search").focus();
     };
     $("#yearFilterLabel").onclick = toggleAllYears;
@@ -4249,6 +4251,7 @@
       if (Boards.handleKey(e)) return;
       if (e.key === "Escape") {
         if (SettingsUI.settingsBack()) return;
+        if (Search.isOpen() && !isAnyModalOpen()) { Search.clear(); $("#searchClear").hidden = true; return; }
         if (state.view === "travel" && Travel.endSort()) return;
         Journal.closeEntryModal(); Journal.closeAchModal(); Journal.cancelCategoryModal(); Backlog.closeBacklogModal();
         Backlog.closePickModal(); Backlog.closeOutTodaySheet(); Wheel.closeWheel();
@@ -5185,6 +5188,12 @@
   Boards.init({ state, $, el, uid, toast, emptyState, render, Storage, download: IO.download, bulkCheckbox, toggleBulkItem, attachLongPressSelect });
   Travel.init({ state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader, activatable, updateFilterbarVisibility });
   Share.start({ Backlog, Notes, Travel, toast, viewEnabled, modeEnabled });
+  Search.start({
+    state, ico, render, viewEnabled, modeEnabled,
+    Notes, Habits, Journal, Backlog, Finance, Travel, Settings: SettingsUI,
+    goTo: (view) => { if (view !== state.view && viewEnabled(view)) switchToView(view); },
+    viewLabel: (view) => { const t = document.querySelector('.tab[data-view="' + view + '"]'); return t ? t.textContent.trim() : view; },
+  });
 
   Notes.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy,

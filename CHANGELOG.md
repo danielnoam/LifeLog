@@ -4,6 +4,24 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.251.0] - 2026-10-08
+
+### Changed
+- **One search across everything.** Typing in the header's box opens a
+  results page over the tab: every hit, grouped by where it lives (the tab
+  you're on first), each a row with the matching line quoted and the term
+  marked, and a tap opens the thing itself: the entry, the Backlog sheet,
+  the note, the habit, the expense, the trip or place, the Settings page.
+  Ledger entries now match on category, project and amount, Travel's trips
+  and places are searched at all, and achievements and boards are in the
+  list. Every word typed has to be in the item. ArrowDown from the box
+  walks the results; Escape or ✕ clears.
+- **Filter the tab, still.** Each group has a "Filter Backlog" (or
+  Notebook, Timeline, Ledger) line that narrows that tab the way the box
+  used to, with the match badges on the other tabs; a line above the feed
+  says so and offers all the results again. Bulk work starts there, as
+  before.
+
 ## [0.250.0] - 2026-10-08
 
 ### Added

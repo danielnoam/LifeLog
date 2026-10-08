@@ -333,6 +333,35 @@ what was decided against and why.
   copy of the whole recurring list taken just before. `combinedWith` stays in
   KNOWN_RECURRING_KEYS so the sanitizer drops it rather than keepUnknown
   carrying it, which is what made the old groups separate again.
+- **One search across everything (0.251.0).** The box filtered the tab you
+  were on and badged the others with a count; the count told you a hit
+  existed somewhere but not which, and nothing opened from a search. Now
+  the box opens a results page (search.js), and the tab filter is a line on
+  each group. Two state fields on purpose: `state.query` is the box,
+  `state.search` is the tab filter the five view filters read (getFiltered,
+  getFilteredBacklog, getFilteredFinance, getFilteredNotes,
+  getFilteredHabits) and updateSearchMatchBadges counts from. The page
+  never touches `state.search`, so typing leaves every feed alone; the
+  Filter line copies the query across and clears the box's own, and typing
+  again clears the filter. That kept the view modules unchanged: each
+  gained only a small "what text do I carry, how do I open" hook
+  (Notes.searchable/openSearchHit, Travel.searchable/showTrip/showPlace,
+  Finance.amountText/openRecurringModal, Settings.searchSettings/
+  openSearchHit, Backlog.isStarted). Boards and Travel load lazily, so
+  their hooks ask for the load and the page redraws when it lands.
+  - Grouped, not one ranked list: a title in the Backlog and the same title
+    in the Timeline are different answers, and the group says which. The
+    current tab's group comes first, groups follow the bar's order, eight
+    rows each with a "N more". Every word must be somewhere in the item
+    (any field), the first word is the one marked, and the quoted line is
+    the first non-title field that holds it, so a long note shows the part
+    that matched.
+  - The page sits outside <main>, since render() clears #content, and hides
+    #content, the filter slot, the + and the jump nav through
+    html.is-searching. Escape clears the search only when no sheet is open,
+    so Escape in a sheet opened from a result closes the sheet and leaves
+    the results. Four older suites typed into the box to narrow a view;
+    they click the Filter line now.
 - **Share into LifeLog (0.250.0).** One shape for three doors. Every
   share ends as the action string `share?title=…&text=…&url=…`, which
   runAction hands to share.js, because each platform delivers a share

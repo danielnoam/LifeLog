@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.250.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.251.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -77,7 +77,7 @@
          search-cancel button while the field has focus, so clearing a search
          you'd clicked away from meant clicking back into it first. -->
     <div class="search-wrap">
-      <input id="search" class="search" type="search" placeholder="Search titles &amp; notes…" />
+      <input id="search" class="search" type="search" placeholder="Search everything…" />
       <button type="button" class="search-clear" id="searchClear" aria-label="Clear search" title="Clear search" hidden><span data-ico="x"></span></button>
     </div>
 
@@ -166,6 +166,12 @@
        it — only in Notes, where To-do has no chips at all and the year chips
        come from the notes themselves. -->
   <div class="filter-slot" id="filterSlot"></div>
+
+  <!-- The search results page (search.js, 0.251.0): shown over #content
+       while the header's box has text; #searchFilterNote is the line above
+       a tab narrowed by the page's Filter line. -->
+  <div class="search-filter-note" id="searchFilterNote" hidden></div>
+  <div class="search-results" id="searchResults" role="region" aria-label="Search results" hidden></div>
 
   <!-- #viewBody is what a render clears; the filterbar is rebuilt in place
        by buildYearFilter / buildCatFilter and survives either way. -->
@@ -2067,33 +2073,34 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.250.0"></script>
-  <script defer src="src/icons.js?v=0.250.0"></script>
-  <script defer src="src/jobs.js?v=0.250.0"></script>
-  <script defer src="src/reconcile.js?v=0.250.0"></script>
-  <script defer src="src/qr.js?v=0.250.0"></script>
-  <script defer src="src/media.js?v=0.250.0"></script>
-  <script defer src="src/merge.js?v=0.250.0"></script>
-  <script defer src="src/storage.js?v=0.250.0"></script>
-  <script defer src="src/finance.js?v=0.250.0"></script>
-  <script defer src="src/settings.js?v=0.250.0"></script>
-  <script defer src="src/wheel.js?v=0.250.0"></script>
-  <script defer src="src/backlog.js?v=0.250.0"></script>
-  <script defer src="src/journal.js?v=0.250.0"></script>
-  <script defer src="src/markdown.js?v=0.250.0"></script>
-  <script defer src="src/notes.js?v=0.250.0"></script>
-  <script defer src="src/docimport.js?v=0.250.0"></script>
-  <script defer src="src/io.js?v=0.250.0"></script>
-  <script defer src="src/sync.js?v=0.250.0"></script>
-  <script defer src="src/habits.js?v=0.250.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.250.0"></script>
-  <script defer src="src/boards.js?v=0.250.0"></script>
-  <script defer src="src/travel.js?v=0.250.0"></script>
-  <script defer src="src/recap.js?v=0.250.0"></script>
-  <script defer src="src/reminders.js?v=0.250.0"></script>
-  <script defer src="src/widgets.js?v=0.250.0"></script>
-  <script defer src="src/share.js?v=0.250.0"></script>
-  <script defer src="src/payments.js?v=0.250.0"></script>
-  <script defer src="src/app.js?v=0.250.0"></script>
+  <script defer src="src/platform.js?v=0.251.0"></script>
+  <script defer src="src/icons.js?v=0.251.0"></script>
+  <script defer src="src/jobs.js?v=0.251.0"></script>
+  <script defer src="src/reconcile.js?v=0.251.0"></script>
+  <script defer src="src/qr.js?v=0.251.0"></script>
+  <script defer src="src/media.js?v=0.251.0"></script>
+  <script defer src="src/merge.js?v=0.251.0"></script>
+  <script defer src="src/storage.js?v=0.251.0"></script>
+  <script defer src="src/finance.js?v=0.251.0"></script>
+  <script defer src="src/settings.js?v=0.251.0"></script>
+  <script defer src="src/wheel.js?v=0.251.0"></script>
+  <script defer src="src/backlog.js?v=0.251.0"></script>
+  <script defer src="src/journal.js?v=0.251.0"></script>
+  <script defer src="src/markdown.js?v=0.251.0"></script>
+  <script defer src="src/notes.js?v=0.251.0"></script>
+  <script defer src="src/docimport.js?v=0.251.0"></script>
+  <script defer src="src/io.js?v=0.251.0"></script>
+  <script defer src="src/sync.js?v=0.251.0"></script>
+  <script defer src="src/habits.js?v=0.251.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.251.0"></script>
+  <script defer src="src/boards.js?v=0.251.0"></script>
+  <script defer src="src/travel.js?v=0.251.0"></script>
+  <script defer src="src/recap.js?v=0.251.0"></script>
+  <script defer src="src/reminders.js?v=0.251.0"></script>
+  <script defer src="src/widgets.js?v=0.251.0"></script>
+  <script defer src="src/share.js?v=0.251.0"></script>
+  <script defer src="src/search.js?v=0.251.0"></script>
+  <script defer src="src/payments.js?v=0.251.0"></script>
+  <script defer src="src/app.js?v=0.251.0"></script>
 </body>
 </html>

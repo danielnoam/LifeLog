@@ -103,11 +103,14 @@ async function run(b, width) {
   await collChip("Recipes").click();
   await page.waitForTimeout(300);
 
+  // Typing opens the results page (0.251.0); Filter narrows the tab the old way.
   await page.fill("#search", "flour");
+  await page.waitForTimeout(400);
+  await page.click('#searchResults [data-filter="notes"]');
   await page.waitForTimeout(400);
   check("a search looks in the collections too" + at, (await feed()).includes("bread"), await feed());
 
-  await page.fill("#search", "");
+  await page.click("#searchClear");
   await page.evaluate(() => window.LifeLogNotes.openNoteCatModal(JSON.parse(localStorage.getItem("lifelog-cache-v1")).noteCategories.find((c) => c.name === "Work")));
   await page.check("#noteCatCollection");
   await page.click("#noteCatForm button[type=submit]");

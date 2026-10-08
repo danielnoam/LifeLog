@@ -265,6 +265,8 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     await page.waitForSelector(".habit-card", { timeout: 8000 });
     await page.evaluate(() => { const s = document.querySelector("#search"); s.value = "Read"; s.oninput({ target: s }); });
     await page.waitForTimeout(500);
+    await page.click('#searchResults [data-filter="notes"]'); // the results page (0.251.0); Filter narrows the tab
+    await page.waitForTimeout(400);
     const names = await page.evaluate(() => [...document.querySelectorAll(".habit-name")].map((n) => n.textContent));
     check("search narrows the habits like every other view", names.length === 1 && names[0] === "Read", names);
     errs.push(...e);

@@ -168,8 +168,11 @@ between them.
   already there. A quiet background check keeps release dates current.
 - **A wheel to spin** – beside the backlog's random pick, over options you
   type yourself; and again inside the pick card, over whatever is eligible.
-- **Filters** – year and category chips, plus a search across titles and
-  notes.
+- **Filters** – year and category chips narrow a tab.
+- **Search** – one box over everything (0.251.0): entries, backlog, notes,
+  habits, boards, expenses, trips and places, Settings pages. Results come
+  grouped by tab and a tap opens the item; "Filter Backlog" on a group
+  narrows that tab instead, for bulk work.
 - **Bulk actions** – long-press to select, then edit, sync, or delete many
   items at once.
 - **Swipe between modes** – on a phone, drag across the page to move between

@@ -176,13 +176,13 @@ const SEED = {
   await page.waitForTimeout(150);
   check("and No category to the ones without", !(await cards()).includes(listId) && (await cards()).length === 3, await cards());
   await page.locator("#catFilter .cat-chip", { hasText: "No category" }).click();
-  await page.fill("#search", "charger");
-  await page.waitForTimeout(400);
+  // Typing opens the results page (0.251.0); Filter narrows the tab the old way.
+  const narrow = async (q) => { await page.fill("#search", q); await page.waitForTimeout(400); await page.click('#searchResults [data-filter="notes"]'); await page.waitForTimeout(400); };
+  await narrow("charger");
   check("search finds a checklist by one of its items", JSON.stringify(await cards()) === JSON.stringify([listId]), await cards());
-  await page.fill("#search", "frost");
-  await page.waitForTimeout(400);
+  await narrow("frost");
   check("and a quote by its author", JSON.stringify(await cards()) === JSON.stringify([quote.id]), await cards());
-  await page.fill("#search", "");
+  await page.click("#searchClear");
   await page.waitForTimeout(400);
 
   // ---- sort ----

@@ -1681,9 +1681,37 @@
   // For Settings' export: what travel.json holds.
   async function tripsForExport() { await ensureLoaded(); return JSON.parse(JSON.stringify(doc)); }
 
+  // The search page (search.js, 0.251.0). The trips load when the tab is
+  // first shown, so a search before that asks for them and is redrawn when
+  // they arrive.
+  function searchable() {
+    if (doc) return doc;
+    ensureLoaded().then(() => { if (window.LifeLogSearch) window.LifeLogSearch.refresh(); });
+    return { trips: [], places: [] };
+  }
+  function showTrip(id) {
+    if (!findTrip(id)) return;
+    setOpenTrip(id);
+    render();
+  }
+  function showPlace(id) {
+    const p = findPlace(id);
+    if (!p) return;
+    setOpenTrip(p.trip);
+    render();
+    const row = document.querySelector('.place-row[data-id="' + CSS.escape(id) + '"]');
+    if (!row) return;
+    row.scrollIntoView({ block: "center", behavior: reducedMotion() ? "auto" : "smooth" });
+    row.classList.remove("search-hit");
+    void row.offsetWidth;
+    row.classList.add("search-hit");
+    setTimeout(() => row.classList.remove("search-hit"), 1600);
+  }
+
   const api = {
     MODES, init, wire, renderTravel, endSort, ensureLoaded, flush, addTrip, addPlace, tripsForExport, renderHistory,
     openTripModal, closeTripModal, openPlaceModal, closePlaceModal, openImportModal, closeImportModal, importPlaces, importSharedLink,
+    searchable, showTrip, showPlace,
     // pure, for tests and the bridge
     sanitizeTrip, sanitizePlace, sanitizeDoc, tripDays, sortDay, tripStatus, sortTrips,
     dayLabel, rangeLabel, timeLabel, mapsUrl,

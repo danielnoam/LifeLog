@@ -1987,6 +1987,35 @@ kbd {
 .rating-input .star:hover { color: var(--accent-hover); }
 
 .modal-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+/* The search results page (0.251.0): over the tab while the box has text. */
+html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fab-wrap, html.is-searching .jump-nav { display: none; }
+.search-results { max-width: 760px; margin: 0 auto; padding: 8px 16px 40px; }
+.search-head { padding: 8px 0 4px; }
+.search-title { font-size: var(--fs-lg); font-weight: 600; margin: 0; }
+.search-none { margin: 8px 0; }
+.search-group { margin-top: 20px; }
+.search-group-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.search-group-label { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--fs-sm); font-weight: 600; color: var(--text-dim); text-transform: uppercase; letter-spacing: .4px; }
+.search-group-label .ico { width: 16px; height: 16px; }
+.search-list { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; }
+.search-row {
+  display: flex; width: 100%; text-align: left; background: none; border: 0; color: var(--text);
+  padding: 10px 14px; min-height: 44px; cursor: pointer; font: inherit;
+}
+.search-row + .search-row, .search-more { border-top: 1px solid var(--border); }
+.search-row:hover { background: var(--hover-bg); }
+.search-row-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.search-row-title { font-size: var(--fs-md); font-weight: 600; overflow-wrap: anywhere; }
+.search-row-snippet { font-size: var(--fs-sm); color: var(--text-dim); overflow-wrap: anywhere; }
+.search-row-meta { font-size: var(--fs-xs); color: var(--text-faint); }
+.search-row mark { background: var(--accent-soft); color: inherit; border-radius: var(--r-xs); }
+.search-more { width: 100%; border-radius: 0; background: none; color: var(--text-dim); min-height: 40px; }
+.search-filter-note {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  max-width: 760px; margin: 8px auto 0; padding: 6px 16px; font-size: var(--fs-sm); color: var(--text-dim);
+}
+.search-filter-note[hidden], .search-results[hidden] { display: none; }
+
 /* The Shared with LifeLog sheet (0.250.0): what arrived, then two ways to keep it. */
 .share-preview { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-dim); font-size: var(--fs-sm); margin: 0 0 12px; max-height: 7.5em; overflow: hidden; }
 .share-choices { display: flex; gap: 10px; }

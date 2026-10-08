@@ -1434,6 +1434,14 @@
     sanitizeTodo, foldTodosIntoLists, listNotes: () => state.data.notes.filter((n) => n.kind === "list"),
     renderNotes, focusQuickList, openNoteReader, closeNoteReader, isCollection,
     openNoteModal, closeNoteModal,
+    // the search page (search.js, 0.251.0): every note, boards included,
+    // and the way a row of each kind opens
+    searchable: () => state.data.notes.concat(boardItems()),
+    openSearchHit: (n) => {
+      if (kindOf(n) === "board") { window.LifeLogBoards.openBoard(n.board.id); return; }
+      if (kindOf(n) !== "list" && isCollection(n.category)) { openNoteReader(n.id); return; }
+      openNoteModal(n);
+    },
     // pure helpers (test/notes.test.js)
     noteDate, noteYear, splitNoteForEntry, splitTitle, plainPreview,
   };

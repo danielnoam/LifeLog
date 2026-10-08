@@ -2810,6 +2810,7 @@
     // modal (add menu, "✓ Done" flow, Escape close)
     openBacklogModal,
     closeBacklogModal,
+    isStarted, // the search page's "In progress" tag
     // "Pick random" modal (Escape close)
     closePickModal,
     // cover panel (applySteamAppId in app.js writes the fields, then repaints)

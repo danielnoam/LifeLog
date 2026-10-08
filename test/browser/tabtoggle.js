@@ -115,9 +115,9 @@ const activeView = (page) => page.evaluate(() => {
       return true;
     }));
     await page.waitForTimeout(400);
-    const badged = await page.evaluate(() =>
-      [...document.querySelectorAll("#viewTabs .tab")].filter((t) => t.querySelector(".tab-match-badge")).map((t) => t.dataset.view));
-    check("no disabled tab gets a match badge", !badged.includes("backlog"), badged);
+    // The results page (0.251.0) groups by tab; a tab turned off has no group.
+    const grouped = await page.evaluate(() => [...document.querySelectorAll("#searchResults .search-group")].map((g) => g.dataset.view));
+    check("no disabled tab gets a results group", !grouped.includes("backlog"), grouped);
     errs.push(...e);
     await ctx.close();
   }

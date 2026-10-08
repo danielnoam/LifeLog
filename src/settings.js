@@ -1614,5 +1614,12 @@
     openViewOptions,
     closeViewOptions,
     syncViewOptionsButton,
+    // the search page (search.js, 0.251.0): the same hits the panel's own
+    // box finds, opened from outside the panel
+    searchSettings,
+    openSearchHit: (h) => {
+      if (h.go.view) openViewOptions(h.go.view); else openSettings(h.go.page);
+      flash(h.el);
+    },
   };
 })();
