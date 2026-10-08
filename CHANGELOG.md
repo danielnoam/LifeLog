@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.249.0] - 2026-10-08
+
+### Changed
+- **Header on phones.** The LifeLog name is gone from the top bar; the
+  timeline-pin mark stays and the search field takes the room (about 160px
+  instead of 90px at 375px wide). The sync status still sits under the mark.
+- **View options before Activity.** The two header buttons swapped, so the
+  bar reads view, activity, settings.
+
 ## [0.248.0] - 2026-10-08
 
 ### Changed
