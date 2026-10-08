@@ -53,7 +53,10 @@
     // (foldable, starts open) or "collapsed" (foldable, starts folded).
     // Dropped starts folded because it is the band you gave up on; the other
     // two are things you are waiting on and worth seeing.
-    backlogFoldEa: "open", backlogFoldUnreleased: "open", backlogFoldDropped: "collapsed" };
+    backlogFoldEa: "open", backlogFoldUnreleased: "open", backlogFoldDropped: "collapsed",
+    // Travel starts off (0.248.0): Settings → Tabs turns it on. A device that
+    // has saved its own tab choices keeps them.
+    disabledViews: ["travel"] };
   // Every option is a complete statement about the whole list — "Largest
   // first", not "Amount" plus a direction toggle somewhere else. The control
   // that replaced monthOrder said one thing on its face ("↑ Oldest first")
@@ -148,7 +151,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.247.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.248.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2750,7 +2753,8 @@
     const jobs = Jobs.visible();
     const going = jobs.filter((j) => j.state === "running" || j.state === "queued");
     const unseenFailure = jobs.some((j) => j.failed && j.id > activitySeenFailure) || (!activitySeenLeft && Jobs.unfinished().length > 0);
-    btn.hidden = !going.length && !unseenFailure;
+    const busy = !!going.length || unseenFailure;
+    btn.classList.toggle("is-busy", busy);
     btn.classList.toggle("is-failed", !going.length && unseenFailure);
     const lead = going.find((j) => j.state === "running") || going[0];
     const known = lead && lead.total ? Math.min(100, (lead.done / lead.total) * 100) : 0;
@@ -2764,8 +2768,8 @@
     btn.setAttribute("aria-label", "Activity: " + what);
     const pill = $("#activityPill");
     if (pill) {
-      pill.hidden = btn.hidden;
-      pill.className = btn.className.replace("btn btn-icon activity-btn", "activity-pill");
+      pill.hidden = !busy;
+      pill.className = btn.className.replace("btn btn-icon activity-btn", "activity-pill").replace(" is-busy", "");
       pill.style.setProperty("--activity-progress", String(known));
       pill.title = what;
       pill.setAttribute("aria-label", "Activity: " + what);
@@ -2774,8 +2778,6 @@
         : Jobs.unfinished().length && !activitySeenLeft ? "Didn't finish — run it again?" : "Didn't finish — see why";
       $("#activityPillMore").textContent = going.length > 1 ? `+${going.length - 1}` : "";
     }
-    const status = $("#settingsActivityStatus");
-    if (status) status.textContent = going.length ? `${going.length} running` : "Nothing running";
   }
 
   function openActivity() {
@@ -2803,7 +2805,6 @@
     $("#closeActivityBtn").onclick = closeActivity;
     $("#activityStopAllBtn").onclick = () => Jobs.stopAll();
     $("#activityClearBtn").onclick = () => Jobs.clearFinished();
-    $("#settingsActivityRow").onclick = () => { SettingsUI.closeSettings(); openActivity(); };
     syncActivityButton();
   }
 

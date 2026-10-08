@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.248.0] - 2026-10-08
+
+### Changed
+- **Reordering a list.** Holding an item picks it up: it lifts, rides under
+  your finger and the others slide out of its way, and letting go puts it
+  down. The hold used to switch the list into a reorder mode and then wait
+  for you to take hold of the row a second time, and the row only jumped
+  from slot to slot. The handles still show for the next ones, with Done.
+- **Travel is off by default.** Settings → Tabs turns it on. A device that
+  has already chosen its tabs keeps them.
+- **Activity is a button in the header,** beside Settings, on phones too.
+  It shows a pulse while nothing runs and the progress ring while something
+  does; the row in Settings is gone. The pill at the bottom of a phone
+  screen still appears while something runs.
+
 ## [0.247.0] - 2026-10-06
 
 ### Changed

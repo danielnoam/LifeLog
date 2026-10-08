@@ -43,6 +43,7 @@ const SEED = {
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
   await page.evaluate((seed) => {
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "travel" }));
+    localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify({ disabledViews: [] })); // Travel is off by default (0.248.0)
     localStorage.setItem("lifelog-cache-v1", JSON.stringify(seed));
   }, SEED);
   await page.reload({ waitUntil: "networkidle" });

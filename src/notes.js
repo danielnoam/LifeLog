@@ -490,12 +490,15 @@
     if (!items.length) rows.appendChild(el("p", "dsc-note", "Nothing here."));
     else if (!open.length) rows.appendChild(el("p", "dsc-note", "All done."));
     for (const it of open) rows.appendChild(reordering ? reorderRow(n, it, rows) : itemRow(n, it));
-    if (done.length && !reordering) {
+    // The finished rows and the add line stay while reordering (greyed and
+    // hidden, not removed): the card keeping its height is what keeps the
+    // page from scrolling under a finger that is already holding a row.
+    if (done.length) {
       rows.appendChild(el("div", "todo-done-sep", done.length + " done"));
       for (const it of done) rows.appendChild(itemRow(n, it));
     }
     card.appendChild(rows);
-    if (!reordering) card.appendChild(listCompose(n));
+    card.appendChild(listCompose(n));
   }
 
   // Everything on a row stops at the row: the card underneath opens the note
@@ -664,16 +667,35 @@
   }
 
   // ---------- reordering a list (the To-do mode's gesture) ----------
-  const LONG_PRESS_MS = 500;
+  // A held finger picks the row up: the list turns into handles and the row
+  // you are holding is already in your hand, so one gesture moves it. The
+  // handles stay (and Done) for the next ones. 0.248.0; before, the hold
+  // only switched modes and you had to take hold of the row again.
+  const LONG_PRESS_MS = 400;
+  const buzz = () => { if (navigator.vibrate) try { navigator.vibrate(10); } catch (e) {} };
   function attachLongPressReorder(row, noteId) {
     let timer = null, start = null;
     const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } start = null; };
     row.addEventListener("pointerdown", (ev) => {
       if (listReorderId || state.bulk.active) return;
-      if (ev.target.closest(".todo-check, .todo-del, .todo-edit")) return;
+      if (ev.button > 0 || ev.target.closest(".todo-check, .todo-del, .todo-edit")) return;
       start = { x: ev.clientX, y: ev.clientY };
-      timer = setTimeout(() => { timer = null; listReorderId = noteId; render(); }, LONG_PRESS_MS);
+      const itemId = row.dataset.item, pointerId = ev.pointerId;
+      timer = setTimeout(() => {
+        timer = null;
+        listReorderId = noteId;
+        buzz();
+        const wasAt = row.getBoundingClientRect().top;
+        render();
+        const fresh = document.querySelector(`.todo-row.is-reorder[data-item="${itemId}"]`);
+        if (!fresh) return;
+        // If the page moved under the finger anyway, move it back.
+        const dy = fresh.getBoundingClientRect().top - wasAt;
+        if (Math.abs(dy) > 1) window.scrollBy(0, dy);
+        beginRowDrag({ pointerId, clientX: start.x, clientY: start.y, preventDefault() {} }, fresh, fresh.parentElement, noteId);
+      }, LONG_PRESS_MS);
     });
+    row.addEventListener("contextmenu", (ev) => { if (start || listReorderId) ev.preventDefault(); });
     row.addEventListener("pointermove", (ev) => {
       if (!start) return;
       if (Math.abs(ev.clientX - start.x) > 10 || Math.abs(ev.clientY - start.y) > 10) cancel();
@@ -712,30 +734,72 @@
   // Listeners on the window, not a pointer capture on the row: insertBefore
   // moves the row, which counts as leaving the DOM, and a captured element
   // that leaves it loses the capture (learnt in the old To-do mode).
+  // The row rides under the finger (a transform from where it would sit),
+  // kept inside the list; the others slide out of its way when its middle
+  // crosses theirs. Near the top or bottom of the screen the page scrolls.
+  // On release it settles into its slot before the order is written.
   function beginRowDrag(ev, row, list, noteId) {
+    if (ev.button > 0) return;
     ev.preventDefault();
     row.classList.add("is-dragging");
-    const onMove = (e) => {
-      if (e.pointerId !== ev.pointerId) return;
-      for (const other of [...list.querySelectorAll(".todo-row")]) {
-        if (other === row) continue;
-        const box = other.getBoundingClientRect(), mid = box.top + box.height / 2;
+    const height = row.getBoundingClientRect().height;
+    const grab = ev.clientY - row.getBoundingClientRect().top;
+    let y = ev.clientY, translate = 0, raf = 0, done = false;
+    const css = getComputedStyle(document.documentElement);
+    const top = (parseFloat(css.getPropertyValue("--topbar-h")) || 0) + 56;
+    const bottom = window.innerHeight - (parseFloat(css.getPropertyValue("--bottombar-h")) || 0) - 56;
+    const others = () => [...list.querySelectorAll(".todo-row")].filter((r) => r !== row);
+    const place = () => {
+      const rows = others();
+      const natural = row.getBoundingClientRect().top - translate;
+      const first = rows.length ? rows[0].getBoundingClientRect().top : natural;
+      const last = rows.length ? rows[rows.length - 1].getBoundingClientRect().bottom - height : natural;
+      const want = Math.max(Math.min(first, natural), Math.min(Math.max(last, natural), y - grab));
+      translate = want - natural;
+      row.style.transform = "translateY(" + translate + "px)";
+      // Where the finger says the row is, not where the list lets it sit:
+      // pressed against the first row the clamped middle never crosses it.
+      const mid = y - grab + height / 2;
+      for (const other of rows) {
+        const box = other.getBoundingClientRect();
         const rowIsAfter = !!(other.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING);
-        if (e.clientY < mid && rowIsAfter) { slideDisplaced(list, row, () => list.insertBefore(row, other)); break; }
-        if (e.clientY > mid && !rowIsAfter) { slideDisplaced(list, row, () => list.insertBefore(row, other.nextSibling)); break; }
+        if (mid < box.top + box.height / 2 && rowIsAfter) { slideDisplaced(list, row, () => list.insertBefore(row, other)); return place(); }
+        if (mid > box.top + box.height / 2 && !rowIsAfter) { slideDisplaced(list, row, () => list.insertBefore(row, other.nextSibling)); return place(); }
       }
     };
+    const tick = () => {
+      const step = y < top ? -12 : y > bottom ? 12 : 0;
+      if (step) { window.scrollBy(0, step); place(); }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    // The page must not scroll under a drag that began as a hold on a plain
+    // row (its touch-action is the page's); refusing touchmove keeps it still.
+    const holdPage = (e) => { if (e.cancelable) e.preventDefault(); };
+    const onMove = (e) => { if (e.pointerId !== ev.pointerId) return; y = e.clientY; place(); };
     const onUp = (e) => {
-      if (e.pointerId !== ev.pointerId) return;
+      if (e.pointerId !== ev.pointerId || done) return;
+      done = true;
+      cancelAnimationFrame(raf);
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
+      window.removeEventListener("touchmove", holdPage);
       row.classList.remove("is-dragging");
-      commitItemOrder(list, noteId);
+      const settle = () => { row.classList.remove("is-settling"); commitItemOrder(list, noteId); };
+      if (reducedMotion() || !translate) { row.style.transform = ""; settle(); return; }
+      row.classList.add("is-settling");
+      row.style.transform = "";
+      let fired = false;
+      const once = () => { if (!fired) { fired = true; settle(); } };
+      row.addEventListener("transitionend", once, { once: true });
+      setTimeout(once, 200);
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
+    window.addEventListener("touchmove", holdPage, { passive: false });
+    place();
   }
   // The open items in the order the rows now stand, then the finished ones
   // where they were. A reorder isn't an edit.

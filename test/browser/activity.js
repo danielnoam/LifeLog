@@ -130,13 +130,11 @@ async function open(b, { native } = {}) {
     await page.waitForTimeout(300);
     check("once seen, the pill goes", await page.isHidden("#activityPill"));
 
-    // Settings → Activity, any time.
-    await page.click("#settingsBtn");
-    await page.waitForSelector("#settingsActivityRow");
-    check("Settings says nothing is running", (await page.textContent("#settingsActivityStatus")) === "Nothing running");
-    await page.click("#settingsActivityRow");
+    // The header button, any time (0.248.0: it was a Settings row).
+    check("with nothing running the header button shows the pulse, not a ring", await page.isVisible("#activityBtn .activity-idle") && await page.isHidden("#activityBtn > svg"));
+    await page.click("#activityBtn");
     await page.waitForTimeout(300);
-    check("and opens Activity", await page.isVisible("#activityModal") && await page.isHidden("#settingsModal"));
+    check("and opens Activity", await page.isVisible("#activityModal"));
     await page.keyboard.press("Escape");
 
     // Desktop width.

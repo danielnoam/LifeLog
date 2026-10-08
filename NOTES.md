@@ -333,6 +333,30 @@ what was decided against and why.
   copy of the whole recurring list taken just before. `combinedWith` stays in
   KNOWN_RECURRING_KEYS so the sanitizer drops it rather than keepUnknown
   carrying it, which is what made the old groups separate again.
+- **List drag (0.248.0).** Daniel: reordering "feels like shit". Two causes:
+  the hold only switched modes (then a second press to drag), and the row
+  never moved with the finger, only jumped a slot when the pointer crossed a
+  midpoint. Now the hold's timer calls `beginRowDrag` on the re-rendered row
+  with the original pointerId, so the gesture carries on; the row gets a
+  translateY from where it would sit (natural = rect.top − translate, which
+  holds across insertBefore), clamped to the list; the swap test uses the
+  unclamped finger position, because against the first row the clamped
+  middle never crosses it (notekinds found that). The page is held still
+  with a non-passive touchmove preventDefault for the drag's life: a plain
+  row has the page's touch-action, and the browser hasn't committed to a
+  scroll because the hold cancels on 10px of movement. `.is-dragging` turns
+  the row's transform transition off (it lagged the finger), `.is-settling`
+  turns a short one on for the drop. Travel's place drag is the older
+  shape; if it gets the same complaint, lift this.
+- **Activity in the header (0.248.0).** Always there, `.is-busy` swaps the
+  pulse icon for the ring. On phones the header fits four buttons at 375
+  (search shrinks), so the "no room" note from 0.244.0 was wrong; the pill
+  stays because it says what is running. The Settings row went with it, so
+  `#settingsActivityRow`/`#settingsActivityStatus` no longer exist.
+- **Travel off by default (0.248.0).** `DEFAULT_VISUAL.disabledViews =
+  ["travel"]`; a saved visual settings object with its own `disabledViews`
+  wins, so devices that ever toggled a tab are untouched. Browser suites that
+  need Travel seed `disabledViews: []`.
 - **Icons (0.247.0).** Lucide, chosen over Tabler, Phosphor and Heroicons
   because its 2px round stroke matched the SVGs Settings already had, so
   nothing in the app reads as two generations. `src/icons.js` is generated

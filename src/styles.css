@@ -541,6 +541,7 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
    ring is a quarter and pulses, like the sync light: a status. */
 .activity-btn { display: grid; place-items: center; }
 .activity-btn[hidden] { display: none; }
+.activity-btn.is-busy .activity-idle, .activity-btn:not(.is-busy) > svg { display: none; }
 .activity-btn svg, .activity-pill svg { width: 18px; height: 18px; fill: none; stroke-width: 2.4; display: block; transform: rotate(-90deg); flex: none; }
 .activity-track { stroke: var(--text-faint); opacity: .5; }
 .activity-ring {
@@ -1159,7 +1160,9 @@ select:focus { outline: none; border-color: var(--accent); }
 
 /* While reordering: touch-action none so the drag is ours rather than the
    page's scroll, and no text selection to fight the gesture. */
-.month-card.is-reordering { border-color: var(--accent); }
+.note-card.is-reordering, .month-card.is-reordering { border-color: var(--accent); }
+.note-card.is-reordering .todo-compose { visibility: hidden; }
+.note-card.is-reordering .todo-row.is-done, .note-card.is-reordering .todo-done-sep { pointer-events: none; opacity: .45; }
 .todo-row.is-reorder {
   touch-action: none; cursor: grab;
   -webkit-user-select: none; user-select: none;
@@ -1169,10 +1172,11 @@ select:focus { outline: none; border-color: var(--accent); }
    to finish before the finger reaches the next neighbour's midpoint, or the
    list is animating one swap while you are asking for the next. */
 .todo-row.is-reorder { transition: transform .17s cubic-bezier(.22,1,.36,1); }
+.todo-row.is-settling { transition: transform .14s cubic-bezier(.22,1,.36,1); }
 @media (prefers-reduced-motion: reduce) { .todo-row.is-reorder { transition: none; } }
 .todo-grip { flex: 0 0 auto; width: 16px; text-align: center; color: var(--text-faint); font-size: var(--fs-sm); }
 .todo-row.is-dragging {
-  cursor: grabbing; background: var(--bg-elev-2);
+  transition: none; cursor: grabbing; background: var(--bg-elev-2);
   border-radius: var(--r-md); box-shadow: var(--shadow); opacity: .95;
 }
 
@@ -2592,7 +2596,6 @@ html.native, html.native body { overscroll-behavior-y: none; }
   html:not(.force-pc) .jump-item.is-active { color: var(--accent); font-size: var(--fs-md); cursor: default; }
 
   html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
-  html:not(.force-pc) .activity-btn { display: none; }
   html:not(.force-pc) .activity-pill:not([hidden]) {
     position: fixed; left: 16px; bottom: calc(var(--bottombar-h, 88px) + 20px); z-index: 35;
     display: flex; align-items: center; gap: 8px; min-height: 44px; max-width: calc(100vw - 108px);
@@ -2703,7 +2706,6 @@ html.force-mobile .jump-item {
 html.force-mobile .jump-item.is-active { color: var(--accent); font-size: var(--fs-md); cursor: default; }
 
 html.force-mobile .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
-html.force-mobile .activity-btn { display: none; }
 html.force-mobile .activity-pill:not([hidden]) {
   position: fixed; left: 16px; bottom: calc(var(--bottombar-h, 88px) + 20px); z-index: 35;
   display: flex; align-items: center; gap: 8px; min-height: 44px; max-width: calc(100vw - 108px);

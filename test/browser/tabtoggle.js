@@ -65,16 +65,22 @@ const activeView = (page) => page.evaluate(() => {
   // tests, not about the feature.
   let ALL_VIEWS = [];
 
-  // ---- 1. by default nothing changes ----
+  // ---- 1. the defaults: everything but Travel (0.248.0) ----
   {
     const { page, ctx, errs: e } = await app(browser);
     ALL_VIEWS = await page.evaluate(() =>
       [...document.querySelectorAll("#viewTabs .tab")].map((t) => t.dataset.view));
     const shown = await shownTabs(page);
-    check("every tab is there when nothing is turned off",
-      JSON.stringify(shown) === JSON.stringify(ALL_VIEWS) && shown.length >= 4, shown);
+    check("with nothing saved, every tab but Travel is there",
+      JSON.stringify(shown) === JSON.stringify(ALL_VIEWS.filter((v) => v !== "travel")) && shown.length >= 4, shown);
     errs.push(...e);
     await ctx.close();
+    const all = await app(browser, { visual: { disabledViews: [] } });
+    const every = await shownTabs(all.page);
+    check("every tab is there when nothing is turned off",
+      JSON.stringify(every) === JSON.stringify(ALL_VIEWS), every);
+    errs.push(...all.errs);
+    await all.ctx.close();
   }
 
   // ---- 2. a disabled tab leaves the bar, and the swipe skips it ----
@@ -202,7 +208,7 @@ const activeView = (page) => page.evaluate(() => {
 
   // ---- 6. the settings switches ----
   {
-    const { page, ctx, errs: e } = await app(browser);
+    const { page, ctx, errs: e } = await app(browser, { visual: { disabledViews: [] } });
     await page.click("#settingsBtn");
     await page.waitForSelector("#settingsModal:not([hidden])", { timeout: 5000 });
     await page.click('.srow[data-page="tabs"]');
