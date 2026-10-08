@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.252.0] - 2026-10-08
+
+### Added
+- **Letterboxd import.** Settings → Imports takes the zip Letterboxd gives
+  you (Settings → Import & Export → Export your data), or its CSV files.
+  Diary lines become Timeline entries on the day you watched, with your
+  stars (halves rounded up); films marked watched without a diary line land
+  on the day they were marked, rated from ratings.csv; a rewatch is another
+  entry; the watchlist goes to the Backlog with the year. The usual import
+  review comes first, and films already in your data stay as they are.
+
 ## [0.251.0] - 2026-10-08
 
 ### Changed

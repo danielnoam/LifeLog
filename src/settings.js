@@ -902,7 +902,20 @@
     }
   }
 
+  // Letterboxd's "Add films to" (0.252.0): not stored, since the import is
+  // a one-off; it starts on the category that sounds like films.
+  function renderLetterboxdCategoryOptions() {
+    const sel = $("#letterboxdCategory");
+    if (!sel) return;
+    const current = sel.value;
+    sel.innerHTML = "";
+    state.data.categories.forEach((cat) => { const opt = el("option", null, cat.name); opt.value = cat.name; sel.appendChild(opt); });
+    const guess = state.data.categories.find((c) => /film|movie|cinema/i.test(c.name));
+    if (current && state.data.categories.some((c) => c.name === current)) sel.value = current;
+    else if (guess) sel.value = guess.name;
+  }
   function renderSteamWishlistCategoryOptions() {
+    renderLetterboxdCategoryOptions();
     const sel = $("#steamWishlistCategory");
     if (!sel) return;
     const current = state.data.settings.steam?.wishlistCategory || sel.value;

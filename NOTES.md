@@ -333,6 +333,22 @@ what was decided against and why.
   copy of the whole recurring list taken just before. `combinedWith` stays in
   KNOWN_RECURRING_KEYS so the sanitizer drops it rather than keepUnknown
   carrying it, which is what made the old groups separate again.
+- **Letterboxd import (0.252.0).** Letterboxd has no API; the export zip is
+  the only way in, and the app already had a zip reader (docimport.js, for
+  EPUBs) and the import review with duplicate checking (io.js), so the
+  importer is a reader of four CSVs into the review's `{entries, backlog}`
+  shape, keyed by header names since the columns have moved before. Each
+  diary line is an entry (a rewatch too: each watch is a thing you did); a
+  watched.csv film with no diary line is dated by when it was marked,
+  the best date there is; ratings come from the diary line, else
+  ratings.csv, with halves rounded up (4.5 is five stars, not four). The
+  Letterboxd link is deliberately not written into notes: the review
+  offers "+ notes" as an update for any film you already logged, so every
+  import would have listed your whole history as updates. The category is
+  a select on the page, not a stored setting, since the import is a
+  one-off; it starts on the category that sounds like films. The browser
+  test builds a real deflated zip in Node, since that's what the reader
+  gets.
 - **One search across everything (0.251.0).** The box filtered the tab you
   were on and badged the others with a count; the count told you a hit
   existed somewhere but not which, and nothing opened from a search. Now

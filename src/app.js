@@ -16,6 +16,7 @@
   const Widgets = window.LifeLogWidgets || { changed() {}, start() {} };
   const Share = window.LifeLogShare || { open() {}, close() {}, start() {} };
   const Search = window.LifeLogSearch || { start() {}, setQuery() {}, clear() {}, refresh() {}, isOpen: () => false };
+  const Letterboxd = window.LifeLogLetterboxd || { start() {}, importFiles: async () => {} };
   // Absent only under the unit tests, which load this file without a page.
   // The status-bar style last sent to Android (see syncSystemBars). Up here
   // with the module's other state, not beside its function: applyTheme runs
@@ -153,7 +154,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.251.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.252.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -4159,6 +4160,14 @@
     $("#importTabJsonInput").onchange = (e) => { if (e.target.files[0]) IO.importJson(e.target.files[0], importTab); e.target.value = ""; };
     $("#importTabCsvInput").onchange = (e) => { if (e.target.files[0]) IO.importTabCsv(e.target.files[0], importTab); e.target.value = ""; };
     $("#importMdBtn").onclick = () => $("#importMdInput").click();
+    // Letterboxd's export (letterboxd.js, 0.252.0): a zip or its CSV files.
+    $("#letterboxdImportBtn").onclick = () => $("#letterboxdImportInput").click();
+    $("#letterboxdImportInput").onchange = (e) => {
+      const files = [...e.target.files];
+      e.target.value = "";
+      const category = $("#letterboxdCategory").value || "Films";
+      if (files.length) Letterboxd.importFiles(files, category).catch((err) => toast("Couldn't read that export: " + (err.message || err), true));
+    };
     // A folder: Android's own folder screen in the app (the WebView has no
     // folder picker), the browser's on a computer. A phone's browser can't
     // pick one at all, so it isn't offered there.
@@ -5188,6 +5197,7 @@
   Boards.init({ state, $, el, uid, toast, emptyState, render, Storage, download: IO.download, bulkCheckbox, toggleBulkItem, attachLongPressSelect });
   Travel.init({ state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader, activatable, updateFilterbarVisibility });
   Share.start({ Backlog, Notes, Travel, toast, viewEnabled, modeEnabled });
+  Letterboxd.start({ unzip: (b) => window.LifeLogDocImport.unzip(b), parseCsv: IO.parseCsv, buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport });
   Search.start({
     state, ico, render, viewEnabled, modeEnabled,
     Notes, Habits, Journal, Backlog, Finance, Travel, Settings: SettingsUI,

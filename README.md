@@ -169,6 +169,9 @@ between them.
 - **A wheel to spin** – beside the backlog's random pick, over options you
   type yourself; and again inside the pick card, over whatever is eligible.
 - **Filters** – year and category chips narrow a tab.
+- **Letterboxd import** (0.252.0) – Settings → Imports reads the export zip:
+  your diary and watched films become entries with their stars, the
+  watchlist goes to the Backlog, after the usual review.
 - **Search** – one box over everything (0.251.0): entries, backlog, notes,
   habits, boards, expenses, trips and places, Settings pages. Results come
   grouped by tab and a tap opens the item; "Filter Backlog" on a group
