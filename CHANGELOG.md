@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.250.0] - 2026-10-08
+
+### Added
+- **Share into LifeLog.** LifeLog is in the phone's Share sheet: Android,
+  iOS and the installed web app. Share a link from Letterboxd, IMDb, Steam,
+  MyAnimeList, AniList, TMDB, Goodreads, Open Library, RAWG or YouTube and
+  the Backlog sheet opens with the title filled and the lookup running; a
+  Google Maps link goes into the open trip (or asks for the trip first, and
+  waits for it); anything else asks whether it's a Backlog item or a note.
+  The link is kept in the item's notes.
+
+### Fixed
+- The look-up button on the entry and Backlog sheets still drew an emoji;
+  it's the Lucide refresh icon now, like everything else since 0.247.0.
+
 ## [0.249.0] - 2026-10-08
 
 ### Changed

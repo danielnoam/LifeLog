@@ -1,5 +1,10 @@
 todo:
 
+- **Share into LifeLog, on the phones (0.250.0).** Built without a device:
+  check on Android that Chrome's Share → LifeLog opens the Backlog sheet
+  with the title, and on iOS that LifeLog appears in the Share sheet at all
+  and that the app opens by itself after the share (if it doesn't, the
+  share should still appear the next time the app is opened).
 - **Activity, next.** Check on Daniel's phone that a Steam sync carries on
   with the app put away and the screen off, and that the notification's
   Stop and tap work (not testable here), and that Run again shows after

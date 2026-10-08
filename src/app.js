@@ -14,6 +14,7 @@
   const Travel = window.LifeLogTravel;
   const Recap = window.LifeLogRecap;
   const Widgets = window.LifeLogWidgets || { changed() {}, start() {} };
+  const Share = window.LifeLogShare || { open() {}, close() {}, start() {} };
   // Absent only under the unit tests, which load this file without a page.
   // The status-bar style last sent to Android (see syncSystemBars). Up here
   // with the module's other state, not beside its function: applyTheme runs
@@ -151,7 +152,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.249.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.250.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -4254,7 +4255,7 @@
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
         Finance.closePauseModal(); Finance.cancelFinanceCatModal();
         Habits.closeHabitModal(); Notes.closeNoteCatModal();
-        Travel.closeTripModal(); Travel.closePlaceModal(); Travel.closeImportModal();
+        Travel.closeTripModal(); Travel.closePlaceModal(); Travel.closeImportModal(); Share.close();
         SettingsUI.closeSettings();
         SettingsUI.closeViewOptions();
         closeShortcutsModal();
@@ -4468,6 +4469,7 @@
     // up, since closing an import's sheet would stop the import.
     if (action === "open-activity") { openActivity(); return; }
     if (clearForAction(action)) return;
+    if (action.startsWith("share?")) { Share.open(action.slice("share?".length)); return; }
     const goTo = (view, mode) => {
       VIEW_MODES[view].set(mode);
       if (view !== state.view) switchToView(view); else commitModeChange();
@@ -4793,10 +4795,15 @@
     // home-screen icon): ?action=… opens the matching add modal straight
     // away, skipping the open-then-navigate step. Stripped from the URL
     // immediately so a refresh/back-nav doesn't reopen it.
-    const action = new URLSearchParams(location.search).get("action");
+    // A share from the phone's Share sheet to the installed web app
+    // (manifest.json's share_target) arrives the same way, as ?title=,
+    // ?text= and ?url=; share.js reads them.
+    const params = new URLSearchParams(location.search);
+    const action = params.get("action") || (["title", "text", "url"].some((k) => params.has(k)) ? "share" : "");
     if (action) {
       history.replaceState(null, "", location.pathname + location.hash);
-      runAction(action);
+      params.delete("action");
+      runAction(action === "share" ? "share?" + params.toString() : action);
     }
 
     if (state.pendingSync) retrySync();
@@ -5177,6 +5184,7 @@
   Recap.init({ state, $, el, toast, MONTHS, prefersReducedMotion });
   Boards.init({ state, $, el, uid, toast, emptyState, render, Storage, download: IO.download, bulkCheckbox, toggleBulkItem, attachLongPressSelect });
   Travel.init({ state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader, activatable, updateFilterbarVisibility });
+  Share.start({ Backlog, Notes, Travel, toast, viewEnabled, modeEnabled });
 
   Notes.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy,

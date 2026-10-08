@@ -46,6 +46,11 @@ doesn't load or depend on anything the app build adds.
   **Settings → Access token**.
 - **Updates:** the app checks for a newer release each time it opens and
   offers it. Updates install over the top and keep your data.
+- **Share sheet** (0.250.0): LifeLog takes text and links shared from other
+  apps. A title from Letterboxd, Steam, IMDb and the like opens the Backlog
+  sheet with the lookup running, a Google Maps link goes into the open trip,
+  and anything else asks whether it's a Backlog item or a note. The
+  installed web app has the same, through the manifest's share target.
 - **How it's built:** `.github/workflows/android.yml`, on every push to
   `main`. `tools/build-www.js` copies the files in `sw.js`'s `ASSETS` list
   into `www/`, Capacitor wraps them, and a release `app-v<version>` is
@@ -73,6 +78,9 @@ Mac runner and attached to each release as `LifeLog.ipa`.
   Source in `native/widgets/ios`, added to the generated project by
   `tools/ios-widgets.rb`. Habit reminders and Face ID for the app lock are
   there too.
+- **Share sheet** (0.250.0): a share extension (`native/widgets/ios/Share`)
+  that leaves what was shared in the App Group and opens the app, which
+  takes it from there. Same routing as Android.
 - **What differs from Android:** a newer release is offered as a link to
   the release page, since an app can't install another; the phone backup
   is in Files → On My iPhone → LifeLog; no Markdown folder import.

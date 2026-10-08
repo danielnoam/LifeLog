@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.249.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.250.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -230,7 +230,7 @@
         <label>Title
           <div class="ac-wrap">
             <input id="fTitle" type="text" required autocomplete="off" />
-            <button type="button" class="btn btn-sm sync-btn" id="fSyncBtn" title="Look up cover, year &amp; rating" aria-label="Look up cover, year &amp; rating" hidden><span class="sync-icon">🔄</span></button>
+            <button type="button" class="btn btn-sm sync-btn" id="fSyncBtn" title="Look up cover, year &amp; rating" aria-label="Look up cover, year &amp; rating" hidden><span class="sync-icon" data-ico="refresh-cw" aria-hidden="true"></span></button>
             <div class="ac-list" id="fTitleSuggest" hidden></div>
           </div>
           <div class="sync-status" id="fSyncStatus" hidden>
@@ -486,7 +486,7 @@
             <button type="button" class="btn btn-sm priority-star" id="bPriorityBtn" title="Prioritize" aria-label="Prioritize" aria-pressed="false"><span data-ico="star"></span></button>
             <button type="button" class="btn btn-sm bought-toggle" id="bBoughtBtn" title="Mark as already bought" aria-label="Mark as already bought" aria-pressed="false"><span data-ico="check"></span></button>
             <button type="button" class="btn btn-sm started-toggle" id="bStartedBtn" title="Start — move to In progress" aria-label="Start — move to In progress" aria-pressed="false"><span data-ico="play"></span></button>
-            <button type="button" class="btn btn-sm sync-btn" id="bSyncBtn" title="Look up cover, year &amp; rating" aria-label="Look up cover, year &amp; rating" hidden><span class="sync-icon">🔄</span></button>
+            <button type="button" class="btn btn-sm sync-btn" id="bSyncBtn" title="Look up cover, year &amp; rating" aria-label="Look up cover, year &amp; rating" hidden><span class="sync-icon" data-ico="refresh-cw" aria-hidden="true"></span></button>
             <div class="ac-list" id="bTitleSuggest" hidden></div>
           </div>
           <div class="sync-status" id="bSyncStatus" hidden>
@@ -1981,6 +1981,24 @@
     </div>
   </div>
 
+  <!-- Something shared from another app that could be a Backlog item or a
+       note (share.js). Links the app can place itself skip this sheet. -->
+  <div class="modal-overlay" id="shareModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle">
+      <h2 id="shareModalTitle">Shared with LifeLog</h2>
+      <p class="share-preview" id="sharePreview"></p>
+      <p class="muted">Keep it as</p>
+      <div class="share-choices">
+        <button type="button" class="btn" id="shareToBacklog"><span data-ico="star" aria-hidden="true"></span>Backlog item</button>
+        <button type="button" class="btn" id="shareToNote"><span data-ico="pencil" aria-hidden="true"></span>Note</button>
+      </div>
+      <div class="modal-actions">
+        <span class="spacer"></span>
+        <button type="button" class="btn" id="cancelShareBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="conflictModal" hidden>
     <div class="modal modal-wide">
       <h2>Couldn't automatically merge these versions</h2>
@@ -2049,32 +2067,33 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.249.0"></script>
-  <script defer src="src/icons.js?v=0.249.0"></script>
-  <script defer src="src/jobs.js?v=0.249.0"></script>
-  <script defer src="src/reconcile.js?v=0.249.0"></script>
-  <script defer src="src/qr.js?v=0.249.0"></script>
-  <script defer src="src/media.js?v=0.249.0"></script>
-  <script defer src="src/merge.js?v=0.249.0"></script>
-  <script defer src="src/storage.js?v=0.249.0"></script>
-  <script defer src="src/finance.js?v=0.249.0"></script>
-  <script defer src="src/settings.js?v=0.249.0"></script>
-  <script defer src="src/wheel.js?v=0.249.0"></script>
-  <script defer src="src/backlog.js?v=0.249.0"></script>
-  <script defer src="src/journal.js?v=0.249.0"></script>
-  <script defer src="src/markdown.js?v=0.249.0"></script>
-  <script defer src="src/notes.js?v=0.249.0"></script>
-  <script defer src="src/docimport.js?v=0.249.0"></script>
-  <script defer src="src/io.js?v=0.249.0"></script>
-  <script defer src="src/sync.js?v=0.249.0"></script>
-  <script defer src="src/habits.js?v=0.249.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.249.0"></script>
-  <script defer src="src/boards.js?v=0.249.0"></script>
-  <script defer src="src/travel.js?v=0.249.0"></script>
-  <script defer src="src/recap.js?v=0.249.0"></script>
-  <script defer src="src/reminders.js?v=0.249.0"></script>
-  <script defer src="src/widgets.js?v=0.249.0"></script>
-  <script defer src="src/payments.js?v=0.249.0"></script>
-  <script defer src="src/app.js?v=0.249.0"></script>
+  <script defer src="src/platform.js?v=0.250.0"></script>
+  <script defer src="src/icons.js?v=0.250.0"></script>
+  <script defer src="src/jobs.js?v=0.250.0"></script>
+  <script defer src="src/reconcile.js?v=0.250.0"></script>
+  <script defer src="src/qr.js?v=0.250.0"></script>
+  <script defer src="src/media.js?v=0.250.0"></script>
+  <script defer src="src/merge.js?v=0.250.0"></script>
+  <script defer src="src/storage.js?v=0.250.0"></script>
+  <script defer src="src/finance.js?v=0.250.0"></script>
+  <script defer src="src/settings.js?v=0.250.0"></script>
+  <script defer src="src/wheel.js?v=0.250.0"></script>
+  <script defer src="src/backlog.js?v=0.250.0"></script>
+  <script defer src="src/journal.js?v=0.250.0"></script>
+  <script defer src="src/markdown.js?v=0.250.0"></script>
+  <script defer src="src/notes.js?v=0.250.0"></script>
+  <script defer src="src/docimport.js?v=0.250.0"></script>
+  <script defer src="src/io.js?v=0.250.0"></script>
+  <script defer src="src/sync.js?v=0.250.0"></script>
+  <script defer src="src/habits.js?v=0.250.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.250.0"></script>
+  <script defer src="src/boards.js?v=0.250.0"></script>
+  <script defer src="src/travel.js?v=0.250.0"></script>
+  <script defer src="src/recap.js?v=0.250.0"></script>
+  <script defer src="src/reminders.js?v=0.250.0"></script>
+  <script defer src="src/widgets.js?v=0.250.0"></script>
+  <script defer src="src/share.js?v=0.250.0"></script>
+  <script defer src="src/payments.js?v=0.250.0"></script>
+  <script defer src="src/app.js?v=0.250.0"></script>
 </body>
 </html>

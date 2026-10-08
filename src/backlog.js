@@ -2494,10 +2494,10 @@
     const editing = !!item;
     $("#backlogModalTitle").textContent = editing ? "Edit backlog item" : "Add to backlog";
     $("#backlogId").value = editing ? item.id : "";
-    $("#bTitle").value = editing ? item.title : "";
+    $("#bTitle").value = editing ? item.title : ((opts && opts.title) || "");
     fillCategorySelect($("#bCategory"), state.data.categories,
       editing ? item.category : (presetCategory || (state.data.categories[0] && state.data.categories[0].name)));
-    $("#bNotes").value = editing ? (item.notes || "") : "";
+    $("#bNotes").value = editing ? (item.notes || "") : ((opts && opts.notes) || "");
     $("#bCoverUrl").value = editing ? (item.coverUrl || "") : "";
     $("#bMediaId").value = editing ? (item.mediaId || "") : "";
     $("#bMediaSource").value = editing ? (item.mediaSource || "") : "";
@@ -2540,6 +2540,9 @@
     updateSyncBtnVisibility("b", $("#bCategory").value);
     updateBacklogDuplicateBanner();
     $("#backlogModal").hidden = false;
+    // A shared link (share.js): the lookup runs as if the sync button had
+    // been pressed, so the cover and year arrive without another tap.
+    if (!editing && opts && opts.sync && $("#bTitle").value) syncBacklogTitle();
   }
   function closeBacklogModal() { $("#backlogModal").hidden = true; }
 

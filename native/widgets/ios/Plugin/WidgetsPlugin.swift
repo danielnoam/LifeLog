@@ -54,7 +54,11 @@ public class WidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         call.resolve(["items": items])
     }
 
-    @objc func takeLaunchAction(_ call: CAPPluginCall) { call.resolve([:]) }
+    // Widgets open the app through lifelog:// links instead, so the only
+    // launch action here is a share left by the share extension (LLShare).
+    @objc func takeLaunchAction(_ call: CAPPluginCall) {
+        if let action = LLShare.take() { call.resolve(["action": action]) } else { call.resolve([:]) }
+    }
 
     @objc func notePins(_ call: CAPPluginCall) { call.resolve(["ids": []]) }
 

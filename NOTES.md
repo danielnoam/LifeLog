@@ -333,6 +333,43 @@ what was decided against and why.
   copy of the whole recurring list taken just before. `combinedWith` stays in
   KNOWN_RECURRING_KEYS so the sanitizer drops it rather than keepUnknown
   carrying it, which is what made the old groups separate again.
+- **Share into LifeLog (0.250.0).** One shape for three doors. Every
+  share ends as the action string `share?title=…&text=…&url=…`, which
+  runAction hands to share.js, because each platform delivers a share
+  differently and only the last step should know: the web app gets
+  `?title=&text=&url=` from manifest.json's share_target (no `action=`,
+  so app.js treats any of those three as a share); Android gets an
+  ACTION_SEND intent, which the Widgets plugin turns into the string
+  (ShareIntent.java) and hands over as a launch action, the way widget
+  buttons already did; iOS gets a share extension (native/widgets/ios/Share),
+  a separate process that can't call the app, so it writes share.json into
+  the App Group and opens `lifelog://action/share`, an empty wake-up, and
+  the plugin's takeLaunchAction serves the file. If iOS refuses the open
+  (not a documented ability of a share extension, only a reliable one), the
+  file waits for the next launch or return to the app; widgets.js asks for
+  a launch action on every return for that reason.
+  - Routing is by link, not by asking: a Maps link to Travel's import, a
+    title site to Backlog with the lookup already running, and only text
+    or an unknown link gets the Backlog-or-Note sheet. A shared Maps link
+    before any trip exists opens the trip form and keeps the link for when
+    it's saved, since "plan a trip first, share again" loses the share.
+    Travel's trips load when the tab is first shown, so the share waits
+    for ensureLoaded; without that a cold start with trips in place said
+    there were none.
+  - The title comes from the shared subject or first line, with the
+    sharing app's suffix (" - IMDb", " | Letterboxd") and, for a title
+    site, a trailing "(1995)" removed, since the lookup takes the year as
+    part of the name. Only when nothing named it is the path's slug used
+    (Steam, MAL, Letterboxd put the title there). The link goes in the
+    item's notes rather than a new field, so the bridge and DATA.md are
+    untouched.
+  - The intent filter lives on MainActivity (Android lists an app per
+    activity that takes the intent), added by tools/android-manifest.js,
+    which now also opens up a self-closing `<activity />` since that's the
+    shape the test template uses. The share extension is a third target in
+    tools/ios-widgets.rb (iOS 15.5, the app's floor; the widgets stay at
+    17), signed into the .ipa like the widgets. Images aren't taken: the
+    app keeps cover URLs, not files.
 - **List drag (0.248.0).** Daniel: reordering "feels like shit". Two causes:
   the hold only switched modes (then a second press to drag), and the row
   never moved with the finger, only jumped a slot when the pointer crossed a

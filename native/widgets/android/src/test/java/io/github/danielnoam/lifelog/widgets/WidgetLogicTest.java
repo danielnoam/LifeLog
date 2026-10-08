@@ -461,6 +461,19 @@ public class WidgetLogicTest {
     }
 
     @Test
+    public void aShareBecomesTheActionTheAppReads() {
+        assertEquals("share?title=Heat+%281995%29+-+IMDb&text=https%3A%2F%2Fwww.imdb.com%2Ftitle%2Ftt0113277%2F",
+            ShareIntent.actionOf("Heat (1995) - IMDb", "https://www.imdb.com/title/tt0113277/"));
+        // Most apps send text alone; a trailing newline is theirs, not the share's.
+        assertEquals("share?text=Buy+milk", ShareIntent.actionOf(null, "Buy milk\n"));
+        assertEquals("share?title=A+page", ShareIntent.actionOf("A page", ""));
+        // Hebrew and an ampersand survive the trip to URLSearchParams.
+        assertEquals("share?text=%D7%A9%D7%9C%D7%95%D7%9D+%26+%D7%9C%D7%94%D7%AA%D7%A8%D7%90%D7%95%D7%AA", ShareIntent.actionOf("", "שלום & להתראות"));
+        assertNull(ShareIntent.actionOf(null, null));
+        assertNull(ShareIntent.actionOf(" ", "\n"));
+    }
+
+    @Test
     public void aQueuedPaymentIsntCountedAsAWidgetTick() throws Exception {
         JSONArray q = new JSONArray("[{\"kind\":\"habit\",\"id\":\"h\"},{\"kind\":\"expense\",\"id\":\"e\"},{\"kind\":\"todo\",\"id\":\"t\"}]");
         assertEquals(2, WidgetStore.tickCount(q));

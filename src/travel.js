@@ -985,14 +985,31 @@
   // ticked; a place that's already in the trip can't be added twice.
   const IMPORT_HINT = "A list brings all its places to choose from. A place brings just that one.";
   let importTrip = null, found = null, picks = [], importBusy = false;
-  function openImportModal(trip) {
+  // A Google Maps link shared from outside the app (share.js, 0.250.0):
+  // into the trip that's open, with the lookup already running. The trips
+  // may not have been read yet, since the tab loads them when first shown.
+  // With no trip at all, the trip form comes first and the link waits for
+  // it to be saved.
+  let sharedLink = null;
+  function importSharedLink(link) {
+    ensureLoaded().then(() => {
+      if (!openTrip()) {
+        sharedLink = link;
+        toast("Plan the trip first — the place is waiting");
+        openTripModal(null);
+        return;
+      }
+      openImportModal(null, link);
+    });
+  }
+  function openImportModal(trip, link) {
     importTrip = trip || openTrip();
     if (!importTrip) { openTripModal(null); return; }
     $("#importTripName").textContent = importTrip.name;
-    $("#importLink").value = "";
+    $("#importLink").value = link || "";
     resetImport();
     $("#importPlacesModal").hidden = false;
-    setTimeout(() => $("#importLink").focus(), 0);
+    if (link) submitImport(); else setTimeout(() => $("#importLink").focus(), 0);
   }
   function closeImportModal() {
     $("#importPlacesModal").hidden = true;
@@ -1297,7 +1314,7 @@
     $("#tripModal").hidden = false;
     setTimeout(() => $("#tripName").focus(), 0);
   }
-  function closeTripModal() { $("#tripModal").hidden = true; editingTrip = null; }
+  function closeTripModal() { $("#tripModal").hidden = true; editingTrip = null; sharedLink = null; }
 
   async function saveTripFromForm() {
     await ensureLoaded();
@@ -1317,6 +1334,10 @@
       doc.trips.push(t);
       changed(t);
       setOpenTrip(t.id);
+      if (sharedLink) {
+        const link = sharedLink; sharedLink = null;
+        setTimeout(() => openImportModal(t, link), 0);
+      }
     }
     closeTripModal();
     render();
@@ -1662,7 +1683,7 @@
 
   const api = {
     MODES, init, wire, renderTravel, endSort, ensureLoaded, flush, addTrip, addPlace, tripsForExport, renderHistory,
-    openTripModal, closeTripModal, openPlaceModal, closePlaceModal, openImportModal, closeImportModal, importPlaces,
+    openTripModal, closeTripModal, openPlaceModal, closePlaceModal, openImportModal, closeImportModal, importPlaces, importSharedLink,
     // pure, for tests and the bridge
     sanitizeTrip, sanitizePlace, sanitizeDoc, tripDays, sortDay, tripStatus, sortTrips,
     dayLabel, rangeLabel, timeLabel, mapsUrl,

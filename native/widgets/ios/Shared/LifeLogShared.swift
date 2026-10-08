@@ -34,6 +34,34 @@ enum LLGroup {
     }
 }
 
+// Share into LifeLog (0.250.0): what the share extension read, until the
+// app takes it. One at a time; a second share before the app opened
+// replaces the first, as it would on screen.
+enum LLShare {
+    static let file = "share.json"
+    private static var url: URL? { LLGroup.container?.appendingPathComponent(file) }
+
+    static func save(title: String, text: String, url link: String) {
+        guard let u = url else { return }
+        let o: [String: String] = ["title": title, "text": text, "url": link]
+        if let d = try? JSONSerialization.data(withJSONObject: o) { try? d.write(to: u, options: .atomic) }
+    }
+
+    /// The pending share as the app's action string, and the file gone.
+    static func take() -> String? {
+        guard let u = url, let d = try? Data(contentsOf: u) else { return nil }
+        try? FileManager.default.removeItem(at: u)
+        guard let o = try? JSONSerialization.jsonObject(with: d) as? [String: String] else { return nil }
+        var parts = URLComponents()
+        parts.queryItems = ["title", "text", "url"].compactMap { k in
+            guard let v = o[k], !v.isEmpty else { return nil }
+            return URLQueryItem(name: k, value: v)
+        }
+        guard let q = parts.percentEncodedQuery, !q.isEmpty else { return nil }
+        return "share?" + q
+    }
+}
+
 enum LLStore {
     static let snapshotFile = "snapshot.json"
     static let queueFile = "queue.json"

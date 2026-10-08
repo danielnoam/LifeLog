@@ -23,7 +23,8 @@ import org.json.JSONArray;
  *
  *   update({ json })   the snapshot the widgets draw from
  *   takeQueue()        ticks made on a widget since last asked, and forgets them
- *   takeLaunchAction() what a widget button asked the app to open, once
+ *   takeLaunchAction() what a widget button asked the app to open, once —
+ *                      or what another app shared (ShareIntent)
  *   notePins()         the notes placed note widgets show, which the app
  *                      always sends however many notes there are
  *   pickMarkdownFolder()
@@ -90,6 +91,14 @@ public class WidgetsPlugin extends Plugin {
     private boolean readAction(Intent intent) {
         if (intent == null) return false;
         String action = intent.getStringExtra(WidgetStore.EXTRA_ACTION);
+        // Text shared from another app (ShareIntent, 0.250.0). The text is
+        // taken off the intent as well, so a recreated activity doesn't share
+        // it again.
+        if (action == null && Intent.ACTION_SEND.equals(intent.getAction())) {
+            action = ShareIntent.actionOf(intent.getStringExtra(Intent.EXTRA_SUBJECT), intent.getStringExtra(Intent.EXTRA_TEXT));
+            intent.removeExtra(Intent.EXTRA_TEXT);
+            intent.removeExtra(Intent.EXTRA_SUBJECT);
+        }
         if (action == null) return false;
         // Taken off the intent, so recreating the activity doesn't replay it.
         intent.removeExtra(WidgetStore.EXTRA_ACTION);

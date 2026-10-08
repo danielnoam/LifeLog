@@ -17,6 +17,11 @@
 //   approves each install on Android's own screen, and once, in Settings,
 //   whether LifeLog may install apps at all.
 //
+// - The Share sheet (0.250.0): an intent filter on the main activity for
+//   text shared from other apps, which the Widgets plugin turns into the
+//   share action src/share.js reads. On the activity, not beside it, since
+//   Android lists an app in the sheet per activity that takes the intent.
+//
 // - Storage for the phone backup (0.215.0), which writes a copy of your data
 //   into the phone's shared Documents/LifeLog folder, where the Files app and
 //   a PC over USB can see it and where it outlives clearing the app's data.
@@ -34,6 +39,11 @@ const ENTRIES = [
   { inside: "manifest", xml: '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />' },
   { inside: "manifest", xml: '<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />' },
 ];
+// Inside the main activity. The template closes it with a </activity>; a
+// self-closing <activity … /> is opened up to take it.
+const ACTIVITY = [
+  '<intent-filter>\n                <action android:name="android.intent.action.SEND" />\n                <category android:name="android.intent.category.DEFAULT" />\n                <data android:mimeType="text/plain" />\n            </intent-filter>',
+];
 // Attributes on a tag rather than tags inside one.
 const ATTRS = [
   { on: "application", attr: 'android:requestLegacyExternalStorage="true"' },
@@ -48,6 +58,15 @@ function patch(xml) {
     if (at < 0) throw new Error("no <" + inside + "> tag in AndroidManifest.xml");
     const end = out.indexOf(">", at) + 1;
     out = out.slice(0, end) + "\n    " + (inside === "application" ? "    " : "") + entry + out.slice(end);
+  }
+  for (const entry of ACTIVITY) {
+    const name = entry.match(/android:name="([^"]+)"/)[1];
+    if (out.includes('android:name="' + name + '"')) continue;
+    const m = /<activity\b[^>]*android:name="\.MainActivity"[^>]*?(\/?)>/.exec(out);
+    if (!m) throw new Error("no MainActivity <activity> in AndroidManifest.xml");
+    const open = m[1] ? m[0].slice(0, -2).trimEnd() + ">" : m[0];
+    const tail = m[1] ? "\n        </activity>" : "";
+    out = out.slice(0, m.index) + open + "\n            " + entry + tail + out.slice(m.index + m[0].length);
   }
   for (const { on, attr } of ATTRS) {
     const name = attr.split("=")[0];
@@ -64,7 +83,7 @@ if (require.main === module) {
   const file = path.resolve(__dirname, "..", "android", "app", "src", "main", "AndroidManifest.xml");
   const before = fs.readFileSync(file, "utf8");
   fs.writeFileSync(file, patch(before));
-    const n = ENTRIES.length + ATTRS.length;
+    const n = ENTRIES.length + ACTIVITY.length + ATTRS.length;
   console.log("android: manifest " + (before === patch(before) ? "already has" : "gained") + " " + n + " LifeLog entr" + (n === 1 ? "y" : "ies"));
 }
-module.exports = { patch, ENTRIES, ATTRS };
+module.exports = { patch, ENTRIES, ACTIVITY, ATTRS };

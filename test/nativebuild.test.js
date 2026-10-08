@@ -159,6 +159,25 @@ test("the phone backup can write to Documents on every Android the app runs on",
   assert.strictEqual(twice.split("WRITE_EXTERNAL_STORAGE").length - 1, 1);
 });
 
+test("the Share sheet lists LifeLog: a SEND filter for text, inside the main activity", () => {
+  const out = patch(TEMPLATE);
+  const act = /<activity\b[^>]*\.MainActivity[^>]*>([\s\S]*?)<\/activity>/.exec(out);
+  assert.ok(act, "the self-closing activity was opened up:\n" + out);
+  assert.ok(act[1].includes('android.intent.action.SEND') && act[1].includes('android:mimeType="text/plain"'), act[1]);
+  assert.ok(!out.includes("/>\n            <intent-filter"), "the tag itself no longer self-closes");
+  assert.strictEqual(patch(out).split("android.intent.action.SEND").length - 1, 1);
+});
+
+test("and the same when the template's activity already has a body", () => {
+  const open = TEMPLATE.replace('<activity android:name=".MainActivity" />',
+    '<activity\n            android:name=".MainActivity"\n            android:launchMode="singleTask"\n            android:exported="true">\n\n            <intent-filter>\n                <action android:name="android.intent.action.MAIN" />\n            </intent-filter>\n\n        </activity>');
+  const out = patch(open);
+  const act = /<activity\b[^>]*>([\s\S]*?)<\/activity>/.exec(out)[1];
+  assert.ok(act.includes("android.intent.action.MAIN") && act.includes("android.intent.action.SEND"), out);
+  assert.strictEqual(out.split("</activity>").length - 1, 1);
+  assert.strictEqual(patch(out).split("android.intent.action.SEND").length - 1, 1);
+});
+
 test("a manifest without <application> fails instead of shipping without the scanner", () => {
   assert.throws(() => patch("<manifest></manifest>"), /application/);
 });
@@ -334,6 +353,26 @@ test("the widgets' links, Face ID and the App Group are declared the way the wid
     "openNotificationSettings", "biometricState", "authenticate", "pickMarkdownFolder"]) {
     assert.ok(plugin.includes('CAPPluginMethod(name: "' + m + '"') && plugin.includes("@objc func " + m + "("), m);
   }
+});
+
+test("the share extension (0.250.0) hands over through the same group and the same link", () => {
+  const ios = path.join(__dirname, "..", "native", "widgets", "ios");
+  const swift = fs.readFileSync(path.join(ios, "Shared", "LifeLogShared.swift"), "utf8");
+  const group = /static let fallback = "([^"]+)"/.exec(swift)[1];
+  for (const f of ["Share/Info.plist", "Share/LifeLogShare.entitlements"]) {
+    assert.ok(fs.readFileSync(path.join(ios, f), "utf8").includes(group), f + " names the same group");
+  }
+  const plist = fs.readFileSync(path.join(ios, "Share", "Info.plist"), "utf8");
+  assert.ok(plist.includes("com.apple.share-services") && plist.includes("ShareViewController"), "a share extension with its view controller");
+  assert.ok(plist.includes("NSExtensionActivationSupportsWebURLWithMaxCount") && plist.includes("NSExtensionActivationSupportsText"), "offered for links and text");
+  const vc = fs.readFileSync(path.join(ios, "Share", "ShareViewController.swift"), "utf8");
+  assert.ok(vc.includes('"lifelog://action/share"') && vc.includes("LLShare.save("), "it wakes the app and leaves the share for the plugin");
+  assert.ok(swift.includes("enum LLShare") && swift.includes('"share?"'), "the plugin hands it over as the share action");
+  // Both extensions are signed into the .ipa, and the Ruby script knows both.
+  const yml = fs.readFileSync(path.join(__dirname, "..", ".github", "workflows", "ios.yml"), "utf8");
+  assert.ok(yml.includes("LifeLogShare.appex") && yml.includes("Share/LifeLogShare.entitlements"), "the workflow signs the share extension");
+  const rb = fs.readFileSync(path.join(__dirname, "..", "tools", "ios-widgets.rb"), "utf8");
+  assert.ok(rb.includes("Share/ShareViewController.swift") && rb.includes("io.github.danielnoam.lifelog.share"), "the project gains the target");
 });
 
 test("a plist without a <dict> fails instead of shipping without them", () => {

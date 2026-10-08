@@ -270,13 +270,18 @@
     return draining;
   }
 
+  // One ask at a time: at launch the start-up ask and a lifelog:// link's
+  // can land together, and a share taken twice would open twice.
+  let taking = false;
   async function takeAction() {
     const W = plugin();
-    if (!W) return;
+    if (!W || taking) return;
+    taking = true;
     try {
       const res = await W.takeLaunchAction();
       if (res && res.action) ctx.runAction(res.action);
     } catch (e) { /* nothing to open */ }
+    finally { taking = false; }
   }
 
   // iOS (0.217.0): a widget opens lifelog://action/<action> — the App
@@ -291,7 +296,9 @@
   function listenForLinks() {
     const App = ctx.Platform.plugin("App");
     if (!App) return;
-    const go = (url) => { const a = actionOfUrl(url); if (a) ctx.runAction(a); };
+    // lifelog://action/share carries nothing itself (0.250.0): the share
+    // extension left what was shared with the plugin, as a launch action.
+    const go = (url) => { const a = actionOfUrl(url); if (a === "share") takeAction(); else if (a) ctx.runAction(a); };
     App.addListener("appUrlOpen", (e) => go(e && e.url));
     if (App.getLaunchUrl) Promise.resolve(App.getLaunchUrl()).then((r) => go(r && r.url)).catch(() => {});
   }
@@ -305,7 +312,7 @@
     W.addListener("queued", () => drain());
     W.addListener("action", () => takeAction());
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") drain();
+      if (document.visibilityState === "visible") { drain(); takeAction(); }
       else push(); // leaving: the widget should show what was just done
     });
     drain();

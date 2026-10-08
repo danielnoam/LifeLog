@@ -49,9 +49,10 @@ jobs:
           npx cap add ios --packagemanager CocoaPods || test -f ios/App/Podfile
           node tools/ios-project.js
 
-      # The widgets (0.217.0): a second target, added with CocoaPods' own
-      # xcodeproj library before pod install runs again in cap sync.
-      - name: Add the widgets
+      # The widgets (0.217.0) and the Share sheet entry (0.250.0): two more
+      # targets, added with CocoaPods' own xcodeproj library before pod
+      # install runs again in cap sync.
+      - name: Add the widgets and the share extension
         run: |
           ruby -e 'require "xcodeproj"' 2>/dev/null || gem install --user-install --no-document xcodeproj
           ruby tools/ios-widgets.rb
@@ -90,8 +91,10 @@ jobs:
           cp -R ios/App/build/Build/Products/Release-iphoneos/App.app Payload/
           [ ! -d Payload/App.app/Frameworks ] || find Payload/App.app/Frameworks -maxdepth 1 -name "*.framework" -exec codesign --force --sign - {} \;
           codesign --force --sign - --entitlements native/widgets/ios/Extension/LifeLogWidgets.entitlements Payload/App.app/PlugIns/LifeLogWidgets.appex
+          codesign --force --sign - --entitlements native/widgets/ios/Share/LifeLogShare.entitlements Payload/App.app/PlugIns/LifeLogShare.appex
           codesign --force --sign - --entitlements native/widgets/ios/App.entitlements Payload/App.app
           codesign -d --entitlements - Payload/App.app/PlugIns/LifeLogWidgets.appex 2>&1 | grep -q application-groups
+          codesign -d --entitlements - Payload/App.app/PlugIns/LifeLogShare.appex 2>&1 | grep -q application-groups
           zip -qry LifeLog.ipa Payload
           ls -lh LifeLog.ipa
 
