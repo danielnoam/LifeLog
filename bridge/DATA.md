@@ -172,7 +172,8 @@ delete with the `lifelog_*_accomplishment` tools.
 ## Settings (`settings`)
 
 Synced preferences. The bridge never shows these to an AI, because
-`mediaKeys`, `steam` and `anilist` hold API keys and account names. The one
+`mediaKeys`, `steam` (proxy URL, SteamID64 and the Web API key) and
+`anilist` hold API keys and account names. The one
 that matters for data is `currency`, which `lifelog_overview` gives.
 
 Keys: `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,

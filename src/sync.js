@@ -290,8 +290,15 @@
         if (raw === null) { job.fail(source.label + " couldn't be reached"); return; } // fetch() has already said why
         if (job.stopping && !raw.length) { job.finish("Stopped before anything was fetched"); return; }
         if (!raw.length) { const m = source.empty(ctx); toast(m); job.finish(m); return; }
-        const built = buildImportItems({ backlog: raw.map((r) => source.toItem(r, ctx)), categories: [] });
-        if (!built.items.length) { const m = "Nothing new — everything is already in your backlog"; toast(m); job.finish(m); return; }
+        // A source makes backlog items unless it says "entry" (the Steam
+        // backfill, 0.253.0: things you have played are things you did).
+        const kind = source.kind || "backlog";
+        const mapped = raw.map((r) => source.toItem(r, ctx));
+        const built = buildImportItems(kind === "entry" ? { entries: mapped, categories: [] } : { backlog: mapped, categories: [] });
+        if (!built.items.length) { const m = kind === "entry" ? "Nothing new — every game is already logged" : "Nothing new — everything is already in your backlog"; toast(m); job.finish(m); return; }
+        // Which new rows start ticked: the review's default is every new
+        // one, and a source with a lot of noise in it says otherwise.
+        if (source.ticked) for (const it of built.items) if (!it.dup) it.checked = source.ticked(it.entry);
         job.finish(job.stopping ? `Stopped — ${raw.length} fetched, sent to review` : `${built.items.length} to review`);
         reviewAndImport(source.label, source.hint, built);
       });
@@ -384,6 +391,65 @@
       ? "Nothing new — every wishlisted game is already in your backlog, with nothing left to fill in"
       : "Wishlist came back empty — check it's set to Public in your Steam privacy settings"),
   };
+
+  // ---------- Steam: the games you've played (0.253.0) ----------
+  // Steam knows what you own and how long you played it, and nothing about
+  // finishing, so this can't write "finished in March". What it can do is
+  // the backfill, once: every game with time in it, as an entry in the
+  // month it was last played, with the hours as its length. The review
+  // starts with the ones you gave two hours or more ticked; the rest are
+  // there to tick. Needs a Steam Web API key (steamcommunity.com/dev/apikey)
+  // since GetOwnedGames is keyed, unlike the wishlist.
+  const PLAYED_TICK_MINUTES = 120;
+  function ownedToEntry(game, category, now) {
+    const when = game.rtime_last_played ? new Date(game.rtime_last_played * 1000) : (now || new Date());
+    const y = when.getFullYear(), m = when.getMonth() + 1, d = when.getDate();
+    const hours = Math.round((game.playtime_forever || 0) / 60 * 10) / 10;
+    const e = {
+      title: game.name || `Steam app ${game.appid}`, category,
+      year: y, month: m, date: `${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`,
+      mediaSource: "steam", mediaId: String(game.appid),
+      coverUrl: window.LifeLogMedia ? window.LifeLogMedia.steamCoverUrl(game.appid) : "",
+      createdAt: when.toISOString(),
+    };
+    if (hours) e.length = (hours >= 10 ? Math.round(hours) : hours) + " hrs";
+    if (!game.rtime_last_played) e.notes = "Last played: Steam didn't say";
+    return e;
+  }
+  const steamOwnedSource = {
+    id: "steamOwnedSyncBtn",
+    label: "Steam games played",
+    lane: "steam",
+    kind: "entry",
+    hint: "Every game with time in it, as an entry in the month you last played it, hours as its length. Two hours or more starts ticked; the rest you can tick. Games already in your Timeline or Backlog are hidden.",
+    plan() {
+      const cfg = state.data.settings.steam || DEFAULT_SETTINGS.steam;
+      const proxyUrl = window.LifeLogPlatform.steamProxy(cfg.proxyUrl);
+      const steamId = (cfg.steamId || "").trim();
+      const apiKey = (cfg.apiKey || "").trim();
+      const category = cfg.wishlistCategory || "";
+      if (!proxyUrl || !steamId) return { error: "Set your proxy URL and SteamID64 first" };
+      if (!apiKey) return { error: "Paste your Steam Web API key first — Steam only lists owned games with one" };
+      if (!category) return { error: "Choose a category to import into first" };
+      return { ctx: { proxyUrl, steamId, apiKey, category } };
+    },
+    async fetch(ctx, report, job) {
+      report(0, 0, "Reading your games…");
+      const res = await window.fetch(`${ctx.proxyUrl}/steam-owned/${encodeURIComponent(ctx.steamId)}?key=${encodeURIComponent(ctx.apiKey)}`, { signal: job.signal });
+      if (!res.ok) { toast(`Couldn't read your Steam games (Steam answered ${res.status}) — check the key, and that Game details are public`, true); return null; }
+      const data = await res.json();
+      const games = (data && data.response && data.response.games) || [];
+      ctx.ownedCount = games.length;
+      const have = new Set([...state.data.backlog, ...state.data.entries].filter((x) => x.mediaSource === "steam" && x.mediaId).map((x) => x.mediaId));
+      return games.filter((g) => g.playtime_forever > 0 && !have.has(String(g.appid))).sort((a, b) => b.playtime_forever - a.playtime_forever);
+    },
+    toItem: (game, ctx) => ownedToEntry(game, ctx.category),
+    ticked: (entry) => parseFloat(entry.length) * 60 >= PLAYED_TICK_MINUTES,
+    empty: (ctx) => (ctx.ownedCount
+      ? "Nothing new — every game you've played is already logged"
+      : "Steam listed no games — check the key, and that Game details are Public in your privacy settings"),
+  };
+  const syncSteamOwned = () => runImport(steamOwnedSource);
 
   // ---------- AniList planning ----------
   const anilistSource = {
@@ -908,6 +974,7 @@
     // them that don't.
     needsReleaseRecheck,
     applyItemRelease,
+    ownedToEntry, syncSteamOwned,
     isUnresolvedSteamItem,
     steamGameNeedsInfo,
     steamGameNeedsRawgInfo,

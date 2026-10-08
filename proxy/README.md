@@ -1,7 +1,7 @@
 ## LifeLog CORS proxy
 
 A tiny Cloudflare Worker that unblocks the endpoints confirmed
-CORS-blocked directly from the browser: Steam's wishlist/app-details
+CORS-blocked directly from the browser: Steam's wishlist, owned-games and app-details
 data, SteamGridDB, GG.deals, and Google Maps share links and saved
 lists (Travel's import). See `worker.js` for what it does and why.
 

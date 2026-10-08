@@ -43,7 +43,7 @@ global.window.LifeLogSync.init({
 
 const {
   needsReleaseRecheck, applyItemRelease, isUnresolvedSteamItem,
-  steamGameNeedsInfo, steamGameNeedsRawgInfo,
+  steamGameNeedsInfo, steamGameNeedsRawgInfo, ownedToEntry,
 } = global.window.LifeLogSync;
 
 function shift(days) {
@@ -176,6 +176,35 @@ test("the backfill skips unresolved items and anything already filled in", () =>
   // An unresolved item belongs to the title retry, not to this pass.
   assert.strictEqual(steamGameNeedsInfo({ ...full, title: "Steam app 42" }), false);
   assert.strictEqual(steamGameNeedsInfo({ ...full, mediaSource: "rawg" }), false);
+});
+
+// ---------- Steam played-games backfill (0.253.0) ----------
+test("a played game becomes an entry in the month it was last played, hours as its length", () => {
+  const e = ownedToEntry({ appid: 620, name: "Portal 2", playtime_forever: 547, rtime_last_played: Date.UTC(2024, 4, 17, 12) / 1000 }, "Games");
+  assert.strictEqual(e.title, "Portal 2");
+  assert.strictEqual(e.category, "Games");
+  assert.strictEqual(e.year, 2024);
+  assert.strictEqual(e.month, 5);
+  assert.strictEqual(e.date, "2024-05-17");
+  assert.strictEqual(e.length, "9.1 hrs");
+  assert.strictEqual(e.mediaSource, "steam");
+  assert.strictEqual(e.mediaId, "620");
+  assert.ok(/620/.test(e.coverUrl));
+  assert.strictEqual(e.notes, undefined);
+});
+
+test("ten hours or more are whole hours; under that keeps a decimal", () => {
+  assert.strictEqual(ownedToEntry({ appid: 1, name: "A", playtime_forever: 6031 }, "Games").length, "101 hrs");
+  assert.strictEqual(ownedToEntry({ appid: 1, name: "A", playtime_forever: 95 }, "Games").length, "1.6 hrs");
+  assert.strictEqual(ownedToEntry({ appid: 1, name: "A", playtime_forever: 0 }, "Games").length, undefined);
+});
+
+test("a game Steam has no last-played time for lands today and says so", () => {
+  const now = new Date(2026, 9, 8, 15);
+  const e = ownedToEntry({ appid: 7, playtime_forever: 60 }, "Games", now);
+  assert.strictEqual(e.date, "2026-10-08");
+  assert.strictEqual(e.title, "Steam app 7");
+  assert.ok(/didn't say/.test(e.notes));
 });
 
 console.log(`\n${passed} test(s) passed.`);

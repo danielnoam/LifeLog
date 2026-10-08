@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.253.0] - 2026-10-08
+
+### Added
+- **Steam games you've played.** Settings → Imports, under the wishlist:
+  paste a Steam Web API key and "Import played games" reads your library
+  through the proxy and offers every game with time in it as a Timeline
+  entry in the month you last played it, hours as its length, cover and
+  store link attached, in the wishlist's category. Steam doesn't know what
+  you finished, so the review decides: two hours or more starts ticked, the
+  rest you tick; games already in your Timeline or Backlog aren't offered.
+  The key is a synced setting the bridge never shows.
+
 ## [0.252.0] - 2026-10-08
 
 ### Added

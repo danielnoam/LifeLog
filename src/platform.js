@@ -161,6 +161,8 @@
     const u = new URL(url);
     let m = /^\/steam-wishlist\/(\d{17})$/.exec(u.pathname);
     if (m) return "https://api.steampowered.com/IWishlistService/GetWishlist/v1/?steamid=" + m[1];
+    m = /^\/steam-owned\/(\d{17})$/.exec(u.pathname);
+    if (m) return "https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=" + encodeURIComponent(u.searchParams.get("key") || "") + "&steamid=" + m[1] + "&include_appinfo=1&include_played_free_games=1&format=json";
     m = /^\/steam-appdetails\/(\d+)$/.exec(u.pathname);
     if (m) return "https://store.steampowered.com/api/appdetails?appids=" + m[1] + "&filters=basic,genres";
     if (u.pathname.startsWith("/steamgriddb/")) return "https://www.steamgriddb.com/api/v2/" + u.pathname.slice("/steamgriddb/".length) + u.search;

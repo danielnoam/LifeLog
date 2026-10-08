@@ -172,6 +172,9 @@ between them.
 - **Letterboxd import** (0.252.0) – Settings → Imports reads the export zip:
   your diary and watched films become entries with their stars, the
   watchlist goes to the Backlog, after the usual review.
+- **Steam games you've played** (0.253.0) – with a Steam Web API key, the
+  same page offers every game with time in it as an entry in the month you
+  last played it, hours as its length; you tick what counts.
 - **Search** – one box over everything (0.251.0): entries, backlog, notes,
   habits, boards, expenses, trips and places, Settings pages. Results come
   grouped by tab and a tap opens the item; "Filter Backlog" on a group

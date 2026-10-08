@@ -333,6 +333,23 @@ what was decided against and why.
   copy of the whole recurring list taken just before. `combinedWith` stays in
   KNOWN_RECURRING_KEYS so the sanitizer drops it rather than keepUnknown
   carrying it, which is what made the old groups separate again.
+- **Steam played-games backfill (0.253.0).** The wishlist sync had the
+  proxy, the Steam lane and the review; this adds a second source on the
+  same runner, which gained two things for it: `kind: "entry"` (a source
+  that makes Timeline entries, not backlog items, since a game you played
+  is a thing you did) and `ticked(entry)` (which new rows start checked;
+  the review's default of all would have offered every 20-minute demo as
+  done). GetOwnedGames needs a Web API key, unlike the wishlist, so the
+  key is `settings.steam.apiKey`: synced like the other keys, labelled in
+  SETTING_LABELS, never shown by the bridge, and sent to the worker as
+  `?key=`, which only forwards it to Valve. The date is `rtime_last_played`
+  (the only date Steam gives; no finish date exists), the length is
+  `playtime_forever` rounded to a tenth under ten hours and whole above,
+  and the two-hour tick line is Steam's own refund threshold: under it you
+  may not have really played. Games already linked by Steam appid in
+  entries or backlog are dropped before the review, so a second run only
+  offers what you left unticked. The runner's "nothing new" message now
+  depends on the kind.
 - **Letterboxd import (0.252.0).** Letterboxd has no API; the export zip is
   the only way in, and the app already had a zip reader (docimport.js, for
   EPUBs) and the import review with duplicate checking (io.js), so the

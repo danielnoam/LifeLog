@@ -78,6 +78,16 @@ export default {
       return proxyJson(target);
     }
 
+    // Your own games with playtime (0.253.0): needs a Steam Web API key,
+    // which comes along as ?key= and goes no further than Valve.
+    const ownedMatch = url.pathname.match(/^\/steam-owned\/(\d{17})$/);
+    if (ownedMatch) {
+      const key = url.searchParams.get("key") || "";
+      if (!/^[A-Za-z0-9]{16,64}$/.test(key)) return new Response("A Steam Web API key is needed", { status: 400, headers: CORS_HEADERS });
+      const target = `https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=${key}&steamid=${ownedMatch[1]}&include_appinfo=1&include_played_free_games=1&format=json`;
+      return proxyJson(target);
+    }
+
     const appDetailsMatch = url.pathname.match(/^\/steam-appdetails\/(\d+)$/);
     if (appDetailsMatch) {
       const target = `https://store.steampowered.com/api/appdetails?appids=${appDetailsMatch[1]}&filters=basic,genres`;

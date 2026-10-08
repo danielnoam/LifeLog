@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.252.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.253.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -1611,7 +1611,7 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="imports" data-title="Imports" data-keywords="steam wishlist anilist planning anime manga google wallet pay payment notification expense letterboxd films diary watchlist zip csv">
+      <div class="settings-page" hidden data-page="imports" data-title="Imports" data-keywords="steam wishlist anilist planning anime manga google wallet pay payment notification expense letterboxd films diary watchlist zip csv owned library played playtime backfill api key">
       <h2 class="settings-page-title">Imports</h2>
       <p class="hint page-lede">You pick what comes in, and nothing already in your backlog is added twice. The automatic check only tells you what's new.</p>
       <section class="sgroup">
@@ -1640,6 +1640,15 @@
           <button id="steamBackfillRawgBtn" type="button" class="sitem sitem-go" hidden><span data-ico="gamepad-2"></span> Backfill missing game info</button>
         </div>
         <p class="hint">Your wishlist must be public (Steam → Privacy Settings → Game details), and this goes through the CORS proxy on Media lookups.</p>
+        <h3 class="sgroup-label">Steam games you've played</h3>
+        <div class="sgroup-card">
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">Steam Web API key</span><span class="sitem-sub"><a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noopener">Get one →</a> (any domain name will do). Steam lists owned games only with a key</span></span>
+            <input id="steamApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="32 characters" />
+          </label>
+          <button id="steamOwnedSyncBtn" type="button" class="sitem sitem-go"><span data-ico="gamepad-2"></span> Import played games</button>
+        </div>
+        <p class="hint">A one-time backfill: every game with time in it becomes a Timeline entry in the month you last played it, with the hours as its length, in the wishlist's category. Steam doesn't know what you finished, so you review the list: two hours or more starts ticked. Game details must be public, like the wishlist.</p>
         <p class="hint" id="steamRetryUnresolvedHint" hidden><strong>Retry</strong> looks up again the items still called "Steam app &lt;id&gt;" (usually Steam rate-limiting a large first sync) and fixes the ones that resolve.</p>
         <p class="hint" id="steamBackfillRawgHint" hidden><strong>Backfill</strong> fills in what Steam-synced games lack: rating, length and year from RAWG (needs a RAWG key), and Steam's description (needs the proxy). Never touches title, cover or App ID.</p>
       </section>
@@ -2086,35 +2095,35 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.252.0"></script>
-  <script defer src="src/icons.js?v=0.252.0"></script>
-  <script defer src="src/jobs.js?v=0.252.0"></script>
-  <script defer src="src/reconcile.js?v=0.252.0"></script>
-  <script defer src="src/qr.js?v=0.252.0"></script>
-  <script defer src="src/media.js?v=0.252.0"></script>
-  <script defer src="src/merge.js?v=0.252.0"></script>
-  <script defer src="src/storage.js?v=0.252.0"></script>
-  <script defer src="src/finance.js?v=0.252.0"></script>
-  <script defer src="src/settings.js?v=0.252.0"></script>
-  <script defer src="src/wheel.js?v=0.252.0"></script>
-  <script defer src="src/backlog.js?v=0.252.0"></script>
-  <script defer src="src/journal.js?v=0.252.0"></script>
-  <script defer src="src/markdown.js?v=0.252.0"></script>
-  <script defer src="src/notes.js?v=0.252.0"></script>
-  <script defer src="src/docimport.js?v=0.252.0"></script>
-  <script defer src="src/io.js?v=0.252.0"></script>
-  <script defer src="src/sync.js?v=0.252.0"></script>
-  <script defer src="src/habits.js?v=0.252.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.252.0"></script>
-  <script defer src="src/boards.js?v=0.252.0"></script>
-  <script defer src="src/travel.js?v=0.252.0"></script>
-  <script defer src="src/recap.js?v=0.252.0"></script>
-  <script defer src="src/reminders.js?v=0.252.0"></script>
-  <script defer src="src/widgets.js?v=0.252.0"></script>
-  <script defer src="src/share.js?v=0.252.0"></script>
-  <script defer src="src/search.js?v=0.252.0"></script>
-  <script defer src="src/letterboxd.js?v=0.252.0"></script>
-  <script defer src="src/payments.js?v=0.252.0"></script>
-  <script defer src="src/app.js?v=0.252.0"></script>
+  <script defer src="src/platform.js?v=0.253.0"></script>
+  <script defer src="src/icons.js?v=0.253.0"></script>
+  <script defer src="src/jobs.js?v=0.253.0"></script>
+  <script defer src="src/reconcile.js?v=0.253.0"></script>
+  <script defer src="src/qr.js?v=0.253.0"></script>
+  <script defer src="src/media.js?v=0.253.0"></script>
+  <script defer src="src/merge.js?v=0.253.0"></script>
+  <script defer src="src/storage.js?v=0.253.0"></script>
+  <script defer src="src/finance.js?v=0.253.0"></script>
+  <script defer src="src/settings.js?v=0.253.0"></script>
+  <script defer src="src/wheel.js?v=0.253.0"></script>
+  <script defer src="src/backlog.js?v=0.253.0"></script>
+  <script defer src="src/journal.js?v=0.253.0"></script>
+  <script defer src="src/markdown.js?v=0.253.0"></script>
+  <script defer src="src/notes.js?v=0.253.0"></script>
+  <script defer src="src/docimport.js?v=0.253.0"></script>
+  <script defer src="src/io.js?v=0.253.0"></script>
+  <script defer src="src/sync.js?v=0.253.0"></script>
+  <script defer src="src/habits.js?v=0.253.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.253.0"></script>
+  <script defer src="src/boards.js?v=0.253.0"></script>
+  <script defer src="src/travel.js?v=0.253.0"></script>
+  <script defer src="src/recap.js?v=0.253.0"></script>
+  <script defer src="src/reminders.js?v=0.253.0"></script>
+  <script defer src="src/widgets.js?v=0.253.0"></script>
+  <script defer src="src/share.js?v=0.253.0"></script>
+  <script defer src="src/search.js?v=0.253.0"></script>
+  <script defer src="src/letterboxd.js?v=0.253.0"></script>
+  <script defer src="src/payments.js?v=0.253.0"></script>
+  <script defer src="src/app.js?v=0.253.0"></script>
 </body>
 </html>

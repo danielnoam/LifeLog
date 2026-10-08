@@ -18,7 +18,7 @@
     prefersReducedMotion, biometricAvailable, biometricState, hashPin, randomHex, registerBiometric,
     isMobileLayout, switchToView,
     updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
-    syncSteamWishlist, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
+    syncSteamWishlist, syncSteamOwned, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
     syncAniListPlanning,
     refreshUpcomingReleases, updateRefreshReleasesButton,
     DEFAULT_SETTINGS, viewToggles, settleDisabled;
@@ -32,7 +32,7 @@
       isMobileLayout, switchToView,
       viewToggles, settleDisabled,
       updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
-      syncSteamWishlist, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
+      syncSteamWishlist, syncSteamOwned, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
       syncAniListPlanning,
       refreshUpcomingReleases, updateRefreshReleasesButton,
       DEFAULT_SETTINGS } = ctx);
@@ -323,7 +323,7 @@
     "mediaKeys.rawg": "RAWG API key", "mediaKeys.tmdb": "TMDB API key",
     "mediaKeys.ggdeals": "GG.deals API key", "mediaKeys.steamgriddb": "SteamGridDB API key",
     "mediaKeys.googlePlaces": "Google Places API key",
-    "steam.proxyUrl": "Steam proxy URL", "steam.steamId": "Steam ID",
+    "steam.proxyUrl": "Steam proxy URL", "steam.steamId": "Steam ID", "steam.apiKey": "Steam Web API key",
     "steam.wishlistCategory": "Steam wishlist category", "steam.autoSyncDays": "Steam auto-sync",
     "anilist.userName": "AniList user name", "anilist.animeCategory": "AniList anime category",
     "anilist.mangaCategory": "AniList manga category", "anilist.autoSyncDays": "AniList auto-sync",
@@ -1116,6 +1116,7 @@
     $("#steamProxyHint").hidden = direct;
     $("#steamDirectHint").hidden = !direct;
     $("#steamId64").value = state.data.settings.steam?.steamId || "";
+    $("#steamApiKey").value = state.data.settings.steam?.apiKey || "";
     $("#steamAutoSyncDays").value = state.data.settings.steam?.autoSyncDays || "0";
     $("#anilistUserName").value = state.data.settings.anilist?.userName || "";
     $("#anilistAutoSyncDays").value = state.data.settings.anilist?.autoSyncDays || "0";
@@ -1524,6 +1525,8 @@
     };
     $("#steamProxyUrl").oninput = () => setSteamSetting("proxyUrl", $("#steamProxyUrl").value.trim());
     $("#steamId64").oninput = () => setSteamSetting("steamId", $("#steamId64").value.trim());
+    $("#steamApiKey").oninput = () => setSteamSetting("apiKey", $("#steamApiKey").value.trim());
+    $("#steamOwnedSyncBtn").onclick = syncSteamOwned;
     $("#steamWishlistCategory").onchange = () => setSteamSetting("wishlistCategory", $("#steamWishlistCategory").value);
     $("#steamAutoSyncDays").onchange = () => setSteamSetting("autoSyncDays", $("#steamAutoSyncDays").value);
     $("#steamWishlistSyncBtn").onclick = syncSteamWishlist;

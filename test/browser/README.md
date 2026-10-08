@@ -60,3 +60,7 @@ regressions shipped green past tests that checked a single property — the
 lesson is in NOTES.md and the shape is: compare colour *and* weight *and*
 geometry, sample mid-animation when the bug is a timing one, and check that
 the test fails without the fix before trusting it.
+| `share` | share into LifeLog (0.250.0): the three doors meet in one action; a Maps link imports into a trip, a media link opens the Backlog sheet, anything else offers item or note |
+| `search` | one search across everything (0.251.0): results grouped by tab, rows opening the thing, Filter lines narrowing the tab, Escape and arrow keys |
+| `letterboxd` | the Letterboxd export zip into the review: diary as dated, rated entries, watched without a diary line, the watchlist as backlog, duplicates hidden |
+| `steamowned` | Steam played-games backfill (0.253.0): the keyed owned-games route, every played game as an entry in the review, two hours or more ticked, duplicates and never-played hidden, a second run offering only what was left |
