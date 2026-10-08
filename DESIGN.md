@@ -297,7 +297,9 @@ An icon-only button **must** have an `aria-label` or a `title`.
 
 - **Adding** is always one tap from where you are: the month's +, the FAB, a
   widget or a shortcut (Now). The form opens ready to type, with the cursor in
-  the first field (Target, check each form).
+  the first field (Target, check each form; since 0.254.0 focus moves onto
+  the sheet itself when nothing in it takes it, so a reader hears the title
+  and Tab starts inside).
 - **Destructive actions act at once and offer Undo** in the toast. A confirm
   dialog is only for things Undo can't bring back (reset, disconnecting sync,
   deleting a board with content).
@@ -306,7 +308,8 @@ An icon-only button **must** have an `aria-label` or a `title`.
   that it's on and how to leave it.
 - **Sheets close** on Esc, the scrim, the back gesture (Android) and swipe
   down (0.222.0; not the board editor, the wheel or the conflict picker).
-  Focus goes back to whatever opened them (Target, check each sheet).
+  Focus goes back to whatever opened them (Now, 0.223.0), and Tab stays
+  inside while one is open (Now, 0.254.0).
 - **Settings** is a list of pages. On mobile you get one page at a time with
   a back header.
 - **Sync is always visible but never in the way**: an LED for state, and a
@@ -368,7 +371,14 @@ and never blaming.
   replacing it.
 - **Contrast:** see §2. Run `contrast.js` after touching any theme value.
 - **Labels:** every icon-only control has an `aria-label`, and every sheet
-  has `role="dialog"` and `aria-labelledby`.
+  has `role="dialog"`, `aria-modal` and a name (`aria-labelledby`, or an
+  `aria-label` where it has no title). Now, 0.254.0; test/browser/a11y.js
+  checks all of them.
+- **Announcements:** the toast's words go to `#toastLive`, a polite live
+  region that is never hidden (Now, 0.254.0). Anything else that must be
+  read out without focus moving goes through `toast()`, not a new region.
+- **The tab bar is a tablist:** `role="tab"`, `aria-selected` on the open
+  one, Left/Right/Home/End move between tabs (Now, 0.254.0).
 - **Motion:** `prefers-reduced-motion` is honored everywhere (Now, about 20
   blocks). Keep it that way.
 - **Fields on a phone are 44px tall with 16px text** (0.222.0: the search

@@ -154,7 +154,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.253.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.254.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1272,6 +1272,11 @@
     }
     t.className = "toast" + (isErr ? " err" : "");
     t.hidden = false;
+    // A screen reader hears it from the live region, which is never hidden
+    // (content added to a hidden node isn't announced). Cleared first so
+    // the same message twice is read twice.
+    const live = $("#toastLive");
+    if (live) { live.textContent = ""; requestAnimationFrame(() => { live.textContent = msg; }); }
     clearTimeout(toast._t);
     toast._t = setTimeout(() => (t.hidden = true), action ? 8000 : isErr ? 6000 : 2600);
   }
@@ -1544,6 +1549,7 @@
         // greyed: it isn't unavailable, it's something you said you don't use.
         t.hidden = !viewEnabled(t.dataset.view);
         t.classList.toggle("active", t.dataset.view === state.view);
+        t.setAttribute("aria-selected", String(t.dataset.view === state.view));
       });
       updateTabUnderline();
       updateTabModeDots();
@@ -3388,6 +3394,24 @@
   function isAnyModalOpen() {
     return !!document.querySelector(".modal-overlay:not([hidden])");
   }
+  // Tab stays inside the open sheet (0.254.0): from its last control it
+  // wraps to the first, and back. The sheet is the one holding focus, else
+  // the last one open. Without this, Tab walked out into the page behind
+  // the scrim, where nothing can be pressed.
+  const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  function trapTabInSheet(e) {
+    const open = [...document.querySelectorAll(".modal-overlay:not([hidden])")];
+    if (!open.length) return false;
+    const a = document.activeElement;
+    const ov = open.find((o) => o.contains(a)) || open[open.length - 1];
+    const items = [...ov.querySelectorAll(FOCUSABLE)].filter((n) => !n.hidden && !n.closest("[hidden]") && n.getClientRects().length);
+    if (!items.length) return false;
+    const first = items[0], last = items[items.length - 1];
+    if (!ov.contains(a)) { e.preventDefault(); (e.shiftKey ? last : first).focus(); return true; }
+    if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); return true; }
+    if (e.shiftKey && (a === first || a === ov.querySelector(".modal"))) { e.preventDefault(); last.focus(); return true; }
+    return false;
+  }
 
   // Global one-key shortcuts (see wire()'s keydown handler) only fire
   // outside of text entry — otherwise typing a title/note/search term
@@ -4008,6 +4032,19 @@
     document.addEventListener("pointerup", endDragPaint);
     document.addEventListener("pointercancel", endDragPaint);
     document.querySelectorAll(".tab").forEach((t) => {
+      // A tablist moves with the arrows (0.254.0): the next or previous
+      // tab in the bar takes focus and opens; Home and End reach the ends.
+      t.onkeydown = (e) => {
+        const step = { ArrowRight: 1, ArrowLeft: -1, Home: 0, End: 0 }[e.key];
+        if (step === undefined) return;
+        const tabs = [...document.querySelectorAll("#viewTabs .tab:not([hidden])")];
+        const i = tabs.indexOf(t);
+        const to = e.key === "Home" ? tabs[0] : e.key === "End" ? tabs[tabs.length - 1] : tabs[(i + step + tabs.length) % tabs.length];
+        if (!to || to === t) return;
+        e.preventDefault();
+        activateTab(to.dataset.view);
+        document.querySelector('#viewTabs .tab[data-view="' + to.dataset.view + '"]').focus();
+      };
       t.onclick = (e) => {
         e.stopPropagation();
         // The click the browser synthesises after a long-press belongs to the
@@ -4218,12 +4255,23 @@
     // field, which would pop the phone's keyboard; and not if the opener was
     // redrawn away while the sheet was up.
     const openers = new WeakMap();
+    // Opening, focus moves into the sheet unless the opener put it on a
+    // field already: onto the sheet itself, so a screen reader announces
+    // its title and Tab starts inside, and no keyboard pops up (0.254.0).
+    const focusSheet = (ov) => {
+      if (ov.hidden || ov.contains(document.activeElement)) return;
+      const sheet = ov.querySelector(".modal");
+      if (!sheet) return;
+      sheet.tabIndex = -1;
+      sheet.focus({ preventScroll: true });
+    };
     const trackSheetFocus = (records) => {
       for (const r of records) {
         const ov = r.target;
         if (!ov.hidden) {
           const a = document.activeElement;
           if (a && a !== document.body && !ov.contains(a)) openers.set(ov, a);
+          setTimeout(() => focusSheet(ov), 0);
           continue;
         }
         const back = openers.get(ov);
@@ -4258,6 +4306,7 @@
       // The board editor, while open, has every key: its own tools and undo,
       // and Escape steps out of a text box, then a selection, then the board.
       if (Boards.handleKey(e)) return;
+      if (e.key === "Tab" && trapTabInSheet(e)) return;
       if (e.key === "Escape") {
         if (SettingsUI.settingsBack()) return;
         if (Search.isOpen() && !isAnyModalOpen()) { Search.clear(); $("#searchClear").hidden = true; return; }

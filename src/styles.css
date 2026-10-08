@@ -1801,6 +1801,9 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
   display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px;
 }
 .modal-overlay[hidden] { display: none; }
+/* The sheet itself takes focus when it opens, so a reader announces it
+   and Tab starts inside; it isn't a control, so no ring. */
+.modal:focus, .modal:focus-visible { outline: none; }
 body.modal-open { overflow: hidden; }
 .modal {
   background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-xl);
@@ -2407,6 +2410,8 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
   display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 16px;
 }
 .toast[hidden] { display: none; }
+/* Read out, never seen: the toast's words for screen readers (0.254.0). */
+.sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 /* `translate`, not `transform`: transform is already centring it. */
 .toast { transition: opacity .2s var(--ll-move-ease), translate .2s var(--ll-move-ease), display .2s allow-discrete; }
 .toast[hidden] { opacity: 0; translate: 0 8px; pointer-events: none; }

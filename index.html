@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.253.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.254.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -82,13 +82,13 @@
     </div>
 
     <div class="topbar-bottom" id="topbarBottom">
-      <nav class="views" id="viewTabs">
-        <button class="tab" data-view="notes"><span class="tab-ico" data-ico="notebook-pen"></span>Notebook</button>
-        <button class="tab active" data-view="timeline"><span class="tab-ico" data-ico="calendar-clock"></span>Timeline</button>
-        <button class="tab" data-view="backlog"><span class="tab-ico" data-ico="star"></span>Backlog</button>
-        <button class="tab" data-view="finance"><span class="tab-ico" data-ico="receipt"></span>Ledger</button>
-        <button class="tab" data-view="travel"><span class="tab-ico" data-ico="plane"></span>Travel</button>
-        <span class="tab-underline" id="tabUnderline" hidden></span>
+      <nav class="views" id="viewTabs" role="tablist" aria-label="Tabs">
+        <button class="tab" role="tab" aria-selected="false" data-view="notes"><span class="tab-ico" data-ico="notebook-pen"></span>Notebook</button>
+        <button class="tab active" role="tab" aria-selected="true" data-view="timeline"><span class="tab-ico" data-ico="calendar-clock"></span>Timeline</button>
+        <button class="tab" role="tab" aria-selected="false" data-view="backlog"><span class="tab-ico" data-ico="star"></span>Backlog</button>
+        <button class="tab" role="tab" aria-selected="false" data-view="finance"><span class="tab-ico" data-ico="receipt"></span>Ledger</button>
+        <button class="tab" role="tab" aria-selected="false" data-view="travel"><span class="tab-ico" data-ico="plane"></span>Travel</button>
+        <span class="tab-underline" id="tabUnderline" aria-hidden="true" hidden></span>
       </nav>
       <!-- Mobile-only quick-jump row: prev/next between the sticky year/category
            headers a long Timeline/Ledger/Backlog scroll would otherwise bury.
@@ -211,7 +211,7 @@
 
   <!-- Entry add/edit modal -->
   <div class="modal-overlay" id="entryModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="entryModalTitle">
       <div id="entryCover" hidden>
         <div class="modal-cover">
           <img id="entryCoverImg" src="" alt="Cover" />
@@ -328,7 +328,7 @@
 
   <!-- Achievement add/edit modal -->
   <div class="modal-overlay" id="noteModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="noteModalTitle">
       <h2 id="noteModalTitle">New note</h2>
       <form id="noteForm">
         <p class="muted added-line" id="noteStampLine" hidden></p>
@@ -371,7 +371,7 @@
   </div>
 
   <div class="modal-overlay" id="noteReader" hidden>
-    <div class="modal note-reader">
+    <div class="modal note-reader" role="dialog" aria-modal="true" aria-labelledby="noteReaderTitle">
       <h2 id="noteReaderTitle"></h2>
       <p class="muted note-reader-meta" id="noteReaderMeta"></p>
       <div class="md" id="noteReaderBody"></div>
@@ -384,7 +384,7 @@
   </div>
 
   <div class="modal-overlay" id="noteCatModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="noteCatModalTitle">
       <h2 id="noteCatModalTitle">Add note category</h2>
       <form id="noteCatForm">
         <input type="hidden" id="noteCatOrigName" />
@@ -408,7 +408,7 @@
   </div>
 
   <div class="modal-overlay" id="achModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="achModalTitle">
       <h2 id="achModalTitle">Add achievement</h2>
       <form id="achForm">
         <input type="hidden" id="achOrig" />
@@ -434,7 +434,7 @@
 
   <!-- Edit category modal -->
   <div class="modal-overlay" id="catModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="catModalTitle">
       <h2 id="catModalTitle">Edit category</h2>
       <form id="catForm">
         <input type="hidden" id="catOrigName" />
@@ -457,7 +457,7 @@
 
   <!-- Backlog add/edit modal -->
   <div class="modal-overlay" id="backlogModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="backlogModalTitle">
       <div id="backlogCover" hidden>
         <div class="modal-cover">
           <img id="backlogCoverImg" src="" alt="Cover" />
@@ -574,7 +574,7 @@
 
   <!-- Random backlog pick modal ("Pick random") -->
   <div class="modal-overlay" id="pickModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Pick something from the backlog">
       <!-- What the draw is scoped to: a chip per category in the pool (each
            one a toggle) plus the favorites-only and bought-only switches, so
            the scope can be narrowed without closing the modal and
@@ -622,7 +622,7 @@
   <!-- Out today: opens once a day, the first time the app does, when
        something on the backlog came out. Built by maybeShowOutToday(). -->
   <div class="modal-overlay" id="outTodayModal" hidden>
-    <div class="modal" role="dialog" aria-labelledby="outTodayTitle">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="outTodayTitle">
       <div class="modal-head">
         <h2 id="outTodayTitle">Out today</h2>
         <button class="btn btn-icon" id="closeOutTodayBtn" title="Close" aria-label="Close out today"><span data-ico="x"></span></button>
@@ -636,7 +636,7 @@
        either on the Backlog's current pick candidates ("🎡 Spin") or, from
        the + menu, on a list of options you type yourself. -->
   <div class="modal-overlay" id="wheelModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="wheelTitle">
       <h2 id="wheelTitle">Spin the wheel</h2>
       <p class="muted wheel-hint" id="wheelHint" hidden></p>
       <div class="wheel-stage">
@@ -667,7 +667,7 @@
 
   <!-- Finance entry add/edit modal -->
   <div class="modal-overlay" id="financeModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="financeModalTitle">
       <h2 id="financeModalTitle">Add finance entry</h2>
       <form id="financeForm">
         <input type="hidden" id="financeId" />
@@ -711,7 +711,7 @@
 
   <!-- Recurring expense add/edit modal -->
   <div class="modal-overlay" id="recurringModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="recurringModalTitle">
       <h2 id="recurringModalTitle">Add recurring expense</h2>
       <form id="recurringForm">
         <input type="hidden" id="recId" />
@@ -805,8 +805,8 @@
        current plan the day before and starts a new one, so occurrences
        before that date keep the terms they were actually paid at. -->
   <div class="modal-overlay" id="changePlanModal" hidden>
-    <div class="modal">
-      <h2>Change plan</h2>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="changePlanTitle">
+      <h2 id="changePlanTitle">Change plan</h2>
       <form id="changePlanForm">
         <input type="hidden" id="planRecId" />
         <p class="hint" id="planCurrent"></p>
@@ -846,7 +846,7 @@
        its anchor day, so resuming picks the normal billing date back up.
        Leaving "Until" blank pauses indefinitely. -->
   <div class="modal-overlay" id="pauseModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pauseModalTitle">
       <h2 id="pauseModalTitle">Pause this expense</h2>
       <form id="pauseForm">
         <input type="hidden" id="pauseRecId" />
@@ -874,7 +874,7 @@
        else, including which dates exist at all, still comes from the
        template) -->
   <div class="modal-overlay" id="recurringOccModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="recurringOccModalTitle">
       <h2 id="recurringOccModalTitle">Edit occurrence</h2>
       <form id="recurringOccForm">
         <input type="hidden" id="recOccRecId" />
@@ -914,7 +914,7 @@
 
   <!-- Finance category add/edit modal -->
   <div class="modal-overlay" id="projectModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="projectModalTitle">
       <h2 id="projectModalTitle">Edit project</h2>
       <form id="projectForm">
         <input type="hidden" id="projOrigName" />
@@ -1027,7 +1027,7 @@
   </div>
 
   <div class="modal-overlay" id="convertModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="convertModalTitle">
       <h2 id="convertModalTitle">Convert</h2>
       <form id="convertForm">
         <input type="hidden" id="convProjName" />
@@ -1056,7 +1056,7 @@
   </div>
 
   <div class="modal-overlay" id="financeCatModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="financeCatModalTitle">
       <h2 id="financeCatModalTitle">Edit finance category</h2>
       <form id="financeCatForm">
         <input type="hidden" id="finCatOrigName" />
@@ -1081,7 +1081,7 @@
        stop one: a habit's history is the whole point of having kept it, and a
        year of ticks shouldn't go because you stopped in March. -->
   <div class="modal-overlay" id="habitModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="habitModalTitle">
       <div class="modal-head">
         <h2 id="habitModalTitle">Add habit</h2>
       </div>
@@ -1150,10 +1150,10 @@
        handler in settings.js still finds its control. What changes one view
        rather than the app lives on that view instead — see #viewOptionsModal. -->
   <div class="modal-overlay" id="settingsModal" hidden>
-    <div class="modal modal-wide settings-modal" data-page="">
+    <div class="modal modal-wide settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" data-page="">
       <aside class="settings-side">
         <div class="modal-head">
-          <h2>Settings</h2>
+          <h2 id="settingsTitle">Settings</h2>
           <button class="btn btn-icon" id="closeSettingsBtn" title="Close" aria-label="Close settings"><span data-ico="x"></span></button>
         </div>
         <label class="settings-search">
@@ -1795,7 +1795,7 @@
        be Settings → Views, plus the month card widths. Each section says which
        views it belongs to; the rest are hidden while it's open. -->
   <div class="modal-overlay view-options-overlay" id="viewOptionsModal" hidden>
-    <div class="modal view-options" role="dialog" aria-labelledby="viewOptionsTitle">
+    <div class="modal view-options" role="dialog" aria-modal="true" aria-labelledby="viewOptionsTitle">
       <div class="modal-head">
         <h2 id="viewOptionsTitle">View</h2>
         <button class="btn btn-icon" id="closeViewOptionsBtn" title="Close" aria-label="Close view options"><span data-ico="x"></span></button>
@@ -1921,7 +1921,7 @@
   <!-- Version conflict picker (shown on load if sources disagree) -->
   <!-- Finance entries picker — used for both CSV import preview and CSV export selection -->
   <div class="modal-overlay" id="financePickerModal" hidden>
-    <div class="modal modal-wide">
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="financePickerTitle">
       <h2 id="financePickerTitle">Import Finance CSV</h2>
       <p class="hint" id="financePickerHint"></p>
       <input type="text" class="picker-search" id="financePickerSearch" placeholder="Search note, category, amount…" hidden />
@@ -1962,9 +1962,9 @@
        the shortcuts themselves have no other on-screen hint, so this is the
        only way to discover them besides the note in Settings. -->
   <div class="modal-overlay" id="shortcutsModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="shortcutsTitle">
       <div class="modal-head">
-        <h2>Keyboard shortcuts</h2>
+        <h2 id="shortcutsTitle">Keyboard shortcuts</h2>
         <button class="btn btn-icon" id="closeShortcutsBtn" title="Close" aria-label="Close keyboard shortcuts"><span data-ico="x"></span></button>
       </div>
       <!-- The tab rows are built by openShortcutsModal(): a cheat-sheet that
@@ -1982,7 +1982,7 @@
   </div>
 
   <div class="modal-overlay" id="bulkProgressModal" hidden>
-    <div class="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bulkProgressTitle">
       <div class="modal-head">
         <h2 id="bulkProgressTitle">Syncing</h2>
         <button class="btn btn-icon" id="closeBulkProgressBtn" title="Close" aria-label="Close sync progress"><span data-ico="x"></span></button>
@@ -2028,14 +2028,15 @@
   </div>
 
   <div class="modal-overlay" id="conflictModal" hidden>
-    <div class="modal modal-wide">
-      <h2>Couldn't automatically merge these versions</h2>
+    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="conflictTitle">
+      <h2 id="conflictTitle">Couldn't automatically merge these versions</h2>
       <p class="muted">This is unusual — normally differences between devices merge on their own. Pick the version to keep and it'll be copied to the others; nothing is deleted, so anything unique to the version you don't pick may still be recoverable from Settings → History afterwards.</p>
       <div class="conflict-list" id="conflictList"></div>
     </div>
   </div>
 
   <div id="toast" class="toast" hidden></div>
+  <div id="toastLive" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
   <div class="pull-icon" id="pullIcon" aria-hidden="true">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" pathLength="100" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" /></svg>
   </div>
@@ -2095,35 +2096,35 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.253.0"></script>
-  <script defer src="src/icons.js?v=0.253.0"></script>
-  <script defer src="src/jobs.js?v=0.253.0"></script>
-  <script defer src="src/reconcile.js?v=0.253.0"></script>
-  <script defer src="src/qr.js?v=0.253.0"></script>
-  <script defer src="src/media.js?v=0.253.0"></script>
-  <script defer src="src/merge.js?v=0.253.0"></script>
-  <script defer src="src/storage.js?v=0.253.0"></script>
-  <script defer src="src/finance.js?v=0.253.0"></script>
-  <script defer src="src/settings.js?v=0.253.0"></script>
-  <script defer src="src/wheel.js?v=0.253.0"></script>
-  <script defer src="src/backlog.js?v=0.253.0"></script>
-  <script defer src="src/journal.js?v=0.253.0"></script>
-  <script defer src="src/markdown.js?v=0.253.0"></script>
-  <script defer src="src/notes.js?v=0.253.0"></script>
-  <script defer src="src/docimport.js?v=0.253.0"></script>
-  <script defer src="src/io.js?v=0.253.0"></script>
-  <script defer src="src/sync.js?v=0.253.0"></script>
-  <script defer src="src/habits.js?v=0.253.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.253.0"></script>
-  <script defer src="src/boards.js?v=0.253.0"></script>
-  <script defer src="src/travel.js?v=0.253.0"></script>
-  <script defer src="src/recap.js?v=0.253.0"></script>
-  <script defer src="src/reminders.js?v=0.253.0"></script>
-  <script defer src="src/widgets.js?v=0.253.0"></script>
-  <script defer src="src/share.js?v=0.253.0"></script>
-  <script defer src="src/search.js?v=0.253.0"></script>
-  <script defer src="src/letterboxd.js?v=0.253.0"></script>
-  <script defer src="src/payments.js?v=0.253.0"></script>
-  <script defer src="src/app.js?v=0.253.0"></script>
+  <script defer src="src/platform.js?v=0.254.0"></script>
+  <script defer src="src/icons.js?v=0.254.0"></script>
+  <script defer src="src/jobs.js?v=0.254.0"></script>
+  <script defer src="src/reconcile.js?v=0.254.0"></script>
+  <script defer src="src/qr.js?v=0.254.0"></script>
+  <script defer src="src/media.js?v=0.254.0"></script>
+  <script defer src="src/merge.js?v=0.254.0"></script>
+  <script defer src="src/storage.js?v=0.254.0"></script>
+  <script defer src="src/finance.js?v=0.254.0"></script>
+  <script defer src="src/settings.js?v=0.254.0"></script>
+  <script defer src="src/wheel.js?v=0.254.0"></script>
+  <script defer src="src/backlog.js?v=0.254.0"></script>
+  <script defer src="src/journal.js?v=0.254.0"></script>
+  <script defer src="src/markdown.js?v=0.254.0"></script>
+  <script defer src="src/notes.js?v=0.254.0"></script>
+  <script defer src="src/docimport.js?v=0.254.0"></script>
+  <script defer src="src/io.js?v=0.254.0"></script>
+  <script defer src="src/sync.js?v=0.254.0"></script>
+  <script defer src="src/habits.js?v=0.254.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.254.0"></script>
+  <script defer src="src/boards.js?v=0.254.0"></script>
+  <script defer src="src/travel.js?v=0.254.0"></script>
+  <script defer src="src/recap.js?v=0.254.0"></script>
+  <script defer src="src/reminders.js?v=0.254.0"></script>
+  <script defer src="src/widgets.js?v=0.254.0"></script>
+  <script defer src="src/share.js?v=0.254.0"></script>
+  <script defer src="src/search.js?v=0.254.0"></script>
+  <script defer src="src/letterboxd.js?v=0.254.0"></script>
+  <script defer src="src/payments.js?v=0.254.0"></script>
+  <script defer src="src/app.js?v=0.254.0"></script>
 </body>
 </html>

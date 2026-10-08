@@ -333,6 +333,25 @@ what was decided against and why.
   copy of the whole recurring list taken just before. `combinedWith` stays in
   KNOWN_RECURRING_KEYS so the sanitizer drops it rather than keepUnknown
   carrying it, which is what made the old groups separate again.
+- **Accessibility pass (0.254.0).** Four things a screen reader or a
+  keyboard hit, each done once in the place that already touched every
+  sheet. The toast: content added to a `hidden` node isn't announced, so
+  `toast()` also writes its words into `#toastLive`, a visually hidden
+  polite region that is never hidden, cleared first so a repeat is read
+  again. Dialogs: 23 of the 30 sheets had no `role="dialog"`; all have it
+  now with `aria-modal` and a name (four titles got ids; the pick sheet
+  has no title and takes an `aria-label`). Focus in: the sheet observer
+  from 0.223.0 now also moves focus onto the `.modal` itself (tabindex
+  -1, no ring) a tick after it opens, unless the opener put focus on a
+  field already, so the title is announced and Tab starts inside without
+  a phone keyboard popping. Focus stays: `trapTabInSheet` on the global
+  keydown wraps Tab inside the open sheet (the one holding focus, else
+  the last open) using a visibility-filtered focusable list; before it
+  Tab walked into the page behind the scrim. Tabs: `role="tablist"` /
+  `role="tab"` with `aria-selected` kept by render(), and arrow keys on
+  the tabs, since a tablist is expected to move with them. test/browser/
+  a11y.js checks all of it. Left for later: focus into the first field on
+  desktop (DESIGN §7, Target) and the Boards editor's own focus order.
 - **Steam played-games backfill (0.253.0).** The wishlist sync had the
   proxy, the Steam lane and the review; this adds a second source on the
   same runner, which gained two things for it: `kind: "entry"` (a source

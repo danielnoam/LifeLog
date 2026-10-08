@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.254.0] - 2026-10-08
+
+### Changed
+- **Screen readers and keyboards.** The toast is read out (a live region
+  carries its words). Every sheet is a named, modal dialog: it takes focus
+  when it opens so its title is announced and Tab starts inside, Tab wraps
+  within it instead of walking out behind the scrim, and closing still
+  hands focus back to what opened it. The tab bar is a tablist: the open
+  tab is marked selected, and Left, Right, Home and End move between tabs.
+
 ## [0.253.0] - 2026-10-08
 
 ### Added
