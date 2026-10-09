@@ -16,6 +16,32 @@ what was decided against and why.
 
 ---
 
+- **The security pass's small fixes (0.259.2).** A full pass over the app
+  (storage, sync, the lock, the bridge, the proxy, CI, the native shells)
+  is written up in the project's audits folder, with the findings it did
+  *not* fix: those change how data is stored or synced and were left for a
+  decision. What shipped here are the ones that change no data:
+  - *The setup link asks before it connects.* A `#t=` link used to connect
+    on sight. Anything that can get a link opened (a message, a QR, a page)
+    could therefore point a device at a stranger's repo, and every later
+    save would land there, or their data would be merged into yours. The
+    question names the repo and the connection it replaces; `confirm()` is
+    used because the lock screen may be the only thing on the page yet, and
+    the reset button beside it already asks the same way. The pasted-link
+    path in Settings doesn't ask: pasting is already the user's act.
+  - *The token leaves the URL before the lock screen,* not after; it used to
+    sit in the address bar for as long as the PIN prompt was up.
+  - *An existing repo is checked for `private`.* Only a repo the app created
+    was ever private by construction.
+  - *Every `a.href` outside markdown.js goes through `safeHref`* (place
+    links from imports and sync, Google's `googleMapsUri`, the store links
+    GG.deals returns). The sanitizers were left alone on purpose: a rule
+    there is a data change, which has to reach `bridge/DATA.md` and the
+    test, and dropping a field quietly is worse than not linking it.
+  - *The Android release key signs `main` only.* The workflow runs on
+    `claude/**` too, and a push there used to mint an APK signed with the
+    production key, which installs over everyone's app.
+
 - **Travel's town names, Google details and trips history (0.245.0).**
   - Towns come from OpenStreetMap's Nominatim reverse lookup (free, no
     key). Its policy is at most a request a second, cache what it answers,

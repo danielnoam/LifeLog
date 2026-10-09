@@ -2,6 +2,7 @@
 // src/merge.js — run with `node test/travel.test.js`.
 const assert = require("assert");
 global.window = {};
+require("../src/markdown.js"); // travel.js checks place links with its safeHref
 require("../src/travel.js");
 const M = require("../src/merge.js");
 const T = global.window.LifeLogTravel;

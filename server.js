@@ -18,12 +18,15 @@ const MIME = {
 };
 
 const server = http.createServer((req, res) => {
-  let urlPath = decodeURIComponent(req.url.split("?")[0]);
+  let urlPath;
+  try { urlPath = decodeURIComponent(req.url.split("?")[0]); }
+  catch (e) { res.writeHead(400); res.end("Bad request"); return; }
   if (urlPath === "/") urlPath = "/index.html";
 
-  // prevent path traversal
+  // Only files inside this folder: a bare prefix check also let through a
+  // sibling folder whose name starts the same way (LifeLog-backup).
   const filePath = path.normalize(path.join(ROOT, urlPath));
-  if (!filePath.startsWith(ROOT)) {
+  if (filePath !== ROOT && !filePath.startsWith(ROOT + path.sep)) {
     res.writeHead(403); res.end("Forbidden"); return;
   }
 
@@ -39,6 +42,8 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(PORT, () => {
+// This machine only: the folder holds the repo and, for anyone who kept
+// one, a lifelog.json, so it is not for the whole network to read.
+server.listen(PORT, "127.0.0.1", () => {
   console.log(`\n  LifeLog running →  http://localhost:${PORT}\n`);
 });

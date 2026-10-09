@@ -154,7 +154,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.259.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.259.2"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2286,7 +2286,8 @@
     const stamp = String(++linkRenderSeq);
     container.dataset.linkRender = stamp;
     const addLink = (label, url) => {
-      if (!url || container.dataset.linkRender !== stamp) return;
+      // Store urls come from the media APIs; only a web link gets a tap.
+      if (!url || !window.LifeLogMarkdown.safeHref(url) || container.dataset.linkRender !== stamp) return;
       const a = document.createElement("a");
       a.href = url; a.target = "_blank"; a.rel = "noopener noreferrer";
       a.className = "cover-link-btn";
@@ -4781,16 +4782,36 @@
 
   async function init() {
     wire();
+    // The setup link's token leaves the address bar before anything else
+    // shows, lock screen included: it used to sit there for as long as the
+    // PIN prompt was up.
+    let savedHash = null;
+    if (Storage.hashHasSetup(location.hash)) {
+      savedHash = location.hash;
+      history.replaceState(null, "", location.pathname + location.search);
+    }
     if (state.privacy.enabled && !withinUnlockGrace()) await showLockScreen();
     setSyncing("Loading…");
 
-    // One-link device setup: open the app with #t=… (or legacy #setup=…) and it auto-connects.
+    // One-link device setup: open the app with #t=… (or legacy #setup=…) and
+    // it connects, after asking. Without the question, any link someone got
+    // you to open could point this device at their repo and have every save
+    // land there (0.259.2).
     let setupMsg = null, setupErr = false;
-    if (Storage.hashHasSetup(location.hash)) {
-      const savedHash = location.hash;
-      history.replaceState(null, "", location.pathname + location.search); // drop the token from the URL
-      try { await Storage.connectFromHash(savedHash, null); setupMsg = "Connected to your GitHub sync"; }
-      catch (e) { setupMsg = "Setup link failed: " + (e.message || e); setupErr = true; }
+    if (savedHash) {
+      const target = Storage.describeSetupHash(savedHash);
+      const current = Storage.githubConnected ? Storage.githubInfo : null;
+      const ask = target
+        ? `This link connects LifeLog on this device to the GitHub repo "${target}"` +
+          (current ? `, replacing the current connection to "${current.owner}/${current.repo}".` : ".") +
+          "\n\nOnly continue if you made the link yourself, on another device of yours."
+        : null;
+      if (ask && confirm(ask)) {
+        try { await Storage.connectFromHash(savedHash, null); setupMsg = "Connected to your GitHub sync"; }
+        catch (e) { setupMsg = "Setup link failed: " + (e.message || e); setupErr = true; }
+      } else if (ask) {
+        setupMsg = "Setup link ignored"; setupErr = true;
+      }
     }
 
     let savedUi = null;

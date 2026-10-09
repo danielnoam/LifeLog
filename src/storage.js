@@ -313,7 +313,17 @@
     const r = await fetch(API + "/repos/" + gh.owner + "/" + gh.repo, {
       headers: ghHeaders(), cache: "no-store",
     });
-    if (r.ok) return gh.branch;
+    if (r.ok) {
+      // The log, its finances and the API keys in settings go into this
+      // repo in plain JSON on every save; a public one would publish them.
+      // Only a new repo was ever checked (created private, below), so a
+      // repo pointed at through Advanced, or one flipped public later, went
+      // unnoticed (0.259.2).
+      let info = null;
+      try { info = await r.json(); } catch (e) {}
+      if (info && info.private === false) throw new Error(`The repo ${gh.owner}/${gh.repo} is public — your log would be visible to everyone. Make it private on GitHub, or pick another repo.`);
+      return gh.branch;
+    }
     if (r.status !== 404) throw ghErr(r.status, await r.text(), r);
     const cr = await fetch(API + "/user/repos", {
       method: "POST",
@@ -1052,26 +1062,39 @@
     hashHasSetup(hash) {
       return /[#&](t|setup)=/.test(hash || "");
     },
+    // "owner/repo" a setup hash would connect to, for asking before it does;
+    // "your account/lifelog-data" when the link leaves the owner to the
+    // token. null when the hash carries no usable setup.
+    describeSetupHash(hash) {
+      let cfg;
+      try { cfg = parseSetupHash(hash); } catch (e) { return null; }
+      if (!cfg || !cfg.token) return null;
+      return (cfg.owner || "your account") + "/" + (cfg.repo || "lifelog-data");
+    },
     // Connect from a location hash produced on another device. Returns the
     // connectGithub result, or null if the hash has no setup payload. Never
     // creates a new (empty) file — pairing only ever joins a sync target that
     // already has data; if it doesn't, that's an error, not something to fix
     // by overwriting it with this device's (likely empty) data.
     async connectFromHash(hash, currentData) {
-      const h = (hash || "").replace(/^#/, "");
-      let cfg = null;
-      const legacy = h.match(/(?:^|&)setup=([A-Za-z0-9\-_]+)/);
-      if (legacy) {
-        const c = JSON.parse(b64urlDecode(legacy[1]));
-        cfg = { owner: c.o, repo: c.r, path: c.p, branch: c.b, token: c.t };
-      } else {
-        const p = new URLSearchParams(h);
-        if (!p.get("t")) return null;
-        cfg = { owner: p.get("o") || "", repo: p.get("r") || "", path: p.get("p") || "", branch: p.get("b") || "", token: p.get("t") };
-      }
+      const cfg = parseSetupHash(hash);
+      if (!cfg) return null;
       return this.connectGithub(cfg, currentData, false);
     },
   };
+
+  // The connection a setup hash carries, or null when it has none.
+  function parseSetupHash(hash) {
+    const h = (hash || "").replace(/^#/, "");
+    const legacy = h.match(/(?:^|&)setup=([A-Za-z0-9\-_]+)/);
+    if (legacy) {
+      const c = JSON.parse(b64urlDecode(legacy[1]));
+      return { owner: c.o, repo: c.r, path: c.p, branch: c.b, token: c.t };
+    }
+    const p = new URLSearchParams(h);
+    if (!p.get("t")) return null;
+    return { owner: p.get("o") || "", repo: p.get("r") || "", path: p.get("p") || "", branch: p.get("b") || "", token: p.get("t") };
+  }
 
   window.LifeLogStorage = Storage;
 })();

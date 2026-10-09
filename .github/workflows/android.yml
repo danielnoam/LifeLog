@@ -77,9 +77,12 @@ jobs:
 
       - name: Sign
         id: sign
+        # The release key signs main only. A branch build gets the throwaway
+        # key: an APK signed with the real key installs over everyone's app,
+        # and a branch is not where that should be minted.
         env:
-          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEYSTORE_B64: ${{ github.ref == 'refs/heads/main' && secrets.ANDROID_KEYSTORE_B64 || '' }}
+          KEYSTORE_PASSWORD: ${{ github.ref == 'refs/heads/main' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
         run: bash tools/sign-apk.sh
 
       - uses: actions/upload-artifact@v4

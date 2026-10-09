@@ -173,9 +173,14 @@
     if (m) return "https://www.google.com/maps/preview/entitylist/getlist?authuser=0&hl=en&gl=us&pb=!1m4!1s" + m[1] + "!2e1!3m1!1e1!2e2!3e2!4i500!16b1";
     return null;
   }
+  // The web build's proxy url is a synced setting, so an imported or merged
+  // file could point it anywhere, and the Steam and SteamGridDB keys travel
+  // with every request: only https (or localhost, for a proxy run beside the
+  // dev server) is used (0.259.2).
   function steamProxy(value) {
     if (nativeHttp()) return NATIVE_PROXY;
-    return String(value || "").trim().replace(/\/+$/, "");
+    const v = String(value || "").trim().replace(/\/+$/, "");
+    return /^(https:\/\/|http:\/\/(localhost|127\.0\.0\.1)(:\d+)?(\/|$))/i.test(v) ? v : "";
   }
   // Every native request gives up rather than waiting forever: with no
   // read timeout, a server that keeps the connection open left the caller

@@ -72,12 +72,15 @@ async function openApp(browser, { cache, remote, fault, hash = "", connect = tru
     if (connect) localStorage.setItem("lifelog-github-v1", JSON.stringify(gh));
   }, { cache, gh: { ...GH, sha: staleSha ? "sha-old" : "sha-remote" }, connect });
   const gh = await fakeGitHub(page, remote, { fault });
+  // A setup link asks before it connects (0.259.2); this is our own link.
+  const dialogs = [];
+  page.on("dialog", (d) => { dialogs.push(d.message()); d.accept(); });
   // Via about:blank, because the same URL plus a #fragment is a fragment
   // jump rather than a load, and the app would never boot on the link.
   await page.goto("about:blank");
   await page.goto(BASE + "/" + hash, { waitUntil: "load" });
   await page.waitForTimeout(1500);
-  return { page, ctx, errs, gh };
+  return { page, ctx, errs, gh, dialogs };
 }
 
 const status = (page) => page.evaluate(() => (document.querySelector(".storage-status") || {}).textContent || "");
@@ -129,12 +132,13 @@ async function writeNote(page, text) {
   // This is the exact message that arrived from a real device:
   // "Setup link failed: Unexpected end of JSON input".
   {
-    const { page, ctx, errs: e } = await openApp(browser, {
+    const { page, ctx, errs: e, dialogs } = await openApp(browser, {
       cache: null, remote: there, connect: false,
       hash: "#t=ghp_fake&o=someone&r=lifelog-data&p=lifelog.json&b=main",
     });
     await page.waitForTimeout(800);
     const t = await toastText(page);
+    check("a setup link asks which repo it connects to before it does", dialogs.some((d) => /someone\/lifelog-data/.test(d)), dialogs);
     check("a setup link joins a sync target whose file is past 1MB", !/Setup link failed/.test(t), t);
     check("and the device comes up with the data",
       /Written on the other device/.test(await noteTexts(page)), (await noteTexts(page)).slice(0, 200));

@@ -171,8 +171,10 @@ function undoLog(cfg) {
   const file = path.join(cfg.stateDir, "undo.json");
   const read = () => { try { return JSON.parse(fs.readFileSync(file, "utf8")); } catch (e) { return []; } };
   const write = (stack) => {
-    fs.mkdirSync(cfg.stateDir, { recursive: true });
-    fs.writeFileSync(file, JSON.stringify(stack.slice(-30)));
+    // The stack holds copies of what changed (note text, amounts), so it is
+    // the user's to read and nobody else's on a shared machine.
+    fs.mkdirSync(cfg.stateDir, { recursive: true, mode: 0o700 });
+    fs.writeFileSync(file, JSON.stringify(stack.slice(-30)), { mode: 0o600 });
   };
   return {
     push(rec) { write([...read(), rec]); },

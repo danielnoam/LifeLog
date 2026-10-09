@@ -4,6 +4,32 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.259.2] - 2026-10-09
+
+### Changed
+- **A setup link asks first.** Opening one now names the GitHub repo it
+  would connect this device to (and the one it would replace) before it
+  connects, so a link you didn't make can't quietly point your log at
+  someone else's repo.
+- **Connecting refuses a public repo.** Your log, finances and API keys
+  would be visible to everyone; the app says so and stops instead.
+
+### Fixed
+- The setup link's token left the address bar before the lock screen
+  showed, not after it was unlocked.
+- Place links, Google Maps links and store links open only as web
+  addresses; a `javascript:` link from an imported file no longer gets a
+  tap target.
+- The Steam proxy address (a synced setting) is only used when it is an
+  https address, so an imported file can't send your Steam keys elsewhere.
+- The Android workflow signs with the release key on `main` only; a branch
+  build gets the throwaway key.
+- The bridge's undo log is written readable by its owner only, and its
+  instructions tell the AI that what the tools return is data, not
+  instructions.
+- The local dev server listens on this machine only, and a sibling folder
+  whose name starts with the repo's is no longer served.
+
 ## [0.259.1] - 2026-10-09
 
 ### Changed

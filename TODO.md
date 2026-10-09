@@ -1,5 +1,21 @@
 todo:
 
+- **Security pass follow-ups (0.259.2).** The write-up in the project's
+  audits folder (2026-10-09-security-pass.md) ranks these; each one changes
+  how data is stored or synced, so each is a decision first:
+  - Fine-grained GitHub token (one repo, Contents only) instead of the
+    classic `repo` scope the pre-filled link asks for.
+  - API keys (RAWG, TMDB, GG.deals, SteamGridDB, Places, Steam) out of the
+    synced data and out of the GitHub commits, export and phone backup.
+  - Android `allowBackup`/`dataExtractionRules`, iOS complete file
+    protection on the App Group files.
+  - The lock: re-lock on resume, PBKDF2 for the PIN, attempt backoff,
+    widgets and the exported widget activities honouring it, privacy screen.
+  - A Content-Security-Policy, tested on the Android app first (Capacitor
+    injects its bridge as an inline script).
+  - Optional encryption of the data file before it is committed (see
+    DROPPED.md, Data encryption).
+
 - **Share into LifeLog, on the phones (0.250.0).** Built without a device:
   check on Android that Chrome's Share → LifeLog opens the Backlog sheet
   with the title, and on iOS that LifeLog appears in the Share sheet at all

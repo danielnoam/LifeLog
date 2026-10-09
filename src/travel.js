@@ -10,6 +10,7 @@
 // root key it doesn't know, and the deletion would then win everywhere.
 (function () {
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
+  const safeHref = (href) => window.LifeLogMarkdown.safeHref(href);
   let state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader, activatable, updateFilterbarVisibility;
 
   function init(ctx) {
@@ -155,7 +156,10 @@
   // Where "Open in Google Maps" goes: the link you gave it, else Google's own
   // page for it, else its coordinates, else a search for its name and address.
   function mapsUrl(p) {
-    if (p.url) return p.url;
+    // Only a web link: a place arrives through imports and sync too, and a
+    // javascript: url here would run inside the app with everything the
+    // app can reach (0.259.2).
+    if (p.url && safeHref(p.url)) return p.url;
     if (p.gid) return "https://www.google.com/maps?ftid=" + p.gid;
     if (p.lat != null && p.lng != null) return `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`;
     return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent([p.name, p.address].filter(Boolean).join(", "));
@@ -1465,7 +1469,7 @@
       if (said) item.appendChild(el("p", "place-google-review-text", said));
       box.appendChild(item);
     }
-    if (d.googleMapsUri) {
+    if (d.googleMapsUri && safeHref(d.googleMapsUri)) {
       const a = el("a", "place-google-link");
       a.appendChild(document.createTextNode("See it on Google Maps "));
       a.appendChild(ico("external-link"));
