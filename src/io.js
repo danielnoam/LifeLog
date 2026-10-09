@@ -699,7 +699,7 @@
       confirmLabel: "Import", ...(opts || {}),
       onConfirm: async (selected, addCats) => {
         await applyImportSelection(selected, addCats);
-        if (extraOnConfirm) extraOnConfirm();
+        if (extraOnConfirm) await extraOnConfirm(selected);
       },
     });
   }
@@ -947,6 +947,12 @@
     const showDupCb = $("#financePickerShowDup");
     dupRow.hidden = mode !== "import" || !items.some((i) => i.dup && !i.update);
     showDupCb.checked = false;
+    const skipRow = $("#financePickerSkipRow");
+    const showSkipCb = $("#financePickerShowSkipped");
+    const skippedCount = items.filter((i) => i.skipped).length;
+    skipRow.hidden = mode !== "import" || !skippedCount;
+    showSkipCb.checked = false;
+    $("#financePickerSkippedCount").textContent = skippedCount ? `(${skippedCount})` : "";
     const unresolvedRow = $("#financePickerUnresolvedRow");
     const hideUnresolvedCb = $("#financePickerHideUnresolved");
     const unresolvedCount = items.filter((i) => i.unresolved).length;
@@ -1067,6 +1073,7 @@
         // hide-duplicates toggle must not take it away.
         (i.update || !i.dup || showDupCb.checked) &&
         (!i.unresolved || !hideUnresolvedCb.checked) &&
+        (!i.skipped || showSkipCb.checked) &&
         !underThreshold(i) &&
         matchesSearch(i)
       );
@@ -1154,6 +1161,12 @@
     }
 
     showDupCb.onchange = render;
+    showSkipCb.onchange = () => {
+      // Hidden again means out again: a skipped row ticked and then hidden
+      // would otherwise come in unseen.
+      if (!showSkipCb.checked) items.forEach((i) => { if (i.skipped) i.checked = false; });
+      render();
+    };
     hideUnresolvedCb.onchange = () => {
       // Hiding also deselects — otherwise a checked-but-hidden item would
       // still get imported despite looking "off" in the visible count.

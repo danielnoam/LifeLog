@@ -45,7 +45,7 @@
   // timelineSort/ledgerSort/backlogSort replaced monthOrder in 0.157.0. Each
   // option is one complete statement about the whole list rather than a
   // direction bolted to a hidden field — see SORTS below.
-  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", googlePlaces: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0" }, releases: { autoRefreshDays: "0" } }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
+  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", googlePlaces: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
   // Local to this device, not synced. Every key a view reads off state.visual
   // belongs here: loadVisualSettings fills the gaps in a stored blob from this
   // object, so a default declared here is the only one there is — a `||` at
@@ -154,7 +154,7 @@
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.256.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.257.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3715,7 +3715,7 @@
     // stale source of truth for the same question.
     "monthOrder",
     "currency", "mediaCategorySources", "mediaCategoryFallbackSources",
-    "mediaKeys", "steam", "anilist", "releases", "updatedAt",
+    "mediaKeys", "steam", "anilist", "releases", "importSkips", "updatedAt",
     "monthMinWidth", "monthMaxWidth",
   ]);
 
@@ -3807,6 +3807,9 @@
       steam: { ...DEFAULT_SETTINGS.steam, ...(incomingSettings.steam || {}) },
       anilist: { ...DEFAULT_SETTINGS.anilist, ...(incomingSettings.anilist || {}) },
       releases: { ...DEFAULT_SETTINGS.releases, ...(incomingSettings.releases || {}) },
+      // Per import source, the "source:id" keys you left unticked (0.257.0).
+      importSkips: Object.fromEntries(Object.entries(incomingSettings.importSkips && typeof incomingSettings.importSkips === "object" ? incomingSettings.importSkips : {})
+        .filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, v.filter((x) => typeof x === "string")])),
     };
     keepUnknown(incomingSettings, data.settings, KNOWN_SETTINGS_KEYS);
     delete data.settings.monthOrder;

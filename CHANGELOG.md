@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.257.0] - 2026-10-09
+
+### Changed
+- **Imports remember what you skipped.** A game or title you leave
+  unticked in a Steam wishlist, Steam played-games or AniList review stays
+  out of the next one, behind a "Show what you skipped before" toggle in
+  the sheet; tick it there and it comes in and is forgotten as a skip.
+  The list syncs with your settings.
+
 ## [0.256.0] - 2026-10-09
 
 ### Added

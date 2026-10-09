@@ -333,6 +333,21 @@ what was decided against and why.
   copy of the whole recurring list taken just before. `combinedWith` stays in
   KNOWN_RECURRING_KEYS so the sanitizer drops it rather than keepUnknown
   carrying it, which is what made the old groups separate again.
+- **Import skips (0.257.0).** Every sync offered the same rejected rows
+  again, since "not in your data" is all the duplicate check knows. The
+  runner now reads `settings.importSkips[source.skipKey]`, a list of
+  `mediaSource:mediaId` keys, marks matching non-duplicate rows `skipped`
+  (hidden and unticked; the picker's "Show what you skipped before" toggle
+  reveals them, and hiding them again unticks them, as the unresolved
+  toggle does), and on confirm rewrites the list from the whole review:
+  every non-duplicate row with an id is either chosen (skip forgotten) or
+  not (skip kept or added). Keyed per source, not per lane: a game
+  skipped from the wishlist is not a game skipped from the backfill.
+  Only sync sources with ids take part; file imports already have the
+  duplicate check and no stable identity. In settings so it syncs and so
+  the bridge never shows it; KNOWN_SETTINGS_KEYS, DEFAULT_SETTINGS, the
+  settings sanitizer and DATA.md all carry it. Not undone by the import
+  toast's Undo: a skip is a preference, and the toggle is the way back.
 - **Undo after import (0.256.0).** applyImportSelection already did
   everything in one place, so it now records what it did as it goes: the
   ids it gave each added row per list (after `add()` has settled them, since

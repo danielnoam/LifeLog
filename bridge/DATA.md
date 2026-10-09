@@ -178,7 +178,9 @@ that matters for data is `currency`, which `lifelog_overview` gives.
 
 Keys: `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,
 `mediaCategorySources`, `mediaCategoryFallbackSources`, `mediaKeys`, `steam`,
-`anilist`, `releases`, `updatedAt`. Old files may still carry `monthOrder`,
+`anilist`, `releases`, `importSkips` (per import source, the `source:id`
+keys of items left unticked in a review, so they stay hidden next time),
+`updatedAt`. Old files may still carry `monthOrder`,
 `monthMinWidth` and `monthMaxWidth`, which the app drops or moves on load.
 
 ## Boards (`boards.json`)

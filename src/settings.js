@@ -328,6 +328,7 @@
     "anilist.userName": "AniList user name", "anilist.animeCategory": "AniList anime category",
     "anilist.mangaCategory": "AniList manga category", "anilist.autoSyncDays": "AniList auto-sync",
     "releases.autoRefreshDays": "release-date refresh",
+    "importSkips.steamWishlist": "Steam wishlist skips", "importSkips.steamOwned": "Steam played-games skips", "importSkips.anilist": "AniList skips",
     timelineSort: "Timeline sort", ledgerSort: "Ledger sort", backlogSort: "Backlog sort", currency: "Home currency",
   };
   function settingLabel(path) {

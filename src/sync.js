@@ -299,8 +299,26 @@
         // Which new rows start ticked: the review's default is every new
         // one, and a source with a lot of noise in it says otherwise.
         if (source.ticked) for (const it of built.items) if (!it.dup) it.checked = source.ticked(it.entry);
+        // What you left unticked last time stays out of the way (0.257.0):
+        // hidden behind "Show skipped", unticked, until you tick it there.
+        const skipKey = (it) => (it.entry.mediaSource || "") + ":" + (it.entry.mediaId || "");
+        const skips = new Set(((state.data.settings.importSkips || {})[source.skipKey] || []));
+        for (const it of built.items) if (!it.dup && it.entry.mediaId && skips.has(skipKey(it))) { it.skipped = true; it.checked = false; }
         job.finish(job.stopping ? `Stopped — ${raw.length} fetched, sent to review` : `${built.items.length} to review`);
-        reviewAndImport(source.label, source.hint, built, null, source.picker ? source.picker(built) : undefined);
+        const rememberSkips = async (selected) => {
+          if (!source.skipKey) return;
+          const chosen = new Set(selected);
+          const next = new Set(skips);
+          for (const it of built.items) {
+            if (it.dup || !it.entry.mediaId) continue;
+            if (chosen.has(it)) next.delete(skipKey(it)); else next.add(skipKey(it));
+          }
+          const all = { ...(state.data.settings.importSkips || {}) };
+          if (next.size) all[source.skipKey] = [...next]; else delete all[source.skipKey];
+          state.data.settings.importSkips = all;
+          await persist();
+        };
+        reviewAndImport(source.label, source.hint, built, rememberSkips, source.picker ? source.picker(built) : undefined);
       });
     } catch (e) {
       // Already said in a toast, and kept in Activity.
@@ -314,6 +332,7 @@
     id: "steamWishlistSyncBtn",
     label: "Steam Wishlist",
     lane: "steam",
+    skipKey: "steamWishlist",
     hint: "Review which wishlisted games to add. Anything already in your backlog is marked — if this sync can fill in a cover, rating or release date it doesn't have, that row says so and is ticked.",
     plan() {
       const cfg = state.data.settings.steam || DEFAULT_SETTINGS.steam;
@@ -420,6 +439,7 @@
     id: "steamOwnedSyncBtn",
     label: "Steam games played",
     lane: "steam",
+    skipKey: "steamOwned",
     kind: "entry",
     hint: "Every game with time in it, as an entry in the month you last played it, hours as its length. Two hours or more starts ticked; the rest you can tick. Games already in your Timeline or Backlog are hidden.",
     plan() {
@@ -459,6 +479,7 @@
     id: "anilistSyncBtn",
     label: "AniList Planning",
     lane: "anilist",
+    skipKey: "anilist",
     hint: "Review which plan-to-watch/read titles to add. Anything already in your backlog or timeline is marked — if this sync can fill in a cover, rating or release date it doesn't have, that row says so and is ticked.",
     plan() {
       const cfg = state.data.settings.anilist || DEFAULT_SETTINGS.anilist;
