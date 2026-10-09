@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.263.0] - 2026-10-09
+
+### Changed
+- **The page tells the browser what it may run.** A Content-Security-Policy
+  now limits scripts and styles to LifeLog's own files, images to https,
+  and connections to https (plus a proxy on localhost). A script that got
+  into the page some other way, through a note, an import or a link, no
+  longer runs. Nothing changes in use; the phone apps load their native
+  bridge outside the policy.
+
 ## [0.262.0] - 2026-10-09
 
 ### Changed

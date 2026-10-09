@@ -1499,6 +1499,7 @@
     $("#ghDisconnectBtn").onclick = disconnectGithub;
     $("#historyRefreshBtn").onclick = updateHistoryPanel;
     $("#ghPollInterval").onchange = onPollIntervalChange;
+    $("#ghSetupLink").onclick = (e) => e.target.select();
     $("#ghCopyLinkBtn").onclick = async () => {
       const v = $("#ghSetupLink").value;
       try { await navigator.clipboard.writeText(v); toast("Setup link copied"); }

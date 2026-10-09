@@ -135,8 +135,10 @@ const TABS = {
   await chooser.setFiles(full.file);
   await page.waitForTimeout(500);
   const restored = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).settings);
-  check("Restore settings says what it will fill, without showing the key", /RAWG API key/.test(asked) && !/rawg-key/.test(asked), asked);
-  check("and puts the backup's settings in place", restored.currency === "USD" && restored.mediaKeys.rawg === "rawg-key", restored);
+  // An export leaves the API keys blank (0.260.0), so a restore from it
+  // names the currency only and brings no key back.
+  check("Restore settings says what it will fill, and the export carried no key", /Home currency/.test(asked) && !/API key|rawg-key/.test(asked), asked);
+  check("and puts the backup's settings in place, keys aside", restored.currency === "USD" && !restored.mediaKeys.rawg, restored);
 
   await ctx.close();
   await b.close();

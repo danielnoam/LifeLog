@@ -4,11 +4,14 @@ todo:
   audits folder (2026-10-09-security-pass.md) ranks these; each one changes
   how data is stored or synced, so each is a decision first. The token flow
   and the keys-out-of-exports shipped in 0.260.0, backups off in 0.261.0,
-  the lock hardening in 0.262.0; still open:
-  - A Content-Security-Policy, tested on the Android app first (Capacitor
-    injects its bridge as an inline script).
+  the lock hardening in 0.262.0, the CSP in 0.263.0; still open:
+  - Confirm on Daniel's Android phone that 0.263.0 opens with plugins
+    working (widgets update, biometrics, share): the CSP relies on the
+    WebView's document-start script support.
   - Optional encryption of the data file before it is committed (see
-    DROPPED.md, Data encryption).
+    DROPPED.md, Data encryption); Daniel leans no.
+  - Encrypting the local copy (localStorage) with a key from the PIN, for
+    the desktop browser mainly; explained on 2026-10-09, his call.
 
 - **Share into LifeLog, on the phones (0.250.0).** Built without a device:
   check on Android that Chrome's Share → LifeLog opens the Backlog sheet

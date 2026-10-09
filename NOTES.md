@@ -16,6 +16,35 @@ what was decided against and why.
 
 ---
 
+- **Content-Security-Policy (0.263.0).** A `<meta http-equiv>` in
+  index.html, since GitHub Pages sends no headers: `script-src 'self'`,
+  `style-src 'self'`, `img-src 'self' data: blob: https:`, `connect-src
+  'self' https: http://localhost:* http://127.0.0.1:*`, `object-src 'none'`,
+  `frame-src 'none'`, `base-uri 'self'`, `form-action 'self'`. The app's
+  value is the script and style lines: no inline script, handler, `eval` or
+  `style=""` anywhere (`el.style.x = …` is fine; `setAttribute("style")`
+  isn't, and `test/csp.test.js` keeps it that way). `connect-src https:`
+  is wide because the media lookups talk to a dozen hosts and the Steam
+  proxy URL is a setting; `img-src https:` because cover art comes from
+  anywhere, which also makes an `http:` cover simply not load, so no
+  sanitizer rule for it. Frame-ancestors can't go in a meta tag.
+  - *The phone apps.* Capacitor on Android injects its bridge with
+    `WebViewCompat.addDocumentStartJavaScript` whenever the WebView has
+    `DOCUMENT_START_SCRIPT` (Chrome 90+, 2021), which a page CSP doesn't
+    govern; only an older WebView falls back to an inline `<script>` in
+    the HTML, which this policy would block, and the app would open to a
+    page with no plugins. iOS uses `WKUserScript`, outside the CSP too.
+    CapacitorHttp's patched fetch goes to the app's own origin, covered by
+    `'self'`. Daniel confirms on his phone; the only fix if it fails is
+    dropping the meta from the app's copy in `tools/build-www.js`.
+  - The one inline handler (`onclick="this.select()"` on the setup link)
+    moved to settings.js. The board export's `<style>` sits in a detached
+    SVG that is serialized into a data: image, never in the document, so
+    it isn't subject to the page's policy.
+  - A proxy Origin check was considered and left out: the worker already
+    takes only fixed routes, an Origin header is trivial to forge outside
+    a browser, and the worker deploys separately from the app.
+
 - **The lock, hardened (0.262.0).** The lock is a gate in front of plain
   localStorage and says so in its own subtitle; this release makes the gate
   behave like one, nothing more.
