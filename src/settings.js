@@ -16,6 +16,7 @@
     saveVisualSettings, savePrivacySettings, attachSwipe,
     applyMonthLayout, applyFont, applyTheme, applyForceLayout,
     prefersReducedMotion, biometricAvailable, biometricState, hashPin, randomHex, registerBiometric,
+    applyPrivacyScreen, widgetsChanged,
     isMobileLayout, switchToView,
     updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
     syncSteamWishlist, syncSteamOwned, retryUnresolvedSteamTitles, backfillRawgForSteamGames,
@@ -29,6 +30,7 @@
       saveVisualSettings, savePrivacySettings, attachSwipe,
       applyMonthLayout, applyFont, applyTheme, applyForceLayout,
       prefersReducedMotion, biometricAvailable, biometricState, hashPin, randomHex, registerBiometric,
+      applyPrivacyScreen, widgetsChanged,
       isMobileLayout, switchToView,
       viewToggles, settleDisabled,
       updateSteamRetryUnresolvedButton, updateSteamBackfillRawgButton,
@@ -612,7 +614,10 @@
         const how = p.credentialId ? "PIN + fingerprint" : "PIN";
         if (!p.enabled) return { text: how + " set up, not required" };
         const g = +p.graceMinutes || 0;
-        return { text: how + " · " + (g ? "asks after " + (g === 60 ? "an hour" : plural(g, "minute", "minutes")) : "asks every time") };
+        const r = p.relockMinutes == null ? 5 : +p.relockMinutes;
+        const mins = (m) => (m === 60 ? "an hour" : plural(m, "minute", "minutes"));
+        const away = r < 0 ? "" : r === 0 ? " · locks when put away" : " · locks after " + mins(r) + " away";
+        return { text: how + " · " + (g ? "asks after " + mins(g) : "asks every time") + away };
       }
       case "appearance": {
         const v = state.visual;
@@ -1171,8 +1176,16 @@
   let bioAvailable = false;
 
   async function updatePrivacySettings() {
-    $("#privacyEnabled").checked = !!state.privacy.enabled;
-    $("#privacyGrace").value = String(state.privacy.graceMinutes || 0);
+    const p = state.privacy;
+    $("#privacyEnabled").checked = !!p.enabled;
+    $("#privacyGrace").value = String(p.graceMinutes || 0);
+    $("#privacyRelock").value = String(p.relockMinutes == null ? 5 : p.relockMinutes);
+    $("#privacyBioOnOpen").checked = p.bioOnOpen !== false;
+    $("#privacyScreen").checked = !!p.privacyScreen;
+    $("#privacyHideWidgets").checked = !!p.hideWidgets;
+    // The app switcher and the widgets are the phones'; a browser has neither.
+    const native = !!(window.LifeLogPlatform && window.LifeLogPlatform.native);
+    $("#privacyPhoneSection").hidden = !native;
     refreshPrivacyUI();
 
     // Asked each time Settings opens, not cached: someone told to go and add
@@ -1198,6 +1211,7 @@
       ? "Fingerprint/Face ID is set up on this device."
       : (state.privacy.pinHash ? "Not set up yet." : "Set a PIN first to enable this.");
     $("#removeBioBtn").hidden = !state.privacy.credentialId;
+    $("#privacyBioOnOpenRow").hidden = !state.privacy.credentialId;
   }
 
   function hidePinForm() {
@@ -1566,10 +1580,30 @@
       }
       state.privacy.enabled = checked;
       savePrivacySettings();
+      applyPrivacyScreen();
+      widgetsChanged();
     };
     $("#privacyGrace").onchange = () => {
       state.privacy.graceMinutes = parseInt($("#privacyGrace").value, 10) || 0;
       savePrivacySettings();
+    };
+    $("#privacyRelock").onchange = () => {
+      state.privacy.relockMinutes = parseInt($("#privacyRelock").value, 10) || 0;
+      savePrivacySettings();
+    };
+    $("#privacyBioOnOpen").onchange = () => {
+      state.privacy.bioOnOpen = $("#privacyBioOnOpen").checked;
+      savePrivacySettings();
+    };
+    $("#privacyScreen").onchange = () => {
+      state.privacy.privacyScreen = $("#privacyScreen").checked;
+      savePrivacySettings();
+      applyPrivacyScreen();
+    };
+    $("#privacyHideWidgets").onchange = () => {
+      state.privacy.hideWidgets = $("#privacyHideWidgets").checked;
+      savePrivacySettings();
+      widgetsChanged();
     };
     $("#setPinBtn").onclick = () => {
       $("#privacyPinForm").hidden = false;
@@ -1585,7 +1619,9 @@
       if (a !== b) { toast("PINs don't match", true); return; }
       const salt = randomHex(16);
       state.privacy.pinSalt = salt;
+      state.privacy.pinKdf = "pbkdf2";
       state.privacy.pinHash = await hashPin(a, salt);
+      state.privacy.fails = 0; state.privacy.lockedUntil = 0;
       savePrivacySettings();
       hidePinForm();
       refreshPrivacyUI();
@@ -1597,10 +1633,12 @@
         ? "Remove the PIN from this device? Fingerprint/Face ID requires a PIN fallback, so this will remove that too."
         : "Remove the PIN from this device?";
       if (!confirm(msg)) return;
-      state.privacy.pinHash = null; state.privacy.pinSalt = null;
+      state.privacy.pinHash = null; state.privacy.pinSalt = null; state.privacy.pinKdf = null;
       if (alsoBio) state.privacy.credentialId = null;
       state.privacy.enabled = false;
       savePrivacySettings();
+      applyPrivacyScreen();
+      widgetsChanged();
       refreshPrivacyUI();
     };
     $("#setBioBtn").onclick = async () => {

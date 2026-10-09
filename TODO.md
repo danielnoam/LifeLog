@@ -3,10 +3,8 @@ todo:
 - **Security pass follow-ups (0.259.2).** The write-up in the project's
   audits folder (2026-10-09-security-pass.md) ranks these; each one changes
   how data is stored or synced, so each is a decision first. The token flow
-  and the keys-out-of-exports shipped in 0.260.0, backups off in 0.261.0;
-  still open:
-  - The lock: re-lock on resume, PBKDF2 for the PIN, attempt backoff,
-    widgets and the exported widget activities honouring it, privacy screen.
+  and the keys-out-of-exports shipped in 0.260.0, backups off in 0.261.0,
+  the lock hardening in 0.262.0; still open:
   - A Content-Security-Policy, tested on the Android app first (Capacitor
     injects its bridge as an inline script).
   - Optional encryption of the data file before it is committed (see

@@ -29,6 +29,7 @@ public class WidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "pickMarkdownFolder", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "holdBackground", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "releaseBackground", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "setPrivacyScreen", returnType: CAPPluginReturnPromise),
     ]
 
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
@@ -152,6 +153,45 @@ public class WidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
             }
             call.resolve()
         }
+    }
+
+    // ---- the privacy screen (0.262.0) ----
+    // iOS snapshots the app for the app switcher as it goes inactive; a
+    // blur laid over the window at that moment is what the snapshot shows,
+    // and it lifts as the app comes back. Screenshots can't be refused on
+    // iOS, so this is the switcher only.
+    private var privacyOn = false
+    private var privacyCover: UIVisualEffectView?
+    private var privacyObservers: [NSObjectProtocol] = []
+
+    @objc func setPrivacyScreen(_ call: CAPPluginCall) {
+        let on = call.getBool("on") ?? false
+        DispatchQueue.main.async {
+            self.privacyOn = on
+            if on && self.privacyObservers.isEmpty {
+                let nc = NotificationCenter.default
+                self.privacyObservers = [
+                    nc.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { [weak self] _ in self?.coverWindow() },
+                    nc.addObserver(forName: UIApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in self?.uncoverWindow() },
+                ]
+            }
+            if !on { self.uncoverWindow() }
+            call.resolve()
+        }
+    }
+
+    private func coverWindow() {
+        guard privacyOn, privacyCover == nil, let window = self.bridge?.webView?.window else { return }
+        let cover = UIVisualEffectView(effect: UIBlurEffect(style: .systemThickMaterial))
+        cover.frame = window.bounds
+        cover.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        window.addSubview(cover)
+        privacyCover = cover
+    }
+
+    private func uncoverWindow() {
+        privacyCover?.removeFromSuperview()
+        privacyCover = nil
     }
 
     @objc func releaseBackground(_ call: CAPPluginCall) {

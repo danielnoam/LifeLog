@@ -226,6 +226,13 @@
       spend: ctx.spend ? ctx.spend() : null,
       pins,
     });
+    // With the lock on and "hide in widgets" set (0.262.0), the widgets get
+    // the counts and the habits but no note or to-do text: a home screen
+    // doesn't ask for a PIN. The lists come back on the next push once the
+    // setting or the lock goes.
+    if (ctx.hidden && ctx.hidden()) {
+      snap.todos = []; snap.lists = []; snap.notes = []; snap.hidden = true;
+    }
     Promise.resolve(W.update({ json: JSON.stringify(snap) })).catch(() => { /* the widget keeps its last copy */ });
   }
 
@@ -303,7 +310,7 @@
     if (App.getLaunchUrl) Promise.resolve(App.getLaunchUrl()).then((r) => go(r && r.url)).catch(() => {});
   }
 
-  // ctx: { state, Platform, persist, afterDataChange, toast, runAction, quickActions }
+  // ctx: { state, Platform, persist, afterDataChange, toast, runAction, quickActions, hidden }
   function start(c) {
     ctx = c;
     const W = plugin();

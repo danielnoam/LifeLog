@@ -39,6 +39,9 @@ import org.json.JSONArray;
  *   holdBackground({ title, text, done, total }), releaseBackground()
  *                      keeps the app working while it's put away, with a
  *                      notification showing the progress (see BackgroundWork)
+ *   setPrivacyScreen({ on })
+ *                      FLAG_SECURE on the window (0.262.0): a blank card in
+ *                      the app switcher and no screenshots, for the app lock
  *
  * "Widgets" is the name it started with; it has become the app's one native
  * plugin, and renaming it would only be churn.
@@ -292,6 +295,17 @@ public class WidgetsPlugin extends Plugin {
     public void releaseBackground(PluginCall call) {
         BackgroundWork.release(getContext());
         call.resolve();
+    }
+
+    @PluginMethod
+    public void setPrivacyScreen(PluginCall call) {
+        boolean on = Boolean.TRUE.equals(call.getBoolean("on", false));
+        getActivity().runOnUiThread(() -> {
+            android.view.Window w = getActivity().getWindow();
+            if (on) w.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
+            else w.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE);
+            call.resolve();
+        });
     }
 
     /** The notification's Stop: the app stops its jobs, which releases the service. */

@@ -16,6 +16,43 @@ what was decided against and why.
 
 ---
 
+- **The lock, hardened (0.262.0).** The lock is a gate in front of plain
+  localStorage and says so in its own subtitle; this release makes the gate
+  behave like one, nothing more.
+  - *PBKDF2 over SHA-256.* A four-digit PIN has ten thousand values; one
+    salted SHA-256 lets a copy of the storage try them all in well under a
+    second, 150k rounds of PBKDF2 makes it a quarter-second each in a
+    browser (28 ms measured in Chromium, but the point is the attacker's
+    GPU, and `crypto.subtle` has no Argon2). `pinKdf` names the scheme so
+    an old hash still verifies, and the first correct entry re-saves it as
+    PBKDF2; a PIN set before this release stays weak until then, which is
+    why `savePin` and `checkPin` both write the new field.
+  - *Backoff.* Five free tries, then 30 s doubling to 15 min, written to
+    `lifelog-privacy-v1` so a reload doesn't reset it. The keystroke check
+    (a right PIN opens without Unlock) never counts a miss, or a six-digit
+    PIN would be two misses on the way in; only Unlock/Enter does.
+  - *Re-lock.* `visibilitychange` to hidden stamps `hiddenAt`; back to
+    visible compares it with `relockMinutes` (default 5, -1 never, 0 right
+    away) and shows the lock screen again over the running app. The
+    screen is reused, so it clears the PIN box as it opens and as it
+    closes: the first cut left the last PIN in the box and taps appended
+    to it, so a re-lock never opened.
+  - *Privacy screen.* `Widgets.setPrivacyScreen` in the plugin, not a new
+    plugin: Android sets `FLAG_SECURE` on the window (which also blocks
+    the owner's own screenshots, hence off by default); iOS has no such
+    flag, so the plugin covers the window with a blur on
+    `willResignActive` and removes it on `didBecomeActive`.
+  - *Widgets.* `push()` empties todos, lists and notes and sets
+    `hidden: true` when the lock and the switch are on; the widgets keep
+    their counts and habits. A quick-add shortcut still opens the app,
+    which locks as it opens, so nothing new is reachable there.
+  - *`bioOnOpen`.* Daniel asked for keypad and biometrics at once; the OS
+    sheets are modal, so the choice is which comes first. He chose to
+    leave it as is (sheet first), so the switch defaults on; keypad first
+    is one tap away in Settings. Android could also accept the phone's
+    own PIN in the sheet (`BIOMETRIC_WEAK | DEVICE_CREDENTIAL`); not
+    built.
+
 - **No cloud backup of the apps (0.261.0).** Android: `allowBackup="false"`
   on `<application>`, replacing the template's `true` (the manifest patcher
   gained a `replace` flag for an attribute that is already there). On

@@ -2870,6 +2870,8 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   z-index: 200; padding: 20px;
 }
 .lock-screen[hidden] { display: none; }
+/* The wrong-guess backoff (0.262.0): the keys stay drawn and go quiet. */
+.lock-keypad.waiting { opacity: 0.4; pointer-events: none; }
 .lock-box {
   background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-xl);
   box-shadow: var(--shadow); padding: 32px 28px; width: 320px; max-width: 100%;

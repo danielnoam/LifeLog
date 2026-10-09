@@ -4,6 +4,27 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.262.0] - 2026-10-09
+
+### Changed
+- **The app lock holds up better.** It asks again when LifeLog has been
+  put away for a while (five minutes by default; Settings → App lock →
+  "Lock when put away for" goes from right away to never). After five
+  wrong PINs it waits half a minute, and doubles the wait with every
+  miss, on a reload too. The PIN itself is now stored with a slow hash
+  (PBKDF2, 150,000 rounds) instead of a single SHA-256, so a copy of the
+  phone's storage no longer gives a four-digit PIN away in seconds; an
+  existing PIN moves over the next time it's entered. The lock screen
+  opens with an empty PIN box every time.
+- **Two phone-only switches under App lock.** "Blank in the app switcher"
+  hides LifeLog's card in the recent-apps view and, on Android, refuses
+  screenshots of it (off by default, since it blocks your own too).
+  "Hide notes and to-dos in widgets" leaves the home-screen widgets with
+  their counts and habits but no text while the lock is on.
+- **"Ask as the app opens"** under Fingerprint / Face ID chooses whether
+  the biometric sheet comes up by itself on the lock screen or waits for
+  its button, so the keypad is usable right away.
+
 ## [0.261.0] - 2026-10-09
 
 ### Changed

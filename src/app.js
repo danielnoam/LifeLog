@@ -153,8 +153,16 @@
   // a replacement for it, so the PIN is always available as a fallback.
   // graceMinutes/lastUnlockAt: if set, a refresh within graceMinutes of the
   // last successful unlock skips the prompt instead of asking again.
-  const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0 };
-  const APP_VERSION = "0.261.0"; // bump with each shipped change so it's visible in Settings
+  // Since 0.262.0: pinKdf says how pinHash was made ("pbkdf2", or null for
+  // the old single SHA-256, which is upgraded on the next right PIN);
+  // relockMinutes asks again after the app was put away that long (-1:
+  // never); fails/lockedUntil are the wrong-guess backoff; bioOnOpen pops
+  // the fingerprint / Face ID sheet on open rather than on tap;
+  // privacyScreen blanks the app in the app switcher (the phones only);
+  // hideWidgets keeps notes and to-dos out of the widgets while locked.
+  const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
+    relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
+  const APP_VERSION = "0.262.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -316,10 +324,44 @@
     crypto.getRandomValues(arr);
     return [...arr].map((b) => b.toString(16).padStart(2, "0")).join("");
   }
-  async function hashPin(pin, salt) {
-    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + pin));
-    return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  // A PIN is 4 to 8 digits, so every hash of it is guessable offline; the
+  // question is only how fast. One SHA-256 (the hash until 0.262.0) put the
+  // whole space within seconds on a laptop. PBKDF2 at this count costs a
+  // phone a fraction of a second per guess and a laptop core a day or two
+  // for the whole space, which is what a numeric PIN can honestly offer. No
+  // dependency: Web Crypto has PBKDF2.
+  const PIN_KDF = "pbkdf2";
+  const PIN_ITERATIONS = 150000;
+  const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  async function hashPin(pin, salt, kdf = PIN_KDF) {
+    const enc = new TextEncoder();
+    if (kdf !== PIN_KDF) return hex(await crypto.subtle.digest("SHA-256", enc.encode(salt + ":" + pin)));
+    const key = await crypto.subtle.importKey("raw", enc.encode(pin), "PBKDF2", false, ["deriveBits"]);
+    return hex(await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: enc.encode(salt), iterations: PIN_ITERATIONS }, key, 256));
   }
+  // Whether `pin` is the one set on this device. A right PIN hashed the old
+  // way is re-saved the new way, since this is the one moment the PIN is
+  // in hand. Wrong guesses count towards the backoff; a right one clears it.
+  async function checkPin(pin) {
+    const p = state.privacy;
+    const ok = (await hashPin(pin, p.pinSalt, p.pinKdf)) === p.pinHash;
+    if (ok) {
+      if (p.pinKdf !== PIN_KDF) { p.pinKdf = PIN_KDF; p.pinHash = await hashPin(pin, p.pinSalt); }
+      p.fails = 0; p.lockedUntil = 0;
+    } else {
+      p.fails = (p.fails || 0) + 1;
+      if (p.fails >= PIN_FREE_TRIES) {
+        const wait = Math.min(PIN_WAIT_MAX, PIN_WAIT_FIRST * Math.pow(2, p.fails - PIN_FREE_TRIES));
+        p.lockedUntil = Date.now() + wait;
+      }
+    }
+    savePrivacySettings();
+    return ok;
+  }
+  // Five free tries, then 30 s, doubling with every miss up to 15 minutes.
+  // Kept in localStorage with the rest, so a reload doesn't start it over.
+  const PIN_FREE_TRIES = 5, PIN_WAIT_FIRST = 30 * 1000, PIN_WAIT_MAX = 15 * 60 * 1000;
+  const pinWaitLeft = () => Math.max(0, (state.privacy.lockedUntil || 0) - Date.now());
   function bufToB64(buf) {
     return btoa(String.fromCharCode(...new Uint8Array(buf)));
   }
@@ -4665,12 +4707,37 @@
         dots.innerHTML = "";
         for (let i = 0; i < count; i++) dots.appendChild(el("span", i < len ? "filled" : null));
       }
+      // Checked as it's typed from the shortest PIN on, so a right one opens
+      // without Unlock; a check that finishes after more digits came in is
+      // for a PIN that is no longer in the box, and says nothing.
       async function onPinChanged() {
         renderDots();
-        if (!input.value) return;
-        const hash = await hashPin(input.value, state.privacy.pinSalt);
-        if (hash === state.privacy.pinHash) unlocked();
+        const typed = input.value;
+        if (typed.length < 4 || pinWaitLeft()) return;
+        const ok = await checkPinQuietly(typed);
+        if (ok && input.value === typed) unlocked();
       }
+      // A keystroke check only ever unlocks; a miss here is not a guess, or
+      // typing a 6-digit PIN would be two misses on the way.
+      async function checkPinQuietly(pin) {
+        const p = state.privacy;
+        const ok = (await hashPin(pin, p.pinSalt, p.pinKdf)) === p.pinHash;
+        if (ok) await checkPin(pin); // upgrades the hash, clears the backoff
+        return ok;
+      }
+      let waitTimer = null;
+      function renderWait() {
+        const left = pinWaitLeft();
+        keypad.classList.toggle("waiting", left > 0);
+        input.disabled = left > 0;
+        if (!left) { clearInterval(waitTimer); waitTimer = null; if (!errorEl.hidden && /Try again in/.test(errorEl.textContent)) errorEl.hidden = true; return; }
+        const secs = Math.ceil(left / 1000);
+        errorEl.textContent = "Too many tries — try again in " + (secs >= 60 ? Math.ceil(secs / 60) + " min" : secs + " s");
+        errorEl.hidden = false;
+        if (!waitTimer) waitTimer = setInterval(renderWait, 1000);
+      }
+      input.value = ""; // a re-lock would otherwise reopen with the last PIN in the box
+      renderWait();
       renderDots();
       input.addEventListener("input", onPinChanged);
       keypad.onclick = (e) => {
@@ -4690,6 +4757,11 @@
         box.classList.add("shake");
       }
       function cleanup() {
+        clearInterval(waitTimer); waitTimer = null;
+        keypad.classList.remove("waiting");
+        input.disabled = false;
+        input.value = "";
+        lockShowing = false;
         screen.hidden = true;
         document.body.style.overflow = "";
         form.onsubmit = null;
@@ -4707,10 +4779,13 @@
       }
       form.onsubmit = async (e) => {
         e.preventDefault();
-        const hash = await hashPin(input.value, state.privacy.pinSalt);
+        if (pinWaitLeft()) { renderWait(); return; }
+        const typed = input.value;
         input.value = "";
         renderDots();
-        if (hash === state.privacy.pinHash) unlocked();
+        if (!typed) return;
+        if (await checkPin(typed)) unlocked();
+        else if (pinWaitLeft()) { showError(""); renderWait(); }
         else { showError("Incorrect PIN"); input.focus(); }
       };
       bioBtn.onclick = async () => {
@@ -4747,9 +4822,44 @@
       };
       // Auto-prompt biometrics on open when available — the PIN form (if also
       // set up) stays visible underneath as a fallback if it's cancelled/fails.
-      if (hasBio) bioBtn.onclick();
+      // Or not (0.262.0): the sheet is the OS's and takes the screen until
+      // it's answered, so some would rather have the keypad and a button.
+      if (hasBio && state.privacy.bioOnOpen !== false) bioBtn.onclick();
     });
   }
+
+  // ---- re-lock, the privacy screen, the widgets (0.262.0) ----
+  let lockShowing = false;
+  let hiddenAt = 0;
+  // Put away for relockMinutes or longer, the app asks again on return.
+  // Once unlocked it used to stay so until the OS killed it, which on a
+  // phone can be days; the lock is for the phone that's left on a table.
+  function relockIfDue() {
+    const p = state.privacy;
+    if (!p.enabled || !p.pinHash || lockShowing || !hiddenAt) return;
+    const minutes = p.relockMinutes == null ? 5 : +p.relockMinutes;
+    const away = Date.now() - hiddenAt;
+    hiddenAt = 0;
+    if (minutes < 0 || away < minutes * 60 * 1000) return;
+    lockShowing = true;
+    showLockScreen();
+  }
+  function wireRelock() {
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") { if (!hiddenAt) hiddenAt = Date.now(); return; }
+      relockIfDue();
+    });
+  }
+  // Blank the app's card in the app switcher, and on Android refuse
+  // screenshots with it: the phones only, through the plugin. Off by
+  // default, since it blocks the owner's own screenshots too.
+  function applyPrivacyScreen() {
+    const W = Platform.native && Platform.plugin("Widgets");
+    if (!W || typeof W.setPrivacyScreen !== "function") return;
+    Promise.resolve(W.setPrivacyScreen({ on: !!(state.privacy.enabled && state.privacy.privacyScreen) })).catch(() => {});
+  }
+  // Whether the widgets should carry notes and to-dos right now.
+  const widgetsHidden = () => !!(state.privacy.enabled && state.privacy.pinHash && state.privacy.hideWidgets);
 
   // Show the version-conflict picker and resolve once the user chooses one.
   function pickVersion(candidates) {
@@ -4790,7 +4900,9 @@
       savedHash = location.hash;
       history.replaceState(null, "", location.pathname + location.search);
     }
-    if (state.privacy.enabled && !withinUnlockGrace()) await showLockScreen();
+    if (state.privacy.enabled && !withinUnlockGrace()) { lockShowing = true; await showLockScreen(); }
+    wireRelock();
+    applyPrivacyScreen();
     setSyncing("Loading…");
 
     // One-link device setup: open the app with #t=… (or legacy #setup=…) and
@@ -4909,7 +5021,7 @@
       // The app's files are already on the device; a worker would only be a
       // second cache of them, and its "new version" isn't the app's.
       checkForNewerApp();
-      Widgets.start({ state, Platform, persist, afterDataChange, toast, runAction, quickActions, spend: widgetSpend });
+      Widgets.start({ state, Platform, persist, afterDataChange, toast, runAction, quickActions, spend: widgetSpend, hidden: widgetsHidden });
       if (window.LifeLogReminders) window.LifeLogReminders.start({ $, el, Platform, toast, changed: Widgets.changed, render });
       if (window.LifeLogPayments) window.LifeLogPayments.start({ $, Platform, toast });
       wireBackButton();
@@ -5239,6 +5351,7 @@
     saveVisualSettings, savePrivacySettings, attachSwipe,
     applyMonthLayout, applyFont, applyTheme, applyForceLayout,
     prefersReducedMotion, biometricAvailable, biometricState, hashPin, randomHex, registerBiometric,
+    applyPrivacyScreen, widgetsChanged: () => Widgets.changed(),
     isMobileLayout, switchToView,
     updateSteamRetryUnresolvedButton: Sync.updateSteamRetryUnresolvedButton,
     updateSteamBackfillRawgButton: Sync.updateSteamBackfillRawgButton,
