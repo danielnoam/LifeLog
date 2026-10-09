@@ -172,6 +172,8 @@ between them.
 - **Letterboxd import** (0.252.0) – Settings → Imports reads the export zip:
   your diary and watched films become entries with their stars, the
   watchlist goes to the Backlog, after the usual review.
+- **Undo after any import** (0.256.0) – the "Imported …" toast takes the
+  whole import back for eight seconds.
 - **Steam games you've played** (0.253.0) – with a Steam Web API key, the
   same page offers every game with time in it as an entry in the month you
   last played it, hours as its length; you tick what counts.

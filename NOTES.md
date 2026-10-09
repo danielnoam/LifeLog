@@ -333,6 +333,21 @@ what was decided against and why.
   copy of the whole recurring list taken just before. `combinedWith` stays in
   KNOWN_RECURRING_KEYS so the sanitizer drops it rather than keepUnknown
   carrying it, which is what made the old groups separate again.
+- **Undo after import (0.256.0).** applyImportSelection already did
+  everything in one place, so it now records what it did as it goes: the
+  ids it gave each added row per list (after `add()` has settled them, since
+  a taken id gets a new one), each achievement's year, the categories and
+  projects it created, and for every update the previous value of each
+  field it filled (undefined when the field wasn't there, so Undo deletes
+  it rather than writing undefined). `undoImport` filters the lists by id
+  the way the rest of the app deletes (plain filters; merge.js diffs
+  snapshots, there are no tombstones), restores the fields, and removes a
+  created category or project only if nothing uses it now. Boards go
+  through Boards.deleteBoards, passed in with the io.js ctx. Not offered
+  when the file carried to-dos: those get folded into existing list notes
+  (0.197.0), which rewrites notes the import didn't add, and the fold has
+  no clean inverse. The toast's action slot (0.173.0) gives it eight
+  seconds. test/browser/importundo.js.
 - **Import review for long imports (0.255.0).** Daniel's ask was a
   common review screen for every import; it existed (reviewAndImport →
   openImportPicker, used by every importer since 0.151), so the work was

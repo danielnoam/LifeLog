@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.256.0] - 2026-10-09
+
+### Added
+- **Undo after an import.** The "Imported …" toast has Undo for eight
+  seconds: it removes exactly the rows that import added, puts any field
+  it filled in on an existing item back to what it was, and drops a
+  category or project it created if nothing uses it. Before, the only way
+  back was History, which rolls back the whole file.
+
 ## [0.255.0] - 2026-10-09
 
 ### Changed

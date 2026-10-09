@@ -12,14 +12,14 @@
     CATEGORY_PALETTE, MONTHS, MONTHS_SHORT, colorOf,
     financeColorOf, formatMoney, financeKey, recurringKey,
     sanitizeFinanceEntry, sanitizeRecurring, sanitizeProject, sanitizeEntry, sanitizeBacklog,
-    sanitizeNote, sanitizeTodo, sanitizeHabit, sanitizeBoard, addBoards, boardsForExport, boardsNow, isOverridden;
+    sanitizeNote, sanitizeTodo, sanitizeHabit, sanitizeBoard, addBoards, boardsForExport, boardsNow, isOverridden, deleteBoards;
 
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, afterDataChange, ensureCategories, ensureProjects,
       CATEGORY_PALETTE, MONTHS, MONTHS_SHORT, colorOf,
       financeColorOf, formatMoney, financeKey, recurringKey,
       sanitizeFinanceEntry, sanitizeRecurring, sanitizeProject, sanitizeEntry, sanitizeBacklog,
-      sanitizeNote, sanitizeTodo, sanitizeHabit, sanitizeBoard, addBoards, boardsForExport, boardsNow, isOverridden } = ctx);
+      sanitizeNote, sanitizeTodo, sanitizeHabit, sanitizeBoard, addBoards, boardsForExport, boardsNow, isOverridden, deleteBoards } = ctx);
   }
 
   // What each tab holds, keyed by its view name. A tab's export carries all
@@ -534,6 +534,10 @@
   async function applyImportSelection(selected, addCats) {
     if (!selected.length) { toast("Nothing selected"); return; }
     const d = state.data;
+    // Everything this import does, so Undo in the toast can take exactly it
+    // back (0.256.0): ids added per list, categories and projects created,
+    // and each filled field's previous value.
+    const undo = { added: {}, ach: [], cats: [], projects: [], updates: [] };
     for (const c of addCats) {
       if (c.scope === "project") {
         d.projects = d.projects || [];
@@ -541,12 +545,13 @@
         const p = sanitizeProject({ ...(c.src || {}), name: c.name, color: c.color });
         if (d.projects.some((x) => x.id === p.id)) p.id = uid();
         d.projects.push(p);
+        undo.projects.push(p.id);
         continue;
       }
       const target = c.scope === "finance" ? d.financeCategories
         : c.scope === "note" ? (d.noteCategories = d.noteCategories || [])
         : d.categories;
-      if (!target.some((x) => x.name === c.name)) target.push({ id: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: c.name, color: c.color });
+      if (!target.some((x) => x.name === c.name)) { target.push({ id: c.name.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: c.name, color: c.color }); undo.cats.push({ scope: c.scope, name: c.name }); }
     }
     // Updates are applied in place against the item they matched; only the
     // rest are new rows. Split before anything is pushed, or an update would
@@ -562,17 +567,20 @@
       const pool = (POOL[u.targetKind] || POOL.backlog)();
       const target = pool.find((x) => x.id === u.targetId);
       if (!target) continue;
+      const prev = {};
       for (const f of u.fills) {
         const v = u.entry[f.key];
         if (isEmptyField(v)) continue;
+        if (!(f.key in prev)) prev[f.key] = target[f.key];
         target[f.key] = Array.isArray(v) ? v.slice() : v;
         // A paired field travels with its other half — an id with no source
         // to resolve it against, or a span with no start month, is worse than
         // the gap it filled.
         const other = FIELD_PAIR[f.key];
-        if (other && !isEmptyField(u.entry[other])) target[other] = u.entry[other];
+        if (other && !isEmptyField(u.entry[other])) { if (!(other in prev)) prev[other] = target[other]; target[other] = u.entry[other]; }
         filled++;
       }
+      undo.updates.push({ targetKind: u.targetKind, targetId: u.targetId, prev });
       // No updatedAt stamp here on purpose: persist() runs
       // merge.stampChangedItems first, which times every item whose content
       // actually changed. Touching it by hand would be the manual "touch"
@@ -583,13 +591,14 @@
     // A new item whose id is already taken — the same item, changed since the
     // file was made, re-imported as a copy on purpose — gets an id of its own:
     // two items sharing one would be folded into one by the next sync.
-    const add = (list, recs) => {
+    const add = (list, recs, name) => {
       const ids = new Set(list.map((x) => x.id));
       for (const r of recs) {
         if (!r.id || ids.has(r.id)) r.id = uid();
         ids.add(r.id);
         list.push(r);
       }
+      if (name && recs.length) undo.added[name] = recs.map((r) => r.id);
     };
     const recs = (k) => byKind[k].map((i) => i.entry);
     // Hand-ordered lists: what comes in goes after what's there.
@@ -597,17 +606,18 @@
       let n = list.reduce((m, x) => Math.max(m, +x.order || 0), 0);
       return recs(k).map((r) => ({ ...r, order: ++n }));
     };
-    add(d.entries, recs("entry"));
-    add(d.backlog, recs("backlog"));
-    add(d.financeEntries, recs("finance"));
-    add(d.recurringExpenses, recs("recurring"));
-    add(d.notes = d.notes || [], recs("note"));
+    add(d.entries, recs("entry"), "entries");
+    add(d.backlog, recs("backlog"), "backlog");
+    add(d.financeEntries, recs("finance"), "financeEntries");
+    add(d.recurringExpenses, recs("recurring"), "recurringExpenses");
+    add(d.notes = d.notes || [], recs("note"), "notes");
     add(d.todos = d.todos || [], after(d.todos, "todo"));
-    add(d.habits = d.habits || [], after(d.habits, "habit"));
+    add(d.habits = d.habits || [], after(d.habits, "habit"), "habits");
     d.accomplishments = d.accomplishments || {};
     for (const i of byKind.achievement) {
       const list = d.accomplishments[i.year] = d.accomplishments[i.year] || [];
       add(list, [i.entry]);
+      undo.ach.push({ year: i.year, id: i.entry.id });
     }
     ensureCategories(d.categories, [...recs("entry"), ...recs("backlog")]);
     ensureCategories(d.financeCategories, [...recs("finance"), ...recs("recurring")]);
@@ -619,7 +629,7 @@
     if (byKind.todo.length && Notes && Notes.foldTodosIntoLists(d)) d.notes = d.notes.map(sanitizeNote);
     delete d.todos;
     if (ensureProjects) ensureProjects(d.projects = d.projects || [], [...recs("finance"), ...recs("recurring")]);
-    if (byKind.board.length && addBoards) await addBoards(recs("board"));
+    if (byKind.board.length && addBoards) { await addBoards(recs("board")); undo.boards = recs("board").map((b) => b.id); }
 
     afterDataChange();
     await persist();
@@ -638,7 +648,46 @@
       parts.push(`filled ${filled} field${filled === 1 ? "" : "s"} on ${updates.length} existing item${updates.length === 1 ? "" : "s"}`);
     }
     if (!parts.length) { toast("Nothing to import"); return; }
-    toast(`Imported ${parts.join(", ")}`);
+    // To-dos from an older file were folded into their list notes, which
+    // rewrites notes this import didn't add; that one isn't offered Undo.
+    const canUndo = !byKind.todo.length && (!undo.boards || deleteBoards);
+    toast(`Imported ${parts.join(", ")}`, false, canUndo ? { label: "Undo", onClick: () => undoImport(undo) } : undefined);
+  }
+  // Takes one import back: what it added goes, what it filled in returns to
+  // what it was, and a category or project it created goes if nothing uses
+  // it now (something else may have been filed there since).
+  async function undoImport(undo) {
+    const d = state.data;
+    for (const [name, ids] of Object.entries(undo.added)) {
+      const gone = new Set(ids);
+      if (Array.isArray(d[name])) d[name] = d[name].filter((x) => !gone.has(x.id));
+    }
+    for (const a of undo.ach) {
+      const list = (d.accomplishments || {})[a.year];
+      if (list) d.accomplishments[a.year] = list.filter((x) => x.id !== a.id);
+    }
+    const POOL = { entry: d.entries, backlog: d.backlog, recurring: d.recurringExpenses };
+    for (const u of undo.updates) {
+      const target = (POOL[u.targetKind] || d.backlog).find((x) => x.id === u.targetId);
+      if (!target) continue;
+      for (const [k, v] of Object.entries(u.prev)) { if (v === undefined) delete target[k]; else target[k] = v; }
+    }
+    const used = (scope, name) => (scope === "finance" ? [...d.financeEntries, ...d.recurringExpenses]
+      : scope === "note" ? (d.notes || []) : [...d.entries, ...d.backlog]).some((x) => x.category === name);
+    for (const c of undo.cats) {
+      if (used(c.scope, c.name)) continue;
+      const list = c.scope === "finance" ? d.financeCategories : c.scope === "note" ? d.noteCategories : d.categories;
+      const at = list.findIndex((x) => x.name === c.name);
+      if (at >= 0) list.splice(at, 1);
+    }
+    if (undo.projects.length) {
+      const inUse = new Set([...d.financeEntries, ...d.recurringExpenses].map((x) => x.project).filter(Boolean));
+      d.projects = (d.projects || []).filter((p) => !undo.projects.includes(p.id) || inUse.has(p.id) || inUse.has(p.name));
+    }
+    if (undo.boards && deleteBoards) await deleteBoards(undo.boards);
+    afterDataChange();
+    await persist();
+    toast("Import undone");
   }
 
   // `opts` (0.255.0) passes the picker's extras through: `threshold` is a
