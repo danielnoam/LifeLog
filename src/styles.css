@@ -1623,6 +1623,17 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .out-tile-cover { width: 100%; aspect-ratio: 2 / 3; height: auto; object-fit: cover; border-radius: var(--r-md); }
 .out-tile-title { font-size: var(--fs-sm); font-weight: 600; overflow-wrap: anywhere; }
 .out-tile-cat { font-size: var(--fs-2xs); color: var(--text-dim); }
+.out-tile-when { font-size: var(--fs-2xs); color: var(--accent); }
+/* Sized to the count (0.259.0): one tile large and centred, two or three
+   across, four or more as the grid above. */
+.out-grid[data-n="1"] { grid-template-columns: minmax(0, 200px); justify-content: center; text-align: center; }
+.out-grid[data-n="1"] .out-tile { align-items: center; text-align: center; }
+.out-grid[data-n="1"] .out-tile-title { font-size: var(--fs-lg); }
+.out-grid[data-n="2"] { grid-template-columns: repeat(2, minmax(0, 160px)); justify-content: center; }
+.out-grid[data-n="3"] { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.out-grid[data-n="2"] .out-tile-title, .out-grid[data-n="3"] .out-tile-title { font-size: var(--fs-md); }
+.out-week-btn { display: inline-flex; align-items: center; gap: 6px; }
+.out-week-count { font-size: var(--fs-2xs); font-weight: 700; background: var(--accent-fill); color: var(--text-on-accent); border-radius: var(--r-pill); padding: 0 6px; min-width: 18px; text-align: center; }
 
 .seg {
   display: inline-flex; background: var(--bg-elev-2); border: 1px solid var(--border);

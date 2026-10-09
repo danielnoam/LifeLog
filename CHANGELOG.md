@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.259.0] - 2026-10-09
+
+### Changed
+- **The Out today sheet fits what's out.** One title is a single large tile,
+  two or three sit in a row, four or more fill the grid as before.
+
+### Added
+- **Out in the last 7 days.** The Backlog's Upcoming view has a button at
+  the top, with a count, that opens the same sheet for the week just gone,
+  each tile dated.
+
 ## [0.258.0] - 2026-10-09
 
 ### Added

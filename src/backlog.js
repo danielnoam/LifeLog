@@ -1289,21 +1289,72 @@
       .sort((a, b) => a.title.localeCompare(b.title));
     if (!items.length) return;
     try { localStorage.setItem(OUT_SEEN_KEY, JSON.stringify({ day: today })); } catch (e) {}
-    $("#outTodayCount").textContent = items.length === 1 ? "1 thing came out today" : items.length + " things came out today";
+    showOutSheet(items, { title: "Out today", count: items.length === 1 ? "1 thing came out today" : items.length + " things came out today" });
+  }
+  // The sheet itself (0.259.0): the grid sizes to how many there are (one
+  // tile large and centred, two or three in a row, more as the grid), and
+  // with `withDay` each tile says the day it came out.
+  function showOutSheet(items, { title, count, withDay }) {
+    $("#outTodayTitle").textContent = title;
+    $("#outTodayCount").textContent = count;
     const grid = $("#outTodayGrid");
     grid.textContent = "";
+    grid.dataset.n = items.length >= 4 ? "many" : String(items.length);
     for (const b of items) {
       const card = el("button", "out-tile");
       card.type = "button";
       card.appendChild(b.coverUrl ? coverEl(b.coverUrl, "", "out-tile-cover", b.category) : emptyCoverEl("out-tile-cover cover-empty", b.category));
       card.appendChild(el("span", "out-tile-title", b.title));
       card.appendChild(el("span", "out-tile-cat", b.category));
+      if (withDay) {
+        const raw = outDayWithin(b, 365);
+        if (raw) card.appendChild(el("span", "out-tile-when", dayLabel(raw)));
+      }
       card.onclick = () => { closeOutTodaySheet(); openBacklogModal(b); };
       grid.appendChild(card);
     }
     $("#outTodayModal").hidden = false;
   }
   function closeOutTodaySheet() { $("#outTodayModal").hidden = true; }
+  // The day an item came out if that was within the last `days` days
+  // (today included), else "". A day-precise release date only: a month
+  // is never a day you can say it came out on.
+  function outDayWithin(b, days) {
+    const raw = (b.releaseDate || "").slice(0, 10);
+    if (precisionOf(b) !== "day" || !isRealDate(raw)) return "";
+    const from = new Date(); from.setDate(from.getDate() - (days - 1));
+    return raw <= todayStr() && raw >= localDateStr(from) ? raw : "";
+  }
+  function dayLabel(raw) {
+    const [y, m, d] = raw.split("-").map(Number);
+    return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+  }
+  function outLastWeek() {
+    return state.data.backlog
+      .filter((b) => !b.dropped && !isStarted(b) && outDayWithin(b, 7))
+      .sort((a, b) => outDayWithin(b, 7).localeCompare(outDayWithin(a, 7)) || a.title.localeCompare(b.title));
+  }
+  function showOutLastWeek() {
+    const items = outLastWeek();
+    if (!items.length) { toast("Nothing came out in the last 7 days"); return; }
+    showOutSheet(items, { title: "Out this week", count: items.length === 1 ? "1 thing came out in the last 7 days" : items.length + " things came out in the last 7 days", withDay: true });
+  }
+  // The Upcoming view's bar (0.259.0): the week just gone, as the sheet.
+  function upcomingBar() {
+    const bar = el("div", "backlog-mode-bar");
+    const right = el("div", "dsc-bar-right");
+    const n = outLastWeek().length;
+    const btn = el("button", "btn btn-sm out-week-btn");
+    btn.type = "button";
+    btn.appendChild(ico("history"));
+    btn.appendChild(document.createTextNode(" Out in the last 7 days"));
+    if (n) btn.appendChild(el("span", "out-week-count", String(n)));
+    btn.title = n ? "What came out in the last seven days" : "Nothing came out in the last seven days";
+    btn.onclick = showOutLastWeek;
+    right.appendChild(btn);
+    bar.appendChild(right);
+    return bar;
+  }
 
   // One card per month, in date order, then a card per year for the ones
   // narrowed no further than that, then a last card for the ones with
@@ -1311,6 +1362,7 @@
   // waiting on (see upcomingAt), so a show mid-season lands on its next
   // episode rather than the month it premiered years ago.
   function renderUpcoming(root) {
+    root.appendChild(upcomingBar());
     const out = outToday();
     if (out.length) root.appendChild(outTodayCard(out));
     const outIds = new Set(out.map((b) => b.id));
@@ -2802,7 +2854,7 @@
     // the Timeline's In progress card (0.218.0)
     inProgressCard, inProgressItems, startItem, stopItem,
     // the Out today sheet (opened once a day from app.js's start-up)
-    maybeShowOutToday, closeOutTodaySheet,
+    maybeShowOutToday, closeOutTodaySheet, showOutLastWeek,
     // view (dispatched from app.js's render())
     renderBacklog,
     // cross-view search match count (app.js's tab match badges)

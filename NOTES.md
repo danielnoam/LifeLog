@@ -333,6 +333,19 @@ what was decided against and why.
   copy of the whole recurring list taken just before. `combinedWith` stays in
   KNOWN_RECURRING_KEYS so the sanitizer drops it rather than keepUnknown
   carrying it, which is what made the old groups separate again.
+- **Out this week, and a sheet sized to its count (0.259.0).** The sheet's
+  grid was `auto-fill, minmax(96px, 1fr)`, so one release was a small tile
+  in a corner. `showOutSheet(items, {title, count, withDay})` is the one
+  builder now (maybeShowOutToday calls it), and sets `data-n` to 1, 2, 3 or
+  "many" for the CSS: one centred 200px tile with a larger title, two at
+  160px, three as 1fr each, many as before. The Upcoming view's new bar
+  (the same `.backlog-mode-bar` / `.dsc-bar-right` the other modes use)
+  holds "Out in the last 7 days" with a count; it opens the sheet as "Out
+  this week" over `outDayWithin(b, 7)`: a day-precise release date between
+  six days ago and today, not dropped, not started, whole backlog rather
+  than the chip filter (like the morning sheet), newest first, each tile
+  with its weekday and day. Past episodes aren't in it: `nextAt` only
+  knows the next one. test/browser/outweek.js.
 - **Row editing and update values in the review (0.258.0).** The pencil
   swaps the row for `importRowEditor`, a form built from EDIT_FIELDS by
   kind, writing back into `item.entry` on submit (a changed month or year
