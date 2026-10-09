@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.258.0] - 2026-10-09
+
+### Added
+- **Edit a row before it comes in.** Every new row in the import review
+  has a pencil: it opens the row as a small form (title, month and year,
+  category and rating for an entry; what fits for a backlog item, note,
+  expense or bill), and Done writes the changes into what gets imported.
+  The row is marked "edited" until you import.
+- **What an update writes.** A row that fills in an item you already have
+  lists each value under it ("your rating ★★★★ · cover a cover") instead of
+  only naming the fields.
+
 ## [0.257.0] - 2026-10-09
 
 ### Changed

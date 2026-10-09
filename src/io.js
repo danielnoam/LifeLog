@@ -879,17 +879,27 @@
     const [y, m] = key.split("-");
     return `${MONTHS_SHORT[+m]} ${y}`;
   }
-  function importRowFor(item, onChange) {
+  // What a value looks like in the review (0.258.0): a rating as stars,
+  // text cut short, a list joined, a URL as the one word it is.
+  function fillValueText(key, v) {
+    if (key === "rating") return "★".repeat(+v || 0);
+    if (/url$/i.test(key)) return key === "coverUrl" ? "a cover" : "a link";
+    if (Array.isArray(v)) return v.join(", ");
+    const t = String(v == null ? "" : v);
+    return t.length > 60 ? t.slice(0, 57) + "…" : t;
+  }
+  function importRowFor(item, onChange, onEdit) {
     const e = item.entry;
     const finance = item.kind === "finance" || item.kind === "recurring";
     const row = el("label", "entry picker-row"
       + (item.update ? " is-update" : (item.dup ? " is-dup" : ""))
+      + (item.edited ? " is-edited" : "")
       + (finance ? " finance-entry" : ""));
     const cb = el("input"); cb.type = "checkbox"; cb.checked = item.checked;
     cb.onchange = () => { item.checked = cb.checked; onChange(); };
     row.appendChild(cb);
     const bar = el("div", "bar");
-    bar.style.background = finance ? financeColorOf(e.category) : colorOf(e.category);
+    bar.style.background = e.category ? (finance ? financeColorOf(e.category) : colorOf(e.category)) : "transparent";
     row.appendChild(bar);
     if (item.kind === "finance") {
       row.appendChild(el("span", "fdate", e.date));
@@ -927,12 +937,103 @@
     // An update says what it would actually do, rather than "already added":
     // that phrase is true of the item and useless about the change.
     if (item.update) {
-      const tag = el("span", "update-tag", "+ " + item.fills.map((f) => f.label).join(", "));
+      // What the update writes, value by value (0.258.0): an update only
+      // ever fills a field that is empty, so the "before" is always nothing,
+      // and the tag says where the item is instead of repeating the list.
+      const tag = el("span", "update-tag", "+ " + item.fills.length + (item.fills.length === 1 ? " field" : " fields"));
       tag.title = "Already in your " + (item.targetKind === "entry" ? "timeline" : "backlog")
         + " — this fills in what it's missing, and changes nothing it already has";
       row.appendChild(tag);
+      const diff = el("div", "picker-fills");
+      for (const f of item.fills) {
+        if (isEmptyField(e[f.key])) continue;
+        const line = el("span", "picker-fill");
+        line.appendChild(el("span", "picker-fill-key", f.label));
+        line.appendChild(el("span", "picker-fill-val", fillValueText(f.key, e[f.key])));
+        diff.appendChild(line);
+      }
+      row.appendChild(diff);
     } else if (item.dup) row.appendChild(el("span", "dup-tag", "already added"));
+    else if (item.edited) row.appendChild(el("span", "dup-tag", "edited"));
+    if (onEdit && !item.dup) {
+      const edit = el("button", "btn btn-icon picker-edit");
+      edit.type = "button";
+      edit.setAttribute("aria-label", "Edit before import");
+      edit.title = "Edit before import";
+      edit.appendChild(window.LifeLogIcons.svg("pencil"));
+      edit.onclick = (ev) => { ev.preventDefault(); ev.stopPropagation(); onEdit(item, row); };
+      row.appendChild(edit);
+    }
     return row;
+  }
+  // The row as a small form (0.258.0): title, when, category and rating as
+  // the kind allows, written back into the item on Done. The categories
+  // offered are the ones you have plus the ones this import is adding.
+  const EDIT_FIELDS = {
+    entry: ["title", "when", "category", "rating"],
+    backlog: ["title", "category"],
+    note: ["title", "category"],
+    finance: ["note", "date", "category", "amount"],
+    recurring: ["note", "startDate", "category", "amount"],
+    habit: ["name"], board: ["name"], todo: ["text"], achievement: ["text"],
+  };
+  function importRowEditor(item, newCategories, onDone) {
+    const e = item.entry;
+    const fields = EDIT_FIELDS[item.kind] || ["title"];
+    const form = el("form", "picker-editor");
+    const inputs = {};
+    const field = (key, label, input) => {
+      const l = el("label", "picker-editor-field");
+      l.appendChild(el("span", null, label));
+      l.appendChild(input);
+      inputs[key] = input;
+      form.appendChild(l);
+    };
+    const text = (key, label) => { const i = el("input"); i.type = "text"; i.value = e[key] || ""; field(key, label, i); };
+    const scope = item.kind === "note" ? "note" : (item.kind === "finance" || item.kind === "recurring") ? "finance" : "entry";
+    const have = scope === "note" ? (state.data.noteCategories || []) : scope === "finance" ? state.data.financeCategories : state.data.categories;
+    const names = new Set([...have.map((c) => c.name), ...newCategories.filter((c) => (c.scope === "journal" ? "entry" : c.scope) === scope).map((c) => c.name)]);
+    if (e.category) names.add(e.category);
+    for (const key of fields) {
+      if (key === "title" || key === "note" || key === "name" || key === "text") text(key, key === "note" ? "Note" : key === "name" ? "Name" : key === "text" ? "Text" : "Title");
+      else if (key === "when") {
+        const y = el("input"); y.type = "number"; y.min = 1900; y.max = 2200; y.value = e.year || new Date().getFullYear();
+        const m = el("select"); MONTHS.forEach((name, i) => { if (!i && !MONTHS[0]) return; const o = document.createElement("option"); o.value = i; o.textContent = name; if (i === +e.month) o.selected = true; m.appendChild(o); });
+        const wrap = el("span", "picker-editor-when"); wrap.appendChild(m); wrap.appendChild(y);
+        inputs.year = y; inputs.month = m;
+        const l = el("label", "picker-editor-field"); l.appendChild(el("span", null, "When")); l.appendChild(wrap); form.appendChild(l);
+      } else if (key === "date" || key === "startDate") { const i = el("input"); i.type = "date"; i.value = e[key] || ""; field(key, key === "date" ? "Date" : "Starts", i); }
+      else if (key === "category") {
+        const sel = el("select");
+        const none = document.createElement("option"); none.value = ""; none.textContent = "No category"; sel.appendChild(none);
+        for (const n of [...names].sort((a, b) => a.localeCompare(b))) { const o = document.createElement("option"); o.value = n; o.textContent = n; if (n === e.category) o.selected = true; sel.appendChild(o); }
+        field("category", "Category", sel);
+      } else if (key === "rating") {
+        const sel = el("select");
+        for (let r = 0; r <= 5; r++) { const o = document.createElement("option"); o.value = r; o.textContent = r ? "★".repeat(r) : "No rating"; if (r === (+e.rating || 0)) o.selected = true; sel.appendChild(o); }
+        field("rating", "Rating", sel);
+      } else if (key === "amount") { const i = el("input"); i.type = "number"; i.step = "0.01"; i.value = e.amount == null ? "" : e.amount; field("amount", "Amount", i); }
+    }
+    const actions = el("div", "picker-editor-actions");
+    const cancel = el("button", "btn btn-small", "Cancel"); cancel.type = "button"; cancel.onclick = () => onDone(false);
+    const done = el("button", "btn btn-small btn-primary", "Done"); done.type = "submit";
+    actions.appendChild(cancel); actions.appendChild(done);
+    form.appendChild(actions);
+    form.onsubmit = (ev) => {
+      ev.preventDefault();
+      for (const key of ["title", "note", "name", "text"]) if (inputs[key]) { const v = inputs[key].value.trim(); if (v) e[key] = v; }
+      if (inputs.year) {
+        const y = +inputs.year.value, m = +inputs.month.value;
+        if (y && m && (y !== +e.year || m !== +e.month)) { e.year = y; e.month = m; delete e.date; }
+      }
+      for (const key of ["date", "startDate"]) if (inputs[key] && inputs[key].value) e[key] = inputs[key].value;
+      if (inputs.category) { if (inputs.category.value) e.category = inputs.category.value; else delete e.category; }
+      if (inputs.rating) { const r = +inputs.rating.value; if (r) e.rating = r; else delete e.rating; }
+      if (inputs.amount && inputs.amount.value !== "") e.amount = +inputs.amount.value;
+      item.edited = true;
+      onDone(true);
+    };
+    return form;
   }
   const KIND_WORDS = { entry: ["entry", "entries"], backlog: ["backlog item", "backlog items"], finance: ["expense", "expenses"], recurring: ["recurring expense", "recurring expenses"], note: ["note", "notes"], todo: ["checklist item", "checklist items"], habit: ["habit", "habits"], achievement: ["achievement", "achievements"], board: ["board", "boards"] };
   const importItemName = (i) => { const e = i.entry; return String(e.title || e.name || e.note || e.text || e.category || "").toLowerCase(); };
@@ -1153,9 +1254,19 @@
       }
       $("#financePickerConfirmBtn").disabled = mode === "import" && !chosen.length;
     }
+    let editing = null;
+    const onEdit = mode === "import" ? (item, row) => {
+      if (editing) render();
+      editing = item;
+      const form = importRowEditor(item, newCategories, () => { editing = null; render(); });
+      row.replaceWith(form);
+      const first = form.querySelector("input, select");
+      if (first) first.focus();
+    } : null;
     function render() {
+      editing = null;
       list.innerHTML = "";
-      visibleItems().forEach((item) => list.appendChild(importRowFor(item, updateCount)));
+      visibleItems().forEach((item) => list.appendChild(importRowFor(item, updateCount, onEdit)));
       renderBuckets();
       updateCount();
     }

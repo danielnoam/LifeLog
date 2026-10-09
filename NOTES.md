@@ -333,6 +333,20 @@ what was decided against and why.
   copy of the whole recurring list taken just before. `combinedWith` stays in
   KNOWN_RECURRING_KEYS so the sanitizer drops it rather than keepUnknown
   carrying it, which is what made the old groups separate again.
+- **Row editing and update values in the review (0.258.0).** The pencil
+  swaps the row for `importRowEditor`, a form built from EDIT_FIELDS by
+  kind, writing back into `item.entry` on submit (a changed month or year
+  drops `date`, since a day in the old month is wrong and none is known).
+  Categories offered are what you have for that scope plus this import's
+  new ones (`scope` "journal" is the entry/backlog one). One editor at a
+  time; a render() closes it. Update rows: fillableFields only ever lists
+  fields empty on the target, so there is no "before" to show, and the
+  line under the row is just label and value per fill (ratings as stars,
+  URLs as "a cover"/"a link", text cut at 60); the tag became "+ N fields"
+  so the list isn't said twice. On a phone the row hides `.ecat` and lets
+  the date shrink: with the pencil there was no room left for the title.
+  The pencil is 32px, the row's own height (DESIGN §9's list exception).
+  test/browser/importedit.js; importkinds and v151 read the values line.
 - **Import skips (0.257.0).** Every sync offered the same rejected rows
   again, since "not in your data" is all the duplicate check knows. The
   runner now reads `settings.importSkips[source.skipKey]`, a list of

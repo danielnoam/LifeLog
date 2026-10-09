@@ -66,13 +66,13 @@ const INCOMING = {
   await page.waitForSelector("#financePickerModal:not([hidden]) .picker-row");
   const picker = await page.evaluate(() => [...document.querySelectorAll("#financePickerList .picker-row")].map((r) => ({
     update: r.classList.contains("is-update"),
-    tag: r.querySelector(".update-tag") ? r.querySelector(".update-tag").textContent : null,
+    tag: r.querySelector(".picker-fills") ? r.querySelector(".picker-fills").textContent : null,
     tagW: r.querySelector(".update-tag") ? Math.round(r.querySelector(".update-tag").getBoundingClientRect().width) : 0,
   })));
   check("both updates are listed while duplicates are hidden", picker.filter((r) => r.update).length === 2, picker);
   check("the finance duplicate is hidden with the other plain duplicates", picker.length === 2, picker);
   const recTag = picker.map((r) => r.tag).find((t) => t && /end date/.test(t));
-  check("the recurring tag names its own fields in words", !!(recTag && /project/.test(recTag) && /per-month changes/.test(recTag)), recTag);
+  check("the recurring row names its own fields in words", !!(recTag && /project/.test(recTag) && /per-month changes/.test(recTag)), recTag);
   check("both tags are actually rendered", picker.every((r) => r.tagW > 20), picker.map((r) => r.tagW));
 
   await page.evaluate(() => document.querySelector("#financePickerConfirmBtn").click());

@@ -1388,6 +1388,29 @@ img.cover-loading { opacity: 0; }
 .modal label.picker-row { display: flex; align-items: center; gap: 8px; margin-bottom: 0; padding: 6px 8px; border-radius: var(--r-md); font-size: var(--fs-sm); color: var(--text); }
 .modal label.picker-row:hover { background: var(--bg-elev-2); }
 .picker-row.is-dup { opacity: .55; }
+/* An update's values and the row's editor (0.258.0). */
+.picker-row.is-update { flex-wrap: wrap; }
+.picker-fills { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 4px 14px; padding-left: 32px; font-size: var(--fs-2xs); color: var(--text-dim); }
+.picker-fill { display: inline-flex; gap: 4px; min-width: 0; }
+.picker-fill-val { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+.picker-edit { width: 32px; height: 32px; padding: 0; margin-left: auto; color: var(--text-dim); flex: 0 0 auto; }
+.picker-edit svg { width: 14px; height: 14px; }
+.picker-row.is-edited { border-left: 2px solid var(--accent); }
+.picker-editor { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; padding: 8px 10px 10px; border: 1px solid var(--accent); border-radius: var(--r-md); background: var(--bg-elev-2); }
+.picker-editor-field { display: flex; flex-direction: column; gap: 4px; margin: 0 !important; font-size: var(--fs-xs); color: var(--text-dim); min-width: 0; }
+.picker-editor-field:first-child { grid-column: 1 / -1; }
+.picker-editor-field input, .picker-editor-field select { width: 100%; margin: 0; min-width: 0; }
+.picker-editor-when { display: flex; gap: 6px; }
+.picker-editor-when select { flex: 1 1 auto; }
+.picker-editor-when input { flex: 0 0 84px; }
+.picker-editor-actions { grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 8px; }
+@media (max-width: 480px) {
+  .picker-editor { grid-template-columns: 1fr; }
+  /* A phone's row has room for the title or the category, not both; the
+     bar carries the category's colour and the editor its name. */
+  .picker-row .ecat { display: none; }
+  .picker-row .fdate { width: auto; min-width: 56px; }
+}
 .dup-tag {
   font-size: var(--fs-2xs); color: var(--text-dim); flex: 0 0 auto;
   border: 1px solid var(--border); border-radius: var(--r-lg); padding: 2px 8px;

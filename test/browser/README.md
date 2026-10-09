@@ -67,3 +67,4 @@ the test fails without the fix before trusting it.
 | `a11y` | screen readers and keyboards (0.254.0): every sheet a named aria-modal dialog that takes focus on open, Tab wrapping inside it, focus back to the opener, the toast's words in the live region, the tab bar a tablist the arrows move through |
 | `importreview` | the review on a long import (0.255.0): years with months behind a chevron, counts on the chips, Import on screen on a phone, search and sort, the by-kind count line |
 | `importundo` | Undo in the import toast (0.256.0): added rows go, filled fields return to empty, a created category goes when unused, what was there stays |
+| `importedit` | editing a row before import (0.258.0): the pencil's form, Done writing title, month, category and rating back, the edited mark, an update row's values |

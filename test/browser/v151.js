@@ -71,7 +71,7 @@ const INCOMING = [
       title: r.querySelector(".etitle") ? r.querySelector(".etitle").textContent : "",
       update: r.classList.contains("is-update"),
       dupTag: r.querySelector(".dup-tag") ? r.querySelector(".dup-tag").textContent : null,
-      tag: r.querySelector(".update-tag") ? r.querySelector(".update-tag").textContent : null,
+      tag: r.querySelector(".picker-fills") ? r.querySelector(".picker-fills").textContent : null,
       tagW: r.querySelector(".update-tag") ? r.querySelector(".update-tag").getBoundingClientRect().width : 0,
       checked: r.querySelector("input[type=checkbox]").checked,
     })),
@@ -83,7 +83,7 @@ const INCOMING = [
   check("with duplicates hidden, the update row is still listed", !!upRow, hidden.rows);
   check("and the plain duplicate is not", !hidden.rows.some((r) => r.title === "Celeste"), hidden.rows);
   check("carrying a tag naming what it adds",
-    !!(upRow && /^\+ /.test(upRow.tag) && /cover/.test(upRow.tag) && /rating/.test(upRow.tag) && /release date/.test(upRow.tag)), upRow);
+    !!(upRow && /cover/.test(upRow.tag) && /rating/.test(upRow.tag) && /release date/.test(upRow.tag)), upRow);
   check("the tag is actually on screen, not a zero-width leftover", !!(upRow && upRow.tagW > 20), upRow && upRow.tagW);
   check("an update row is not labelled \"already added\"", !!(upRow && upRow.dupTag !== "already added"), upRow);
   check("the hide-duplicates row is offered, since there is a real duplicate to hide", hidden.dupRowShown === true, hidden.dupRowShown);
