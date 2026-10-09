@@ -4,6 +4,12 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.259.1] - 2026-10-09
+
+### Changed
+- **Upcoming's bar is one line:** the waiting count on the left, "Out in
+  the last 7 days" on the right.
+
 ## [0.259.0] - 2026-10-09
 
 ### Changed

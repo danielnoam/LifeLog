@@ -1339,9 +1339,9 @@
     if (!items.length) { toast("Nothing came out in the last 7 days"); return; }
     showOutSheet(items, { title: "Out this week", count: items.length === 1 ? "1 thing came out in the last 7 days" : items.length + " things came out in the last 7 days", withDay: true });
   }
-  // The Upcoming view's bar (0.259.0): the week just gone, as the sheet.
-  function upcomingBar() {
-    const bar = el("div", "backlog-mode-bar");
+  // The Upcoming bar's right-hand group (0.259.0): the week just gone, as
+  // the sheet. The waiting count sits on the bar's left.
+  function upcomingWeekGroup() {
     const right = el("div", "dsc-bar-right");
     const n = outLastWeek().length;
     const btn = el("button", "btn btn-sm out-week-btn");
@@ -1352,8 +1352,7 @@
     btn.title = n ? "What came out in the last seven days" : "Nothing came out in the last seven days";
     btn.onclick = showOutLastWeek;
     right.appendChild(btn);
-    bar.appendChild(right);
-    return bar;
+    return right;
   }
 
   // One card per month, in date order, then a card per year for the ones
@@ -1362,7 +1361,6 @@
   // waiting on (see upcomingAt), so a show mid-season lands on its next
   // episode rather than the month it premiered years ago.
   function renderUpcoming(root) {
-    root.appendChild(upcomingBar());
     const out = outToday();
     if (out.length) root.appendChild(outTodayCard(out));
     const outIds = new Set(out.map((b) => b.id));
@@ -1954,7 +1952,8 @@
     const bar = el("div", "backlog-mode-bar");
     if (state.backlogMode === "upcoming") {
       const n = upcomingItems().length;
-      if (n) bar.appendChild(el("span", "backlog-mode-count", n + (n === 1 ? " title" : " titles") + " waiting"));
+      bar.appendChild(el("span", "backlog-mode-count", n ? n + (n === 1 ? " title" : " titles") + " waiting" : "Nothing waiting"));
+      bar.appendChild(upcomingWeekGroup());
     } else if (state.backlogMode === "entries") {
       // What's been started is on the Timeline's In progress card (0.218.0).
       // The "▶ N in progress" link that pointed there was removed in 0.223.0.

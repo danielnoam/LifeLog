@@ -333,6 +333,11 @@ what was decided against and why.
   copy of the whole recurring list taken just before. `combinedWith` stays in
   KNOWN_RECURRING_KEYS so the sanitizer drops it rather than keepUnknown
   carrying it, which is what made the old groups separate again.
+- **Upcoming bar on one line (0.259.1).** The 7-days button had its own
+  bar under the mode bar's "N titles waiting", two rows for two short
+  things. It joined renderBacklogModeBar's upcoming branch as the
+  right-hand group, and the count is always drawn ("Nothing waiting" at
+  zero) so the button has something to sit opposite.
 - **Out this week, and a sheet sized to its count (0.259.0).** The sheet's
   grid was `auto-fill, minmax(96px, 1fr)`, so one release was a small tile
   in a corner. `showOutSheet(items, {title, count, withDay})` is the one
