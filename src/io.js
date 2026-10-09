@@ -641,11 +641,13 @@
     toast(`Imported ${parts.join(", ")}`);
   }
 
-  function reviewAndImport(title, hint, built, extraOnConfirm) {
+  // `opts` (0.255.0) passes the picker's extras through: `threshold` is a
+  // source's "at least N" slider (the Steam backfill's play time).
+  function reviewAndImport(title, hint, built, extraOnConfirm, opts) {
     if (!built.items.length) { toast("No items found in this file"); return; }
     openImportPicker({
       title, hint, mode: "import", items: built.items, newCategories: built.newCategories,
-      confirmLabel: "Import",
+      confirmLabel: "Import", ...(opts || {}),
       onConfirm: async (selected, addCats) => {
         await applyImportSelection(selected, addCats);
         if (extraOnConfirm) extraOnConfirm();
@@ -883,8 +885,11 @@
     } else if (item.dup) row.appendChild(el("span", "dup-tag", "already added"));
     return row;
   }
-  function openImportPicker({ title, hint, mode, items, newCategories, confirmLabel, onConfirm, searchable, categorize }) {
-    items = items.slice().sort((a, b) => importItemDateStr(b).localeCompare(importItemDateStr(a)));
+  const KIND_WORDS = { entry: ["entry", "entries"], backlog: ["backlog item", "backlog items"], finance: ["expense", "expenses"], recurring: ["recurring expense", "recurring expenses"], note: ["note", "notes"], todo: ["checklist item", "checklist items"], habit: ["habit", "habits"], achievement: ["achievement", "achievements"], board: ["board", "boards"] };
+  const importItemName = (i) => { const e = i.entry; return String(e.title || e.name || e.note || e.text || e.category || "").toLowerCase(); };
+  function openImportPicker({ title, hint, mode, items, newCategories, confirmLabel, onConfirm, searchable, categorize, threshold }) {
+    const sorted = items.slice().sort((a, b) => importItemDateStr(b).localeCompare(importItemDateStr(a)));
+    items = sorted;
     newCategories = newCategories || [];
     $("#financePickerTitle").textContent = title;
     $("#financePickerHint").textContent = hint;
@@ -899,10 +904,39 @@
     unresolvedRow.hidden = mode !== "import" || !unresolvedCount;
     hideUnresolvedCb.checked = false;
     $("#financePickerUnresolvedCount").textContent = unresolvedCount ? `(${unresolvedCount})` : "";
+    // The search box comes on its own once the list is long (0.255.0).
     const searchInput = $("#financePickerSearch");
-    searchInput.hidden = !searchable;
+    searchInput.hidden = !(searchable || items.length > 20);
     searchInput.value = "";
     let searchTerm = "";
+    // Sort: by date either way, by name, or by the threshold's measure.
+    const sortSel = $("#financePickerSort");
+    sortSel.hidden = items.length < 2;
+    sortSel.innerHTML = "";
+    for (const [v, label] of [["newest", "Newest first"], ["oldest", "Oldest first"], ["name", "A to Z"]].concat(threshold ? [["measure", threshold.sortLabel || "Most first"]] : [])) {
+      const o = document.createElement("option"); o.value = v; o.textContent = label; sortSel.appendChild(o);
+    }
+    sortSel.value = threshold ? "measure" : "newest";
+    const applySort = () => {
+      const v = sortSel.value;
+      items = v === "newest" ? sorted
+        : v === "oldest" ? sorted.slice().reverse()
+        : v === "name" ? sorted.slice().sort((a, b) => importItemName(a).localeCompare(importItemName(b)))
+        : sorted.slice().sort((a, b) => threshold.of(b) - threshold.of(a));
+    };
+    applySort();
+    // "At least N": rows under the line are hidden and unticked, so a
+    // Steam library's one-minute demos never need unticking one by one.
+    const thresholdRow = $("#financePickerThresholdRow");
+    const thresholdInput = $("#financePickerThreshold");
+    thresholdRow.hidden = !threshold;
+    if (threshold) {
+      $("#financePickerThresholdLabel").textContent = threshold.label;
+      $("#financePickerThresholdUnit").textContent = threshold.unit || "";
+      thresholdInput.value = threshold.value == null ? 0 : threshold.value;
+      thresholdInput.min = 0; thresholdInput.step = threshold.step || 1;
+    }
+    const underThreshold = (i) => !!threshold && threshold.of(i) < (parseFloat(thresholdInput.value) || 0);
     const list = $("#financePickerList");
     const bucketsWrap = $("#financePickerBuckets");
     const newCatsWrap = $("#financePickerNewCats");
@@ -916,7 +950,7 @@
     newCategories.forEach((nc) => {
       const row = el("label", "toggle-label");
       const cb = el("input"); cb.type = "checkbox"; cb.checked = nc.add;
-      cb.onchange = () => { nc.add = cb.checked; };
+      cb.onchange = () => { nc.add = cb.checked; updateCount(); };
       row.appendChild(cb);
       const dot = el("span", "dot"); dot.style.background = nc.color;
       dot.style.width = "9px"; dot.style.height = "9px"; dot.style.borderRadius = "50%"; dot.style.display = "inline-block";
@@ -984,29 +1018,84 @@
         // hide-duplicates toggle must not take it away.
         (i.update || !i.dup || showDupCb.checked) &&
         (!i.unresolved || !hideUnresolvedCb.checked) &&
+        !underThreshold(i) &&
         matchesSearch(i)
       );
     }
+    // Periods come as years, each a chip that toggles the whole year and
+    // says how many of its rows are on, with its months behind a chevron
+    // (0.255.0). A four-year backup used to put 48 month chips above the
+    // list, and the list and the Import button below the fold.
+    const openYears = new Set();
+    let yearsSeeded = false;
     function renderBuckets() {
-      const map = new Map();
+      const byYear = new Map();
       visibleItems().forEach((i) => {
         const key = importBucketKey(i);
-        if (key) (map.get(key) || map.set(key, []).get(key)).push(i);
+        if (!key) return;
+        const y = key.slice(0, 4);
+        const months = byYear.get(y) || byYear.set(y, new Map()).get(y);
+        (months.get(key) || months.set(key, []).get(key)).push(i);
       });
+      const monthCount = [...byYear.values()].reduce((n, m) => n + m.size, 0);
+      if (!yearsSeeded) { yearsSeeded = true; if (monthCount <= 6) byYear.forEach((m, y) => openYears.add(y)); }
       bucketsWrap.innerHTML = "";
-      bucketsWrap.hidden = map.size < 2;
-      [...map.keys()].sort((a, b) => b.localeCompare(a)).forEach((key) => {
-        const its = map.get(key);
-        const allOn = its.every((i) => i.checked);
-        const chip = el("span", "cat-chip" + (allOn ? " on" : ""), importBucketLabel(key));
+      bucketsWrap.hidden = monthCount < 2;
+      const chipFor = (its, label, cls) => {
+        const on = its.filter((i) => i.checked).length;
+        const chip = el("button", "cat-chip " + cls + (on === its.length ? " on" : on ? " part" : ""));
+        chip.type = "button";
+        chip.appendChild(el("span", null, label));
+        chip.appendChild(el("span", "bucket-count", on === its.length ? String(its.length) : `${on}/${its.length}`));
         chip.title = "Toggle this period on/off";
-        chip.onclick = () => { const v = !allOn; its.forEach((i) => (i.checked = v)); render(); };
-        bucketsWrap.appendChild(chip);
+        chip.setAttribute("aria-pressed", String(on === its.length));
+        chip.onclick = () => { const v = on !== its.length; its.forEach((i) => (i.checked = v)); render(); };
+        return chip;
+      };
+      [...byYear.keys()].sort((a, b) => b.localeCompare(a)).forEach((y) => {
+        const months = byYear.get(y);
+        const all = [...months.values()].flat();
+        const group = el("div", "picker-year" + (openYears.has(y) ? " is-open" : ""));
+        const head = el("div", "picker-year-head");
+        head.appendChild(chipFor(all, y, "year-chip"));
+        if (months.size > 1) {
+          const more = el("button", "btn btn-icon picker-year-more");
+          more.type = "button";
+          more.setAttribute("aria-label", (openYears.has(y) ? "Hide" : "Show") + " the months of " + y);
+          more.setAttribute("aria-expanded", String(openYears.has(y)));
+          more.appendChild(window.LifeLogIcons.svg("chevron-down"));
+          more.onclick = () => { if (openYears.has(y)) openYears.delete(y); else openYears.add(y); renderBuckets(); };
+          head.appendChild(more);
+        }
+        group.appendChild(head);
+        if (openYears.has(y) && months.size > 1) {
+          const row = el("div", "picker-months");
+          [...months.keys()].sort((a, b) => b.localeCompare(a)).forEach((key) => row.appendChild(chipFor(months.get(key), MONTHS_SHORT[+key.slice(5)], "month-chip")));
+          group.appendChild(row);
+        }
+        bucketsWrap.appendChild(group);
       });
     }
+    // What the button will do, by kind: "36 entries, 20 backlog items, 2
+    // updates · 2 new categories" (0.255.0), not a bare "58 selected".
     function updateCount() {
-      const checked = visibleItems().filter((i) => i.checked).length;
-      $("#financePickerCount").textContent = `${checked} selected`;
+      const chosen = visibleItems().filter((i) => i.checked);
+      const parts = [];
+      for (const k of Object.keys(KIND_WORDS)) {
+        const n = chosen.filter((i) => !i.update && i.kind === k).length;
+        if (n) parts.push(n + " " + KIND_WORDS[k][n === 1 ? 0 : 1]);
+      }
+      const ups = chosen.filter((i) => i.update).length;
+      if (ups) parts.push(ups + (ups === 1 ? " update" : " updates"));
+      const cats = newCategories.filter((nc) => nc.add).length;
+      let text = parts.length ? parts.join(", ") + (mode === "import" ? "" : " selected") : (chosen.length ? `${chosen.length} selected` : "Nothing selected");
+      if (cats && mode === "import") text += ` · ${cats} new categor${cats === 1 ? "y" : "ies"}`;
+      $("#financePickerCount").textContent = text;
+      if (threshold) {
+        const under = items.filter(underThreshold).length;
+        $("#financePickerThresholdHidden").textContent = under ? `${under} hidden` : "";
+      }
+      $("#financePickerConfirmBtn").disabled = mode === "import" && !chosen.length;
     }
     function render() {
       list.innerHTML = "";
@@ -1023,6 +1112,8 @@
       render();
     };
     searchInput.oninput = () => { searchTerm = searchInput.value.trim().toLowerCase(); render(); };
+    sortSel.onchange = () => { applySort(); render(); };
+    thresholdInput.oninput = () => { items.forEach((i) => { if (underThreshold(i)) i.checked = false; }); render(); };
     $("#financePickerSelectAll").onclick = () => { visibleItems().forEach((i) => (i.checked = true)); render(); };
     $("#financePickerSelectNone").onclick = () => { visibleItems().forEach((i) => (i.checked = false)); render(); };
     $("#financePickerCancelBtn").onclick = () => { $("#financePickerModal").hidden = true; };

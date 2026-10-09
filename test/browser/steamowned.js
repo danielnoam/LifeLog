@@ -12,6 +12,7 @@ const OWNED = { response: { game_count: 5, games: [
   { appid: 413150, name: "Stardew Valley", playtime_forever: 95, rtime_last_played: AT(2025, 11, 9) },
   { appid: 70, name: "Half-Life", playtime_forever: 0, rtime_last_played: AT(2020, 1, 1) },
   { appid: 400, name: "Portal", playtime_forever: 300, rtime_last_played: AT(2023, 6, 6) },
+  { appid: 999, name: "Some Demo", playtime_forever: 12, rtime_last_played: AT(2026, 1, 1) },
 ] } };
 
 const SEED = {
@@ -48,8 +49,18 @@ const SEED = {
   check("a game already in the Timeline is left out", !rows.some((r) => /^Portal\b/.test(r.text) && !/Portal 2/.test(r.text)), rows);
   check("two hours or more starts ticked", row(/Portal 2/).on === true && row(/ELDEN RING/).on === true, rows);
   check("under two hours starts unticked", row(/Stardew/).on === false, rows);
-  check("the most-played game comes first", /ELDEN RING/.test(rows[0].text), rows);
   check("the hint says what the list is", /month you last played/.test(await page.textContent("#financePickerHint")));
+  // The "Played at least N hrs" line (0.255.0): a twelve-minute demo is
+  // under the default hour and never shows; raising it hides more.
+  const thr = await page.evaluate(() => ({ shown: !document.querySelector("#financePickerThresholdRow").hidden, value: document.querySelector("#financePickerThreshold").value, label: document.querySelector("#financePickerThresholdLabel").textContent, hidden: document.querySelector("#financePickerThresholdHidden").textContent, sort: document.querySelector("#financePickerSort").value }));
+  check("the review offers a minimum play time, an hour to start", thr.shown && thr.value === "1" && /Played at least/.test(thr.label), thr);
+  check("the twelve-minute demo is under it and hidden", !row(/Some Demo/) && /1 hidden/.test(thr.hidden), thr);
+  check("the list is sorted most played first", thr.sort === "measure" && /ELDEN RING/.test(rows[0].text), thr);
+  await page.fill("#financePickerThreshold", "2"); await page.waitForTimeout(200);
+  const after = await page.evaluate(() => ({ titles: [...document.querySelectorAll("#financePickerList .etitle")].map((t) => t.textContent), hidden: document.querySelector("#financePickerThresholdHidden").textContent }));
+  check("raising it to two hours hides Stardew as well", !after.titles.some((t) => /Stardew/.test(t)) && /2 hidden/.test(after.hidden), after);
+  await page.fill("#financePickerThreshold", "1"); await page.waitForTimeout(200);
+  check("lowering it brings Stardew back, unticked", await page.evaluate(() => { const l = [...document.querySelectorAll("#financePickerList label")].find((r) => /Stardew/.test(r.textContent)); return l && !l.querySelector("input").checked; }));
 
   await page.click("#financePickerConfirmBtn"); await page.waitForTimeout(600);
   const data = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));

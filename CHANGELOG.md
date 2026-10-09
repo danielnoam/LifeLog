@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.255.0] - 2026-10-09
+
+### Changed
+- **The import review on a long import.** Periods are years now, each a
+  chip that toggles the whole year and shows how many of its rows are on,
+  with the months behind a chevron (a four-year backup used to put 48
+  month chips above the list). The list gives way first, so the Import
+  button stays on screen on a phone. A search box and a sort (newest,
+  oldest, A to Z) appear once the list is long. The line beside Import
+  says what it will do: "36 entries, 20 backlog items, 2 updates · 2 new
+  categories", and the button is off while nothing is ticked.
+- **Steam games you've played: a minimum play time.** The review has a
+  "Played at least N hrs" line, an hour to start: games under it are
+  hidden and unticked, so the one-minute demos never need unticking by
+  hand. The list sorts most played first.
+
 ## [0.254.0] - 2026-10-08
 
 ### Changed

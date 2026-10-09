@@ -65,3 +65,4 @@ the test fails without the fix before trusting it.
 | `letterboxd` | the Letterboxd export zip into the review: diary as dated, rated entries, watched without a diary line, the watchlist as backlog, duplicates hidden |
 | `steamowned` | Steam played-games backfill (0.253.0): the keyed owned-games route, every played game as an entry in the review, two hours or more ticked, duplicates and never-played hidden, a second run offering only what was left |
 | `a11y` | screen readers and keyboards (0.254.0): every sheet a named aria-modal dialog that takes focus on open, Tab wrapping inside it, focus back to the opener, the toast's words in the live region, the tab bar a tablist the arrows move through |
+| `importreview` | the review on a long import (0.255.0): years with months behind a chevron, counts on the chips, Import on screen on a phone, search and sort, the by-kind count line |

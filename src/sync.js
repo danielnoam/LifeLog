@@ -300,7 +300,7 @@
         // one, and a source with a lot of noise in it says otherwise.
         if (source.ticked) for (const it of built.items) if (!it.dup) it.checked = source.ticked(it.entry);
         job.finish(job.stopping ? `Stopped — ${raw.length} fetched, sent to review` : `${built.items.length} to review`);
-        reviewAndImport(source.label, source.hint, built);
+        reviewAndImport(source.label, source.hint, built, null, source.picker ? source.picker(built) : undefined);
       });
     } catch (e) {
       // Already said in a toast, and kept in Activity.
@@ -445,6 +445,9 @@
     },
     toItem: (game, ctx) => ownedToEntry(game, ctx.category),
     ticked: (entry) => parseFloat(entry.length) * 60 >= PLAYED_TICK_MINUTES,
+    // The review's "Played at least N hrs" line: what's under it is hidden
+    // and unticked, so the one-minute demos never need unticking by hand.
+    picker: () => ({ threshold: { label: "Played at least", unit: "hrs", value: 1, step: 0.5, sortLabel: "Most played", of: (item) => parseFloat(item.entry.length) || 0 } }),
     empty: (ctx) => (ctx.ownedCount
       ? "Nothing new — every game you've played is already logged"
       : "Steam listed no games — check the key, and that Game details are Public in your privacy settings"),

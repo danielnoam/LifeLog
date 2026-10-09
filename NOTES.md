@@ -333,6 +333,27 @@ what was decided against and why.
   copy of the whole recurring list taken just before. `combinedWith` stays in
   KNOWN_RECURRING_KEYS so the sanitizer drops it rather than keepUnknown
   carrying it, which is what made the old groups separate again.
+- **Import review for long imports (0.255.0).** Daniel's ask was a
+  common review screen for every import; it existed (reviewAndImport →
+  openImportPicker, used by every importer since 0.151), so the work was
+  what it did badly at size. Period chips were one per month, flat: a
+  four-year backup put 48 of them above the list, and on a phone the list
+  and the Import button were below the fold. Now a chip per year
+  (toggle + "on/total" count, `.part` when some are on) with the months
+  behind a chevron, open by default only when the import has six months
+  or fewer; `.picker-year` is `display: contents` so year heads wrap in
+  one row and an open year's months take a full row under it. The sheet
+  is a flex column and the list is the part that shrinks (min 160px), so
+  the footer with Import always shows; the old `max-height: 320px` went.
+  Search shows itself over 20 rows (Markdown's `searchable` still forces
+  it), sort is newest / oldest / A to Z plus the threshold's measure when
+  one exists, and the count moved from "58 selected" to a by-kind line in
+  the footer that also disables Import at zero. `reviewAndImport` gained
+  an `opts` argument spread into the picker, and a sync source can give a
+  `picker(built)` for it. The Steam backfill uses it for `threshold`
+  {label, unit, value, step, sortLabel, of(item)}: rows under the value
+  are hidden and unticked (lowering it brings them back unticked, the
+  tick rule stays at two hours). test/browser/importreview.js.
 - **Accessibility pass (0.254.0).** Four things a screen reader or a
   keyboard hit, each done once in the place that already touched every
   sheet. The toast: content added to a `hidden` node isn't announced, so

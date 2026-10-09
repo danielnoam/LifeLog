@@ -20,6 +20,7 @@
     "chart-pie": '<path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/>',
     "check": '<path d="M20 6 9 17l-5-5"/>',
     "chevron-left": '<path d="m15 18-6-6 6-6"/>',
+    "chevron-down": '<path d="m6 9 6 6 6-6"/>',
     "chevron-right": '<path d="m9 18 6-6-6-6"/>',
     "circle": '<circle cx="12" cy="12" r="10"/>',
     "circle-dot": '<circle cx="12" cy="12" r="1"/><circle cx="12" cy="12" r="10"/>',

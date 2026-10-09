@@ -1392,7 +1392,31 @@ img.cover-loading { opacity: 0; }
   font-size: var(--fs-2xs); color: var(--text-dim); flex: 0 0 auto;
   border: 1px solid var(--border); border-radius: var(--r-lg); padding: 2px 8px;
 }
-.picker-buckets { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+.picker-buckets { display: flex; flex-wrap: wrap; gap: 6px 10px; margin: 4px 0 10px; }
+.picker-year { display: contents; }
+.picker-year-head { display: flex; align-items: center; gap: 2px; }
+.picker-year-more { width: 32px; height: 32px; padding: 0; color: var(--text-dim); }
+.picker-year-more svg { width: 16px; height: 16px; transition: rotate var(--dur-fast) var(--ease); }
+.picker-year.is-open .picker-year-more svg { rotate: 180deg; }
+.picker-months { display: flex; flex-wrap: wrap; gap: 6px; flex-basis: 100%; margin: 0 0 2px 8px; }
+.picker-buckets .cat-chip { font: inherit; font-size: var(--fs-sm); font-weight: 550; }
+.picker-buckets .cat-chip.part { border-color: var(--accent); }
+.bucket-count { font-size: var(--fs-2xs); font-weight: 600; opacity: .75; }
+.picker-tools { display: flex; gap: 8px; align-items: center; margin: 0 0 8px; }
+.picker-tools .picker-search { flex: 1 1 auto; min-width: 0; margin: 0; }
+.picker-tools select { flex: 0 0 auto; max-width: 150px; }
+.picker-tools select[hidden] { display: none; }
+.picker-threshold { display: flex !important; align-items: center; gap: 8px; margin: 0 0 8px !important; font-size: var(--fs-sm); color: var(--text); }
+.picker-threshold input { width: 72px !important; margin: 0; text-align: right; }
+.picker-threshold[hidden] { display: none !important; }
+/* The sheet is a column: the list gives way first and the Import button
+   stays on screen, whatever the import's size (0.255.0). */
+#financePickerModal .modal { display: flex; flex-direction: column; }
+#financePickerModal .picker-list { flex: 1 1 auto; min-height: 160px; max-height: none; }
+.picker-actions { flex-wrap: wrap; }
+.picker-count { font-size: var(--fs-xs); flex: 1 1 100%; }
+@media (min-width: 721px) { .picker-actions { flex-wrap: nowrap; } .picker-count { flex: 1 1 auto; min-width: 0; } }
+@media (prefers-reduced-motion: reduce) { .picker-year-more svg { transition: none; } }
 /* Hidden when an import has fewer than two buckets to filter by; without the
    companion rule it stayed as an empty flex row still spending its margin. */
 .picker-buckets[hidden] { display: none; }
