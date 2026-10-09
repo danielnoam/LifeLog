@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.261.0] - 2026-10-09
+
+### Changed
+- **The apps stay out of the phone's cloud backup.** Google and iCloud
+  backups, and phone-to-phone transfers, used to carry LifeLog's storage:
+  the whole log, the GitHub token and the PIN. They no longer include it.
+  On a new phone, LifeLog starts empty and a setup link from another
+  device brings everything back from GitHub.
+
 ## [0.260.0] - 2026-10-09
 
 ### Changed

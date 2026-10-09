@@ -22,6 +22,14 @@
 //   share action src/share.js reads. On the activity, not beside it, since
 //   Android lists an app in the sheet per activity that takes the intent.
 //
+// - No cloud backup (0.261.0): allowBackup="false" on <application>. The
+//   WebView's storage is the whole log plus the GitHub token and the PIN
+//   hash, and the widgets' preferences hold note text; Capacitor's template
+//   has allowBackup="true", which puts all of it in the phone's Google
+//   backup and in a phone-to-phone transfer. The data comes back from
+//   GitHub on a new phone instead. The template's attribute is replaced,
+//   not skipped, which is what the `replace` flag below is for.
+//
 // - Storage for the phone backup (0.215.0), which writes a copy of your data
 //   into the phone's shared Documents/LifeLog folder, where the Files app and
 //   a PC over USB can see it and where it outlives clearing the app's data.
@@ -47,6 +55,7 @@ const ACTIVITY = [
 // Attributes on a tag rather than tags inside one.
 const ATTRS = [
   { on: "application", attr: 'android:requestLegacyExternalStorage="true"' },
+  { on: "application", attr: 'android:allowBackup="false"', replace: true },
 ];
 
 function patch(xml) {
@@ -68,12 +77,17 @@ function patch(xml) {
     const tail = m[1] ? "\n        </activity>" : "";
     out = out.slice(0, m.index) + open + "\n            " + entry + tail + out.slice(m.index + m[0].length);
   }
-  for (const { on, attr } of ATTRS) {
+  for (const { on, attr, replace } of ATTRS) {
     const name = attr.split("=")[0];
     const m = new RegExp("<" + on + "\\b[^>]*>").exec(out);
     if (!m) throw new Error("no <" + on + "> tag in AndroidManifest.xml");
-    if (m[0].includes(name + "=")) continue;
-    const tag = m[0].replace(new RegExp("^<" + on), "<" + on + " " + attr);
+    let tag;
+    if (m[0].includes(name + "=")) {
+      if (!replace || m[0].includes(attr)) continue;
+      tag = m[0].replace(new RegExp(name + '="[^"]*"'), attr);
+    } else {
+      tag = m[0].replace(new RegExp("^<" + on), "<" + on + " " + attr);
+    }
     out = out.slice(0, m.index) + tag + out.slice(m.index + m[0].length);
   }
   return out;

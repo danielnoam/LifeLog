@@ -46,6 +46,10 @@ doesn't load or depend on anything the app build adds.
   **Settings → Access token**.
 - **Updates:** the app checks for a newer release each time it opens and
   offers it. Updates install over the top and keep your data.
+- **Backups:** the app keeps itself out of Google's and iCloud's backups
+  and out of phone-to-phone transfers (0.261.0), since its storage holds
+  the log and the sync token. A new phone starts empty; a setup link from
+  another device brings everything back.
 - **Share sheet** (0.250.0): LifeLog takes text and links shared from other
   apps. A title from Letterboxd, Steam, IMDb and the like opens the Backlog
   sheet with the lookup running, a Google Maps link goes into the open trip,

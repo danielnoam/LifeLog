@@ -33,6 +33,31 @@ public class WidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
 
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
 
+    // No iCloud backup for what the app holds (0.261.0): the WebView's
+    // storage under Library/WebKit (the log, the GitHub token, the PIN
+    // hash), the App Group the widgets read, and the Documents copy the
+    // phone backup writes. Android's manifest says allowBackup="false" for
+    // the same reason (tools/android-manifest.js). The flag lives on the
+    // directory, so it is set on every launch in case one was recreated.
+    public override func load() {
+        var dirs: [URL] = []
+        if let lib = FileManager.default.urls(for: .libraryDirectory, in: .userDomainMask).first {
+            dirs.append(lib.appendingPathComponent("WebKit"))
+        }
+        if let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+            dirs.append(docs)
+        }
+        if let group = LLGroup.container { dirs.append(group) }
+        for var url in dirs {
+            if !FileManager.default.fileExists(atPath: url.path) {
+                try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+            }
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try? url.setResourceValues(values)
+        }
+    }
+
     private func reloadWidgets() {
         #if canImport(WidgetKit)
         WidgetCenter.shared.reloadAllTimelines()

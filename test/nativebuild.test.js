@@ -159,6 +159,13 @@ test("the phone backup can write to Documents on every Android the app runs on",
   assert.strictEqual(twice.split("WRITE_EXTERNAL_STORAGE").length - 1, 1);
 });
 
+test("the app stays out of the phone's cloud backup: the template's allowBackup is turned off, once", () => {
+  const out = patch(TEMPLATE);
+  assert.ok(/<application\b[^>]*android:allowBackup="false"/.test(out), out);
+  assert.ok(!out.includes('android:allowBackup="true"'), "the template's value is replaced, not joined");
+  assert.strictEqual(patch(out).split("allowBackup").length - 1, 1);
+});
+
 test("the Share sheet lists LifeLog: a SEND filter for text, inside the main activity", () => {
   const out = patch(TEMPLATE);
   const act = /<activity\b[^>]*\.MainActivity[^>]*>([\s\S]*?)<\/activity>/.exec(out);

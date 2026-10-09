@@ -16,6 +16,22 @@ what was decided against and why.
 
 ---
 
+- **No cloud backup of the apps (0.261.0).** Android: `allowBackup="false"`
+  on `<application>`, replacing the template's `true` (the manifest patcher
+  gained a `replace` flag for an attribute that is already there). On
+  Android 9+ Google's backup is encrypted with the screen lock, so this is
+  mostly about phone-to-phone transfer and older phones. iOS: the Widgets
+  plugin's `load()` marks `Library/WebKit` (where WKWebView keeps
+  localStorage and IndexedDB), the App Group container and Documents as
+  excluded from backup, on every launch since the flag sits on the
+  directory. iCloud is the real case: Apple holds its backup keys unless
+  Advanced Data Protection is on. Documents is excluded too, although it
+  is the user's visible phone-backup folder: it holds the log in plain
+  JSON, and the point of the change is that no copy of the log rides in a
+  backup; the folder is for the Files app and USB. "Complete file
+  protection" on the App Group files was considered and dropped: a
+  lock-screen widget reads them while the phone is locked.
+
 - **One-repo tokens, and exports without keys (0.260.0).** Two of the
   security pass's findings, in the shape Daniel chose.
   - *The Sync steps lead with a fine-grained token.* A classic `repo` token
