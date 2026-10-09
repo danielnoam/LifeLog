@@ -210,7 +210,7 @@
   async function writePhone(FS, doc, name) {
     const write = (path, text) => FS.writeFile({ path: phonePath(path), data: text, directory: "DOCUMENTS", encoding: "utf8", recursive: true });
     try {
-      const text = JSON.stringify(doc, null, 2);
+      const text = JSON.stringify(name === "lifelog.json" ? withoutSecrets(doc) : doc, null, 2);
       await write(name, text);
       if (name === "lifelog.json") {
         await write("daily/lifelog-" + localDay() + ".json", text);
@@ -300,6 +300,31 @@
     return { kind: "other", detail: String(e.message || e).slice(0, 160) };
   }
 
+  // "classic" (ghp_…, every repo the account can see) or "fine" (github_pat_…,
+  // the repos it was given). Anything else is unknown: an old-format token
+  // or a server-to-server one.
+  function tokenKind(token) {
+    if (/^ghp_/.test(token || "")) return "classic";
+    if (/^github_pat_/.test(token || "")) return "fine";
+    return "unknown";
+  }
+
+  // The same document with the API keys blanked, for copies that leave the
+  // app's own storage: the Export JSON and the phone's Documents folder.
+  // Sync and the local-file target keep them; they are live sources, and a
+  // reload from either would otherwise lose the keys. Import never reads
+  // settings, so a blanked export can't clear the keys on the way back in.
+  function withoutSecrets(doc) {
+    if (!doc || !doc.settings) return doc;
+    const st = doc.settings;
+    const out = { ...doc, settings: { ...st } };
+    if (st.mediaKeys && typeof st.mediaKeys === "object") {
+      out.settings.mediaKeys = Object.fromEntries(Object.keys(st.mediaKeys).map((k) => [k, ""]));
+    }
+    if (st.steam && typeof st.steam === "object") out.settings.steam = { ...st.steam, apiKey: "" };
+    return out;
+  }
+
   // The login the token belongs to (so the user only has to supply a token).
   async function ghWhoAmI() {
     const r = await fetch(API + "/user", { headers: ghHeaders(), cache: "no-store" });
@@ -325,12 +350,21 @@
       return gh.branch;
     }
     if (r.status !== 404) throw ghErr(r.status, await r.text(), r);
+    // A token limited to one repo answers 404 for a repo it wasn't given,
+    // whether or not the repo exists, and can't create one. Say what to do
+    // rather than "GitHub 403" (0.260.0).
+    const limited = (msg) => new Error(`This token can't reach ${gh.owner}/${gh.repo}. Create that private repo on GitHub if it doesn't exist yet, and give the token access to it (Only select repositories) — then Connect again.` + (msg ? ` GitHub said: ${msg}` : ""));
+    if (tokenKind(gh.token) === "fine") throw limited("");
     const cr = await fetch(API + "/user/repos", {
       method: "POST",
       headers: Object.assign({ "Content-Type": "application/json" }, ghHeaders()),
       body: JSON.stringify({ name: gh.repo, private: true, auto_init: true, description: "LifeLog data" }),
     });
-    if (!cr.ok) throw ghErr(cr.status, await cr.text(), cr);
+    if (!cr.ok) {
+      const err = ghErr(cr.status, await cr.text(), cr);
+      if (cr.status === 403 || cr.status === 404 || cr.status === 422) throw limited(err.detail);
+      throw err;
+    }
     const created = await cr.json();
     return created.default_branch || gh.branch; // honour main/master the repo actually used
   }
@@ -711,8 +745,9 @@
     disablePhoneBackup() { setPhoneCfg({ on: false }); return this.phoneBackup; },
 
     get githubInfo() {
-      return gh ? { owner: gh.owner, repo: gh.repo, path: gh.path, branch: gh.branch } : null;
+      return gh ? { owner: gh.owner, repo: gh.repo, path: gh.path, branch: gh.branch, tokenKind: tokenKind(gh.token) } : null;
     },
+    withoutSecrets,
 
     // Returns one of:
     //   { data, source }   source: 'github' | 'file' | 'cache' | 'seed' | 'empty'

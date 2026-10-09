@@ -67,7 +67,10 @@
   // them fetch them first.
   async function exportJson() {
     const boards = boardsForExport ? await boardsForExport() : undefined;
-    download("lifelog.json", JSON.stringify({ ...state.data, boards }, null, 2), "application/json");
+    // Without the API keys: an export is for handing around (see
+    // withoutSecrets in storage.js); the keys stay in sync and come back
+    // from there.
+    download("lifelog.json", JSON.stringify({ ...window.LifeLogStorage.withoutSecrets(state.data), boards }, null, 2), "application/json");
   }
   function csvEsc(s) {
     s = String(s == null ? "" : s);

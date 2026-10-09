@@ -4,6 +4,26 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.260.0] - 2026-10-09
+
+### Changed
+- **Sync setup asks for a token that reaches one repo.** The steps are now:
+  create a private `lifelog-data` repo on GitHub, then a fine-grained
+  token for that repo only (Contents: read and write), then paste it. A
+  token like that can't touch anything else of yours. The classic token,
+  which lets LifeLog create the repo for you, is still there under
+  Repository, file and branch. A device connected with a classic token
+  sees a note on the Sync page saying how to switch.
+- **Exports and the phone backup leave out your API keys.** The RAWG,
+  TMDB, GG.deals, SteamGridDB, Google Places and Steam keys stay in sync
+  between your devices as before, but the Export JSON and the copy in the
+  phone's Documents folder carry them blank, so a file you hand around
+  holds your log and nothing else.
+
+### Fixed
+- A token that can't reach the repo now says so and what to do, instead of
+  "GitHub 403".
+
 ## [0.259.2] - 2026-10-09
 
 ### Changed

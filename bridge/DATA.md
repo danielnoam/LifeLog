@@ -174,7 +174,9 @@ delete with the `lifelog_*_accomplishment` tools.
 Synced preferences. The bridge never shows these to an AI, because
 `mediaKeys`, `steam` (proxy URL, SteamID64 and the Web API key) and
 `anilist` hold API keys and account names. The one
-that matters for data is `currency`, which `lifelog_overview` gives.
+that matters for data is `currency`, which `lifelog_overview` gives. The
+Export JSON and the phone's Documents copy carry `mediaKeys` and
+`steam.apiKey` blanked (0.260.0); the synced file has them.
 
 Keys: `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,
 `mediaCategorySources`, `mediaCategoryFallbackSources`, `mediaKeys`, `steam`,

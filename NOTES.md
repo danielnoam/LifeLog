@@ -16,6 +16,33 @@ what was decided against and why.
 
 ---
 
+- **One-repo tokens, and exports without keys (0.260.0).** Two of the
+  security pass's findings, in the shape Daniel chose.
+  - *The Sync steps lead with a fine-grained token.* A classic `repo` token
+    reads and writes every repo the account owns, so a leaked setup link
+    was a leaked GitHub account. A fine-grained token with Contents on one
+    repo can't create that repo, which is why the first step is now
+    GitHub's new-repo page with the name and visibility pre-filled, and
+    why the classic path stays under Advanced for whoever wants the app to
+    create the repo. `ghEnsureRepo` recognises a `github_pat_` token and
+    says what to do on a 404 instead of trying to create the repo and
+    surfacing GitHub's 403. `githubInfo.tokenKind` is derived from the
+    prefix only; the token itself is still never read back into the UI.
+    Switching an existing device is by hand (Change token), and the other
+    devices need a new setup link once the old token is deleted; the app
+    doesn't try to migrate them, since it can't know when the old token
+    dies.
+  - *Keys are blanked in copies that leave the app, not removed from the
+    data.* Daniel's call over moving them to device-local storage: keys
+    keep syncing, nothing to retype, no migration. `withoutSecrets` in
+    storage.js blanks `mediaKeys` and `steam.apiKey` for the Export JSON
+    and the phone's Documents copy only. The local-file target and GitHub
+    keep them because both are live sources a reload reads from; blanking
+    those would lose the keys on the next load. Import never reads
+    `settings`, so an export without keys can't clear them on the way back
+    in. The keys stay in the repo's history; rotating them is a chore for
+    Daniel, not the app.
+
 - **The security pass's small fixes (0.259.2).** A full pass over the app
   (storage, sync, the lock, the bridge, the proxy, CI, the native shells)
   is written up in the project's audits folder, with the findings it did

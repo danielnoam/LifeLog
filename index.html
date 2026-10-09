@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.259.2" />
+  <link rel="stylesheet" href="src/styles.css?v=0.260.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -1223,19 +1223,25 @@
             <span class="sitem-text"><span class="sitem-title">GitHub</span><span class="sitem-sub" id="ghInfo"></span></span>
           </div>
           <div class="gh-fields">
-            <a class="sitem sitem-go gh-steps" href="https://github.com/settings/tokens/new?description=LifeLog&amp;scopes=repo" target="_blank" rel="noopener">
-              <span class="sitem-text"><span class="sitem-title">Create a token on GitHub</span><span class="sitem-sub">Press Generate token there, then copy it</span></span>
+            <a class="sitem sitem-go gh-steps" href="https://github.com/new?name=lifelog-data&amp;visibility=private&amp;description=LifeLog%20data" target="_blank" rel="noopener">
+              <span class="sitem-text"><span class="sitem-title">1. Create a private repo on GitHub</span><span class="sitem-sub">Name it lifelog-data and keep it private; nothing else to set</span></span>
+            </a>
+            <a class="sitem sitem-go gh-steps" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">
+              <span class="sitem-text"><span class="sitem-title">2. Create a token for that repo only</span><span class="sitem-sub">Only select repositories → lifelog-data · Repository permissions → Contents: Read and write · Generate, then copy it</span></span>
             </a>
             <label class="sitem sitem-stack">
               <span class="sitem-text"><span class="sitem-title">Access token</span><span class="sitem-sub">Paste it here — or a setup link from a device that's already connected</span></span>
-              <input id="ghToken" type="password" placeholder="ghp_… or github_pat_… or a setup link" autocomplete="off" spellcheck="false" />
+              <input id="ghToken" type="password" placeholder="github_pat_… or a setup link" autocomplete="off" spellcheck="false" />
             </label>
             <details class="gh-advanced">
               <summary class="sitem sitem-go">Repository, file and branch</summary>
               <label class="sitem sitem-stack">
-                <span class="sitem-text"><span class="sitem-title">Repository</span><span class="sitem-sub">owner/repo — leave blank for yourname/lifelog-data, created for you</span></span>
+                <span class="sitem-text"><span class="sitem-title">Repository</span><span class="sitem-sub">owner/repo — leave blank for yourname/lifelog-data</span></span>
                 <input id="ghRepo" type="text" placeholder="(auto: yourname/lifelog-data)" autocomplete="off" spellcheck="false" />
               </label>
+              <a class="sitem sitem-go gh-steps" href="https://github.com/settings/tokens/new?description=LifeLog&amp;scopes=repo" target="_blank" rel="noopener">
+                <span class="sitem-text"><span class="sitem-title">Or a classic token</span><span class="sitem-sub">Lets LifeLog create the repo for you, but can reach every repo you own</span></span>
+              </a>
               <label class="sitem">
                 <span class="sitem-text"><span class="sitem-title">File path</span></span>
                 <input id="ghPath" type="text" placeholder="lifelog.json" autocomplete="off" spellcheck="false" />
@@ -1248,6 +1254,7 @@
             <button type="button" class="sitem sitem-go" id="ghConnectBtn">Connect GitHub</button>
             <button type="button" class="sitem sitem-go" id="ghScanBtn" hidden>Scan QR code</button>
           </div>
+          <p class="warn" id="ghClassicWarn" hidden>This token can reach every repo you own. A token limited to your data repo does the same job: Change token, follow step 2, paste it, then delete the old token on GitHub and open a new setup link on your other devices.</p>
           <button type="button" class="sitem sitem-go" id="ghEditBtn" hidden>Change token or repository</button>
           <label class="sitem">
             <span class="sitem-text"><span class="sitem-title">Check for changes</span><span class="sitem-sub">From your other devices</span></span>
@@ -1260,7 +1267,7 @@
             </select>
           </label>
         </div>
-        <p class="hint gh-how">Every save becomes a commit in a private repo, so your devices stay in sync and you get a history. The token stays on this device.</p>
+        <p class="hint gh-how">Every save becomes a commit in a private repo, so your devices stay in sync and you get a history. The token stays on this device, and one made for that repo alone can't touch anything else of yours.</p>
       </section>
 
       <section class="sgroup gh-share" id="ghShare" hidden>
@@ -2108,35 +2115,35 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.259.2"></script>
-  <script defer src="src/icons.js?v=0.259.2"></script>
-  <script defer src="src/jobs.js?v=0.259.2"></script>
-  <script defer src="src/reconcile.js?v=0.259.2"></script>
-  <script defer src="src/qr.js?v=0.259.2"></script>
-  <script defer src="src/media.js?v=0.259.2"></script>
-  <script defer src="src/merge.js?v=0.259.2"></script>
-  <script defer src="src/storage.js?v=0.259.2"></script>
-  <script defer src="src/finance.js?v=0.259.2"></script>
-  <script defer src="src/settings.js?v=0.259.2"></script>
-  <script defer src="src/wheel.js?v=0.259.2"></script>
-  <script defer src="src/backlog.js?v=0.259.2"></script>
-  <script defer src="src/journal.js?v=0.259.2"></script>
-  <script defer src="src/markdown.js?v=0.259.2"></script>
-  <script defer src="src/notes.js?v=0.259.2"></script>
-  <script defer src="src/docimport.js?v=0.259.2"></script>
-  <script defer src="src/io.js?v=0.259.2"></script>
-  <script defer src="src/sync.js?v=0.259.2"></script>
-  <script defer src="src/habits.js?v=0.259.2"></script>
-  <script defer src="src/vendor/rough.js?v=0.259.2"></script>
-  <script defer src="src/boards.js?v=0.259.2"></script>
-  <script defer src="src/travel.js?v=0.259.2"></script>
-  <script defer src="src/recap.js?v=0.259.2"></script>
-  <script defer src="src/reminders.js?v=0.259.2"></script>
-  <script defer src="src/widgets.js?v=0.259.2"></script>
-  <script defer src="src/share.js?v=0.259.2"></script>
-  <script defer src="src/search.js?v=0.259.2"></script>
-  <script defer src="src/letterboxd.js?v=0.259.2"></script>
-  <script defer src="src/payments.js?v=0.259.2"></script>
-  <script defer src="src/app.js?v=0.259.2"></script>
+  <script defer src="src/platform.js?v=0.260.0"></script>
+  <script defer src="src/icons.js?v=0.260.0"></script>
+  <script defer src="src/jobs.js?v=0.260.0"></script>
+  <script defer src="src/reconcile.js?v=0.260.0"></script>
+  <script defer src="src/qr.js?v=0.260.0"></script>
+  <script defer src="src/media.js?v=0.260.0"></script>
+  <script defer src="src/merge.js?v=0.260.0"></script>
+  <script defer src="src/storage.js?v=0.260.0"></script>
+  <script defer src="src/finance.js?v=0.260.0"></script>
+  <script defer src="src/settings.js?v=0.260.0"></script>
+  <script defer src="src/wheel.js?v=0.260.0"></script>
+  <script defer src="src/backlog.js?v=0.260.0"></script>
+  <script defer src="src/journal.js?v=0.260.0"></script>
+  <script defer src="src/markdown.js?v=0.260.0"></script>
+  <script defer src="src/notes.js?v=0.260.0"></script>
+  <script defer src="src/docimport.js?v=0.260.0"></script>
+  <script defer src="src/io.js?v=0.260.0"></script>
+  <script defer src="src/sync.js?v=0.260.0"></script>
+  <script defer src="src/habits.js?v=0.260.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.260.0"></script>
+  <script defer src="src/boards.js?v=0.260.0"></script>
+  <script defer src="src/travel.js?v=0.260.0"></script>
+  <script defer src="src/recap.js?v=0.260.0"></script>
+  <script defer src="src/reminders.js?v=0.260.0"></script>
+  <script defer src="src/widgets.js?v=0.260.0"></script>
+  <script defer src="src/share.js?v=0.260.0"></script>
+  <script defer src="src/search.js?v=0.260.0"></script>
+  <script defer src="src/letterboxd.js?v=0.260.0"></script>
+  <script defer src="src/payments.js?v=0.260.0"></script>
+  <script defer src="src/app.js?v=0.260.0"></script>
 </body>
 </html>

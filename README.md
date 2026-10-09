@@ -98,12 +98,17 @@ on **GitHub Pages** (repo Settings → Pages → deploy from branch). You'll get
 `https://<you>.github.io/<repo>/` URL. (Any static host works: Netlify, Vercel,
 Cloudflare Pages.)
 
-**2. Connect cloud sync** (first device):
-- Open the app → **Settings → Cloud sync** → **Create a token on GitHub →**
-  (the link is pre-filled with the right scope) → **Generate token** → copy it.
-- Paste it in and press **Connect**. The app **creates the private `lifelog-data`
-  repo for you** and uploads your current log. (Use **Advanced** if you want a
-  different repo/branch.) The token is stored only in that browser.
+**2. Connect cloud sync** (first device), in **Settings → Sync**:
+- **1. Create a private repo on GitHub** → name it `lifelog-data`, keep it
+  private, create.
+- **2. Create a token for that repo only** → a fine-grained token with *Only
+  select repositories* → `lifelog-data` and *Contents: Read and write*.
+  Generate, copy.
+- Paste it in and press **Connect**. The app uploads your current log. The
+  token is stored only in that browser, and it can't touch any other repo
+  of yours. (Under **Repository, file and branch** there is still the
+  classic-token path, which lets the app create the repo for you at the
+  price of a token that reaches every repo you own.)
 
 **3. Add your other devices** — still in **Settings → Cloud sync**, use
 **Set up another device → Copy** to get a link that carries the whole

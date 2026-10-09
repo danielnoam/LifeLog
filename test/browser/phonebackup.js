@@ -11,7 +11,8 @@ const { check, done } = tally();
 const BUILD = { version: "0.0.0", repo: "someone/lifelog", webUrl: "https://someone.github.io/lifelog/" };
 const DOC = {
   categories: [], entries: [], backlog: [], todos: [], todoCategories: [], projects: [], habits: [],
-  financeEntries: [], recurringExpenses: [], financeCategories: [], settings: {}, accomplishments: {},
+  financeEntries: [], recurringExpenses: [], financeCategories: [], accomplishments: {},
+  settings: { mediaKeys: { rawg: "rawg-secret", tmdb: "" }, steam: { apiKey: "steam-secret", steamId: "7656" } },
   notes: [{ id: "n1", text: "Already here", createdAt: "2026-09-01T09:00:00.000Z", updatedAt: "2026-09-01T09:00:00.000Z" }],
 };
 
@@ -91,6 +92,16 @@ async function openSync(page) {
     const latest = f["DOCUMENTS:LifeLog/lifelog.json"];
     check("turning it on writes a copy at once, to Documents/LifeLog", !!latest && JSON.parse(latest).notes[0].text === "Already here", Object.keys(f));
     check("and today's copy beside it", !!f["DOCUMENTS:LifeLog/daily/lifelog-" + today() + ".json"], Object.keys(f));
+    // The copy is for handing around, so the API keys are blanked in it
+    // (0.260.0); the Steam ID is not a secret and stays.
+    const copy = latest ? JSON.parse(latest) : {};
+    check("with the API keys blanked and the rest of settings kept",
+      copy.settings && copy.settings.mediaKeys.rawg === "" && copy.settings.steam.apiKey === "" && copy.settings.steam.steamId === "7656",
+      copy.settings);
+    check("while the app's own copy still has them", await page.evaluate(() => {
+      const d = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+      return d.settings.mediaKeys.rawg === "rawg-secret" && d.settings.steam.apiKey === "steam-secret";
+    }));
     const daily = Object.keys(f).filter((k) => k.includes("/daily/"));
     check("keeping fourteen days, oldest gone first", daily.length === 14 && !f["DOCUMENTS:LifeLog/daily/lifelog-2025-01-07.json"]
       && !!f["DOCUMENTS:LifeLog/daily/lifelog-2025-01-08.json"], daily.sort());

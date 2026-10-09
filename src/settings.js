@@ -59,6 +59,7 @@
     $("#ghEditBtn").hidden = !on || ghEditing;
     $("#ghDisconnectSection").hidden = !on;
     $(".gh-how").hidden = on;
+    $("#ghClassicWarn").hidden = !(on && gi.tokenKind === "classic");
     if (on) {
       info.textContent = "Connected: " + gi.owner + "/" + gi.repo + " (" + gi.path + " on " + gi.branch + "), auto-syncing.";
       conn.textContent = "Update connection";
