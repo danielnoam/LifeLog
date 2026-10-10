@@ -186,6 +186,8 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     }
     github.reads++;
     if (github.delay) await new Promise((r) => setTimeout(r, github.delay));
+    // The folder listing a poll asks for first (0.264.0): just the sha.
+    if (/\/contents\?/.test(url)) return say(200, github.remote ? [{ path: "lifelog.json", sha: github.sha }] : []);
     return github.remote ? say(200, { sha: github.sha, size: 100, encoding: "base64", content: b64(github.remote) }) : say(404, { message: "Not Found" });
   });
   // networkidle, not load: the first boot fetches the demo seed and caches

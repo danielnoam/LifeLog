@@ -47,6 +47,8 @@ function fakeGitHub(page, { putDelay = 0, dropPuts = false } = {}) {
       return say(200, { content: { sha: gh.sha } });
     }
     if (/\/commits/.test(req.url())) return say(200, []);
+    // The folder listing a poll asks for first (0.264.0): just the sha.
+    if (/\/contents\?/.test(req.url())) return say(200, [{ path: "lifelog.json", sha: gh.sha }]);
     // Read before waiting, so a slow answer is what GitHub held when asked.
     const answer = { sha: gh.sha, size: 1000, encoding: "base64", content: b64(gh.remote) };
     if (gh.getDelay) await new Promise((r) => setTimeout(r, gh.getDelay));
