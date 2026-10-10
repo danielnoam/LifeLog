@@ -39,6 +39,9 @@ const lower = (s) => String(s == null ? "" : s).trim().toLowerCase();
 const currencyOf = (data) => (data.settings && data.settings.currency) || "ILS";
 const money = (data, n) => (Math.round(n * 100) / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " " + currencyOf(data);
 const cut = (s, n) => { s = String(s || ""); return s.length > n ? s.slice(0, n - 1) + "…" : s; };
+// How far a show has run (see DATA.md): "airing S3 7/10", "finished 24/24".
+const airingFlag = (b) => [b.airing, b.airingSeason && "S" + b.airingSeason,
+  b.episodesOut && (b.episodesTotal ? b.episodesOut + "/" + b.episodesTotal : b.episodesOut + " out")].filter(Boolean).join(" ");
 const limitOf = (a, d) => Math.max(1, Math.min(500, parseInt(a.limit, 10) || d));
 const head = (n, shown, what) => `${n} ${what}` + (n > shown ? ` (showing ${shown}; raise limit for more)` : "");
 
@@ -518,11 +521,11 @@ const TOOLS = [
   },
   {
     name: "lifelog_backlog",
-    description: "Things to play, read, watch or do next. Starred ones (priority) first.",
+    description: "Things to play, read, watch or do next. Starred ones (priority) first. A show says how far it has run (airing, between seasons, finished) and how many episodes are out; status \"airing\" lists the ones still mid-run.",
     readOnly: true,
     input: {
       query: S.str("Text in the title or notes"), category: S.str("A backlog category"),
-      status: S.str("Which ones", { enum: ["open", "starred", "started", "bought", "dropped", "all"] }), limit: S.limit,
+      status: S.str("Which ones", { enum: ["open", "starred", "started", "bought", "dropped", "airing", "all"] }), limit: S.limit,
     },
     async run(a) {
       const d = await readData();
@@ -531,12 +534,13 @@ const TOOLS = [
       const rows = (d.backlog || []).filter((b) => (!q || lower(b.title + " " + (b.notes || "")).includes(q))
         && (!a.category || lower(b.category) === lower(a.category))
         && (status === "all" || (status === "open" ? !b.dropped : status === "starred" ? b.priority && !b.dropped
-          : status === "started" ? b.startedAt : status === "bought" ? b.bought : b.dropped)))
+          : status === "started" ? b.startedAt : status === "bought" ? b.bought
+          : status === "airing" ? (b.airing === "airing" || b.airing === "hiatus") && !b.dropped : b.dropped)))
         .sort((x, y) => (y.priority || 0) - (x.priority || 0) || String(x.title).localeCompare(String(y.title)));
       const lim = limitOf(a, 40);
       return [head(rows.length, Math.min(lim, rows.length), status + " backlog items"), ...rows.slice(0, lim).map((b) => {
         const flags = [b.priority && "starred", b.startedAt && "started " + b.startedAt, b.bought && "bought", b.dropped && "dropped",
-          b.releaseDate && "out " + b.releaseDate].filter(Boolean);
+          b.releaseDate && "out " + b.releaseDate, b.airing && airingFlag(b)].filter(Boolean);
         return `- [${b.category}] ${b.title}${flags.length ? " (" + flags.join(", ") + ")" : ""}${b.notes ? " — " + cut(b.notes, 100) : ""}  (${b.id})`;
       })].join("\n");
     },

@@ -10,6 +10,10 @@ todo:
   - Encrypting the local copy (localStorage) with a key from the PIN, for
     the desktop browser mainly; explained on 2026-10-09, his call.
 
+- **AniList, if wanted:** bring in Completed titles that aren't in your
+  backlog as timeline history (one review, could be hundreds of rows), and
+  Paused/Dropped as dropped. 0.265.0 only finishes backlog titles.
+
 - **Activity, next, if wanted:** the Markdown and EPUB/PDF imports as
   jobs (local and quick so far). Steam sync in the background was checked
   on Daniel's phone (2026-10-10).

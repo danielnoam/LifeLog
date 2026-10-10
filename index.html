@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.264.2" />
+  <link rel="stylesheet" href="src/styles.css?v=0.265.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -484,6 +484,10 @@
         <input type="hidden" id="bNextAt" />
         <input type="hidden" id="bNextLabel" />
         <input type="hidden" id="bEarlyAccess" />
+        <input type="hidden" id="bAiring" />
+        <input type="hidden" id="bEpisodesOut" />
+        <input type="hidden" id="bEpisodesTotal" />
+        <input type="hidden" id="bAiringSeason" />
         <input type="hidden" id="bExternalRating" />
         <input type="hidden" id="bLength" />
         <input type="hidden" id="bGenres" />
@@ -1649,7 +1653,7 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="imports" data-title="Imports" data-keywords="steam wishlist anilist planning anime manga google wallet pay payment notification expense letterboxd films diary watchlist zip csv owned library played playtime backfill api key">
+      <div class="settings-page" hidden data-page="imports" data-title="Imports" data-keywords="steam wishlist anilist planning watching completed anime manga google wallet pay payment notification expense letterboxd films diary watchlist zip csv owned library played playtime backfill api key">
       <h2 class="settings-page-title">Imports</h2>
       <p class="hint page-lede">You pick what comes in, and nothing already in your backlog is added twice. The automatic check only tells you what's new.</p>
       <section class="sgroup">
@@ -1704,7 +1708,7 @@
       </section>
 
       <section class="sgroup">
-        <h3 class="sgroup-label">AniList planning list</h3>
+        <h3 class="sgroup-label">AniList lists</h3>
         <div class="sgroup-card">
           <label class="sitem sitem-stack">
             <span class="sitem-text"><span class="sitem-title">AniList username</span></span>
@@ -1728,9 +1732,9 @@
               <option value="30">Every month</option>
             </select>
           </label>
-          <button id="anilistSyncBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Sync AniList Planning</button>
+          <button id="anilistSyncBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Sync AniList</button>
         </div>
-        <p class="hint">Needs no key or proxy, but the list must be public (AniList → Settings → Lists → untick "Set anime/manga list to private"). Set one side to "Don't import" to bring in only the other.</p>
+        <p class="hint">Brings in your Planning list as backlog items and your Watching list as in progress, and moves backlog titles you've completed on AniList to your timeline. You review everything first. Needs no key or proxy, but the lists must be public (AniList → Settings → Lists → untick "Set anime/manga list to private"). Set one side to "Don't import" to bring in only the other.</p>
       </section>
 
       <section class="sgroup" id="paymentsGroup" hidden>
@@ -1807,9 +1811,9 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="releases" data-title="Release dates" data-keywords="upcoming release dates tba">
+      <div class="settings-page" hidden data-page="releases" data-title="Release dates" data-keywords="upcoming release dates tba airing episodes season shows">
       <h2 class="settings-page-title">Release dates</h2>
-      <p class="hint page-lede">Asks each unreleased backlog item's source for its date again, and changes nothing else. Steam, RAWG, TMDB and AniList items only.</p>
+      <p class="hint page-lede">Asks the source again about each backlog item that's still to come, and each show that hasn't finished airing: its date, its next episode and how many episodes are out. Changes nothing else. Steam, RAWG, TMDB and AniList items only.</p>
       <section class="sgroup">
         <div class="sgroup-card">
           <label class="sitem">
@@ -1829,7 +1833,7 @@
               <option value="hide">Don't show</option>
             </select>
           </label>
-          <button id="refreshReleasesBtn" type="button" class="sitem sitem-go"><span data-ico="telescope"></span> Re-check upcoming release dates</button>
+          <button id="refreshReleasesBtn" type="button" class="sitem sitem-go"><span data-ico="telescope"></span> Re-check release dates</button>
         </div>
       </section>
       </div>
@@ -1900,7 +1904,7 @@
         <h3 class="sgroup-label">Set-aside bands</h3>
         <div class="sgroup-card">
           <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Early Access</span></span>
+            <span class="sitem-text"><span class="sitem-title">Early Access and airing</span><span class="sitem-sub">Games in Early Access, shows partway through</span></span>
             <select id="backlogFoldEa">
               <option value="open">Foldable, start open</option>
               <option value="collapsed">Foldable, start folded</option>
@@ -2156,36 +2160,36 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.264.2"></script>
-  <script defer src="src/platform.js?v=0.264.2"></script>
-  <script defer src="src/icons.js?v=0.264.2"></script>
-  <script defer src="src/jobs.js?v=0.264.2"></script>
-  <script defer src="src/reconcile.js?v=0.264.2"></script>
-  <script defer src="src/qr.js?v=0.264.2"></script>
-  <script defer src="src/media.js?v=0.264.2"></script>
-  <script defer src="src/merge.js?v=0.264.2"></script>
-  <script defer src="src/storage.js?v=0.264.2"></script>
-  <script defer src="src/finance.js?v=0.264.2"></script>
-  <script defer src="src/settings.js?v=0.264.2"></script>
-  <script defer src="src/wheel.js?v=0.264.2"></script>
-  <script defer src="src/backlog.js?v=0.264.2"></script>
-  <script defer src="src/journal.js?v=0.264.2"></script>
-  <script defer src="src/markdown.js?v=0.264.2"></script>
-  <script defer src="src/notes.js?v=0.264.2"></script>
-  <script defer src="src/docimport.js?v=0.264.2"></script>
-  <script defer src="src/io.js?v=0.264.2"></script>
-  <script defer src="src/sync.js?v=0.264.2"></script>
-  <script defer src="src/habits.js?v=0.264.2"></script>
-  <script defer src="src/vendor/rough.js?v=0.264.2"></script>
-  <script defer src="src/boards.js?v=0.264.2"></script>
-  <script defer src="src/travel.js?v=0.264.2"></script>
-  <script defer src="src/recap.js?v=0.264.2"></script>
-  <script defer src="src/reminders.js?v=0.264.2"></script>
-  <script defer src="src/widgets.js?v=0.264.2"></script>
-  <script defer src="src/share.js?v=0.264.2"></script>
-  <script defer src="src/search.js?v=0.264.2"></script>
-  <script defer src="src/letterboxd.js?v=0.264.2"></script>
-  <script defer src="src/payments.js?v=0.264.2"></script>
-  <script defer src="src/app.js?v=0.264.2"></script>
+  <script defer src="src/errlog.js?v=0.265.0"></script>
+  <script defer src="src/platform.js?v=0.265.0"></script>
+  <script defer src="src/icons.js?v=0.265.0"></script>
+  <script defer src="src/jobs.js?v=0.265.0"></script>
+  <script defer src="src/reconcile.js?v=0.265.0"></script>
+  <script defer src="src/qr.js?v=0.265.0"></script>
+  <script defer src="src/media.js?v=0.265.0"></script>
+  <script defer src="src/merge.js?v=0.265.0"></script>
+  <script defer src="src/storage.js?v=0.265.0"></script>
+  <script defer src="src/finance.js?v=0.265.0"></script>
+  <script defer src="src/settings.js?v=0.265.0"></script>
+  <script defer src="src/wheel.js?v=0.265.0"></script>
+  <script defer src="src/backlog.js?v=0.265.0"></script>
+  <script defer src="src/journal.js?v=0.265.0"></script>
+  <script defer src="src/markdown.js?v=0.265.0"></script>
+  <script defer src="src/notes.js?v=0.265.0"></script>
+  <script defer src="src/docimport.js?v=0.265.0"></script>
+  <script defer src="src/io.js?v=0.265.0"></script>
+  <script defer src="src/sync.js?v=0.265.0"></script>
+  <script defer src="src/habits.js?v=0.265.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.265.0"></script>
+  <script defer src="src/boards.js?v=0.265.0"></script>
+  <script defer src="src/travel.js?v=0.265.0"></script>
+  <script defer src="src/recap.js?v=0.265.0"></script>
+  <script defer src="src/reminders.js?v=0.265.0"></script>
+  <script defer src="src/widgets.js?v=0.265.0"></script>
+  <script defer src="src/share.js?v=0.265.0"></script>
+  <script defer src="src/search.js?v=0.265.0"></script>
+  <script defer src="src/letterboxd.js?v=0.265.0"></script>
+  <script defer src="src/payments.js?v=0.265.0"></script>
+  <script defer src="src/app.js?v=0.265.0"></script>
 </body>
 </html>

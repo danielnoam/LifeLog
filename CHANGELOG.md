@@ -4,6 +4,29 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.265.0] - 2026-10-10
+
+### Added
+- **How far a show has run.** A show or anime from TMDB or AniList says
+  so on its row: "Airing · 5 of 12", "S4 airing · 3 of 10", "S2 complete ·
+  more coming", "Complete", "On hiatus" or "Cancelled". A manga says
+  "Publishing" until it's done.
+- **A "Still airing" band.** A show partway through its run sorts below
+  what you can watch start to finish, in the band Early Access games use,
+  named for what's in it. Fold it away in the Backlog's view options
+  (Early Access and airing → start folded) to see only what's ready.
+- **AniList sync does Watching and Completed too.** Your Watching list
+  comes in as in progress, and starts the titles you already have. Titles
+  in your backlog that you've completed on AniList move to your timeline in
+  the month you finished them, with your AniList score. You review it all
+  first, and Undo puts it back.
+
+### Changed
+- **Release-date re-checks keep up with airing shows.** A show is re-asked
+  until it finishes, so its episode count moves along and it turns to
+  Complete at the end. A finished show no longer keeps its last "next
+  episode" forever.
+
 ## [0.264.2] - 2026-10-10
 
 ### Changed

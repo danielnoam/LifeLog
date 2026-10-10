@@ -476,6 +476,81 @@ test("titleKey no longer turns a trademark symbol into letters", () => {
   assert.strictEqual(titleKey("Portal\u00a9"), titleKey("Portal"));
 });
 
+// ---------- how far a show has run (0.265.0) ----------
+const { aniListStatus, tmdbAiring, jikanAiring, mapAniListListEntry } = Media;
+
+test("aniListStatus: mid-run counts the episodes before the next one", () => {
+  const out = aniListStatus({ type: "ANIME", status: "RELEASING", episodes: 12, nextAiringEpisode: { airingAt: 1893456000, episode: 8 } });
+  assert.strictEqual(out.airing, "airing");
+  assert.strictEqual(out.releaseStatus, "released");
+  assert.strictEqual(out.episodesOut, 7);
+  assert.strictEqual(out.episodesTotal, 12);
+  assert.strictEqual(out.nextLabel, "Episode 8");
+});
+
+test("aniListStatus: finished has all of them out, a manga counts chapters", () => {
+  assert.deepStrictEqual(
+    (({ airing, episodesOut, episodesTotal }) => ({ airing, episodesOut, episodesTotal }))(aniListStatus({ type: "ANIME", status: "FINISHED", episodes: 24 })),
+    { airing: "finished", episodesOut: 24, episodesTotal: 24 });
+  const manga = aniListStatus({ type: "MANGA", status: "FINISHED", episodes: null, chapters: 120 });
+  assert.strictEqual(manga.episodesTotal, 120);
+  assert.strictEqual(aniListStatus({ type: "MANGA", status: "RELEASING", chapters: null }).episodesTotal, undefined);
+  assert.strictEqual(aniListStatus({ status: "HIATUS" }).airing, "hiatus");
+  assert.strictEqual(aniListStatus({ status: "NOT_YET_RELEASED" }).airing, "upcoming");
+});
+
+test("tmdbAiring: mid-season, between seasons, ended, not started", () => {
+  const seasons = [{ season_number: 0, episode_count: 3 }, { season_number: 1, episode_count: 8 }, { season_number: 2, episode_count: 10 }];
+  assert.deepStrictEqual(tmdbAiring({ status: "Returning Series", seasons,
+    last_episode_to_air: { season_number: 2, episode_number: 7 }, next_episode_to_air: { season_number: 2, episode_number: 8 } }),
+    { airing: "airing", airingSeason: 2, episodesOut: 7, episodesTotal: 10 });
+  assert.deepStrictEqual(tmdbAiring({ status: "Returning Series", seasons,
+    last_episode_to_air: { season_number: 2, episode_number: 10 }, next_episode_to_air: { season_number: 3, episode_number: 1 } }),
+    { airing: "between", airingSeason: 2, episodesOut: 10, episodesTotal: 10 });
+  // Episodes still listed for the season, with no date on the next one.
+  assert.strictEqual(tmdbAiring({ status: "Returning Series", seasons,
+    last_episode_to_air: { season_number: 2, episode_number: 4 }, next_episode_to_air: null }).airing, "airing");
+  assert.deepStrictEqual(tmdbAiring({ status: "Ended", number_of_episodes: 18, last_episode_to_air: { season_number: 2, episode_number: 10 } }),
+    { airing: "finished", episodesOut: 18, episodesTotal: 18 });
+  assert.strictEqual(tmdbAiring({ status: "Canceled" }).airing, "cancelled");
+  assert.deepStrictEqual(tmdbAiring({ status: "In Production", last_episode_to_air: null }), { airing: "upcoming" });
+});
+
+test("jikanAiring reads the free-text status", () => {
+  assert.deepStrictEqual(jikanAiring({ status: "Currently Airing", episodes: 12 }, "anime"), { airing: "airing", episodesTotal: 12 });
+  assert.deepStrictEqual(jikanAiring({ status: "Finished", chapters: 90 }, "manga"), { airing: "finished", episodesTotal: 90, episodesOut: 90 });
+  assert.strictEqual(jikanAiring({ status: "On Hiatus" }, "manga").airing, "hiatus");
+  assert.deepStrictEqual(jikanAiring({ status: "" }, "anime"), {});
+});
+
+test("mergeRelease: a source stating airing replaces the counts and clears a stale next episode", () => {
+  const item = { airing: "airing", episodesOut: 11, episodesTotal: 12, nextAt: "2026-03-03", nextLabel: "Episode 12" };
+  const out = mergeRelease(item, { airing: "finished", episodesOut: 12, episodesTotal: 12, releaseStatus: "released" });
+  assert.strictEqual(out.airing, "finished");
+  assert.strictEqual(out.episodesOut, 12);
+  assert.strictEqual(out.nextAt, undefined);
+  assert.strictEqual(out.nextLabel, undefined);
+  // One that says nothing about airing leaves all of it alone.
+  const kept = mergeRelease(item, { releaseStatus: "released" });
+  assert.strictEqual(kept.nextAt, "2026-03-03");
+  assert.strictEqual(kept.episodesOut, 11);
+  // And a season count it doesn't state goes.
+  assert.strictEqual(mergeRelease({ airingSeason: 2, airing: "airing" }, { airing: "finished" }).airingSeason, undefined);
+});
+
+test("mapAniListListEntry carries the list's status, dates and score", () => {
+  const e = mapAniListListEntry({
+    status: "COMPLETED", score: 4, startedAt: { year: 2026, month: 2, day: 1 }, completedAt: { year: 2026, month: 3, day: null },
+    media: { id: 5, title: { romaji: "Frieren" }, status: "FINISHED", episodes: 28, startDate: { year: 2023 } },
+  }, "ANIME");
+  assert.strictEqual(e.listStatus, "completed");
+  assert.strictEqual(e.startedAt, "2026-02-01");
+  assert.strictEqual(e.completedAt, "");
+  assert.strictEqual(e.score, 4);
+  assert.strictEqual(e.airing, "finished");
+  assert.strictEqual(e.source, "anilist-anime");
+});
+
 console.log(`\n${passed} test(s) passed.`);
   if (process.exitCode) console.log("Some tests FAILED — see above.");
 })();

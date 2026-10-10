@@ -91,6 +91,20 @@
 
   const PRECISION_RANK = { tba: 0, year: 1, quarter: 2, month: 3, day: 4 };
 
+  // How far a show (or a manga) has run, where the source can say (0.265.0).
+  // releaseStatus only answers "can I start it", and a show three episodes
+  // into twelve is as "released" as one that ended years ago. So:
+  //
+  //   airing         upcoming · airing · between · finished · hiatus · cancelled
+  //                  ("between": the last season is out, another is coming)
+  //   episodesOut    how many are out (in airingSeason, for TMDB)
+  //   episodesTotal  how many there will be, when the source knows
+  //   airingSeason   TMDB only: the season those two count
+  //
+  // A manga counts chapters in the same two fields; AniList only knows the
+  // total once it has finished.
+  const AIRING_COUNTS = ["episodesOut", "episodesTotal", "airingSeason"];
+
   // Folds several sources' release info into one set of fields, keeping the
   // most precise date on offer — a Steam wishlist game, for instance, is
   // described by both Steam itself and a RAWG name match, and neither is
@@ -111,6 +125,15 @@
       // flag off an item (see applyItemRelease in sync.js).
       if (typeof s.earlyAccess === "boolean") {
         if (s.earlyAccess) out.earlyAccess = true; else delete out.earlyAccess;
+      }
+      // A source that states how far a show has run (airing, finished…)
+      // states all of it: its counts replace the old ones outright, and no
+      // next episode from it means there isn't one. Without that, a finished
+      // show kept its last "Episode 12 · Mar 3" forever (0.265.0).
+      if (s.airing) {
+        out.airing = s.airing;
+        for (const k of AIRING_COUNTS) { if (s[k]) out[k] = s[k]; else delete out[k]; }
+        if (!s.nextAt) { delete out.nextAt; delete out.nextLabel; }
       }
       if (s.nextAt) { out.nextAt = s.nextAt; if (s.nextLabel) out.nextLabel = s.nextLabel; }
       const rank = PRECISION_RANK[s.releasePrecision];
@@ -350,8 +373,11 @@
         return out;
       }
       // TV status: Returning Series / Planned / In Production / Ended /
-      // Canceled / Pilot. Only "Planned" means nothing has aired yet.
-      if (data.status) out.releaseStatus = data.status === "Planned" ? "upcoming" : "released";
+      // Canceled / Pilot. Whether anything has aired is read off the
+      // episodes rather than the status: "In Production" is used both for a
+      // show yet to start and for one between seasons.
+      Object.assign(out, tmdbAiring(data));
+      if (out.airing) out.releaseStatus = out.airing === "upcoming" ? "upcoming" : "released";
       const next = data.next_episode_to_air;
       if (next && next.air_date) {
         out.nextAt = String(next.air_date).slice(0, 10);
@@ -366,6 +392,29 @@
       out.length = parts.join(" · ");
       return out;
     } catch (e) { return { ...EMPTY_DETAILS }; }
+  }
+
+  // TMDB numbers episodes within a season, so the counts are a season's:
+  // "S3 · 7 of 10" mid-season, "S3 · 10" between seasons. An ended show
+  // counts the whole run instead.
+  function tmdbAiring(data) {
+    const last = data.last_episode_to_air, next = data.next_episode_to_air;
+    if (data.status === "Ended" || data.status === "Canceled") {
+      const out = { airing: data.status === "Ended" ? "finished" : "cancelled" };
+      if (data.number_of_episodes) out.episodesOut = out.episodesTotal = data.number_of_episodes;
+      return out;
+    }
+    if (!last || !last.season_number) return data.status ? { airing: "upcoming" } : {};
+    const season = last.season_number;
+    const listed = (data.seasons || []).find((x) => x.season_number === season);
+    const total = listed && listed.episode_count;
+    // Mid-season is the next episode being in the same season, or the
+    // season still having episodes to come with no date on them yet.
+    const midSeason = next ? next.season_number === season : !!total && total > last.episode_number;
+    const out = { airing: midSeason ? "airing" : "between", airingSeason: season };
+    if (last.episode_number) out.episodesOut = last.episode_number;
+    if (total) out.episodesTotal = total;
+    return out;
   }
 
   async function searchTmdb(title, type, apiKey) {
@@ -427,15 +476,23 @@
   }
 
   // AniList status is FINISHED / RELEASING / NOT_YET_RELEASED / CANCELLED /
-  // HIATUS — only the first of those means "hasn't started". For anything
-  // mid-run, nextAiringEpisode is the date worth listing.
+  // HIATUS — only NOT_YET_RELEASED means "hasn't started". For anything
+  // mid-run, nextAiringEpisode is the date worth listing, and the episode
+  // before it is how many are out.
+  const ANILIST_AIRING = { NOT_YET_RELEASED: "upcoming", RELEASING: "airing", FINISHED: "finished", HIATUS: "hiatus", CANCELLED: "cancelled" };
   function aniListStatus(m) {
     const out = {};
     if (m.status) out.releaseStatus = m.status === "NOT_YET_RELEASED" ? "upcoming" : "released";
+    const airing = ANILIST_AIRING[m.status];
+    if (airing) out.airing = airing;
+    const total = m.type === "MANGA" ? m.chapters : m.episodes;
+    if (total) out.episodesTotal = total;
+    if (airing === "finished" && total) out.episodesOut = total;
     const next = m.nextAiringEpisode;
     if (next && next.airingAt) {
       const at = unixToDateStr(next.airingAt);
       if (at) { out.nextAt = at; out.nextLabel = "Episode " + next.episode; }
+      if (next.episode > 1) out.episodesOut = next.episode - 1;
     }
     return out;
   }
@@ -460,7 +517,7 @@
 
   // The fields every AniList media query asks for. Shared so a discover
   // query can't drift from the search one and hand back a half-filled row.
-  const ANILIST_FIELDS = "id title { romaji english } startDate { year month day } status nextAiringEpisode { airingAt episode } coverImage { medium } description(asHtml: false) averageScore genres";
+  const ANILIST_FIELDS = "id title { romaji english } startDate { year month day } status type episodes chapters nextAiringEpisode { airingAt episode } coverImage { medium } description(asHtml: false) averageScore genres";
 
   function mapAniListResult(m, type) {
     const sd = m.startDate || {};
@@ -478,56 +535,103 @@
     };
   }
 
-  // Pulls a public AniList user's "Planning" (plan-to-watch/plan-to-read)
-  // list for one media type in a single GraphQL request — no auth needed for
-  // public lists, and AniList sends CORS headers, so no proxy is required
-  // (unlike the Steam wishlist). Returns items in the same normalized shape
-  // searchAniList produces (so cover art, rating, genres all wire up the same
-  // way), or null on a hard failure (network, private list, unknown user) so
-  // the caller can tell "empty list" from "couldn't reach it".
-  async function fetchAniListPlanning(userName, type) {
+  // Reads a public AniList user's lists for one media type — no auth needed
+  // for public lists, and AniList sends CORS headers, so no proxy is
+  // required (unlike the Steam wishlist). Items come back in the same
+  // normalized shape searchAniList produces (so cover art, rating, genres all
+  // wire up the same way), or null on a hard failure (network, private list,
+  // unknown user) so the caller can tell "empty list" from "couldn't reach it".
+  //
+  // Planning and Watching (CURRENT) come whole, in one request. Completed is
+  // asked only about `completedIds`, the titles already in your backlog
+  // (0.265.0): the sync uses it to mark those done, and a whole Completed
+  // list can run to hundreds of titles nothing here would use. Each item
+  // carries `listStatus` ("planning", "current", "completed") and, from the
+  // list entry, `startedAt`, `completedAt` (YYYY-MM-DD, when the day is
+  // known) and `score` (1-5, 0 for unscored).
+  const ANILIST_LIST_MEDIA = "id type title { romaji english } coverImage { medium } startDate { year month day } status nextAiringEpisode { airingAt episode } averageScore genres episodes chapters volumes";
+  const ANILIST_LIST_ENTRY = "status score(format: POINT_5) startedAt { year month day } completedAt { year month day } media { " + ANILIST_LIST_MEDIA + " }";
+  const ANILIST_LIST_STATUS = { PLANNING: "planning", CURRENT: "current", COMPLETED: "completed" };
+
+  async function aniListQuery(query, variables) {
+    const res = await fetch("https://graphql.anilist.co", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ query, variables }),
+    });
+    if (!res.ok) { lastError = "AniList request failed (HTTP " + res.status + ")"; return null; }
+    const data = await res.json();
+    if (data.errors && data.errors.length) {
+      lastError = "AniList: " + (data.errors[0].message || "user not found or list is private");
+      return null;
+    }
+    return data.data || null;
+  }
+
+  function fuzzyDay(d) {
+    if (!d || !d.year || !d.month || !d.day) return "";
+    return d.year + "-" + String(d.month).padStart(2, "0") + "-" + String(d.day).padStart(2, "0");
+  }
+
+  function mapAniListListEntry(e, type) {
+    const m = e.media;
+    const sd = m.startDate || {};
+    let length = "";
+    if (type === "ANIME") {
+      length = m.episodes ? m.episodes + (m.episodes === 1 ? " episode" : " episodes") : "";
+    } else {
+      const parts = [];
+      if (m.volumes) parts.push(m.volumes + (m.volumes === 1 ? " volume" : " volumes"));
+      if (m.chapters) parts.push(m.chapters + (m.chapters === 1 ? " chapter" : " chapters"));
+      length = parts.join(" · ");
+    }
+    return {
+      id: String(m.id),
+      title: (m.title && (m.title.english || m.title.romaji)) || "",
+      coverUrl: (m.coverImage && m.coverImage.medium) || "",
+      year: sd.year || null,
+      ...releaseFromParts(sd.year, sd.month, sd.day),
+      ...aniListStatus({ type, ...m }),
+      externalRating: m.averageScore ? m.averageScore + "% AniList" : "",
+      length,
+      genres: normGenres(m.genres),
+      source: type === "MANGA" ? "anilist-manga" : "anilist-anime",
+      listStatus: ANILIST_LIST_STATUS[e.status] || "",
+      startedAt: fuzzyDay(e.startedAt),
+      completedAt: fuzzyDay(e.completedAt),
+      score: Math.round(+e.score || 0),
+    };
+  }
+
+  async function fetchAniListLists(userName, type, completedIds) {
     if (!userName) { lastError = "Enter your AniList username"; return null; }
     try {
-      const query = "query ($userName: String, $type: MediaType) { MediaListCollection(userName: $userName, type: $type, status: PLANNING) { lists { entries { media { id title { romaji english } coverImage { medium } startDate { year month day } status nextAiringEpisode { airingAt episode } averageScore genres episodes chapters volumes } } } } }";
-      const res = await fetch("https://graphql.anilist.co", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Accept: "application/json" },
-        body: JSON.stringify({ query, variables: { userName, type } }),
-      });
-      if (!res.ok) { lastError = "AniList request failed (HTTP " + res.status + ")"; return null; }
-      const data = await res.json();
-      if (data.errors && data.errors.length) {
-        lastError = "AniList: " + (data.errors[0].message || "user not found or list is private");
-        return null;
-      }
-      const lists = (data.data && data.data.MediaListCollection && data.data.MediaListCollection.lists) || [];
+      const query = "query ($userName: String, $type: MediaType) { MediaListCollection(userName: $userName, type: $type, status_in: [PLANNING, CURRENT]) { lists { isCustomList entries { " + ANILIST_LIST_ENTRY + " } } } }";
+      const data = await aniListQuery(query, { userName, type });
+      if (!data) return null;
+      const lists = (data.MediaListCollection && data.MediaListCollection.lists) || [];
       const out = [];
+      const seen = new Set();
+      // A custom list repeats entries that are already on a status list.
       for (const list of lists) {
+        if (list.isCustomList) continue;
         for (const e of list.entries || []) {
-          const m = e.media;
-          if (!m) continue;
-          const sd = m.startDate || {};
-          let length = "";
-          if (type === "ANIME") {
-            length = m.episodes ? m.episodes + (m.episodes === 1 ? " episode" : " episodes") : "";
-          } else {
-            const parts = [];
-            if (m.volumes) parts.push(m.volumes + (m.volumes === 1 ? " volume" : " volumes"));
-            if (m.chapters) parts.push(m.chapters + (m.chapters === 1 ? " chapter" : " chapters"));
-            length = parts.join(" · ");
-          }
-          out.push({
-            id: String(m.id),
-            title: (m.title && (m.title.english || m.title.romaji)) || "",
-            coverUrl: (m.coverImage && m.coverImage.medium) || "",
-            year: sd.year || null,
-            ...releaseFromParts(sd.year, sd.month, sd.day),
-            ...aniListStatus(m),
-            externalRating: m.averageScore ? m.averageScore + "% AniList" : "",
-            length,
-            genres: normGenres(m.genres),
-            source: type === "MANGA" ? "anilist-manga" : "anilist-anime",
-          });
+          if (!e.media || seen.has(e.media.id)) continue;
+          seen.add(e.media.id);
+          out.push(mapAniListListEntry(e, type));
+        }
+      }
+      const ids = [...new Set((completedIds || []).map((x) => parseInt(x, 10)).filter((x) => x > 0))];
+      if (ids.length) {
+        // Its own request, and its failure costs only this half: the lists
+        // above are still worth reviewing without it.
+        const pageQuery = "query ($userName: String, $type: MediaType, $ids: [Int], $page: Int) { Page(page: $page, perPage: 50) { pageInfo { hasNextPage } mediaList(userName: $userName, type: $type, status: COMPLETED, mediaId_in: $ids) { " + ANILIST_LIST_ENTRY + " } } }";
+        for (let page = 1; page <= 10; page++) {
+          const pd = await aniListQuery(pageQuery, { userName, type, ids, page });
+          const p = pd && pd.Page;
+          if (!p) break;
+          for (const e of p.mediaList || []) if (e.media) out.push(mapAniListListEntry(e, type));
+          if (!(p.pageInfo && p.pageInfo.hasNextPage)) break;
         }
       }
       return out;
@@ -579,12 +683,30 @@
       ...(d.status
         ? { releaseStatus: /^(not yet|upcoming)/i.test(d.status) ? "upcoming" : "released" }
         : {}),
+      ...jikanAiring(d, type),
       summary: d.synopsis || "",
       externalRating: d.score ? d.score + " Jikan" : "",
       length,
       genres: normGenres((d.genres || []).map((x) => x.name)),
       source: type === "manga" ? "jikan-manga" : "jikan-anime",
     };
+  }
+
+  // The same free text, as how far it has run. Jikan has no "how many are
+  // out" for something still airing, only the total once it's known.
+  function jikanAiring(d, type) {
+    const st = String(d.status || "");
+    const airing = /^(not yet|upcoming)/i.test(st) ? "upcoming"
+      : /^(currently|publishing)/i.test(st) ? "airing"
+      : /^finished/i.test(st) ? "finished"
+      : /hiatus/i.test(st) ? "hiatus"
+      : /discontinued/i.test(st) ? "cancelled" : "";
+    if (!airing) return {};
+    const out = { airing };
+    const total = type === "manga" ? d.chapters : d.episodes;
+    if (total) out.episodesTotal = total;
+    if (airing === "finished" && total) out.episodesOut = total;
+    return out;
   }
 
   async function searchGoogleBooks(title) {
@@ -880,7 +1002,7 @@
   async function fetchAniListRelease(id) {
     if (!id) return null;
     try {
-      const query = "query ($id: Int) { Media(id: $id) { startDate { year month day } status nextAiringEpisode { airingAt episode } } }";
+      const query = "query ($id: Int) { Media(id: $id) { startDate { year month day } status type episodes chapters nextAiringEpisode { airingAt episode } } }";
       const res = await fetch("https://graphql.anilist.co", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
@@ -1186,9 +1308,9 @@
     async fetchSteamAppDetails(appId, proxyUrl, retries) {
       return fetchSteamAppDetails(appId, proxyUrl, retries);
     },
-    async fetchAniListPlanning(userName, type) {
+    async fetchAniListLists(userName, type, completedIds) {
       lastError = "";
-      return fetchAniListPlanning(userName, type);
+      return fetchAniListLists(userName, type, completedIds);
     },
     getLastError: () => lastError,
     steamCoverUrl,
@@ -1199,6 +1321,10 @@
     releaseFromParts,
     releaseFromSgdb,
     mergeRelease,
+    aniListStatus,
+    tmdbAiring,
+    jikanAiring,
+    mapAniListListEntry,
     normGenres,
     titleKey,
     isTitleMatch,

@@ -207,4 +207,45 @@ test("a game Steam has no last-played time for lands today and says so", () => {
   assert.ok(/didn't say/.test(e.notes));
 });
 
+// ---------- airing and AniList (0.265.0) ----------
+test("needsReleaseRecheck keeps asking about a show until it has finished", () => {
+  const show = (extra) => ({ mediaId: "1", mediaSource: "tmdb-tv", releaseStatus: "released", releaseDate: "2020-01-01", releasePrecision: "day", ...extra });
+  assert.strictEqual(needsReleaseRecheck(show({ airing: "airing" })), true);
+  assert.strictEqual(needsReleaseRecheck(show({ airing: "between" })), true);
+  assert.strictEqual(needsReleaseRecheck(show({})), true, "never asked: asked once");
+  assert.strictEqual(needsReleaseRecheck(show({ airing: "finished" })), false);
+  assert.strictEqual(needsReleaseRecheck(show({ airing: "airing", dropped: true })), false);
+  assert.strictEqual(needsReleaseRecheck({ ...show({}), mediaSource: "tmdb-movie" }), false);
+});
+
+test("applyItemRelease moves the counts along and finishes a show", () => {
+  const item = { airing: "airing", episodesOut: 7, episodesTotal: 12, nextAt: "2026-01-01", nextLabel: "Episode 8" };
+  assert.strictEqual(applyItemRelease(item, { airing: "finished", episodesOut: 12, episodesTotal: 12 }), true);
+  assert.strictEqual(item.airing, "finished");
+  assert.strictEqual(item.episodesOut, 12);
+  assert.strictEqual(item.nextAt, undefined);
+  assert.strictEqual(applyItemRelease(item, { airing: "finished", episodesOut: 12, episodesTotal: 12 }), false, "nothing moved");
+});
+
+{
+  const { aniListBacklogItem, aniListFinishedEntry } = global.window.LifeLogSync;
+  test("a Watching title comes in started, a Planning one doesn't", () => {
+    const m = { id: "9", title: "Dandadan", source: "anilist-anime", airing: "airing", episodesOut: 5, episodesTotal: 12 };
+    const w = aniListBacklogItem({ ...m, listStatus: "current", startedAt: "2026-09-02" }, "Anime");
+    assert.strictEqual(w.startedAt, "2026-09-02");
+    assert.strictEqual(w.episodesOut, 5);
+    assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(aniListBacklogItem({ ...m, listStatus: "current", startedAt: "" }, "Anime").startedAt));
+    assert.strictEqual(aniListBacklogItem({ ...m, listStatus: "planning" }, "Anime").startedAt, undefined);
+  });
+  test("a Completed title becomes its backlog item, done in AniList's month, with your score", () => {
+    const b = { id: "b1", title: "Frieren", category: "Anime", mediaSource: "anilist-anime", mediaId: "5", coverUrl: "c", createdAt: "2026-01-01T00:00:00.000Z", startedAt: "2026-01-20" };
+    const e = aniListFinishedEntry(b, { completedAt: "2026-03-14", score: 5 });
+    assert.deepStrictEqual([e.year, e.month, e.date, e.startYear, e.startMonth, e.rating, e.backlogAddedAt, e.coverUrl],
+      [2026, 3, "2026-03", 2026, 1, 5, "2026-01-01T00:00:00.000Z", "c"]);
+    const same = aniListFinishedEntry({ ...b, startedAt: undefined }, { completedAt: "2026-03-14", startedAt: "2026-03-01", score: 0 });
+    assert.strictEqual(same.startYear, undefined, "one month is no span");
+    assert.strictEqual(same.rating, undefined);
+  });
+}
+
 console.log(`\n${passed} test(s) passed.`);

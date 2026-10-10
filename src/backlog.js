@@ -103,7 +103,8 @@
     // their meta line through this — and the `false` this then returns stops
     // each of them kicking off the lookup that would have filled it in.
     const hasSteamPrice = item.mediaSource === "steam" && !!item.mediaId && !item.bought;
-    if (parts.length || hasSteamPrice || item.bought || item.earlyAccess) {
+    const airing = airingLabel(item);
+    if (parts.length || hasSteamPrice || item.bought || item.earlyAccess || airing) {
       const metaLine = el("span", "bl-meta");
       if (parts.length) metaLine.appendChild(document.createTextNode(parts.join(" · ")));
       const sep = () => (metaLine.childNodes.length ? " · " : "");
@@ -111,6 +112,11 @@
       // can express, so it's marked rather than folded into the plain run.
       if (item.earlyAccess) {
         metaLine.appendChild(el("span", "bl-ea", sep() + "Early Access"));
+      }
+      // How far a show has run: partway marked like Early Access, since it
+      // is the same kind of "out, but not all of it", and done in green.
+      if (airing) {
+        metaLine.appendChild(el("span", "bl-airing" + (airingDone(item) ? " is-done" : ""), sep() + airing));
       }
       if (item.bought) {
         metaLine.appendChild(el("span", "bl-bought", sep() + "Bought"));
@@ -127,6 +133,30 @@
     }
     return hasSteamPrice;
   }
+
+  // ---------- how far a show has run (0.265.0) ----------
+  // The words for the airing fields (see AIRING_COUNTS in media.js). Nothing
+  // for "upcoming": the year or TBA beside it already says that.
+  function airingLabel(b) {
+    const manga = /manga/.test(b.mediaSource || "");
+    const out = +b.episodesOut || 0, total = +b.episodesTotal || 0;
+    const count = out && total ? out + " of " + total : out ? out + " out" : "";
+    const season = b.airingSeason ? "S" + b.airingSeason + " " : "";
+    const withCount = (s) => s + (count ? " · " + count : "");
+    switch (b.airing) {
+      case "airing": return withCount(manga ? "Publishing" : season ? season + "airing" : "Airing");
+      case "between": return (season ? season + "complete" : "Season complete") + " · more coming";
+      case "finished": return "Complete";
+      case "hiatus": return withCount("On hiatus");
+      case "cancelled": return "Cancelled";
+      default: return "";
+    }
+  }
+  // Everything that's coming is out: finished, cancelled, or the season
+  // you'd be watching is whole.
+  const airingDone = (b) => b.airing === "finished" || b.airing === "cancelled" || b.airing === "between";
+  // Started and not finished: sorted with Early Access (see releaseStateOf).
+  const stillAiring = (b) => b.airing === "airing" || b.airing === "hiatus";
 
   // Whether the chips and the search let a backlog item through.
   function passesFilters(b) {
@@ -257,7 +287,8 @@
   const MEDIA_FIELD_IDS = [
     "#bCoverUrl", "#bMediaId", "#bMediaSource", "#bSummary", "#bReleaseYear",
     "#bReleaseDate", "#bReleasePrecision", "#bReleaseStatus", "#bNextAt",
-    "#bNextLabel", "#bEarlyAccess", "#bExternalRating", "#bLength", "#bGenres",
+    "#bNextLabel", "#bEarlyAccess", "#bAiring", "#bEpisodesOut", "#bEpisodesTotal",
+    "#bAiringSeason", "#bExternalRating", "#bLength", "#bGenres",
   ];
   // Which pin, if any, protects each of those fields from being cleared —
   // unsyncing drops the source, but a value you pinned by hand is yours and
@@ -266,6 +297,7 @@
     "#bCoverUrl": "cover", "#bReleaseYear": "release", "#bReleaseDate": "release",
     "#bReleasePrecision": "release", "#bReleaseStatus": "release", "#bNextAt": "release",
     "#bNextLabel": "release", "#bEarlyAccess": "release",
+    "#bAiring": "release", "#bEpisodesOut": "release", "#bEpisodesTotal": "release", "#bAiringSeason": "release",
     "#bExternalRating": "rating", "#bLength": "length",
   };
   function clearMediaFields() {
@@ -304,16 +336,22 @@
   // Writes a merged release object (see media.js's mergeRelease) into the
   // form's hidden fields, blanking whatever it doesn't carry so a re-sync
   // can't leave half of the previous match's dates behind.
+  // Every release field has a hidden input named after it ("#b" + the key
+  // with its first letter raised), which is what lets these two loop.
+  const releaseInput = (key) => $("#b" + key.charAt(0).toUpperCase() + key.slice(1));
   function setReleaseFields(rel) {
-    $("#bReleaseDate").value = (rel && rel.releaseDate) || "";
-    $("#bReleasePrecision").value = (rel && rel.releasePrecision) || "";
-    $("#bReleaseStatus").value = (rel && rel.releaseStatus) || "";
-    $("#bNextAt").value = (rel && rel.nextAt) || "";
-    $("#bNextLabel").value = (rel && rel.nextLabel) || "";
-    // Boolean on the item, a truthy string in the form like every other
-    // hidden field — read back by truthiness, since fillMediaFields copies
-    // the item's own `true` in as "true" rather than through here.
-    $("#bEarlyAccess").value = rel && rel.earlyAccess ? "1" : "";
+    for (const key of RELEASE_FIELDS) {
+      // Boolean on the item, a truthy string in the form like every other
+      // hidden field — read back by truthiness, since fillMediaFields copies
+      // the item's own `true` in as "true" rather than through here.
+      if (key === "earlyAccess") { releaseInput(key).value = rel && rel.earlyAccess ? "1" : ""; continue; }
+      releaseInput(key).value = rel && rel[key] ? String(rel[key]) : "";
+    }
+  }
+  function readReleaseFields() {
+    const out = {};
+    for (const key of RELEASE_FIELDS) out[key] = key === "earlyAccess" ? !!releaseInput(key).value : releaseInput(key).value;
+    return out;
   }
 
   // Title last attached to synced media metadata, so a manual edit (vs. a
@@ -777,10 +815,22 @@
   // The stored counterpart to setReleaseFields: copies the release fields
   // onto an item, deleting rather than blanking the empty ones so items stay
   // free of "" keys (matching how every other optional field is stored).
-  const RELEASE_FIELDS = ["releaseDate", "releasePrecision", "releaseStatus", "nextAt", "nextLabel", "earlyAccess"];
+  // The airing fields (0.265.0, see AIRING_COUNTS in media.js) ride with
+  // the release ones: the same sources fill them, the same re-check keeps
+  // them fresh, and the release pin protects them.
+  const RELEASE_FIELDS = ["releaseDate", "releasePrecision", "releaseStatus", "nextAt", "nextLabel", "earlyAccess",
+    "airing", "episodesOut", "episodesTotal", "airingSeason"];
+  // Counts, stored as numbers; the form carries them as strings.
+  const RELEASE_NUMBERS = new Set(["episodesOut", "episodesTotal", "airingSeason"]);
+  function releaseValue(key, v) {
+    if (key === "earlyAccess") return v ? true : undefined;
+    if (RELEASE_NUMBERS.has(key)) { const n = parseInt(v, 10); return n > 0 ? n : undefined; }
+    return v ? String(v) : undefined;
+  }
   function applyRelease(item, rel) {
     for (const key of RELEASE_FIELDS) {
-      if (rel && rel[key]) item[key] = rel[key]; else delete item[key];
+      const v = releaseValue(key, rel && rel[key]);
+      if (v !== undefined) item[key] = v; else delete item[key];
     }
   }
 
@@ -812,12 +862,23 @@
   //                 which has no release window of its own and so reads as
   //                 released. A source that says "released" outright is taken
   //                 at its word either way.
-  //   early-access  out and playable, but not the finished thing.
+  //   early-access  out and playable, but not the finished thing: a game in
+  //                 Early Access, or a show partway through its run
+  //                 (0.265.0), which you can start but not watch to the end.
   //   ready         out, and what it's going to be.
   function releaseStateOf(b) {
     if (isUnreleased(b)) return "waiting";
     if (b.releaseStatus !== "released" && !releaseWindow(b) && hasUpcomingEpisode(b)) return "waiting";
-    return b.earlyAccess ? "early-access" : "ready";
+    return b.earlyAccess || stillAiring(b) ? "early-access" : "ready";
+  }
+
+  // The Early Access band holds both, so it's named for what's in it: a
+  // category of shows reads "Still airing", one of games "Early Access".
+  function unfinishedLabel(items, short) {
+    const shows = items.filter((b) => !b.earlyAccess && stillAiring(b)).length;
+    if (!shows) return short ? "EA" : "Early Access";
+    if (shows === items.length) return short ? "airing" : "Still airing";
+    return short ? "EA/airing" : "Early Access or airing";
   }
 
   // The day this item is actually waiting on, for sorting and grouping the
@@ -1729,6 +1790,10 @@
       releasePrecision: r.releasePrecision,
       releaseStatus: r.releaseStatus,
       earlyAccess: r.earlyAccess,
+      airing: r.airing,
+      episodesOut: r.episodesOut,
+      episodesTotal: r.episodesTotal,
+      mediaSource: r.source,
       length: r.length,
       summary: r.summary,
     }, { summary: state.visual.backlogSummaries !== "hide" });
@@ -1981,14 +2046,15 @@
     const kept = items.filter((b) => !b.dropped);
     const dropped = items.length - kept.length;
     const pending = kept.filter((b) => releaseStateOf(b) === "waiting").length;
-    const ea = kept.filter((b) => releaseStateOf(b) === "early-access").length;
+    const unfinished = kept.filter((b) => releaseStateOf(b) === "early-access");
+    const ea = unfinished.length;
     const rest = items.length - dropped - pending - ea;
     // "EA" rather than the full words: spelled out, a three-digit count with
     // several asides is long enough to push a category name to "G…" on a
     // phone (the name is what shrinks — see .backlog-section-name). The row
     // badge below says "Early Access" in full, and it reads unambiguously
     // among the others.
-    const asides = [[ea, "EA"], [pending, "unreleased"], [dropped, "dropped"]].filter(([n]) => n);
+    const asides = [[ea, unfinishedLabel(unfinished, true)], [pending, "unreleased"], [dropped, "dropped"]].filter(([n]) => n);
     // Nothing set aside, or a single aside that accounts for the whole
     // category: either way the split would be one number and a parenthesis
     // saying the same thing twice.
@@ -2137,7 +2203,7 @@
             // sharing "sep-3" meant switching the setting reused whichever
             // node was already there and update() quietly did nothing to it.
             parts.push(foldable
-              ? { key: "fold-" + f.band, kind: "fold", band: f.band, label: f.label, n: items.length, open }
+              ? { key: "fold-" + f.band, kind: "fold", band: f.band, label: f.band === 2 ? unfinishedLabel(items) : f.label, n: items.length, open }
               : { key: "sep-" + f.band, kind: "sep", cls: f.cls });
             // Collapsed means not built at all, not hidden: a band you have
             // folded away shouldn't cost a node or a cover request.
@@ -2520,6 +2586,10 @@
         releasePrecision: $("#bReleasePrecision").value,
         releaseStatus: $("#bReleaseStatus").value,
         earlyAccess: !!$("#bEarlyAccess").value,
+        airing: $("#bAiring").value,
+        episodesOut: $("#bEpisodesOut").value,
+        episodesTotal: $("#bEpisodesTotal").value,
+        airingSeason: $("#bAiringSeason").value,
         length: $("#bLength").value,
         mediaSource, mediaId,
         summary: $("#bSummary").value,
@@ -2682,14 +2752,7 @@
     const mediaSource = $("#bMediaSource").value;
     const summary = $("#bSummary").value;
     const releaseYear = $("#bReleaseYear").value;
-    const release = {
-      releaseDate: $("#bReleaseDate").value,
-      releasePrecision: $("#bReleasePrecision").value,
-      releaseStatus: $("#bReleaseStatus").value,
-      nextAt: $("#bNextAt").value,
-      nextLabel: $("#bNextLabel").value,
-      earlyAccess: !!$("#bEarlyAccess").value,
-    };
+    const release = readReleaseFields();
     const externalRating = $("#bExternalRating").value;
     const length = $("#bLength").value;
     const genresStr = $("#bGenres").value;
@@ -2780,12 +2843,12 @@
     if (b.summary) out.summary = b.summary;
     if (b.releaseYear) out.releaseYear = b.releaseYear;
     for (const key of RELEASE_FIELDS) {
-      if (!b[key]) continue;
       // earlyAccess is the one boolean in that set, and String()ing it would
       // store "true" — which still reads as set everywhere, but defeats the
       // `typeof === "boolean"` test mergeRelease uses to tell a source that
-      // stated an answer from one that said nothing.
-      out[key] = key === "earlyAccess" ? true : String(b[key]);
+      // stated an answer from one that said nothing. The counts stay numbers.
+      const v = releaseValue(key, b[key]);
+      if (v !== undefined) out[key] = v;
     }
     if (b.externalRating) out.externalRating = b.externalRating;
     if (b.length) out.length = b.length;
@@ -2873,6 +2936,8 @@
     isUnreleased,
     releaseStateOf,
     isAwaitingRelease,
+    airingLabel,
+    stillAiring,
     upcomingAt,
     // manual release-date overrides (test/backlog.test.js)
     parseReleaseInput,

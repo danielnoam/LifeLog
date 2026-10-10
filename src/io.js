@@ -611,6 +611,14 @@
     };
     add(d.entries, recs("entry"), "entries");
     add(d.backlog, recs("backlog"), "backlog");
+    // An entry that `finishes` a backlog item is that item done (the AniList
+    // sync's Completed, 0.265.0): it leaves the backlog the way Done takes
+    // it off, and Undo puts it back whole.
+    const finishing = new Set(byKind.entry.map((i) => i.finishes).filter(Boolean));
+    if (finishing.size) {
+      undo.removed = { backlog: d.backlog.filter((b) => finishing.has(b.id)) };
+      d.backlog = d.backlog.filter((b) => !finishing.has(b.id));
+    }
     add(d.financeEntries, recs("finance"), "financeEntries");
     add(d.recurringExpenses, recs("recurring"), "recurringExpenses");
     add(d.notes = d.notes || [], recs("note"), "notes");
@@ -639,6 +647,10 @@
     const parts = [];
     const count = (k, one, many) => { const n = byKind[k].length; if (n) parts.push(n + " " + (n === 1 ? one : many)); };
     count("entry", "entry", "entries");
+    if (undo.removed && undo.removed.backlog.length) {
+      const n = undo.removed.backlog.length;
+      parts.push(n + " moved off your backlog");
+    }
     count("achievement", "achievement", "achievements");
     count("backlog", "backlog item", "backlog items");
     count("note", "note", "notes");
@@ -664,6 +676,10 @@
     for (const [name, ids] of Object.entries(undo.added)) {
       const gone = new Set(ids);
       if (Array.isArray(d[name])) d[name] = d[name].filter((x) => !gone.has(x.id));
+    }
+    for (const [name, recs] of Object.entries(undo.removed || {})) {
+      const have = new Set((d[name] || []).map((x) => x.id));
+      for (const r of recs) if (!have.has(r.id)) d[name].push(r);
     }
     for (const a of undo.ach) {
       const list = (d.accomplishments || {})[a.year];
@@ -919,6 +935,7 @@
       row.appendChild(el("span", "fdate", `${MONTHS_SHORT[e.month]} ${e.year}`));
       const t = el("span", "etitle", e.title); t.title = e.title; row.appendChild(t);
       row.appendChild(el("span", "ecat", e.category));
+      if (item.finishes) row.appendChild(el("span", "dup-tag", "done, leaves backlog"));
     } else if (item.kind === "note" || item.kind === "todo" || item.kind === "habit" || item.kind === "achievement" || item.kind === "board") {
       const date = item.kind === "note" ? (e.createdAt || "").slice(0, 10)
         : item.kind === "board" ? (e.updatedAt || "").slice(0, 10)
@@ -935,7 +952,7 @@
       row.appendChild(el("span", "fdate", "—"));
       const t = el("span", "etitle", e.title); t.title = e.title; row.appendChild(t);
       row.appendChild(el("span", "ecat", e.category));
-      row.appendChild(el("span", "dup-tag", "backlog"));
+      row.appendChild(el("span", "dup-tag", e.startedAt ? "in progress" : "backlog"));
     }
     // An update says what it would actually do, rather than "already added":
     // that phrase is true of the item and useless about the change.

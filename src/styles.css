@@ -1266,6 +1266,8 @@ select:focus { outline: none; border-color: var(--accent); }
    as its own fact next to the star's gold. */
 .bl-bought { font-size: var(--fs-2xs); color: var(--success); flex-shrink: 0; white-space: nowrap; }
 .bl-ea { font-size: var(--fs-2xs); color: var(--warning); flex-shrink: 0; white-space: nowrap; }
+.bl-airing { font-size: var(--fs-2xs); color: var(--warning); flex-shrink: 0; white-space: nowrap; }
+.bl-airing.is-done { color: var(--success); }
 /* The Timeline's In progress card (0.218.0): a year block's heading over
    one card of rows, each the title with how long it's been going, a ↩ to put
    it back and a ✓ Done to log it. */

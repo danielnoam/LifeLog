@@ -54,6 +54,7 @@ because something shipped broken that no unit test could have caught:
 | `nativehttp` | Steam, SteamGridDB and GG.deals from the app with no proxy: each route reaches the address the worker would, headers and query intact, nothing else relayed, and a browser's proxy untouched |
 | `projadd` | the project pill's + opens the form already on that project |
 | `tabmenu` | the desktop tab menu: no flash while crossing the bar, open under the pointer from menu back to tab, swapped along the bar; a tab's number again stepping through its modes |
+| `anilist` | a show's airing state on its row and in the Still airing band (folding); the AniList sync bringing in Planning, starting Watching, moving Completed off the backlog with Undo; the re-check finishing an ended show |
 
 ## Writing one
 

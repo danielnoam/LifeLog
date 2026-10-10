@@ -16,6 +16,54 @@ what was decided against and why.
 
 ---
 
+- **Airing state, the Still airing band and AniList's three lists
+  (0.265.0).** Daniel wanted to see whether a show is fully out or only
+  partly aired.
+  - *Why new fields rather than releaseStatus:* releaseStatus answers "can
+    I start it", and a show three episodes into twelve is as "released" as
+    one that ended. `airing` (upcoming/airing/between/finished/hiatus/
+    cancelled) plus `episodesOut`/`episodesTotal`/`airingSeason` ride in
+    RELEASE_FIELDS, so the release pin, the re-check, the modal's hidden
+    inputs (setReleaseFields/readReleaseFields loop over the list now) and
+    the sanitizer all carry them. The counts are numbers, the only
+    non-string release fields besides earlyAccess (releaseValue).
+  - *TMDB counts a season, AniList a whole entry.* TMDB numbers episodes
+    within a season, so mid-season is "S3 · 7 of 10"; AniList makes each
+    season its own entry, so it never needs airingSeason. "between" (the
+    last season is whole, another is coming) is TMDB-only and counts as
+    fully out. Whether a TMDB show has started is read off
+    last_episode_to_air, not the status: "In Production" covers both a show
+    yet to air and one between seasons, and it used to read as released.
+  - *A source that states airing states all of it* (mergeRelease): its
+    counts replace the old ones and no next episode from it clears nextAt.
+    That's the fix for a finished show keeping "Episode 12 · Mar 3".
+  - *Re-checked until finished* (airingUnsettled in sync.js), not only while
+    a next episode is dated; an item with no airing yet is asked once. The
+    count on Settings → Release dates went up by every show you have the
+    first time, which is expected.
+  - *A band, not a toggle.* The first version put "Hide still airing" in the
+    List bar; on a 375px phone it pushed the sort onto a second line. Mid-run
+    shows are what Early Access is for games (out, not the finished thing),
+    so releaseStateOf puts them in that band, the fold bar and the count
+    aside are named for what's inside (unfinishedLabel), and the existing
+    fold setting is the hide.
+  - *AniList: Completed is asked only about the backlog.* fetchAniListLists
+    reads Planning and Current whole (MediaListCollection, status_in) and
+    Completed through Page.mediaList with mediaId_in = the backlog's AniList
+    ids, since a whole Completed list can be hundreds of titles nothing
+    uses. Custom lists repeat status-list entries and are skipped.
+  - *A Completed row is an entry that `finishes` a backlog item.*
+    applyImportSelection removes that item when the entry lands and keeps
+    it whole in `undo.removed`, so Undo puts it back. Only on a non-duplicate
+    entry row: if you already logged it that month, the backlog item stays.
+    A Watching title you have and haven't started becomes an update row
+    filling `startedAt`, built in buildAniList rather than added to
+    IMPORT_FILLABLE: there it would have made every unstarted item
+    "incomplete" for the bulk sync and the Steam fetch.
+  - Neither API was reachable from the build machine, so the queries were
+    written from AniList's and TMDB's schemas and tested against faked
+    responses (test/browser/anilist.js); the first real sync is the check.
+
 - **The tab menu waits, and is the tab's child for a reason (0.264.2).**
   Daniel saw the desktop menus "appear and disappear" over the top bar.
   Two causes, both reproduced in test/browser/tabmenu.js. The menu had its

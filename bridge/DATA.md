@@ -60,6 +60,13 @@ Things to play, read, watch or do next.
 - Release dates, from lookups: `releaseDate`, `releasePrecision` (how exact
   the date is), `releaseStatus`, `nextAt` and `nextLabel` (the next episode
   or part), `earlyAccess` (true for a game in early access).
+- How far a show or manga has run, from TMDB, AniList or Jikan: `airing`
+  (`upcoming`, `airing`, `between` = this season is out and another is
+  coming, `finished`, `hiatus`, `cancelled`), `episodesOut` and
+  `episodesTotal` (numbers; chapters for a manga; the total only when the
+  source knows it), `airingSeason` (TMDB only: the season those two count).
+  A show is "fully out" when `airing` is `finished`, `cancelled` or
+  `between`.
 - `overrides`: values the user set by hand over a lookup's (`release`,
   `cover`, `rating`, `length`).
 

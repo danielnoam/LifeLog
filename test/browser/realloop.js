@@ -53,7 +53,7 @@ const STUB = () => {
   };
   M.mergeRelease = () => ({ releaseYear: 2021 });
   M.resolveSteamAppId = async () => null;
-  M.fetchAniListPlanning = async () => [];
+  M.fetchAniListLists = async () => [];
 };
 
 (async () => {

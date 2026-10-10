@@ -1,5 +1,5 @@
 // LifeLog — external wishlist/planning-list sync: the Steam wishlist and
-// AniList Planning imports, which both follow the same shape (fetch an
+// AniList list imports, which both follow the same shape (fetch an
 // external list, dedupe against the backlog/Journal, route through the
 // shared review picker, plus a quiet background auto-check) so they share
 // one module rather than each getting a thin file of their own. Also holds
@@ -292,9 +292,14 @@
         if (!raw.length) { const m = source.empty(ctx); toast(m); job.finish(m); return; }
         // A source makes backlog items unless it says "entry" (the Steam
         // backfill, 0.253.0: things you have played are things you did).
+        // A source that makes more than one kind builds its own rows
+        // (AniList, 0.265.0: backlog items, and timeline entries for what
+        // you've finished).
         const kind = source.kind || "backlog";
-        const mapped = raw.map((r) => source.toItem(r, ctx));
-        const built = buildImportItems(kind === "entry" ? { entries: mapped, categories: [] } : { backlog: mapped, categories: [] });
+        const built = source.build ? source.build(raw, ctx) : (() => {
+          const mapped = raw.map((r) => source.toItem(r, ctx));
+          return buildImportItems(kind === "entry" ? { entries: mapped, categories: [] } : { backlog: mapped, categories: [] });
+        })();
         if (!built.items.length) { const m = kind === "entry" ? "Nothing new — every game is already logged" : "Nothing new — everything is already in your backlog"; toast(m); job.finish(m); return; }
         // Which new rows start ticked: the review's default is every new
         // one, and a source with a lot of noise in it says otherwise.
@@ -474,13 +479,119 @@
   };
   const syncSteamOwned = () => runImport(steamOwnedSource);
 
-  // ---------- AniList planning ----------
+  // ---------- AniList ----------
+  // Three lists, one review (0.265.0). Planning comes in as backlog items,
+  // as it always has. Watching comes in as backlog items already in
+  // progress, or starts the one you already have. Completed is asked only
+  // about what's in your backlog, and moves each one to the timeline the way
+  // Done does, in the month AniList says you finished it, with your score.
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const today = () => { const d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); };
+  const ANILIST_SOURCE = { ANIME: "anilist-anime", MANGA: "anilist-manga" };
+
+  function anilistPulls(cfg) {
+    const pulls = [];
+    if (cfg.animeCategory) pulls.push(["ANIME", cfg.animeCategory]);
+    if (cfg.mangaCategory) pulls.push(["MANGA", cfg.mangaCategory]);
+    return pulls;
+  }
+
+  // Raw records for every type with a category, or null when every type
+  // failed (one failing still hands over the other).
+  async function fetchAniList(ctx, report, job) {
+    const pulls = anilistPulls(ctx);
+    let failed = false;
+    const out = [];
+    for (let i = 0; i < pulls.length && !job.stopping; i++) {
+      const [type, category] = pulls[i];
+      if (report) report(i, pulls.length, type === "ANIME" ? "Reading your anime lists…" : "Reading your manga lists…");
+      const source = ANILIST_SOURCE[type];
+      const completedIds = state.data.backlog.filter((b) => b.mediaSource === source && b.mediaId).map((b) => b.mediaId);
+      // null is a hard failure (network, private list, unknown user), kept
+      // distinct from an empty-but-reachable list.
+      const media = await window.LifeLogMedia.fetchAniListLists(ctx.userName, type, completedIds);
+      if (media === null) { failed = true; continue; }
+      for (const m of media) out.push({ m, category });
+      if (report) report(i + 1, pulls.length);
+    }
+    return !out.length && failed ? null : out;
+  }
+
+  function aniListBacklogItem(m, category) {
+    return {
+      title: m.title || "",
+      category,
+      mediaSource: m.source,
+      mediaId: m.id,
+      coverUrl: m.coverUrl || "",
+      unresolved: !m.title,
+      ...(m.externalRating ? { externalRating: m.externalRating } : {}),
+      ...(m.length ? { length: m.length } : {}),
+      ...(m.year ? { releaseYear: m.year } : {}),
+      ...mergeRelease(m),
+      ...(m.genres && m.genres.length ? { genres: m.genres } : {}),
+      ...(m.listStatus === "current" ? { startedAt: m.startedAt || today() } : {}),
+    };
+  }
+
+  // The timeline entry a Completed title becomes: the backlog item's own
+  // title, category and media, filed under the month AniList has it
+  // finished (this month when it has no date), spanning back to when it was
+  // started, rated with your AniList score.
+  function aniListFinishedEntry(b, m) {
+    const done = /^\d{4}-\d{2}-\d{2}$/.test(m.completedAt || "") ? m.completedAt : today();
+    const year = +done.slice(0, 4), month = +done.slice(5, 7);
+    const e = { title: b.title, category: b.category, year, month, date: year + "-" + pad2(month), backlogAddedAt: b.createdAt || null };
+    for (const k of ["coverUrl", "mediaId", "mediaSource", "length", "genres"]) if (b[k]) e[k] = b[k];
+    const started = /^\d{4}-\d{2}-\d{2}$/.test(b.startedAt || "") ? b.startedAt : (m.startedAt || "");
+    if (started && started <= done) {
+      e.startedAt = started;
+      const sy = +started.slice(0, 4), sm = +started.slice(5, 7);
+      if (sy * 12 + sm < year * 12 + month) { e.startYear = sy; e.startMonth = sm; }
+    }
+    if (m.score >= 1) e.rating = Math.min(5, m.score);
+    return e;
+  }
+
+  // Raw records to review rows. Rows that finish a backlog item carry its id
+  // as `finishes` (io.js moves it off the backlog when the row is imported);
+  // a Watching title you already have, not started here, becomes an update
+  // that fills in the day it was started.
+  function buildAniList(raw) {
+    const byMedia = new Map(state.data.backlog.filter((b) => b.mediaSource && b.mediaId)
+      .map((b) => [b.mediaSource + ":" + b.mediaId, b]));
+    const backlog = [], entries = [], finishes = new Map();
+    for (const { m, category } of raw) {
+      const key = m.source + ":" + m.id;
+      if (m.listStatus === "completed") {
+        const b = byMedia.get(key);
+        if (!b) continue;
+        entries.push(aniListFinishedEntry(b, m));
+        finishes.set(key, b.id);
+      } else if (m.listStatus === "planning" || m.listStatus === "current") {
+        backlog.push(aniListBacklogItem(m, category));
+      }
+    }
+    const built = buildImportItems({ backlog, entries, categories: [] });
+    for (const it of built.items) {
+      const key = (it.entry.mediaSource || "") + ":" + (it.entry.mediaId || "");
+      if (it.kind === "entry") { if (finishes.has(key) && !it.dup) it.finishes = finishes.get(key); continue; }
+      if (it.kind !== "backlog" || !it.dup || !it.entry.startedAt) continue;
+      const target = byMedia.get(key);
+      if (!target || target.startedAt || target.dropped) continue;
+      if (it.update && (it.targetKind !== "backlog" || it.targetId !== target.id)) continue;
+      const fills = (it.update ? it.fills : []).concat({ key: "startedAt", label: "started" });
+      Object.assign(it, { update: true, targetId: target.id, targetKind: "backlog", fills, checked: true });
+    }
+    return built;
+  }
+
   const anilistSource = {
     id: "anilistSyncBtn",
-    label: "AniList Planning",
+    label: "AniList",
     lane: "anilist",
     skipKey: "anilist",
-    hint: "Review which plan-to-watch/read titles to add. Anything already in your backlog or timeline is marked — if this sync can fill in a cover, rating or release date it doesn't have, that row says so and is ticked.",
+    hint: "Review what to bring in from your Planning and Watching lists, and which backlog titles you've completed there (those move to your timeline). Anything you already have is marked; if this sync can fill in something it's missing, that row says so and is ticked.",
     plan() {
       const cfg = state.data.settings.anilist || DEFAULT_SETTINGS.anilist;
       const userName = (cfg.userName || "").trim();
@@ -492,44 +603,15 @@
       return { ctx: { userName, animeCategory, mangaCategory } };
     },
     async fetch(ctx, report, job) {
-      const pulls = [];
-      if (ctx.animeCategory) pulls.push(["ANIME", ctx.animeCategory]);
-      if (ctx.mangaCategory) pulls.push(["MANGA", ctx.mangaCategory]);
-      let failed = false;
-      const out = [];
-      for (let i = 0; i < pulls.length && !job.stopping; i++) {
-        const [type, category] = pulls[i];
-        report(i, pulls.length, type === "ANIME" ? "Reading your anime list…" : "Reading your manga list…");
-        // null is a hard failure (network, private list, unknown user), kept
-        // distinct from an empty-but-reachable list.
-        const media = await window.LifeLogMedia.fetchAniListPlanning(ctx.userName, type);
-        if (media === null) { failed = true; continue; }
-        for (const m of media) out.push({ m, category });
-        report(i + 1, pulls.length);
-      }
-      if (!out.length && failed) {
+      const out = await fetchAniList(ctx, report, job);
+      if (out === null) {
         const err = window.LifeLogMedia.getLastError();
         toast(err ? "AniList sync failed — " + err : "AniList sync failed", true);
-        return null;
       }
       return out;
     },
-    toItem({ m, category }) {
-      return {
-        title: m.title || "",
-        category,
-        mediaSource: m.source,
-        mediaId: m.id,
-        coverUrl: m.coverUrl || "",
-        unresolved: !m.title,
-        ...(m.externalRating ? { externalRating: m.externalRating } : {}),
-        ...(m.length ? { length: m.length } : {}),
-        ...(m.year ? { releaseYear: m.year } : {}),
-        ...mergeRelease(m),
-        ...(m.genres && m.genres.length ? { genres: m.genres } : {}),
-      };
-    },
-    empty: () => "Planning list came back empty — check the username, and that your list is public",
+    build: buildAniList,
+    empty: () => "Your AniList lists came back empty — check the username, and that your lists are public",
   };
 
   const syncSteamWishlist = () => runImport(steamWishlistSource);
@@ -776,11 +858,21 @@
   // Steam drops the marker at 1.0 and nothing else would notice. They're
   // included here rather than in isAwaitingRelease itself, which drives the
   // Next Releases list — an EA game has no 1.0 date to list.
+  //
+  // A show is re-asked until it has finished (0.265.0), not only while it
+  // has a next episode on the calendar: that's what moves "airing · 7 of 12"
+  // along and, at the end, turns it into "Complete". One with no airing
+  // state yet (synced before 0.265.0) is asked once to get one.
+  const AIRING_SOURCES = new Set(["tmdb-tv", "anilist-anime", "anilist-manga"]);
+  function airingUnsettled(b) {
+    return AIRING_SOURCES.has(b.mediaSource) && !b.dropped
+      && b.airing !== "finished" && b.airing !== "cancelled";
+  }
   function needsReleaseRecheck(b) {
     const Backlog = window.LifeLogBacklog;
     if (!Backlog) return false;
     return !!b.mediaId && !!b.mediaSource && !isOverridden(b, "release")
-      && (Backlog.isAwaitingRelease(b) || !!b.earlyAccess);
+      && (Backlog.isAwaitingRelease(b) || !!b.earlyAccess || airingUnsettled(b));
   }
 
   // One item's fresh release info, or null if its source can't be re-asked
@@ -807,11 +899,12 @@
     // earlyAccess rides along in that merge: Steam stating the game has left
     // Early Access drops the key, and the loop below turns a dropped key
     // into a deleted field — so the flag clears itself at 1.0.
-    const keys = ["releaseDate", "releasePrecision", "releaseStatus", "nextAt", "nextLabel", "earlyAccess"];
+    const keys = ["releaseDate", "releasePrecision", "releaseStatus", "nextAt", "nextLabel", "earlyAccess",
+      "airing", "episodesOut", "episodesTotal", "airingSeason"];
     let changed = false;
     for (const k of keys) {
       const next = merged[k] || "";
-      if ((item[k] || "") === next) continue;
+      if (String(item[k] || "") === String(next)) continue;
       changed = true;
       if (next) item[k] = next; else delete item[k];
     }
@@ -869,7 +962,7 @@
     if (!btn) return;
     const count = backlogAwaitingRelease().length;
     btn.disabled = !count;
-    window.LifeLogIcons.setLabel(btn, "telescope", count ? `Re-check upcoming release dates (${count})` : "Re-check upcoming release dates");
+    window.LifeLogIcons.setLabel(btn, "telescope", count ? `Re-check release dates (${count})` : "Re-check release dates");
   }
 
   function markReleasesChecked() {
@@ -926,55 +1019,32 @@
   // it up with no extra work.
   // The AniList equivalent of maybeAutoCheckSteamWishlist, paced by Settings →
   // Media → AniList "Check automatically" (days between checks; 0 = never).
-  // Fetches the Planning list(s) for whichever type(s) have a category chosen
-  // and just counts how many titles aren't already in the backlog/Journal,
-  // toasting that count — it never opens the review picker or adds anything on
-  // its own. Uses the same source+id / title+category dedup the import does, so
-  // an item renamed locally after an earlier import doesn't count as new again.
-  // Cheaper than the Steam check (one GraphQL request per type, no per-item
-  // title lookups), but still runs unattended, so failures stay silent.
+  // Fetches the AniList lists for whichever type(s) have a category chosen
+  // and counts what the sync would offer — new titles, titles to start,
+  // backlog titles you've completed there — toasting that count. It never
+  // opens the review picker or changes anything on its own. Counted off the
+  // same rows the sync builds, skips included, so the number is the number
+  // you'd get. Runs unattended, so failures stay silent.
   async function maybeAutoCheckAniList() {
     const cfg = state.data.settings.anilist || DEFAULT_SETTINGS.anilist;
     const days = parseInt(cfg.autoSyncDays, 10) || 0;
     if (!days) return;
     const userName = (cfg.userName || "").trim();
-    const animeCategory = cfg.animeCategory || "";
-    const mangaCategory = cfg.mangaCategory || "";
-    if (!userName || (!animeCategory && !mangaCategory)) return;
+    if (!userName || !anilistPulls(cfg).length) return;
     if (!window.LifeLogMedia) return;
     let last = null;
     try { last = JSON.parse(localStorage.getItem(ANILIST_SYNC_KEY)); } catch (e) {}
     const lastAt = (last && last.lastCheckedAt) ? new Date(last.lastCheckedAt).getTime() : 0;
     if (Date.now() - lastAt < days * 24 * 60 * 60 * 1000) return;
     try {
-      await window.LifeLogJobs.run({ label: "Checking your AniList planning list", lane: "anilist" }, async (job) => {
-        const existingMediaIds = new Set(
-          [...state.data.backlog, ...state.data.entries]
-            .filter((x) => x.mediaSource && x.mediaId)
-            .map((x) => x.mediaSource + ":" + x.mediaId)
-        );
-        const titleCatKey = (t, c) => `${(t || "").toLowerCase()}|${(c || "").toLowerCase()}`;
-        const existingTitleKeys = new Set(
-          [...state.data.backlog, ...state.data.entries].map((x) => titleCatKey(x.title, x.category))
-        );
-        const pulls = [];
-        if (animeCategory) pulls.push(["ANIME", animeCategory]);
-        if (mangaCategory) pulls.push(["MANGA", mangaCategory]);
-        let newCount = 0;
-        for (const [type, category] of pulls) {
-          if (job.stopping) break;
-          const media = await window.LifeLogMedia.fetchAniListPlanning(userName, type);
-          if (media === null) continue; // hard failure on this type — skip, stay quiet
-          for (const m of media) {
-            if (existingMediaIds.has(m.source + ":" + m.id)) continue;
-            if (existingTitleKeys.has(titleCatKey(m.title, category))) continue;
-            newCount++;
-          }
-        }
-        if (newCount > 0) {
-          toast(`${newCount} new AniList planning title${newCount === 1 ? "" : "s"} — Settings → Imports to sync`);
-        }
-        job.finish(newCount ? `${newCount} new on your planning list` : "Nothing new on your planning list");
+      await window.LifeLogJobs.run({ label: "Checking your AniList lists", lane: "anilist" }, async (job) => {
+        const raw = await fetchAniList({ userName, animeCategory: cfg.animeCategory, mangaCategory: cfg.mangaCategory }, null, job);
+        if (!raw || !raw.length) { job.finish("Nothing new on your lists"); return; }
+        const skips = new Set(((state.data.settings.importSkips || {}).anilist) || []);
+        const n = buildAniList(raw).items.filter((it) => (!it.dup || it.update)
+          && !skips.has((it.entry.mediaSource || "") + ":" + (it.entry.mediaId || ""))).length;
+        if (n > 0) toast(`${n} AniList change${n === 1 ? "" : "s"} to review — Settings → Imports to sync`);
+        job.finish(n ? `${n} to review` : "Nothing new on your lists");
       });
     } catch (e) {
       // quiet — this is an unattended background check, not a user action
@@ -999,6 +1069,7 @@
     needsReleaseRecheck,
     applyItemRelease,
     ownedToEntry, syncSteamOwned,
+    aniListBacklogItem, aniListFinishedEntry, buildAniList,
     isUnresolvedSteamItem,
     steamGameNeedsInfo,
     steamGameNeedsRawgInfo,

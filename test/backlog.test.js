@@ -510,5 +510,28 @@ test("an item in progress keeps the day it was started, and only a real day", ()
   assert.strictEqual(sanitizeBacklog({ title: "C" }).startedAt, undefined);
 });
 
+// ---------- airing (0.265.0) ----------
+test("sanitizeBacklog keeps the airing fields, counts as numbers", () => {
+  const out = sanitizeBacklog({ title: "Show", category: "TV", airing: "airing", episodesOut: "7", episodesTotal: 12, airingSeason: "3" });
+  assert.strictEqual(out.airing, "airing");
+  assert.strictEqual(out.episodesOut, 7);
+  assert.strictEqual(out.episodesTotal, 12);
+  assert.strictEqual(out.airingSeason, 3);
+  assert.strictEqual(sanitizeBacklog({ title: "x", episodesOut: "abc" }).episodesOut, undefined);
+});
+
+test("airingLabel says how far it has run", () => {
+  const { airingLabel, stillAiring } = Backlog;
+  assert.strictEqual(airingLabel({ airing: "airing", episodesOut: 7, episodesTotal: 12 }), "Airing · 7 of 12");
+  assert.strictEqual(airingLabel({ airing: "airing", airingSeason: 3, episodesOut: 4 }), "S3 airing · 4 out");
+  assert.strictEqual(airingLabel({ airing: "airing", mediaSource: "anilist-manga" }), "Publishing");
+  assert.strictEqual(airingLabel({ airing: "between", airingSeason: 2 }), "S2 complete · more coming");
+  assert.strictEqual(airingLabel({ airing: "finished", episodesOut: 24, episodesTotal: 24 }), "Complete");
+  assert.strictEqual(airingLabel({ airing: "upcoming" }), "");
+  assert.strictEqual(airingLabel({}), "");
+  assert.strictEqual(stillAiring({ airing: "airing" }), true);
+  assert.strictEqual(stillAiring({ airing: "between" }), false);
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");
