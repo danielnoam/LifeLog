@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.264.2] - 2026-10-10
+
+### Changed
+- **A tab's number again steps through its modes.** On the Backlog, press
+  its number once to go there and again for Next releases, Discover and back
+  round, the same as clicking the tab again.
+
+### Fixed
+- **The tab menus on a computer no longer flicker.** Moving the pointer
+  across the top bar doesn't pop a menu out of every tab it passes, and a
+  menu stays open when you move from it back up onto its tab.
+
 ## [0.264.1] - 2026-10-10
 
 ### Changed

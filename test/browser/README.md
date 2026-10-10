@@ -53,6 +53,7 @@ because something shipped broken that no unit test could have caught:
 | `activity` | Activity and background work: a pass shows in the pill and the sheet with its progress, a second pass on the same site waits its turn, Stop keeps what was done, a failure stays up until seen, Settings → Activity, the desktop header button, and in a faked phone app the hold/release calls, the notification's Stop and tap; a pass the app was closed on offered again (Run again, ✕), with what it did saved every 5 |
 | `nativehttp` | Steam, SteamGridDB and GG.deals from the app with no proxy: each route reaches the address the worker would, headers and query intact, nothing else relayed, and a browser's proxy untouched |
 | `projadd` | the project pill's + opens the form already on that project |
+| `tabmenu` | the desktop tab menu: no flash while crossing the bar, open under the pointer from menu back to tab, swapped along the bar; a tab's number again stepping through its modes |
 
 ## Writing one
 

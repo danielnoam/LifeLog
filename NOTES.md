@@ -16,6 +16,19 @@ what was decided against and why.
 
 ---
 
+- **The tab menu waits, and is the tab's child for a reason (0.264.2).**
+  Daniel saw the desktop menus "appear and disappear" over the top bar.
+  Two causes, both reproduced in test/browser/tabmenu.js. The menu had its
+  own pointerenter/pointerleave; moving from it back up into its tab fired
+  the menu's leave and nothing re-entered (the tab was never left, since the
+  menu is its descendant), so it closed under a pointer still on the tab.
+  The tab's own pair covers the menu, so the menu's were removed. And every
+  tab the pointer crossed on its way to the page dropped its menu for a
+  frame: the first menu now waits TAB_MENU_DELAY (200ms) for the pointer to
+  settle, while moving along the bar with one open swaps it at once.
+  A tab's number pressed on that tab calls stepMode(), the same wrap-around
+  as clicking the tab at the top; Shift+number still jumps to the other mode.
+
 - **A poll lists the folder before it reads the file (0.264.0).**
   `checkRemote` used to be a full `ghGetFile`: the whole lifelog.json (two
   requests past 1MB, the metadata then the blob), parsed, only to compare
