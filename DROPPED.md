@@ -13,6 +13,13 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## "On this day"
+
+Suggested on 2026-10-10: a card at the top of the Timeline showing what was
+logged on today's date in earlier years. Daniel said he doesn't need it.
+The data is all there, so if he ever starts scrolling back through old
+years, it's a small read-only feature with no schema change.
+
 ## A Ledger project per trip
 
 Each trip linked to a Ledger project, so its spending would add up under
