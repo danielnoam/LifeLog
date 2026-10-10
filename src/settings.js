@@ -547,11 +547,33 @@
     more.hidden = shown.length === changelog.length;
   }
 
+  // Settings → About → Errors on this device (src/errlog.js). The newest
+  // ten here; Copy all carries every one kept, stack lines included.
+  const ERRLOG_SHOWN = 10;
+  function renderErrLog() {
+    const all = window.LifeLogErrors ? window.LifeLogErrors.list() : [];
+    const box = $("#errLogList");
+    box.textContent = "";
+    $("#errLogHint").textContent = all.length
+      ? (all.length === 1 ? "One error" : all.length + " errors") + " recorded here, newest first. Copy them into a bug report or a chat with Claude."
+      : "None recorded. If something breaks, what went wrong shows up here.";
+    box.hidden = $("#errLogActions").hidden = !all.length;
+    all.slice(-ERRLOG_SHOWN).reverse().forEach((x) => {
+      const row = el("div", "sitem");
+      const text = row.appendChild(el("span", "sitem-text"));
+      text.appendChild(el("span", "sitem-title", x.msg));
+      const when = new Date(x.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+      text.appendChild(el("span", "sitem-sub", [when, x.v && "v" + x.v, x.n > 1 && x.n + " times"].filter(Boolean).join(" · ")));
+      box.appendChild(row);
+    });
+  }
+
   function showPage(name) {
     if (name === "about") {
       const P = window.LifeLogPlatform;
       $("#aboutVersion").textContent = "Version " + APP_VERSION + " · " + (P.android ? "Android app" : P.ios ? "iOS app" : "Web app");
       renderChangelog(false);
+      renderErrLog();
     }
     const was = currentPage;
     currentPage = name || "";
@@ -591,7 +613,10 @@
   function statusOf(page) {
     const set = state.data.settings || {};
     switch (page) {
-      case "about": return { text: "Version " + APP_VERSION + " · what's new, credits" };
+      case "about": {
+        const n = window.LifeLogErrors ? window.LifeLogErrors.list().length : 0;
+        return { text: "Version " + APP_VERSION + (n ? " · " + (n === 1 ? "1 error" : n + " errors") + " recorded" : " · what's new, credits") };
+      }
       case "sync": {
         const gi = Storage.githubInfo;
         const file = Storage.fileName && !Storage.needsReconnect;
@@ -1500,6 +1525,19 @@
     $("#historyRefreshBtn").onclick = updateHistoryPanel;
     $("#ghPollInterval").onchange = onPollIntervalChange;
     $("#ghSetupLink").onclick = (e) => e.target.select();
+    $("#errLogCopyBtn").onclick = async () => {
+      try { await navigator.clipboard.writeText(window.LifeLogErrors.asText()); toast("Errors copied"); }
+      catch (e) { toast("Couldn't copy — your browser blocked the clipboard", true); }
+    };
+    $("#errLogClearBtn").onclick = () => {
+      const kept = window.LifeLogErrors.list();
+      window.LifeLogErrors.clear();
+      renderErrLog();
+      toast("Errors cleared", false, { label: "Undo", onClick: () => {
+        window.LifeLogErrors.restore(kept);
+        renderErrLog();
+      } });
+    };
     $("#ghCopyLinkBtn").onclick = async () => {
       const v = $("#ghSetupLink").value;
       try { await navigator.clipboard.writeText(v); toast("Setup link copied"); }

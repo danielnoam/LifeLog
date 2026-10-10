@@ -2276,6 +2276,7 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 .sitem-title { font-size: var(--fs-md); font-weight: 550; color: var(--text); }
 .sitem-sub { font-size: var(--fs-xs); line-height: 1.4; color: var(--text-dim); }
 .sitem-sub:empty { display: none; }
+#errLogList .sitem-title { overflow-wrap: anywhere; }
 .sitem-sub a { color: var(--accent); display: inline-block; padding: 12px 0; margin: -12px 0; }
 .sitem-sub br { content: ""; display: block; margin-top: 4px; }
 .modal .sitem select {

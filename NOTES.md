@@ -16,6 +16,33 @@ what was decided against and why.
 
 ---
 
+- **A poll lists the folder before it reads the file (0.264.0).**
+  `checkRemote` used to be a full `ghGetFile`: the whole lifelog.json (two
+  requests past 1MB, the metadata then the blob), parsed, only to compare
+  the sha, every 30 seconds while the app is visible. `ghPeekSha` now asks
+  for the listing of the file's folder, which carries each file's blob sha,
+  and the file is read only when that sha differs from `gh.sha`.
+  - *Why a listing, not `If-None-Match`:* a 304 would be free against the
+    rate limit, but whether the header survives CORS preflight and
+    CapacitorHttp's patched fetch, and whether GitHub's ETag for the
+    object media type is stable, are three things to verify on devices.
+    A listing is a plain GET like every other one the app makes.
+  - *Any doubt reads the file.* A listing that fails, isn't an array, or
+    doesn't name the file returns undefined, and the poll falls through to
+    the old full read. That read is what reports offline, a rejected token
+    or a rate limit, so those messages are unchanged, and the browser
+    suites whose GitHub stubs don't know the listing URL behave as before.
+  - Root is `/contents?ref=`, without a trailing slash: `/contents/?ref=`
+    is a 400.
+- **Errors on this device (0.264.0).** `src/errlog.js` loads before every
+  other script, so a throw while the rest load is caught too. It keeps the
+  last 50 `error` and `unhandledrejection` events in `lifelog-errors-v1`,
+  per device and never synced; the same message twice in a row is one row
+  with a count, so a loop that throws every frame doesn't push everything
+  else out. Skipped: "Script error." (nothing in it), the ResizeObserver
+  loop notice, resource load failures (no message) and AbortError (a
+  cancelled fetch is not a fault). The version comes from errlog.js's own
+  `?v=`, since APP_VERSION lives inside app.js.
 - **Content-Security-Policy (0.263.0).** A `<meta http-equiv>` in
   index.html, since GitHub Pages sends no headers: `script-src 'self'`,
   `style-src 'self'`, `img-src 'self' data: blob: https:`, `connect-src

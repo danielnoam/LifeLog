@@ -50,7 +50,9 @@ test("the changelog ships, for What's new in Settings", () => {
 });
 
 test("the platform layer is loaded before anything that asks it a question", () => {
-  const order = referencedByIndex().filter((f) => f.endsWith(".js"));
+  // errlog.js goes first so it catches the others' load errors; it asks
+  // the platform layer nothing.
+  const order = referencedByIndex().filter((f) => f.endsWith(".js") && f !== "src/errlog.js");
   assert.strictEqual(order[0], "src/platform.js");
 });
 

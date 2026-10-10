@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.264.0] - 2026-10-10
+
+### Added
+- **Errors on this device.** Settings → About lists the last errors the app
+  hit on this phone or browser, when and on which version, with Copy all
+  and Clear. When something breaks, paste them into a bug report or a chat
+  and the fix starts from what actually went wrong. They stay on the
+  device and never sync.
+
+### Changed
+- **Checking for changes is much lighter.** Every 30 seconds the app used
+  to download your whole log from GitHub just to see whether another device
+  had saved. It now asks for the file's id first (a few hundred bytes) and
+  downloads only when something changed, which matters on mobile data.
+
 ## [0.263.0] - 2026-10-09
 
 ### Changed

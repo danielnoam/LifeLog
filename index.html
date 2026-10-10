@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.263.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.264.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="apple-touch-icon" href="icon.svg" />
@@ -1750,7 +1750,7 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="about" data-title="About" data-keywords="about version changelog what's new changes release notes update github source code repo credits licence license open source">
+      <div class="settings-page" hidden data-page="about" data-title="About" data-keywords="about errors crash bug log version changelog what's new changes release notes update github source code repo credits licence license open source">
       <h2 class="settings-page-title">About</h2>
       <div class="about-head">
         <img class="about-icon" src="icon.svg" alt="" width="56" height="56" />
@@ -1762,6 +1762,15 @@
           <a class="sitem sitem-go" href="https://github.com/danielnoam/LifeLog" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Source code</span><span class="sitem-sub">Open source on GitHub, the whole app</span></span></a>
           <a class="sitem sitem-go" href="https://github.com/danielnoam/LifeLog/issues" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Report a problem or suggest something</span><span class="sitem-sub">Issues on GitHub</span></span></a>
           <a class="sitem sitem-go" href="https://github.com/danielnoam/LifeLog/releases/latest" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Downloads</span><span class="sitem-sub">The latest Android APK and iOS IPA</span></span></a>
+        </div>
+      </section>
+      <section class="sgroup">
+        <div class="sgroup-label">Errors on this device</div>
+        <p class="hint" id="errLogHint"></p>
+        <div class="sgroup-card" id="errLogList" hidden></div>
+        <div class="btn-row" id="errLogActions" hidden>
+          <button type="button" class="btn" id="errLogCopyBtn">Copy all</button>
+          <button type="button" class="btn" id="errLogClearBtn">Clear</button>
         </div>
       </section>
       <section class="sgroup">
@@ -2146,35 +2155,36 @@
     </div>
   </div>
 
-  <script defer src="src/platform.js?v=0.263.0"></script>
-  <script defer src="src/icons.js?v=0.263.0"></script>
-  <script defer src="src/jobs.js?v=0.263.0"></script>
-  <script defer src="src/reconcile.js?v=0.263.0"></script>
-  <script defer src="src/qr.js?v=0.263.0"></script>
-  <script defer src="src/media.js?v=0.263.0"></script>
-  <script defer src="src/merge.js?v=0.263.0"></script>
-  <script defer src="src/storage.js?v=0.263.0"></script>
-  <script defer src="src/finance.js?v=0.263.0"></script>
-  <script defer src="src/settings.js?v=0.263.0"></script>
-  <script defer src="src/wheel.js?v=0.263.0"></script>
-  <script defer src="src/backlog.js?v=0.263.0"></script>
-  <script defer src="src/journal.js?v=0.263.0"></script>
-  <script defer src="src/markdown.js?v=0.263.0"></script>
-  <script defer src="src/notes.js?v=0.263.0"></script>
-  <script defer src="src/docimport.js?v=0.263.0"></script>
-  <script defer src="src/io.js?v=0.263.0"></script>
-  <script defer src="src/sync.js?v=0.263.0"></script>
-  <script defer src="src/habits.js?v=0.263.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.263.0"></script>
-  <script defer src="src/boards.js?v=0.263.0"></script>
-  <script defer src="src/travel.js?v=0.263.0"></script>
-  <script defer src="src/recap.js?v=0.263.0"></script>
-  <script defer src="src/reminders.js?v=0.263.0"></script>
-  <script defer src="src/widgets.js?v=0.263.0"></script>
-  <script defer src="src/share.js?v=0.263.0"></script>
-  <script defer src="src/search.js?v=0.263.0"></script>
-  <script defer src="src/letterboxd.js?v=0.263.0"></script>
-  <script defer src="src/payments.js?v=0.263.0"></script>
-  <script defer src="src/app.js?v=0.263.0"></script>
+  <script defer src="src/errlog.js?v=0.264.0"></script>
+  <script defer src="src/platform.js?v=0.264.0"></script>
+  <script defer src="src/icons.js?v=0.264.0"></script>
+  <script defer src="src/jobs.js?v=0.264.0"></script>
+  <script defer src="src/reconcile.js?v=0.264.0"></script>
+  <script defer src="src/qr.js?v=0.264.0"></script>
+  <script defer src="src/media.js?v=0.264.0"></script>
+  <script defer src="src/merge.js?v=0.264.0"></script>
+  <script defer src="src/storage.js?v=0.264.0"></script>
+  <script defer src="src/finance.js?v=0.264.0"></script>
+  <script defer src="src/settings.js?v=0.264.0"></script>
+  <script defer src="src/wheel.js?v=0.264.0"></script>
+  <script defer src="src/backlog.js?v=0.264.0"></script>
+  <script defer src="src/journal.js?v=0.264.0"></script>
+  <script defer src="src/markdown.js?v=0.264.0"></script>
+  <script defer src="src/notes.js?v=0.264.0"></script>
+  <script defer src="src/docimport.js?v=0.264.0"></script>
+  <script defer src="src/io.js?v=0.264.0"></script>
+  <script defer src="src/sync.js?v=0.264.0"></script>
+  <script defer src="src/habits.js?v=0.264.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.264.0"></script>
+  <script defer src="src/boards.js?v=0.264.0"></script>
+  <script defer src="src/travel.js?v=0.264.0"></script>
+  <script defer src="src/recap.js?v=0.264.0"></script>
+  <script defer src="src/reminders.js?v=0.264.0"></script>
+  <script defer src="src/widgets.js?v=0.264.0"></script>
+  <script defer src="src/share.js?v=0.264.0"></script>
+  <script defer src="src/search.js?v=0.264.0"></script>
+  <script defer src="src/letterboxd.js?v=0.264.0"></script>
+  <script defer src="src/payments.js?v=0.264.0"></script>
+  <script defer src="src/app.js?v=0.264.0"></script>
 </body>
 </html>

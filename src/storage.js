@@ -407,6 +407,25 @@
     return j.content;
   }
 
+  // The data file's current sha, from a listing of its folder: a few hundred
+  // bytes, where ghGetFile brings the whole log (two requests past 1MB) only
+  // for the poll to find nothing changed. undefined when the listing didn't
+  // answer, so the caller reads the file and reports whatever went wrong.
+  async function ghPeekSha() {
+    const slash = gh.path.lastIndexOf("/");
+    const dir = slash < 0 ? "" : "/" + gh.path.slice(0, slash);
+    try {
+      const r = await fetch(`${API}/repos/${gh.owner}/${gh.repo}/contents${dir}?ref=${encodeURIComponent(gh.branch)}`, {
+        headers: ghHeaders(), cache: "no-store",
+      });
+      if (!r.ok) return undefined;
+      const list = await r.json();
+      if (!Array.isArray(list)) return undefined;
+      const hit = list.find((f) => f.path === gh.path);
+      return hit ? hit.sha : undefined;
+    } catch (e) { return undefined; }
+  }
+
   // One retry on a transient failure. A single blip on the load fetch was
   // enough to warn someone their connection was down, and the next save
   // seconds later would go through and turn the status green — leaving a
@@ -1033,6 +1052,7 @@
     async checkRemote() {
       if (!gh || !gh.token) return null;
       try {
+        if (gh.sha && await ghPeekSha() === gh.sha) return { changed: false };
         const f = await ghGetFile();
         if (!f || f.sha === gh.sha) return { changed: false };
         return { changed: true, data: f.data, sha: f.sha };
