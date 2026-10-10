@@ -547,17 +547,23 @@
     more.hidden = shown.length === changelog.length;
   }
 
-  // Settings → About → Errors on this device (src/errlog.js). The newest
-  // ten here; Copy all carries every one kept, stack lines included.
+  // Settings → About → Errors on this device (src/errlog.js), folded away
+  // under its count. The newest ten here; Copy all carries every one kept,
+  // stack lines included.
   const ERRLOG_SHOWN = 10;
   function renderErrLog() {
     const all = window.LifeLogErrors ? window.LifeLogErrors.list() : [];
     const box = $("#errLogList");
     box.textContent = "";
     $("#errLogHint").textContent = all.length
-      ? (all.length === 1 ? "One error" : all.length + " errors") + " recorded here, newest first. Copy them into a bug report or a chat with Claude."
-      : "None recorded. If something breaks, what went wrong shows up here.";
-    box.hidden = $("#errLogActions").hidden = !all.length;
+      ? (all.length === 1 ? "1 recorded" : all.length + " recorded") + " · copy them into a bug report or a chat with Claude"
+      : "None recorded";
+    $("#errLogCopyBtn").hidden = $("#errLogClearBtn").hidden = !all.length;
+    if (!all.length) {
+      const row = box.appendChild(el("div", "sitem"));
+      row.appendChild(el("span", "sitem-sub", "If something breaks, what went wrong shows up here."));
+      return;
+    }
     all.slice(-ERRLOG_SHOWN).reverse().forEach((x) => {
       const row = el("div", "sitem");
       const text = row.appendChild(el("span", "sitem-text"));

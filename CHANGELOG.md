@@ -4,6 +4,12 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.264.1] - 2026-10-10
+
+### Changed
+- **Errors on this device folds away.** In Settings → About it's one row
+  with the count; tap it to see the errors, Copy all and Clear.
+
 ## [0.264.0] - 2026-10-10
 
 ### Added

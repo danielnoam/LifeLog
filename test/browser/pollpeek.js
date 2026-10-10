@@ -99,16 +99,18 @@ const stub = () => {
   await page.click("#settingsBtn").catch(() => {});
   await page.evaluate(() => window.LifeLogSettings && window.LifeLogSettings.showPage ? window.LifeLogSettings.showPage("about") : document.querySelector('.srow[data-page="about"]').click());
   await page.waitForTimeout(400);
+  check("folded away until asked for", await page.evaluate(() => !document.querySelector("#errLog").open));
+  await page.click("#errLog > summary");
   const shown = await page.evaluate(() => ({
     hint: document.querySelector("#errLogHint").textContent,
     rows: [...document.querySelectorAll("#errLogList .sitem-title")].map((t) => t.textContent),
-    actions: !document.querySelector("#errLogActions").hidden,
+    actions: !document.querySelector("#errLogCopyBtn").hidden && !document.querySelector("#errLogClearBtn").hidden,
   }));
   check("About lists it", shown.rows.length === 1 && /pollpeek test error/.test(shown.rows[0]), shown);
   check("with Copy and Clear", shown.actions, shown);
   await page.click("#errLogClearBtn");
   await page.waitForTimeout(200);
-  check("Clear empties it", await page.evaluate(() => window.LifeLogErrors.list().length === 0 && document.querySelector("#errLogList").hidden));
+  check("Clear empties it", await page.evaluate(() => window.LifeLogErrors.list().length === 0 && document.querySelector("#errLogCopyBtn").hidden && /None/.test(document.querySelector("#errLogHint").textContent)));
 
   console.log("\nerrors:", errs.length ? errs : "none");
   console.log(`\n${pass} passed, ${fail} failed`);
