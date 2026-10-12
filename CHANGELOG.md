@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.266.0] - 2026-10-12
+
+### Added
+- **Put the checklist widget's lists in order.** In the widget's
+  settings, hold a checklist and drag it up or down. The widget shows its
+  lists in that order; a checklist you make later goes at the end.
+
+### Fixed
+- **The LifeLog icon shows in the browser tab** again, and on a bookmark
+  or home-screen shortcut. The page never named its icon, so browsers
+  looked for one that wasn't there.
+
 ## [0.265.0] - 2026-10-10
 
 ### Added

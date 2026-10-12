@@ -362,7 +362,7 @@ final class WidgetStore {
      */
     static List<Row> todoRows(Context c, int widgetId) {
         JSONObject cfg = config(c, widgetId);
-        return todoRows(snapshot(c), queue(c), listsOf(cfg), flag(cfg, "done"));
+        return todoRows(snapshot(c), queue(c), listsOf(cfg), flag(cfg, "done"), orderOf(cfg));
     }
 
     static List<Row> todoRows(JSONObject snap, JSONArray q) {
@@ -382,6 +382,15 @@ final class WidgetStore {
         return out;
     }
 
+    /** The list ids in the order the widget's settings put them (0.266.0), or null for the app's order. */
+    static List<String> orderOf(JSONObject cfg) {
+        JSONArray a = cfg == null ? null : cfg.optJSONArray("order");
+        if (a == null || a.length() == 0) return null;
+        List<String> out = new ArrayList<>();
+        for (int i = 0; i < a.length(); i++) out.add(a.optString(i));
+        return out;
+    }
+
     /** The one list a to-do widget shows, as { id, name, color }, when it's set to exactly one that still exists. */
     static JSONObject singleList(JSONObject snap, java.util.Set<String> lists) {
         if (snap == null || lists == null || lists.size() != 1) return null;
@@ -396,6 +405,14 @@ final class WidgetStore {
 
     /** `showDone` false (a widget's setting, 0.201.0) leaves out the "N done" line and what's under it. */
     static List<Row> todoRows(JSONObject snap, JSONArray q, java.util.Set<String> lists, boolean showDone) {
+        return todoRows(snap, q, lists, showDone, null);
+    }
+
+    /**
+     * `order` is the settings' order of lists: those in it first, as they
+     * stand there, then any list made since, in the app's order.
+     */
+    static List<Row> todoRows(JSONObject snap, JSONArray q, java.util.Set<String> lists, boolean showDone, List<String> order) {
         List<Row> rows = new ArrayList<>();
         if (snap == null) return rows;
         JSONArray todos = snap.optJSONArray("todos");
@@ -424,6 +441,13 @@ final class WidgetStore {
             if (list == null) panels.put(cat, list = new ArrayList<>());
             list.add(t);
             panelList.put(cat, str(t, "list"));
+        }
+        if (order != null && panels.size() > 1) {
+            List<Map.Entry<String, List<JSONObject>>> sorted = new ArrayList<>(panels.entrySet());
+            Collections.sort(sorted, (a, b) -> rank(order, panelList.get(a.getKey())) - rank(order, panelList.get(b.getKey())));
+            Map<String, List<JSONObject>> byOrder = new LinkedHashMap<>();
+            for (Map.Entry<String, List<JSONObject>> e : sorted) byOrder.put(e.getKey(), e.getValue());
+            panels = byOrder;
         }
         boolean titled = panels.size() > 1 || (panels.size() == 1 && !panels.containsKey("") && (lists == null || lists.size() != 1));
 
@@ -479,6 +503,12 @@ final class WidgetStore {
             }
         }
         return rows;
+    }
+
+    /** Where a list stands in a settings order; one not in it goes after. */
+    static int rank(List<String> order, String id) {
+        int at = id == null ? -1 : order.indexOf(id);
+        return at < 0 ? order.size() : at;
     }
 
     static int openTodoCount(List<Row> rows) {

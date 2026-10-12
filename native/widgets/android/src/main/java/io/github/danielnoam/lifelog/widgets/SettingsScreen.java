@@ -167,14 +167,14 @@ abstract class SettingsScreen extends Activity {
         return b;
     }
 
-    private GradientDrawable rounded(int fill, int radiusDp) {
+    protected GradientDrawable rounded(int fill, int radiusDp) {
         GradientDrawable d = new GradientDrawable();
         d.setColor(fill);
         d.setCornerRadius(dp(radiusDp));
         return d;
     }
 
-    private int color(int id) {
+    protected int color(int id) {
         return getColor(id);
     }
 

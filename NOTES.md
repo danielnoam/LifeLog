@@ -16,6 +16,23 @@ what was decided against and why.
 
 ---
 
+- **The browser icon and the checklist widget's order (0.266.0).** The page
+  had no `<link rel="icon">`, so a browser asked for `/favicon.ico` at the
+  site's root (on Pages, the user site's, not this repo's) and showed
+  nothing; only `apple-touch-icon` was set, to an SVG iOS doesn't read.
+  Now `icon.svg` for browsers that take SVG, `icon-192.png` for Safari,
+  which doesn't, and `apple-touch-icon.png` (180, square: iOS rounds it, so
+  the tile's own corners would show dark). The PNGs are Chromium
+  screenshots of `icon.svg`, as `assets/logo.png` was; redraw them if the
+  SVG changes. They're in sw.js's ASSETS because build-www refuses a page
+  that loads a file the list hasn't.
+  The widget's order is a separate `order` in its config (every list, in
+  the screen's order), not the order of `lists`: with nothing ticked the
+  widget shows every list, and that should follow the order too. A list
+  not in it (made since) goes after, in the app's order. The settings
+  screen moves what's on the rows rather than the rows: removing the held
+  row from the card cancels the touch that's dragging it.
+
 - **Airing state, the Still airing band and AniList's three lists
   (0.265.0).** Daniel wanted to see whether a show is fully out or only
   partly aired.
