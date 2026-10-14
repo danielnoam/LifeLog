@@ -1279,6 +1279,15 @@ select:focus { outline: none; border-color: var(--accent); }
 .progress-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .progress-text .etitle { flex: none; }
 .progress-since { font-size: var(--fs-2xs); color: var(--text-dim); }
+/* A book's author (0.267.0): under the title where the row has a second
+   line, beside it as "Title · Author" where it doesn't. There the author
+   gives way first: its shrink is so much larger that the title only starts
+   to cut once the name is down to its min-width, which keeps a few letters
+   of it rather than a bare "· …". */
+.bl-author { font-size: var(--fs-xs); color: var(--text-dim); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.etitle.has-author { display: flex; gap: var(--space-4); min-width: 0; }
+.etitle.has-author .etitle-text { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.etitle.has-author .eauthor { flex: 0 10000 auto; min-width: 4em; overflow: hidden; text-overflow: ellipsis; color: var(--text-dim); }
 .progress-row .btn-sm { flex: 0 0 auto; }
 /* ▶ on a backlog row, before ✓: the quieter of the two. ✓ keeps the full
    text color since it's the row's main action, and both are square icon
@@ -2418,6 +2427,11 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 /* And the companion, because that display (0,2,0) outranks `[hidden]`: the
    habit modal's backfill offer is a toggle that comes and goes. */
 .modal .toggle-label[hidden] { display: none; }
+/* The category sheet's "On its items" switches (0.267.0): one group under
+   a label like the sheet's other fields, each row a full tap target. */
+.cat-shows { border: 0; padding: 0; margin: 0 0 var(--space-4); min-width: 0; }
+.cat-shows legend { padding: 0; margin-bottom: var(--space-4); font-size: var(--fs-sm); color: var(--text-dim); }
+.modal .cat-shows .toggle-label { min-height: 44px; margin: 0; font-size: var(--fs-md); }
 /* A toggle on its own line (Been there, A collection): the row is the target. */
 #placeVisited, #noteCatCollection { position: relative; }
 #placeVisited::after, #noteCatCollection::after { content: ""; position: absolute; inset: -14px -8px -14px -12px; }

@@ -42,7 +42,11 @@ event or anything else, by category.
 - `notes`: optional text.
 - `coverUrl`, `mediaId`, `mediaSource`, `length`, `genres` (up to 4): what a
   media lookup filled in (cover art, the source's id, how long it is).
-- `overrides`: values the user set by hand over a lookup's (`cover`, `length`).
+- `author`: optional, a book's author. A books lookup (Open Library, Google
+  Books) fills it in; the user can type one too.
+- `overrides`: values the user set by hand over a lookup's (`cover`,
+  `length`, `author`). An author typed by hand has `author: true` here, and
+  a lookup then neither replaces it nor ignores it: it searches with it.
 - `backlogAddedAt`: when it was added to the backlog, if it came from there.
 
 ## Backlog (`backlog`)
@@ -51,6 +55,7 @@ Things to play, read, watch or do next.
 
 - `id`, `createdAt`, `updatedAt`
 - `title`, `category` (a name from `categories`), `notes`
+- `author`: optional, as on a timeline entry.
 - `priority`: 1 when starred; starred ones come first.
 - `bought`: true when already owned.
 - `dropped`: true when given up on. Kept, but out of the way.
@@ -68,7 +73,7 @@ Things to play, read, watch or do next.
   A show is "fully out" when `airing` is `finished`, `cancelled` or
   `between`.
 - `overrides`: values the user set by hand over a lookup's (`release`,
-  `cover`, `rating`, `length`).
+  `cover`, `rating`, `length`, `author`).
 
 Finishing an item moves it to the timeline: a new entry with the same title
 and category, and the backlog item removed (`lifelog_finish_backlog_item`).
@@ -80,6 +85,13 @@ backlog, `financeCategories` for expenses and recurring bills,
 `noteCategories` for notes.
 
 - `id`, `name`, `color` (`#rrggbb`), `createdAt`, `updatedAt`
+- A timeline category (`categories` only) can also hold what its items
+  offer. `showInProgress` false hides starting them (In progress) and
+  `showBought` false hides marking them bought; both are absent when on.
+  `showAuthor` is `true` or `false` once set; absent, an author shows when
+  the category's lookup source (`settings.mediaCategorySources`) is
+  `openlibrary` or `googlebooks`. Off only hides: an item keeps its
+  `author`, `bought` and `startedAt`. `lifelog_rename_category` sets them.
 
 Renaming one renames it on every item that uses it: a timeline category on
 entries and backlog items, an expense category on expenses, recurring bills

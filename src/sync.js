@@ -542,7 +542,7 @@
     const done = /^\d{4}-\d{2}-\d{2}$/.test(m.completedAt || "") ? m.completedAt : today();
     const year = +done.slice(0, 4), month = +done.slice(5, 7);
     const e = { title: b.title, category: b.category, year, month, date: year + "-" + pad2(month), backlogAddedAt: b.createdAt || null };
-    for (const k of ["coverUrl", "mediaId", "mediaSource", "length", "genres"]) if (b[k]) e[k] = b[k];
+    for (const k of ["coverUrl", "mediaId", "mediaSource", "length", "genres", "author"]) if (b[k]) e[k] = b[k];
     const started = /^\d{4}-\d{2}-\d{2}$/.test(b.startedAt || "") ? b.startedAt : (m.startedAt || "");
     if (started && started <= done) {
       e.startedAt = started;

@@ -352,6 +352,29 @@ test("renaming a category or project carries every item with it, as the app does
   assert.strictEqual(boards().find((b) => b.id === "bd1").category, "Ideas");
 });
 
+test("a book's author: added by hand it's pinned, it carries to the timeline, and lists and search show it", async () => {
+  reset();
+  await ok("lifelog_add_backlog_item", { title: "Piranesi", category: "Books", author: " Susanna Clarke " });
+  const b = data().backlog.find((x) => x.title === "Piranesi");
+  assert.deepStrictEqual([b.author, b.overrides], ["Susanna Clarke", { author: true }]);
+  assert.match(await ok("lifelog_backlog", { query: "clarke" }), /Piranesi by Susanna Clarke/);
+  await ok("lifelog_finish_backlog_item", { item: "Piranesi" });
+  const e = data().entries.find((x) => x.title === "Piranesi");
+  assert.deepStrictEqual([e.author, e.overrides], ["Susanna Clarke", { author: true }]);
+  assert.match(await ok("lifelog_timeline", { query: "susanna" }), /Piranesi by Susanna Clarke/);
+});
+
+test("a timeline category's switches are set by name, stored only where they differ", async () => {
+  reset();
+  assert.match(await ok("lifelog_rename_category", { kind: "timeline", name: "Books", show_in_progress: false, show_author: true }), /Updated the timeline category "Books"/);
+  let cat = data().categories.find((c) => c.name === "Books");
+  assert.deepStrictEqual([cat.showInProgress, cat.showBought, cat.showAuthor], [false, undefined, true]);
+  await ok("lifelog_rename_category", { kind: "timeline", name: "Books", show_in_progress: true });
+  cat = data().categories.find((c) => c.name === "Books");
+  assert.strictEqual("showInProgress" in cat, false);
+  await refused("lifelog_rename_category", { kind: "expense", name: "Food", show_bought: false }, /for a timeline category/);
+});
+
 test("one charge of a bill is changed, skipped or reset without touching the rest", async () => {
   reset(); withBills();
   await refused("lifelog_edit_recurring_charge", { bill: "Rent", date: "2026-03-02", amount: 3100 }, /no charge on 2026-03-02; the nearest is 2026-03-01/);

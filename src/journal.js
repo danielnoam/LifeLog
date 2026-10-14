@@ -183,9 +183,7 @@
     chip.appendChild(dot);
     chip.appendChild(document.createTextNode(e.category));
     row.appendChild(chip);
-    const t = el("span", "etitle", e.title);
-    t.title = e.title;
-    row.appendChild(t);
+    row.appendChild(titleWithAuthor("etitle", e));
     const sp = spanLabel(e);
     if (sp) {
       const chip = el("span", "espan", sp);
@@ -356,7 +354,7 @@
           // A miss is now a real outcome rather than a reason to take whatever
           // came back first: if neither source could find the title, the item
           // is left exactly as it was and the row says what it nearly picked.
-          const found = await fetchMediaMatch(item.title, item.category);
+          const found = await fetchMediaMatch(item.title, item.category, isOverridden(item, "author") ? item.author : "");
           if (!found.match) {
             skipped++;
             const err = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || "";
@@ -369,6 +367,7 @@
             const filled = [];
             // Fields pinned in the entry's Advanced foldout are left alone.
             if (!isOverridden(item, "cover")) { item.coverUrl = r.coverUrl || ""; if (item.coverUrl) filled.push("cover"); }
+            if (r.author && !isOverridden(item, "author")) { item.author = r.author; filled.push("author"); }
             // TMDB needs a second per-title call for runtime/season data — the
             // search endpoint doesn't include it (see fetchEntryExtras in
             // media.js) — and a SteamGridDB match has neither a length nor
@@ -828,6 +827,7 @@
     $("#fOvrCover").checked = false;
     $("#fOvrLength").checked = false;
     setEntryCover(coverSrc, mediaId, mediaSrc, lengthSrc, genresSrc);
+    setAuthorField("f", editing ? entry : fromBacklog);
     initOverrideFields(OVERRIDE_FIELDS, editing ? entry : null);
     // Open when something is pinned, so it isn't invisible — see the same
     // call in openBacklogModal.
@@ -900,6 +900,89 @@
   // synced entry already behaves; see the guard in renderTitleSuggestions.
   let entrySyncLocked = false;
 
+  // ---------- what a category's items offer (0.267.0) ----------
+  // Three switches on a timeline category, kept on the category itself.
+  // showInProgress and showBought are stored only when turned off. showAuthor
+  // is stored once you set it; until then it follows the category's lookup
+  // source, on for a books one, since that's where an author comes from.
+  // Off only hides things: an item keeps its author, its "bought" and its
+  // start day.
+  const BOOK_SOURCES = new Set(["openlibrary", "googlebooks"]);
+  // Every lookup source a category can use, as Settings → Media lookups and
+  // the category sheet both offer them.
+  const MEDIA_SOURCE_OPTIONS = [
+    { value: "", label: "None" },
+    { value: "rawg", label: "RAWG (games)" },
+    { value: "rawg-steam-gg", label: "RAWG + Steam + GG.deals (games)" },
+    { value: "steamgriddb", label: "SteamGridDB (games)" },
+    { value: "steamgriddb-steam-gg", label: "SteamGridDB + Steam + GG.deals (games)" },
+    { value: "steam", label: "Steam (manual App ID)" },
+    { value: "tmdb-movie", label: "TMDB (movie)" },
+    { value: "tmdb-tv", label: "TMDB (TV)" },
+    { value: "anilist-anime", label: "AniList (anime)" },
+    { value: "jikan-anime", label: "Jikan (anime)" },
+    { value: "anilist-manga", label: "AniList (manga)" },
+    { value: "jikan-manga", label: "Jikan (manga)" },
+    { value: "openlibrary", label: "Open Library (books)" },
+    { value: "googlebooks", label: "Google Books (books)" },
+    { value: "musicbrainz", label: "MusicBrainz (music)" },
+  ];
+  function categoryShows(name) {
+    const c = (state.data.categories || []).find((x) => x.name === name) || {};
+    const source = (state.data.settings.mediaCategorySources || {})[name];
+    return {
+      inProgress: c.showInProgress !== false,
+      bought: c.showBought !== false,
+      author: typeof c.showAuthor === "boolean" ? c.showAuthor : BOOK_SOURCES.has(source),
+    };
+  }
+  // The author an item shows, or "" when there's none or its category hides it.
+  function authorOf(item) {
+    return item && item.author && categoryShows(item.category).author ? item.author : "";
+  }
+  // A one-line row's title, "Title · Author". The author gives way first
+  // when the row is narrow (styles.css, .has-author), so the title is cut
+  // only once the name is gone.
+  function titleWithAuthor(cls, item) {
+    const author = authorOf(item);
+    const t = el("span", cls);
+    t.title = author ? item.title + " · " + author : item.title;
+    if (!author) { t.textContent = item.title; return t; }
+    t.classList.add("has-author");
+    t.appendChild(el("span", "etitle-text", item.title));
+    t.appendChild(el("span", "eauthor", "· " + author));
+    return t;
+  }
+
+  // The sheets' Author field ("b" the backlog's, "f" the entry's). One you
+  // type is pinned (overrides.author): sync searches with it and never
+  // replaces it. Empty it and sync fills it again.
+  const authorPinned = { b: false, f: false };
+  function setAuthorField(prefix, item) {
+    $("#" + prefix + "Author").value = (item && item.author) || "";
+    authorPinned[prefix] = isOverridden(item, "author");
+  }
+  function fillAuthor(prefix, author) {
+    if (author && !authorPinned[prefix]) $("#" + prefix + "Author").value = author;
+  }
+  function clearSyncedAuthor(prefix) {
+    if (!authorPinned[prefix]) $("#" + prefix + "Author").value = "";
+  }
+  function pinnedAuthor(prefix) {
+    return authorPinned[prefix] ? $("#" + prefix + "Author").value.trim() : "";
+  }
+  // Writes the field onto the item being saved; returns its overrides with
+  // the author pin added or left off.
+  function saveAuthor(prefix, item, overrides) {
+    const v = $("#" + prefix + "Author").value.trim();
+    if (v) item.author = v; else delete item.author;
+    return v && authorPinned[prefix] ? { ...(overrides || {}), author: true } : overrides;
+  }
+  function wireAuthorField(prefix) {
+    const input = $("#" + prefix + "Author");
+    input.oninput = () => { authorPinned[prefix] = !!input.value.trim(); };
+  }
+
   function hasMediaSourceFor(category) {
     return !!((state.data.settings.mediaCategorySources || {})[category]);
   }
@@ -968,7 +1051,10 @@
   // Shared setup for both lookup paths below: which sources a category is
   // configured to use, and a search closure that first retries the title with
   // any trailing "(2019)"-style suffix stripped.
-  function mediaSearchFor(title, category) {
+  // `author`, when the item has one, goes into the search for a book source
+  // (the others ignore it); if that finds nothing the title alone is tried,
+  // so a misspelt or differently written name can't hide the book.
+  function mediaSearchFor(title, category, author) {
     const source = (state.data.settings.mediaCategorySources || {})[category];
     if (!source || !window.LifeLogMedia) return null;
     const fallbackSource = (state.data.settings.mediaCategoryFallbackSources || {})[category];
@@ -979,6 +1065,10 @@
     const stripped = stripMediaSearchSuffix(title);
     async function trySource(src) {
       if (!src) return [];
+      if (author && BOOK_SOURCES.has(src)) {
+        const results = await window.LifeLogMedia.search(stripped, src, keys, proxyUrl, author);
+        if (results.length) return results;
+      }
       if (stripped !== title) {
         const results = await window.LifeLogMedia.search(stripped, src, keys, proxyUrl);
         if (results.length) return results;
@@ -1004,8 +1094,8 @@
   // So: both sources are asked unless the first one returns an exact title
   // match, and the answer is a *match* or nothing at all. `closest` is only
   // for saying what it nearly picked; it is never used as the pick.
-  async function fetchMediaMatch(title, category) {
-    const search = mediaSearchFor(title, category);
+  async function fetchMediaMatch(title, category, author) {
+    const search = mediaSearchFor(title, category, author);
     if (!search) return { match: null, closest: null, searched: [] };
     // Matching runs on the suffix-stripped title for the same reason the
     // search does: "BioShock (2007)" is asking about BioShock.
@@ -1038,8 +1128,8 @@
   // awaited, so the list can say what it's doing straight away.
   // handlers.onBatch(results, sourceKey) then fires once per source, in
   // whichever order they answer. Resolves with the total number of matches.
-  async function streamMediaSuggestions(title, category, handlers) {
-    const search = mediaSearchFor(title, category);
+  async function streamMediaSuggestions(title, category, handlers, author) {
+    const search = mediaSearchFor(title, category, author);
     if (!search) return 0;
     const sources = [search.source];
     if (search.fallbackSource) sources.push(search.fallbackSource);
@@ -1066,7 +1156,7 @@
   // click with no visible response reads as slower than it is — and each
   // source's matches are appended as it answers. Rows are only ever appended
   // above that line, so nothing already on screen moves under the pointer.
-  async function renderStreamedSuggestions(list, title, category, onPick, btn) {
+  async function renderStreamedSuggestions(list, title, category, onPick, btn, author) {
     list.innerHTML = "";
     const waiting = new Set();
     let pendingRow = null;
@@ -1091,7 +1181,7 @@
           waiting.delete(sourceKey);
           syncPending();
         },
-      });
+      }, author);
       if (!total) {
         list.hidden = true;
         const err = window.LifeLogMedia && window.LifeLogMedia.getLastError();
@@ -1114,6 +1204,7 @@
     const info = el("div", "ac-info");
     info.appendChild(el("span", "ac-title", r.title));
     const meta = [];
+    if (r.author) meta.push(r.author);
     if (r.year) meta.push(String(r.year));
     if (r.externalRating) meta.push("★ " + r.externalRating);
     if (meta.length) info.appendChild(el("span", "ac-meta", meta.join(" · ")));
@@ -1145,6 +1236,8 @@
     const isSteam = (state.data.settings.mediaCategorySources || {})[category] === "steam";
     const btn = $("#" + prefix + "SyncBtn");
     if (btn) btn.hidden = isSteam || !hasMediaSourceFor(category);
+    const authorWrap = $("#" + prefix + "AuthorWrap");
+    if (authorWrap) authorWrap.hidden = !categoryShows(category).author;
     // The App ID field used to exist only for a Steam-sourced category, which
     // left every other one with no way to name a Steam app by hand — no store
     // link and no GG.deals price for anything a search couldn't map to one.
@@ -1164,7 +1257,7 @@
   // finished the thing, which you set by hand and no sync ever touches — so
   // only the two fields a sync does rewrite are pinnable here. Same shape
   // as the backlog's spec; see app.js for what pull/push are for.
-  const OVERRIDE_KEYS = ["cover", "length"];
+  const OVERRIDE_KEYS = ["cover", "length", "author"];
   const OVERRIDE_FIELDS = [
     {
       key: "cover", check: "#fOvrCover", inputs: ["#fOvrCoverUrl"],
@@ -1224,6 +1317,7 @@
     // that takes an explicit "✕ Unsync" now, whether adding or editing.
     if (isAdding && !entrySyncLocked && query !== lastSyncedEntryTitle && $("#fCoverUrl").value && $("#fMediaSource").value !== "steam") {
       setEntryCover("", "", "", "", []);
+      clearSyncedAuthor("f");
     }
 
     const localMatches = titleSuggestions(query, $("#entryId").value || null);
@@ -1239,6 +1333,7 @@
           $("#fTitle").value = m.title;
           if (state.data.categories.some((c) => c.name === m.category)) $("#fCategory").value = m.category;
           setEntryCover(m.coverUrl, m.mediaId, m.mediaSource, m.length || "", m.genres || []);
+          fillAuthor("f", m.author);
           updateSyncBtnVisibility("f", $("#fCategory").value);
           list.hidden = true;
         }
@@ -1262,6 +1357,7 @@
           $("#fTitle").value = b.title;
           if (state.data.categories.some((c) => c.name === b.category)) $("#fCategory").value = b.category;
           setEntryCover(b.coverUrl || "", b.mediaId || "", b.mediaSource || "", b.length || "", b.genres || []);
+          fillAuthor("f", b.author);
           updateSyncBtnVisibility("f", $("#fCategory").value);
           $("#entryFromBacklog").value = b.id;
           updateBacklogLinkBanner();
@@ -1310,6 +1406,7 @@
       // Picking a match adopts that media's title, and locks the link so a
       // later title edit won't drop it (only "✕ Unsync" does).
       $("#fTitle").value = r.title;
+      fillAuthor("f", r.author);
       lastSyncedEntryTitle = r.title;
       entrySyncLocked = true;
       const extras = await window.LifeLogMedia.fetchEntryExtras(r.id, r.source, keys, r.title);
@@ -1317,11 +1414,12 @@
       setEntryCover(r.coverUrl, mediaId, mediaSource, extras.length || r.length || "",
         extras.genres.length ? extras.genres : (r.genres || []));
       list.hidden = true;
-    }, $("#fSyncBtn"));
+    }, $("#fSyncBtn"), pinnedAuthor("f"));
   }
 
   function unsyncEntry() {
     setEntryCover("", "", "", "", []);
+    clearSyncedAuthor("f");
     $("#fSteamAppId").value = "";
     entrySyncLocked = false;
     $("#fTitleSuggest").hidden = true;
@@ -1332,7 +1430,7 @@
     // Ticked overrides land in the hidden fields first, so everything below
     // reads one set of values (see saveBacklogFromForm for the same move).
     pushOverrideValues(OVERRIDE_FIELDS);
-    const overrides = readOverrideChecks(OVERRIDE_FIELDS);
+    let overrides = readOverrideChecks(OVERRIDE_FIELDS);
     const id = $("#entryId").value;
     const fromBacklogId = $("#entryFromBacklog").value;
     const backlogItem = fromBacklogId ? state.data.backlog.find((b) => b.id === fromBacklogId) : null;
@@ -1366,6 +1464,7 @@
       if (mediaSource) e.mediaSource = mediaSource; else delete e.mediaSource;
       if (length) e.length = length; else delete e.length;
       if (genres.length) e.genres = genres; else delete e.genres;
+      overrides = saveAuthor("f", e, overrides);
       if (overrides) e.overrides = overrides; else delete e.overrides;
       if (backlogItem) e.backlogAddedAt = backlogItem.createdAt || null;
     } else {
@@ -1382,6 +1481,7 @@
       if (mediaSource) newEntry.mediaSource = mediaSource;
       if (length) newEntry.length = length;
       if (genres.length) newEntry.genres = genres;
+      overrides = saveAuthor("f", newEntry, overrides);
       if (overrides) newEntry.overrides = overrides;
       if (backlogItem) newEntry.backlogAddedAt = backlogItem.createdAt || null;
       // The day it went In progress, kept: the months above are all a span
@@ -1425,6 +1525,8 @@
     if (entry.mediaSource) item.mediaSource = entry.mediaSource;
     if (entry.length) item.length = entry.length;
     if (entry.genres && entry.genres.length) item.genres = entry.genres.slice();
+    if (entry.author) item.author = entry.author;
+    if (isOverridden(entry, "author")) item.overrides = { author: true };
     if (started) {
       const d = new Date(), pad = (n) => String(n).padStart(2, "0");
       item.startedAt = /^\d{4}-\d{2}-\d{2}$/.test(entry.startedAt || "") ? entry.startedAt
@@ -1501,12 +1603,23 @@
   }
 
   // ---------- categories management ----------
+  // Whether the sheet's Author box still follows the source picker: true
+  // until you tick or untick it yourself (see categoryShows).
+  let catAuthorAuto = true;
   function openCategoryModal(cat) {
     const editing = !!cat;
     $("#catModalTitle").textContent = editing ? "Edit category" : "Add category";
     $("#catOrigName").value = editing ? cat.name : "";
     $("#cName").value = editing ? cat.name : "";
     $("#cColor").value = editing ? cat.color : "#3bb2e2";
+    const source = $("#cSource");
+    source.replaceChildren(...MEDIA_SOURCE_OPTIONS.map((o) => { const opt = el("option", null, o.label); opt.value = o.value; return opt; }));
+    source.value = (editing && (state.data.settings.mediaCategorySources || {})[cat.name]) || "";
+    const shows = editing ? categoryShows(cat.name) : { inProgress: true, bought: true, author: false };
+    $("#cShowInProgress").checked = shows.inProgress;
+    $("#cShowBought").checked = shows.bought;
+    $("#cShowAuthor").checked = shows.author;
+    catAuthorAuto = !editing || typeof cat.showAuthor !== "boolean";
     const uses = $("#cUses");
     if (editing) {
       const entryCount = countBy(state.data.entries, (e) => e.category)[cat.name] || 0;
@@ -1527,6 +1640,17 @@
     const newName = $("#cName").value.trim();
     const color = $("#cColor").value;
     if (!newName) return;
+    const source = $("#cSource").value;
+    // Stored only where it differs from the default (see categoryShows).
+    const applyShows = (c) => {
+      if ($("#cShowInProgress").checked) delete c.showInProgress; else c.showInProgress = false;
+      if ($("#cShowBought").checked) delete c.showBought; else c.showBought = false;
+      if (catAuthorAuto) delete c.showAuthor; else c.showAuthor = $("#cShowAuthor").checked;
+    };
+    const setSource = (name) => {
+      const sources = state.data.settings.mediaCategorySources || (state.data.settings.mediaCategorySources = {});
+      if (source || sources[name]) sources[name] = source;
+    };
 
     if (!orig) { // adding a new category
       if (state.data.categories.some((c) => c.name === newName)) {
@@ -1536,7 +1660,10 @@
       const now = new Date().toISOString();
       // updatedAt as well as createdAt: this collection syncs, and merge.js
       // has nothing to tie-break on without it (see sanitizeCategory).
-      state.data.categories.push({ id: newName.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: newName, color, createdAt: now, updatedAt: now });
+      const added = { id: newName.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: newName, color, createdAt: now, updatedAt: now };
+      applyShows(added);
+      state.data.categories.push(added);
+      setSource(newName);
       closeCategoryModal();
       rebuildColorMap(); buildCatFilter(); render();
       await persist();
@@ -1560,8 +1687,15 @@
       const old = cat.name;
       cat.name = newName;
       renameCategory(state.data, old, newName);
+      // The lookup sources are keyed by name, so they move with it.
+      for (const key of ["mediaCategorySources", "mediaCategoryFallbackSources"]) {
+        const map = state.data.settings[key];
+        if (map && old in map) { map[newName] = map[old]; delete map[old]; }
+      }
       if (state.activeCats.has(old)) { state.activeCats.delete(old); state.activeCats.add(newName); }
     }
+    applyShows(cat);
+    setSource(newName);
     closeCategoryModal();
     rebuildColorMap(); buildCatFilter(); render();
     await persist();
@@ -1611,7 +1745,7 @@
   const KNOWN_ENTRY_KEYS = new Set([
     "id", "title", "category", "year", "month", "date", "createdAt", "updatedAt",
     "rating", "notes", "coverUrl", "mediaId", "mediaSource", "length", "genres",
-    "backlogAddedAt", "overrides", "startMonth", "startYear", "startedAt",
+    "backlogAddedAt", "overrides", "startMonth", "startYear", "startedAt", "author",
   ]);
   function sanitizeEntry(e) {
     const out = {
@@ -1631,6 +1765,7 @@
     if (e.mediaSource) out.mediaSource = e.mediaSource;
     if (e.length) out.length = e.length;
     if (Array.isArray(e.genres) && e.genres.length) out.genres = e.genres.map((g) => String(g)).slice(0, 4);
+    if (e.author) out.author = String(e.author);
     if (e.backlogAddedAt) out.backlogAddedAt = e.backlogAddedAt;
     const overrides = sanitizeOverrides(e.overrides, OVERRIDE_KEYS);
     if (overrides) out.overrides = overrides;
@@ -1675,6 +1810,9 @@
     $("#fCategory").onchange = () => updateSyncBtnVisibility("f", $("#fCategory").value);
     $("#fStartMonth").onchange = syncStartYear;
     $("#fSyncBtn").onclick = syncEntryTitle;
+    $("#cSource").onchange = () => { if (catAuthorAuto) $("#cShowAuthor").checked = BOOK_SOURCES.has($("#cSource").value); };
+    $("#cShowAuthor").onchange = () => { catAuthorAuto = false; };
+    wireAuthorField("f");
     $("#fUnsyncBtn").onclick = unsyncEntry;
     $("#fBacklogUnlinkBtn").onclick = () => { $("#entryFromBacklog").value = ""; updateBacklogLinkBanner(); };
     $("#fSteamAppId").oninput = () => applySteamAppId("f");
@@ -1729,6 +1867,9 @@
     resolveMediaIdentity,
     updateSyncBtnVisibility,
     showSyncStatus,
+    // what a category shows, and the author field (0.267.0)
+    categoryShows, authorOf, titleWithAuthor, MEDIA_SOURCE_OPTIONS,
+    setAuthorField, fillAuthor, clearSyncedAuthor, pinnedAuthor, saveAuthor, wireAuthorField,
     setEntryCover, // app.js's applySteamAppId repaints the entry cover through this
     // data lifecycle (app.js's normalize)
     sanitizeEntry,

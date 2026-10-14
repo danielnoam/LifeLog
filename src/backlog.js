@@ -17,6 +17,8 @@
     fillCategorySelect, wireCategorySelect, titleSuggestions,
     backlogSuggestions, makeMediaAcItem, fetchMediaMatch, renderStreamedSuggestions,
     resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
+    categoryShows, authorOf, titleWithAuthor, setAuthorField, fillAuthor, clearSyncedAuthor,
+    pinnedAuthor, saveAuthor, wireAuthorField,
     renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId, importItemIncomplete,
@@ -36,6 +38,8 @@
       fillCategorySelect, wireCategorySelect, titleSuggestions,
       backlogSuggestions, makeMediaAcItem, fetchMediaMatch, renderStreamedSuggestions,
       resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
+      categoryShows, authorOf, titleWithAuthor, setAuthorField, fillAuthor, clearSyncedAuthor,
+      pinnedAuthor, saveAuthor, wireAuthorField,
       renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId, importItemIncomplete,
@@ -60,6 +64,13 @@
     span.appendChild(ico("star"));
     span.title = "Prioritized";
     return span;
+  }
+
+  // The small line under a title in the two-line rows (0.267.0); the
+  // one-line rows put it beside the title instead (titleWithAuthor).
+  function appendAuthor(container, b) {
+    const author = authorOf(b);
+    if (author) container.appendChild(el("span", "bl-author", author));
   }
 
   // For the plain row only. Every other layout says "Bought" in its metadata
@@ -163,7 +174,7 @@
     const q = state.search.trim().toLowerCase();
     const cf = state.activeCats;
     if (cf.size && !cf.has(b.category)) return false;
-    if (q && !b.title.toLowerCase().includes(q) && !(b.notes || "").toLowerCase().includes(q)) return false;
+    if (q && !b.title.toLowerCase().includes(q) && !(b.notes || "").toLowerCase().includes(q) && !(b.author || "").toLowerCase().includes(q)) return false;
     return true;
   }
   // What the Backlog lists: everything not yet started. Something you're on
@@ -174,7 +185,7 @@
     return state.data.backlog.filter((b) => {
       if (isStarted(b)) return false;
       if (cf.size && !cf.has(b.category)) return false;
-      if (q && !b.title.toLowerCase().includes(q) && !(b.notes || "").toLowerCase().includes(q)) return false;
+      if (q && !b.title.toLowerCase().includes(q) && !(b.notes || "").toLowerCase().includes(q) && !(b.author || "").toLowerCase().includes(q)) return false;
       return true;
     });
   }
@@ -242,6 +253,7 @@
     const text = el("span", "progress-text");
     const t = el("span", "etitle", b.title); t.title = b.title;
     text.appendChild(t);
+    appendAuthor(text, b);
     text.appendChild(el("span", "progress-since", sinceLabel(b.startedAt)));
     row.appendChild(text);
     const stop = el("button", "btn btn-sm progress-stop");
@@ -301,6 +313,7 @@
     "#bExternalRating": "rating", "#bLength": "length",
   };
   function clearMediaFields() {
+    clearSyncedAuthor("b");
     MEDIA_FIELD_IDS.forEach((id) => {
       const pin = MEDIA_FIELD_PINS[id];
       if (pin && isPinned(pin)) return;
@@ -321,6 +334,7 @@
   // rating or description, and leaving the previous match's behind would be
   // worse than an empty one.
   function fillMediaFields(src) {
+    fillAuthor("b", src.author);
     MEDIA_FIELD_IDS.forEach((id) => {
       const pin = MEDIA_FIELD_PINS[id];
       if (pin && isPinned(pin)) return;
@@ -461,6 +475,7 @@
     $("#bTitle").value = r.title;
     lastSyncedBacklogTitle = r.title;
     backlogSyncLocked = true;
+    fillAuthor("b", r.author);
     // Fields pinned in Advanced are skipped here and below: a pick is
     // still a sync, and the whole point of pinning is that no sync
     // overwrites it.
@@ -517,7 +532,7 @@
     await renderStreamedSuggestions(list, title, category, async (r) => {
       await applyMediaResult(r, keys);
       list.hidden = true;
-    }, $("#bSyncBtn"));
+    }, $("#bSyncBtn"), pinnedAuthor("b"));
   }
 
   function unsyncBacklogItem() {
@@ -754,7 +769,9 @@
   // whole set of dates behind one tick — date, precision, status, the year
   // shown in the metadata line, and the next-episode fields — because they
   // are only ever meaningful together.
-  const OVERRIDE_KEYS = ["release", "cover", "rating", "length"];
+  // "author" has no row in the foldout: typing one in the sheet pins it
+  // (see saveAuthor in journal.js).
+  const OVERRIDE_KEYS = ["release", "cover", "rating", "length", "author"];
   const OVERRIDE_FIELDS = [
     {
       // earlyAccess rides with the release pin rather than earning one of its
@@ -1276,6 +1293,7 @@
     // one does.
     if (b.bought) titleRow.appendChild(boughtTag());
     body.appendChild(titleRow);
+    appendAuthor(body, b);
     const meta = el("div", "up-when");
     meta.appendChild(el("span", "up-date", releaseLabel(b)));
     // Only ever counts down to a real day — "in 2 days" against a date known
@@ -1318,7 +1336,7 @@
   function outTodayRow(b) {
     const row = upcomingRow(b);
     row.classList.add("out-row");
-    row.appendChild(startButton(b));
+    if (categoryShows(b.category).inProgress) row.appendChild(startButton(b));
     row.appendChild(doneButton(b));
     row.onclick = () => openBacklogModal(b);
     return row;
@@ -2346,12 +2364,11 @@
     row.dataset.id = b.id;
     if (b.dropped) row.classList.add("is-dropped");
     if (state.bulk.active) row.appendChild(bulkCheckbox(b));
-    const t = el("span", "etitle", b.title); t.title = b.title;
-    row.appendChild(t);
+    row.appendChild(titleWithAuthor("etitle", b));
     if (b.priority) row.appendChild(priorityBadge());
     if (b.bought) row.appendChild(boughtTag());
     if (!state.bulk.active) {
-      row.appendChild(startButton(b));
+      if (categoryShows(b.category).inProgress) row.appendChild(startButton(b));
       row.appendChild(doneButton(b));
     }
     return row;
@@ -2373,13 +2390,14 @@
     titleRow.appendChild(el("span", "bl-title", b.title));
     if (b.priority) titleRow.appendChild(priorityBadge());
     body.appendChild(titleRow);
+    appendAuthor(body, b);
     // Price (if any) arrives later via the batched loadBacklogPrices() in
     // renderBacklog and gets patched into the .bl-price span this builds.
     appendBacklogMeta(body, b, { summary: state.visual.backlogSummaries !== "hide" });
     row.appendChild(body);
     // Done button at the right — same position as plain backlog rows
     if (!state.bulk.active) {
-      row.appendChild(startButton(b));
+      if (categoryShows(b.category).inProgress) row.appendChild(startButton(b));
       row.appendChild(doneButton(b));
     }
     return row;
@@ -2444,7 +2462,7 @@
           // A miss is now a real outcome rather than a reason to take whatever
           // came back first: if neither source could find the title, the item
           // is left exactly as it was and the row says what it nearly picked.
-          const found = await fetchMediaMatch(item.title, item.category);
+          const found = await fetchMediaMatch(item.title, item.category, isOverridden(item, "author") ? item.author : "");
           if (!found.match) {
             skipped++;
             const err = (window.LifeLogMedia && window.LifeLogMedia.getLastError()) || "";
@@ -2458,6 +2476,7 @@
             // Same rule as the single-item sync: a field pinned in the item's
             // Advanced foldout is left exactly as it is.
             if (!isOverridden(item, "cover")) { item.coverUrl = r.coverUrl || ""; if (item.coverUrl) filled.push("cover"); }
+            if (r.author && !isOverridden(item, "author")) { item.author = r.author; filled.push("author"); }
             if (!isOverridden(item, "release")) {
               if (r.year) item.releaseYear = r.year; else delete item.releaseYear;
             }
@@ -2635,6 +2654,7 @@
     updateStartedBtn();
     updateBoughtBtn();
     $("#bDropped").checked = editing ? !!item.dropped : false;
+    setAuthorField("b", editing ? item : null);
     $("#backlogMoreWrap").hidden = !editing;
     closeSheetMenus();
     updateMoreMenu();
@@ -2659,6 +2679,7 @@
     $("#bAdvanced").open = !!(editing && item.overrides);
     setBacklogCover();
     updateSyncBtnVisibility("b", $("#bCategory").value);
+    updateStateButtons();
     updateBacklogDuplicateBanner();
     $("#backlogModal").hidden = false;
     // A shared link (share.js): the lookup runs as if the sync button had
@@ -2673,7 +2694,7 @@
   // first too, so the log entry it opens starts from what you just typed.
   function updateMoreMenu() {
     const started = $("#bStarted").checked, dropped = $("#bDropped").checked;
-    $("#blMoveProgressBtn").hidden = started;
+    $("#blMoveProgressBtn").hidden = started || !categoryShows($("#bCategory").value).inProgress;
     $("#blMoveBacklogBtn").hidden = !started && !dropped;
     $("#blMoveDroppedBtn").hidden = dropped;
   }
@@ -2688,6 +2709,15 @@
     if (!(await saveBacklogFromForm(null, { quiet: true }))) return;
     const b = state.data.backlog.find((x) => x.id === id);
     if (b) openEntryModal(null, b);
+  }
+
+  // ▶ and ✓ beside the title follow the category's switches (0.267.0), but
+  // one that's already on stays, so an item can still be taken off it.
+  function updateStateButtons() {
+    const shows = categoryShows($("#bCategory").value);
+    $("#bStartedBtn").hidden = !shows.inProgress && !$("#bStarted").checked;
+    $("#bBoughtBtn").hidden = !shows.bought && !$("#bBought").checked;
+    updateMoreMenu();
   }
 
   function updatePriorityBtn() {
@@ -2742,7 +2772,7 @@
     // everything below reads one set of values and neither knows nor cares
     // which of them came from a sync and which you typed.
     pushOverrideValues(OVERRIDE_FIELDS);
-    const overrides = readOverrideChecks(OVERRIDE_FIELDS);
+    let overrides = readOverrideChecks(OVERRIDE_FIELDS);
     const id = $("#backlogId").value;
     const title = $("#bTitle").value.trim();
     const category = $("#bCategory").value;
@@ -2779,6 +2809,7 @@
       if (priority) b.priority = priority; else delete b.priority;
       if (bought) b.bought = true; else delete b.bought;
       if (dropped) b.dropped = true; else delete b.dropped;
+      overrides = saveAuthor("b", b, overrides);
       if (overrides) b.overrides = overrides; else delete b.overrides;
       // Keeps the day it was started when it's already going.
       if (started && !isStarted(b)) { b.startedAt = localDay(); startedNow = true; }
@@ -2798,6 +2829,7 @@
       if (priority) item.priority = priority;
       if (bought) item.bought = true;
       if (dropped) item.dropped = true;
+      overrides = saveAuthor("b", item, overrides);
       if (overrides) item.overrides = overrides;
       if (started) { item.startedAt = localDay(); startedNow = true; }
       state.data.backlog.push(item);
@@ -2826,7 +2858,7 @@
   const KNOWN_BACKLOG_KEYS = new Set([
     "id", "title", "category", "createdAt", "updatedAt", "notes", "coverUrl",
     "mediaId", "mediaSource", "summary", "releaseYear", ...RELEASE_FIELDS,
-    "externalRating", "length", "genres", "priority", "bought", "dropped", "overrides", "startedAt",
+    "externalRating", "length", "genres", "priority", "bought", "dropped", "overrides", "startedAt", "author",
   ]);
   function sanitizeBacklog(b) {
     const out = {
@@ -2853,6 +2885,7 @@
     if (b.externalRating) out.externalRating = b.externalRating;
     if (b.length) out.length = b.length;
     if (Array.isArray(b.genres) && b.genres.length) out.genres = b.genres.map((g) => String(g)).slice(0, 4);
+    if (b.author) out.author = String(b.author);
     if (b.priority) out.priority = +b.priority;
     // Independent of the star — anything can be marked bought. It only
     // changes the order inside the starred block (see compareBacklog);
@@ -2883,7 +2916,8 @@
     $("#bBoughtBtn").onclick = toggleBought;
     $("#bStartedBtn").onclick = toggleStarted;
     $("#bTitle").oninput = renderBacklogTitleSuggestions;
-    $("#bCategory").onchange = () => updateSyncBtnVisibility("b", $("#bCategory").value);
+    $("#bCategory").onchange = () => { updateSyncBtnVisibility("b", $("#bCategory").value); updateStateButtons(); };
+    wireAuthorField("b");
     $("#bSyncBtn").onclick = syncBacklogTitle;
     $("#bUnsyncBtn").onclick = unsyncBacklogItem;
     $("#bSteamAppId").oninput = () => applySteamAppId("b");

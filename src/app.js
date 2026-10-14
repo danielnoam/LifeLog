@@ -1313,7 +1313,7 @@
     return state.data.entries.filter((e) => {
       if (yf.size && !yf.has(e.year)) return false;
       if (cf.size && !cf.has(e.category)) return false;
-      if (q && !e.title.toLowerCase().includes(q) && !(e.notes || "").toLowerCase().includes(q)) return false;
+      if (q && !e.title.toLowerCase().includes(q) && !(e.notes || "").toLowerCase().includes(q) && !(e.author || "").toLowerCase().includes(q)) return false;
       return true;
     });
   }
@@ -3727,7 +3727,9 @@
   // sanitized them until 0.140.0, and three of the five places that create
   // one stamped createdAt or nothing at all, so two devices that each added a
   // category had nothing to decide between them.
-  const KNOWN_CATEGORY_KEYS = new Set(["id", "name", "color", "createdAt", "updatedAt"]);
+  // showInProgress / showBought / showAuthor (0.267.0) are a timeline
+  // category's switches; see categoryShows in journal.js for what absent means.
+  const KNOWN_CATEGORY_KEYS = new Set(["id", "name", "color", "createdAt", "updatedAt", "showInProgress", "showBought", "showAuthor"]);
   function sanitizeCategory(c) {
     const out = {
       id: c.id || uid(),
@@ -3736,6 +3738,9 @@
       updatedAt: backfillUpdatedAt(c),
     };
     if (c.createdAt) out.createdAt = c.createdAt;
+    if (c.showInProgress === false) out.showInProgress = false;
+    if (c.showBought === false) out.showBought = false;
+    if (typeof c.showAuthor === "boolean") out.showAuthor = c.showAuthor;
     return keepUnknown(c, out, KNOWN_CATEGORY_KEYS);
   }
 
@@ -5444,6 +5449,9 @@
     resolveMediaIdentity: Journal.resolveMediaIdentity,
     updateSyncBtnVisibility: Journal.updateSyncBtnVisibility,
     showSyncStatus: Journal.showSyncStatus,
+    categoryShows: Journal.categoryShows, authorOf: Journal.authorOf, titleWithAuthor: Journal.titleWithAuthor,
+    setAuthorField: Journal.setAuthorField, fillAuthor: Journal.fillAuthor, clearSyncedAuthor: Journal.clearSyncedAuthor,
+    pinnedAuthor: Journal.pinnedAuthor, saveAuthor: Journal.saveAuthor, wireAuthorField: Journal.wireAuthorField,
     renderCoverLinkButtons, renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices: Sync.loadBacklogPrices, applySteamAppId: Sync.applySteamAppId,

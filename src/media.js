@@ -449,9 +449,12 @@
     };
   }
 
-  async function searchOpenLibrary(title) {
+  // `author` (0.267.0) narrows the search when the item already names one:
+  // a common title ("Circe", "Dune") is a different book per author.
+  async function searchOpenLibrary(title, author) {
     try {
-      const url = "https://openlibrary.org/search.json?title=" + encodeURIComponent(title) + "&limit=5";
+      const url = "https://openlibrary.org/search.json?title=" + encodeURIComponent(title) +
+        (author ? "&author=" + encodeURIComponent(author) : "") + "&limit=5";
       const res = await fetch(url);
       if (!res.ok) return [];
       const data = await res.json();
@@ -470,6 +473,7 @@
           : "",
         length: d.number_of_pages_median ? d.number_of_pages_median + " pages" : "",
         genres: normGenres(d.subject),
+        author: (d.author_name || [])[0] || "",
         source: "openlibrary",
       }));
     } catch (e) { return []; }
@@ -709,10 +713,10 @@
     return out;
   }
 
-  async function searchGoogleBooks(title) {
+  async function searchGoogleBooks(title, author) {
     try {
       const url = "https://www.googleapis.com/books/v1/volumes?q=" +
-        encodeURIComponent("intitle:" + title) + "&maxResults=5";
+        encodeURIComponent("intitle:" + title + (author ? " inauthor:" + author : "")) + "&maxResults=5";
       const res = await fetch(url);
       if (!res.ok) return [];
       const data = await res.json();
@@ -730,6 +734,7 @@
           externalRating: v.averageRating ? v.averageRating + " Google Books" : "",
           length: v.pageCount ? v.pageCount + " pages" : "",
           genres: normGenres(v.categories),
+          author: (v.authors || [])[0] || "",
           source: "googlebooks",
         };
       });
@@ -1202,7 +1207,7 @@
   }
 
   window.LifeLogMedia = {
-    async search(title, source, keys, proxyUrl) {
+    async search(title, source, keys, proxyUrl, author) {
       lastError = "";
       if (!title || !source) return [];
       if (source === "rawg") return searchRawg(title, keys.rawg || "");
@@ -1211,12 +1216,12 @@
       if (source === "steamgriddb-steam-gg") return searchSteamGridDbSteamGg(title, keys.steamgriddb || "", proxyUrl || "");
       if (source === "tmdb-movie") return searchTmdb(title, "movie", keys.tmdb || "");
       if (source === "tmdb-tv") return searchTmdb(title, "tv", keys.tmdb || "");
-      if (source === "openlibrary") return searchOpenLibrary(title);
+      if (source === "openlibrary") return searchOpenLibrary(title, author);
       if (source === "anilist-anime") return searchAniList(title, "ANIME");
       if (source === "anilist-manga") return searchAniList(title, "MANGA");
       if (source === "jikan-anime") return searchJikan(title, "anime");
       if (source === "jikan-manga") return searchJikan(title, "manga");
-      if (source === "googlebooks") return searchGoogleBooks(title);
+      if (source === "googlebooks") return searchGoogleBooks(title, author);
       if (source === "musicbrainz") return searchMusicBrainz(title);
       return [];
     },

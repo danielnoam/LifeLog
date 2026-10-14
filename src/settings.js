@@ -861,23 +861,7 @@
     const container = $("#mediaCatRows");
     if (!container) return;
     container.innerHTML = "";
-    const sources = [
-      { value: "", label: "None" },
-      { value: "rawg", label: "RAWG (games)" },
-      { value: "rawg-steam-gg", label: "RAWG + Steam + GG.deals (games)" },
-      { value: "steamgriddb", label: "SteamGridDB (games)" },
-      { value: "steamgriddb-steam-gg", label: "SteamGridDB + Steam + GG.deals (games)" },
-      { value: "steam", label: "Steam (manual App ID)" },
-      { value: "tmdb-movie", label: "TMDB (movie)" },
-      { value: "tmdb-tv", label: "TMDB (TV)" },
-      { value: "anilist-anime", label: "AniList (anime)" },
-      { value: "jikan-anime", label: "Jikan (anime)" },
-      { value: "anilist-manga", label: "AniList (manga)" },
-      { value: "jikan-manga", label: "Jikan (manga)" },
-      { value: "openlibrary", label: "Open Library (books)" },
-      { value: "googlebooks", label: "Google Books (books)" },
-      { value: "musicbrainz", label: "MusicBrainz (music)" },
-    ];
+    const sources = window.LifeLogJournal.MEDIA_SOURCE_OPTIONS;
     // Fallback dropdown offers every source (minus whatever's picked as
     // primary and minus Steam, which has no search to fall back to/from —
     // manual App ID only) — no restriction to "compatible" types, so it's

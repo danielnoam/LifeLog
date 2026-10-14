@@ -254,5 +254,28 @@ test("sanitize drops entry override keys with no field behind them", () => {
 });
 
 
+// ---------- what a category shows (0.267.0) ----------
+test("a category shows In progress and Bought until they're turned off, and an author when its source is books", () => {
+  state.data.categories = [
+    { name: "Books" }, { name: "Places", showInProgress: false, showBought: false },
+    { name: "Comics", showAuthor: true }, { name: "Novels", showAuthor: false },
+  ];
+  state.data.settings = { mediaCategorySources: { Books: "openlibrary", Novels: "googlebooks", Comics: "" } };
+  assert.deepStrictEqual(Journal.categoryShows("Books"), { inProgress: true, bought: true, author: true });
+  assert.deepStrictEqual(Journal.categoryShows("Places"), { inProgress: false, bought: false, author: false });
+  assert.strictEqual(Journal.categoryShows("Comics").author, true, "ticked by hand, with no source");
+  assert.strictEqual(Journal.categoryShows("Novels").author, false, "unticked by hand beats a books source");
+  assert.strictEqual(Journal.categoryShows("Gone").inProgress, true, "a name with no category gets the defaults");
+  assert.strictEqual(Journal.authorOf({ category: "Books", author: "Ursula K. Le Guin" }), "Ursula K. Le Guin");
+  assert.strictEqual(Journal.authorOf({ category: "Novels", author: "Ursula K. Le Guin" }), "", "kept, but hidden");
+});
+
+test("an entry keeps its author and the pin that says it was typed", () => {
+  const out = sanitizeEntry({ title: "Piranesi", category: "Books", year: 2026, month: 3, author: "Susanna Clarke", overrides: { author: true } });
+  assert.strictEqual(out.author, "Susanna Clarke");
+  assert.deepStrictEqual(out.overrides, { author: true });
+  assert.strictEqual("author" in sanitizeEntry({ title: "Dune", category: "Movies", year: 2026, month: 3, author: "" }), false);
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

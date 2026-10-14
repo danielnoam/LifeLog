@@ -94,7 +94,7 @@
         view: "timeline", label: "Timeline", icon: "list", filter: "timeline",
         items: () => {
           const entries = (state.data.entries || []).map((e) => ({
-            fields: [f(e.title, "title"), f(e.notes, "notes"), f(e.category, "category"), f((e.genres || []).join(", "), "genres")],
+            fields: [f(e.title, "title"), f(e.author, "author"), f(e.notes, "notes"), f(e.category, "category"), f((e.genres || []).join(", "), "genres")],
             meta: [e.category, dateLabel(e.date)].filter(Boolean).join(" · "),
             open: () => ctx.Journal.openEntryModal(e),
           }));
@@ -115,7 +115,7 @@
       out.push({
         view: "backlog", label: "Backlog", icon: "star", filter: "backlog",
         items: () => (state.data.backlog || []).map((b) => ({
-          fields: [f(b.title, "title"), f(b.notes, "notes"), f(b.category, "category"), f((b.genres || []).join(", "), "genres")],
+          fields: [f(b.title, "title"), f(b.author, "author"), f(b.notes, "notes"), f(b.category, "category"), f((b.genres || []).join(", "), "genres")],
           meta: [B.isStarted(b) ? "In progress" : "", b.category, b.releaseYear ? String(b.releaseYear) : ""].filter(Boolean).join(" · "),
           open: () => B.openBacklogModal(b),
         })),

@@ -251,6 +251,9 @@
             <button type="button" class="link-btn" id="fBacklogUnlinkBtn"><span data-ico="x"></span> Don't remove</button>
           </div>
         </label>
+        <label id="fAuthorWrap" hidden>Author
+          <input id="fAuthor" type="text" autocomplete="off" />
+        </label>
         <!-- Home for the App ID field while the category's own source is
              Steam, where it is the item's whole identity. For every other
              category updateSyncBtnVisibility moves this same node down into
@@ -447,6 +450,16 @@
         <label>Colour
           <input id="cColor" type="color" />
         </label>
+        <label>Look up covers and details from
+          <select id="cSource"></select>
+        </label>
+        <fieldset class="cat-shows">
+          <legend>On its items</legend>
+          <label class="toggle-label"><input type="checkbox" id="cShowInProgress" /> In progress</label>
+          <label class="toggle-label"><input type="checkbox" id="cShowBought" /> Bought</label>
+          <label class="toggle-label"><input type="checkbox" id="cShowAuthor" /> Author</label>
+        </fieldset>
+        <p class="hint">Turning one off hides it on this category's items. Nothing they already have is lost.</p>
         <p class="muted" id="cUses"></p>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteCatBtn">Delete</button>
@@ -509,6 +522,9 @@
           <div class="sync-status" id="bDuplicateStatus" hidden>
             <span id="bDuplicateStatusText"></span>
           </div>
+        </label>
+        <label id="bAuthorWrap" hidden>Author
+          <input id="bAuthor" type="text" autocomplete="off" />
         </label>
         <div id="bSteamTop">
           <div id="bSteamField" class="steam-field" hidden>

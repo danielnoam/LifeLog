@@ -42,6 +42,9 @@ const cut = (s, n) => { s = String(s || ""); return s.length > n ? s.slice(0, n 
 // How far a show has run (see DATA.md): "airing S3 7/10", "finished 24/24".
 const airingFlag = (b) => [b.airing, b.airingSeason && "S" + b.airingSeason,
   b.episodesOut && (b.episodesTotal ? b.episodesOut + "/" + b.episodesTotal : b.episodesOut + " out")].filter(Boolean).join(" ");
+// An author given by hand is pinned, as one typed in the app is: a sync
+// won't replace it (see DATA.md).
+const authored = (a) => (a.author && String(a.author).trim() ? { author: String(a.author).trim(), overrides: { author: true } } : {});
 const limitOf = (a, d) => Math.max(1, Math.min(500, parseInt(a.limit, 10) || d));
 const head = (n, shown, what) => `${n} ${what}` + (n > shown ? ` (showing ${shown}; raise limit for more)` : "");
 
@@ -500,14 +503,14 @@ const TOOLS = [
     description: "What was done or finished (games, books, shows, trips, events), month by month, newest first.",
     readOnly: true,
     input: {
-      query: S.str("Text in the title or notes"), category: S.str("A timeline category"),
+      query: S.str("Text in the title, author or notes"), category: S.str("A timeline category"),
       from: S.str("First month, YYYY-MM"), to: S.str("Last month, YYYY-MM"),
       min_rating: S.int("Only rated at least this (1-5)"), limit: S.limit,
     },
     async run(a) {
       const d = await readData();
       const q = lower(a.query);
-      const rows = (d.entries || []).filter((e) => (!q || lower(e.title + " " + (e.notes || "")).includes(q))
+      const rows = (d.entries || []).filter((e) => (!q || lower(e.title + " " + (e.author || "") + " " + (e.notes || "")).includes(q))
         && (!a.category || lower(e.category) === lower(a.category))
         && (!a.from || String(e.date) >= a.from) && (!a.to || String(e.date).slice(0, 7) <= a.to)
         && (!a.min_rating || (+e.rating || 0) >= +a.min_rating))
@@ -515,7 +518,7 @@ const TOOLS = [
       const lim = limitOf(a, 40);
       return [head(rows.length, Math.min(lim, rows.length), "entries"), ...rows.slice(0, lim).map((e) => {
         const span = e.startMonth ? ` (from ${e.startYear}-${String(e.startMonth).padStart(2, "0")})` : "";
-        return `- ${e.date}${span} [${e.category}] ${e.title}${e.rating ? " " + "★".repeat(e.rating) : ""}${e.notes ? " — " + cut(e.notes, 120) : ""}  (${e.id})`;
+        return `- ${e.date}${span} [${e.category}] ${e.title}${e.author ? " by " + e.author : ""}${e.rating ? " " + "★".repeat(e.rating) : ""}${e.notes ? " — " + cut(e.notes, 120) : ""}  (${e.id})`;
       })].join("\n");
     },
   },
@@ -524,14 +527,14 @@ const TOOLS = [
     description: "Things to play, read, watch or do next. Starred ones (priority) first. A show says how far it has run (airing, between seasons, finished) and how many episodes are out; status \"airing\" lists the ones still mid-run.",
     readOnly: true,
     input: {
-      query: S.str("Text in the title or notes"), category: S.str("A backlog category"),
+      query: S.str("Text in the title, author or notes"), category: S.str("A backlog category"),
       status: S.str("Which ones", { enum: ["open", "starred", "started", "bought", "dropped", "airing", "all"] }), limit: S.limit,
     },
     async run(a) {
       const d = await readData();
       const q = lower(a.query);
       const status = a.status || "open";
-      const rows = (d.backlog || []).filter((b) => (!q || lower(b.title + " " + (b.notes || "")).includes(q))
+      const rows = (d.backlog || []).filter((b) => (!q || lower(b.title + " " + (b.author || "") + " " + (b.notes || "")).includes(q))
         && (!a.category || lower(b.category) === lower(a.category))
         && (status === "all" || (status === "open" ? !b.dropped : status === "starred" ? b.priority && !b.dropped
           : status === "started" ? b.startedAt : status === "bought" ? b.bought
@@ -541,7 +544,7 @@ const TOOLS = [
       return [head(rows.length, Math.min(lim, rows.length), status + " backlog items"), ...rows.slice(0, lim).map((b) => {
         const flags = [b.priority && "starred", b.startedAt && "started " + b.startedAt, b.bought && "bought", b.dropped && "dropped",
           b.releaseDate && "out " + b.releaseDate, b.airing && airingFlag(b)].filter(Boolean);
-        return `- [${b.category}] ${b.title}${flags.length ? " (" + flags.join(", ") + ")" : ""}${b.notes ? " — " + cut(b.notes, 100) : ""}  (${b.id})`;
+        return `- [${b.category}] ${b.title}${b.author ? " by " + b.author : ""}${flags.length ? " (" + flags.join(", ") + ")" : ""}${b.notes ? " — " + cut(b.notes, 100) : ""}  (${b.id})`;
       })].join("\n");
     },
   },
@@ -751,7 +754,7 @@ const TOOLS = [
     input: {
       title: S.str("What"), category: S.str("A timeline category from lifelog_overview"),
       year: S.int("Default this year"), month: S.int("1-12, default this month"),
-      rating: S.int("1-5 stars, optional"), notes: S.str("Optional"),
+      rating: S.int("1-5 stars, optional"), notes: S.str("Optional"), author: S.str("Optional, a book's author"),
     },
     required: ["title", "category"],
     async run(a) {
@@ -763,6 +766,7 @@ const TOOLS = [
         const item = { title: String(a.title).trim(), category: a.category, year, month, date: `${year}-${String(month).padStart(2, "0")}` };
         if (a.rating) item.rating = Math.round(a.rating);
         if (a.notes) item.notes = String(a.notes).trim();
+        Object.assign(item, authored(a));
         const e = addItem(d, "entries", item);
         return { text: `Added "${e.title}" to the timeline (${e.category}, ${e.date}). id ${e.id}`, touched: [["entries", e.id]] };
       });
@@ -773,7 +777,7 @@ const TOOLS = [
     description: "Add something to the backlog: a game, book, show or anything to do later.",
     input: {
       title: S.str("What"), category: S.str("A backlog category from lifelog_overview"),
-      notes: S.str("Optional"), starred: S.bool("Star it (priority)"),
+      notes: S.str("Optional"), starred: S.bool("Star it (priority)"), author: S.str("Optional, a book's author"),
     },
     required: ["title", "category"],
     async run(a) {
@@ -781,6 +785,7 @@ const TOOLS = [
         const item = { title: String(a.title).trim(), category: a.category };
         if (a.notes) item.notes = String(a.notes).trim();
         if (a.starred) item.priority = 1;
+        Object.assign(item, authored(a));
         const b = addItem(d, "backlog", item);
         return { text: `Added "${b.title}" to the backlog (${b.category}). id ${b.id}`, touched: [["backlog", b.id]] };
       });
@@ -801,7 +806,8 @@ const TOOLS = [
       return change(`finished "${a.item}"`, (d) => {
         const b = findItem(d, "backlog", a.item);
         const item = { title: b.title, category: b.category, year, month, date: `${year}-${String(month).padStart(2, "0")}`, backlogAddedAt: b.createdAt };
-        for (const k of ["coverUrl", "mediaId", "mediaSource", "length", "genres", "startedAt"]) if (b[k]) item[k] = b[k];
+        for (const k of ["coverUrl", "mediaId", "mediaSource", "length", "genres", "startedAt", "author"]) if (b[k]) item[k] = b[k];
+        if (b.overrides && b.overrides.author) item.overrides = { author: true };
         if (a.rating) item.rating = Math.round(a.rating);
         if (a.notes) item.notes = String(a.notes).trim();
         const e = addItem(d, "entries", item);
@@ -989,16 +995,21 @@ const TOOLS = [
   },
   {
     name: "lifelog_rename_category",
-    description: "Rename a category or project, or change its colour. Every item filed under it follows, as when renaming in the app (a note category's boards too).",
+    description: "Rename a category or project, or change its colour. Every item filed under it follows, as when renaming in the app (a note category's boards too). A timeline category also takes the switches for what its items show (In progress, Bought, Author).",
     input: {
       kind: S.str("Which kind", { enum: Object.keys(NAME_LISTS) }), name: S.str("Its current name"),
       new_name: S.str("The new name"), color: S.str("New colour, #rrggbb"),
+      show_in_progress: S.bool("Timeline only: offer In progress (start) on its items"),
+      show_bought: S.bool("Timeline only: offer Bought on its items"),
+      show_author: S.bool("Timeline only: show an author on its items"),
     },
     required: ["kind", "name"],
     async run(a) {
       const spec = NAME_LISTS[a.kind] || fail("kind must be one of: " + Object.keys(NAME_LISTS).join(", "));
       const to = a.new_name != null ? String(a.new_name).trim() : "";
-      if (!to && !a.color) fail("Nothing to change: give new_name and/or color.");
+      const shows = [["show_in_progress", "showInProgress"], ["show_bought", "showBought"], ["show_author", "showAuthor"]].filter(([k]) => typeof a[k] === "boolean");
+      if (shows.length && a.kind !== "timeline") fail("The show_ switches are for a timeline category.");
+      if (!to && !a.color && !shows.length) fail("Nothing to change: give new_name, color or a show_ switch.");
       if (a.new_name != null && !to) fail("new_name can't be empty.");
       if (a.color && !/^#[0-9a-f]{6}$/i.test(a.color)) fail("color is #rrggbb.");
       let from = null;
@@ -1009,9 +1020,13 @@ const TOOLS = [
         if (to && to !== from && d[spec.list].some((c) => c !== cat && lower(c.name) === lower(to))) fail(`There's already a ${spec.label} called "${to}".`);
         const before = new Map(spec.uses.flatMap((k) => (d[k] || []).map((x) => [k + "\u0000" + x.id, JSON.stringify(x)])));
         if (a.color) cat.color = a.color.toLowerCase();
+        // Stored as the app stores them: In progress and Bought only when off.
+        for (const [k, field] of shows) {
+          if (field !== "showAuthor" && a[k]) delete cat[field]; else cat[field] = a[k];
+        }
         if (to && to !== from) { cat.name = to; spec.rename(d, from, to); }
         const moved = spec.uses.flatMap((k) => (d[k] || []).filter((x) => before.get(k + "\u0000" + x.id) !== JSON.stringify(x)).map((x) => [k, x.id]));
-        return { text: `${to && to !== from ? `Renamed the ${spec.label} "${from}" to "${to}"` : `Recoloured the ${spec.label} "${from}"`}; ${moved.length} item${moved.length === 1 ? "" : "s"} follow${moved.length === 1 ? "s" : ""}.`, touched: [[spec.list, cat.id], ...moved] };
+        return { text: `${to && to !== from ? `Renamed the ${spec.label} "${from}" to "${to}"` : `${a.color ? "Recoloured" : "Updated"} the ${spec.label} "${from}"`}; ${moved.length} item${moved.length === 1 ? "" : "s"} follow${moved.length === 1 ? "s" : ""}.`, touched: [[spec.list, cat.id], ...moved] };
       });
       let text = main.text, items = main.items;
       if (a.kind === "note" && to && to !== from) {
