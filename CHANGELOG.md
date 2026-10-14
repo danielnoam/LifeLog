@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.267.2] - 2026-10-14
+
+### Changed
+- **Notices stack.** Toasts, "New version ready" and the phone's activity
+  pill share one column at the bottom and look alike (the activity pill's
+  look), so they no longer cover each other. A second toast stacks under
+  the first instead of replacing it, up to three. They sit above the bulk
+  bar while you are bulk-editing.
+- **Paused recurring expenses stay out of the months.** The Ledger no
+  longer lists a faded "Paused" row for every month a pause covers; the
+  pause shows on the plan in the Recurring panel.
+
+### Removed
+- **Bulk sync's "Incomplete" button.** It selected everything a sync could
+  still fill in; select by hand instead.
+
 ## [0.267.1] - 2026-10-14
 
 ### Fixed

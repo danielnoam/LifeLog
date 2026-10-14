@@ -162,7 +162,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.267.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.267.2"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1323,14 +1323,31 @@
   // backfill writes sixty days in one press, and until 0.173.0 the only way
   // back was sixty taps. It is the app's only undo, deliberately: it lasts as
   // long as the toast does, which is as long as "wait, no" takes.
+  //
+  // Toasts stack (0.267.1): one arriving while another is up goes in below
+  // it instead of replacing it, and each leaves on its own clock. The newest
+  // is always #toast, so there is one place to read "what did it just say".
+  const TOAST_MAX = 3;
   function toast(msg, isErr, action) {
-    const t = $("#toast");
+    let t = $("#toast");
+    if (!t.hidden) {
+      const up = [...document.querySelectorAll("#noticeStack > .toast:not([hidden])")];
+      up.slice(0, Math.max(0, up.length - TOAST_MAX + 1)).forEach(dismissToast);
+      // Only the newest keeps its Undo: an older one would undo past the
+      // change that came after it.
+      t.removeAttribute("id");
+      t.querySelectorAll(".toast-action").forEach((b) => b.remove());
+      const next = el("div", "toast");
+      next.id = "toast";
+      t.after(next);
+      t = next;
+    }
     t.textContent = "";
     t.appendChild(el("span", null, msg));
     if (action) {
       const b = el("button", "toast-action", action.label);
       b.type = "button";
-      b.onclick = () => { t.hidden = true; clearTimeout(toast._t); action.onClick(); };
+      b.onclick = () => { dismissToast(t); action.onClick(); };
       t.appendChild(b);
     }
     t.className = "toast" + (isErr ? " err" : "");
@@ -1340,8 +1357,15 @@
     // the same message twice is read twice.
     const live = $("#toastLive");
     if (live) { live.textContent = ""; requestAnimationFrame(() => { live.textContent = msg; }); }
-    clearTimeout(toast._t);
-    toast._t = setTimeout(() => (t.hidden = true), action ? 8000 : isErr ? 6000 : 2600);
+    clearTimeout(t._t);
+    t._t = setTimeout(() => dismissToast(t), action ? 8000 : isErr ? 6000 : 2600);
+  }
+  // An older toast leaves the page once it has faded; the newest stays as
+  // the hidden #toast the next one reuses.
+  function dismissToast(t) {
+    clearTimeout(t._t);
+    t.hidden = true;
+    if (t.id !== "toast") setTimeout(() => { if (t.hidden) t.remove(); }, 250);
   }
 
   // Snapshot of state.data as of the last persist(), used only to detect
@@ -2507,24 +2531,26 @@
   let bulkBarEl = null;
 
   function bulkActionBar(opts) {
-    const { categories, onMove, onDelete, onSync, preset } = opts;
+    const { categories, onMove, onDelete, onSync } = opts;
     const empty = state.bulk.selected.size === 0;
     // A run re-renders after every item, so the bar's own disabled state has
     // to come from the run rather than from a flag the caller set once —
     // otherwise each re-render hands the Sync button straight back and a
     // second run can start on top of the first.
     const busy = !!(bulkRun && bulkRun.active);
-    if (!bulkBarEl) bulkBarEl = el("div", "bulk-bar");
+    if (!bulkBarEl) {
+      bulkBarEl = el("div", "bulk-bar");
+      // The notice stack sits above the bar (0.267.1). A detached bar
+      // measures 0, which drops the stack back down.
+      if (window.ResizeObserver) new ResizeObserver(() => {
+        const h = bulkBarEl.isConnected ? bulkBarEl.offsetHeight : 0;
+        document.documentElement.style.setProperty("--bulkbar-h", h ? h + 10 + "px" : "0px");
+      }).observe(bulkBarEl);
+    }
 
     const parts = [
       { key: "count", kind: "count" },
       { key: "progress", kind: "progress" },
-      // An optional one-press selection the view knows how to compute —
-      // today that's the Backlog's "everything a sync could still fill in".
-      // It lives here rather than in a screen of its own because the answer
-      // to "these are incomplete" is the Sync button already sitting next to
-      // it: a list that only tells you is a list you stop opening.
-      ...(preset && preset.count ? [{ key: "preset", kind: "preset" }] : []),
       // Both optional: Notes carry no category, so they get a bar that is
       // Delete and Cancel and nothing that would sit there permanently
       // disabled pretending otherwise.
@@ -2544,12 +2570,6 @@
           const b = el("button", "bulk-progress");
           b.type = "button";
           b.onclick = openBulkProgressPanel;
-          return b;
-        }
-        if (part.kind === "preset") {
-          const b = el("button", "btn btn-sm bulk-preset");
-          b.type = "button";
-          b.onclick = () => b.__apply && b.__apply();
           return b;
         }
         if (part.kind === "move") {
@@ -2579,13 +2599,6 @@
           if (!run) { node.textContent = ""; return; }
           node.textContent = `${run.done}/${run.total}` + (run.active ? "" : " · done");
           node.title = "See what happened to each item";
-          return;
-        }
-        if (part.kind === "preset") {
-          node.__apply = preset.apply;
-          node.textContent = preset.label + " " + preset.count;
-          node.title = preset.title || "";
-          node.disabled = busy;
           return;
         }
         if (part.kind === "move") {
@@ -5456,7 +5469,6 @@
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
     loadBacklogPrices: Sync.loadBacklogPrices, applySteamAppId: Sync.applySteamAppId,
     backlogPriceOf: Sync.backlogPriceOf, priceEpoch: Sync.priceEpoch,
-    importItemIncomplete: IO.importItemIncomplete,
     backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus,
   });
   Wheel.init({ $, toast, prefersReducedMotion });

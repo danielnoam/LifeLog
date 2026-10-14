@@ -16,6 +16,21 @@ what was decided against and why.
 
 ---
 
+- **One notice stack (0.267.2).** `#noticeStack` holds every toast, the
+  update bar and the activity pill, so they stack instead of overlapping
+  (Daniel: "they should all look like the syncing style"). Toasts stack up
+  to three; the newest is always `#toast` (tests and the live region read
+  that), older ones lose the id and their Undo (it would undo past the newer change) and are removed once faded. The stack sits
+  `--bulkbar-h` above the bulk bar, which a ResizeObserver on the bar keeps
+  (0 once it's detached). The activity pill now lives in the stack at z 80,
+  above sheets, so `body.modal-open` hides it.
+- **Paused occurrences left out of the Ledger (0.267.2).**
+  `getEffectiveFinanceEntries` drops `paused` occurrences; a one-off skip
+  still shows, faded. The plan's own occurrence list in the recurring sheet
+  still says "Paused", and the Recurring panel says "paused until …".
+- **Bulk sync's Incomplete preset removed (0.267.2).** Daniel never used it.
+  `bulkActionBar` lost its `preset` option; `importItemIncomplete` stays,
+  the Steam fetch and the import still use it.
 - **Every In progress door follows the switch (0.267.1).** The switch is
   checked in four places: the backlog row's Start, the backlog sheet's ▶
   and More menu, the timeline entry's More menu (`updateSyncBtnVisibility`

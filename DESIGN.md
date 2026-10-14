@@ -135,8 +135,8 @@ at 20, stat numbers at 26), rather than forcing those onto neighbours:
 |---|---|---|
 | `--fs-3xs` | 10 | micro labels: bottom-nav labels, chart axes, tiny tags |
 | `--fs-2xs` | 11 | badges, eyebrows (uppercase, +0.04em tracking), chart labels |
-| `--fs-xs` | 12 | meta lines, secondary buttons |
-| `--fs-sm` | 13 | **body**: rows, buttons, chips, toasts |
+| `--fs-xs` | 12 | meta lines, secondary buttons, toasts |
+| `--fs-sm` | 13 | **body**: rows, buttons, chips |
 | `--fs-md` | 14 | row titles, emphasized body |
 | `--fs-read` | 15 | reading text: note bodies, card and habit titles, quotes |
 | `--fs-lg` | 16 | card and section headings; **every field on a phone** (iOS zooms below 16) |
@@ -184,11 +184,11 @@ sections 24.
 | `--r-xs` | 4 | focus rings, tiny badges, thumbnails |
 | `--r-sm` | 6 | rows, list items, inner controls |
 | `--r-md` | 8 | buttons, inputs, segmented controls |
-| `--r-lg` | 10 (`--radius`) | cards, month cards, toasts |
+| `--r-lg` | 10 (`--radius`) | cards, month cards |
 | `--r-card` | 12 | larger cards: settings groups, habit and board cards, covers |
 | `--r-xl` | 14 | sheets, modals |
 | `--r-sheet` | 18 | the top corners of a bottom sheet |
-| `--r-pill` | 999 | chips, pills; 50% for dots and avatars |
+| `--r-pill` | 999 | chips, pills, toasts and the notice stack; 50% for dots and avatars |
 
 Nested corners: an inner radius equals the outer radius minus the padding
 between them, so a row in a card never looks rounder than the card.
@@ -265,7 +265,7 @@ where one exists. A new component goes in this list in the same change.
 | Sheet | `.modal-overlay` > `.modal` | Rises in and fades out (pure CSS, `@starting-style`). Full-screen on mobile for writing (notes); a bottom sheet for options (`.view-options`). Safe-area padding under `html.native`. On a phone it swipes down to close (`wireSheetSwipe`, app.js), through the backdrop's own click. |
 | Menu | `.menu-pop` | Opens upward from its trigger and rises into place. A sheet's More… is `.menu-wrap.sheet-more` with a `.sheet-more-btn`; app.js wires every one, and each item saves the sheet and acts at once. |
 | Activity | `#activityBtn` (desktop header), `.activity-pill` (phones, floating across from the +), `.activity-row` in `#activityModal` | Long work runs through `LifeLogJobs` (src/jobs.js) and shows here by itself: a ring for the first job's progress, a bar and a Stop per row. Shown only while something runs, or after a failure until it's seen. |
-| Toast | `toast(msg, isErr, action)` | 2.6s, 6s for an error, 8s with an action. **Undo is a toast action**, never a confirm dialog after the fact. |
+| Toast | `toast(msg, isErr, action)` in `#noticeStack` | 2.6s, 6s for an error, 8s with an action. **Undo is a toast action**, never a confirm dialog after the fact. Drawn as the activity pill is; up to three stack with the update notice and the activity pill, never on top of each other. |
 | Empty state | `emptyState({ glyph, title, body, action, onAction, hint })` | A rich empty state for a view with no data yet. Pass a plain string for "nothing matches your filters", which gets no button. |
 | Animated number | `animatedNumberText(node, key, value, fmt)` | For totals that change in place. |
 | View switch | `fadeInOnViewChange(root)`, `.view-fade-in`, `.mode-slide-fwd/back` | Slides follow the direction you moved in. |

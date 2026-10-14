@@ -696,9 +696,11 @@
   // them, faded out, rather than making them vanish outright) — every
   // total/sum downstream filters them out itself; see renderFinanceEntries'
   // month/year counts and renderFinanceStats' `items`.
+  // Paused ones are not (0.267.2): a pause is said once, on the plan in the
+  // Recurring panel, not as a faded "Paused" row in every month it covers.
   function getEffectiveFinanceEntries() {
     const today = new Date(); today.setHours(0, 0, 0, 0);
-    const virtual = (state.data.recurringExpenses || []).flatMap((r) => planCharges(r, today));
+    const virtual = (state.data.recurringExpenses || []).flatMap((r) => planCharges(r, today)).filter((o) => !o.paused);
     return [...state.data.financeEntries, ...virtual];
   }
   function financeYears() {

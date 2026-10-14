@@ -553,6 +553,7 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
 .activity-btn.is-failed .activity-ring, .activity-pill.is-failed .activity-ring { stroke: var(--danger); stroke-dasharray: 100 100; }
 /* Phones only (see the mobile blocks): a floating pill across from the +. */
 .activity-pill { display: none; }
+body.modal-open .activity-pill { visibility: hidden; }
 .activity-pill-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .activity-pill.is-failed .activity-pill-text { color: var(--danger); }
 .activity-pill-more { flex: none; color: var(--text-dim); }
@@ -1813,8 +1814,6 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 /* Warning-coloured rather than a plain button: it names a problem, and the
    count is the point. Sits before the actions, since it changes what they
    will act on. */
-.bulk-preset { color: var(--warning); border-color: var(--warning); white-space: nowrap; }
-.bulk-preset:hover:not(:disabled) { background: var(--bg); }
 
 .bulk-move-select {
   background-color: var(--bg); border: 1px solid var(--border); color: var(--text);
@@ -2472,20 +2471,30 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 .muted { margin: 0 0 10px; }
 
 
-/* toast */
-.toast {
-  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
-  background: var(--bg-elev-2); border: 1px solid var(--border); color: var(--text);
-  padding: 12px 20px; border-radius: var(--r-lg); box-shadow: var(--shadow); z-index: 80;
-  font-size: var(--fs-sm);
+/* The notice stack (0.267.1): toasts, the update notice and the phone's
+   activity pill share one column at the bottom, so they stack rather than
+   cover each other, and share the activity pill's look. It sits above the
+   bulk bar, whose height app.js keeps in --bulkbar-h. */
+.notice-stack {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 80;
+  bottom: calc(22px + var(--bulkbar-h, 0px));
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  max-width: calc(100vw - 32px); pointer-events: none;
+}
+.notice-stack > * { pointer-events: auto; max-width: 100%; }
+.toast, .update-bar {
+  align-items: center; gap: 10px; min-height: 44px;
+  padding: 8px 16px; border-radius: var(--r-pill);
+  font-size: var(--fs-xs); font-weight: 550;
+  background: var(--bg-elev-2); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow);
 }
 /* :not([hidden]) rather than a companion rule below: an author `display`
    outranks the UA's `[hidden] { display: none }`, and the toast is hidden by
    that attribute. Written so it cannot apply while hidden, instead of relying
    on source order to undo it — the trap test/browser/hiddenaudit.js exists for. */
-.toast:not([hidden]):has(.toast-action) {
-  display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 16px;
-}
+.toast:not([hidden]) { display: flex; }
+.toast:not([hidden]):has(.toast-action) { padding: 6px 6px 6px 16px; }
+.toast-action, .update-bar .btn { border-radius: var(--r-pill); }
 .toast[hidden] { display: none; }
 /* Read out, never seen: the toast's words for screen readers (0.254.0). */
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
@@ -2560,15 +2569,9 @@ html.native, html.native body { overscroll-behavior-y: none; }
 /* Sits where a toast does but doesn't leave on its own: there is nothing to
    do about it except reload, and the whole point is that it waits until you
    do. Above the toast, since a transient message must not cover it. */
-.update-bar {
-  position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
-  display: flex; align-items: center; gap: 12px;
-  background: var(--bg-elev-2); border: 1px solid var(--accent); color: var(--text);
-  padding: 10px 12px 10px 16px; border-radius: var(--r-lg); box-shadow: var(--shadow); z-index: 90;
-  font-size: var(--fs-sm); max-width: calc(100vw - 32px); white-space: nowrap;
-}
+.update-bar:not([hidden]) { display: flex; padding: 6px 6px 6px 16px; white-space: nowrap; }
 .update-bar[hidden] { display: none; }
-.toast.err { border-color: var(--danger); }
+.toast.err { color: var(--danger); }
 
 /* ---------- mobile ---------- */
 /* html:not(.force-pc) lets Settings → Appearance → Force layout "PC" suppress
@@ -2712,8 +2715,11 @@ html.native, html.native body { overscroll-behavior-y: none; }
   html:not(.force-pc) .jump-item.is-active { color: var(--accent); font-size: var(--fs-md); cursor: default; }
 
   html:not(.force-pc) .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
+  html:not(.force-pc) .notice-stack {
+    left: 16px; transform: none; align-items: flex-start; max-width: calc(100vw - 108px);
+    bottom: calc(var(--bottombar-h, 88px) + 20px + var(--bulkbar-h, 0px));
+  }
   html:not(.force-pc) .activity-pill:not([hidden]) {
-    position: fixed; left: 16px; bottom: calc(var(--bottombar-h, 88px) + 20px); z-index: 35;
     display: flex; align-items: center; gap: 8px; min-height: 44px; max-width: calc(100vw - 108px);
     padding: 8px 14px 8px 12px; border-radius: var(--r-pill); font: inherit; font-size: var(--fs-xs); font-weight: 550;
     background: var(--bg-elev-2); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow); cursor: pointer;
@@ -2722,8 +2728,6 @@ html.native, html.native body { overscroll-behavior-y: none; }
   html:not(.force-pc) .filter-slot:empty { padding: 0; }
   html:not(.force-pc) .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: calc(var(--bottombar-h, 88px) + var(--fab-clear)); }
   html:not(.force-pc) .content.no-filters { padding-top: 0; }
-  html:not(.force-pc) .toast { bottom: var(--bottombar-h, 88px); }
-  html:not(.force-pc) .update-bar { bottom: var(--bottombar-h, 88px); }
   html:not(.force-pc) .bulk-bar { bottom: var(--bottombar-h, 88px); flex-wrap: wrap; }
   html:not(.force-pc) .month-add-btn { width: 20px; height: 20px; font-size: var(--fs-md); }
   html:not(.force-pc) .proj-group-add { width: 20px; height: 20px; font-size: var(--fs-md); }
@@ -2823,8 +2827,11 @@ html.force-mobile .jump-item {
 html.force-mobile .jump-item.is-active { color: var(--accent); font-size: var(--fs-md); cursor: default; }
 
 html.force-mobile .fab-wrap { right: 16px; bottom: calc(var(--bottombar-h, 88px) + 12px); }
+html.force-mobile .notice-stack {
+  left: 16px; transform: none; align-items: flex-start; max-width: calc(100vw - 108px);
+  bottom: calc(var(--bottombar-h, 88px) + 20px + var(--bulkbar-h, 0px));
+}
 html.force-mobile .activity-pill:not([hidden]) {
-  position: fixed; left: 16px; bottom: calc(var(--bottombar-h, 88px) + 20px); z-index: 35;
   display: flex; align-items: center; gap: 8px; min-height: 44px; max-width: calc(100vw - 108px);
   padding: 8px 14px 8px 12px; border-radius: var(--r-pill); font: inherit; font-size: var(--fs-xs); font-weight: 550;
   background: var(--bg-elev-2); color: var(--text); border: 1px solid var(--border); box-shadow: var(--shadow); cursor: pointer;
@@ -2833,8 +2840,6 @@ html.force-mobile .filter-slot { padding: 14px 14px 0; }
 html.force-mobile .filter-slot:empty { padding: 0; }
 html.force-mobile .content { padding-top: 14px; padding-left: 14px; padding-right: 14px; padding-bottom: calc(var(--bottombar-h, 88px) + var(--fab-clear)); }
 html.force-mobile .content.no-filters { padding-top: 0; }
-html.force-mobile .toast { bottom: var(--bottombar-h, 88px); }
-html.force-mobile .update-bar { bottom: var(--bottombar-h, 88px); }
 html.force-mobile .bulk-bar { bottom: var(--bottombar-h, 88px); flex-wrap: wrap; }
 html.force-mobile .month-add-btn { width: 20px; height: 20px; font-size: var(--fs-md); }
 html.force-mobile .proj-group-add { width: 20px; height: 20px; font-size: var(--fs-md); }

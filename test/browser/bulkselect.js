@@ -42,19 +42,6 @@ const enterBulk = async (page) => {
   await page.waitForSelector(".bulk-bar");
 };
 
-const bar = (page) => page.evaluate(() => {
-  const p = document.querySelector(".bulk-preset");
-  const btns = [...document.querySelectorAll(".bulk-bar .btn")].map((b) => b.textContent.trim());
-  return {
-    preset: p ? { text: p.textContent.trim(), title: p.title, disabled: p.disabled,
-                  beforeSync: btns.indexOf(p.textContent.trim()) < btns.findIndex((t) => /Sync/.test(t)) } : null,
-    count: (document.querySelector(".bulk-count") || {}).textContent || "",
-    checked: [...document.querySelectorAll(".backlog-list .bulk-check:checked")]
-      .map((c) => c.closest(".backlog-item, .backlog-item-rich"))
-      .map((r) => r && r.querySelector(".bl-title") ? r.querySelector(".bl-title").textContent : "?"),
-  };
-});
-
 (async () => {
   const b = await chromium.launch();
   const page = await b.newPage({ viewport: { width: 520, height: 1000 } });
@@ -62,64 +49,23 @@ const bar = (page) => page.evaluate(() => {
   page.on("console", (m) => { if (m.type() === "error" && !/404|Failed to load resource/.test(m.text())) errs.push("console: " + m.text()); });
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
 
-  // ---- no chrome outside bulk mode ----
+  // The "Incomplete N" one-press selection was removed in 0.267.1: Daniel
+  // never used it. Bulk mode is select, then Move, Sync or Delete.
   await load(page);
-  check("nothing is added to the view until you are bulk-editing",
-    (await page.$(".bulk-preset")) === null && (await page.$("#attentionPill")) === null);
-
-  // ---- inside bulk mode it offers the selection ----
   await enterBulk(page);
-  let v = await bar(page);
-  check("bulk mode offers the incomplete selection", !!v.preset, v);
-  check("counting only what a source could actually fill",
-    /^Incomplete 3$/.test(v.preset.text), v.preset);
-  check("and saying what pressing it does", /press Sync/.test(v.preset.title), v.preset);
-  check("it sits before the actions it changes the target of", v.preset.beforeSync === true, v.preset);
+  const v = await page.evaluate(() => ({
+    preset: !!document.querySelector(".bulk-preset"),
+    btns: [...document.querySelectorAll(".bulk-bar .btn")].map((x) => x.textContent.trim()),
+  }));
+  check("bulk mode no longer offers an Incomplete selection",
+    !v.preset && !v.btns.some((t) => /Incomplete/.test(t)), v);
+  check("Sync, Delete and Cancel are still there",
+    ["Sync", "Delete", "Cancel"].every((t) => v.btns.some((x) => x.includes(t))), v);
 
-  await page.evaluate(() => document.querySelector(".bulk-preset").click());
-  await page.waitForTimeout(350);
-  v = await bar(page);
-  check("pressing it selects exactly those", /^3 selected/.test(v.count), v);
-  check("naming the incomplete ones", ["Hollow Thing", "Another Gap", "Waiting Gap"].every((t) => v.checked.includes(t)), v.checked);
-  check("a complete item is not selected", !v.checked.includes("Complete One"), v.checked);
-  check("nor one nothing could fill — its category has no source", !v.checked.includes("A Sketchbook"), v.checked);
-  check("and Sync is there to act on it", await page.evaluate(() =>
-    [...document.querySelectorAll(".bulk-bar .btn")].some((x) => /Sync/.test(x.textContent) && !x.disabled)));
-
-  // ---- it replaces the selection rather than adding to it ----
-  await page.evaluate(() => {
-    const c = document.querySelector(".backlog-list .bulk-check");
-    if (!c.checked) c.click();
-  });
+  await page.evaluate(() => document.querySelector(".backlog-list .bulk-check").click());
   await page.waitForTimeout(200);
-  await page.evaluate(() => document.querySelector(".bulk-preset").click());
-  await page.waitForTimeout(300);
-  v = await bar(page);
-  check("pressing it again means what it says — exactly the incomplete ones",
-    /^3 selected/.test(v.count), v);
-
-  // ---- never selects a row a fold is hiding ----
-  await load(page, { backlogFoldUnreleased: "collapsed" });
-  await enterBulk(page);
-  v = await bar(page);
-  check("a folded band's rows are not counted", /^Incomplete 2$/.test(v.preset.text), v.preset);
-  await page.evaluate(() => document.querySelector(".bulk-preset").click());
-  await page.waitForTimeout(300);
-  v = await bar(page);
-  check("nor selected — bulk mode never acts on what you can't see",
-    /^2 selected/.test(v.count) && !v.checked.includes("Waiting Gap"), v);
-
-  // ---- nothing to fix, nothing offered ----
-  await page.evaluate(() => {
-    const c = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
-    c.backlog = c.backlog.filter((x) => x.id === "ok1");
-    localStorage.setItem("lifelog-cache-v1", JSON.stringify(c));
-  });
-  await page.reload({ waitUntil: "networkidle" });
-  await page.waitForTimeout(400);
-  await enterBulk(page);
-  check("with nothing incomplete the button isn't there at all",
-    (await page.$(".bulk-preset")) === null);
+  check("selecting a row by hand still works", await page.evaluate(() =>
+    /^1 selected/.test(document.querySelector(".bulk-count").textContent)));
 
   await b.close();
   done(errs);

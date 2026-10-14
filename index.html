@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.267.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.267.2" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -121,10 +121,6 @@
     </div>
   </header>
 
-  <!-- Activity on a phone: the header has no room for a fourth button, so
-       while something runs it floats bottom-left, across from the +, and
-       says what it is. -->
-  <button id="activityPill" class="activity-pill" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="activity-track" cx="12" cy="12" r="8" /><circle class="activity-ring" cx="12" cy="12" r="8" pathLength="100" /></svg><span class="activity-pill-text" id="activityPillText"></span><span class="activity-pill-more" id="activityPillMore"></span></button>
 
   <div class="fab-wrap">
     <!-- One group per tab, headed with the tab's own name and kept in the
@@ -2117,19 +2113,29 @@
     </div>
   </div>
 
-  <div id="toast" class="toast" hidden></div>
+  <!-- Every small notice in one column at the bottom (0.267.1), so they
+       stack instead of covering each other: toasts on top (newest lowest),
+       then the update notice, then the phone's activity pill. All three
+       are drawn as the same pill. -->
+  <div class="notice-stack" id="noticeStack">
+    <div id="toast" class="toast" hidden></div>
+    <!-- Shown only when a new build has finished downloading in the background.
+         The service worker serves the cached shell first (see sw.js), so
+         without this the new version arrives on some later launch nobody can
+         predict — which is how a device ends up quietly running months-old
+         code against newer data. -->
+    <div id="updateBar" class="update-bar" hidden>
+      <span id="updateBarText">New version ready</span>
+      <button type="button" class="btn btn-sm" id="updateReloadBtn">Reload</button>
+    </div>
+    <!-- Activity on a phone: the header has no room for a fourth button, so
+         while something runs it floats bottom-left, across from the +, and
+         says what it is. -->
+    <button id="activityPill" class="activity-pill" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><circle class="activity-track" cx="12" cy="12" r="8" /><circle class="activity-ring" cx="12" cy="12" r="8" pathLength="100" /></svg><span class="activity-pill-text" id="activityPillText"></span><span class="activity-pill-more" id="activityPillMore"></span></button>
+  </div>
   <div id="toastLive" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
   <div class="pull-icon" id="pullIcon" aria-hidden="true">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" pathLength="100" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" /></svg>
-  </div>
-  <!-- Shown only when a new build has finished downloading in the background.
-       The service worker serves the cached shell first (see sw.js), so
-       without this the new version arrives on some later launch nobody can
-       predict — which is how a device ends up quietly running months-old
-       code against newer data. -->
-  <div id="updateBar" class="update-bar" hidden>
-    <span id="updateBarText">New version ready</span>
-    <button type="button" class="btn btn-sm" id="updateReloadBtn">Reload</button>
   </div>
 
   <!-- defer: fetch all modules in parallel while the HTML parses, then run
@@ -2178,36 +2184,36 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.267.1"></script>
-  <script defer src="src/platform.js?v=0.267.1"></script>
-  <script defer src="src/icons.js?v=0.267.1"></script>
-  <script defer src="src/jobs.js?v=0.267.1"></script>
-  <script defer src="src/reconcile.js?v=0.267.1"></script>
-  <script defer src="src/qr.js?v=0.267.1"></script>
-  <script defer src="src/media.js?v=0.267.1"></script>
-  <script defer src="src/merge.js?v=0.267.1"></script>
-  <script defer src="src/storage.js?v=0.267.1"></script>
-  <script defer src="src/finance.js?v=0.267.1"></script>
-  <script defer src="src/settings.js?v=0.267.1"></script>
-  <script defer src="src/wheel.js?v=0.267.1"></script>
-  <script defer src="src/backlog.js?v=0.267.1"></script>
-  <script defer src="src/journal.js?v=0.267.1"></script>
-  <script defer src="src/markdown.js?v=0.267.1"></script>
-  <script defer src="src/notes.js?v=0.267.1"></script>
-  <script defer src="src/docimport.js?v=0.267.1"></script>
-  <script defer src="src/io.js?v=0.267.1"></script>
-  <script defer src="src/sync.js?v=0.267.1"></script>
-  <script defer src="src/habits.js?v=0.267.1"></script>
-  <script defer src="src/vendor/rough.js?v=0.267.1"></script>
-  <script defer src="src/boards.js?v=0.267.1"></script>
-  <script defer src="src/travel.js?v=0.267.1"></script>
-  <script defer src="src/recap.js?v=0.267.1"></script>
-  <script defer src="src/reminders.js?v=0.267.1"></script>
-  <script defer src="src/widgets.js?v=0.267.1"></script>
-  <script defer src="src/share.js?v=0.267.1"></script>
-  <script defer src="src/search.js?v=0.267.1"></script>
-  <script defer src="src/letterboxd.js?v=0.267.1"></script>
-  <script defer src="src/payments.js?v=0.267.1"></script>
-  <script defer src="src/app.js?v=0.267.1"></script>
+  <script defer src="src/errlog.js?v=0.267.2"></script>
+  <script defer src="src/platform.js?v=0.267.2"></script>
+  <script defer src="src/icons.js?v=0.267.2"></script>
+  <script defer src="src/jobs.js?v=0.267.2"></script>
+  <script defer src="src/reconcile.js?v=0.267.2"></script>
+  <script defer src="src/qr.js?v=0.267.2"></script>
+  <script defer src="src/media.js?v=0.267.2"></script>
+  <script defer src="src/merge.js?v=0.267.2"></script>
+  <script defer src="src/storage.js?v=0.267.2"></script>
+  <script defer src="src/finance.js?v=0.267.2"></script>
+  <script defer src="src/settings.js?v=0.267.2"></script>
+  <script defer src="src/wheel.js?v=0.267.2"></script>
+  <script defer src="src/backlog.js?v=0.267.2"></script>
+  <script defer src="src/journal.js?v=0.267.2"></script>
+  <script defer src="src/markdown.js?v=0.267.2"></script>
+  <script defer src="src/notes.js?v=0.267.2"></script>
+  <script defer src="src/docimport.js?v=0.267.2"></script>
+  <script defer src="src/io.js?v=0.267.2"></script>
+  <script defer src="src/sync.js?v=0.267.2"></script>
+  <script defer src="src/habits.js?v=0.267.2"></script>
+  <script defer src="src/vendor/rough.js?v=0.267.2"></script>
+  <script defer src="src/boards.js?v=0.267.2"></script>
+  <script defer src="src/travel.js?v=0.267.2"></script>
+  <script defer src="src/recap.js?v=0.267.2"></script>
+  <script defer src="src/reminders.js?v=0.267.2"></script>
+  <script defer src="src/widgets.js?v=0.267.2"></script>
+  <script defer src="src/share.js?v=0.267.2"></script>
+  <script defer src="src/search.js?v=0.267.2"></script>
+  <script defer src="src/letterboxd.js?v=0.267.2"></script>
+  <script defer src="src/payments.js?v=0.267.2"></script>
+  <script defer src="src/app.js?v=0.267.2"></script>
 </body>
 </html>
