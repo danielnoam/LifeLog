@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.267.1] - 2026-10-14
+
+### Fixed
+- **A category with In progress off no longer offers it anywhere.** A
+  timeline entry's More menu hid "Move to In progress" only in the backlog;
+  now the entry sheet hides it too. Adding from the In progress card starts
+  on a category that has In progress on.
+
 ## [0.267.0] - 2026-10-14
 
 ### Added

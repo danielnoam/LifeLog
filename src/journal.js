@@ -1238,6 +1238,7 @@
     if (btn) btn.hidden = isSteam || !hasMediaSourceFor(category);
     const authorWrap = $("#" + prefix + "AuthorWrap");
     if (authorWrap) authorWrap.hidden = !categoryShows(category).author;
+    if (prefix === "f") $("#moveToProgressBtn").hidden = !categoryShows(category).inProgress;
     // The App ID field used to exist only for a Steam-sourced category, which
     // left every other one with no way to name a Steam app by hand — no store
     // link and no GG.deals price for anything a search couldn't map to one.

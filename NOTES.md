@@ -16,6 +16,14 @@ what was decided against and why.
 
 ---
 
+- **Every In progress door follows the switch (0.267.1).** The switch is
+  checked in four places: the backlog row's Start, the backlog sheet's ▶
+  and More menu, the timeline entry's More menu (`updateSyncBtnVisibility`
+  for prefix "f", which runs on open and on a category change), and the
+  default category when adding from the In progress card
+  (`defaultCategory` in backlog.js). Bought has only the sheet's ✓. The
+  bridge and AniList sync still set `startedAt` freely: those are asked for
+  by name, not offered as a button.
 - **Book authors and a category's switches (0.267.0).** A books category
   isn't a type of its own: it's one whose lookup source is Open Library or
   Google Books, which is where an author comes from, and `showAuthor` on

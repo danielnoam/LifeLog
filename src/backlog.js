@@ -2630,13 +2630,21 @@
     else { coverDiv.hidden = true; coverImg.src = ""; paint(false); }
   }
 
+  // Starting something new from the In progress band lands on a category
+  // that offers In progress, not one that has it switched off.
+  function defaultCategory(started) {
+    const cats = state.data.categories;
+    const pick = (started && cats.find((c) => categoryShows(c.name).inProgress)) || cats[0];
+    return pick && pick.name;
+  }
+
   function openBacklogModal(item, presetCategory, opts) {
     const editing = !!item;
     $("#backlogModalTitle").textContent = editing ? "Edit backlog item" : "Add to backlog";
     $("#backlogId").value = editing ? item.id : "";
     $("#bTitle").value = editing ? item.title : ((opts && opts.title) || "");
     fillCategorySelect($("#bCategory"), state.data.categories,
-      editing ? item.category : (presetCategory || (state.data.categories[0] && state.data.categories[0].name)));
+      editing ? item.category : (presetCategory || defaultCategory(opts && opts.started)));
     $("#bNotes").value = editing ? (item.notes || "") : ((opts && opts.notes) || "");
     $("#bCoverUrl").value = editing ? (item.coverUrl || "") : "";
     $("#bMediaId").value = editing ? (item.mediaId || "") : "";
