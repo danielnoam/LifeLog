@@ -16,6 +16,28 @@ what was decided against and why.
 
 ---
 
+- **Book authors and a category's switches (0.267.0).** A books category
+  isn't a type of its own: it's one whose lookup source is Open Library or
+  Google Books, which is where an author comes from, and `showAuthor` on
+  the category overrides that either way (Daniel: a books category with
+  no source still needs authors). In progress and Bought are stored only
+  when off, so every category made before stays as it was. Off hides the
+  buttons, never the data, and a sheet still shows ▷ or ✓ when the item
+  already has it on, so it can be taken off.
+  An author typed in a sheet is pinned (`overrides.author`) without an
+  Advanced row: typing is the pin, emptying the field unpins it. A pinned
+  author goes into the book search (`&author=`, `inauthor:`), and if that
+  finds nothing the title alone is tried. Sync never blanks an author when
+  a result has none.
+  The one-line rows show "Title · Author" with the author's flex-shrink far
+  above the title's, so it gives way first, down to a 4em min-width; with
+  none, a phone row came out "Project … · …". Daniel saw the phone
+  screenshot and kept it in the compact rows.
+  Author is left out of IMPORT_FILLABLE on purpose: importItemIncomplete
+  reads that table, and every synced movie would have counted as
+  incomplete for lacking one. The source picker's list moved to
+  journal.js (MEDIA_SOURCE_OPTIONS) so Settings and the sheet share it.
+
 - **The browser icon and the checklist widget's order (0.266.0).** The page
   had no `<link rel="icon">`, so a browser asked for `/favicon.ico` at the
   site's root (on Pages, the user site's, not this repo's) and showed

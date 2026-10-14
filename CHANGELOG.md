@@ -4,6 +4,26 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.267.0] - 2026-10-14
+
+### Added
+- **Authors on books.** An item in a books category has an Author field,
+  and the author shows as a small line under the title in the backlog and
+  the In progress card, and beside the title in the timeline. Syncing from
+  Open Library or Google Books fills it in. Type one yourself and sync
+  keeps it and searches with it, which finds the right book when several
+  share a title. Search finds books by author too.
+- **Choose what a category's items offer.** Editing a category now has
+  its lookup source, and checkboxes for In progress, Bought and Author.
+  Turn In progress off for something like Restaurants and its items lose
+  the ▷ button; turn Bought off and the ✓ in the sheet goes. Author is
+  ticked for you when the source is a books one, and you can tick it on
+  any category. Turning one off only hides it.
+
+### Fixed
+- **Renaming a category keeps its lookup source.** It used to lose it,
+  so its items stopped syncing until you set it again in Settings.
+
 ## [0.266.0] - 2026-10-12
 
 ### Added

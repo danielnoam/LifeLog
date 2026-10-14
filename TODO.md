@@ -1,5 +1,10 @@
 todo:
 
+- **Renaming a timeline category through the bridge** still leaves its
+  lookup source (settings.mediaCategorySources) under the old name; the
+  app's own rename moves it since 0.267.0. The bridge's rename would need
+  the settings change in its undo record too.
+
 - **Security pass follow-ups (0.259.2).** The write-up in the project's
   audits folder (2026-10-09-security-pass.md) ranks these; each one changes
   how data is stored or synced, so each is a decision first. The token flow
