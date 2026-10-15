@@ -259,6 +259,22 @@ test("the widgets' icons are the app's, as tools/widget-icons.js last drew them"
   assert.deepStrictEqual(glyphs, [], "an emoji or text glyph standing in for an icon");
 });
 
+// A drawable on a TextView with no text sits at the view's left edge, not in
+// its middle, whatever its gravity (0.269.1). An icon alone is an ImageView;
+// only the streak's flame rides beside its number.
+test("an icon with no text beside it is an image, not a drawable on empty text", () => {
+  const onText = [];
+  for (const f of fs.readdirSync(path.join(WIDGETS, "res", "layout"))) {
+    for (const m of read(WIDGETS, "res", "layout", f).matchAll(/android:drawable(?:Start|Left|Top|End|Right|Bottom)="@drawable\/(widget_ico_\w+)"/g)) {
+      if (m[1] !== "widget_ico_flame") onText.push(f + ": " + m[1]);
+    }
+  }
+  for (const m of javaSrc.matchAll(/setTextViewCompoundDrawables\w*\([^;]*R\.drawable\.(widget_ico_\w+)/g)) {
+    if (m[1] !== "widget_ico_flame") onText.push("java: " + m[1]);
+  }
+  assert.deepStrictEqual(onText, []);
+});
+
 test("dark mode redefines every widget colour, so none is left light-on-dark", () => {
   const names = (f) => [...read(WIDGETS, "res", f, "colors.xml").matchAll(/<color name="(\w+)"/g)].map((m) => m[1]).sort();
   assert.deepStrictEqual(names("values-night"), names("values"));

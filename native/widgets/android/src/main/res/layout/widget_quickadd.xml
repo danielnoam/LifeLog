@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Five ways in, each opening the app on its own form. A button for a tab
+<!-- Five ways in, each opening the app on its own form: an icon, and its
+     label when there's room (0.269.1). A button for a tab
      you've turned off is hidden, as the app's own + menu does. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
@@ -10,33 +11,118 @@
     android:orientation="horizontal"
     android:padding="8dp">
 
-    <TextView
+    <LinearLayout
         android:id="@+id/add_entry"
         style="@style/LifeLogWidgetButton"
-        android:drawableTop="@drawable/widget_ico_circle_dot"
-        android:text="@string/widget_add_entry" />
+        android:orientation="vertical">
 
-    <TextView
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/widget_ico_circle_dot" />
+
+        <TextView
+            android:id="@+id/add_entry_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/widget_add_entry"
+            android:textColor="@color/widget_text"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/add_expense"
         style="@style/LifeLogWidgetButton"
-        android:drawableTop="@drawable/widget_ico_banknote"
-        android:text="@string/widget_add_expense" />
+        android:orientation="vertical">
 
-    <TextView
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/widget_ico_banknote" />
+
+        <TextView
+            android:id="@+id/add_expense_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/widget_add_expense"
+            android:textColor="@color/widget_text"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/add_backlog"
         style="@style/LifeLogWidgetButton"
-        android:drawableTop="@drawable/widget_ico_star"
-        android:text="@string/widget_add_backlog" />
+        android:orientation="vertical">
 
-    <TextView
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/widget_ico_star" />
+
+        <TextView
+            android:id="@+id/add_backlog_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/widget_add_backlog"
+            android:textColor="@color/widget_text"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/add_note"
         style="@style/LifeLogWidgetButton"
-        android:drawableTop="@drawable/widget_ico_pencil"
-        android:text="@string/widget_add_note" />
+        android:orientation="vertical">
 
-    <TextView
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/widget_ico_pencil" />
+
+        <TextView
+            android:id="@+id/add_note_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/widget_add_note"
+            android:textColor="@color/widget_text"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/add_todo"
         style="@style/LifeLogWidgetButton"
-        android:drawableTop="@drawable/widget_ico_list_checks"
-        android:text="@string/widget_add_todo" />
+        android:orientation="vertical">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/widget_ico_list_checks" />
+
+        <TextView
+            android:id="@+id/add_todo_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/widget_add_todo"
+            android:textColor="@color/widget_text"
+            android:textSize="12sp" />
+    </LinearLayout>
 </LinearLayout>

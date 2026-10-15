@@ -37,14 +37,14 @@
             android:textSize="12sp"
             android:textStyle="bold" />
 
-        <TextView
+        <ImageView
             android:id="@+id/note_next"
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:background="@drawable/widget_button"
             android:contentDescription="@string/widget_next_note"
-            android:drawableStart="@drawable/widget_ico_refresh_cw"
-            android:gravity="center" />
+            android:scaleType="center"
+            android:src="@drawable/widget_ico_refresh_cw" />
     </LinearLayout>
 
     <TextView

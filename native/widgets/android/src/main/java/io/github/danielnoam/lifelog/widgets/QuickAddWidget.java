@@ -16,10 +16,8 @@ import android.widget.RemoteViews;
 public class QuickAddWidget extends AppWidgetProvider {
 
     private static final int[] BUTTONS = { R.id.add_entry, R.id.add_expense, R.id.add_backlog, R.id.add_note, R.id.add_todo };
+    private static final int[] LABEL_VIEWS = { R.id.add_entry_label, R.id.add_expense_label, R.id.add_backlog_label, R.id.add_note_label, R.id.add_todo_label };
     static final String[] ACTIONS = { "add-entry", "add-expense", "add-backlog", "add-note", "add-todo" };
-    // The app's own Lucide drawings for each (0.269.0), from tools/widget-icons.js.
-    static final int[] ICONS = { R.drawable.widget_ico_circle_dot, R.drawable.widget_ico_banknote, R.drawable.widget_ico_star,
-        R.drawable.widget_ico_pencil, R.drawable.widget_ico_list_checks };
     static final String[] LABELS = { "Entry", "Expense", "Backlog", "Note", "Checklist" };
     private static final int LABELLED_DP = 56;
 
@@ -69,11 +67,7 @@ public class QuickAddWidget extends AppWidgetProvider {
         for (int i = 0; i < BUTTONS.length; i++) {
             boolean on = shows(WidgetStore.offers(c, ACTIONS[i]), chosen, ACTIONS[i]);
             v.setViewVisibility(BUTTONS[i], on ? View.VISIBLE : View.GONE);
-            v.setTextViewText(BUTTONS[i], icons ? "" : LABELS[i]);
-            // Alone, the icon goes beside an empty label rather than above
-            // it, so the empty line's height doesn't push it off centre.
-            if (icons) v.setTextViewCompoundDrawables(BUTTONS[i], ICONS[i], 0, 0, 0);
-            else v.setTextViewCompoundDrawables(BUTTONS[i], 0, ICONS[i], 0, 0);
+            v.setViewVisibility(LABEL_VIEWS[i], icons ? View.GONE : View.VISIBLE);
             v.setContentDescription(BUTTONS[i], "Add " + LABELS[i].toLowerCase(java.util.Locale.ROOT));
             v.setOnClickPendingIntent(BUTTONS[i], WidgetStore.openApp(c, ACTIONS[i], 300 + i));
         }

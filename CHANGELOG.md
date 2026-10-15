@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.269.1] - 2026-10-15
+
+### Fixed
+- **Widget icons are centred.** The ✓ and ✕ in habit and checklist ticks,
+  the quick-add icons on a narrow widget and the random note's refresh
+  button sat left of centre on Android.
+
 ## [0.269.0] - 2026-10-15
 
 ### Changed

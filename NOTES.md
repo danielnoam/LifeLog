@@ -33,8 +33,12 @@ what was decided against and why.
   widgets can't draw SVG, so `tools/widget-icons.js` turns the Lucide
   entries it lists into vector drawables (`widget_ico_*.xml`), and
   nativebuild.test.js fails if one is stale or a Java string brings back an
-  emoji glyph. A lone icon sits beside an empty label (drawableStart), not
-  above it: an empty line under a drawableTop pushes it off centre. iOS
+  emoji glyph. An icon on its own (a tick's ✓ or ✕, a quick-add button
+  without its label, the note's refresh) is an ImageView: 0.269.0 put them
+  on empty TextViews as compound drawables, and Android draws those at the
+  view's edge whatever its gravity, so they sat left of centre (fixed in
+  0.269.1, and nativebuild.test.js now refuses it). The streak's flame is
+  the one drawable on text, beside its number. iOS
   keeps SF Symbols, picked as the nearest match, since a widget extension
   would need the SVGs in an asset catalog that tools/ios-project.js
   doesn't build.

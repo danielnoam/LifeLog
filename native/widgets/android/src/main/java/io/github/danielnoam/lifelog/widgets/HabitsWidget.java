@@ -204,11 +204,13 @@ public class HabitsWidget extends AppWidgetProvider {
         return "✓".equals(text) ? R.drawable.widget_ico_check : "✕".equals(text) ? R.drawable.widget_ico_x : 0;
     }
 
-    // Beside an empty label, so the icon sits in the middle of the circle.
-    static void setTick(RemoteViews v, int id, String text) {
+    // The icon is its own view over the circle (0.269.1): a drawable on an
+    // empty TextView sits at its left edge, whatever the gravity says.
+    static void setTick(RemoteViews v, int textId, int iconId, String text) {
         int icon = tickIcon(text);
-        v.setTextViewText(id, icon == 0 ? text : "");
-        v.setTextViewCompoundDrawablesRelative(id, icon, 0, 0, 0);
+        v.setTextViewText(textId, icon == 0 ? text : "");
+        v.setViewVisibility(iconId, icon == 0 ? View.GONE : View.VISIBLE);
+        if (icon != 0) v.setImageViewResource(iconId, icon);
     }
 
     static void setStreak(RemoteViews v, int id, int streak) {
@@ -219,7 +221,7 @@ public class HabitsWidget extends AppWidgetProvider {
     private static RemoteViews chip(Context c, WidgetStore.Row r, int detail, boolean streaks) {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_chip_habit);
         boolean partway = !r.done && r.target > 1 && r.value > 0;
-        setTick(v, R.id.chip_tick, tickText(r, initial(r.text)));
+        setTick(v, R.id.chip_tick, R.id.chip_tick_ico, tickText(r, initial(r.text)));
         v.setTextColor(R.id.chip_tick, r.done ? c.getResources().getColor(R.color.widget_on_accent, null)
             : r.avoid ? SLIP : partway ? c.getResources().getColor(R.color.widget_muted, null) : r.color);
         v.setInt(R.id.chip_tick, "setBackgroundResource", r.done ? R.drawable.widget_tick_on : R.drawable.widget_tick_off);
@@ -271,7 +273,7 @@ public class HabitsWidget extends AppWidgetProvider {
         setStreak(v, R.id.row_streak, streaks ? r.streak : 0);
         v.setViewVisibility(R.id.row_streak, streaks && r.streak > 0 ? View.VISIBLE : View.GONE);
         // A counted habit shows how far along today is until it's done.
-        setTick(v, R.id.row_tick, tickText(r, ""));
+        setTick(v, R.id.row_tick, R.id.row_tick_ico, tickText(r, ""));
         v.setTextColor(R.id.row_tick, r.avoid && !r.done ? SLIP
             : c.getResources().getColor(r.done ? R.color.widget_on_accent : R.color.widget_muted, null));
         v.setInt(R.id.row_tick, "setBackgroundResource", r.done ? R.drawable.widget_tick_on : R.drawable.widget_tick_off);

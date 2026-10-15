@@ -42,7 +42,7 @@ public class ListService extends RemoteViewsService {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) return checkboxRow(c, r);
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_row_todo);
         v.setTextViewText(R.id.row_text, r.text);
-        HabitsWidget.setTick(v, R.id.row_tick, r.done ? "✓" : "");
+        HabitsWidget.setTick(v, R.id.row_tick, R.id.row_tick_ico, r.done ? "✓" : "");
         int flags = Paint.ANTI_ALIAS_FLAG | (r.done ? Paint.STRIKE_THRU_TEXT_FLAG : 0);
         v.setInt(R.id.row_text, "setPaintFlags", flags);
         v.setTextColor(R.id.row_text, c.getResources().getColor(r.done ? R.color.widget_muted : R.color.widget_text, null));

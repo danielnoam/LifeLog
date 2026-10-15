@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- One habit. Two targets: the tick on the right marks it, anywhere else
      opens the app on that habit. The tick sits in a wider frame so it's a
-     thumb's width to hit, not the 30dp circle's. -->
+     thumb's width to hit, not the 30dp circle's. A ✓ or ✕ is the image over
+     the circle, not a drawable on its text, which Android won't centre. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/row"
     android:layout_width="match_parent"
@@ -54,5 +55,13 @@
             android:textColor="@color/widget_on_accent"
             android:textSize="13sp"
             android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/row_tick_ico"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:visibility="gone" />
     </FrameLayout>
 </LinearLayout>
