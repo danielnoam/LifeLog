@@ -251,6 +251,14 @@ test("every layout, drawable and colour the Java names exists", () => {
   assert.deepStrictEqual([...new Set(missing)], []);
 });
 
+test("the widgets' icons are the app's, as tools/widget-icons.js last drew them", () => {
+  const { build } = require("../tools/widget-icons.js");
+  const stale = build().filter(({ file, xml }) => !fs.existsSync(file) || fs.readFileSync(file, "utf8") !== xml).map(({ file }) => path.basename(file));
+  assert.deepStrictEqual(stale, [], "run node tools/widget-icons.js");
+  const glyphs = [...javaSrc.matchAll(/"(🔥|↻|✎|☑|▤)/g)].map((m) => m[1]);
+  assert.deepStrictEqual(glyphs, [], "an emoji or text glyph standing in for an icon");
+});
+
 test("dark mode redefines every widget colour, so none is left light-on-dark", () => {
   const names = (f) => [...read(WIDGETS, "res", f, "colors.xml").matchAll(/<color name="(\w+)"/g)].map((m) => m[1]).sort();
   assert.deepStrictEqual(names("values-night"), names("values"));

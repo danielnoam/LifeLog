@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.269.0] - 2026-10-15
+
+### Changed
+- **The widgets use the app's icons.** On Android the quick-add buttons,
+  habit streaks, ticks and the random note's refresh button now show the
+  same drawings as the app instead of emoji and symbols. On iOS, the streak
+  emoji is a flame icon and the quick-add icons are closer to the app's.
+
+### Fixed
+- **Widget ticks and Google Wallet adds stay.** A habit or list item ticked
+  on a home-screen widget, or a payment added from its notification, could
+  be undone when you opened the app, with "Merged 1 habit from your other
+  device" when no other device had changed anything. The app now keeps
+  them and saves them to GitHub.
+
 ## [0.268.0] - 2026-10-15
 
 ### Added

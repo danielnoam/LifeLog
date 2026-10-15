@@ -23,7 +23,7 @@ public class RandomNoteSettingsActivity extends SettingsScreen {
     private static final String[][] EVERY = {
         { RandomNoteWidget.EVERY_HOUR, "Every hour" },
         { RandomNoteWidget.EVERY_DAY, "Every day" },
-        { RandomNoteWidget.EVERY_TAP, "Only when I tap ↻" },
+        { RandomNoteWidget.EVERY_TAP, "Only when I tap the refresh button" },
     };
 
     private JSONObject cfg;

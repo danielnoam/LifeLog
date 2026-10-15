@@ -71,7 +71,9 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🔥12"
+            android:drawableStart="@drawable/widget_ico_flame"
+            android:drawablePadding="2dp"
+            android:text="12"
             android:textColor="@color/widget_muted"
             android:textSize="12sp" />
 
@@ -82,7 +84,7 @@
             android:layout_marginEnd="11dp"
             android:background="@drawable/widget_tick_on"
             android:gravity="center"
-            android:text="✓"
+            android:drawableStart="@drawable/widget_ico_check"
             android:textColor="@color/widget_on_accent"
             android:textSize="13sp"
             android:textStyle="bold" />
@@ -114,7 +116,9 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🔥4"
+            android:drawableStart="@drawable/widget_ico_flame"
+            android:drawablePadding="2dp"
+            android:text="4"
             android:textColor="@color/widget_muted"
             android:textSize="12sp" />
 
@@ -157,7 +161,9 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="🔥2"
+            android:drawableStart="@drawable/widget_ico_flame"
+            android:drawablePadding="2dp"
+            android:text="2"
             android:textColor="@color/widget_muted"
             android:textSize="12sp" />
 

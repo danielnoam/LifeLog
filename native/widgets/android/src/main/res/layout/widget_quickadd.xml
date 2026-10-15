@@ -13,25 +13,30 @@
     <TextView
         android:id="@+id/add_entry"
         style="@style/LifeLogWidgetButton"
+        android:drawableTop="@drawable/widget_ico_circle_dot"
         android:text="@string/widget_add_entry" />
 
     <TextView
         android:id="@+id/add_expense"
         style="@style/LifeLogWidgetButton"
+        android:drawableTop="@drawable/widget_ico_banknote"
         android:text="@string/widget_add_expense" />
 
     <TextView
         android:id="@+id/add_backlog"
         style="@style/LifeLogWidgetButton"
+        android:drawableTop="@drawable/widget_ico_star"
         android:text="@string/widget_add_backlog" />
 
     <TextView
         android:id="@+id/add_note"
         style="@style/LifeLogWidgetButton"
+        android:drawableTop="@drawable/widget_ico_pencil"
         android:text="@string/widget_add_note" />
 
     <TextView
         android:id="@+id/add_todo"
         style="@style/LifeLogWidgetButton"
+        android:drawableTop="@drawable/widget_ico_list_checks"
         android:text="@string/widget_add_todo" />
 </LinearLayout>

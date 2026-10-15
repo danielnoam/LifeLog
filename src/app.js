@@ -162,7 +162,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.268.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.269.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3631,6 +3631,10 @@
     // load() takes GitHub's sha and moves the merge ancestor as it reads.
     // If what it read can't be taken in below, both go back — see checkRemote.
     const point = Storage.syncPoint();
+    // What boot drew from the cache. persist() waits for this pass, so
+    // nothing has been saved since, and this is the ancestor of every edit
+    // made on this device in the meantime.
+    const shown = lastPersistedSnapshot;
     let taken = null; // this device's copy as load() read it
     try {
       result = await Storage.load(() => {
@@ -3680,13 +3684,17 @@
     // history to wait on after it read this device's copy, and anything done
     // in that time — a widget's ticks, applied the moment the app opens, most
     // of all (0.199.1) — isn't in its result. Taken in on top of it, three
-    // ways, with what load() read as the ancestor; the save that change
-    // queued then writes the lot.
+    // ways; the save that change queued then writes the lot.
+    // The ancestor is what boot drew, not what load() read (0.269.0): with
+    // nothing new on GitHub, load() hands back GitHub's copy as it is and
+    // drops this device's side, so a widget tick drained before it read
+    // that side was in neither, and the merge took GitHub's copy over it.
     const base = next;
-    if (taken && next !== state.data && window.LifeLogMerge
-        && window.LifeLogMerge.diffSnapshots(taken, state.data) !== "No changes") {
-      window.LifeLogMerge.stampChangedItems(taken, state.data);
-      next = normalize(window.LifeLogMerge.mergeAllSources(taken, state.data, next));
+    const since = shown || taken;
+    if (since && next !== state.data && window.LifeLogMerge
+        && window.LifeLogMerge.diffSnapshots(since, state.data) !== "No changes") {
+      if (taken) window.LifeLogMerge.stampChangedItems(taken, state.data);
+      next = normalize(window.LifeLogMerge.mergeAllSources(since, state.data, next));
     }
     const summary = window.LifeLogMerge
       ? window.LifeLogMerge.diffSnapshots(state.data, next) : null;

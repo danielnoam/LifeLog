@@ -118,7 +118,7 @@ struct HabitsView: View {
                     Circle().fill(hex(h.color)).frame(width: 8, height: 8)
                     Text(h.name).font(.subheadline).foregroundStyle(.white).lineLimit(1)
                     if h.streak > 0 && family != .systemSmall {
-                        Text("🔥\(h.streak)").font(.caption2).foregroundStyle(dimText)
+                        HStack(spacing: 2) { Image(systemName: "flame"); Text("\(h.streak)") }.font(.caption2).foregroundStyle(dimText)
                     }
                 }
             }
@@ -227,11 +227,12 @@ struct TodosWidget: Widget {
 }
 
 // ---- Quick add ----
+// SF Symbols nearest the app's Lucide icons for each (0.269.0).
 private let actionLabels: [String: (String, String)] = [
-    "add-note": ("Note", "square.and.pencil"),
+    "add-note": ("Note", "pencil"),
     "add-todo": ("Checklist", "checklist"),
-    "add-entry": ("Entry", "plus.circle"),
-    "add-expense": ("Expense", "creditcard"),
+    "add-entry": ("Entry", "smallcircle.filled.circle"),
+    "add-expense": ("Expense", "banknote"),
     "add-backlog": ("Backlog", "star"),
 ]
 

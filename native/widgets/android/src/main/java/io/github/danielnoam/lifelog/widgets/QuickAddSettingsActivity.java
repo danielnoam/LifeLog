@@ -25,7 +25,7 @@ public class QuickAddSettingsActivity extends SettingsScreen {
         boolean all = chosen == null || chosen.length() == 0;
         for (int i = 0; i < QuickAddWidget.ACTIONS.length; i++) {
             String action = QuickAddWidget.ACTIONS[i];
-            CheckBox b = check(QuickAddWidget.ICONS[i] + "  " + QuickAddWidget.LABELS[i]
+            CheckBox b = check(QuickAddWidget.LABELS[i]
                 + (WidgetStore.offers(this, action) ? "" : " (its tab is off in LifeLog)"), all || has(chosen, action));
             boxes.add(b);
         }

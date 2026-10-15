@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Lucide's "circle-dot", from src/icons.js by tools/widget-icons.js. Don't edit by hand. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="22dp"
+    android:height="22dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M11,12a1,1 0 1,0 2,0a1,1 0 1,0 -2,0"
+        android:strokeColor="@color/widget_text"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M2,12a10,10 0 1,0 20,0a10,10 0 1,0 -20,0"
+        android:strokeColor="@color/widget_text"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

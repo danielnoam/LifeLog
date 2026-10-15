@@ -16,6 +16,29 @@ what was decided against and why.
 
 ---
 
+- **The boot merge's ancestor is what boot drew (0.269.0).** The widgets'
+  queue (habit and list ticks, Google Wallet adds) is drained the moment the app opens, and its save waits on
+  `firstReconcile`. When the ticks landed before `load()` called
+  `getLocal`, they were in what load() read, but with GitHub's
+  `exportedAt` equal to the cache's, load() takes GitHub's copy whole and
+  drops this device's side. The 0.199.1 merge in `reconcileFromSources`
+  then compared against `taken` (which had the ticks), saw nothing new,
+  and GitHub's copy replaced them: "Merged edited 1 habit from your other
+  device". It now merges against `shown`, the snapshot boot rendered,
+  which nothing can have saved over since (persist waits on the pass), so
+  every edit since boot is on the local side however load() went. `taken`
+  still stamps edits made after load() read. native.js 12b covers it.
+
+- **Widget icons are generated from src/icons.js (0.269.0).** Android
+  widgets can't draw SVG, so `tools/widget-icons.js` turns the Lucide
+  entries it lists into vector drawables (`widget_ico_*.xml`), and
+  nativebuild.test.js fails if one is stale or a Java string brings back an
+  emoji glyph. A lone icon sits beside an empty label (drawableStart), not
+  above it: an empty line under a drawableTop pushes it off centre. iOS
+  keeps SF Symbols, picked as the nearest match, since a widget extension
+  would need the SVGs in an asset catalog that tools/ios-project.js
+  doesn't build.
+
 - **This device's copy and the sync base in IndexedDB (0.268.0).**
   `lifelog-cache-v1` and `lifelog-sync-base-v1` were each a whole
   lifelog.json in localStorage (~5M characters an origin), and their writes

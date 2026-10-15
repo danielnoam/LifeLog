@@ -7,4 +7,5 @@
     <color name="widget_accent">#3D6FE0</color>
     <color name="widget_on_accent">#FFFFFF</color>
     <color name="widget_button">#E9ECF1</color>
+    <color name="widget_slip">#E2554B</color>
 </resources>

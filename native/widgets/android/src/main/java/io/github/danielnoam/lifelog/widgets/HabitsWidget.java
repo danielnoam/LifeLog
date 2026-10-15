@@ -199,16 +199,33 @@ public class HabitsWidget extends AppWidgetProvider {
         return r.target > 1 && r.value > 0 ? r.value + "/" + r.target : blank;
     }
 
+    /** The ✓ and ✕ of tickText as the app's drawings; 0 for a tick that's words. */
+    static int tickIcon(String text) {
+        return "✓".equals(text) ? R.drawable.widget_ico_check : "✕".equals(text) ? R.drawable.widget_ico_x : 0;
+    }
+
+    // Beside an empty label, so the icon sits in the middle of the circle.
+    static void setTick(RemoteViews v, int id, String text) {
+        int icon = tickIcon(text);
+        v.setTextViewText(id, icon == 0 ? text : "");
+        v.setTextViewCompoundDrawablesRelative(id, icon, 0, 0, 0);
+    }
+
+    static void setStreak(RemoteViews v, int id, int streak) {
+        v.setTextViewText(id, streak > 0 ? String.valueOf(streak) : "");
+        v.setTextViewCompoundDrawablesRelative(id, streak > 0 ? R.drawable.widget_ico_flame : 0, 0, 0, 0);
+    }
+
     private static RemoteViews chip(Context c, WidgetStore.Row r, int detail, boolean streaks) {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_chip_habit);
         boolean partway = !r.done && r.target > 1 && r.value > 0;
-        v.setTextViewText(R.id.chip_tick, tickText(r, initial(r.text)));
+        setTick(v, R.id.chip_tick, tickText(r, initial(r.text)));
         v.setTextColor(R.id.chip_tick, r.done ? c.getResources().getColor(R.color.widget_on_accent, null)
             : r.avoid ? SLIP : partway ? c.getResources().getColor(R.color.widget_muted, null) : r.color);
         v.setInt(R.id.chip_tick, "setBackgroundResource", r.done ? R.drawable.widget_tick_on : R.drawable.widget_tick_off);
         v.setTextViewText(R.id.chip_name, r.text);
         v.setViewVisibility(R.id.chip_name, detail >= 2 ? View.VISIBLE : View.GONE);
-        v.setTextViewText(R.id.chip_streak, streaks && r.streak > 0 ? "🔥" + r.streak : "");
+        setStreak(v, R.id.chip_streak, streaks ? r.streak : 0);
         // Kept, empty, when streaks are off: the "more" and blank chips have
         // the line too, and the row's ticks have to stay level.
         v.setViewVisibility(R.id.chip_streak, detail >= 1 ? View.VISIBLE : View.GONE);
@@ -251,10 +268,10 @@ public class HabitsWidget extends AppWidgetProvider {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_row_habit);
         v.setTextViewText(R.id.row_text, r.text);
         v.setTextColor(R.id.row_dot, r.color);
-        v.setTextViewText(R.id.row_streak, streaks && r.streak > 0 ? "🔥" + r.streak : "");
+        setStreak(v, R.id.row_streak, streaks ? r.streak : 0);
         v.setViewVisibility(R.id.row_streak, streaks && r.streak > 0 ? View.VISIBLE : View.GONE);
         // A counted habit shows how far along today is until it's done.
-        v.setTextViewText(R.id.row_tick, tickText(r, ""));
+        setTick(v, R.id.row_tick, tickText(r, ""));
         v.setTextColor(R.id.row_tick, r.avoid && !r.done ? SLIP
             : c.getResources().getColor(r.done ? R.color.widget_on_accent : R.color.widget_muted, null));
         v.setInt(R.id.row_tick, "setBackgroundResource", r.done ? R.drawable.widget_tick_on : R.drawable.widget_tick_off);

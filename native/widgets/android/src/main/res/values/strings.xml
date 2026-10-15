@@ -14,10 +14,10 @@
     <string name="widget_randomnote_description">A different note every hour, every day or on a tap</string>
     <string name="widget_next_note">Another note</string>
     <string name="widget_add">Add</string>
-    <string name="widget_add_entry">✎\nEntry</string>
-    <string name="widget_add_expense">₪\nExpense</string>
-    <string name="widget_add_backlog">★\nBacklog</string>
-    <string name="widget_add_note">▤\nNote</string>
-    <string name="widget_add_todo">☑\nChecklist</string>
+    <string name="widget_add_entry">Entry</string>
+    <string name="widget_add_expense">Expense</string>
+    <string name="widget_add_backlog">Backlog</string>
+    <string name="widget_add_note">Note</string>
+    <string name="widget_add_todo">Checklist</string>
     <string name="payments_listener_label">LifeLog: Google Wallet payments</string>
 </resources>

@@ -18,7 +18,7 @@ public class HabitsSettingsActivity extends SettingsScreen {
     protected void build() {
         setTitle("Habits widget");
         heading("Show");
-        streak = check("Each habit's streak 🔥", flag("streak"));
+        streak = check("Each habit's streak", flag("streak"));
         summary = check("How many are done today, under the title", flag("summary"));
     }
 

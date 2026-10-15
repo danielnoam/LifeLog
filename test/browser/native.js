@@ -147,7 +147,7 @@ const FAKE_BRIDGE = () => {
 const { appIndexHtml } = require("../../tools/build-www.js");
 const BUNDLED_HTML = appIndexHtml(require("fs").readFileSync(require("path").join(__dirname, "..", "..", "index.html"), "utf8"));
 
-async function openApp(browser, { native = true, latestTag = null, cache = doc([], null), gh = null, remote = null, serviceWorkers = "block", hasTouch = false, bundled = false, visual = null, widgets = null } = {}) {
+async function openApp(browser, { native = true, latestTag = null, cache = doc([], null), gh = null, remote = null, serviceWorkers = "block", hasTouch = false, bundled = false, visual = null, widgets = null, ghDelay = 0 } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 420, height: 900 }, serviceWorkers, hasTouch });
   const page = await ctx.newPage();
   const errs = [];
@@ -168,7 +168,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
   if (bundled) await page.route(BASE + "/", (r) => r.fulfill({ status: 200, contentType: "text/html", body: BUNDLED_HTML }));
   // `remote`, `sha` and `down` can be changed mid-test to stage what the
   // other device did, or GitHub being unreachable.
-  const github = { puts: [], remote, sha: "sha-remote", down: false, reads: 0, delay: 0 };
+  const github = { puts: [], remote, sha: "sha-remote", down: false, reads: 0, delay: ghDelay };
   await page.route("https://api.github.com/**", async (route) => {
     const req = route.request();
     const url = req.url();
@@ -939,6 +939,49 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
   {
     const { page, ctx, errs: e } = await openApp(browser, { native: false });
     check("a browser has no widgets to talk to, and nothing tries", await page.evaluate(() => !window.__cap));
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 12b. widget ticks taken in while GitHub is still answering (0.269.0) ----
+  // The app drains the widgets' queue the moment it opens, and the save
+  // behind that waits for the boot's read of GitHub. With nothing new on
+  // GitHub, that read used to just win: the ticks were swapped for GitHub's
+  // copy, the toast said "Merged 1 habit from your other device", and the
+  // queue they came from was already empty.
+  {
+    const today = (() => { const d = new Date(); const p = (n) => String(n).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); })();
+    const data = {
+      ...doc([], "2026-09-01T00:00:00.000Z"),
+      habits: [{ id: "h1", name: "Instagram", color: "#22aa66", cadence: "daily", target: 1, order: 0, startedAt: "2026-01-01", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" }],
+      notes: [{ id: "n1", kind: "list", title: "Groceries", category: "General", createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z",
+        items: [{ id: "i1", text: "Milk", createdAt: "2026-09-01T00:00:00.000Z" }] }],
+      financeCategories: [{ id: "c1", name: "Food", color: "#7a8a99", createdAt: "2026-01-01T00:00:00.000Z", updatedAt: "2026-01-01T00:00:00.000Z" }],
+    };
+    const connected = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branch: "main", token: "ghp_fake", sha: "sha-remote" };
+    const { page, ctx, errs: e, github } = await openApp(browser, {
+      cache: data, remote: data, gh: connected, ghDelay: 1500,
+      widgets: { queue: [
+        { kind: "habit", id: "h1", date: today, value: 1, at: "2026-09-24T07:00:00.000Z" },
+        { kind: "todo", id: "i1", done: true, at: "2026-09-24T07:01:00.000Z" },
+        { kind: "expense", id: "pay-boot", date: today, amount: "12.50", note: "Cafe", at: "2026-09-24T07:02:00.000Z" },
+      ], action: null },
+    });
+    const toasts = [];
+    await page.exposeFunction("__sawToast", (t) => toasts.push(t));
+    await page.evaluate(() => new MutationObserver(() => window.__sawToast(document.querySelector("#toast").textContent))
+      .observe(document.querySelector("#toast"), { childList: true, characterData: true, subtree: true }));
+    await page.waitForTimeout(5000);
+    const d = await page.evaluate(() => window.LifeLogStorage.cachedCopy());
+    const milk = (x) => x && (x.notes || []).flatMap((n) => n.items || []).find((i) => i.id === "i1");
+    check("a habit ticked on the widget stays ticked once GitHub has answered", !!(d.habits[0].marks && d.habits[0].marks[today]), d.habits[0]);
+    check("and so does a list item", !!(milk(d) && milk(d).done), milk(d));
+    const paid = (x) => x && (x.financeEntries || []).find((f) => f.id === "pay-boot");
+    check("and a Google Wallet payment's Add stays in the Ledger", !!paid(d), d.financeEntries);
+    const lastPut = github.puts[github.puts.length - 1];
+    check("both reach GitHub", !!lastPut && !!(lastPut.habits[0].marks && lastPut.habits[0].marks[today]) && !!(milk(lastPut) && milk(lastPut).done) && !!paid(lastPut),
+      lastPut ? { habit: lastPut.habits[0], milk: milk(lastPut) } : "no save");
+    check("and nothing claims another device sent them", !toasts.some((t) => /other device/.test(t)), toasts);
     errs.push(...e);
     await ctx.close();
   }

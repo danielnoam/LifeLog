@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- One note (0.199.0), for the note and random note widgets: its category
-     or kind with a ↻ for another (random only), the words, who said them,
+     or kind with a refresh button for another (random only), the words, who said them,
      and when it was written. The whole card opens the note. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
@@ -43,10 +43,8 @@
             android:layout_height="32dp"
             android:background="@drawable/widget_button"
             android:contentDescription="@string/widget_next_note"
-            android:gravity="center"
-            android:text="↻"
-            android:textColor="@color/widget_text"
-            android:textSize="16sp" />
+            android:drawableStart="@drawable/widget_ico_refresh_cw"
+            android:gravity="center" />
     </LinearLayout>
 
     <TextView
