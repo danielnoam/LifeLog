@@ -891,7 +891,7 @@ select:focus { outline: none; border-color: var(--accent); }
 
 .rate-row { display: flex; align-items: center; gap: 8px; }
 .rate-row input { flex: 1 1 auto; min-width: 0; }
-.rate-row .btn { flex: 0 0 auto; }
+.rate-row .btn { flex: 0 0 auto; align-self: stretch; margin-top: 6px; }
 
 .sort-select {
   background-color: var(--bg-elev-2); border: 1px solid var(--border); color: var(--text-dim);

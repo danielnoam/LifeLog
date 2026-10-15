@@ -783,25 +783,45 @@
     if (!picked.length) { toast("No Markdown, PDF or EPUB files in that selection", true); return; }
     // Only notes with something in them, so the rows buildImportItems hands
     // back line up one to one with these and each can be told its folder.
+    //
+    // Reading runs as a job (0.268.0), so a folder of files or a long PDF
+    // shows in Activity with how far it has got, and can be stopped: what
+    // was read by then goes to the review like a finished read.
     const notes = [], folders = [], failed = [];
     if (picked.some((f) => isDoc(f.name))) toast("Reading " + (picked.length === 1 ? picked[0].name : picked.length + " files") + "…");
-    for (const f of picked) {
-      let n;
-      if (isDoc(f.name)) {
-        try {
-          n = await window.LifeLogDocImport.fileToNote(new Uint8Array(await f.arrayBuffer()), f.name, f.lastModified);
-          if (n.text.length > DOC_MAX) throw new Error(`It's too long to keep as a note (${Math.round(n.text.length / 1000)}k characters, the limit is ${DOC_MAX / 1000}k)`);
-        } catch (err) { failed.push(f.name + ": " + (err.message || err)); continue; }
-      } else {
-        const text = typeof f.text === "function" ? await f.text() : f.text;
-        n = parseMarkdownNote(text, f.name, f.lastModified);
+    const Jobs = window.LifeLogJobs;
+    let ran = false, stopped = false;
+    const read = async (job) => {
+      ran = true;
+      for (let i = 0; i < picked.length && !(job && job.stopping); i++) {
+        const f = picked[i];
+        if (job) { job.progress(i, picked.length, f.name); await job.sleep(0); }
+        let n;
+        if (isDoc(f.name)) {
+          try {
+            n = await window.LifeLogDocImport.fileToNote(new Uint8Array(await f.arrayBuffer()), f.name, f.lastModified);
+            if (n.text.length > DOC_MAX) throw new Error(`It's too long to keep as a note (${Math.round(n.text.length / 1000)}k characters, the limit is ${DOC_MAX / 1000}k)`);
+          } catch (err) { failed.push(f.name + ": " + (err.message || err)); continue; }
+        } else {
+          const text = typeof f.text === "function" ? await f.text() : f.text;
+          n = parseMarkdownNote(text, f.name, f.lastModified);
+        }
+        if (n.items) n.items = n.items.filter((i) => i.text);
+        if (!(n.title || n.text || (n.items || []).length)) continue;
+        const parts = String(f.webkitRelativePath || "").split("/");
+        folders.push(typeof f.folder === "string" ? f.folder : parts.length > 2 ? parts[parts.length - 2] : "");
+        notes.push(n);
       }
-      if (n.items) n.items = n.items.filter((i) => i.text);
-      if (!(n.title || n.text || (n.items || []).length)) continue;
-      const parts = String(f.webkitRelativePath || "").split("/");
-      folders.push(typeof f.folder === "string" ? f.folder : parts.length > 2 ? parts[parts.length - 2] : "");
-      notes.push(n);
-    }
+      stopped = !!(job && job.stopping);
+      if (job) {
+        const left = picked.length - notes.length - failed.length;
+        job.finish(job.stopping ? `Stopped — ${notes.length} read, sent to review` : `${notes.length} read` + (failed.length ? `, ${failed.length} couldn't be` : "") + (left > 0 && !job.stopping ? `, ${left} empty` : ""));
+      }
+    };
+    const label = "Reading " + (picked.length === 1 ? picked[0].name : picked.length + " files");
+    try { if (Jobs) await Jobs.run({ label, lane: "files" }, read); else await read(null); }
+    catch (e) { toast("Couldn't read those files (" + ((e && e.message) || e) + ")", true); return; }
+    if (!ran || (stopped && !notes.length)) return;
     // One file that can't be read says why; several say how many and the
     // first reason, and the rest still come in.
     if (failed.length && !notes.length) { toast(failed.length === 1 ? failed[0] : `None of those ${failed.length} files could be read. ${failed[0]}`, true); return; }
@@ -904,6 +924,7 @@
     if (key === "rating") return "★".repeat(+v || 0);
     if (/url$/i.test(key)) return key === "coverUrl" ? "a cover" : "a link";
     if (Array.isArray(v)) return v.join(", ");
+    if (v === true) return "yes";
     const t = String(v == null ? "" : v);
     return t.length > 60 ? t.slice(0, 57) + "…" : t;
   }
@@ -952,7 +973,7 @@
       row.appendChild(el("span", "fdate", "—"));
       const t = el("span", "etitle", e.title); t.title = e.title; row.appendChild(t);
       row.appendChild(el("span", "ecat", e.category));
-      row.appendChild(el("span", "dup-tag", e.startedAt ? "in progress" : "backlog"));
+      row.appendChild(el("span", "dup-tag", e.dropped ? "dropped" : e.startedAt ? "in progress" : "backlog"));
     }
     // An update says what it would actually do, rather than "already added":
     // that phrase is true of the item and useless about the change.

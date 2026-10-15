@@ -9,7 +9,7 @@
 // only" did the same job from another angle and went in 0.199.0.)//
 // GitHub is a fake with three saves: the current one (keys empty, plus a note
 // added after the wipe), the wipe itself, and an older one with the keys.
-const { chromium, BASE, settled } = require("./harness");
+const { chromium, BASE, settled, forgetCopy } = require("./harness");
 let pass = 0, fail = 0;
 const check = (n, ok, extra) => { ok ? pass++ : fail++; console.log((ok ? "  ok   - " : "  FAIL - ") + n + (ok || extra === undefined ? "" : "  [" + JSON.stringify(extra) + "]")); };
 
@@ -70,6 +70,7 @@ async function openApp(browser) {
   });
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
   await page.waitForTimeout(300);
+  await forgetCopy(page);
   await page.evaluate(({ cache, gh }) => {
     localStorage.clear();
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" }));
@@ -87,7 +88,7 @@ async function openApp(browser) {
   return { page, ctx, errs, dialogs, puts };
 }
 
-const cached = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+const cached = (page) => page.evaluate(() => window.LifeLogStorage.cachedCopy());
 
 (async () => {
   const browser = await chromium.launch();

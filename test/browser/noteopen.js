@@ -1,6 +1,6 @@
 // The note widgets' way back into the app (0.199.0): ?action=open-note:<id>,
 // which is what a widget's tap runs. At phone and desktop widths.
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const T = (d) => `2026-0${d}-01T09:00:00.000Z`;
@@ -25,6 +25,7 @@ async function run(b, width) {
   page.on("console", (m) => { if (m.type() === "error" && !/404|Failed to load resource/.test(m.text())) errs.push("console: " + m.text()); });
   page.on("dialog", (d) => d.accept());
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((seed) => {
     localStorage.clear();
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" }));

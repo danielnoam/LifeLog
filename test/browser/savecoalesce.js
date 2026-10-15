@@ -15,7 +15,7 @@
 //     racing one;
 //   - an edit that never got sent (the app killed first) reaches GitHub on
 //     the next launch.
-const { chromium, BASE, settled } = require("./harness");
+const { chromium, BASE, settled, forgetCopy } = require("./harness");
 let pass = 0, fail = 0;
 const check = (n, ok, extra) => { ok ? pass++ : fail++; console.log((ok ? "  ok   - " : "  FAIL - ") + n + (ok || extra === undefined ? "" : "  [" + JSON.stringify(extra) + "]")); };
 
@@ -62,6 +62,7 @@ async function openApp(browser, opts = {}) {
   const errs = [];
   page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate(({ doc, gh }) => {
     localStorage.clear();
     localStorage.setItem("lifelog-cache-v1", JSON.stringify(doc));
@@ -84,7 +85,7 @@ const typeKey = (page, text, gap = 60) => page.evaluate(async ({ text, gap }) =>
     await new Promise((r) => setTimeout(r, gap));
   }
 }, { text, gap });
-const cachedKey = (page) => page.evaluate(() => ((JSON.parse(localStorage.getItem("lifelog-cache-v1")).settings || {}).mediaKeys || {}).rawg);
+const cachedKey = (page) => page.evaluate(() => ((window.LifeLogStorage.cachedCopy().settings || {}).mediaKeys || {}).rawg);
 const status = (page) => page.evaluate(() => (document.querySelector(".storage-status") || {}).textContent || "");
 const keysOf = (gh) => gh.puts.map((p) => ((p.data.settings || {}).mediaKeys || {}).rawg);
 
@@ -180,7 +181,7 @@ const keysOf = (gh) => gh.puts.map((p) => ((p.data.settings || {}).mediaKeys || 
     check("a save that finds GitHub moved on keeps the other device's note",
       first.notes.some((n) => n.id === "b1"), first.notes);
     check("and still carries this device's edit", ((first.settings || {}).mediaKeys || {}).rawg === "MINE", first.settings);
-    const cachedNotes = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).notes.map((n) => n.id));
+    const cachedNotes = await page.evaluate(() => window.LifeLogStorage.cachedCopy().notes.map((n) => n.id));
     check("then this device fetches the merge and has the note too", cachedNotes.includes("b1"), cachedNotes);
     await typeKey(page, "2");
     await settled(page);
@@ -204,7 +205,7 @@ const keysOf = (gh) => gh.puts.map((p) => ((p.data.settings || {}).mediaKeys || 
     await settled(page);
     const last = gh.puts[gh.puts.length - 1].data;
     check("with the poll held off, the device still hasn't seen the note",
-      await page.evaluate(() => !JSON.parse(localStorage.getItem("lifelog-cache-v1")).notes.some((n) => n.id === "b1")));
+      await page.evaluate(() => !window.LifeLogStorage.cachedCopy().notes.some((n) => n.id === "b1")));
     check("a save made before the merge was fetched merges again instead of dropping the note",
       last.notes.some((n) => n.id === "b1") && last.settings.mediaKeys.rawg === "ONETWO", { notes: last.notes.map((n) => n.id), key: last.settings.mediaKeys.rawg });
     errs.push(...e);
@@ -227,7 +228,7 @@ const keysOf = (gh) => gh.puts.map((p) => ((p.data.settings || {}).mediaKeys || 
     await page.waitForTimeout(900);
     await page.evaluate(() => { document.querySelector("#shortcutsModal").hidden = true; });
     check("with a form open, the poll backed off without taking the note in",
-      await page.evaluate(() => !JSON.parse(localStorage.getItem("lifelog-cache-v1")).notes.some((n) => n.id === "b1")));
+      await page.evaluate(() => !window.LifeLogStorage.cachedCopy().notes.some((n) => n.id === "b1")));
     gh.getDelay = 0;
     await typeKey(page, "AFTER");
     await settled(page);

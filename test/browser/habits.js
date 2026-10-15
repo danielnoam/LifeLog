@@ -49,7 +49,7 @@ async function app(browser, habits, vp) {
   return { page, ctx, errs, dialogs, ask };
 }
 
-const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).habits);
+const stored = (page) => page.evaluate(() => window.LifeLogStorage.cachedCopy().habits);
 
 (async () => {
   const browser = await chromium.launch();
@@ -215,7 +215,7 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     // Archive it, and check the record survives.
     await settled(page);
     await page.evaluate(() => {
-      const h = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+      const h = window.LifeLogStorage.cachedCopy();
       h.habits[0].marks = { "2026-09-22": 1 };
       localStorage.setItem("lifelog-cache-v1", JSON.stringify(h));
     });
@@ -566,7 +566,7 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     // grid to where the other end is, tap it. The anchor is a date, not a
     // cell, so it survives the window moving under it.
     await page.evaluate(() => {
-      const c = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+      const c = window.LifeLogStorage.cachedCopy();
       c.habits[0].startedAt = "2026-01-01";
       c.habits[0].marks = {};
       localStorage.setItem("lifelog-cache-v1", JSON.stringify(c));
@@ -590,7 +590,7 @@ const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
     // A weekends habit asked nothing of the weekdays in between.
     await settled(page);
     await page.evaluate((s) => {
-      const c = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+      const c = window.LifeLogStorage.cachedCopy();
       c.habits[0].cadence = { days: [0, 6] };
       c.habits[0].marks = {};
       c.habits[0].startedAt = s;

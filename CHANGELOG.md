@@ -4,6 +4,36 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.268.0] - 2026-10-15
+
+### Added
+- **More of AniList comes in.** A sync now reads every list. A Completed
+  title you don't have anywhere comes in as timeline history, in the month
+  you finished it, with your score; one with no dates on AniList comes in
+  unticked and says so. A Paused or Dropped title comes in dropped, or drops
+  the backlog item you already have. A backlog title you added by hand is
+  matched by its name too, so finishing it on AniList moves it to your
+  timeline.
+- **Reading files is in Activity.** Importing Markdown, PDF or EPUB files
+  shows there with how far it has got, and can be stopped; what was read by
+  then still goes to the review.
+
+### Changed
+- **This device's copy of your data moved to IndexedDB.** It was kept in
+  the browser's localStorage, which holds about 5MB, and a large file could
+  fill it without any warning. It moves over by itself the first time this
+  version opens. If it ever can't be saved, Settings → About's error log
+  says so.
+
+### Fixed
+- **Renaming a timeline category through the AI bridge** now moves its
+  lookup source with it, as renaming in the app does, and Undo moves it
+  back.
+- **Resetting a forgotten PIN** now also removes the second copy of your
+  data this device kept for syncing; only the main copy went before.
+- **The rate's Look up button** sits level with the rate field and is as
+  tall as it.
+
 ## [0.267.2] - 2026-10-14
 
 ### Changed

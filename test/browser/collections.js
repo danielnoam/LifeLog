@@ -1,7 +1,7 @@
 // Collections (0.204.0): a note category kept by name rather than by date —
 // its notes leave the dated feed (its chip, marked ▦, opens them), open as a page of
 // their own, and read as formatted Markdown. At phone and desktop widths.
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const T = (d) => `2026-0${d}-01T09:00:00.000Z`;
@@ -28,6 +28,7 @@ async function run(b, width) {
   page.on("console", (m) => { if (m.type() === "error" && !/404|Failed to load resource/.test(m.text())) errs.push("console: " + m.text()); });
   page.on("dialog", (d) => d.accept());
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((seed) => {
     localStorage.clear();
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" }));
@@ -111,14 +112,14 @@ async function run(b, width) {
   check("a search looks in the collections too" + at, (await feed()).includes("bread"), await feed());
 
   await page.click("#searchClear");
-  await page.evaluate(() => window.LifeLogNotes.openNoteCatModal(JSON.parse(localStorage.getItem("lifelog-cache-v1")).noteCategories.find((c) => c.name === "Work")));
+  await page.evaluate(() => window.LifeLogNotes.openNoteCatModal(window.LifeLogStorage.cachedCopy().noteCategories.find((c) => c.name === "Work")));
   await page.check("#noteCatCollection");
   await page.click("#noteCatForm button[type=submit]");
   await page.waitForTimeout(400);
   check("a category's sheet makes it a collection, and its notes leave the feed" + at,
     (await page.evaluate(() => document.querySelectorAll("#catFilter .cat-chip.is-collection").length)) === 2
     && JSON.stringify(await feed()) === JSON.stringify(["day"]), await feed());
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).noteCategories.find((c) => c.name === "Work"));
+  const saved = await page.evaluate(() => window.LifeLogStorage.cachedCopy().noteCategories.find((c) => c.name === "Work"));
   check("and it's saved on the category" + at, saved.layout === "collection", saved);
 
   // Two collections on are one page of both, each card naming its own.
@@ -215,7 +216,7 @@ async function run(b, width) {
   await page.selectOption(".bulk-bar .bulk-move-select", "Work");
   await page.waitForTimeout(400);
   check("and Move files them elsewhere" + at, await page.evaluate(() =>
-    JSON.parse(localStorage.getItem("lifelog-cache-v1")).notes.filter((n) => n.category === "Work").length === 3));
+    window.LifeLogStorage.cachedCopy().notes.filter((n) => n.category === "Work").length === 3));
   await page.locator(".coll-head .btn:not(.btn-primary)").click();
   await page.waitForTimeout(300);
   if (await page.$(".bulk-bar")) await page.locator(".bulk-bar button", { hasText: "Cancel" }).click();
@@ -254,7 +255,7 @@ async function run(b, width) {
   await page.locator(".bulk-bar button", { hasText: "Delete" }).click();
   await page.waitForTimeout(600);
   check("and Delete takes boards and notes together" + at, await page.evaluate(() =>
-    !window.LifeLogBoards.boardsNow().length && !JSON.parse(localStorage.getItem("lifelog-cache-v1")).notes.some((n) => n.id === "day")));
+    !window.LifeLogBoards.boardsNow().length && !window.LifeLogStorage.cachedCopy().notes.some((n) => n.id === "day")));
 
   check("the page doesn't scroll sideways" + at, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   check("no errors" + at, errs.length === 0, errs);

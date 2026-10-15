@@ -44,7 +44,7 @@ const STUB = (mode) => {
 };
 
 const openEntry = (page) => page.evaluate(() => {
-  const e = JSON.parse(localStorage.getItem("lifelog-cache-v1")).financeEntries[0];
+  const e = window.LifeLogStorage.cachedCopy().financeEntries[0];
   window.LifeLogFinance.openFinanceModal(e);
 });
 const readForm = (page) => page.evaluate(() => ({
@@ -161,7 +161,7 @@ const clickFetch = async (page) => {
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForTimeout(400);
   const onProj = await page.evaluate(() => {
-    const e = JSON.parse(localStorage.getItem("lifelog-cache-v1")).financeEntries.find((x) => x.project);
+    const e = window.LifeLogStorage.cachedCopy().financeEntries.find((x) => x.project);
     window.LifeLogFinance.openFinanceModal(e);
     return { rowVisible: !document.querySelector("#finRateLabel").hidden,
              preview: document.querySelector("#finFxPreview").textContent };
@@ -172,7 +172,7 @@ const clickFetch = async (page) => {
 
   // ---- 5. Convert asks for the latest, since a project spans dates ----
   await page.evaluate(() => {
-    const p = JSON.parse(localStorage.getItem("lifelog-cache-v1")).projects[0];
+    const p = window.LifeLogStorage.cachedCopy().projects[0];
     window.LifeLogFinance.openProjectModal(p);
     document.querySelector("#convertProjectBtn").click();
   });
@@ -208,7 +208,7 @@ const clickFetch = async (page) => {
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForTimeout(400);
   await page.evaluate(() => {
-    const e = JSON.parse(localStorage.getItem("lifelog-cache-v1")).financeEntries.find((x) => !x.project);
+    const e = window.LifeLogStorage.cachedCopy().financeEntries.find((x) => !x.project);
     window.LifeLogFinance.openFinanceModal(e);
   });
   await page.waitForTimeout(300);
@@ -218,7 +218,7 @@ const clickFetch = async (page) => {
   check("and is clear of Category rather than touching it", g.below >= 16, g);
 
   await page.evaluate(() => {
-    const e = JSON.parse(localStorage.getItem("lifelog-cache-v1")).financeEntries.find((x) => x.project);
+    const e = window.LifeLogStorage.cachedCopy().financeEntries.find((x) => x.project);
     window.LifeLogFinance.openFinanceModal(e);
   });
   await page.waitForTimeout(300);

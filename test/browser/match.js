@@ -83,7 +83,7 @@ const STUB = () => {
       if (run && !run.active) break;
     }
     const run = window.LifeLogApp.getBulkRun();
-    const c = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+    const c = window.LifeLogStorage.cachedCopy();
     const pick = (t) => c.backlog.find((x) => x.title === t) || {};
     return {
       rows: run.rows.map((r) => ({ title: r.title, state: r.state, detail: r.detail })),

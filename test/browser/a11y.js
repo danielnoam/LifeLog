@@ -2,7 +2,7 @@
 // tablist the arrows move through, every sheet is a labelled dialog that
 // takes focus when it opens, Tab stays inside it, and closing hands focus
 // back to the opener (0.223.0).
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const SEED = {
@@ -19,6 +19,7 @@ const SEED = {
   page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
   await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 404, body: "{}" }));
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((seed) => { localStorage.clear(); localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "timeline" })); localStorage.setItem("lifelog-cache-v1", JSON.stringify(seed)); }, SEED);
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(300);
 

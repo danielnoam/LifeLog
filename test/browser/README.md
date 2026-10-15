@@ -10,6 +10,12 @@ its own process: a crash takes that suite down rather than the run, and a
 suite killed by the timeout can't leave `localStorage` behind for the next
 one — which is how the ad-hoc scripts these grew out of used to drift.
 
+Seed a device's data through `localStorage` ("lifelog-cache-v1") as before:
+the app moves it into IndexedDB at boot (0.268.0). Read it back with
+`window.LifeLogStorage.cachedCopy()`, and use `forgetCopy(page)` from
+`harness.js` where a suite wants a device with no copy, since
+`localStorage.clear()` no longer forgets it.
+
 Playwright is not a dependency of this project. `harness.js` looks for it in
 the usual global spots and prints how to install it if it can't find one.
 

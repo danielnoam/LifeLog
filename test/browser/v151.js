@@ -102,7 +102,7 @@ const INCOMING = [
   await page.evaluate(() => document.querySelector("#financePickerConfirmBtn").click());
   await page.waitForTimeout(600);
   const after = await page.evaluate(() => {
-    const cache = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+    const cache = window.LifeLogStorage.cachedCopy();
     const h = cache.backlog.filter((x) => x.title === "Hades");
     return {
       hadesCount: h.length,

@@ -1,7 +1,7 @@
 // In progress (0.218.0): what you're on now, between the backlog and the log.
 // A backlog item with a `startedAt` day, shown in a card at the top of the
 // Timeline instead of in the Backlog; ✓ Done logs it with the months it took.
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -27,6 +27,7 @@ async function run(b, width) {
   page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
   page.on("dialog", (d) => d.accept());
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((s) => {
     localStorage.clear();
     localStorage.setItem("lifelog-cache-v1", JSON.stringify(s));
@@ -35,7 +36,7 @@ async function run(b, width) {
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForTimeout(500);
   const card = () => page.evaluate(() => [...document.querySelectorAll(".progress-row")].map((r) => r.dataset.id));
-  const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+  const saved = () => page.evaluate(() => window.LifeLogStorage.cachedCopy());
 
   check("with nothing logged, the Timeline still shows what's in progress" + at, JSON.stringify(await card()) === JSON.stringify(["b1", "g2"]), await card());
   check("each row says how long it's been going" + at, await page.evaluate(() =>

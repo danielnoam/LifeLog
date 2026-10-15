@@ -128,7 +128,7 @@ const rows = (page, sel) => page.evaluate((sel) =>
   check("the choice survives a reload",
     await page.evaluate(() => document.querySelector(".sort-select").value) === "added-old");
   const stored = await page.evaluate(() => {
-    const c = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+    const c = window.LifeLogStorage.cachedCopy();
     return { b: c.settings.backlogSort, t: c.settings.timelineSort, l: c.settings.ledgerSort,
              month: c.settings.monthOrder === undefined };
   });

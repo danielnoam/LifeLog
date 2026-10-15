@@ -3,7 +3,7 @@
 // backlog; confirming writes them. The zip is built here with deflate, the
 // way Letterboxd's is.
 const zlib = require("zlib");
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 // A minimal zip: local headers, central directory, end record. CRCs are
@@ -45,6 +45,7 @@ const SEED = {
   page.on("console", (m) => { if (m.type() === "error" && !/404|Failed to load resource/.test(m.text())) errs.push("console: " + m.text()); });
   await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 404, body: "{}" }));
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((seed) => { localStorage.clear(); localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "timeline" })); localStorage.setItem("lifelog-cache-v1", JSON.stringify(seed)); }, SEED);
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(300);
 
@@ -59,7 +60,7 @@ const SEED = {
   check("the one already logged is hidden as a duplicate", !rows.some((r) => /Thief/.test(r)), rows);
   check("the hint counts what the zip held", /3 watched/.test(await page.textContent("#financePickerHint")) && /1 on the watchlist/.test(await page.textContent("#financePickerHint")));
   await page.click("#financePickerConfirmBtn"); await page.waitForTimeout(600);
-  const data = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+  const data = await page.evaluate(() => window.LifeLogStorage.cachedCopy());
   const heat = data.entries.find((e) => e.title === "Heat");
   check("Heat is an entry on the day it was watched, with its stars", heat && heat.date === "2026-02-14" && heat.rating === 5 && heat.category === "Films", heat);
   check("the watchlist film is in the backlog with its year", data.backlog.some((x) => x.title === "Collateral" && x.releaseYear === 2004), data.backlog);

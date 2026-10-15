@@ -1,13 +1,13 @@
 // Storage layer for LifeLog.
-// Data is written to every CONNECTED target on each save, with a localStorage
-// cache always underneath as an offline fallback. Targets:
+// Data is written to every CONNECTED target on each save, with this device's
+// own copy (IndexedDB) always underneath as an offline fallback. Targets:
 //   - GitHub : lifelog.json in a private repo via the Contents API — the live
 //              sync source (works on phones; every save is a commit = history).
 //   - Local file : a user-chosen .json via the File System Access API, kept as
 //              an on-disk backup that mirrors every save.
 // On load, GitHub wins when connected (source of truth); the local file is
 // freshened from it so the backup never goes stale. With neither connected,
-// it's browser-only (localStorage), seeded from ./lifelog.json.
+// it's browser-only (that copy), seeded from ./lifelog.json.
 (function () {
   const CACHE_KEY = "lifelog-cache-v1";
   const GH_KEY = "lifelog-github-v1";        // { owner, repo, path, branch, token, sha }
@@ -26,8 +26,13 @@
 
   // ---- tiny IndexedDB helpers (persist the FileSystemFileHandle, and the
   // local-first history log) ----
+  // One connection, kept: this device's copy is written on every edit
+  // (0.268.0), and opening the database each time put a round-trip in front
+  // of each write.
+  let dbOpen = null;
   function idb() {
-    return new Promise((resolve, reject) => {
+    if (dbOpen) return dbOpen;
+    return (dbOpen = new Promise((resolve, reject) => {
       const req = indexedDB.open(IDB_NAME, 4);
       req.onupgradeneeded = () => {
         const db = req.result;
@@ -39,11 +44,13 @@
       req.onsuccess = () => {
         // A newer build in another tab may need to upgrade the database; let
         // it, rather than holding it at this version until this tab closes.
-        req.result.onversionchange = () => req.result.close();
-        resolve(req.result);
+        const db = req.result;
+        db.onversionchange = () => { db.close(); dbOpen = null; };
+        db.onclose = () => { dbOpen = null; };
+        resolve(db);
       };
-      req.onerror = () => reject(req.error);
-    });
+      req.onerror = () => { dbOpen = null; reject(req.error); };
+    }));
   }
   async function idbGet(key) {
     const db = await idb();
@@ -127,14 +134,75 @@
   // and cause unsynced local edits to look "unchanged" and get discarded).
   // Local-only, never synced itself — a merge ancestor is inherently
   // per-device bookkeeping, not shared data.
-  function _setSyncBase(data) {
-    try { localStorage.setItem(SYNC_BASE_KEY, JSON.stringify(data)); } catch (e) {}
-  }
+  function _setSyncBase(data) { keepCopy(BASE_COPY, JSON.stringify(data)); }
   function _getSyncBase() {
-    try {
-      const raw = localStorage.getItem(SYNC_BASE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch (e) { return null; }
+    try { return copies[BASE_COPY] ? JSON.parse(copies[BASE_COPY]) : null; }
+    catch (e) { return null; }
+  }
+
+  // ---- this device's copy and the sync base, in IndexedDB (0.268.0) ----
+  // Each is a whole lifelog.json, and an origin's localStorage holds about
+  // 5M characters, so the two of them filled it once the file passed 1MB,
+  // and every write after that failed without a word. They live in
+  // IndexedDB now, as JSON text, with a copy in memory so reading either one
+  // never waits. A copy still in localStorage (an older build's, or a test
+  // seeding one) is the newer of the two and wins, and moves across: it
+  // leaves localStorage once IndexedDB has it. If IndexedDB can't be opened
+  // at all, they stay in localStorage, as before.
+  const CACHE_COPY = "cache", BASE_COPY = "syncBase";
+  const LS_KEY = { [CACHE_COPY]: CACHE_KEY, [BASE_COPY]: SYNC_BASE_KEY };
+  const copies = { [CACHE_COPY]: null, [BASE_COPY]: null };
+  let copiesIn = "idb", copiesReady = null;
+  const keptSince = {}; // written while the copies were still loading: newer than either
+  const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  function loadCopies() {
+    return copiesReady || (copiesReady = (async () => {
+      const ls = { [CACHE_COPY]: lsGet(CACHE_KEY), [BASE_COPY]: lsGet(SYNC_BASE_KEY) };
+      let held;
+      try { held = { [CACHE_COPY]: await idbGet(CACHE_COPY), [BASE_COPY]: await idbGet(BASE_COPY) }; }
+      catch (e) { copiesIn = "localStorage"; }
+      for (const k of [CACHE_COPY, BASE_COPY]) {
+        if (keptSince[k]) continue;
+        copies[k] = ls[k] != null ? ls[k] : (held && typeof held[k] === "string" ? held[k] : null);
+        if (held && ls[k] != null) writeCopy(k);
+      }
+    })());
+  }
+  // Writes queue per copy and only the latest is written, so a burst of
+  // edits is one write and an older one can never land after a newer one.
+  const writing = {}, dirtyCopy = {};
+  // null forgets it.
+  function keepCopy(k, raw) {
+    copies[k] = raw;
+    keptSince[k] = true;
+    if (copiesIn === "localStorage") { lsKeep(k); return; }
+    writeCopy(k);
+  }
+  async function writeCopy(k) {
+    dirtyCopy[k] = true;
+    if (writing[k]) return writing[k];
+    writing[k] = (async () => {
+      try {
+        while (dirtyCopy[k]) {
+          dirtyCopy[k] = false;
+          const raw = copies[k];
+          try {
+            if (raw == null) await idbDel(k); else await idbSet(k, raw);
+            try { localStorage.removeItem(LS_KEY[k]); } catch (e) {}
+          } catch (e) { lsKeep(k, e); }
+        }
+      } finally { writing[k] = null; }
+    })();
+    return writing[k];
+  }
+  // The fallback, and the one place a lost copy is said out loud: in the
+  // error log under Settings → About.
+  function lsKeep(k, why) {
+    try { if (copies[k] == null) localStorage.removeItem(LS_KEY[k]); else localStorage.setItem(LS_KEY[k], copies[k]); }
+    catch (e) {
+      if (window.LifeLogErrors) window.LifeLogErrors.record("This device couldn't keep its " + (k === CACHE_COPY ? "copy of your data" : "sync base")
+        + " (" + ((why || e).message || why || e) + ")", (why || e).stack);
+    }
   }
 
   // ---- local-file backend state ----
@@ -754,7 +822,7 @@
         if (p && p.publicStorage && p.publicStorage !== "granted") throw new Error("LifeLog wasn't allowed to save files");
       } catch (e) { if (/allowed/.test(e.message)) throw e; /* no such call on this build: try anyway */ }
       setPhoneCfg({ on: true, error: null });
-      const cached = this.loadCache();
+      const cached = await this.loadCache();
       if (cached) await backupToPhone(cached.data, "lifelog.json");
       if (boards) await backupToPhone(boards, "boards.json");
       const c = phoneCfg();
@@ -771,14 +839,15 @@
     // Returns one of:
     //   { data, source }   source: 'github' | 'file' | 'cache' | 'seed' | 'empty'
     //   { conflict: [{ source, label, data }, ...] }  when sources disagree (by exportedAt)
-    // The cache on its own, with nothing awaited: no IndexedDB open for the
-    // file handle, no GitHub round-trip. This is what boot renders from, so
+    // The cache on its own: one IndexedDB read (0.268.0; it was localStorage
+    // before), no file handle, no GitHub round-trip. This is what boot renders from, so
     // the first rows are on screen before the network is consulted at all —
     // see reconcileFromSources() in app.js for the other half. Returns null
     // when this device has never held a copy, which is the one case that
     // genuinely has nothing to draw and has to wait for load().
-    loadCache() {
-      const raw = localStorage.getItem(CACHE_KEY);
+    async loadCache() {
+      await loadCopies();
+      const raw = copies[CACHE_COPY];
       if (!raw) return null;
       try {
         const data = JSON.parse(raw);
@@ -793,6 +862,7 @@
     // function rather than a value so the snapshot is taken after the network
     // waits below, at the latest possible moment before the merge.
     async load(getLocal) {
+      await loadCopies();
       await ensureHandleLoaded(); // so the local file can also serve as a backup
 
       const candidates = [];
@@ -827,7 +897,7 @@
         const live = getLocal();
         if (live) candidates.push({ source: "cache", label: "This browser", data: live });
       } else {
-        const cached = localStorage.getItem(CACHE_KEY);
+        const cached = copies[CACHE_COPY];
         if (cached) {
           try { candidates.push({ source: "cache", label: "This browser", data: JSON.parse(cached) }); }
           catch (e) { /* ignore */ }
@@ -911,9 +981,11 @@
       return { data, source: candidate.source };
     },
 
-    _cache(data) {
-      try { localStorage.setItem(CACHE_KEY, JSON.stringify(data)); } catch (e) {}
-    },
+    _cache(data) { keepCopy(CACHE_COPY, JSON.stringify(data)); },
+    // This device's copy as it stands, and a promise for its writes to have
+    // landed. For the browser suites, which used to read localStorage.
+    cachedCopy() { return copies[CACHE_COPY] ? JSON.parse(copies[CACHE_COPY]) : null; },
+    copiesWritten() { return Promise.all(Object.values(writing).filter(Boolean)); },
 
     // Persist data to cache plus EVERY connected target (GitHub + local file).
     // Resolves to { where, merged }: where it landed — 'github+file' |
@@ -1028,13 +1100,16 @@
     // "forgot PIN" reset, so that resetting the lock can't double as a free
     // bypass to see the data. Forgets the GitHub token and local file handle
     // (without touching the actual repo or file contents — those can be
-    // reconnected to afterward) and clears the localStorage cache.
+    // reconnected to afterward) and clears this device's copy.
     async forgetDevice() {
       if (gh && gh.token) await Storage.disconnectGithub();
       if (handle) await Storage.disconnect();
       await Boards.forget();
       await Travel.forget();
-      try { localStorage.removeItem(CACHE_KEY); localStorage.removeItem("lifelog-travel-ui"); } catch (e) {}
+      // The sync base is a whole copy of the data too.
+      keepCopy(CACHE_COPY, null); keepCopy(BASE_COPY, null);
+      await Storage.copiesWritten();
+      try { localStorage.removeItem("lifelog-travel-ui"); } catch (e) {}
     },
 
     // Lightweight poll for changes made elsewhere (e.g. another device).
@@ -1067,15 +1142,12 @@
     // the result in yet can put the belief back, and the next save meets a
     // 409 and merges rather than writing over what it never saw.
     syncPoint() {
-      return { sha: gh ? gh.sha : null, base: localStorage.getItem(SYNC_BASE_KEY) };
+      return { sha: gh ? gh.sha : null, base: copies[BASE_COPY] };
     },
     restoreSyncPoint(p) {
       if (!p) return;
       if (gh) { gh.sha = p.sha; saveGhCfg(); }
-      try {
-        if (p.base == null) localStorage.removeItem(SYNC_BASE_KEY);
-        else localStorage.setItem(SYNC_BASE_KEY, p.base);
-      } catch (e) { /* the base is a convenience; the 409 is what protects */ }
+      keepCopy(BASE_COPY, p.base == null ? null : p.base);
     },
     // What a failure means, for callers that report one themselves (the
     // Android app's pull to refresh). The same reading the status line uses.

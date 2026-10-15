@@ -70,7 +70,7 @@ const SEED = {
   await page.evaluate(() => document.querySelector("#financePickerConfirmBtn").click());
   await page.waitForTimeout(600);
   const after = await page.evaluate(() => {
-    const c = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+    const c = window.LifeLogStorage.cachedCopy();
     return { entryCover: (c.entries.find((e) => e.title === "Celeste") || {}).coverUrl,
       backlogTitles: c.backlog.map((b) => b.title), entryCount: c.entries.length };
   });

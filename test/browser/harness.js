@@ -60,4 +60,20 @@ async function settled(page, timeout = 8000) {
   await page.waitForFunction(() => !document.querySelector(".storage-status.syncing"), null, { timeout });
 }
 
-module.exports = { chromium, BASE, tally, seed, settled };
+// This device's copy and the sync base live in IndexedDB (0.268.0), so a
+// localStorage.clear() no longer forgets them. A suite that wants a device
+// with no copy at all forgets them here too, before its reload.
+const forgetCopy = (page) => page.evaluate(() => new Promise((resolve) => {
+  const q = indexedDB.open("lifelog");
+  q.onerror = () => resolve();
+  q.onsuccess = () => {
+    const db = q.result;
+    if (!db.objectStoreNames.contains("handles")) { db.close(); resolve(); return; }
+    const tx = db.transaction("handles", "readwrite");
+    tx.objectStore("handles").delete("cache");
+    tx.objectStore("handles").delete("syncBase");
+    tx.oncomplete = tx.onerror = () => { db.close(); resolve(); };
+  };
+}));
+
+module.exports = { chromium, BASE, tally, seed, settled, forgetCopy };

@@ -4,7 +4,7 @@
 // GitHub — a device still on an older build keeps adding and ticking to-dos
 // after the switch, and each lands in the right list rather than getting
 // lost or doubled.
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const T = "2026-08-01T09:00:00.000Z";
@@ -48,6 +48,7 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
   });
 
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate(({ old, gh }) => {
     localStorage.clear();
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "todo" }));

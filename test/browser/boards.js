@@ -7,7 +7,7 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const EMPTY = { categories: [], entries: [], accomplishments: {}, backlog: [], notes: [], todos: [], todoCategories: [], habits: [],
@@ -56,6 +56,7 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
       return say(200, { sha: cur.sha, size: b64.length, encoding: "base64", content: b64 });
     });
     await page.goto(BASE + "/", { waitUntil: "networkidle" });
+    await forgetCopy(page);
     await page.evaluate(({ data, gh }) => {
       localStorage.clear();
       localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "boards" }));
@@ -156,7 +157,7 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
     await page.waitForTimeout(400);
     check("Escape closes the board back to the list", await page.evaluate(() =>
       document.querySelector("#boardEditor").hidden && document.querySelectorAll(".board-card:not(.board-new)").length === 1));
-    check("boards never go into lifelog.json", await page.evaluate(() => !("boards" in JSON.parse(localStorage.getItem("lifelog-cache-v1")))));
+    check("boards never go into lifelog.json", await page.evaluate(() => !("boards" in window.LifeLogStorage.cachedCopy())));
 
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForTimeout(700);

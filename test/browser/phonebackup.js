@@ -5,7 +5,7 @@
 // what it's given in memory, so the test can read back what a phone's Files
 // app would see. What it can't prove is that Android lets the app write
 // there — that's the manifest's job (test/nativebuild.test.js).
-const { chromium, BASE, tally, settled } = require("./harness");
+const { chromium, BASE, tally, settled, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const BUILD = { version: "0.0.0", repo: "someone/lifelog", webUrl: "https://someone.github.io/lifelog/" };
@@ -51,6 +51,7 @@ async function open(b, native) {
   await page.route("**/app-build.json", (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(BUILD) }));
   await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 404, contentType: "application/json", body: "{}" }));
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((d) => {
     localStorage.clear();
     localStorage.setItem("lifelog-cache-v1", JSON.stringify(d));
@@ -99,7 +100,7 @@ async function openSync(page) {
       copy.settings && copy.settings.mediaKeys.rawg === "" && copy.settings.steam.apiKey === "" && copy.settings.steam.steamId === "7656",
       copy.settings);
     check("while the app's own copy still has them", await page.evaluate(() => {
-      const d = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+      const d = window.LifeLogStorage.cachedCopy();
       return d.settings.mediaKeys.rawg === "rawg-secret" && d.settings.steam.apiKey === "steam-secret";
     }));
     const daily = Object.keys(f).filter((k) => k.includes("/daily/"));

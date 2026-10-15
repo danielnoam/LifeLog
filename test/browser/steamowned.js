@@ -2,7 +2,7 @@
 // reads GetOwnedGames through the proxy and opens the import review with
 // every played game as a Timeline entry, the long ones ticked. Confirming
 // writes entries with the Steam link, the hours and the month last played.
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const AT = (y, m, d) => Date.UTC(y, m - 1, d, 12) / 1000;
@@ -32,6 +32,7 @@ const SEED = {
   await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 404, body: "{}" }));
   await page.route("https://proxy.test/**", (r) => { hits.push(r.request().url()); r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(OWNED) }); });
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((seed) => { localStorage.clear(); localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "timeline" })); localStorage.setItem("lifelog-cache-v1", JSON.stringify(seed)); }, SEED);
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(300);
 
@@ -63,7 +64,7 @@ const SEED = {
   check("lowering it brings Stardew back, unticked", await page.evaluate(() => { const l = [...document.querySelectorAll("#financePickerList label")].find((r) => /Stardew/.test(r.textContent)); return l && !l.querySelector("input").checked; }));
 
   await page.click("#financePickerConfirmBtn"); await page.waitForTimeout(600);
-  const data = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+  const data = await page.evaluate(() => window.LifeLogStorage.cachedCopy());
   const portal2 = data.entries.find((e) => e.title === "Portal 2");
   check("Portal 2 is an entry in May 2024 with its hours and Steam link", portal2 && portal2.year === 2024 && portal2.month === 5 && portal2.length === "9.1 hrs" && portal2.mediaSource === "steam" && portal2.mediaId === "620" && portal2.category === "Games", portal2);
   const elden = data.entries.find((e) => e.title === "ELDEN RING");
@@ -86,7 +87,7 @@ const SEED = {
   await page.evaluate(() => { const l = [...document.querySelectorAll("#financePickerList label")].find((r) => /Stardew/.test(r.textContent)); l.querySelector("input").click(); });
   await page.waitForTimeout(100);
   await page.click("#financePickerConfirmBtn"); await page.waitForTimeout(700);
-  const d2 = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+  const d2 = await page.evaluate(() => window.LifeLogStorage.cachedCopy());
   check("ticking a skipped game imports it and forgets the skip", d2.entries.some((e) => e.title === "Stardew Valley") && !(d2.settings.importSkips.steamOwned || []).includes("steam:413150") && d2.settings.importSkips.steamOwned.includes("steam:999"), d2.settings.importSkips);
   check("no errors", errs.length === 0, errs);
   await ctx.close();

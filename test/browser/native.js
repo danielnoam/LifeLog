@@ -7,7 +7,7 @@
 // newer APK noticed and offered, the back gesture closing what's open before
 // it leaves, and setup links that work without an address bar. What it can't
 // prove is that Android's WebView agrees, which is the first launch's job.
-const { chromium, BASE } = require("./harness");
+const { chromium, BASE, forgetCopy } = require("./harness");
 let pass = 0, fail = 0;
 const check = (n, ok, extra) => { ok ? pass++ : fail++; console.log((ok ? "  ok   - " : "  FAIL - ") + n + (ok || extra === undefined ? "" : "  [" + JSON.stringify(extra) + "]")); };
 
@@ -194,6 +194,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
   // it, and under a full run that write could land after the setup below.
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
   await page.waitForTimeout(300);
+  await forgetCopy(page);
   await page.evaluate(({ cache, gh, visual }) => {
     localStorage.clear();
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" }));
@@ -380,7 +381,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
   {
     const { page, ctx, errs: e, dialogs, github } = await openApp(browser, { remote, cache: doc([], null) });
     await pasteLink(page);
-    const texts = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).notes.map((n) => n.text));
+    const texts = await page.evaluate(() => window.LifeLogStorage.cachedCopy().notes.map((n) => n.text));
     check("a pasted setup link connects a fresh app", await page.evaluate(() => !!JSON.parse(localStorage.getItem("lifelog-github-v1") || "null")));
     check("and brings the synced log with it", texts.includes("From the desktop"), texts);
     check("without asking which copy should win", dialogs.length === 0, dialogs);
@@ -418,7 +419,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     } };
     const { page, ctx, errs: e, github } = await openApp(browser, { remote: synced, cache: freshCache });
     await pasteLink(page);
-    const kept = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).settings);
+    const kept = await page.evaluate(() => window.LifeLogStorage.cachedCopy().settings);
     const pushed = github.puts.length ? github.puts[github.puts.length - 1].settings : null;
     check("a freshly installed app joining keeps the synced media keys",
       kept.mediaKeys.rawg === "RAWG-KEY" && kept.mediaKeys.tmdb === "TMDB-KEY" && kept.steam.proxyUrl === "https://proxy.example", kept);
@@ -474,7 +475,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await page.evaluate((link) => { window.__scanPlan.result = link; }, LINK);
     await page.click("#ghScanBtn");
     await page.waitForTimeout(1800);
-    const texts = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).notes.map((n) => n.text));
+    const texts = await page.evaluate(() => window.LifeLogStorage.cachedCopy().notes.map((n) => n.text));
     check("scanning a setup QR connects the app", await page.evaluate(() => !!JSON.parse(localStorage.getItem("lifelog-github-v1") || "null")));
     check("and brings the synced log, merged like a pasted link, without a question",
       texts.includes("From the desktop") && dialogs.length === 0, { texts, dialogs });
@@ -856,7 +857,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
         { id: "t2", text: "Post the letter", order: 1, createdAt: "2026-09-01T00:00:00.000Z", updatedAt: "2026-09-01T00:00:00.000Z" },
       ],
     });
-    const stored = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+    const stored = (page) => page.evaluate(() => window.LifeLogStorage.cachedCopy());
     // Seeded as the To-do mode's to-dos, which open as a "To-do" list note
     // (0.197.0) — the widget's ticks find them there by the same ids.
     const item = (d, id) => d.notes.filter((n) => n.kind === "list").flatMap((n) => n.items).find((i) => i.id === id);
@@ -965,7 +966,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     check("and only that habit's", !!snap && snap.habits.find((h) => h.id === "h2").remind === "", snap && snap.habits);
     check("the first reminder asks for permission to notify, once", await page.evaluate(() => window.__cap.askedToNotify) === 1);
     check("it stays on this phone rather than in the synced habit",
-      await page.evaluate(() => !("remind" in JSON.parse(localStorage.getItem("lifelog-cache-v1")).habits[0]) && JSON.parse(localStorage.getItem("lifelog-habit-reminders-v1")).times.h1 === "21:30"));
+      await page.evaluate(() => !("remind" in window.LifeLogStorage.cachedCopy().habits[0]) && JSON.parse(localStorage.getItem("lifelog-habit-reminders-v1")).times.h1 === "21:30"));
     check("the widget is sent the run to count its streak on from", !!h1 && typeof h1.runBefore === "number", h1);
 
     // On the cards themselves.
@@ -1009,7 +1010,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await page.evaluate(() => {
       localStorage.setItem("lifelog-habit-reminders-v1", JSON.stringify({ on: true, times: { x: "09:00" } }));
       localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "habits" }));
-      const d = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+      const d = window.LifeLogStorage.cachedCopy();
       d.habits = [{ id: "x", name: "Walk", color: "#2266aa", cadence: "daily", target: 1, order: 0, startedAt: "2026-01-01" }];
       localStorage.setItem("lifelog-cache-v1", JSON.stringify(d));
     });
@@ -1293,7 +1294,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     const { page, ctx, errs: e } = await openApp(browser, { cache: withLedger, widgets: { queue: [paid], action: null } });
     await page.waitForTimeout(600);
     const got = await page.evaluate(() => {
-      const d = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+      const d = window.LifeLogStorage.cachedCopy();
       return { entry: (d.data || d).financeEntries.find((f) => f.id === "pay-1"), toast: (document.querySelector("#toast") || {}).textContent || "" };
     });
     check("a payment's Add lands in the Ledger, filed where that place went last time",

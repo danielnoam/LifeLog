@@ -1,7 +1,7 @@
 // Out this week (0.259.0): the Upcoming view's bar has a button for what
 // came out in the last seven days, opening the Out today sheet with a day
 // on each tile; and that sheet sizes its grid to how many there are.
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -32,6 +32,7 @@ const SEED = {
     p.on("pageerror", (e) => errs.push("pageerror: " + e.message));
     await p.route("https://api.github.com/**", (r) => r.fulfill({ status: 404, body: "{}" }));
     await p.goto(BASE + "/", { waitUntil: "networkidle" });
+    await forgetCopy(p);
     await p.evaluate((s) => {
       localStorage.clear();
       localStorage.setItem("lifelog-cache-v1", JSON.stringify(s));

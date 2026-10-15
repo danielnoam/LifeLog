@@ -480,11 +480,13 @@
   const syncSteamOwned = () => runImport(steamOwnedSource);
 
   // ---------- AniList ----------
-  // Three lists, one review (0.265.0). Planning comes in as backlog items,
-  // as it always has. Watching comes in as backlog items already in
-  // progress, or starts the one you already have. Completed is asked only
-  // about what's in your backlog, and moves each one to the timeline the way
-  // Done does, in the month AniList says you finished it, with your score.
+  // Every list, one review (0.265.0, the rest in 0.268.0). Planning comes in
+  // as backlog items, as it always has. Watching comes in as backlog items
+  // already in progress, or starts the one you already have. A Completed
+  // title in your backlog moves to the timeline the way Done does, in the
+  // month AniList says you finished it, with your score; one you have
+  // nowhere comes in as timeline history. Paused and Dropped come in as
+  // dropped backlog items, or drop the one you have.
   const pad2 = (n) => String(n).padStart(2, "0");
   const today = () => { const d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); };
   const ANILIST_SOURCE = { ANIME: "anilist-anime", MANGA: "anilist-manga" };
@@ -505,11 +507,9 @@
     for (let i = 0; i < pulls.length && !job.stopping; i++) {
       const [type, category] = pulls[i];
       if (report) report(i, pulls.length, type === "ANIME" ? "Reading your anime lists…" : "Reading your manga lists…");
-      const source = ANILIST_SOURCE[type];
-      const completedIds = state.data.backlog.filter((b) => b.mediaSource === source && b.mediaId).map((b) => b.mediaId);
       // null is a hard failure (network, private list, unknown user), kept
       // distinct from an empty-but-reachable list.
-      const media = await window.LifeLogMedia.fetchAniListLists(ctx.userName, type, completedIds);
+      const media = await window.LifeLogMedia.fetchAniListLists(ctx.userName, type);
       if (media === null) { failed = true; continue; }
       for (const m of media) out.push({ m, category });
       if (report) report(i + 1, pulls.length);
@@ -553,35 +553,82 @@
     return e;
   }
 
+  // A Completed title you have nowhere, as timeline history: filed under
+  // the month AniList has it finished, or started when it has no finish.
+  // With neither it goes under this month, unticked and saying why, since
+  // a whole list imported from elsewhere can carry no dates at all.
+  function aniListHistoryEntry(m, category) {
+    const day = /^\d{4}-\d{2}-\d{2}$/;
+    const when = day.test(m.completedAt || "") ? m.completedAt : day.test(m.startedAt || "") ? m.startedAt : "";
+    const done = when || today();
+    const year = +done.slice(0, 4), month = +done.slice(5, 7);
+    const e = { title: m.title || "", category, year, month, date: year + "-" + pad2(month), mediaSource: m.source, mediaId: m.id };
+    for (const k of ["coverUrl", "length", "genres"]) if (m[k] && (!Array.isArray(m[k]) || m[k].length)) e[k] = m[k];
+    if (when && day.test(m.startedAt || "") && m.startedAt < when) {
+      e.startedAt = m.startedAt;
+      const sy = +m.startedAt.slice(0, 4), sm = +m.startedAt.slice(5, 7);
+      if (sy * 12 + sm < year * 12 + month) { e.startYear = sy; e.startMonth = sm; }
+    }
+    if (m.score >= 1) e.rating = Math.min(5, m.score);
+    if (!when) e.notes = "Finished: AniList didn't say when";
+    return e;
+  }
+
   // Raw records to review rows. Rows that finish a backlog item carry its id
   // as `finishes` (io.js moves it off the backlog when the row is imported);
   // a Watching title you already have, not started here, becomes an update
-  // that fills in the day it was started.
+  // that fills in the day it was started, and a Paused or Dropped one an
+  // update that drops it. A backlog item matches on its AniList id, or on
+  // its title and category when it was added by hand.
   function buildAniList(raw) {
-    const byMedia = new Map(state.data.backlog.filter((b) => b.mediaSource && b.mediaId)
-      .map((b) => [b.mediaSource + ":" + b.mediaId, b]));
-    const backlog = [], entries = [], finishes = new Map();
+    const nameKey = (title, category) => String(title || "").trim().toLowerCase() + "\u0000" + category;
+    const index = (list) => {
+      const map = new Map();
+      for (const x of list) {
+        if (x.mediaSource && x.mediaId) map.set(x.mediaSource + ":" + x.mediaId, x);
+        if (!map.has(nameKey(x.title, x.category))) map.set(nameKey(x.title, x.category), x);
+      }
+      return map;
+    };
+    const inBacklog = index(state.data.backlog), onTimeline = index(state.data.entries);
+    const find = (map, m, category) => map.get(m.source + ":" + m.id) || map.get(nameKey(m.title, category));
+    const backlog = [], entries = [], finishes = new Map(), drops = new Map(), undated = new Set();
     for (const { m, category } of raw) {
       const key = m.source + ":" + m.id;
+      const b = find(inBacklog, m, category);
       if (m.listStatus === "completed") {
-        const b = byMedia.get(key);
-        if (!b) continue;
-        entries.push(aniListFinishedEntry(b, m));
-        finishes.set(key, b.id);
+        if (b) { entries.push(aniListFinishedEntry(b, m)); finishes.set(key, b.id); continue; }
+        if (find(onTimeline, m, category)) continue;
+        const e = aniListHistoryEntry(m, category);
+        if (e.notes) undated.add(key);
+        entries.push(e);
       } else if (m.listStatus === "planning" || m.listStatus === "current") {
         backlog.push(aniListBacklogItem(m, category));
+      } else if (m.listStatus === "paused" || m.listStatus === "dropped") {
+        if (b) { if (!b.dropped) drops.set(key, b); continue; }
+        if (find(onTimeline, m, category)) continue;
+        backlog.push({ ...aniListBacklogItem(m, category), dropped: true });
       }
     }
     const built = buildImportItems({ backlog, entries, categories: [] });
     for (const it of built.items) {
       const key = (it.entry.mediaSource || "") + ":" + (it.entry.mediaId || "");
-      if (it.kind === "entry") { if (finishes.has(key) && !it.dup) it.finishes = finishes.get(key); continue; }
+      if (it.kind === "entry") {
+        if (finishes.has(key) && !it.dup) it.finishes = finishes.get(key);
+        if (undated.has(key) && !it.dup) it.checked = false;
+        continue;
+      }
       if (it.kind !== "backlog" || !it.dup || !it.entry.startedAt) continue;
-      const target = byMedia.get(key);
+      const target = inBacklog.get(key);
       if (!target || target.startedAt || target.dropped) continue;
       if (it.update && (it.targetKind !== "backlog" || it.targetId !== target.id)) continue;
       const fills = (it.update ? it.fills : []).concat({ key: "startedAt", label: "started" });
       Object.assign(it, { update: true, targetId: target.id, targetKind: "backlog", fills, checked: true });
+    }
+    // Dropping one you have is its own row: the item as it is, plus dropped.
+    for (const b of drops.values()) {
+      built.items.push({ kind: "backlog", entry: { ...b, dropped: true }, dup: true, update: true, targetId: b.id, targetKind: "backlog",
+        fills: [{ key: "dropped", label: "dropped" }], checked: true });
     }
     return built;
   }
@@ -591,7 +638,7 @@
     label: "AniList",
     lane: "anilist",
     skipKey: "anilist",
-    hint: "Review what to bring in from your Planning and Watching lists, and which backlog titles you've completed there (those move to your timeline). Anything you already have is marked; if this sync can fill in something it's missing, that row says so and is ticked.",
+    hint: "Review what to bring in from your AniList lists. Planning and Watching come in to your backlog, Completed goes to your timeline (a backlog title you completed moves there), and Paused or Dropped come in dropped. Anything you already have is marked; if this sync can fill in something it's missing, that row says so and is ticked.",
     plan() {
       const cfg = state.data.settings.anilist || DEFAULT_SETTINGS.anilist;
       const userName = (cfg.userName || "").trim();
@@ -1069,7 +1116,7 @@
     needsReleaseRecheck,
     applyItemRelease,
     ownedToEntry, syncSteamOwned,
-    aniListBacklogItem, aniListFinishedEntry, buildAniList,
+    aniListBacklogItem, aniListFinishedEntry, aniListHistoryEntry, buildAniList,
     isUnresolvedSteamItem,
     steamGameNeedsInfo,
     steamGameNeedsRawgInfo,

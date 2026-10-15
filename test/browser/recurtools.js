@@ -24,7 +24,7 @@ const SEED = {
   settings: { currency: "ILS" },
 };
 
-const plan = (page, id) => page.evaluate((id) => JSON.parse(localStorage.getItem("lifelog-cache-v1")).recurringExpenses.find((r) => r.id === id), id);
+const plan = (page, id) => page.evaluate((id) => window.LifeLogStorage.cachedCopy().recurringExpenses.find((r) => r.id === id), id);
 const openPlan = async (page, note) => {
   await page.locator(".recur-row", { hasText: note }).first().click();
   await page.waitForSelector("#recurringModal:not([hidden])");
@@ -89,7 +89,7 @@ const paste = (page, sel, text) => page.evaluate(([sel, text]) => {
   check("the lookalikes are ticked and the concert isn't", ticked.length === 2 && ticked.every((t) => t === "Netflix"), ticked);
   await page.click("#financePickerConfirmBtn");
   await page.waitForTimeout(400);
-  const left = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).financeEntries.map((e) => e.id));
+  const left = await page.evaluate(() => window.LifeLogStorage.cachedCopy().financeEntries.map((e) => e.id));
   net = await plan(page, "net");
   check("linking removes them and starts the plan earlier", left.join() === "e3" && net.startDate === "2025-11-03", { left, start: net.startDate });
   await page.click("#cancelRecurringBtn");

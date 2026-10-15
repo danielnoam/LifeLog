@@ -94,9 +94,11 @@ backlog, `financeCategories` for expenses and recurring bills,
   `author`, `bought` and `startedAt`. `lifelog_rename_category` sets them.
 
 Renaming one renames it on every item that uses it: a timeline category on
-entries and backlog items, an expense category on expenses, recurring bills
-and their one-off charges, a note category on notes and boards. The `id`
-stays put. `lifelog_rename_category` does this (and changes colours); don't
+entries and backlog items (and its lookup source in
+`settings.mediaCategorySources` and `mediaCategoryFallbackSources`, which
+are keyed by the category's name), an expense category on expenses,
+recurring bills and their one-off charges, a note category on notes and
+boards. The `id` stays put. `lifelog_rename_category` does this (and changes colours); don't
 rename by editing items one at a time.
 
 ## Notes (`notes`)

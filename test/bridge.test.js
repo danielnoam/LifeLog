@@ -352,6 +352,25 @@ test("renaming a category or project carries every item with it, as the app does
   assert.strictEqual(boards().find((b) => b.id === "bd1").category, "Ideas");
 });
 
+test("renaming a timeline category moves its lookup source, and undo moves it back", async () => {
+  reset();
+  const d0 = data();
+  d0.settings.mediaCategorySources = { Games: "rawg" };
+  d0.settings.mediaCategoryFallbackSources = { Games: "igdb" };
+  fs.writeFileSync(FILE, JSON.stringify(d0, null, 2));
+  assert.match(await ok("lifelog_rename_category", { kind: "timeline", name: "Games", new_name: "Video games" }), /2 items follow, and its lookup source/);
+  let s = data().settings;
+  assert.deepStrictEqual(s.mediaCategorySources, { "Video games": "rawg" });
+  assert.deepStrictEqual(s.mediaCategoryFallbackSources, { "Video games": "igdb" });
+  await ok("lifelog_undo", {});
+  s = data().settings;
+  assert.deepStrictEqual(s.mediaCategorySources, { Games: "rawg" });
+  assert.deepStrictEqual(s.mediaCategoryFallbackSources, { Games: "igdb" });
+  assert.strictEqual(data().entries[0].category, "Games");
+  // A category with no source of its own touches no settings.
+  assert.doesNotMatch(await ok("lifelog_rename_category", { kind: "timeline", name: "Books", new_name: "Reading" }), /lookup source/);
+});
+
 test("a book's author: added by hand it's pinned, it carries to the timeline, and lists and search show it", async () => {
   reset();
   await ok("lifelog_add_backlog_item", { title: "Piranesi", category: "Books", author: " Susanna Clarke " });

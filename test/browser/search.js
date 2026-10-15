@@ -1,7 +1,7 @@
 // One search across everything (0.251.0): the header's box opens a results
 // page over the tab, grouped by where each hit lives; a row opens the item;
 // a group's Filter line narrows that tab the old way. Phone and desktop.
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const T = (d) => `2026-0${d}-01T09:00:00.000Z`;
@@ -37,6 +37,7 @@ async function run(b, width) {
   page.on("dialog", (d) => d.accept());
   await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 404, body: "{}" }));
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((seed) => {
     localStorage.clear();
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "backlog", backlogMode: "entries" }));

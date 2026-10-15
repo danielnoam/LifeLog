@@ -1,7 +1,7 @@
 // A poll asks for the folder listing first and reads lifelog.json only when
 // its sha moved (0.264.0); a listing that doesn't answer falls back to the
 // read. And the error log: an uncaught error shows under Settings → About.
-const { chromium, BASE } = require("./harness");
+const { chromium, BASE, forgetCopy } = require("./harness");
 let pass = 0, fail = 0;
 const check = (n, ok, extra) => { ok ? pass++ : fail++; console.log((ok ? "  ok   - " : "  FAIL - ") + n + (ok || extra === undefined ? "" : "  [" + JSON.stringify(extra) + "]")); };
 
@@ -44,6 +44,7 @@ const stub = () => {
   const page = await b.newPage({ viewport: { width: 460, height: 900 } });
   page.on("pageerror", (e) => { if (!/pollpeek test error/.test(e.message)) errs.push("pageerror: " + e.message); });
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((data) => {
     localStorage.clear();
     localStorage.setItem("lifelog-github-v1", JSON.stringify({
@@ -76,7 +77,7 @@ const stub = () => {
   check("a moved sha reads the file", reads(calls) === 1, calls);
   const got = await page.evaluate(() => (window.LifeLogStorage.githubInfo || {}).sha || null);
   check("and takes the new version", await page.evaluate(() => {
-    const s = JSON.parse(localStorage.getItem("lifelog-cache-v1") || "{}");
+    const s = window.LifeLogStorage.cachedCopy() || {};
     return (s.notes || []).some((n) => n.id === "n1");
   }), got);
 

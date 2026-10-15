@@ -144,7 +144,7 @@ const STUB = () => {
 
     // The whole point: the rows behind the panel actually changed.
     const persisted = await page.evaluate(() => {
-      const c = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+      const c = window.LifeLogStorage.cachedCopy();
       const pick = (arr, t) => arr.find((x) => x.title === t) || {};
       return { blCover: pick(c.backlog, "Good One").coverUrl, enCover: pick(c.entries, "Good One").coverUrl,
         untouched: pick(c.backlog, "No Match").coverUrl || null };

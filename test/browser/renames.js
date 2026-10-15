@@ -30,7 +30,7 @@ const SEED = {
   }, SEED);
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForSelector(".proj-group");
-  const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+  const saved = () => page.evaluate(() => window.LifeLogStorage.cachedCopy());
 
   await page.click(".proj-group-edit");
   await page.fill("#projName", "Alps");

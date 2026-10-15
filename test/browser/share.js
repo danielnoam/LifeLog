@@ -2,7 +2,7 @@
 // routed by the link — a Maps link to Travel, a title site to Backlog with
 // the lookup running, plain text to the Backlog-or-Note sheet. At phone and
 // desktop widths.
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const T = (d) => `2026-0${d}-01T09:00:00.000Z`;
@@ -22,6 +22,7 @@ async function run(b, width) {
   // No real lookups: the media services answer nothing.
   await page.route(/api\.rawg\.io|themoviedb|openlibrary|anilist|jikan|googleapis|steampowered|musicbrainz|steamgriddb/, (r) => r.fulfill({ status: 404, body: "{}" }));
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((seed) => {
     localStorage.clear();
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "backlog", backlogMode: "entries" }));

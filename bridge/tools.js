@@ -133,6 +133,12 @@ let changeNow = null;
 // An item as it stands, for undo. Accomplishments are kept by year rather
 // than in a list, so theirs carries the year as merge.js's __year does.
 function snapshotOf(doc, coll, id) {
+  // A settings map the change moved, by its key. Its "updatedAt" is the
+  // map's content, so undo refuses only when that map itself changed since.
+  if (coll === "settings") {
+    const v = doc.settings && doc.settings[id];
+    return v === undefined ? null : { id, value: structuredClone(v), updatedAt: JSON.stringify(v) };
+  }
   if (coll === "accomplishments") {
     for (const [y, list] of Object.entries(doc.accomplishments || {})) {
       const a = (list || []).find((x) => x.id === id);
@@ -143,6 +149,11 @@ function snapshotOf(doc, coll, id) {
   return (doc[coll] || []).find((x) => x.id === id) || null;
 }
 function restoreItem(doc, coll, id, before) {
+  if (coll === "settings") {
+    doc.settings = doc.settings || {};
+    if (before) doc.settings[id] = before.value; else delete doc.settings[id];
+    return;
+  }
   if (coll === "accomplishments") {
     removeAccomplishment(doc, id);
     if (before) {
@@ -321,7 +332,7 @@ function boardTexts(b) {
 // The category lists by what the user calls them, and the rename that
 // carries a name through every item holding it: the app's own.
 const NAME_LISTS = {
-  timeline: { list: "categories", label: "timeline category", rename: (d, from, to) => Journal.renameCategory(d, from, to), uses: ["entries", "backlog"] },
+  timeline: { list: "categories", label: "timeline category", rename: (d, from, to) => { Journal.renameCategory(d, from, to); return Journal.moveCategorySources(d, from, to).map((k) => ["settings", k]); }, uses: ["entries", "backlog"] },
   expense: { list: "financeCategories", label: "expense category", rename: (d, from, to) => Finance.renameFinanceCategory(d, from, to), uses: ["financeEntries", "recurringExpenses"] },
   note: { list: "noteCategories", label: "note category", rename: (d, from, to) => Notes.renameNoteCategory(d, from, to), uses: ["notes"] },
   project: { list: "projects", label: "project", rename: (d, from, to) => Finance.renameProject(d, from, to), uses: ["financeEntries", "recurringExpenses"] },
@@ -1024,9 +1035,10 @@ const TOOLS = [
         for (const [k, field] of shows) {
           if (field !== "showAuthor" && a[k]) delete cat[field]; else cat[field] = a[k];
         }
-        if (to && to !== from) { cat.name = to; spec.rename(d, from, to); }
+        let settings = [];
+        if (to && to !== from) { cat.name = to; settings = spec.rename(d, from, to) || []; }
         const moved = spec.uses.flatMap((k) => (d[k] || []).filter((x) => before.get(k + "\u0000" + x.id) !== JSON.stringify(x)).map((x) => [k, x.id]));
-        return { text: `${to && to !== from ? `Renamed the ${spec.label} "${from}" to "${to}"` : `${a.color ? "Recoloured" : "Updated"} the ${spec.label} "${from}"`}; ${moved.length} item${moved.length === 1 ? "" : "s"} follow${moved.length === 1 ? "s" : ""}.`, touched: [[spec.list, cat.id], ...moved] };
+        return { text: `${to && to !== from ? `Renamed the ${spec.label} "${from}" to "${to}"` : `${a.color ? "Recoloured" : "Updated"} the ${spec.label} "${from}"`}; ${moved.length} item${moved.length === 1 ? "" : "s"} follow${moved.length === 1 ? "s" : ""}${settings.length ? ", and its lookup source" : ""}.`, touched: [[spec.list, cat.id], ...moved, ...settings] };
       });
       let text = main.text, items = main.items;
       if (a.kind === "note" && to && to !== from) {

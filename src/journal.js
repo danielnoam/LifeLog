@@ -1688,11 +1688,7 @@
       const old = cat.name;
       cat.name = newName;
       renameCategory(state.data, old, newName);
-      // The lookup sources are keyed by name, so they move with it.
-      for (const key of ["mediaCategorySources", "mediaCategoryFallbackSources"]) {
-        const map = state.data.settings[key];
-        if (map && old in map) { map[newName] = map[old]; delete map[old]; }
-      }
+      moveCategorySources(state.data, old, newName);
       if (state.activeCats.has(old)) { state.activeCats.delete(old); state.activeCats.add(newName); }
     }
     applyShows(cat);
@@ -1706,6 +1702,17 @@
   // The timeline and the backlog name their category; a rename moves both.
   function renameCategory(data, from, to) {
     for (const x of [...(data.entries || []), ...(data.backlog || [])]) if (x.category === from) x.category = to;
+  }
+
+  // The lookup sources are keyed by the category's name, so a rename moves
+  // them too. Returns the settings keys it changed (the bridge's undo needs them).
+  function moveCategorySources(data, from, to) {
+    const moved = [];
+    for (const key of ["mediaCategorySources", "mediaCategoryFallbackSources"]) {
+      const map = data.settings && data.settings[key];
+      if (map && from in map) { map[to] = map[from]; delete map[from]; moved.push(key); }
+    }
+    return moved;
   }
 
   function deleteCurrentCategory() {
@@ -1874,7 +1881,7 @@
     setEntryCover, // app.js's applySteamAppId repaints the entry cover through this
     // data lifecycle (app.js's normalize)
     sanitizeEntry,
-    renameCategory,
+    renameCategory, moveCategorySources,
     // display order within a month (test/journal.test.js)
     byNewestAdded,
     // pure helpers (exported for test/journal.test.js)

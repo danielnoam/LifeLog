@@ -11,7 +11,7 @@
 // GitHub here is a small fake that behaves like the real one on the three
 // things that matter: large files come back empty, blobs come back by sha,
 // and a PUT against a stale sha is a 409.
-const { chromium, BASE, settled } = require("./harness");
+const { chromium, BASE, settled, forgetCopy } = require("./harness");
 let pass = 0, fail = 0;
 const check = (n, ok, extra) => { ok ? pass++ : fail++; console.log((ok ? "  ok   - " : "  FAIL - ") + n + (ok || extra === undefined ? "" : "  [" + JSON.stringify(extra) + "]")); };
 
@@ -62,6 +62,7 @@ async function openApp(browser, { cache, remote, fault, hash = "", connect = tru
   page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
   page.on("console", (m) => { if (m.type() === "error" && !/404|409|401|403|500|Failed to load resource/.test(m.text())) errs.push("console: " + m.text()); });
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate(({ cache, gh, connect }) => {
     localStorage.clear();
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" }));
@@ -182,6 +183,7 @@ async function writeNote(page, text) {
     const ctx = await browser.newContext({ viewport: { width: 460, height: 1000 }, serviceWorkers: "block" });
     const page = await ctx.newPage();
     await page.goto(BASE + "/", { waitUntil: "networkidle" });
+    await forgetCopy(page);
     await page.evaluate(({ cache, gh }) => {
       localStorage.clear();
       localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" }));

@@ -206,7 +206,7 @@ const shown = (page, sel) => page.evaluate((q) => {
   });
   await page.waitForTimeout(400);
   check("currency still writes to the synced data, not to the device settings",
-    await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).settings.currency === "EUR"));
+    await page.evaluate(() => window.LifeLogStorage.cachedCopy().settings.currency === "EUR"));
 
   await ctx.close();
 

@@ -4,7 +4,7 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const SEED = {
@@ -44,6 +44,7 @@ async function run(b, width) {
   page.on("console", (m) => { if (m.type() === "error" && !/404|Failed to load resource/.test(m.text())) errs.push("console: " + m.text()); });
   page.on("dialog", (d) => d.accept(d.type() === "prompt" ? "Kitchen" : undefined));
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((seed) => {
     localStorage.clear();
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" }));
@@ -52,7 +53,7 @@ async function run(b, width) {
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForTimeout(400);
   const at = " (" + width + "px)";
-  const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+  const saved = () => page.evaluate(() => window.LifeLogStorage.cachedCopy());
   const rows = () => page.evaluate(() => [...document.querySelectorAll("#financePickerList .picker-row")].map((r) => ({
     title: r.querySelector(".etitle").textContent, cat: (r.querySelector(".ecat") || {}).textContent || "", on: r.querySelector("input").checked })));
   // Ticks exactly these rows, and no others.
@@ -89,6 +90,8 @@ async function run(b, width) {
   check("a PDF is a row under its own title" + at, r.length === 1 && r[0].title === "Board meeting", r);
   check("and the one that isn't says why" + at, await page.evaluate(() =>
     [...document.querySelectorAll(".toast")].some((t) => /broken\.pdf: This isn't a valid PDF/.test(t.textContent))));
+  check("reading them was a job in Activity, saying how it went" + at, await page.evaluate(() =>
+    window.LifeLogJobs.list().some((j) => j.label === "Reading 2 files" && j.lane === "files" && j.state === "done" && /1 read, 1 couldn't be/.test(j.result))));
   await page.click("#financePickerConfirmBtn");
   await page.waitForTimeout(400);
   d = await saved();

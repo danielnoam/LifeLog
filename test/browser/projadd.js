@@ -89,7 +89,7 @@ const SEED = {
   });
   await page.waitForTimeout(600);
   const saved = await page.evaluate(() => {
-    const c = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+    const c = window.LifeLogStorage.cachedCopy();
     const e = c.financeEntries.find((x) => x.note === "cable car");
     return e ? { project: e.project, date: e.date, currency: e.currency || null } : null;
   });

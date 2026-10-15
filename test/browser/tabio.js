@@ -81,7 +81,7 @@ const TABS = {
     if (!opened) return { noPicker: await page.evaluate(() => [...document.querySelectorAll(".toast")].map((t) => t.textContent).join(" | ")) };
     await page.click("#financePickerConfirmBtn");
     await page.waitForTimeout(400);
-    return COUNT(await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1"))));
+    return COUNT(await page.evaluate(() => window.LifeLogStorage.cachedCopy()));
   };
 
   for (const [tab, want] of Object.entries(TABS)) {
@@ -134,7 +134,7 @@ const TABS = {
   const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.click("#restoreSettingsBtn")]);
   await chooser.setFiles(full.file);
   await page.waitForTimeout(500);
-  const restored = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).settings);
+  const restored = await page.evaluate(() => window.LifeLogStorage.cachedCopy().settings);
   // An export leaves the API keys blank (0.260.0), so a restore from it
   // names the currency only and brings no key back.
   check("Restore settings says what it will fill, and the export carried no key", /Home currency/.test(asked) && !/API key|rawg-key/.test(asked), asked);

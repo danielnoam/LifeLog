@@ -1,7 +1,7 @@
 // The note sheet (0.199.0): a plain note's optional title, a list's items
 // written without ticks or a quick-add switch, and a quote's author and
 // source side by side — at phone and desktop widths.
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const SEED = {
@@ -18,6 +18,7 @@ async function run(b, width) {
   page.on("console", (m) => { if (m.type() === "error" && !/404|Failed to load resource/.test(m.text())) errs.push("console: " + m.text()); });
   page.on("dialog", (d) => d.accept());
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((seed) => {
     localStorage.clear();
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" }));
@@ -26,7 +27,7 @@ async function run(b, width) {
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForTimeout(400);
   const at = " (" + width + "px)";
-  const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+  const saved = () => page.evaluate(() => window.LifeLogStorage.cachedCopy());
   const open = async (kind) => {
     await page.evaluate(() => window.LifeLogNotes.openNoteModal(null));
     await page.click(`#noteKindSeg [data-kind="${kind}"]`);

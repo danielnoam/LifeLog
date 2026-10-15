@@ -2,7 +2,7 @@
 // (0.258.0): the pencil turns a row into a small form; Done writes the
 // title, month, category and rating back into the item, and the import
 // lands with them. An update row lists each value it fills.
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const SEED = {
@@ -28,6 +28,7 @@ const FILE = {
   page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
   await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 404, body: "{}" }));
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((seed) => { localStorage.clear(); localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "timeline" })); localStorage.setItem("lifelog-cache-v1", JSON.stringify(seed)); }, SEED);
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(300);
   await page.click("#settingsBtn"); await page.waitForTimeout(300);
@@ -50,7 +51,7 @@ const FILE = {
   const row = await page.evaluate(() => { const r = [...document.querySelectorAll("#financePickerList .picker-row")].find((x) => /Half-Life 2/.test(x.textContent)); return r && { text: r.textContent.replace(/\s+/g, " ").trim(), edited: r.classList.contains("is-edited") }; });
   check("Done puts the row back with its new words and an edited mark", row && /Nov 2024/.test(row.text) && /Books/.test(row.text) && /edited/.test(row.text) && row.edited, row);
   await page.click("#financePickerConfirmBtn"); await page.waitForTimeout(600);
-  const d = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+  const d = await page.evaluate(() => window.LifeLogStorage.cachedCopy());
   const hl = d.entries.find((e) => e.title === "Half-Life 2");
   check("the import lands with the edits", hl && hl.year === 2024 && hl.month === 11 && hl.category === "Books" && hl.rating === 5 && hl.date === undefined, hl);
   check("and nothing called Half-Life came in", !d.entries.some((e) => e.title === "Half-Life"));

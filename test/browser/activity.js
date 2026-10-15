@@ -102,7 +102,7 @@ async function open(b, { native } = {}) {
     await page.click(".activity-row.is-running .activity-stop");
     await page.waitForFunction(() => !document.querySelector(".activity-row.is-running .activity-label")
       || document.querySelector(".activity-row.is-running .activity-label").textContent !== "Retrying unresolved Steam titles", null, { timeout: 5000 });
-    const titles = await page.evaluate(() => window.LifeLogApp && JSON.parse(localStorage.getItem("lifelog-cache-v1")).backlog.map((x) => x.title));
+    const titles = await page.evaluate(() => window.LifeLogApp && window.LifeLogStorage.cachedCopy().backlog.map((x) => x.title));
     const resolved = titles.filter((t) => /^Game /.test(t)).length;
     check("stopping keeps the titles it had resolved, and no more", resolved >= 2 && resolved < 6, titles);
     const stoppedRow = page.locator(".activity-row.is-stopped", { hasText: "Retrying" });
@@ -165,7 +165,7 @@ async function open(b, { native } = {}) {
     // Closed mid-pass: a reload doesn't let it end.
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForTimeout(300);
-    const kept = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).backlog.filter((x) => /^Game /.test(x.title)).length);
+    const kept = await page.evaluate(() => window.LifeLogStorage.cachedCopy().backlog.filter((x) => /^Game /.test(x.title)).length);
     check("what it had done by then is saved, every 5", kept >= 5 && kept < 6, kept);
     check("the next open says it didn't finish", await page.isVisible("#activityPill") && /Didn't finish/.test(await page.textContent("#activityPillText")), await page.textContent("#activityPill"));
     await page.click("#activityPill");

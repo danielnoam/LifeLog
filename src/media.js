@@ -546,16 +546,14 @@
   // wire up the same way), or null on a hard failure (network, private list,
   // unknown user) so the caller can tell "empty list" from "couldn't reach it".
   //
-  // Planning and Watching (CURRENT) come whole, in one request. Completed is
-  // asked only about `completedIds`, the titles already in your backlog
-  // (0.265.0): the sync uses it to mark those done, and a whole Completed
-  // list can run to hundreds of titles nothing here would use. Each item
-  // carries `listStatus` ("planning", "current", "completed") and, from the
-  // list entry, `startedAt`, `completedAt` (YYYY-MM-DD, when the day is
-  // known) and `score` (1-5, 0 for unscored).
+  // Every status list comes whole, in one request (0.268.0; before, Completed
+  // was asked only about the backlog's own titles). Each item carries
+  // `listStatus` ("planning", "current", "completed", "paused", "dropped")
+  // and, from the list entry, `startedAt`, `completedAt` (YYYY-MM-DD, when
+  // the day is known) and `score` (1-5, 0 for unscored).
   const ANILIST_LIST_MEDIA = "id type title { romaji english } coverImage { medium } startDate { year month day } status nextAiringEpisode { airingAt episode } averageScore genres episodes chapters volumes";
   const ANILIST_LIST_ENTRY = "status score(format: POINT_5) startedAt { year month day } completedAt { year month day } media { " + ANILIST_LIST_MEDIA + " }";
-  const ANILIST_LIST_STATUS = { PLANNING: "planning", CURRENT: "current", COMPLETED: "completed" };
+  const ANILIST_LIST_STATUS = { PLANNING: "planning", CURRENT: "current", COMPLETED: "completed", PAUSED: "paused", DROPPED: "dropped" };
 
   async function aniListQuery(query, variables) {
     const res = await fetch("https://graphql.anilist.co", {
@@ -607,10 +605,10 @@
     };
   }
 
-  async function fetchAniListLists(userName, type, completedIds) {
+  async function fetchAniListLists(userName, type) {
     if (!userName) { lastError = "Enter your AniList username"; return null; }
     try {
-      const query = "query ($userName: String, $type: MediaType) { MediaListCollection(userName: $userName, type: $type, status_in: [PLANNING, CURRENT]) { lists { isCustomList entries { " + ANILIST_LIST_ENTRY + " } } } }";
+      const query = "query ($userName: String, $type: MediaType) { MediaListCollection(userName: $userName, type: $type, status_in: [PLANNING, CURRENT, COMPLETED, PAUSED, DROPPED]) { lists { isCustomList entries { " + ANILIST_LIST_ENTRY + " } } } }";
       const data = await aniListQuery(query, { userName, type });
       if (!data) return null;
       const lists = (data.MediaListCollection && data.MediaListCollection.lists) || [];
@@ -623,19 +621,6 @@
           if (!e.media || seen.has(e.media.id)) continue;
           seen.add(e.media.id);
           out.push(mapAniListListEntry(e, type));
-        }
-      }
-      const ids = [...new Set((completedIds || []).map((x) => parseInt(x, 10)).filter((x) => x > 0))];
-      if (ids.length) {
-        // Its own request, and its failure costs only this half: the lists
-        // above are still worth reviewing without it.
-        const pageQuery = "query ($userName: String, $type: MediaType, $ids: [Int], $page: Int) { Page(page: $page, perPage: 50) { pageInfo { hasNextPage } mediaList(userName: $userName, type: $type, status: COMPLETED, mediaId_in: $ids) { " + ANILIST_LIST_ENTRY + " } } }";
-        for (let page = 1; page <= 10; page++) {
-          const pd = await aniListQuery(pageQuery, { userName, type, ids, page });
-          const p = pd && pd.Page;
-          if (!p) break;
-          for (const e of p.mediaList || []) if (e.media) out.push(mapAniListListEntry(e, type));
-          if (!(p.pageInfo && p.pageInfo.hasNextPage)) break;
         }
       }
       return out;
@@ -1313,9 +1298,9 @@
     async fetchSteamAppDetails(appId, proxyUrl, retries) {
       return fetchSteamAppDetails(appId, proxyUrl, retries);
     },
-    async fetchAniListLists(userName, type, completedIds) {
+    async fetchAniListLists(userName, type) {
       lastError = "";
-      return fetchAniListLists(userName, type, completedIds);
+      return fetchAniListLists(userName, type);
     },
     getLastError: () => lastError,
     steamCoverUrl,

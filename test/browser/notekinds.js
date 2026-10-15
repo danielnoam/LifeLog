@@ -2,7 +2,7 @@
 // with categories of their own, the chip row filtering by them, a kind
 // switch and a sort of their own. Driven through the note sheet and the
 // cards the way a person would, then checked in what was saved.
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const T = (d) => `2026-0${d}-01T09:00:00.000Z`;
@@ -25,6 +25,7 @@ const SEED = {
   page.on("console", (m) => { if (m.type() === "error" && !/404|Failed to load resource/.test(m.text())) errs.push("console: " + m.text()); });
   page.on("dialog", (d) => d.accept());
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((seed) => {
     localStorage.clear();
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" }));
@@ -32,7 +33,7 @@ const SEED = {
   }, SEED);
   await page.reload({ waitUntil: "networkidle" });
   await page.waitForTimeout(500);
-  const saved = () => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+  const saved = () => page.evaluate(() => window.LifeLogStorage.cachedCopy());
   // Not the ones animating out (reconcile marks them ll-exit on their way).
   const cards = () => page.evaluate(() => [...document.querySelectorAll(".note-card:not(.ll-exit)")].map((c) => c.dataset.id));
   const openNew = async (kind) => {

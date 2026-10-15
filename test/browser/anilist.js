@@ -1,19 +1,21 @@
 // AniList and airing shows (0.265.0): one sync brings in Planning, starts
 // Watching, and moves what you completed there off the backlog (Undo puts
-// it back); a show's row says how far it has run, a mid-run one sorts into a
+// it back); a Completed title you have nowhere comes in as history, and
+// Paused or Dropped as dropped (0.268.0); a show's row says how far it has run, a mid-run one sorts into a
 // "Still airing" band that folds, and the re-check finishes a show that ended.
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const SEED = {
   categories: [{ name: "Anime", color: "#58a6ff" }, { name: "TV", color: "#f0883e" }, { name: "Games", color: "#3fb950" }],
-  entries: [],
+  entries: [{ id: "e1", title: "Logged Already", category: "Anime", year: 2025, month: 4, date: "2025-04", mediaSource: "anilist-anime", mediaId: "22", createdAt: "2025-04-01T00:00:00.000Z" }],
   backlog: [
     { id: "b1", title: "Frieren", category: "Anime", mediaSource: "anilist-anime", mediaId: "5", createdAt: "2026-01-01T00:00:00.000Z" },
     { id: "b2", title: "Dandadan", category: "Anime", mediaSource: "anilist-anime", mediaId: "9", createdAt: "2026-01-02T00:00:00.000Z" },
     { id: "b3", title: "Severance", category: "TV", mediaSource: "tmdb-tv", mediaId: "77", releaseStatus: "released", releaseDate: "2022-02-18", releasePrecision: "day",
       airing: "airing", airingSeason: 2, episodesOut: 7, episodesTotal: 10, createdAt: "2026-01-03T00:00:00.000Z" },
     { id: "b4", title: "Hades", category: "Games", createdAt: "2026-01-04T00:00:00.000Z" },
+    { id: "b5", title: "Chainsaw Man", category: "Anime", mediaSource: "anilist-anime", mediaId: "30", createdAt: "2026-01-05T00:00:00.000Z" },
   ],
   notes: [], accomplishments: {}, habits: [], financeCategories: [], financeEntries: [], recurringExpenses: [], projects: [], noteCategories: [],
   settings: { anilist: { userName: "me", animeCategory: "Anime", mangaCategory: "", autoSyncDays: "0" }, mediaKeys: { tmdb: "k" } },
@@ -32,7 +34,7 @@ const media = (id, title, extra) => ({ id, type: "ANIME", title: { romaji: title
   await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 404, body: "{}" }));
   await page.route("https://graphql.anilist.co/**", (r) => {
     const body = JSON.parse(r.request().postData() || "{}");
-    asked.push(body.variables || {});
+    asked.push(body.query || "");
     const json = (data) => r.fulfill({ status: 200, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" }, body: JSON.stringify({ data }) });
     if (/MediaListCollection/.test(body.query)) {
       return json({ MediaListCollection: { lists: [
@@ -41,12 +43,15 @@ const media = (id, title, extra) => ({ id, type: "ANIME", title: { romaji: title
           { status: "CURRENT", score: 0, startedAt: { year: 2026, month: 9, day: 2 }, completedAt: {}, media: media(9, "Dandadan", { status: "RELEASING", nextAiringEpisode: { airingAt: 1924992000, episode: 6 } }) },
           { status: "CURRENT", score: 0, startedAt: {}, completedAt: {}, media: media(12, "New Watching") },
         ] },
+        { isCustomList: false, entries: [
+          { status: "COMPLETED", score: 4, startedAt: { year: 2026, month: 1, day: 20 }, completedAt: { year: 2026, month: 3, day: 14 }, media: media(5, "Frieren") },
+          { status: "COMPLETED", score: 5, startedAt: { year: 2024, month: 11, day: 2 }, completedAt: { year: 2025, month: 2, day: 9 }, media: media(20, "Old Favourite") },
+          { status: "COMPLETED", score: 0, startedAt: {}, completedAt: {}, media: media(21, "Undated One") },
+          { status: "COMPLETED", score: 3, startedAt: {}, completedAt: { year: 2025, month: 4, day: 2 }, media: media(22, "Logged Already") },
+        ] },
+        { isCustomList: false, entries: [{ status: "PAUSED", score: 0, startedAt: {}, completedAt: {}, media: media(30, "Chainsaw Man") }] },
+        { isCustomList: false, entries: [{ status: "DROPPED", score: 0, startedAt: {}, completedAt: {}, media: media(31, "Gave Up") }] },
         { isCustomList: true, entries: [{ status: "PLANNING", score: 0, startedAt: {}, completedAt: {}, media: media(11, "Planned Show") }] },
-      ] } });
-    }
-    if (/mediaList\(/.test(body.query)) {
-      return json({ Page: { pageInfo: { hasNextPage: false }, mediaList: [
-        { status: "COMPLETED", score: 4, startedAt: { year: 2026, month: 1, day: 20 }, completedAt: { year: 2026, month: 3, day: 14 }, media: media(5, "Frieren") },
       ] } });
     }
     return json({});
@@ -56,9 +61,10 @@ const media = (id, title, extra) => ({ id, type: "ANIME", title: { romaji: title
       last_episode_to_air: { season_number: 2, episode_number: 10 }, next_episode_to_air: null, seasons: [] }) }));
 
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((seed) => { localStorage.clear(); localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "backlog", backlogMode: "entries" })); localStorage.setItem("lifelog-cache-v1", JSON.stringify(seed)); }, SEED);
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(400);
-  const data = () => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+  const data = () => page.evaluate(() => window.LifeLogStorage.cachedCopy());
   const rowText = (title) => page.evaluate((t) => {
     const row = [...document.querySelectorAll(".backlog-item, .backlog-item-rich")].find((r) => r.querySelector(".bl-title")?.textContent === t);
     return row ? row.textContent : null;
@@ -80,7 +86,7 @@ const media = (id, title, extra) => ({ id, type: "ANIME", title: { romaji: title
   await page.click('.srow[data-page="imports"]'); await page.waitForTimeout(300);
   await page.click("#anilistSyncBtn");
   await page.waitForSelector("#financePickerModal:not([hidden])", { timeout: 8000 }); await page.waitForTimeout(300);
-  check("Completed is asked only about the backlog's AniList titles", asked.some((v) => Array.isArray(v.ids) && v.ids.sort().join() === "5,9"), asked);
+  check("one request asks for every status list", asked.length === 1 && /status_in: \[PLANNING, CURRENT, COMPLETED, PAUSED, DROPPED\]/.test(asked[0]), asked);
   const rows = await page.evaluate(() => [...document.querySelectorAll("#financePickerModal .picker-row")].map((r) => ({
     text: r.textContent, checked: r.querySelector("input[type=checkbox]")?.checked })));
   const row = (re) => rows.find((r) => re.test(r.text));
@@ -89,12 +95,21 @@ const media = (id, title, extra) => ({ id, type: "ANIME", title: { romaji: title
   check("a new Watching title comes in progress", row(/New Watching/) && /in progress/.test(row(/New Watching/).text), rows);
   check("one you have is started, as an update", row(/Dandadan/) && /started/.test(row(/Dandadan/).text) && row(/Dandadan/).checked, rows);
   check("a Completed one is done and leaves the backlog", row(/Frieren/) && /leaves backlog/.test(row(/Frieren/).text) && row(/Frieren/).checked, rows);
+  check("a Completed title you have nowhere comes in as history, ticked", row(/Old Favourite/) && row(/Old Favourite/).checked && !/leaves backlog/.test(row(/Old Favourite/).text), rows);
+  check("one with no dates comes unticked", row(/Undated One/) && !row(/Undated One/).checked, rows);
+  check("one already on the timeline isn't offered again", !row(/Logged Already/), rows.map((r) => r.text));
+  check("a Paused one you have is dropped, as an update", row(/Chainsaw Man/) && /dropped/.test(row(/Chainsaw Man/).text) && row(/Chainsaw Man/).checked, rows);
+  check("a Dropped one you don't have comes in dropped", row(/Gave Up/) && /dropped/.test(row(/Gave Up/).text) && row(/Gave Up/).checked, rows);
   await page.click("#financePickerConfirmBtn"); await page.waitForTimeout(800);
   let d = await data();
   const frierenEntry = d.entries.find((e) => e.title === "Frieren");
   check("Frieren moved to the timeline in March with your score", frierenEntry && frierenEntry.year === 2026 && frierenEntry.month === 3 && frierenEntry.rating === 4
     && frierenEntry.startMonth === 1 && frierenEntry.backlogAddedAt === "2026-01-01T00:00:00.000Z", frierenEntry);
   check("and is off the backlog", !d.backlog.some((x) => x.id === "b1"), d.backlog.map((x) => x.title));
+  const old = d.entries.find((e) => e.title === "Old Favourite");
+  check("Old Favourite is filed in the month it was finished, spanning back, with your score", old && old.year === 2025 && old.month === 2 && old.startYear === 2024 && old.startMonth === 11 && old.rating === 5 && old.mediaId === "20", old);
+  check("Chainsaw Man is dropped", (d.backlog.find((x) => x.id === "b5") || {}).dropped === true, d.backlog.find((x) => x.id === "b5"));
+  check("Gave Up is in the backlog, dropped", (d.backlog.find((x) => x.title === "Gave Up") || {}).dropped === true);
   check("Dandadan is started on the day AniList says", (d.backlog.find((x) => x.id === "b2") || {}).startedAt === "2026-09-02", d.backlog.find((x) => x.id === "b2"));
   const nw = d.backlog.find((x) => x.title === "New Watching");
   check("New Watching is in progress", nw && /^\d{4}-\d{2}-\d{2}$/.test(nw.startedAt || ""), nw);
@@ -106,6 +121,7 @@ const media = (id, title, extra) => ({ id, type: "ANIME", title: { romaji: title
   d = await data();
   check("Undo puts Frieren back on the backlog and takes the entry away", d.backlog.some((x) => x.id === "b1" && x.title === "Frieren") && !d.entries.some((e) => e.title === "Frieren"), { b: d.backlog.map((x) => x.title), e: d.entries.map((e) => e.title) });
   check("and un-starts Dandadan", (d.backlog.find((x) => x.id === "b2") || {}).startedAt === undefined);
+  check("and un-drops Chainsaw Man, and takes the history away", (d.backlog.find((x) => x.id === "b5") || {}).dropped === undefined && !d.entries.some((e) => e.title === "Old Favourite"));
 
   // The re-check finishes a show that ended.
   await page.evaluate(() => { const back = document.querySelector("#settingsBack, .settings-back"); if (back) back.click(); });

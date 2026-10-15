@@ -154,7 +154,7 @@ const load = async (page) => {
     };
   });
   await page.evaluate(async () => {
-    const rec = JSON.parse(localStorage.getItem("lifelog-cache-v1")).recurringExpenses.find((x) => x.id === "r3");
+    const rec = window.LifeLogStorage.cachedCopy().recurringExpenses.find((x) => x.id === "r3");
     window.LifeLogFinance.openRecurringModal(rec);
     await new Promise((r) => setTimeout(r, 250));
   });
@@ -206,7 +206,7 @@ const load = async (page) => {
     document.querySelector("#recMoreBtn").click();
     await new Promise((r) => setTimeout(r, 150));
     window.LifeLogFinance.closeRecurringModal();
-    const rec = JSON.parse(localStorage.getItem("lifelog-cache-v1")).recurringExpenses.find((x) => x.id === "r2");
+    const rec = window.LifeLogStorage.cachedCopy().recurringExpenses.find((x) => x.id === "r2");
     window.LifeLogFinance.openRecurringModal(rec);
     await new Promise((r) => setTimeout(r, 250));
     return { open: !document.querySelector("#recMoreMenu").hidden };

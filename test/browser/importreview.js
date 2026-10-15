@@ -2,7 +2,7 @@
 // months behind a chevron, a list that gives way so Import stays on screen,
 // search and sort that come on their own, and a count line that says what
 // the button will do.
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const cats = ["Games", "Films", "Books"];
@@ -22,6 +22,7 @@ const SMALL = { categories: [], entries: entries.slice(0, 6), backlog: [], notes
   page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
   await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 404, body: "{}" }));
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate(() => { localStorage.clear(); localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "timeline" })); localStorage.setItem("lifelog-cache-v1", JSON.stringify({ categories: [{ name: "Games", color: "#58a6ff" }], entries: [], backlog: [], settings: {} })); });
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(300);
   const open = async (file) => {

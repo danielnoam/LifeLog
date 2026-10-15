@@ -16,6 +16,53 @@ what was decided against and why.
 
 ---
 
+- **This device's copy and the sync base in IndexedDB (0.268.0).**
+  `lifelog-cache-v1` and `lifelog-sync-base-v1` were each a whole
+  lifelog.json in localStorage (~5M characters an origin), and their writes
+  were `catch (e) {}`. They are now JSON text under the keys `cache` and
+  `syncBase` in the `handles` store, with copies in memory (`copies` in
+  storage.js), so `getSyncBase()` and `_cache()` stay synchronous. Writes
+  queue per key and only the latest is written. A localStorage copy is
+  treated as newer than IndexedDB's and moved across (removed only after
+  IndexedDB has it): that is the migration, it keeps an older build in
+  another tab from being lost, and it is why the browser suites can still
+  seed the cache through localStorage. They read it back with
+  `LifeLogStorage.cachedCopy()`, and `forgetCopy(page)` in harness.js
+  stands in for `localStorage.clear()`, which no longer forgets it. A
+  failed IndexedDB write falls back to localStorage, and only when that
+  fails too does the error log hear of it. `loadCache()` is async now: one
+  IndexedDB read before the first render, on a connection `idb()` keeps
+  open (it opened one per call before). The cost: an IndexedDB write
+  commits a moment after `persist()` returns, where localStorage was
+  synchronous, so an app killed in that moment loses the copy of that last
+  edit. GitHub, written on the same save, is the durable copy.
+  `forgetDevice()` drops both copies; it used to leave the sync base, which
+  is the whole data too.
+- **AniList reads every list (0.268.0).** One `MediaListCollection` with
+  `status_in: [PLANNING, CURRENT, COMPLETED, PAUSED, DROPPED]` replaces
+  0.265.0's second, paged query that asked about Completed only for the
+  backlog's ids: history needs the whole list anyway. A Completed title
+  already on the timeline (by AniList id, or title and category in any
+  month) is left out rather than shown as a duplicate, since
+  `buildImportItems` matches entries on title, category *and* month. One
+  with neither a finish nor a start date goes under this month, unticked,
+  with a note saying so; AniList lists imported from MAL often have no
+  dates. Paused counts as dropped, as TODO.md had it. Dropping a backlog
+  item you have is an update row with the one fill `dropped`.
+- **Lookup sources follow a rename in one place (0.268.0).**
+  `Journal.moveCategorySources` is what the app's rename and the bridge's
+  both call. The bridge records each moved map in the undo log as a
+  `settings` item whose "updatedAt" is the map's own JSON, so Undo refuses
+  only when that map changed since, not when any setting did.
+- **fxrate's Look up button (0.268.0).** `.modal label input` has
+  `margin-top: 6px`, so in the flex row the input sat 6px low and the
+  centred button 3px high of it; the check was right. The button now
+  stretches to the row with the same top margin, which also makes it 44px
+  tall on phones.
+- **Reading files as a job (0.268.0).** `importMarkdown` reads in a
+  `files`-lane job with no `again`: the files picked can't be picked again
+  after a restart. A Stop hands what was read to the review, like the
+  syncs.
 - **One notice stack (0.267.2).** `#noticeStack` holds every toast, the
   update bar and the activity pill, so they stack instead of overlapping
   (Daniel: "they should all look like the syncing style"). Toasts stack up

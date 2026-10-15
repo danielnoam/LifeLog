@@ -1,7 +1,7 @@
 // Undo after import (0.256.0): the toast's Undo takes back exactly what one
 // import did: the rows it added, the fields it filled, the categories it
 // created, and nothing else.
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const SEED = {
@@ -29,13 +29,14 @@ const FILE = {
   page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
   await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 404, body: "{}" }));
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((seed) => { localStorage.clear(); localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "timeline" })); localStorage.setItem("lifelog-cache-v1", JSON.stringify(seed)); }, SEED);
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(300);
   await page.click("#settingsBtn"); await page.waitForTimeout(300);
   await page.click('.srow[data-page="io"]'); await page.waitForTimeout(300);
   await page.setInputFiles("#importJsonInput", { name: "lifelog.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(FILE)) });
   await page.waitForSelector("#financePickerModal:not([hidden])"); await page.waitForTimeout(300);
-  const data = () => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+  const data = () => page.evaluate(() => window.LifeLogStorage.cachedCopy());
   await page.click("#financePickerConfirmBtn"); await page.waitForTimeout(700);
   let d = await data();
   check("the import landed: two more entries' worth, a backlog item, a note, an achievement, a category", d.entries.length === 3 && d.backlog.length === 1 && d.notes.length === 1 && (d.accomplishments["2026"] || []).length === 1 && d.categories.some((c) => c.name === "Films"), { e: d.entries.length, b: d.backlog.length, n: d.notes.length, c: d.categories.map((c) => c.name) });

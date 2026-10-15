@@ -8,7 +8,7 @@
 //
 // GitHub is answered from inside the test on a fixed delay, so "while the
 // network is in flight" is a window the test controls rather than races.
-const { chromium, BASE } = require("./harness");
+const { chromium, BASE, forgetCopy } = require("./harness");
 let pass = 0, fail = 0;
 const check = (n, ok, extra) => { ok ? pass++ : fail++; console.log((ok ? "  ok   - " : "  FAIL - ") + n + (ok || extra === undefined ? "" : "  [" + JSON.stringify(extra) + "]")); };
 
@@ -192,7 +192,7 @@ const titles = (page) => page.evaluate(() => [...document.querySelectorAll(".ent
     await page.waitForTimeout(600);
     await page.click(".habit-tick");
     await page.waitForTimeout(7000);
-    const d = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")));
+    const d = await page.evaluate(() => window.LifeLogStorage.cachedCopy());
     check("a habit ticked while the boot merge is saving stays ticked",
       !!(d.habits[0].marks && d.habits[0].marks[today]), d.habits[0]);
     const lastPut = puts[puts.length - 1];
@@ -237,6 +237,7 @@ const titles = (page) => page.evaluate(() => [...document.querySelectorAll(".ent
     const e = [];
     page.on("pageerror", (x) => e.push("pageerror: " + x.message));
     await page.goto(BASE + "/", { waitUntil: "networkidle" });
+    await forgetCopy(page);
     await page.evaluate((gh) => {
       localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "timeline", timelineMode: "timeline" }));
       localStorage.removeItem("lifelog-cache-v1");
@@ -256,6 +257,38 @@ const titles = (page) => page.evaluate(() => [...document.querySelectorAll(".ent
     check("a device with no copy of its own still gets GitHub's", shown.some((t) => /First Sync/.test(t)), shown);
     errs.push(...e);
     await ctxr.close();
+  }
+
+  // ---- 6. the copy moves out of localStorage into IndexedDB (0.268.0) ----
+  {
+    const cached = doc([entry("a", "Moved Over", "2026-03-01T00:00:00.000Z")], "2026-03-01T00:00:00.000Z");
+    const { page, ctx, errs: e } = await openApp(browser, { cache: cached, remote: cached, latencyMs: 0, connected: false });
+    await page.waitForSelector(".entry", { timeout: 5000 });
+    await page.evaluate(() => window.LifeLogStorage.copiesWritten());
+    const held = await page.evaluate(() => new Promise((resolve) => {
+      const q = indexedDB.open("lifelog");
+      q.onsuccess = () => {
+        const r = q.result.transaction("handles").objectStore("handles").get("cache");
+        r.onsuccess = () => { q.result.close(); resolve(r.result || ""); };
+      };
+    }));
+    check("the localStorage copy is in IndexedDB after the first open", /Moved Over/.test(held), held.slice(0, 80));
+    check("and has left localStorage", await page.evaluate(() =>
+      localStorage.getItem("lifelog-cache-v1") === null && localStorage.getItem("lifelog-sync-base-v1") === null));
+    await page.reload({ waitUntil: "load" });
+    await page.waitForSelector(".entry", { timeout: 5000 });
+    check("the next open draws from it", (await titles(page)).some((t) => /Moved Over/.test(t)), await titles(page));
+    await page.evaluate(async () => {
+      const d = window.LifeLogStorage.cachedCopy();
+      d.entries[0].title = "Edited Since";
+      window.LifeLogStorage._cache(d);
+      await window.LifeLogStorage.copiesWritten();
+    });
+    await page.reload({ waitUntil: "load" });
+    await page.waitForSelector(".entry", { timeout: 5000 });
+    check("and a later save is what the open after it draws", (await titles(page)).some((t) => /Edited Since/.test(t)), await titles(page));
+    errs.push(...e);
+    await ctx.close();
   }
 
   await browser.close();

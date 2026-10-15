@@ -10,7 +10,7 @@
 // page being left and the page arriving are on screen together, side by
 // side, one screen-width (plus the gap) apart. That is what "one strip"
 // means, and it is exactly what the old animation could never show.
-const { chromium, BASE } = require("./harness");
+const { chromium, BASE, forgetCopy } = require("./harness");
 let pass = 0, fail = 0;
 const check = (n, ok, extra) => { ok ? pass++ : fail++; console.log((ok ? "  ok   - " : "  FAIL - ") + n + (ok || extra === undefined ? "" : "  [" + JSON.stringify(extra) + "]")); };
 
@@ -53,6 +53,7 @@ async function drag(page, dx, { hold = false, steps = 10 } = {}) {
   const errs = [];
   page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((seed) => {
     localStorage.clear();
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "notes", notesMode: "notes" }));

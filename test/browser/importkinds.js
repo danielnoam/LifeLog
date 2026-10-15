@@ -79,7 +79,7 @@ const INCOMING = {
   await page.waitForTimeout(700);
 
   const after = await page.evaluate(() => {
-    const c = JSON.parse(localStorage.getItem("lifelog-cache-v1"));
+    const c = window.LifeLogStorage.cachedCopy();
     const e = c.entries.find((x) => x.title === "Celeste") || {};
     const r = c.recurringExpenses.find((x) => x.id === "r1") || {};
     return {

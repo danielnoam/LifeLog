@@ -5,7 +5,7 @@
 // backup in the app's own Documents, which the Files app shows as
 // On My iPhone → LifeLog. What it can't prove is WKWebView itself: that's
 // the first sideloaded launch's job.
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const BUILD = { version: "0.0.0", repo: "someone/lifelog", webUrl: "https://someone.github.io/lifelog/" };
@@ -66,6 +66,7 @@ const FAKE_IOS = () => {
   await page.route("https://api.github.com/repos/someone/lifelog/releases/latest",
     (r) => r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ tag_name: "app-v9.9.9" }) }));
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((d) => {
     localStorage.clear();
     localStorage.setItem("lifelog-cache-v1", JSON.stringify(d));

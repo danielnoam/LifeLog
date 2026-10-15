@@ -1,7 +1,7 @@
 // Out today (0.226.0): a card above Next releases for what came out today,
 // before the list drops it, and a sheet the first time the app opens that
 // day (once, only if something is out, and Settings can turn it off).
-const { chromium, BASE, tally } = require("./harness");
+const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
 
 const pad = (n) => String(n).padStart(2, "0");
@@ -30,6 +30,7 @@ async function run(b, width) {
   const page = await b.newPage({ viewport: { width, height: 900 } });
   page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
+  await forgetCopy(page);
   await page.evaluate((s) => {
     localStorage.clear();
     localStorage.setItem("lifelog-cache-v1", JSON.stringify(s));
@@ -53,7 +54,7 @@ async function run(b, width) {
 
   await page.locator('.out-row[data-id="t1"] .bl-start').click();
   await page.waitForTimeout(300);
-  check("▶ starts it and it leaves the card" + at, JSON.stringify(await card()) === JSON.stringify(["t2"]) && await page.evaluate(() => !!JSON.parse(localStorage.getItem("lifelog-cache-v1")).backlog.find((x) => x.id === "t1").startedAt));
+  check("▶ starts it and it leaves the card" + at, JSON.stringify(await card()) === JSON.stringify(["t2"]) && await page.evaluate(() => !!window.LifeLogStorage.cachedCopy().backlog.find((x) => x.id === "t1").startedAt));
 
   await page.close();
 
@@ -62,6 +63,7 @@ async function run(b, width) {
     const p = await b.newPage({ viewport: { width, height: 900 } });
     p.on("pageerror", (e) => errs.push("pageerror: " + e.message));
     await p.goto(BASE + "/", { waitUntil: "networkidle" });
+    await forgetCopy(p);
     await p.evaluate(({ s, v, view }) => {
       localStorage.clear();
       localStorage.setItem("lifelog-cache-v1", JSON.stringify(s));

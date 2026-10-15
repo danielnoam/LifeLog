@@ -44,7 +44,7 @@ const occRows = (page) => page.evaluate(() => [...document.querySelectorAll("#re
   forecast: r.querySelector(".rec-occ-amount").classList.contains("is-provisional"),
 })));
 
-const planOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-cache-v1")).recurringExpenses[0]);
+const planOf = (page) => page.evaluate(() => window.LifeLogStorage.cachedCopy().recurringExpenses[0]);
 
 (async () => {
   const browser = await chromium.launch();
@@ -140,7 +140,7 @@ const planOf = (page) => page.evaluate(() => JSON.parse(localStorage.getItem("li
   await page.click("#recMoreBtn");
   await page.click("#recFetchRatesBtn");
   await page.waitForFunction(() => {
-    const p = JSON.parse(localStorage.getItem("lifelog-cache-v1")).recurringExpenses[0];
+    const p = window.LifeLogStorage.cachedCopy().recurringExpenses[0];
     return p.rates && Object.keys(p.rates).length > 0;
   }, null, { timeout: 15000 });
   await page.waitForTimeout(600);

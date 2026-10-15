@@ -228,7 +228,7 @@ test("applyItemRelease moves the counts along and finishes a show", () => {
 });
 
 {
-  const { aniListBacklogItem, aniListFinishedEntry } = global.window.LifeLogSync;
+  const { aniListBacklogItem, aniListFinishedEntry, aniListHistoryEntry } = global.window.LifeLogSync;
   test("a Watching title comes in started, a Planning one doesn't", () => {
     const m = { id: "9", title: "Dandadan", source: "anilist-anime", airing: "airing", episodesOut: 5, episodesTotal: 12 };
     const w = aniListBacklogItem({ ...m, listStatus: "current", startedAt: "2026-09-02" }, "Anime");
@@ -245,6 +245,17 @@ test("applyItemRelease moves the counts along and finishes a show", () => {
     const same = aniListFinishedEntry({ ...b, startedAt: undefined }, { completedAt: "2026-03-14", startedAt: "2026-03-01", score: 0 });
     assert.strictEqual(same.startYear, undefined, "one month is no span");
     assert.strictEqual(same.rating, undefined);
+  });
+  test("a Completed title you have nowhere is history: its finish month, else its start, else this month and a note", () => {
+    const m = { id: "20", title: "Mushishi", source: "anilist-anime", coverUrl: "c", genres: [], score: 4 };
+    const e = aniListHistoryEntry({ ...m, startedAt: "2024-11-02", completedAt: "2025-02-09" }, "Anime");
+    assert.deepStrictEqual([e.year, e.month, e.startYear, e.startMonth, e.rating, e.mediaId, e.coverUrl, e.genres, e.notes],
+      [2025, 2, 2024, 11, 4, "20", "c", undefined, undefined]);
+    const started = aniListHistoryEntry({ ...m, startedAt: "2023-06-10", completedAt: "" }, "Anime");
+    assert.deepStrictEqual([started.year, started.month, started.startYear, started.notes], [2023, 6, undefined, undefined]);
+    const none = aniListHistoryEntry({ ...m, startedAt: "", completedAt: "" }, "Anime");
+    assert.strictEqual(none.year, new Date().getFullYear());
+    assert.match(none.notes, /didn't say/);
   });
 }
 

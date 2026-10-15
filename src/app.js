@@ -162,7 +162,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.267.2"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.268.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -4991,11 +4991,11 @@
     // IndexedDB for the file handle and goes to the GitHub API with a retry
     // before it ever looks at the cache, and init() awaited all of that
     // before rendering a single row — so a synced phone on mobile data spent
-    // the whole round-trip on a blank page, for entries that were already in
-    // localStorage. Measured at 4x CPU throttle over 611 entries: 312ms to
+    // the whole round-trip on a blank page, for entries that were already on
+    // the device. Measured at 4x CPU throttle over 611 entries: 312ms to
     // first row with sync off, 770ms with GitHub answering in 400ms. See
     // NOTES.md's 0.164.0 entry and test/perf/sync-block.js.
-    const cached = Storage.loadCache();
+    const cached = await Storage.loadCache();
     if (cached) {
       state.data = normalize(cached.data);
       showData();
