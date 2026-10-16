@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One quick add button: an icon, and its label when there's room. The
+     icon is an image, not a drawable on the label, so it stays centred
+     when the label is hidden (0.269.1). -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/add_button"
+    style="@style/LifeLogWidgetButton"
+    android:orientation="vertical">
+
+    <ImageView
+        android:id="@+id/add_icon"
+        android:layout_width="22dp"
+        android:layout_height="22dp"
+        android:importantForAccessibility="no" />
+
+    <TextView
+        android:id="@+id/add_label"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/widget_text"
+        android:textSize="12sp" />
+</LinearLayout>

@@ -5,9 +5,13 @@ import android.appwidget.AppWidgetManager;
 import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.view.Gravity;
+import android.view.HapticFeedbackConstants;
+import android.view.MotionEvent;
+import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.widget.Button;
@@ -15,6 +19,9 @@ import android.widget.CheckBox;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -150,6 +157,95 @@ abstract class SettingsScreen extends Activity {
         b.setChecked(on);
         card.addView(b);
         return b;
+    }
+
+    /**
+     * Ticks that can be put in order (0.266.0 for the checklist widget's lists,
+     * shared since 0.270.0): hold one and drag. The rows stay where they are
+     * and what's on them moves: taking a row out of the card mid-drag would
+     * cancel the touch that's dragging it.
+     */
+    protected final class Sortable {
+        final List<CheckBox> boxes = new ArrayList<>();
+        final List<String> ids = new ArrayList<>();
+        /** Each row's own background, put back when a held one leaves it. */
+        private final List<Drawable> plain = new ArrayList<>();
+        /** The row the held one is on while it's dragged, else -1. */
+        private int dragging = -1;
+
+        /** Adds a row; `draggable` is false when there's only the one. */
+        CheckBox add(String id, String text, boolean on, boolean draggable) {
+            CheckBox b = check(text, on);
+            boxes.add(b);
+            ids.add(id);
+            plain.add(b.getBackground());
+            if (draggable) grip(b);
+            return b;
+        }
+
+        /** The ids ticked, in their order. */
+        JSONArray picked() {
+            JSONArray out = new JSONArray();
+            for (int i = 0; i < boxes.size(); i++) if (boxes.get(i).isChecked()) out.put(ids.get(i));
+            return out;
+        }
+
+        JSONArray order() {
+            return new JSONArray(ids);
+        }
+
+        private void grip(CheckBox b) {
+            b.setCompoundDrawablesRelativeWithIntrinsicBounds(null, null, getDrawable(R.drawable.widget_grip), null);
+            b.setOnLongClickListener((v) -> {
+                dragging = boxes.indexOf(v);
+                v.getParent().requestDisallowInterceptTouchEvent(true);
+                lift(dragging, true);
+                return true;
+            });
+            b.setOnTouchListener((v, e) -> {
+                if (dragging < 0) return false;
+                int action = e.getActionMasked();
+                if (action == MotionEvent.ACTION_MOVE) {
+                    int to = rowAt(e.getRawY());
+                    while (to > dragging) step(v, 1);
+                    while (to < dragging) step(v, -1);
+                } else if (action == MotionEvent.ACTION_UP || action == MotionEvent.ACTION_CANCEL) {
+                    lift(dragging, false);
+                    dragging = -1;
+                    v.setPressed(false);
+                }
+                return true;
+            });
+        }
+
+        private int rowAt(float rawY) {
+            int[] at = new int[2];
+            for (int i = 0; i < boxes.size() - 1; i++) {
+                boxes.get(i).getLocationOnScreen(at);
+                if (rawY < at[1] + boxes.get(i).getHeight()) return i;
+            }
+            return boxes.size() - 1;
+        }
+
+        /** Moves the held row one up (-1) or down (1). */
+        private void step(View held, int by) {
+            CheckBox from = boxes.get(dragging), to = boxes.get(dragging + by);
+            CharSequence name = from.getText();
+            boolean on = from.isChecked();
+            from.setText(to.getText());
+            from.setChecked(to.isChecked());
+            to.setText(name);
+            to.setChecked(on);
+            Collections.swap(ids, dragging, dragging + by);
+            lift(dragging, false);
+            dragging += by;
+            lift(dragging, true);
+            held.performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK);
+        }
+
+        private void lift(int row, boolean on) {
+            boxes.get(row).setBackground(on ? rounded(color(R.color.widget_bg), 10) : plain.get(row));
+        }
     }
 
     private Button button(String text, boolean primary) {

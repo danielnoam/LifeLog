@@ -16,6 +16,18 @@ what was decided against and why.
 
 ---
 
+- **Widget picks and order share one control (0.270.0).** The checklist
+  widget's hold-and-drag list (0.266.0) is `SettingsScreen.Sortable` now,
+  used by the habits and quick add settings too. Each saves its ticks
+  (`lists`, `habits`, `buttons`) and an `order`; none ticked means all, so
+  new habits and lists appear without a visit to settings, and ones missing
+  from `order` go last (`WidgetStore.rank`). The quick add widget builds
+  its buttons with `addView` into `quickadd_row`, since RemoteViews can't
+  reorder a layout's own children; the picker's preview is the static
+  widget_quickadd_preview. Picked habits still show only on days they're
+  due. iOS widgets have no settings (StaticConfiguration), so none of this
+  reaches them.
+
 - **The boot merge's ancestor is what boot drew (0.269.0).** The widgets'
   queue (habit and list ticks, Google Wallet adds) is drained the moment the app opens, and its save waits on
   `firstReconcile`. When the ticks landed before `load()` called

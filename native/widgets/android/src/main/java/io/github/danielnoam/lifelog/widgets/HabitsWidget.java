@@ -106,10 +106,10 @@ public class HabitsWidget extends AppWidgetProvider {
         WidgetSize size = WidgetSize.of(manager, widgetId);
         org.json.JSONObject cfg = WidgetStore.config(c, widgetId);
         boolean streaks = WidgetStore.flag(cfg, "streak");
-        if (compact(size.width, size.height)) return grid(c, size, streaks);
+        if (compact(size.width, size.height)) return grid(c, widgetId, size, streaks);
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_habits);
         boolean loaded = WidgetStore.snapshot(c) != null;
-        List<WidgetStore.Row> rows = WidgetStore.habitRows(c);
+        List<WidgetStore.Row> rows = WidgetStore.habitRows(c, widgetId);
 
         int kept = 0;
         for (WidgetStore.Row r : rows) if (r.done) kept++;
@@ -145,12 +145,12 @@ public class HabitsWidget extends AppWidgetProvider {
         return v;
     }
 
-    private static RemoteViews grid(Context c, WidgetSize size, boolean streaks) {
+    private static RemoteViews grid(Context c, int widgetId, WidgetSize size, boolean streaks) {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_habits_compact);
         v.setOnClickPendingIntent(R.id.widget_root, WidgetStore.openApp(c, "open-habits", 100));
         v.removeAllViews(R.id.habit_grid);
         boolean loaded = WidgetStore.snapshot(c) != null;
-        List<WidgetStore.Row> rows = WidgetStore.habitRows(c);
+        List<WidgetStore.Row> rows = WidgetStore.habitRows(c, widgetId);
         String empty = !loaded ? "Open LifeLog once to bring your habits here"
             : WidgetStore.habitCount(c) == 0 ? "No habits yet" : "Nothing due today";
         v.setTextViewText(R.id.widget_empty, empty);

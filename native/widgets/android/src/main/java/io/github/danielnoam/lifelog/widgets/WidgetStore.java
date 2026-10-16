@@ -276,6 +276,20 @@ final class WidgetStore {
         return habitRows(snapshot(c), queue(c), today());
     }
 
+    /** What one habits widget shows (0.270.0): the habits its settings picked, none being all, in their order. */
+    static List<Row> habitRows(Context c, int widgetId) {
+        JSONObject cfg = config(c, widgetId);
+        return chosen(habitRows(c), idsOf(cfg, "habits"), orderOf(cfg));
+    }
+
+    /** `rows` cut to `pick` (null keeps all), in `order` (null keeps theirs; any not in it go after, as they were). */
+    static List<Row> chosen(List<Row> rows, java.util.Set<String> pick, List<String> order) {
+        List<Row> out = new ArrayList<>();
+        for (Row r : rows) if (pick == null || pick.contains(r.id)) out.add(r);
+        if (order != null) java.util.Collections.sort(out, (a, b) -> rank(order, a.id) - rank(order, b.id));
+        return out;
+    }
+
     static List<Row> habitRows(JSONObject snap, JSONArray q, String today) {
         List<Row> rows = new ArrayList<>();
         if (snap == null) return rows;
@@ -375,14 +389,19 @@ final class WidgetStore {
 
     /** The list ids a to-do widget is set to, or null for all of them. */
     static java.util.Set<String> listsOf(JSONObject cfg) {
-        JSONArray a = cfg == null ? null : cfg.optJSONArray("lists");
+        return idsOf(cfg, "lists");
+    }
+
+    /** The ids a widget's settings ticked under `key`, or null for all of them. */
+    static java.util.Set<String> idsOf(JSONObject cfg, String key) {
+        JSONArray a = cfg == null ? null : cfg.optJSONArray(key);
         if (a == null || a.length() == 0) return null;
         java.util.Set<String> out = new java.util.HashSet<>();
         for (int i = 0; i < a.length(); i++) out.add(a.optString(i));
         return out;
     }
 
-    /** The list ids in the order the widget's settings put them (0.266.0), or null for the app's order. */
+    /** The ids in the order the widget's settings put them (0.266.0; habits and buttons too since 0.270.0), or null for the app's order. */
     static List<String> orderOf(JSONObject cfg) {
         JSONArray a = cfg == null ? null : cfg.optJSONArray("order");
         if (a == null || a.length() == 0) return null;
@@ -505,7 +524,7 @@ final class WidgetStore {
         return rows;
     }
 
-    /** Where a list stands in a settings order; one not in it goes after. */
+    /** Where an id stands in a settings order; one not in it goes after. */
     static int rank(List<String> order, String id) {
         int at = id == null ? -1 : order.indexOf(id);
         return at < 0 ? order.size() : at;

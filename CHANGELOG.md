@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.270.0] - 2026-10-16
+
+### Added
+- **Pick and order a habits widget's habits.** Its settings (hold the
+  widget) list your habits: tick the ones it should show, or none for all
+  of them, and hold one and drag to set the order. New habits show up on
+  their own. Android.
+- **Order the quick add widget's buttons.** Hold one and drag in its
+  settings. With fewer buttons turned on, the labels stay at narrower
+  widths. Android.
+
 ## [0.269.1] - 2026-10-15
 
 ### Fixed

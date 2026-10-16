@@ -478,4 +478,30 @@ public class WidgetLogicTest {
         JSONArray q = new JSONArray("[{\"kind\":\"habit\",\"id\":\"h\"},{\"kind\":\"expense\",\"id\":\"e\"},{\"kind\":\"todo\",\"id\":\"t\"}]");
         assertEquals(2, WidgetStore.tickCount(q));
     }
+
+    // ---- a widget's picks and order (0.270.0) ----
+
+    private static String rowIds(java.util.List<WidgetStore.Row> rows) {
+        StringBuilder b = new StringBuilder();
+        for (WidgetStore.Row r : rows) b.append(b.length() == 0 ? "" : ",").append(r.id);
+        return b.toString();
+    }
+
+    @Test
+    public void aHabitsWidgetShowsItsPicksInItsOrder() throws Exception {
+        JSONObject snap = new JSONObject().put("today", D).put("habits", new JSONArray()
+            .put(json("{\"id\":\"a\",\"name\":\"A\"}")).put(json("{\"id\":\"b\",\"name\":\"B\"}")).put(json("{\"id\":\"c\",\"name\":\"C\"}")));
+        java.util.List<WidgetStore.Row> rows = WidgetStore.habitRows(snap, NONE, D);
+        assertEquals("a,b,c", rowIds(WidgetStore.chosen(rows, null, null)));
+        assertEquals("c,a", rowIds(WidgetStore.chosen(rows, set("a", "c"), java.util.Arrays.asList("c", "b", "a"))));
+        // One added since the order was set goes at the end.
+        assertEquals("b,a,c", rowIds(WidgetStore.chosen(rows, null, java.util.Arrays.asList("b", "a"))));
+        assertEquals(null, WidgetStore.idsOf(json("{\"habits\":[]}"), "habits"));
+    }
+
+    @Test
+    public void quickAddButtonsFollowTheirOrder() {
+        assertEquals("[0, 1, 2, 3, 4]", java.util.Arrays.toString(QuickAddWidget.ordered(null)));
+        assertEquals("[4, 0, 3, 1, 2]", java.util.Arrays.toString(QuickAddWidget.ordered(java.util.Arrays.asList("add-todo", "add-entry", "add-note"))));
+    }
 }
