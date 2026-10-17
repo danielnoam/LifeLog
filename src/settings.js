@@ -325,7 +325,7 @@
   const SETTING_LABELS = {
     "mediaKeys.rawg": "RAWG API key", "mediaKeys.tmdb": "TMDB API key",
     "mediaKeys.ggdeals": "GG.deals API key", "mediaKeys.steamgriddb": "SteamGridDB API key",
-    "mediaKeys.googlePlaces": "Google Places API key",
+    "mediaKeys.googlePlaces": "Google Places API key", "mediaKeys.nyt": "New York Times API key",
     "steam.proxyUrl": "Steam proxy URL", "steam.steamId": "Steam ID", "steam.apiKey": "Steam Web API key",
     "steam.wishlistCategory": "Steam wishlist category", "steam.autoSyncDays": "Steam auto-sync",
     "anilist.userName": "AniList user name", "anilist.animeCategory": "AniList anime category",
@@ -613,7 +613,7 @@
   const EVERY = { "1": "every day", "3": "every 3 days", "7": "every week", "30": "every month" };
   const THEMES = { default: "Dark", light: "Light", nord: "Nord", dracula: "Dracula" };
   const FONTS = { system: "system typeface", serif: "serif", mono: "monospace", rounded: "rounded" };
-  const KEY_NAMES = { rawg: "RAWG", tmdb: "TMDB", ggdeals: "GG.deals", steamgriddb: "SteamGridDB", googlePlaces: "Google Places" };
+  const KEY_NAMES = { rawg: "RAWG", tmdb: "TMDB", ggdeals: "GG.deals", steamgriddb: "SteamGridDB", googlePlaces: "Google Places", nyt: "New York Times" };
   const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
 
   function statusOf(page) {
@@ -832,6 +832,14 @@
     $("#timelineMonthSummary").value = state.visual.timelineMonthSummary || "hide";
     $("#backlogCounts").value = state.visual.backlogCounts;
     $("#outTodaySheet").value = state.visual.outTodaySheet || "show";
+    const A = window.LifeLogAlerts;
+    const alertsHere = !!(A && A.available());
+    $("#releaseAlertsRow").hidden = !alertsHere;
+    if (alertsHere) {
+      const sel = $("#releaseAlerts");
+      if (!sel.options.length) for (const [v, label] of A.RELEASE_MODES) sel.appendChild(el("option", null, label)).value = v;
+      sel.value = A.releaseMode();
+    }
     $("#backlogFoldEa").value = state.visual.backlogFoldEa;
     $("#backlogFoldUnreleased").value = state.visual.backlogFoldUnreleased;
     $("#backlogFoldDropped").value = state.visual.backlogFoldDropped;
@@ -1133,6 +1141,7 @@
     $("#ggdealsKey").value = state.data.settings.mediaKeys?.ggdeals || "";
     $("#steamgriddbKey").value = state.data.settings.mediaKeys?.steamgriddb || "";
     $("#googlePlacesKey").value = state.data.settings.mediaKeys?.googlePlaces || "";
+    $("#nytKey").value = state.data.settings.mediaKeys?.nyt || "";
     $("#steamProxyUrl").value = state.data.settings.steam?.proxyUrl || "";
     const direct = !!(window.LifeLogPlatform && window.LifeLogPlatform.steamDirect);
     $("#steamProxyHint").hidden = direct;
@@ -1562,6 +1571,7 @@
     $("#ggdealsKey").oninput = () => setMediaKey("ggdeals", $("#ggdealsKey").value);
     $("#steamgriddbKey").oninput = () => setMediaKey("steamgriddb", $("#steamgriddbKey").value);
     $("#googlePlacesKey").oninput = () => setMediaKey("googlePlaces", $("#googlePlacesKey").value.trim());
+    $("#nytKey").oninput = () => setMediaKey("nyt", $("#nytKey").value.trim());
 
     const setSteamSetting = async (field, value) => {
       if (!state.data.settings.steam) state.data.settings.steam = { ...DEFAULT_SETTINGS.steam };
@@ -1598,6 +1608,7 @@
       state.visual.outTodaySheet = $("#outTodaySheet").value;
       saveVisualSettings(state.visual);
     };
+    $("#releaseAlerts").onchange = () => window.LifeLogAlerts && window.LifeLogAlerts.setReleaseMode($("#releaseAlerts").value);
     $("#refreshReleasesBtn").onclick = refreshUpcomingReleases;
 
     $("#privacyEnabled").onchange = () => {

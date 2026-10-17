@@ -16,6 +16,36 @@ what was decided against and why.
 
 ---
 
+- **Charge and release-day alerts ride the widget snapshot (0.272.0).**
+  src/alerts.js works out every alert (`id`, `kind`, `day`, `time`,
+  `title`, `body`, `action`) and widgets.js sends them as `alerts`. The
+  native side does no date maths: Android's single reminder alarm
+  (Reminders.java) takes the soonest of the habit reminders and the
+  alerts, and rings every alert whose time fell since its last check;
+  iOS schedules each one as a calendar notification beside the habits'
+  (prefix `lifelog-alert-`). The app looks 40 days ahead and sends 24 at
+  most, so a phone left unopened for longer runs out, and iOS stays well
+  under its 64 pending notifications. Choices live in localStorage
+  (`lifelog-alerts-v1`): per phone like reminder times, and the data file
+  doesn't change, so the bridge is untouched. A charge's choice is keyed
+  by the first plan in its chain (`planChain(...)[0].id`), so Change plan
+  keeps it. With "hide in widgets" on, the words become "A recurring
+  charge is coming up", since notifications show on the lock screen. iOS
+  doesn't act on a notification tap yet (no notification delegate), so it
+  only opens the app; Android opens the Ledger or Upcoming. Fixed at
+  09:00 for now: a time setting is easy to add if 9 is wrong.
+
+- **NYT bestsellers stand in for books (0.272.0).** Same shape as RAWG
+  standing in for SteamGridDB: `DISCOVER_STANDIN` maps openlibrary and
+  googlebooks to `nyt-openlibrary` / `nyt-googlebooks`, which need
+  `mediaKeys.nyt`. One `lists/overview.json` request gives every list;
+  the two combined print and e-book lists (fiction, then non-fiction) are
+  used, deduped by title. NYT books have no Open Library or Google id, so
+  rows carry `lookup: true` and adding one searches the category's own
+  source by title and author (`pickMatch`), falling back to NYT's title,
+  author, cover and blurb. Coming soon has no books card: NYT lists
+  nothing ahead. Credited in About as NYT's terms ask.
+
 - **CI test gate (0.271.0).** `.github/workflows/tests.yml` is a reusable
   workflow (unit tests, then the browser suites as four shards, since one
   after another they take most of half an hour). android.yml, ios.yml and

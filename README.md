@@ -154,15 +154,18 @@ in; this is the tour.
     away. Bought, authors and In progress per category, sorts inside each
     band, Pick random and Spin.
   - **Discover** – what's popular now and coming soon from the sources your
-    categories use, with Hide what I have.
+    categories use, with Hide what I have. Books get the NYT bestseller
+    lists with a free New York Times key.
   - **Upcoming** – what's coming, by month, with as much of the date as is
-    known, countdowns, next episodes, and an Out today card.
+    known, countdowns, next episodes, and an Out today card. On the
+    phones, a notification on release day if you want one.
 - **Ledger**
   - **Expenses** – by year and month, broken down by category. Amounts do
     basic math and take other currencies at the day's rate. Recurring
     expenses have pauses, plan changes, one-off charges, merges and
-    per-occurrence edits; projects group a burst of spending. On Android,
-    Google Wallet payments are offered in.
+    per-occurrence edits; projects group a burst of spending. On the
+    phones, a reminder before a plan charges. On Android, Google Wallet
+    payments are offered in.
   - **Summary** – highlights, recurring, by month, by category and the
     largest expenses.
 - **Travel** (off by default) – trips with places By time, By area or on a
@@ -221,6 +224,8 @@ src/reconcile.js    keyed list reconciliation — update the DOM in place, not b
 src/io.js           JSON/CSV import + export, and the shared review picker
 src/docimport.js    PDF and EPUB files read as text, for importing them as notes
 src/payments.js     the Android switch for Google Wallet payments offered to the Ledger
+src/reminders.js    habit reminder times, kept on the phone
+src/alerts.js       charge and release-day notifications: what to ring, and when
 src/settings.js     the Settings modal
 src/qr.js           self-contained QR encoder for the device setup link
 bridge/             how other AIs read and change LifeLog: MCP server, command line,

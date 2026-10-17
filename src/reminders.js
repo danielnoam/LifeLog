@@ -152,5 +152,5 @@
     if (available()) ctx.render();
   }
 
-  window.LifeLogReminders = { start, available, isOn, setOn, timeOf, remindAt, setTime, chip, bar, isTime, KEY };
+  window.LifeLogReminders = { start, available, isOn, setOn, timeOf, remindAt, setTime, chip, bar, isTime, ensureAllowed, KEY };
 })();

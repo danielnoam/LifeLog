@@ -5,17 +5,19 @@
 // that's already kept. It's redone whenever the snapshot changes (the app
 // saved) or a widget ticks, so a habit kept anywhere that has reached this
 // phone stops its reminder. Tomorrow's is there so a day nobody opens the
-// app still rings.
+// app still rings. The snapshot's charge and release-day alerts (0.272.0)
+// are scheduled the same way.
 import Foundation
 import UserNotifications
 
 enum LLReminders {
     static let prefix = "lifelog-habit-"
+    static let alertPrefix = "lifelog-alert-"
 
     static func reschedule() {
         let center = UNUserNotificationCenter.current()
         center.getPendingNotificationRequests { pending in
-            let ours = pending.map { $0.identifier }.filter { $0.hasPrefix(prefix) }
+            let ours = pending.map { $0.identifier }.filter { $0.hasPrefix(prefix) || $0.hasPrefix(alertPrefix) }
             center.removePendingNotificationRequests(withIdentifiers: ours)
             let snap = LLStore.snapshot()
             let q = LLStore.queue()
@@ -42,6 +44,24 @@ enum LLReminders {
                     let id = prefix + (h["id"] as? String ?? "") + "-" + day
                     center.add(UNNotificationRequest(identifier: id, content: content, trigger: trigger))
                 }
+            }
+            // Charge and release-day heads-ups (0.272.0): the app has already
+            // worked out each one's day, time and words (alerts.js).
+            for a in (snap?["alerts"] as? [[String: Any]]) ?? [] {
+                let day = a["day"] as? String ?? ""
+                let hm = (a["time"] as? String ?? "").split(separator: ":").compactMap { Int($0) }
+                guard hm.count == 2, let d = LLDate.date(day) else { continue }
+                var parts = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: d)
+                parts.hour = hm[0]
+                parts.minute = hm[1]
+                guard let at = Calendar(identifier: .gregorian).date(from: parts), at > now else { continue }
+                let content = UNMutableNotificationContent()
+                content.title = a["title"] as? String ?? "LifeLog"
+                content.body = a["body"] as? String ?? ""
+                content.sound = .default
+                content.userInfo = ["action": a["action"] as? String ?? ""]
+                let trigger = UNCalendarNotificationTrigger(dateMatching: parts, repeats: false)
+                center.add(UNNotificationRequest(identifier: alertPrefix + (a["id"] as? String ?? day), content: content, trigger: trigger))
             }
         }
     }

@@ -131,6 +131,32 @@ public class WidgetLogicTest {
         assertEquals("Thu 2026-10-01 09:00", show(Reminders.next(only(later), D, at(D + " 10:00"))));
     }
 
+    // ---- charge and release-day alerts (0.272.0) ----
+
+    private static JSONObject alert(String id, String day) throws Exception {
+        return json("{\"id\":\"" + id + "\",\"kind\":\"charge\",\"day\":\"" + day + "\",\"time\":\"09:00\",\"title\":\"t\",\"body\":\"b\"}");
+    }
+
+    @Test
+    public void anAlertWithNoHabitsStillSetsTheAlarm() throws Exception {
+        JSONObject snap = new JSONObject().put("alerts", new JSONArray().put(alert("a", "2026-09-30")));
+        assertEquals("Wed 2026-09-30 09:00", show(Reminders.next(snap, D, at(D + " 10:00"))));
+    }
+
+    @Test
+    public void theSoonerOfAnAlertAndAHabitWins() throws Exception {
+        JSONObject snap = only(daily()).put("alerts", new JSONArray().put(alert("a", "2026-09-25")));
+        assertEquals("Thu 2026-09-24 21:00", show(Reminders.next(snap, D, at(D + " 20:00"))));
+        assertEquals("Fri 2026-09-25 09:00", show(Reminders.next(snap, D, at(D + " 22:00"))));
+    }
+
+    @Test
+    public void alertsRingOnceInTheirWindow() throws Exception {
+        JSONObject snap = new JSONObject().put("alerts", new JSONArray().put(alert("a", D)).put(alert("b", "2026-09-25")));
+        assertEquals(1, Reminders.alertsDue(snap, at(D + " 08:00"), at(D + " 09:30")).size());
+        assertEquals(0, Reminders.alertsDue(snap, at(D + " 09:30"), at(D + " 12:00")).size());
+    }
+
     @Test
     public void theReminderSaysWhatIsAtStake() throws Exception {
         JSONObject snap = new JSONObject().put("today", D).put("habits", new JSONArray().put(daily()));

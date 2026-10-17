@@ -230,8 +230,14 @@
     // the counts and the habits but no note or to-do text: a home screen
     // doesn't ask for a PIN. The lists come back on the next push once the
     // setting or the lock goes.
-    if (ctx.hidden && ctx.hidden()) {
+    const hidden = !!(ctx.hidden && ctx.hidden());
+    if (hidden) {
       snap.todos = []; snap.lists = []; snap.notes = []; snap.hidden = true;
+    }
+    // Charge and release-day heads-ups (0.272.0), rung beside the habit
+    // reminders. An APK or IPA older than that ignores the key.
+    if (window.LifeLogAlerts) {
+      try { snap.alerts = window.LifeLogAlerts.current(ctx.state.data, snap.today, hidden); } catch (e) { snap.alerts = []; }
     }
     Promise.resolve(W.update({ json: JSON.stringify(snap) })).catch(() => { /* the widget keeps its last copy */ });
   }

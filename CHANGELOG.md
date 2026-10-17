@@ -4,6 +4,25 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.272.0] - 2026-10-17
+
+### Added
+- **A reminder before a recurring charge.** On a recurring expense, pick
+  Remind me: on the day, the day before, 3 days before or a week before.
+  The phone notifies you at 9:00 with what's charging and how much, so a
+  yearly plan can be cancelled in time. It carries over when you change
+  the plan, and a skipped or stopped charge doesn't ring. Android and
+  iPhone; it's set per phone.
+- **A notification on release day.** Settings → Release dates → Notify me
+  on release day: for your starred Backlog items, or everything, the phone
+  tells you at 9:00 what's out today, a new episode included. One
+  notification a day, however many things come out. Only dates known to
+  the day count. Android and iPhone; tapping it opens Upcoming on Android.
+- **NYT bestsellers in Discover.** A books category gets the New York
+  Times fiction and non-fiction bestseller lists as its Popular list, with
+  a free NYT key in Settings → Media lookups. Adding one finds it in your
+  books source (Open Library or Google Books), the same as a search would.
+
 ## [0.271.0] - 2026-10-17
 
 ### Changed

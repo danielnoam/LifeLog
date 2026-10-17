@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.271.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.272.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -778,6 +778,9 @@
         </label>
         <label>Note
           <input id="recNote" type="text" autocomplete="off" placeholder="Optional description…" />
+        </label>
+        <label id="recRemindLabel" hidden>Remind me on this phone
+          <select id="recRemind"></select>
         </label>
         <p class="hint">Generates an expense entry on this date every period, up to today (or the stop date). Saving here rewrites every past and future occurrence — to change the terms from a date onward instead, use “Change plan”.</p>
         <div class="link-offer" id="recLinkOffer" hidden>
@@ -1618,7 +1621,7 @@
       <div class="tab-toggles" id="tabToggles"></div>
       </div>
 
-      <div class="settings-page" hidden data-page="media" data-title="Media lookups" data-keywords="api keys rawg tmdb steamgriddb gg.deals google places reviews hours proxy cors cover art metadata sources">
+      <div class="settings-page" hidden data-page="media" data-title="Media lookups" data-keywords="api keys rawg tmdb steamgriddb gg.deals google places reviews hours nyt new york times bestsellers books proxy cors cover art metadata sources">
       <h2 class="settings-page-title">Media lookups</h2>
       <p class="hint page-lede">Where covers, ratings and release dates come from. Syncs to your other devices.</p>
       <section class="sgroup">
@@ -1649,6 +1652,10 @@
           <label class="sitem sitem-stack">
             <span class="sitem-text"><span class="sitem-title">Google Places key</span><span class="sitem-sub">A Travel place's rating, opening hours and reviews — console.cloud.google.com, with Places API (New) turned on; billing must be on, though personal use stays inside the free monthly allowance</span></span>
             <input id="googlePlacesKey" type="password" placeholder="Paste your Google Places API key…" autocomplete="off" spellcheck="false" />
+          </label>
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">New York Times key</span><span class="sitem-sub">The bestseller lists in Discover, for a books category — free at developer.nytimes.com, with the Books API turned on</span></span>
+            <input id="nytKey" type="password" placeholder="Paste your NYT API key…" autocomplete="off" spellcheck="false" />
           </label>
         </div>
         <p class="hint">Open Library, AniList, Jikan, Google Books and MusicBrainz need no key.</p>
@@ -1821,6 +1828,7 @@
           <a class="sitem sitem-go" href="https://musicbrainz.org" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">MusicBrainz and the Cover Art Archive</span><span class="sitem-sub">Albums and covers</span></span></a>
           <a class="sitem sitem-go" href="https://frankfurter.dev" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Frankfurter</span><span class="sitem-sub">Exchange rates for expenses in another currency</span></span></a>
           <a class="sitem sitem-go" href="https://developers.google.com/maps/documentation/places/web-service" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Google Places</span><span class="sitem-sub">Place details in Travel, with your own key</span></span></a>
+          <a class="sitem sitem-go" href="https://developer.nytimes.com/docs/books-product/1/overview" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">The New York Times Books API</span><span class="sitem-sub">Bestseller lists in Discover, with your own key. Data provided by The New York Times</span></span></a>
         </div>
       </section>
       </div>
@@ -1831,7 +1839,7 @@
       <section class="sgroup">
         <div class="sgroup-card">
           <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Check automatically</span><span class="sitem-sub">When you open the app</span></span>
+            <span class="sitem-text"><span class="sitem-title">Check automatically</span><span class="sitem-sub">When you open the app, and on the day something is due</span></span>
             <select id="releasesAutoRefreshDays">
               <option value="0">Never</option>
               <option value="1">Every day</option>
@@ -1846,6 +1854,10 @@
               <option value="show">Show</option>
               <option value="hide">Don't show</option>
             </select>
+          </label>
+          <label class="sitem" id="releaseAlertsRow" hidden>
+            <span class="sitem-text"><span class="sitem-title">Notify me on release day</span><span class="sitem-sub">At 9:00, on this phone</span></span>
+            <select id="releaseAlerts"></select>
           </label>
           <button id="refreshReleasesBtn" type="button" class="sitem sitem-go"><span data-ico="telescope"></span> Re-check release dates</button>
         </div>
@@ -2184,36 +2196,37 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.271.0"></script>
-  <script defer src="src/platform.js?v=0.271.0"></script>
-  <script defer src="src/icons.js?v=0.271.0"></script>
-  <script defer src="src/jobs.js?v=0.271.0"></script>
-  <script defer src="src/reconcile.js?v=0.271.0"></script>
-  <script defer src="src/qr.js?v=0.271.0"></script>
-  <script defer src="src/media.js?v=0.271.0"></script>
-  <script defer src="src/merge.js?v=0.271.0"></script>
-  <script defer src="src/storage.js?v=0.271.0"></script>
-  <script defer src="src/finance.js?v=0.271.0"></script>
-  <script defer src="src/settings.js?v=0.271.0"></script>
-  <script defer src="src/wheel.js?v=0.271.0"></script>
-  <script defer src="src/backlog.js?v=0.271.0"></script>
-  <script defer src="src/journal.js?v=0.271.0"></script>
-  <script defer src="src/markdown.js?v=0.271.0"></script>
-  <script defer src="src/notes.js?v=0.271.0"></script>
-  <script defer src="src/docimport.js?v=0.271.0"></script>
-  <script defer src="src/io.js?v=0.271.0"></script>
-  <script defer src="src/sync.js?v=0.271.0"></script>
-  <script defer src="src/habits.js?v=0.271.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.271.0"></script>
-  <script defer src="src/boards.js?v=0.271.0"></script>
-  <script defer src="src/travel.js?v=0.271.0"></script>
-  <script defer src="src/recap.js?v=0.271.0"></script>
-  <script defer src="src/reminders.js?v=0.271.0"></script>
-  <script defer src="src/widgets.js?v=0.271.0"></script>
-  <script defer src="src/share.js?v=0.271.0"></script>
-  <script defer src="src/search.js?v=0.271.0"></script>
-  <script defer src="src/letterboxd.js?v=0.271.0"></script>
-  <script defer src="src/payments.js?v=0.271.0"></script>
-  <script defer src="src/app.js?v=0.271.0"></script>
+  <script defer src="src/errlog.js?v=0.272.0"></script>
+  <script defer src="src/platform.js?v=0.272.0"></script>
+  <script defer src="src/icons.js?v=0.272.0"></script>
+  <script defer src="src/jobs.js?v=0.272.0"></script>
+  <script defer src="src/reconcile.js?v=0.272.0"></script>
+  <script defer src="src/qr.js?v=0.272.0"></script>
+  <script defer src="src/media.js?v=0.272.0"></script>
+  <script defer src="src/merge.js?v=0.272.0"></script>
+  <script defer src="src/storage.js?v=0.272.0"></script>
+  <script defer src="src/finance.js?v=0.272.0"></script>
+  <script defer src="src/settings.js?v=0.272.0"></script>
+  <script defer src="src/wheel.js?v=0.272.0"></script>
+  <script defer src="src/backlog.js?v=0.272.0"></script>
+  <script defer src="src/journal.js?v=0.272.0"></script>
+  <script defer src="src/markdown.js?v=0.272.0"></script>
+  <script defer src="src/notes.js?v=0.272.0"></script>
+  <script defer src="src/docimport.js?v=0.272.0"></script>
+  <script defer src="src/io.js?v=0.272.0"></script>
+  <script defer src="src/sync.js?v=0.272.0"></script>
+  <script defer src="src/habits.js?v=0.272.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.272.0"></script>
+  <script defer src="src/boards.js?v=0.272.0"></script>
+  <script defer src="src/travel.js?v=0.272.0"></script>
+  <script defer src="src/recap.js?v=0.272.0"></script>
+  <script defer src="src/reminders.js?v=0.272.0"></script>
+  <script defer src="src/alerts.js?v=0.272.0"></script>
+  <script defer src="src/widgets.js?v=0.272.0"></script>
+  <script defer src="src/share.js?v=0.272.0"></script>
+  <script defer src="src/search.js?v=0.272.0"></script>
+  <script defer src="src/letterboxd.js?v=0.272.0"></script>
+  <script defer src="src/payments.js?v=0.272.0"></script>
+  <script defer src="src/app.js?v=0.272.0"></script>
 </body>
 </html>

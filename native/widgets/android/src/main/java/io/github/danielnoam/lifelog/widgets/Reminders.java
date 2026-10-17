@@ -9,6 +9,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.drawable.Icon;
 import android.os.Build;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import org.json.JSONArray;
@@ -29,14 +30,21 @@ import org.json.JSONObject;
  * Inexact (setAndAllowWhileIdle): "around 21:00" is what a habit reminder
  * needs, and it needs no special permission. Rescheduled whenever the app
  * sends a snapshot, and on boot, update and clock changes (ReminderReceiver).
+ *
+ * The same alarm rings the snapshot's `alerts` (0.272.0): a recurring
+ * charge coming up, and what in the Backlog is out today. The app decides
+ * each one's day, time and words (alerts.js); here they're only rung.
  */
 final class Reminders {
 
     static final String CHANNEL = "habit_reminders";
+    static final String CHANNEL_CHARGES = "charge_reminders";
+    static final String CHANNEL_RELEASES = "release_days";
     static final String ACTION_FIRE = "io.github.danielnoam.lifelog.widgets.REMIND";
     static final String ACTION_DONE = "io.github.danielnoam.lifelog.widgets.REMIND_DONE";
     private static final String KEY_LAST = "remind_checked_until";
     private static final String TAG = "habit";
+    private static final String TAG_ALERT = "alert";
 
     private Reminders() {}
 
@@ -53,10 +61,10 @@ final class Reminders {
 
     /** The soonest reminder after `now` over the next week, or -1 for none. */
     static long next(JSONObject snap, String today, long now) {
-        JSONArray habits = snap == null ? null : snap.optJSONArray("habits");
-        if (habits == null) return -1;
+        if (snap == null) return -1;
+        JSONArray habits = snap.optJSONArray("habits");
         long best = -1;
-        for (int off = 0; off <= 7; off++) {
+        for (int off = 0; habits != null && off <= 7; off++) {
             String day = WidgetStore.addDays(today, off);
             for (int i = 0; i < habits.length(); i++) {
                 JSONObject h = habits.optJSONObject(i);
@@ -66,7 +74,27 @@ final class Reminders {
             }
             if (best > 0) break;
         }
+        JSONArray alerts = snap.optJSONArray("alerts");
+        for (int i = 0; alerts != null && i < alerts.length(); i++) {
+            JSONObject a = alerts.optJSONObject(i);
+            if (a == null) continue;
+            long t = instant(WidgetStore.str(a, "day"), WidgetStore.str(a, "time"));
+            if (t > now && (best < 0 || t < best)) best = t;
+        }
         return best;
+    }
+
+    /** The alerts whose time falls in (after, upTo], to ring now. */
+    static List<JSONObject> alertsDue(JSONObject snap, long after, long upTo) {
+        List<JSONObject> out = new ArrayList<>();
+        JSONArray alerts = snap == null ? null : snap.optJSONArray("alerts");
+        for (int i = 0; alerts != null && i < alerts.length(); i++) {
+            JSONObject a = alerts.optJSONObject(i);
+            if (a == null) continue;
+            long t = instant(WidgetStore.str(a, "day"), WidgetStore.str(a, "time"));
+            if (t > after && t <= upTo) out.add(a);
+        }
+        return out;
     }
 
     private static PendingIntent firing(Context c) {
@@ -102,6 +130,7 @@ final class Reminders {
             long t = instant(today, r.remind);
             if (t > last && t <= now && !r.done) notify(c, r);
         }
+        for (JSONObject a : alertsDue(WidgetStore.snapshot(c), last, now)) notifyAlert(c, a);
         WidgetStore.prefs(c).edit().putLong(KEY_LAST, now).apply();
         schedule(c, false);
     }
@@ -112,6 +141,40 @@ final class Reminders {
         NotificationChannel ch = new NotificationChannel(CHANNEL, "Habit reminders", NotificationManager.IMPORTANCE_DEFAULT);
         ch.setDescription("A nudge at the time you set, for a habit not yet kept today");
         nm.createNotificationChannel(ch);
+    }
+
+    private static void ensureAlertChannels(NotificationManager nm) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
+        if (nm.getNotificationChannel(CHANNEL_CHARGES) == null) {
+            NotificationChannel ch = new NotificationChannel(CHANNEL_CHARGES, "Recurring charges", NotificationManager.IMPORTANCE_DEFAULT);
+            ch.setDescription("A heads-up before a recurring expense you asked about charges");
+            nm.createNotificationChannel(ch);
+        }
+        if (nm.getNotificationChannel(CHANNEL_RELEASES) == null) {
+            NotificationChannel ch = new NotificationChannel(CHANNEL_RELEASES, "Release days", NotificationManager.IMPORTANCE_DEFAULT);
+            ch.setDescription("What in your Backlog is out today");
+            nm.createNotificationChannel(ch);
+        }
+    }
+
+    private static void notifyAlert(Context c, JSONObject a) {
+        NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
+        if (nm == null) return;
+        ensureAlertChannels(nm);
+        String id = WidgetStore.str(a, "id");
+        String channel = "release".equals(WidgetStore.str(a, "kind")) ? CHANNEL_RELEASES : CHANNEL_CHARGES;
+        String action = WidgetStore.str(a, "action");
+        Notification.Builder b = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
+            ? new Notification.Builder(c, channel)
+            : new Notification.Builder(c);
+        b.setSmallIcon(R.drawable.widget_notify)
+            .setContentTitle(WidgetStore.str(a, "title"))
+            .setContentText(WidgetStore.str(a, "body"))
+            .setStyle(new Notification.BigTextStyle().bigText(WidgetStore.str(a, "body")))
+            .setAutoCancel(true)
+            .setContentIntent(WidgetStore.openAppOn(c, action.isEmpty() ? "open-finance" : action, 960,
+                android.net.Uri.parse("lifelog-alert:" + id)));
+        nm.notify(TAG_ALERT, idOf(id), b.build());
     }
 
     static int idOf(String habitId) {

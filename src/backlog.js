@@ -1583,16 +1583,23 @@
   // it isn't a foreign source being smuggled in. The "-steam-gg" tail
   // carries over, so a game added from a stood-in list still resolves to a
   // Steam App ID and still gets its GG.deals price.
+  //
+  // Books have the same gap, filled by the New York Times bestseller lists
+  // (0.272.0) with a free NYT key. They have no "Coming soon", so a books
+  // category sits that one out.
   const DISCOVER_STANDIN = {
     steamgriddb: "rawg",
     "steamgriddb-steam-gg": "rawg-steam-gg",
     steam: "rawg",
+    openlibrary: "nyt-openlibrary",
+    googlebooks: "nyt-googlebooks",
   };
+  const standInKey = (standIn) => (standIn.startsWith("nyt-") ? "nyt" : "rawg");
 
   function discoverSourceFor(configured, keys) {
     if (window.LifeLogMedia.supportsDiscover(configured)) return configured;
     const standIn = DISCOVER_STANDIN[configured];
-    return standIn && (keys.rawg || "") ? standIn : "";
+    return standIn && (keys[standInKey(standIn)] || "") ? standIn : "";
   }
 
   // Two maps: the sources that can answer, and the ones a key away from it.
@@ -1615,6 +1622,7 @@
       if (cf.size && !cf.has(c.name)) continue;
       const configured = cfg[c.name];
       if (!configured) continue;
+      if (discoverKind === "upcoming" && String(DISCOVER_STANDIN[configured] || "").startsWith("nyt-")) continue;
       const listSource = discoverSourceFor(configured, keys);
       if (listSource) {
         if (!lists.has(listSource)) lists.set(listSource, []);
@@ -1628,6 +1636,9 @@
   }
 
   function discoverUnavailableNote(source) {
+    if (String(DISCOVER_STANDIN[source] || "").startsWith("nyt-")) {
+      return "Books have no popularity list of their own. Set a New York Times key in Settings → Media lookups and this shows the NYT bestsellers.";
+    }
     return (MEDIA_SOURCE_LABELS[source] || source) +
       " publishes no popularity list of its own. Set a RAWG key in Settings → Media lookups and this fills in from RAWG instead.";
   }
@@ -1841,9 +1852,26 @@
       // call below lands a beat later, so there's something to watch fill in
       // before you commit it.
       openBacklogModal(null, cur.catName);
-      applyMediaResult(cur.r, cur.keys).catch(() => toast("Couldn't fetch the full details for that one"));
+      const picked = cur.r.lookup ? lookUpListed(cur.r, cur.keys) : Promise.resolve(cur.r);
+      picked.then((r) => (r ? applyMediaResult(r, cur.keys) : fillListed(cur.r)))
+        .catch(() => toast("Couldn't fetch the full details for that one"));
     };
     return row;
+  }
+
+  // A bestseller (0.272.0) is only a title and an author: it's found in the
+  // category's own source, so it's added just as a searched book would be.
+  // Not found there, it's added as NYT describes it.
+  async function lookUpListed(r, keys) {
+    const proxyUrl = window.LifeLogPlatform.steamProxy((state.data.settings.steam || {}).proxyUrl);
+    const results = await window.LifeLogMedia.search(r.title, r.source, keys, proxyUrl, r.author);
+    return window.LifeLogMedia.pickMatch(results, r.title);
+  }
+  function fillListed(r) {
+    $("#bTitle").value = r.title;
+    fillAuthor("b", r.author);
+    if (!$("#bCoverUrl").value) $("#bCoverUrl").value = r.coverUrl || "";
+    if (r.summary) $("#bSummary").value = r.summary;
   }
 
   function discoverKindBar(sources) {

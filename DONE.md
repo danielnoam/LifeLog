@@ -75,8 +75,10 @@ Every release that adds a feature adds its line here in the same commit.
 - Store and source links on the cover (0.66.0, 0.92.1)
 - Bulk select with drag, move, delete, sync (0.12.0, 0.12.1, 0.13.0)
 - Discover mode: Popular now and Coming soon per source, Hide what I have (0.113.0, 0.114.0)
+- NYT bestsellers as Discover's Popular list for books, with a NYT key (0.272.0)
 - Upcoming mode: what's coming by month, with how much of the date is known, countdowns and next episodes (0.99.0, 0.98.0)
 - Out today card and sheet, and Out in the last 7 days (0.226.0, 0.227.0, 0.259.0)
+- A notification on release day, for starred items or everything (Android, iPhone) (0.272.0)
 
 ## Media lookups
 
@@ -134,6 +136,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Change plan, stop, pause, resume, make recurring, convert to entries (0.96.0, 0.97.0)
 - Recurring expenses billed in another currency, with per-charge rates (0.165.0)
 - Merge recurring expenses into one plan, with one-off charges on it (0.232.0, 0.233.0)
+- A reminder before a recurring charge, per plan and per phone (Android, iPhone) (0.272.0)
 - Projects to group and total one-off spending, with a filter and a + on each pill (0.145.0, 0.149.0, 0.156.0)
 - Where each month's money went (0.104.0)
 - Summary: highlights, recurring, by month, by category, top expenses (0.50.0, 0.91.0, 0.57.1)

@@ -45,7 +45,7 @@
   // timelineSort/ledgerSort/backlogSort replaced monthOrder in 0.157.0. Each
   // option is one complete statement about the whole list rather than a
   // direction bolted to a hidden field — see SORTS below.
-  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", googlePlaces: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
+  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", googlePlaces: "", nyt: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
   // Local to this device, not synced. Every key a view reads off state.visual
   // belongs here: loadVisualSettings fills the gaps in a stored blob from this
   // object, so a default declared here is the only one there is — a `||` at
@@ -143,6 +143,7 @@
     "jikan-anime": "Jikan", "jikan-manga": "Jikan",
     openlibrary: "Open Library", googlebooks: "Google Books", musicbrainz: "MusicBrainz",
     steam: "Steam",
+    "nyt-openlibrary": "NYT bestsellers", "nyt-googlebooks": "NYT bestsellers",
   };
   const PRIVACY_KEY = "lifelog-privacy-v1";
   // App lock: gates opening the app on this device. Local-only, never synced
@@ -162,7 +163,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.271.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.272.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -4646,6 +4647,8 @@
     else if (action === "add-habit" && modeEnabled("notes", "habits")) { goTo("notes", "habits"); Habits.openHabitModal(null); }
     else if (action === "open-finance" && viewEnabled("finance")) goTo("finance", "entries");
     else if (action === "open-habits" && modeEnabled("notes", "habits")) goTo("notes", "habits");
+    // A release-day heads-up (0.272.0): Upcoming, where Out today leads.
+    else if (action === "open-upcoming" && modeEnabled("backlog", "upcoming")) goTo("backlog", "upcoming");
     else if (action.startsWith("open-habit:") && modeEnabled("notes", "habits")) {
       // A habit tapped on the widget: its card, brought into view and lit
       // for a moment so the eye lands on it.
@@ -5075,6 +5078,13 @@
       // The app's files are already on the device; a worker would only be a
       // second cache of them, and its "new version" isn't the app's.
       checkForNewerApp();
+      if (window.LifeLogAlerts) window.LifeLogAlerts.start({
+        changed: () => Widgets.changed(),
+        fmt: {
+          money: (n) => Finance.amountText({ amount: n }),
+          day: (d) => new Date(d + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }),
+        },
+      });
       Widgets.start({ state, Platform, persist, afterDataChange, toast, runAction, quickActions, spend: widgetSpend, hidden: widgetsHidden });
       if (window.LifeLogReminders) window.LifeLogReminders.start({ $, el, Platform, toast, changed: Widgets.changed, render });
       if (window.LifeLogPayments) window.LifeLogPayments.start({ $, Platform, toast });

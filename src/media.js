@@ -1165,6 +1165,49 @@
     } catch (e) { return []; }
   }
 
+  // The New York Times bestseller lists (0.272.0), the one popularity list
+  // books have: Open Library and Google Books publish none. One request
+  // for every current list; fiction and non-fiction (print and e-book
+  // combined) are the two worth reading. NYT has no "coming soon", and its
+  // books carry no Open Library or Google id, so each row is a title and an
+  // author to look up in the category's own source when it's added
+  // (`lookup`). NYT writes titles in capitals.
+  const NYT_LISTS = ["combined-print-and-e-book-fiction", "combined-print-and-e-book-nonfiction"];
+  function nytTitle(s) {
+    return String(s || "").toLowerCase().replace(/(^|[\s(:\-"'])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+  }
+  function mapNytBook(b) {
+    return {
+      id: "nyt-" + (b.primary_isbn13 || b.primary_isbn10 || titleKey(b.title)),
+      title: nytTitle(b.title),
+      author: b.author || "",
+      coverUrl: b.book_image || "",
+      year: null,
+      releaseDate: "", releasePrecision: "",
+      summary: b.description || "",
+      externalRating: "",
+      length: "",
+      genres: [],
+      lookup: true,
+    };
+  }
+  async function discoverNyt(kind, apiKey) {
+    if (!apiKey || kind === "upcoming") return [];
+    try {
+      const res = await fetch("https://api.nytimes.com/svc/books/v3/lists/overview.json?api-key=" + encodeURIComponent(apiKey));
+      if (!res.ok) return [];
+      const data = await res.json();
+      const lists = (data.results && data.results.lists) || [];
+      const rows = [];
+      for (const name of NYT_LISTS) {
+        const list = lists.find((l) => l.list_name_encoded === name);
+        for (const b of (list && list.books) || []) rows.push(mapNytBook(b));
+      }
+      const seen = new Set();
+      return rows.filter((r) => { const k = titleKey(r.title); if (!k || seen.has(k)) return false; seen.add(k); return true; });
+    } catch (e) { return []; }
+  }
+
   // ---------- is this result actually the thing you asked for? ----------
   // A search API always has an opinion. Ask RAWG for "BioShock" and it will
   // happily lead with "BioShock Infinite" — so "did it return anything" is not
@@ -1226,9 +1269,13 @@
       else if (source === "anilist-manga") rows = await discoverAniList(kind, "MANGA");
       else if (source === "jikan-anime") rows = await discoverJikan(kind, "anime");
       else if (source === "jikan-manga") rows = await discoverJikan(kind, "manga");
+      // "nyt-openlibrary" and "nyt-googlebooks": NYT's lists, for a books
+      // category, with the rows stamped as that category's own source.
+      else if (source.startsWith("nyt-")) return (await discoverNyt(kind, k.nyt || "")).map((r) => ({ ...r, source: source.slice(4) }));
       return rows.map((r) => ({ ...r, source }));
     },
     supportsDiscover(source) { return DISCOVER_SOURCES.includes(source); },
+    nytTitle, mapNytBook,
     async fetchPrices(appIds, apiKey, proxyUrl) {
       lastError = "";
       return fetchGgDealsPrices(appIds, apiKey, proxyUrl);

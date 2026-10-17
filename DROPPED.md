@@ -365,9 +365,9 @@ in TODO.md as real work.
 **No source.** Open Library and Google Books publish no popularity data and
 MusicBrainz none at all, so those categories get no Discover list.
 
-The NYT Books API (free key, bestseller lists) is the one candidate that
-would actually add something; it's in TODO.md rather than here, because it's
-possible — just another key to set up.
+The NYT Books API (free key, bestseller lists) was the one candidate that
+would actually add something, and it shipped in 0.272.0 as Discover's
+Popular list for books. Music still has none.
 
 ## Early Access for non-Steam games
 

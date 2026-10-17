@@ -403,6 +403,26 @@ atest("fetchEntryExtras still skips RAWG, whose search already said both", async
   assert.strictEqual(calls.length, 0);
 });
 
+atest("NYT bestsellers (0.272.0): fiction then non-fiction, title-cased, stamped as the books source", async () => {
+  const urls = [];
+  const book = (title, isbn) => ({ title, author: "A. Writer", book_image: "https://img/" + isbn, description: "About it.", primary_isbn13: isbn });
+  global.fetch = async (url) => {
+    urls.push(url);
+    return { ok: true, json: async () => ({ results: { lists: [
+      { list_name_encoded: "hardcover-fiction", books: [book("SKIP ME", "0")] },
+      { list_name_encoded: "combined-print-and-e-book-nonfiction", books: [book("THE ANXIOUS GENERATION", "2")] },
+      { list_name_encoded: "combined-print-and-e-book-fiction", books: [book("JAMES", "1"), book("THE ANXIOUS GENERATION", "3")] },
+    ] } }) };
+  };
+  const rows = await Media.discover("nyt-openlibrary", "popular", { nyt: "k" });
+  assert.deepStrictEqual(rows.map((r) => [r.title, r.source, r.lookup, r.id]),
+    [["James", "openlibrary", true, "nyt-1"], ["The Anxious Generation", "openlibrary", true, "nyt-3"]]);
+  assert.match(urls[0], /lists\/overview\.json\?api-key=k$/);
+  assert.deepStrictEqual(await Media.discover("nyt-googlebooks", "upcoming", { nyt: "k" }), [], "no Coming soon");
+  assert.deepStrictEqual(await Media.discover("nyt-googlebooks", "popular", {}), [], "no key, no request");
+  assert.strictEqual(urls.length, 1);
+});
+
 // The sync cases above have all run by now; the async ones are only queued,
 // so the tally waits on them rather than reporting a count six short.
 (async () => {

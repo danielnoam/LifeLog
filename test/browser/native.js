@@ -1387,6 +1387,67 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await web.ctx.close();
   }
 
+  // ---- 18. charge and release-day heads-ups (0.272.0) ----
+  {
+    const shift = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+    const charge = shift(10);
+    const withPlans = {
+      ...doc([], "2026-09-01T00:00:00.000Z"),
+      settings: { currency: "ILS" },
+      financeCategories: [{ name: "Subscriptions", color: "#3bb2e2" }],
+      recurringExpenses: [{ id: "r1", startDate: shift(-355), interval: "yearly", amount: 300, category: "Subscriptions", note: "Domain", createdAt: "2025-01-01T00:00:00.000Z" }],
+      categories: [{ name: "Shows", color: "#aa2266" }],
+      backlog: [
+        { id: "b1", title: "Frieren", category: "Shows", priority: 1, nextAt: shift(3), nextLabel: "Episode 5", createdAt: "2026-01-01T00:00:00.000Z" },
+        { id: "b2", title: "Some Game", category: "Shows", releaseDate: shift(3), releasePrecision: "day", createdAt: "2026-01-01T00:00:00.000Z" },
+      ],
+    };
+    const lastSnap = (page) => page.evaluate(() => window.__cap.widgetSnaps[window.__cap.widgetSnaps.length - 1] || null);
+    const { page, ctx, errs: e } = await openApp(browser, { cache: withPlans });
+    check("nothing is rung until asked", ((await lastSnap(page)) || {}).alerts.length === 0, await lastSnap(page));
+    await page.evaluate(() => window.LifeLogFinance.openRecurringModal(window.LifeLogStorage.cachedCopy().recurringExpenses[0]));
+    await page.waitForTimeout(200);
+    check("a recurring expense offers a reminder in the app", await page.evaluate(() => !document.querySelector("#recRemindLabel").hidden && document.querySelector("#recRemind").value === ""));
+    await page.selectOption("#recRemind", "3");
+    await page.click('#recurringForm button[type="submit"]');
+    await page.waitForTimeout(800);
+    const snap = await lastSnap(page);
+    const charges = (snap.alerts || []).filter((a) => a.kind === "charge");
+    check("three days before the charge, at 9:00, with what and how much",
+      charges.length === 1 && charges[0].day === shift(7) && charges[0].time === "09:00" && charges[0].title === "Domain charges in 3 days" && /300/.test(charges[0].body) && charges[0].action === "open-finance", charges);
+    check("kept on this phone, not in the data", await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-alerts-v1")).charges.r1 === "3"
+      && !JSON.stringify(window.LifeLogStorage.cachedCopy().recurringExpenses).includes("remind")));
+    check("the first one asks for permission to notify", await page.evaluate(() => window.__cap.askedToNotify) === 1);
+    await page.evaluate(() => window.LifeLogFinance.openRecurringModal(window.LifeLogStorage.cachedCopy().recurringExpenses[0]));
+    await page.waitForTimeout(200);
+    check("and the sheet shows it next time", await page.evaluate(() => document.querySelector("#recRemind").value) === "3");
+    await page.click("#cancelRecurringBtn");
+
+    await page.evaluate(() => window.LifeLogSettings.openSettings("releases"));
+    await page.waitForTimeout(300);
+    check("Release dates offers a release-day notification in the app", await page.evaluate(() => !document.querySelector("#releaseAlertsRow").hidden && document.querySelector("#releaseAlerts").value === "off"));
+    await page.selectOption("#releaseAlerts", "starred");
+    await page.waitForTimeout(700);
+    let rel = ((await lastSnap(page)).alerts || []).filter((a) => a.kind === "release");
+    check("starred: the one starred item, on its day", rel.length === 1 && rel[0].day === shift(3) && rel[0].title === "Frieren Episode 5 is out today" && rel[0].action === "open-upcoming", rel);
+    await page.selectOption("#releaseAlerts", "all");
+    await page.waitForTimeout(700);
+    rel = ((await lastSnap(page)).alerts || []).filter((a) => a.kind === "release");
+    check("everything: one notification for the day, naming both", rel.length === 1 && rel[0].title === "2 things are out today" && rel[0].body === "Frieren Episode 5, Some Game", rel);
+    errs.push(...e);
+    await ctx.close();
+
+    const web = await openApp(browser, { native: false, cache: withPlans });
+    await web.page.evaluate(() => window.LifeLogFinance.openRecurringModal(window.LifeLogStorage.cachedCopy().recurringExpenses[0]));
+    await web.page.waitForTimeout(200);
+    check("a browser offers neither", await web.page.evaluate(() => {
+      window.LifeLogSettings.openSettings("releases");
+      return document.querySelector("#recRemindLabel").hidden && document.querySelector("#releaseAlertsRow").hidden;
+    }));
+    errs.push(...web.errs);
+    await web.ctx.close();
+  }
+
   await browser.close();
   console.log("\nerrors:", errs.length ? errs : "none");
   console.log(`\n${pass} passed, ${fail} failed`);

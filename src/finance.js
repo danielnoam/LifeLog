@@ -1812,6 +1812,17 @@
     fillCategorySelect($("#recCategory"), state.data.financeCategories,
       editing ? rec.category : (p.category || (state.data.financeCategories[0] && state.data.financeCategories[0].name)));
     $("#recNote").value = editing ? (rec.note || "") : (p.note || "");
+    // A heads-up before it charges (0.272.0), on the phones only. Kept per
+    // phone and keyed by the plan's first version, so a plan change keeps it.
+    const A = window.LifeLogAlerts;
+    const remindable = !!(A && A.available());
+    $("#recRemindLabel").hidden = !remindable;
+    if (remindable) {
+      const sel = $("#recRemind");
+      sel.innerHTML = "";
+      for (const [v, label] of A.CHARGE_DAYS) sel.appendChild(el("option", null, label)).value = v;
+      sel.value = editing ? A.chargeDays(planChain(state.data.recurringExpenses, rec)[0].id) : "";
+    }
     $("#deleteRecurringBtn").hidden = !editing;
     // Change plan, Pause, Convert, Link past expenses: four things you do to
     // a plan occasionally, which were laid out in full every time you opened
@@ -2272,6 +2283,11 @@
       // The entry this was converted from is only dropped now that the
       // template exists — the template regenerates it as its first occurrence.
       if (converted) state.data.financeEntries = state.data.financeEntries.filter((x) => x.id !== converted);
+    }
+    const A = window.LifeLogAlerts;
+    if (A && A.available()) {
+      const saved = created || state.data.recurringExpenses.find((x) => x.id === id);
+      if (saved) A.setChargeDays(planChain(state.data.recurringExpenses, saved)[0].id, $("#recRemind").value);
     }
     closeRecurringModal();
     buildYearFilter();
