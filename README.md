@@ -76,7 +76,7 @@ Mac runner and attached to each release as `LifeLog.ipa`.
   [AltStore](https://altstore.io) or [SideStore](https://sidestore.io),
   which sign it with your own Apple ID. Apps installed that way last 7
   days; AltStore/SideStore renew them in the background.
-- **Widgets** (0.217.0): Habits and To-do, which tick from the home screen
+- **Widgets** (0.217.0): Habits and Checklist, which tick from the home screen
   (iOS 17), Quick add, This month and a Note. They read the snapshot the
   app writes into an App Group; ticks wait there until the app opens.
   Source in `native/widgets/ios`, added to the generated project by
@@ -125,90 +125,79 @@ browser's *Add to Home Screen* / *Install app*.
 
 ## Features
 
-Four tabs, in two groups. Each pairs a list with another way of reading the
-same thing — swipe across the page, or press and hold the tab, to move
-between them.
+Five tabs, each with modes: swipe across the page, press and hold the tab
+(hover it on a desktop), or tap the tab you're on to move between them.
+Tabs and modes can be turned off, reordered, and set to open on a given
+mode, per device. **DONE.md** lists every feature with the version it came
+in; this is the tour.
 
-**Journal**
-
-- **Notes** – a running feed of things you write as you notice them, each
-  keeping the date and time it was written, and saying so when you've edited
-  it since.
-  - **To-do** – a plain checklist. Give a to-do a category — the checklist
-    keeps its own, separate from the journal's — and it gets a panel of its
-    own; everything else shares the general one. A Categories row above the
-    list narrows it, and adds, renames and recolours from the same place. Each panel
-    keeps its completed items at the bottom, and long-pressing one makes the
-    list draggable so you can order it by hand.
-- **Timeline** – what you've finished, grouped by year → month, with per-year
-  accomplishments. An entry can carry a rating, notes, cover art, genres, a
-  length, and a start month for anything that took more than one.
-  - **Stats** – the same filtered entries, aggregated: totals by category and
-    year, a highlights strip (busiest month, longest streak, this year vs
-    last), seasonality, genres, an activity heatmap, most-repeated titles,
-    and a year-in-review card.
-- **Backlog** – what you mean to get to, as **Entries** (grouped by
-  category) or **Next releases**. Items sort into starred → ready → Early Access → unreleased →
-  dropped bands, and the category count sets the last three aside so it reads
-  as things you could actually finish. **Pick random** draws one for you out
-  of a bag, so nothing repeats until everything in scope has had a turn.
-  - **Discover** – the only screen that looks outward: what is popular right
-    now and what is coming, read from the same media sources your categories
-    already use. Adding from it fills the item in exactly as a manual sync
-    would.
-
-**Finance**
-
-- **Ledger** – expenses by year → month, each month broken down by category.
-  - **Summary** – total spend, average and biggest month, top category, a
-    12-month trend, one-off vs recurring, and your largest expenses.
-- **Recurring expenses** – with pauses, per-occurrence overrides, plan
-  changes over time, and a picker for linking past expenses to a plan.
+- **Notebook**
+  - **Notes** – plain notes, lists (the checklist: items tick, reorder by
+    long press, and merge item by item between devices), quotes and
+    drawing boards. Note categories, collections that open notes as pages,
+    favourites, and a note can become a timeline entry.
+  - **Habits** – to do or to avoid, every day or certain days, times a
+    day. One tap ticks today; a grid pages back for backfilling, with
+    streaks, a start date and undo. Reminders on Android and iPhone.
+- **Timeline**
+  - **Log** – what you've finished, by year and month, with per-year
+    accomplishments. An entry carries a rating, notes, cover art, genres,
+    a length and a start month; what you've started sits in an In
+    progress card at the top.
+  - **Stats** – totals by category and year, highlights, seasonality,
+    genres, an activity heatmap, most-repeated titles, and that year in
+    numbers. **Recap** turns a year into a slideshow, offered in December.
+- **Backlog**
+  - **List** – what you mean to get to, by category, in bands: starred,
+    ready, Early Access or Still airing, unreleased, dropped, each folding
+    away. Bought, authors and In progress per category, sorts inside each
+    band, Pick random and Spin.
+  - **Discover** – what's popular now and coming soon from the sources your
+    categories use, with Hide what I have.
+  - **Upcoming** – what's coming, by month, with as much of the date as is
+    known, countdowns, next episodes, and an Out today card.
+- **Ledger**
+  - **Expenses** – by year and month, broken down by category. Amounts do
+    basic math and take other currencies at the day's rate. Recurring
+    expenses have pauses, plan changes, one-off charges, merges and
+    per-occurrence edits; projects group a burst of spending. On Android,
+    Google Wallet payments are offered in.
+  - **Summary** – highlights, recurring, by month, by category and the
+    largest expenses.
+- **Travel** (off by default) – trips with places By time, By area or on a
+  Map, imported from Google Maps lists, with Google's rating, hours and
+  reviews when you add your own Places key.
 
 **Throughout**
 
-- **Media sync** – fill in cover art, ratings, release dates, genres,
-  descriptions and lengths from RAWG, SteamGridDB, TMDB, Open Library,
-  AniList, Jikan, Google Books and MusicBrainz. Set a primary and a fallback
-  source per category in **Settings → Media**; the "+ Steam + GG.deals"
-  combo sources also resolve a Steam App ID for a store link and a price.
-- **List imports** – pull your **Steam wishlist** or your **AniList
-  Planning** list straight into the backlog, dup-checked against what's
-  already there. A quiet background check keeps release dates current.
-- **A wheel to spin** – beside the backlog's random pick, over options you
-  type yourself; and again inside the pick card, over whatever is eligible.
-- **Filters** – year and category chips narrow a tab.
-- **Letterboxd import** (0.252.0) – Settings → Imports reads the export zip:
-  your diary and watched films become entries with their stars, the
-  watchlist goes to the Backlog, after the usual review.
-- **Undo after any import** (0.256.0) – the "Imported …" toast takes the
-  whole import back for eight seconds.
-- **Steam games you've played** (0.253.0) – with a Steam Web API key, the
-  same page offers every game with time in it as an entry in the month you
-  last played it, hours as its length; you tick what counts.
-- **Search** – one box over everything (0.251.0): entries, backlog, notes,
-  habits, boards, expenses, trips and places, Settings pages. Results come
-  grouped by tab and a tap opens the item; "Filter Backlog" on a group
+- **Search** – one box over everything: entries, backlog, notes, habits,
+  boards, expenses, trips and places, Settings pages. "Filter" on a group
   narrows that tab instead, for bulk work.
-- **Bulk actions** – long-press to select, then edit, sync, or delete many
-  items at once.
-- **Swipe between modes** – on a phone, drag across the page to move between
-  the modes of a tab that has them; the page follows your finger and letting
-  go finishes the slide.
-- **The mode fan** – on a phone there is no mode switch on the page: press
-  and hold a tab in the bottom bar and its other modes rise above it, then
-  slide up and let go on the one you want. A plain tap is the tab's own
-  mode, and dots under each tab say how many modes it has and which one
-  it's in. Tapping the tab you're on takes you to the top of the list, or
-  steps to the next mode if you're already there. On a desktop the same
-  modes drop out of the tab when you hover it, or Shift and the tab's digit
-  goes straight to its second one.
-- **Category management** – add / rename / recolour / reorder / delete, for
-  both journal and finance categories.
-- **Import / export** – JSON and CSV, both directions, each routed through a
-  review screen so you see what will land before it does.
-- **App lock** – an optional PIN, with fingerprint / Face ID where the
-  device offers it.
+- **Media lookups** – cover art, ratings, release dates, genres,
+  descriptions and lengths from RAWG, SteamGridDB, TMDB, Open Library,
+  AniList, Jikan, Google Books and MusicBrainz, with a primary and a
+  fallback source per category; the "+ Steam + GG.deals" sources add a
+  store link and a price. See [Media sources and keys](#media-sources-and-keys).
+- **Imports** – Steam wishlist and played games, AniList (every list),
+  Letterboxd, Google Maps lists, Markdown, PDF and EPUB as notes, and JSON
+  or CSV per tab. Every import goes through one review screen (edit a row,
+  see what an update writes) and can be undone.
+- **Activity** – anything that takes a while (imports, bulk syncs, lookups)
+  runs in one list, keeps going with the app put away on Android, and is
+  offered again if the app was closed on it.
+- **Share into LifeLog** – from other apps on Android and iPhone, and into
+  the installed web app.
+- **Bulk actions** – long-press to select, then move, sync or delete.
+- **Sync and history** – GitHub and a local file, merged between devices,
+  with every save in Settings → History to restore or undo, and Recently
+  deleted.
+- **App lock** – a PIN, with fingerprint or face where the device has it.
+- **Settings** – pages with search, four themes (Default, Light, Nord,
+  Dracula), fonts and layout per device, and About with what's new, the
+  credits and the errors on this device.
+- **Widgets** – checklist, habits, quick add, spending, note and random
+  note on Android; habits, checklist, quick add, this month and a note on
+  iPhone.
 - **Offline** – an installable PWA with a service worker, so it works with
   no connection and syncs when there is one.
 
