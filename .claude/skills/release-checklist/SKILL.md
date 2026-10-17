@@ -1,6 +1,6 @@
 ---
 name: release-checklist
-description: Release checklist for the LifeLog app (danielnoam/lifelog) — bump APP_VERSION, add a matching CHANGELOG.md entry, file notes under TODO.md/NOTES.md/DROPPED.md, keep the vanilla JS/CSS app lean, verify mobile and desktop, and push to main (which publishes the APK). Use this before shipping any change to LifeLog.
+description: Release checklist for the LifeLog app (danielnoam/lifelog) — bump APP_VERSION, add a matching CHANGELOG.md entry, file notes under TODO.md/DONE.md/NOTES.md/DROPPED.md, keep the vanilla JS/CSS app lean, verify mobile and desktop, and push to main (which publishes the APK). Use this before shipping any change to LifeLog.
 ---
 
 # LifeLog release checklist
@@ -48,19 +48,21 @@ sync with it. Don't push with any step skipped.
 - Write entries in plain, user-facing language. The workflow copies this
   entry into the GitHub release as its notes.
 
-## 3. Update the three notes files
+## 3. Update the notes files
 
-Each holds one kind of thing; put an entry in exactly one of them.
-
-- **TODO.md** — work still worth doing. Remove items this change completes;
-  add any new follow-up ideas that came up while implementing. If the list
-  empties, leave just the `todo:` header line.
+- **TODO.md** — only the work that's left, in sections, each item with a
+  short plan. Remove items this change completes (in this commit, never
+  later); add any new follow-up ideas that came up while implementing. If
+  a section empties, remove it.
+- **DONE.md** — a line for every feature this release adds, in its area,
+  with the version. A feature this release removes loses its line.
 - **NOTES.md** — why what shipped is the way it is. Add an entry whenever a
   change involved a decision the code can't explain by itself: something
   that looks arbitrary but isn't, an approach that was tried and abandoned,
   an invariant two files quietly depend on. Newest first. This is the file
   that stops the next change re-breaking what this one fixed.
-- **DROPPED.md** — decided against, or turned out to be impossible. Move an
+- **DROPPED.md** — decided against (anything Daniel said no to, with his
+  reason) or turned out to be impossible. Move an
   idea here rather than deleting it, and write down the *reason*, so it can
   come back if the reason stops being true. If an idea is a live one wrapped
   in a rejection, split it: the workable half stays in TODO.md.

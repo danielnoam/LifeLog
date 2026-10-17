@@ -13,6 +13,14 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## A TMDB watchlist import
+
+Offered on 2026-10-10 alongside the AniList Watching and Completed sync
+(0.265.0): pull a TMDB watchlist into the Backlog the way the AniList lists
+come in. Daniel said no: unlike AniList, reading a TMDB watchlist needs a
+TMDB sign-in (a user session on top of the API key). Would come back if he
+starts keeping his watchlist on TMDB.
+
 ## "On this day"
 
 Suggested on 2026-10-10: a card at the top of the Timeline showing what was

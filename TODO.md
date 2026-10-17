@@ -1,39 +1,43 @@
-todo:
+# To do
 
-- **Security pass follow-ups (0.259.2).** The write-up in the project's
-  audits folder (2026-10-09-security-pass.md) ranks these; each one changes
-  how data is stored or synced, so each is a decision first. The token flow
-  and the keys-out-of-exports shipped in 0.260.0, backups off in 0.261.0,
-  the lock hardening in 0.262.0, the CSP in 0.263.0; still open:
-  - Optional encryption of the data file before it is committed (see
-    DROPPED.md, Data encryption); Daniel leans no.
-  - Encrypting the local copy (in IndexedDB since 0.268.0) with a key from the PIN, for
-    the desktop browser mainly; explained on 2026-10-09, his call.
+Only the work that's left. When an item ships it leaves this file in the
+same commit and becomes a line in DONE.md (and the changelog); when Daniel
+says no, it moves to DROPPED.md with his reason.
+
+## Next
 
 - **Run the tests in CI and gate the release on them.** Nothing runs
   `node test/run-all.js` on a push: android.yml and ios.yml build and
-  publish whatever lands on main. Add a test job, make the Android and iOS
-  publish steps `needs: test`, and move Pages to the Actions deploy so it
-  waits on the tests too (it deploys from the branch today, which can't be
-  gated). The browser suites all pass on main as of 0.268.0, so the job
-  can run them too (Playwright, Chromium).
+  publish whatever lands on main.
+  Plan: add a `test` workflow job (Node, then the browser suites with
+  Playwright and Chromium, which all pass on main as of 0.268.0); make the
+  Android and iOS publish steps `needs: test`; move Pages from "deploy from
+  branch" to the Actions deploy so it waits on the tests too. Keep the
+  `**.md` path filter so docs-only pushes still skip the builds.
+
+## Decisions waiting on Daniel
+
+From the security pass (audits/2026-10-09-security-pass.md in the project
+folder). Each changes how data is stored, so each is his call first.
+
+- **Optional encryption of the data file before it is committed.** Daniel
+  leans no; mandatory encryption is in DROPPED.md (Data encryption).
+  Plan if yes (the audit's item 6): the whole file encrypted with a random
+  data key (AES-GCM, Web Crypto), that key wrapped by a PBKDF2 key from a
+  passphrase, with a printed recovery key; History decrypts GitHub's saves
+  in-app, and the bridge needs the passphrase to read. Cost: a forgotten
+  passphrase and lost recovery key is the data gone, and the file mirror
+  and GitHub's diffs become ciphertext.
+- **Encrypting this device's copy (IndexedDB) with a key from the PIN.**
+  Mainly for the desktop browser. Plan if yes: derive a key from the app
+  lock PIN (PBKDF2, needs a 6+ digit PIN), encrypt the stored copy, decrypt
+  after unlock. Cost: a forgotten PIN means re-syncing from GitHub, and
+  launch waits for the unlock before drawing.
+
+## iOS
 
 - **An Apple developer account ($99/year)**, if the iOS app is ever used
-  for real: sign in CI, upload to TestFlight, and the 7-day re-signing that
-  AltStore/SideStore do goes away. Everything else for iOS is built (0.216.0
-  the app, 0.217.0 the widgets, reminders and Face ID).
-
-  What was decided against outright is in DROPPED.md: habits feeding the
-  to-do list, a habits tab of its own, times-per-week habits and streak
-  milestones. Reminders were there too until the Android app gave them a
-  way in; they shipped in 0.183.0.
-
----
-
-Ideas that turned out not to be worth doing, or not to be possible, live in
-DROPPED.md rather than sitting here unread.
-
-Two neighbours: **NOTES.md** carries the reasoning behind what's already
-shipped — read it before changing something that looks arbitrary — and
-**DROPPED.md** is what was decided against, so the same idea doesn't get
-re-litigated every few months.
+  for real. Plan: sign in CI with the account's certificate and profile,
+  upload to TestFlight from ios.yml, drop the AltStore/SideStore 7-day
+  re-signing. Everything else for iOS is built (0.216.0 the app, 0.217.0
+  widgets, reminders and Face ID).

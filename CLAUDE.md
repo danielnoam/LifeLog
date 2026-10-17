@@ -13,7 +13,9 @@ and the iOS app (Capacitor). See README.md for the layout.
   feature or version) before changing something that looks arbitrary; it
   usually isn't. Don't read it whole: it's ~60k tokens. Each entry starts
   with a bold title and its version, so a search finds it. **TODO.md** is
-  the work, **DROPPED.md** what was decided against and why.
+  the work that's left, **DONE.md** what the app already does (one line
+  per feature, with its version), **DROPPED.md** what was decided against
+  and why, **CHANGELOG.md** every release in user-facing words.
 
 ## UI work
 
@@ -47,3 +49,60 @@ and the iOS app (Capacitor). See README.md for the layout.
   phone and desktop width, then commit and push straight to `main`.
 - `main` is production. A push deploys the web app, and a new
   `APP_VERSION` publishes the APK and IPA. Check the runs went green.
+
+## Working with Daniel
+
+Daniel (danielnoam) owns LifeLog. These rules hold in every session.
+
+### The notes files
+
+- TODO.md holds only what's left, grouped into sections, each item with a
+  short plan of how it would be built. When something ships, or Daniel
+  says he doesn't want it, take it out in the same commit: shipped work
+  becomes a line in DONE.md (and the changelog), a no becomes an entry in
+  DROPPED.md with his reason. Remove anything stale or already covered.
+  Never leave done work in TODO.md.
+- DONE.md gets a line for every feature a release adds, in its area.
+- NOTES.md is why things are the way they are, newest first. CHANGELOG.md
+  is every release, in plain user-facing words.
+- If the project's shared folder has copies of TODO.md and DONE.md, copy
+  the repo's versions over them after every change so they match.
+- Before suggesting ideas, check DONE.md, TODO.md and DROPPED.md, so
+  nothing shipped, planned or turned down is suggested again.
+- "Show the todo" means short: the next items numbered, then the later and
+  parked groups in one line each.
+
+### How the work is done
+
+- Push to main without asking once the checks are green (the tests and
+  the release checklist; then check the CI runs).
+- "Don't build yet" or "fixes only": commit locally and don't push until
+  he says build.
+- "Add to TODO" means plan it, not build it. Small asks listed without
+  that get built now.
+- Several asks go out as one release, or a few grouped releases, not many
+  small ones.
+- A new look, a reworked screen or a big change: show or explain it first
+  and wait for his OK before building. Don't stack extra changes on top of
+  what he asked without saying so first.
+- Secure and private as far as it can go: least access (narrow tokens and
+  scopes), nothing leaves the device unless he turned it on, untrusted
+  content stays sandboxed. Say any trade-off plainly and write it in
+  NOTES.md.
+- Everything works on Android and on a computer, and on iOS later. What
+  can't work on one platform gets that platform's nearest equivalent;
+  iOS-only work goes on the iOS list in TODO.md.
+- Speed matters: measure before and after anything that could make it
+  slower.
+- After shipping, tell him in a line or two what to try on his phone,
+  especially anything that couldn't be tested without it.
+- Be direct. Push back when an idea or plan is weak, and say what was
+  checked and what is a guess.
+
+### Project-specific rules
+
+Added here as Daniel gives them.
+
+- Icons are Lucide, from the one map in src/icons.js; no emoji in the UI
+  (2026-10-06).
+- Any new library or data service gets a credit in Settings → About.

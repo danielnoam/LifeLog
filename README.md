@@ -242,7 +242,8 @@ DESIGN.md           the design language: tokens, type/space/radius scales, motio
                     components, voice, accessibility. Read before UI work
 .claude/skills/     how to build (lifelog-design), check (lifelog-ui-audit) and
                     ship (release-checklist) a change
-TODO.md             work still worth doing
+TODO.md             the work that's left, each item with a plan
+DONE.md             what the app does, by area, with the version each came in
 NOTES.md            why what shipped is the way it is — read before changing
                     something that looks arbitrary
 DROPPED.md          decided against, and why, so it isn't re-litigated
