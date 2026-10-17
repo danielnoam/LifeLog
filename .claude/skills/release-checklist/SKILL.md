@@ -1,6 +1,6 @@
 ---
 name: release-checklist
-description: Release checklist for the LifeLog app (danielnoam/lifelog) — bump APP_VERSION, add a matching CHANGELOG.md entry, file notes under TODO.md/DONE.md/NOTES.md/DROPPED.md, keep the vanilla JS/CSS app lean, verify mobile and desktop, and push to main (which publishes the APK). Use this before shipping any change to LifeLog.
+description: Release checklist for the LifeLog app (danielnoam/lifelog) — bump APP_VERSION, add a matching CHANGELOG.md entry, file notes under TODO.md/DONE.md/NOTES.md/DROPPED.md and README.md, keep the vanilla JS/CSS app lean, verify mobile and desktop, and push to main (which publishes the APK). Use this before shipping any change to LifeLog.
 ---
 
 # LifeLog release checklist
@@ -61,6 +61,9 @@ sync with it. Don't push with any step skipped.
   that looks arbitrary but isn't, an approach that was tried and abandoned,
   an invariant two files quietly depend on. Newest first. This is the file
   that stops the next change re-breaking what this one fixed.
+- **README.md** — the app as it is. Update it in the same commit when the
+  change adds, removes or renames a feature, a tab, a file, a setup step or
+  how it's built.
 - **DROPPED.md** — decided against (anything Daniel said no to, with his
   reason) or turned out to be impossible. Move an
   idea here rather than deleting it, and write down the *reason*, so it can

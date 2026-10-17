@@ -45,7 +45,7 @@ and the iOS app (Capacitor). See README.md for the layout.
 ## Shipping
 
 - Use the `release-checklist` skill for every change: version bump (three
-  places), CHANGELOG.md, notes files, `node test/run-all.js`, verify at
+  places), CHANGELOG.md, notes files, README.md, `node test/run-all.js`, verify at
   phone and desktop width, then commit and push straight to `main`.
 - `main` is production. A push deploys the web app, and a new
   `APP_VERSION` publishes the APK and IPA. Check the runs went green.
@@ -65,6 +65,9 @@ Daniel (danielnoam) owns LifeLog. These rules hold in every session.
 - DONE.md gets a line for every feature a release adds, in its area.
 - NOTES.md is why things are the way they are, newest first. CHANGELOG.md
   is every release, in plain user-facing words.
+- README.md describes the app as it is: when a change adds, removes or
+  renames a feature, a tab, a file or a setup step, update README.md in
+  the same commit.
 - If the project's shared folder has copies of TODO.md and DONE.md, copy
   the repo's versions over them after every change so they match.
 - Before suggesting ideas, check DONE.md, TODO.md and DROPPED.md, so
