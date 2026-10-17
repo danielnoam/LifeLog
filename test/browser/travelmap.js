@@ -40,6 +40,9 @@ const SEED = {
   });
   // No tiles from here: the map's pins and layout are what's checked.
   await page.route(/basemaps\.cartocdn\.com/, (route) => route.fulfill({ status: 204, body: "" }));
+  // No town lookups: the area names below are the offline "Near …" ones
+  // (travelmore fakes OpenStreetMap). Left open, CI reached the real one.
+  await page.route("https://nominatim.openstreetmap.org/**", (route) => route.abort());
   await page.goto(BASE + "/", { waitUntil: "networkidle" });
   await page.evaluate((seed) => {
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "travel" }));
