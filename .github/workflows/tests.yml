@@ -1,0 +1,45 @@
+# The tests, as the gate in front of every publish (0.271.0): the Android
+# and iOS workflows and the Pages deploy each call this and wait on it, so a
+# red test stops the APK, the IPA and the web app alike. See NOTES.md ("CI
+# test gate").
+name: Tests
+
+on:
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node test/run-all.js
+
+  # The browser suites one after another take most of half an hour, so they
+  # run as four shards side by side. Playwright isn't a dependency of the
+  # project (test/browser/README.md); it's installed here without saving.
+  browser:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright and Chromium
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Browser suites, shard ${{ matrix.shard }} of 4
+        env:
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+        run: node test/browser/run-all.js --shard=${{ matrix.shard }}/4

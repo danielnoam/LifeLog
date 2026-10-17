@@ -23,7 +23,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  test:
+    uses: ./.github/workflows/tests.yml
+
   ipa:
+    needs: test
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4

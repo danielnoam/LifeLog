@@ -56,7 +56,7 @@ doesn't load or depend on anything the app build adds.
   and anything else asks whether it's a Backlog item or a note. The
   installed web app has the same, through the manifest's share target.
 - **How it's built:** `.github/workflows/android.yml`, on every push to
-  `main`. `tools/build-www.js` copies the files in `sw.js`'s `ASSETS` list
+  `main`, once the tests pass. `tools/build-www.js` copies the files in `sw.js`'s `ASSETS` list
   into `www/`, Capacitor wraps them, and a release `app-v<version>` is
   published whenever `APP_VERSION` is new.
 - **Signing:** Android only installs an update over an app signed with the
@@ -98,7 +98,8 @@ The app is an installable **PWA** (manifest + service worker), so once it's
 hosted over HTTPS you can add it to your home screen and it works offline.
 
 **1. Host the static files** (free) — push this folder to a GitHub repo and turn
-on **GitHub Pages** (repo Settings → Pages → deploy from branch). You'll get a
+on **GitHub Pages** with Source set to **GitHub Actions** (repo Settings →
+Pages), so `.github/workflows/pages.yml` deploys it once the tests pass. You'll get a
 `https://<you>.github.io/<repo>/` URL. (Any static host works: Netlify, Vercel,
 Cloudflare Pages.)
 
@@ -272,6 +273,12 @@ Plain Node `assert`, no framework and no install step. They cover the pure
 data logic — sanitizers, the three-way merge, release-date parsing, release
 states, finance maths, which items a sync pass touches — plus the media
 layer's request routing, against a stubbed `fetch`.
+
+The browser suites (`node test/browser/run-all.js`, see
+[`test/browser/README.md`](test/browser/README.md)) drive the real app in
+Chromium. CI runs both through `.github/workflows/tests.yml`, and the
+Android, iOS and Pages workflows wait on it: a failing test publishes
+nothing.
 
 ## Re-importing from the sheet
 

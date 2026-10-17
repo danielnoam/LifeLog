@@ -3,6 +3,8 @@
 //
 //   node test/browser/run-all.js            all suites
 //   node test/browser/run-all.js fxrate     just one (substring match)
+//   node test/browser/run-all.js --shard=2/4   every fourth suite, from the
+//                                              second (CI runs four at once)
 //
 // Each suite is a child process: a crash takes that suite down and not the
 // run, and a suite left mid-run by a timeout can't poison the next one's
@@ -62,12 +64,15 @@ function runSuite(name, url) {
 }
 
 (async () => {
-  const filter = process.argv[2];
+  const args = process.argv.slice(2);
+  const filter = args.find((a) => !a.startsWith("--"));
+  const shard = /^--shard=(\d+)\/(\d+)$/.exec(args.find((a) => a.startsWith("--shard=")) || "");
   const suites = fs.readdirSync(HERE)
     .filter((f) => f.endsWith(".js") && !["run-all.js", "harness.js"].includes(f))
     .map((f) => f.replace(/\.js$/, ""))
     .filter((n) => !filter || n.includes(filter))
-    .sort();
+    .sort()
+    .filter((n, i) => !shard || i % +shard[2] === +shard[1] - 1);
 
   if (!suites.length) { console.error("No suites match " + filter); process.exit(2); }
 

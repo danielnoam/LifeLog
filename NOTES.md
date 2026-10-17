@@ -16,6 +16,35 @@ what was decided against and why.
 
 ---
 
+- **CI test gate (0.271.0).** `.github/workflows/tests.yml` is a reusable
+  workflow (unit tests, then the browser suites as four shards, since one
+  after another they take most of half an hour). android.yml, ios.yml and
+  the new pages.yml each call it and `needs: test`, so it runs three times
+  per push: free minutes on a public repo, and the alternative
+  (`workflow_run` chaining) runs on the default branch's copy of the
+  workflow with `github.ref` always main, which breaks the main-only
+  signing check. Playwright is installed into `$RUNNER_TEMP` and found
+  through NODE_PATH, so it stays out of package.json. pages.yml uploads the
+  repo as it is (`.nojekyll`, same files the branch deploy served) and
+  doesn't ignore `**.md`, because About reads CHANGELOG.md. It only deploys
+  once Settings → Pages → Source is "GitHub Actions"; until then it reads
+  the Pages `build_type`, leaves a notice and skips, rather than failing
+  while the branch deploy carries on ungated.
+
+- **Release dates re-checked when their day arrives (0.271.0).**
+  `releaseDue` in sync.js: an item with `nextAt`, or a `releaseDate` known
+  to the day, whose day has come in the last 14 days and that this device
+  hasn't asked about since the day after it. The per-item times are in
+  localStorage (`lifelog-release-asked-v1`), not synced, like the other
+  check stamps. It was needed because `isUnreleased` turns false the moment
+  a day-precision date passes, so the cadence sweep stopped asking right
+  when a slip or the real release would show; and because the auto-check
+  only ran at a cold start, which a phone app can go days without.
+  Asked on the day, an item stays due once more the next day (sources lag,
+  and TMDB's `air_date` is US time); at most every 6 hours. Month and year
+  dates have no day to wait for, so the sweep alone covers them. It follows
+  the "Check automatically" setting: Never means never.
+
 - **Widget picks and order share one control (0.270.0).** The checklist
   widget's hold-and-drag list (0.266.0) is `SettingsScreen.Sortable` now,
   used by the habits and quick add settings too. Each saves its ticks

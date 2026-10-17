@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.271.0] - 2026-10-17
+
+### Changed
+- **Release dates are re-checked when their day arrives.** When an
+  episode's date or a release day comes, LifeLog asks the item's source
+  again as you open the app or come back to it, and once more the next
+  day, so the episode count moves on, the next episode gets its date, and a
+  release that slipped shows its new date. This runs alongside the full
+  re-check you set in Settings → Release dates, and only while that is on.
+  Before, a release whose day had passed stopped being re-checked at all,
+  and the check only ran when the app was started fresh.
+- **Nothing is published unless the tests pass.** The Android and iPhone
+  builds now wait for the app's tests, and so does the web app once its
+  hosting is switched over.
+
 ## [0.270.0] - 2026-10-16
 
 ### Added

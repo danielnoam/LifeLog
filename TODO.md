@@ -6,14 +6,37 @@ says no, it moves to DROPPED.md with his reason.
 
 ## Next
 
-- **Run the tests in CI and gate the release on them.** Nothing runs
-  `node test/run-all.js` on a push: android.yml and ios.yml build and
-  publish whatever lands on main.
-  Plan: add a `test` workflow job (Node, then the browser suites with
-  Playwright and Chromium, which all pass on main as of 0.268.0); make the
-  Android and iOS publish steps `needs: test`; move Pages from "deploy from
-  branch" to the Actions deploy so it waits on the tests too. Keep the
-  `**.md` path filter so docs-only pushes still skip the builds.
+Picked by Daniel on 2026-10-17. Items 1 and 2 share the native reminder
+work, so they'd go out as one release.
+
+1. **A heads-up before a recurring charge.** A notification a few days
+   before a recurring expense charges, so a yearly or monthly plan can be
+   cancelled in time. Plan: in the Ledger, a "Remind me" choice on a
+   recurring expense (off, 1, 3 or 7 days before), kept on this phone like
+   habit reminders (reminders.js), not synced. The next charge date is
+   already worked out for the Ledger; widgets.js puts the upcoming charges
+   (title, amount, day, days before) in the snapshot, and the native side
+   schedules them beside the habit alarms (Reminders.java's one next
+   alarm, LifeLogReminders.swift's scheduled-ahead list). Tapping opens the
+   plan. Skipped or stopped plans drop out. Phones only; a desktop has
+   nothing to buzz. No data change, so the bridge is untouched.
+2. **A buzz on release day for starred Backlog items.** Out today only
+   helps once you open the app. Plan: the snapshot also carries starred
+   items with a release or next-episode date known to the day (`nextAt`,
+   or `releaseDate` at day precision), and the native side schedules one
+   morning notification per day naming what's out (several in one). A
+   switch in Settings → Release dates, on this phone. Since 0.271.0 the
+   app re-checks those dates when the day comes, so a slipped date moves
+   the alarm the next time the snapshot is written. TBA, month and year
+   dates get nothing.
+3. **NYT bestsellers in Discover for Books.** Open Library and Google
+   Books have no popularity data (DROPPED.md, "Hot books"). Plan: the NYT
+   Books API (free key, `lists/current/{list}.json`) as Discover's Popular
+   list for a Books category, with the list (fiction, non-fiction…) picked
+   in the category's source settings; each title matched through the
+   category's normal source for its cover. Key in Settings → media keys
+   (synced like the others, blanked in exports), a credit in Settings →
+   About, and nothing asked for without the key.
 
 ## Decisions waiting on Daniel
 

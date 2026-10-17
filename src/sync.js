@@ -16,6 +16,9 @@
   const STEAM_SYNC_KEY = "lifelog-steam-autosync-v1";
   const ANILIST_SYNC_KEY = "lifelog-anilist-autosync-v1";
   const RELEASE_REFRESH_KEY = "lifelog-release-refresh-v1";
+  // Per item, when this device last re-asked its source (0.271.0), so a date
+  // that has just arrived is asked about once or twice, not on every open.
+  const RELEASE_ASKED_KEY = "lifelog-release-asked-v1";
   // How long a fetched GG.deals price stays valid before a backlog re-render
   // re-fetches it; avoids re-querying the rate-limited API on every render.
   const PRICE_CACHE_MS = 15 * 60 * 1000;
@@ -884,7 +887,8 @@
   // Deliberately narrow: only items that are still unreleased, so a backlog of
   // hundreds costs a handful of requests.
   function backlogAwaitingRelease() {
-    return state.data.backlog.filter(needsReleaseRecheck);
+    const due = new Set(releasesDueNow(true));
+    return state.data.backlog.filter((b) => due.has(b) || needsReleaseRecheck(b));
   }
 
   // Whether one item is worth re-asking.
@@ -920,6 +924,59 @@
     if (!Backlog) return false;
     return !!b.mediaId && !!b.mediaSource && !isOverridden(b, "release")
       && (Backlog.isAwaitingRelease(b) || !!b.earlyAccess || airingUnsettled(b));
+  }
+
+  // The day an item's own date says something happens: the next episode, or
+  // the release when it's known to the day. A month or a year has no day to
+  // wait for; the cadence keeps asking about those.
+  function dueDay(b) {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(b.nextAt || "")) return b.nextAt;
+    const r = String(b.releaseDate || "");
+    return /^\d{4}-\d{2}-\d{2}$/.test(r) ? r : "";
+  }
+  function dayStr(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+
+  // Whether an item's date has arrived since its source was last asked
+  // (0.271.0). The cadence in Settings re-asks everything waiting, but a
+  // date passing is when the answer is most likely to have moved: the
+  // episode is out (and the next one has a date), the release happened or
+  // slipped. And an item whose date has passed reads as released, so the
+  // cadence check had stopped asking about it at exactly that moment.
+  //
+  // Asked on the day, it stays due until it's asked again a day later:
+  // sources often catch up a day behind, an evening episode in another time
+  // zone among them. At most every 6 hours, and only for two weeks after
+  // the date, so a source that never updates stops being asked.
+  const DUE_GAP_MS = 6 * 60 * 60 * 1000;
+  const DUE_FOR_DAYS = 14;
+  function releaseDue(b, asked, now, anyGap) {
+    if (!b.mediaId || !b.mediaSource || b.dropped || isOverridden(b, "release")) return false;
+    const day = dueDay(b);
+    const today = new Date(now);
+    const from = new Date(now);
+    from.setDate(from.getDate() - DUE_FOR_DAYS);
+    if (!day || day > dayStr(today) || day < dayStr(from)) return false;
+    const at = Date.parse((asked || {})[b.id] || "");
+    if (!at) return true;
+    if (!anyGap && now - at < DUE_GAP_MS) return false;
+    return dayStr(new Date(at)) <= day;
+  }
+  function readAsked() {
+    try { return JSON.parse(localStorage.getItem(RELEASE_ASKED_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function markAsked(items) {
+    const asked = readAsked();
+    const at = new Date().toISOString();
+    for (const b of items) asked[b.id] = at;
+    const ids = new Set(state.data.backlog.map((b) => b.id));
+    for (const id of Object.keys(asked)) if (!ids.has(id)) delete asked[id];
+    try { localStorage.setItem(RELEASE_ASKED_KEY, JSON.stringify(asked)); } catch (e) { /* asked again next time */ }
+  }
+  function releasesDueNow(anyGap) {
+    const asked = readAsked(), now = Date.now();
+    return state.data.backlog.filter((b) => releaseDue(b, asked, now, anyGap));
   }
 
   // One item's fresh release info, or null if its source can't be re-asked
@@ -973,6 +1030,7 @@
           if (btn) btn.textContent = `Checking… ${i + 1}/${targets.length}`;
           job.progress(i, targets.length, targets[i].title);
           const fresh = await fetchItemRelease(targets[i], keys, proxyUrl);
+          markAsked([targets[i]]);
           if (fresh) {
             checked++;
             if (applyItemRelease(targets[i], fresh) && ++updated % SAVE_EVERY === 0) persist();
@@ -1021,15 +1079,21 @@
   // the backlog, never adds or removes anything, so there's nothing to review.
   // Silent either way: no toast on success, since the point is that the list
   // is simply correct when you open it.
+  //
+  // Between those sweeps it asks only about items whose date has arrived
+  // (releaseDue), as the app opens and each time it comes back to the
+  // screen, since a phone app can stay open for days without a fresh start.
+  let autoRefreshing = false;
   async function maybeAutoRefreshReleases() {
     const days = parseInt((state.data.settings.releases || {}).autoRefreshDays, 10) || 0;
-    if (!days) return;
+    if (!days || autoRefreshing) return;
     let last = null;
     try { last = JSON.parse(localStorage.getItem(RELEASE_REFRESH_KEY)); } catch (e) {}
     const lastAt = (last && last.lastCheckedAt) ? new Date(last.lastCheckedAt).getTime() : 0;
-    if (Date.now() - lastAt < days * 24 * 60 * 60 * 1000) return;
-    const targets = backlogAwaitingRelease();
-    if (!targets.length) { markReleasesChecked(); return; }
+    const sweep = Date.now() - lastAt >= days * 24 * 60 * 60 * 1000;
+    const targets = sweep ? backlogAwaitingRelease() : releasesDueNow(false);
+    if (!targets.length) { if (sweep) markReleasesChecked(); return; }
+    autoRefreshing = true;
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     const proxyUrl = window.LifeLogPlatform.steamProxy((state.data.settings.steam || {}).proxyUrl);
     let updated = 0;
@@ -1038,6 +1102,7 @@
         for (let i = 0; i < targets.length && !job.stopping; i++) {
           job.progress(i, targets.length, targets[i].title);
           const fresh = await fetchItemRelease(targets[i], keys, proxyUrl);
+          markAsked([targets[i]]);
           if (fresh && applyItemRelease(targets[i], fresh)) updated++;
           job.progress(i + 1, targets.length);
           if (i < targets.length - 1) await job.sleep(300);
@@ -1048,7 +1113,8 @@
     } catch (e) {
       // quiet — unattended background work, not a user action
     } finally {
-      markReleasesChecked();
+      autoRefreshing = false;
+      if (sweep) markReleasesChecked();
     }
   }
 
@@ -1114,6 +1180,7 @@
     // need a browser, a proxy and a wishlist; these are the decisions inside
     // them that don't.
     needsReleaseRecheck,
+    releaseDue,
     applyItemRelease,
     ownedToEntry, syncSteamOwned,
     aniListBacklogItem, aniListFinishedEntry, aniListHistoryEntry, buildAniList,

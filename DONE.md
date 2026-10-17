@@ -87,6 +87,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Season and book markers stripped before searching (0.48.0)
 - Advanced: keep my own value, set a Steam App ID by hand (0.100.0, 0.111.0)
 - Release dates re-checked, keeping up with airing shows (0.98.0, 0.265.0)
+- Re-checked again on the day an episode or a release is due, and the day after (0.271.0)
 - Source choices and API keys sync between devices (0.16.0, 0.17.0)
 - Self-hosted CORS proxy for Steam and SteamGridDB on the web; no proxy needed on Android (0.59.0, 0.215.0)
 
@@ -204,6 +205,10 @@ Every release that adds a feature adds its line here in the same commit.
 - An MCP server and command line for other AIs to read and change LifeLog (0.239.0, 0.240.0)
 - Connects with the app's setup link (0.239.1)
 - Trips: read a plan, add, move, schedule and remove places, read Google Maps lists (0.241.0, 0.242.0)
+
+## Building and shipping
+
+- Tests gate every publish: the APK, the IPA and the web app wait on the unit and browser tests in CI (0.271.0)
 
 ## Accessibility
 

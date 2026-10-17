@@ -1,0 +1,59 @@
+# Deploys the web app to GitHub Pages once the tests pass (0.271.0). It
+# replaces Pages' own "deploy from a branch", which published every push to
+# main whether or not anything worked. The site is the repo as it stands, the
+# same files that branch deploy served (.nojekyll keeps them raw).
+#
+# Until the repo's Settings → Pages → Source is "GitHub Actions", Pages is
+# still deploying from the branch on its own, so this says so and stops
+# rather than failing.
+name: Web app
+
+on:
+  push:
+    branches: [main]
+    # Markdown included: the app shows CHANGELOG.md in Settings → About.
+    paths-ignore: ["test/**", ".claude/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/tests.yml
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Check Pages deploys from Actions
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          kind=$(gh api "repos/$GITHUB_REPOSITORY/pages" --jq .build_type 2>/dev/null || echo unknown)
+          echo "kind=$kind" >> "$GITHUB_OUTPUT"
+          if [ "$kind" != "workflow" ]; then
+            echo "::notice::Pages deploys from '$kind', not from this workflow. Set Settings → Pages → Source to GitHub Actions to gate it on the tests."
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.source.outputs.kind == 'workflow'
+
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.source.outputs.kind == 'workflow'
+        with:
+          path: .
+
+      - uses: actions/deploy-pages@v4
+        if: steps.source.outputs.kind == 'workflow'
+        id: deploy

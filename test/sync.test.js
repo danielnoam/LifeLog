@@ -259,4 +259,39 @@ test("applyItemRelease moves the counts along and finishes a show", () => {
   });
 }
 
+// ---------- a date arriving (0.271.0) ----------
+{
+  const { releaseDue } = global.window.LifeLogSync;
+  const H = 60 * 60 * 1000;
+  const now = Date.now();
+  const show = (extra) => ({ id: "s1", title: "A Show", mediaSource: "tmdb-tv", mediaId: "1", airing: "airing", ...extra });
+  const ago = (ms) => new Date(now - ms).toISOString();
+  test("an episode date that has arrived is due, one still ahead isn't", () => {
+    assert.strictEqual(releaseDue(show({ nextAt: shift(0) }), {}, now), true);
+    assert.strictEqual(releaseDue(show({ nextAt: shift(-3) }), {}, now), true);
+    assert.strictEqual(releaseDue(show({ nextAt: shift(2) }), {}, now), false);
+  });
+  test("a release day that has passed is due even though the item now reads as released", () => {
+    const game = linked({ releaseDate: shift(-1), releasePrecision: "day" });
+    assert.strictEqual(needsReleaseRecheck(game), false);
+    assert.strictEqual(releaseDue(game, {}, now), true);
+    assert.strictEqual(releaseDue(linked({ releaseDate: shift(-1).slice(0, 7), releasePrecision: "month" }), {}, now), false, "a month has no day");
+    assert.strictEqual(releaseDue(linked({ releaseDate: shift(-1).slice(0, 4), releasePrecision: "year" }), {}, now), false, "nor a year");
+  });
+  test("asked on the day it stays due for the day after; asked after the day it's settled", () => {
+    const b = show({ nextAt: shift(-1) });
+    const twoDaysAgo = new Date(now - 48 * H).toISOString();
+    assert.strictEqual(releaseDue(b, { s1: twoDaysAgo }, now), true, "asked before the date");
+    assert.strictEqual(releaseDue(b, { s1: ago(7 * H) }, now), new Date(now - 7 * H).getDate() !== new Date(now).getDate());
+    assert.strictEqual(releaseDue(b, { s1: ago(1 * H) }, now), false, "within 6 hours");
+    assert.strictEqual(releaseDue(b, { s1: ago(1 * H) }, now, true), new Date(now - H).getDate() !== new Date(now).getDate(), "a press ignores the gap");
+  });
+  test("not past two weeks, not dropped, pinned or unlinked", () => {
+    assert.strictEqual(releaseDue(show({ nextAt: shift(-15) }), {}, now), false);
+    assert.strictEqual(releaseDue(show({ nextAt: shift(0), dropped: true }), {}, now), false);
+    assert.strictEqual(releaseDue(show({ nextAt: shift(0), overrides: { release: true } }), {}, now), false);
+    assert.strictEqual(releaseDue(show({ nextAt: shift(0), mediaId: "" }), {}, now), false);
+  });
+}
+
 console.log(`\n${passed} test(s) passed.`);
