@@ -199,8 +199,9 @@ in; this is the tour.
   deleted.
 - **App lock** – a PIN, with fingerprint or face where the device has it.
 - **Settings** – pages with search, four themes (Default, Light, Nord,
-  Dracula), fonts and layout per device, and About with what's new, the
-  credits and the errors on this device.
+  Dracula), fonts and layout per device, a Notifications page on the
+  phones, and About with what's new, the credits and the errors on this
+  device.
 - **Widgets** – checklist, habits, quick add, spending, note, random
   note, upcoming releases and in progress on Android; habits, checklist,
   quick add, this month and a note on iPhone.

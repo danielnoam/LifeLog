@@ -188,6 +188,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Cover art size per view (0.45.0)
 - Currency (0.22.0)
 - About: what's new, repo links, credits, and errors on this device (0.232.0, 0.246.0, 0.264.0)
+- Notifications: a switch per kind on the phones (habits, charges, release days, price drops) (0.278.0)
 
 ## Android app
 

@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.278.0] - 2026-10-21
+
+### Added
+- **Settings → Notifications.** On the phones, one page with a switch per
+  kind: habit reminders, recurring charges, release days (off, starred or
+  everything, moved here from Release dates) and price drops, plus a way
+  into Android's own notification settings for LifeLog. Switching a kind
+  off keeps its choices for when it comes back.
+
 ## [0.277.0] - 2026-10-21
 
 ### Added

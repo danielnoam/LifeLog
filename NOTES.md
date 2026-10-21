@@ -16,6 +16,18 @@ what was decided against and why.
 
 ---
 
+- **Settings → Notifications (0.278.0).** Daniel asked for one place to
+  turn off what he doesn't want. The switches are the existing stores:
+  habits are reminders.js's `on`, release days the mode that was on the
+  Release dates page (moved, same id, so the native suite and the
+  snapshot are unchanged), and charges and price drops a new `off` map
+  in lifelog-alerts-v1 read by `current()` — the per-plan days and the
+  recorded price hits stay, so a kind switched back on rings the same
+  things. The page only exists where something can ring
+  (`LifeLogAlerts.available()`), like the rows it gathered. A kind's
+  sound and importance are Android's channel settings, reached from the
+  page's last row; not duplicated in the app.
+
 - **Upcoming and In progress widgets (0.277.0).** The rows are worked
   out in widgets.js (backlogRows) with backlog.js's own upcomingAt and
   releaseLabel handed in, like remindAt is, so the widget and the

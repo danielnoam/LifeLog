@@ -1423,9 +1423,18 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     check("and the sheet shows it next time", await page.evaluate(() => document.querySelector("#recRemind").value) === "3");
     await page.click("#cancelRecurringBtn");
 
-    await page.evaluate(() => window.LifeLogSettings.openSettings("releases"));
+    await page.evaluate(() => window.LifeLogSettings.openSettings("notifications"));
     await page.waitForTimeout(300);
-    check("Release dates offers a release-day notification in the app", await page.evaluate(() => !document.querySelector("#releaseAlertsRow").hidden && document.querySelector("#releaseAlerts").value === "off"));
+    check("Settings → Notifications (0.278.0) offers a release-day notification in the app", await page.evaluate(() => !document.querySelector("#releaseAlertsRow").hidden && document.querySelector("#releaseAlerts").value === "off"));
+    check("and every kind on, with the index row saying so", await page.evaluate(() => document.querySelector("#notifyHabits").checked && document.querySelector("#notifyCharges").checked && document.querySelector("#notifyPrices").checked
+      && !document.querySelector("#notificationsRow").hidden && /charges/.test(document.querySelector('[data-status="notifications"]').textContent)));
+    await page.click("#notifyCharges");
+    await page.waitForTimeout(700);
+    check("charges switched off leave the snapshot, the choice kept", ((await lastSnap(page)).alerts || []).every((a) => a.kind !== "charge")
+      && await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-alerts-v1")).charges.r1 === "3" && !/charges/.test(document.querySelector('[data-status="notifications"]').textContent)));
+    await page.click("#notifyCharges");
+    await page.waitForTimeout(700);
+    check("and come back when switched on", ((await lastSnap(page)).alerts || []).some((a) => a.kind === "charge"));
     await page.selectOption("#releaseAlerts", "starred");
     await page.waitForTimeout(700);
     let rel = ((await lastSnap(page)).alerts || []).filter((a) => a.kind === "release");
@@ -1442,7 +1451,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await web.page.waitForTimeout(200);
     check("a browser offers neither", await web.page.evaluate(() => {
       window.LifeLogSettings.openSettings("releases");
-      return document.querySelector("#recRemindLabel").hidden && document.querySelector("#releaseAlertsRow").hidden;
+      return document.querySelector("#recRemindLabel").hidden && document.querySelector("#releaseAlertsRow").hidden && document.querySelector("#notificationsRow").hidden;
     }));
     errs.push(...web.errs);
     await web.ctx.close();

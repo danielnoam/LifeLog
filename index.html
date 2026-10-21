@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.277.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.278.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -1210,6 +1210,7 @@
             <div class="sgroup-label">This device</div>
             <div class="sgroup-card">
               <button type="button" class="srow" data-page="lock"><span class="srow-ic"><span data-ico="lock"></span></span><span class="srow-text"><span class="srow-title">App lock</span><span class="srow-status" data-status="lock"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="notifications" id="notificationsRow" hidden><span class="srow-ic"><span data-ico="bell"></span></span><span class="srow-text"><span class="srow-title">Notifications</span><span class="srow-status" data-status="notifications"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
               <button type="button" class="srow" data-page="appearance"><span class="srow-ic"><span data-ico="palette"></span></span><span class="srow-text"><span class="srow-title">Appearance</span><span class="srow-status" data-status="appearance"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
               <button type="button" class="srow" data-page="tabs"><span class="srow-ic"><span data-ico="layout-grid"></span></span><span class="srow-text"><span class="srow-title">Tabs</span><span class="srow-status" data-status="tabs"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
             </div>
@@ -1839,6 +1840,32 @@
       </section>
       </div>
 
+      <div class="settings-page" hidden data-page="notifications" data-title="Notifications" data-keywords="notifications notify alerts reminders habits charges recurring release day price drop steam sale phone buzz channel">
+      <h2 class="settings-page-title">Notifications</h2>
+      <p class="hint page-lede">What this phone may ring. Each kind is also its own channel in Android's notification settings, where its sound and importance are set.</p>
+      <section class="sgroup">
+        <div class="sgroup-card">
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">Habit reminders</span><span class="sitem-sub">At the time set on each habit, when it isn't kept yet</span></span>
+            <input type="checkbox" class="switch" id="notifyHabits" />
+          </label>
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">Recurring charges</span><span class="sitem-sub">The heads-ups set on your recurring expenses, at 9:00</span></span>
+            <input type="checkbox" class="switch" id="notifyCharges" />
+          </label>
+          <label class="sitem" id="releaseAlertsRow" hidden>
+            <span class="sitem-text"><span class="sitem-title">Release days</span><span class="sitem-sub">What in your Backlog is out today, at 9:00</span></span>
+            <select id="releaseAlerts"></select>
+          </label>
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">Price drops</span><span class="sitem-sub">A Steam game at or under the price you set on it</span></span>
+            <input type="checkbox" class="switch" id="notifyPrices" />
+          </label>
+          <button id="openNotifSettingsBtn" type="button" class="sitem sitem-go"><span data-ico="bell"></span> Android's notification settings for LifeLog</button>
+        </div>
+      </section>
+      </div>
+
       <div class="settings-page" hidden data-page="releases" data-title="Release dates" data-keywords="upcoming release dates tba airing episodes season shows">
       <h2 class="settings-page-title">Release dates</h2>
       <p class="hint page-lede">Asks the source again about each backlog item that's still to come, and each show that hasn't finished airing: its date, its next episode and how many episodes are out. Changes nothing else. Steam, RAWG, TMDB and AniList items only.</p>
@@ -1860,10 +1887,6 @@
               <option value="show">Show</option>
               <option value="hide">Don't show</option>
             </select>
-          </label>
-          <label class="sitem" id="releaseAlertsRow" hidden>
-            <span class="sitem-text"><span class="sitem-title">Notify me on release day</span><span class="sitem-sub">At 9:00, on this phone</span></span>
-            <select id="releaseAlerts"></select>
           </label>
           <button id="refreshReleasesBtn" type="button" class="sitem sitem-go"><span data-ico="telescope"></span> Re-check release dates</button>
         </div>
@@ -2202,37 +2225,37 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.277.0"></script>
-  <script defer src="src/platform.js?v=0.277.0"></script>
-  <script defer src="src/icons.js?v=0.277.0"></script>
-  <script defer src="src/jobs.js?v=0.277.0"></script>
-  <script defer src="src/reconcile.js?v=0.277.0"></script>
-  <script defer src="src/qr.js?v=0.277.0"></script>
-  <script defer src="src/media.js?v=0.277.0"></script>
-  <script defer src="src/merge.js?v=0.277.0"></script>
-  <script defer src="src/storage.js?v=0.277.0"></script>
-  <script defer src="src/finance.js?v=0.277.0"></script>
-  <script defer src="src/settings.js?v=0.277.0"></script>
-  <script defer src="src/wheel.js?v=0.277.0"></script>
-  <script defer src="src/backlog.js?v=0.277.0"></script>
-  <script defer src="src/journal.js?v=0.277.0"></script>
-  <script defer src="src/markdown.js?v=0.277.0"></script>
-  <script defer src="src/notes.js?v=0.277.0"></script>
-  <script defer src="src/docimport.js?v=0.277.0"></script>
-  <script defer src="src/io.js?v=0.277.0"></script>
-  <script defer src="src/sync.js?v=0.277.0"></script>
-  <script defer src="src/habits.js?v=0.277.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.277.0"></script>
-  <script defer src="src/boards.js?v=0.277.0"></script>
-  <script defer src="src/travel.js?v=0.277.0"></script>
-  <script defer src="src/recap.js?v=0.277.0"></script>
-  <script defer src="src/reminders.js?v=0.277.0"></script>
-  <script defer src="src/alerts.js?v=0.277.0"></script>
-  <script defer src="src/widgets.js?v=0.277.0"></script>
-  <script defer src="src/share.js?v=0.277.0"></script>
-  <script defer src="src/search.js?v=0.277.0"></script>
-  <script defer src="src/letterboxd.js?v=0.277.0"></script>
-  <script defer src="src/payments.js?v=0.277.0"></script>
-  <script defer src="src/app.js?v=0.277.0"></script>
+  <script defer src="src/errlog.js?v=0.278.0"></script>
+  <script defer src="src/platform.js?v=0.278.0"></script>
+  <script defer src="src/icons.js?v=0.278.0"></script>
+  <script defer src="src/jobs.js?v=0.278.0"></script>
+  <script defer src="src/reconcile.js?v=0.278.0"></script>
+  <script defer src="src/qr.js?v=0.278.0"></script>
+  <script defer src="src/media.js?v=0.278.0"></script>
+  <script defer src="src/merge.js?v=0.278.0"></script>
+  <script defer src="src/storage.js?v=0.278.0"></script>
+  <script defer src="src/finance.js?v=0.278.0"></script>
+  <script defer src="src/settings.js?v=0.278.0"></script>
+  <script defer src="src/wheel.js?v=0.278.0"></script>
+  <script defer src="src/backlog.js?v=0.278.0"></script>
+  <script defer src="src/journal.js?v=0.278.0"></script>
+  <script defer src="src/markdown.js?v=0.278.0"></script>
+  <script defer src="src/notes.js?v=0.278.0"></script>
+  <script defer src="src/docimport.js?v=0.278.0"></script>
+  <script defer src="src/io.js?v=0.278.0"></script>
+  <script defer src="src/sync.js?v=0.278.0"></script>
+  <script defer src="src/habits.js?v=0.278.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.278.0"></script>
+  <script defer src="src/boards.js?v=0.278.0"></script>
+  <script defer src="src/travel.js?v=0.278.0"></script>
+  <script defer src="src/recap.js?v=0.278.0"></script>
+  <script defer src="src/reminders.js?v=0.278.0"></script>
+  <script defer src="src/alerts.js?v=0.278.0"></script>
+  <script defer src="src/widgets.js?v=0.278.0"></script>
+  <script defer src="src/share.js?v=0.278.0"></script>
+  <script defer src="src/search.js?v=0.278.0"></script>
+  <script defer src="src/letterboxd.js?v=0.278.0"></script>
+  <script defer src="src/payments.js?v=0.278.0"></script>
+  <script defer src="src/app.js?v=0.278.0"></script>
 </body>
 </html>

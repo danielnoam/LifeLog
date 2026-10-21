@@ -680,6 +680,17 @@
         if (wallet) parts.push(wallet);
         return { text: parts.length ? parts.join(" · ") : "Steam wishlist, AniList" };
       }
+      case "notifications": {
+        const A = window.LifeLogAlerts, R = window.LifeLogReminders;
+        if (!A) return null;
+        const on = [];
+        if (R && R.isOn()) on.push("habits");
+        if (A.kindOn("charges")) on.push("charges");
+        const rel = A.releaseMode();
+        if (rel !== "off") on.push(rel === "all" ? "release days" : "starred release days");
+        if (A.kindOn("prices")) on.push("price drops");
+        return on.length ? { text: on.join(", ").replace(/^./, (c) => c.toUpperCase()) } : { text: "All off" };
+      }
       case "releases": {
         const d = String((set.releases && set.releases.autoRefreshDays) || "0");
         return { text: EVERY[d] ? "Checked " + EVERY[d] : "Checked when you ask" };
@@ -835,10 +846,15 @@
     const A = window.LifeLogAlerts;
     const alertsHere = !!(A && A.available());
     $("#releaseAlertsRow").hidden = !alertsHere;
+    // The Notifications page (0.278.0) only exists where something can ring.
+    $("#notificationsRow").hidden = !alertsHere;
     if (alertsHere) {
       const sel = $("#releaseAlerts");
       if (!sel.options.length) for (const [v, label] of A.RELEASE_MODES) sel.appendChild(el("option", null, label)).value = v;
       sel.value = A.releaseMode();
+      $("#notifyHabits").checked = !!(window.LifeLogReminders && window.LifeLogReminders.isOn());
+      $("#notifyCharges").checked = A.kindOn("charges");
+      $("#notifyPrices").checked = A.kindOn("prices");
     }
     $("#backlogFoldEa").value = state.visual.backlogFoldEa;
     $("#backlogFoldUnreleased").value = state.visual.backlogFoldUnreleased;
@@ -1608,7 +1624,14 @@
       state.visual.outTodaySheet = $("#outTodaySheet").value;
       saveVisualSettings(state.visual);
     };
-    $("#releaseAlerts").onchange = () => window.LifeLogAlerts && window.LifeLogAlerts.setReleaseMode($("#releaseAlerts").value);
+    $("#releaseAlerts").onchange = () => { window.LifeLogAlerts && window.LifeLogAlerts.setReleaseMode($("#releaseAlerts").value); updateStatuses(); };
+    $("#notifyHabits").onchange = () => { window.LifeLogReminders && window.LifeLogReminders.setOn($("#notifyHabits").checked); updateStatuses(); };
+    $("#notifyCharges").onchange = () => { window.LifeLogAlerts && window.LifeLogAlerts.setKindOn("charges", $("#notifyCharges").checked); updateStatuses(); };
+    $("#notifyPrices").onchange = () => { window.LifeLogAlerts && window.LifeLogAlerts.setKindOn("prices", $("#notifyPrices").checked); updateStatuses(); };
+    $("#openNotifSettingsBtn").onclick = () => {
+      const W = window.LifeLogPlatform && window.LifeLogPlatform.plugin("Widgets");
+      if (W && W.openNotificationSettings) W.openNotificationSettings();
+    };
     $("#refreshReleasesBtn").onclick = refreshUpcomingReleases;
 
     $("#privacyEnabled").onchange = () => {

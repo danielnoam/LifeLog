@@ -164,6 +164,20 @@
     if (ctx) ctx.changed();
     if (days !== "" && days != null && !had && window.LifeLogReminders) window.LifeLogReminders.ensureAllowed();
   }
+  // Settings → Notifications (0.278.0): a kind switched off there is left
+  // out of the snapshot, choices kept, so switching back on brings the
+  // same heads-ups back. Habit reminders have their own switch
+  // (reminders.js), release days their mode above.
+  function kindOn(kind) { return !(read().off || {})[kind]; }
+  function setKindOn(kind, on) {
+    const s = read();
+    s.off = s.off || {};
+    if (on) delete s.off[kind]; else s.off[kind] = true;
+    write(s);
+    if (ctx) ctx.changed();
+    if (on && window.LifeLogReminders) window.LifeLogReminders.ensureAllowed();
+  }
+
   function releaseMode() {
     const m = read().releases;
     return m === "starred" || m === "all" ? m : "off";
@@ -207,9 +221,9 @@
     const s = read();
     return alertsOf(data, {
       today,
-      charges: s.charges || {},
+      charges: kindOn("charges") ? s.charges || {} : {},
       releases: releaseMode(),
-      prices: s.prices || {},
+      prices: kindOn("prices") ? s.prices || {} : {},
       finance: F,
       fmt: ctx ? ctx.fmt : { money: String, day: String },
       hidden,
@@ -223,6 +237,7 @@
     start, available, current, alertsOf, outDay,
     chargeDays, setChargeDays, releaseMode, setReleaseMode,
     priceHit, priceClear, priceHitOf,
+    kindOn, setKindOn,
     CHARGE_DAYS, RELEASE_MODES, KEY, AT,
   };
 })();
