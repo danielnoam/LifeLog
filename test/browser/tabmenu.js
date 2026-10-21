@@ -18,7 +18,9 @@ const { check, done } = tally();
   await page.evaluate(() => {
     window.__opened = [];
     new MutationObserver((ms) => {
-      for (const m of ms) for (const n of m.addedNodes) if (n.classList && n.classList.contains("tab-menu")) window.__opened.push(n.dataset.view);
+      // A menu moved along the bar (0.273.0) is an added node too; only a
+      // menu built from scratch counts.
+      for (const m of ms) for (const n of m.addedNodes) if (n.classList && n.classList.contains("tab-menu") && !n.__seen) { n.__seen = true; window.__opened.push(n.dataset.view); }
     }).observe(document.body, { subtree: true, childList: true });
   });
   const menuOpen = () => page.evaluate(() => !!document.querySelector(".tab-menu"));
@@ -50,6 +52,27 @@ const { check, done } = tally();
   await page.waitForTimeout(60);
   check("moving along the bar swaps the menu at once",
     await page.evaluate(() => (document.querySelector(".tab-menu") || {}).dataset?.view === "backlog"));
+
+  // Along the bar with one open is one menu moved, not a blink per tab
+  // (0.273.0): the count of menus added since the first open stays at one.
+  await page.evaluate(() => { window.__opened = []; });
+  const nt = await box("notes");
+  await page.mouse.move(nt.x + 20, nt.y + nt.height / 2, { steps: 12 });
+  await page.waitForTimeout(60);
+  await page.mouse.move(bl.x + 20, bl.y + bl.height / 2, { steps: 12 });
+  await page.waitForTimeout(60);
+  check("crossing the bar with a menu open never builds another",
+    (await page.evaluate(() => window.__opened.length)) === 0 && (await menuOpen()), await page.evaluate(() => window.__opened));
+
+  // The 4px gap between two tabs isn't leaving the bar (0.273.0).
+  const gapX = bl.x + bl.width + 2;
+  let stayed = true;
+  for (let i = 0; i < 12; i++) {
+    await page.mouse.move(gapX, bl.y + bl.height / 2);
+    await page.waitForTimeout(60);
+    if (!(await menuOpen())) stayed = false;
+  }
+  check("resting in the gap between tabs keeps the menu open", stayed);
 
   await page.mouse.move(640, 600);
   await page.waitForTimeout(400);

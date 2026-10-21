@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.272.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.273.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -695,7 +695,7 @@
         </label>
         <div class="field-row">
           <label>Amount
-            <input id="finAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 12.50 or 50-25" required />
+            <input id="finAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="12.50 or 50-25" required />
           </label>
           <label class="field-narrow">Currency
             <select id="finCurrency"></select>
@@ -735,7 +735,7 @@
       <form id="recurringForm">
         <input type="hidden" id="recId" />
         <p class="hint" id="recConvertHint" hidden>Converting an existing entry — it's replaced by this expense's first occurrence once you save.</p>
-        <div class="row">
+        <div class="row row-dates">
           <label>Start date
             <input id="recStart" type="date" required />
           </label>
@@ -757,7 +757,7 @@
         </div>
         <div class="field-row">
           <label>Amount
-            <input id="recAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 12.50 or 50-25" required />
+            <input id="recAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="12.50 or 50-25" required />
           </label>
           <label class="field-narrow">Currency
             <select id="recCurrency"></select>
@@ -844,7 +844,7 @@
             </select>
           </label>
           <label>Amount
-            <input id="planAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 12.50 or 50-25" required />
+            <input id="planAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="12.50 or 50-25" required />
           </label>
         </div>
         <label>Category
@@ -873,7 +873,7 @@
       <form id="pauseForm">
         <input type="hidden" id="pauseRecId" />
         <input type="hidden" id="pauseIndex" />
-        <div class="row">
+        <div class="row row-dates">
           <label>Paused from
             <input id="pauseFrom" type="date" required />
           </label>
@@ -910,7 +910,7 @@
         </label>
         <p class="hint" id="recOccPausedHint" hidden>This date falls inside a pause, so it's already excluded. Edit the pause on the template to change that.</p>
         <label><span id="recOccAmountLabel">Amount</span>
-          <input id="recOccAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 12.50 or 50-25" required />
+          <input id="recOccAmount" type="text" inputmode="decimal" autocomplete="off" placeholder="12.50 or 50-25" required />
         </label>
         <label id="recOccRateLabel" hidden>Rate on this date
           <span class="rate-row">
@@ -966,7 +966,7 @@
         <label>Name
           <input id="tripName" type="text" required autocomplete="off" placeholder="e.g. Rome in spring" />
         </label>
-        <div class="field-row">
+        <div class="field-row row-dates">
           <label>Starts
             <input id="tripStart" type="date" />
           </label>
@@ -2196,37 +2196,37 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.272.0"></script>
-  <script defer src="src/platform.js?v=0.272.0"></script>
-  <script defer src="src/icons.js?v=0.272.0"></script>
-  <script defer src="src/jobs.js?v=0.272.0"></script>
-  <script defer src="src/reconcile.js?v=0.272.0"></script>
-  <script defer src="src/qr.js?v=0.272.0"></script>
-  <script defer src="src/media.js?v=0.272.0"></script>
-  <script defer src="src/merge.js?v=0.272.0"></script>
-  <script defer src="src/storage.js?v=0.272.0"></script>
-  <script defer src="src/finance.js?v=0.272.0"></script>
-  <script defer src="src/settings.js?v=0.272.0"></script>
-  <script defer src="src/wheel.js?v=0.272.0"></script>
-  <script defer src="src/backlog.js?v=0.272.0"></script>
-  <script defer src="src/journal.js?v=0.272.0"></script>
-  <script defer src="src/markdown.js?v=0.272.0"></script>
-  <script defer src="src/notes.js?v=0.272.0"></script>
-  <script defer src="src/docimport.js?v=0.272.0"></script>
-  <script defer src="src/io.js?v=0.272.0"></script>
-  <script defer src="src/sync.js?v=0.272.0"></script>
-  <script defer src="src/habits.js?v=0.272.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.272.0"></script>
-  <script defer src="src/boards.js?v=0.272.0"></script>
-  <script defer src="src/travel.js?v=0.272.0"></script>
-  <script defer src="src/recap.js?v=0.272.0"></script>
-  <script defer src="src/reminders.js?v=0.272.0"></script>
-  <script defer src="src/alerts.js?v=0.272.0"></script>
-  <script defer src="src/widgets.js?v=0.272.0"></script>
-  <script defer src="src/share.js?v=0.272.0"></script>
-  <script defer src="src/search.js?v=0.272.0"></script>
-  <script defer src="src/letterboxd.js?v=0.272.0"></script>
-  <script defer src="src/payments.js?v=0.272.0"></script>
-  <script defer src="src/app.js?v=0.272.0"></script>
+  <script defer src="src/errlog.js?v=0.273.0"></script>
+  <script defer src="src/platform.js?v=0.273.0"></script>
+  <script defer src="src/icons.js?v=0.273.0"></script>
+  <script defer src="src/jobs.js?v=0.273.0"></script>
+  <script defer src="src/reconcile.js?v=0.273.0"></script>
+  <script defer src="src/qr.js?v=0.273.0"></script>
+  <script defer src="src/media.js?v=0.273.0"></script>
+  <script defer src="src/merge.js?v=0.273.0"></script>
+  <script defer src="src/storage.js?v=0.273.0"></script>
+  <script defer src="src/finance.js?v=0.273.0"></script>
+  <script defer src="src/settings.js?v=0.273.0"></script>
+  <script defer src="src/wheel.js?v=0.273.0"></script>
+  <script defer src="src/backlog.js?v=0.273.0"></script>
+  <script defer src="src/journal.js?v=0.273.0"></script>
+  <script defer src="src/markdown.js?v=0.273.0"></script>
+  <script defer src="src/notes.js?v=0.273.0"></script>
+  <script defer src="src/docimport.js?v=0.273.0"></script>
+  <script defer src="src/io.js?v=0.273.0"></script>
+  <script defer src="src/sync.js?v=0.273.0"></script>
+  <script defer src="src/habits.js?v=0.273.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.273.0"></script>
+  <script defer src="src/boards.js?v=0.273.0"></script>
+  <script defer src="src/travel.js?v=0.273.0"></script>
+  <script defer src="src/recap.js?v=0.273.0"></script>
+  <script defer src="src/reminders.js?v=0.273.0"></script>
+  <script defer src="src/alerts.js?v=0.273.0"></script>
+  <script defer src="src/widgets.js?v=0.273.0"></script>
+  <script defer src="src/share.js?v=0.273.0"></script>
+  <script defer src="src/search.js?v=0.273.0"></script>
+  <script defer src="src/letterboxd.js?v=0.273.0"></script>
+  <script defer src="src/payments.js?v=0.273.0"></script>
+  <script defer src="src/app.js?v=0.273.0"></script>
 </body>
 </html>

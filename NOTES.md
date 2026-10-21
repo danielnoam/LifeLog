@@ -271,6 +271,63 @@ what was decided against and why.
     written from AniList's and TMDB's schemas and tested against faked
     responses (test/browser/anilist.js); the first real sync is the check.
 
+- **The 2026-10-21 sweep (0.273.0).** Every tab and mode, the sheets and
+  every Settings page, at 375px and 1280px in all four themes (198
+  Playwright screenshots over seeded data), plus contrast.js, lint-css.js,
+  tap-targets.js and the unit tests. Nothing failed outright: no console
+  errors, nothing wider than the viewport, contrast and drift at zero, tap
+  targets only the DESIGN.md §9 exceptions. What it found was layout and
+  copy, all fixed here:
+  - *The tab menu is one element, moved along the bar.* The 0.264.2 fix
+    held for a pointer crossing the bar top to bottom; sideways still
+    blinked, for two reasons reproduced with a script. A swap called
+    `closeTabMenu()` and built a new menu from `opacity: 0`, so every tab
+    crossed faded a menu in from nothing; and the tabs sit 4px apart
+    (`.views { gap: 4px }`), so a pointer in the gap, or clipping a tab's
+    bottom edge on the way down into the menu, fired the tab's
+    `pointerleave`, armed the 160ms close, and the next tab reopened only
+    after `TAB_MENU_DELAY` — on, off, on. Now `openTabMenu` refills and
+    re-parents the one menu (the fade only on the first open), and hover
+    is read on `#viewTabs` (`pointerover` → `closest(".tab")`), closing
+    only when the pointer leaves the bar; the menu is inside a tab, so
+    hovering it is still being on the bar. test/browser/tabmenu.js pins
+    both: crossing three tabs builds no second menu, and resting in the
+    gap keeps it open. Not checked here: Daniel's own pointer and display
+    scaling; if it still blinks, Windows' pointer events on a 125%
+    display firing on a subpixel edge is the next suspect.
+  - *The mode dots show on a computer too.* `.tab-modes` was phone-only
+    (the hover menu being the desktop's answer), but the dots say where a
+    tab is parked without hovering, which the menu can't. They sit inside
+    the pill (`.tab` padding 8px 14px 12px, dots at `bottom: 4px`; the
+    phone layout keeps its 6px under the taller tab), so the top bar is
+    4px taller and `--topbar-h` is re-measured as before. `currentColor`
+    makes them `--text-on-accent` on the active pill.
+  - *Four buttons in a sheet.* The ≤480px rule that tightened the
+    recurring sheet's `.modal-actions` (gap 6px, 10px button padding) now
+    covers every sheet: the entry and backlog sheets have the same Delete ·
+    More… · Cancel · Save row and ran 31px past the modal at 375px. Still
+    tighter rather than wrapping, for the reason the old comment gave.
+  - *A pair of date fields stacks on a phone* (`.row-dates`, on the
+    recurring, pause and trip sheets): two 137px date inputs cut their own
+    text ("01/01/202"). Other pairs (Repeats/Charged on, Amount/Currency)
+    stay side by side; they fit.
+  - *The currency list lost its "(yours)" suffix.* A 119px select showed
+    "ILS · ₪ (yo" at every width. Home currency first and preselected was
+    already the case, and says the same thing.
+  - *Note cards draw Markdown* through `LifeLogMarkdown.render`, the same
+    sanitizer the reader uses, with every `<a>` replaced by its text: the
+    card is one button that opens the note, and a link inside it would be
+    a second thing to tap by accident. `.note-md` sits after `.md` in
+    styles.css so the card's smaller type wins. A collection's cards keep
+    `plainPreview` (they clamp to four lines, where drawn blocks would be
+    cut mid-list).
+  - *Smaller:* a backlog length's space is non-breaking (`30 h` broke at
+    the end of the meta line); the phone's search placeholder is "Search…"
+    (117px of room on tabs with a View button); an avoided habit's button
+    says "0/1 Kept" (the mark and the label both carried the count); a
+    nameless list is "Untitled list" in search results as on its card
+    (`untitled` on the search item).
+
 - **The tab menu waits, and is the tab's child for a reason (0.264.2).**
   Daniel saw the desktop menus "appear and disappear" over the top bar.
   Two causes, both reproduced in test/browser/tabmenu.js. The menu had its

@@ -409,7 +409,7 @@
       else listPanel(card, n);
     } else {
       if (n.title) card.appendChild(el("h4", "note-title", n.title));
-      if (n.text) card.appendChild(el("p", "note-text", n.text));
+      if (n.text) card.appendChild(noteBody(n.text));
     }
     card.tabIndex = 0;
     card.setAttribute("role", "button");
@@ -1043,6 +1043,18 @@
     const first = lines.findIndex((l) => l.trim());
     if (first < 0) return { title: "Untitled", body: "" };
     return { title: lines[first].replace(/^#+\s*/, "").trim(), body: lines.slice(first + 1).join("\n").trim() };
+  }
+  // A card's text, drawn the way the reader draws it rather than as the
+  // Markdown source it showed until 0.273.0 ("# Heading", "**bold**"). Links
+  // become plain words: the card is one button that opens the note, and a
+  // link inside it would be a second thing to tap by accident.
+  function noteBody(text) {
+    const md = window.LifeLogMarkdown;
+    const body = el("div", "note-text md note-md");
+    if (!md) { body.textContent = text; return body; }
+    body.appendChild(md.render(text));
+    for (const a of body.querySelectorAll("a")) a.replaceWith(document.createTextNode(a.textContent));
+    return body;
   }
   // A card's few lines of preview, without the Markdown's punctuation.
   const plainPreview = (text) => String(text || "")

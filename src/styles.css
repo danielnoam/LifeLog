@@ -413,7 +413,9 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
 .tab {
   position: relative;
   background: transparent; border: none; color: var(--text-dim);
-  padding: 8px 14px; border-radius: var(--r-md); cursor: pointer; font-size: var(--fs-md);
+  /* The extra at the bottom is the mode dots' row (.tab-modes), inside the
+     pill; every tab gets it so the row stays one height. */
+  padding: 8px 14px 12px; border-radius: var(--r-md); cursor: pointer; font-size: var(--fs-md);
   font-weight: 550; transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
 }
 /* Search-match count on a tab other than the one you're looking at — lets
@@ -481,12 +483,13 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
    tab's flex column and absolutely positioned, because the tabs stretch to
    a shared height and centre their own contents: an extra row in flow on
    two tabs out of five would lift their icon and label out of line with the
-   rest of the bar. Hidden by default and switched on only by the phone
-   layout below — a desktop has the switch above the content, so these would
-   answer a question already on screen. */
+   rest of the bar. On a computer the row sits inside the pill (0.273.0; it
+   was phone-only, the hover menu being the desktop's answer, but the dots
+   say where you are without hovering); the phone layout below moves it up
+   under its taller tab. */
 .tab-modes {
-  display: none;
-  position: absolute; left: 0; right: 0; bottom: 6px;
+  display: flex;
+  position: absolute; left: 0; right: 0; bottom: 4px;
   justify-content: center; align-items: center; gap: 4px;
   pointer-events: none;
 }
@@ -2038,6 +2041,12 @@ body.modal-open { overflow: hidden; }
    reports a wide one. Two of them side by side (start/stop, pause from/until)
    would otherwise overflow the modal on a narrow phone. */
 .modal .row label { flex: 1; min-width: 0; }
+/* Two date fields in a 285px-wide sheet are 137px each, and Chrome's date
+   field cuts its own text at that ("01/01/202"), so a pair of dates goes
+   one per row on a phone (0.273.0). */
+@media (max-width: 480px) {
+  .modal .row-dates { flex-direction: column; align-items: stretch; }
+}
 
 kbd {
   display: inline-block; min-width: 20px; padding: 2px 6px; text-align: center;
@@ -2091,12 +2100,13 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 .share-preview { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-dim); font-size: var(--fs-sm); margin: 0 0 12px; max-height: 7.5em; overflow: hidden; }
 .share-choices { display: flex; gap: 10px; }
 .share-choices .btn { flex: 1 1 0; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; }
-/* The recurring sheet carries four buttons, and on a 360px phone Save ran
-   off the side. Tighter here rather than wrapping, which left Save alone on
-   a line of its own. */
+/* A sheet with Delete and More… carries four buttons, and on a phone Save
+   ran off the side (the recurring sheet first, at 360px; the entry and
+   backlog sheets at 375px, 0.273.0). Tighter here rather than wrapping,
+   which left Save alone on a line of its own. */
 @media (max-width: 480px) {
-  #recurringForm .modal-actions { gap: 6px; }
-  #recurringForm .modal-actions .btn { padding-left: 10px; padding-right: 10px; }
+  .modal-actions { gap: 6px; }
+  .modal-actions .btn { padding-left: 10px; padding-right: 10px; }
 }
 .modal-actions .spacer { flex: 1; }
 .modal-actions .link-btn {
@@ -2652,7 +2662,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
      which measures the active tab's actual rendered box; being absolutely
      positioned takes it out of the flex layout entirely, so it can't
      affect the tabs' own spacing. */
-  html:not(.force-pc) .tab-modes { display: flex; }
+  html:not(.force-pc) .tab-modes { bottom: 6px; }
   html:not(.force-pc) .tab-underline {
     position: absolute; bottom: 0; height: 2px; border-radius: 2px 2px 0 0;
     background: var(--accent); pointer-events: none;
@@ -2789,7 +2799,7 @@ html.force-mobile .tab[hidden] { display: none; }
 html.force-mobile .tab-ico { display: block; }
 html.force-mobile .tab.active { color: var(--accent); background: none; }
 html.force-mobile .views { position: relative; }
-html.force-mobile .tab-modes { display: flex; }
+html.force-mobile .tab-modes { bottom: 6px; }
 html.force-mobile .tab-underline {
   position: absolute; bottom: 0; height: 2px; border-radius: 2px 2px 0 0;
   background: var(--accent); pointer-events: none;
@@ -3707,6 +3717,13 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .md blockquote { margin: 0 0 .9em; padding: 2px 0 2px 14px; border-left: 3px solid var(--border); color: var(--text-dim); }
 .md hr { border: 0; border-top: 1px solid var(--border); margin: 1.2em 0; }
 .md a { color: var(--accent); }
+/* A note card's (.note-card, after .md so these win): the card's Markdown at the card's size, not the reader's: the same type
+   as the plain text it replaced, headings only a step up, and nothing
+   trailing a margin off the bottom of the card. */
+.note-md { white-space: normal; font-size: var(--fs-sm); line-height: 1.45; }
+.note-md > :last-child { margin-bottom: 0; }
+.note-md h2, .note-md h3, .note-md h4, .note-md h5, .note-md h6 { margin: .6em 0 .3em; font-size: var(--fs-md); }
+.note-md p, .note-md ul, .note-md ol, .note-md blockquote, .note-md pre { margin-bottom: .5em; }
 @media (max-width: 720px) {
   #noteReader { padding: 0; align-items: stretch; }
   #noteReader .modal { width: 100%; height: 100%; max-height: none; border: 0; border-radius: 0; display: flex; flex-direction: column; padding: 16px 16px 12px; }

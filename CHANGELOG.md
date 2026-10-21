@@ -4,6 +4,39 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.273.0] - 2026-10-21
+
+### Added
+- **The mode dots under the tabs, on a computer too.** Each tab in the top
+  bar now carries the small dots the phone's bar has, the current mode a
+  pill, so you can see where a tab is parked without hovering it.
+
+### Changed
+- **Note cards draw their Markdown.** A heading, bold, a list or a quote on
+  a note card looks the way it does when the note is opened, instead of
+  showing the `#` and `**` it was typed with. Links read as plain words on
+  the card; tap the card to open the note.
+
+### Fixed
+- **The tab menus on a computer no longer blink along the bar.** Moving the
+  mouse from one tab to the next slides the one menu over instead of fading
+  a new one in, and pausing in the gap between two tabs no longer closes it.
+- **A sheet's buttons fit on a phone.** Delete, More…, Cancel and Save in
+  the entry, backlog and recurring-expense sheets ran off the right edge.
+- **Dates in a sheet are readable on a phone.** Start and Stops on (and a
+  trip's dates) sit one per row instead of squeezed into two columns that
+  cut the year off.
+- **Amount and currency fields no longer cut their text off.** The amount's
+  hint is shorter and the currency list drops the "(yours)" suffix — your
+  currency is first and already picked.
+- **A backlog item's length stays on one line.** "30 h" no longer breaks
+  between the number and the unit.
+- **The search box on a phone says "Search…"** rather than cutting
+  "Search everything…" off halfway.
+- **An avoided habit's button says the count once** ("0/1 Kept", not
+  "0/1 0 of 1").
+- **A nameless list is "Untitled list" in search results**, as on its card.
+
 ## [0.272.0] - 2026-10-17
 
 ### Added

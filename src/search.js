@@ -75,6 +75,8 @@
         items: () => Notes.searchable().map((n) => ({
           fields: [f(n.title || (n.kind === "list" || n.kind === "board" ? n.text : String(n.text || "").split("\n")[0]), "title"), f(n.kind === "list" || n.kind === "board" ? "" : n.text, "text"), f((n.items || []).map((i) => i.text).join(" · "), "items"), f(n.author, "author"), f(n.source, "source"), f(n.category, "category")],
           meta: [n.category, dateLabel(n.createdAt)].filter(Boolean).join(" · "),
+          // What the card calls a nameless list.
+          untitled: n.kind === "list" ? "Untitled list" : "Untitled",
           open: () => Notes.openSearchHit(n),
         })),
       });
@@ -250,7 +252,8 @@
     b.type = "button";
     const text = el("span", "search-row-text");
     const title = el("span", "search-row-title");
-    title.appendChild(titleHit ? marked(it.fields[0].text || "Untitled", w) : document.createTextNode(it.fields[0].text || "Untitled"));
+    const name = it.fields[0].text || it.untitled || "Untitled";
+    title.appendChild(titleHit ? marked(name, w) : document.createTextNode(name));
     text.appendChild(title);
     if (where) {
       const s = el("span", "search-row-snippet");

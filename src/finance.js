@@ -1598,7 +1598,9 @@
   const ADD_PROJECT_OPTION = "__add_project__";
 
   // Home first, then the rest alphabetically — the list is long enough that
-  // hunting for your own currency at the bottom of it would be silly.
+  // hunting for your own currency at the bottom of it would be silly. It
+  // used to carry a "(yours)" suffix, which a 119px select cut to "(yo"
+  // (0.273.0); first and preselected says the same thing.
   function currencyOptions() {
     const home = homeCurrency();
     const codes = Object.keys(CURRENCY_SYMBOLS).filter((c) => c !== home).sort();
@@ -1607,7 +1609,7 @@
       // "CHF · CHF" reads as a bug rather than as a currency.
       const sym = CURRENCY_SYMBOLS[c];
       const shown = sym && sym !== c ? c + " · " + sym : c;
-      return { value: c, label: c === home ? shown + " (yours)" : shown };
+      return { value: c, label: shown };
     });
   }
 

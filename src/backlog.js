@@ -105,7 +105,8 @@
     const year = yearOf(item);
     if (year) parts.push(String(year));
     else if (isUnreleased(item)) parts.push("TBA");
-    if (item.length) parts.push(item.length);
+    // Non-breaking, so "30 h" can't leave its unit on the next line.
+    if (item.length) parts.push(String(item.length).replace(/ /g, "\u00a0"));
     // Owning it doesn't just hide the price, it takes the price's place:
     // what a shop is charging today is a number about a purchase you've
     // already made, and "Bought" is what you actually wanted that slot to

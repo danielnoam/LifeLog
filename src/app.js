@@ -163,7 +163,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.272.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.273.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -987,17 +987,8 @@
     clearTimeout(tabMenuCloseTimer);
     tabMenuCloseTimer = setTimeout(closeTabMenu, 160);
   }
-  function openTabMenu(tab) {
-    const spec = VIEW_MODES[tab.dataset.view];
-    if (!spec || isMobileLayout()) return;
-    if (tabMenu && tabMenu.dataset.view === tab.dataset.view) {
-      clearTimeout(tabMenuCloseTimer);
-      tabMenuCloseTimer = null;
-      return;
-    }
-    closeTabMenu();
-    const menu = el("div", "tab-menu");
-    menu.dataset.view = tab.dataset.view;
+  function fillTabMenu(menu, tab, spec) {
+    menu.replaceChildren();
     for (const [id, label, icon] of modeEntries(spec)) {
       const item = el("button", "tab-menu-item");
       item.type = "button";
@@ -1016,10 +1007,25 @@
       };
       menu.appendChild(item);
     }
+  }
+  function openTabMenu(tab) {
+    const spec = VIEW_MODES[tab.dataset.view];
+    if (!spec || isMobileLayout()) return;
+    clearTimeout(tabMenuCloseTimer);
+    tabMenuCloseTimer = null;
+    if (tabMenu && tabMenu.dataset.view === tab.dataset.view) return;
+    // One menu, moved along the bar rather than rebuilt: a swap used to
+    // remove the open menu and fade a new one in from nothing, so every tab
+    // the pointer crossed was a blink off and on (0.273.0). Only the first
+    // open animates.
+    const fresh = !tabMenu;
+    const menu = tabMenu || el("div", "tab-menu");
+    menu.dataset.view = tab.dataset.view;
+    fillTabMenu(menu, tab, spec);
     // Into the tab, not the bar: .tab is the positioned ancestor here, so
     // top/left land on the tab and min-width can mean "at least as wide as
     // the tab" rather than as wide as the whole nav. Being the tab's child is
-    // also what keeps it open: the tab's own pointerleave doesn't fire while
+    // also what keeps it open: the bar's pointerleave doesn't fire while
     // the pointer is over the menu. The menu had enter/leave listeners of its
     // own until 0.264.2, and its leave fired on the way back up into the tab,
     // closing the menu under a pointer that was still on the tab.
@@ -1027,9 +1033,10 @@
     tabMenu = menu;
     // Pulled back inside if the last tab's menu would run off the window —
     // the same problem the fan has at the edge of a phone screen.
+    menu.style.left = "";
     const over = menu.getBoundingClientRect().right - (window.innerWidth - 8);
     if (over > 0) menu.style.left = -over + "px";
-    requestAnimationFrame(() => menu.classList.add("is-open"));
+    if (fresh) requestAnimationFrame(() => menu.classList.add("is-open"));
   }
 
   // Whichever option the finger is over right now, lit so you can see what
@@ -4016,7 +4023,13 @@
     // styles.css) anchor below the topbar — its height changes with wrapping,
     // so track it live rather than hardcoding a pixel value.
     const topbar = $(".topbar");
-    const setTopbarH = () => document.documentElement.style.setProperty("--topbar-h", topbar.getBoundingClientRect().height + "px");
+    const setTopbarH = () => {
+      document.documentElement.style.setProperty("--topbar-h", topbar.getBoundingClientRect().height + "px");
+      // The phone's search box shares its row with up to three buttons and
+      // cut "Search everything…" to "Search everythi" (0.273.0); the short
+      // placeholder fits the smallest of them.
+      $("#search").placeholder = isMobileLayout() ? "Search…" : "Search everything…";
+    };
     new ResizeObserver(setTopbarH).observe(topbar);
     setTopbarH();
 
@@ -4170,18 +4183,25 @@
         holdTimer = setTimeout(() => { holdTimer = null; openModeFan(t, spec); }, MODE_FAN_MS);
       });
 
-      // The desktop half of the same control. pointerenter fires for a touch
-      // too, so the mouse test is explicit rather than implied.
-      t.addEventListener("pointerenter", (ev) => {
-        if (ev.pointerType === "touch") return;
-        hoverTab(t);
-      });
-      t.addEventListener("pointerleave", leaveTab);
-      // Deliberately not closed on the tab's own click: the pointer is still
-      // sitting on the tab afterwards, and a closed menu would stay closed
-      // until you moved away and came back. It survives the render (the tabs
-      // aren't rebuilt) and re-marks itself on the next hover.
     });
+    // The desktop half of the same control, on the bar rather than on each
+    // tab: the tabs sit 4px apart, and a pointer in that gap (or clipping a
+    // tab's edge on its way down into the menu) used to count as leaving —
+    // the menu closed, then opened again after the delay, on and off
+    // (0.273.0). Now only leaving the bar closes it, and the menu is inside
+    // a tab, so hovering it is still being on the bar. pointerover fires
+    // for a touch too, so the mouse test is explicit rather than implied.
+    // Deliberately not closed on a tab's own click: the pointer is still
+    // sitting on the tab afterwards, and a closed menu would stay closed
+    // until you moved away and came back. It survives the render (the tabs
+    // aren't rebuilt) and re-marks itself on the next hover.
+    const bar = $("#viewTabs");
+    bar.addEventListener("pointerover", (ev) => {
+      if (ev.pointerType === "touch") return;
+      const t = ev.target.closest(".tab");
+      if (t && !t.hidden) hoverTab(t);
+    });
+    bar.addEventListener("pointerleave", leaveTab);
     // The rest of the gesture belongs to the window, not to any one tab: the
     // finger leaves the tab as soon as the fan is up, and it can be let go
     // anywhere. Registered once, outside the loop above.

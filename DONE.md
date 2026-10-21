@@ -14,6 +14,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Every tab and mode has its own name: Notebook (Notes, Habits), Timeline (Log, Stats), Backlog (List, Discover, Upcoming), Ledger (Expenses, Summary) (0.231.0)
 - Swipe between modes like a pager, and round from the last to the first (0.177.0)
 - Press and hold a tab for its modes; tap the current tab to step modes or scroll to the top (0.125.0, 0.264.2)
+- Mode dots under every tab, on the phone's bar and the computer's (0.160.0, 0.273.0); on a computer, hovering a tab drops its modes out as one menu that slides along the bar (0.264.2, 0.273.0)
 - Turn off the tabs and modes you don't use, per device (0.168.0)
 - Reorder tabs and modes, and choose the mode a tab opens on (0.188.0)
 - Remembers the open tab and scroll position across reloads (0.9.4)

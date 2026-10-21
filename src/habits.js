@@ -476,8 +476,9 @@
     const mark = el("span", "habit-tick-mark", kept && limit ? n + "/" + limit : "");
     if (!kept) mark.appendChild(ico("x")); else if (!limit) mark.appendChild(ico("check"));
     btn.appendChild(mark);
-    btn.appendChild(el("span", "habit-tick-label", !kept ? "Slipped" : limit ? n + " of " + limit : "Kept"));
-    btn.title = kept ? "Tap to log a slip" : "Tap to undo";
+    // The mark already carries the count, so the label doesn't repeat it.
+    btn.appendChild(el("span", "habit-tick-label", kept ? "Kept" : "Slipped"));
+    btn.title = kept ? (limit ? n + " of " + limit + " slips today — tap to log one" : "Tap to log a slip") : "Tap to undo";
     btn.style.setProperty("--habit-colour", h.color);
     btn.onclick = () => tick(h.id, today);
     return btn;
