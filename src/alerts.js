@@ -1,5 +1,6 @@
 // LifeLog — heads-ups on the phone (0.272.0): a recurring charge coming up,
-// and what in the Backlog is out today.
+// what in the Backlog is out today, and (0.276.0) a Steam game that has
+// dropped to the price you asked for.
 //
 // Same road as the habit reminders (reminders.js): what to say and when is
 // worked out here, where the data is, and rides out in the widgets'
@@ -106,20 +107,43 @@
     return out;
   }
 
+  // A price hit is recorded the moment the app sees it (priceHit below),
+  // stamped with that minute, and rides out at once: the phone rings
+  // whatever in the snapshot is still ahead of it. A hit stays on the list
+  // while the item still asks for it, so the snapshot is stable across
+  // pushes and a rung alert is not rung twice (the natives skip a time
+  // already past); yesterday's and older are dropped, since they can only
+  // ever take a slot.
+  function priceAlerts(data, today, hits) {
+    const out = [];
+    const since = addDays(today, -1);
+    for (const b of data.backlog || []) {
+      const h = hits[b.id];
+      if (!h || !(b.priceAlert > 0) || b.bought || b.dropped || !isDate(h.day) || h.day < since) continue;
+      out.push({
+        id: "price-" + b.id,
+        kind: "price",
+        day: h.day, time: h.time,
+        title: b.title + " is $" + Number(h.price).toFixed(2),
+        body: "Under your $" + Number(b.priceAlert).toFixed(2) + " on GG.deals",
+        action: "open-backlog",
+      });
+    }
+    return out;
+  }
+
   // `hidden`: the lock is on with "hide in widgets" (0.262.0). A
   // notification shows on the lock screen, so it says what kind of thing,
   // not which.
-  function alertsOf(data, { today, charges = {}, releases = "off", finance, fmt, hidden = false } = {}) {
+  const HIDDEN_BODY = { charge: "A recurring charge is coming up", release: "Something in your Backlog is out today", price: "A game in your Backlog is on sale" };
+  function alertsOf(data, { today, charges = {}, releases = "off", prices = {}, finance, fmt, hidden = false } = {}) {
     const list = [
       ...(finance ? chargeAlerts(data, today, charges, finance, fmt) : []),
       ...releaseAlerts(data, today, releases),
+      ...priceAlerts(data, today, prices),
     ].sort((a, b) => a.day.localeCompare(b.day) || a.id.localeCompare(b.id)).slice(0, MAX);
     if (!hidden) return list;
-    return list.map((a) => ({
-      ...a,
-      title: "LifeLog",
-      body: a.kind === "charge" ? "A recurring charge is coming up" : "Something in your Backlog is out today",
-    }));
+    return list.map((a) => ({ ...a, title: "LifeLog", body: HIDDEN_BODY[a.kind] || "LifeLog has something for you" }));
   }
 
   // ---------- this phone's choices ----------
@@ -152,6 +176,31 @@
     if (s.releases !== "off" && window.LifeLogReminders) window.LifeLogReminders.ensureAllowed();
   }
 
+  // A Steam price at or under the item's target, seen by the app
+  // (checkPriceAlerts in sync.js). Recorded once per dip: true when this is
+  // news, false while the earlier hit stands. priceClear is the price going
+  // back above the target, after which the next dip rings again.
+  function priceHit(item, price) {
+    const s = read();
+    s.prices = s.prices || {};
+    if (s.prices[item.id]) return false;
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 1);
+    s.prices[item.id] = { day: localDate(now), time: pad(now.getHours()) + ":" + pad(now.getMinutes()), price };
+    write(s);
+    if (ctx) ctx.changed();
+    if (window.LifeLogReminders) window.LifeLogReminders.ensureAllowed();
+    return true;
+  }
+  function priceClear(id) {
+    const s = read();
+    if (!s.prices || !s.prices[id]) return;
+    delete s.prices[id];
+    write(s);
+    if (ctx) ctx.changed();
+  }
+  function priceHitOf(id) { return (read().prices || {})[id] || null; }
+
   // What the snapshot carries, from the app's state (widgets.js calls this).
   function current(data, today, hidden) {
     const F = window.LifeLogFinance;
@@ -160,6 +209,7 @@
       today,
       charges: s.charges || {},
       releases: releaseMode(),
+      prices: s.prices || {},
       finance: F,
       fmt: ctx ? ctx.fmt : { money: String, day: String },
       hidden,
@@ -172,6 +222,7 @@
   window.LifeLogAlerts = {
     start, available, current, alertsOf, outDay,
     chargeDays, setChargeDays, releaseMode, setReleaseMode,
+    priceHit, priceClear, priceHitOf,
     CHARGE_DAYS, RELEASE_MODES, KEY, AT,
   };
 })();

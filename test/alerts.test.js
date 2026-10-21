@@ -91,6 +91,31 @@ test("release day: no day, a month, a past day or a dropped item ring nothing", 
   assert.strictEqual(outDay(item({ releaseDate: "2026-10-25" })), "2026-10-25");
 });
 
+// ---------- price alerts (0.276.0) ----------
+const game = (extra) => ({ id: "g1", title: "Hades II", category: "Games", mediaSource: "steam", mediaId: "1145350", priceAlert: 15, ...extra });
+const prices = (backlog, hits) => alertsOf({ backlog }, { today: TODAY, prices: hits });
+const HIT = { g1: { day: TODAY, time: "10:31", price: 12.49 } };
+
+test("price: a recorded hit rings at its own minute, with the price and the target", () => {
+  const out = prices([game()], HIT);
+  assert.strictEqual(out.length, 1);
+  assert.deepStrictEqual(out[0], { id: "price-g1", kind: "price", day: TODAY, time: "10:31", title: "Hades II is $12.49", body: "Under your $15.00 on GG.deals", action: "open-backlog" });
+});
+
+test("price: no target, bought, dropped, a hit for another item, or an old hit ring nothing", () => {
+  assert.deepStrictEqual(prices([game({ priceAlert: 0 })], HIT), []);
+  assert.deepStrictEqual(prices([game({ bought: true })], HIT), []);
+  assert.deepStrictEqual(prices([game({ dropped: true })], HIT), []);
+  assert.deepStrictEqual(prices([game({ id: "g2" })], HIT), []);
+  assert.deepStrictEqual(prices([game()], { g1: { ...HIT.g1, day: "2026-10-15" } }), []);
+  assert.strictEqual(prices([game()], { g1: { ...HIT.g1, day: "2026-10-16" } }).length, 1, "yesterday's still rides, the phone skips a past minute itself");
+});
+
+test("price: hidden in widgets says a game is on sale, not which", () => {
+  const out = alertsOf({ backlog: [game()] }, { today: TODAY, prices: HIT, hidden: true });
+  assert.deepStrictEqual([out[0].title, out[0].body], ["LifeLog", "A game in your Backlog is on sale"]);
+});
+
 test("hidden in widgets: a notification says what kind of thing, not which", () => {
   const a = alertsOf({ recurringExpenses: [plan()], backlog: [item({ nextAt: "2026-10-20" })] },
     { today: TODAY, charges: { p1: "7" }, releases: "all", finance: Finance, fmt, hidden: true });

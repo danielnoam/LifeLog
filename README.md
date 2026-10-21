@@ -159,7 +159,8 @@ in; this is the tour.
     offers the next one in its series.
   - **Upcoming** – what's coming, by month, with as much of the date as is
     known, countdowns, next episodes, and an Out today card. On the
-    phones, a notification on release day if you want one.
+    phones, a notification on release day if you want one, and one when a
+    Steam game drops to the price you set on it.
 - **Ledger**
   - **Expenses** – by year and month, broken down by category. Amounts do
     basic math and take other currencies at the day's rate. Recurring

@@ -511,6 +511,12 @@ test("an item in progress keeps the day it was started, and only a real day", ()
 });
 
 // ---------- airing (0.265.0) ----------
+test("sanitizeBacklog keeps a price target as a number, and only a positive one", () => {
+  assert.strictEqual(sanitizeBacklog({ title: "x", priceAlert: "14.99" }).priceAlert, 14.99);
+  assert.strictEqual(sanitizeBacklog({ title: "x", priceAlert: 0 }).priceAlert, undefined);
+  assert.strictEqual(sanitizeBacklog({ title: "x", priceAlert: "nope" }).priceAlert, undefined);
+});
+
 test("sanitizeBacklog keeps the airing fields, counts as numbers", () => {
   const out = sanitizeBacklog({ title: "Show", category: "TV", airing: "airing", episodesOut: "7", episodesTotal: 12, airingSeason: "3" });
   assert.strictEqual(out.airing, "airing");

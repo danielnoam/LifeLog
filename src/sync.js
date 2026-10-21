@@ -65,6 +65,11 @@
   // In-memory only (not persisted/synced) — prices change over time and are
   // cheap to re-fetch next session, so there's no need to store them.
   const priceCache = new Map();
+  // App IDs a fetch is out for. At launch the Backlog's render and the
+  // price-alert check (0.276.0) both ask within the same tick, before
+  // either answer is in the cache; the second asker leaves those to the
+  // first, whose landing patches and checks its own items.
+  const priceInFlight = new Set();
 
   // Retail only — keyshops (third-party key resellers) deliberately excluded.
   function currentRetailPrice(p) {
@@ -95,22 +100,61 @@
     const appIds = [...new Set(
       items.filter((b) => b.mediaSource === "steam" && b.mediaId && !b.bought).map((b) => b.mediaId)
     )].filter((id) => {
+      if (priceInFlight.has(id)) return false;
       const cached = priceCache.get(id);
       return !cached || now - cached.ts > PRICE_CACHE_MS;
     });
     if (!appIds.length) {
       applyCachedPrices(items);
+      checkPriceAlerts(items);
       return;
     }
     for (let i = 0; i < appIds.length; i += 100) {
       const chunk = appIds.slice(i, i + 100);
-      const result = await window.LifeLogMedia.fetchPrices(chunk, apiKey, proxyUrl);
+      chunk.forEach((id) => priceInFlight.add(id));
+      let result = {};
+      try {
+        result = await window.LifeLogMedia.fetchPrices(chunk, apiKey, proxyUrl);
+      } finally {
+        chunk.forEach((id) => priceInFlight.delete(id));
+      }
       const err = window.LifeLogMedia.getLastError();
       if (err && !priceErrorToasted) { priceErrorToasted = true; toast(err, true); }
       for (const id of chunk) priceCache.set(id, { ts: now, data: result[id] || null });
       priceEpoch++;
     }
     applyCachedPrices(items);
+    checkPriceAlerts(items);
+  }
+
+  // Price alerts (0.276.0): an item with `priceAlert` (a USD target, set in
+  // its sheet) is compared with the retail price every time one lands.
+  // At or under it, the hit is recorded once (alerts.js) — a toast here,
+  // and on a phone a notification a minute later off the snapshot — and
+  // stays recorded until the price climbs back over the target, so one
+  // sale rings once. Bought items are not fetched at all (see above), so
+  // they never get here.
+  function checkPriceAlerts(items) {
+    const A = window.LifeLogAlerts;
+    if (!A) return;
+    for (const b of items) {
+      if (!(b.priceAlert > 0) || !b.id || b.dropped) continue;
+      const current = backlogPriceOf(b);
+      if (current == null) continue;
+      if (current > b.priceAlert) { A.priceClear(b.id); continue; }
+      if (!A.priceHit(b, current)) continue;
+      toast(b.title + " is $" + current.toFixed(2) + ", under your $" + Number(b.priceAlert).toFixed(2), false,
+        { label: "Show", onClick: () => window.LifeLogBacklog && window.LifeLogBacklog.openBacklogModal(b) });
+    }
+  }
+
+  // As the app opens and each time it comes back: the watched games only,
+  // so a backlog that never shows its prices still gets its alerts. One
+  // request for up to a hundred of them, and none within the cache's
+  // quarter hour.
+  function maybeCheckPriceAlerts() {
+    const watched = state.data.backlog.filter((b) => b.priceAlert > 0 && b.mediaSource === "steam" && b.mediaId && !b.bought && !b.dropped);
+    if (watched.length) loadBacklogPrices(watched);
   }
 
   // Toasted at most once per session — loadBacklogPrices reruns on every
@@ -153,6 +197,7 @@
       if (low != null) {
         text += current <= low + 0.01 ? " (all-time low)" : ` (low $${low.toFixed(2)})`;
       }
+      if (b.priceAlert > 0 && current <= b.priceAlert) text += " · under your $" + Number(b.priceAlert).toFixed(2);
       document.querySelectorAll(`.bl-price[data-appid="${b.mediaId}"]`).forEach((elm) => {
         elm.textContent = (elm.dataset.sep ? " · " : "") + text;
       });
@@ -1204,5 +1249,6 @@
     refreshUpcomingReleases,
     updateRefreshReleasesButton,
     maybeAutoRefreshReleases,
+    maybeCheckPriceAlerts,
   };
 })();

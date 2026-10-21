@@ -163,7 +163,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.275.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.276.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -4478,7 +4478,7 @@
     function onReconnectOrFocus() { retrySync(); pollForUpdates(); }
     window.addEventListener("online", onReconnectOrFocus);
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") { onReconnectOrFocus(); schedulePoll(); Sync.maybeAutoRefreshReleases(); return; }
+      if (document.visibilityState === "visible") { onReconnectOrFocus(); schedulePoll(); Sync.maybeAutoRefreshReleases(); Sync.maybeCheckPriceAlerts(); return; }
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       // Leaving the app is the last sure chance to send a queued save.
       if (saveTimer) flushSave();
@@ -4669,6 +4669,8 @@
     else if (action === "open-habits" && modeEnabled("notes", "habits")) goTo("notes", "habits");
     // A release-day heads-up (0.272.0): Upcoming, where Out today leads.
     else if (action === "open-upcoming" && modeEnabled("backlog", "upcoming")) goTo("backlog", "upcoming");
+    // A price alert (0.276.0): the list, where the row says the price.
+    else if (action === "open-backlog" && viewEnabled("backlog")) goTo("backlog", "entries");
     else if (action.startsWith("open-habit:") && modeEnabled("notes", "habits")) {
       // A habit tapped on the widget: its card, brought into view and lit
       // for a moment so the eye lands on it.
@@ -5093,6 +5095,7 @@
     Sync.maybeAutoCheckSteamWishlist(); // fire-and-forget, doesn't block startup
     Sync.maybeAutoCheckAniList(); // same — quiet background check, never blocks startup
     Sync.maybeAutoRefreshReleases(); // same — keeps upcoming release dates current in the background
+    Sync.maybeCheckPriceAlerts(); // same — the Steam games with a price target (0.276.0)
 
     if (Platform.native) {
       // The app's files are already on the device; a worker would only be a

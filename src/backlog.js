@@ -2598,6 +2598,9 @@
     const mediaId = $("#bMediaId").value;
     showSyncStatus("b", mediaSource);
     refreshOverrideFields(OVERRIDE_FIELDS);
+    // The price target (0.276.0) only means something for a game GG.deals
+    // can price, which is one with a Steam App ID.
+    $("#bPriceAlertWrap").hidden = mediaSource !== "steam" || !mediaId;
     // The rating/year/length/price line, the summary and the store links all
     // describe the item rather than its artwork, so they render either way:
     // under the cover when there is one, in a plain row under the title when
@@ -2668,6 +2671,7 @@
     $("#bExternalRating").value = editing ? (item.externalRating || "") : "";
     $("#bLength").value = editing ? (item.length || "") : "";
     $("#bGenres").value = editing ? (item.genres || []).join("|") : "";
+    $("#bPriceAlert").value = editing && item.priceAlert > 0 ? String(item.priceAlert) : "";
     $("#bPriority").checked = editing ? !!item.priority : false;
     updatePriorityBtn();
     $("#bBought").checked = editing ? !!item.bought : false;
@@ -2812,6 +2816,10 @@
     const bought = $("#bBought").checked;
     const dropped = $("#bDropped").checked;
     const started = $("#bStarted").checked;
+    // A target for a game that isn't on Steam, or that's bought, has no
+    // price to watch, so it isn't kept.
+    const priceAlert = mediaSource === "steam" && !bought ? parseFloat($("#bPriceAlert").value) : NaN;
+    const wantsPriceAlert = priceAlert > 0;
     if (!title) return;
     let startedNow = false;
     if (id) {
@@ -2830,6 +2838,7 @@
       if (priority) b.priority = priority; else delete b.priority;
       if (bought) b.bought = true; else delete b.bought;
       if (dropped) b.dropped = true; else delete b.dropped;
+      if (wantsPriceAlert) b.priceAlert = priceAlert; else delete b.priceAlert;
       overrides = saveAuthor("b", b, overrides);
       if (overrides) b.overrides = overrides; else delete b.overrides;
       // Keeps the day it was started when it's already going.
@@ -2850,6 +2859,7 @@
       if (priority) item.priority = priority;
       if (bought) item.bought = true;
       if (dropped) item.dropped = true;
+      if (wantsPriceAlert) item.priceAlert = priceAlert;
       overrides = saveAuthor("b", item, overrides);
       if (overrides) item.overrides = overrides;
       if (started) { item.startedAt = localDay(); startedNow = true; }
@@ -2858,6 +2868,13 @@
     closeBacklogModal();
     render();
     await persist();
+    // A fresh target is checked now rather than at the next price load, so
+    // a game already under it says so at once (and asks for notifications
+    // on a phone that hasn't allowed them yet).
+    if (wantsPriceAlert) {
+      const saved = id ? state.data.backlog.find((x) => x.id === id) : state.data.backlog[state.data.backlog.length - 1];
+      if (saved) loadBacklogPrices([saved]);
+    }
     if (opts.quiet) return true;
     if (startedNow) toast("Started — it's at the top of your Timeline", false, state.view === "timeline" ? null : { label: "Show", onClick: showTimeline });
     else toast(opts.toast || (id ? "Backlog item updated" : "Added to backlog"));
@@ -2879,7 +2896,7 @@
   const KNOWN_BACKLOG_KEYS = new Set([
     "id", "title", "category", "createdAt", "updatedAt", "notes", "coverUrl",
     "mediaId", "mediaSource", "summary", "releaseYear", ...RELEASE_FIELDS,
-    "externalRating", "length", "genres", "priority", "bought", "dropped", "overrides", "startedAt", "author",
+    "externalRating", "length", "genres", "priority", "bought", "dropped", "overrides", "startedAt", "author", "priceAlert",
   ]);
   function sanitizeBacklog(b) {
     const out = {
@@ -2913,6 +2930,7 @@
     // elsewhere it just shows the badge and drops the price.
     if (b.bought) out.bought = true;
     if (b.dropped) out.dropped = true;
+    if (+b.priceAlert > 0) out.priceAlert = +b.priceAlert;
     if (isStarted(b)) out.startedAt = b.startedAt;
     const overrides = sanitizeOverrides(b.overrides, OVERRIDE_KEYS);
     if (overrides) out.overrides = overrides;

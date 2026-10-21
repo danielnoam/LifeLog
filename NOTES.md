@@ -16,6 +16,37 @@ what was decided against and why.
 
 ---
 
+- **Price alerts (0.276.0).** The target lives on the item (`priceAlert`,
+  USD, since GG.deals is asked for region=us) so it syncs with the item
+  and the bridge can set it (DATA.md, `price_alert` on the add tool);
+  the *hit* lives on the phone, in lifelog-alerts-v1 under `prices`, like
+  the other alert choices. checkPriceAlerts in sync.js runs after every
+  price load: at or under the target it records the hit once (alerts.js
+  priceHit, stamped with the next minute) and toasts; above it, the hit
+  is cleared, so a sale rings once and the next dip rings again. The hit
+  rides out in the snapshot as a `price` alert whose minute is just
+  ahead, which is how the phone rings it from the same alarm as the rest
+  (Reminders.java rings whatever falls between its last check and now;
+  a push from the app moves that mark to now first, so the minute's
+  head start is what gets it rung). Later pushes carry the same alert
+  with its old minute and nothing rings twice. Own channel on Android
+  ("Price drops"); iOS schedules it like any alert.
+  - The check only runs while the app is open: the Backlog's render
+    loads prices anyway, and maybeCheckPriceAlerts asks for just the
+    watched games at launch and on return to the screen (one request,
+    15-minute cache). A phone alert for a drop that happens while the
+    app is closed would need the native side to poll GG.deals itself,
+    which was not built: the key would have to leave the web layer, and
+    the app is opened often enough. Said plainly to Daniel.
+  - The render and the launch check ask within the same tick at
+    startup, before any answer is cached, so loadBacklogPrices keeps a
+    set of App IDs in flight and the second asker skips them; the first
+    one's landing patches and checks its own items.
+  - Not reachable from the build machine: the price shape is GG.deals'
+    documented one (currentRetail, historicalRetail), stubbed in
+    test/browser/pricealert.js. The Android channel change is compiled
+    by CI, not here.
+
 - **Next in the series (0.275.0).** `nextInSeries(id, source, keys,
   title)` in media.js answers one search-shaped result or null, and
   `offerNextInSeries(entry)` in backlog.js turns it into the second toast

@@ -58,6 +58,9 @@ Things to play, read, watch or do next.
 - `author`: optional, as on a timeline entry.
 - `priority`: 1 when starred; starred ones come first.
 - `bought`: true when already owned.
+- `priceAlert`: a price in US dollars for a Steam game; the app says when
+  GG.deals' retail price is at or under it (a toast, and a notification on
+  a phone). Only meaningful with a `mediaSource` of `steam`.
 - `dropped`: true when given up on. Kept, but out of the way.
 - `startedAt`: `YYYY-MM-DD` when started (it shows as in progress).
 - Filled in by media lookups: `coverUrl`, `mediaId`, `mediaSource`,

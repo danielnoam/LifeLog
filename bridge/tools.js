@@ -789,6 +789,7 @@ const TOOLS = [
     input: {
       title: S.str("What"), category: S.str("A backlog category from lifelog_overview"),
       notes: S.str("Optional"), starred: S.bool("Star it (priority)"), author: S.str("Optional, a book's author"),
+      price_alert: S.num("Optional, for a Steam game: a US-dollar price; the app says when GG.deals' retail price is at or under it"),
     },
     required: ["title", "category"],
     async run(a) {
@@ -796,6 +797,7 @@ const TOOLS = [
         const item = { title: String(a.title).trim(), category: a.category };
         if (a.notes) item.notes = String(a.notes).trim();
         if (a.starred) item.priority = 1;
+        if (+a.price_alert > 0) item.priceAlert = +a.price_alert;
         Object.assign(item, authored(a));
         const b = addItem(d, "backlog", item);
         return { text: `Added "${b.title}" to the backlog (${b.category}). id ${b.id}`, touched: [["backlog", b.id]] };

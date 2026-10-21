@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.276.0] - 2026-10-21
+
+### Added
+- **Price alerts for Steam games.** A game with a Steam App ID has a Price
+  alert field in its sheet: set a US-dollar price and, when GG.deals'
+  retail price lands at or under it, a toast says so and the row's price
+  line shows it; on a phone a notification follows, in its own "Price
+  drops" channel on Android. Checked when the app opens, when it comes
+  back to the screen and whenever prices load. One sale rings once; the
+  next dip after the price climbs back rings again.
+
 ## [0.275.0] - 2026-10-21
 
 ### Added
