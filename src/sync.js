@@ -154,7 +154,7 @@
   // quarter hour.
   function maybeCheckPriceAlerts() {
     const watched = state.data.backlog.filter((b) => b.priceAlert > 0 && b.mediaSource === "steam" && b.mediaId && !b.bought && !b.dropped);
-    if (watched.length) loadBacklogPrices(watched);
+    return watched.length ? loadBacklogPrices(watched) : Promise.resolve();
   }
 
   // Toasted at most once per session — loadBacklogPrices reruns on every

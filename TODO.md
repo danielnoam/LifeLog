@@ -31,6 +31,13 @@ folder). Each changes how data is stored, so each is his call first.
   LifeLogWidgets.swift drawing the same rows, counting down from the
   phone's date like the Android ones (BacklogWidgets.java), opening
   `open-upcoming` / `open-timeline`.
+- **Background refresh.** Android got it in 0.279.0 (the app run with no
+  screen by a periodic job, see headless.js and HeadlessRefresh.java).
+  Plan: a BGAppRefreshTask in the iOS app that opens the same invisible
+  WKWebView on the bundle at the app's origin (`capacitor://localhost`)
+  with a WKScriptMessageHandler in place of the Java object, then
+  reschedules itself; iOS decides whether and when it runs, so the setting
+  should say so.
 - **A tapped notification opens the right place.** On iPhone a habit
   reminder, a charge heads-up or a release-day notification only opens the
   app; Android goes to the habit, the Ledger or Upcoming. Plan: a

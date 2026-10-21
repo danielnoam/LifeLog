@@ -86,7 +86,9 @@ On iOS the system decides whether background refresh runs at all. What
 actually made the widgets stale was a timer that a frozen background app
 never ran (fixed in 0.237.0); edits from this phone reach the widgets at
 once. Would come back if most widget-worthy edits start happening on
-another device.
+another device. (It came back as 0.279.0's background refresh, done the
+other way round: the job runs the app itself, with no screen, so nothing
+is worked out twice. The Java-and-Swift rewrite stays dropped.)
 
 ## Swipe actions on rows
 

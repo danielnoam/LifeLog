@@ -204,7 +204,9 @@ in; this is the tour.
   device.
 - **Widgets** – checklist, habits, quick add, spending, note, random
   note, upcoming releases and in progress on Android; habits, checklist,
-  quick add, this month and a note on iPhone.
+  quick add, this month and a note on iPhone. On Android an optional
+  background refresh runs the app with no screen on a schedule, so the
+  widgets and the phone's alerts catch up with the app closed.
 - **Offline** – an installable PWA with a service worker, so it works with
   no connection and syncs when there is one.
 

@@ -689,7 +689,10 @@
         const rel = A.releaseMode();
         if (rel !== "off") on.push(rel === "all" ? "release days" : "starred release days");
         if (A.kindOn("prices")) on.push("price drops");
-        return on.length ? { text: on.join(", ").replace(/^./, (c) => c.toUpperCase()) } : { text: "All off" };
+        const Wg = window.LifeLogWidgets;
+        const bg = Wg && Wg.backgroundAvailable && Wg.backgroundAvailable() ? Wg.backgroundMinutes() : 0;
+        const text = on.length ? on.join(", ").replace(/^./, (c) => c.toUpperCase()) : "All off";
+        return { text: bg ? text + " · refreshed every " + (bg >= 60 ? (bg / 60 === 1 ? "hour" : bg / 60 + " hours") : bg + " min") : text };
       }
       case "releases": {
         const d = String((set.releases && set.releases.autoRefreshDays) || "0");
@@ -855,6 +858,16 @@
       $("#notifyHabits").checked = !!(window.LifeLogReminders && window.LifeLogReminders.isOn());
       $("#notifyCharges").checked = A.kindOn("charges");
       $("#notifyPrices").checked = A.kindOn("prices");
+    }
+    // The background refresh (0.279.0): Android only, and only an APK
+    // that has the job.
+    const Wg = window.LifeLogWidgets;
+    const bgHere = !!(Wg && Wg.backgroundAvailable && Wg.backgroundAvailable());
+    $("#backgroundRefreshRow").hidden = !bgHere;
+    if (bgHere) {
+      const sel = $("#backgroundRefresh");
+      if (!sel.options.length) for (const [v, label] of Wg.BACKGROUND_CHOICES) sel.appendChild(el("option", null, label)).value = v;
+      sel.value = String(Wg.backgroundMinutes());
     }
     $("#backlogFoldEa").value = state.visual.backlogFoldEa;
     $("#backlogFoldUnreleased").value = state.visual.backlogFoldUnreleased;
@@ -1628,6 +1641,7 @@
     $("#notifyHabits").onchange = () => { window.LifeLogReminders && window.LifeLogReminders.setOn($("#notifyHabits").checked); updateStatuses(); };
     $("#notifyCharges").onchange = () => { window.LifeLogAlerts && window.LifeLogAlerts.setKindOn("charges", $("#notifyCharges").checked); updateStatuses(); };
     $("#notifyPrices").onchange = () => { window.LifeLogAlerts && window.LifeLogAlerts.setKindOn("prices", $("#notifyPrices").checked); updateStatuses(); };
+    $("#backgroundRefresh").onchange = () => { window.LifeLogWidgets && window.LifeLogWidgets.setBackgroundMinutes($("#backgroundRefresh").value); updateStatuses(); };
     $("#openNotifSettingsBtn").onclick = () => {
       const W = window.LifeLogPlatform && window.LifeLogPlatform.plugin("Widgets");
       if (W && W.openNotificationSettings) W.openNotificationSettings();

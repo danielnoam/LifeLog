@@ -39,6 +39,9 @@ import org.json.JSONArray;
  *   holdBackground({ title, text, done, total }), releaseBackground()
  *                      keeps the app working while it's put away, with a
  *                      notification showing the progress (see BackgroundWork)
+ *   setBackgroundRefresh({ minutes })
+ *                      how often the app is run with no screen to bring the
+ *                      widgets and alerts up to date (see HeadlessRefresh)
  *   setPrivacyScreen({ on })
  *                      FLAG_SECURE on the window (0.262.0): a blank card in
  *                      the app switcher and no screenshots, for the app lock
@@ -60,11 +63,20 @@ public class WidgetsPlugin extends Plugin {
     static final String NOTIFICATIONS = "notifications";
 
     private static WeakReference<WidgetsPlugin> live = new WeakReference<>(null);
+    private static volatile boolean inFront = false;
     private String pendingAction;
+
+    /** Whether the app is on screen: the background refresh steps aside then. */
+    static boolean inFront() {
+        return inFront;
+    }
 
     @Override
     public void load() {
         live = new WeakReference<>(this);
+        // A fresh WebView reads what the background refresh wrote; only one
+        // that was alive while it ran needs reloading (handleOnResume).
+        HeadlessRefresh.takeChanged(getContext());
         readAction(getActivity().getIntent());
         // The WebView's own scrollbar runs the full height of the screen, over
         // the header and the tab bar, and no CSS reaches it. The page draws its
@@ -75,13 +87,29 @@ public class WidgetsPlugin extends Plugin {
     @Override
     protected void handleOnPause() {
         super.handleOnPause();
+        inFront = false;
         BackgroundWork.onAppPaused(getContext());
     }
 
     @Override
     protected void handleOnResume() {
         super.handleOnResume();
+        inFront = true;
         BackgroundWork.onAppResumed(getContext());
+        // A background refresh ran meanwhile and moved this device's copy:
+        // the page in memory would merge against a sync base that has gone.
+        // Reloaded, it boots from what the run left, as a fresh start does.
+        if (HeadlessRefresh.takeChanged(getContext())) {
+            getActivity().runOnUiThread(() -> getBridge().getWebView().reload());
+        }
+    }
+
+    /** Background refresh (0.279.0): { minutes }, 0 for off. See HeadlessRefresh. */
+    @PluginMethod
+    public void setBackgroundRefresh(PluginCall call) {
+        Integer minutes = call.getInt("minutes", 0);
+        HeadlessRefresh.schedule(getContext(), minutes == null ? 0 : minutes);
+        call.resolve();
     }
 
     // Capacitor calls this for the launch intent too, not just later ones.

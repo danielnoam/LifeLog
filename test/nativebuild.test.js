@@ -51,9 +51,11 @@ test("the changelog ships, for What's new in Settings", () => {
 
 test("the platform layer is loaded before anything that asks it a question", () => {
   // errlog.js goes first so it catches the others' load errors; it asks
-  // the platform layer nothing.
+  // the platform layer nothing. headless.js (0.279.0) comes before it on
+  // purpose: it stands in for Capacitor in a background run, which the
+  // platform layer then finds like any other native build.
   const order = referencedByIndex().filter((f) => f.endsWith(".js") && f !== "src/errlog.js");
-  assert.strictEqual(order[0], "src/platform.js");
+  assert.deepStrictEqual(order.slice(0, 2), ["src/headless.js", "src/platform.js"]);
 });
 
 test("the build says what it is, whose it is and where its web copy lives", () => {

@@ -202,6 +202,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Widgets shrink to small sizes, show previews, use the app's icons (0.189.0, 0.185.0, 0.269.0)
 - Widget settings: pick and order lists, habits and quick add buttons (0.199.0, 0.201.0, 0.266.0, 0.270.0)
 - Widgets: Upcoming (what's out next, counted down) and In progress (0.277.0)
+- Background refresh: the app run with no screen on a schedule, so widgets and alerts catch up with the app closed (0.279.0)
 
 ## iOS app
 

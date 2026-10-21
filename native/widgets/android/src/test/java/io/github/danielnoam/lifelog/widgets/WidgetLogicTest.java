@@ -530,4 +530,28 @@ public class WidgetLogicTest {
         assertEquals("[0, 1, 2, 3, 4]", java.util.Arrays.toString(QuickAddWidget.ordered(null)));
         assertEquals("[4, 0, 3, 1, 2]", java.util.Arrays.toString(QuickAddWidget.ordered(java.util.Arrays.asList("add-todo", "add-entry", "add-note"))));
     }
+
+    // ---- the background refresh's asset server (0.279.0) ----
+
+    @Test
+    public void theHeadlessPageIsServedFromTheApkLikeCapacitorServesIt() {
+        assertEquals("index.html", HeadlessRefresh.assetPath("/"));
+        assertEquals("index.html", HeadlessRefresh.assetPath(""));
+        assertEquals("index.html", HeadlessRefresh.assetPath(null));
+        assertEquals("index.html", HeadlessRefresh.assetPath("/index.html"));
+        assertEquals("src/app.js", HeadlessRefresh.assetPath("/src/app.js"));
+        assertEquals("src/vendor/Virgil.woff2", HeadlessRefresh.assetPath("//src/vendor/Virgil.woff2"));
+        assertEquals("etc/passwd", HeadlessRefresh.assetPath("/../etc/passwd"));
+        assertEquals("text/html", HeadlessRefresh.mimeOf("index.html"));
+        assertEquals("text/javascript", HeadlessRefresh.mimeOf("src/app.js"));
+        assertEquals("text/css", HeadlessRefresh.mimeOf("src/styles.css"));
+        assertEquals("application/json", HeadlessRefresh.mimeOf("app-build.json"));
+        assertEquals("font/woff2", HeadlessRefresh.mimeOf("src/vendor/Virgil.woff2"));
+        assertEquals("image/svg+xml", HeadlessRefresh.mimeOf("icon.svg"));
+        assertEquals("application/octet-stream", HeadlessRefresh.mimeOf("noext"));
+        assertTrue(HeadlessRefresh.isText("src/app.js"));
+        assertTrue(HeadlessRefresh.isText("app-build.json"));
+        assertFalse(HeadlessRefresh.isText("icon-192.png"));
+        assertFalse(HeadlessRefresh.isText("src/vendor/Virgil.woff2"));
+    }
 }

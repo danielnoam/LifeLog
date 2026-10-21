@@ -275,7 +275,15 @@
     if (window.LifeLogAlerts) {
       try { snap.alerts = window.LifeLogAlerts.current(ctx.state.data, snap.today, hidden); } catch (e) { snap.alerts = []; }
     }
-    Promise.resolve(W.update({ json: JSON.stringify(snap) })).catch(() => { /* the widget keeps its last copy */ });
+    return Promise.resolve(W.update({ json: JSON.stringify(snap) })).catch(() => { /* the widget keeps its last copy */ });
+  }
+
+  // The background refresh's one send (0.279.0): the snapshot as the headless
+  // run ends, with none of start()'s listening or draining, which belong to
+  // an app someone is looking at. Resolves once the widgets have it.
+  function pushNow(c) {
+    ctx = c;
+    return push();
   }
 
   // Called on every data change; one snapshot for a burst of them. Not
@@ -352,6 +360,34 @@
     if (App.getLaunchUrl) Promise.resolve(App.getLaunchUrl()).then((r) => go(r && r.url)).catch(() => {});
   }
 
+  // ---- the background refresh (0.279.0) ----
+  // How often Android runs the app with no screen to bring the widgets and
+  // the alerts up to date (see headless.js). A choice of this phone, like
+  // the reminder times, and off until asked for: it costs a little battery.
+  // The plugin keeps the job itself; the choice is told to it again at
+  // every launch, so an app updated or restored keeps its schedule.
+  const BACKGROUND_KEY = "lifelog-background-v1";
+  const BACKGROUND_CHOICES = [["0", "Off"], ["15", "Every 15 minutes"], ["30", "Every 30 minutes"], ["60", "Every hour"], ["180", "Every 3 hours"]];
+  const backgroundMinutes = () => {
+    try { return Math.max(0, parseInt(JSON.parse(localStorage.getItem(BACKGROUND_KEY)).minutes, 10) || 0); } catch (e) { return 0; }
+  };
+  const backgroundAvailable = () => { const W = plugin(); return !!(W && typeof W.setBackgroundRefresh === "function" && ctx.Platform.android); };
+  function tellBackground(minutes) {
+    const W = plugin();
+    if (!W || typeof W.setBackgroundRefresh !== "function") return Promise.resolve();
+    return Promise.resolve(W.setBackgroundRefresh({ minutes })).catch(() => {});
+  }
+  function setBackgroundMinutes(minutes) {
+    const m = Math.max(0, parseInt(minutes, 10) || 0);
+    try { localStorage.setItem(BACKGROUND_KEY, JSON.stringify({ minutes: m })); } catch (e) { /* kept for this session only */ }
+    return tellBackground(m);
+  }
+  function assertBackground() {
+    if (!backgroundAvailable()) return;
+    const m = backgroundMinutes();
+    if (m) tellBackground(m);
+  }
+
   // ctx: { state, Platform, persist, afterDataChange, toast, runAction, quickActions, hidden }
   function start(c) {
     ctx = c;
@@ -368,5 +404,5 @@
     takeAction();
   }
 
-  window.LifeLogWidgets = { snapshotOf, applyQueue, categoryFor, actionOfUrl, start, changed, MARK_DAYS, DONE_PER_PANEL, NOTE_CHARS, NOTES_BUDGET };
+  window.LifeLogWidgets = { snapshotOf, applyQueue, categoryFor, actionOfUrl, start, changed, pushNow, backgroundMinutes, setBackgroundMinutes, backgroundAvailable, assertBackground, BACKGROUND_CHOICES, MARK_DAYS, DONE_PER_PANEL, NOTE_CHARS, NOTES_BUDGET };
 })();

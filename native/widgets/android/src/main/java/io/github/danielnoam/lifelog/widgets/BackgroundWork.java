@@ -58,6 +58,11 @@ public class BackgroundWork extends Service {
         }
     }
 
+    /** Whether the app has work going, in front or kept alive behind. */
+    static boolean isBusy() {
+        return busy || running;
+    }
+
     static void release(Context c) {
         busy = false;
         if (running) c.stopService(new Intent(c, BackgroundWork.class));

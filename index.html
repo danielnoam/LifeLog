@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.278.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.279.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -1840,7 +1840,7 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="notifications" data-title="Notifications" data-keywords="notifications notify alerts reminders habits charges recurring release day price drop steam sale phone buzz channel">
+      <div class="settings-page" hidden data-page="notifications" data-title="Notifications" data-keywords="notifications notify alerts reminders habits charges recurring release day price drop steam sale phone buzz channel background refresh widgets">
       <h2 class="settings-page-title">Notifications</h2>
       <p class="hint page-lede">What this phone may ring. Each kind is also its own channel in Android's notification settings, where its sound and importance are set.</p>
       <section class="sgroup">
@@ -1863,6 +1863,16 @@
           </label>
           <button id="openNotifSettingsBtn" type="button" class="sitem sitem-go"><span data-ico="bell"></span> Android's notification settings for LifeLog</button>
         </div>
+      </section>
+      <section class="sgroup" id="backgroundRefreshRow" hidden>
+        <div class="sgroup-label">Background</div>
+        <div class="sgroup-card">
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Refresh in the background</span><span class="sitem-sub">With the app closed: GitHub, due release dates, watched prices, then the widgets and alerts</span></span>
+            <select id="backgroundRefresh"></select>
+          </label>
+        </div>
+        <p class="hint">Android decides the exact moment, and waits for a connection; while the phone is dozing a check can slip by an hour or more. Each run costs a little battery.</p>
       </section>
       </div>
 
@@ -2225,37 +2235,38 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.278.0"></script>
-  <script defer src="src/platform.js?v=0.278.0"></script>
-  <script defer src="src/icons.js?v=0.278.0"></script>
-  <script defer src="src/jobs.js?v=0.278.0"></script>
-  <script defer src="src/reconcile.js?v=0.278.0"></script>
-  <script defer src="src/qr.js?v=0.278.0"></script>
-  <script defer src="src/media.js?v=0.278.0"></script>
-  <script defer src="src/merge.js?v=0.278.0"></script>
-  <script defer src="src/storage.js?v=0.278.0"></script>
-  <script defer src="src/finance.js?v=0.278.0"></script>
-  <script defer src="src/settings.js?v=0.278.0"></script>
-  <script defer src="src/wheel.js?v=0.278.0"></script>
-  <script defer src="src/backlog.js?v=0.278.0"></script>
-  <script defer src="src/journal.js?v=0.278.0"></script>
-  <script defer src="src/markdown.js?v=0.278.0"></script>
-  <script defer src="src/notes.js?v=0.278.0"></script>
-  <script defer src="src/docimport.js?v=0.278.0"></script>
-  <script defer src="src/io.js?v=0.278.0"></script>
-  <script defer src="src/sync.js?v=0.278.0"></script>
-  <script defer src="src/habits.js?v=0.278.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.278.0"></script>
-  <script defer src="src/boards.js?v=0.278.0"></script>
-  <script defer src="src/travel.js?v=0.278.0"></script>
-  <script defer src="src/recap.js?v=0.278.0"></script>
-  <script defer src="src/reminders.js?v=0.278.0"></script>
-  <script defer src="src/alerts.js?v=0.278.0"></script>
-  <script defer src="src/widgets.js?v=0.278.0"></script>
-  <script defer src="src/share.js?v=0.278.0"></script>
-  <script defer src="src/search.js?v=0.278.0"></script>
-  <script defer src="src/letterboxd.js?v=0.278.0"></script>
-  <script defer src="src/payments.js?v=0.278.0"></script>
-  <script defer src="src/app.js?v=0.278.0"></script>
+  <script defer src="src/errlog.js?v=0.279.0"></script>
+  <script defer src="src/headless.js?v=0.279.0"></script>
+  <script defer src="src/platform.js?v=0.279.0"></script>
+  <script defer src="src/icons.js?v=0.279.0"></script>
+  <script defer src="src/jobs.js?v=0.279.0"></script>
+  <script defer src="src/reconcile.js?v=0.279.0"></script>
+  <script defer src="src/qr.js?v=0.279.0"></script>
+  <script defer src="src/media.js?v=0.279.0"></script>
+  <script defer src="src/merge.js?v=0.279.0"></script>
+  <script defer src="src/storage.js?v=0.279.0"></script>
+  <script defer src="src/finance.js?v=0.279.0"></script>
+  <script defer src="src/settings.js?v=0.279.0"></script>
+  <script defer src="src/wheel.js?v=0.279.0"></script>
+  <script defer src="src/backlog.js?v=0.279.0"></script>
+  <script defer src="src/journal.js?v=0.279.0"></script>
+  <script defer src="src/markdown.js?v=0.279.0"></script>
+  <script defer src="src/notes.js?v=0.279.0"></script>
+  <script defer src="src/docimport.js?v=0.279.0"></script>
+  <script defer src="src/io.js?v=0.279.0"></script>
+  <script defer src="src/sync.js?v=0.279.0"></script>
+  <script defer src="src/habits.js?v=0.279.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.279.0"></script>
+  <script defer src="src/boards.js?v=0.279.0"></script>
+  <script defer src="src/travel.js?v=0.279.0"></script>
+  <script defer src="src/recap.js?v=0.279.0"></script>
+  <script defer src="src/reminders.js?v=0.279.0"></script>
+  <script defer src="src/alerts.js?v=0.279.0"></script>
+  <script defer src="src/widgets.js?v=0.279.0"></script>
+  <script defer src="src/share.js?v=0.279.0"></script>
+  <script defer src="src/search.js?v=0.279.0"></script>
+  <script defer src="src/letterboxd.js?v=0.279.0"></script>
+  <script defer src="src/payments.js?v=0.279.0"></script>
+  <script defer src="src/app.js?v=0.279.0"></script>
 </body>
 </html>

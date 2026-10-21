@@ -23,7 +23,7 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
 const FAKE_BRIDGE = () => {
   window.__cap = { minimized: 0, opened: [], back: null, scans: 0, installs: 0, progress: [], barStyles: [], browsed: [],
     written: [], shared: [], downloads: [], fsProgress: [], installers: [], deleted: [], inAppTab: [],
-    widgetSnaps: [], widgetListeners: {}, askedToNotify: 0, notifySettings: 0, bioAsks: [], paymentsSet: [], paymentAccessOpened: 0 };
+    widgetSnaps: [], widgetListeners: {}, background: [], askedToNotify: 0, notifySettings: 0, bioAsks: [], paymentsSet: [], paymentAccessOpened: 0 };
   // What the widgets have waiting for the app; a test can set it at launch.
   window.__widgetPlan = window.__widgetPlanAtLaunch || { queue: [], action: null };
   // What the file plugins will do; tests change it before acting.
@@ -98,6 +98,8 @@ const FAKE_BRIDGE = () => {
           return { state: window.__widgetPlan.notify };
         },
         openNotificationSettings: async () => { window.__cap.notifySettings++; },
+        // The background refresh (0.279.0): the job's schedule, in minutes.
+        setBackgroundRefresh: async ({ minutes }) => { window.__cap.background.push(minutes); },
         // Google Wallet payments (0.238.0): the switch, and notification access.
         paymentsState: async () => ({ on: !!window.__widgetPlan.paymentsOn, access: !!window.__widgetPlan.paymentAccess }),
         setPayments: async ({ on }) => {
@@ -1443,6 +1445,21 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await page.waitForTimeout(700);
     rel = ((await lastSnap(page)).alerts || []).filter((a) => a.kind === "release");
     check("everything: one notification for the day, naming both", rel.length === 1 && rel[0].title === "2 things are out today" && rel[0].body === "Frieren Episode 5, Some Game", rel);
+    // Background refresh (0.279.0): off until chosen, told to the plugin on
+    // choosing and again at every launch.
+    check("Background refresh is offered on Android, off", await page.evaluate(() => !document.querySelector("#backgroundRefreshRow").hidden && document.querySelector("#backgroundRefresh").value === "0" && window.__cap.background.length === 0));
+    await page.selectOption("#backgroundRefresh", "60");
+    await page.waitForTimeout(300);
+    check("every hour: the plugin schedules it, the index row says so", await page.evaluate(() => window.__cap.background.join(",") === "60" && JSON.parse(localStorage.getItem("lifelog-background-v1")).minutes === 60
+      && /refreshed every hour/.test(document.querySelector('[data-status="notifications"]').textContent)));
+    await page.reload({ waitUntil: "load" });
+    await page.waitForTimeout(1200);
+    check("and the next launch tells the plugin again", await page.evaluate(() => window.__cap.background.join(",") === "60"));
+    await page.evaluate(() => window.LifeLogSettings.openSettings("notifications"));
+    await page.waitForTimeout(300);
+    await page.selectOption("#backgroundRefresh", "0");
+    await page.waitForTimeout(300);
+    check("off cancels it", await page.evaluate(() => window.__cap.background.join(",") === "60,0" && !/refreshed/.test(document.querySelector('[data-status="notifications"]').textContent)));
     errs.push(...e);
     await ctx.close();
 

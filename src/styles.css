@@ -2229,6 +2229,7 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 .settings-home, .settings-results { display: flex; flex-direction: column; gap: 16px; }
 .settings-home[hidden], .settings-results[hidden] { display: none; }
 .sgroup { display: flex; flex-direction: column; gap: 6px; }
+.sgroup[hidden], .srow[hidden] { display: none; }
 .sgroup-label {
   padding: 0 6px; font-size: var(--fs-2xs); font-weight: 600; color: var(--text-dim);
   text-transform: uppercase; letter-spacing: .5px;

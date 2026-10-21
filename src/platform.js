@@ -243,6 +243,9 @@
 
   window.LifeLogPlatform = {
     native,
+    // The background refresh's invisible run of the app (headless.js):
+    // a native build with no screen and no Capacitor behind it.
+    headless: !!(native && cap.headless),
     ios: os === "ios",
     android: os === "android",
     ready,

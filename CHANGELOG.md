@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.279.0] - 2026-10-21
+
+### Added
+- **Background refresh on Android.** Settings → Notifications → Refresh in
+  the background: every 15 minutes, 30 minutes, hour or 3 hours, with the
+  app closed, LifeLog runs once with no screen: pulls from GitHub and
+  merges, sends a save that was waiting, re-checks the release dates that
+  are due and the Steam prices with a target, and brings the widgets and
+  the phone's alerts up to date. Off by default; Android picks the exact
+  moment and a dozing phone can delay it.
+
 ## [0.278.0] - 2026-10-21
 
 ### Added

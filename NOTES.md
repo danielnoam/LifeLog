@@ -16,6 +16,49 @@ what was decided against and why.
 
 ---
 
+- **Background refresh (0.279.0).** Daniel asked for an optional way for
+  the widgets and notifications to keep up while the app is closed, and
+  chose a periodic headless job over a keep-running switch (plan A would
+  have reused BackgroundWork's foreground service, with its permanent
+  notification and Android 15's six-hours-a-day cap on dataSync services).
+  The job runs *the app*: HeadlessRefresh.java (a WorkManager periodic
+  Worker) opens a second, invisible WebView on the APK's own files at
+  `https://localhost`, the address Capacitor serves the app from, so it
+  shares the app's IndexedDB (the device copy, the sync base) and
+  localStorage (reminder times, alert choices, the GitHub token). Serving
+  the files is AssetClient's `shouldInterceptRequest` over
+  `android_asset/public/`; Capacitor's own server needs a Bridge, which
+  needs an Activity. There is no Capacitor in that WebView, so
+  src/headless.js builds a stand-in `window.Capacitor` from the one Java
+  object the page gets (`LifeLogHeadless`): Widgets.update (snapshot in,
+  then Reminders.fire rings what has come due, rather than schedule(true)
+  which would mark a missed reminder as settled), notePins,
+  notificationState, and a native GET for the Steam routes (GG.deals and
+  the Store send no CORS headers; GitHub, RAWG, TMDB and AniList do, and
+  go out as plain fetches). platform.js then sees an Android build like
+  any other, which is why headless.js loads before it, and why
+  nativebuild.test.js's script-order check names both. app.js's
+  headlessRun is the boot without anything that needs a person: no lock
+  screen, setup link, recap, Out today, imports (their review sheets) or
+  update check; a sync conflict is left for the app. `done(changed)` says
+  whether the device copy, the GitHub sha or the alert store moved, and
+  WidgetsPlugin reloads the app's WebView on its next resume if so — a page
+  left paused would otherwise merge its in-memory copy against a sync base
+  the run has moved. A fresh activity clears the flag (it reads fresh
+  data anyway). The job steps aside while the app is in front or
+  BackgroundWork is busy. Limits, said in the setting's hint: WorkManager's
+  15-minute floor, Android choosing the moment, Doze deferring it,
+  OEM battery managers (Xiaomi, Huawei, Samsung's sleeping apps) killing
+  periodic work unless the app is excluded; and each run boots the whole
+  app (a second or two of CPU), which is why it's off by default and the
+  choices stop at 15 minutes. rAF is polyfilled with setTimeout in the
+  headless page: a WebView nobody looks at may never paint. iOS gets
+  nothing (BGAppRefresh is at the system's discretion and needs the Swift
+  side; on TODO's iOS list). Tests: test/browser/headless.js fakes the
+  Java object the way HeadlessRefresh gives it; the Java asset mapping is
+  in WidgetLogicTest. The WebView-in-a-Worker path itself can't be tested
+  here: first run on the phone is the check.
+
 - **Settings → Notifications (0.278.0).** Daniel asked for one place to
   turn off what he doesn't want. The switches are the existing stores:
   habits are reminders.js's `on`, release days the mode that was on the

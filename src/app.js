@@ -13,7 +13,7 @@
   const Boards = window.LifeLogBoards;
   const Travel = window.LifeLogTravel;
   const Recap = window.LifeLogRecap;
-  const Widgets = window.LifeLogWidgets || { changed() {}, start() {} };
+  const Widgets = window.LifeLogWidgets || { changed() {}, start() {}, assertBackground() {} };
   const Share = window.LifeLogShare || { open() {}, close() {}, start() {} };
   const Search = window.LifeLogSearch || { start() {}, setQuery() {}, clear() {}, refresh() {}, isOpen: () => false };
   const Letterboxd = window.LifeLogLetterboxd || { start() {}, importFiles: async () => {} };
@@ -163,7 +163,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.278.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.279.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -3662,6 +3662,8 @@
     }
 
     if (result.conflict) {
+      // Nobody to ask in a background run: the question keeps for the app.
+      if (Platform.headless) { Storage.restoreSyncPoint(point); return; }
       // Now a prompt over a working app rather than the thing standing
       // between you and your first row.
       const chosen = await pickVersion(result.conflict);
@@ -4972,6 +4974,7 @@
   }
 
   async function init() {
+    if (Platform.headless) return headlessRun();
     wire();
     // The setup link's token leaves the address bar before anything else
     // shows, lock screen included: it used to sit there for as long as the
@@ -5111,6 +5114,7 @@
         },
       });
       Widgets.start({ state, Platform, persist, afterDataChange, toast, runAction, quickActions, spend: widgetSpend, hidden: widgetsHidden });
+      Widgets.assertBackground();
       if (window.LifeLogReminders) window.LifeLogReminders.start({ $, el, Platform, toast, changed: Widgets.changed, render });
       if (window.LifeLogPayments) window.LifeLogPayments.start({ $, Platform, toast });
       wireBackButton();
@@ -5118,6 +5122,54 @@
       wireScrollThumb();
     } else if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").then(watchForUpdate).catch(() => {});
+    }
+  }
+
+  // ---------- the background refresh (0.279.0) ----------
+  // The app run with no screen, by Android's periodic job (headless.js,
+  // HeadlessRefresh.java): what the app does on its own when opened, and
+  // nothing that would need a person. Pull from GitHub and merge, send a
+  // save that was waiting, re-check the release dates that are due and the
+  // Steam prices with a target, then hand the widgets and the phone's alerts
+  // a fresh snapshot. The lock, the setup link, the imports with their
+  // review sheets, the recap and the update check all stay with the app.
+  // done(changed) tells Java whether this device's copy or the phone's alert
+  // choices moved, so an app left paused is reloaded on return rather than
+  // merging from a sync base this run has already moved.
+  async function headlessRun() {
+    const H = window.LifeLogHeadless;
+    const finish = (changed, note) => { try { H.done(!!changed, String(note || "")); } catch (e) { /* the WebView is already gone */ } };
+    const alertsKey = window.LifeLogAlerts ? window.LifeLogAlerts.KEY : "";
+    try {
+      wire();
+      const cached = await Storage.loadCache();
+      if (!cached) return finish(false, "no copy on this device");
+      state.data = normalize(cached.data);
+      const before = JSON.stringify(state.data);
+      const alertsBefore = alertsKey ? localStorage.getItem(alertsKey) : "";
+      const pointBefore = JSON.stringify(Storage.syncPoint().sha || null);
+      afterDataChange();
+      lastPersistedSnapshot = structuredClone(state.data);
+      if (window.LifeLogAlerts) window.LifeLogAlerts.start({
+        changed: () => Widgets.changed(),
+        fmt: {
+          money: (n) => Finance.amountText({ amount: n }),
+          day: (d) => new Date(d + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }),
+        },
+      });
+      const ctx = { state, Platform, persist, afterDataChange, toast, runAction, quickActions, spend: widgetSpend, hidden: widgetsHidden };
+      await reconcileFromSources();
+      await retrySync();
+      await Sync.maybeAutoRefreshReleases();
+      await Sync.maybeCheckPriceAlerts();
+      if (savePending()) await flushSave();
+      await Widgets.pushNow(ctx);
+      const changed = before !== JSON.stringify(state.data)
+        || alertsBefore !== (alertsKey ? localStorage.getItem(alertsKey) : "")
+        || pointBefore !== JSON.stringify(Storage.syncPoint().sha || null);
+      finish(changed, "");
+    } catch (e) {
+      finish(false, "failed: " + ((e && e.message) || e));
     }
   }
 
