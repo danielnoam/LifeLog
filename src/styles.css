@@ -3309,6 +3309,29 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
    backfilling produces and the rest of the card never mentions. */
 .habit-life { margin: 6px 0 0 20px; font-size: var(--fs-xs); color: var(--text-dim); }
 
+/* Insights (0.274.0): a fold under the grid. The facts are the Stats
+   cards' big-number-over-label at the card's size; the months are bars in
+   the habit's own colour. */
+.habit-insights { margin-top: 10px; }
+.habit-insights > summary {
+  cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--fs-xs); color: var(--text-dim); position: relative; padding: 4px 0;
+}
+.habit-insights > summary::-webkit-details-marker { display: none; }
+.habit-insights > summary::after { content: ""; position: absolute; inset: -8px -10px; }
+.habit-insights > summary:hover { color: var(--text); }
+.habit-insights > summary .ico { width: 14px; height: 14px; }
+.habit-facts { display: flex; flex-wrap: wrap; gap: 14px 24px; margin: 8px 0 0; }
+.habit-fact { display: flex; flex-direction: column; min-width: 0; }
+.habit-fact-big { font-size: var(--fs-lg); font-weight: 650; color: var(--text); line-height: 1.2; font-variant-numeric: tabular-nums; }
+.habit-fact-small { font-size: var(--fs-xs); color: var(--text-dim); }
+.habit-months { display: flex; gap: 10px; align-items: flex-end; margin-top: 12px; }
+.habit-month { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 40px; }
+.habit-month-bar { width: 100%; height: 48px; display: flex; align-items: flex-end; background: var(--bg-elev-2); border-radius: var(--r-sm); overflow: hidden; }
+.habit-month-fill { width: 100%; border-radius: var(--r-sm) var(--r-sm) 0 0; }
+.habit-month-pct, .habit-month-label { font-size: var(--fs-3xs); color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.habit-insights .hint { margin: 6px 0 0; }
+
 /* Twelve weeks, a row per weekday. Tapping a cell fixes a day you forgot,
    which is the only way a tracker survives being away from your phone. */
 /* As wide as its cells, so the week arrows and range above it centre on the

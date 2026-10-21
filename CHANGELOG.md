@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.274.0] - 2026-10-21
+
+### Added
+- **Insights under each habit.** Open the Insights fold under a habit's
+  grid for what the grid shows but doesn't say: how much of it you've kept
+  since you started, your longest run and when it was, your best and
+  weakest weekday, and the last six months as bars.
+
 ## [0.273.0] - 2026-10-21
 
 ### Added

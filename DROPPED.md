@@ -13,6 +13,26 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## Upcoming charges on the Ledger
+
+Suggested on 2026-10-21: a card above Recurring with what's charging in
+the next seven days and what's still due this month. Daniel said no (the
+charge reminder of 0.272.0 already tells him the day before). Would come
+back if he wants the month at a glance rather than a nudge per charge.
+
+## Recap slides as images
+
+Suggested on 2026-10-21: save or share a Recap slide as a PNG. Daniel said
+no. The Recap is DOM, so this would be a canvas redraw of each slide; not
+worth it until he actually wants to show one to someone.
+
+## Due dates on list items
+
+Suggested on 2026-10-21: a due date on a checklist item, with a reminder
+through the habit/charge alerts. Daniel said no — lists are checklists,
+not a task manager, and this was the one that pushed the Notebook that
+way. Would come back only if he starts keeping dated to-dos in LifeLog.
+
 ## A TMDB watchlist import
 
 Offered on 2026-10-10 alongside the AniList Watching and Completed sync

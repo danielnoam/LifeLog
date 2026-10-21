@@ -123,6 +123,7 @@ Every release that adds a feature adds its line here in the same commit.
 - One tap to tick today, a grid you can page back through (0.171.0, 0.172.0)
 - Backfill a run of days, a start date you can move, undo (0.172.0, 0.173.0)
 - Streaks and how long you've kept it (0.173.0)
+- Insights under each habit: kept rate since the start, longest run with its dates, best and weakest weekday, six months as bars (0.274.0)
 - Archive rather than delete (0.171.0)
 - Ticks merge per date between devices (0.171.0)
 - Habit reminders on Android and iPhone (0.183.0, 0.217.0)

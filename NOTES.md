@@ -271,6 +271,20 @@ what was decided against and why.
     written from AniList's and TMDB's schemas and tested against faked
     responses (test/browser/anilist.js); the first real sync is the check.
 
+- **Habit insights (0.274.0).** A `<details>` fold under each habit's
+  grid, on the Habits page because Daniel wanted it there rather than in
+  Timeline Stats. Three pure functions beside the streak ones
+  (`weekdayRates`, `monthRates`, `bestRunOf`, tested in
+  test/habits.test.js): weekday rates count due days per weekday
+  arithmetically (first occurrence then every seven days) and kept ones
+  off the marks, the same inversion as `keptBetween` for an avoided habit;
+  month rates are `statsFor` per calendar month, the current one clipped
+  to today; the longest run is `bestStreakOf` keeping its dates. Folded by
+  default and remembered per habit in a Set while the page is open, since
+  every tick re-renders the card. The weakest day is left out when every
+  weekday is equal (a 100% habit has no weak day), and the whole fold
+  says "nothing to say yet" before the first due day.
+
 - **The 2026-10-21 sweep (0.273.0).** Every tab and mode, the sheets and
   every Settings page, at 375px and 1280px in all four themes (198
   Playwright screenshots over seeded data), plus contrast.js, lint-css.js,

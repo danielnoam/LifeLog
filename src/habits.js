@@ -307,6 +307,75 @@
 
   const firstMarkOf = (habit) => Object.keys(habit.marks || {}).sort()[0] || null;
 
+  // ---------- insights (0.274.0) ----------
+  // The grid shows the pattern; these say it. All over the habit's whole
+  // life up to `today`, and all read off the marks the way keptBetween is,
+  // so a ten-year habit costs its marks, not its days. A day the habit
+  // isn't due is nobody's business, as everywhere else here.
+
+  // Kept rate per weekday, only the weekdays the habit asks for.
+  function weekdayRates(habit, todayDateStr) {
+    const today = todayDateStr || todayStr();
+    const out = [];
+    const range = habit && clipRange(habit, habit.startedAt || today, today);
+    if (!range) return out;
+    for (let dow = 0; dow < 7; dow++) {
+      const c = habit.cadence;
+      if (c && c !== "daily" && !(c.days || []).includes(dow)) continue;
+      // Due days of this weekday in the range: the first one, then weekly.
+      const first = (7 + dow - dowOf(range[0])) % 7;
+      const span = daysApart(range[0], range[1]);
+      const due = first > span ? 0 : Math.floor((span - first) / 7) + 1;
+      let kept = 0;
+      for (const d of Object.keys(habit.marks || {})) {
+        if (d >= range[0] && d <= range[1] && dowOf(d) === dow && isDone(habit, d) !== !!habit.avoid) kept++;
+      }
+      if (habit.avoid) kept = due - kept;
+      out.push({ dow, label: DAY_LABELS[dow], due, kept, rate: due ? kept / due : 0 });
+    }
+    return out;
+  }
+
+  // Kept rate per calendar month, the last `n` months ending with today's.
+  function monthRates(habit, todayDateStr, n = 6) {
+    const today = todayDateStr || todayStr();
+    const out = [];
+    let y = +today.slice(0, 4), m = +today.slice(5, 7);
+    for (let i = 0; i < n; i++) {
+      const mm = String(m).padStart(2, "0");
+      const from = y + "-" + mm + "-01";
+      const last = new Date(y, m, 0).getDate();
+      const to = y + "-" + mm + "-" + String(last).padStart(2, "0");
+      const s = statsFor(habit, from, to > today ? today : to);
+      out.unshift({ month: y + "-" + mm, label: MONTHS[m - 1], due: s.due, kept: s.done, rate: s.rate });
+      m--; if (m === 0) { m = 12; y--; }
+    }
+    return out;
+  }
+
+  // The longest run and when it was: bestStreakOf with its dates.
+  function bestRunOf(habit, todayDateStr) {
+    const none = { days: 0, from: null, to: null };
+    if (!habit) return none;
+    const today = todayDateStr || todayStr();
+    const dates = Object.keys(habit.marks || {}).sort();
+    const last = dates.length ? dates[dates.length - 1] : today;
+    const end = last > today ? last : today;
+    let cursor = habit.startedAt || end;
+    let run = 0, start = null, best = none;
+    for (let guard = 0; guard < MAX_DAYS && cursor <= end; guard++) {
+      if (isDue(habit, cursor)) {
+        if (isDone(habit, cursor)) {
+          if (!run) start = cursor;
+          run++;
+          if (run > best.days) best = { days: run, from: start, to: cursor };
+        } else run = 0;
+      }
+      cursor = addDaysStr(cursor, 1);
+    }
+    return best;
+  }
+
   // Marks that sit before the habit's start date: not deleted, but not
   // counted either, because isDue says the habit was asking nothing of them.
   // Moving a start date forward does this silently, which is why the modal
@@ -464,7 +533,65 @@
     }
 
     card.appendChild(grid(h, today));
+    card.appendChild(insights(h, today));
     return card;
+  }
+
+  // Insights (0.274.0): a fold under the grid that says what the grid
+  // shows. Folded by default, and remembered per habit while the page is
+  // open, since a tick re-renders the card.
+  const insightsOpen = new Set();
+  function insights(h, today) {
+    const box = el("details", "habit-insights");
+    box.open = insightsOpen.has(h.id);
+    box.ontoggle = () => { if (box.open) insightsOpen.add(h.id); else insightsOpen.delete(h.id); };
+    const sum = el("summary", null);
+    sum.appendChild(window.LifeLogIcons.labelled("chart-column", "Insights"));
+    box.appendChild(sum);
+    const life = statsFor(h, h.startedAt || today, today);
+    if (!life.due) {
+      box.appendChild(el("p", "hint", "Nothing to say yet — it starts counting from " + prettyDate(h.startedAt) + "."));
+      return box;
+    }
+    const facts = el("div", "habit-facts");
+    const fact = (big, small) => {
+      const f = el("div", "habit-fact");
+      f.appendChild(el("span", "habit-fact-big", big));
+      f.appendChild(el("span", "habit-fact-small", small));
+      facts.appendChild(f);
+    };
+    fact(Math.round(life.rate * 100) + "%", life.done + " of " + life.due + " days since " + prettyDate(h.startedAt));
+    const best = bestRunOf(h, today);
+    if (best.days) fact(best.days + (best.days === 1 ? " day" : " days"), "longest run, " + dayRangeLabel(best.from, best.to));
+    const days = weekdayRates(h, today).filter((d) => d.due);
+    if (days.length > 1) {
+      const top = days.slice().sort((a, b) => b.rate - a.rate || b.due - a.due);
+      const hi = top[0], lo = top[top.length - 1];
+      fact(hi.label, "best day, " + Math.round(hi.rate * 100) + "%");
+      if (lo.rate < hi.rate) fact(lo.label, "weakest day, " + Math.round(lo.rate * 100) + "%");
+    }
+    box.appendChild(facts);
+    const months = monthRates(h, today).filter((m) => m.due);
+    if (months.length > 1) {
+      const bars = el("div", "habit-months");
+      bars.setAttribute("role", "img");
+      bars.setAttribute("aria-label", "Kept per month: " + months.map((m) => m.label + " " + Math.round(m.rate * 100) + "%").join(", "));
+      for (const m of months) {
+        const col = el("div", "habit-month");
+        col.title = m.label + ": " + m.kept + " of " + m.due + " days";
+        const bar = el("div", "habit-month-bar");
+        const fill = el("div", "habit-month-fill");
+        fill.style.height = Math.round(m.rate * 100) + "%";
+        fill.style.background = h.color;
+        bar.appendChild(fill);
+        col.appendChild(el("span", "habit-month-pct", Math.round(m.rate * 100) + "%"));
+        col.appendChild(bar);
+        col.appendChild(el("span", "habit-month-label", m.label));
+        bars.appendChild(col);
+      }
+      box.appendChild(bars);
+    }
+    return box;
   }
 
   // An avoided habit's button: kept (so far) until you say otherwise.
@@ -527,6 +654,13 @@
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const monthOf = (s) => MONTHS[+s.slice(5, 7) - 1];
   const prettyDate = (s) => isDateStr(s) ? +s.slice(8, 10) + " " + monthOf(s) + " " + s.slice(0, 4) : "";
+  // "3–16 Mar 2026", "28 Feb – 3 Mar 2026", "30 Dec 2025 – 2 Jan 2026".
+  function dayRangeLabel(a, b) {
+    if (a === b) return prettyDate(a);
+    if (a.slice(0, 4) !== b.slice(0, 4)) return prettyDate(a) + " – " + prettyDate(b);
+    if (a.slice(0, 7) !== b.slice(0, 7)) return +a.slice(8, 10) + " " + monthOf(a) + " – " + prettyDate(b);
+    return +a.slice(8, 10) + "–" + prettyDate(b);
+  }
   function rangeLabel(a, b) {
     const ya = a.slice(0, 4), yb = b.slice(0, 4);
     if (ya !== yb) return monthOf(a) + " " + ya + " – " + monthOf(b) + " " + yb;
@@ -1002,8 +1136,9 @@
     // pure, and the point of the feature — see test/habits.test.js
     isDue, cadenceLabel, markOf, isDone, nextMark, capOf, limitOf, convertMarks,
     streakOf, bestStreakOf, runBefore, statsFor, blankDaysBetween,
+    weekdayRates, monthRates, bestRunOf,
     dueBetween, keptBetween, dueDaysBetween, orphanedMarks, firstMarkOf,
-    windowStart, maxOffset, rangeLabel, prettyDate, GRID_WEEKS,
+    windowStart, maxOffset, rangeLabel, dayRangeLabel, prettyDate, GRID_WEEKS,
     localDateStr, todayStr, addDaysStr, byOrder,
     DAY_LABELS,
   };

@@ -279,6 +279,43 @@ test("counting agrees with walking over four thousand random habits", () => {
   assert.strictEqual(mismatch, null, "disagreed: " + JSON.stringify(mismatch));
 });
 
+console.log("\ninsights");
+
+test("weekday rates ask only the days the habit asks for, and count kept ones", () => {
+  // Mon/Wed/Fri from Mon 2 Mar; by Sun 15 Mar: two of each weekday due.
+  const h = habit({ startedAt: "2026-03-02", cadence: { days: [1, 3, 5] },
+    marks: marks("2026-03-02", "2026-03-09", "2026-03-04", "2026-03-13") });
+  const r = H.weekdayRates(h, "2026-03-15");
+  assert.deepStrictEqual(r.map((d) => [d.label, d.due, d.kept]), [["Mon", 2, 2], ["Wed", 2, 1], ["Fri", 2, 1]]);
+});
+
+test("an avoided habit's weekdays count the days it was kept, not the slips", () => {
+  const h = habit({ startedAt: "2026-03-02", avoid: true, marks: marks("2026-03-03") });
+  const tue = H.weekdayRates(h, "2026-03-08").find((d) => d.label === "Tue");
+  assert.deepStrictEqual([tue.due, tue.kept], [1, 0]);
+  const mon = H.weekdayRates(h, "2026-03-08").find((d) => d.label === "Mon");
+  assert.deepStrictEqual([mon.due, mon.kept], [1, 1]);
+});
+
+test("month rates end with today's month, clipped to today and to the start", () => {
+  const h = habit({ startedAt: "2026-02-20", marks: marks("2026-02-20", "2026-03-01") });
+  const r = H.monthRates(h, "2026-03-10", 3);
+  assert.deepStrictEqual(r.map((m) => [m.month, m.due, m.kept]), [["2026-01", 0, 0], ["2026-02", 9, 1], ["2026-03", 10, 1]]);
+});
+
+test("the longest run comes with its dates", () => {
+  const h = habit({ startedAt: "2026-03-01", marks: marks("2026-03-02", "2026-03-03", "2026-03-04", "2026-03-07") });
+  assert.deepStrictEqual(H.bestRunOf(h, "2026-03-10"), { days: 3, from: "2026-03-02", to: "2026-03-04" });
+  assert.deepStrictEqual(H.bestRunOf(habit({}), "2026-03-10"), { days: 0, from: null, to: null });
+});
+
+test("a run of days reads as one range", () => {
+  assert.strictEqual(H.dayRangeLabel("2026-03-03", "2026-03-16"), "3–16 Mar 2026");
+  assert.strictEqual(H.dayRangeLabel("2026-02-28", "2026-03-03"), "28 Feb – 3 Mar 2026");
+  assert.strictEqual(H.dayRangeLabel("2025-12-30", "2026-01-02"), "30 Dec 2025 – 2 Jan 2026");
+  assert.strictEqual(H.dayRangeLabel("2026-03-03", "2026-03-03"), "3 Mar 2026");
+});
+
 test("a window is clipped to the habit's own life at both ends", () => {
   const h = habit({ startedAt: "2026-03-05", archivedAt: "2026-03-10" });
   assert.strictEqual(H.dueBetween(h, "2026-03-01", "2026-03-31"), 6);
