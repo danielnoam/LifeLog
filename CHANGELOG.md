@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.275.0] - 2026-10-21
+
+### Added
+- **Next in the series.** Log a synced game, film, anime or manga as done
+  and, if its source knows what follows it, a second toast names it with
+  an Add to backlog button that opens the sheet with the sequel filled in.
+  Games come from RAWG's series list (a Steam-linked game is matched on
+  RAWG by title first), films from TMDB's collections, anime and manga
+  from AniList's sequel relations. Nothing is added on its own, and a
+  sequel already in your backlog or log isn't offered.
+
 ## [0.274.0] - 2026-10-21
 
 ### Added

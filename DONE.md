@@ -77,6 +77,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Bulk select with drag, move, delete, sync (0.12.0, 0.12.1, 0.13.0)
 - Discover mode: Popular now and Coming soon per source, Hide what I have (0.113.0, 0.114.0)
 - NYT bestsellers as Discover's Popular list for books, with a NYT key (0.272.0)
+- Next in the series offered in a toast when a synced game, film, anime or manga is logged (RAWG series, TMDB collections, AniList sequels) (0.275.0)
 - Upcoming mode: what's coming by month, with how much of the date is known, countdowns and next episodes (0.99.0, 0.98.0)
 - Out today card and sheet, and Out in the last 7 days (0.226.0, 0.227.0, 0.259.0)
 - A notification on release day, for starred items or everything (Android, iPhone) (0.272.0)

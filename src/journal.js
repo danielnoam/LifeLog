@@ -1496,6 +1496,12 @@
     render();
     await persist();
     toast(id ? "Entry updated" : (fromBacklogId ? "Moved to log" : "Entry added"));
+    // A new synced entry is something finished: the sequel offer (0.275.0)
+    // rides in a second toast under this one, once its lookup lands. An
+    // edit is not a finish, so it asks nothing.
+    if (!id && mediaId && mediaSource && window.LifeLogBacklog) {
+      window.LifeLogBacklog.offerNextInSeries(state.data.entries[state.data.entries.length - 1]);
+    }
   }
 
   async function deleteCurrentEntry() {

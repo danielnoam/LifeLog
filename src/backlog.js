@@ -1754,6 +1754,29 @@
     if (adopted) repaintDiscoverSoon();
   }
 
+  // "Next in the series" (0.275.0): once a synced title is logged as done,
+  // its source is asked what follows it (see nextInSeries in media.js), and
+  // the answer is offered in the toast — one tap opens the backlog sheet
+  // with it filled in, exactly as a Discover pick would. Nothing is filed on
+  // its own, and an offer for a title already in the backlog or the log
+  // is dropped, since "you already have this" isn't an offer. Silent on any
+  // failure: the entry was saved either way, and the lookup is a bonus.
+  async function offerNextInSeries(entry) {
+    if (!entry || !entry.mediaId || !entry.mediaSource || !window.LifeLogMedia) return;
+    const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
+    let next = null;
+    try { next = await window.LifeLogMedia.nextInSeries(entry.mediaId, entry.mediaSource, keys, entry.title); } catch (e) { next = null; }
+    if (!next || !next.title) return;
+    if (discoverOwnedTag(next.title, discoverOwnedIndex())) return;
+    toast("Next in the series: " + next.title, false, {
+      label: "Add to backlog",
+      onClick: () => {
+        openBacklogModal(null, entry.category);
+        applyMediaResult(next, keys).catch(() => toast("Couldn't fetch the full details for that one"));
+      },
+    });
+  }
+
   // Everything you already have, keyed by titleKey rather than by the raw
   // string: a source writing "Slime Season 4" and an entry of yours reading
   // "Slime S4" are the same thing, and comparing the text as typed missed
@@ -2956,6 +2979,8 @@
     // modal (add menu, "✓ Done" flow, Escape close)
     openBacklogModal,
     closeBacklogModal,
+    // the toast after a synced title is logged (journal.js's save)
+    offerNextInSeries,
     isStarted, // the search page's "In progress" tag
     // "Pick random" modal (Escape close)
     closePickModal,

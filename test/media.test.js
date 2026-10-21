@@ -423,6 +423,105 @@ atest("NYT bestsellers (0.272.0): fiction then non-fiction, title-cased, stamped
   assert.strictEqual(urls.length, 1);
 });
 
+// ---------- next in the series (0.275.0) ----------
+const RAWG_SERIES = [
+  { slug: "hades", name: "Hades", released: "2020-09-17" },
+  { slug: "hades-iii", name: "Hades III", tba: true, released: "2030-12-31" },
+  { slug: "hades-ii-remaster", name: "Hades II Remaster", released: "2027-01-01" },
+];
+function stubRawgSeries(series) {
+  const calls = [];
+  global.fetch = async (url) => {
+    calls.push(url);
+    const body = url.includes("/game-series") ? { results: series }
+      : url.includes("/api/games?search=") ? { results: [RAWG_SEARCH_GAME] }
+      : RAWG_SEARCH_GAME;
+    return { ok: true, json: async () => body };
+  };
+  return calls;
+}
+
+atest("nextInSeries (RAWG): the earliest title dated after this one, never a prequel", async () => {
+  stubRawgSeries(RAWG_SERIES);
+  const r = await Media.nextInSeries("hades-ii", "rawg", { rawg: "k" });
+  assert.strictEqual(r.title, "Hades II Remaster");
+  assert.strictEqual(r.source, "rawg");
+  assert.strictEqual(r.releaseDate, "2027-01-01");
+});
+
+atest("nextInSeries (RAWG): with nothing dated after it, an undated entry is offered", async () => {
+  stubRawgSeries(RAWG_SERIES.slice(0, 2));
+  const r = await Media.nextInSeries("hades-ii", "rawg-steam-gg", { rawg: "k" });
+  assert.strictEqual(r.title, "Hades III");
+  assert.strictEqual(r.releasePrecision, "tba");
+  assert.strictEqual(r.source, "rawg-steam-gg", "the combo source stays, so the pick resolves to Steam");
+});
+
+atest("nextInSeries (RAWG): only prequels means no offer; no key means no request", async () => {
+  const calls = stubRawgSeries(RAWG_SERIES.slice(0, 1));
+  assert.strictEqual(await Media.nextInSeries("hades-ii", "rawg", { rawg: "k" }), null);
+  assert.strictEqual(calls.length, 2);
+  assert.strictEqual(await Media.nextInSeries("hades-ii", "rawg", {}), null);
+  assert.strictEqual(calls.length, 2);
+});
+
+atest("nextInSeries (Steam): the title is matched on RAWG first, exactly or not at all", async () => {
+  const calls = stubRawgSeries(RAWG_SERIES);
+  const r = await Media.nextInSeries("1145350", "steam", { rawg: "k" }, "Hades II");
+  assert.strictEqual(r.title, "Hades II Remaster");
+  assert.strictEqual(r.source, "rawg-steam-gg");
+  assert.match(calls[0], /games\?search=Hades%20II/);
+  assert.strictEqual(await Media.nextInSeries("1145350", "steam", { rawg: "k" }, "Hades II: Deluxe"), null);
+});
+
+atest("nextInSeries (TMDB movie): the collection's next film by date; a loner has none", async () => {
+  const calls = [];
+  global.fetch = async (url) => {
+    calls.push(url);
+    const body = url.includes("/collection/")
+      ? { parts: [
+          { id: 10, title: "Dune", release_date: "2021-10-22" },
+          { id: 20, title: "Dune: Part Two", release_date: "2024-03-01" },
+          { id: 30, title: "Dune: Part Three", release_date: "2026-12-18" },
+        ] }
+      : url.includes("/movie/10?") ? { id: 10, release_date: "2021-10-22", belongs_to_collection: { id: 7 } }
+      : { id: 99, release_date: "2020-01-01", belongs_to_collection: null };
+    return { ok: true, json: async () => body };
+  };
+  const r = await Media.nextInSeries("10", "tmdb-movie", { tmdb: "t" });
+  assert.strictEqual(r.title, "Dune: Part Two");
+  assert.strictEqual(r.source, "tmdb-movie");
+  assert.strictEqual(r.id, "20");
+  assert.strictEqual(await Media.nextInSeries("99", "tmdb-movie", { tmdb: "t" }), null);
+  assert.strictEqual(calls.length, 3);
+});
+
+atest("nextInSeries (AniList): the SEQUEL relation of the same type, in the search shape", async () => {
+  global.fetch = async (url, init) => {
+    const q = JSON.parse(init.body);
+    assert.strictEqual(q.variables.id, 101);
+    return { ok: true, json: async () => ({ data: { Media: { relations: { edges: [
+      { relationType: "PREQUEL", node: { id: 100, type: "ANIME", title: { romaji: "Before" } } },
+      { relationType: "ADAPTATION", node: { id: 1, type: "MANGA", title: { romaji: "The Manga" } } },
+      { relationType: "SEQUEL", node: { id: 102, type: "ANIME", title: { romaji: "After", english: "After (EN)" }, startDate: { year: 2027, month: null, day: null }, status: "NOT_YET_RELEASED" } },
+    ] } } } }) };
+  };
+  const r = await Media.nextInSeries("101", "anilist-anime", {});
+  assert.strictEqual(r.title, "After (EN)");
+  assert.strictEqual(r.id, "102");
+  assert.strictEqual(r.source, "anilist-anime");
+  assert.strictEqual(r.releaseDate, "2027");
+});
+
+atest("nextInSeries: TV, books and music answer null without a request", async () => {
+  let calls = 0;
+  global.fetch = async () => { calls++; return { ok: true, json: async () => ({}) }; };
+  for (const src of ["tmdb-tv", "openlibrary", "googlebooks", "musicbrainz", "steamgriddb", ""]) {
+    assert.strictEqual(await Media.nextInSeries("1", src, { tmdb: "t", rawg: "k" }, "X"), null, src);
+  }
+  assert.strictEqual(calls, 0);
+});
+
 // The sync cases above have all run by now; the async ones are only queued,
 // so the tally waits on them rather than reporting a count six short.
 (async () => {

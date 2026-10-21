@@ -155,7 +155,8 @@ in; this is the tour.
     band, Pick random and Spin.
   - **Discover** – what's popular now and coming soon from the sources your
     categories use, with Hide what I have. Books get the NYT bestseller
-    lists with a free New York Times key.
+    lists with a free New York Times key. Logging a synced title as done
+    offers the next one in its series.
   - **Upcoming** – what's coming, by month, with as much of the date as is
     known, countdowns, next episodes, and an Out today card. On the
     phones, a notification on release day if you want one.

@@ -1234,7 +1234,89 @@
     return null;
   }
 
+  // ---------- next in the series (0.275.0) ----------
+  // The one title that follows `id` in its own series, in the search-result
+  // shape, or null when the source knows of none. Each source says it
+  // differently: RAWG has a per-game series list (every entry, prequels and
+  // remasters included, so the pick is the earliest dated after this one),
+  // TMDB groups films into collections (same pick, by release date), and
+  // AniList states SEQUEL relations outright. TV shows have seasons, not
+  // sequels, and books and music have no such link in their sources, so
+  // those answer null without a request. A Steam-linked game has no RAWG
+  // id, only a title, so RAWG is asked for the title first and only an
+  // exact match is trusted (see pickMatch) — the wrong game's sequel is
+  // worse than no offer.
+  function earliestAfter(rows, afterDate) {
+    const dated = rows.filter((r) => r.releaseDate && (!afterDate || r.releaseDate > afterDate))
+      .sort((a, b) => a.releaseDate < b.releaseDate ? -1 : 1);
+    return dated[0] || rows.find((r) => r.releasePrecision === "tba") || null;
+  }
+
+  async function nextRawg(id, apiKey) {
+    if (!apiKey || !id) return null;
+    try {
+      const base = "https://api.rawg.io/api/games/" + encodeURIComponent(id);
+      const key = "key=" + encodeURIComponent(apiKey);
+      const [self, series] = await Promise.all([fetch(base + "?" + key), fetch(base + "/game-series?" + key + "&page_size=40")]);
+      if (!self.ok || !series.ok) return null;
+      const g = await self.json();
+      const rows = ((await series.json()).results || []).map(mapRawgResult);
+      return earliestAfter(rows, g.tba ? "" : (g.released || ""));
+    } catch (e) { return null; }
+  }
+
+  async function nextTmdbMovie(id, apiKey) {
+    if (!apiKey || !id) return null;
+    try {
+      const key = "api_key=" + encodeURIComponent(apiKey);
+      const res = await fetch("https://api.themoviedb.org/3/movie/" + encodeURIComponent(id) + "?" + key);
+      if (!res.ok) return null;
+      const m = await res.json();
+      const coll = m.belongs_to_collection;
+      if (!coll || !coll.id) return null;
+      const cres = await fetch("https://api.themoviedb.org/3/collection/" + encodeURIComponent(coll.id) + "?" + key);
+      if (!cres.ok) return null;
+      const parts = ((await cres.json()).parts || []).filter((p) => String(p.id) !== String(id));
+      return earliestAfter(parts.map((p) => mapTmdbResult(p, "movie")), m.release_date || "");
+    } catch (e) { return null; }
+  }
+
+  async function nextAniList(id, type) {
+    if (!id) return null;
+    try {
+      const query = "query ($id: Int) { Media(id: $id) { relations { edges { relationType node { " + ANILIST_FIELDS + " } } } } }";
+      const res = await fetch("https://graphql.anilist.co", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ query, variables: { id: parseInt(id, 10) } }),
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      const edges = (data && data.data && data.data.Media && data.data.Media.relations && data.data.Media.relations.edges) || [];
+      const seq = edges.find((e) => e.relationType === "SEQUEL" && e.node && e.node.type === type);
+      return seq ? mapAniListResult(seq.node, type) : null;
+    } catch (e) { return null; }
+  }
+
+  async function nextInSeries(id, source, keys, title) {
+    const k = keys || {};
+    if (source === "rawg" || source === "rawg-steam-gg") {
+      const r = await nextRawg(id, k.rawg || "");
+      return r ? { ...r, source } : null;
+    }
+    if (source === "steam") {
+      const match = pickMatch(await searchRawg(title || "", k.rawg || ""), title || "");
+      const r = match ? await nextRawg(match.id, k.rawg) : null;
+      return r ? { ...r, source: "rawg-steam-gg" } : null;
+    }
+    if (source === "tmdb-movie") return nextTmdbMovie(id, k.tmdb || "");
+    if (source === "anilist-anime") return nextAniList(id, "ANIME");
+    if (source === "anilist-manga") return nextAniList(id, "MANGA");
+    return null;
+  }
+
   window.LifeLogMedia = {
+    nextInSeries,
     async search(title, source, keys, proxyUrl, author) {
       lastError = "";
       if (!title || !source) return [];
