@@ -285,10 +285,10 @@ public class HeadlessRefresh extends Worker {
 
     /** "/" and "" are the page; a leading slash is dropped; nothing climbs out. */
     static String assetPath(String path) {
-        String p = path == null ? "" : path;
+        String p = (path == null ? "" : path).replace("..", "").replaceAll("/+", "/");
         while (p.startsWith("/")) p = p.substring(1);
         if (p.isEmpty() || p.endsWith("/")) p = p + "index.html";
-        return p.replace("..", "");
+        return p;
     }
 
     static final Map<String, String> MIME = new HashMap<>();
