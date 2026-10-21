@@ -3014,6 +3014,7 @@
     airingLabel,
     stillAiring,
     upcomingAt,
+    releaseLabel, // the Upcoming widget's wording (widgets.js)
     // manual release-date overrides (test/backlog.test.js)
     parseReleaseInput,
     formatReleaseInput,

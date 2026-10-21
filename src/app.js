@@ -163,7 +163,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.276.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.277.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -4671,6 +4671,8 @@
     else if (action === "open-upcoming" && modeEnabled("backlog", "upcoming")) goTo("backlog", "upcoming");
     // A price alert (0.276.0): the list, where the row says the price.
     else if (action === "open-backlog" && viewEnabled("backlog")) goTo("backlog", "entries");
+    // The In progress widget (0.277.0): the Timeline, where its card is.
+    else if (action === "open-timeline" && viewEnabled("timeline")) goTo("timeline", "entries");
     else if (action.startsWith("open-habit:") && modeEnabled("notes", "habits")) {
       // A habit tapped on the widget: its card, brought into view and lit
       // for a moment so the eye lands on it.

@@ -64,6 +64,53 @@ test("a panel per list: favourites first, then oldest first; each list's own ord
   assert.deepStrictEqual(s.doneCount, { "To-do": 1 });
 });
 
+// ---------- the Backlog widgets (0.277.0) ----------
+const BACKLOG = {
+  categories: [{ name: "Games", color: "#3fb950" }, { name: "TV", color: "#58a6ff" }],
+  backlog: [
+    { id: "u1", title: "Later Game", category: "Games", releaseDate: "2026-11-20", releasePrecision: "day" },
+    { id: "u2", title: "Soon Game", category: "Games", releaseDate: "2026-10-19", releasePrecision: "day", priority: 1 },
+    { id: "u3", title: "Vague Game", category: "Games", releaseDate: "2026-12", releasePrecision: "month" },
+    { id: "u4", title: "Show", category: "TV", nextAt: "2026-10-19", nextLabel: "S2E4" },
+    { id: "u5", title: "Dropped Game", category: "Games", releaseDate: "2026-10-18", releasePrecision: "day", dropped: true },
+    { id: "u6", title: "Out Already", category: "Games", releaseDate: "2026-09-01", releasePrecision: "day" },
+    { id: "p1", title: "Playing", category: "Games", startedAt: "2026-10-10", length: "30 hrs" },
+    { id: "p2", title: "Watching", category: "TV", startedAt: "2026-10-15" },
+    { id: "p3", title: "Not really", category: "TV", startedAt: "yes" },
+  ],
+};
+// Stand-ins for backlog.js's, in the shape they answer: the day something
+// is next out (the first day of a vague window), and the row's words.
+const upcomingAt = (b) => b.nextAt || (b.releasePrecision === "month" ? b.releaseDate + "-01" : b.releaseDate || "");
+const releaseLabel = (b) => b.releasePrecision === "month" ? "Sometime in Dec 2026" : b.releaseDate;
+
+test("upcoming: what's out from today on, soonest first, starred ahead on a shared day; dropped and past left out", () => {
+  const s = W.snapshotOf(BACKLOG, { today: TODAY, upcomingAt, releaseLabel });
+  assert.deepStrictEqual(s.upcoming.map((r) => r.id), ["u2", "u4", "u1", "u3"]);
+  assert.deepStrictEqual(s.upcoming[0], { id: "u2", title: "Soon Game", category: "Games", color: "#3fb950", day: "2026-10-19", exact: true, when: "", label: "", starred: true });
+});
+
+test("upcoming: a next episode carries its label; a vague date carries the app's words, trimmed", () => {
+  const s = W.snapshotOf(BACKLOG, { today: TODAY, upcomingAt, releaseLabel });
+  const show = s.upcoming.find((r) => r.id === "u4"), vague = s.upcoming.find((r) => r.id === "u3");
+  assert.deepStrictEqual([show.exact, show.label, show.day], [true, "S2E4", "2026-10-19"]);
+  assert.deepStrictEqual([vague.exact, vague.when, vague.day], [false, "Dec 2026", "2026-12-01"]);
+});
+
+test("in progress: started items, latest first, with the category's colour and the length; a bad day is not started", () => {
+  const s = W.snapshotOf(BACKLOG, { today: TODAY, upcomingAt, releaseLabel });
+  assert.deepStrictEqual(s.inProgress, [
+    { id: "p2", title: "Watching", category: "TV", color: "#58a6ff", startedAt: "2026-10-15", length: "" },
+    { id: "p1", title: "Playing", category: "Games", color: "#3fb950", startedAt: "2026-10-10", length: "30 hrs" },
+  ]);
+});
+
+test("without the app's helpers the Backlog widgets get empty lists, never a throw", () => {
+  const s = W.snapshotOf(BACKLOG, { today: TODAY });
+  assert.deepStrictEqual(s.upcoming, []);
+  assert.strictEqual(s.inProgress.length, 2);
+});
+
 test("two lists with one title stay two panels", () => {
   const d = data();
   d.notes.push({ id: "L2", kind: "list", text: "Work", createdAt: "2026-06-01", items: [{ id: "x", text: "Other work" }] });

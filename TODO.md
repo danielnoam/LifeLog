@@ -25,6 +25,12 @@ folder). Each changes how data is stored, so each is his call first.
 
 ## iOS
 
+- **Upcoming and In progress widgets.** Android got them in 0.277.0; the
+  rows are already in the snapshot (`upcoming`, `inProgress`, see
+  widgets.js backlogRows). Plan: two timeline providers in
+  LifeLogWidgets.swift drawing the same rows, counting down from the
+  phone's date like the Android ones (BacklogWidgets.java), opening
+  `open-upcoming` / `open-timeline`.
 - **A tapped notification opens the right place.** On iPhone a habit
   reminder, a charge heads-up or a release-day notification only opens the
   app; Android goes to the habit, the Ledger or Upcoming. Plan: a

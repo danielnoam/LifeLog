@@ -12,6 +12,10 @@
     <string name="widget_note_description">One note you choose, on your home screen</string>
     <string name="widget_randomnote_label">LifeLog random note</string>
     <string name="widget_randomnote_description">A different note every hour, every day or on a tap</string>
+    <string name="widget_upcoming_label">LifeLog upcoming</string>
+    <string name="widget_upcoming_description">What in your Backlog is out next, counted down</string>
+    <string name="widget_inprogress_label">LifeLog in progress</string>
+    <string name="widget_inprogress_description">What you have going in your Backlog, and since when</string>
     <string name="widget_next_note">Another note</string>
     <string name="widget_add">Add</string>
     <string name="widget_add_entry">Entry</string>

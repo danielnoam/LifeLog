@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.277.0] - 2026-10-21
+
+### Added
+- **Two Backlog widgets on Android.** Upcoming: what in your Backlog is
+  out next, soonest first, counted down on the phone's own clock (Today,
+  Tomorrow, In 3 days, then the date; a next episode with its label, a
+  vague date in the app's words). In progress: what you have going and
+  since when. Each shows as many rows as its size fits and opens its view
+  in the app.
+
 ## [0.276.0] - 2026-10-21
 
 ### Added

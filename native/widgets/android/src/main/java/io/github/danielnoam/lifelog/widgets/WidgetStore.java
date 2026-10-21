@@ -667,6 +667,8 @@ final class WidgetStore {
         SpendWidget.refresh(c);
         NoteWidget.refresh(c);
         RandomNoteWidget.refresh(c);
+        UpcomingWidget.refresh(c);
+        InProgressWidget.refresh(c);
     }
 
     static String pendingNote(Context c) {

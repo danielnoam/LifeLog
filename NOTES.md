@@ -16,6 +16,25 @@ what was decided against and why.
 
 ---
 
+- **Upcoming and In progress widgets (0.277.0).** The rows are worked
+  out in widgets.js (backlogRows) with backlog.js's own upcomingAt and
+  releaseLabel handed in, like remindAt is, so the widget and the
+  Upcoming mode can't disagree about what counts as coming and when.
+  Twelve rows each at most; the widget shows what its height fits
+  (BacklogWidgets.rowsFor). The clock is the phone's: a day-exact row
+  carries `exact: true` and its `day`, and Java counts "Today / Tomorrow
+  / In N days / 12 Oct" from today, so a widget left for days still
+  counts down and a release that came out meanwhile drops off; a vaguer
+  date carries the app's words (`when`, "Dec 2026", "Q1 2027") since
+  those don't age. In progress rows carry `startedAt` and Java says
+  "Since 12 Oct". With the lock's "hide in widgets" both lists go out
+  empty and the widget says so. Whole-widget taps only (open-upcoming,
+  and a new open-timeline for the In progress card); per-row deep links
+  weren't worth a RemoteViews template for a read-only list. iOS twins
+  are on TODO's iOS list; the snapshot already carries the rows. Not
+  compiled here (no Android SDK on the build machine): the Java mirrors
+  SpendWidget line for line and CI's APK build is the check.
+
 - **Price alerts (0.276.0).** The target lives on the item (`priceAlert`,
   USD, since GG.deals is asked for region=us) so it syncs with the item
   and the bridge can set it (DATA.md, `price_alert` on the add tool);

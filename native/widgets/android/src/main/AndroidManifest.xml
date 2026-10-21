@@ -84,6 +84,30 @@
                 android:resource="@xml/widget_randomnote_info" />
         </receiver>
 
+        <receiver
+            android:name="io.github.danielnoam.lifelog.widgets.UpcomingWidget"
+            android:exported="false"
+            android:label="@string/widget_upcoming_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_upcoming_info" />
+        </receiver>
+
+        <receiver
+            android:name="io.github.danielnoam.lifelog.widgets.InProgressWidget"
+            android:exported="false"
+            android:label="@string/widget_inprogress_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_inprogress_info" />
+        </receiver>
+
         <!-- The widgets' settings. Exported because the launcher starts
              them when a widget is placed; taskAffinity="" keeps them out of
              the app's own task, so finishing one doesn't bring LifeLog up. -->

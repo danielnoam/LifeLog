@@ -46,7 +46,41 @@
   // showing — a button for a tab you've turned off opens nothing.
   // remindAt and runBefore come from reminders.js and habits.js in the app;
   // left out, nothing is reminded and every run starts at nought.
-  function snapshotOf(data, { today, actions = [], remindAt = () => "", runBefore = () => 0, spend = null, pins = [] } = {}) {
+  // The two Backlog widgets' rows (0.277.0), by the app's own rules:
+  // `upcomingAt` and `releaseLabel` are backlog.js's, handed in like
+  // remindAt, so a widget can't disagree with the Upcoming mode. Capped:
+  // a home screen shows a handful, and this goes out on every save.
+  const BACKLOG_ROWS = 12;
+  function backlogRows(data, today, upcomingAt, releaseLabel) {
+    const cats = data.categories || [];
+    const colorOf = (name) => (cats.find((c) => c.name === name) || {}).color || "";
+    const backlog = (data.backlog || []).filter((b) => !b.dropped);
+    const upcoming = backlog
+      .map((b) => ({ b, day: String(upcomingAt(b) || "") }))
+      .filter((x) => x.day && x.day >= today)
+      .sort((x, y) => x.day.localeCompare(y.day) || (!!y.b.priority - !!x.b.priority) || String(x.b.title).localeCompare(String(y.b.title)))
+      .slice(0, BACKLOG_ROWS)
+      .map(({ b, day }) => {
+        // A next episode and a day-exact release are dated to the day, and
+        // the widget counts down to them itself (it has a clock; the
+        // snapshot may be days old). Anything vaguer carries its words.
+        const exact = b.nextAt === day || ((b.releasePrecision || "day") === "day" && String(b.releaseDate || "").slice(0, 10) === day);
+        return {
+          id: b.id, title: b.title, category: b.category, color: colorOf(b.category), day, exact,
+          when: exact ? "" : String(releaseLabel(b) || "").replace(/^Sometime in /, ""),
+          label: b.nextAt === day ? (b.nextLabel || "") : "",
+          starred: !!b.priority,
+        };
+      });
+    const inProgress = backlog
+      .filter((b) => /^\d{4}-\d{2}-\d{2}$/.test(String(b.startedAt || "")))
+      .sort((a, b) => String(b.startedAt).localeCompare(String(a.startedAt)) || String(a.title).localeCompare(String(b.title)))
+      .slice(0, BACKLOG_ROWS)
+      .map((b) => ({ id: b.id, title: b.title, category: b.category, color: colorOf(b.category), startedAt: b.startedAt, length: b.length || "" }));
+    return { upcoming, inProgress };
+  }
+
+  function snapshotOf(data, { today, actions = [], remindAt = () => "", runBefore = () => 0, spend = null, pins = [], upcomingAt = () => "", releaseLabel = () => "" } = {}) {
     const since = addDays(today, -MARK_DAYS);
     const until = addDays(today, 1);
     const habits = (data.habits || [])
@@ -110,7 +144,7 @@
     // `currency` (0.238.0): a Google Wallet payment in it gets an Add button
     // on the phone; one in any other needs the form, for its rate.
     const currency = (data.settings && data.settings.currency) || "ILS";
-    return { v: 4, today, habits, todos, doneCount, lists: listsOut, actions, spend, currency, ...notesOf(data, pins) };
+    return { v: 4, today, habits, todos, doneCount, lists: listsOut, actions, spend, currency, ...notesOf(data, pins), ...backlogRows(data, today, upcomingAt, releaseLabel) };
   }
 
   // What the note widgets pick from: each note cut to what a widget can
@@ -224,6 +258,8 @@
       remindAt: R ? R.remindAt : undefined,
       runBefore: H ? H.runBefore : undefined,
       spend: ctx.spend ? ctx.spend() : null,
+      upcomingAt: window.LifeLogBacklog ? window.LifeLogBacklog.upcomingAt : undefined,
+      releaseLabel: window.LifeLogBacklog ? window.LifeLogBacklog.releaseLabel : undefined,
       pins,
     });
     // With the lock on and "hide in widgets" set (0.262.0), the widgets get
@@ -232,7 +268,7 @@
     // setting or the lock goes.
     const hidden = !!(ctx.hidden && ctx.hidden());
     if (hidden) {
-      snap.todos = []; snap.lists = []; snap.notes = []; snap.hidden = true;
+      snap.todos = []; snap.lists = []; snap.notes = []; snap.upcoming = []; snap.inProgress = []; snap.hidden = true;
     }
     // Charge and release-day heads-ups (0.272.0), rung beside the habit
     // reminders. An APK or IPA older than that ignores the key.

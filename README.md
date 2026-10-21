@@ -201,9 +201,9 @@ in; this is the tour.
 - **Settings** – pages with search, four themes (Default, Light, Nord,
   Dracula), fonts and layout per device, and About with what's new, the
   credits and the errors on this device.
-- **Widgets** – checklist, habits, quick add, spending, note and random
-  note on Android; habits, checklist, quick add, this month and a note on
-  iPhone.
+- **Widgets** – checklist, habits, quick add, spending, note, random
+  note, upcoming releases and in progress on Android; habits, checklist,
+  quick add, this month and a note on iPhone.
 - **Offline** – an installable PWA with a service worker, so it works with
   no connection and syncs when there is one.
 
