@@ -258,7 +258,7 @@
     // A show also says how far it has run (0.280.0), as its backlog row does.
     const since = el("span", "progress-since", sinceLabel(b.startedAt));
     const airing = airingLabel(b);
-    if (airing) since.appendChild(el("span", "bl-airing progress-airing" + (airingDone(b) ? " is-done" : ""), " · " + airing));
+    if (airing) since.appendChild(el("span", "bl-airing progress-airing" + (airingDone(b) ? " is-done" : ""), airing));
     text.appendChild(since);
     row.appendChild(text);
     const stop = el("button", "btn btn-sm progress-stop");

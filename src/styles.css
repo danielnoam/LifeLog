@@ -1283,8 +1283,16 @@ select:focus { outline: none; border-color: var(--accent); }
 .progress-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .progress-text .etitle { flex: none; }
 .progress-since { font-size: var(--fs-2xs); color: var(--text-dim); }
-/* A show's run (0.280.0) after the days: may wrap under them on a phone. */
+/* A show's run (0.280.0): after the days on a computer, on its own line
+   under them on a phone (0.280.1). */
 .progress-since .progress-airing { white-space: normal; }
+.progress-since .progress-airing::before { content: " · "; color: var(--text-dim); }
+@media (max-width: 720px) {
+  html:not(.force-pc) .progress-since .progress-airing { display: block; }
+  html:not(.force-pc) .progress-since .progress-airing::before { content: none; }
+}
+html.force-mobile .progress-since .progress-airing { display: block; }
+html.force-mobile .progress-since .progress-airing::before { content: none; }
 /* A book's author (0.267.0): under the title where the row has a second
    line, beside it as "Title · Author" where it doesn't. There the author
    gives way first: its shrink is so much larger that the title only starts

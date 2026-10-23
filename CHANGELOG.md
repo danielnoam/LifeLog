@@ -4,6 +4,12 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.280.1] - 2026-10-23
+
+### Changed
+- On a phone, a show's airing state on the In progress card sits on its
+  own line under how long you've been watching it.
+
 ## [0.280.0] - 2026-10-23
 
 ### Added

@@ -56,10 +56,18 @@ const SHOWS = {
 
     // ---- In progress ----
     const since = (id) => page.evaluate((i) => (document.querySelector('.progress-row[data-id="' + i + '"] .progress-since') || {}).textContent || "", id);
-    check("an airing show in progress says how far it's run" + at, /since .* · today · S2 airing · 5 of 10/.test(await since("p1")), await since("p1"));
-    check("a finished one says Complete, in the done colour" + at, /· Complete$/.test(await since("p2"))
+    check("an airing show in progress says how far it's run" + at, /since .* · todayS2 airing · 5 of 10$/.test(await since("p1")), await since("p1"));
+    const lines = await page.evaluate(() => {
+      const s = document.querySelector('.progress-row[data-id="p1"] .progress-since'), a = s.querySelector(".progress-airing");
+      return { block: getComputedStyle(a).display === "block", before: getComputedStyle(a, "::before").content };
+    });
+    check(width < 720 ? "on a phone, on its own line under the days" + at : "on a computer, after the days with a dot" + at,
+      width < 720 ? lines.block && (lines.before === "none" || lines.before === "normal") : !lines.block && /·/.test(lines.before), lines);
+    check("a finished one says Complete, in the done colour" + at, /Complete$/.test(await since("p2"))
       && await page.evaluate(() => !!document.querySelector('.progress-row[data-id="p2"] .progress-airing.is-done')), await since("p2"));
     check("something that isn't a show says only how long" + at, /^since .* · today$/.test(await since("p3")), await since("p3"));
+
+    await page.screenshot({ path: require("path").join(require("os").tmpdir(), "showstate-ip-" + width + ".png") });
 
     // ---- Discover ----
     await page.evaluate(() => localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "backlog", backlogMode: "discover" })));
@@ -76,7 +84,7 @@ const SHOWS = {
     await page.reload({ waitUntil: "networkidle" });
     await page.waitForTimeout(1000);
     check("a reload the same day answers from the day's cache, asking nothing" + at, asked.length === 0 && /S3 airing/.test(await rowText("Show One")), { asked, t: await rowText("Show One") });
-    await page.screenshot({ path: require("path").join(require("os").tmpdir(), "showstate-" + width + ".png") });
+    await page.screenshot({ path: require("path").join(require("os").tmpdir(), "showstate-dsc-" + width + ".png") });
     await page.close();
   }
   await b.close();

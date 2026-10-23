@@ -26,7 +26,9 @@ what was decided against and why.
   each run, so it holds about one list). About 20 extra requests a day
   with the mode open, to TMDB with the key already in use. Not for the
   Coming soon list, where nothing has started. The In progress card reuses
-  airingLabel from the backlog row, after the days line. The Android In
+  airingLabel from the backlog row, after the days line on a computer and
+  (0.280.1, Daniel's call) on its own line under it on a phone; the dot
+  between them is CSS ::before so the two layouts share one element. The Android In
   progress widget still shows only the start date; it would need the
   airing words in the snapshot and a Java change.
 
