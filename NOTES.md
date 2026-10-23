@@ -16,6 +16,20 @@ what was decided against and why.
 
 ---
 
+- **Airing state in Discover and In progress (0.280.0).** Daniel noticed
+  that shows in Discover didn't say airing or complete the way anime did.
+  AniList and Jikan put a show's status in the list itself; TMDB's
+  trending list carries no status, only each show's own page does. So a
+  TMDB TV Discover row asks its page once (fetchDetails, the call its "+"
+  already makes), four at a time, and the airing fields are kept a day in
+  localStorage `lifelog-discover-airing-v1` (expired entries are pruned on
+  each run, so it holds about one list). About 20 extra requests a day
+  with the mode open, to TMDB with the key already in use. Not for the
+  Coming soon list, where nothing has started. The In progress card reuses
+  airingLabel from the backlog row, after the days line. The Android In
+  progress widget still shows only the start date; it would need the
+  airing words in the snapshot and a Java change.
+
 - **Background refresh (0.279.0).** Daniel asked for an optional way for
   the widgets and notifications to keep up while the app is closed, and
   chose a periodic headless job over a keep-running switch (plan A would

@@ -255,7 +255,11 @@
     const t = el("span", "etitle", b.title); t.title = b.title;
     text.appendChild(t);
     appendAuthor(text, b);
-    text.appendChild(el("span", "progress-since", sinceLabel(b.startedAt)));
+    // A show also says how far it has run (0.280.0), as its backlog row does.
+    const since = el("span", "progress-since", sinceLabel(b.startedAt));
+    const airing = airingLabel(b);
+    if (airing) since.appendChild(el("span", "bl-airing progress-airing" + (airingDone(b) ? " is-done" : ""), " · " + airing));
+    text.appendChild(since);
     row.appendChild(text);
     const stop = el("button", "btn btn-sm progress-stop");
     stop.appendChild(ico("undo-2"));
@@ -1717,6 +1721,60 @@
 
   function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
+  // ---------- how far a discovered show has run (0.280.0) ----------
+  // AniList and Jikan say whether a show is airing in the list itself; TMDB's
+  // trending list doesn't, only each show's own page does. So a TMDB TV row
+  // asks its page once (the same call its "+" makes), and the answer is kept
+  // for a day: shows move on weekly, and a day-old "S2 airing · 5 of 10" is
+  // close enough for a list you're browsing. Not for the upcoming list,
+  // where nothing has started.
+  const DISCOVER_AIRING_KEY = "lifelog-discover-airing-v1";
+  const DISCOVER_AIRING_TTL_MS = 24 * 60 * 60 * 1000;
+  const DISCOVER_AIRING_FIELDS = ["airing", "episodesOut", "episodesTotal", "airingSeason"];
+  const discoverAiringRuns = new Set();
+
+  function discoverAiringCache() {
+    try { return JSON.parse(localStorage.getItem(DISCOVER_AIRING_KEY)) || {}; }
+    catch (e) { return {}; }
+  }
+  function applyDiscoverAiring(source, rows, cache) {
+    if (source !== "tmdb-tv") return;
+    const now = Date.now();
+    for (const r of rows) {
+      const hit = r.id && cache[r.id];
+      if (!hit || now - hit.at >= DISCOVER_AIRING_TTL_MS) continue;
+      for (const k of DISCOVER_AIRING_FIELDS) { if (hit[k]) r[k] = hit[k]; }
+    }
+  }
+  async function loadDiscoverAiring(source, kind, rows, keys) {
+    if (source !== "tmdb-tv" || kind === "upcoming" || !keys.tmdb || !window.LifeLogMedia) return;
+    const runKey = source + "|" + kind;
+    if (discoverAiringRuns.has(runKey)) return;
+    discoverAiringRuns.add(runKey);
+    const cache = discoverAiringCache();
+    const now = Date.now();
+    // Expired entries go, so the store holds about one list's worth.
+    for (const id of Object.keys(cache)) if (!(now - cache[id].at < DISCOVER_AIRING_TTL_MS)) delete cache[id];
+    const pending = rows.filter((r) => r.id && !cache[r.id]);
+    if (!pending.length) return;
+    // Four at a time: twenty shows in a second or two, well inside TMDB's
+    // rate limit.
+    const queue = pending.slice();
+    const worker = async () => {
+      for (let r = queue.shift(); r; r = queue.shift()) {
+        let d = null;
+        try { d = await window.LifeLogMedia.fetchDetails(r.id, "tmdb-tv", keys); } catch (e) { d = null; }
+        const hit = { at: Date.now() };
+        if (d) for (const k of DISCOVER_AIRING_FIELDS) { if (d[k]) hit[k] = d[k]; }
+        cache[r.id] = hit;
+      }
+    };
+    await Promise.all([worker(), worker(), worker(), worker()]);
+    try { localStorage.setItem(DISCOVER_AIRING_KEY, JSON.stringify(cache)); } catch (e) {}
+    applyDiscoverAiring(source, rows, cache);
+    repaintDiscoverSoon();
+  }
+
   // Starts whatever hasn't been asked for yet and repaints once the answers
   // land — debounced, so four sources finishing a few hundred ms apart don't
   // each redraw the grid underneath you.
@@ -1840,6 +1898,7 @@
       airing: r.airing,
       episodesOut: r.episodesOut,
       episodesTotal: r.episodesTotal,
+      airingSeason: r.airingSeason,
       mediaSource: r.source,
       length: r.length,
       summary: r.summary,
@@ -2034,6 +2093,7 @@
         parts.push({ key: "__owned", kind: "note", text: "You already have all " + run.rows.length + " of these." });
       } else {
         applyDiscoverEarlyAccess(rows, discoverEaCache());
+        applyDiscoverAiring(source, rows, discoverAiringCache());
         // Keyed by source as well as result id: two sources can return the
         // same id for different things, and the cards share no key space.
         for (const r of rows) parts.push({ key: source + "|" + r.id, kind: "row", r, catName: cats[0], keys, owned });
@@ -2041,6 +2101,7 @@
         // filtered out of the list, and asking Steam about it would spend
         // two requests on a badge nobody sees.
         loadDiscoverEarlyAccess(source, discoverKind, rows, keys);
+        loadDiscoverAiring(source, discoverKind, rows, keys);
         // Says the filter did something, so a short list doesn't read as a
         // thin one from the source.
         if (hidden) parts.push({ key: "__hidden", kind: "note", text: hidden + " already yours, hidden" });

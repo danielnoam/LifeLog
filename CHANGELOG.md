@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.280.0] - 2026-10-23
+
+### Added
+- **Shows say whether they're airing in Discover and In progress.** A
+  TMDB show in Discover now reads like an anime there: "S3 airing · 4 of
+  8", "Season complete · more coming" or "Complete". And a show on the
+  Timeline's In progress card says the same after how long you've been
+  watching it.
+
 ## [0.279.0] - 2026-10-21
 
 ### Added

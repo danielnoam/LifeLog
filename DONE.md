@@ -82,6 +82,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Upcoming mode: what's coming by month, with how much of the date is known, countdowns and next episodes (0.99.0, 0.98.0)
 - Out today card and sheet, and Out in the last 7 days (0.226.0, 0.227.0, 0.259.0)
 - A notification on release day, for starred items or everything (Android, iPhone) (0.272.0)
+- Airing state on TMDB shows in Discover and on the In progress card (0.280.0)
 
 ## Media lookups
 
