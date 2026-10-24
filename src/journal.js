@@ -813,7 +813,8 @@
       added.hidden = false;
     } else added.hidden = true;
     setRating(editing ? (entry.rating || 0) : 0);
-    $("#fNotes").value = editing ? (entry.notes || "") : ((preset && preset.notes) || "");
+    $("#fNotes").value = editing ? (entry.notes || "")
+      : ((fromBacklog && fromBacklog.notes) || (preset && preset.notes) || "");
     const coverSrc = editing ? (entry.coverUrl || "") : (fromBacklog ? (fromBacklog.coverUrl || "") : "");
     const mediaSrc = editing ? (entry.mediaSource || "") : (fromBacklog ? (fromBacklog.mediaSource || "") : "");
     const mediaId = editing ? (entry.mediaId || "") : (fromBacklog ? (fromBacklog.mediaId || "") : "");

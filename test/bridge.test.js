@@ -190,6 +190,17 @@ test("finishing a backlog item moves it to the timeline", async () => {
   assert.strictEqual(e.date, "2026-10");
 });
 
+test("finishing keeps the item's notes, unless new ones are given", async () => {
+  reset();
+  await ok("lifelog_add_backlog_item", { title: "Celeste", category: "Games", notes: "Try the spear" });
+  await ok("lifelog_add_backlog_item", { title: "Tunic", category: "Games", notes: "Old" });
+  await ok("lifelog_finish_backlog_item", { item: "Celeste" });
+  await ok("lifelog_finish_backlog_item", { item: "Tunic", notes: "New" });
+  const d = data();
+  assert.strictEqual(d.entries.find((x) => x.title === "Celeste").notes, "Try the spear");
+  assert.strictEqual(d.entries.find((x) => x.title === "Tunic").notes, "New");
+});
+
 test("notes: a checklist is made, ticked, added to and pruned by item text or id", async () => {
   reset();
   await ok("lifelog_add_note", { list_items: ["Bread", " "] });

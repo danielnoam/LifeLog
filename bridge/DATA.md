@@ -79,7 +79,9 @@ Things to play, read, watch or do next.
   `cover`, `rating`, `length`, `author`).
 
 Finishing an item moves it to the timeline: a new entry with the same title
-and category, and the backlog item removed (`lifelog_finish_backlog_item`).
+and category, its notes kept, and the backlog item removed
+(`lifelog_finish_backlog_item`). Moving an entry back to the backlog keeps
+its notes too.
 
 ## Categories (`categories`, `financeCategories`, `noteCategories`)
 

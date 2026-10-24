@@ -809,7 +809,7 @@ const TOOLS = [
     description: "Mark a backlog item finished: it moves to the timeline, as the app's Done does.",
     input: {
       item: S.str("Its id or title"), year: S.int("Default this year"), month: S.int("Default this month"),
-      rating: S.int("1-5 stars, optional"), notes: S.str("Optional"),
+      rating: S.int("1-5 stars, optional"), notes: S.str("Optional; the item's own notes are kept otherwise"),
     },
     required: ["item"],
     async run(a) {
@@ -823,6 +823,7 @@ const TOOLS = [
         if (b.overrides && b.overrides.author) item.overrides = { author: true };
         if (a.rating) item.rating = Math.round(a.rating);
         if (a.notes) item.notes = String(a.notes).trim();
+        else if (b.notes) item.notes = b.notes;
         const e = addItem(d, "entries", item);
         d.backlog = d.backlog.filter((x) => x.id !== b.id);
         return { text: `Moved "${b.title}" from the backlog to the timeline (${e.date}). id ${e.id}`, touched: [["entries", e.id], ["backlog", b.id]] };
