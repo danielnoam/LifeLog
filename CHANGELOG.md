@@ -4,6 +4,21 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.281.0] - 2026-10-24
+
+### Changed
+- **One date picker for an entry's dates.** The entry sheet's Year box and
+  Month list are now a single Finished date, and Started is a date too.
+  The day is saved for later but nothing shows it yet; entries from before
+  keep their month and gain no day until you pick one.
+- **In progress has its own group in Search**, instead of showing up
+  under Backlog.
+
+### Fixed
+- Notes carry over when you mark a backlog item Done, as they already did
+  when moving an entry back to the backlog. The AniList Completed sync and
+  the bridge's finish tool keep them too.
+
 ## [0.280.1] - 2026-10-23
 
 ### Changed

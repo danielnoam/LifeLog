@@ -16,6 +16,31 @@ what was decided against and why.
 
 ---
 
+- **Entry dates as one picker each, and the day kept (0.281.0).** Daniel
+  asked for one control instead of a year box and a month list, and for the
+  day to be saved "but not used for now". Finished is `<input type=date>`
+  (required), Started an optional one; on a phone the pair stacks
+  (`row-dates`). The entry is still filed by `year`/`month`/`date`; the day
+  goes in a new `day` field (sanitizeEntry keeps 1 to the month's length)
+  and the start's day in the existing `startedAt`, kept only when it's no
+  later than the finish. An entry from before has no day, so its picker
+  shows the 1st: `readDateField` treats an untouched stand-in (value equal
+  to what was set, `data-known` empty) as no day, so saving an old entry
+  doesn't make one up. Same for an old span's start. The bridge's add and
+  finish tools take an optional `day` (today's when the month defaults too)
+  and DATA.md has the field. Nothing displays `day` yet; when something
+  does, entries without one must still read as month-only.
+- **In progress is its own Search group (0.281.0).** Started things are
+  backlog items with `startedAt` (0.218.0), so Search listed them under
+  Backlog with a tag. Daniel: they count as Timeline. The group sits after
+  Timeline, shows when the Timeline tab is on, and its Filter line narrows
+  the Timeline (the In progress card reads the same search).
+- **Notes carry over from the backlog (0.281.0).** Moving an entry back
+  kept its notes since 0.51.0, but ✓ Done opened the entry sheet with notes
+  empty, and the AniList Completed sync and the bridge's finish tool
+  dropped them. All three keep them now; the bridge's `notes` argument
+  replaces them when given.
+
 - **Airing state in Discover and In progress (0.280.0).** Daniel noticed
   that shows in Discover didn't say airing or complete the way anime did.
   AniList and Jikan put a show's status in the list itself; TMDB's

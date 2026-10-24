@@ -3060,7 +3060,7 @@
     closeBacklogModal,
     // the toast after a synced title is logged (journal.js's save)
     offerNextInSeries,
-    isStarted, // the search page's "In progress" tag
+    isStarted, // the search page's In progress group
     // "Pick random" modal (Escape close)
     closePickModal,
     // cover panel (applySteamAppId in app.js writes the fields, then repaints)

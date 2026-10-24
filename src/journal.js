@@ -768,10 +768,25 @@
   // app: { year, month } from a month card's "+", plus optionally { title,
   // notes } when a note is being turned into an entry. It is ignored while
   // editing, where the entry itself is the source of truth.
-  // The started year is prefilled (one tap on the month makes a span), but
-  // a filled year beside "— none —" read as half a value: it waits, greyed,
-  // until a month is picked.
-  function syncStartYear() { $("#fStartYear").disabled = !$("#fStartMonth").value; }
+  // One date picker per date (0.281.0), in place of a year box and a month
+  // list each. The entry is still filed by year and month; the day is kept
+  // (`day`, and `startedAt` for the start) but nothing reads it yet. An
+  // entry made before then has no day, so its picker shows the 1st: saved
+  // untouched, that 1st isn't stored as a day it never had.
+  const ymd = (y, m, d) => y + "-" + String(m).padStart(2, "0") + "-" + String(d || 1).padStart(2, "0");
+  function setDateField(input, value, known) {
+    input.value = value;
+    input.dataset.orig = value;
+    input.dataset.known = known ? "1" : "";
+  }
+  // { year, month, day } from a picker, with day null when it's the
+  // untouched stand-in for an entry that never had one.
+  function readDateField(input) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(input.value || "");
+    if (!m) return null;
+    const guessed = !input.dataset.known && input.value === input.dataset.orig;
+    return { year: +m[1], month: +m[2], day: guessed ? null : +m[3], value: input.value };
+  }
 
   function openEntryModal(entry, fromBacklog, preset) {
     const editing = !!entry;
@@ -782,27 +797,17 @@
       : (fromBacklog ? fromBacklog.title : ((preset && preset.title) || ""));
     fillCategorySelect($("#fCategory"), state.data.categories,
       editing ? entry.category : (fromBacklog ? fromBacklog.category : (state.data.categories[0] && state.data.categories[0].name)));
-    fillSelect($("#fMonth"),
-      MONTHS.slice(1).map((m, i) => ({ value: i + 1, label: m })),
-      editing ? entry.month : (preset ? preset.month : (new Date().getMonth() + 1)));
-    $("#fYear").value = editing ? entry.year : (preset ? preset.year : new Date().getFullYear());
-    // Optional "Started" month for a multi-month span — a blank "— none —" by
-    // default (single month). Start year defaults to the finish year, so the
-    // common case (spanned within one year) is a single tap on the month.
-    fillSelect($("#fStartMonth"),
-      [{ value: "", label: "— none —" }].concat(MONTHS.slice(1).map((m, i) => ({ value: i + 1, label: m }))),
-      editing && entry.startMonth ? entry.startMonth : "");
-    $("#fStartYear").value = editing && entry.startYear ? entry.startYear
-      : (editing ? entry.year : (preset ? preset.year : new Date().getFullYear()));
-    // Finishing something that was In progress (0.218.0): it started in the
-    // month you started it. The save drops it if that's this month.
-    const startedAt = !editing && fromBacklog && /^\d{4}-\d{2}-\d{2}$/.test(fromBacklog.startedAt || "") ? fromBacklog.startedAt : "";
-    $("#entryStartedAt").value = startedAt;
-    if (startedAt) {
-      $("#fStartMonth").value = String(+startedAt.slice(5, 7));
-      $("#fStartYear").value = startedAt.slice(0, 4);
-    }
-    syncStartYear();
+    const now = new Date();
+    if (editing) setDateField($("#fDate"), ymd(entry.year, entry.month, entry.day), !!entry.day);
+    else if (preset && preset.year) setDateField($("#fDate"), ymd(preset.year, preset.month), false);
+    else setDateField($("#fDate"), ymd(now.getFullYear(), now.getMonth() + 1, now.getDate()), true);
+    // Started is optional: empty is a single month. Finishing something that
+    // was In progress (0.218.0) starts on the day you started it.
+    const dayRe = /^\d{4}-\d{2}-\d{2}$/;
+    const startedAt = !editing && fromBacklog && dayRe.test(fromBacklog.startedAt || "") ? fromBacklog.startedAt : "";
+    if (editing && dayRe.test(entry.startedAt || "")) setDateField($("#fStartDate"), entry.startedAt, true);
+    else if (editing && entry.startMonth) setDateField($("#fStartDate"), ymd(entry.startYear, entry.startMonth), false);
+    else setDateField($("#fStartDate"), startedAt, !!startedAt);
     $("#deleteEntryBtn").hidden = !editing;
     $("#entryMoreWrap").hidden = !editing;
     closeSheetMenus();
@@ -1438,14 +1443,17 @@
     const backlogItem = fromBacklogId ? state.data.backlog.find((b) => b.id === fromBacklogId) : null;
     const title = $("#fTitle").value.trim();
     const category = $("#fCategory").value;
-    const year = parseInt($("#fYear").value, 10);
-    const month = parseInt($("#fMonth").value, 10);
+    const done = readDateField($("#fDate"));
+    if (!done) return;
+    const { year, month, day } = done;
     // Optional multi-month span. Only an actually-earlier start counts; a start
     // at or after the anchor month is a single-month entry, so we store nothing
-    // (and clear any prior span when editing).
-    const startMonth = $("#fStartMonth").value ? parseInt($("#fStartMonth").value, 10) : null;
-    const startYear = startMonth ? (parseInt($("#fStartYear").value, 10) || year) : null;
+    // (and clear any prior span when editing). The start's day is `startedAt`,
+    // kept when it's a real day no later than the finish.
+    const start = readDateField($("#fStartDate"));
+    const startMonth = start ? start.month : null, startYear = start ? start.year : null;
     const isSpan = !!(startMonth && (startYear * 12 + startMonth) < (year * 12 + month));
+    const startedOn = start && start.day && start.value <= done.value ? start.value : "";
     const rating = parseInt($("#fRating").dataset.value, 10) || 0;
     const notes = $("#fNotes").value.trim();
     const coverUrl = $("#fCoverUrl").value;
@@ -1458,7 +1466,9 @@
     if (id) {
       const e = state.data.entries.find((x) => x.id === id);
       Object.assign(e, { title, category, year, month, date: `${year}-${String(month).padStart(2, "0")}` });
+      if (day) e.day = day; else delete e.day;
       if (isSpan) { e.startMonth = startMonth; e.startYear = startYear; } else { delete e.startMonth; delete e.startYear; }
+      if (startedOn) e.startedAt = startedOn; else if (!start || start.day) delete e.startedAt;
       if (rating) e.rating = rating; else delete e.rating;
       if (notes) e.notes = notes; else delete e.notes;
       if (coverUrl) e.coverUrl = coverUrl; else delete e.coverUrl;
@@ -1475,6 +1485,7 @@
         date: `${year}-${String(month).padStart(2, "0")}`,
         createdAt: new Date().toISOString(),
       };
+      if (day) newEntry.day = day;
       if (isSpan) { newEntry.startMonth = startMonth; newEntry.startYear = startYear; }
       if (rating) newEntry.rating = rating;
       if (notes) newEntry.notes = notes;
@@ -1486,9 +1497,9 @@
       overrides = saveAuthor("f", newEntry, overrides);
       if (overrides) newEntry.overrides = overrides;
       if (backlogItem) newEntry.backlogAddedAt = backlogItem.createdAt || null;
-      // The day it went In progress, kept: the months above are all a span
-      // records, and this is what they were worked out from.
-      if ($("#entryStartedAt").value) newEntry.startedAt = $("#entryStartedAt").value;
+      // The day it started (from In progress, or picked), kept: the months
+      // above are all a span records.
+      if (startedOn) newEntry.startedAt = startedOn;
       state.data.entries.push(newEntry);
     }
     if (fromBacklogId) state.data.backlog = state.data.backlog.filter((b) => b.id !== fromBacklogId);
@@ -1760,7 +1771,7 @@
   const KNOWN_ENTRY_KEYS = new Set([
     "id", "title", "category", "year", "month", "date", "createdAt", "updatedAt",
     "rating", "notes", "coverUrl", "mediaId", "mediaSource", "length", "genres",
-    "backlogAddedAt", "overrides", "startMonth", "startYear", "startedAt", "author",
+    "backlogAddedAt", "overrides", "startMonth", "startYear", "startedAt", "author", "day",
   ]);
   function sanitizeEntry(e) {
     const out = {
@@ -1794,6 +1805,9 @@
       out.startMonth = sm; out.startYear = sy;
     }
     if (/^\d{4}-\d{2}-\d{2}$/.test(e.startedAt || "")) out.startedAt = e.startedAt;
+    // The day of the month it finished (0.281.0), kept but not shown yet.
+    const day = +e.day;
+    if (Number.isInteger(day) && day >= 1 && day <= new Date(out.year, out.month, 0).getDate()) out.day = day;
     // Anything this build doesn't know about is carried through rather than
     // dropped — see keepUnknown in app.js for why that matters across devices.
     return keepUnknown(e, out, KNOWN_ENTRY_KEYS);
@@ -1823,7 +1837,6 @@
     $("#moveToProgressBtn").onclick = () => moveEntryToBacklog(true);
     $("#fTitle").oninput = renderTitleSuggestions;
     $("#fCategory").onchange = () => updateSyncBtnVisibility("f", $("#fCategory").value);
-    $("#fStartMonth").onchange = syncStartYear;
     $("#fSyncBtn").onclick = syncEntryTitle;
     $("#cSource").onchange = () => { if (catAuthorAuto) $("#cShowAuthor").checked = BOOK_SOURCES.has($("#cSource").value); };
     $("#cShowAuthor").onchange = () => { catAuthorAuto = false; };

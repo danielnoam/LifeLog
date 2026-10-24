@@ -78,11 +78,10 @@ async function run(b, width) {
   // ---- ✓ Done logs it with the months it took ----
   await page.click('.progress-row[data-id="g2"] .btn:not(.progress-stop)');
   await page.waitForTimeout(300);
-  const form = await page.evaluate(() => ({ sm: document.getElementById("fStartMonth").value, sy: document.getElementById("fStartYear").value,
-    m: document.getElementById("fMonth").value, y: document.getElementById("fYear").value, title: document.getElementById("fTitle").value }));
-  check("✓ Done opens the entry already started in the month it was started" + at,
-    form.title === "Hades" && +form.sm === twoMonthsAgo.getMonth() + 1 && +form.sy === twoMonthsAgo.getFullYear()
-    && +form.m === now.getMonth() + 1 && +form.y === now.getFullYear(), form);
+  const form = await page.evaluate(() => ({ start: document.getElementById("fStartDate").value,
+    done: document.getElementById("fDate").value, title: document.getElementById("fTitle").value }));
+  check("✓ Done opens the entry already started on the day it was started" + at,
+    form.title === "Hades" && form.start === day(twoMonthsAgo) && form.done === day(now), form);
   await page.click('#entryForm button[type="submit"]');
   await page.waitForTimeout(500);
   let d = await saved();

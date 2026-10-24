@@ -75,9 +75,14 @@ async function run(b, width) {
   await type("pacino");
   const g2 = await groups();
   check("achievements and collection notes are searched too" + at, g2.includes("timeline:2") && g2.includes("notes:1"), g2);
-  check("an in-progress Backlog item is tagged" + at, (await type("zelda"), await page.evaluate(() => /In progress/.test(document.querySelector("#searchResults .search-row-meta").textContent))));
-  await page.click("#searchResults .search-group[data-view=backlog] .search-row"); await page.waitForTimeout(300);
-  check("a Backlog hit opens its sheet" + at, await page.evaluate(() => !document.querySelector("#backlogModal").hidden && document.querySelector("#bTitle").value.startsWith("Zelda")));
+  await type("zelda");
+  check("an in-progress item is under In progress, not Backlog" + at, await page.evaluate(() => {
+    const g = [...document.querySelectorAll("#searchResults .search-group")];
+    const ip = g.find((x) => /In progress/.test(x.textContent) && x.dataset.view === "timeline");
+    return !!ip && ip.querySelector(".search-row") && !document.querySelector("#searchResults .search-group[data-view=backlog]");
+  }));
+  await page.click("#searchResults .search-group[data-view=timeline] .search-row"); await page.waitForTimeout(300);
+  check("an In progress hit opens its sheet" + at, await page.evaluate(() => !document.querySelector("#backlogModal").hidden && document.querySelector("#bTitle").value.startsWith("Zelda")));
   await page.keyboard.press("Escape");
 
   // ---- Ledger amount and habit ----

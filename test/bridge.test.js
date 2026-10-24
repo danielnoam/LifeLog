@@ -190,6 +190,16 @@ test("finishing a backlog item moves it to the timeline", async () => {
   assert.strictEqual(e.date, "2026-10");
 });
 
+test("an entry keeps its day: the one given, today's by default, none for a named month", async () => {
+  reset();
+  await refused("lifelog_add_timeline_entry", { title: "X", category: "Games", year: 2026, month: 2, day: 30 }, /day must be 1-28/);
+  await ok("lifelog_add_timeline_entry", { title: "Given", category: "Games", year: 2026, month: 2, day: 14 });
+  await ok("lifelog_add_timeline_entry", { title: "Today", category: "Games" });
+  await ok("lifelog_add_timeline_entry", { title: "Named", category: "Games", year: 2025, month: 5 });
+  const d = data(), by = (t) => d.entries.find((x) => x.title === t);
+  assert.deepStrictEqual([by("Given").day, by("Today").day, by("Named").day], [14, new Date().getDate(), undefined]);
+});
+
 test("finishing keeps the item's notes, unless new ones are given", async () => {
   reset();
   await ok("lifelog_add_backlog_item", { title: "Celeste", category: "Games", notes: "Try the spear" });

@@ -112,15 +112,24 @@
         },
       });
     }
+    // Started things are stored as backlog items but live on the Timeline's
+    // In progress card, so they're found there, not under Backlog (0.281.0).
+    const B = ctx.Backlog;
+    const backlogRow = (b) => ({
+      fields: [f(b.title, "title"), f(b.author, "author"), f(b.notes, "notes"), f(b.category, "category"), f((b.genres || []).join(", "), "genres")],
+      meta: [b.category, b.releaseYear ? String(b.releaseYear) : ""].filter(Boolean).join(" · "),
+      open: () => B.openBacklogModal(b),
+    });
+    if (viewEnabled("timeline")) {
+      out.push({
+        view: "timeline", label: "In progress", icon: "play", filter: "timeline",
+        items: () => (state.data.backlog || []).filter(B.isStarted).map(backlogRow),
+      });
+    }
     if (viewEnabled("backlog")) {
-      const B = ctx.Backlog;
       out.push({
         view: "backlog", label: "Backlog", icon: "star", filter: "backlog",
-        items: () => (state.data.backlog || []).map((b) => ({
-          fields: [f(b.title, "title"), f(b.author, "author"), f(b.notes, "notes"), f(b.category, "category"), f((b.genres || []).join(", "), "genres")],
-          meta: [B.isStarted(b) ? "In progress" : "", b.category, b.releaseYear ? String(b.releaseYear) : ""].filter(Boolean).join(" · "),
-          open: () => B.openBacklogModal(b),
-        })),
+        items: () => (state.data.backlog || []).filter((b) => !B.isStarted(b)).map(backlogRow),
       });
     }
     if (viewEnabled("finance")) {

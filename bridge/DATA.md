@@ -35,9 +35,11 @@ event or anything else, by category.
 - `category`: a name from `categories`.
 - `year`, `month` (1-12): the month it's filed under, where it finished.
 - `date`: the same month as `YYYY-MM`. Always `year` and `month` together.
+- `day`: optional, the day of the month it finished (1-31). Saved since
+  0.281.0 but not shown anywhere yet; older entries don't have one.
 - `startYear`, `startMonth`: optional. A span that began in an earlier month.
-- `startedAt`: optional `YYYY-MM-DD`, when it was started (carried over from
-  the backlog).
+- `startedAt`: optional `YYYY-MM-DD`, the day it was started (carried over
+  from the backlog, or picked in the entry's Started field).
 - `rating`: optional, 1 to 5 stars.
 - `notes`: optional text.
 - `coverUrl`, `mediaId`, `mediaSource`, `length`, `genres` (up to 4): what a

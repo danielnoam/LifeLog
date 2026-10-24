@@ -427,6 +427,15 @@ const S = {
 };
 const COLL_ENUM = Object.keys(COLLECTIONS);
 
+// The day of the month it finished (0.281.0): the one given, or today's
+// when the month is left to default too. Nothing reads it yet.
+function finishDay(a, year, month, now) {
+  if (a.day == null) return !a.year && !a.month ? now.getDate() : null;
+  const day = +a.day;
+  if (!(Number.isInteger(day) && day >= 1 && day <= new Date(year, month, 0).getDate())) fail(`day must be 1-${new Date(year, month, 0).getDate()} for that month.`);
+  return day;
+}
+
 const TOOLS = [
   {
     name: "lifelog_overview",
@@ -764,7 +773,7 @@ const TOOLS = [
     description: "Add something done or finished to the timeline, filed under a month.",
     input: {
       title: S.str("What"), category: S.str("A timeline category from lifelog_overview"),
-      year: S.int("Default this year"), month: S.int("1-12, default this month"),
+      year: S.int("Default this year"), month: S.int("1-12, default this month"), day: S.int("Day of the month, optional"),
       rating: S.int("1-5 stars, optional"), notes: S.str("Optional"), author: S.str("Optional, a book's author"),
     },
     required: ["title", "category"],
@@ -773,8 +782,10 @@ const TOOLS = [
       const year = +a.year || now.getFullYear(), month = +a.month || now.getMonth() + 1;
       if (month < 1 || month > 12) fail("month must be 1-12.");
       if (a.rating != null && !(a.rating >= 1 && a.rating <= 5)) fail("rating is 1-5 stars.");
+      const day = finishDay(a, year, month, now);
       return change(`timeline "${a.title}"`, (d) => {
         const item = { title: String(a.title).trim(), category: a.category, year, month, date: `${year}-${String(month).padStart(2, "0")}` };
+        if (day) item.day = day;
         if (a.rating) item.rating = Math.round(a.rating);
         if (a.notes) item.notes = String(a.notes).trim();
         Object.assign(item, authored(a));
@@ -808,7 +819,7 @@ const TOOLS = [
     name: "lifelog_finish_backlog_item",
     description: "Mark a backlog item finished: it moves to the timeline, as the app's Done does.",
     input: {
-      item: S.str("Its id or title"), year: S.int("Default this year"), month: S.int("Default this month"),
+      item: S.str("Its id or title"), year: S.int("Default this year"), month: S.int("Default this month"), day: S.int("Day of the month, optional"),
       rating: S.int("1-5 stars, optional"), notes: S.str("Optional; the item's own notes are kept otherwise"),
     },
     required: ["item"],
@@ -816,9 +827,11 @@ const TOOLS = [
       const now = new Date();
       const year = +a.year || now.getFullYear(), month = +a.month || now.getMonth() + 1;
       if (a.rating != null && !(a.rating >= 1 && a.rating <= 5)) fail("rating is 1-5 stars.");
+      const day = finishDay(a, year, month, now);
       return change(`finished "${a.item}"`, (d) => {
         const b = findItem(d, "backlog", a.item);
         const item = { title: b.title, category: b.category, year, month, date: `${year}-${String(month).padStart(2, "0")}`, backlogAddedAt: b.createdAt };
+        if (day) item.day = day;
         for (const k of ["coverUrl", "mediaId", "mediaSource", "length", "genres", "startedAt", "author"]) if (b[k]) item[k] = b[k];
         if (b.overrides && b.overrides.author) item.overrides = { author: true };
         if (a.rating) item.rating = Math.round(a.rating);

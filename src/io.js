@@ -310,6 +310,7 @@
       ["genres", "genres"],
       ["rating", "your rating"],
       ["notes", "your notes"],
+      ["day", "day"],
       ["startYear", "month span"],
       ["mediaSource", "media link"],
     ],
