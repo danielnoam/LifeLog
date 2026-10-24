@@ -2057,6 +2057,18 @@ body.modal-open { overflow: hidden; }
 @media (max-width: 480px) {
   .modal .row-dates { flex-direction: column; align-items: stretch; }
 }
+/* The entry's Finished and Started (0.281.0) stay side by side, as Daniel
+   asked: less side padding and a closer calendar icon fit "10/24/2026"
+   in the half-width a 390px phone leaves. */
+.modal .row-dates-tight { gap: var(--space-8); }
+.modal .row-dates-tight input[type=date] { padding-left: var(--space-8); padding-right: var(--space-6); }
+.modal .row-dates-tight input[type=date]::-webkit-calendar-picker-indicator { margin-left: 0; padding: 0; }
+/* The text stays 16px (smaller makes iOS zoom in on focus), so on the
+   narrowest phones the calendar icon gives way: a tap on the field opens
+   the phone's picker anyway. */
+@media (max-width: 380px) {
+  .modal .row-dates-tight input[type=date]::-webkit-calendar-picker-indicator { display: none; }
+}
 
 kbd {
   display: inline-block; min-width: 20px; padding: 2px 6px; text-align: center;

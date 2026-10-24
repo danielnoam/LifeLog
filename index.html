@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.281.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.281.1" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -266,7 +266,7 @@
         <label>Category
           <select id="fCategory" required></select>
         </label>
-        <div class="row row-dates">
+        <div class="row row-dates-tight">
           <label>Finished
             <input id="fDate" type="date" min="1900-01-01" max="2100-12-31" required />
           </label>
@@ -274,7 +274,6 @@
             <input id="fStartDate" type="date" min="1900-01-01" max="2100-12-31" />
           </label>
         </div>
-        <p class="muted added-line" id="addedLine" hidden></p>
         <div class="entry-extra">
           <label>Rating
             <div class="rating-input" id="fRating" data-value="0">
@@ -289,6 +288,7 @@
             <textarea id="fNotes" rows="3" placeholder="Optional thoughts, review…"></textarea>
           </label>
         </div>
+        <p class="muted added-line" id="addedLine" hidden></p>
         <details class="advanced" id="fAdvanced">
           <summary>Advanced</summary>
           <p class="hint">Tick a field to keep your own value. Syncing this entry again will then leave it alone instead of overwriting it.</p>
@@ -411,10 +411,10 @@
         <label>Year
           <input id="aYear" type="number" min="1900" max="2100" required />
         </label>
-        <p class="muted added-line" id="achAddedLine" hidden></p>
         <label>Notes
           <textarea id="aNotes" rows="3" placeholder="Optional details…"></textarea>
         </label>
+        <p class="muted added-line" id="achAddedLine" hidden></p>
         <div class="modal-actions">
           <button type="button" class="btn btn-danger" id="deleteAchBtn" hidden>Delete</button>
           <span class="spacer"></span>
@@ -530,7 +530,6 @@
           </label>
           <p class="hint">Tells you when the game's retail price on GG.deals is at or under this, in US dollars as GG.deals quotes it: a toast here, and a notification on a phone. Checked when the app opens and whenever prices load. Needs the GG.deals key.</p>
         </div>
-        <p class="muted added-line" id="backlogAgingLine" hidden></p>
         <input type="checkbox" id="bPriority" hidden />
         <input type="checkbox" id="bBought" hidden />
         <input type="checkbox" id="bStarted" hidden />
@@ -538,6 +537,7 @@
         <label>Notes
           <textarea id="bNotes" rows="3" placeholder="Optional thoughts, why it's on your list…"></textarea>
         </label>
+        <p class="muted added-line" id="backlogAgingLine" hidden></p>
         <details class="advanced" id="bAdvanced">
           <summary>Advanced</summary>
           <p class="hint">Tick a field to keep your own value. Syncing this item, a bulk sync, and the release re-check will then all leave it alone instead of overwriting it.</p>
@@ -705,12 +705,14 @@
           </span>
         </label>
         <p class="hint" id="finFxPreview" hidden></p>
-        <label>Category
-          <select id="finCategory" required></select>
-        </label>
-        <label>Project
-          <select id="finProject"></select>
-        </label>
+        <div class="row">
+          <label>Category
+            <select id="finCategory" required></select>
+          </label>
+          <label>Project
+            <select id="finProject"></select>
+          </label>
+        </div>
         <label>Note
           <input id="finNote" type="text" autocomplete="off" placeholder="Optional description…" />
         </label>
@@ -732,7 +734,7 @@
       <form id="recurringForm">
         <input type="hidden" id="recId" />
         <p class="hint" id="recConvertHint" hidden>Converting an existing entry — it's replaced by this expense's first occurrence once you save.</p>
-        <div class="row row-dates">
+        <div class="row row-dates-tight">
           <label>Start date
             <input id="recStart" type="date" required />
           </label>
@@ -767,12 +769,14 @@
           </span>
         </label>
         <p class="hint" id="recFxPreview" hidden></p>
-        <label>Category
-          <select id="recCategory" required></select>
-        </label>
-        <label>Project
-          <select id="recProject"></select>
-        </label>
+        <div class="row">
+          <label>Category
+            <select id="recCategory" required></select>
+          </label>
+          <label>Project
+            <select id="recProject"></select>
+          </label>
+        </div>
         <label>Note
           <input id="recNote" type="text" autocomplete="off" placeholder="Optional description…" />
         </label>
@@ -870,7 +874,7 @@
       <form id="pauseForm">
         <input type="hidden" id="pauseRecId" />
         <input type="hidden" id="pauseIndex" />
-        <div class="row row-dates">
+        <div class="row row-dates-tight">
           <label>Paused from
             <input id="pauseFrom" type="date" required />
           </label>
@@ -2226,38 +2230,38 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.281.0"></script>
-  <script defer src="src/headless.js?v=0.281.0"></script>
-  <script defer src="src/platform.js?v=0.281.0"></script>
-  <script defer src="src/icons.js?v=0.281.0"></script>
-  <script defer src="src/jobs.js?v=0.281.0"></script>
-  <script defer src="src/reconcile.js?v=0.281.0"></script>
-  <script defer src="src/qr.js?v=0.281.0"></script>
-  <script defer src="src/media.js?v=0.281.0"></script>
-  <script defer src="src/merge.js?v=0.281.0"></script>
-  <script defer src="src/storage.js?v=0.281.0"></script>
-  <script defer src="src/finance.js?v=0.281.0"></script>
-  <script defer src="src/settings.js?v=0.281.0"></script>
-  <script defer src="src/wheel.js?v=0.281.0"></script>
-  <script defer src="src/backlog.js?v=0.281.0"></script>
-  <script defer src="src/journal.js?v=0.281.0"></script>
-  <script defer src="src/markdown.js?v=0.281.0"></script>
-  <script defer src="src/notes.js?v=0.281.0"></script>
-  <script defer src="src/docimport.js?v=0.281.0"></script>
-  <script defer src="src/io.js?v=0.281.0"></script>
-  <script defer src="src/sync.js?v=0.281.0"></script>
-  <script defer src="src/habits.js?v=0.281.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.281.0"></script>
-  <script defer src="src/boards.js?v=0.281.0"></script>
-  <script defer src="src/travel.js?v=0.281.0"></script>
-  <script defer src="src/recap.js?v=0.281.0"></script>
-  <script defer src="src/reminders.js?v=0.281.0"></script>
-  <script defer src="src/alerts.js?v=0.281.0"></script>
-  <script defer src="src/widgets.js?v=0.281.0"></script>
-  <script defer src="src/share.js?v=0.281.0"></script>
-  <script defer src="src/search.js?v=0.281.0"></script>
-  <script defer src="src/letterboxd.js?v=0.281.0"></script>
-  <script defer src="src/payments.js?v=0.281.0"></script>
-  <script defer src="src/app.js?v=0.281.0"></script>
+  <script defer src="src/errlog.js?v=0.281.1"></script>
+  <script defer src="src/headless.js?v=0.281.1"></script>
+  <script defer src="src/platform.js?v=0.281.1"></script>
+  <script defer src="src/icons.js?v=0.281.1"></script>
+  <script defer src="src/jobs.js?v=0.281.1"></script>
+  <script defer src="src/reconcile.js?v=0.281.1"></script>
+  <script defer src="src/qr.js?v=0.281.1"></script>
+  <script defer src="src/media.js?v=0.281.1"></script>
+  <script defer src="src/merge.js?v=0.281.1"></script>
+  <script defer src="src/storage.js?v=0.281.1"></script>
+  <script defer src="src/finance.js?v=0.281.1"></script>
+  <script defer src="src/settings.js?v=0.281.1"></script>
+  <script defer src="src/wheel.js?v=0.281.1"></script>
+  <script defer src="src/backlog.js?v=0.281.1"></script>
+  <script defer src="src/journal.js?v=0.281.1"></script>
+  <script defer src="src/markdown.js?v=0.281.1"></script>
+  <script defer src="src/notes.js?v=0.281.1"></script>
+  <script defer src="src/docimport.js?v=0.281.1"></script>
+  <script defer src="src/io.js?v=0.281.1"></script>
+  <script defer src="src/sync.js?v=0.281.1"></script>
+  <script defer src="src/habits.js?v=0.281.1"></script>
+  <script defer src="src/vendor/rough.js?v=0.281.1"></script>
+  <script defer src="src/boards.js?v=0.281.1"></script>
+  <script defer src="src/travel.js?v=0.281.1"></script>
+  <script defer src="src/recap.js?v=0.281.1"></script>
+  <script defer src="src/reminders.js?v=0.281.1"></script>
+  <script defer src="src/alerts.js?v=0.281.1"></script>
+  <script defer src="src/widgets.js?v=0.281.1"></script>
+  <script defer src="src/share.js?v=0.281.1"></script>
+  <script defer src="src/search.js?v=0.281.1"></script>
+  <script defer src="src/letterboxd.js?v=0.281.1"></script>
+  <script defer src="src/payments.js?v=0.281.1"></script>
+  <script defer src="src/app.js?v=0.281.1"></script>
 </body>
 </html>

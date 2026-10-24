@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.281.1] - 2026-10-24
+
+### Changed
+- An entry's Finished and Started dates sit side by side on a phone too.
+- The "Added" line in the entry, achievement and backlog sheets moved
+  below the notes.
+- In the expense and recurring expense sheets, Category and Project sit
+  side by side, and so do a recurring expense's start and stop dates and
+  a pause's from and until.
+
 ## [0.281.0] - 2026-10-24
 
 ### Changed

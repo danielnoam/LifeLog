@@ -198,8 +198,7 @@ const clickFetch = async (page) => {
     const hint = vis("#finFxPreview");
     if (!hint) return { noHint: true };
     const above = vis("#finRateLabel") || document.querySelector("#finAmount").closest(".field-row").getBoundingClientRect();
-    const cat = [...document.querySelectorAll("#financeForm > label")]
-      .find((l) => /Category/.test(l.firstChild.textContent || "")).getBoundingClientRect();
+    const cat = document.querySelector("#finCategory").closest("label").getBoundingClientRect();
     return { rateShown: !!vis("#finRateLabel"),
              above: Math.round(hint.top - above.bottom),
              below: Math.round(cat.top - hint.bottom) };

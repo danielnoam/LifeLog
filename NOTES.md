@@ -16,6 +16,17 @@ what was decided against and why.
 
 ---
 
+- **Date pairs side by side on a phone (0.281.1).** 0.273.0 stacked a
+  pair of dates on phones because Chrome's date field cut its own text at
+  half width. Daniel wants them side by side, so the entry's dates, a
+  recurring expense's start and stop and a pause's from and until use
+  `row-dates-tight`: less side padding and the calendar icon pulled in,
+  which fits "12/28/2027" at 390px; at 380px and under the icon is hidden
+  (a tap on the field opens the phone's picker). The text stays 16px,
+  since smaller makes iOS zoom in on focus. Trips' dates still stack.
+  Category and Project in the expense sheets are a `.row` too; a long
+  category name is cut short at phone width.
+
 - **Entry dates as one picker each, and the day kept (0.281.0).** Daniel
   asked for one control instead of a year box and a month list, and for the
   day to be saved "but not used for now". Finished is `<input type=date>`
