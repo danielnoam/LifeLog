@@ -16,6 +16,32 @@ what was decided against and why.
 
 ---
 
+- **Game times and review scores from Augmented Steam (0.282.0).** Daniel
+  wanted How Long to Beat's times in place of RAWG's playtime. HLTB has no
+  public API. Its site search needs a token from a script, browser-looking
+  Origin, Referer and User-Agent headers and a field set up to catch bots,
+  so calling it means pretending to be a browser to get past a bot check.
+  We said no to that.
+  The libraries he found (ckatzorke/howlongtobeat and the like) do the
+  same thing and break each time HLTB changes its site.
+  Augmented Steam (the browser extension) runs its own server that keeps
+  HLTB's times, OpenCritic and Metacritic for Steam apps, at a plain GET
+  `api.augmentedsteam.com/app/<appid>/v2`. That's what the worker's
+  `/augsteam-app/<appid>` route and the native proxy call. Only Steam
+  App IDs leave the device, and only to Augmented Steam via his own proxy.
+  It's on by default, since a Steam game already goes to Steam and
+  GG.deals the same way. The switch is in Settings → Imports.
+  The fill runs at launch for up to 40 games, 400ms apart, and stops after
+  two failed calls (an old worker without the route, or offline). Each game waits
+  30 days before it's checked again. A game Augmented Steam doesn't know
+  waits 14 days (`lifelog-gametimes-v1`, per device). It doesn't run in
+  the Android background refresh. Times are minutes (`hltb.story` and so
+  on), shown rounded to the half hour like HLTB does ("32½ hrs"); the
+  length is written only when it isn't pinned. HLTB URLs and the review
+  links are checked against their sites before they're kept. The live API
+  was never called from the cloud session (the network blocks it); the
+  tests stub the route with the response Daniel pasted from his browser.
+
 - **Date pairs side by side on a phone (0.281.1).** 0.273.0 stacked a
   pair of dates on phones because Chrome's date field cut its own text at
   half width. Daniel wants them side by side, so the entry's dates, a

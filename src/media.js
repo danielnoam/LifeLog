@@ -905,6 +905,49 @@
   // Returns null when the lookup itself failed. `{ name: null, … }` is a
   // *successful* response for an app Steam doesn't recognize — a different
   // thing, and the import distinguishes them.
+  // How Long to Beat's times and two review scores (0.282.0), by Steam App
+  // ID, from Augmented Steam's API: the same answer its browser extension
+  // shows on a store page. HLTB itself has no public API, and its site
+  // search only answers requests dressed up as its own page, which LifeLog
+  // doesn't do; this is a plain request, through the proxy (or the app's
+  // native HTTP) like the other Steam routes. Times are minutes, as
+  // Augmented Steam gives them. { hltb, reviews }, either one null when it
+  // has nothing; throws when the request itself fails, so a caller can tell
+  // "nothing known" from "couldn't ask".
+  const REVIEW_SITES = {
+    opencritic: /^https:\/\/opencritic\.com\//,
+    metauser: /^https:\/\/(www\.)?metacritic\.com\//,
+  };
+  async function fetchGameInfo(appId, proxyUrl) {
+    if (!proxyUrl || !/^\d+$/.test(String(appId || ""))) return { hltb: null, reviews: null };
+    const res = await fetch(proxyUrl + "/augsteam-app/" + appId);
+    if (!res.ok) throw new Error("Augmented Steam: HTTP " + res.status);
+    const data = (await res.json()) || {};
+    const min = (v) => (Number.isFinite(+v) && +v > 0 ? Math.round(+v) : 0);
+    const h = data.hltb || {};
+    let hltb = { story: min(h.story), extras: min(h.extras), complete: min(h.complete) };
+    if (!hltb.story && !hltb.extras && !hltb.complete) hltb = null;
+    else if (/^https:\/\/howlongtobeat\.com\/game\/\d+$/.test(h.url || "")) hltb.url = h.url;
+    let reviews = {};
+    for (const [site, ok] of Object.entries(REVIEW_SITES)) {
+      const r = (data.reviews || {})[site];
+      const score = r && Math.round(+r.score);
+      if (!(score > 0 && score <= 100)) continue;
+      reviews[site] = { score };
+      if (typeof r.verdict === "string" && r.verdict) reviews[site].verdict = r.verdict.slice(0, 40);
+      if (ok.test(r.url || "")) reviews[site].url = r.url;
+    }
+    if (!Object.keys(reviews).length) reviews = null;
+    return { hltb, reviews };
+  }
+  // "32 hrs", "53½ hrs": HLTB's own rounding, to the nearest half hour.
+  function gameHours(minutes) {
+    const halves = Math.round((+minutes || 0) / 30);
+    if (!halves) return "";
+    const whole = Math.floor(halves / 2);
+    return (whole ? String(whole) : "") + (halves % 2 ? "½" : "") + " hrs";
+  }
+
   async function fetchSteamAppDetails(appId, proxyUrl, retries, attempt) {
     if (!appId || !proxyUrl) return null;
     retries = retries || 0;
@@ -1358,6 +1401,7 @@
     },
     supportsDiscover(source) { return DISCOVER_SOURCES.includes(source); },
     nytTitle, mapNytBook,
+    fetchGameInfo, gameHours,
     async fetchPrices(appIds, apiKey, proxyUrl) {
       lastError = "";
       return fetchGgDealsPrices(appIds, apiKey, proxyUrl);

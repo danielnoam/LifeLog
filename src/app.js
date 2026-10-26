@@ -45,7 +45,7 @@
   // timelineSort/ledgerSort/backlogSort replaced monthOrder in 0.157.0. Each
   // option is one complete statement about the whole list rather than a
   // direction bolted to a hidden field — see SORTS below.
-  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", googlePlaces: "", nyt: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
+  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", googlePlaces: "", nyt: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "on" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
   // Local to this device, not synced. Every key a view reads off state.visual
   // belongs here: loadVisualSettings fills the gaps in a stored blob from this
   // object, so a default declared here is the only one there is — a `||` at
@@ -163,7 +163,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.281.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.282.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2410,6 +2410,109 @@
     const other = hasCover ? rowEl : overlayEl;
     if (other) other.innerHTML = "";
     renderCoverLinkButtons(hasCover ? overlayEl : rowEl, mediaSource, mediaId);
+  }
+
+  // ---------- How Long to Beat times and review scores (0.282.0) ----------
+  // Kept on a Steam game by Sync's game-times fill (sync.js). `hltb` holds
+  // minutes for the three ways HLTB times a game plus the day they were
+  // asked; `reviews` holds OpenCritic's and Metacritic's user score.
+  const GAME_TIME_KINDS = [["story", "Main Story"], ["extras", "Main + Extras"], ["complete", "Completionist"]];
+  const REVIEW_LABELS = { opencritic: "OpenCritic", metauser: "Metacritic users" };
+  const hasGameTimes = (h) => !!(h && GAME_TIME_KINDS.some(([k]) => h[k] > 0));
+  // The sheet's three times, labelled, as one strip: over the cover's foot
+  // when there is a cover, in the plain row under the title when there
+  // isn't. A tap opens the game's page on How Long to Beat.
+  function renderGameTimes(onCover, inRow, hasCover, hltb) {
+    for (const box of [onCover, inRow]) { if (box) { box.innerHTML = ""; box.hidden = true; } }
+    const cover = onCover && onCover.closest(".modal-cover");
+    if (cover) cover.classList.toggle("has-times", !!(hasCover && hasGameTimes(hltb)));
+    if (!hasGameTimes(hltb)) return;
+    const box = hasCover ? onCover : inRow;
+    if (!box) return;
+    const strip = document.createElement(hltb.url ? "a" : "div");
+    strip.className = "game-times";
+    if (hltb.url) {
+      strip.href = hltb.url; strip.target = "_blank"; strip.rel = "noopener noreferrer";
+      strip.onclick = (ev) => ev.stopPropagation();
+    }
+    const said = [];
+    for (const [k, label] of GAME_TIME_KINDS) {
+      if (!(hltb[k] > 0)) continue;
+      const cell = el("span", "game-time");
+      cell.appendChild(el("span", "game-time-label", label));
+      cell.appendChild(el("span", "game-time-value", window.LifeLogMedia.gameHours(hltb[k]).replace(" hrs", " h")));
+      strip.appendChild(cell);
+      said.push(label + " " + window.LifeLogMedia.gameHours(hltb[k]));
+    }
+    strip.setAttribute("aria-label", "How Long to Beat: " + said.join(", ") + (hltb.url ? ". Opens How Long to Beat" : ""));
+    box.appendChild(strip);
+    box.hidden = false;
+  }
+  // A sheet's game info sits in its hidden #fGameInfo / #bGameInfo as
+  // { id, hltb, reviews }, tied to the Steam App ID it was asked for, so a
+  // re-sync to another game drops the old one's times instead of showing
+  // them under the new cover.
+  function readGameInfo(prefix, mediaSource, mediaId) {
+    let v = null;
+    try { v = JSON.parse($("#" + prefix + "GameInfo").value || "null"); } catch (e) { v = null; }
+    return v && mediaSource === "steam" && mediaId && v.id === String(mediaId) ? v : null;
+  }
+  function seedGameInfo(prefix, item) {
+    const ok = item && item.mediaSource === "steam" && item.mediaId && (item.hltb || item.reviews);
+    $("#" + prefix + "GameInfo").value = ok ? JSON.stringify({ id: String(item.mediaId), hltb: item.hltb || null, reviews: item.reviews || null }) : "";
+  }
+  // Paints a sheet's times (over the cover, or in the row under the title)
+  // and review line, then, for a Steam game whose times are missing or a
+  // month old, asks for them; `onFresh(info)` runs if the answer lands while
+  // the sheet still shows that game, after it has been stored in the sheet.
+  // True when the times are on show, so the sheet can leave out the plain
+  // length line that would only repeat Main Story.
+  function paintGameInfo(prefix, sheet, hasCover, metaEl, mediaSource, mediaId, onFresh) {
+    const info = readGameInfo(prefix, mediaSource, mediaId);
+    renderGameTimes($("#" + sheet + "GameTimes"), $("#" + sheet + "GameTimesRow"), hasCover, info && info.hltb);
+    appendReviewScores(metaEl, info && info.reviews);
+    const shown = hasGameTimes(info && info.hltb);
+    if (mediaSource !== "steam" || !mediaId || !Sync.gameTimesDue({ mediaSource, mediaId, hltb: info && info.hltb })) return shown;
+    const key = prefix + ":" + mediaId;
+    if (gameInfoAsking.has(key)) return shown;
+    gameInfoAsking.add(key);
+    Sync.gameTimesFor(mediaId).then((fresh) => {
+      gameInfoAsking.delete(key);
+      if (!fresh || $("#" + prefix + "MediaId").value !== String(mediaId)) return;
+      const today = new Date();
+      const at = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, "0") + "-" + String(today.getDate()).padStart(2, "0");
+      $("#" + prefix + "GameInfo").value = JSON.stringify({ id: String(mediaId), hltb: { ...(fresh.hltb || {}), at }, reviews: fresh.reviews || (info && info.reviews) || null });
+      onFresh(fresh);
+    });
+    return shown;
+  }
+  const gameInfoAsking = new Set();
+  // The sheet's game info, ready to save onto `item`, or cleared from it
+  // when the sheet no longer shows a Steam game.
+  function saveGameInfo(prefix, item) {
+    const info = readGameInfo(prefix, item.mediaSource, item.mediaId);
+    delete item.hltb; delete item.reviews;
+    if (info) Journal.sanitizeGameInfo(info, item);
+  }
+
+  // "OpenCritic 94 · Metacritic users 85", each a link to its page.
+  function appendReviewScores(container, reviews) {
+    if (!container || !reviews) return;
+    const sites = Object.keys(REVIEW_LABELS).filter((s) => reviews[s]);
+    if (!sites.length) return;
+    const line = el("p", "game-reviews");
+    sites.forEach((site, i) => {
+      if (i) line.appendChild(document.createTextNode(" · "));
+      const r = reviews[site];
+      const text = REVIEW_LABELS[site] + " " + r.score;
+      if (r.url) {
+        const a = document.createElement("a");
+        a.href = r.url; a.target = "_blank"; a.rel = "noopener noreferrer"; a.textContent = text;
+        if (r.verdict) a.title = r.verdict;
+        line.appendChild(a);
+      } else line.appendChild(el("span", null, text));
+    });
+    container.appendChild(line);
   }
 
   // ---------- per-item sync overrides ----------
@@ -5101,6 +5204,7 @@
     Sync.maybeAutoCheckAniList(); // same — quiet background check, never blocks startup
     Sync.maybeAutoRefreshReleases(); // same — keeps upcoming release dates current in the background
     Sync.maybeCheckPriceAlerts(); // same — the Steam games with a price target (0.276.0)
+    Sync.maybeFillGameTimes(); // same — How Long to Beat times for Steam games (0.282.0)
 
     if (Platform.native) {
       // The app's files are already on the device; a worker would only be a
@@ -5513,7 +5617,7 @@
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
     rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
     isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
-    pushOverrideValues, readOverrideChecks,
+    pushOverrideValues, readOverrideChecks, seedGameInfo, paintGameInfo, saveGameInfo,
     applySteamAppId: Sync.applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
     DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled, closeSheetMenus,
   });
@@ -5561,8 +5665,8 @@
     setAuthorField: Journal.setAuthorField, fillAuthor: Journal.fillAuthor, clearSyncedAuthor: Journal.clearSyncedAuthor,
     pinnedAuthor: Journal.pinnedAuthor, saveAuthor: Journal.saveAuthor, wireAuthorField: Journal.wireAuthorField,
     renderCoverLinkButtons, renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
-    initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
-    loadBacklogPrices: Sync.loadBacklogPrices, applySteamAppId: Sync.applySteamAppId,
+    initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks, seedGameInfo, paintGameInfo, saveGameInfo,
+    sanitizeGameInfo: Journal.sanitizeGameInfo, loadBacklogPrices: Sync.loadBacklogPrices, applySteamAppId: Sync.applySteamAppId,
     backlogPriceOf: Sync.backlogPriceOf, priceEpoch: Sync.priceEpoch,
     backfillUpdatedAt, saveUiState, MONTHS_SHORT, DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus,
   });

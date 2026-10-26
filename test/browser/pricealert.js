@@ -15,7 +15,7 @@ const SEED = {
     { id: "b3", title: "Hollow Knight", category: "Games", mediaSource: "rawg", mediaId: "hollow-knight", createdAt: "2026-01-03T00:00:00.000Z" },
   ],
   notes: [], accomplishments: {}, habits: [], financeCategories: [], financeEntries: [], recurringExpenses: [], projects: [], noteCategories: [],
-  settings: { mediaCategorySources: { Games: "rawg-steam-gg" }, mediaKeys: { rawg: "k", ggdeals: "gk" }, steam: { proxyUrl: "https://proxy.test" } },
+  settings: { mediaCategorySources: { Games: "rawg-steam-gg" }, mediaKeys: { rawg: "k", ggdeals: "gk" }, steam: { proxyUrl: "https://proxy.test", gameTimes: "off" } },
 };
 
 (async () => {

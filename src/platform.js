@@ -167,6 +167,8 @@
     if (m) return "https://store.steampowered.com/api/appdetails?appids=" + m[1] + "&filters=basic,genres";
     if (u.pathname.startsWith("/steamgriddb/")) return "https://www.steamgriddb.com/api/v2/" + u.pathname.slice("/steamgriddb/".length) + u.search;
     if (u.pathname === "/gg-deals") return "https://api.gg.deals/v1/prices/by-steam-app-id/" + u.search;
+    m = /^\/augsteam-app\/(\d+)$/.exec(u.pathname);
+    if (m) return "https://api.augmentedsteam.com/app/" + m[1] + "/v2";
     m = /^\/gmaps-link\/([A-Za-z0-9_-]{4,64})$/.exec(u.pathname);
     if (m) return "https://maps.app.goo.gl/" + m[1];
     m = /^\/gmaps-list\/([A-Za-z0-9_-]{16,64})$/.exec(u.pathname);

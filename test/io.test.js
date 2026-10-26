@@ -37,7 +37,7 @@ const keepUnknown = (src, out, known) => {
 global.window.LifeLogFinance.init({ uid, backfillUpdatedAt, keepUnknown,
   csvEsc: (...a) => global.window.LifeLogIO.csvEsc(...a), parseCsv: (...a) => global.window.LifeLogIO.parseCsv(...a) });
 global.window.LifeLogJournal.init({ uid, backfillUpdatedAt, sanitizeOverrides, keepUnknown });
-global.window.LifeLogBacklog.init({ uid, backfillUpdatedAt, sanitizeOverrides, keepUnknown });
+global.window.LifeLogBacklog.init({ uid, backfillUpdatedAt, sanitizeOverrides, keepUnknown, sanitizeGameInfo: global.window.LifeLogJournal.sanitizeGameInfo });
 global.window.LifeLogNotes.init({ uid, backfillUpdatedAt, keepUnknown });
 global.window.LifeLogHabits.init({ uid, backfillUpdatedAt, keepUnknown });
 

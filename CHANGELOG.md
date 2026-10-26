@@ -4,6 +4,22 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.282.0] - 2026-10-26
+
+### Added
+- **How Long to Beat times for Steam games.** A game with a Steam App ID
+  gets its Main Story, Main + Extras and Completionist times, and the
+  game's sheet shows all three by name along the bottom of the cover (or
+  in a row under the title when there's no cover). A tap opens the game
+  on How Long to Beat. Main Story replaces RAWG's playtime as the game's
+  length, unless you pinned the length in Advanced.
+- **Review scores in the sheet.** The OpenCritic score and the Metacritic
+  user score sit under the cover, each a link to its page.
+- Both come from Augmented Steam's API through your CORS proxy (none
+  needed on Android). The app fills in up to 40 games each time it opens,
+  checks each game again once a month, and a sheet asks for its game
+  straight away. Settings → Imports → Game times and scores turns it off.
+
 ## [0.281.1] - 2026-10-24
 
 ### Changed

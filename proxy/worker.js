@@ -57,6 +57,12 @@
 //     -> https://www.google.com/maps/preview/entitylist/getlist?…!1s<list id>…
 //     A saved list's places, from the endpoint Google Maps' own page reads
 //     (unofficial: Google has no API for lists). Travel's import (0.242.0).
+//
+//   GET /augsteam-app/<appid>
+//     -> https://api.augmentedsteam.com/app/<appid>/v2
+//     A game's How Long to Beat times (and other bits) from Augmented
+//     Steam's API, the one its browser extension reads (0.282.0). Relayed
+//     as-is.
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -100,6 +106,9 @@ export default {
       const auth = request.headers.get("Authorization");
       return proxyJson(target, auth ? { Authorization: auth } : {});
     }
+
+    const augMatch = url.pathname.match(/^\/augsteam-app\/(\d{1,10})$/);
+    if (augMatch) return proxyJson(`https://api.augmentedsteam.com/app/${augMatch[1]}/v2`);
 
     if (url.pathname === "/gg-deals") {
       const target = `https://api.gg.deals/v1/prices/by-steam-app-id/${url.search}`;

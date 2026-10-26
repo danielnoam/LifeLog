@@ -98,6 +98,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Re-checked again on the day an episode or a release is due, and the day after (0.271.0)
 - Source choices and API keys sync between devices (0.16.0, 0.17.0)
 - Self-hosted CORS proxy for Steam and SteamGridDB on the web; no proxy needed on Android (0.59.0, 0.215.0)
+- How Long to Beat times (Main Story is the length) and OpenCritic and Metacritic user scores for Steam games, shown on the sheet's cover; Settings → Imports switch (0.282.0)
 
 ## Imports and exports
 

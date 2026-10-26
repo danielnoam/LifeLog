@@ -19,7 +19,7 @@ const SEED = {
   categories: [{ name: "Games", color: "#58a6ff" }, { name: "Films", color: "#f0883e" }],
   entries: [{ id: "e1", title: "Portal", category: "Games", year: 2023, month: 6, date: "2023-06-06", mediaSource: "steam", mediaId: "400" }],
   accomplishments: {}, backlog: [], habits: [], financeCategories: [], financeEntries: [], recurringExpenses: [], projects: [], noteCategories: [], notes: [],
-  settings: { steam: { proxyUrl: "https://proxy.test", steamId: "76561198000000001", apiKey: "ABCDEF0123456789ABCDEF0123456789", wishlistCategory: "Games", autoSyncDays: "0" } },
+  settings: { steam: { proxyUrl: "https://proxy.test", steamId: "76561198000000001", apiKey: "ABCDEF0123456789ABCDEF0123456789", wishlistCategory: "Games", autoSyncDays: "0", gameTimes: "off" } },
 };
 
 (async () => {

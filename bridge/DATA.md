@@ -49,6 +49,16 @@ event or anything else, by category.
 - `overrides`: values the user set by hand over a lookup's (`cover`,
   `length`, `author`). An author typed by hand has `author: true` here, and
   a lookup then neither replaces it nor ignores it: it searches with it.
+- `hltb`: optional, a Steam game's How Long to Beat times in minutes:
+  `story` (main story), `extras` (main + extras), `complete`
+  (completionist), `url` (the game's HLTB page) and `at` (`YYYY-MM-DD`,
+  when they were last asked). From Augmented Steam's API, by Steam App ID.
+  When it has a `story` time, `length` is that time ("32 hrs", "53½ hrs")
+  unless the length is pinned. An `hltb` with only `at` means nothing was
+  known that day.
+- `reviews`: optional, a Steam game's scores out of 100, from the same
+  place: `opencritic` and `metauser` (Metacritic's user score), each
+  `{ score, verdict?, url? }`.
 - `backlogAddedAt`: when it was added to the backlog, if it came from there.
 
 ## Backlog (`backlog`)
@@ -65,6 +75,7 @@ Things to play, read, watch or do next.
   a phone). Only meaningful with a `mediaSource` of `steam`.
 - `dropped`: true when given up on. Kept, but out of the way.
 - `startedAt`: `YYYY-MM-DD` when started (it shows as in progress).
+- `hltb`, `reviews`: as on a timeline entry, for a Steam game.
 - Filled in by media lookups: `coverUrl`, `mediaId`, `mediaSource`,
   `summary`, `releaseYear`, `externalRating`, `length`, `genres`.
 - Release dates, from lookups: `releaseDate`, `releasePrecision` (how exact
@@ -210,7 +221,8 @@ Keys: `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,
 `mediaCategorySources`, `mediaCategoryFallbackSources`, `mediaKeys`, `steam`,
 `anilist`, `releases`, `importSkips` (per import source, the `source:id`
 keys of items left unticked in a review, so they stay hidden next time),
-`updatedAt`. Old files may still carry `monthOrder`,
+`updatedAt`. `steam.gameTimes` is "on" (the default) or "off": whether
+the app fills in How Long to Beat times for Steam games. Old files may still carry `monthOrder`,
 `monthMinWidth` and `monthMaxWidth`, which the app drops or moves on load.
 
 ## Boards (`boards.json`)

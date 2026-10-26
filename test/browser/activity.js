@@ -13,7 +13,7 @@ const steamItem = (id) => ({ id: "s" + id, title: "Steam app " + id, category: "
 const SEED = {
   categories: [{ name: "Games", color: "#6c8cff" }], entries: [], backlog: [1, 2, 3, 4, 5, 6].map(steamItem),
   notes: [], noteCategories: [], financeCategories: [], financeEntries: [], recurringExpenses: [], projects: [],
-  settings: { steam: { proxyUrl: PROXY } },
+  settings: { steam: { proxyUrl: PROXY, gameTimes: "off" } },
 };
 
 const FAKE_WIDGETS = () => {

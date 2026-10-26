@@ -20,7 +20,7 @@
     categoryShows, authorOf, titleWithAuthor, setAuthorField, fillAuthor, clearSyncedAuthor,
     pinnedAuthor, saveAuthor, wireAuthorField,
     renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
-    initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
+    initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks, sanitizeGameInfo, seedGameInfo, paintGameInfo, saveGameInfo,
     loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId,
     backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
     DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus;
@@ -41,7 +41,7 @@
       categoryShows, authorOf, titleWithAuthor, setAuthorField, fillAuthor, clearSyncedAuthor,
       pinnedAuthor, saveAuthor, wireAuthorField,
       renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
-    initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks,
+    initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks, sanitizeGameInfo, seedGameInfo, paintGameInfo, saveGameInfo,
     loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId,
       backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
       DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus } = ctx);
@@ -2670,7 +2670,18 @@
     const paint = (hasCover) => {
       const coverMeta = $("#backlogCoverMeta"), rowMeta = $("#backlogMetaRow");
       coverMeta.innerHTML = ""; rowMeta.innerHTML = "";
-      const hasSteamPrice = appendBacklogMeta(hasCover ? coverMeta : rowMeta, {
+      const meta = hasCover ? coverMeta : rowMeta;
+      // How Long to Beat's times stand in for the length line (0.282.0), and
+      // the review scores go under the meta line, above the summary.
+      const reviews = document.createElement("div");
+      const timesShown = paintGameInfo("b", "backlog", hasCover, reviews, mediaSource, mediaId, (fresh) => {
+        if (fresh.hltb && fresh.hltb.story && !isPinned("length")) $("#bLength").value = window.LifeLogMedia.gameHours(fresh.hltb.story);
+        const id = $("#backlogId").value;
+        const stored = id && state.data.backlog.find((x) => x.id === id);
+        if (stored && stored.mediaSource === "steam" && stored.mediaId === mediaId && window.LifeLogSync.applyGameTimes(stored, fresh)) { render(); persist(); }
+        setBacklogCover();
+      });
+      const hasSteamPrice = appendBacklogMeta(meta, {
         externalRating: $("#bExternalRating").value,
         releaseYear: $("#bReleaseYear").value,
         // The release trio comes along so the modal reads its date the same
@@ -2686,7 +2697,7 @@
         episodesOut: $("#bEpisodesOut").value,
         episodesTotal: $("#bEpisodesTotal").value,
         airingSeason: $("#bAiringSeason").value,
-        length: $("#bLength").value,
+        length: timesShown ? "" : $("#bLength").value,
         mediaSource, mediaId,
         summary: $("#bSummary").value,
         // Read off the live checkbox, so ticking ✓ swaps the price for
@@ -2700,6 +2711,7 @@
         // price span above via the shared .bl-price[data-appid] selector.
         loadBacklogPrices([{ mediaSource, mediaId }]);
       }
+      if (reviews.firstChild) meta.insertBefore(reviews.firstChild, meta.querySelector(".bl-summary"));
       renderMediaLinks($("#backlogCoverLinks"), $("#backlogLinks"), hasCover, mediaSource, mediaId);
     };
     coverImg.onerror = () => { coverDiv.hidden = true; paint(false); };
@@ -2729,6 +2741,7 @@
     $("#bSummary").value = editing ? (item.summary || "") : "";
     $("#bReleaseYear").value = editing && item.releaseYear ? String(item.releaseYear) : "";
     setReleaseFields(editing ? item : null);
+    seedGameInfo("b", editing ? item : null);
     $("#bExternalRating").value = editing ? (item.externalRating || "") : "";
     $("#bLength").value = editing ? (item.length || "") : "";
     $("#bGenres").value = editing ? (item.genres || []).join("|") : "";
@@ -2890,6 +2903,7 @@
       if (coverUrl) b.coverUrl = coverUrl; else delete b.coverUrl;
       if (mediaId) b.mediaId = mediaId; else delete b.mediaId;
       if (mediaSource) b.mediaSource = mediaSource; else delete b.mediaSource;
+      saveGameInfo("b", b);
       if (summary) b.summary = summary; else delete b.summary;
       if (releaseYear) b.releaseYear = parseInt(releaseYear, 10); else delete b.releaseYear;
       applyRelease(b, release);
@@ -2911,6 +2925,7 @@
       if (coverUrl) item.coverUrl = coverUrl;
       if (mediaId) item.mediaId = mediaId;
       if (mediaSource) item.mediaSource = mediaSource;
+      saveGameInfo("b", item);
       if (summary) item.summary = summary;
       if (releaseYear) item.releaseYear = parseInt(releaseYear, 10);
       applyRelease(item, release);
@@ -2957,7 +2972,7 @@
   const KNOWN_BACKLOG_KEYS = new Set([
     "id", "title", "category", "createdAt", "updatedAt", "notes", "coverUrl",
     "mediaId", "mediaSource", "summary", "releaseYear", ...RELEASE_FIELDS,
-    "externalRating", "length", "genres", "priority", "bought", "dropped", "overrides", "startedAt", "author", "priceAlert",
+    "externalRating", "length", "genres", "priority", "bought", "dropped", "overrides", "startedAt", "author", "priceAlert", "hltb", "reviews",
   ]);
   function sanitizeBacklog(b) {
     const out = {
@@ -2997,6 +3012,7 @@
     if (overrides) out.overrides = overrides;
     // Anything this build doesn't know about is carried through rather than
     // dropped — see keepUnknown in app.js for why that matters across devices.
+    sanitizeGameInfo(b, out);
     return keepUnknown(b, out, KNOWN_BACKLOG_KEYS);
   }
 

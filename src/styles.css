@@ -1933,6 +1933,30 @@ body.modal-open { overflow: hidden; }
 .modal-cover-meta .bl-meta { font-size: var(--fs-xs); color: var(--text-dim); }
 .modal-cover-meta .bl-summary { font-size: var(--fs-sm); color: var(--text-dim); margin: 4px 0 0; }
 .modal-cover-meta .bl-price:empty { display: none; }
+/* How Long to Beat's three times (0.282.0): a strip along the cover's foot,
+   over a fade so they read on any art — fixed black and white like the
+   cover links, since it sits on the image, not the theme. The links move up
+   to the top corner to make room. With no cover it's a row of cells. */
+.game-times-wrap { position: absolute; left: 0; right: 0; bottom: 0; padding: var(--space-24) var(--space-8) var(--space-8);
+  background: linear-gradient(to top, rgba(0, 0, 0, .8), rgba(0, 0, 0, .45) 60%, transparent); }
+.game-times-wrap[hidden], .game-times-row[hidden] { display: none; }
+.modal-cover.has-times .modal-cover-links { top: 8px; bottom: auto; }
+.game-times { display: flex; gap: var(--space-4); min-height: 44px; text-decoration: none; color: inherit; border-radius: var(--r-md); }
+.game-time { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; justify-content: center; align-items: center;
+  padding: var(--space-4) var(--space-6); text-align: center; line-height: 1.2; }
+.game-time-label { font-size: var(--fs-2xs); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.game-time-value { font-size: var(--fs-md); font-weight: 700; font-variant-numeric: tabular-nums; }
+.game-times-wrap .game-times { color: #fff; }
+.game-times-wrap .game-time-label { color: rgba(255, 255, 255, .8); }
+.game-times-wrap .game-times:focus-visible { outline-offset: -2px; }
+.game-times-row { margin: var(--space-4) 0 var(--space-8); }
+.game-times-row .game-time { background: var(--bg-elev); border: 1px solid var(--border); border-radius: var(--r-md); }
+.game-times-row .game-time-label { color: var(--text-dim); }
+.game-times-row .game-time-value { color: var(--text); }
+a.game-times:hover .game-time-value { text-decoration: underline; }
+.game-reviews { margin: var(--space-4) 0 0; font-size: var(--fs-xs); color: var(--text-dim); }
+.game-reviews a { color: var(--accent); text-decoration: none; display: inline-block; padding: var(--space-4) 0; }
+.game-reviews a:hover { text-decoration: underline; }
 /* "Pick random" scope strip — the categories a draw is rolling on (each a
    toggle, same chip idiom as the filter bar) and the favorites switch. It
    owns the modal's top edge, so the cover below it can't bleed the way the
@@ -3942,3 +3966,8 @@ html.force-mobile .trip-map-side { order: 0; top: var(--topbar-h, 0px); z-index:
 html.force-mobile .trip-map-list { width: 100%; }
 html.force-mobile .trip-map-list .place-row { scroll-margin-top: calc(var(--topbar-h, 0px) + 48vh + var(--space-12)); }
 html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(--space-8)) 0; }
+/* The review links are a line of text on a computer; on a phone each one
+   gets a full-height tap target. */
+@media (max-width: 720px) {
+  html:not(.force-pc) .game-reviews a { display: inline-flex; align-items: center; min-height: 44px; padding: 0; }
+}

@@ -266,10 +266,11 @@ until you add it in **Settings → Media**.
 | SteamGridDB | yes (free) + CORS proxy | games — much better cover art |
 | TMDB | yes (free) | movies and TV, incl. next-episode dates |
 | GG.deals | yes (free); proxy if CORS-blocked | current game prices |
+| Augmented Steam | no; CORS proxy | games on Steam — How Long to Beat times, OpenCritic and Metacritic user scores |
 | Open Library, AniList, Jikan, Google Books, MusicBrainz | no | books, anime/manga, music |
 
 Steam's own endpoints and SteamGridDB send no CORS headers, so the wishlist
-import, Steam release dates and prices need a proxy you host yourself —
+import, Steam release dates, prices and game times need a proxy you host yourself —
 `proxy/` is a Cloudflare Worker that does it in a free account. See
 [`proxy/README.md`](proxy/README.md).
 

@@ -3,6 +3,7 @@
 // `assert`, matching test/merge.test.js's pattern.
 const assert = require("assert");
 global.window = {};
+require("../src/journal.js");
 require("../src/backlog.js");
 const Backlog = global.window.LifeLogBacklog;
 
@@ -20,6 +21,7 @@ Backlog.init({
     for (const key of Object.keys(src || {})) if (!known.has(key)) out[key] = src[key];
     return out;
   },
+  sanitizeGameInfo: (...a) => window.LifeLogJournal.sanitizeGameInfo(...a),
   sanitizeOverrides: (overrides, keys) => {
     const out = {};
     for (const key of keys) if (overrides && overrides[key]) out[key] = true;

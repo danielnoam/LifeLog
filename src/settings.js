@@ -1178,6 +1178,7 @@
     $("#steamId64").value = state.data.settings.steam?.steamId || "";
     $("#steamApiKey").value = state.data.settings.steam?.apiKey || "";
     $("#steamAutoSyncDays").value = state.data.settings.steam?.autoSyncDays || "0";
+    $("#steamGameTimes").value = state.data.settings.steam?.gameTimes === "off" ? "off" : "on";
     $("#anilistUserName").value = state.data.settings.anilist?.userName || "";
     $("#anilistAutoSyncDays").value = state.data.settings.anilist?.autoSyncDays || "0";
     $("#releasesAutoRefreshDays").value = state.data.settings.releases?.autoRefreshDays || "0";
@@ -1613,6 +1614,7 @@
     $("#steamOwnedSyncBtn").onclick = syncSteamOwned;
     $("#steamWishlistCategory").onchange = () => setSteamSetting("wishlistCategory", $("#steamWishlistCategory").value);
     $("#steamAutoSyncDays").onchange = () => setSteamSetting("autoSyncDays", $("#steamAutoSyncDays").value);
+    $("#steamGameTimes").onchange = () => setSteamSetting("gameTimes", $("#steamGameTimes").value);
     $("#steamWishlistSyncBtn").onclick = syncSteamWishlist;
     $("#steamRetryUnresolvedBtn").onclick = retryUnresolvedSteamTitles;
     $("#steamBackfillRawgBtn").onclick = backfillRawgForSteamGames;

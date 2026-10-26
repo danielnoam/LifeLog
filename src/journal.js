@@ -15,7 +15,7 @@
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
     rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
     isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
-    pushOverrideValues, readOverrideChecks,
+    pushOverrideValues, readOverrideChecks, seedGameInfo, paintGameInfo, saveGameInfo,
     applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
     DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled, closeSheetMenus;
 
@@ -32,7 +32,7 @@
       fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
       rebuildColorMap, buildYearFilter, buildCatFilter, renderCoverLinkButtons, renderMediaLinks,
     isOverridden, sanitizeOverrides, keepUnknown, initOverrideFields, refreshOverrideFields,
-    pushOverrideValues, readOverrideChecks,
+    pushOverrideValues, readOverrideChecks, seedGameInfo, paintGameInfo, saveGameInfo,
       applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
       DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled, closeSheetMenus } = ctx);
   }
@@ -832,6 +832,7 @@
     // read back below.
     $("#fOvrCover").checked = false;
     $("#fOvrLength").checked = false;
+    seedGameInfo("f", editing ? entry : fromBacklog);
     setEntryCover(coverSrc, mediaId, mediaSrc, lengthSrc, genresSrc);
     setAuthorField("f", editing ? entry : fromBacklog);
     initOverrideFields(OVERRIDE_FIELDS, editing ? entry : null);
@@ -1303,7 +1304,17 @@
     const paint = (hasCover) => {
       const coverMeta = $("#entryCoverMeta"), rowMeta = $("#entryMetaRow");
       coverMeta.innerHTML = ""; rowMeta.innerHTML = "";
-      if (shownLength) (hasCover ? coverMeta : rowMeta).appendChild(el("span", "bl-meta", shownLength));
+      const meta = hasCover ? coverMeta : rowMeta;
+      // How Long to Beat's times and the review scores (0.282.0); a fresh
+      // answer sets the length and, for an entry already saved, lands on it
+      // straight away rather than waiting for Save.
+      const timesShown = paintGameInfo("f", "entry", hasCover, meta, mediaSource, mediaId, (fresh) => {
+        if (fresh.hltb && fresh.hltb.story && !isPinned("length")) $("#fLength").value = window.LifeLogMedia.gameHours(fresh.hltb.story);
+        const stored = $("#entryId").value && state.data.entries.find((e) => e.id === $("#entryId").value);
+        if (stored && stored.mediaSource === "steam" && stored.mediaId === mediaId && window.LifeLogSync.applyGameTimes(stored, fresh)) { render(); persist(); }
+        setEntryCover($("#fCoverUrl").value, mediaId, mediaSource, $("#fLength").value, ($("#fGenres").value || "").split("|").filter(Boolean));
+      });
+      if (shownLength && !timesShown) meta.prepend(el("span", "bl-meta", shownLength));
       renderMediaLinks($("#entryCoverLinks"), $("#entryLinks"), hasCover, mediaSource, mediaId);
     };
     coverImg.onerror = () => { coverDiv.hidden = true; paint(false); };
@@ -1475,6 +1486,7 @@
       if (mediaId) e.mediaId = mediaId; else delete e.mediaId;
       if (mediaSource) e.mediaSource = mediaSource; else delete e.mediaSource;
       if (length) e.length = length; else delete e.length;
+      saveGameInfo("f", e);
       if (genres.length) e.genres = genres; else delete e.genres;
       overrides = saveAuthor("f", e, overrides);
       if (overrides) e.overrides = overrides; else delete e.overrides;
@@ -1493,6 +1505,7 @@
       if (mediaId) newEntry.mediaId = mediaId;
       if (mediaSource) newEntry.mediaSource = mediaSource;
       if (length) newEntry.length = length;
+      saveGameInfo("f", newEntry);
       if (genres.length) newEntry.genres = genres;
       overrides = saveAuthor("f", newEntry, overrides);
       if (overrides) newEntry.overrides = overrides;
@@ -1543,6 +1556,8 @@
     if (entry.mediaId) item.mediaId = entry.mediaId;
     if (entry.mediaSource) item.mediaSource = entry.mediaSource;
     if (entry.length) item.length = entry.length;
+    if (entry.hltb) item.hltb = { ...entry.hltb };
+    if (entry.reviews) item.reviews = JSON.parse(JSON.stringify(entry.reviews));
     if (entry.genres && entry.genres.length) item.genres = entry.genres.slice();
     if (entry.author) item.author = entry.author;
     if (isOverridden(entry, "author")) item.overrides = { author: true };
@@ -1767,11 +1782,40 @@
     toast("Category deleted");
   }
 
+  // A Steam game's How Long to Beat times and review scores (0.282.0; see
+  // the game-times fill in sync.js), checked the same way for an entry and
+  // a backlog item: backlog.js gets this through its init.
+  const GAME_TIME_KEYS = ["story", "extras", "complete"];
+  const REVIEW_SITES = ["opencritic", "metauser"];
+  function sanitizeGameInfo(src, out) {
+    const h = src && src.hltb;
+    if (h && typeof h === "object") {
+      const t = {};
+      for (const k of GAME_TIME_KEYS) if (Number.isInteger(+h[k]) && +h[k] > 0) t[k] = +h[k];
+      if (/^https:\/\/howlongtobeat\.com\/game\/\d+$/.test(h.url || "")) t.url = h.url;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(h.at || "")) t.at = h.at;
+      if (Object.keys(t).length) out.hltb = t;
+    }
+    const r = src && src.reviews;
+    if (r && typeof r === "object") {
+      const kept = {};
+      for (const site of REVIEW_SITES) {
+        const v = r[site], score = v && Math.round(+v.score);
+        if (!(score > 0 && score <= 100)) continue;
+        kept[site] = { score };
+        if (typeof v.verdict === "string" && v.verdict) kept[site].verdict = v.verdict.slice(0, 40);
+        if (/^https:\/\/((www\.)?metacritic\.com|opencritic\.com)\//.test(v.url || "")) kept[site].url = v.url;
+      }
+      if (Object.keys(kept).length) out.reviews = kept;
+    }
+    return out;
+  }
+
   // ---------- data lifecycle ----------
   const KNOWN_ENTRY_KEYS = new Set([
     "id", "title", "category", "year", "month", "date", "createdAt", "updatedAt",
     "rating", "notes", "coverUrl", "mediaId", "mediaSource", "length", "genres",
-    "backlogAddedAt", "overrides", "startMonth", "startYear", "startedAt", "author", "day",
+    "backlogAddedAt", "overrides", "startMonth", "startYear", "startedAt", "author", "day", "hltb", "reviews",
   ]);
   function sanitizeEntry(e) {
     const out = {
@@ -1810,6 +1854,7 @@
     if (Number.isInteger(day) && day >= 1 && day <= new Date(out.year, out.month, 0).getDate()) out.day = day;
     // Anything this build doesn't know about is carried through rather than
     // dropped — see keepUnknown in app.js for why that matters across devices.
+    sanitizeGameInfo(e, out);
     return keepUnknown(e, out, KNOWN_ENTRY_KEYS);
   }
 
@@ -1874,6 +1919,7 @@
   }
 
   window.LifeLogJournal = {
+    sanitizeGameInfo,
     init,
     wire,
     // views (dispatched from app.js's render())
