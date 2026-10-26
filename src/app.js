@@ -163,7 +163,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.282.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.282.1"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2422,13 +2422,69 @@
   // The sheet's three times, labelled, as one strip: over the cover's foot
   // when there is a cover, in the plain row under the title when there
   // isn't. A tap opens the game's page on How Long to Beat.
-  function renderGameTimes(onCover, inRow, hasCover, hltb) {
+  // Anything else with a length (a film's runtime, a show's seasons and
+  // episodes, a book's pages, RAWG's playtime) shows it in the same strip on
+  // the cover (0.282.1). True when the strip went up with the length in it.
+  function renderGameTimes(onCover, inRow, hasCover, hltb, length) {
     for (const box of [onCover, inRow]) { if (box) { box.innerHTML = ""; box.hidden = true; } }
-    const cover = onCover && onCover.closest(".modal-cover");
-    if (cover) cover.classList.toggle("has-times", !!(hasCover && hasGameTimes(hltb)));
-    if (!hasGameTimes(hltb)) return;
     const box = hasCover ? onCover : inRow;
+    if (!box) return false;
+    if (hasGameTimes(hltb)) {
+      box.appendChild(gameTimesStrip(hltb));
+      box.hidden = false;
+      return false;
+    }
+    const cells = hasCover ? lengthCells(length) : [];
+    if (!cells.length) return false;
+    const strip = el("div", "game-times");
+    for (const [label, value] of cells) {
+      const cell = el("span", "game-time");
+      cell.appendChild(el("span", "game-time-label", label));
+      cell.appendChild(el("span", "game-time-value", value));
+      strip.appendChild(cell);
+    }
+    box.appendChild(strip);
+    box.hidden = false;
+    return true;
+  }
+  // "2 seasons · 20 episodes" → [["Seasons","2"],["Episodes","20"]]; a
+  // runtime like "2h 10m", or anything else, is one cell.
+  const LENGTH_UNITS = { hr: "Playtime", hrs: "Playtime", page: "Pages", pages: "Pages", episode: "Episodes", episodes: "Episodes",
+    season: "Seasons", seasons: "Seasons", chapter: "Chapters", chapters: "Chapters", volume: "Volumes", volumes: "Volumes" };
+  function lengthCells(length) {
+    const text = String(length || "").trim();
+    if (!text) return [];
+    return text.split(" · ").map((part) => {
+      const m = /^([\d.,½]+)\s+([a-z]+)$/i.exec(part.trim());
+      const unit = m && LENGTH_UNITS[m[2].toLowerCase()];
+      if (unit === "Playtime") return [unit, m[1] + " h"];
+      if (unit) return [unit, m[1]];
+      return [/^\d+h( \d+m)?$|^\d+m$/.test(part.trim()) ? "Runtime" : "Length", part.trim()];
+    });
+  }
+  // On a cover the review scores are pills in the top-left corner, opposite
+  // the store links (0.282.1): just the number, the site in its label.
+  function renderCoverScores(box, reviews) {
     if (!box) return;
+    box.innerHTML = "";
+    if (!reviews) return;
+    for (const site of Object.keys(REVIEW_LABELS)) {
+      const r = reviews[site];
+      if (!r) continue;
+      const pill = document.createElement(r.url ? "a" : "span");
+      pill.className = "cover-link-btn cover-score";
+      pill.textContent = String(r.score);
+      const name = REVIEW_LABELS[site] + " " + r.score + (r.verdict ? ", " + r.verdict : "");
+      pill.title = name;
+      pill.setAttribute("aria-label", name);
+      if (r.url) {
+        pill.href = r.url; pill.target = "_blank"; pill.rel = "noopener noreferrer";
+        pill.onclick = (ev) => ev.stopPropagation();
+      }
+      box.appendChild(pill);
+    }
+  }
+  function gameTimesStrip(hltb) {
     const strip = document.createElement(hltb.url ? "a" : "div");
     strip.className = "game-times";
     if (hltb.url) {
@@ -2445,8 +2501,7 @@
       said.push(label + " " + window.LifeLogMedia.gameHours(hltb[k]));
     }
     strip.setAttribute("aria-label", "How Long to Beat: " + said.join(", ") + (hltb.url ? ". Opens How Long to Beat" : ""));
-    box.appendChild(strip);
-    box.hidden = false;
+    return strip;
   }
   // A sheet's game info sits in its hidden #fGameInfo / #bGameInfo as
   // { id, hltb, reviews }, tied to the Steam App ID it was asked for, so a
@@ -2467,11 +2522,12 @@
   // the sheet still shows that game, after it has been stored in the sheet.
   // True when the times are on show, so the sheet can leave out the plain
   // length line that would only repeat Main Story.
-  function paintGameInfo(prefix, sheet, hasCover, metaEl, mediaSource, mediaId, onFresh) {
+  function paintGameInfo(prefix, sheet, hasCover, metaEl, mediaSource, mediaId, onFresh, length) {
     const info = readGameInfo(prefix, mediaSource, mediaId);
-    renderGameTimes($("#" + sheet + "GameTimes"), $("#" + sheet + "GameTimesRow"), hasCover, info && info.hltb);
-    appendReviewScores(metaEl, info && info.reviews);
-    const shown = hasGameTimes(info && info.hltb);
+    const lengthShown = renderGameTimes($("#" + sheet + "GameTimes"), $("#" + sheet + "GameTimesRow"), hasCover, info && info.hltb, length);
+    renderCoverScores($("#" + sheet + "CoverScores"), hasCover && info && info.reviews);
+    if (!hasCover) appendReviewScores(metaEl, info && info.reviews);
+    const shown = hasGameTimes(info && info.hltb) || lengthShown;
     if (mediaSource !== "steam" || !mediaId || !Sync.gameTimesDue({ mediaSource, mediaId, hltb: info && info.hltb })) return shown;
     const key = prefix + ":" + mediaId;
     if (gameInfoAsking.has(key)) return shown;

@@ -2660,8 +2660,8 @@
     showSyncStatus("b", mediaSource);
     refreshOverrideFields(OVERRIDE_FIELDS);
     // The price target (0.276.0) only means something for a game GG.deals
-    // can price, which is one with a Steam App ID.
-    $("#bPriceAlertWrap").hidden = mediaSource !== "steam" || !mediaId;
+    // can price, which is one with a Steam App ID, and not once it's bought.
+    $("#bPriceAlertWrap").hidden = mediaSource !== "steam" || !mediaId || $("#bBought").checked;
     // The rating/year/length/price line, the summary and the store links all
     // describe the item rather than its artwork, so they render either way:
     // under the cover when there is one, in a plain row under the title when
@@ -2671,8 +2671,9 @@
       const coverMeta = $("#backlogCoverMeta"), rowMeta = $("#backlogMetaRow");
       coverMeta.innerHTML = ""; rowMeta.innerHTML = "";
       const meta = hasCover ? coverMeta : rowMeta;
-      // How Long to Beat's times stand in for the length line (0.282.0), and
-      // the review scores go under the meta line, above the summary.
+      // How Long to Beat's times, or on a cover any length, stand in for the
+      // length in the meta line (0.282.0, 0.282.1). Without a cover the
+      // review scores go under the meta line, above the summary.
       const reviews = document.createElement("div");
       const timesShown = paintGameInfo("b", "backlog", hasCover, reviews, mediaSource, mediaId, (fresh) => {
         if (fresh.hltb && fresh.hltb.story && !isPinned("length")) $("#bLength").value = window.LifeLogMedia.gameHours(fresh.hltb.story);
@@ -2680,7 +2681,7 @@
         const stored = id && state.data.backlog.find((x) => x.id === id);
         if (stored && stored.mediaSource === "steam" && stored.mediaId === mediaId && window.LifeLogSync.applyGameTimes(stored, fresh)) { render(); persist(); }
         setBacklogCover();
-      });
+      }, $("#bLength").value);
       const hasSteamPrice = appendBacklogMeta(meta, {
         externalRating: $("#bExternalRating").value,
         releaseYear: $("#bReleaseYear").value,
@@ -2810,11 +2811,13 @@
     if (b) openEntryModal(null, b);
   }
 
-  // ▶ and ✓ beside the title follow the category's switches (0.267.0), but
-  // one that's already on stays, so an item can still be taken off it.
+  // ▶ and Bought beside the title follow the category's switches (0.267.0),
+  // but one that's already on stays, so an item can still be taken off it.
+  // ▶ is only for a new item (0.282.1): a saved one moves to and from In
+  // progress through More…, which a new item doesn't have.
   function updateStateButtons() {
     const shows = categoryShows($("#bCategory").value);
-    $("#bStartedBtn").hidden = !shows.inProgress && !$("#bStarted").checked;
+    $("#bStartedBtn").hidden = !!$("#backlogId").value || (!shows.inProgress && !$("#bStarted").checked);
     $("#bBoughtBtn").hidden = !shows.bought && !$("#bBought").checked;
     updateMoreMenu();
   }

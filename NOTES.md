@@ -16,6 +16,20 @@ what was decided against and why.
 
 ---
 
+- **Cover corners and lengths on the cover (0.282.1).** Daniel's layout:
+  store links always top right (every cover, the pick card's too), review
+  scores as number-only pills top left, each named in its label and
+  tooltip, and the bottom strip shows HLTB's times or, for anything else,
+  the length split into cells ("2 seasons · 19 episodes" → Seasons 2,
+  Episodes 19; "2h 10m" → Runtime). `lengthCells` in app.js reads the
+  length strings media.js writes; a string it can't read is one "Length"
+  cell. Without a cover the length stays in the meta line.
+
+- **Price alert hidden for a bought game (0.282.1).** Daniel asked for it.
+  Saving already dropped a bought game's target, so the field only hides
+  now, live as Bought is ticked. Its hint went at his ask too; what the
+  alert does is in the 0.276.0 entry below and in the changelog.
+
 - **Game times and review scores from Augmented Steam (0.282.0).** Daniel
   wanted How Long to Beat's times in place of RAWG's playtime. HLTB has no
   public API. Its site search needs a token from a script, browser-looking

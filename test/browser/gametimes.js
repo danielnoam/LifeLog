@@ -66,8 +66,8 @@ const seed = (gameTimes) => ({
       check("and fills nothing in" + at, !(await item("b1")).hltb && (await item("b1")).length === "20 hrs", await item("b1"));
       await page.evaluate(() => window.LifeLogBacklog.openBacklogModal(window.LifeLogStorage.cachedCopy().backlog.find((x) => x.id === "b1")));
       await page.waitForTimeout(500);
-      check("an opened sheet doesn't ask either, and shows no times" + at,
-        asked.length === 0 && await page.evaluate(() => document.getElementById("backlogGameTimes").hidden), asked);
+      check("an opened sheet doesn't ask either, and shows no HLTB times" + at,
+        asked.length === 0 && await page.evaluate(() => !/Main Story/.test(document.getElementById("backlogGameTimes").textContent)), asked);
       await page.keyboard.press("Escape");
       await page.evaluate(() => window.LifeLogSettings.openSettings());
       await page.waitForTimeout(300);
@@ -106,18 +106,20 @@ const seed = (gameTimes) => ({
         onCoverFoot: Math.abs(r.bottom - c.bottom) < 1 && r.top >= c.top,
         tall: strip.getBoundingClientRect().height >= 44,
         link: strip.getAttribute("href"),
-        hasTimes: box.closest(".modal-cover").classList.contains("has-times"),
-        reviews: (document.querySelector("#backlogCoverMeta .game-reviews") || {}).textContent || "",
-        reviewsBeforeSummary: !!document.querySelector("#backlogCoverMeta .game-reviews + .bl-summary"),
+        scores: [...document.querySelectorAll("#backlogCoverScores .cover-score")].map((p) => p.textContent + "|" + p.getAttribute("aria-label") + "|" + !!p.getAttribute("href")),
+        scoresTopLeft: (() => { const s = document.getElementById("backlogCoverScores").getBoundingClientRect(); return s.top - c.top < 12 && s.left - c.left < 12; })(),
+        linksTopRight: (() => { const l = document.getElementById("backlogCoverLinks").getBoundingClientRect(); return l.top - c.top < 12 && c.right - l.right < 12; })(),
+        noTextLine: !document.querySelector("#backlogCoverMeta .game-reviews"),
         meta: (document.querySelector("#backlogCoverMeta .bl-meta") || {}).textContent || "",
         row: document.getElementById("backlogGameTimesRow").hidden,
       };
     });
     check("the sheet shows the three times by name over the cover's foot" + at,
-      sheet.shown && sheet.onCoverFoot && sheet.hasTimes && JSON.stringify(sheet.cells) === JSON.stringify(["Main Story=32 h", "Main + Extras=43 h", "Completionist=66½ h"]), sheet);
+      sheet.shown && sheet.onCoverFoot && JSON.stringify(sheet.cells) === JSON.stringify(["Main Story=32 h", "Main + Extras=43 h", "Completionist=66½ h"]), sheet);
     check("the strip links to How Long to Beat and is a full tap target" + at, sheet.link === "https://howlongtobeat.com/game/139385" && sheet.tall, sheet);
-    check("the scores sit under the meta line, above the summary" + at,
-      sheet.reviews === "OpenCritic 94 · Metacritic users 85" && sheet.reviewsBeforeSummary, sheet);
+    check("the scores are number pills in the cover's top left, named in their labels" + at,
+      JSON.stringify(sheet.scores) === JSON.stringify(["94|OpenCritic 94, Mighty|true", "85|Metacritic users 85|true"]) && sheet.scoresTopLeft && sheet.noTextLine, sheet);
+    check("the store links sit in the top right" + at, sheet.linksTopRight, sheet);
     check("the meta line leaves out the length the times already show" + at, !/32 hrs/.test(sheet.meta) && sheet.row, sheet);
     await page.screenshot({ path: require("path").join(require("os").tmpdir(), "gametimes-" + width + ".png") });
     await page.click('#backlogForm button[type="submit"]');
@@ -155,6 +157,24 @@ const seed = (gameTimes) => ({
     await page.waitForTimeout(400);
     const again = await page.evaluate(() => window.LifeLogStorage.cachedCopy().backlog.find((x) => x.title === "Hades II again"));
     check("and the new item saves them" + at, again && again.hltb && again.hltb.complete === 3990 && again.reviews && again.reviews.metauser.score === 85, again);
+
+    // ---- other media show their length on the cover the same way ----
+    const coverCells = (length, src) => page.evaluate(([length, src]) => {
+      window.LifeLogBacklog.openBacklogModal({ id: "x", title: "X", category: "Games", coverUrl: "https://img.test/x.png", mediaSource: src, mediaId: "1", length, createdAt: "2026-01-01T00:00:00.000Z" });
+      return new Promise((res) => setTimeout(() => res({
+        cells: [...document.querySelectorAll("#backlogGameTimes .game-time")].map((c) => c.querySelector(".game-time-label").textContent + "=" + c.querySelector(".game-time-value").textContent),
+        meta: (document.querySelector("#backlogCoverMeta .bl-meta") || {}).textContent || "",
+      }), 300));
+    }, [length, src]);
+    let c = await coverCells("2 seasons · 20 episodes", "tmdb-tv");
+    check("a show's seasons and episodes are cells on the cover" + at, JSON.stringify(c.cells) === JSON.stringify(["Seasons=2", "Episodes=20"]) && !/episodes/.test(c.meta), c);
+    c = await coverCells("2h 10m", "tmdb-movie");
+    check("a film's runtime is one cell" + at, JSON.stringify(c.cells) === JSON.stringify(["Runtime=2h 10m"]), c);
+    c = await coverCells("320 pages", "openlibrary");
+    check("a book's pages too" + at, JSON.stringify(c.cells) === JSON.stringify(["Pages=320"]), c);
+    c = await coverCells("30 hrs", "rawg");
+    check("and a game with only RAWG's playtime" + at, JSON.stringify(c.cells) === JSON.stringify(["Playtime=30 h"]), c);
+    await page.keyboard.press("Escape");
     await page.close();
   }
   await b.close();

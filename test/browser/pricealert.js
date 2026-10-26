@@ -73,6 +73,10 @@ const SEED = {
   await page.waitForTimeout(200);
   let f = await page.evaluate(() => ({ hidden: document.querySelector("#bPriceAlertWrap").hidden, value: document.querySelector("#bPriceAlert").value }));
   check("a Steam game's sheet shows its target", !f.hidden && f.value === "15", f);
+  await page.click("#bBoughtBtn");
+  check("ticking Bought hides the target", await page.evaluate(() => document.querySelector("#bPriceAlertWrap").hidden));
+  await page.click("#bBoughtBtn");
+  check("and unticking brings it back", await page.evaluate(() => !document.querySelector("#bPriceAlertWrap").hidden));
   await page.evaluate(() => window.LifeLogBacklog.closeBacklogModal());
   await page.evaluate(() => window.LifeLogBacklog.openBacklogModal(window.LifeLogStorage.cachedCopy().backlog.find((x) => x.id === "b3")));
   await page.waitForTimeout(200);

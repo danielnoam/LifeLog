@@ -282,7 +282,7 @@ Two kinds, each with its own job:
   `.ico` (1.2em beside text) or the holder's own rule (`.tab-ico`, `.srow-ic`,
   `.btn-icon`, `.add-ico`). One icon per meaning, reused everywhere: pencil =
   edit, x = remove, check = done, play = start, undo-2 = put back, repeat =
-  recurring, refresh-cw = sync. A toggle drawn as its filled shape (favourite,
+  recurring, refresh-cw = sync, shopping-bag = bought. A toggle drawn as its filled shape (favourite,
   priority, default mode) adds `.is-fill` when on. Add to the map, never
   rename a name in it. No icon font, no sprite, no emoji.
 - **Text stays text**: + for add, › ‹ chevrons, the ★ of a rating, ✦

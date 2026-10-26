@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.282.1] - 2026-10-26
+
+### Changed
+- **Lengths on the cover.** A film's runtime, a show's seasons and
+  episodes, a book's pages and a game's playtime now sit along the bottom
+  of the sheet's cover, labelled, the same way How Long to Beat's times do.
+- The OpenCritic and Metacritic user scores are small number pills in
+  the cover's top-left corner. The store links are always in the top
+  right, with or without game times.
+- A backlog game's Price alert field hides once it's marked Bought, and
+  the long explanation under it is gone.
+- The backlog sheet's Bought button is a shopping bag now, so it can't be
+  mistaken for Done's check.
+- A saved backlog item's sheet no longer has the ▶ In progress button;
+  More… → Move to In progress and Back to backlog do that. A new item
+  keeps ▶, since it has no More… yet.
+
 ## [0.282.0] - 2026-10-26
 
 ### Added

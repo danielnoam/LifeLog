@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.282.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.282.1" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -215,6 +215,7 @@
         <div class="modal-cover">
           <img id="entryCoverImg" src="" alt="Cover" />
           <div class="modal-cover-links" id="entryCoverLinks"></div>
+          <div class="modal-cover-scores" id="entryCoverScores"></div>
           <div class="game-times-wrap" id="entryGameTimes" hidden></div>
         </div>
         <div class="modal-cover-meta" id="entryCoverMeta"></div>
@@ -468,6 +469,7 @@
         <div class="modal-cover">
           <img id="backlogCoverImg" src="" alt="Cover" />
           <div class="modal-cover-links" id="backlogCoverLinks"></div>
+          <div class="modal-cover-scores" id="backlogCoverScores"></div>
           <div class="game-times-wrap" id="backlogGameTimes" hidden></div>
         </div>
         <div class="modal-cover-meta" id="backlogCoverMeta"></div>
@@ -503,7 +505,7 @@
           <div class="ac-wrap">
             <input id="bTitle" type="text" required autocomplete="off" placeholder="e.g. The Last of Us Part II" />
             <button type="button" class="btn btn-sm priority-star" id="bPriorityBtn" title="Prioritize" aria-label="Prioritize" aria-pressed="false"><span data-ico="star"></span></button>
-            <button type="button" class="btn btn-sm bought-toggle" id="bBoughtBtn" title="Mark as already bought" aria-label="Mark as already bought" aria-pressed="false"><span data-ico="check"></span></button>
+            <button type="button" class="btn btn-sm bought-toggle" id="bBoughtBtn" title="Mark as already bought" aria-label="Mark as already bought" aria-pressed="false"><span data-ico="shopping-bag"></span></button>
             <button type="button" class="btn btn-sm started-toggle" id="bStartedBtn" title="Start — move to In progress" aria-label="Start — move to In progress" aria-pressed="false"><span data-ico="play"></span></button>
             <button type="button" class="btn btn-sm sync-btn" id="bSyncBtn" title="Look up cover, year &amp; rating" aria-label="Look up cover, year &amp; rating" hidden><span class="sync-icon" data-ico="refresh-cw" aria-hidden="true"></span></button>
             <div class="ac-list" id="bTitleSuggest" hidden></div>
@@ -534,7 +536,6 @@
           <label>Price alert
             <input id="bPriceAlert" type="number" inputmode="decimal" min="0" step="0.01" autocomplete="off" placeholder="Under $…" />
           </label>
-          <p class="hint">Tells you when the game's retail price on GG.deals is at or under this, in US dollars as GG.deals quotes it: a toast here, and a notification on a phone. Checked when the app opens and whenever prices load. Needs the GG.deals key.</p>
         </div>
         <input type="checkbox" id="bPriority" hidden />
         <input type="checkbox" id="bBought" hidden />
@@ -2250,38 +2251,38 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.282.0"></script>
-  <script defer src="src/headless.js?v=0.282.0"></script>
-  <script defer src="src/platform.js?v=0.282.0"></script>
-  <script defer src="src/icons.js?v=0.282.0"></script>
-  <script defer src="src/jobs.js?v=0.282.0"></script>
-  <script defer src="src/reconcile.js?v=0.282.0"></script>
-  <script defer src="src/qr.js?v=0.282.0"></script>
-  <script defer src="src/media.js?v=0.282.0"></script>
-  <script defer src="src/merge.js?v=0.282.0"></script>
-  <script defer src="src/storage.js?v=0.282.0"></script>
-  <script defer src="src/finance.js?v=0.282.0"></script>
-  <script defer src="src/settings.js?v=0.282.0"></script>
-  <script defer src="src/wheel.js?v=0.282.0"></script>
-  <script defer src="src/backlog.js?v=0.282.0"></script>
-  <script defer src="src/journal.js?v=0.282.0"></script>
-  <script defer src="src/markdown.js?v=0.282.0"></script>
-  <script defer src="src/notes.js?v=0.282.0"></script>
-  <script defer src="src/docimport.js?v=0.282.0"></script>
-  <script defer src="src/io.js?v=0.282.0"></script>
-  <script defer src="src/sync.js?v=0.282.0"></script>
-  <script defer src="src/habits.js?v=0.282.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.282.0"></script>
-  <script defer src="src/boards.js?v=0.282.0"></script>
-  <script defer src="src/travel.js?v=0.282.0"></script>
-  <script defer src="src/recap.js?v=0.282.0"></script>
-  <script defer src="src/reminders.js?v=0.282.0"></script>
-  <script defer src="src/alerts.js?v=0.282.0"></script>
-  <script defer src="src/widgets.js?v=0.282.0"></script>
-  <script defer src="src/share.js?v=0.282.0"></script>
-  <script defer src="src/search.js?v=0.282.0"></script>
-  <script defer src="src/letterboxd.js?v=0.282.0"></script>
-  <script defer src="src/payments.js?v=0.282.0"></script>
-  <script defer src="src/app.js?v=0.282.0"></script>
+  <script defer src="src/errlog.js?v=0.282.1"></script>
+  <script defer src="src/headless.js?v=0.282.1"></script>
+  <script defer src="src/platform.js?v=0.282.1"></script>
+  <script defer src="src/icons.js?v=0.282.1"></script>
+  <script defer src="src/jobs.js?v=0.282.1"></script>
+  <script defer src="src/reconcile.js?v=0.282.1"></script>
+  <script defer src="src/qr.js?v=0.282.1"></script>
+  <script defer src="src/media.js?v=0.282.1"></script>
+  <script defer src="src/merge.js?v=0.282.1"></script>
+  <script defer src="src/storage.js?v=0.282.1"></script>
+  <script defer src="src/finance.js?v=0.282.1"></script>
+  <script defer src="src/settings.js?v=0.282.1"></script>
+  <script defer src="src/wheel.js?v=0.282.1"></script>
+  <script defer src="src/backlog.js?v=0.282.1"></script>
+  <script defer src="src/journal.js?v=0.282.1"></script>
+  <script defer src="src/markdown.js?v=0.282.1"></script>
+  <script defer src="src/notes.js?v=0.282.1"></script>
+  <script defer src="src/docimport.js?v=0.282.1"></script>
+  <script defer src="src/io.js?v=0.282.1"></script>
+  <script defer src="src/sync.js?v=0.282.1"></script>
+  <script defer src="src/habits.js?v=0.282.1"></script>
+  <script defer src="src/vendor/rough.js?v=0.282.1"></script>
+  <script defer src="src/boards.js?v=0.282.1"></script>
+  <script defer src="src/travel.js?v=0.282.1"></script>
+  <script defer src="src/recap.js?v=0.282.1"></script>
+  <script defer src="src/reminders.js?v=0.282.1"></script>
+  <script defer src="src/alerts.js?v=0.282.1"></script>
+  <script defer src="src/widgets.js?v=0.282.1"></script>
+  <script defer src="src/share.js?v=0.282.1"></script>
+  <script defer src="src/search.js?v=0.282.1"></script>
+  <script defer src="src/letterboxd.js?v=0.282.1"></script>
+  <script defer src="src/payments.js?v=0.282.1"></script>
+  <script defer src="src/app.js?v=0.282.1"></script>
 </body>
 </html>

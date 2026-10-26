@@ -118,11 +118,12 @@ async function run(b, width) {
   // Its sheet's ▶ takes it back out.
   await page.click('.progress-row[data-id="' + celeste.id + '"] .etitle');
   await page.waitForTimeout(300);
-  check("its row opens its sheet, ▶ on" + at, await page.evaluate(() => !document.getElementById("backlogModal").hidden && document.getElementById("bStarted").checked));
-  await page.click("#bStartedBtn");
-  await page.click('#backlogForm button[type="submit"]');
+  check("its row opens its sheet, started, with no ▶ (More… moves it)" + at, await page.evaluate(() => !document.getElementById("backlogModal").hidden
+    && document.getElementById("bStarted").checked && document.getElementById("bStartedBtn").hidden));
+  await page.click("#backlogMoreWrap .sheet-more-btn");
+  await page.click("#blMoveBacklogBtn");
   await page.waitForTimeout(500);
-  check("and turning ▶ off there puts it back in the backlog" + at, !(await card()).includes(celeste.id) && !(await saved()).backlog.find((x) => x.id === celeste.id).startedAt);
+  check("and More… → Back to backlog puts it back in the backlog" + at, !(await card()).includes(celeste.id) && !(await saved()).backlog.find((x) => x.id === celeste.id).startedAt);
 
   // ---- it outlives a reload ----
   await page.reload({ waitUntil: "networkidle" });

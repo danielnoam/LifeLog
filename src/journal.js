@@ -1313,7 +1313,7 @@
         const stored = $("#entryId").value && state.data.entries.find((e) => e.id === $("#entryId").value);
         if (stored && stored.mediaSource === "steam" && stored.mediaId === mediaId && window.LifeLogSync.applyGameTimes(stored, fresh)) { render(); persist(); }
         setEntryCover($("#fCoverUrl").value, mediaId, mediaSource, $("#fLength").value, ($("#fGenres").value || "").split("|").filter(Boolean));
-      });
+      }, shownLength);
       if (shownLength && !timesShown) meta.prepend(el("span", "bl-meta", shownLength));
       renderMediaLinks($("#entryCoverLinks"), $("#entryLinks"), hasCover, mediaSource, mediaId);
     };
