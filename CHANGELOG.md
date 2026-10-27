@@ -4,6 +4,20 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.282.2] - 2026-10-27
+
+### Changed
+- **Scores say where they're from.** The pills on a sheet's cover read
+  "Metacritic 95", "OpenCritic 94", "TMDB 8.4", "AniList 85%", "Open
+  Library 4.4", "MyAnimeList 8.1" or "Google Books 4.2", for every kind of
+  item, not just games. Timeline entries keep their score too now. A
+  game's Metacritic user score shows only when it has no Metacritic critic
+  score.
+- **A show's status on the cover.** Beside its seasons and episodes: Airing
+  (or S2 airing, Complete, On hiatus, Cancelled) and how many are out.
+- Under the cover, only the release year, the price and the description
+  stay: the score, the status and "Bought" were already on the cover.
+
 ## [0.282.1] - 2026-10-26
 
 ### Changed

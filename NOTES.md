@@ -16,6 +16,20 @@ what was decided against and why.
 
 ---
 
+- **Named scores, show status on the cover (0.282.2).** Daniel wanted
+  every score named ("Metacritic 85", not "85") and on the cover for all
+  kinds, and nothing under the cover that the cover already says. The
+  source's own `externalRating` keeps its media.js form ("84 Metacritic",
+  "4.2 OL"); `ratingPill` in app.js turns it into "Metacritic 84", with OL
+  read as Open Library and Jikan as MyAnimeList. Entries now keep
+  `externalRating` (carried from the backlog, set by the entry sheet's
+  sync), so a finished item's sheet shows it too. Augmented Steam's
+  Metacritic user score is dropped when the source has Metacritic's critic
+  score: both would read "Metacritic". A show's `airing` becomes Status and
+  Out cells in the strip (`airingCells` in backlog.js). The line under the
+  cover keeps the release, Early Access and the Steam price; Daniel didn't
+  ask about the price or the description, so both stayed.
+
 - **Cover corners and lengths on the cover (0.282.1).** Daniel's layout:
   store links always top right (every cover, the pick card's too), review
   scores as number-only pills top left, each named in its label and

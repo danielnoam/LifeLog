@@ -100,6 +100,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Self-hosted CORS proxy for Steam and SteamGridDB on the web; no proxy needed on Android (0.59.0, 0.215.0)
 - How Long to Beat times (Main Story is the length) and OpenCritic and Metacritic user scores for Steam games, shown on the sheet's cover; Settings → Imports switch (0.282.0)
 - A sheet's cover shows the length (runtime, seasons and episodes, pages, playtime) along its foot, review scores top left, store links top right (0.282.1)
+- Every source's score named on the cover ("TMDB 8.4"), kept on timeline entries too; a show's status and episodes out on the cover (0.282.2)
 
 ## Imports and exports
 
