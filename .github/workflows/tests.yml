@@ -24,8 +24,10 @@ jobs:
   # The browser suites one after another take most of half an hour, so they
   # run as four shards side by side. Playwright isn't a dependency of the
   # project (test/browser/README.md); it's installed here without saving.
+  # Pinned: ubuntu-latest moved to 26.04, which Playwright 1.56 can't
+  # install Chromium on (2026-10-27). Move it on once Playwright supports it.
   browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:

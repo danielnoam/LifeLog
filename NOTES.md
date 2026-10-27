@@ -16,6 +16,12 @@ what was decided against and why.
 
 ---
 
+- **Browser tests pinned to Ubuntu 24.04 (2026-10-27).** GitHub's
+  `ubuntu-latest` became 26.04, and Playwright 1.56 refuses to install
+  Chromium there, so every build failed at "Install Playwright". The
+  browser job in tests.yml runs on `ubuntu-24.04` until a Playwright that
+  supports 26.04 is pinned instead.
+
 - **Named scores, show status on the cover (0.282.2).** Daniel wanted
   every score named ("Metacritic 85", not "85") and on the cover for all
   kinds, and nothing under the cover that the cover already says. The
