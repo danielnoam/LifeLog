@@ -102,6 +102,8 @@ Every release that adds a feature adds its line here in the same commit.
 - A sheet's cover shows the length (runtime, seasons and episodes, pages, playtime) along its foot, review scores top left, store links top right (0.282.1)
 - Every source's score named on the cover ("TMDB 8.4"), kept on timeline entries too; a show's status and episodes out on the cover (0.282.2)
 - Failed game-time lookups wait a day and show in Activity, instead of re-asking the same games every launch (0.282.3)
+- How often game times are checked: off, every day, 3 days, week or month (0.283.0)
+- A linked item with no cover art gets a category-coloured block in the cover's place, laid out like a cover (0.283.0)
 
 ## Imports and exports
 
@@ -143,6 +145,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Amount field does basic math, and takes a pasted price with its currency (0.93.0, 0.228.0)
 - Spend in another currency, with rates looked up for the expense's date (0.146.0, 0.160.0)
 - Recurring expenses: weekly, monthly, yearly, with a charged-on day (0.24.0, 0.228.0)
+- Charged on for weekly (a weekday) and yearly (a month and day) plans too (0.283.0)
 - Edit or skip one occurrence, link past expenses (0.57.0, 0.84.0, 0.56.0)
 - Change plan, stop, pause, resume, make recurring, convert to entries (0.96.0, 0.97.0)
 - Recurring expenses billed in another currency, with per-charge rates (0.165.0)

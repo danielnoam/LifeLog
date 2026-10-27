@@ -164,7 +164,8 @@ in; this is the tour.
 - **Ledger**
   - **Expenses** – by year and month, broken down by category. Amounts do
     basic math and take other currencies at the day's rate. Recurring
-    expenses have pauses, plan changes, one-off charges, merges and
+    expenses are charged on a day you pick (a weekday, a day of the month,
+    or a date each year) and have pauses, plan changes, one-off charges, merges and
     per-occurrence edits; projects group a burst of spending. On the
     phones, a reminder before a plan charges. On Android, Google Wallet
     payments are offered in.

@@ -171,6 +171,44 @@ test("the sanitizer keeps a charge day only when it differs from the start date'
   assert.strictEqual(sanitizeRecurring({ ...base, chargeDay: 40 }).chargeDay, undefined);
 });
 
+test("a weekly plan with its own weekday is charged on it, from the first one on or after the start", () => {
+  // 2026-01-01 is a Thursday; 1 = Monday
+  const rec = { id: "r", startDate: "2026-01-01", interval: "weekly", amount: 10, category: "X", chargeWeekday: 1 };
+  const dates = recurringOccurrences(rec, new Date("2026-01-20T00:00:00")).map((o) => o.date);
+  assert.deepStrictEqual(dates, ["2026-01-05", "2026-01-12", "2026-01-19"]);
+  assert.strictEqual(sanitizeRecurring(rec).chargeWeekday, 1);
+  assert.strictEqual(sanitizeRecurring({ ...rec, chargeWeekday: 4 }).chargeWeekday, undefined);
+  assert.strictEqual(sanitizeRecurring({ ...rec, chargeWeekday: 7 }).chargeWeekday, undefined);
+});
+
+test("a yearly plan with its own month and day is charged on them each year", () => {
+  const rec = { id: "r", startDate: "2026-06-10", interval: "yearly", amount: 10, category: "X", chargeMonth: 3, chargeDay: 3 };
+  const dates = recurringOccurrences(rec, new Date("2029-12-31T00:00:00")).map((o) => o.date);
+  assert.deepStrictEqual(dates, ["2027-03-03", "2028-03-03", "2029-03-03"]);
+  const later = { ...rec, chargeMonth: 9, chargeDay: 1 };
+  assert.deepStrictEqual(recurringOccurrences(later, new Date("2027-12-31T00:00:00")).map((o) => o.date), ["2026-09-01", "2027-09-01"]);
+  const s = sanitizeRecurring(rec);
+  assert.deepStrictEqual([s.chargeMonth, s.chargeDay], [3, 3]);
+  const same = sanitizeRecurring({ ...rec, chargeMonth: 6, chargeDay: 10 });
+  assert.deepStrictEqual([same.chargeMonth, same.chargeDay], [undefined, undefined]);
+  const bad = sanitizeRecurring({ ...rec, chargeMonth: 2, chargeDay: 30 });
+  assert.deepStrictEqual([bad.chargeMonth, bad.chargeDay], [undefined, undefined]);
+});
+
+test("a yearly plan on 29 February falls on the 28th and comes back to the 29th", () => {
+  const rec = { id: "r", startDate: "2028-02-29", interval: "yearly", amount: 10, category: "X" };
+  const dates = recurringOccurrences(rec, new Date("2032-03-31T00:00:00")).map((o) => o.date);
+  assert.deepStrictEqual(dates, ["2028-02-29", "2029-02-28", "2030-02-28", "2031-02-28", "2032-02-29"]);
+});
+
+test("moving a yearly plan's date carries its overrides within the year", () => {
+  const before = { id: "r", startDate: "2026-01-10", interval: "yearly", amount: 10, category: "X",
+    overrides: { "2027-01-10": { amount: 12 } } };
+  const rec = { ...before, chargeMonth: 1, chargeDay: 20 };
+  Finance.rekeyOccurrenceMaps(before, rec);
+  assert.deepStrictEqual(rec.overrides, { "2027-01-20": { amount: 12 } });
+});
+
 test("moving the charge day carries each override and frozen rate to its charge's new date", () => {
   const before = { id: "r", startDate: "2026-01-01", interval: "monthly", amount: 10, category: "X",
     overrides: { "2026-02-01": { amount: 12 } }, rates: { "2026-03-01": 3.7 } };

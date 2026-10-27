@@ -1178,7 +1178,8 @@
     $("#steamId64").value = state.data.settings.steam?.steamId || "";
     $("#steamApiKey").value = state.data.settings.steam?.apiKey || "";
     $("#steamAutoSyncDays").value = state.data.settings.steam?.autoSyncDays || "0";
-    $("#steamGameTimes").value = state.data.settings.steam?.gameTimes === "off" ? "off" : "on";
+    const gameTimes = String(state.data.settings.steam?.gameTimes || "30");
+    $("#steamGameTimes").value = ["off", "1", "3", "7", "30"].includes(gameTimes) ? gameTimes : "30";
     $("#anilistUserName").value = state.data.settings.anilist?.userName || "";
     $("#anilistAutoSyncDays").value = state.data.settings.anilist?.autoSyncDays || "0";
     $("#releasesAutoRefreshDays").value = state.data.settings.releases?.autoRefreshDays || "0";

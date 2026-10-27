@@ -4,6 +4,25 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.283.0] - 2026-10-27
+
+### Added
+- **Charged on, for weekly and yearly bills.** A weekly recurring expense
+  picks its weekday, and a yearly one picks a month and day (no year),
+  the way a monthly one already picked its day. The list says "Weekly, on
+  Mondays" or "Yearly, on 3 March".
+- **Sheets without cover art look like the rest.** An item linked to
+  Steam, TMDB, AniList or another source gets a block in its category's
+  colour where the cover would be, with the scores, links and times in the
+  same places. Plain entries stay as they were.
+- **How often game times are checked.** Settings → Imports: Off, every
+  day, every 3 days, every week or every month (the old default).
+
+### Changed
+- The recurring expense Currency dropdown is as wide as the others.
+- A yearly bill on 29 February falls on the 28th in other years, instead
+  of 1 March.
+
 ## [0.282.3] - 2026-10-27
 
 ### Fixed

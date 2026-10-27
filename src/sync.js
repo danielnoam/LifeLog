@@ -170,11 +170,16 @@
   // (0.282.3), so a game the route keeps failing on can't hold the same
   // forty in front of every launch. Settings → Imports turns it off.
   const GAME_TIMES_KEY = "lifelog-gametimes-v1";
-  const GAME_TIMES_FRESH_DAYS = 30, GAME_TIMES_MISS_DAYS = 14, GAME_TIMES_FAIL_DAYS = 1, GAME_TIMES_PER_RUN = 40;
+  const GAME_TIMES_MISS_DAYS = 14, GAME_TIMES_FAIL_DAYS = 1, GAME_TIMES_PER_RUN = 40;
   const dayMs = 24 * 60 * 60 * 1000;
   const todayStr = () => { const d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); };
   const daysSince = (day) => (/^\d{4}-\d{2}-\d{2}$/.test(day || "") ? (Date.now() - new Date(day + "T00:00:00").getTime()) / dayMs : Infinity);
-  const gameTimesOn = () => ((state.data.settings.steam || {}).gameTimes || "on") !== "off";
+  // `steam.gameTimes` is "off" or how many days a game's times stay fresh:
+  // "1", "3", "7" or "30" (0.282.3). "on", from before there was a choice,
+  // is a month.
+  const gameTimesSetting = () => String((state.data.settings.steam || {}).gameTimes || "30");
+  const gameTimesOn = () => gameTimesSetting() !== "off";
+  const gameTimesFreshDays = () => { const n = parseInt(gameTimesSetting(), 10); return n > 0 ? n : 30; };
   const hasSteamId = (x) => x && x.mediaSource === "steam" && /^\d+$/.test(String(x.mediaId || ""));
   function gameTimesMisses() {
     try { return JSON.parse(localStorage.getItem(GAME_TIMES_KEY)) || {}; } catch (e) { return {}; }
@@ -194,7 +199,7 @@
   }
   function gameTimesDue(x, misses) {
     if (!hasSteamId(x)) return false;
-    if (x.hltb && daysSince(x.hltb.at) < GAME_TIMES_FRESH_DAYS) return false;
+    if (x.hltb && daysSince(x.hltb.at) < gameTimesFreshDays()) return false;
     return missWaited((misses || gameTimesMisses())[x.mediaId]);
   }
   // Writes an answer onto the item; true when anything it shows changed.

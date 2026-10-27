@@ -895,6 +895,10 @@ select:focus { outline: none; border-color: var(--accent); }
 .rate-row { display: flex; align-items: center; gap: 8px; }
 .rate-row input { flex: 1 1 auto; min-width: 0; }
 .rate-row .btn { flex: 0 0 auto; align-self: stretch; margin-top: 6px; }
+/* A yearly plan's charge date: month and day, no year. */
+.charge-on-row { display: flex; gap: 8px; }
+.charge-on-row select { flex: 1 1 0; min-width: 0; }
+.charge-on-row select[hidden] { display: none; }
 
 .sort-select {
   background-color: var(--bg-elev-2); border: 1px solid var(--border); color: var(--text-dim);
@@ -1919,6 +1923,15 @@ body.modal-open { overflow: hidden; }
 .modal-cover { position: relative; margin: -24px -24px 16px; overflow: hidden; border-radius: 14px 14px 0 0; max-height: 180px; }
 .modal-cover img { width: 100%; height: 180px; object-fit: cover; object-position: top; display: block; }
 .modal-cover-links { position: absolute; right: 8px; top: 8px; display: flex; gap: 6px; }
+/* No art: a block in the category's tint, its image mark in the middle. */
+.modal-cover.is-blank { height: 180px; }
+.modal-cover-blank { display: none; }
+.modal-cover.is-blank .modal-cover-blank { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; opacity: .6; }
+.modal-cover-blank svg { width: 40px; height: 40px; }
+/* Nothing to read over, so the times drop the fade and take the theme's text. */
+.modal-cover.is-blank .game-times-wrap { background: none; }
+.modal-cover.is-blank .game-times-wrap .game-times { color: var(--text); }
+.modal-cover.is-blank .game-times-wrap .game-time-label { color: var(--text-dim); }
 .modal-cover-links:empty { display: none; }
 /* Review scores (0.282.1), the links' twins in the opposite corner. */
 .modal-cover-scores { position: absolute; left: 8px; top: 8px; display: flex; flex-wrap: wrap; gap: 6px; max-width: 62%; }

@@ -318,28 +318,52 @@
     d.setDate(Math.min(day, daysInMonth));
     return d;
   }
-  // The day of the month a monthly plan is charged on. It is the start
-  // date's own day unless `chargeDay` says otherwise, which it only does when
-  // the two differ: a plan started on the 1st but billed on the 15th, or one
-  // billed on the 31st, which a start date in a 30-day month can't express.
+  // When a plan is charged. It follows the start date unless the plan says
+  // otherwise, which it only does when the two differ: `chargeDay` for a
+  // monthly plan (billed on the 15th, or the 31st, which a start date in a
+  // 30-day month can't express), `chargeWeekday` (0 = Sunday) for a weekly
+  // one, and `chargeMonth` with `chargeDay` for a yearly one.
+  const startOf = (rec) => new Date(rec.startDate + "T00:00:00");
+  const yearlyOwnDate = (rec) => rec.interval === "yearly" && +rec.chargeMonth >= 1 && +rec.chargeMonth <= 12;
   function chargeDayOf(rec) {
-    if (rec.interval === "monthly" && +rec.chargeDay >= 1 && +rec.chargeDay <= 31) return +rec.chargeDay;
-    const start = new Date(rec.startDate + "T00:00:00");
+    if ((rec.interval === "monthly" || yearlyOwnDate(rec)) && +rec.chargeDay >= 1 && +rec.chargeDay <= 31) return +rec.chargeDay;
+    const start = startOf(rec);
     return isNaN(start.getTime()) ? 1 : start.getDate();
   }
-  // The first charge: the start date, or for a monthly plan with its own
-  // charge day, the first time that day comes round on or after it.
+  function chargeMonthOf(rec) {
+    if (yearlyOwnDate(rec)) return +rec.chargeMonth;
+    const start = startOf(rec);
+    return isNaN(start.getTime()) ? 1 : start.getMonth() + 1;
+  }
+  function chargeWeekdayOf(rec) {
+    if (rec.interval === "weekly" && Number.isInteger(+rec.chargeWeekday) && +rec.chargeWeekday >= 0 && +rec.chargeWeekday <= 6) return +rec.chargeWeekday;
+    const start = startOf(rec);
+    return isNaN(start.getTime()) ? 0 : start.getDay();
+  }
+  // The first charge: the first time the plan's charge date comes round on
+  // or after the start date (which is the start date itself unless the plan
+  // has a charge date of its own).
   function firstChargeDate(rec) {
-    const start = new Date(rec.startDate + "T00:00:00");
-    if (isNaN(start.getTime()) || rec.interval !== "monthly") return start;
+    const start = startOf(rec);
+    if (isNaN(start.getTime())) return start;
+    if (rec.interval === "weekly") {
+      const d = new Date(start);
+      d.setDate(d.getDate() + (chargeWeekdayOf(rec) - start.getDay() + 7) % 7);
+      return d;
+    }
     const day = chargeDayOf(rec);
+    if (rec.interval === "yearly") {
+      const first = addMonthsClamped(start, chargeMonthOf(rec) - 1 - start.getMonth(), day);
+      return first < start ? addMonthsClamped(first, 12, day) : first;
+    }
     const first = addMonthsClamped(start, 0, day);
     return first < start ? addMonthsClamped(start, 1, day) : first;
   }
+  // A yearly plan keeps its day like a monthly one does: one charged on 29
+  // February falls on the 28th in other years and comes back to the 29th.
   function nextRecurringDate(date, interval, anchorDay) {
     if (interval === "weekly") { const d = new Date(date); d.setDate(d.getDate() + 7); return d; }
-    if (interval === "yearly") { const d = new Date(date); d.setFullYear(d.getFullYear() + 1); return d; }
-    return addMonthsClamped(date, 1, anchorDay);
+    return addMonthsClamped(date, interval === "yearly" ? 12 : 1, anchorDay);
   }
   // ---------- pauses ----------
   // rec.pauses (optional) is a list of { from, to? } inclusive date ranges
@@ -556,7 +580,9 @@
     if (next.note) created.note = next.note;
     // A new price doesn't move the billing day. effectiveFrom is normally a
     // charge date already, so this only matters for the 29th to 31st.
-    if (next.interval === "monthly" && rec.interval === "monthly" && rec.chargeDay) created.chargeDay = rec.chargeDay;
+    if (next.interval === rec.interval) {
+      for (const k of ["chargeDay", "chargeMonth", "chargeWeekday"]) if (rec[k] != null) created[k] = rec[k];
+    }
     // A plan change is a change of terms, not of currency: a dollar
     // subscription whose price went up is still a dollar subscription. The
     // new plan is billed the new figure in the same currency, at the same
@@ -1800,7 +1826,7 @@
     $("#recStart").value = editing ? rec.startDate : (p.startDate || todayStr());
     $("#recEnd").value = editing ? (rec.endDate || "") : "";
     $("#recInterval").value = editing ? rec.interval : "monthly";
-    fillChargeDaySelect(editing ? chargeDayOf(rec) : +$("#recStart").value.slice(8, 10));
+    fillChargeOn(editing ? rec : null);
     // Foreign plan: the Amount box holds what you're billed, in that
     // currency — same as the expense form, where the typed figure is the one
     // you actually paid and `amount` is what it came to.
@@ -1892,21 +1918,51 @@
     $("#recurringModal").hidden = false;
     fillProjectSelect($("#recProject"), (rec && rec.project) || "");
   }
-  // "Charged on" only means something for a monthly plan: a weekly one is
-  // charged on the start date's weekday and a yearly one on its date. It
-  // follows the start date until you pick a day of your own.
+  // "Charged on": a day of the month for a monthly plan, a weekday for a
+  // weekly one, a month and day for a yearly one. It follows the start date
+  // until you pick one of your own.
   const ordinal = (n) => n + (n >= 11 && n <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" })[n % 10] || "th");
-  function fillChargeDaySelect(day) {
-    const sel = $("#recChargeDay");
-    if (!sel.options.length) {
-      for (let d = 1; d <= 31; d++) sel.appendChild(new Option("the " + ordinal(d), String(d)));
-    }
-    sel.value = String(day || 1);
-    sel.dataset.followsStart = String(day === +$("#recStart").value.slice(8, 10));
-    applyChargeDayUI();
+  const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  // 29 for February: a plan billed on the 29th lands on the 28th in other years.
+  const daysInMonthOf = (m) => new Date(2024, m, 0).getDate();
+  // What the form's start date and interval would charge on by themselves.
+  const startCharge = () => {
+    const rec = { startDate: $("#recStart").value, interval: $("#recInterval").value };
+    return { day: chargeDayOf(rec), month: chargeMonthOf(rec), weekday: chargeWeekdayOf(rec) };
+  };
+  // Options first..first+count-1, keeping the picked one when it's still there.
+  function fillDayOptions(sel, first, count, label) {
+    const keep = sel.value;
+    sel.replaceChildren(...Array.from({ length: count }, (_, i) => new Option(label(first + i), String(first + i))));
+    if (keep && sel.querySelector(`option[value="${keep}"]`)) sel.value = keep;
   }
-  function applyChargeDayUI() {
-    $("#recChargeDayLabel").hidden = $("#recInterval").value !== "monthly";
+  function fillChargeOn(rec) {
+    const interval = $("#recInterval").value;
+    const own = rec && rec.interval === interval ? { day: chargeDayOf(rec), month: chargeMonthOf(rec), weekday: chargeWeekdayOf(rec) } : startCharge();
+    const daySel = $("#recChargeDay"), monthSel = $("#recChargeMonth");
+    monthSel.hidden = interval !== "yearly";
+    if (interval === "weekly") {
+      fillDayOptions(daySel, 0, 7, (i) => WEEKDAY_NAMES[i]);
+      daySel.value = String(own.weekday);
+    } else if (interval === "yearly") {
+      if (!monthSel.options.length) MONTH_NAMES.forEach((n, i) => monthSel.appendChild(new Option(n.slice(0, 3), String(i + 1))));
+      monthSel.value = String(own.month);
+      fillDayOptions(daySel, 1, daysInMonthOf(own.month), String);
+      daySel.value = String(Math.min(own.day, daysInMonthOf(own.month)));
+    } else {
+      fillDayOptions(daySel, 1, 31, (d) => "the " + ordinal(d));
+      daySel.value = String(own.day);
+    }
+    daySel.dataset.followsStart = String(chargeOnPicked().same);
+  }
+  // The picked charge date, and whether it's just the start date's own.
+  function chargeOnPicked() {
+    const interval = $("#recInterval").value, start = startCharge();
+    const day = +$("#recChargeDay").value, month = +$("#recChargeMonth").value;
+    if (interval === "weekly") return { same: day === start.weekday, fields: { chargeWeekday: day } };
+    if (interval === "yearly") return { same: day === start.day && month === start.month, fields: { chargeMonth: month, chargeDay: day } };
+    return { same: day === start.day, fields: { chargeDay: day } };
   }
 
   // A menu anchored to the button, the same one the + button drops (see
@@ -2242,8 +2298,8 @@
     const startDate = $("#recStart").value;
     const endDate = $("#recEnd").value;
     const interval = $("#recInterval").value;
-    const pickedDay = +$("#recChargeDay").value;
-    const chargeDay = interval === "monthly" && pickedDay !== +startDate.slice(8, 10) ? pickedDay : null;
+    const picked = chargeOnPicked();
+    const chargeOn = picked.same ? {} : picked.fields;
     const typed = readAmount("#recAmount");
     const category = $("#recCategory").value;
     const note = $("#recNote").value.trim();
@@ -2265,7 +2321,8 @@
       const r = state.data.recurringExpenses.find((x) => x.id === id);
       const before = { ...r };
       Object.assign(r, { startDate, interval, amount, category });
-      if (chargeDay) r.chargeDay = chargeDay; else delete r.chargeDay;
+      delete r.chargeDay; delete r.chargeMonth; delete r.chargeWeekday;
+      Object.assign(r, chargeOn);
       rekeyOccurrenceMaps(before, r);
       applyPlanCurrency(r, foreign ? { code, typed, rate } : null);
       const rProject = $("#recProject").value === ADD_PROJECT_OPTION ? "" : $("#recProject").value;
@@ -2274,7 +2331,7 @@
       if (endDate) r.endDate = endDate; else delete r.endDate;
     } else {
       const item = { id: uid(), startDate, interval, amount, category, createdAt: new Date().toISOString() };
-      if (chargeDay) item.chargeDay = chargeDay;
+      Object.assign(item, chargeOn);
       applyPlanCurrency(item, foreign ? { code, typed, rate } : null);
       const rProject = $("#recProject").value === ADD_PROJECT_OPTION ? "" : $("#recProject").value;
       if (rProject) item.project = rProject;
@@ -2312,7 +2369,8 @@
   // those keys are left where they were.
   function rekeyOccurrenceMaps(before, rec) {
     if (before.interval !== rec.interval) return;
-    if (before.startDate === rec.startDate && chargeDayOf(before) === chargeDayOf(rec)) return;
+    const when = (r) => [chargeDayOf(r), chargeMonthOf(r), chargeWeekdayOf(r)].join("/");
+    if (before.startDate === rec.startDate && when(before) === when(rec)) return;
     const keys = [...Object.keys(rec.overrides || {}), ...Object.keys(rec.rates || {})];
     if (!keys.length) return;
     const last = keys.reduce((a, b) => (a > b ? a : b));
@@ -2626,6 +2684,8 @@
       text.appendChild(t);
       const when = [r.interval.charAt(0).toUpperCase() + r.interval.slice(1)];
       if (r.interval === "monthly") when[0] += ", on the " + ordinal(chargeDayOf(r));
+      else if (r.interval === "weekly") when[0] += ", on " + WEEKDAY_NAMES[chargeWeekdayOf(r)] + "s";
+      else when[0] += ", on " + chargeDayOf(r) + " " + MONTH_NAMES[chargeMonthOf(r) - 1];
       if (isEnded) when.push("ended " + shortDate(r.endDate));
       else if (isPausedOn(r, today)) {
         const p = r.pauses[livePauseIndex(r, today)];
@@ -3404,7 +3464,7 @@
   ]);
   const KNOWN_RECURRING_KEYS = new Set([
     "id", "startDate", "interval", "amount", "category", "createdAt", "updatedAt",
-    "note", "endDate", "prevId", "overrides", "pauses", "project", "chargeDay", "combinedWith",
+    "note", "endDate", "prevId", "overrides", "pauses", "project", "chargeDay", "chargeMonth", "chargeWeekday", "combinedWith",
     // A plan billed in a currency that isn't yours: fxAmount is what you're
     // charged each period, rate is the fallback used for a date with no
     // frozen rate of its own, and rates freezes one per occurrence date.
@@ -3502,8 +3562,15 @@
     };
     if (r.note) out.note = r.note;
     if (r.endDate) out.endDate = r.endDate;
-    if (out.interval === "monthly" && Number.isInteger(+r.chargeDay) && +r.chargeDay >= 1 && +r.chargeDay <= 31
-      && +r.chargeDay !== +String(out.startDate).slice(8, 10)) out.chargeDay = +r.chargeDay;
+    const startDay = +String(out.startDate).slice(8, 10), startMonth = +String(out.startDate).slice(5, 7);
+    const whole = (v, lo, hi) => v != null && v !== "" && Number.isInteger(+v) && +v >= lo && +v <= hi;
+    if (out.interval === "monthly" && whole(r.chargeDay, 1, 31) && +r.chargeDay !== startDay) out.chargeDay = +r.chargeDay;
+    if (out.interval === "weekly" && whole(r.chargeWeekday, 0, 6)) {
+      const start = new Date(out.startDate + "T00:00:00");
+      if (isNaN(start.getTime()) || +r.chargeWeekday !== start.getDay()) out.chargeWeekday = +r.chargeWeekday;
+    }
+    if (out.interval === "yearly" && whole(r.chargeMonth, 1, 12) && whole(r.chargeDay, 1, new Date(2024, +r.chargeMonth, 0).getDate())
+      && (+r.chargeMonth !== startMonth || +r.chargeDay !== startDay)) { out.chargeMonth = +r.chargeMonth; out.chargeDay = +r.chargeDay; }
     // Foreign billing. Kept only as a complete set — a currency with no rate
     // would make every occurrence's home figure a guess, and dropping the
     // lot is better than carrying half of it into a total.
@@ -3660,13 +3727,18 @@
     // "Look up" asks for today's rate rather than a date's: a plan has no one
     // date, and this box is the fallback for dates that have no rate yet.
     $("#recCurrency").onchange = applyRecurringCurrencyUI;
-    $("#recInterval").onchange = applyChargeDayUI;
+    $("#recInterval").onchange = () => fillChargeOn(null);
     $("#recStart").addEventListener("change", () => {
-      const day = +$("#recStart").value.slice(8, 10);
-      if (day && $("#recChargeDay").dataset.followsStart === "true") $("#recChargeDay").value = String(day);
+      if ($("#recStart").value && $("#recChargeDay").dataset.followsStart === "true") fillChargeOn(null);
     });
+    $("#recChargeMonth").onchange = () => {
+      const month = +$("#recChargeMonth").value, daySel = $("#recChargeDay");
+      fillDayOptions(daySel, 1, daysInMonthOf(month), String);
+      if (!daySel.value) daySel.value = String(daysInMonthOf(month));
+      daySel.dataset.followsStart = String(chargeOnPicked().same);
+    };
     $("#recChargeDay").onchange = () => {
-      $("#recChargeDay").dataset.followsStart = String(+$("#recChargeDay").value === +$("#recStart").value.slice(8, 10));
+      $("#recChargeDay").dataset.followsStart = String(chargeOnPicked().same);
     };
     $("#recRate").oninput = applyRecurringCurrencyUI;
     $("#recRateFetchBtn").onclick = () =>

@@ -77,8 +77,18 @@ const paste = (page, sel, text) => page.evaluate(([sel, text]) => {
   const occ = await page.evaluate(() => [...document.querySelectorAll("#recOccList .rec-occ-date")].map((e) => e.textContent.trim()).slice(-2));
   check("its charges fall on the 15th", occ.every((d) => /-15/.test(d)), occ);
   await page.selectOption("#recInterval", "yearly");
-  check("a yearly plan has no charge day to pick", await page.evaluate(() => document.querySelector("#recChargeDayLabel").hidden));
+  const yearly = await page.evaluate(() => ({ month: document.querySelector("#recChargeMonth").value, monthShown: !document.querySelector("#recChargeMonth").hidden,
+    day: document.querySelector("#recChargeDay").value, days: document.querySelector("#recChargeDay").options.length }));
+  check("a yearly plan picks a month and a day, starting from the start date's", yearly.monthShown && yearly.month === "1" && yearly.day === "1" && yearly.days === 31, yearly);
+  await page.selectOption("#recChargeMonth", "2");
+  check("February offers 29 days", await page.evaluate(() => document.querySelector("#recChargeDay").options.length) === 29);
+  await page.selectOption("#recInterval", "weekly");
+  const weekly = await page.evaluate(() => ({ monthShown: !document.querySelector("#recChargeMonth").hidden, day: document.querySelector("#recChargeDay").value,
+    names: [...document.querySelector("#recChargeDay").options].map((o) => o.text) }));
+  check("a weekly plan picks a weekday, starting from the start date's", !weekly.monthShown && weekly.day === "4" && weekly.names[1] === "Monday" && weekly.names.length === 7, weekly);
   await page.selectOption("#recInterval", "monthly");
+  check("back to monthly it's the start date's day again", await page.inputValue("#recChargeDay") === "1");
+  await page.selectOption("#recChargeDay", "15");
 
   // ---- 3. the link offer ----
   const offer = await page.evaluate(() => ({ shown: !document.querySelector("#recLinkOffer").hidden, text: document.querySelector("#recLinkOfferText").textContent }));
@@ -147,6 +157,31 @@ const paste = (page, sel, text) => page.evaluate(([sel, text]) => {
   await page.locator(".picker-row", { hasText: "Streaming" }).locator("input").check();
   await page.click("#financePickerConfirmBtn");
   await page.waitForTimeout(400);
+  // ---- 7. weekly and yearly charge dates are saved and shown ----
+  for (const [interval, pick, note] of [["weekly", { day: "1" }, "Cleaner"], ["yearly", { month: "3", day: "3" }, "Domain"]]) {
+    await page.evaluate(() => window.LifeLogFinance.openRecurringModal(null));
+    await page.waitForSelector("#recurringModal:not([hidden])");
+    await page.fill("#recStart", "2026-01-01");
+    await page.dispatchEvent("#recStart", "change");
+    await page.selectOption("#recInterval", interval);
+    if (pick.month) await page.selectOption("#recChargeMonth", pick.month);
+    await page.selectOption("#recChargeDay", pick.day);
+    await page.fill("#recAmount", "20");
+    await page.fill("#recNote", note);
+    await page.click("#recurringForm button[type=submit]");
+    await page.waitForTimeout(300);
+  }
+  const added = await page.evaluate(() => window.LifeLogStorage.cachedCopy().recurringExpenses.filter((r) => ["Cleaner", "Domain"].includes(r.note)));
+  const cleaner = added.find((r) => r.note === "Cleaner"), domain = added.find((r) => r.note === "Domain");
+  check("a weekly plan saves its weekday", cleaner && cleaner.chargeWeekday === 1, cleaner);
+  check("a yearly plan saves its month and day", domain && domain.chargeMonth === 3 && domain.chargeDay === 3, domain);
+  const whens = await page.evaluate(() => [...document.querySelectorAll(".recur-row")].filter((r) => /Cleaner|Domain/.test(r.textContent)).map((r) => r.querySelector(".recur-when").textContent));
+  check("their rows say when they're charged", whens.some((w) => /^Weekly, on Mondays/.test(w)) && whens.some((w) => /^Yearly, on 3 March/.test(w)), whens);
+  await openPlan(page, "Domain");
+  const reopened = await page.evaluate(() => [document.querySelector("#recChargeMonth").value, document.querySelector("#recChargeDay").value]);
+  check("and reopening shows the picked date", reopened.join() === "3,3", reopened);
+  await page.keyboard.press("Escape");
+
   await page.evaluate(() => localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "finance", financeMode: "summary" })));
   await page.reload({ waitUntil: "load" });
   await page.waitForTimeout(800);

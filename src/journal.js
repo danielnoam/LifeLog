@@ -9,7 +9,7 @@
   // Shared app plumbing, provided by app.js via init(ctx).
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
-    emptyCoverEl, coverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
+    emptyCoverEl, coverEl, setSheetCover, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect, sortSelect,
     startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
@@ -26,7 +26,7 @@
 
   function init(ctx) {
     ({ state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
-      emptyCoverEl, coverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
+      emptyCoverEl, coverEl, setSheetCover, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
       attachLongPressSelect, animatedNumberText, barRow, fillSelect, sortSelect,
       startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
       fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
@@ -1320,9 +1320,7 @@
       if (shownLength && !timesShown) meta.prepend(el("span", "bl-meta", shownLength));
       renderMediaLinks($("#entryCoverLinks"), $("#entryLinks"), hasCover, mediaSource, mediaId);
     };
-    coverImg.onerror = () => { coverDiv.hidden = true; paint(false); };
-    if (shownCover) { coverImg.src = shownCover; coverDiv.hidden = false; paint(true); }
-    else { coverDiv.hidden = true; coverImg.src = ""; paint(false); }
+    setSheetCover(coverDiv, coverImg, shownCover, $("#fCategory"), !!mediaSource, paint);
     showSyncStatus("f", mediaSource);
   }
 

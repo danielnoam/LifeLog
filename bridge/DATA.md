@@ -164,6 +164,12 @@ src/finance.js), which is how the bridge's spending totals include them.
 - `interval`: `weekly`, `monthly` or `yearly`.
 - `chargeDay`: a monthly plan's day of the month when it isn't the start
   date's (a 31st falls on the month's last day).
+- `chargeWeekday`: a weekly plan's weekday (0 = Sunday) when it isn't the
+  start date's.
+- `chargeMonth` with `chargeDay`: a yearly plan's month (1-12) and day when
+  they aren't the start date's (29 February falls on the 28th in other years).
+  The first charge is the first time that date comes round on or after the
+  start.
 - `amount`: per charge, in the home currency. `category`, `note`, `project`.
 - `currency`, `fxAmount`, `rate`: billed in another currency; `rates` holds a
   rate frozen per charge date (`{ "YYYY-MM-DD": rate }`).
@@ -226,8 +232,9 @@ Keys: `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,
 `mediaCategorySources`, `mediaCategoryFallbackSources`, `mediaKeys`, `steam`,
 `anilist`, `releases`, `importSkips` (per import source, the `source:id`
 keys of items left unticked in a review, so they stay hidden next time),
-`updatedAt`. `steam.gameTimes` is "on" (the default) or "off": whether
-the app fills in How Long to Beat times for Steam games. Old files may still carry `monthOrder`,
+`updatedAt`. `steam.gameTimes` is "off", or how many days a Steam game's How Long to
+Beat times stay fresh before they're asked again: "1", "3", "7" or "30"
+(the default). "on", from 0.282.0–0.282.2, means "30". Old files may still carry `monthOrder`,
 `monthMinWidth` and `monthMaxWidth`, which the app drops or moves on load.
 
 ## Boards (`boards.json`)

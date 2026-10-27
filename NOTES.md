@@ -16,6 +16,35 @@ what was decided against and why.
 
 ---
 
+- **Charged on for every interval (0.283.0).** Daniel asked for a weekday
+  on weekly bills and a month and day on yearly ones. Same rule as the
+  monthly `chargeDay`: the fields (`chargeWeekday`, 0 = Sunday;
+  `chargeMonth` with `chargeDay`) are only stored when they differ from
+  the start date, so every plan without one reads as before, and the first
+  charge is the first time that date comes round on or after the start.
+  The yearly step now goes through addMonthsClamped like the monthly one,
+  so a plan on 29 February lands on the 28th in other years and returns to
+  the 29th; before, setFullYear rolled it into 1 March and kept it there. A
+  plan already on the 29th of February moves its later charges from 1
+  March to 28 February, and an edit saved on one of those 1 March dates
+  stays on that date, outside the plan. That needs a leap-day yearly bill
+  with an edited charge, so it was left. Switching the interval in the
+  form resets Charged on to the start date's, since a weekday doesn't map
+  to a day of the month.
+- **A block for sheets without art (0.283.0).** Daniel wanted every sheet
+  to read the same whether or not it has a cover. setSheetCover (app.js)
+  puts a block in the category's tint (the row placeholder's color + "22",
+  not color-mix, which the app avoids) with the same image mark, and the
+  cover's links, scores and strip sit on it. Only items linked to a source
+  get one: a plain entry has nothing to put on it, and a 180px empty bar
+  would push its form down; Daniel saw that call in the preview and said
+  build. On the block the times strip drops its dark fade and takes the
+  theme's text colours, since white on a pale tint fails on Light.
+- **Game times interval (0.283.0).** `steam.gameTimes` was "on"/"off" with
+  a fixed 30 days; it's now "off" or the days a game's times stay fresh
+  (1, 3, 7, 30), the same choices as the other auto-syncs. The old "on"
+  reads as 30. A game that answered nothing still waits 14 days and a
+  failed lookup one, whatever the interval.
 - **Game times retried the same games every launch (0.282.3).** Daniel saw
   "Game times from How Long to Beat" run on every launch over the same 40
   games. Only a failing lookup does that: a failure wasn't remembered, so

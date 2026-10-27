@@ -45,7 +45,7 @@
   // timelineSort/ledgerSort/backlogSort replaced monthOrder in 0.157.0. Each
   // option is one complete statement about the whole list rather than a
   // direction bolted to a hidden field — see SORTS below.
-  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", googlePlaces: "", nyt: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "on" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
+  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", googlePlaces: "", nyt: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "30" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
   // Local to this device, not synced. Every key a view reads off state.visual
   // belongs here: loadVisualSettings fills the gaps in a stored blob from this
   // object, so a default declared here is the only one there is — a `||` at
@@ -163,7 +163,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.282.3"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.283.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1285,6 +1285,36 @@
     span.style.background = color + "22";
     span.style.color = color;
     return span;
+  }
+
+  // A sheet's cover (0.282.4). An item with no art, or a dead link, gets a
+  // block tinted to its category like a row's placeholder, so the links,
+  // scores and times sit where they would on a cover and every sheet reads
+  // the same. paint(true) lays them out on it; the tint follows the
+  // category picker. A plain item, linked to no source, has nothing to put
+  // on one and keeps the sheet without it.
+  function setSheetCover(coverDiv, img, url, catSelect, linked, paint) {
+    const box = coverDiv.querySelector(".modal-cover");
+    const tint = () => {
+      const color = box.classList.contains("is-blank") ? colorOf(catSelect.value) : "";
+      box.style.background = color && color + "22";
+      box.style.color = color;
+    };
+    if (!catSelect.dataset.tintsCover) { catSelect.dataset.tintsCover = "1"; catSelect.addEventListener("change", tint); }
+    const blank = () => {
+      img.onerror = null; img.style.display = "none"; img.removeAttribute("src");
+      if (!linked) { coverDiv.hidden = true; return paint(false); }
+      box.classList.add("is-blank");
+      if (!box.querySelector(".modal-cover-blank")) { const mark = el("span", "modal-cover-blank"); mark.appendChild(ico("image")); box.prepend(mark); }
+      tint();
+      coverDiv.hidden = false;
+      paint(true);
+    };
+    box.classList.remove("is-blank"); tint();
+    if (!url) return blank();
+    img.style.display = ""; img.onerror = blank; img.src = url;
+    coverDiv.hidden = false;
+    paint(true);
   }
 
   // A row's cover art, lazy, falling back to the placeholder on a broken URL
@@ -5692,7 +5722,7 @@
   });
   Journal.init({
     state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
-    emptyCoverEl, coverEl, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
+    emptyCoverEl, coverEl, setSheetCover, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect, sortSelect,
     startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
@@ -5729,7 +5759,7 @@
   Backlog.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
     MEDIA_SOURCE_LABELS, saveVisualSettings, isMobileLayout,
-    emptyState, emptyCoverEl, coverEl, bulkActionBar, bulkCheckbox, toggleBulkItem,
+    emptyState, emptyCoverEl, coverEl, setSheetCover, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect, sortSelect,
     startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
     openEntryModal: Journal.openEntryModal,

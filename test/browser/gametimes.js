@@ -72,9 +72,15 @@ const seed = (gameTimes) => ({
       await page.evaluate(() => window.LifeLogSettings.openSettings());
       await page.waitForTimeout(300);
       check("the switch reads Off" + at, await page.evaluate(() => document.getElementById("steamGameTimes").value === "off"));
-      await page.selectOption("#steamGameTimes", "on").catch(() => page.evaluate(() => { const s = document.getElementById("steamGameTimes"); s.value = "on"; s.dispatchEvent(new Event("change")); }));
+      await page.evaluate(() => { const s = document.getElementById("steamGameTimes"); s.value = "7"; s.dispatchEvent(new Event("change")); });
       await page.waitForTimeout(300);
-      check("and turning it On is saved" + at, await page.evaluate(() => window.LifeLogStorage.cachedCopy().settings.steam.gameTimes === "on"));
+      check("and picking Every week is saved" + at, await page.evaluate(() => window.LifeLogStorage.cachedCopy().settings.steam.gameTimes === "7"));
+      const due = await page.evaluate(() => {
+        const ago = (n) => { const d = new Date(Date.now() - n * 864e5); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+        const game = (n) => ({ mediaSource: "steam", mediaId: "999", hltb: { story: 60, at: ago(n) } });
+        return [window.LifeLogSync.gameTimesDue(game(3), {}), window.LifeLogSync.gameTimesDue(game(8), {})];
+      });
+      check("a week's interval re-asks times eight days old, not three" + at, JSON.stringify(due) === "[false,true]", due);
       await page.close();
       continue;
     }
@@ -136,15 +142,15 @@ const seed = (gameTimes) => ({
     b1 = await item("b1");
     check("saving the sheet keeps the times and scores" + at, b1.hltb && b1.hltb.story === 1920 && b1.reviews && b1.reviews.opencritic.score === 94 && b1.length === "32 hrs", b1);
 
-    // ---- the entry sheet, no cover ----
+    // ---- the entry sheet, no cover: a linked game gets the tinted block (0.283.0) ----
     await page.evaluate(() => window.LifeLogJournal.openEntryModal(window.LifeLogStorage.cachedCopy().entries.find((x) => x.id === "e1")));
     await page.waitForTimeout(400);
     const row = await page.evaluate(() => ({
-      shown: !document.getElementById("entryGameTimesRow").hidden,
-      cells: document.querySelectorAll("#entryGameTimesRow .game-time").length,
-      reviews: (document.querySelector("#entryMetaRow .game-reviews") || {}).textContent || "",
+      blank: document.querySelector("#entryCover .modal-cover").classList.contains("is-blank") && !document.getElementById("entryCover").hidden,
+      cells: document.querySelectorAll("#entryGameTimes .game-time").length,
+      reviews: [...document.querySelectorAll("#entryCoverScores .cover-score")].map((x) => x.textContent).join(),
     }));
-    check("without a cover the times sit in a row under the title" + at, row.shown && row.cells === 3 && row.reviews === "OpenCritic 90", row);
+    check("without art the times and scores sit on the tinted block" + at, row.blank && row.cells === 3 && row.reviews === "OpenCritic 90", row);
     await page.keyboard.press("Escape");
     await page.waitForTimeout(300);
 
@@ -159,7 +165,7 @@ const seed = (gameTimes) => ({
       window.LifeLogBacklog.setBacklogCover();
     });
     await page.waitForTimeout(600);
-    const fresh = await page.evaluate(() => ({ length: document.getElementById("bLength").value, cells: document.querySelectorAll("#backlogGameTimesRow .game-time").length }));
+    const fresh = await page.evaluate(() => ({ length: document.getElementById("bLength").value, cells: document.querySelectorAll("#backlogGameTimes .game-time").length }));
     check("a sheet that links a Steam game asks for its times and fills the length" + at,
       asked.length === 1 && fresh.length === "32 hrs" && fresh.cells === 3, { asked, fresh });
     await page.click('#backlogForm button[type="submit"]');
