@@ -2417,7 +2417,7 @@
   // minutes for the three ways HLTB times a game plus the day they were
   // asked; `reviews` holds OpenCritic's and Metacritic's user score.
   const GAME_TIME_KINDS = [["story", "Main Story"], ["extras", "Main + Extras"], ["complete", "Completionist"]];
-  const REVIEW_LABELS = { opencritic: "OpenCritic", metauser: "Metacritic users" };
+  const REVIEW_LABELS = { opencritic: "OpenCritic", metauser: "Metacritic" };
   const hasGameTimes = (h) => !!(h && GAME_TIME_KINDS.some(([k]) => h[k] > 0));
   // The sheet's three times, labelled, as one strip: over the cover's foot
   // when there is a cover, in the plain row under the title when there
@@ -2569,7 +2569,7 @@
     if (info) Journal.sanitizeGameInfo(info, item);
   }
 
-  // "OpenCritic 94 · Metacritic users 85", each a link to its page.
+  // "OpenCritic 94 · Metacritic 85", each a link to its page.
   function appendReviewScores(container, reviews) {
     if (!container || !reviews) return;
     const sites = Object.keys(REVIEW_LABELS).filter((s) => reviews[s]);
