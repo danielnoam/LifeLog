@@ -2543,8 +2543,15 @@
     const info = readGameInfo(prefix, mediaSource, mediaId);
     const f = facts || {};
     const lengthShown = renderGameTimes($("#" + sheet + "GameTimes"), $("#" + sheet + "GameTimesRow"), hasCover, info && info.hltb, f.length, f.status);
-    renderCoverScores($("#" + sheet + "CoverScores"), hasCover && info && info.reviews, hasCover && f.rating);
-    if (!hasCover) appendReviewScores(metaEl, info && info.reviews);
+    // Metacritic's user score only stands in when the source has no
+    // Metacritic (critic) score of its own: two "Metacritic" pills can't be
+    // told apart (0.282.2).
+    let reviews = info && info.reviews;
+    if (reviews && reviews.metauser && /Metacritic$/.test(String(f.rating || "").trim())) {
+      reviews = { ...reviews }; delete reviews.metauser;
+    }
+    renderCoverScores($("#" + sheet + "CoverScores"), hasCover && reviews, hasCover && f.rating);
+    if (!hasCover) appendReviewScores(metaEl, reviews);
     const shown = hasGameTimes(info && info.hltb) || lengthShown;
     if (mediaSource !== "steam" || !mediaId || !Sync.gameTimesDue({ mediaSource, mediaId, hltb: info && info.hltb })) return shown;
     const key = prefix + ":" + mediaId;

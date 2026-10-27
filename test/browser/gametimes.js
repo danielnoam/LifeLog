@@ -120,6 +120,15 @@ const seed = (gameTimes) => ({
     check("the scores are pills in the cover's top left, each with its site's name" + at,
       JSON.stringify(sheet.scores) === JSON.stringify(["OpenCritic 94|OpenCritic 94, Mighty|true", "Metacritic 85|Metacritic 85|true"]) && sheet.scoresTopLeft && sheet.noTextLine, sheet);
     check("the store links sit in the top right" + at, sheet.linksTopRight, sheet);
+    const withCritic = await page.evaluate(() => {
+      document.getElementById("bExternalRating").value = "95 Metacritic";
+      window.LifeLogBacklog.setBacklogCover();
+      const out = [...document.querySelectorAll("#backlogCoverScores .cover-score")].map((p) => p.textContent);
+      document.getElementById("bExternalRating").value = "";
+      window.LifeLogBacklog.setBacklogCover();
+      return out;
+    });
+    check("with a Metacritic critic score, the user score stays out" + at, JSON.stringify(withCritic) === JSON.stringify(["Metacritic 95", "OpenCritic 94"]), withCritic);
     check("the meta line leaves out the length the times already show" + at, !/32 hrs/.test(sheet.meta) && sheet.row, sheet);
     await page.screenshot({ path: require("path").join(require("os").tmpdir(), "gametimes-" + width + ".png") });
     await page.click('#backlogForm button[type="submit"]');
