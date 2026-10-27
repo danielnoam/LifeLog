@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.282.3] - 2026-10-27
+
+### Fixed
+- Game times no longer re-check the same games on every launch when the
+  lookup fails. A game whose lookup failed waits a day, the run stops
+  after three failures in a row, and Activity now says it failed and why
+  instead of "Nothing new". A game Augmented Steam doesn't know counts as
+  checked.
+
 ## [0.282.2] - 2026-10-27
 
 ### Changed

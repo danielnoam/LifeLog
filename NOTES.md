@@ -16,6 +16,20 @@ what was decided against and why.
 
 ---
 
+- **Game times retried the same games every launch (0.282.3).** Daniel saw
+  "Game times from How Long to Beat" run on every launch over the same 40
+  games. Only a failing lookup does that: a failure wasn't remembered, so
+  the same first games were asked again each time, and two failures ended
+  the run quietly as "Nothing new". Now a failed game waits a day ("f:" +
+  the day in `lifelog-gametimes-v1`), three failures in a row stop the run
+  and fail the job in Activity with the HTTP status, and Augmented Steam's
+  JSON 404 (an app it doesn't know) is a miss rather than a failure; the
+  worker's own plain-text 404 still counts as a failure, since that's an
+  old worker without the route. The worker now sends a User-Agent naming
+  LifeLog, in case Augmented Steam turns away requests without one. Why
+  his lookups fail isn't known yet: the cloud session can't reach the API,
+  so the Activity message on his device is the next clue.
+
 - **Browser tests pinned to Ubuntu 24.04 (2026-10-27).** GitHub's
   `ubuntu-latest` became 26.04, and Playwright 1.56 refuses to install
   Chromium there, so every build failed at "Install Playwright". The

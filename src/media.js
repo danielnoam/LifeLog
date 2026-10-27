@@ -921,7 +921,11 @@
   async function fetchGameInfo(appId, proxyUrl) {
     if (!proxyUrl || !/^\d+$/.test(String(appId || ""))) return { hltb: null, reviews: null };
     const res = await fetch(proxyUrl + "/augsteam-app/" + appId);
-    if (!res.ok) throw new Error("Augmented Steam: HTTP " + res.status);
+    // A game Augmented Steam doesn't know is an answer, not a failure. The
+    // worker's own "Not found" (an old worker without the route) is plain
+    // text; Augmented Steam's is JSON.
+    if (res.status === 404 && /json/.test(res.headers.get("content-type") || "")) return { hltb: null, reviews: null };
+    if (!res.ok) throw new Error("HTTP " + res.status);
     const data = (await res.json()) || {};
     const min = (v) => (Number.isFinite(+v) && +v > 0 ? Math.round(+v) : 0);
     const h = data.hltb || {};

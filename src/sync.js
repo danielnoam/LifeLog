@@ -166,9 +166,11 @@
   // pinned. Games with no Steam App ID keep whatever length they had.
   // Asked again after a month (times settle as people log them); a game
   // with nothing known is remembered on this device for two weeks so it
-  // isn't asked on every launch. Settings → Steam → Game times turns it off.
+  // isn't asked on every launch, and one whose lookup failed waits a day
+  // (0.282.3), so a game the route keeps failing on can't hold the same
+  // forty in front of every launch. Settings → Imports turns it off.
   const GAME_TIMES_KEY = "lifelog-gametimes-v1";
-  const GAME_TIMES_FRESH_DAYS = 30, GAME_TIMES_MISS_DAYS = 14, GAME_TIMES_PER_RUN = 40;
+  const GAME_TIMES_FRESH_DAYS = 30, GAME_TIMES_MISS_DAYS = 14, GAME_TIMES_FAIL_DAYS = 1, GAME_TIMES_PER_RUN = 40;
   const dayMs = 24 * 60 * 60 * 1000;
   const todayStr = () => { const d = new Date(); return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); };
   const daysSince = (day) => (/^\d{4}-\d{2}-\d{2}$/.test(day || "") ? (Date.now() - new Date(day + "T00:00:00").getTime()) / dayMs : Infinity);
@@ -177,16 +179,23 @@
   function gameTimesMisses() {
     try { return JSON.parse(localStorage.getItem(GAME_TIMES_KEY)) || {}; } catch (e) { return {}; }
   }
-  function noteGameTimesMiss(appId, missed) {
+  // Each entry is the day a game came back empty, or "f:" + the day its
+  // lookup failed.
+  const missWaited = (v) => (String(v || "").startsWith("f:")
+    ? daysSince(v.slice(2)) > GAME_TIMES_FAIL_DAYS
+    : daysSince(v) > GAME_TIMES_MISS_DAYS);
+  function noteGameTimesMiss(appId, missed, failed) {
     const all = gameTimesMisses();
-    if (missed) all[appId] = todayStr(); else delete all[appId];
-    for (const k of Object.keys(all)) if (daysSince(all[k]) > GAME_TIMES_MISS_DAYS) delete all[k];
+    if (failed) all[appId] = "f:" + todayStr();
+    else if (missed) all[appId] = todayStr();
+    else delete all[appId];
+    for (const k of Object.keys(all)) if (missWaited(all[k])) delete all[k];
     try { localStorage.setItem(GAME_TIMES_KEY, JSON.stringify(all)); } catch (e) {}
   }
   function gameTimesDue(x, misses) {
     if (!hasSteamId(x)) return false;
     if (x.hltb && daysSince(x.hltb.at) < GAME_TIMES_FRESH_DAYS) return false;
-    return daysSince((misses || gameTimesMisses())[x.mediaId]) > GAME_TIMES_MISS_DAYS;
+    return missWaited((misses || gameTimesMisses())[x.mediaId]);
   }
   // Writes an answer onto the item; true when anything it shows changed.
   // A game with reviews but no times still gets `hltb: { at }`, so the
@@ -228,7 +237,7 @@
     const targets = [...state.data.backlog, ...state.data.entries].filter((x) => gameTimesDue(x, misses)).slice(0, GAME_TIMES_PER_RUN);
     if (!targets.length) return;
     gameTimesRunning = true;
-    let updated = 0, failed = 0;
+    let updated = 0, answered = 0, failedInARow = 0, lastError = null;
     try {
       await window.LifeLogJobs.run({ label: "Game times from How Long to Beat", lane: "media" }, async (job) => {
         for (let i = 0; i < targets.length && !job.stopping; i++) {
@@ -237,10 +246,14 @@
           try {
             info = await window.LifeLogMedia.fetchGameInfo(targets[i].mediaId, proxyUrl);
             noteGameTimesMiss(targets[i].mediaId, !info.hltb && !info.reviews);
+            answered++; failedInARow = 0;
           } catch (e) {
-            // The route itself is down (an old proxy, offline): stop rather
-            // than ask forty times to hear the same thing.
-            if (++failed >= 2) break;
+            // That game waits a day. Three in a row and the route itself is
+            // down (an old proxy, offline): stop rather than ask forty times
+            // to hear the same thing.
+            lastError = e;
+            noteGameTimesMiss(targets[i].mediaId, true, true);
+            if (++failedInARow >= 3) break;
             continue;
           }
           // The item may have been edited or removed while this waited.
@@ -250,6 +263,9 @@
           if (i < targets.length - 1) await job.sleep(400);
         }
         if (updated) { afterDataChange(); await persist(); render(); }
+        // Said in Activity, with what went wrong, rather than a quiet
+        // "Nothing new" that looks like it worked.
+        if (!answered && lastError) throw new Error("Couldn't reach Augmented Steam: " + (lastError.message || lastError));
         job.finish(updated ? `Times for ${updated} game${updated === 1 ? "" : "s"}` : "Nothing new");
       });
     } catch (e) {

@@ -108,7 +108,9 @@ export default {
     }
 
     const augMatch = url.pathname.match(/^\/augsteam-app\/(\d{1,10})$/);
-    if (augMatch) return proxyJson(`https://api.augmentedsteam.com/app/${augMatch[1]}/v2`);
+    // Says who's asking: a request with no User-Agent is one some APIs turn
+    // away (0.282.3).
+    if (augMatch) return proxyJson(`https://api.augmentedsteam.com/app/${augMatch[1]}/v2`, { "User-Agent": "LifeLog-proxy (+https://github.com/danielnoam/LifeLog)" });
 
     if (url.pathname === "/gg-deals") {
       const target = `https://api.gg.deals/v1/prices/by-steam-app-id/${url.search}`;
