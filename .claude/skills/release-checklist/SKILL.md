@@ -77,6 +77,10 @@ sync with it. Don't push with any step skipped.
   `bridge/DATA.md` and, where an AI should use it, `bridge/tools.js`, with
   a test in `test/bridge.test.js`. The test already fails on a sanitizer
   field DATA.md doesn't describe.
+- Not only data: a new feature that shows something (a stat, an insight,
+  a list or view the app works out) gets a read tool too, so the bridge can
+  do everything the app does (Daniel's rule, 2026-10-27). Check the tool
+  list in bridge/README.md against what the release adds.
 - Never rename or remove a bridge tool or argument without need: Telemachus
   and any other AI set up against it call them by name.
 

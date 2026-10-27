@@ -109,3 +109,9 @@ Added here as Daniel gives them.
 - Icons are Lucide, from the one map in src/icons.js; no emoji in the UI
   (2026-10-06).
 - Any new library or data service gets a credit in Settings → About.
+- The bridge's tools stay complete (2026-10-27): every feature that adds,
+  changes or shows something (data, a stat, an insight, a list the app
+  draws) gets bridge tools in the same release, so an AI can read and edit
+  everything the app can. Changes go through `change()`/`commit()` so they
+  show in History tagged with the AI and can be undone. Add tools, never
+  rename or remove them.
