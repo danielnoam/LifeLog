@@ -56,6 +56,7 @@ function load() {
     Widgets: window.LifeLogWidgets,
     Boards: window.LifeLogBoards,
     Travel: window.LifeLogTravel,
+    Recap: window.LifeLogRecap,
   };
   return loaded;
 }

@@ -190,7 +190,8 @@
   // share a single list and restore path.
   function normalizeHistoryEntry(e, source) {
     if (source === "local") return { id: e.id, savedAt: e.savedAt, summary: e.summary, source, snapshot: e.snapshot };
-    return { id: "gh-" + e.sha, savedAt: e.date, summary: e.message || "(no message)", source: "github", sha: e.sha };
+    const bridge = Storage.bridgeOf(e.message);
+    return { id: "gh-" + e.sha, savedAt: e.date, summary: bridge ? bridge.summary : e.message || "(no message)", source: "github", sha: e.sha, parent: e.parent, bridge };
   }
 
   async function refreshHistoryList() {
@@ -205,13 +206,14 @@
       let combined = local;
       // GitHub's deeper commit log fills in anything older than local's
       // window (local history is capped locally; GitHub's isn't) — it's
-      // never the primary source anymore, just an extension of it.
+      // never the primary source anymore, just an extension of it. Except
+      // for the AI bridge's saves: no device made them, so they're only here.
       if (Storage.githubConnected) {
         try {
           const oldestLocal = local.length ? local[local.length - 1].savedAt : null;
           const ghExtra = (await Storage.listHistory())
             .map((c) => normalizeHistoryEntry(c, "github"))
-            .filter((c) => !oldestLocal || c.savedAt < oldestLocal);
+            .filter((c) => c.bridge || !oldestLocal || c.savedAt < oldestLocal);
           combined = local.concat(ghExtra);
         } catch (e) { /* GitHub unreachable — local history still shown below */ }
       }
@@ -228,9 +230,16 @@
         const head = el("div", "history-row-head");
         head.appendChild(el("span", "history-date", formatHistoryDate(c.savedAt)));
         if (i === 0) head.appendChild(el("span", "history-badge", "Current"));
+        if (c.bridge) {
+          const tag = el("span", "history-badge history-badge-ai");
+          tag.appendChild(window.LifeLogIcons.labelled("sparkles", c.bridge.by || "AI"));
+          tag.title = "Made through the AI bridge";
+          head.appendChild(tag);
+        }
         // Undoing needs the save before it, to know what the change was, so
-        // the oldest one listed can't be undone.
-        const older = combined[i + 1];
+        // the oldest one listed can't be undone. A bridge save's is its
+        // commit's parent: the list around it holds other devices' saves.
+        const older = c.bridge && c.parent ? { sha: c.parent } : combined[i + 1];
         if (older) {
           const undo = el("button", "btn btn-small", "Undo");
           undo.type = "button";

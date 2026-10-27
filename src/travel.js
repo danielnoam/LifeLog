@@ -1619,7 +1619,7 @@
       const row = el("div", "sitem board-hist-row");
       const label = el("span", "sitem-text");
       label.appendChild(el("span", "sitem-title", new Date(v.savedAt).toLocaleString()));
-      label.appendChild(el("span", "sitem-sub", v.source === "github" ? "GitHub" : "This device"));
+      label.appendChild(el("span", "sitem-sub", v.bridge ? (v.bridge.by || "AI") + " · " + v.bridge.summary : v.source === "github" ? "GitHub" : "This device"));
       row.appendChild(label);
       const btns = el("span", "sitem-btns");
       const open = el("button", "btn btn-small", "Open");

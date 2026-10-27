@@ -672,6 +672,126 @@ test("the MCP server speaks the protocol: initialize, tools, a call, the guide",
   }
 });
 
+test("habits, recurring bills, categories and projects can be added", async () => {
+  reset();
+  assert.match(await ok("lifelog_add_habit", { name: "Stretch", days: ["mon", "wed", "fri"] }), /Started the habit "Stretch"/);
+  await refused("lifelog_add_habit", { name: "read" }, /already a habit called "read"/);
+  await refused("lifelog_add_habit", { name: "Run", days: ["someday"] }, /isn't a weekday/);
+  await ok("lifelog_add_habit", { name: "No sugar", avoid: true, limit: 1 });
+  let d = data();
+  const s = d.habits.find((h) => h.name === "Stretch");
+  assert.deepStrictEqual(s.cadence, { days: [1, 3, 5] });
+  assert.strictEqual(s.order, 2);
+  assert.strictEqual(d.habits.find((h) => h.name === "No sugar").limit, 1);
+  const r = await ok("lifelog_add_recurring", { amount: 50, category: "food", note: "Netflix", start_date: "2026-01-10" });
+  assert.match(r, /Added the recurring bill Netflix: 50\.00 ILS monthly \[Food\], from 2026-01-10, next \d{4}-\d{2}-10/);
+  await refused("lifelog_add_recurring", { amount: 5, category: "Nope" }, /No category called "Nope"/);
+  await refused("lifelog_add_recurring", { amount: 5, category: "Food", currency: "USD" }, /Give a rate for USD/);
+  assert.match(await ok("lifelog_recurring", {}), /Netflix: 50\.00 ILS monthly/);
+  await ok("lifelog_add_category", { kind: "timeline", name: "Shows", show_bought: false });
+  await ok("lifelog_add_category", { kind: "project", name: "Wedding", color: "#ABCDEF" });
+  await refused("lifelog_add_category", { kind: "expense", name: "food" }, /already a expense category called "food"/);
+  d = data();
+  const shows = d.categories.find((c) => c.name === "Shows");
+  assert.strictEqual(shows.showBought, false);
+  assert.match(shows.color, /^#[0-9a-f]{6}$/);
+  assert.strictEqual(d.projects.find((p) => p.name === "Wedding").color, "#abcdef");
+  assert.match(await ok("lifelog_add_backlog_item", { title: "Severance", category: "Shows" }), /Severance/);
+});
+
+test("deleting a category moves its items as the app does, and undo puts it all back", async () => {
+  reset(); withBills();
+  assert.match(await ok("lifelog_delete_category", { kind: "expense", name: "Food" }), /Deleted the expense category "Food"\. 4 items moved to Other/);
+  let d = data();
+  assert.ok(!d.financeCategories.some((c) => c.name === "Food"));
+  assert.ok(d.financeCategories.some((c) => c.name === "Other"));
+  assert.ok(d.financeEntries.every((f) => f.category === "Other"));
+  await ok("lifelog_undo", {});
+  d = data();
+  assert.ok(d.financeCategories.some((c) => c.name === "Food"));
+  assert.ok(!d.financeCategories.some((c) => c.name === "Other"), "the Other it made goes too");
+  assert.ok(d.financeEntries.every((f) => f.category === "Food"));
+  assert.match(await ok("lifelog_delete_category", { kind: "project", name: "Trip" }), /2 expenses no longer grouped/);
+  assert.ok(!data().financeEntries.find((f) => f.id === "x2").project);
+  assert.match(await ok("lifelog_delete_category", { kind: "note", name: "Ideas" }), /1 note is now uncategorised\. 1 board too/);
+  assert.ok(!boards().find((b) => b.id === "bd1").category);
+  await ok("lifelog_undo", {});
+  assert.strictEqual(boards().find((b) => b.id === "bd1").category, "Ideas");
+  assert.strictEqual(data().notes.find((n) => n.id === "no1").category, "Ideas");
+});
+
+test("stats, habit insights and upcoming releases read the app's own numbers", async () => {
+  reset();
+  const d0 = data();
+  d0.entries.push({ id: "e2", title: "Hades", category: "Games", year: 2026, month: 5, date: "2026-05", rating: 4, backlogAddedAt: T, genres: ["Roguelike"], createdAt: T, updatedAt: T },
+    { id: "e3", title: "Dune", category: "Books", year: 2025, month: 2, date: "2025-02", createdAt: T, updatedAt: T });
+  d0.backlog.push({ id: "b3", title: "Big Game", category: "Games", releaseDate: Finance.addDaysStr(today, 10), releasePrecision: "day", createdAt: T, updatedAt: T },
+    { id: "b4", title: "Someday Game", category: "Games", releasePrecision: "tba", createdAt: T, updatedAt: T });
+  fs.writeFileSync(FILE, JSON.stringify(d0, null, 2));
+  const year = await ok("lifelog_stats", { year: 2026 });
+  assert.match(year, /^2026: 2 logged \(1 in 2025\), 1 different\./);
+  assert.match(year, /By month: Mar 1, May 1\./);
+  assert.match(year, /Rated 2, average 4\.5 stars\./);
+  assert.match(year, /From the backlog: 1\./);
+  assert.match(year, /Spent: [\d,.]+ ILS/);
+  const all = await ok("lifelog_stats", {});
+  assert.match(all, /- 2026: 2 \(Games 2\)\n- 2025: 1 \(Books 1\)/);
+  assert.match(all, /Most repeated: Hades ×2/);
+  assert.match(all, /Top genres: Roguelike 1/);
+  await refused("lifelog_stats", { category: "Nope" }, /No timeline category called "Nope"/);
+  const ins = await ok("lifelog_habit_insights", { habit: "Read" });
+  assert.match(ins, /^Read: kept \d+%, 2 of \d+ days since/);
+  assert.match(ins, /Longest run: 2 days/);
+  const up = await ok("lifelog_upcoming", {});
+  assert.match(up, new RegExp(`^1 coming by .*\\n- ${Finance.addDaysStr(today, 10)} · .*Big Game \\[Games\\]`));
+  assert.match(up, /1 later or without an exact date:\n- No date announced: Someday Game/);
+});
+
+test("a batch is saved as one change, refused whole, and undone whole", async () => {
+  reset();
+  const t = await ok("lifelog_batch", { steps: [
+    { tool: "lifelog_update_item", args: { collection: "entries", item: "Hades", set: { rating: 4 } } },
+    { tool: "add_expense", args: { amount: 12, category: "Food", note: "Tea" } },
+    { tool: "lifelog_add_trip", args: { name: "Rome" } },
+  ] });
+  assert.match(t, /^3 changes:\nUpdated the timeline entry e1/);
+  assert.match(t, /Started|Rome/);
+  assert.strictEqual(data().entries[0].rating, 4);
+  assert.ok(travel().trips.some((x) => x.name === "Rome"));
+  await ok("lifelog_undo", {});
+  assert.strictEqual(data().entries[0].rating, 5);
+  assert.ok(!data().financeEntries.some((f) => f.note === "Tea"));
+  assert.ok(!travel().trips.some((x) => x.name === "Rome"));
+  const before = fs.readFileSync(FILE, "utf8");
+  await refused("lifelog_batch", { steps: [
+    { tool: "lifelog_add_expense", args: { amount: 12, category: "Food" } },
+    { tool: "lifelog_add_expense", args: { amount: 12, category: "Nope" } },
+  ] }, /^Step 2 \(lifelog_add_expense\): No category called "Nope"/);
+  assert.strictEqual(fs.readFileSync(FILE, "utf8"), before, "nothing saved");
+  await refused("lifelog_batch", { steps: [{ tool: "lifelog_overview" }] }, /only changing tools/);
+  await refused("lifelog_batch", { steps: [{ tool: "lifelog_rename_category", args: { kind: "note", name: "Ideas", new_name: "X" } }] }, /can't be part of a batch/);
+  assert.strictEqual(fs.readFileSync(FILE, "utf8"), before);
+});
+
+test("a save's commit message names the bridge and the AI, for the app's History", async () => {
+  reset();
+  const msgs = [];
+  const real = JSON.parse(fs.readFileSync(FILE, "utf8"));
+  let doc = real, n = 0;
+  const fake = { where: () => "fake", sibling: () => fake,
+    async read() { return { data: structuredClone(doc), version: String(n) }; },
+    async write(d, v, msg) { doc = d; n++; msgs.push(msg); return true; } };
+  B.useStore(fake, { stateDir: process.env.LIFELOG_STATE_DIR });
+  try {
+    B.setClient("Telemachus");
+    await ok("lifelog_add_expense", { amount: 9, category: "Food", note: "Bagel" });
+    B.setClient("mcp");
+    await ok("lifelog_add_expense", { amount: 9, category: "Food" });
+    assert.match(msgs[0], /^LifeLog bridge \(Telemachus\): Logged 9\.00 ILS for Food on /);
+    assert.match(msgs[1], /^LifeLog bridge: Logged 9\.00 ILS/, "an SDK's default name says nothing");
+  } finally { B.setClient(""); B.useStore(null, null); }
+});
+
 test("the command line runs the same tools", async () => {
   reset();
   const run = (args) => new Promise((res) => {

@@ -509,11 +509,12 @@
     }
   }
 
-  // Recent commits that touched the data file (newest first). Capped at 20 —
-  // this is a rollback aid, not a full audit log.
+  // Recent commits that touched the data file (newest first). Capped at 50 —
+  // this is a rollback aid, not a full audit log, but the AI bridge's saves
+  // are only listed from here, and each device's save is a commit too.
   async function ghListCommits(path) {
     const url = `${API}/repos/${gh.owner}/${gh.repo}/commits` +
-      `?path=${encodeURIComponent(path || gh.path)}&sha=${encodeURIComponent(gh.branch)}&per_page=20`;
+      `?path=${encodeURIComponent(path || gh.path)}&sha=${encodeURIComponent(gh.branch)}&per_page=50`;
     const r = await fetch(url, { headers: ghHeaders(), cache: "no-store" });
     if (!r.ok) throw ghErr(r.status, await r.text(), r);
     const j = await r.json();
@@ -521,6 +522,7 @@
       sha: c.sha,
       date: (c.commit.author && c.commit.author.date) || (c.commit.committer && c.commit.committer.date) || null,
       message: (c.commit.message || "").split("\n")[0],
+      parent: (c.parents && c.parents[0] && c.parents[0].sha) || null,
     }));
   }
 
@@ -528,6 +530,14 @@
   // a ref, including its large-file path: a restore is exactly the moment an
   // old version is needed, and a file past 1MB now is one past 1MB then.
   const ghGetFileAtRef = (ref) => ghGetFile(ref);
+
+  // A save the AI bridge made (bridge/tools.js's commitMessage):
+  // "LifeLog bridge (Telemachus): Logged …" gives { by: "Telemachus",
+  // summary: "Logged …" }; by is "" when the AI didn't say who it is.
+  function bridgeOf(message) {
+    const m = /^LifeLog bridge(?: \(([^)]*)\))?: (.*)$/.exec(message || "");
+    return m ? { by: m[1] || "", summary: m[2] } : null;
+  }
 
   // `path`, `pretty` and `label` are for the files beside lifelog.json,
   // which are written compact: boards.json is mostly numbers, and indenting
@@ -728,7 +738,7 @@
           .map((e) => ({ id: e.id, savedAt: e.savedAt, source: "device", doc: e.doc }));
         let remote = [];
         if (gh && gh.token) {
-          try { remote = (await ghListCommits(path())).map((c) => ({ id: c.sha, savedAt: c.date, source: "github", sha: c.sha })); }
+          try { remote = (await ghListCommits(path())).map((c) => ({ id: c.sha, savedAt: c.date, source: "github", sha: c.sha, bridge: bridgeOf(c.message) })); }
           catch (e) { remote = []; }
         }
         return local.concat(remote);
@@ -795,6 +805,7 @@
 
   const Storage = {
     fsSupported,
+    bridgeOf,
     boards: Boards,
     travel: Travel,
     get needsReconnect() { return needsReconnect; },

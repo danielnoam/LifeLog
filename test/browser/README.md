@@ -47,6 +47,7 @@ because something shipped broken that no unit test could have caught:
 | `travel` | the Travel tab: a trip from its empty state, places on a day with and without a time and with none, a day's order, ticking visited, a reload keeping it all, Undo after a delete, the trips as chips (picking, ✎, a second trip) |
 | `travelmap` | Travel's Google Maps import (faked proxy routes): a list picked by area, no place added twice, a single place link; a long press into sorting and a place dragged onto a day; the modes by swipe; By area; the map's pins, day chips, route and pin/row link, at phone and desktop width |
 | `travelmore` | Travel 0.245.0 (OpenStreetMap and Google Places faked): areas named after their town, asked once and cached; the import map's pins picking places, by keyboard too; Google's rating, hours, reviews and link on a place, only its id saved; Settings → History bringing a trip back, and Undo |
+| `bridgehistory` | a change the AI bridge made listed in Settings → History with the AI's name (even when newer than the device's own saves), and Undo taking back just it |
 | `notesheet` | a plain note's optional title, a list's items without ticks or a quick-add switch, a quote's author and source side by side |
 | `todomigrate` | the To-do mode's lists become list notes: old data, whoever left the app on To-do, and an older device still adding and ticking to-dos through a fake GitHub |
 | `tabio` | every tab's JSON and CSV export comes back whole through that tab's import, and the full backup through Everything |

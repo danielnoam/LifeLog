@@ -16,6 +16,43 @@ what was decided against and why.
 
 ---
 
+- **The bridge's saves in History, and its new tools (0.284.0).** Daniel
+  asked to see AI changes in History and revert them easily. A bridge save
+  goes straight to GitHub, so no device ever recorded it: History lists
+  the device's own saves and only adds GitHub commits *older* than those,
+  so a bridge change was invisible. Now the bridge names itself in the
+  commit message (`LifeLog bridge (Telemachus): <what it did>`, the name
+  from the MCP client's `clientInfo`, or `LIFELOG_CLIENT_NAME`; an SDK's
+  default like "mcp" is dropped and History just says AI), and History
+  keeps every commit with that prefix whatever its date. Its Undo diffs
+  the commit against its *parent* rather than the row below it, because
+  the rows around it are other devices' saves. Nothing new goes into
+  lifelog.json for this: a log field there would have needed merge,
+  sanitizer and DATA.md support for what the commit log already holds.
+  The cost: the commit list is one request of the last 50 commits to the
+  file (was 20), so a bridge change drops out of History once 50 saves
+  have come after it; `lifelog_undo` on the AI's computer still works.
+  Several bridge changes between two syncs are separate commits, so they
+  stay separate rows. Boards and Trips history show the AI and summary on
+  their GitHub versions the same way.
+  - `lifelog_batch` runs other changing tools with `change()` handing its
+    apply over instead of saving (a module-level `batch` list), then
+    applies them all in one commit per file: one save, one undo. Across
+    two files every step is first tried on a fresh copy, so a refusal in
+    the second file can't leave the first saved. Tools that call
+    `commit()` themselves (rename and delete category, undo) refuse to be
+    batched rather than half-joining one.
+  - Stats reuse `LifeLogRecap.gather` for a year, with spending counted
+    as the Ledger counts it (recurring included), which the Recap doesn't.
+    Habit insights read habits.js's `statsFor`, `bestRunOf`,
+    `weekdayRates` and `monthRates`; upcoming reads backlog.js's
+    `isAwaitingRelease`, `upcomingAt` and `releaseLabel`, so all three
+    say what the app shows.
+  - Deleting a category does what the app's delete does: timeline and
+    expense items move to Other (made if missing, and "Other" itself
+    can't go while used), a note category leaves its notes and boards
+    uncategorised, a project's expenses stay but ungrouped.
+
 - **Charged on for every interval (0.283.0).** Daniel asked for a weekday
   on weekly bills and a month and day on yearly ones. Same rule as the
   monthly `chargeDay`: the fields (`chargeWeekday`, 0 = Sunday;

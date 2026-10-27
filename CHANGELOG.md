@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.284.0] - 2026-10-27
+
+### Added
+- **AI changes show in History.** A change Telemachus (or any AI using
+  the bridge) makes now has its own row in Settings → History, tagged with
+  the AI's name, and **Undo** takes back just that change on any device.
+  Boards and Trips history name it too.
+- **More the AI can do.** Through the bridge, an AI can now start a habit,
+  add a recurring bill, add or delete a category or project, read the
+  Timeline's stats for any year, read a habit's insights, list what's
+  coming out from the backlog, and make many changes at once as one save
+  that one undo takes back.
+
 ## [0.283.0] - 2026-10-27
 
 ### Added

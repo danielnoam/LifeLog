@@ -15,7 +15,7 @@ const { load } = require("./load.js");
 const { readConfig, openStore, undoLog, SetupError } = require("./store.js");
 
 const L = load();
-const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Travel, Merge, Widgets } = L;
+const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Travel, Merge, Widgets, Recap } = L;
 
 // ---------- the collections an AI may edit ----------
 // `cats` names the list a `category` must come from; notes may have none.
@@ -175,8 +175,29 @@ function stampSibling(before, doc, keys, now) {
   }
 }
 
+// Who made a change, named in its commit message, which the app's History
+// reads to tag the save ("LifeLog bridge (Telemachus): Logged …"): the MCP
+// client's name, or LIFELOG_CLIENT_NAME. The names SDKs send by default say
+// nothing, so they're left out and History just says AI.
+let client = "";
+function setClient(name) {
+  const n = String(process.env.LIFELOG_CLIENT_NAME || name || "").replace(/[^\w .-]/g, "").trim().slice(0, 40);
+  client = /^(mcp|client|python|node|unknown)$/i.test(n) ? "" : n;
+}
+setClient("");
+function commitMessage(summary, text) {
+  // The item id a reply ends with is for the AI, not for History.
+  const first = String(text || "").split("\n")[0].trim().replace(/ id \S+$/, "");
+  return `LifeLog bridge${client ? " (" + client + ")" : ""}: ${cut(first || summary, 160)}`;
+}
+
+// While lifelog_batch gathers its steps, change() hands each one over
+// instead of saving it, so the lot is saved (and undone) as one.
+let batch = null;
+
 // One file's change, saved; returns its text and the undo record's items.
 async function commit(file, summary, apply) {
+  if (batch) fail("This tool can't be part of a batch; run it on its own.");
   const s = storeOf(file);
   for (let attempt = 0; attempt < 5; attempt++) {
     const { data, version } = await s.read();
@@ -186,7 +207,7 @@ async function commit(file, summary, apply) {
     try { out = apply(data); } finally { changeNow = null; }
     if (SIBLINGS[file]) stampSibling(before, data, SIBLINGS[file].keys, now);
     else { Merge.stampChangedItems(before, data, now); data.exportedAt = now; }
-    if (await s.write(data, version, "LifeLog bridge: " + summary)) {
+    if (await s.write(data, version, commitMessage(summary, out.text))) {
       const items = out.touched.map(([coll, id]) => ({
         ...(SIBLINGS[file] ? { file } : {}), coll, id,
         before: snapshotOf(before, coll, id),
@@ -200,6 +221,7 @@ async function commit(file, summary, apply) {
 }
 
 async function change(summary, apply, { undoable = true, file = "data" } = {}) {
+  if (batch) { batch.push({ file, summary, apply }); return ""; }
   const done = await commit(file, summary, apply);
   if (undoable && done.items.length) undoLog(cfg).push({ summary, at: done.at, items: done.items });
   return done.text;
@@ -337,6 +359,9 @@ const NAME_LISTS = {
   note: { list: "noteCategories", label: "note category", rename: (d, from, to) => Notes.renameNoteCategory(d, from, to), uses: ["notes"] },
   project: { list: "projects", label: "project", rename: (d, from, to) => Finance.renameProject(d, from, to), uses: ["financeEntries", "recurringExpenses"] },
 };
+
+// The app's palette for a new category (CATEGORY_PALETTE in app.js).
+const CAT_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
 // ---------- what reads see ----------
 // An expense row, recurring charges included, as the Ledger counts them.
@@ -741,6 +766,113 @@ const TOOLS = [
     },
   },
 
+  {
+    name: "lifelog_stats",
+    description: "The Timeline's Stats in numbers. With year: that year in numbers (what was logged, by category and month, ratings, from the backlog, notes, ticked checklist items, habits kept, accomplishments, spending with recurring bills) against the year before. Without: every year's count by category, the most repeated titles and the top genres.",
+    readOnly: true,
+    input: { year: S.int("One year, e.g. 2026"), category: S.str("Only this timeline category") },
+    async run(a) {
+      const d = await readData();
+      const cat = a.category ? nameIn(d, "categories", a.category, "timeline category") : null;
+      const inCat = (e) => !cat || e.category === cat;
+      const counted = (list, keyOf) => {
+        const m = new Map();
+        for (const x of list) { const k = keyOf(x); if (k != null && k !== "") m.set(k, (m.get(k) || 0) + 1); }
+        return [...m.entries()].sort((x, y) => y[1] - x[1] || String(x[0]).localeCompare(String(y[0])));
+      };
+      const ratingLine = (list) => {
+        const rated = list.filter((e) => +e.rating > 0);
+        return rated.length ? `Rated ${rated.length}, average ${(rated.reduce((s, e) => s + +e.rating, 0) / rated.length).toFixed(1)} stars.` : "None rated.";
+      };
+      const MONTHS = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      if (a.year != null) {
+        const year = +a.year;
+        if (!/^\d{4}$/.test(String(a.year))) fail("year is four digits, like 2026.");
+        const g = Recap.gather(d, year);
+        const entries = g.entries.filter(inCat), prev = g.prevEntries.filter(inCat);
+        const out = [`${year}${cat ? " in " + cat : ""}: ${entries.length} logged (${prev.length} in ${year - 1}), ${new Set(entries.map((e) => lower(e.title))).size} different.`];
+        if (entries.length) {
+          if (!cat) out.push("By category: " + counted(entries, (e) => e.category).map(([k, n]) => `${k} ${n}`).join(", ") + ".");
+          out.push("By month: " + counted(entries, (e) => +e.month).sort((x, y) => x[0] - y[0]).map(([m, n]) => `${MONTHS[m]} ${n}`).join(", ") + ".");
+          out.push(ratingLine(entries));
+          const best = entries.filter((e) => +e.rating === 5).map((e) => e.title);
+          if (best.length) out.push(`Five stars: ${best.slice(0, 15).join(", ")}${best.length > 15 ? ` and ${best.length - 15} more` : ""}.`);
+          out.push(`From the backlog: ${entries.filter((e) => e.backlogAddedAt).length}.`);
+        }
+        if (!cat) {
+          const until = untilDate(year + "-12-31");
+          const spent = effectiveExpenses(d, until).filter((f) => String(f.date).slice(0, 4) === String(year) && f.date <= today());
+          const prevSpent = effectiveExpenses(d, until).filter((f) => String(f.date).slice(0, 4) === String(year - 1));
+          const sum = (l) => l.reduce((s, f) => s + (+f.amount || 0), 0);
+          out.push(`Notes written: ${g.notes.length} (${g.prevNotes.length} in ${year - 1}). Checklist items ticked: ${g.todosDone.length}. Added to the backlog: ${g.backlogAdded.length}. Accomplishments: ${g.achievements.length}.`);
+          if (g.habits.length) out.push("Habits kept: " + g.habits.map((h) => `${h.habit.name} ${h.kept} of ${h.due} days (${Math.round(h.rate * 100)}%)`).join(", ") + ".");
+          out.push(`Spent: ${money(d, sum(spent))} (${money(d, sum(prevSpent))} in ${year - 1}), recurring bills included${year === new Date().getFullYear() ? ", so far" : ""}.`);
+        }
+        return out.join("\n");
+      }
+      const all = (d.entries || []).filter(inCat);
+      if (!all.length) return "Nothing on the timeline" + (cat ? " in " + cat : "") + " yet.";
+      const out = [`${all.length} on the timeline${cat ? " in " + cat : ""}. ${ratingLine(all)} From the backlog: ${all.filter((e) => e.backlogAddedAt).length}.`, "", "By year:"];
+      for (const [y, n] of counted(all, (e) => e.year).sort((x, z) => z[0] - x[0])) {
+        const mine = all.filter((e) => e.year === y);
+        out.push(`- ${y}: ${n}` + (cat ? "" : " (" + counted(mine, (e) => e.category).map(([k, c]) => `${k} ${c}`).join(", ") + ")"));
+      }
+      const repeated = counted(all, (e) => e.title.trim()).filter(([, n]) => n > 1).slice(0, 10);
+      if (repeated.length) out.push("", "Most repeated: " + repeated.map(([t, n]) => `${t} ×${n}`).join(", ") + ".");
+      const genres = counted(all.flatMap((e) => (e.genres || []).map((x) => ({ x }))), (o) => o.x).slice(0, 10);
+      if (genres.length) out.push("Top genres: " + genres.map(([k, n]) => `${k} ${n}`).join(", ") + ".");
+      return out.join("\n");
+    },
+  },
+  {
+    name: "lifelog_habit_insights",
+    description: "What a habit's grid shows, in words: the kept rate since it started, the longest run and its dates, the best and weakest weekday, and the last six months. Leave habit out for every active habit.",
+    readOnly: true,
+    input: { habit: S.str("Its id or name") },
+    async run(a) {
+      const d = await readData();
+      const t = today();
+      const list = a.habit ? [findItem(d, "habits", a.habit)] : (d.habits || []).filter((h) => !h.archivedAt);
+      if (!list.length) return "No habits yet.";
+      return list.map((h) => {
+        const life = Habits.statsFor(h, h.startedAt || t, t);
+        if (!life.due) return `${h.name}: nothing to say yet; it starts counting from ${h.startedAt}.`;
+        const lines = [`${h.name}${h.avoid ? " (avoiding)" : ""}: kept ${Math.round(life.rate * 100)}%, ${life.done} of ${life.due} days since ${h.startedAt}.`];
+        const best = Habits.bestRunOf(h, t);
+        if (best.days) lines.push(`  Longest run: ${best.days} day${best.days === 1 ? "" : "s"}, ${best.from} to ${best.to}. Current streak ${Habits.streakOf(h, t)}.`);
+        const days = Habits.weekdayRates(h, t).filter((x) => x.due);
+        if (days.length > 1) lines.push("  By weekday: " + days.map((x) => `${x.label} ${Math.round(x.rate * 100)}%`).join(", ") + ".");
+        const months = Habits.monthRates(h, t).filter((m) => m.due);
+        if (months.length) lines.push("  Last months: " + months.map((m) => `${m.month} ${Math.round(m.rate * 100)}% (${m.kept}/${m.due})`).join(", ") + ".");
+        return lines.join("\n");
+      }).join("\n");
+    },
+  },
+  {
+    name: "lifelog_upcoming",
+    description: "What's coming out from the backlog, as the Upcoming page lists it: releases and next episodes by date, then the ones with only a rough date (a month, a quarter, a year, TBA).",
+    readOnly: true,
+    input: {
+      days: S.int("How far ahead the dated list goes, default 90"), category: S.str("A timeline category"),
+      include_undated: S.bool("Also list the ones without an exact date (default true)"),
+    },
+    async run(a) {
+      const d = await readData();
+      const t = today();
+      const until = Finance.addDaysStr(t, Math.max(1, Math.min(3650, parseInt(a.days, 10) || 90)));
+      const cat = a.category ? nameIn(d, "categories", a.category, "timeline category") : null;
+      const waiting = (d.backlog || []).filter((b) => (!cat || b.category === cat) && Backlog.isAwaitingRelease(b));
+      const line = (b) => `- ${Backlog.releaseLabel(b)}: ${b.title} [${b.category}]${b.priority ? " ★" : ""}  (${b.id})`;
+      const dated = waiting.map((b) => ({ b, at: Backlog.upcomingAt(b) })).filter((x) => x.at && x.at <= until).sort((x, y) => x.at.localeCompare(y.at));
+      const shown = new Set(dated.map((x) => x.b));
+      const out = [`${dated.length} coming by ${until}${cat ? " in " + cat : ""}:`, ...dated.map((x) => line(x.b).replace(/^- /, `- ${x.at} · `))];
+      if (a.include_undated !== false) {
+        const rest = waiting.filter((b) => !shown.has(b));
+        if (rest.length) out.push("", `${rest.length} later or without an exact date:`, ...rest.map(line));
+      }
+      return out.join("\n");
+    },
+  },
   // ---------- writes ----------
   {
     name: "lifelog_add_expense",
@@ -1360,6 +1492,225 @@ const TOOLS = [
     },
   },
   {
+    name: "lifelog_add_habit",
+    description: "Start a habit: something to do (daily, or on some weekdays, optionally several times a day) or something to keep away from (avoid, with a daily limit of slips).",
+    input: {
+      name: S.str("What the habit is"),
+      days: { type: "array", items: { type: "string" }, description: "Weekdays it's due, e.g. [\"mon\",\"wed\",\"fri\"]; leave out for every day" },
+      target: S.int("Times a day, default 1"), avoid: S.bool("Something to keep away from; its marks count slips"),
+      limit: S.int("With avoid: slips a day that still count as kept, default 0"),
+      color: S.str("#rrggbb, optional"), start_date: S.date("When it starts counting, default today"),
+    },
+    required: ["name"],
+    async run(a) {
+      const name = String(a.name).trim();
+      if (!name) fail("A habit needs a name.");
+      const WEEK = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+      const days = (a.days || []).map((x) => {
+        const n = /^\d$/.test(String(x)) ? +x : WEEK.indexOf(lower(x).slice(0, 3));
+        if (!(n >= 0 && n <= 6)) fail(`"${x}" isn't a weekday (mon, tue, ...).`);
+        return n;
+      });
+      if (a.color && !/^#[0-9a-f]{6}$/i.test(a.color)) fail("color is #rrggbb.");
+      const start = requireDate(a.start_date, "start_date") || today();
+      return change(`habit "${name}"`, (d) => {
+        if ((d.habits || []).some((h) => !h.archivedAt && lower(h.name) === lower(name))) fail(`There's already a habit called "${name}".`);
+        const item = { name, startedAt: start, order: Math.max(-1, ...(d.habits || []).map((h) => +h.order || 0)) + 1 };
+        if (days.length && days.length < 7) item.cadence = { days };
+        if (a.color) item.color = a.color.toLowerCase();
+        if (a.avoid) Object.assign(item, { avoid: true, limit: +a.limit || 0 });
+        else if (a.target) item.target = a.target;
+        const h = addItem(d, "habits", item);
+        return { text: `Started the habit "${h.name}" (${Habits.cadenceLabel(h)}${h.avoid ? `, avoiding, at most ${h.limit} a day` : h.target > 1 ? `, ${h.target} a day` : ""}) from ${h.startedAt}. id ${h.id}`, touched: [["habits", h.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_add_recurring",
+    description: "Add a recurring bill (rent, a subscription...). It charges from start_date every week, month or year, and its charges count in spending like the Ledger's. To change a bill's price from some date, use lifelog_update_item on the old one's endDate and add the new one.",
+    input: {
+      amount: S.num("What each charge costs"), category: S.str("An expense category from lifelog_overview"),
+      interval: S.str("How often, default monthly", { enum: ["weekly", "monthly", "yearly"] }),
+      start_date: S.date("The first charge, default today"), end_date: S.date("The last day it charges, optional"),
+      note: S.str("What it is, e.g. Netflix"), project: S.str("A project, optional"),
+      charge_day: S.int("Monthly or yearly: the day of the month it charges, if not the start date's"),
+      charge_weekday: S.int("Weekly: 0 Sunday to 6 Saturday, if not the start date's"),
+      charge_month: S.int("Yearly: 1-12, with charge_day, if not the start date's"),
+      currency: S.str("Three-letter code if billed in another currency"), rate: S.num("Home currency per 1 unit of `currency`"),
+    },
+    required: ["amount", "category"],
+    async run(a) {
+      const paid = +a.amount;
+      if (!(paid > 0)) fail("amount must be more than 0.");
+      const start = requireDate(a.start_date, "start_date") || today();
+      const end = requireDate(a.end_date, "end_date");
+      if (end && end < start) fail("end_date is before start_date.");
+      const interval = a.interval || "monthly";
+      if (!["weekly", "monthly", "yearly"].includes(interval)) fail("interval is weekly, monthly or yearly.");
+      return change(`recurring ${paid} ${a.category}`, (d) => {
+        const code = String(a.currency || "").toUpperCase();
+        const foreign = code && code !== currencyOf(d);
+        if (foreign && !(+a.rate > 0)) fail(`Give a rate for ${code}: how many ${currencyOf(d)} one ${code} is.`);
+        const item = { startDate: start, interval, amount: foreign ? Math.round(paid * a.rate * 100) / 100 : paid, category: a.category };
+        if (end) item.endDate = end;
+        if (a.note) item.note = String(a.note).trim();
+        if (a.project) item.project = a.project;
+        if (foreign) Object.assign(item, { currency: code, fxAmount: paid, rate: +a.rate });
+        if (a.charge_day != null) item.chargeDay = a.charge_day;
+        if (a.charge_weekday != null) item.chargeWeekday = a.charge_weekday;
+        if (a.charge_month != null) item.chargeMonth = a.charge_month;
+        const r = addItem(d, "recurringExpenses", item);
+        const next = nextCharge(r);
+        return { text: `Added the recurring bill ${r.note || r.category}: ${money(d, r.amount)}${foreign ? ` (${paid} ${code})` : ""} ${r.interval} [${r.category}], from ${r.startDate}${next ? `, next ${next.date}` : ""}. id ${r.id}`, touched: [["recurringExpenses", r.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_add_category",
+    description: "Add a category (timeline, expense or note) or a project, as the app's Add category does.",
+    input: {
+      kind: S.str("Which kind", { enum: Object.keys(NAME_LISTS) }), name: S.str("Its name"), color: S.str("#rrggbb, optional"),
+      show_in_progress: S.bool("Timeline only: offer In progress (start) on its items, default true"),
+      show_bought: S.bool("Timeline only: offer Bought on its items, default true"),
+      show_author: S.bool("Timeline only: show an author on its items"),
+    },
+    required: ["kind", "name"],
+    async run(a) {
+      const spec = NAME_LISTS[a.kind] || fail("kind must be one of: " + Object.keys(NAME_LISTS).join(", "));
+      const name = String(a.name).trim();
+      if (!name) fail("A category needs a name.");
+      if (a.color && !/^#[0-9a-f]{6}$/i.test(a.color)) fail("color is #rrggbb.");
+      const shows = ["show_in_progress", "show_bought", "show_author"].filter((k) => typeof a[k] === "boolean");
+      if (shows.length && a.kind !== "timeline") fail("The show_ switches are for a timeline category.");
+      return change(`add ${spec.label} "${name}"`, (d) => {
+        const list = d[spec.list] = d[spec.list] || [];
+        if (list.some((c) => lower(c.name) === lower(name))) fail(`There's already a ${spec.label} called "${name}".`);
+        const raw = { id: L.uid(), name, color: (a.color || CAT_PALETTE[list.length % CAT_PALETTE.length]).toLowerCase(), createdAt: changeNow, updatedAt: changeNow };
+        if (a.show_in_progress === false) raw.showInProgress = false;
+        if (a.show_bought === false) raw.showBought = false;
+        if (typeof a.show_author === "boolean") raw.showAuthor = a.show_author;
+        const cat = a.kind === "project" ? Finance.sanitizeProject(raw) : App.sanitizeCategory(raw);
+        list.push(cat);
+        return { text: `Added the ${spec.label} "${cat.name}" (${cat.color}).`, touched: [[spec.list, cat.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_delete_category",
+    description: "Delete a category or project, as the app does: a timeline or expense category's items move to Other; a note category's notes and boards are left uncategorised; a project's expenses stay, just no longer grouped. Undoable with lifelog_undo.",
+    destructive: true,
+    input: { kind: S.str("Which kind", { enum: Object.keys(NAME_LISTS) }), name: S.str("Its name") },
+    required: ["kind", "name"],
+    async run(a) {
+      const spec = NAME_LISTS[a.kind] || fail("kind must be one of: " + Object.keys(NAME_LISTS).join(", "));
+      const summary = `delete ${spec.label} "${a.name}"`;
+      let from = null;
+      const main = await commit("data", summary, (d) => {
+        from = nameIn(d, spec.list, a.name, spec.label);
+        const cat = d[spec.list].find((c) => c.name === from);
+        const before = new Map(spec.uses.flatMap((k) => (d[k] || []).map((x) => [k + "\u0000" + x.id, JSON.stringify(x)])));
+        const used = spec.uses.reduce((n, k) => n + (d[k] || []).filter((x) => (a.kind === "project" ? x.project : x.category) === from).length, 0);
+        const touched = [[spec.list, cat.id]];
+        let where = "";
+        if (used && (a.kind === "timeline" || a.kind === "expense")) {
+          if (from === "Other") fail(`Can't delete "Other" while ${used} item${used === 1 ? " uses" : "s use"} it.`);
+          let other = d[spec.list].find((c) => c.name === "Other");
+          if (!other) {
+            other = { id: "other", name: "Other", color: "#7a8a99", updatedAt: changeNow };
+            d[spec.list].push(other);
+            touched.push([spec.list, other.id]);
+          }
+          if (a.kind === "timeline") Journal.renameCategory(d, from, "Other"); else Finance.renameFinanceCategory(d, from, "Other");
+          where = ` ${used} item${used === 1 ? "" : "s"} moved to Other.`;
+        } else if (used) {
+          spec.rename(d, from, null);
+          where = a.kind === "note" ? ` ${used} note${used === 1 ? " is" : "s are"} now uncategorised.` : ` ${used} expense${used === 1 ? "" : "s"} no longer grouped.`;
+        }
+        d[spec.list] = d[spec.list].filter((c) => c !== cat);
+        const moved = spec.uses.flatMap((k) => (d[k] || []).filter((x) => before.get(k + "\u0000" + x.id) !== JSON.stringify(x)).map((x) => [k, x.id]));
+        return { text: `Deleted the ${spec.label} "${from}".${where}`, touched: [...touched, ...moved] };
+      });
+      let text = main.text, items = main.items;
+      if (a.kind === "note") {
+        const boards = await commit("boards", summary, (doc) => {
+          const hit = Boards.renameCategoryIn(doc.boards || [], from, null);
+          return { text: hit.length ? ` ${hit.length} board${hit.length === 1 ? "" : "s"} too.` : "", touched: hit.map((b) => ["boards", b.id]) };
+        });
+        text += boards.text;
+        items = items.concat(boards.items);
+      }
+      undoLog(cfg).push({ summary, at: main.at, items });
+      return text;
+    },
+  },
+  {
+    name: "lifelog_batch",
+    description: "Make several changes as one: each step is another changing tool and its arguments, run in order on the same data, saved together and undone together by one lifelog_undo. If any step is refused, nothing is saved. For re-filing or editing many items at once. Renaming or deleting a category, and undo, run on their own.",
+    destructive: true,
+    input: {
+      steps: {
+        type: "array", description: "Up to 100 steps, e.g. [{\"tool\": \"lifelog_update_item\", \"args\": {\"collection\": \"entries\", \"item\": \"Hades\", \"set\": {\"rating\": 5}}}]",
+        items: { type: "object", properties: { tool: { type: "string" }, args: { type: "object" } }, required: ["tool"] },
+      },
+    },
+    required: ["steps"],
+    async run(a) {
+      const steps = Array.isArray(a.steps) ? a.steps : fail("steps is a list of {tool, args}.");
+      if (!steps.length || steps.length > 100) fail("Give 1 to 100 steps.");
+      const gathered = [];
+      batch = gathered;
+      try {
+        for (const [i, s] of steps.entries()) {
+          const name = String((s && s.tool) || "");
+          const tool = TOOLS.find((t) => t.name === name || t.name === "lifelog_" + name);
+          const at = `Step ${i + 1} (${name || "no tool"})`;
+          if (!tool) fail(`${at}: no such tool.`);
+          if (tool.readOnly || tool.name === "lifelog_batch") fail(`${at}: only changing tools go in a batch.`);
+          const args = (s && s.args) || {};
+          const n = gathered.length;
+          try {
+            for (const k of tool.required || []) if (args[k] == null || args[k] === "") fail(`${k} is required.`);
+            await tool.run(args);
+          } catch (e) { if (e instanceof InputError) fail(`${at}: ${e.message}`); throw e; }
+          if (gathered.length !== n + 1) fail(`${at}: can't be part of a batch; run it on its own.`);
+          gathered[n].label = at;
+        }
+      } finally { batch = null; }
+      const files = ["data", "boards", "travel"].filter((f) => gathered.some((g) => g.file === f));
+      const summary = `${steps.length} change${steps.length === 1 ? "" : "s"}`;
+      const run = (f, d) => {
+        for (const g of gathered.filter((x) => x.file === f)) {
+          try { g.apply(d); } catch (e) { if (e instanceof InputError) fail(`${g.label}: ${e.message}`); throw e; }
+        }
+      };
+      // Across files, every step is tried first, so a refusal in the second
+      // file can't leave the first one saved.
+      if (files.length > 1) for (const f of files) run(f, (await storeOf(f).read()).data);
+      const texts = [], items = [];
+      let at = null;
+      for (const f of files) {
+        const done = await commit(f, summary, (d) => {
+          const out = { text: "", touched: [] };
+          for (const g of gathered.filter((x) => x.file === f)) {
+            let r;
+            try { r = g.apply(d); } catch (e) { if (e instanceof InputError) fail(`${g.label}: ${e.message}`); throw e; }
+            out.text += (out.text ? "\n" : "") + r.text;
+            out.touched.push(...r.touched);
+          }
+          const seen = new Set();
+          out.touched = out.touched.filter(([c, id]) => !seen.has(c + "\u0000" + id) && seen.add(c + "\u0000" + id));
+          out.text = `${summary}:\n` + out.text;
+          return out;
+        });
+        texts.push(done.text);
+        items.push(...done.items);
+        at = at || done.at;
+      }
+      if (items.length) undoLog(cfg).push({ summary: "batch of " + summary, at, items });
+      return texts.join("\n");
+    },
+  },
+  {
     name: "lifelog_undo",
     description: "Undo the most recent change made through this bridge. Refuses if the item was edited elsewhere since, unless force is true.",
     destructive: true,
@@ -1413,4 +1764,4 @@ function schemaOf(tool) {
 // For tests: point the bridge at a store of their own.
 function useStore(s, c) { store = s; cfg = c; }
 
-module.exports = { TOOLS, callTool, schemaOf, useStore, COLLECTIONS, SECRET_SETTINGS, version: L.version };
+module.exports = { TOOLS, callTool, schemaOf, useStore, setClient, COLLECTIONS, SECRET_SETTINGS, version: L.version };

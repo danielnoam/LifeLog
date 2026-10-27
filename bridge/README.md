@@ -36,7 +36,7 @@ permission **Contents: Read and write**. Then either:
 instead (a backup, or to try things out), set `LIFELOG_LOCAL_FILE` to its
 path. `LIFELOG_CONFIG` points at a different config file, and
 `LIFELOG_STATE_DIR` at where the undo history is kept (default
-`~/.lifelog-bridge`).
+`~/.lifelog-bridge`), and `LIFELOG_CLIENT_NAME` names the AI in History.
 
 ## Use it
 
@@ -65,8 +65,10 @@ Reading: `lifelog_overview` (start here), `lifelog_guide`, `lifelog_search`,
 `lifelog_get`, `lifelog_timeline`, `lifelog_backlog`, `lifelog_notes`,
 `lifelog_expenses`, `lifelog_spending`, `lifelog_recurring`,
 `lifelog_habits`, `lifelog_accomplishments`, `lifelog_boards`,
-`lifelog_trips`, `lifelog_google_list` (reads a shared Google Maps list or
-place straight from Google; the only tool that goes beyond your data).
+`lifelog_trips`, `lifelog_stats` (the Timeline's Stats, a year in numbers),
+`lifelog_habit_insights`, `lifelog_upcoming` (what's coming out from the
+backlog), `lifelog_google_list` (reads a shared Google Maps list or place
+straight from Google; the only tool that goes beyond your data).
 
 Changing: `lifelog_add_expense`, `lifelog_add_timeline_entry`,
 `lifelog_add_backlog_item`, `lifelog_finish_backlog_item`,
@@ -78,12 +80,19 @@ Changing: `lifelog_add_expense`, `lifelog_add_timeline_entry`,
 `lifelog_update_board`, `lifelog_delete_board`, `lifelog_add_trip`,
 `lifelog_update_trip`, `lifelog_delete_trip`, `lifelog_add_place`,
 `lifelog_update_place`, `lifelog_delete_place`,
-`lifelog_import_google_list`, `lifelog_undo`.
+`lifelog_import_google_list`, `lifelog_add_habit`, `lifelog_add_recurring`,
+`lifelog_add_category`, `lifelog_delete_category`, `lifelog_batch` (several
+changes saved, and undone, as one), `lifelog_undo`.
 
 Every change is checked first: categories and projects must exist, and the
 result must be something the app itself would keep, or it's refused with the
 reason. `lifelog_undo` reverses the last change made through the bridge on
 this computer, and won't overwrite an edit made since without `force`.
+
+Every change is a commit named `LifeLog bridge (<AI>): <what it did>`.
+The AI is the MCP client's own name (set `LIFELOG_CLIENT_NAME` to choose
+it). The app's Settings → History lists these with the AI's name, and its
+Undo takes back that one change from any device.
 
 What it never does: show your settings (they hold API keys), or draw on a
 board.

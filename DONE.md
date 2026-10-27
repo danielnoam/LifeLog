@@ -225,6 +225,8 @@ Every release that adds a feature adds its line here in the same commit.
 - An MCP server and command line for other AIs to read and change LifeLog (0.239.0, 0.240.0)
 - Connects with the app's setup link (0.239.1)
 - Trips: read a plan, add, move, schedule and remove places, read Google Maps lists (0.241.0, 0.242.0)
+- Its changes in History, tagged with the AI's name, each undoable on any device (0.284.0)
+- Add habits, recurring bills, categories and projects; delete categories; stats, habit insights, upcoming releases; batch changes as one save (0.284.0)
 
 ## Building and shipping
 

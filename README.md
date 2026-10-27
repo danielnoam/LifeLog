@@ -196,7 +196,8 @@ in; this is the tour.
   the installed web app.
 - **Bulk actions** – long-press to select, then move, sync or delete.
 - **Sync and history** – GitHub and a local file, merged between devices,
-  with every save in Settings → History to restore or undo, and Recently
+  with every save in Settings → History to restore or undo (an AI's
+  changes through the bridge too, tagged with its name), and Recently
   deleted.
 - **App lock** – a PIN, with fingerprint or face where the device has it.
 - **Settings** – pages with search, four themes (Default, Light, Nord,
