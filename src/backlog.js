@@ -116,7 +116,7 @@
     // each of them kicking off the lookup that would have filled it in.
     const hasSteamPrice = item.mediaSource === "steam" && !!item.mediaId && !item.bought;
     const airing = airingLabel(item);
-    if (parts.length || hasSteamPrice || item.bought || item.earlyAccess || airing) {
+    if (parts.length || hasSteamPrice || (item.bought && !(opts && opts.quietBought)) || item.earlyAccess || airing) {
       const metaLine = el("span", "bl-meta");
       if (parts.length) metaLine.appendChild(document.createTextNode(parts.join(" · ")));
       const sep = () => (metaLine.childNodes.length ? " · " : "");
@@ -131,7 +131,8 @@
         metaLine.appendChild(el("span", "bl-airing" + (airingDone(item) ? " is-done" : ""), sep() + airing));
       }
       if (item.bought) {
-        metaLine.appendChild(el("span", "bl-bought", sep() + "Bought"));
+        // The sheet's cover already says so with its lit Bought button.
+        if (!(opts && opts.quietBought)) metaLine.appendChild(el("span", "bl-bought", sep() + "Bought"));
       } else if (hasSteamPrice) {
         const price = el("span", "bl-price");
         price.dataset.appid = item.mediaId;
@@ -163,6 +164,22 @@
       case "cancelled": return "Cancelled";
       default: return "";
     }
+  }
+  // The same state as cells for the cover's strip (0.282.2): the status,
+  // and how many are out when it's still going.
+  function airingCells(b) {
+    const manga = /manga/.test(b.mediaSource || "");
+    const season = b.airingSeason ? "S" + b.airingSeason + " " : "";
+    const word = {
+      airing: manga ? "Publishing" : season ? season + "airing" : "Airing",
+      between: season ? season + "complete" : "Season done",
+      finished: "Complete", hiatus: "On hiatus", cancelled: "Cancelled",
+    }[b.airing];
+    if (!word) return [];
+    const cells = [["Status", word]];
+    const out = +b.episodesOut || 0, total = +b.episodesTotal || 0;
+    if ((b.airing === "airing" || b.airing === "hiatus") && out) cells.push(["Out", total ? out + " of " + total : String(out)]);
+    return cells;
   }
   // Everything that's coming is out: finished, cancelled, or the season
   // you'd be watching is whole.
@@ -2672,8 +2689,11 @@
       coverMeta.innerHTML = ""; rowMeta.innerHTML = "";
       const meta = hasCover ? coverMeta : rowMeta;
       // How Long to Beat's times, or on a cover any length, stand in for the
-      // length in the meta line (0.282.0, 0.282.1). Without a cover the
+      // length in the meta line (0.282.0, 0.282.1). On a cover the scores,
+      // the status and Bought are shown there too, so the line under it
+      // keeps only the release and the price (0.282.2). Without a cover the
       // review scores go under the meta line, above the summary.
+      const live = { airing: $("#bAiring").value, episodesOut: $("#bEpisodesOut").value, episodesTotal: $("#bEpisodesTotal").value, airingSeason: $("#bAiringSeason").value, mediaSource };
       const reviews = document.createElement("div");
       const timesShown = paintGameInfo("b", "backlog", hasCover, reviews, mediaSource, mediaId, (fresh) => {
         if (fresh.hltb && fresh.hltb.story && !isPinned("length")) $("#bLength").value = window.LifeLogMedia.gameHours(fresh.hltb.story);
@@ -2681,9 +2701,9 @@
         const stored = id && state.data.backlog.find((x) => x.id === id);
         if (stored && stored.mediaSource === "steam" && stored.mediaId === mediaId && window.LifeLogSync.applyGameTimes(stored, fresh)) { render(); persist(); }
         setBacklogCover();
-      }, $("#bLength").value);
+      }, { length: $("#bLength").value, status: airingCells(live), rating: $("#bExternalRating").value });
       const hasSteamPrice = appendBacklogMeta(meta, {
-        externalRating: $("#bExternalRating").value,
+        externalRating: hasCover ? "" : $("#bExternalRating").value,
         releaseYear: $("#bReleaseYear").value,
         // The release trio comes along so the modal reads its date the same
         // way a list row does — the year off a bare releaseDate, and TBA for
@@ -2694,10 +2714,7 @@
         releasePrecision: $("#bReleasePrecision").value,
         releaseStatus: $("#bReleaseStatus").value,
         earlyAccess: !!$("#bEarlyAccess").value,
-        airing: $("#bAiring").value,
-        episodesOut: $("#bEpisodesOut").value,
-        episodesTotal: $("#bEpisodesTotal").value,
-        airingSeason: $("#bAiringSeason").value,
+        ...(hasCover ? {} : live),
         length: timesShown ? "" : $("#bLength").value,
         mediaSource, mediaId,
         summary: $("#bSummary").value,
@@ -2705,7 +2722,7 @@
         // "Bought" in the cover meta straight away rather than only after a
         // save-and-reopen.
         bought: $("#bBought").checked,
-      });
+      }, { quietBought: hasCover });
       if (hasSteamPrice) {
         // Same lookup the backlog list uses — reuses its cache (instant if
         // this item's price was already fetched there) and patches the

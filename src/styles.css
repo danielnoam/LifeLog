@@ -1921,7 +1921,7 @@ body.modal-open { overflow: hidden; }
 .modal-cover-links { position: absolute; right: 8px; top: 8px; display: flex; gap: 6px; }
 .modal-cover-links:empty { display: none; }
 /* Review scores (0.282.1), the links' twins in the opposite corner. */
-.modal-cover-scores { position: absolute; left: 8px; top: 8px; display: flex; gap: 6px; }
+.modal-cover-scores { position: absolute; left: 8px; top: 8px; display: flex; flex-wrap: wrap; gap: 6px; max-width: 62%; }
 .modal-cover-scores:empty { display: none; }
 .cover-score { font-variant-numeric: tabular-nums; min-width: 2.6em; text-align: center; }
 .cover-link-btn {

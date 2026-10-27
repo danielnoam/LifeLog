@@ -49,6 +49,11 @@ event or anything else, by category.
 - `overrides`: values the user set by hand over a lookup's (`cover`,
   `length`, `author`). An author typed by hand has `author: true` here, and
   a lookup then neither replaces it nor ignores it: it searches with it.
+- `externalRating`: optional, the lookup source's own score with the
+  source named after it ("84 Metacritic", "7.8 TMDB", "85% AniList",
+  "4.2 OL" for Open Library, "8.1 Jikan" for MyAnimeList). Carried over
+  from the backlog item it was finished from, or set by the entry sheet's
+  sync. Shown as a pill on the sheet's cover.
 - `hltb`: optional, a Steam game's How Long to Beat times in minutes:
   `story` (main story), `extras` (main + extras), `complete`
   (completionist), `url` (the game's HLTB page) and `at` (`YYYY-MM-DD`,

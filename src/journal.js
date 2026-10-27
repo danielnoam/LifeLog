@@ -833,7 +833,7 @@
     $("#fOvrCover").checked = false;
     $("#fOvrLength").checked = false;
     seedGameInfo("f", editing ? entry : fromBacklog);
-    setEntryCover(coverSrc, mediaId, mediaSrc, lengthSrc, genresSrc);
+    setEntryCover(coverSrc, mediaId, mediaSrc, lengthSrc, genresSrc, (editing ? entry : fromBacklog || {}).externalRating || "");
     setAuthorField("f", editing ? entry : fromBacklog);
     initOverrideFields(OVERRIDE_FIELDS, editing ? entry : null);
     // Open when something is pinned, so it isn't invisible — see the same
@@ -1284,7 +1284,9 @@
     return !!(box && box.checked);
   }
 
-  function setEntryCover(coverUrl, mediaId, mediaSource, length, genres) {
+  // `rating`, the source's own score (0.282.2), is left as it is when it's
+  // not passed, so a repaint keeps it.
+  function setEntryCover(coverUrl, mediaId, mediaSource, length, genres, rating) {
     // A pinned field ignores whatever is being set here — this is the one
     // place every sync path in this module funnels its results through.
     if (!isPinned("cover")) $("#fCoverUrl").value = coverUrl || "";
@@ -1292,6 +1294,7 @@
     $("#fMediaSource").value = mediaSource || "";
     if (!isPinned("length")) $("#fLength").value = length || "";
     $("#fGenres").value = (genres || []).join("|");
+    if (rating !== undefined) $("#fExternalRating").value = rating || "";
     const coverDiv = $("#entryCover");
     const coverImg = $("#entryCoverImg");
     const shownCover = $("#fCoverUrl").value;
@@ -1313,7 +1316,7 @@
         const stored = $("#entryId").value && state.data.entries.find((e) => e.id === $("#entryId").value);
         if (stored && stored.mediaSource === "steam" && stored.mediaId === mediaId && window.LifeLogSync.applyGameTimes(stored, fresh)) { render(); persist(); }
         setEntryCover($("#fCoverUrl").value, mediaId, mediaSource, $("#fLength").value, ($("#fGenres").value || "").split("|").filter(Boolean));
-      }, shownLength);
+      }, { length: shownLength, rating: $("#fExternalRating").value });
       if (shownLength && !timesShown) meta.prepend(el("span", "bl-meta", shownLength));
       renderMediaLinks($("#entryCoverLinks"), $("#entryLinks"), hasCover, mediaSource, mediaId);
     };
@@ -1334,7 +1337,7 @@
     // renaming an already-synced entry shouldn't silently drop its media link —
     // that takes an explicit "✕ Unsync" now, whether adding or editing.
     if (isAdding && !entrySyncLocked && query !== lastSyncedEntryTitle && $("#fCoverUrl").value && $("#fMediaSource").value !== "steam") {
-      setEntryCover("", "", "", "", []);
+      setEntryCover("", "", "", "", [], "");
       clearSyncedAuthor("f");
     }
 
@@ -1350,7 +1353,7 @@
           entrySyncLocked = true;
           $("#fTitle").value = m.title;
           if (state.data.categories.some((c) => c.name === m.category)) $("#fCategory").value = m.category;
-          setEntryCover(m.coverUrl, m.mediaId, m.mediaSource, m.length || "", m.genres || []);
+          setEntryCover(m.coverUrl, m.mediaId, m.mediaSource, m.length || "", m.genres || [], m.externalRating || "");
           fillAuthor("f", m.author);
           updateSyncBtnVisibility("f", $("#fCategory").value);
           list.hidden = true;
@@ -1374,7 +1377,7 @@
           entrySyncLocked = true;
           $("#fTitle").value = b.title;
           if (state.data.categories.some((c) => c.name === b.category)) $("#fCategory").value = b.category;
-          setEntryCover(b.coverUrl || "", b.mediaId || "", b.mediaSource || "", b.length || "", b.genres || []);
+          setEntryCover(b.coverUrl || "", b.mediaId || "", b.mediaSource || "", b.length || "", b.genres || [], b.externalRating || "");
           fillAuthor("f", b.author);
           updateSyncBtnVisibility("f", $("#fCategory").value);
           $("#entryFromBacklog").value = b.id;
@@ -1430,13 +1433,13 @@
       const extras = await window.LifeLogMedia.fetchEntryExtras(r.id, r.source, keys, r.title);
       const { mediaId, mediaSource } = await resolveMediaIdentity(r, keys);
       setEntryCover(r.coverUrl, mediaId, mediaSource, extras.length || r.length || "",
-        extras.genres.length ? extras.genres : (r.genres || []));
+        extras.genres.length ? extras.genres : (r.genres || []), r.externalRating || "");
       list.hidden = true;
     }, $("#fSyncBtn"), pinnedAuthor("f"));
   }
 
   function unsyncEntry() {
-    setEntryCover("", "", "", "", []);
+    setEntryCover("", "", "", "", [], "");
     clearSyncedAuthor("f");
     $("#fSteamAppId").value = "";
     entrySyncLocked = false;
@@ -1486,6 +1489,7 @@
       if (mediaId) e.mediaId = mediaId; else delete e.mediaId;
       if (mediaSource) e.mediaSource = mediaSource; else delete e.mediaSource;
       if (length) e.length = length; else delete e.length;
+      if ($("#fExternalRating").value) e.externalRating = $("#fExternalRating").value; else delete e.externalRating;
       saveGameInfo("f", e);
       if (genres.length) e.genres = genres; else delete e.genres;
       overrides = saveAuthor("f", e, overrides);
@@ -1505,6 +1509,7 @@
       if (mediaId) newEntry.mediaId = mediaId;
       if (mediaSource) newEntry.mediaSource = mediaSource;
       if (length) newEntry.length = length;
+      if ($("#fExternalRating").value) newEntry.externalRating = $("#fExternalRating").value;
       saveGameInfo("f", newEntry);
       if (genres.length) newEntry.genres = genres;
       overrides = saveAuthor("f", newEntry, overrides);
@@ -1557,6 +1562,7 @@
     if (entry.mediaSource) item.mediaSource = entry.mediaSource;
     if (entry.length) item.length = entry.length;
     if (entry.hltb) item.hltb = { ...entry.hltb };
+    if (entry.externalRating) item.externalRating = entry.externalRating;
     if (entry.reviews) item.reviews = JSON.parse(JSON.stringify(entry.reviews));
     if (entry.genres && entry.genres.length) item.genres = entry.genres.slice();
     if (entry.author) item.author = entry.author;
@@ -1815,7 +1821,7 @@
   const KNOWN_ENTRY_KEYS = new Set([
     "id", "title", "category", "year", "month", "date", "createdAt", "updatedAt",
     "rating", "notes", "coverUrl", "mediaId", "mediaSource", "length", "genres",
-    "backlogAddedAt", "overrides", "startMonth", "startYear", "startedAt", "author", "day", "hltb", "reviews",
+    "backlogAddedAt", "overrides", "startMonth", "startYear", "startedAt", "author", "day", "hltb", "reviews", "externalRating",
   ]);
   function sanitizeEntry(e) {
     const out = {
@@ -1834,6 +1840,7 @@
     if (e.mediaId) out.mediaId = e.mediaId;
     if (e.mediaSource) out.mediaSource = e.mediaSource;
     if (e.length) out.length = e.length;
+    if (e.externalRating) out.externalRating = String(e.externalRating);
     if (Array.isArray(e.genres) && e.genres.length) out.genres = e.genres.map((g) => String(g)).slice(0, 4);
     if (e.author) out.author = String(e.author);
     if (e.backlogAddedAt) out.backlogAddedAt = e.backlogAddedAt;

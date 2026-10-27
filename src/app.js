@@ -2424,8 +2424,9 @@
   // isn't. A tap opens the game's page on How Long to Beat.
   // Anything else with a length (a film's runtime, a show's seasons and
   // episodes, a book's pages, RAWG's playtime) shows it in the same strip on
-  // the cover (0.282.1). True when the strip went up with the length in it.
-  function renderGameTimes(onCover, inRow, hasCover, hltb, length) {
+  // the cover (0.282.1), with a show's status cells on its right (0.282.2).
+  // True when the strip went up with the length in it.
+  function renderGameTimes(onCover, inRow, hasCover, hltb, length, statusCells) {
     for (const box of [onCover, inRow]) { if (box) { box.innerHTML = ""; box.hidden = true; } }
     const box = hasCover ? onCover : inRow;
     if (!box) return false;
@@ -2434,7 +2435,7 @@
       box.hidden = false;
       return false;
     }
-    const cells = hasCover ? lengthCells(length) : [];
+    const cells = hasCover ? [...lengthCells(length), ...(statusCells || [])] : [];
     if (!cells.length) return false;
     const strip = el("div", "game-times");
     for (const [label, value] of cells) {
@@ -2462,18 +2463,33 @@
       return [/^\d+h( \d+m)?$|^\d+m$/.test(part.trim()) ? "Runtime" : "Length", part.trim()];
     });
   }
-  // On a cover the review scores are pills in the top-left corner, opposite
-  // the store links (0.282.1): just the number, the site in its label.
-  function renderCoverScores(box, reviews) {
+  // On a cover the scores are pills in the top-left corner, opposite the
+  // store links (0.282.1), each "Site score" (0.282.2): the source's own
+  // rating ("84 Metacritic", "7.8 TMDB", "85% AniList", as media.js keeps
+  // it) first, then OpenCritic's and Metacritic's users' for a Steam game.
+  const RATING_SITES = { OL: "Open Library", Jikan: "MyAnimeList" };
+  function ratingPill(externalRating) {
+    const m = /^([\d.]+%?)\s+(.+)$/.exec(String(externalRating || "").trim());
+    if (!m) return externalRating ? { site: "", score: String(externalRating).trim() } : null;
+    return { site: RATING_SITES[m[2]] || m[2], score: m[1] };
+  }
+  function renderCoverScores(box, reviews, externalRating) {
     if (!box) return;
     box.innerHTML = "";
+    const own = ratingPill(externalRating);
+    if (own) {
+      const text = own.site ? own.site + " " + own.score : "★ " + own.score;
+      const pill = el("span", "cover-link-btn cover-score", text);
+      pill.title = text;
+      box.appendChild(pill);
+    }
     if (!reviews) return;
     for (const site of Object.keys(REVIEW_LABELS)) {
       const r = reviews[site];
       if (!r) continue;
       const pill = document.createElement(r.url ? "a" : "span");
       pill.className = "cover-link-btn cover-score";
-      pill.textContent = String(r.score);
+      pill.textContent = REVIEW_LABELS[site] + " " + r.score;
       const name = REVIEW_LABELS[site] + " " + r.score + (r.verdict ? ", " + r.verdict : "");
       pill.title = name;
       pill.setAttribute("aria-label", name);
@@ -2522,10 +2538,12 @@
   // the sheet still shows that game, after it has been stored in the sheet.
   // True when the times are on show, so the sheet can leave out the plain
   // length line that would only repeat Main Story.
-  function paintGameInfo(prefix, sheet, hasCover, metaEl, mediaSource, mediaId, onFresh, length) {
+  // `facts` is what else the cover shows: { length, status (cells), rating }.
+  function paintGameInfo(prefix, sheet, hasCover, metaEl, mediaSource, mediaId, onFresh, facts) {
     const info = readGameInfo(prefix, mediaSource, mediaId);
-    const lengthShown = renderGameTimes($("#" + sheet + "GameTimes"), $("#" + sheet + "GameTimesRow"), hasCover, info && info.hltb, length);
-    renderCoverScores($("#" + sheet + "CoverScores"), hasCover && info && info.reviews);
+    const f = facts || {};
+    const lengthShown = renderGameTimes($("#" + sheet + "GameTimes"), $("#" + sheet + "GameTimesRow"), hasCover, info && info.hltb, f.length, f.status);
+    renderCoverScores($("#" + sheet + "CoverScores"), hasCover && info && info.reviews, hasCover && f.rating);
     if (!hasCover) appendReviewScores(metaEl, info && info.reviews);
     const shown = hasGameTimes(info && info.hltb) || lengthShown;
     if (mediaSource !== "steam" || !mediaId || !Sync.gameTimesDue({ mediaSource, mediaId, hltb: info && info.hltb })) return shown;

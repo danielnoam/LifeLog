@@ -117,8 +117,8 @@ const seed = (gameTimes) => ({
     check("the sheet shows the three times by name over the cover's foot" + at,
       sheet.shown && sheet.onCoverFoot && JSON.stringify(sheet.cells) === JSON.stringify(["Main Story=32 h", "Main + Extras=43 h", "Completionist=66½ h"]), sheet);
     check("the strip links to How Long to Beat and is a full tap target" + at, sheet.link === "https://howlongtobeat.com/game/139385" && sheet.tall, sheet);
-    check("the scores are number pills in the cover's top left, named in their labels" + at,
-      JSON.stringify(sheet.scores) === JSON.stringify(["94|OpenCritic 94, Mighty|true", "85|Metacritic users 85|true"]) && sheet.scoresTopLeft && sheet.noTextLine, sheet);
+    check("the scores are pills in the cover's top left, each with its site's name" + at,
+      JSON.stringify(sheet.scores) === JSON.stringify(["OpenCritic 94|OpenCritic 94, Mighty|true", "Metacritic users 85|Metacritic users 85|true"]) && sheet.scoresTopLeft && sheet.noTextLine, sheet);
     check("the store links sit in the top right" + at, sheet.linksTopRight, sheet);
     check("the meta line leaves out the length the times already show" + at, !/32 hrs/.test(sheet.meta) && sheet.row, sheet);
     await page.screenshot({ path: require("path").join(require("os").tmpdir(), "gametimes-" + width + ".png") });
