@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.284.1] - 2026-10-28
+
+### Changed
+- **Folds open smoothly.** Advanced in the add and edit sheets, Sync's
+  advanced settings and error log, a habit's Insights and a place's hours
+  now grow open and shut instead of snapping. On iPhone they still open
+  at once.
+- **Menus and notices settle in.** The + menu, the sheets' ⋯ menus and the
+  tab menus on a computer open a touch slower and softer, and menus and
+  notices now go away faster than they arrive.
+
 ## [0.284.0] - 2026-10-27
 
 ### Added

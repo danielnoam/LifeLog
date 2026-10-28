@@ -449,7 +449,8 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
   background: var(--bg-elev-2); border: 1px solid var(--border);
   box-shadow: var(--shadow);
   opacity: 0; transform: translateY(-4px);
-  transition: opacity .12s ease, transform .12s var(--ease);
+  /* Opening only: a closing menu is removed, not faded (closeTabMenu). */
+  transition: opacity .2s var(--ll-move-ease), transform .2s var(--ll-move-ease);
 }
 .tab-menu.is-open { opacity: 1; transform: none; }
 .tab-menu-item {
@@ -634,9 +635,12 @@ body.modal-open .activity-pill { visibility: hidden; }
 }
 .menu-pop[hidden] { display: none; }
 /* Both menus open upward, so they rise into place — see .modal-overlay for
-   how a `hidden` toggle gets to animate. */
-.menu-pop { transition: opacity .12s var(--ease), translate .12s var(--ease), display .12s allow-discrete; }
-.menu-pop[hidden] { opacity: 0; translate: 0 4px; pointer-events: none; }
+   how a `hidden` toggle gets to animate. Arrive with settle, leave faster. */
+.menu-pop { transition: opacity .2s var(--ll-move-ease), translate .2s var(--ll-move-ease), display .2s allow-discrete; }
+.menu-pop[hidden] {
+  opacity: 0; translate: 0 4px; pointer-events: none;
+  transition-duration: .12s; transition-timing-function: var(--ease);
+}
 @starting-style { .menu-pop { opacity: 0; translate: 0 6px; } }
 @media (prefers-reduced-motion: reduce) { .menu-pop { transition: none; } }
 .menu-pop button {
@@ -2431,6 +2435,25 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 .version-skew h3 { margin: 0 0 6px; font-size: var(--fs-md); color: var(--danger-text); }
 .version-skew .hint { margin-top: 6px; }
 .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+/* Every fold (the sheets' Advanced, Sync's advanced and error log, habit
+   Insights, a place's hours) grows open and shuts instead of snapping.
+   ::details-content and interpolate-size are Chromium-only for now: Android
+   and desktop animate, iOS Safari opens at once as before. Built open
+   (habit Insights after a re-render) doesn't animate: no @starting-style. */
+details { interpolate-size: allow-keywords; }
+details::details-content {
+  block-size: 0; opacity: 0;
+  /* Clipped while it grows; the margin keeps focus rings inside whole. */
+  overflow: clip; overflow-clip-margin: 6px;
+  transition: block-size .14s var(--ease), opacity .14s var(--ease), content-visibility .14s allow-discrete;
+}
+details[open]::details-content {
+  block-size: auto; opacity: 1;
+  transition-duration: .24s; transition-timing-function: var(--ll-move-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  details::details-content { transition: none; }
+}
 /* Per-item "keep my own value" foldout at the bottom of the entry/backlog
    modals — collapsed by default, since pinning a field against sync is a
    rare, deliberate thing to reach for. */
@@ -2574,7 +2597,10 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 /* `translate`, not `transform`: transform is already centring it. */
 .toast { transition: opacity .2s var(--ll-move-ease), translate .2s var(--ll-move-ease), display .2s allow-discrete; }
-.toast[hidden] { opacity: 0; translate: 0 8px; pointer-events: none; }
+.toast[hidden] {
+  opacity: 0; translate: 0 8px; pointer-events: none;
+  transition-duration: .14s; transition-timing-function: var(--ease);
+}
 @starting-style { .toast { opacity: 0; translate: 0 10px; } }
 @media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
 

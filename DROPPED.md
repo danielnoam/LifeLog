@@ -13,6 +13,17 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## Digit pop-in for changing totals
+
+From the transitions.dev review on 2026-10-28: only the digits of a total
+that changed rise into place, instead of the number counting up. Daniel
+kept the count-up (`animatedNumberText()`), which already shows that a
+total moved; the pop-in would only be a different style for the same job.
+The rest of that review's skips: blur in transitions (costly in the
+Android WebView, and decoration), scaling sheets and menus (sheets
+translate, see DESIGN.md §5), looping loaders and shimmer, and hover
+tilts, likes and confetti.
+
 ## Upcoming charges on the Ledger
 
 Suggested on 2026-10-21: a card above Recurring with what's charging in

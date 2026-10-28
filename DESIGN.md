@@ -230,6 +230,8 @@ lists. It's expensive in the Android WebView.
   new pressable joins `PRESSABLE`; don't write a second mechanism.
 - Lists move with `reconcile.js` and its `.ll-enter`, which owns `opacity` on
   rows. Don't animate a row's opacity anywhere else.
+- Folds (`<details>`) grow open with settle and shut with ease, through
+  `::details-content` (0.284.1). Chromium only; elsewhere they snap.
 - **Every** transition and animation has a `prefers-reduced-motion: reduce`
   answer next to it. Reduced motion means no movement; a plain fade is fine.
 - Nothing animates on load, on a timer, or in a loop. The one exception is

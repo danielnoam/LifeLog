@@ -16,6 +16,23 @@ what was decided against and why.
 
 ---
 
+- **Folds and menu timing, from transitions.dev (0.284.1).** Daniel asked
+  what LifeLog could learn from github.com/jakubantalik/transitions.dev.
+  Its tuning rules (the same settle curve we use, open slower than close)
+  showed our own drift: `.menu-pop` and `.tab-menu` opened in .12s with
+  the leaving ease, and the toast closed at its .2s opening settle. Now
+  they open at .2s settle and close at .12s/.14s `--ease` (the tab menu
+  is removed on close, so it only has an opening). Every `<details>`
+  animates through `::details-content` with `interpolate-size:
+  allow-keywords`, pure CSS: Chromium (Android, desktop) animates, and
+  Safari, which lacks interpolate-size, opens at once as it did. The
+  content is clipped while it grows, with `overflow-clip-margin: 6px` so
+  a focus ring (2px + 3px offset) inside a fold isn't cut. A fold built
+  already open (habit Insights after a tick re-renders the card) doesn't
+  animate, as there's no @starting-style. Nothing was copied from the
+  library; its license allows it, but the snippets add blur and scale we
+  don't use. The digit pop-in was declined (DROPPED.md).
+
 - **The bridge's saves in History, and its new tools (0.284.0).** Daniel
   asked to see AI changes in History and revert them easily. A bridge save
   goes straight to GitHub, so no device ever recorded it: History lists

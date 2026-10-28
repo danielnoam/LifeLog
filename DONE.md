@@ -23,6 +23,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Keyboard shortcuts: N to add, number keys for tabs, Shift+number for a second mode, / to search, ? for the list (0.86.0, 0.127.0, 0.188.0)
 - Lists update in place, move instead of jumping, and rows fade in and out (0.129.0 to 0.139.0)
 - Sheets fade and rise in, swipe down to close, and keep focus where it was (0.209.0, 0.222.0, 0.223.0)
+- Folds (Advanced, Insights, a place's hours) grow open and shut (0.284.1)
 - Notices stack as pills (0.267.2)
 - Lucide icons everywhere, no emoji in the UI, and the timeline-pin app icon (0.247.0)
 - "New version ready" with a Reload button (0.118.0)
