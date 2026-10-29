@@ -199,8 +199,10 @@
   // (0.218.0) is on the Timeline's In progress card instead — one place each.
   //
   // The Show chips (0.285.0) apply here only, since only the Backlog shows
-  // them. Bought lets through a category with Bought switched off: there's
-  // nothing to buy there, so hiding it would hide things you already have.
+  // them. Bought and Not bought both let through a category with Bought
+  // switched off (Daniel's call): there's nothing to buy there, so it isn't
+  // what either chip is asking about. Price alert is what alerts.js would
+  // ring for: a Steam game with a price set, not yet bought.
   function getFilteredBacklog() {
     const q = state.search.trim().toLowerCase();
     const cf = state.activeCats;
@@ -210,6 +212,8 @@
       if (cf.size && !cf.has(b.category)) return false;
       if (shows.has("starred") && !b.priority) return false;
       if (shows.has("bought") && !b.bought && categoryShows(b.category).bought) return false;
+      if (shows.has("unbought") && b.bought && categoryShows(b.category).bought) return false;
+      if (shows.has("alert") && !(b.priceAlert > 0 && b.mediaSource === "steam" && !b.bought)) return false;
       if (q && !b.title.toLowerCase().includes(q) && !(b.notes || "").toLowerCase().includes(q) && !(b.author || "").toLowerCase().includes(q)) return false;
       return true;
     });

@@ -163,7 +163,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.285.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.286.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -490,7 +490,8 @@
     // Notes mode is showing (none = all; "board" alone is the Boards page).
     noteActiveCats: new Set(),
     noteKinds: new Set(),
-    // The Backlog's Show chips (0.285.0): "starred", "bought". They stack.
+    // The Backlog's Show chips (0.285.0): "starred", "bought", "unbought",
+    // "alert". They stack.
     backlogShows: new Set(),
     statsYear: null,
     financeStatsYear: null,
@@ -3392,13 +3393,18 @@
   }
 
   // The Backlog's second row (0.285.0): narrow the list to what's starred,
-  // what's bought, or both. Not in Discover, which lists things you don't
-  // have. Built from the same chips as Types, but these stack (and), where
-  // Types adds (or): "starred and bought" is the question worth asking.
-  const BACKLOG_SHOW_CHIPS = [["starred", "Starred", "star"], ["bought", "Bought", "shopping-bag"]];
-  function toggleAllShows() {
-    const set = state.backlogShows;
-    if (BACKLOG_SHOW_CHIPS.every(([k]) => set.has(k))) set.clear(); else BACKLOG_SHOW_CHIPS.forEach(([k]) => set.add(k));
+  // bought, not bought or watched for a price. Not in Discover, which lists
+  // things you don't have. Built from the same chips as Types, but these
+  // stack (and), where Types adds (or): "starred and bought" is the question
+  // worth asking. Bought can't stack with the other two (a price alert stops
+  // once it's bought), so turning one on turns its opposite off, and the
+  // label only clears: "all of them" would be an empty list.
+  const BACKLOG_SHOW_CHIPS = [["starred", "Starred", "star"], ["bought", "Bought", "shopping-bag"],
+    ["unbought", "Not bought", "shopping-cart"], ["alert", "Price alert", "bell"]];
+  const SHOW_EXCLUDES = { bought: ["unbought", "alert"], unbought: ["bought"], alert: ["bought"] };
+  function clearShows() {
+    if (!state.backlogShows.size) return;
+    state.backlogShows.clear();
     buildCatFilter();
     render();
   }
@@ -3416,7 +3422,8 @@
         chip.dataset.show = item.key;
         activatable(chip, () => {
           const set = state.backlogShows;
-          if (set.has(item.key)) set.delete(item.key); else set.add(item.key);
+          if (set.has(item.key)) set.delete(item.key);
+          else { set.add(item.key); (SHOW_EXCLUDES[item.key] || []).forEach((k) => set.delete(k)); }
           buildCatFilter();
           render();
         });
@@ -4515,7 +4522,7 @@
     $("#yearFilterLabel").onclick = toggleAllYears;
     $("#catFilterLabel").onclick = toggleAllCats;
     $("#kindFilterLabel").onclick = toggleAllKinds;
-    $("#showFilterLabel").onclick = toggleAllShows;
+    $("#showFilterLabel").onclick = clearShows;
 
     const addMenu = $("#addMenu");
     const closeAddMenu = () => { addMenu.hidden = true; };

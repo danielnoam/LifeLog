@@ -13,6 +13,13 @@ Format: what it was, and the reason it isn't happening.
 
 ---
 
+## Out now in the Backlog's Show row
+
+Offered with Not bought and Price alert in 0.286.0. Daniel said no: what's
+out, unreleased and in Early Access already has its own bands on the list,
+each folding by its own setting, so a chip for it would be a second switch
+for the same thing.
+
 ## Digit pop-in for changing totals
 
 From the transitions.dev review on 2026-10-28: only the digits of a total

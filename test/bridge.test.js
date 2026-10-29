@@ -820,7 +820,7 @@ test("the command line runs the same tools", async () => {
   console.log(`\n${passed} test(s) passed.`);
 })();
 
-test("lifelog_backlog's starred and bought stack like the Backlog's Show chips, and a category without Bought counts as bought", async () => {
+test("lifelog_backlog's starred, bought and price_alert stack like the Backlog's Show chips, and a category without Bought passes bought either way", async () => {
   reset();
   await ok("lifelog_add_backlog_item", { title: "Hades", category: "Games", starred: true });
   await ok("lifelog_add_backlog_item", { title: "Tunic", category: "Games", starred: true });
@@ -835,4 +835,15 @@ test("lifelog_backlog's starred and bought stack like the Backlog's Show chips, 
   assert.match(both, /Dune/);
   assert.doesNotMatch(both, /Tunic|Celeste/);
   assert.doesNotMatch(await ok("lifelog_backlog", { starred: true }), /Celeste/);
+  const unbought = await ok("lifelog_backlog", { bought: false });
+  assert.match(unbought, /Tunic/);
+  assert.match(unbought, /Dune/);
+  assert.doesNotMatch(unbought, /Hades|Celeste/);
+  const d1 = data();
+  Object.assign(d1.backlog.find((b) => b.title === "Tunic"), { mediaSource: "steam", mediaId: "553420", priceAlert: 15 });
+  Object.assign(d1.backlog.find((b) => b.title === "Hades"), { mediaSource: "steam", mediaId: "1145360", priceAlert: 15 });
+  fs.writeFileSync(FILE, JSON.stringify(d1, null, 2));
+  const alerts = await ok("lifelog_backlog", { price_alert: true });
+  assert.match(alerts, /Tunic/);
+  assert.doesNotMatch(alerts, /Hades|Dune|Celeste/);
 });

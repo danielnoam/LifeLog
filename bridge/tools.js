@@ -575,7 +575,8 @@ const TOOLS = [
       query: S.str("Text in the title, author or notes"), category: S.str("A backlog category"),
       status: S.str("Which ones", { enum: ["open", "starred", "started", "bought", "dropped", "airing", "all"] }),
       starred: S.bool("Only starred ones, on top of status (the Backlog's Show → Starred)"),
-      bought: S.bool("Only bought ones, on top of status (the Backlog's Show → Bought: a category with Bought switched off counts as bought)"),
+      bought: S.bool("true: only bought ones; false: only not bought (the Backlog's Show → Bought / Not bought). On top of status; a category with Bought switched off passes either way"),
+      price_alert: S.bool("Only Steam games with a price alert set and not bought yet (the Backlog's Show → Price alert)"),
       limit: S.limit,
     },
     async run(a) {
@@ -586,7 +587,8 @@ const TOOLS = [
       const rows = (d.backlog || []).filter((b) => (!q || lower(b.title + " " + (b.author || "") + " " + (b.notes || "")).includes(q))
         && (!a.category || lower(b.category) === lower(a.category))
         && (!a.starred || b.priority)
-        && (!a.bought || b.bought || boughtOff(b.category))
+        && (a.bought == null || !!b.bought === a.bought || boughtOff(b.category))
+        && (!a.price_alert || (b.priceAlert > 0 && b.mediaSource === "steam" && !b.bought))
         && (status === "all" || (status === "open" ? !b.dropped : status === "starred" ? b.priority && !b.dropped
           : status === "started" ? b.startedAt : status === "bought" ? b.bought
           : status === "airing" ? (b.airing === "airing" || b.airing === "hiatus") && !b.dropped : b.dropped)))

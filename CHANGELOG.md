@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.286.0] - 2026-10-29
+
+### Added
+- **Not bought and Price alert in Show.** Not bought lists what you still
+  have to buy (categories with Bought switched off stay in). Price alert
+  lists the Steam games you've set a price on and haven't bought yet.
+  Bought and Not bought turn each other off, and so do Bought and Price
+  alert. Tap Show to clear the row.
+
 ## [0.285.0] - 2026-10-29
 
 ### Added

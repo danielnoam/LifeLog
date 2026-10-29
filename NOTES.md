@@ -16,6 +16,16 @@ what was decided against and why.
 
 ---
 
+- **Show: Not bought and Price alert (0.286.0).** Daniel picked these two
+  of three offered; Out now was declined (DROPPED.md). Not bought keeps
+  categories with Bought off, the same rule as Bought. Price alert is the
+  test alerts.js rings on (Steam, `priceAlert` > 0, not bought), so the
+  list is what could notify you. Bought excludes the other two (turning
+  one on turns its opposite off, `SHOW_EXCLUDES`), which is also why the
+  Show label now only clears: "all on" would always be empty. The bridge's
+  `bought` argument reads false as Not bought, and `price_alert` was added.
+  The cart icon (`shopping-cart`) was added to icons.js from Lucide.
+
 - **Backlog Show filter (0.285.0).** Daniel asked for favorited and bought
   filters. Both are existing fields (`priority`, `bought`), so no data
   change. It's its own row (`#showFilterGroup`, `state.backlogShows`) built
