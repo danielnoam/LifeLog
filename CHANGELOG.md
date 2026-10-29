@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.287.0] - 2026-10-29
+
+### Added
+- **Sort the Backlog by length.** "Length, shortest" in the sort menu puts
+  the quickest things first inside each band: hours for games and films
+  (a Steam game's How Long to Beat main story when it has one), pages for
+  books, episodes for shows, chapters for manga. Anything with no length
+  goes last.
+
 ## [0.286.0] - 2026-10-29
 
 ### Added

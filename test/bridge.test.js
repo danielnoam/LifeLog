@@ -843,6 +843,12 @@ test("lifelog_backlog's starred, bought and price_alert stack like the Backlog's
   Object.assign(d1.backlog.find((b) => b.title === "Tunic"), { mediaSource: "steam", mediaId: "553420", priceAlert: 15 });
   Object.assign(d1.backlog.find((b) => b.title === "Hades"), { mediaSource: "steam", mediaId: "1145360", priceAlert: 15 });
   fs.writeFileSync(FILE, JSON.stringify(d1, null, 2));
+  const d2 = data();
+  d2.backlog.find((b) => b.title === "Hades").length = "20 hrs";
+  d2.backlog.find((b) => b.title === "Celeste").length = "8 hrs";
+  fs.writeFileSync(FILE, JSON.stringify(d2, null, 2));
+  const byLength = await ok("lifelog_backlog", { category: "Games", sort: "length" });
+  assert.ok(byLength.indexOf("Celeste") < byLength.indexOf("Hades") && byLength.indexOf("Hades") < byLength.indexOf("Tunic"), byLength);
   const alerts = await ok("lifelog_backlog", { price_alert: true });
   assert.match(alerts, /Tunic/);
   assert.doesNotMatch(alerts, /Hades|Dune|Celeste/);

@@ -71,7 +71,7 @@ Every release that adds a feature adds its line here in the same commit.
 - How far a show has run, and a Still airing band (0.265.0)
 - Authors on books (0.267.0)
 - Choose what a category's items offer: In progress, Bought, Author (0.267.0)
-- Sort control inside each band: name, release date, price (0.157.0)
+- Sort control inside each band: name, release date, price, length (0.157.0, 0.287.0)
 - Show filter: Starred, Bought, Not bought, Price alert, stacking (0.285.0, 0.286.0)
 - Pick random and Spin, scoped to the filters, with Bought only (0.82.0, 0.105.0, 0.110.0)
 - How long an item has sat there (0.82.0)

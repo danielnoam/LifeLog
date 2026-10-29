@@ -16,6 +16,17 @@ what was decided against and why.
 
 ---
 
+- **Length sort (0.287.0).** Daniel asked for a sort "by how long it is".
+  DROPPED.md's "What fits in an evening" turned down a time budget because
+  `length` is free text in eight vocabularies. A sort is the easy half of
+  that: it runs inside a band inside one category, whose items mostly share
+  a source, so `lengthKey` reads each vocabulary's own number (minutes from
+  hours/h m, pages, episodes, chapters, volumes, seasons) and never
+  converts between them. A mixed category groups by unit, time first, then
+  pages, episodes, chapters. HLTB's Main Story beats the text, since the
+  text can be a RAWG average. Unparseable or empty goes last, like an
+  unknown price. The bridge's `lifelog_backlog` takes `sort: "length"`.
+
 - **Show: Not bought and Price alert (0.286.0).** Daniel picked these two
   of three offered; Out now was declined (DROPPED.md). Not bought keeps
   categories with Bought off, the same rule as Bought. Price alert is the

@@ -449,7 +449,7 @@ const band1 = (extra) => ({ title: "x", category: "c", ...extra });
 test("every sort still leaves the bands untouched", () => {
   const starred = band1({ title: "Zed", priority: 1, createdAt: "2020-01-01" });
   const plain = band1({ title: "Abel", createdAt: "2026-01-01" });
-  for (const v of ["title", "added-new", "added-old", "release", "price"]) {
+  for (const v of ["title", "added-new", "added-old", "release", "price", "length"]) {
     setSort(v);
     assert.ok(compareBacklog(starred, plain) < 0, v + " moved a starred item out of its band");
   }
@@ -494,9 +494,39 @@ test("Price puts the cheapest first, and no price known is not a price of zero",
   setSort("title");
 });
 
+test("Length reads each source's own words, and HLTB's Main Story wins", () => {
+  const { lengthKey } = window.LifeLogBacklog;
+  assert.deepStrictEqual(lengthKey({ length: "32 hrs" }), { unit: 0, n: 1920 });
+  assert.deepStrictEqual(lengthKey({ length: "53½ hrs" }), { unit: 0, n: 3210 });
+  assert.deepStrictEqual(lengthKey({ length: "½ hrs" }), { unit: 0, n: 30 });
+  assert.deepStrictEqual(lengthKey({ length: "1h 52m" }), { unit: 0, n: 112 });
+  assert.deepStrictEqual(lengthKey({ length: "45m" }), { unit: 0, n: 45 });
+  assert.deepStrictEqual(lengthKey({ length: "320 pages" }), { unit: 1, n: 320 });
+  assert.deepStrictEqual(lengthKey({ length: "2 seasons · 16 episodes" }), { unit: 2, n: 16 });
+  assert.deepStrictEqual(lengthKey({ length: "12 volumes · 110 chapters" }), { unit: 3, n: 110 });
+  assert.deepStrictEqual(lengthKey({ length: "5 seasons" }), { unit: 5, n: 5 });
+  assert.deepStrictEqual(lengthKey({ length: "32 hrs", hltb: { story: 600 } }), { unit: 0, n: 600 });
+  assert.strictEqual(lengthKey({ length: "" }), null);
+  assert.strictEqual(lengthKey({ length: "long" }), null);
+});
+
+test("Length puts the shortest first, unknown last, and units don't interleave", () => {
+  setSort("length");
+  const short = band1({ title: "Short", length: "8 hrs" });
+  const long = band1({ title: "Long", length: "60 hrs" });
+  const film = band1({ title: "Film", length: "1h 30m" });
+  const book = band1({ title: "Aaa Book", length: "200 pages" });
+  const unknown = band1({ title: "Aaa Unknown" });
+  assert.ok(compareBacklog(film, short) < 0);
+  assert.ok(compareBacklog(short, long) < 0);
+  assert.ok(compareBacklog(long, book) < 0, "pages interleaved with hours");
+  assert.ok(compareBacklog(unknown, book) > 0, "no length led the list as if it were zero");
+  setSort("title");
+});
+
 test("title breaks every tie, so equal items don't swap places between renders", () => {
   for (const [v, extra] of [["added-new", { createdAt: "2026-01-01" }], ["added-old", { createdAt: "2026-01-01" }],
-                            ["release", { releaseDate: "2027-01-01" }], ["price", { __price: 10 }]]) {
+                            ["release", { releaseDate: "2027-01-01" }], ["price", { __price: 10 }], ["length", { length: "10 hrs" }]]) {
     setSort(v);
     const a = band1({ title: "Aaa", ...extra });
     const b = band1({ title: "Bbb", ...extra });

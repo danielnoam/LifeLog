@@ -761,8 +761,48 @@
         if (pa == null) return byTitle();
         return pa - pb || byTitle();
       }
+      case "length": {
+        // Same rule again: no length known goes last. Different units
+        // (hours, pages, episodes) don't interleave; see lengthKey.
+        const la = lengthKey(a), lb = lengthKey(b);
+        if (!la !== !lb) return la ? -1 : 1;
+        if (!la) return byTitle();
+        return la.unit - lb.unit || la.n - lb.n || byTitle();
+      }
       default: return byTitle();
     }
+  }
+
+  // An item's length as one comparable number (0.287.0). `length` is free
+  // text off whichever source filled it ("32 hrs", "1h 52m", "320 pages",
+  // "2 seasons · 16 episodes", "12 volumes · 110 chapters"), which is why a
+  // time budget was dropped (DROPPED.md, "What fits in an evening"). A sort
+  // inside one category is the easy half: its items mostly share a source,
+  // so this only reads each vocabulary's own number and never converts
+  // between them. A category that mixes them groups by unit, time first.
+  // A Steam game's How Long to Beat Main Story wins over the text.
+  const LENGTH_UNITS = [
+    [/(\d+(?:\.\d+)?)\s*(?:episodes?|eps?)\b/i, 2],
+    [/(\d+(?:\.\d+)?)\s*chapters?\b/i, 3],
+    [/(\d+(?:\.\d+)?)\s*pages?\b/i, 1],
+    [/(\d+(?:\.\d+)?)\s*volumes?\b/i, 4],
+    [/(\d+(?:\.\d+)?)\s*seasons?\b/i, 5],
+  ];
+  function lengthKey(b) {
+    if (b.hltb && +b.hltb.story > 0) return { unit: 0, n: +b.hltb.story };
+    const s = String(b.length || "");
+    if (!s) return null;
+    const hrs = /(\d+(?:\.\d+)?)?(½)?\s*(?:h|hrs?|hours?)\b/i.exec(s);
+    const mins = /(\d+)\s*(?:m|mins?|minutes?)\b/i.exec(s);
+    if ((hrs && (hrs[1] || hrs[2])) || mins) {
+      const h = hrs ? (+hrs[1] || 0) + (hrs[2] ? 0.5 : 0) : 0;
+      return { unit: 0, n: h * 60 + (mins ? +mins[1] : 0) };
+    }
+    for (const [re, unit] of LENGTH_UNITS) {
+      const m = re.exec(s);
+      if (m) return { unit, n: +m[1] };
+    }
+    return null;
   }
 
   // ---------- manual release overrides ----------
@@ -3128,6 +3168,7 @@
     // within one (test/backlog.test.js)
     bandOf,
     compareBacklog,
+    lengthKey,
     // random-pick draw order (test/backlog.test.js)
     peekPickBag,
     spendPick,

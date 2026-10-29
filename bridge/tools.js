@@ -577,12 +577,18 @@ const TOOLS = [
       starred: S.bool("Only starred ones, on top of status (the Backlog's Show → Starred)"),
       bought: S.bool("true: only bought ones; false: only not bought (the Backlog's Show → Bought / Not bought). On top of status; a category with Bought switched off passes either way"),
       price_alert: S.bool("Only Steam games with a price alert set and not bought yet (the Backlog's Show → Price alert)"),
+      sort: S.str("starred (default: starred first, then by title) or length (shortest first, as the Backlog's Length sort; unknown last)", { enum: ["starred", "length"] }),
       limit: S.limit,
     },
     async run(a) {
       const d = await readData();
       const q = lower(a.query);
       const status = a.status || "open";
+      const byLength = (x, y) => {
+        const lx = Backlog.lengthKey(x), ly = Backlog.lengthKey(y);
+        if (!lx !== !ly) return lx ? -1 : 1;
+        return (lx ? lx.unit - ly.unit || lx.n - ly.n : 0) || String(x.title).localeCompare(String(y.title));
+      };
       const boughtOff = (name) => ((d.categories || []).find((c) => c.name === name) || {}).showBought === false;
       const rows = (d.backlog || []).filter((b) => (!q || lower(b.title + " " + (b.author || "") + " " + (b.notes || "")).includes(q))
         && (!a.category || lower(b.category) === lower(a.category))
@@ -592,11 +598,11 @@ const TOOLS = [
         && (status === "all" || (status === "open" ? !b.dropped : status === "starred" ? b.priority && !b.dropped
           : status === "started" ? b.startedAt : status === "bought" ? b.bought
           : status === "airing" ? (b.airing === "airing" || b.airing === "hiatus") && !b.dropped : b.dropped)))
-        .sort((x, y) => (y.priority || 0) - (x.priority || 0) || String(x.title).localeCompare(String(y.title)));
+        .sort(a.sort === "length" ? byLength : (x, y) => (y.priority || 0) - (x.priority || 0) || String(x.title).localeCompare(String(y.title)));
       const lim = limitOf(a, 40);
       return [head(rows.length, Math.min(lim, rows.length), status + " backlog items"), ...rows.slice(0, lim).map((b) => {
         const flags = [b.priority && "starred", b.startedAt && "started " + b.startedAt, b.bought && "bought", b.dropped && "dropped",
-          b.releaseDate && "out " + b.releaseDate, b.airing && airingFlag(b)].filter(Boolean);
+          b.releaseDate && "out " + b.releaseDate, b.airing && airingFlag(b), a.sort === "length" && b.length].filter(Boolean);
         return `- [${b.category}] ${b.title}${b.author ? " by " + b.author : ""}${flags.length ? " (" + flags.join(", ") + ")" : ""}${b.notes ? " — " + cut(b.notes, 100) : ""}  (${b.id})`;
       })].join("\n");
     },

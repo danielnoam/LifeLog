@@ -111,8 +111,8 @@ const rows = (page, sel) => page.evaluate((sel) =>
   // ---------- Backlog ----------
   await go(page, { view: "backlog", backlogMode: "entries" });
   const bopts = await page.evaluate(() => [...document.querySelectorAll(".sort-select option")].map((o) => o.textContent));
-  check("the Backlog offers five sorts including both date-added directions",
-    bopts.includes("Recently added") && bopts.includes("Added longest ago") && bopts.length === 5, bopts);
+  check("the Backlog offers six sorts including both date-added directions and length",
+    bopts.includes("Recently added") && bopts.includes("Added longest ago") && bopts.includes("Length, shortest") && bopts.length === 6, bopts);
   const titles = () => rows(page, ".backlog-section .bl-title");
   check("Title A–Z is the default", JSON.stringify(await titles()) === JSON.stringify(["Alpha", "Bravo", "Charlie"]), await titles());
   await pick(page, "added-new");
