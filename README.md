@@ -155,7 +155,7 @@ in; this is the tour.
     band (name, added, release date, price, length), Pick random and Spin.
     A Show row narrows it to Starred, Bought, Not bought or Price alert.
   - Every mode can be drawn as **Covers** (View → Layout): a wall of
-    cover art. Tap a cover for its card, then swipe through the rest.
+    cover art; a cover opens like a row.
   - **Discover** – what's popular now and coming soon from the sources your
     categories use, with Hide what I have. Books get the NYT bestseller
     lists with a free New York Times key. Logging a synced title as done

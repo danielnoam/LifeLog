@@ -108,6 +108,15 @@ another device. (It came back as 0.279.0's background refresh, done the
 other way round: the job runs the app itself, with no screen, so nothing
 is worked out twice. The Java-and-Swift rewrite stays dropped.)
 
+## Swiping between covers
+
+Shipped in 0.289.0 and 0.290.0, removed in 0.290.1. Tapping a cover opened
+the Pick random card on that title, with previous / next buttons and a
+sideways swipe through the rest in the covers' order. Daniel: opening an
+item from the covers "shouldn't look different. It should be the normal
+viewing", and there's no need for next and back. A cover now opens the
+item's own sheet, as a row does.
+
 ## Swipe actions on rows
 
 Decided against (2026-10-01): swiping a backlog or Timeline row sideways to

@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.290.1] - 2026-10-29
+
+### Changed
+- **A cover opens the item, the same as a list row.** Tapping a cover in
+  Covers opens the item's normal sheet. The swipe card with previous and
+  next is gone.
+
 ## [0.290.0] - 2026-10-29
 
 ### Changed

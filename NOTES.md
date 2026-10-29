@@ -16,6 +16,13 @@ what was decided against and why.
 
 ---
 
+- **A cover opens the item's sheet (0.290.1).** Daniel, on the swipe card:
+  "it shouldn't look different. It should be the normal viewing. And
+  there's no need to add the next and back." So a cover is just a row
+  drawn differently: same click (openBacklogModal / openEntryModal), same
+  long press. The card, browseOrder and the Pick random sheet's browse mode
+  are gone (DROPPED.md, Swiping between covers).
+
 - **Covers as a layout under View (0.290.0).** Daniel, on 0.289.0's
   Covers mode: "shouldn't be another mode", put it in the View button and
   make it work in every Backlog mode and on the Timeline (not the Ledger).

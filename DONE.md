@@ -76,7 +76,6 @@ Every release that adds a feature adds its line here in the same commit.
 - Show filter: Starred, Bought, Not bought, Price alert, stacking (0.285.0, 0.286.0)
 - Pick random and Spin, scoped to the filters, with Bought only (0.82.0, 0.105.0, 0.110.0)
 - Covers layout under View, in every mode: cover art with marks for starred, bought and price alert (0.289.0, 0.290.0)
-- A cover opens a card you swipe through to the next or previous title (0.289.0, 0.290.0)
 - How long an item has sat there (0.82.0)
 - Game descriptions, Steam's own for Steam games (0.101.0)
 - GG.deals retail price on Steam games (0.18.0, 0.67.0)

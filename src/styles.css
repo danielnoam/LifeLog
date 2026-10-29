@@ -2070,22 +2070,6 @@ a.game-times:hover .game-time-value { text-decoration: underline; }
 .pick-cover img { height: 160px; border-radius: var(--r-card); }
 /* "Pick random" metadata block — same look as the edit-modal
    cover meta, reused for the richer random-picker card. */
-/* Browsing the covers (0.289.0): the scope strip and the draw buttons give
-   way to previous / next and where you are, and each step slides in from the
-   side it came from. */
-.pick-browse { display: none; }
-#pickModal.is-browse .pick-browse { display: inline-flex; }
-#pickModal.is-browse .pick-scope, #pickModal.is-browse #pickRerollBtn, #pickModal.is-browse #pickWheelBtn { display: none; }
-.pick-browse-count { font-size: var(--fs-xs); color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
-/* Posters are tall: shown whole on a tinted stage rather than cut to a strip. */
-#pickModal.is-browse .pick-cover { max-height: none; background: var(--bg-elev-2); }
-#pickModal.is-browse .pick-cover img { height: 260px; object-fit: contain; }
-.pick-step-next :is(#pickCover, #pickModalTitle, #pickModalCategory, #pickMeta, #pickLinks) { animation: mode-slide-fwd .22s var(--ll-move-ease) both; }
-.pick-step-prev :is(#pickCover, #pickModalTitle, #pickModalCategory, #pickMeta, #pickLinks) { animation: mode-slide-back .22s var(--ll-move-ease) both; }
-@media (prefers-reduced-motion: reduce) {
-  .pick-step-next :is(#pickCover, #pickModalTitle, #pickModalCategory, #pickMeta, #pickLinks),
-  .pick-step-prev :is(#pickCover, #pickModalTitle, #pickModalCategory, #pickMeta, #pickLinks) { animation: none; }
-}
 .pick-meta { margin: 2px 0 4px; }
 .pick-meta:empty { display: none; }
 .pick-meta .bl-meta { font-size: var(--fs-xs); color: var(--text-dim); }

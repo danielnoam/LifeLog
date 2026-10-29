@@ -27,7 +27,6 @@ const SEED = {
 };
 
 const tileTitles = (page) => page.evaluate(() => [...document.querySelectorAll("#viewBody .bl-tile-title")].map((t) => t.textContent.trim()));
-const pickTitle = (page) => page.evaluate(() => document.querySelector("#pickModalTitle").textContent.trim());
 const shots = process.env.LIFELOG_SHOTS;
 
 (async () => {
@@ -60,41 +59,13 @@ const shots = process.env.LIFELOG_SHOTS;
   check("with Spin, Pick random and the sort", (await page.$$(".dsc-bar-right > *")).length === 3);
   if (shots) await page.screenshot({ path: shots + "/covers-phone.png" });
 
-  await page.click('.bl-tile[data-id="g1"]'); await page.waitForTimeout(400);
-  check("a cover opens the card on it", !(await page.isHidden("#pickModal")) && await pickTitle(page) === "Starred Bought");
-  check("previous is off at the start", await page.isDisabled("#pickPrevBtn"));
-  check("browsing hides the draw's scope", await page.isHidden(".pick-scope") && await page.isHidden("#pickRerollBtn"));
-  check("and says where you are", (await page.textContent("#pickBrowseCount")) === "1 of 6", await page.textContent("#pickBrowseCount"));
-  if (shots) await page.screenshot({ path: shots + "/card-phone.png" });
-
-  await page.click("#pickNextBtn"); await page.waitForTimeout(300);
-  check("next steps in the covers' order", await pickTitle(page) === "A Plain Game With A Long Name That Wraps");
-  await page.keyboard.press("ArrowRight"); await page.waitForTimeout(300);
-  check("the arrow keys step too", await pickTitle(page) === "Watched Game");
-  await page.click("#pickNextBtn"); await page.waitForTimeout(300);
-  check("through the Unreleased band", await pickTitle(page) === "Far Off Game");
-  await page.click("#pickNextBtn"); await page.waitForTimeout(300);
-  check("and carry on into the next category", await pickTitle(page) === "First Book");
-  await page.click("#pickNextBtn"); await page.waitForTimeout(300);
-  check("next is off at the end", await page.isDisabled("#pickNextBtn"));
-
-  const box = await page.locator("#pickModal .modal").boundingBox();
-  const y = box.y + 120;
-  await page.mouse.move(box.x + 60, y); await page.mouse.down();
-  for (let x = 60; x <= 260; x += 20) await page.mouse.move(box.x + x, y + 2);
-  await page.mouse.up(); await page.waitForTimeout(300);
-  check("a swipe right goes back", await pickTitle(page) === "First Book", await pickTitle(page));
-  await page.mouse.move(box.x + 260, y); await page.mouse.down();
-  for (let x = 260; x >= 60; x -= 20) await page.mouse.move(box.x + x, y + 2);
-  await page.mouse.up(); await page.waitForTimeout(300);
-  check("a swipe left goes forward", await pickTitle(page) === "Second Book", await pickTitle(page));
-
-  await page.click("#pickOpenBtn"); await page.waitForTimeout(400);
-  check("Open goes to the item's sheet", !(await page.isHidden("#backlogModal")) && (await page.inputValue("#bTitle")) === "Second Book");
+  await page.click('.bl-tile[data-id="g2"]'); await page.waitForTimeout(400);
+  check("a cover opens the item's own sheet", !(await page.isHidden("#backlogModal")) && (await page.inputValue("#bTitle")) === "A Plain Game With A Long Name That Wraps");
+  check("not the Pick random card", await page.isHidden("#pickModal"));
   await page.keyboard.press("Escape"); await page.waitForTimeout(400);
 
   await page.click(".dsc-bar-right .btn:has-text('Pick random')"); await page.waitForTimeout(400);
-  check("Pick random is still the draw", await page.isVisible(".pick-scope") && await page.isHidden("#pickPrevBtn"));
+  check("Pick random is still the draw", await page.isVisible(".pick-scope"));
   await page.click("#pickCloseBtn"); await page.waitForTimeout(300);
 
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(500);
@@ -111,8 +82,9 @@ const shots = process.env.LIFELOG_SHOTS;
   check("Next releases draws covers too, with the date under the title",
     !!(await page.$('.bl-tile[data-id="u1"] .bl-tile-caption.up-when')));
   await page.click('.bl-tile[data-id="u1"]'); await page.waitForTimeout(400);
-  check("and its cover opens the card", await pickTitle(page) === "Far Off Game" && (await page.textContent("#pickBrowseCount")) === "1 of 1");
-  await page.click("#pickCloseBtn"); await page.waitForTimeout(300);
+  check("and its cover opens the item's sheet", !(await page.isHidden("#backlogModal")) && (await page.inputValue("#bTitle")) === "Far Off Game");
+  await page.keyboard.press("Escape"); await page.waitForTimeout(400);
+
 
   await page.evaluate(() => localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "backlog", backlogMode: "covers" })));
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(500);

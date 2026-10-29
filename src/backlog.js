@@ -23,7 +23,7 @@
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks, sanitizeGameInfo, seedGameInfo, paintGameInfo, saveGameInfo,
     loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId,
     backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
-    DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus, attachSwipe;
+    DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus;
 
   // Looked up at call time rather than captured: this file is required by the
   // Node tests, which have no DOM and never render.
@@ -44,7 +44,7 @@
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks, sanitizeGameInfo, seedGameInfo, paintGameInfo, saveGameInfo,
     loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId,
       backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
-      DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus, attachSwipe } = ctx);
+      DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus } = ctx);
   }
 
   // Coarse "N days/months/years ago" for the backlog edit modal's aging line.
@@ -1131,7 +1131,6 @@
   function coversLayout() { return state.visual.backlogLayout === "covers"; }
 
   function openPickModal(pool) {
-    endBrowse();
     pickPool = pool;
     // Every category the pool has, on: the view's own filters already said
     // what's in play, and the strip is for narrowing from there.
@@ -1225,7 +1224,7 @@
     });
   }
 
-  function showPick(b, bigCover) {
+  function showPick(b) {
     // Title, with a ★ favorite marker when the item is prioritized.
     const titleEl = $("#pickModalTitle");
     titleEl.textContent = b.title;
@@ -1245,11 +1244,7 @@
     const paintLinks = (hasCover) =>
       renderMediaLinks($("#pickCoverLinks"), $("#pickLinks"), hasCover, b.mediaSource, b.mediaId);
     coverImg.onerror = () => { cover.hidden = true; paintLinks(false); };
-    if (bigCover && bigCover !== b.coverUrl) {
-      const hide = coverImg.onerror;
-      coverImg.onerror = () => { coverImg.onerror = hide; coverImg.src = b.coverUrl; };
-    }
-    if (b.coverUrl) { coverImg.src = bigCover || b.coverUrl; cover.hidden = false; paintLinks(true); }
+    if (b.coverUrl) { coverImg.src = b.coverUrl; cover.hidden = false; paintLinks(true); }
     else { cover.hidden = true; coverImg.src = ""; paintLinks(false); }
 
     // The full pulled metadata — rating/year/length/price + summary (shared
@@ -1269,76 +1264,6 @@
     if (hasSteamPrice) loadBacklogPrices([{ mediaSource: b.mediaSource, mediaId: b.mediaId }]);
 
     $("#pickOpenBtn").onclick = () => { closePickModal(); openBacklogModal(b); };
-  }
-
-  // ---------- Browsing the covers (0.289.0) ----------
-  // A cover opens the Pick random card on that title, and a sideways swipe
-  // steps through the rest in the order the covers sit. The swipe lives in
-  // the sheet, not on the list: there a sideways swipe already switches mode.
-  let browseIds = null, browseAt = 0;
-  // The order the covers on screen sit in, set by whichever mode drew them.
-  let browseSource = () => [];
-
-  // The covers' order, read off the same rules the sections draw by: the
-  // categories in order, each sorted, then the folded bands that are open.
-  function browseOrder() {
-    const byCat = groupBy(getFilteredBacklog(), (b) => b.category);
-    const order = state.data.categories.map((c) => c.name).filter((n) => byCat[n]);
-    for (const n of Object.keys(byCat)) if (!order.includes(n)) order.push(n);
-    return order.flatMap((cat) => {
-      const sorted = byCat[cat].slice().sort(compareBacklog);
-      const folded = new Set(FOLD_BANDS.map((f) => f.band));
-      const ids = sorted.filter((b) => !folded.has(bandOf(b))).map((b) => b.id);
-      for (const f of FOLD_BANDS) {
-        if (!bandIsOpen(cat, f.band)) continue;
-        for (const b of sorted) if (bandOf(b) === f.band) ids.push(b.id);
-      }
-      return ids;
-    });
-  }
-
-  function openBrowseCard(id) {
-    browseIds = browseSource();
-    browseAt = Math.max(0, browseIds.indexOf(id));
-    $("#pickModal").classList.add("is-browse");
-    $("#pickModal .modal").setAttribute("aria-label", "Browse the backlog");
-    showBrowsed(0);
-    $("#pickModal").hidden = false;
-  }
-
-  function endBrowse() {
-    browseIds = null;
-    $("#pickModal").classList.remove("is-browse");
-    $("#pickModal .modal").setAttribute("aria-label", "Pick something from the backlog");
-  }
-
-  // Skips anything deleted since the card opened rather than showing a hole.
-  function stepBrowse(dir) {
-    if (!browseIds || $("#pickModal").hidden) return;
-    let i = browseAt + dir;
-    while (i >= 0 && i < browseIds.length && !findBacklog(browseIds[i])) i += dir;
-    if (i < 0 || i >= browseIds.length) return;
-    browseAt = i;
-    showBrowsed(dir);
-  }
-
-  function findBacklog(id) {
-    return (state.data.backlog || []).find((x) => x.id === id);
-  }
-
-  function showBrowsed(dir) {
-    const b = findBacklog(browseIds[browseAt]);
-    if (!b) { closePickModal(); return; }
-    showPick(b, tileCoverUrl(b.coverUrl));
-    $("#pickBrowseCount").textContent = (browseAt + 1) + " of " + browseIds.length;
-    $("#pickPrevBtn").disabled = browseAt === 0;
-    $("#pickNextBtn").disabled = browseAt === browseIds.length - 1;
-    const sheet = $("#pickModal .modal");
-    sheet.classList.remove("pick-step-next", "pick-step-prev");
-    if (dir) {
-      void sheet.offsetWidth;
-      sheet.classList.add(dir > 0 ? "pick-step-next" : "pick-step-prev");
-    }
   }
 
   // ---------- Next Releases ----------
@@ -1662,7 +1587,6 @@
     }
     const noDate = undated.filter((b) => !yearOf(b));
     grid.classList.toggle("is-covers", coversLayout());
-    browseSource = () => [...dated, ...Object.keys(byYear).sort().flatMap((y) => byYear[y]), ...noDate].map((b) => b.id);
     if (noDate.length) {
       sections.push(makeUpcomingSection("undated", "No date yet",
         "Announced, but nothing dated yet", noDate));
@@ -2408,7 +2332,6 @@
     if (!blGridEl) blGridEl = el("div", "backlog-grid");
     const grid = blGridEl;
     grid.classList.toggle("is-covers", coversLayout());
-    browseSource = browseOrder;
     const sections = [];
     for (const catName of order) {
       const catItems = byCat[catName];
@@ -2593,8 +2516,7 @@
     row.onclick = () => {
       if (state.bulk.active) { toggleBulkItem(id); return; }
       const b = (state.data.backlog || []).find((x) => x.id === id);
-      if (b && row.classList.contains("bl-tile")) openBrowseCard(id);
-      else if (b) openBacklogModal(b);
+      if (b) openBacklogModal(b);
     };
     attachLongPressSelect(row, { id });
     return row;
@@ -3281,19 +3203,6 @@
     $("#pickFavOnly").onchange = (ev) => { pickFavOnly = ev.target.checked; rerollPick(); };
     $("#pickBoughtOnly").onchange = (ev) => { pickBoughtOnly = ev.target.checked; rerollPick(); };
     $("#pickCloseBtn").onclick = closePickModal;
-    $("#pickPrevBtn").onclick = () => stepBrowse(-1);
-    $("#pickNextBtn").onclick = () => stepBrowse(1);
-    attachSwipe($("#pickModal .modal"), {
-      requireHorizontal: true,
-      onLeft: () => stepBrowse(1),
-      onRight: () => stepBrowse(-1),
-    });
-    document.addEventListener("keydown", (e) => {
-      if (!browseIds || $("#pickModal").hidden) return;
-      if (e.target.closest && e.target.closest("input, textarea, select")) return;
-      if (e.key === "ArrowLeft") stepBrowse(-1);
-      else if (e.key === "ArrowRight") stepBrowse(1);
-    });
     $("#closeOutTodayBtn").onclick = closeOutTodaySheet;
     document.addEventListener("click", (e) => {
       if (!e.target.closest("#backlogModal .ac-wrap")) {
