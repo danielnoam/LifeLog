@@ -4,6 +4,72 @@ Only the work that's left. When an item ships it leaves this file in the
 same commit and becomes a line in DONE.md (and the changelog); when Daniel
 says no, it moves to DROPPED.md with his reason.
 
+## Ledger
+
+- **Subcategories.** An expense category can hold subcategories
+  (Entertainment > Books, Cinema, Games). An expense or bill is either
+  parent-only (Entertainment) or parent plus one sub (Entertainment >
+  Games). Totals roll up to the parent; filtering can drill into one sub.
+  One level only: a sub can't hold subs.
+  - **Data.** The expense keeps `category` = the parent's name and gains an
+    optional `subcategory` = the sub's name, on `financeEntries`,
+    `recurringExpenses` and each bill's `extras`. The parent's category row
+    gains `subs: [{ id, name, createdAt, updatedAt }]`; a sub takes its
+    parent's colour (a lighter step of it in bars). This shape needs no
+    migration: every old expense is already parent-only, and every total
+    that groups by `category` today (month summary, By category, Recap,
+    `lifelog_spending`, stats) stays right unchanged, on old builds too.
+    Old builds keep both fields through `keepUnknown` and just don't show
+    them. Sub names are unique within their parent only (Books can be under
+    Entertainment and Education). Trade-off: `subs` lives inside the
+    category row and merge.js merges whole rows, so subs added to the same
+    category on two devices before a sync keep one device's adds; an
+    expense whose sub went missing that way gets it back on load
+    (`ensureCategories` grows a sub pass), so nothing is lost but the order.
+  - **Picker.** The expense, bill and plan sheets (`#finCategory`,
+    `#recCategory`, `#planCategory`, all via `fillCategorySelect`) list
+    parents with their subs indented under them: picking "Entertainment"
+    is parent-only, "Games" under it is parent plus sub. One select, folder
+    style, no second field. "+ Add new category…" stays; the category
+    sheet (`openFinanceCatModal`) gets a Subcategories list (add, rename,
+    remove) and "Add subcategory" on the parent.
+  - **Rows and filtering.** A row's chip reads "Entertainment · Games".
+    The category chips stay parents; tapping a parent that has subs opens
+    a second chip row of its subs plus "Only Entertainment" (the
+    parent-only ones). `state.financeActiveCats` gains sub keys
+    (`Entertainment/Games`) so `getFilteredFinance` matches parent-or-sub.
+    Bulk move offers subs too.
+  - **Totals.** By category draws parent bars as now; a parent with subs
+    expands to sub bars plus a "No subcategory" line, all summing to the
+    parent. The month card's breakdown stays parents (it has to add up to
+    the month), and lists subs only while that parent is filtered.
+  - **Rename and delete.** Renaming a parent changes nothing on its subs.
+    Renaming a sub rewrites `subcategory` on every expense, bill and extra
+    under that parent (next to `renameFinanceCategory`). Deleting a sub
+    makes its expenses parent-only, never moves them; deleting a parent
+    moves its expenses to Other as today and drops their `subcategory`.
+  - **Recurring.** A bill's sub is copied into each charge `planCharges`
+    makes, carried to the new plan when the price changes (`prevId`
+    chain), and overridable per extra. A charge heads-up for a bill with
+    no note (alerts.js falls back to the category) names the sub instead.
+  - **Import and export.** CSV gains a Subcategory column (export, and
+    import into an existing or new sub); Export JSON carries both fields.
+    The widget's quick add (`categoryFor`) keeps guessing the parent only.
+  - **Bridge, same release.** DATA.md: `subs` and `subcategory`.
+    tools.js: `subcategory` on add/edit expense, `add_recurring`, edit
+    recurring and `batch`; `lifelog_spending` gets `subcategory` (filter)
+    and `group_by: "subcategory"` (within the filtered parent, unsubbed as
+    "(no subcategory)"); new `lifelog_add_subcategory`,
+    `lifelog_rename_subcategory`, `lifelog_delete_subcategory` (added, not
+    folded into the category tools, so Telemachus's calls don't change);
+    `stats` lists subs under their parent. test/bridge.test.js covers the
+    new fields.
+  - **Tests.** Sanitizers keep and validate both fields (a `subcategory`
+    naming no sub of its parent is kept and its sub restored, not dropped);
+    roll-up totals equal the parent's; filter by sub and by "Only
+    parent"; sub rename and delete; recurring charges carry the sub; merge
+    of two devices' subs. Check every theme at phone and desktop width.
+
 ## Decisions waiting on Daniel
 
 From the security pass (audits/2026-10-09-security-pass.md in the project
