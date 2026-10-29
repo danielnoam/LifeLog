@@ -571,5 +571,16 @@ test("airingLabel says how far it has run", () => {
   assert.strictEqual(stillAiring({ airing: "between" }), false);
 });
 
+test("a cover tile asks for the bigger art where the source has one", () => {
+  const { tileCoverUrl } = Backlog;
+  assert.strictEqual(tileCoverUrl("https://cdn.akamai.steamstatic.com/steam/apps/620/header.jpg"),
+    "https://cdn.akamai.steamstatic.com/steam/apps/620/library_600x900.jpg");
+  assert.strictEqual(tileCoverUrl("https://image.tmdb.org/t/p/w92/abc.jpg"), "https://image.tmdb.org/t/p/w342/abc.jpg");
+  assert.strictEqual(tileCoverUrl("https://s4.anilist.co/file/anilistcdn/media/anime/cover/medium/bx1.jpg"),
+    "https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx1.jpg");
+  assert.strictEqual(tileCoverUrl("https://covers.openlibrary.org/b/id/1-M.jpg"), "https://covers.openlibrary.org/b/id/1-M.jpg");
+  assert.strictEqual(tileCoverUrl(""), "");
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

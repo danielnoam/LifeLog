@@ -237,7 +237,7 @@ const activeView = (page) => page.evaluate(() => {
     check("and its modes grey out rather than vanishing", await page.evaluate(() => {
       const wrap = [...document.querySelectorAll("#tabToggles .tab-toggle-view")].find((l) => /Backlog/.test(l.textContent));
       const sub = wrap.nextElementSibling;
-      return sub.querySelectorAll("input").length === 3 && [...sub.querySelectorAll("input")].every((i) => i.disabled);
+      return sub.querySelectorAll("input").length === 4 && [...sub.querySelectorAll("input")].every((i) => i.disabled);
     }));
 
     // The last one standing can't be turned off — try to switch off every
@@ -275,8 +275,13 @@ const activeView = (page) => page.evaluate(() => {
   }
 
   // ---- 6a. the order of tabs and modes, and where a tab opens (0.188.0) ----
+  // The Backlog has four modes since Covers (0.289.0); with Covers off it is
+  // the three-mode tab these were written against, and its row is left out.
   {
-    const { page, ctx, errs: e } = await app(browser, { ui: { view: "timeline", timelineMode: "entries" } });
+    const { page, ctx, errs: e } = await app(browser, {
+      ui: { view: "timeline", timelineMode: "entries" },
+      visual: { disabledModes: { backlog: ["covers"] }, modeOrder: { backlog: ["upcoming", "entries", "discover", "covers"] } },
+    });
     const ui = () => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-ui-v1")));
     const visual = () => page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-visual-settings-v1") || "{}"));
     const barOrder = () => page.evaluate(() => [...document.querySelectorAll("#viewTabs .tab")].map((t) => t.dataset.view));
@@ -289,7 +294,8 @@ const activeView = (page) => page.evaluate(() => {
     };
     const tabRows = (tab) => page.evaluate((t) => {
       const card = [...document.querySelectorAll("#tabToggles .sgroup-card")].find((c) => c.querySelector(".tab-toggle-view .sitem-title").textContent === t);
-      return [...card.querySelectorAll(".tab-toggle-mode")].map((r) => r.querySelector(".sitem-title").textContent + (r.classList.contains("is-default") ? "*" : ""));
+      return [...card.querySelectorAll(".tab-toggle-mode")].map((r) => r.querySelector(".sitem-title").textContent + (r.classList.contains("is-default") ? "*" : ""))
+        .filter((label) => label !== "Covers");
     }, tab);
 
     const openTabsPage = async () => {
@@ -364,7 +370,7 @@ const activeView = (page) => page.evaluate(() => {
     const dots = await page.evaluate(() => document.querySelectorAll('#viewTabs .tab[data-view="backlog"] .tab-mode-dot').length);
     const bar = await page.evaluate(() => [...document.querySelectorAll("#viewTabs .tab")].map((t) => t.dataset.view));
     check("unknown ids in a saved order are dropped and missing ones added at the end",
-      dots === 3 && JSON.stringify(bar) === JSON.stringify(["finance", "notes", "timeline", "backlog", "travel"]), { dots, bar });
+      dots === 4 && JSON.stringify(bar) === JSON.stringify(["finance", "notes", "timeline", "backlog", "travel"]), { dots, bar });
     errs.push(...e);
     await ctx.close();
   }

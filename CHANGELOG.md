@@ -4,6 +4,19 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.289.0] - 2026-10-29
+
+### Added
+- **Covers, a new Backlog mode.** The same list as a wall of cover art,
+  three across on a phone and wider on a computer, with the same
+  categories, Show row, search, sort and bands. A star, a bag or a bell in
+  the corner says starred, bought or price alert. Swipe to it from the
+  List, or pick it from the tab's modes; it can be turned off or moved in
+  Settings like the others. Hold a cover to select it.
+- **Swipe through the covers.** Tap a cover to open its card with the big
+  art, then swipe left or right (or use the arrows, or the arrow keys on a
+  computer) to go to the next or previous title. Open goes to the item.
+
 ## [0.288.0] - 2026-10-29
 
 ### Added

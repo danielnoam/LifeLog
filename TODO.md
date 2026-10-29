@@ -23,46 +23,6 @@ folder). Each changes how data is stored, so each is his call first.
   after unlock. Cost: a forgotten PIN means re-syncing from GitHub, and
   launch waits for the unlock before drawing.
 
-## Backlog
-
-- **Browse the backlog as covers (asked 2026-10-29).** Daniel wants a
-  view to look through the backlog like a library, with the filters he
-  already has (category chips, the Show row, search), and wasn't sure
-  between swipeable cards and a grid.
-  Recommendation: build the grid first, and do the swipe inside the card
-  you open from it, not as a screen of its own.
-  - Why grid: it's the one that shows something the List can't, the whole
-    shelf at a glance, and it reuses what's there (the Out today sheet's
-    `.out-grid`/`.out-tile` 2:3 cover wall, `coverEl`/`emptyCoverEl` with
-    the category-tinted block for items without art, getFilteredBacklog).
-  - Why not a swipe deck as the view: a sideways swipe on #content already
-    switches List / Next releases / Discover (attachSwipe, modeSwipe in
-    app.js), so a deck there fights the same gesture, the reason row
-    swipes were dropped (DROPPED.md, Swipe actions on rows). A deck also
-    shows one title at a time, which is what Pick random already does;
-    for a backlog of hundreds, browsing one by one is slower than a list.
-  - Plan, grid: a List/Covers icon toggle in the mode bar beside the sort
-    (List mode only), kept per device in `state.visual.backlogLayout`.
-    Same category sections and headers as the List, the same sort and
-    bands (Unreleased / Early Access / Dropped tiles dimmed or folded the
-    way the bands fold), tiles 3 across on a phone (44px is easily met),
-    auto-fill on desktop. Small corner marks on the tile for starred,
-    bought and price alert, title under the cover. Tap opens the item's
-    sheet, hold selects (bulk mode works the same as rows). Images lazy;
-    measure the first draw with a few hundred items against the List.
-  - Plan, swipe: tapping a tile opens a read-only card (the Pick random
-    card's layout: big cover, title, category, links, Open / Start / Done)
-    and a sideways swipe inside that sheet steps to the next or previous
-    title in the grid's order. Inside a sheet the swipe doesn't compete
-    with the mode switch, and it gives the "swipe around" feel without a
-    second view. The same card could later let Pick random swipe to the
-    next draw instead of pressing Reroll.
-  - Check before building: Steam/SteamGridDB game art can be landscape;
-    see how it crops into 2:3 and fall back to the tinted block with the
-    title over it if it looks bad. Every theme, phone and desktop width.
-  - Bridge: shows the same items as `lifelog_backlog`, so no new data or
-    tool; the layout is a device setting, not data.
-
 ## iOS
 
 - **Upcoming and In progress widgets.** Android got them in 0.277.0; the

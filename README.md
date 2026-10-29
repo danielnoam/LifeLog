@@ -154,6 +154,8 @@ in; this is the tour.
     away. Bought, authors and In progress per category, sorts inside each
     band (name, added, release date, price, length), Pick random and Spin.
     A Show row narrows it to Starred, Bought, Not bought or Price alert.
+  - **Covers** – the same list as a wall of cover art. Tap a cover for its
+    card, then swipe through the rest.
   - **Discover** – what's popular now and coming soon from the sources your
     categories use, with Hide what I have. Books get the NYT bestseller
     lists with a free New York Times key. Logging a synced title as done

@@ -164,7 +164,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.288.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.289.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -745,11 +745,13 @@
   // tab has always opened on in the middle, so nothing opens differently
   // until you change it. With two modes the default is simply the one you
   // choose, the first until you do.
-  const DEFAULT_MODE_ORDER = { notes: ["habits", "notes"], backlog: ["upcoming", "entries", "discover"], travel: ["area", "time", "map"] };
+  const DEFAULT_MODE_ORDER = { notes: ["habits", "notes"], backlog: ["upcoming", "entries", "covers", "discover"], travel: ["area", "time", "map"] };
   // With more than three there's no middle — and with fewer, the first may
   // not be the one it has always opened on — so a tab opens on your choice
   // or, until you make one, on this.
-  const DEFAULT_LANDING = { notes: "notes" };
+  // The Backlog got a fourth mode in 0.289.0 (Covers) and still opens on
+  // its List, as it did when that was the middle of three.
+  const DEFAULT_LANDING = { notes: "notes", backlog: "entries" };
   const mergeOrder = (saved, all) => {
     const known = [...new Set((saved || []).filter((x) => all.includes(x)))];
     return known.concat(all.filter((x) => !known.includes(x)));
@@ -5884,7 +5886,7 @@
 
   Backlog.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
-    MEDIA_SOURCE_LABELS, saveVisualSettings, isMobileLayout,
+    MEDIA_SOURCE_LABELS, saveVisualSettings, isMobileLayout, attachSwipe,
     emptyState, emptyCoverEl, coverEl, setSheetCover, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect, sortSelect,
     startBulkRun, markBulkItem, finishBulkRun, bulkStopping,

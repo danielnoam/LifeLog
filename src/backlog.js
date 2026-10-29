@@ -23,7 +23,7 @@
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks, sanitizeGameInfo, seedGameInfo, paintGameInfo, saveGameInfo,
     loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId,
     backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
-    DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus;
+    DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus, attachSwipe;
 
   // Looked up at call time rather than captured: this file is required by the
   // Node tests, which have no DOM and never render.
@@ -44,7 +44,7 @@
     initOverrideFields, refreshOverrideFields, pushOverrideValues, readOverrideChecks, sanitizeGameInfo, seedGameInfo, paintGameInfo, saveGameInfo,
     loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId,
       backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
-      DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus } = ctx);
+      DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus, attachSwipe } = ctx);
   }
 
   // Coarse "N days/months/years ago" for the backlog edit modal's aging line.
@@ -1126,7 +1126,12 @@
     return right;
   }
 
+  // Covers is the List drawn as a wall of art (0.289.0): same items, same
+  // sections, so everything that asks "is this the list" asks this too.
+  function coversLayout() { return state.backlogMode === "covers"; }
+
   function openPickModal(pool) {
+    endBrowse();
     pickPool = pool;
     // Every category the pool has, on: the view's own filters already said
     // what's in play, and the strip is for narrowing from there.
@@ -1220,7 +1225,7 @@
     });
   }
 
-  function showPick(b) {
+  function showPick(b, bigCover) {
     // Title, with a ★ favorite marker when the item is prioritized.
     const titleEl = $("#pickModalTitle");
     titleEl.textContent = b.title;
@@ -1240,7 +1245,11 @@
     const paintLinks = (hasCover) =>
       renderMediaLinks($("#pickCoverLinks"), $("#pickLinks"), hasCover, b.mediaSource, b.mediaId);
     coverImg.onerror = () => { cover.hidden = true; paintLinks(false); };
-    if (b.coverUrl) { coverImg.src = b.coverUrl; cover.hidden = false; paintLinks(true); }
+    if (bigCover && bigCover !== b.coverUrl) {
+      const hide = coverImg.onerror;
+      coverImg.onerror = () => { coverImg.onerror = hide; coverImg.src = b.coverUrl; };
+    }
+    if (b.coverUrl) { coverImg.src = bigCover || b.coverUrl; cover.hidden = false; paintLinks(true); }
     else { cover.hidden = true; coverImg.src = ""; paintLinks(false); }
 
     // The full pulled metadata — rating/year/length/price + summary (shared
@@ -1260,6 +1269,74 @@
     if (hasSteamPrice) loadBacklogPrices([{ mediaSource: b.mediaSource, mediaId: b.mediaId }]);
 
     $("#pickOpenBtn").onclick = () => { closePickModal(); openBacklogModal(b); };
+  }
+
+  // ---------- Browsing the covers (0.289.0) ----------
+  // A cover opens the Pick random card on that title, and a sideways swipe
+  // steps through the rest in the order the covers sit. The swipe lives in
+  // the sheet, not on the list: there a sideways swipe already switches mode.
+  let browseIds = null, browseAt = 0;
+
+  // The covers' order, read off the same rules the sections draw by: the
+  // categories in order, each sorted, then the folded bands that are open.
+  function browseOrder() {
+    const byCat = groupBy(getFilteredBacklog(), (b) => b.category);
+    const order = state.data.categories.map((c) => c.name).filter((n) => byCat[n]);
+    for (const n of Object.keys(byCat)) if (!order.includes(n)) order.push(n);
+    return order.flatMap((cat) => {
+      const sorted = byCat[cat].slice().sort(compareBacklog);
+      const folded = new Set(FOLD_BANDS.map((f) => f.band));
+      const ids = sorted.filter((b) => !folded.has(bandOf(b))).map((b) => b.id);
+      for (const f of FOLD_BANDS) {
+        if (!bandIsOpen(cat, f.band)) continue;
+        for (const b of sorted) if (bandOf(b) === f.band) ids.push(b.id);
+      }
+      return ids;
+    });
+  }
+
+  function openBrowseCard(id) {
+    browseIds = browseOrder();
+    browseAt = Math.max(0, browseIds.indexOf(id));
+    $("#pickModal").classList.add("is-browse");
+    $("#pickModal .modal").setAttribute("aria-label", "Browse the backlog");
+    showBrowsed(0);
+    $("#pickModal").hidden = false;
+  }
+
+  function endBrowse() {
+    browseIds = null;
+    $("#pickModal").classList.remove("is-browse");
+    $("#pickModal .modal").setAttribute("aria-label", "Pick something from the backlog");
+  }
+
+  // Skips anything deleted since the card opened rather than showing a hole.
+  function stepBrowse(dir) {
+    if (!browseIds || $("#pickModal").hidden) return;
+    let i = browseAt + dir;
+    while (i >= 0 && i < browseIds.length && !findBacklog(browseIds[i])) i += dir;
+    if (i < 0 || i >= browseIds.length) return;
+    browseAt = i;
+    showBrowsed(dir);
+  }
+
+  function findBacklog(id) {
+    return (state.data.backlog || []).find((x) => x.id === id);
+  }
+
+  function showBrowsed(dir) {
+    const b = findBacklog(browseIds[browseAt]);
+    if (!b) { closePickModal(); return; }
+    showPick(b, tileCoverUrl(b.coverUrl));
+    $("#pickBrowseCount").textContent = (browseAt + 1) + " of " + browseIds.length;
+    $("#pickPrevBtn").disabled = browseAt === 0;
+    $("#pickNextBtn").disabled = browseAt === browseIds.length - 1;
+    const sheet = $("#pickModal .modal");
+    sheet.classList.remove("pick-step-next", "pick-step-prev");
+    if (dir) {
+      void sheet.offsetWidth;
+      sheet.classList.add(dir > 0 ? "pick-step-next" : "pick-step-prev");
+    }
   }
 
   // ---------- Next Releases ----------
@@ -2202,7 +2279,7 @@
   // "List" since 0.231.0, when each tab's first mode got a name of its own
   // (it was "Entries", like the others'). It was "By category" with the id
   // "category" until 0.128.0; applySavedUi in app.js translates the stored one.
-  const MODES = [["entries", "List", "star"], ["upcoming", "Next releases", "clock"], ["discover", "Discover", "compass"]];
+  const MODES = [["entries", "List", "star"], ["covers", "Covers", "layout-grid"], ["upcoming", "Next releases", "clock"], ["discover", "Discover", "compass"]];
   // The switch itself lives on the tab now on both layouts — held on a phone,
   // hovered on a desktop (see the mode fan and the tab menu in app.js) — so
   // only what the bar carries besides it is drawn here.
@@ -2212,7 +2289,7 @@
       const n = upcomingItems().length;
       bar.appendChild(el("span", "backlog-mode-count", n ? n + (n === 1 ? " title" : " titles") + " waiting" : "Nothing waiting"));
       bar.appendChild(upcomingWeekGroup());
-    } else if (state.backlogMode === "entries") {
+    } else if (state.backlogMode === "entries" || state.backlogMode === "covers") {
       // What's been started is on the Timeline's In progress card (0.218.0).
       // The "▶ N in progress" link that pointed there was removed in 0.223.0.
       // Not in Discover: the draw is from your own list, and offering it
@@ -2306,6 +2383,7 @@
     // app.js clearing #viewBody on its way through.
     if (!blGridEl) blGridEl = el("div", "backlog-grid");
     const grid = blGridEl;
+    grid.classList.toggle("is-covers", coversLayout());
     const sections = [];
     for (const catName of order) {
       const catItems = byCat[catName];
@@ -2402,7 +2480,9 @@
             // folded away shouldn't cost a node or a cover request.
             if (open) for (const b of items) parts.push({ key: b.id, kind: "row", item: b });
           }
-          const shape = rowShapeFor("entries");
+          const covers = coversLayout();
+          body.classList.toggle("bl-covers", covers);
+          const shape = covers ? "bl-tile" : rowShapeFor("entries");
           reconcile(body, parts, {
             epoch: shape,
             // Star something and its row crosses the band rule; drop it and
@@ -2417,7 +2497,7 @@
             // A plain separator's class is fixed by its key, so it never
             // needs one. A fold bar's label and count do change.
             update: (node, part) => {
-              if (part.kind === "row") adopt(node, backlogRow(part.item));
+              if (part.kind === "row") adopt(node, covers ? backlogTile(part.item) : backlogRow(part.item));
               else if (part.kind === "fold") fillBandToggle(node, part.label, part.n, part.open);
             },
           });
@@ -2488,7 +2568,8 @@
     row.onclick = () => {
       if (state.bulk.active) { toggleBulkItem(id); return; }
       const b = (state.data.backlog || []).find((x) => x.id === id);
-      if (b) openBacklogModal(b);
+      if (b && row.classList.contains("bl-tile")) openBrowseCard(id);
+      else if (b) openBacklogModal(b);
     };
     attachLongPressSelect(row, { id });
     return row;
@@ -2541,6 +2622,57 @@
       row.appendChild(doneButton(b));
     }
     return row;
+  }
+
+  // A cover in the Covers layout (0.289.0): the art, the title under it, and
+  // a mark in the corner for what the Show row filters on.
+  function backlogTile(b) {
+    const tile = el("div", "bl-tile");
+    tile.dataset.id = b.id;
+    if (b.dropped) tile.classList.add("is-dropped");
+    const art = el("div", "bl-tile-art");
+    const src = tileCoverUrl(b.coverUrl);
+    if (src) {
+      const img = coverEl(src, "", "bl-tile-cover", b.category);
+      img.draggable = false;
+      if (src !== b.coverUrl) {
+        const fallback = img.onerror;
+        img.onerror = () => { img.onerror = fallback; img.src = b.coverUrl; };
+      }
+      art.appendChild(img);
+    } else {
+      art.appendChild(emptyCoverEl("bl-tile-cover cover-empty", b.category));
+    }
+    const marks = el("div", "bl-tile-marks");
+    if (b.priority) marks.appendChild(tileMark("star", "Starred", "is-star"));
+    if (b.bought) marks.appendChild(tileMark("shopping-bag", "Bought"));
+    else if (b.priceAlert > 0 && b.mediaSource === "steam") marks.appendChild(tileMark("bell", "Price alert"));
+    if (marks.firstChild) art.appendChild(marks);
+    if (state.bulk.active) art.appendChild(bulkCheckbox(b));
+    tile.appendChild(art);
+    tile.appendChild(el("span", "bl-tile-title", b.title));
+    return tile;
+  }
+
+  function tileMark(icon, label, cls) {
+    const mark = el("span", "bl-tile-mark" + (cls ? " " + cls : ""));
+    mark.appendChild(ico(icon));
+    mark.title = label;
+    mark.setAttribute("aria-label", label);
+    return mark;
+  }
+
+  // The list rows ask for thumbnails a few dozen pixels wide, which blur at
+  // tile size. Where the source serves a bigger one at a known address, ask
+  // for that, with the saved URL as the fallback. Steam's header is a wide
+  // banner, so a game gets its portrait library art instead.
+  function tileCoverUrl(url) {
+    if (!url) return "";
+    return url
+      .replace(/(\/steam\/apps\/\d+\/)header\.jpg(\?.*)?$/, "$1library_600x900.jpg")
+      .replace("image.tmdb.org/t/p/w92/", "image.tmdb.org/t/p/w342/")
+      .replace("/anilistcdn/media/anime/cover/medium/", "/anilistcdn/media/anime/cover/large/")
+      .replace("/anilistcdn/media/manga/cover/medium/", "/anilistcdn/media/manga/cover/large/");
   }
 
   function backlogRowRich(b) {
@@ -3120,6 +3252,19 @@
     $("#pickFavOnly").onchange = (ev) => { pickFavOnly = ev.target.checked; rerollPick(); };
     $("#pickBoughtOnly").onchange = (ev) => { pickBoughtOnly = ev.target.checked; rerollPick(); };
     $("#pickCloseBtn").onclick = closePickModal;
+    $("#pickPrevBtn").onclick = () => stepBrowse(-1);
+    $("#pickNextBtn").onclick = () => stepBrowse(1);
+    attachSwipe($("#pickModal .modal"), {
+      requireHorizontal: true,
+      onLeft: () => stepBrowse(1),
+      onRight: () => stepBrowse(-1),
+    });
+    document.addEventListener("keydown", (e) => {
+      if (!browseIds || $("#pickModal").hidden) return;
+      if (e.target.closest && e.target.closest("input, textarea, select")) return;
+      if (e.key === "ArrowLeft") stepBrowse(-1);
+      else if (e.key === "ArrowRight") stepBrowse(1);
+    });
     $("#closeOutTodayBtn").onclick = closeOutTodaySheet;
     document.addEventListener("click", (e) => {
       if (!e.target.closest("#backlogModal .ac-wrap")) {
@@ -3172,5 +3317,7 @@
     // random-pick draw order (test/backlog.test.js)
     peekPickBag,
     spendPick,
+    // the Covers layout's bigger art (test/backlog.test.js)
+    tileCoverUrl,
   };
 })();
