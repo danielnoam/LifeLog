@@ -16,6 +16,29 @@ what was decided against and why.
 
 ---
 
+- **Ledger subcategories (0.288.0).** Daniel asked for a folder structure:
+  Entertainment > Games, filed under either, filtered to either. An expense
+  keeps `category` as the parent and gains `subcategory`, rather than
+  naming the sub alone, so no old expense needed converting, every total
+  that groups by `category` (month breakdown, Recap, the bridge, older
+  builds) stays right untouched, and sub names only need to be unique
+  within their parent. The subs live in their category's row (`subs`).
+  merge.js merges a row whole, which would have kept one device's subs when
+  two devices added some before a sync; Daniel didn't accept that, so
+  `mergeFinanceCategories` merges `subs` one by one the way `mergeNotes`
+  merges checklist items, and `stampChangedItems` stamps each sub. Two
+  devices adding the same name get two ids, folded by `sanitizeSubs` into
+  the older (by `createdAt`, then id) so every device picks the same one;
+  that's safe because expenses point at subs by name. `ensureSubcategories`
+  is the backstop: an expense naming a sub its parent lacks (an older
+  build's merge, a hand edit) brings it back. A picker's or chip's value is
+  `category + "\u001f" + sub` (`subKey`), a separator no one types. Sub
+  chips show only while their category's chip is on, inline after it, and
+  "Only X" is the key with an empty sub. The row's chip shows the sub alone
+  (with the full path as its title) because "Entertainment › Games" was cut
+  off on a phone. Moving an expense to another category drops its sub, in
+  the app and the bridge. Plan says one level only: a sub holds no subs.
+
 - **Length sort (0.287.0).** Daniel asked for a sort "by how long it is".
   DROPPED.md's "What fits in an evening" turned down a time budget because
   `length` is free text in eight vocabularies. A sort is the easy half of

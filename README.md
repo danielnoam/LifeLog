@@ -167,7 +167,9 @@ in; this is the tour.
     basic math and take other currencies at the day's rate. Recurring
     expenses are charged on a day you pick (a weekday, a day of the month,
     or a date each year) and have pauses, plan changes, one-off charges, merges and
-    per-occurrence edits; projects group a burst of spending. On the
+    per-occurrence edits; projects group a burst of spending. A category
+    can hold subcategories (Games under Entertainment) to file and filter
+    by. On the
     phones, a reminder before a plan charges. On Android, Google Wallet
     payments are offered in.
   - **Summary** – highlights, recurring, by month, by category and the

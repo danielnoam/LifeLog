@@ -57,7 +57,7 @@ const ensureCategories = (cats, items) => {
   for (const i of items) if (!cats.some((c) => c.name === i.category)) cats.push({ id: i.category, name: i.category, color: "#000" });
 };
 IO.init({
-  state, CATEGORY_PALETTE, MONTHS, uid, ensureCategories,
+  state, CATEGORY_PALETTE, MONTHS, uid, ensureCategories, ensureSubcategories: () => {},
   toast: () => {}, persist: async () => {}, afterDataChange: () => {},
   sanitizeProject: global.window.LifeLogFinance.sanitizeProject,
   sanitizeNote: global.window.LifeLogNotes.sanitizeNote,
@@ -662,6 +662,15 @@ atest("everything in one CSV comes back as every kind, each block to its own par
   // A habit's date column is a plain date, which the Ledger parser would
   // read as an expense if it looked past its own block.
   assert.deepStrictEqual(d.financeEntries.map((f) => f.note), ["Lunch, big"]);
+});
+
+atest("a Ledger CSV carries the subcategory, and a file without the column reads as parent-only", async () => {
+  const back = parseFlatFinanceCsv(financeCsvText([{ date: "2026-02-03", amount: 12, category: "Fun", subcategory: "Games" }],
+    [{ startDate: "2026-01-01", interval: "monthly", amount: 9, category: "Fun", subcategory: "Streaming" }]));
+  assert.strictEqual(back.financeEntries[0].subcategory, "Games");
+  assert.strictEqual(back.recurringExpenses[0].subcategory, "Streaming");
+  const old = parseFlatFinanceCsv("Kind,Date,Amount,Category,Note\nExpense,2026-01-02,5,Food,Coffee");
+  assert.strictEqual(old.financeEntries[0].subcategory, undefined);
 });
 
 atest("a Ledger CSV from before the Kind column still reads, and a Sheets pivot is left alone", async () => {

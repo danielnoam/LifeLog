@@ -164,7 +164,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.287.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.288.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -2835,7 +2835,8 @@
           if (document.activeElement === node) return;
           fillSelect(node, [
             { value: "", label: "Move to category…" },
-            ...categories.map((c) => ({ value: c.name, label: c.name })),
+            ...categories.flatMap((c) => [{ value: c.name, label: c.name },
+              ...(c.subs || []).map((x) => ({ value: Finance.subKey(c.name, x.name), label: "\u00a0\u00a0\u00a0\u00a0" + x.name }))]),
           ], "");
           return;
         }
@@ -3484,9 +3485,17 @@
     //
     // Notes get one more, at the front: "No category", keyed "", which is
     // not in the category list but is a group you can narrow to.
+    //
+    // An expense category that's on and has subcategories (0.288.0) is
+    // followed by a chip per sub and one for the expenses with none, so a
+    // total can be narrowed to Games alone without a second row.
+    const subChips = (c) => (!finance || !c.subs || !c.subs.length || !activeCats.has(c.name) ? [] : [
+      { key: c.name + Finance.SUB_SEP, cat: c, sub: "", label: "Only " + c.name },
+      ...c.subs.map((x) => ({ key: Finance.subKey(c.name, x.name), cat: c, sub: x.name, label: x.name })),
+    ]);
     const chips = [
       ...(note ? [{ key: "", cat: { name: "", color: "#7a8a99" }, general: true }] : []),
-      ...cats.map((c) => ({ key: c.name, cat: c })),
+      ...cats.flatMap((c) => [{ key: c.name, cat: c }, ...subChips(c)]),
       { key: "__add", add: true },
     ];
     // Which of the three category lists these chips are — the same name can
@@ -3501,10 +3510,14 @@
           activatable(addChip, (ev) => { ev.stopPropagation(); editCatFor(which)(null); }, addLabel);
           return addChip;
         }
-        const chip = el("span", "cat-chip" + (item.general ? " is-general" : ""));
-        const name = item.cat.name;
+        const chip = el("span", "cat-chip" + (item.general ? " is-general" : "") + (item.sub != null ? " is-sub" : ""));
+        const name = item.sub != null ? item.key : item.cat.name;
         activatable(chip, () => {
           const set = activeCatSetFor(which);
+          // A category switched off takes its sub chips' picks with it.
+          if (which === "finance" && item.sub == null && set.has(name)) {
+            for (const k of [...set]) if (k.startsWith(name + Finance.SUB_SEP)) set.delete(k);
+          }
           // Every chip toggles, collections too (0.221.0). From 0.206.0 a
           // collection's chip cleared the rest, so picking Software then
           // Recipes swapped one for the other; notes.js decides what the
@@ -3522,6 +3535,13 @@
       update: (chip, item) => {
         if (item.add) { chip.title = addLabel; return; }
         const c = item.cat;
+        if (item.sub != null) {
+          chip.classList.toggle("on", activeCats.has(item.key));
+          chip.title = item.sub ? c.name + " › " + item.sub : c.name + " with no subcategory";
+          const subDot = el("span", "dot"); subDot.style.background = c.color;
+          chip.replaceChildren(subDot, document.createTextNode(item.label));
+          return;
+        }
         chip.classList.toggle("on", activeCats.has(c.name));
         const dot = el("span", "dot"); dot.style.background = c.color;
         // Nothing to edit on the general one — it isn't a category, it's
@@ -3568,7 +3588,9 @@
       : (finance ? state.data.financeCategories : state.data.categories).map((c) => c.name);
     const activeCats = note ? state.noteActiveCats
       : finance ? state.financeActiveCats : state.activeCats;
-    if (activeCats.size === names.length) activeCats.clear();
+    // By the categories alone: an expense category's sub picks are in the
+    // same set (0.288.0) and don't make it "everything".
+    if (names.every((n) => activeCats.has(n))) activeCats.clear();
     else { activeCats.clear(); names.forEach((n) => activeCats.add(n)); }
     buildCatFilter();
     render();
@@ -3587,9 +3609,12 @@
   // Category <select>s get a trailing "+ Add new category…" option so a
   // new category can be created without leaving the form that's using it.
   const ADD_CATEGORY_OPTION = "__add_category__";
+  // An expense category's subs (0.288.0) follow it, indented, like folders:
+  // the category alone or one sub of it, from the one list.
   function fillCategorySelect(sel, cats, val) {
     fillSelect(sel,
-      cats.map((c) => ({ value: c.name, label: c.name }))
+      cats.flatMap((c) => [{ value: c.name, label: c.name },
+        ...(c.subs || []).map((x) => ({ value: Finance.subKey(c.name, x.name), label: "\u00a0\u00a0\u00a0\u00a0" + x.name }))])
         .concat([{ value: ADD_CATEGORY_OPTION, label: "+ Add new category…" }]),
       val);
     sel.dataset.prevValue = val || "";
@@ -4028,7 +4053,9 @@
   // category had nothing to decide between them.
   // showInProgress / showBought / showAuthor (0.267.0) are a timeline
   // category's switches; see categoryShows in journal.js for what absent means.
-  const KNOWN_CATEGORY_KEYS = new Set(["id", "name", "color", "createdAt", "updatedAt", "showInProgress", "showBought", "showAuthor"]);
+  // subs (0.288.0) are an expense category's subcategories; see
+  // sanitizeSubs.
+  const KNOWN_CATEGORY_KEYS = new Set(["id", "name", "color", "createdAt", "updatedAt", "showInProgress", "showBought", "showAuthor", "subs"]);
   function sanitizeCategory(c) {
     const out = {
       id: c.id || uid(),
@@ -4040,7 +4067,47 @@
     if (c.showInProgress === false) out.showInProgress = false;
     if (c.showBought === false) out.showBought = false;
     if (typeof c.showAuthor === "boolean") out.showAuthor = c.showAuthor;
+    const subs = sanitizeSubs(c.subs);
+    if (subs.length) out.subs = subs;
     return keepUnknown(c, out, KNOWN_CATEGORY_KEYS);
+  }
+  // An expense names its sub by name, under its parent, so two subs of one
+  // parent with the same name are the same sub. Two devices that each add
+  // "Games" before a sync end up with both (merge.js keeps every sub by id),
+  // and they fold here into the older one, which every device picks alike.
+  const KNOWN_SUB_KEYS = new Set(["id", "name", "createdAt", "updatedAt"]);
+  function sanitizeSubs(subs) {
+    if (!Array.isArray(subs)) return [];
+    const clean = subs.filter((x) => x && typeof x === "object" && String(x.name == null ? "" : x.name).trim())
+      .map((x) => {
+        const out = { id: String(x.id || uid()), name: String(x.name).trim(), updatedAt: backfillUpdatedAt(x) };
+        if (x.createdAt) out.createdAt = x.createdAt;
+        return keepUnknown(x, out, KNOWN_SUB_KEYS);
+      });
+    const older = (a, b) => (a.createdAt || a.updatedAt).localeCompare(b.createdAt || b.updatedAt) || a.id.localeCompare(b.id);
+    const keep = new Map();
+    for (const x of clean) {
+      const k = x.name.toLowerCase();
+      if (!keep.has(k) || older(x, keep.get(k)) < 0) keep.set(k, x);
+    }
+    return clean.filter((x) => keep.get(x.name.toLowerCase()) === x);
+  }
+  // The sub pass of ensureCategories: an expense, bill or one-off charge
+  // naming a sub its parent doesn't have gets it back, so a sub lost to an
+  // older build's merge or a hand edit never strands what used it. The
+  // casing an expense carries is rewritten to the sub's own.
+  function ensureSubcategories(categories, items) {
+    const byName = new Map(categories.map((c) => [c.name, c]));
+    for (const item of items) {
+      if (!item.subcategory) continue;
+      const cat = byName.get(item.category);
+      if (!cat) continue;
+      const subs = cat.subs || (cat.subs = []);
+      const have = subs.find((x) => x.name.toLowerCase() === item.subcategory.toLowerCase());
+      if (have) { item.subcategory = have.name; continue; }
+      const now = backfillUpdatedAt({});
+      subs.push({ id: uid(), name: item.subcategory, createdAt: now, updatedAt: now });
+    }
   }
 
   // adds a category entry (with a palette color) for any category name used
@@ -4194,7 +4261,11 @@
     data.financeCategories = data.financeCategories.map(sanitizeCategory);
     data.financeEntries = (data.financeEntries || []).map(Finance.sanitizeFinanceEntry);
     data.recurringExpenses = (data.recurringExpenses || []).map(Finance.sanitizeRecurring);
-    ensureCategories(data.financeCategories, [...data.financeEntries, ...data.recurringExpenses]);
+    // A bill's one-off charge can name a category of its own, so it counts.
+    const finItems = [...data.financeEntries, ...data.recurringExpenses,
+      ...data.recurringExpenses.flatMap((r) => (r.extras || []).filter((x) => x.category))];
+    ensureCategories(data.financeCategories, finItems);
+    ensureSubcategories(data.financeCategories, finItems);
     // Projects are referenced by name from an entry, so one an entry names but
     // the list has lost gets rebuilt rather than silently un-grouping the
     // expense — the same rule ensureCategories applies a line above.
@@ -5722,7 +5793,7 @@
   // buildImportItems/reviewAndImport, and both need the cross-module
   // sanitizers/cover setters the other view modules expose.
   IO.init({
-    state, $, el, uid, toast, persist, afterDataChange, ensureCategories, ensureProjects,
+    state, $, el, uid, toast, persist, afterDataChange, ensureCategories, ensureSubcategories, ensureProjects,
     CATEGORY_PALETTE, MONTHS, MONTHS_SHORT, colorOf,
     financeColorOf: Finance.financeColorOf, formatMoney: Finance.formatMoney,
     financeKey: Finance.financeKey, recurringKey: Finance.recurringKey,
@@ -5852,7 +5923,7 @@
   // its small pure helpers directly via require(), without needing this
   // whole file's real bootstrap (Storage.load, wire()'s DOM wiring, etc).
   window.LifeLogApp = {
-    normalize, sanitizeAccomplishment, backfillUpdatedAt, emptyData, ensureCategories, ensureProjects, sanitizeCategory,
+    normalize, sanitizeAccomplishment, backfillUpdatedAt, emptyData, ensureCategories, ensureSubcategories, ensureProjects, sanitizeCategory,
     // The bulk-run tracker, exposed the same way: a run is otherwise only
     // reachable through a minute of real network, which is not a test.
     startBulkRun, markBulkItem, finishBulkRun, clearBulkRun,

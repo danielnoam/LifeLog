@@ -139,12 +139,12 @@
         items: () => {
           const projects = new Map((state.data.projects || []).map((p) => [p.id, p.name]));
           const rows = (state.data.financeEntries || []).map((x) => ({
-            fields: [f(x.note || x.category, "title"), f(x.category, "category"), f(projects.get(x.project), "project"), f(F.amountText(x), "amount")],
+            fields: [f(x.note || F.catLabel(x), "title"), f(F.catLabel(x), "category"), f(projects.get(x.project), "project"), f(F.amountText(x), "amount")],
             meta: [F.amountText(x), dateLabel(x.date)].filter(Boolean).join(" · "),
             open: () => F.openFinanceModal(x),
           }));
           const recurring = (state.data.recurringExpenses || []).map((r) => ({
-            fields: [f(r.note || r.category, "title"), f(r.category, "category"), f(F.amountText(r), "amount")],
+            fields: [f(r.note || F.catLabel(r), "title"), f(F.catLabel(r), "category"), f(F.amountText(r), "amount")],
             meta: ["Recurring", F.amountText(r)].filter(Boolean).join(" · "),
             open: () => F.openRecurringModal(r),
           }));

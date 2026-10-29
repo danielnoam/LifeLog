@@ -81,7 +81,9 @@ Changing: `lifelog_add_expense`, `lifelog_add_timeline_entry`,
 `lifelog_update_trip`, `lifelog_delete_trip`, `lifelog_add_place`,
 `lifelog_update_place`, `lifelog_delete_place`,
 `lifelog_import_google_list`, `lifelog_add_habit`, `lifelog_add_recurring`,
-`lifelog_add_category`, `lifelog_delete_category`, `lifelog_batch` (several
+`lifelog_add_category`, `lifelog_delete_category`,
+`lifelog_add_subcategory`, `lifelog_rename_subcategory`,
+`lifelog_delete_subcategory`, `lifelog_batch` (several
 changes saved, and undone, as one), `lifelog_undo`.
 
 Every change is checked first: categories and projects must exist, and the

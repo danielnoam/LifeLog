@@ -786,6 +786,12 @@ select:focus { outline: none; border-color: var(--accent); }
 .cat-chip.on { border-color: transparent; background: var(--accent-fill); color: var(--text-on-accent); }
 .cat-chip.add-chip { padding: 4px 12px; font-weight: 700; color: var(--text-dim); min-width: 0 !important; }
 .cat-chip.add-chip:hover { color: var(--text); border-color: var(--accent); }
+/* A subcategory's chip (0.288.0), shown after its category's while that one
+   is on: dashed and hugging its text, so it reads as part of the one before
+   it rather than a category of its own. */
+.cat-chip.is-sub { border-style: dashed; color: var(--text-dim); min-width: 0 !important; }
+.cat-chip.is-sub .dot { width: 6px; height: 6px; }
+.cat-chip.is-sub.on { border-style: solid; color: var(--text-on-accent); }
 
 /* ---------- content ---------- */
 /* pan-y hands horizontal gestures to JS (the swipe that switches mode —
@@ -1583,6 +1589,9 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
 .card h2 { margin: 0 0 14px; font-size: var(--fs-read); }
 .bar-row { display: grid; grid-template-columns: 120px 1fr 46px; align-items: center; gap: 10px; margin-bottom: 8px; font-size: var(--fs-sm); }
 .bar-row .lbl { color: var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* A subcategory's bar under its category's (0.288.0). */
+.bar-row.is-sub .lbl { padding-left: var(--space-16); color: var(--text-dim); font-size: var(--fs-xs); }
+.bar-row.is-sub .val { font-weight: 500; color: var(--text-dim); }
 .bar-track { background: var(--bg-elev-2); border-radius: var(--r-sm); height: 16px; overflow: hidden; }
 .bar-fill { height: 100%; border-radius: var(--r-sm); }
 .bar-row .val { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); font-weight:600; }

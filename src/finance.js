@@ -71,6 +71,28 @@
       backfillUpdatedAt, MONTHS, DEFAULT_SETTINGS } = ctx);
   }
 
+  // ---------- subcategories (0.288.0) ----------
+  // A category picker's or filter chip's value for "this category" or "this
+  // sub of it". The separator can't be typed into a name, so a name with a
+  // slash or an arrow in it stays whole.
+  const SUB_SEP = "\u001f";
+  const subKey = (category, sub) => (sub ? category + SUB_SEP + sub : category);
+  function parseSubKey(v) {
+    const i = String(v).indexOf(SUB_SEP);
+    return i < 0 ? { category: String(v), subcategory: "" } : { category: v.slice(0, i), subcategory: v.slice(i + 1) };
+  }
+  const catLabel = (f) => (f.subcategory ? f.category + " › " + f.subcategory : f.category);
+  function subsOf(name) {
+    const c = state.data.financeCategories.find((x) => x.name === name);
+    return (c && c.subs) || [];
+  }
+  // Reads a picker into an item: the category, and the sub or none.
+  function setCategoryFrom(item, value) {
+    const { category, subcategory } = parseSubKey(value);
+    item.category = category;
+    if (subcategory) item.subcategory = subcategory; else delete item.subcategory;
+  }
+
   // ---------- amount math expressions ----------
   // The amount fields accept a plain number or a basic arithmetic expression
   // ("50-25", "12.5*3", "(10+5)/2") so quick sums/splits can be entered
@@ -491,6 +513,7 @@
         id: `${rec.id}:${n}`, date: dateStr, type: "expense",
         amount: fx ? fx.amount : (ov && ov.amount != null ? ov.amount : rec.amount),
         category: rec.category,
+        subcategory: rec.subcategory || undefined,
         note: ov && ov.note != null ? ov.note : rec.note,
         createdAt: rec.createdAt,
         project: rec.project || undefined,
@@ -524,6 +547,7 @@
       out.push({
         id: `${rec.id}:x:${x.id}`, date: x.date, type: "expense", amount: x.amount,
         category: x.category || rec.category,
+        subcategory: (x.category ? x.subcategory : rec.subcategory) || undefined,
         note: x.note != null ? x.note : rec.note,
         createdAt: rec.createdAt,
         project: rec.project || undefined,
@@ -577,6 +601,7 @@
       createdAt: now,
       prevId: rec.id,
     };
+    if (next.subcategory) created.subcategory = next.subcategory;
     if (next.note) created.note = next.note;
     // A new price doesn't move the billing day. effectiveFrom is normally a
     // charge date already, so this only matters for the 29th to 31st.
@@ -706,7 +731,10 @@
       r.extras = [...(r.extras || []), ...overlap.map((o) => {
         const x = { id: prev.id + "-" + o.date, date: o.date, amount: o.amount };
         if (o.note != null && o.note !== r.note) x.note = o.note;
-        if (prev.category !== r.category) x.category = prev.category;
+        if (prev.category !== r.category || (prev.subcategory || "") !== (r.subcategory || "")) {
+          x.category = prev.category;
+          if (prev.subcategory) x.subcategory = prev.subcategory;
+        }
         if (o.currency) Object.assign(x, { currency: o.currency, fxAmount: o.fxAmount, rate: o.rate });
         return x;
       })].sort((a, b) => a.date.localeCompare(b.date));
@@ -734,11 +762,28 @@
     return [...ys].sort((a, b) => b - a);
   }
 
+  // A category's chip takes all of it. Once one of its sub chips is on too
+  // (they show while the category's is), only the subs picked count, and
+  // "Only <category>" (the key with an empty sub) is the ones with none.
+  function financeCatTest() {
+    const set = state.financeActiveCats;
+    if (!set.size) return null;
+    const picked = new Map();
+    for (const k of set) {
+      const { category, subcategory } = parseSubKey(k);
+      if (!String(k).includes(SUB_SEP) || !set.has(category)) continue;
+      if (!picked.has(category)) picked.set(category, new Set());
+      picked.get(category).add(subcategory);
+    }
+    return (f) => set.has(f.category) && (!picked.has(f.category) || picked.get(f.category).has(f.subcategory || ""));
+  }
+
   function getFilteredFinance() {
     const q = state.search.trim().toLowerCase();
+    const catOk = financeCatTest();
     return getEffectiveFinanceEntries().filter((f) => {
       if (state.financeActiveYears.size && !state.financeActiveYears.has(financeYearOf(f))) return false;
-      if (state.financeActiveCats.size && !state.financeActiveCats.has(f.category)) return false;
+      if (catOk && !catOk(f)) return false;
       // Projects narrow on a second axis: an empty set means everything, the
       // same rule the category chips follow. Two states only — in a project
       // or not — so this asks which, never which one.
@@ -752,13 +797,13 @@
   // ---------- bulk actions ----------
   async function bulkMoveFinanceSelected(categoryName) {
     const ids = state.bulk.selected;
-    state.data.financeEntries.forEach((f) => { if (ids.has(f.id)) f.category = categoryName; });
+    state.data.financeEntries.forEach((f) => { if (ids.has(f.id)) setCategoryFrom(f, categoryName); });
     const n = ids.size;
     state.bulk.active = false;
     state.bulk.selected.clear();
     render();
     await persist();
-    toast(`Moved ${n} entr${n === 1 ? "y" : "ies"} to “${categoryName}”`);
+    toast(`Moved ${n} entr${n === 1 ? "y" : "ies"} to “${catLabel(parseSubKey(categoryName))}”`);
   }
 
   async function bulkDeleteFinanceSelected() {
@@ -913,7 +958,10 @@
     const dot = el("span", "dot");
     dot.style.background = color;
     chip.appendChild(dot);
-    chip.appendChild(document.createTextNode(f.category));
+    // A sub alone, in its category's colour: the full path doesn't fit a
+    // phone row's chip, and the colour already says whose it is.
+    chip.appendChild(document.createTextNode(f.subcategory || f.category));
+    if (f.subcategory) chip.title = catLabel(f);
     row.appendChild(chip);
     const t = el("span", "etitle", f.note || f.category);
     t.title = f.note || f.category;
@@ -1088,9 +1136,14 @@
       // a Switzerland dinner under both "Food" and "Switzerland" would make
       // the breakdown add up to more than the month, which is the one thing a
       // breakdown has to get right.
-      const byCat = groupBy(countedItems.filter((f) => !f.project), (f) => f.category);
+      // Filtered to one category, its lines are its subcategories (0.288.0):
+      // the month's whole breakdown is then that category, so splitting it
+      // still adds up to the total.
+      const parents = [...state.financeActiveCats].filter((k) => !k.includes(SUB_SEP));
+      const bySub = parents.length === 1;
+      const byCat = groupBy(countedItems.filter((f) => !f.project), (f) => (bySub ? catLabel(f) : f.category));
       const catRows = Object.keys(byCat)
-        .map((name) => ({ name, total: byCat[name].reduce((sum, f) => sum + f.amount, 0) }))
+        .map((name) => ({ name, color: financeColorOf(byCat[name][0].category), total: byCat[name].reduce((sum, f) => sum + f.amount, 0) }))
         .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name));
       const byProj = groupBy(countedItems.filter((f) => f.project), (f) => f.project);
       const projRows = Object.keys(byProj)
@@ -1166,7 +1219,7 @@
             const row = el("div", "month-cat" + (c.project ? " is-project" : "")
               + (c.provisional ? " is-provisional" : ""));
             const dot = el("span", "dot");
-            dot.style.background = c.project ? projectColorOf(c.name) : financeColorOf(c.name);
+            dot.style.background = c.project ? projectColorOf(c.name) : c.color;
             row.appendChild(dot);
             const name = el("span", "month-cat-name", c.name);
             name.title = c.name;
@@ -1395,8 +1448,27 @@
     let order = state.data.financeCategories.map((c) => c.name).filter((n) => totals[n]);
     for (const n of Object.keys(totals)) if (!order.includes(n)) order.push(n);
     const max = Math.max(1, ...Object.values(totals));
-    order.sort((a, b) => totals[b] - totals[a])
-      .forEach((n) => card.appendChild(barRow(n, totals[n], max, financeColorOf(n), counts[n], formatMoney, "entries")));
+    // A category whose expenses use its subcategories (0.288.0) gets a bar
+    // per sub under its own, and one for the rest, so the lines under it add
+    // up to it. One that uses none looks exactly as before.
+    const bySub = {};
+    for (const f of catItems) {
+      const t = bySub[f.category] || (bySub[f.category] = {});
+      const k = f.subcategory || "";
+      t[k] = t[k] || { total: 0, n: 0 };
+      t[k].total += f.amount;
+      t[k].n++;
+    }
+    order.sort((a, b) => totals[b] - totals[a]).forEach((n) => {
+      card.appendChild(barRow(n, totals[n], max, financeColorOf(n), counts[n], formatMoney, "entries"));
+      const t = bySub[n];
+      if (!t || !Object.keys(t).some((k) => k)) return;
+      Object.keys(t).sort((a, b) => (!a) - (!b) || t[b].total - t[a].total).forEach((k) => {
+        const row = barRow(k || "No subcategory", t[k].total, max, financeColorOf(n) + "99", t[k].n, formatMoney, "entries");
+        row.classList.add("is-sub");
+        card.appendChild(row);
+      });
+    });
     return card;
   }
 
@@ -1585,7 +1657,7 @@
       : (presetDate ? presetDateStr(presetDate) : todayStr());
     $("#finAmount").value = editing ? entry.amount : "";
     fillCategorySelect($("#finCategory"), state.data.financeCategories,
-      editing ? entry.category : (state.data.financeCategories[0] && state.data.financeCategories[0].name));
+      editing ? subKey(entry.category, entry.subcategory) : (state.data.financeCategories[0] && state.data.financeCategories[0].name));
     // An existing entry keeps whatever it has, including none. A new one is
     // offered the project whose range covers its date — preselected in a
     // visible dropdown, never applied silently.
@@ -1779,12 +1851,14 @@
       : { currency: null, fxAmount: null, rate: null, rateConfirmed: null };
     if (id) {
       const f = state.data.financeEntries.find((x) => x.id === id);
-      Object.assign(f, { date, amount, category });
+      Object.assign(f, { date, amount });
+      setCategoryFrom(f, category);
       if (note) f.note = note; else delete f.note;
       if (project) f.project = project; else delete f.project;
       for (const [k, v] of Object.entries(fxFields)) { if (v == null) delete f[k]; else f[k] = v; }
     } else {
-      const item = { id: uid(), date, amount, category, createdAt: new Date().toISOString() };
+      const item = { id: uid(), date, amount, createdAt: new Date().toISOString() };
+      setCategoryFrom(item, category);
       if (note) item.note = note;
       if (project) item.project = project;
       for (const [k, v] of Object.entries(fxFields)) if (v != null) item[k] = v;
@@ -1838,7 +1912,8 @@
     $("#recRate").value = recFx ? recFx.rate : (p.rate || "");
     applyRecurringCurrencyUI();
     fillCategorySelect($("#recCategory"), state.data.financeCategories,
-      editing ? rec.category : (p.category || (state.data.financeCategories[0] && state.data.financeCategories[0].name)));
+      editing ? subKey(rec.category, rec.subcategory)
+        : (p.category ? subKey(p.category, p.subcategory) : (state.data.financeCategories[0] && state.data.financeCategories[0].name)));
     $("#recNote").value = editing ? (rec.note || "") : (p.note || "");
     // A heads-up before it charges (0.272.0), on the phones only. Kept per
     // phone and keyed by the plan's first version, so a plan change keeps it.
@@ -2239,6 +2314,7 @@
     if (note && note !== (rec.note || "")) x.note = note;
     const old = (rec.extras || []).find((e) => e.id === x.id);
     if (old && old.category) x.category = old.category;
+    if (old && old.category && old.subcategory) x.subcategory = old.subcategory;
     rec.extras = [...(rec.extras || []).filter((e) => e.id !== x.id), x].sort((a, b) => a.date.localeCompare(b.date));
     const reopenTemplate = !$("#recurringModal").hidden;
     closeRecurringOccModal();
@@ -2320,7 +2396,8 @@
     if (id) {
       const r = state.data.recurringExpenses.find((x) => x.id === id);
       const before = { ...r };
-      Object.assign(r, { startDate, interval, amount, category });
+      Object.assign(r, { startDate, interval, amount });
+      setCategoryFrom(r, category);
       delete r.chargeDay; delete r.chargeMonth; delete r.chargeWeekday;
       Object.assign(r, chargeOn);
       rekeyOccurrenceMaps(before, r);
@@ -2330,7 +2407,8 @@
       if (note) r.note = note; else delete r.note;
       if (endDate) r.endDate = endDate; else delete r.endDate;
     } else {
-      const item = { id: uid(), startDate, interval, amount, category, createdAt: new Date().toISOString() };
+      const item = { id: uid(), startDate, interval, amount, createdAt: new Date().toISOString() };
+      setCategoryFrom(item, category);
       Object.assign(item, chargeOn);
       applyPlanCurrency(item, foreign ? { code, typed, rate } : null);
       const rProject = $("#recProject").value === ADD_PROJECT_OPTION ? "" : $("#recProject").value;
@@ -2412,7 +2490,7 @@
     // In the plan's own currency, since that is the number that changed when
     // the price went up — the home figure follows from it.
     $("#planAmount").value = pfx ? pfx.amount : rec.amount;
-    fillCategorySelect($("#planCategory"), state.data.financeCategories, rec.category);
+    fillCategorySelect($("#planCategory"), state.data.financeCategories, subKey(rec.category, rec.subcategory));
     $("#planNote").value = rec.note || "";
     $("#changePlanModal").hidden = false;
   }
@@ -2437,9 +2515,9 @@
     const next = {
       interval: $("#planInterval").value,
       amount,
-      category: $("#planCategory").value,
       note: $("#planNote").value.trim(),
     };
+    setCategoryFrom(next, $("#planCategory").value);
     // On a foreign plan the box holds the new billed figure; the rate carries
     // over, since a price change says nothing about the exchange rate.
     if (planFx) { next.fxAmount = amount; next.rate = planFx.rate; }
@@ -2472,6 +2550,7 @@
     const now = new Date().toISOString();
     occs.forEach((o) => {
       const entry = { id: uid(), date: o.date, type: "expense", amount: o.amount, category: o.category, createdAt: now };
+      if (o.subcategory) entry.subcategory = o.subcategory;
       if (o.note) entry.note = o.note;
       state.data.financeEntries.push(entry);
     });
@@ -2516,6 +2595,7 @@
       startDate: entry.date,
       amount: entry.amount,
       category: entry.category,
+      subcategory: entry.subcategory,
       note: entry.note || "",
     });
   }
@@ -2676,7 +2756,8 @@
       const dot = el("span", "dot");
       dot.style.background = color;
       chip.appendChild(dot);
-      chip.appendChild(document.createTextNode(r.category));
+      chip.appendChild(document.createTextNode(r.subcategory || r.category));
+      if (r.subcategory) chip.title = catLabel(r);
       row.appendChild(chip);
       const text = el("span", "recur-text");
       const t = el("span", "etitle", r.note || r.category);
@@ -3229,7 +3310,80 @@
       uses.hidden = false;
     } else uses.hidden = true;
     $("#deleteFinanceCatBtn").hidden = !editing;
+    catSheetSubs = ((editing && cat.subs) || []).map((x) => ({ id: x.id, name: x.name, orig: x.name }));
+    $("#finCatNewSub").value = "";
+    renderCatSheetSubs();
     $("#financeCatModal").hidden = false;
+  }
+
+  // The sheet edits a draft of the subs; Save applies it, renames and
+  // removals carried to every expense that uses them.
+  let catSheetSubs = [];
+  function renderCatSheetSubs() {
+    const wrap = $("#finCatSubItems");
+    wrap.innerHTML = "";
+    catSheetSubs.forEach((x, i) => {
+      const row = el("div", "note-list-row");
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = x.name;
+      input.setAttribute("aria-label", "Subcategory " + (i + 1));
+      input.oninput = () => { x.name = input.value; };
+      input.onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); $("#finCatNewSub").focus(); } };
+      const del = el("button", "note-list-del");
+      del.appendChild(ico("x"));
+      del.type = "button";
+      del.setAttribute("aria-label", "Remove subcategory " + x.name);
+      del.onclick = () => { catSheetSubs.splice(i, 1); renderCatSheetSubs(); };
+      row.append(input, del);
+      wrap.appendChild(row);
+    });
+  }
+  function addCatSheetSub() {
+    const input = $("#finCatNewSub");
+    const name = input.value.trim();
+    if (!name) return;
+    catSheetSubs.push({ id: uid(), name, orig: null });
+    input.value = "";
+    renderCatSheetSubs();
+  }
+  function subUses(parent, sub) {
+    const low = sub.toLowerCase();
+    const on = (x) => x.category === parent && String(x.subcategory || "").toLowerCase() === low;
+    return state.data.financeEntries.filter(on).length + state.data.recurringExpenses.filter(on).length
+      + state.data.recurringExpenses.reduce((n, r) => n + (r.extras || []).filter(on).length, 0);
+  }
+  // Checks the sheet's draft against `cat` before anything is saved, and
+  // asks before removing a sub that's in use. Null when it can't be saved.
+  function planCatSheetSubs(cat) {
+    addCatSheetSub();
+    const draft = catSheetSubs.map((x) => ({ ...x, name: x.name.trim() })).filter((x) => x.name);
+    const names = draft.map((x) => x.name.toLowerCase());
+    if (new Set(names).size !== names.length) { toast("Two subcategories can't share a name", true); return null; }
+    const kept = new Set(draft.map((x) => x.id));
+    const removed = ((cat && cat.subs) || []).filter((x) => !kept.has(x.id));
+    const used = removed.reduce((n, x) => n + subUses(cat.name, x.name), 0);
+    if (used && !confirm(`${used} expense${used === 1 ? " uses" : "s use"} ${removed.length === 1 ? "“" + removed[0].name + "”" : "the subcategories you removed"}. They stay in “${cat.name}”, with no subcategory. Remove?`)) return null;
+    return { draft, removed };
+  }
+  // Applies a checked draft to `cat`, which already carries its new name.
+  function applyCatSheetSubs(cat, { draft, removed }) {
+    for (const x of removed) {
+      renameFinanceSubcategory(state.data, cat.name, x.name, null);
+      state.financeActiveCats.delete(subKey(cat.name, x.name));
+    }
+    // In two steps, so swapping two names round can't fold them into one.
+    const renamed = draft.filter((x) => x.orig != null && x.orig !== x.name);
+    for (const x of renamed) renameFinanceSubcategory(state.data, cat.name, x.orig, SUB_SEP + x.id);
+    for (const x of renamed) {
+      renameFinanceSubcategory(state.data, cat.name, SUB_SEP + x.id, x.name);
+      const k = subKey(cat.name, x.orig);
+      if (state.financeActiveCats.delete(k)) state.financeActiveCats.add(subKey(cat.name, x.name));
+    }
+    const before = new Map((cat.subs || []).map((x) => [x.id, x]));
+    const now = new Date().toISOString();
+    const subs = draft.map((x) => (before.has(x.id) ? { ...before.get(x.id), name: x.name } : { id: x.id, name: x.name, createdAt: now, updatedAt: now }));
+    if (subs.length) cat.subs = subs; else delete cat.subs;
   }
   function closeFinanceCatModal() { $("#financeCatModal").hidden = true; }
   function cancelFinanceCatModal() { closeFinanceCatModal(); resolvePendingCatSelect(); }
@@ -3253,7 +3407,11 @@
       const now = new Date().toISOString();
       // See the journal's equivalent: this collection syncs, so it needs an
       // updatedAt for merge.js to decide between two devices.
-      state.data.financeCategories.push({ id: newName.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: newName, color, createdAt: now, updatedAt: now });
+      const added = { id: newName.toLowerCase().replace(/[^a-z0-9]+/g, "-"), name: newName, color, createdAt: now, updatedAt: now };
+      const plan = planCatSheetSubs(null);
+      if (!plan) return;
+      applyCatSheetSubs(added, plan);
+      state.data.financeCategories.push(added);
       closeFinanceCatModal();
       rebuildFinanceColorMap(); buildCatFilter(); render();
       await persist();
@@ -3268,6 +3426,8 @@
       toast("A category with that name already exists", true);
       return;
     }
+    const plan = planCatSheetSubs(cat);
+    if (!plan) return;
     cat.color = color;
     if (newName !== cat.name) {
       // id stays put across a rename (it's the merge/sync identity for this
@@ -3277,8 +3437,14 @@
       const old = cat.name;
       cat.name = newName;
       renameFinanceCategory(state.data, old, newName);
-      if (state.financeActiveCats.has(old)) { state.financeActiveCats.delete(old); state.financeActiveCats.add(newName); }
+      // Its sub chips' picks are keyed by its name too.
+      for (const k of [...state.financeActiveCats]) {
+        if (k !== old && !k.startsWith(old + SUB_SEP)) continue;
+        state.financeActiveCats.delete(k);
+        state.financeActiveCats.add(newName + k.slice(old.length));
+      }
     }
+    applyCatSheetSubs(cat, plan);
     closeFinanceCatModal();
     rebuildFinanceColorMap(); buildCatFilter(); render();
     await persist();
@@ -3304,12 +3470,12 @@
       if (!confirm(`“${cat.name}” is used by ${n} entr${n === 1 ? "y" : "ies"}. Move them to “Other” and delete?`)) return;
       let other = state.data.financeCategories.find((c) => c.name === "Other");
       if (!other) { other = { id: "other", name: "Other", color: "#7a8a99" }; state.data.financeCategories.push(other); }
-      renameFinanceCategory(state.data, cat.name, "Other");
+      renameFinanceCategory(state.data, cat.name, "Other", true);
     } else {
       if (!confirm(`Delete category “${cat.name}”?`)) return;
     }
     state.data.financeCategories = state.data.financeCategories.filter((c) => c !== cat);
-    state.financeActiveCats.delete(cat.name);
+    for (const k of [...state.financeActiveCats]) if (k === cat.name || k.startsWith(cat.name + SUB_SEP)) state.financeActiveCats.delete(k);
     rebuildFinanceColorMap();
     buildCatFilter(); render();
     await persist();
@@ -3385,17 +3551,17 @@
   // one row per expense or recurring plan. Files from before the Kind column
   // (expenses only, starting at Date) read too. Anything else is null, and
   // left to the Sheets pivot parser.
-  const FINANCE_CSV_HEADER = ["Kind", "Date", "Amount", "Category", "Note", "Project", "Currency", "Paid", "Rate", "Repeats", "Ends"];
+  const FINANCE_CSV_HEADER = ["Kind", "Date", "Amount", "Category", "Note", "Project", "Currency", "Paid", "Rate", "Repeats", "Ends", "Subcategory"];
   function financeCsvText(entries, recurring) {
     // Amount stays the home figure so the column still sums in a
     // spreadsheet (filter Kind to Expense); what was paid rides beside it.
     const rows = [FINANCE_CSV_HEADER];
     entries.slice().sort((a, b) => b.date.localeCompare(a.date)).forEach((f) =>
       rows.push(["Expense", f.date, f.amount, f.category, f.note || "",
-        f.project || "", f.currency || "", f.fxAmount || "", f.rate || "", "", ""]));
+        f.project || "", f.currency || "", f.fxAmount || "", f.rate || "", "", "", f.subcategory || ""]));
     recurring.slice().sort((a, b) => b.startDate.localeCompare(a.startDate)).forEach((r) =>
       rows.push(["Recurring", r.startDate, r.amount, r.category, r.note || "",
-        r.project || "", r.currency || "", r.fxAmount || "", r.rate || "", r.interval, r.endDate || ""]));
+        r.project || "", r.currency || "", r.fxAmount || "", r.rate || "", r.interval, r.endDate || "", r.subcategory || ""]));
     return rows.map((r) => r.map(csvEsc).join(",")).join("\n");
   }
   function parseFlatFinanceCsv(text) {
@@ -3405,10 +3571,11 @@
     if (!kinded && !(head[0] === "date" && head[1] === "amount")) return null;
     const financeEntries = [], recurringExpenses = [];
     for (const row of rows.slice(1)) {
-      const [kind, date, amount, category, note, project, currency, paid, rate, repeats, ends] = kinded ? row : ["Expense", ...row];
+      const [kind, date, amount, category, note, project, currency, paid, rate, repeats, ends, sub] = kinded ? row : ["Expense", ...row];
       if (!/^(expense|recurring)$/i.test(String(kind || "").trim())) continue;
       if (!/^\d{4}-\d{2}-\d{2}$/.test(String(date || "").trim())) continue;
       const rec = { amount: parseMoneyCell(amount), category: (category || "").trim() || "Other" };
+      if ((sub || "").trim()) rec.subcategory = sub.trim();
       if ((note || "").trim()) rec.note = note.trim();
       if ((project || "").trim()) rec.project = project.trim();
       if ((currency || "").trim()) { rec.currency = currency.trim(); rec.fxAmount = parseMoneyCell(paid); rec.rate = +rate; }
@@ -3453,7 +3620,7 @@
   // carried through rather than dropped, so a device on an older build can't
   // silently delete a newer one's data.
   const KNOWN_FINANCE_ENTRY_KEYS = new Set([
-    "id", "date", "amount", "category", "createdAt", "updatedAt", "note", "project",
+    "id", "date", "amount", "category", "subcategory", "createdAt", "updatedAt", "note", "project",
     "currency", "fxAmount", "rate", "rateConfirmed",
   ]);
   // startDate/endDate are deliberately absent: projects carried a date range
@@ -3463,7 +3630,7 @@
     "id", "name", "color", "createdAt", "updatedAt",
   ]);
   const KNOWN_RECURRING_KEYS = new Set([
-    "id", "startDate", "interval", "amount", "category", "createdAt", "updatedAt",
+    "id", "startDate", "interval", "amount", "category", "subcategory", "createdAt", "updatedAt",
     "note", "endDate", "prevId", "overrides", "pauses", "project", "chargeDay", "chargeMonth", "chargeWeekday", "combinedWith",
     // A plan billed in a currency that isn't yours: fxAmount is what you're
     // charged each period, rate is the fallback used for a date with no
@@ -3488,6 +3655,8 @@
     // invented — a lump had none — but a dated expense is a real row and a
     // broken date is not, and no row is deleted to make the feature go away.
     if (/^\d{4}$/.test(out.date)) out.date = out.date + "-01-01";
+    // A sub of `category`, by name (0.288.0). Absent means the parent alone.
+    if (f.subcategory) out.subcategory = String(f.subcategory).trim();
     if (f.note) out.note = f.note;
     // Referenced by name, exactly as `category` is — the rename cascade in
     // saveProjectFromForm is the same one finance categories already use.
@@ -3522,11 +3691,30 @@
   // one (or, for a project, `to` null takes the grouping off). The id stays
   // put: it's the merge identity. A recurring bill and its one-off charges
   // carry names too, which the Ledger's own rename once missed.
-  function renameFinanceCategory(data, from, to) {
-    for (const f of data.financeEntries || []) if (f.category === from) f.category = to;
+  // `dropSubs` is for a move to another category (deleting one moves its
+  // expenses to Other): its subs don't exist there, so the expenses become
+  // parent-only rather than bringing them along.
+  function renameFinanceCategory(data, from, to, dropSubs) {
+    const move = (x) => { x.category = to; if (dropSubs) delete x.subcategory; };
+    for (const f of data.financeEntries || []) if (f.category === from) move(f);
     for (const r of data.recurringExpenses || []) {
-      if (r.category === from) r.category = to;
-      for (const x of r.extras || []) if (x.category === from) x.category = to;
+      if (r.category === from) move(r);
+      for (const x of r.extras || []) if (x.category === from) move(x);
+    }
+  }
+  // Every expense, bill and one-off charge on a parent's sub, moved to
+  // another sub's name, or with `to` null back to the parent alone (which is
+  // what deleting a sub does: nothing moves out of the category).
+  function renameFinanceSubcategory(data, parent, from, to) {
+    const low = String(from).toLowerCase();
+    const move = (x) => {
+      if (String(x.subcategory || "").toLowerCase() !== low) return;
+      if (to) x.subcategory = to; else delete x.subcategory;
+    };
+    for (const f of data.financeEntries || []) if (f.category === parent) move(f);
+    for (const r of data.recurringExpenses || []) {
+      if (r.category === parent) move(r);
+      for (const x of r.extras || []) if (x.category === parent) move(x);
     }
   }
   function renameProject(data, from, to) {
@@ -3549,7 +3737,7 @@
     // expenses, because that is where they actually are.
     return keepUnknown(p, out, KNOWN_PROJECT_KEYS);
   }
-  const financeKey = (f) => `${(f.date || "").toLowerCase()}|${+f.amount}|${(f.category || "").toLowerCase()}|${(f.note || "").toLowerCase()}|${(f.project || "").toLowerCase()}|${(f.currency || "").toUpperCase()}|${+f.fxAmount || 0}`;
+  const financeKey = (f) => `${(f.date || "").toLowerCase()}|${+f.amount}|${(f.category || "").toLowerCase()}|${(f.subcategory || "").toLowerCase()}|${(f.note || "").toLowerCase()}|${(f.project || "").toLowerCase()}|${(f.currency || "").toUpperCase()}|${+f.fxAmount || 0}`;
   function sanitizeRecurring(r) {
     const out = {
       id: r.id || uid(),
@@ -3560,6 +3748,7 @@
       createdAt: r.createdAt || null,
       updatedAt: backfillUpdatedAt(r),
     };
+    if (r.subcategory) out.subcategory = String(r.subcategory).trim();
     if (r.note) out.note = r.note;
     if (r.endDate) out.endDate = r.endDate;
     const startDay = +String(out.startDate).slice(8, 10), startMonth = +String(out.startDate).slice(5, 7);
@@ -3619,7 +3808,10 @@
         if (!x || typeof x !== "object" || !/^\d{4}-\d{2}-\d{2}$/.test(x.date)) continue;
         const clean = { id: String(x.id || uid()), date: x.date, amount: Math.abs(+x.amount) || 0 };
         if (x.note != null) clean.note = String(x.note);
+        // A one-off charge's sub belongs to its own category; without one it
+        // takes the bill's category and sub both.
         if (x.category) clean.category = String(x.category);
+        if (x.category && x.subcategory) clean.subcategory = String(x.subcategory).trim();
         const rate = +x.rate, fxAmount = Math.abs(+x.fxAmount);
         if (x.currency && isFinite(rate) && rate > 0 && isFinite(fxAmount)) Object.assign(clean, { currency: String(x.currency), fxAmount, rate });
         extras.push(clean);
@@ -3637,7 +3829,7 @@
     }
     return keepUnknown(r, out, KNOWN_RECURRING_KEYS);
   }
-  const recurringKey = (r) => `${r.startDate}|${r.interval}|${+r.amount}|${(r.category || "").toLowerCase()}|${(r.note || "").toLowerCase()}`;
+  const recurringKey = (r) => `${r.startDate}|${r.interval}|${+r.amount}|${(r.category || "").toLowerCase()}|${(r.subcategory || "").toLowerCase()}|${(r.note || "").toLowerCase()}`;
 
   // ---------- events ----------
   // Finance-specific DOM wiring; called from app.js's wire().
@@ -3703,6 +3895,9 @@
 
     $("#cancelFinanceCatBtn").onclick = cancelFinanceCatModal;
     $("#financeCatForm").onsubmit = saveFinanceCatFromForm;
+    // Enter adds the sub rather than saving the sheet; the + line is the
+    // checklist's.
+    $("#finCatNewSub").onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); addCatSheetSub(); } };
     $("#deleteFinanceCatBtn").onclick = deleteCurrentFinanceCategory;
 
     $("#finCurrency").onchange = () => {
@@ -3862,7 +4057,8 @@
     isPausedOn,
     normalizePauses,
     setPause, resumeOn, livePauseIndex, setOccurrence, resetOccurrence,
-    renameFinanceCategory, renameProject,
+    renameFinanceCategory, renameFinanceSubcategory, renameProject,
+    subKey, parseSubKey, catLabel, SUB_SEP,
     localDateStr,
     closestOccurrenceDate,
     // exported for test/finance.test.js — the date-range reply's shape and

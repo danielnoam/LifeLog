@@ -156,6 +156,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Projects to group and total one-off spending, with a filter and a + on each pill (0.145.0, 0.149.0, 0.156.0)
 - Where each month's money went (0.104.0)
 - Summary: highlights, recurring, by month, by category, top expenses (0.50.0, 0.91.0, 0.57.1)
+- Subcategories under an expense category: a folder-style picker, sub chips to filter, sub bars in By category, on bills and in the CSV (0.288.0)
 - Google Wallet payments offered to the Ledger, and expenses from a link (Android) (0.238.0)
 
 ## Travel

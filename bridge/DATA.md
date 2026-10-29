@@ -115,6 +115,13 @@ backlog, `financeCategories` for expenses and recurring bills,
   the category's lookup source (`settings.mediaCategorySources`) is
   `openlibrary` or `googlebooks`. Off only hides: an item keeps its
   `author`, `bought` and `startedAt`. `lifelog_rename_category` sets them.
+- An expense category (`financeCategories` only) can hold subcategories:
+  `subs`, a list of `{ id, name, createdAt, updatedAt }` (Games and Books
+  under Entertainment). Names are unique within their category only. One
+  level: a subcategory holds none. Two devices' subs merge one by one, and
+  two of the same name fold into the older. Change them with
+  `lifelog_add_subcategory`, `lifelog_rename_subcategory` and
+  `lifelog_delete_subcategory`, not by editing `subs`.
 
 Renaming one renames it on every item that uses it: a timeline category on
 entries and backlog items (and its lookup source in
@@ -147,6 +154,10 @@ those aren't stored here (see below).
 - `date`: `YYYY-MM-DD`.
 - `amount`: in the home currency, always positive.
 - `category`: a name from `financeCategories`.
+- `subcategory`: optional, the name of one of that category's `subs`.
+  Absent means the category alone. Every total by category includes its
+  subcategories; `lifelog_spending` splits them with `group_by:
+  "subcategory"`. Moving an expense to another category drops it.
 - `note`: optional, what or where.
 - `project`: optional, a name from `projects` (a trip, a renovation).
 - `currency`, `fxAmount`, `rate`: when paid in another currency.
@@ -170,7 +181,8 @@ src/finance.js), which is how the bridge's spending totals include them.
   they aren't the start date's (29 February falls on the 28th in other years).
   The first charge is the first time that date comes round on or after the
   start.
-- `amount`: per charge, in the home currency. `category`, `note`, `project`.
+- `amount`: per charge, in the home currency. `category`, `subcategory`,
+  `note`, `project`, as on an expense; every charge carries them.
 - `currency`, `fxAmount`, `rate`: billed in another currency; `rates` holds a
   rate frozen per charge date (`{ "YYYY-MM-DD": rate }`).
 - `overrides`: per charge date, `{ amount?, fxAmount?, note?, skip? }`. A
@@ -183,7 +195,9 @@ bill with `lifelog_pause_recurring`, rather than writing `overrides`,
 `rates` or `pauses` by hand: a charge of a bill whose price changed belongs
 to the older plan in its chain, which those tools find.
 - `extras`: one-off charges on the same bill, outside its schedule:
-  `[{ id, date, amount, note?, category?, currency?, fxAmount?, rate? }]`.
+  `[{ id, date, amount, note?, category?, subcategory?, currency?, fxAmount?, rate? }]`.
+  `subcategory` only with `category`; without one the charge takes the
+  bill's category and subcategory.
 - `prevId`: the plan this one replaced when the price or schedule changed.
   A bill's history is a chain of plans; the Ledger shows only the last one.
 - `combinedWith`: an old way of grouping bills (0.228.0 to 0.231.0), dropped

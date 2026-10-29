@@ -720,6 +720,35 @@ test("deleting a category moves its items as the app does, and undo puts it all 
   assert.strictEqual(data().notes.find((n) => n.id === "no1").category, "Ideas");
 });
 
+test("subcategories: add, file under, total, rename, delete, undo", async () => {
+  reset();
+  assert.match(await ok("lifelog_add_subcategory", { category: "food", name: "Coffee" }), /Added the subcategory "Coffee" to "Food"/);
+  await ok("lifelog_add_subcategory", { category: "Food", name: "Groceries" });
+  await refused("lifelog_add_subcategory", { category: "Food", name: "coffee" }, /already has a subcategory called "coffee"/);
+  assert.match(await ok("lifelog_overview", {}), /Food \(subcategories: Coffee, Groceries\)/);
+  assert.match(await ok("lifelog_add_expense", { amount: 12, category: "Food", subcategory: "coffee", date: "2026-09-02" }), /for Food › Coffee on 2026-09-02/);
+  await refused("lifelog_add_expense", { amount: 1, category: "Food", subcategory: "Pizza" }, /no subcategory called "Pizza"\. It has: Coffee, Groceries/);
+  await ok("lifelog_add_recurring", { amount: 30, category: "Food", subcategory: "Groceries", note: "Box", start_date: "2026-09-01" });
+  const by = await ok("lifelog_spending", { start_date: "2026-09-01", end_date: "2026-09-30", category: "Food", group_by: "subcategory" });
+  assert.match(by, /- Food › Coffee: 12\.00 ILS/);
+  assert.match(by, /- Food › Groceries: 30\.00 ILS/);
+  assert.match(by, /Food › \(no subcategory\)/);
+  assert.match(await ok("lifelog_spending", { start_date: "2026-09-01", end_date: "2026-09-30", category: "Food", subcategory: "Coffee" }), /^12\.00 ILS over 1 expenses/);
+  assert.match(await ok("lifelog_rename_subcategory", { category: "Food", name: "Coffee", new_name: "Cafés" }), /Renamed "Food › Coffee" to "Cafés"; 1 item follows/);
+  let d = data();
+  assert.ok(d.financeEntries.some((f) => f.subcategory === "Cafés"));
+  assert.match(await ok("lifelog_delete_subcategory", { category: "Food", name: "Groceries" }), /1 item is now just Food/);
+  d = data();
+  assert.ok(!d.recurringExpenses.some((r) => r.subcategory));
+  await ok("lifelog_undo", {});
+  d = data();
+  assert.strictEqual(d.recurringExpenses.find((r) => r.note === "Box").subcategory, "Groceries");
+  assert.deepStrictEqual(d.financeCategories.find((c) => c.name === "Food").subs.map((x) => x.name), ["Cafés", "Groceries"]);
+  const f = d.financeEntries.find((x) => x.subcategory === "Cafés");
+  await ok("lifelog_update_item", { collection: "financeEntries", item: f.id, set: { category: "Rent" } });
+  assert.strictEqual(data().financeEntries.find((x) => x.id === f.id).subcategory, undefined, "moving category leaves the sub behind");
+});
+
 test("stats, habit insights and upcoming releases read the app's own numbers", async () => {
   reset();
   const d0 = data();

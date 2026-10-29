@@ -1065,6 +1065,36 @@ atest("an empty or unreachable series is null rather than an empty answer", asyn
   delete global.fetch;
 });
 
+// ---------- subcategories (0.288.0) ----------
+test("a bill's charges carry its sub, and a one-off charge with its own category carries its own", () => {
+  const r = sanitizeRecurring({ id: "r", startDate: "2026-01-01", interval: "monthly", amount: 30, category: "Entertainment", subcategory: "Streaming",
+    extras: [{ id: "x", date: "2026-01-10", amount: 5, category: "Food", subcategory: "Snacks" }, { id: "y", date: "2026-01-11", amount: 2, subcategory: "ignored" }] });
+  assert.strictEqual(r.extras[1].subcategory, undefined);
+  const c = Finance.planCharges(r, new Date(2026, 0, 31));
+  assert.deepStrictEqual(c.map((o) => [o.category, o.subcategory]), [["Entertainment", "Streaming"], ["Food", "Snacks"], ["Entertainment", "Streaming"]]);
+});
+test("a price change carries the sub to the new plan", () => {
+  const rec = sanitizeRecurring({ id: "r", startDate: "2026-01-01", interval: "monthly", amount: 30, category: "Entertainment", subcategory: "Streaming" });
+  const { created } = splitRecurring(rec, "2026-03-01", { interval: "monthly", amount: 40, category: "Entertainment", subcategory: "Streaming" }, "r2", "now");
+  assert.strictEqual(created.subcategory, "Streaming");
+});
+test("renaming or deleting a sub moves only that parent's expenses", () => {
+  const d = {
+    financeEntries: [
+      { category: "Entertainment", subcategory: "Books" }, { category: "Education", subcategory: "Books" }, { category: "Entertainment" },
+    ],
+    recurringExpenses: [{ category: "Entertainment", subcategory: "books", extras: [{ category: "Entertainment", subcategory: "Books" }] }],
+  };
+  Finance.renameFinanceSubcategory(d, "Entertainment", "Books", "Reading");
+  assert.deepStrictEqual(d.financeEntries.map((f) => f.subcategory), ["Reading", "Books", undefined]);
+  assert.strictEqual(d.recurringExpenses[0].subcategory, "Reading");
+  assert.strictEqual(d.recurringExpenses[0].extras[0].subcategory, "Reading");
+  Finance.renameFinanceSubcategory(d, "Entertainment", "Reading", null);
+  assert.ok(!("subcategory" in d.financeEntries[0]));
+  Finance.renameFinanceCategory(d, "Education", "Other", true);
+  assert.deepStrictEqual([d.financeEntries[1].category, d.financeEntries[1].subcategory], ["Other", undefined]);
+});
+
 (async () => {
   for (const run of pending) await run();
   console.log(`\n${passed} test(s) passed.`);

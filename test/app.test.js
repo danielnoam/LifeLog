@@ -247,5 +247,44 @@ test("an older device's to-dos become list items, and the to-do data goes", () =
   assert.strictEqual(lists.find((n) => n.id === "todos-general").items[0].done, true);
 });
 
+// ---------- Ledger subcategories (0.288.0) ----------
+test("normalize keeps subs and an expense's subcategory, and old data needs nothing", () => {
+  const d = normalize({
+    financeCategories: [
+      { id: "ent", name: "Entertainment", color: "#111111", subs: [{ id: "g", name: " Games ", createdAt: "2026-01-01" }, { name: "" }, "junk"] },
+      { id: "food", name: "Food", color: "#222222" },
+    ],
+    financeEntries: [
+      { id: "a", date: "2026-02-01", amount: 10, category: "Entertainment", subcategory: "Games" },
+      { id: "b", date: "2026-02-02", amount: 5, category: "Food" },
+    ],
+  });
+  const ent = d.financeCategories.find((c) => c.name === "Entertainment");
+  assert.deepStrictEqual(ent.subs.map((x) => [x.id, x.name]), [["g", "Games"]]);
+  assert.strictEqual(d.financeCategories.find((c) => c.name === "Food").subs, undefined);
+  assert.strictEqual(d.financeEntries[0].subcategory, "Games");
+  assert.strictEqual(d.financeEntries[1].subcategory, undefined);
+});
+test("two subs of one name (one from each device) fold into the older", () => {
+  const d = normalize({
+    financeCategories: [{ id: "ent", name: "Entertainment", color: "#111111", subs: [
+      { id: "new", name: "games", createdAt: "2026-03-02" }, { id: "old", name: "Games", createdAt: "2026-03-01" }, { id: "c", name: "Cinema", createdAt: "2026-03-03" },
+    ] }],
+  });
+  assert.deepStrictEqual(d.financeCategories[0].subs.map((x) => x.id), ["old", "c"]);
+});
+test("an expense naming a sub its category lost gets the sub back", () => {
+  const d = normalize({
+    financeCategories: [{ id: "ent", name: "Entertainment", color: "#111111", subs: [{ id: "g", name: "Games" }] }],
+    financeEntries: [{ id: "a", date: "2026-02-01", amount: 10, category: "Entertainment", subcategory: "games" }],
+    recurringExpenses: [{ id: "r", startDate: "2026-01-01", interval: "monthly", amount: 30, category: "Entertainment", subcategory: "Streaming",
+      extras: [{ id: "x", date: "2026-01-05", amount: 3, category: "Food", subcategory: "Snacks" }] }],
+  });
+  const ent = d.financeCategories.find((c) => c.name === "Entertainment");
+  assert.deepStrictEqual(ent.subs.map((x) => x.name), ["Games", "Streaming"]);
+  assert.strictEqual(d.financeEntries[0].subcategory, "Games");
+  assert.deepStrictEqual(d.financeCategories.find((c) => c.name === "Food").subs.map((x) => x.name), ["Snacks"]);
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

@@ -65,6 +65,16 @@ function nameIn(data, key, wanted, what) {
   fail(`No ${what} called "${wanted}". There are: ${names.join(", ") || "none"}.`);
 }
 
+// An expense category's subcategory (0.288.0), by name, under its parent.
+function subIn(data, category, wanted) {
+  const cat = (data.financeCategories || []).find((c) => c.name === category);
+  const names = ((cat && cat.subs) || []).map((x) => x.name);
+  const hit = names.find((n) => lower(n) === lower(wanted));
+  if (hit) return hit;
+  fail(`"${category}" has no subcategory called "${wanted}". It has: ${names.join(", ") || "none"}. Add one with lifelog_add_subcategory.`);
+}
+const catLabel = (f) => (f.subcategory ? `${f.category} › ${f.subcategory}` : f.category);
+
 // An item by id, or by its name/title: exact first, then a unique partial.
 function findItem(data, coll, ident) {
   const spec = COLLECTIONS[coll];
@@ -90,6 +100,7 @@ function cleanItem(data, coll, item, asked) {
   if (item.category != null && item.category !== "" && spec.cats) {
     item.category = nameIn(data, spec.cats, item.category, "category");
   }
+  if (item.subcategory && spec.cats === "financeCategories") item.subcategory = subIn(data, item.category, item.subcategory);
   if (item.project) item.project = nameIn(data, "projects", item.project, "project");
   const out = spec.clean(structuredClone(item));
   for (const k of Object.keys(asked || {})) {
@@ -363,6 +374,14 @@ const NAME_LISTS = {
 // The app's palette for a new category (CATEGORY_PALETTE in app.js).
 const CAT_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
+// A sub's rename (or, with `to` null, its removal) carried through the
+// expenses and bills, as the app's; returns what it touched.
+function subMove(d, parent, from, to) {
+  const before = new Map(["financeEntries", "recurringExpenses"].flatMap((k) => (d[k] || []).map((x) => [k + "\u0000" + x.id, JSON.stringify(x)])));
+  Finance.renameFinanceSubcategory(d, parent, from, to);
+  return ["financeEntries", "recurringExpenses"].flatMap((k) => (d[k] || []).filter((x) => before.get(k + "\u0000" + x.id) !== JSON.stringify(x)).map((x) => [k, x.id]));
+}
+
 // ---------- what reads see ----------
 // An expense row, recurring charges included, as the Ledger counts them.
 function effectiveExpenses(data, until) {
@@ -390,8 +409,10 @@ function expenseRows(data, a) {
     if (d < start || d > end) return false;
     if (a.include_recurring === false && f.kind === "recurring") return false;
     if (a.category && lower(f.category) !== lower(a.category)) return false;
+    // "" is the category's expenses with no subcategory.
+    if (a.subcategory != null && lower(f.subcategory || "") !== lower(a.subcategory)) return false;
     if (a.project && lower(f.project) !== lower(a.project)) return false;
-    if (q && !lower(f.note).includes(q) && !lower(f.category).includes(q)) return false;
+    if (q && !lower(f.note).includes(q) && !lower(catLabel(f)).includes(q)) return false;
     return true;
   });
 }
@@ -400,7 +421,7 @@ function expenseLine(data, f) {
   const fx = f.currency ? ` (${f.fxAmount} ${f.currency} at ${f.rate})` : "";
   const bits = [f.kind === "recurring" ? "recurring" : "", f.project, f.note].filter(Boolean).join(" · ");
   const id = f.kind === "recurring" ? `plan ${f.recurringId}` : f.id;
-  return `- ${f.date} ${money(data, +f.amount || 0)}${fx} [${f.category}]${bits ? " " + bits : ""}  (${id})`;
+  return `- ${f.date} ${money(data, +f.amount || 0)}${fx} [${catLabel(f)}]${bits ? " " + bits : ""}  (${id})`;
 }
 
 // The bills as the Ledger lists them: one per chain, its latest plan.
@@ -475,7 +496,7 @@ const TOOLS = [
         `Today is ${today()}. Home currency: ${currencyOf(d)}. Data from ${storeOf().where()}.`,
         `Timeline entries: ${(d.entries || []).length}. Backlog: ${(d.backlog || []).length}. Notes: ${(d.notes || []).length}. Expenses: ${(d.financeEntries || []).length}, plus ${bills(d).length} recurring bills. Habits: ${(d.habits || []).filter((h) => !h.archivedAt).length} active. Accomplishments: ${allAccomplishments(d).length}. Drawing boards: see lifelog_boards. Trips: see lifelog_trips.`,
         `Timeline and backlog categories: ${names("categories")}.`,
-        `Expense categories: ${names("financeCategories")}.`,
+        `Expense categories: ${(d.financeCategories || []).map((c) => c.name + (c.subs && c.subs.length ? ` (subcategories: ${c.subs.map((x) => x.name).join(", ")})` : "")).join(", ") || "none"}.`,
         `Note categories: ${names("noteCategories")}.`,
         `Projects: ${names("projects")}.`,
         `Habits: ${(d.habits || []).filter((h) => !h.archivedAt).map((h) => h.name).join(", ") || "none"}.`,
@@ -633,7 +654,8 @@ const TOOLS = [
     readOnly: true,
     input: {
       start_date: S.date("From"), end_date: S.date("To, default today"),
-      category: S.str("An expense category"), project: S.str("A project"), query: S.str("Text in the note"),
+      category: S.str("An expense category"), subcategory: S.str("With category: only this subcategory of it; \"\" for the ones with none"),
+      project: S.str("A project"), query: S.str("Text in the note"),
       include_recurring: S.bool("Include recurring charges (default true)"), limit: S.limit,
     },
     async run(a) {
@@ -647,12 +669,13 @@ const TOOLS = [
   },
   {
     name: "lifelog_spending",
-    description: "How much was spent, in total and grouped by category, month, year or project. Includes recurring bills (rent, subscriptions) as the Ledger does. Use for any 'how much did I spend' question.",
+    description: "How much was spent, in total and grouped by category, subcategory, month, year or project. Includes recurring bills (rent, subscriptions) as the Ledger does. A category's total includes all its subcategories. Use for any 'how much did I spend' question.",
     readOnly: true,
     input: {
       start_date: S.date("From"), end_date: S.date("To, default today"),
-      category: S.str("Only this category"), project: S.str("Only this project"), query: S.str("Text in the note"),
-      group_by: S.str("Grouping", { enum: ["category", "month", "year", "project", "none"] }),
+      category: S.str("Only this category"), subcategory: S.str("With category: only this subcategory of it; \"\" for the ones with none"),
+      project: S.str("Only this project"), query: S.str("Text in the note"),
+      group_by: S.str("Grouping; subcategory splits each category into its subcategories", { enum: ["category", "subcategory", "month", "year", "project", "none"] }),
       include_recurring: S.bool("Include recurring charges (default true)"),
     },
     async run(a) {
@@ -660,7 +683,8 @@ const TOOLS = [
       const rows = expenseRows(d, a);
       const by = a.group_by || "category";
       const keyOf = (f) => by === "month" ? String(f.date).slice(0, 7) : by === "year" ? String(f.date).slice(0, 4)
-        : by === "project" ? f.project || "(no project)" : f.category || "Other";
+        : by === "project" ? f.project || "(no project)"
+        : by === "subcategory" ? `${f.category || "Other"} › ${f.subcategory || "(no subcategory)"}` : f.category || "Other";
       const groups = new Map();
       let total = 0, recurring = 0;
       for (const f of rows) {
@@ -694,7 +718,7 @@ const TOOLS = [
         const live = !r.endDate || r.endDate >= t;
         if (live) monthly += (+r.amount || 0) * (PER_MONTH[r.interval] || 1);
         const fx = r.currency ? ` (${r.fxAmount} ${r.currency})` : "";
-        return `- ${r.note || r.category}: ${money(d, r.amount)}${fx} ${r.interval} [${r.category}]`
+        return `- ${r.note || catLabel(r)}: ${money(d, r.amount)}${fx} ${r.interval} [${catLabel(r)}]`
           + (r.project ? ` · ${r.project}` : "") + (next ? `, next ${next.date}` : "") + (r.endDate ? `, ends ${r.endDate}` : "")
           + (Finance.isPausedOn(r, t) ? ", paused now" : "") + `  (${r.id})`;
       });
@@ -893,6 +917,7 @@ const TOOLS = [
     description: "Log an expense. Amount is what was paid; for another currency give currency and rate (home currency per 1 unit) and it is converted the way the app does.",
     input: {
       amount: S.num("What was paid"), category: S.str("An expense category from lifelog_overview"),
+      subcategory: S.str("One of that category's subcategories, optional; without it the expense is the category alone"),
       date: S.date("When, default today"), note: S.str("What or where"), project: S.str("A project, optional"),
       currency: S.str("Three-letter code if not the home currency"), rate: S.num("Home currency per 1 unit of `currency`"),
     },
@@ -906,11 +931,12 @@ const TOOLS = [
         const foreign = code && code !== currencyOf(d);
         if (foreign && !(+a.rate > 0)) fail(`Give a rate for ${code}: how many ${currencyOf(d)} one ${code} is.`);
         const item = { date, amount: foreign ? Math.round(paid * a.rate * 100) / 100 : paid, category: a.category };
+        if (a.subcategory) item.subcategory = a.subcategory;
         if (a.note) item.note = String(a.note).trim();
         if (a.project) item.project = a.project;
         if (foreign) Object.assign(item, { currency: code, fxAmount: paid, rate: +a.rate });
         const f = addItem(d, "financeEntries", item);
-        return { text: `Logged ${money(d, f.amount)}${foreign ? ` (${paid} ${code})` : ""} for ${f.category} on ${date}. id ${f.id}`, touched: [["financeEntries", f.id]] };
+        return { text: `Logged ${money(d, f.amount)}${foreign ? ` (${paid} ${code})` : ""} for ${catLabel(f)} on ${date}. id ${f.id}`, touched: [["financeEntries", f.id]] };
       });
     },
   },
@@ -1093,6 +1119,9 @@ const TOOLS = [
         const old = findItem(d, a.collection, a.item);
         const next = { ...structuredClone(old), ...set };
         for (const k of a.unset || []) delete next[k];
+        // Moved to another category, an expense leaves its old one's
+        // subcategory behind, as in the app.
+        if (spec.cats === "financeCategories" && set.category != null && !("subcategory" in set) && lower(set.category) !== lower(old.category)) delete next.subcategory;
         if (a.collection === "entries" && (set.year || set.month)) next.date = `${next.year}-${String(next.month).padStart(2, "0")}`;
         const clean = cleanItem(d, a.collection, next, set);
         replaceItem(d, a.collection, clean);
@@ -1544,6 +1573,7 @@ const TOOLS = [
     description: "Add a recurring bill (rent, a subscription...). It charges from start_date every week, month or year, and its charges count in spending like the Ledger's. To change a bill's price from some date, use lifelog_update_item on the old one's endDate and add the new one.",
     input: {
       amount: S.num("What each charge costs"), category: S.str("An expense category from lifelog_overview"),
+      subcategory: S.str("One of that category's subcategories, optional"),
       interval: S.str("How often, default monthly", { enum: ["weekly", "monthly", "yearly"] }),
       start_date: S.date("The first charge, default today"), end_date: S.date("The last day it charges, optional"),
       note: S.str("What it is, e.g. Netflix"), project: S.str("A project, optional"),
@@ -1566,6 +1596,7 @@ const TOOLS = [
         const foreign = code && code !== currencyOf(d);
         if (foreign && !(+a.rate > 0)) fail(`Give a rate for ${code}: how many ${currencyOf(d)} one ${code} is.`);
         const item = { startDate: start, interval, amount: foreign ? Math.round(paid * a.rate * 100) / 100 : paid, category: a.category };
+        if (a.subcategory) item.subcategory = a.subcategory;
         if (end) item.endDate = end;
         if (a.note) item.note = String(a.note).trim();
         if (a.project) item.project = a.project;
@@ -1575,7 +1606,7 @@ const TOOLS = [
         if (a.charge_month != null) item.chargeMonth = a.charge_month;
         const r = addItem(d, "recurringExpenses", item);
         const next = nextCharge(r);
-        return { text: `Added the recurring bill ${r.note || r.category}: ${money(d, r.amount)}${foreign ? ` (${paid} ${code})` : ""} ${r.interval} [${r.category}], from ${r.startDate}${next ? `, next ${next.date}` : ""}. id ${r.id}`, touched: [["recurringExpenses", r.id]] };
+        return { text: `Added the recurring bill ${r.note || catLabel(r)}: ${money(d, r.amount)}${foreign ? ` (${paid} ${code})` : ""} ${r.interval} [${catLabel(r)}], from ${r.startDate}${next ? `, next ${next.date}` : ""}. id ${r.id}`, touched: [["recurringExpenses", r.id]] };
       });
     },
   },
@@ -1634,7 +1665,7 @@ const TOOLS = [
             d[spec.list].push(other);
             touched.push([spec.list, other.id]);
           }
-          if (a.kind === "timeline") Journal.renameCategory(d, from, "Other"); else Finance.renameFinanceCategory(d, from, "Other");
+          if (a.kind === "timeline") Journal.renameCategory(d, from, "Other"); else Finance.renameFinanceCategory(d, from, "Other", true);
           where = ` ${used} item${used === 1 ? "" : "s"} moved to Other.`;
         } else if (used) {
           spec.rename(d, from, null);
@@ -1655,6 +1686,63 @@ const TOOLS = [
       }
       undoLog(cfg).push({ summary, at: main.at, items });
       return text;
+    },
+  },
+  // Subcategories (0.288.0): tools of their own rather than a kind on the
+  // category tools, so nothing an existing chat sends changes meaning.
+  {
+    name: "lifelog_add_subcategory",
+    description: "Add a subcategory to an expense category (e.g. Games under Entertainment). An expense can then be filed under the category alone or one of its subcategories; the category's totals include them all.",
+    input: { category: S.str("The expense category"), name: S.str("The subcategory's name") },
+    required: ["category", "name"],
+    async run(a) {
+      const name = String(a.name).trim();
+      if (!name) fail("A subcategory needs a name.");
+      return change(`add subcategory "${name}" to "${a.category}"`, (d) => {
+        const parent = nameIn(d, "financeCategories", a.category, "expense category");
+        const cat = d.financeCategories.find((c) => c.name === parent);
+        const subs = cat.subs || [];
+        if (subs.some((x) => lower(x.name) === lower(name))) fail(`"${parent}" already has a subcategory called "${name}".`);
+        cat.subs = [...subs, { id: L.uid(), name, createdAt: changeNow, updatedAt: changeNow }];
+        return { text: `Added the subcategory "${name}" to "${parent}". It has: ${cat.subs.map((x) => x.name).join(", ")}.`, touched: [["financeCategories", cat.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_rename_subcategory",
+    description: "Rename an expense category's subcategory. Every expense, recurring bill and one-off charge filed under it follows.",
+    input: { category: S.str("The expense category"), name: S.str("The subcategory's current name"), new_name: S.str("The new name") },
+    required: ["category", "name", "new_name"],
+    async run(a) {
+      const to = String(a.new_name).trim();
+      if (!to) fail("new_name can't be empty.");
+      return change(`rename subcategory "${a.name}" to "${to}"`, (d) => {
+        const parent = nameIn(d, "financeCategories", a.category, "expense category");
+        const cat = d.financeCategories.find((c) => c.name === parent);
+        const from = subIn(d, parent, a.name);
+        if (lower(to) !== lower(from) && cat.subs.some((x) => lower(x.name) === lower(to))) fail(`"${parent}" already has a subcategory called "${to}".`);
+        cat.subs = cat.subs.map((x) => (x.name === from ? { ...x, name: to } : x));
+        const moved = subMove(d, parent, from, to);
+        return { text: `Renamed "${parent} › ${from}" to "${to}"; ${moved.length} item${moved.length === 1 ? "" : "s"} follow${moved.length === 1 ? "s" : ""}.`, touched: [["financeCategories", cat.id], ...moved] };
+      });
+    },
+  },
+  {
+    name: "lifelog_delete_subcategory",
+    description: "Delete an expense category's subcategory, as the app does: what was filed under it stays in the category, with no subcategory. Undoable with lifelog_undo.",
+    destructive: true,
+    input: { category: S.str("The expense category"), name: S.str("The subcategory") },
+    required: ["category", "name"],
+    async run(a) {
+      return change(`delete subcategory "${a.name}" of "${a.category}"`, (d) => {
+        const parent = nameIn(d, "financeCategories", a.category, "expense category");
+        const cat = d.financeCategories.find((c) => c.name === parent);
+        const from = subIn(d, parent, a.name);
+        cat.subs = cat.subs.filter((x) => x.name !== from);
+        if (!cat.subs.length) delete cat.subs;
+        const moved = subMove(d, parent, from, null);
+        return { text: `Deleted "${parent} › ${from}".${moved.length ? ` ${moved.length} item${moved.length === 1 ? " is" : "s are"} now just ${parent}.` : ""}`, touched: [["financeCategories", cat.id], ...moved] };
+      });
     },
   },
   {

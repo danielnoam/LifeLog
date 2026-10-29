@@ -73,6 +73,16 @@
         if (!before || !sameContent(before, item)) item.updatedAt = now;
       }
     }
+    // A category's subs merge one by one (mergeFinanceCategories), so each
+    // carries a stamp of its own too.
+    const prevCats = byId(prev.financeCategories);
+    for (const c of next.financeCategories || []) {
+      const prevSubs = byId((prevCats.get(c.id) || {}).subs);
+      for (const x of c.subs || []) {
+        const before = prevSubs.get(x.id);
+        if (!before || !sameContent(before, x)) x.updatedAt = now;
+      }
+    }
     const prevAccMap = byId(flattenAccomplishments(prev.accomplishments));
     for (const year of Object.keys(next.accomplishments || {})) {
       for (const a of next.accomplishments[year]) {
@@ -352,6 +362,27 @@
       return { ...n, items: inChosenOrder(items, (bn && bn.items) || [], ln.items || [], rn.items || []) };
     });
   }
+  // An expense category's subcategories (0.288.0) live inside its row, and
+  // mergeCollection treats the row as atomic: a phone adding Games under
+  // Entertainment and a laptop adding Books would be an edit conflict, one
+  // sub gone. The same two steps as a checklist: which categories survive is
+  // decided per row, then a category both sides have merges its subs one by
+  // one. Two subs of the same name (each device added its own) are folded by
+  // the sanitizer afterwards, not here.
+  function mergeFinanceCategories(baseArr, localArr, remoteArr) {
+    const merged = mergeCollection(baseArr || [], localArr || [], remoteArr || []).merged;
+    const b = byId(baseArr), l = byId(localArr), r = byId(remoteArr);
+    return merged.map((c) => {
+      const lc = l.get(c.id), rc = r.get(c.id);
+      if (!lc || !rc || !(Array.isArray(lc.subs) || Array.isArray(rc.subs))) return c;
+      const bc = b.get(c.id);
+      const base = (bc && bc.subs) || [];
+      const subs = inChosenOrder(mergeCollection(base, lc.subs || [], rc.subs || []).merged, base, lc.subs || [], rc.subs || []);
+      const out = { ...c };
+      if (subs.length) out.subs = subs; else delete out.subs;
+      return out;
+    });
+  }
   // A list's order is the order of its items, and dragging one changes no
   // item — so mergeCollection, which walks the ancestor's order first, would
   // quietly undo a reorder. The side that reordered wins (this device if
@@ -374,6 +405,7 @@
     // ...except habits, whose marks map has to survive both sides editing it.
     out.habits = mergeHabits(base.habits, local.habits, remote.habits);
     out.notes = mergeNotes(base.notes, local.notes, remote.notes);
+    out.financeCategories = mergeFinanceCategories(base.financeCategories, local.financeCategories, remote.financeCategories);
     out.accomplishments = mergeAccomplishmentYears(base.accomplishments, local.accomplishments, remote.accomplishments);
     out.settings = mergeSettings(base.settings, local.settings, remote.settings);
     out.version = local.version || remote.version || 1;
@@ -426,7 +458,7 @@
     compareVersions, maxVersion,
     stampChangedItems, diffCollection, diffSnapshots, summarizeConflicts,
     mergeCollection, mergeAccomplishmentYears, mergeSettings, mergeAllSources, settingsFromBackup,
-    mergeHabits, mergeMarks, mergeNotes,
+    mergeHabits, mergeMarks, mergeNotes, mergeFinanceCategories,
   };
 
   if (typeof window !== "undefined") window.LifeLogMerge = api;

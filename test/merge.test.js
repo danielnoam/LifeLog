@@ -542,5 +542,36 @@ test("plain notes still merge exactly as before", () => {
   assert.deepStrictEqual(out, [{ id: "n", text: "mine", updatedAt: "2" }]);
 });
 
+// Ledger subcategories (0.288.0) merge one by one inside their category.
+const finCat = (subs, extra) => ({ id: "ent", name: "Entertainment", color: "#123456", updatedAt: "2026-01-01", ...(subs ? { subs } : {}), ...extra });
+const sub = (id, name, updatedAt) => ({ id, name, updatedAt: updatedAt || "2026-01-01" });
+test("two devices adding subs to one category both keep theirs", () => {
+  const base = [finCat()];
+  const local = [finCat([sub("g", "Games", "2026-01-02")], { updatedAt: "2026-01-02" })];
+  const remote = [finCat([sub("b", "Books", "2026-01-03")], { updatedAt: "2026-01-03" })];
+  const out = Merge.mergeAllSources({ financeCategories: base }, { financeCategories: local }, { financeCategories: remote }).financeCategories;
+  assert.deepStrictEqual(out[0].subs.map((x) => x.name).sort(), ["Books", "Games"]);
+});
+test("a sub removed on one device stays removed while the other adds one", () => {
+  const base = [finCat([sub("g", "Games"), sub("c", "Cinema")])];
+  const local = [finCat([sub("g", "Games")], { updatedAt: "2026-01-02" })];
+  const remote = [finCat([sub("g", "Games"), sub("c", "Cinema"), sub("b", "Books", "2026-01-03")], { updatedAt: "2026-01-03" })];
+  assert.deepStrictEqual(Merge.mergeFinanceCategories(base, local, remote)[0].subs.map((x) => x.id), ["g", "b"]);
+});
+test("a sub renamed on one device and the category recoloured on the other both land", () => {
+  const base = [finCat([sub("g", "Games")])];
+  const local = [finCat([sub("g", "Video games", "2026-01-02")], { updatedAt: "2026-01-02" })];
+  const remote = [finCat([sub("g", "Games")], { color: "#654321", updatedAt: "2026-01-03" })];
+  const out = Merge.mergeFinanceCategories(base, local, remote)[0];
+  assert.strictEqual(out.color, "#654321");
+  assert.deepStrictEqual(out.subs.map((x) => x.name), ["Video games"]);
+});
+test("stampChangedItems times a changed sub", () => {
+  const prev = { financeCategories: [finCat([sub("g", "Games")])] };
+  const next = { financeCategories: [finCat([sub("g", "Gaming"), sub("b", "Books")])] };
+  Merge.stampChangedItems(prev, next, "2026-05-05");
+  assert.deepStrictEqual(next.financeCategories[0].subs.map((x) => x.updatedAt), ["2026-05-05", "2026-05-05"]);
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

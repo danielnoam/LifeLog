@@ -59,7 +59,7 @@
         if (o.skipped || o.paused || !isDate(o.date) || o.date < today) continue;
         const day = addDays(o.date, -before);
         if (day < today) continue;
-        const name = o.note || rec.note || o.category || rec.category || "A recurring expense";
+        const name = o.note || rec.note || o.subcategory || o.category || rec.category || "A recurring expense";
         const when = before === 0 ? "today" : before === 1 ? "tomorrow" : "in " + before + " days";
         out.push({
           id: "charge-" + rec.id + "-" + o.date,

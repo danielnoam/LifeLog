@@ -8,14 +8,14 @@
 // exposed on window.LifeLogIO.
 (function () {
   // Shared app plumbing, provided by app.js via init(ctx).
-  let state, $, el, uid, toast, persist, afterDataChange, ensureCategories, ensureProjects,
+  let state, $, el, uid, toast, persist, afterDataChange, ensureCategories, ensureSubcategories, ensureProjects,
     CATEGORY_PALETTE, MONTHS, MONTHS_SHORT, colorOf,
     financeColorOf, formatMoney, financeKey, recurringKey,
     sanitizeFinanceEntry, sanitizeRecurring, sanitizeProject, sanitizeEntry, sanitizeBacklog,
     sanitizeNote, sanitizeTodo, sanitizeHabit, sanitizeBoard, addBoards, boardsForExport, boardsNow, isOverridden, deleteBoards;
 
   function init(ctx) {
-    ({ state, $, el, uid, toast, persist, afterDataChange, ensureCategories, ensureProjects,
+    ({ state, $, el, uid, toast, persist, afterDataChange, ensureCategories, ensureSubcategories, ensureProjects,
       CATEGORY_PALETTE, MONTHS, MONTHS_SHORT, colorOf,
       financeColorOf, formatMoney, financeKey, recurringKey,
       sanitizeFinanceEntry, sanitizeRecurring, sanitizeProject, sanitizeEntry, sanitizeBacklog,
@@ -633,6 +633,7 @@
     }
     ensureCategories(d.categories, [...recs("entry"), ...recs("backlog")]);
     ensureCategories(d.financeCategories, [...recs("finance"), ...recs("recurring")]);
+    ensureSubcategories(d.financeCategories, [...recs("finance"), ...recs("recurring")]);
     ensureCategories(d.noteCategories = d.noteCategories || [], recs("note").filter((n) => n.category));
     // To-dos from an older file land in their list notes (0.197.0), the way
     // they do when an older device syncs them; a to-do category is the name

@@ -4,6 +4,29 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.288.0] - 2026-10-29
+
+### Added
+- **Subcategories in the Ledger.** An expense category can hold
+  subcategories, like Games, Books and Cinema under Entertainment. Add them
+  in the category's sheet (the pencil on its chip). The category picker
+  lists them under their category like folders: pick Entertainment for the
+  category alone, or Games under it. Totals for Entertainment still
+  include everything in it.
+- Turning on a category's chip shows its subcategories' chips beside it,
+  plus Only Entertainment for the expenses with none, so you can see what
+  Games alone cost. Filtered to one category, a month's breakdown splits
+  by subcategory too.
+- Summary's By category shows each subcategory's bar under its category.
+- Recurring bills take a subcategory, kept through a price change. Renaming
+  a subcategory moves its expenses with it; removing one leaves them in the
+  category. The Ledger CSV has a Subcategory column, and search finds
+  expenses by it.
+- Two devices adding subcategories to the same category before they sync
+  both keep theirs.
+- The AI bridge can add, rename and delete subcategories, file expenses and
+  bills under them, and total spending by subcategory.
+
 ## [0.287.0] - 2026-10-29
 
 ### Added
