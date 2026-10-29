@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.285.0] - 2026-10-29
+
+### Added
+- **Show Starred or Bought on the Backlog.** A Show row under Categories
+  narrows the list, Next releases and the random pick to what you've
+  starred, what you've bought, or both at once. Categories with Bought
+  switched off stay in when Bought is on, since there's nothing to buy
+  there. Tap Show to turn both on or off.
+
 ## [0.284.1] - 2026-10-28
 
 ### Changed

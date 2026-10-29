@@ -819,3 +819,20 @@ test("the command line runs the same tools", async () => {
   fs.rmSync(dir, { recursive: true, force: true });
   console.log(`\n${passed} test(s) passed.`);
 })();
+
+test("lifelog_backlog's starred and bought stack like the Backlog's Show chips, and a category without Bought counts as bought", async () => {
+  reset();
+  await ok("lifelog_add_backlog_item", { title: "Hades", category: "Games", starred: true });
+  await ok("lifelog_add_backlog_item", { title: "Tunic", category: "Games", starred: true });
+  await ok("lifelog_add_backlog_item", { title: "Dune", category: "Books", starred: true });
+  await ok("lifelog_add_backlog_item", { title: "Celeste", category: "Games" });
+  const d0 = data();
+  for (const b of d0.backlog) if (b.title === "Hades" || b.title === "Celeste") b.bought = true;
+  d0.categories.find((c) => c.name === "Books").showBought = false;
+  fs.writeFileSync(FILE, JSON.stringify(d0, null, 2));
+  const both = await ok("lifelog_backlog", { starred: true, bought: true });
+  assert.match(both, /Hades/);
+  assert.match(both, /Dune/);
+  assert.doesNotMatch(both, /Tunic|Celeste/);
+  assert.doesNotMatch(await ok("lifelog_backlog", { starred: true }), /Celeste/);
+});

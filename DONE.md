@@ -72,6 +72,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Authors on books (0.267.0)
 - Choose what a category's items offer: In progress, Bought, Author (0.267.0)
 - Sort control inside each band: name, release date, price (0.157.0)
+- Show filter: Starred, Bought, or both (0.285.0)
 - Pick random and Spin, scoped to the filters, with Bought only (0.82.0, 0.105.0, 0.110.0)
 - How long an item has sat there (0.82.0)
 - Game descriptions, Steam's own for Steam games (0.101.0)

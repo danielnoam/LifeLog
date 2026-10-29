@@ -152,7 +152,8 @@ in; this is the tour.
   - **List** – what you mean to get to, by category, in bands: starred,
     ready, Early Access or Still airing, unreleased, dropped, each folding
     away. Bought, authors and In progress per category, sorts inside each
-    band, Pick random and Spin.
+    band, Pick random and Spin. A Show row narrows it to Starred, Bought
+    or both.
   - **Discover** – what's popular now and coming soon from the sources your
     categories use, with Hide what I have. Books get the NYT bestseller
     lists with a free New York Times key. Logging a synced title as done

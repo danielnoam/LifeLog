@@ -197,12 +197,19 @@
   }
   // What the Backlog lists: everything not yet started. Something you're on
   // (0.218.0) is on the Timeline's In progress card instead — one place each.
+  //
+  // The Show chips (0.285.0) apply here only, since only the Backlog shows
+  // them. Bought lets through a category with Bought switched off: there's
+  // nothing to buy there, so hiding it would hide things you already have.
   function getFilteredBacklog() {
     const q = state.search.trim().toLowerCase();
     const cf = state.activeCats;
+    const shows = state.backlogShows;
     return state.data.backlog.filter((b) => {
       if (isStarted(b)) return false;
       if (cf.size && !cf.has(b.category)) return false;
+      if (shows.has("starred") && !b.priority) return false;
+      if (shows.has("bought") && !b.bought && categoryShows(b.category).bought) return false;
       if (q && !b.title.toLowerCase().includes(q) && !(b.notes || "").toLowerCase().includes(q) && !(b.author || "").toLowerCase().includes(q)) return false;
       return true;
     });

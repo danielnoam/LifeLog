@@ -163,7 +163,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.284.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.285.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -490,6 +490,8 @@
     // Notes mode is showing (none = all; "board" alone is the Boards page).
     noteActiveCats: new Set(),
     noteKinds: new Set(),
+    // The Backlog's Show chips (0.285.0): "starred", "bought". They stack.
+    backlogShows: new Set(),
     statsYear: null,
     financeStatsYear: null,
     bulk: { active: false, selected: new Set() },
@@ -3285,10 +3287,10 @@
     // has no categories, and is its own span of days rather than something
     // filed under a year.
     const travel = state.view === "travel";
-    if (travel) for (const id of ["#yearFilterGroup", "#catFilterGroup", "#kindFilterGroup", "#projFilterGroup"]) $(id).hidden = true;
+    if (travel) for (const id of ["#yearFilterGroup", "#catFilterGroup", "#kindFilterGroup", "#showFilterGroup", "#projFilterGroup"]) $(id).hidden = true;
     else $("#tripFilterGroup").hidden = true;
     bar.hidden = travel ? $("#tripFilterGroup").hidden : ($("#yearFilterGroup").hidden && $("#catFilterGroup").hidden
-      && $("#kindFilterGroup").hidden && $("#projFilterGroup").hidden);
+      && $("#kindFilterGroup").hidden && $("#showFilterGroup").hidden && $("#projFilterGroup").hidden);
   }
 
   // A second axis beside the categories, and only in the Ledger, where
@@ -3389,6 +3391,49 @@
     equalizeChipWidths($("#kindFilter"));
   }
 
+  // The Backlog's second row (0.285.0): narrow the list to what's starred,
+  // what's bought, or both. Not in Discover, which lists things you don't
+  // have. Built from the same chips as Types, but these stack (and), where
+  // Types adds (or): "starred and bought" is the question worth asking.
+  const BACKLOG_SHOW_CHIPS = [["starred", "Starred", "star"], ["bought", "Bought", "shopping-bag"]];
+  function toggleAllShows() {
+    const set = state.backlogShows;
+    if (BACKLOG_SHOW_CHIPS.every(([k]) => set.has(k))) set.clear(); else BACKLOG_SHOW_CHIPS.forEach(([k]) => set.add(k));
+    buildCatFilter();
+    render();
+  }
+  function buildShowFilter() {
+    const group = $("#showFilterGroup");
+    if (!group) return;
+    const show = state.view === "backlog" && state.backlogMode !== "discover" && state.data.backlog.length > 0;
+    group.hidden = !show;
+    if (!show) return;
+    const chips = BACKLOG_SHOW_CHIPS.map(([key, label, ico]) => ({ key, label, ico }));
+    reconcile($("#showFilter"), chips, {
+      keyOf: (item) => item.key,
+      create: (item) => {
+        const chip = el("span", "cat-chip kind-chip");
+        chip.dataset.show = item.key;
+        activatable(chip, () => {
+          const set = state.backlogShows;
+          if (set.has(item.key)) set.delete(item.key); else set.add(item.key);
+          buildCatFilter();
+          render();
+        });
+        return chip;
+      },
+      update: (chip, item) => {
+        const on = state.backlogShows.has(item.key);
+        chip.classList.toggle("on", on);
+        chip.setAttribute("aria-pressed", String(on));
+        const k = el("span", "kind-ico");
+        k.appendChild(ico(item.ico));
+        chip.replaceChildren(k, document.createTextNode(item.label));
+      },
+    });
+    equalizeChipWidths($("#showFilter"));
+  }
+
   // Resolved when a chip is used, not when it is built: a chip node outlives
   // the render that created it now, and the view may have changed under it.
   function activeCatSetFor(which) {
@@ -3412,8 +3457,9 @@
     // Boards kind keeps it.
     const note = state.view === "notes" && state.notesMode === "notes";
     const noCats = state.view === "notes" && !note;
-    // The type row changes with the same things the category row does.
+    // The type and show rows change with the same things the category row does.
     buildKindFilter();
+    buildShowFilter();
     $("#catFilterGroup").hidden = noCats;
     updateFilterbarVisibility();
     if (noCats) return;
@@ -4469,6 +4515,7 @@
     $("#yearFilterLabel").onclick = toggleAllYears;
     $("#catFilterLabel").onclick = toggleAllCats;
     $("#kindFilterLabel").onclick = toggleAllKinds;
+    $("#showFilterLabel").onclick = toggleAllShows;
 
     const addMenu = $("#addMenu");
     const closeAddMenu = () => { addMenu.hidden = true; };

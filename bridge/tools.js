@@ -573,14 +573,20 @@ const TOOLS = [
     readOnly: true,
     input: {
       query: S.str("Text in the title, author or notes"), category: S.str("A backlog category"),
-      status: S.str("Which ones", { enum: ["open", "starred", "started", "bought", "dropped", "airing", "all"] }), limit: S.limit,
+      status: S.str("Which ones", { enum: ["open", "starred", "started", "bought", "dropped", "airing", "all"] }),
+      starred: S.bool("Only starred ones, on top of status (the Backlog's Show → Starred)"),
+      bought: S.bool("Only bought ones, on top of status (the Backlog's Show → Bought: a category with Bought switched off counts as bought)"),
+      limit: S.limit,
     },
     async run(a) {
       const d = await readData();
       const q = lower(a.query);
       const status = a.status || "open";
+      const boughtOff = (name) => ((d.categories || []).find((c) => c.name === name) || {}).showBought === false;
       const rows = (d.backlog || []).filter((b) => (!q || lower(b.title + " " + (b.author || "") + " " + (b.notes || "")).includes(q))
         && (!a.category || lower(b.category) === lower(a.category))
+        && (!a.starred || b.priority)
+        && (!a.bought || b.bought || boughtOff(b.category))
         && (status === "all" || (status === "open" ? !b.dropped : status === "starred" ? b.priority && !b.dropped
           : status === "started" ? b.startedAt : status === "bought" ? b.bought
           : status === "airing" ? (b.airing === "airing" || b.airing === "hiatus") && !b.dropped : b.dropped)))

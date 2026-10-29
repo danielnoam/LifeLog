@@ -16,6 +16,20 @@ what was decided against and why.
 
 ---
 
+- **Backlog Show filter (0.285.0).** Daniel asked for favorited and bought
+  filters. Both are existing fields (`priority`, `bought`), so no data
+  change. It's its own row (`#showFilterGroup`, `state.backlogShows`) built
+  like Notes' Types row, but the chips stack (and) where Types adds (or):
+  "starred and bought" is the useful question, and the random pick's
+  Favorites only / Bought only already stack the same way. Bought lets
+  through any category with `showBought` off, at Daniel's word: a chore has
+  nothing to buy, and hiding it would empty the list. It lives in
+  `getFilteredBacklog` only, not `passesFilters`, because the Timeline's
+  In progress card reads the latter and the row isn't shown there. Not
+  saved across launches, like the category chips. Hidden in Discover,
+  which lists things you don't have. The bridge's `lifelog_backlog` got
+  `starred` and `bought` arguments with the same rule.
+
 - **Folds and menu timing, from transitions.dev (0.284.1).** Daniel asked
   what LifeLog could learn from github.com/jakubantalik/transitions.dev.
   Its tuning rules (the same settle curve we use, open slower than close)
