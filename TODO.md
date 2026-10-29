@@ -21,11 +21,23 @@ says no, it moves to DROPPED.md with his reason.
     `lifelog_spending`, stats) stays right unchanged, on old builds too.
     Old builds keep both fields through `keepUnknown` and just don't show
     them. Sub names are unique within their parent only (Books can be under
-    Entertainment and Education). Trade-off: `subs` lives inside the
-    category row and merge.js merges whole rows, so subs added to the same
-    category on two devices before a sync keep one device's adds; an
-    expense whose sub went missing that way gets it back on load
-    (`ensureCategories` grows a sub pass), so nothing is lost but the order.
+    Entertainment and Education).
+  - **Sync.** merge.js merges a category row as one item, so on its own
+    two devices adding subs to the same category before a sync would keep
+    only one side's. A `mergeFinanceCategories` in merge.js fixes that the
+    way `mergeNotes` already does for checklist items: which categories
+    survive is decided per row as now, then a category both sides have
+    merges its `subs` one by one (`mergeCollection` on the arrays, order
+    from `inChosenOrder`). Both devices' new subs stay, a sub removed on
+    one side and untouched on the other stays removed, and a rename on one
+    side and an add on the other both land. Two devices that each add a
+    sub with the same name end up with two ids; the sanitizer folds them
+    into one (oldest `createdAt` wins), which is safe because expenses
+    point at subs by name. As a backstop, an expense naming a sub its
+    parent doesn't have gets it back on load (`ensureCategories` grows a
+    sub pass). A device still on an older build merges whole rows until
+    it updates; the backstop covers any expense that uses a sub lost then.
+    test/merge.test.js covers each case.
   - **Picker.** The expense, bill and plan sheets (`#finCategory`,
     `#recCategory`, `#planCategory`, all via `fillCategorySelect`) list
     parents with their subs indented under them: picking "Entertainment"
