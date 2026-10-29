@@ -1775,22 +1775,24 @@ html.force-mobile .stats-grid { grid-template-columns: 1fr; }
    opened block sat at full brightness for the whole 300ms and only then
    snapped to dim. A filter is untouched by that animation, so the row fades
    in already dimmed. */
-/* The Covers layout (0.289.0): each category a full-width wall of covers,
-   the band rules and fold bars spanning it. */
-.backlog-grid.is-covers { grid-template-columns: 1fr; }
-.backlog-list.bl-covers {
+/* The Covers layout (0.290.0, under View): each section a full-width wall
+   of covers, the band rules, fold bars and month headings spanning it. The
+   Backlog's lists and the Timeline's month cards both. */
+.backlog-grid.is-covers, .month-grid.is-covers { grid-template-columns: 1fr; }
+.backlog-list.bl-covers, .month-card.is-covers {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
-  gap: var(--space-12) var(--space-10); padding-top: var(--space-4);
+  gap: var(--space-12) var(--space-10);
 }
-.backlog-list.bl-covers > :not(.bl-tile) { grid-column: 1 / -1; }
+.backlog-list.bl-covers { padding-top: var(--space-4); }
+.backlog-list.bl-covers > :not(.bl-tile), .month-card.is-covers > :not(.bl-tile) { grid-column: 1 / -1; }
 /* The star in a tile's corner says it; a rule under the starred ones would
    leave a half-empty row of covers above it. */
 .backlog-list.bl-covers > .backlog-priority-sep { display: none; }
 /* Three across on any phone, 360px wide included. */
 @media (max-width: 720px) {
-  html:not(.force-pc) .backlog-list.bl-covers { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
+  html:not(.force-pc) :is(.backlog-list.bl-covers, .month-card.is-covers) { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
 }
-html.force-mobile .backlog-list.bl-covers { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
+html.force-mobile :is(.backlog-list.bl-covers, .month-card.is-covers) { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
 .bl-tile {
   display: flex; flex-direction: column; gap: var(--space-6); min-width: 0; cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -1809,6 +1811,11 @@ html.force-mobile .backlog-list.bl-covers { grid-template-columns: repeat(auto-f
   font-size: var(--fs-xs); font-weight: 600; color: var(--text); line-height: 1.3;
   overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
+/* A second line under the title: a release date, a rating, "In backlog". */
+.bl-tile-caption { font-size: var(--fs-2xs); color: var(--text-dim); margin-top: calc(-1 * var(--space-4)); }
+.bl-tile-caption.up-when { display: flex; flex-wrap: wrap; gap: 0 var(--space-6); }
+.bl-tile-caption.dsc-tag { align-self: flex-start; }
+.bl-tile-caption.erating { color: var(--accent); letter-spacing: 1px; }
 .bl-tile-marks {
   position: absolute; top: var(--space-4); right: var(--space-4);
   display: flex; gap: var(--space-2); padding: var(--space-2) var(--space-4);

@@ -94,6 +94,7 @@
 
       const grid = el("div", "month-grid");
       block.appendChild(grid);
+      const covers = state.visual.timelineLayout === "covers";
 
       sections.push({
         key: y, header: head, node: block, bodyEl: grid,
@@ -110,11 +111,13 @@
             // entries read newest-first would fight itself.
             items: byMonth[m].slice().sort(oldest ? byOldestAdded : byNewestAdded),
           }));
+          body.classList.toggle("is-covers", covers);
           reconcile(body, cards, {
             keyOf: (c) => c.key,
             create: () => el("div", "month-card"),
             update: (card, c) => {
               card.dataset.year = c.year; card.dataset.month = c.month; // heatmap-cell jump target
+              card.classList.toggle("is-covers", covers);
               fillMonthCard(card, MONTHS[c.month], c.items,
                 () => openEntryModal(null, null, { year: c.year, month: c.month }));
             },
@@ -194,6 +197,20 @@
     return row;
   }
 
+  // The Covers layout (0.290.0): the art, the title, and the rating under it.
+  // Same classes as the Backlog's covers, so the two read as one thing.
+  function entryTile(e) {
+    const tile = el("div", "bl-tile");
+    tile.dataset.id = e.id;
+    const art = el("div", "bl-tile-art");
+    art.appendChild(window.LifeLogBacklog.tileCover(e.coverUrl, e.category));
+    if (state.bulk.active) art.appendChild(bulkCheckbox(e));
+    tile.appendChild(art);
+    tile.appendChild(el("span", "bl-tile-title", e.title));
+    if (e.rating) tile.appendChild(ratingBadge(e.rating)).classList.add("bl-tile-caption");
+    return tile;
+  }
+
   // The row's click and long-press, bound once per node. openEntryModal takes
   // the entry looked up at click time rather than the one captured when the
   // row was built: adopt() carries attributes across a refill but not
@@ -202,8 +219,8 @@
   //
   // attachLongPressSelect only ever reads .id, and a node's id is fixed by
   // the key it is reconciled under, so handing it a bare { id } is safe.
-  function createEntryRow(id) {
-    const row = el("div", "entry");
+  function createEntryRow(id, cls) {
+    const row = el("div", cls || "entry");
     row.dataset.id = id;
     row.onclick = () => {
       if (state.bulk.active) { toggleBulkItem(id); return; }
@@ -257,19 +274,23 @@
     for (const e of monthItems) parts.push({ key: e.id, kind: "row", entry: e });
     const catRows = monthCatRows(monthItems);
     if (catRows) parts.push({ key: "__cats", kind: "cats", catRows });
+    const covers = state.visual.timelineLayout === "covers";
     reconcile(card, parts, {
       animate: true,
+      // A row and a cover are different root elements, so switching layout
+      // rebuilds them rather than refilling one with the other's contents.
+      epoch: covers ? "bl-tile" : "entry",
       keyOf: (part) => part.key,
       create: (part) => {
         if (part.kind === "head") return el("h3");
         if (part.kind === "cats") return el("div", "month-cats");
-        return createEntryRow(part.entry.id);
+        return createEntryRow(part.entry.id, covers ? "bl-tile" : "entry");
       },
       update: (node, part) => {
         if (part.kind === "cats") { adopt(node, monthCatsEl(part.catRows)); return; }
         adopt(node, part.kind === "head"
           ? monthCardHeader(part.label, part.items.length, part.items, { onAdd: part.onAdd })
-          : entryRow(part.entry));
+          : covers ? entryTile(part.entry) : entryRow(part.entry));
       },
     });
   }

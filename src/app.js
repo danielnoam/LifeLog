@@ -51,7 +51,7 @@
   // object, so a default declared here is the only one there is — a `||` at
   // the read site is a second copy that can drift from it.
   // maxWidth 0 = stretch.
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, outTodaySheet: "show", ledgerMonthSummary: "show", timelineMonthSummary: "hide",
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogLayout: "list", timelineLayout: "list", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, outTodaySheet: "show", ledgerMonthSummary: "show", timelineMonthSummary: "hide",
     // One per set-aside band: "always" (a plain rule, never folds), "open"
     // (foldable, starts open) or "collapsed" (foldable, starts folded).
     // Dropped starts folded because it is the band you gave up on; the other
@@ -164,7 +164,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.289.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.290.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -237,7 +237,9 @@
   // Modes renamed in place. Without this the stored value simply fails the
   // check below and the view falls back to its first mode — which happens to
   // be the same screen here, but on luck rather than on purpose.
-  const MODE_MIGRATIONS = { backlog: { category: "entries" } };
+  // Covers was a Backlog mode for one version (0.289.0) before becoming a
+  // layout under View (0.290.0).
+  const MODE_MIGRATIONS = { backlog: { category: "entries", covers: "entries" } };
   function applySavedUi(ui) {
     if (!ui) {
       for (const spec of Object.values(VIEW_MODES)) spec.set(landingMode(spec));
@@ -745,13 +747,11 @@
   // tab has always opened on in the middle, so nothing opens differently
   // until you change it. With two modes the default is simply the one you
   // choose, the first until you do.
-  const DEFAULT_MODE_ORDER = { notes: ["habits", "notes"], backlog: ["upcoming", "entries", "covers", "discover"], travel: ["area", "time", "map"] };
+  const DEFAULT_MODE_ORDER = { notes: ["habits", "notes"], backlog: ["upcoming", "entries", "discover"], travel: ["area", "time", "map"] };
   // With more than three there's no middle — and with fewer, the first may
   // not be the one it has always opened on — so a tab opens on your choice
   // or, until you make one, on this.
-  // The Backlog got a fourth mode in 0.289.0 (Covers) and still opens on
-  // its List, as it did when that was the middle of three.
-  const DEFAULT_LANDING = { notes: "notes", backlog: "entries" };
+  const DEFAULT_LANDING = { notes: "notes" };
   const mergeOrder = (saved, all) => {
     const known = [...new Set((saved || []).filter((x) => all.includes(x)))];
     return known.concat(all.filter((x) => !known.includes(x)));
@@ -3318,36 +3318,45 @@
     const show = isFinanceView() && (state.data.projects || []).length > 0;
     group.hidden = !show;
     if (!show) { state.financeActiveProjects.clear(); updateFilterbarVisibility(); return; }
+    // A Show row like the Backlog's since 0.290.0: icon chips, the label
+    // clears, and the two turn each other off (both on was the same as none).
     const chips = [
-      { key: PROJ_NONE, label: "No project", general: true },
-      { key: PROJ_ANY, label: "Project" },
+      { key: PROJ_NONE, label: "No project", ico: "receipt", title: "Expenses that aren't part of a project" },
+      { key: PROJ_ANY, label: "Project", ico: "layers", title: "Expenses that are part of any project" },
     ];
     reconcile($("#projFilter"), chips, {
       keyOf: (item) => item.key,
       create: (item) => {
-        const chip = el("span", "cat-chip" + (item.general ? " is-general" : ""));
+        const chip = el("span", "cat-chip kind-chip");
+        chip.dataset.show = item.key;
         activatable(chip, () => {
           const set = state.financeActiveProjects;
-          if (set.has(item.key)) set.delete(item.key); else set.add(item.key);
+          const on = set.has(item.key);
+          set.clear();
+          if (!on) set.add(item.key);
           buildProjectFilter();
           render();
         });
         return chip;
       },
       update: (chip, item) => {
-        chip.classList.toggle("on", state.financeActiveProjects.has(item.key));
-        const dot = el("span", "dot");
-        // The hollow dot .is-general already gives "No project" reads as the
-        // absence of one; the other takes the accent, since no single project
-        // colour could stand for all of them.
-        if (!item.general) dot.style.background = "var(--accent)";
-        chip.title = item.general
-          ? "Expenses that aren't part of a project"
-          : "Expenses that are part of any project";
-        chip.replaceChildren(dot, document.createTextNode(item.label));
+        const on = state.financeActiveProjects.has(item.key);
+        chip.classList.toggle("on", on);
+        chip.setAttribute("aria-pressed", String(on));
+        chip.title = item.title;
+        const k = el("span", "kind-ico");
+        k.appendChild(ico(item.ico));
+        chip.replaceChildren(k, document.createTextNode(item.label));
       },
     });
+    equalizeChipWidths($("#projFilter"));
     updateFilterbarVisibility();
+  }
+  function clearProjectFilter() {
+    if (!state.financeActiveProjects.size) return;
+    state.financeActiveProjects.clear();
+    buildProjectFilter();
+    render();
   }
 
   // What kind of note, as a row of the filter bar like the Ledger's projects
@@ -4597,6 +4606,7 @@
     $("#catFilterLabel").onclick = toggleAllCats;
     $("#kindFilterLabel").onclick = toggleAllKinds;
     $("#showFilterLabel").onclick = clearShows;
+    $("#projFilterLabel").onclick = clearProjectFilter;
 
     const addMenu = $("#addMenu");
     const closeAddMenu = () => { addMenu.hidden = true; };

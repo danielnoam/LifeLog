@@ -848,6 +848,8 @@
     $("#monthMin").value = state.visual.monthMinWidth;
     $("#monthMax").value = state.visual.monthMaxWidth;
     $("#currency").value = state.data.settings.currency;
+    $("#timelineLayout").value = state.visual.timelineLayout || "list";
+    $("#backlogLayout").value = state.visual.backlogLayout || "list";
     $("#timelineCoverSize").value = state.visual.timelineCoverSize || "small";
     $("#backlogCoverSize").value = state.visual.backlogCoverSize || "big";
     $("#backlogSummaries").value = state.visual.backlogSummaries || "show";
@@ -1322,6 +1324,13 @@
     saveVisualSettings(state.visual);
     render();
   }
+  // List or Covers (0.290.0): per device, like the cover size.
+  function onLayoutChange() {
+    state.visual.timelineLayout = $("#timelineLayout").value;
+    state.visual.backlogLayout = $("#backlogLayout").value;
+    saveVisualSettings(state.visual);
+    render();
+  }
   function onBacklogCoverSizeChange() {
     state.visual.backlogCoverSize = $("#backlogCoverSize").value;
     saveVisualSettings(state.visual);
@@ -1587,6 +1596,8 @@
     $("#fontFamily").onchange = onFontChange;
     $("#themeSelect").onchange = onThemeChange;
     $("#forceLayout").onchange = onForceLayoutChange;
+    $("#timelineLayout").onchange = onLayoutChange;
+    $("#backlogLayout").onchange = onLayoutChange;
     $("#timelineCoverSize").onchange = onTimelineCoverSizeChange;
     $("#backlogCoverSize").onchange = onBacklogCoverSizeChange;
     $("#backlogSummaries").onchange = onBacklogSummariesChange;

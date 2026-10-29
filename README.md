@@ -144,7 +144,7 @@ in; this is the tour.
   - **Log** – what you've finished, by year and month, with per-year
     accomplishments. An entry carries a rating, notes, cover art, genres,
     a length and a start month; what you've started sits in an In
-    progress card at the top.
+    progress card at the top. View → Layout draws it as covers.
   - **Stats** – totals by category and year, highlights, seasonality,
     genres, an activity heatmap, most-repeated titles, and that year in
     numbers. **Recap** turns a year into a slideshow, offered in December.
@@ -154,8 +154,8 @@ in; this is the tour.
     away. Bought, authors and In progress per category, sorts inside each
     band (name, added, release date, price, length), Pick random and Spin.
     A Show row narrows it to Starred, Bought, Not bought or Price alert.
-  - **Covers** – the same list as a wall of cover art. Tap a cover for its
-    card, then swipe through the rest.
+  - Every mode can be drawn as **Covers** (View → Layout): a wall of
+    cover art. Tap a cover for its card, then swipe through the rest.
   - **Discover** – what's popular now and coming soon from the sources your
     categories use, with Hide what I have. Books get the NYT bestseller
     lists with a free New York Times key. Logging a synced title as done

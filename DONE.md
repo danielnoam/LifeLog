@@ -49,6 +49,7 @@ Every release that adds a feature adds its line here in the same commit.
 - + on each month card for a quick add (0.34.0)
 - Sticky year and month headers on phones, and a quick-jump row (0.28.0, 0.77.0)
 - Newest or oldest first, and optional month summaries (0.157.0, 0.143.0)
+- Covers layout under View: each month's entries as cover art, with the rating (0.290.0)
 
 ## Timeline (Stats) and Recap
 
@@ -74,8 +75,8 @@ Every release that adds a feature adds its line here in the same commit.
 - Sort control inside each band: name, release date, price, length (0.157.0, 0.287.0)
 - Show filter: Starred, Bought, Not bought, Price alert, stacking (0.285.0, 0.286.0)
 - Pick random and Spin, scoped to the filters, with Bought only (0.82.0, 0.105.0, 0.110.0)
-- Covers mode: the list as a wall of cover art, with marks for starred, bought and price alert (0.289.0)
-- A cover opens a card you swipe through to the next or previous title (0.289.0)
+- Covers layout under View, in every mode: cover art with marks for starred, bought and price alert (0.289.0, 0.290.0)
+- A cover opens a card you swipe through to the next or previous title (0.289.0, 0.290.0)
 - How long an item has sat there (0.82.0)
 - Game descriptions, Steam's own for Steam games (0.101.0)
 - GG.deals retail price on Steam games (0.18.0, 0.67.0)
@@ -155,7 +156,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Recurring expenses billed in another currency, with per-charge rates (0.165.0)
 - Merge recurring expenses into one plan, with one-off charges on it (0.232.0, 0.233.0)
 - A reminder before a recurring charge, per plan and per phone (Android, iPhone) (0.272.0)
-- Projects to group and total one-off spending, with a filter and a + on each pill (0.145.0, 0.149.0, 0.156.0)
+- Projects to group and total one-off spending, with a Show filter (No project, Project) and a + on each pill (0.145.0, 0.149.0, 0.156.0, 0.290.0)
 - Where each month's money went (0.104.0)
 - Summary: highlights, recurring, by month, by category, top expenses (0.50.0, 0.91.0, 0.57.1)
 - Subcategories under an expense category: a folder-style picker, sub chips to filter, sub bars in By category, on bills and in the CSV (0.288.0)

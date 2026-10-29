@@ -4,6 +4,23 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.290.0] - 2026-10-29
+
+### Changed
+- **Covers is a layout now, not a mode.** Choose List or Covers with the
+  View button at the top (the sliders), and it applies to every Backlog
+  mode: the List, Next releases (with the date under each cover) and
+  Discover (tap a cover to add it). Tapping a cover still opens the card
+  you swipe through.
+- **The Ledger's project filter is a Show row**, like the Backlog's: No
+  project and Project, with icons. Turning one on turns the other off, and
+  tapping Show clears it.
+
+### Added
+- **Covers on the Timeline.** View → Layout → Covers shows what you
+  finished as cover art under each month, with your rating under the
+  title. Tap one to open the entry.
+
 ## [0.289.0] - 2026-10-29
 
 ### Added

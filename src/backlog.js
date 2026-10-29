@@ -1126,9 +1126,9 @@
     return right;
   }
 
-  // Covers is the List drawn as a wall of art (0.289.0): same items, same
-  // sections, so everything that asks "is this the list" asks this too.
-  function coversLayout() { return state.backlogMode === "covers"; }
+  // List or Covers, set under View (0.290.0) and kept per device. Every mode
+  // draws its own sections either way; only the rows become covers.
+  function coversLayout() { return state.visual.backlogLayout === "covers"; }
 
   function openPickModal(pool) {
     endBrowse();
@@ -1276,6 +1276,8 @@
   // steps through the rest in the order the covers sit. The swipe lives in
   // the sheet, not on the list: there a sideways swipe already switches mode.
   let browseIds = null, browseAt = 0;
+  // The order the covers on screen sit in, set by whichever mode drew them.
+  let browseSource = () => [];
 
   // The covers' order, read off the same rules the sections draw by: the
   // categories in order, each sorted, then the folded bands that are open.
@@ -1296,7 +1298,7 @@
   }
 
   function openBrowseCard(id) {
-    browseIds = browseOrder();
+    browseIds = browseSource();
     browseAt = Math.max(0, browseIds.indexOf(id));
     $("#pickModal").classList.add("is-browse");
     $("#pickModal .modal").setAttribute("aria-label", "Browse the backlog");
@@ -1444,14 +1446,7 @@
     if (b.bought) titleRow.appendChild(boughtTag());
     body.appendChild(titleRow);
     appendAuthor(body, b);
-    const meta = el("div", "up-when");
-    meta.appendChild(el("span", "up-date", releaseLabel(b)));
-    // Only ever counts down to a real day — "in 2 days" against a date known
-    // no better than its month would be inventing precision.
-    const at = upcomingAt(b);
-    const countdown = at && (hasUpcomingEpisode(b) || precisionOf(b) === "day") ? countdownText(at) : "";
-    if (countdown) meta.appendChild(el("span", "up-countdown", countdown));
-    body.appendChild(meta);
+    body.appendChild(upcomingWhen(b));
     row.appendChild(body);
     // Same selection gesture as the category list — long-press a row to enter
     // bulk mode, then tap to add. A run of upcoming titles usually wants the
@@ -1459,6 +1454,19 @@
     // clear-out), and that's exactly the run this view groups for you.
     // Switching modes clears any selection in progress.
     return row;
+  }
+
+  // The date, and a countdown when there's a day to count to. A cover tile
+  // carries the same line under its title.
+  function upcomingWhen(b) {
+    const meta = el("div", "up-when");
+    meta.appendChild(el("span", "up-date", releaseLabel(b)));
+    // Only ever counts down to a real day — "in 2 days" against a date known
+    // no better than its month would be inventing precision.
+    const at = upcomingAt(b);
+    const countdown = at && (hasUpcomingEpisode(b) || precisionOf(b) === "day") ? countdownText(at) : "";
+    if (countdown) meta.appendChild(el("span", "up-countdown", countdown));
+    return meta;
   }
 
   // ---------- Out today ----------
@@ -1653,6 +1661,8 @@
       sections.push(makeUpcomingSection("year-" + year, year, "No month announced", byYear[year]));
     }
     const noDate = undated.filter((b) => !yearOf(b));
+    grid.classList.toggle("is-covers", coversLayout());
+    browseSource = () => [...dated, ...Object.keys(byYear).sort().flatMap((y) => byYear[y]), ...noDate].map((b) => b.id);
     if (noDate.length) {
       sections.push(makeUpcomingSection("undated", "No date yet",
         "Announced, but nothing dated yet", noDate));
@@ -1691,13 +1701,15 @@
       key, header: head, node: section, bodyEl: list,
       keepBody: true,
       build: (body) => {
-        const shape = rowShapeFor("upcoming");
+        const covers = coversLayout();
+        body.classList.toggle("bl-covers", covers);
+        const shape = covers ? "bl-tile" : rowShapeFor("upcoming");
         reconcile(body, items, {
           epoch: shape,
           animate: true,
           keyOf: (b) => b.id,
           create: (b) => createBacklogRow(b.id, shape),
-          update: (node, b) => adopt(node, upcomingRow(b)),
+          update: (node, b) => adopt(node, covers ? backlogTile(b, upcomingWhen(b)) : upcomingRow(b)),
         });
       },
     };
@@ -2061,6 +2073,15 @@
     return row;
   }
 
+  // The Covers layout's Discover result: tapping it adds it, as a row does.
+  function discoverTile(r, catName, owned) {
+    const tile = backlogTile({ id: r.id, title: r.title, category: catName, coverUrl: r.coverUrl });
+    tile.removeAttribute("data-id");
+    const tag = discoverOwnedTag(r.title, owned);
+    if (tag) tile.appendChild(el("span", "bl-tile-caption dsc-tag", tag));
+    return tile;
+  }
+
   // Discover is the one view whose rows cannot resolve themselves by id at
   // click time, because a result is not stored anywhere — `r` *is* the data,
   // straight off the network, and a refresh replaces the object for a given
@@ -2179,7 +2200,9 @@
     } else {
       adopt(head, discoverCardHead(title, sourceLabel));
     }
-    const shape = rowShapeFor("discover");
+    const covers = coversLayout();
+    list.classList.toggle("bl-covers", covers);
+    const shape = covers ? "bl-tile dsc-tile" : rowShapeFor("discover");
     reconcile(list, parts, {
       epoch: shape,
       keyOf: (part) => part.key,
@@ -2187,7 +2210,7 @@
       update: (node, part) => {
         if (part.kind === "note") { node.textContent = part.text; return; }
         dscResult.set(node, { r: part.r, catName: part.catName, keys: part.keys });
-        adopt(node, discoverRow(part.r, part.catName, part.keys, part.owned));
+        adopt(node, covers ? discoverTile(part.r, part.catName, part.owned) : discoverRow(part.r, part.catName, part.keys, part.owned));
       },
     });
   }
@@ -2220,6 +2243,7 @@
       adopt(dscBarEl, discoverKindBar(sources));
     }
     root.appendChild(dscRootEl);
+    dscGridEl.classList.toggle("is-covers", coversLayout());
 
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     const owned = discoverOwnedIndex();
@@ -2279,7 +2303,7 @@
   // "List" since 0.231.0, when each tab's first mode got a name of its own
   // (it was "Entries", like the others'). It was "By category" with the id
   // "category" until 0.128.0; applySavedUi in app.js translates the stored one.
-  const MODES = [["entries", "List", "star"], ["covers", "Covers", "layout-grid"], ["upcoming", "Next releases", "clock"], ["discover", "Discover", "compass"]];
+  const MODES = [["entries", "List", "star"], ["upcoming", "Next releases", "clock"], ["discover", "Discover", "compass"]];
   // The switch itself lives on the tab now on both layouts — held on a phone,
   // hovered on a desktop (see the mode fan and the tab menu in app.js) — so
   // only what the bar carries besides it is drawn here.
@@ -2289,7 +2313,7 @@
       const n = upcomingItems().length;
       bar.appendChild(el("span", "backlog-mode-count", n ? n + (n === 1 ? " title" : " titles") + " waiting" : "Nothing waiting"));
       bar.appendChild(upcomingWeekGroup());
-    } else if (state.backlogMode === "entries" || state.backlogMode === "covers") {
+    } else if (state.backlogMode === "entries") {
       // What's been started is on the Timeline's In progress card (0.218.0).
       // The "▶ N in progress" link that pointed there was removed in 0.223.0.
       // Not in Discover: the draw is from your own list, and offering it
@@ -2384,6 +2408,7 @@
     if (!blGridEl) blGridEl = el("div", "backlog-grid");
     const grid = blGridEl;
     grid.classList.toggle("is-covers", coversLayout());
+    browseSource = browseOrder;
     const sections = [];
     for (const catName of order) {
       const catItems = byCat[catName];
@@ -2626,23 +2651,12 @@
 
   // A cover in the Covers layout (0.289.0): the art, the title under it, and
   // a mark in the corner for what the Show row filters on.
-  function backlogTile(b) {
+  function backlogTile(b, caption) {
     const tile = el("div", "bl-tile");
     tile.dataset.id = b.id;
     if (b.dropped) tile.classList.add("is-dropped");
     const art = el("div", "bl-tile-art");
-    const src = tileCoverUrl(b.coverUrl);
-    if (src) {
-      const img = coverEl(src, "", "bl-tile-cover", b.category);
-      img.draggable = false;
-      if (src !== b.coverUrl) {
-        const fallback = img.onerror;
-        img.onerror = () => { img.onerror = fallback; img.src = b.coverUrl; };
-      }
-      art.appendChild(img);
-    } else {
-      art.appendChild(emptyCoverEl("bl-tile-cover cover-empty", b.category));
-    }
+    art.appendChild(tileCover(b.coverUrl, b.category));
     const marks = el("div", "bl-tile-marks");
     if (b.priority) marks.appendChild(tileMark("star", "Starred", "is-star"));
     if (b.bought) marks.appendChild(tileMark("shopping-bag", "Bought"));
@@ -2651,7 +2665,22 @@
     if (state.bulk.active) art.appendChild(bulkCheckbox(b));
     tile.appendChild(art);
     tile.appendChild(el("span", "bl-tile-title", b.title));
+    if (caption) { caption.classList.add("bl-tile-caption"); tile.appendChild(caption); }
     return tile;
+  }
+
+  // A tile's art: the bigger image where there is one, then the saved one,
+  // then the category's tinted block. The Timeline's covers use it too.
+  function tileCover(url, category) {
+    const src = tileCoverUrl(url);
+    if (!src) return emptyCoverEl("bl-tile-cover cover-empty", category);
+    const img = coverEl(src, "", "bl-tile-cover", category);
+    img.draggable = false;
+    if (src !== url) {
+      const fallback = img.onerror;
+      img.onerror = () => { img.onerror = fallback; img.src = url; };
+    }
+    return img;
   }
 
   function tileMark(icon, label, cls) {
@@ -3317,7 +3346,8 @@
     // random-pick draw order (test/backlog.test.js)
     peekPickBag,
     spendPick,
-    // the Covers layout's bigger art (test/backlog.test.js)
-    tileCoverUrl,
+    // the Covers layout's bigger art (test/backlog.test.js), and the tile's
+    // image for the Timeline's covers (journal.js)
+    tileCoverUrl, tileCover,
   };
 })();

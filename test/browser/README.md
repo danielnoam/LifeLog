@@ -32,7 +32,8 @@ because something shipped broken that no unit test could have caught:
 | `recurtools` | a pasted price's currency, a monthly plan's charge day and its overrides following it, the link offer ticking only lookalikes, plans merging into one history (overlap kept as one-off charges, one row in the list), Undo putting them back, adding and deleting a one-off charge, and a merged bill as one bar in the Summary |
 | `fxrate` | rate lookup: URLs, fallback order, date pinning, precision, and the hint's spacing |
 | `bandfold` | each set-aside band folds on its own setting, and an all-one-band category still gets a bar |
-| `backlogcovers` | the Backlog's Covers mode: reached by a swipe from the List, the tiles and their marks in the List's order, a folded band left out, a cover opening the card, stepping by button, arrow key and swipe across categories, Open, Pick random still the draw, and the Backlog still opening on its List |
+| `backlogcovers` | the Covers layout under View: the Backlog's tiles and their marks in the List's order, a folded band left out, a cover opening the card, stepping by button, arrow key and swipe across bands and categories, Open, Pick random still the draw, Next releases' covers with their dates, 0.289.0's Covers mode landing on the List, and the Timeline's own layout with ratings |
+| `ledgershow` | the Ledger's project filter as a Show row: icon chips, Project and No project turning each other off, the label clearing |
 | `backlogshow` | the Backlog's Show chips: Starred, Bought, Not bought, Price alert, stacking and turning their opposites off, a category without Bought kept, the label clearing, and the row only on the Backlog |
 | `droppedfold` | the Dropped fold, including that its rows are dimmed on the frame they appear |
 | `sorting` | every sort option means what it says at every level |

@@ -16,20 +16,31 @@ what was decided against and why.
 
 ---
 
-- **Covers mode and the swipe card (0.289.0).** Daniel asked for a card
+- **Covers as a layout under View (0.290.0).** Daniel, on 0.289.0's
+  Covers mode: "shouldn't be another mode", put it in the View button and
+  make it work in every Backlog mode and on the Timeline (not the Ledger).
+  So it's `state.visual.backlogLayout` and `timelineLayout` (per device,
+  "list" or "covers"), a Layout row at the top of each View sheet.
+  `MODE_MIGRATIONS.backlog.covers = "entries"` lands anyone left on the old
+  mode on the List. Next releases' tiles carry the date line
+  (`upcomingWhen`), Discover's the "In backlog" tag and add on tap, the
+  Timeline's the rating and open the entry (no swipe card there: the card
+  is the Backlog's Pick random sheet and its Open goes to a backlog item).
+  `browseSource` is set by whichever Backlog mode drew the covers, so the
+  card steps in that mode's order.
+  - **Same session, the Ledger's project filter as a Show row** (Daniel:
+    "should just be show, like we have in the backlog"): label Show, which
+    clears, icon chips, and No project / Project exclusive, since both on
+    was the same as none.
+
+- **Covers and the swipe card (0.289.0).** Daniel asked for a card
   view to swipe through, or a library grid, unsure which. The plan (in
   TODO.md, OK'd with "build it") was a grid with the swipe inside the card
   it opens: a sideways swipe on the page already switches mode, so a swipe
   deck there would fight it (DROPPED.md, Swipe actions on rows), and Pick
-  random already shows one title at a time.
-  - **A mode, not the planned toggle.** The plan put a List/Covers button
-    beside the sort. On a 360px phone Spin, Pick random and the sort
-    already fill the bar to within a pixel, so the button pushed the sort
-    onto a second line. As a mode it costs no room, is reached by the same
-    swipe as the others, and can be turned off or reordered in Settings.
-    `DEFAULT_LANDING.backlog = "entries"`: with three modes the tab opened
-    on the middle one, the List; with four it would have opened on the
-    first, Next releases.
+  random already shows one title at a time. It shipped as a fourth Backlog
+  mode because a List/Covers button didn't fit beside Spin, Pick random
+  and the sort on a 360px phone; 0.290.0 moved it into View instead.
   - **Same list, so same code.** `coversLayout()` is the only switch:
     renderBacklog draws the sections, bands and fold bars as for the List,
     and the rows become `.bl-tile` under a different reconcile epoch. The
@@ -38,20 +49,19 @@ what was decided against and why.
   - **Bigger art.** Rows ask for thumbnails (TMDB w92, AniList medium) that
     blur at tile size, and Steam's header.jpg is a wide banner.
     `tileCoverUrl` asks for TMDB w342, AniList large and Steam's portrait
-    `library_600x900.jpg`, each falling back to the saved URL if it fails.
-    RAWG's art is a screenshot and stays cropped to 2:3; SteamGridDB grids
-    vary. Checked against the URL patterns only, not live.
+    `library_600x900.jpg`, each falling back to the saved URL if it fails
+    (`tileCover`). RAWG's art is a screenshot and stays cropped to 2:3;
+    SteamGridDB grids vary. Checked against the URL patterns only, not live.
   - **The card is the Pick random sheet** with the scope strip and draw
     buttons swapped for previous / next and "N of M" (`.is-browse`). The
-    order is computed when a cover is tapped, by the same rules as the
-    sections (`browseOrder`), so a folded band is skipped. The swipe uses
-    attachSwipe with `requireHorizontal`, so a vertical pull still scrolls
-    or closes the sheet. The cover image is `draggable="false"`: a mouse
-    drag that starts on it is otherwise a native image drag.
+    swipe uses attachSwipe with `requireHorizontal`, so a vertical pull
+    still scrolls or closes the sheet. The cover image is
+    `draggable="false"`: a mouse drag that starts on it is otherwise a
+    native image drag.
   - **Speed.** 300 items, a full redraw: List 26 to 51 ms, Covers 14 to
     18 ms (fewer nodes per item), at 375 and 1280 wide.
   - **Bridge:** nothing new. Covers shows the items `lifelog_backlog`
-    already returns, and the mode is a device setting.
+    and the entry tools already return, and the layout is a device setting.
 
 - **Ledger subcategories (0.288.0).** Daniel asked for a folder structure:
   Entertainment > Games, filed under either, filtered to either. An expense
