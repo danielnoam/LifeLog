@@ -16,6 +16,23 @@ what was decided against and why.
 
 ---
 
+- **Sticky headers tuck 1px under the top bar (0.292.3).** Daniel saw a
+  1px seam between the top bar and a stuck Timeline year header in the
+  phone app. `--topbar-h` is measured with getBoundingClientRect, so it is
+  fractional with a safe-area inset or a 2.625x screen, and the sticky
+  edge and the bar's edge round to device pixels on their own. Every
+  header that sticks flush under the bar now uses `--sticky-top`
+  (`--topbar-h` minus 1px), and the month header tucks 1px under the year
+  header the same way; the bar (z 20/40) covers the overlap and still
+  draws its border. Headless Chromium rounds the bar to whole pixels, so
+  the seam itself couldn't be reproduced from the cloud; the overlap was
+  checked by measurement. `--topbar-h` itself is unchanged: the scrollbar
+  track, the menus and the scroll offsets in notes.js/travel.js want the
+  real edge. Same release: the sync line hung from `.brand` and the
+  version from `.settings-corner`, both centred in the row, so they sat
+  where those boxes ended (4px apart on desktop, 8px on a phone, where the
+  logo row is shorter). Both boxes now stretch to the row's height and
+  share `--topbar-label-gap`.
 - **One count on In progress (0.292.1).** Daniel, after 0.292.0: an
   airing show showed its count twice ("Ep 4 of 12" and "Airing · 6 of
   12"). Joined as "Ep 4 · 6 of 12" (watched · out of total), the airing

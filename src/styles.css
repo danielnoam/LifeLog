@@ -394,7 +394,11 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
   top: 0;
   z-index: 20;
 }
-.brand { display: flex; align-items: center; gap: 10px; order: 1; position: relative; }
+/* Stretched to the row's height, like .settings-corner, so the sync line
+   under the logo and the version under the cog hang from the same edge.
+   Centred, the logo row is shorter than the cog's 44px buttons and the two
+   labels sat 4-8px apart. */
+.brand { display: flex; align-items: center; gap: 10px; order: 1; position: relative; align-self: stretch; }
 .brand-mark { color: var(--accent); display: flex; }
 .brand-mark svg { display: block; width: 20px; height: 20px; }
 .brand h1 { font-size: var(--fs-xl); margin: 0; font-weight: 650; letter-spacing: .3px; }
@@ -538,7 +542,8 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
    width never affects the header's flex layout, mirroring how the sync status
    line hangs under the logo on the left. The topbar's extra bottom padding
    reserves room for both. */
-.settings-corner { order: 5; position: relative; display: flex; align-items: center; gap: 6px; }
+:root { --topbar-label-gap: 7px; }
+.settings-corner { order: 5; position: relative; display: flex; align-items: center; gap: 6px; align-self: stretch; }
 #viewOptionsBtn[hidden] { display: none; }
 /* Activity (0.244.0): a ring that fills as the first job goes, and how
    many are going when it's more than one. Not knowing how far along, the
@@ -572,7 +577,7 @@ body.modal-open .activity-pill { visibility: hidden; }
   .activity-btn.is-unknown .activity-ring, .activity-pill.is-unknown .activity-ring { animation: none; }
 }
 .version-badge {
-  position: absolute; top: 100%; right: 0; margin-top: 10px;
+  position: absolute; top: 100%; right: 0; margin-top: var(--topbar-label-gap);
   font-size: var(--fs-2xs); color: var(--text-faint); white-space: nowrap; pointer-events: none;
 }
 
@@ -582,7 +587,7 @@ body.modal-open .activity-pill { visibility: hidden; }
    topbar's extra bottom padding above reserves it real space instead of
    overlapping the filter bar underneath. */
 .storage-status {
-  position: absolute; top: 100%; left: 0; margin-top: 14px;
+  position: absolute; top: 100%; left: 0; margin-top: var(--topbar-label-gap);
   font-size: var(--fs-2xs); color: var(--text-dim); display: flex; align-items: center; gap: 6px;
   max-width: 260px; white-space: nowrap; cursor: pointer;
 }
@@ -615,6 +620,13 @@ body.modal-open .activity-pill { visibility: hidden; }
    own 52px, and 12px so the last row isn't flush against it. .content's
    bottom padding on a phone is this plus the bar itself. */
 :root { --fab-clear: 76px; }
+/* Where a header sticks under the top bar. --topbar-h is a fractional
+   measurement (safe-area inset, 2.625x screens), and a sticky edge and the
+   bar's edge round to device pixels separately, so a flush offset left a
+   1px seam of scrolling content between them on phones. Tucking the header
+   1px under the bar (z 20/40, above every sticky header) closes it; the
+   bar's border still draws on top. */
+:root { --sticky-top: calc(var(--topbar-h, 0px) - 1px); }
 .fab-wrap { position: fixed; right: 24px; bottom: 24px; z-index: 35; }
 /* .btn.fab: .btn comes later in this file and, at equal weight, was taking
    the radius, padding and font size back — a rounded square with a 13px +. */
@@ -2991,18 +3003,18 @@ html.native, html.native body { overscroll-behavior-y: none; }
 
   /* Timeline is a single column at this width, so the year/month you're
      scrolled into can stick under the topbar like a sticky list header. */
-  html:not(.force-pc) .year-head { position: sticky; top: var(--topbar-h, 0px); z-index: 6; background: var(--bg); }
+  html:not(.force-pc) .year-head { position: sticky; top: var(--sticky-top); z-index: 6; background: var(--bg); }
   html:not(.force-pc) .month-card h3 {
     position: sticky; background: var(--bg-elev);
     /* stacks below the sticky year-head, whose height varies per year (achievement chips can wrap) */
-    top: calc(var(--topbar-h, 0px) + var(--year-head-h, 46px)); z-index: 4;
+    top: calc(var(--sticky-top) + var(--year-head-h, 46px) - 1px); z-index: 4;
   }
 
   /* Backlog is single-column here too (see .backlog-grid's auto-fit min
      width) — same sticky-category-header treatment as the timeline's
      month cards, one per section since there's no year level above it. */
   html:not(.force-pc) .backlog-section-head {
-    position: sticky; top: var(--topbar-h, 0px); z-index: 4; background: var(--surface-card);
+    position: sticky; top: var(--sticky-top); z-index: 4; background: var(--surface-card);
   }
 }
 
@@ -3098,13 +3110,13 @@ html.force-mobile .month-add-btn { width: 20px; height: 20px; font-size: var(--f
 html.force-mobile .proj-group-add { width: 20px; height: 20px; font-size: var(--fs-md); }
 html.force-mobile .views { touch-action: none; }
 
-html.force-mobile .year-head { position: sticky; top: var(--topbar-h, 0px); z-index: 6; background: var(--bg); }
+html.force-mobile .year-head { position: sticky; top: var(--sticky-top); z-index: 6; background: var(--bg); }
 html.force-mobile .month-card h3 {
   position: sticky; background: var(--bg-elev);
-  top: calc(var(--topbar-h, 0px) + var(--year-head-h, 46px)); z-index: 4;
+  top: calc(var(--sticky-top) + var(--year-head-h, 46px) - 1px); z-index: 4;
 }
 html.force-mobile .backlog-section-head {
-  position: sticky; top: var(--topbar-h, 0px); z-index: 4; background: var(--surface-card);
+  position: sticky; top: var(--sticky-top); z-index: 4; background: var(--surface-card);
 }
 
 /* Settings on a phone: the list and a page take turns, and View options
@@ -4012,7 +4024,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .trip-meta { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-8); margin-bottom: var(--space-12); max-width: 820px; min-height: 32px; }
 .trip-meta .trip-range { flex: 1; min-width: 0; margin: 0; }
 .trip-range { font-size: var(--fs-sm); color: var(--text-dim); font-variant-numeric: tabular-nums; }
-.trip-meta.is-sorting { position: sticky; top: var(--topbar-h, 0px); z-index: 4; background: var(--bg); padding: var(--space-6) 0; }
+.trip-meta.is-sorting { position: sticky; top: var(--sticky-top); z-index: 4; background: var(--bg); padding: var(--space-6) 0; }
 .trip-sort-hint { flex-basis: 100%; order: 3; font-size: var(--fs-xs); color: var(--text-dim); }
 .trip-chip .trip-now-dot { background: var(--success); }
 .trip-days { display: flex; flex-direction: column; gap: var(--space-12); max-width: 820px; }
@@ -4152,13 +4164,13 @@ html.force-mobile .trip-map.import-map { height: 180px; }
 }
 @media (max-width: 720px) {
   .trip-map-layout { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-12); }
-  .trip-map-side { order: 0; top: var(--topbar-h, 0px); z-index: 5; height: 48vh; background: var(--bg); padding: var(--space-4) 0 var(--space-8); margin-top: calc(-1 * var(--space-4)); }
+  .trip-map-side { order: 0; top: var(--sticky-top); z-index: 5; height: 48vh; background: var(--bg); padding: var(--space-4) 0 var(--space-8); margin-top: calc(-1 * var(--space-4)); }
   .trip-map-list { width: 100%; }
   .trip-map-list .place-row { scroll-margin-top: calc(var(--topbar-h, 0px) + 48vh + var(--space-12)); }
   .place-grip { padding: var(--space-8); margin: calc(-1 * var(--space-8)) 0; }
 }
 html.force-mobile .trip-map-layout { display: flex; flex-direction: column; align-items: stretch; gap: var(--space-12); }
-html.force-mobile .trip-map-side { order: 0; top: var(--topbar-h, 0px); z-index: 5; height: 48vh; background: var(--bg); padding: var(--space-4) 0 var(--space-8); margin-top: calc(-1 * var(--space-4)); }
+html.force-mobile .trip-map-side { order: 0; top: var(--sticky-top); z-index: 5; height: 48vh; background: var(--bg); padding: var(--space-4) 0 var(--space-8); margin-top: calc(-1 * var(--space-4)); }
 html.force-mobile .trip-map-list { width: 100%; }
 html.force-mobile .trip-map-list .place-row { scroll-margin-top: calc(var(--topbar-h, 0px) + 48vh + var(--space-12)); }
 html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(--space-8)) 0; }

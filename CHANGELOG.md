@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.292.3] - 2026-10-30
+
+### Fixed
+- **No seam under the top bar.** A header stuck under the top bar while
+  scrolling (a Timeline year or month, a Backlog section, a trip's map)
+  could leave a thin line of the page showing between the two on a phone.
+- **Sync status and version line up.** The sync line under the logo and
+  the version under Settings now sit on the same line.
+
 ## [0.292.2] - 2026-10-30
 
 ### Changed
