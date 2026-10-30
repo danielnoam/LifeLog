@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.291.0] - 2026-10-30
+
+### Added
+- **A calendar for the Timeline.** View → Layout → Calendar shows a month
+  at a time: each day you finished something shows its cover (on a
+  computer, the titles), with +N when there's more than one. Tap a day to
+  list what you finished on it; tap one to open it. Entries without a day
+  sit in No day set under the month. Use ‹ › to change month. Only
+  entries logged since 0.281.0 have a day, so older months are mostly in
+  No day set until you add days to them.
+
 ## [0.290.1] - 2026-10-29
 
 ### Changed

@@ -33,6 +33,7 @@ because something shipped broken that no unit test could have caught:
 | `fxrate` | rate lookup: URLs, fallback order, date pinning, precision, and the hint's spacing |
 | `bandfold` | each set-aside band folds on its own setting, and an all-one-band category still gets a bar |
 | `backlogcovers` | the Covers layout under View: the Backlog's tiles and their marks in the List's order, a folded band left out, a cover opening the item's own sheet, Pick random still the draw, Next releases' covers with their dates, 0.289.0's Covers mode landing on the List, and the Timeline's own layout with ratings |
+| `timelinecal` | the Timeline's Calendar layout: opening on the latest month with entries, the weekday offset, a day's cover and +N, the picked day's list and No day set, an entry opening, month steps, and names in the cells on a desktop |
 | `ledgershow` | the Ledger's project filter as a Show row: icon chips, Project and No project turning each other off, the label clearing |
 | `backlogshow` | the Backlog's Show chips: Starred, Bought, Not bought, Price alert, stacking and turning their opposites off, a category without Bought kept, the label clearing, and the row only on the Backlog |
 | `droppedfold` | the Dropped fold, including that its rows are dimmed on the frame they appear |

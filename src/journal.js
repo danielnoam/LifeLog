@@ -43,7 +43,7 @@
   // toolbar that is refilled, and a section container that is reconciled.
   // Both empty states live in app.js's render() and never reach here, so this
   // function always has entries.
-  let tlRootEl = null, tlToolbarEl = null, tlProgressEl = null, tlSectionsEl = null, tlBulkEl = null;
+  let tlRootEl = null, tlToolbarEl = null, tlProgressEl = null, tlSectionsEl = null, tlBulkEl = null, tlCalEl = null;
 
   // `progress` is the In progress card (0.218.0), or null: it sits between
   // the toolbar and the years, in a slot of its own so the years' sections
@@ -57,6 +57,8 @@
       tlRootEl.appendChild(tlToolbarEl);
       tlRootEl.appendChild(tlProgressEl);
       tlRootEl.appendChild(tlSectionsEl);
+      tlCalEl = el("div", "tl-cal");
+      tlRootEl.appendChild(tlCalEl);
     } else {
       // The select's chosen option follows the setting; its handler sits on
       // the select, which is a child, so it travels with the refill.
@@ -64,6 +66,11 @@
     }
     root.appendChild(tlRootEl);
     if (progress) tlProgressEl.replaceChildren(progress); else tlProgressEl.replaceChildren();
+    const calendar = state.visual.timelineLayout === "calendar";
+    tlToolbarEl.hidden = calendar;
+    tlSectionsEl.hidden = calendar;
+    tlCalEl.hidden = !calendar;
+    if (calendar) { renderCalendar(tlCalEl, entries); renderTimelineBulkBar(root); return; }
 
     const byYear = groupBy(entries, (e) => e.year);
     const sections = [];
@@ -137,8 +144,12 @@
     const headHeights = sections.map((s) => s.header.getBoundingClientRect().height);
     sections.forEach((s, i) => s.node.style.setProperty("--year-head-h", headHeights[i] + "px"));
 
-    // Outside the shell: the bar belongs to the view, not to the list, and it
-    // comes and goes with bulk mode rather than being reconciled.
+    renderTimelineBulkBar(root);
+  }
+
+  // Outside the shell: the bar belongs to the view, not to the list, and it
+  // comes and goes with bulk mode rather than being reconciled.
+  function renderTimelineBulkBar(root) {
     if (tlBulkEl) { tlBulkEl.remove(); tlBulkEl = null; }
     if (state.bulk.active) {
       tlBulkEl = bulkActionBar({
@@ -149,6 +160,146 @@
       });
       root.appendChild(tlBulkEl);
     }
+  }
+
+  // ---------- the calendar (0.291.0) ----------
+  // The Timeline's third layout under View: one month as a grid of days,
+  // each day showing the cover of what you finished on it. Entries only
+  // carry a day since 0.281.0, so a month's entries without one sit in a
+  // No day set box under it instead of being guessed onto the 1st.
+  // The month and the picked day last for the session, not across launches:
+  // reopening on today is what a calendar is expected to do.
+  let calMonth = null, calDay = null;
+  const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const pad2 = (n) => String(n).padStart(2, "0");
+
+  function calKey(y, m) { return y + "-" + pad2(m); }
+  function daysIn(y, m) { return new Date(y, m, 0).getDate(); }
+  function entryDay(e, days) {
+    const d = +e.day;
+    return d >= 1 && d <= days ? d : 0;
+  }
+
+  // Opens on this month if anything in view falls in it, otherwise on the
+  // latest month that has something, so a filter to 2023 lands in 2023.
+  function defaultCalMonth(entries) {
+    const now = new Date();
+    const here = calKey(now.getFullYear(), now.getMonth() + 1);
+    let latest = "";
+    for (const e of entries) {
+      const k = calKey(e.year, e.month);
+      if (k === here) return here;
+      if (k > latest) latest = k;
+    }
+    return latest || here;
+  }
+
+  function stepCalMonth(dir) {
+    let [y, m] = calMonth.split("-").map(Number);
+    m += dir;
+    if (m < 1) { m = 12; y--; } else if (m > 12) { m = 1; y++; }
+    calMonth = calKey(y, m);
+    calDay = null;
+    render();
+  }
+
+  function renderCalendar(root, entries) {
+    if (!calMonth) calMonth = defaultCalMonth(entries);
+    const [y, m] = calMonth.split("-").map(Number);
+    const days = daysIn(y, m);
+    const inMonth = entries.filter((e) => e.year === y && e.month === m).sort(byOldestAdded);
+    const byDay = new Map();
+    const undated = [];
+    for (const e of inMonth) {
+      const d = entryDay(e, days);
+      if (!d) { undated.push(e); continue; }
+      if (!byDay.has(d)) byDay.set(d, []);
+      byDay.get(d).push(e);
+    }
+    const now = new Date();
+    const today = now.getFullYear() === y && now.getMonth() + 1 === m ? now.getDate() : 0;
+    if (!calDay || calDay > days) calDay = today && byDay.has(today) ? today : (Math.max(0, ...byDay.keys()) || today || 1);
+
+    const head = el("div", "cal-head");
+    head.appendChild(el("h2", "cal-title", MONTHS[m] + " " + y));
+    head.appendChild(el("span", "cal-count", inMonth.length ? inMonth.length + " finished" : ""));
+    const nav = el("div", "cal-nav");
+    for (const [dir, icon, label] of [[-1, "chevron-left", "Previous month"], [1, "chevron-right", "Next month"]]) {
+      const b = el("button", "btn btn-icon cal-step");
+      b.type = "button";
+      b.appendChild(ico(icon));
+      b.title = label;
+      b.setAttribute("aria-label", label);
+      b.onclick = () => stepCalMonth(dir);
+      nav.appendChild(b);
+    }
+    head.appendChild(nav);
+
+    const grid = el("div", "cal-grid");
+    for (const d of WEEKDAYS) grid.appendChild(el("span", "cal-wd", d));
+    const lead = new Date(y, m - 1, 1).getDay();
+    for (let i = 0; i < lead; i++) grid.appendChild(el("span", "cal-day is-out"));
+    for (let d = 1; d <= days; d++) {
+      const list = byDay.get(d) || [];
+      const cell = el("button", "cal-day");
+      cell.type = "button";
+      cell.classList.toggle("is-today", d === today);
+      cell.classList.toggle("is-picked", d === calDay);
+      cell.classList.toggle("has-entries", list.length > 0);
+      cell.setAttribute("aria-pressed", String(d === calDay));
+      cell.setAttribute("aria-label", d + " " + MONTHS[m] + (list.length ? ", " + list.length + " finished" : ""));
+      cell.dataset.day = d;
+      if (list.length) {
+        const first = list[0];
+        cell.classList.toggle("has-cover", !!first.coverUrl);
+        cell.appendChild(first.coverUrl
+          ? coverEl(first.coverUrl, "", "cal-cover", first.category)
+          : emptyCoverEl("cal-cover cover-empty", first.category));
+        if (list.length > 1) cell.appendChild(el("span", "cal-more", "+" + (list.length - 1)));
+        // The desktop's cells are wide enough for names; the phone's show
+        // the cover alone (styles.css picks one).
+        const names = el("div", "cal-names");
+        for (const e of list.slice(0, 3)) {
+          const n = el("span", "cal-name", e.title);
+          const dot = el("span", "dot");
+          dot.style.background = colorOf(e.category);
+          n.prepend(dot);
+          names.appendChild(n);
+        }
+        if (list.length > 3) names.appendChild(el("span", "cal-name is-more", "+" + (list.length - 3) + " more"));
+        cell.appendChild(names);
+      }
+      cell.appendChild(el("span", "cal-n", String(d)));
+      cell.onclick = () => { calDay = d; render(); };
+      grid.appendChild(cell);
+    }
+
+    const side = el("div", "cal-side");
+    const picked = byDay.get(calDay) || [];
+    const dayCard = el("div", "month-card cal-daycard");
+    const wd = WEEKDAYS[new Date(y, m - 1, calDay).getDay()];
+    dayCard.appendChild(el("h3", null, wd + " " + calDay + " " + MONTHS_SHORT[m] +
+      (picked.length ? " · " + picked.length + " finished" : "")));
+    if (picked.length) for (const e of picked) dayCard.appendChild(calRow(e));
+    else dayCard.appendChild(el("p", "cal-empty", "Nothing finished this day"));
+    side.appendChild(dayCard);
+    if (undated.length) {
+      const box = el("div", "month-card cal-undated");
+      box.appendChild(el("h3", null, "No day set · " + undated.length));
+      for (const e of undated) box.appendChild(calRow(e));
+      side.appendChild(box);
+    }
+
+    const body = el("div", "cal-body");
+    body.append(el("div", "cal-main"), side);
+    body.firstChild.append(head, grid);
+    root.replaceChildren(body);
+  }
+
+  function calRow(e) {
+    const row = createEntryRow(e.id);
+    adopt(row, entryRow(e));
+    return row;
   }
 
   // Newest-added first inside a month, matching the Ledger — an entry is

@@ -50,6 +50,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Sticky year and month headers on phones, and a quick-jump row (0.28.0, 0.77.0)
 - Newest or oldest first, and optional month summaries (0.157.0, 0.143.0)
 - Covers layout under View: each month's entries as cover art, with the rating (0.290.0)
+- Calendar layout under View: a month of days with covers, the picked day's entries, and No day set (0.291.0)
 
 ## Timeline (Stats) and Recap
 

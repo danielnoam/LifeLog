@@ -887,6 +887,7 @@ select:focus { outline: none; border-color: var(--accent); }
 
 /* timeline */
 .timeline-toolbar { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+.timeline-toolbar[hidden] { display: none; }
 /* The one sort control, identical in all three views so they can't drift
    apart visually any more than they can behaviourally. Shaped like the bulk
    bar's move-select, which is the app's existing "pick one" control. */
@@ -1811,6 +1812,71 @@ html.force-mobile :is(.backlog-list.bl-covers, .month-card.is-covers) { grid-tem
   font-size: var(--fs-xs); font-weight: 600; color: var(--text); line-height: 1.3;
   overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
+/* The Timeline's calendar (0.291.0): a month of days beside (desktop) or
+   above (phone) the picked day's entries and the ones with no day set. */
+.cal-body { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--space-16); align-items: start; }
+.cal-main { background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--space-12) var(--space-14); }
+.cal-side { display: flex; flex-direction: column; gap: var(--space-12); min-width: 0; }
+.cal-head { display: flex; align-items: center; gap: var(--space-10); margin-bottom: var(--space-10); }
+.cal-title { margin: 0; font-size: var(--fs-title); }
+.cal-count { font-size: var(--fs-sm); color: var(--text-dim); }
+.cal-nav { margin-left: auto; display: flex; gap: var(--space-8); }
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--space-4); }
+.cal-wd { font-size: var(--fs-2xs); color: var(--text-dim); text-align: center; padding: var(--space-4) 0; }
+.cal-day {
+  position: relative; min-height: 112px; padding: var(--space-24) var(--space-6) var(--space-6);
+  border: 0; border-radius: var(--r-sm); background: var(--bg-elev-2); color: var(--text);
+  font: inherit; text-align: left; cursor: pointer; overflow: hidden;
+  display: flex; flex-direction: column; -webkit-tap-highlight-color: transparent;
+}
+.cal-day.is-out { background: none; cursor: default; }
+/* Drawn over the cover, which would hide an inset shadow on the cell. */
+.cal-day.is-today::after, .cal-day.is-picked::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.cal-day.is-picked::after { box-shadow: inset 0 0 0 2px var(--text); }
+.cal-day:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cal-n { position: absolute; top: var(--space-4); left: var(--space-6); font-size: var(--fs-2xs); color: var(--text-dim); }
+.cal-cover, .cal-more { display: none; }
+.cal-names { display: flex; flex-direction: column; gap: var(--space-4); min-width: 0; }
+.cal-name {
+  display: flex; align-items: center; gap: var(--space-4); font-size: var(--fs-xs);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cal-name .dot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
+.cal-name.is-more { color: var(--text-dim); }
+.cal-daycard h3, .cal-undated h3 { margin-bottom: var(--space-6); }
+.cal-empty { margin: 0; font-size: var(--fs-sm); color: var(--text-dim); }
+@media (hover: hover) { .cal-day:not(.is-out):hover { background: var(--hover-bg); } }
+/* Phones: a cover per day instead of names, and the lists under the grid. */
+@media (max-width: 720px) {
+  html:not(.force-pc) .cal-body { grid-template-columns: minmax(0, 1fr); }
+  html:not(.force-pc) .cal-main { padding: var(--space-10); }
+  html:not(.force-pc) .cal-day { min-height: 0; aspect-ratio: 3 / 4; padding: 0; }
+  html:not(.force-pc) .cal-names { display: none; }
+  html:not(.force-pc) .cal-day .cal-cover { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; }
+  html:not(.force-pc) .cal-day .cal-cover.cover-empty { display: flex; }
+  html:not(.force-pc) .cal-day.has-cover .cal-n { color: var(--text-on-fill); text-shadow: 0 0 3px var(--bg); }
+  html:not(.force-pc) .cal-more {
+    display: block; position: absolute; right: var(--space-2); bottom: var(--space-2);
+    font-size: var(--fs-3xs); padding: 0 var(--space-4); border-radius: var(--r-pill);
+    background: var(--surface-card); color: var(--text);
+  }
+}
+html.force-mobile .cal-body { grid-template-columns: minmax(0, 1fr); }
+html.force-mobile .cal-main { padding: var(--space-10); }
+html.force-mobile .cal-day { min-height: 0; aspect-ratio: 3 / 4; padding: 0; }
+html.force-mobile .cal-names { display: none; }
+html.force-mobile .cal-day .cal-cover { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border: 0; }
+html.force-mobile .cal-day .cal-cover.cover-empty { display: flex; }
+html.force-mobile .cal-day.has-cover .cal-n { color: var(--text-on-fill); text-shadow: 0 0 3px var(--bg); }
+html.force-mobile .cal-more {
+  display: block; position: absolute; right: var(--space-2); bottom: var(--space-2);
+  font-size: var(--fs-3xs); padding: 0 var(--space-4); border-radius: var(--r-pill);
+  background: var(--surface-card); color: var(--text);
+}
+
 /* A second line under the title: a release date, a rating, "In backlog". */
 .bl-tile-caption { font-size: var(--fs-2xs); color: var(--text-dim); margin-top: calc(-1 * var(--space-4)); }
 .bl-tile-caption.up-when { display: flex; flex-wrap: wrap; gap: 0 var(--space-6); }

@@ -144,7 +144,8 @@ in; this is the tour.
   - **Log** – what you've finished, by year and month, with per-year
     accomplishments. An entry carries a rating, notes, cover art, genres,
     a length and a start month; what you've started sits in an In
-    progress card at the top. View → Layout draws it as covers.
+    progress card at the top. View → Layout draws it as covers, or as a
+    calendar of the days you finished things.
   - **Stats** – totals by category and year, highlights, seasonality,
     genres, an activity heatmap, most-repeated titles, and that year in
     numbers. **Recap** turns a year into a slideshow, offered in December.

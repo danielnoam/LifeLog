@@ -16,6 +16,21 @@ what was decided against and why.
 
 ---
 
+- **The Timeline calendar (0.291.0).** Daniel asked for one; a preview
+  (phone and desktop) was OK'd before building. A third Layout under View
+  rather than a mode, as he wanted for Covers. Entries are filed by year
+  and month and carry `day` only since 0.281.0, so a month's entries
+  without one go in No day set rather than onto the 1st, and older months
+  are mostly that box: said plainly before building. It opens on this
+  month if anything in view is in it, else on the latest month that has
+  something (so a year filter lands in that year). The month and picked
+  day last for the session only. Phones show each day's first cover with
+  +N; desktops name up to three per cell beside a side column (styles.css
+  switches, both are in the DOM). Entry rows reuse createEntryRow +
+  entryRow, so tap, long-press and bulk behave as in the list. `startedAt`
+  isn't drawn as a bar across days (not in the preview he OK'd); the row's
+  span chip says it.
+
 - **A cover opens the item's sheet (0.290.1).** Daniel, on the swipe card:
   "it shouldn't look different. It should be the normal viewing. And
   there's no need to add the next and back." So a cover is just a row
