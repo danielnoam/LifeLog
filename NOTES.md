@@ -16,6 +16,16 @@ what was decided against and why.
 
 ---
 
+- **Narrow month cards (0.291.1).** Found while taking the README's shots:
+  at the default 180px month width on a 1280px screen, a Timeline row's
+  cover, category chip and five stars left the title 6px. Daniel said fix
+  it. A container query on `.month-grid > .month-card` (≤ 280px) draws the
+  chip as its dot, the stars as "★4" (ratingBadge renders both, CSS picks)
+  and hides the span chip and a book's author, which the sheet still shows.
+  The Ledger's rows are left out: their chip carries the subcategory and
+  they have no stars, so they never had the problem. Not by viewport width,
+  because the card's width depends on Settings → month width too.
+
 - **The README's screenshots (2026-10-30, no release).** Daniel asked for
   the README to show every section on a computer and a phone, and to stay
   current. `tools/readme-shots.js` takes them from made-up demo data dated
@@ -27,9 +37,7 @@ what was decided against and why.
   history; for the same reason the rule is to re-take only the sections a
   release changed. On a phone the shot starts below the chips (scrolled
   under the sticky bar), since they fill half the screen otherwise. The
-  demo device sets the month width to 260px: at the default 180px a month
-  card with a category chip and stars squeezes the title to a letter on a
-  1280px screen. The Android and iOS workflows ignore `docs/**` and the
+  Android and iOS workflows ignore `docs/**` and the
   script, so a new shot doesn't rebuild the apps.
 
 - **The Timeline calendar (0.291.0).** Daniel asked for one; a preview

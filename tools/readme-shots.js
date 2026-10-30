@@ -323,7 +323,7 @@ async function main() {
         await page.evaluate(({ data, ui, visual }) => {
           localStorage.setItem("lifelog-cache-v1", JSON.stringify(data));
           localStorage.setItem("lifelog-ui-v1", JSON.stringify(ui));
-          localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify({ outTodaySheet: "hide", monthMinWidth: 260, ...visual }));
+          localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify({ outTodaySheet: "hide", ...visual }));
         }, { data, ui: shot.ui, visual: shot.visual || {} });
         await page.reload({ waitUntil: "networkidle" });
         await page.waitForTimeout(700);

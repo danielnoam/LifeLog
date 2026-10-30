@@ -336,6 +336,7 @@
     dot.style.background = color;
     chip.appendChild(dot);
     chip.appendChild(document.createTextNode(e.category));
+    chip.title = e.category;
     row.appendChild(chip);
     row.appendChild(titleWithAuthor("etitle", e));
     const sp = spanLabel(e);
@@ -447,7 +448,9 @@
   }
 
   function ratingBadge(rating) {
-    const span = el("span", "erating", "★".repeat(rating));
+    // Both drawings: a narrow month card shows "★4" instead (styles.css).
+    const span = el("span", "erating");
+    span.append(el("span", "erating-full", "★".repeat(rating)), el("span", "erating-short", "★" + rating));
     span.title = rating + "/5";
     return span;
   }

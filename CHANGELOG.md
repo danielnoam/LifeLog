@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.291.1] - 2026-10-30
+
+### Fixed
+- **Titles in narrow month cards.** On a computer, a Timeline row with a
+  category and a rating could squeeze its title down to one letter. In a
+  narrow month the category now shows as its dot (hover for the name), the
+  rating as ★4, and a book's author and the months-spanned chip give way,
+  so the title gets the row.
+
 ## [0.291.0] - 2026-10-30
 
 ### Added

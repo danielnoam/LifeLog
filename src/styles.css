@@ -1271,6 +1271,18 @@ select:focus { outline: none; border-color: var(--accent); }
 .entry .etitle { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .entry .ecat { font-size: var(--fs-2xs); color: var(--text-dim); }
 .entry .erating { font-size: var(--fs-2xs); color: var(--accent); letter-spacing: 1px; }
+.erating-short { display: none; }
+/* A narrow month card (the default 180px column on a computer) gave a row's
+   cover, category chip and five stars all the room and the title a letter.
+   There the chip draws as its dot (the name is its tooltip), the stars as
+   "★4", and the span chip and a book's author step aside (the sheet has
+   both), so the title keeps the row. */
+.month-grid > .month-card { container-type: inline-size; }
+@container (max-width: 280px) {
+  .month-card .entry:not(.finance-entry) .entry-cat { font-size: 0; gap: 0; padding: var(--space-4); }
+  .month-card .entry:not(.finance-entry) .erating-full, .month-card .entry:not(.finance-entry) .espan, .month-card .entry:not(.finance-entry) .eauthor { display: none; }
+  .month-card .entry:not(.finance-entry) .erating-short { display: inline; }
+}
 /* Multi-month span chip (e.g. "Jun–Aug") — a quiet, faint pill so it reads as
    metadata, next to but not competing with the category chip and rating. */
 .entry .espan {
