@@ -4,6 +4,18 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.292.4] - 2026-10-30
+
+### Changed
+- **Better search for AIs using the bridge.** `lifelog_search` now finds
+  an item when every word of the query is in it, in any order ("coffee
+  berlin" no longer needs the two words side by side). It can be narrowed
+  to one collection, category or expense subcategory, searches expense
+  subcategories, and shows each hit's category (notes included, expenses
+  as Category › Subcategory). Its description now points an AI to the
+  expense and spending tools for reviewing a whole category, instead of
+  searching over and over.
+
 ## [0.292.3] - 2026-10-30
 
 ### Fixed

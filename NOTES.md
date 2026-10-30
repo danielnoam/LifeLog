@@ -16,6 +16,21 @@ what was decided against and why.
 
 ---
 
+- **lifelog_search matches words, filters, and points elsewhere for reviews (0.292.4).**
+  In a Telemachus chat that checked categories, the AI ran
+  lifelog_search 76 times (up to 8 a round) guessing words, because the
+  whole query had to appear as one exact string. Now every word must
+  appear somewhere in the item's searched text, in any order; that text
+  also takes the category (and author, subcategory, project where they
+  exist), so "games zelda" works. `collection`, `category` and
+  `subcategory` narrow it; a category or subcategory filter leaves out
+  habits, accomplishments, boards and trips, which have none, and an
+  unknown category is refused with a pointer to lifelog_overview rather
+  than answering "0 matches", so the AI doesn't keep guessing. The
+  description sends whole-category reviews to lifelog_expenses /
+  lifelog_spending (group_by subcategory) and the list tools. `query`
+  stays required: listing is those tools' job.
+
 - **Sticky headers tuck 1px under the top bar (0.292.3).** Daniel saw a
   1px seam between the top bar and a stuck Timeline year header in the
   phone app. `--topbar-h` is measured with getBoundingClientRect, so it is

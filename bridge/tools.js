@@ -474,6 +474,7 @@ const S = {
   limit: { type: "integer", description: "Most rows to return" },
 };
 const COLL_ENUM = Object.keys(COLLECTIONS);
+const SEARCH_COLLS = ["entries", "backlog", "notes", "financeEntries", "recurringExpenses", "habits", "accomplishments", "boards", "trips"];
 
 // The day of the month it finished (0.281.0): the one given, or today's
 // when the month is left to default too. Nothing reads it yet.
@@ -522,30 +523,51 @@ const TOOLS = [
   },
   {
     name: "lifelog_search",
-    description: "Find anything by text across the timeline, backlog, notes, expenses, recurring bills, habits, accomplishments, drawing boards and trips. Returns what each hit is and its id.",
+    description: "Find anything by text across the timeline, backlog, notes, expenses, recurring bills, habits, accomplishments, drawing boards and trips. An item matches when every word of the query appears somewhere in it, in any order. Narrow it with collection, category and subcategory. Returns what each hit is, its category and its id. To list or review everything in a category or subcategory, don't run repeated searches: use lifelog_expenses (category and subcategory filters), lifelog_spending with group_by subcategory, lifelog_timeline, lifelog_backlog or lifelog_notes (category filter).",
     readOnly: true,
-    input: { query: S.str("Words to look for"), limit: S.limit },
+    input: {
+      query: S.str("Words to look for; each must appear, in any order"),
+      collection: S.str("Only this part", { enum: SEARCH_COLLS }),
+      category: S.str("Only items in this category (timeline, backlog, note or expense category)"),
+      subcategory: S.str("Only expenses and recurring bills in this subcategory"),
+      limit: S.limit,
+    },
     required: ["query"],
     async run(a) {
       const d = await readData();
-      const q = lower(a.query);
-      if (!q) fail("Give something to search for.");
+      const words = lower(a.query).split(/\s+/).filter(Boolean);
+      if (!words.length) fail("Give something to search for.");
+      if (a.collection && !SEARCH_COLLS.includes(a.collection)) fail("collection must be one of: " + SEARCH_COLLS.join(", "));
+      const cat = lower(a.category), sub = lower(a.subcategory);
+      if (cat && ![...(d.categories || []), ...(d.financeCategories || []), ...(d.noteCategories || [])].some((c) => lower(c.name) === cat)) {
+        fail(`No category named "${a.category}". Use one from lifelog_overview.`);
+      }
+      if (sub && !(d.financeCategories || []).some((c) => (!cat || lower(c.name) === cat) && (c.subs || []).some((x) => lower(x.name) === sub))) {
+        fail(`No expense subcategory named "${a.subcategory}"${cat ? " in " + a.category : ""}. lifelog_overview lists them.`);
+      }
+      const want = (coll) => !a.collection || a.collection === coll;
+      const fits = (x) => (!cat || lower(x.category) === cat) && (!sub || lower(x.subcategory) === sub);
+      const hit = (text) => { const t = lower(text); return words.every((w) => t.includes(w)); };
       const hits = [];
-      const look = (coll, x, text, line) => { if (lower(text).includes(q)) hits.push(`- ${COLLECTIONS[coll].label}: ${line} (${x.id})`); };
-      for (const e of d.entries || []) look("entries", e, [e.title, e.notes].join(" "), `${e.date} [${e.category}] ${e.title}`);
-      for (const b of d.backlog || []) look("backlog", b, [b.title, b.notes, b.summary].join(" "), `[${b.category}] ${b.title}`);
-      for (const n of d.notes || []) look("notes", n, [n.title, n.text, n.author, n.source, ...(n.items || []).map((i) => i.text)].join(" "), cut(n.title || n.text || (n.items || []).map((i) => i.text).join(", "), 80));
-      for (const f of d.financeEntries || []) look("financeEntries", f, [f.note, f.category, f.project].join(" "), `${f.date} ${money(d, f.amount)} [${f.category}] ${f.note || ""}`);
-      for (const r of bills(d)) look("recurringExpenses", r, [r.note, r.category].join(" "), `${money(d, r.amount)} ${r.interval} [${r.category}] ${r.note || ""}`);
-      for (const h of d.habits || []) look("habits", h, h.name, h.name);
-      for (const x of allAccomplishments(d)) if (lower(x.text + " " + (x.notes || "")).includes(q)) hits.push(`- accomplishment: ${x.year}: ${x.text} (${x.id})`);
-      try {
-        for (const b of await readBoards()) if (lower([b.name, ...boardTexts(b)].join(" ")).includes(q)) hits.push(`- board: ${b.name} (${b.id})`);
+      const look = (coll, x, text, line) => { if (want(coll) && fits(x) && hit(text)) hits.push(`- ${COLLECTIONS[coll].label}: ${line} (${x.id})`); };
+      for (const e of d.entries || []) look("entries", e, [e.title, e.author, e.notes, e.category].join(" "), `${e.date} [${e.category}] ${e.title}`);
+      for (const b of d.backlog || []) look("backlog", b, [b.title, b.author, b.notes, b.summary, b.category].join(" "), `[${b.category}] ${b.title}`);
+      for (const n of d.notes || []) look("notes", n, [n.title, n.text, n.author, n.source, n.category, ...(n.items || []).map((i) => i.text)].join(" "),
+        `${n.category ? "[" + n.category + "] " : ""}${cut(n.title || n.text || (n.items || []).map((i) => i.text).join(", "), 80)}`);
+      for (const f of d.financeEntries || []) look("financeEntries", f, [f.note, f.category, f.subcategory, f.project].join(" "),
+        `${f.date} ${money(d, f.amount)} [${catLabel(f)}]${f.project ? " (" + f.project + ")" : ""} ${f.note || ""}`);
+      for (const r of bills(d)) look("recurringExpenses", r, [r.note, r.category, r.subcategory].join(" "), `${money(d, r.amount)} ${r.interval} [${catLabel(r)}] ${r.note || ""}`);
+      // Habits, accomplishments, boards and trips have no category, so a category filter leaves them out.
+      const plain = (coll) => want(coll) && !cat && !sub;
+      for (const h of plain("habits") ? d.habits || [] : []) if (hit(h.name)) hits.push(`- ${COLLECTIONS.habits.label}: ${h.name} (${h.id})`);
+      for (const x of plain("accomplishments") ? allAccomplishments(d) : []) if (hit(x.text + " " + (x.notes || ""))) hits.push(`- accomplishment: ${x.year}: ${x.text} (${x.id})`);
+      if (plain("boards")) try {
+        for (const b of await readBoards()) if (hit([b.name, ...boardTexts(b)].join(" "))) hits.push(`- board: ${b.name} (${b.id})`);
       } catch (e) { /* boards are a second file; the rest still answers */ }
-      try {
+      if (plain("trips")) try {
         const tr = await readTravel();
-        for (const t of tr.trips) if (lower(t.name).includes(q)) hits.push(`- trip: ${t.name} (${t.id})`);
-        for (const p of tr.places) if (lower([p.name, p.address, p.note].join(" ")).includes(q)) {
+        for (const t of tr.trips) if (hit(t.name)) hits.push(`- trip: ${t.name} (${t.id})`);
+        for (const p of tr.places) if (hit([p.name, p.address, p.note].join(" "))) {
           const t = tr.trips.find((x) => x.id === p.trip);
           hits.push(`- place in ${t ? t.name : "a trip"}: ${p.name} (${p.id})`);
         }

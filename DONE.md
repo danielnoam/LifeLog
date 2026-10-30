@@ -235,6 +235,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Trips: read a plan, add, move, schedule and remove places, read Google Maps lists (0.241.0, 0.242.0)
 - Its changes in History, tagged with the AI's name, each undoable on any device (0.284.0)
 - Add habits, recurring bills, categories and projects; delete categories; stats, habit insights, upcoming releases; batch changes as one save (0.284.0)
+- Search by every word in any order, narrowed by collection, category or subcategory, with categories shown on each hit (0.292.4)
 
 ## Building and shipping
 

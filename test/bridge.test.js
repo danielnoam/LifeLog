@@ -736,6 +736,34 @@ test("deleting a category moves its items as the app does, and undo puts it all 
   assert.strictEqual(data().notes.find((n) => n.id === "no1").category, "Ideas");
 });
 
+test("search matches every word in any order, narrows by collection and category, and shows subcategories", async () => {
+  reset();
+  await ok("lifelog_add_subcategory", { category: "Food", name: "Cafés" });
+  await ok("lifelog_add_expense", { amount: 14, category: "Food", subcategory: "Cafés", note: "Flat white in Berlin", date: "2026-09-02" });
+  let r = await ok("lifelog_search", { query: "berlin white" });
+  assert.match(r, /^1 matches/);
+  assert.match(r, /expense: 2026-09-02 14\.00 ILS \[Food › Cafés\] Flat white in Berlin/);
+  assert.match(await ok("lifelog_search", { query: "cafés berlin" }), /\[Food › Cafés\]/, "the subcategory is searched");
+  assert.match(await ok("lifelog_search", { query: "berlin rome" }), /^0 matches/, "every word must be there");
+  assert.match(await ok("lifelog_search", { query: "ship" }), /note: \[Ideas\] Plan \(no1\)/, "notes show their category");
+  assert.match(await ok("lifelog_search", { query: "coffee trip" }), /\[Food\] \(Trip\) Coffee/);
+  r = await ok("lifelog_search", { query: "coffee" });
+  assert.match(r, /habit: No coffee/);
+  assert.match(r, /expense: .*Coffee/);
+  r = await ok("lifelog_search", { query: "coffee", collection: "habits" });
+  assert.match(r, /^1 matches/);
+  assert.match(r, /habit: No coffee/);
+  r = await ok("lifelog_search", { query: "coffee", category: "food" });
+  assert.ok(!/habit/.test(r), "a category filter leaves out things without one");
+  assert.match(await ok("lifelog_search", { query: "e", category: "Food", subcategory: "cafés" }), /^1 matches/);
+  assert.match(await ok("lifelog_search", { query: "outer", category: "Games" }), /backlog item: \[Games\] Outer Wilds/);
+  assert.match(await ok("lifelog_search", { query: "dune", category: "Games" }), /^0 matches/);
+  await refused("lifelog_search", { query: "x", category: "Toys" }, /No category named "Toys"/);
+  await refused("lifelog_search", { query: "x", subcategory: "Pizza" }, /No expense subcategory named "Pizza"/);
+  await refused("lifelog_search", { query: "x", collection: "settings" }, /collection must be one of/);
+  await refused("lifelog_search", { query: "   " }, /Give something/);
+});
+
 test("subcategories: add, file under, total, rename, delete, undo", async () => {
   reset();
   assert.match(await ok("lifelog_add_subcategory", { category: "food", name: "Coffee" }), /Added the subcategory "Coffee" to "Food"/);
