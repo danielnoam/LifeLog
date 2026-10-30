@@ -4,6 +4,12 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.296.1] - 2026-10-30
+
+### Changed
+- **Pick's chips in three rows.** Starred and Bought sit on a row of their
+  own under the categories, and the length chips under those.
+
 ## [0.296.0] - 2026-10-30
 
 ### Changed

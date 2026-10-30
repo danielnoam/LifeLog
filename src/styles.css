@@ -2205,8 +2205,8 @@ a.game-times:hover .game-time-value { text-decoration: underline; }
    inherit for it, and the padding of a chip rather than a control. */
 .pick-cat { font-family: inherit; padding: var(--space-4) var(--space-10); font-size: var(--fs-xs); display: inline-flex; align-items: center; gap: var(--space-6); }
 .pick-cat svg { width: 13px; height: 13px; }
-/* Length chips start a row of their own: a different question from the
-   categories and the moods above them. */
+/* Categories, then Starred and Bought, then length: each group a row of
+   its own, since each asks a different question (0.296.1). */
 .pick-scope-break { flex-basis: 100%; height: 0; }
 .pick-scope-count { margin-left: auto; font-size: var(--fs-xs); color: var(--text-dim); }
 /* The pick: a portrait cover beside what's known about it, as a row of the

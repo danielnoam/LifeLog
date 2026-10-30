@@ -1337,6 +1337,9 @@
         c.appendChild(dot);
         c.appendChild(document.createTextNode(name));
       }
+      // Starred and Bought are moods, not categories (Daniel, 0.296.1), so
+      // they start a row of their own, as the length chips do.
+      wrap.appendChild(el("span", "pick-scope-break"));
     }
     chip(pickStarred, () => { pickStarred = !pickStarred; })
       .appendChild(window.LifeLogIcons.labelled("star", "Starred"));

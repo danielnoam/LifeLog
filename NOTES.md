@@ -41,6 +41,9 @@ what was decided against and why.
     each unit on its own (`LENGTH_BANDS`) and never converts between them.
     A film is always Short, on purpose: it fits an evening. Unknown length
     drops out once a chip is on. The cut points are a guess, not his.
+  - **Three rows (0.296.1).** Daniel: Starred and Bought "should be below
+    the categories, not part of them, like time is not". Each group starts
+    with a `.pick-scope-break`.
   - **Bought** now follows the Show row's rule (a category with Bought off
     passes), where "Bought only" used to drop those.
   - **Bridge:** `lifelog_pick` (same eligibility and chips, plain random:
