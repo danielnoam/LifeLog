@@ -610,48 +610,65 @@
     </div>
   </div>
 
-  <!-- Random backlog pick modal ("Pick random") -->
+  <!-- Pick (0.296.0): the Backlog's one "let something else decide" sheet.
+       Two sources under one switch: a draw from the backlog, revealed as a
+       shuffle of covers or on the wheel, and the wheel of options you type
+       yourself. Built by backlog.js (the draw) and wheel.js (the wheel). -->
   <div class="modal-overlay" id="pickModal" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-label="Pick something from the backlog">
-      <!-- What the draw is scoped to: a chip per category in the pool (each
-           one a toggle) plus the favorites-only and bought-only switches, so
-           the scope can be narrowed without closing the modal and
-           re-filtering the view. -->
-      <div class="pick-scope">
-        <div class="pick-scope-cats" id="pickCats"></div>
-        <div class="pick-scope-foot">
-          <div class="pick-scope-toggles">
-            <label class="pick-scope-toggle">
-              <input type="checkbox" id="pickFavOnly" />
-              Favorites only
-            </label>
-            <label class="pick-scope-toggle">
-              <input type="checkbox" id="pickBoughtOnly" />
-              Bought only
-            </label>
-          </div>
-          <span class="pick-scope-count" id="pickCount"></span>
+    <div class="modal pick-modal" role="dialog" aria-modal="true" aria-labelledby="pickHeading">
+      <div class="modal-head pick-head">
+        <h2 id="pickHeading">Pick for me</h2>
+        <div class="seg pick-source" role="group" aria-label="Pick from">
+          <button type="button" class="seg-btn" data-src="backlog" aria-pressed="true">Backlog</button>
+          <button type="button" class="seg-btn" data-src="own" aria-pressed="false">My list</button>
+        </div>
+        <button type="button" class="btn btn-icon" id="pickCloseBtn" title="Close" aria-label="Close pick"><span data-ico="x"></span></button>
+      </div>
+      <!-- What the draw is scoped to: a chip per category in the pool, then
+           Starred and Bought, each a toggle, so the scope narrows without
+           closing the sheet and re-filtering the view. -->
+      <div class="pick-scope" id="pickScope">
+        <div class="pick-scope-chips" id="pickCats"></div>
+        <span class="pick-scope-count" id="pickCount"></span>
+      </div>
+      <div class="pick-card" id="pickCard">
+        <div class="pick-art" id="pickCover">
+          <img id="pickCoverImg" src="" alt="" draggable="false" />
+        </div>
+        <div class="pick-body">
+          <p class="pick-eyebrow" id="pickModalCategory"></p>
+          <h3 class="pick-title" id="pickModalTitle"></h3>
+          <div id="pickMeta" class="pick-meta"></div>
+          <div id="pickLinks" class="pick-links"></div>
         </div>
       </div>
-      <div id="pickCover" hidden>
-        <!-- .pick-cover, not the edit modal's full-bleed cover: the scope
-             strip above it owns the top edge here. -->
-        <div class="modal-cover pick-cover">
-          <img id="pickCoverImg" src="" alt="Cover" />
-          <div class="modal-cover-links" id="pickCoverLinks"></div>
+      <!-- The wheel: the backlog draw's other reveal, and the whole of My list. -->
+      <div class="pick-wheel" id="pickWheel" hidden>
+        <p class="muted wheel-hint" id="wheelHint" hidden></p>
+        <div class="wheel-stage">
+          <div class="wheel-pointer" aria-hidden="true"></div>
+          <canvas id="wheelCanvas" role="img" aria-label="Random wheel"></canvas>
+          <button type="button" class="wheel-hub" id="wheelSpinBtn">Spin</button>
+        </div>
+        <p class="wheel-empty muted" id="wheelEmpty" hidden>Nothing on the wheel yet — add some options below.</p>
+        <p class="wheel-result" id="wheelResult" role="status" aria-live="polite" hidden>
+          <span class="wheel-result-eyebrow">It landed on</span>
+          <span class="wheel-result-text" id="wheelResultText"></span>
+        </p>
+        <div class="wheel-edit" id="wheelEdit" hidden>
+          <label>Options — one per line
+            <textarea id="wheelOptions" rows="6" placeholder="Pizza&#10;Ramen&#10;Whatever is in the fridge"></textarea>
+          </label>
+          <button type="button" class="btn btn-sm" id="wheelApplyBtn">Use these</button>
         </div>
       </div>
-      <h2 id="pickModalTitle"></h2>
-      <p class="muted" id="pickModalCategory"></p>
-      <div id="pickMeta" class="pick-meta"></div>
-      <!-- Where the source/store links go when there is no cover to sit on
-           (see renderMediaLinks in app.js). -->
-      <div id="pickLinks" class="pick-links"></div>
-      <div class="modal-actions">
-        <button type="button" class="btn" id="pickRerollBtn">Pick again</button>
-        <button type="button" class="btn" id="pickWheelBtn" title="Spin for it instead"><span data-ico="dices"></span> Spin</button>
+      <div class="modal-actions pick-actions">
+        <button type="button" class="btn" id="pickRerollBtn"><span data-ico="refresh-cw"></span> Again</button>
+        <button type="button" class="btn" id="pickRevealBtn" aria-pressed="false" title="Reveal the pick on a wheel"><span data-ico="dices"></span> Wheel</button>
+        <button type="button" class="btn" id="wheelEditBtn" aria-expanded="false" hidden><span data-ico="pencil"></span> Edit options</button>
+        <button type="button" class="btn" id="wheelRemoveBtn" hidden>Remove &amp; spin</button>
         <span class="spacer"></span>
-        <button type="button" class="btn" id="pickCloseBtn">Close</button>
+        <button type="button" class="btn" id="pickStartBtn"><span data-ico="play"></span> Start</button>
         <button type="button" class="btn btn-primary" id="pickOpenBtn">Open</button>
       </div>
     </div>
@@ -667,39 +684,6 @@
       </div>
       <p class="muted" id="outTodayCount"></p>
       <div class="out-grid" id="outTodayGrid"></div>
-    </div>
-  </div>
-
-  <!-- Random wheel: the spin-for-it alternative to the pick card. Opened
-       either on the Backlog's current pick candidates ("🎡 Spin") or, from
-       the + menu, on a list of options you type yourself. -->
-  <div class="modal-overlay" id="wheelModal" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="wheelTitle">
-      <h2 id="wheelTitle">Spin the wheel</h2>
-      <p class="muted wheel-hint" id="wheelHint" hidden></p>
-      <div class="wheel-stage">
-        <div class="wheel-pointer" aria-hidden="true"></div>
-        <canvas id="wheelCanvas" role="img" aria-label="Random wheel"></canvas>
-        <button type="button" class="wheel-hub" id="wheelSpinBtn">Spin</button>
-      </div>
-      <p class="wheel-empty muted" id="wheelEmpty" hidden>Nothing on the wheel yet — add some options below.</p>
-      <p class="wheel-result" id="wheelResult" role="status" aria-live="polite" hidden>
-        <span class="wheel-result-eyebrow">It landed on</span>
-        <span class="wheel-result-text" id="wheelResultText"></span>
-      </p>
-      <div class="wheel-edit" id="wheelEdit" hidden>
-        <label>Options — one per line
-          <textarea id="wheelOptions" rows="6" placeholder="Pizza&#10;Ramen&#10;Whatever is in the fridge"></textarea>
-        </label>
-        <button type="button" class="btn btn-sm" id="wheelApplyBtn">Use these</button>
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn" id="wheelEditBtn" aria-expanded="false" hidden>Edit options</button>
-        <button type="button" class="btn" id="wheelRemoveBtn" hidden>Remove &amp; spin</button>
-        <span class="spacer"></span>
-        <button type="button" class="btn" id="wheelCloseBtn">Close</button>
-        <button type="button" class="btn btn-primary" id="wheelActionBtn" hidden>Open</button>
-      </div>
     </div>
   </div>
 

@@ -1,8 +1,9 @@
-// LifeLog — the random wheel: a canvas spinner shared by two callers. The
-// Backlog's "Pick random" modal hands it the titles it would otherwise draw
-// silently, and the + menu opens it on a list you type yourself (saved to
-// this device, so the list you spin every week is still there next time).
-// Self-contained apart from the usual app plumbing handed in by init(ctx).
+// LifeLog — the random wheel: a canvas spinner inside the Backlog's Pick
+// sheet (0.296.0; it was a sheet of its own). The backlog draw mounts it on
+// the titles it was about to hand you, and My list mounts it on options you
+// type yourself (saved to this device, so the list you spin every week is
+// still there next time). Self-contained apart from the usual app plumbing
+// handed in by init(ctx).
 (function () {
   let $, toast, prefersReducedMotion;
 
@@ -22,12 +23,12 @@
   let angle = 0;          // current wheel rotation, radians
   let spinning = false;
   let winner = null;
-  let onResult = null;    // caller's action for the landed segment, if any
-  let actionLabel = "";
+  let onResult = null;    // told about the landed segment, if anyone asked
+  let onSpin = null;      // told when a spin starts
   let custom = false;     // typed-list mode: the options editor is the point
   // Bumped by every open and close, so an animation still in flight when the
-  // modal is dismissed (the overlay closes it mid-spin) drops out instead of
-  // turning the wheel the next opening put up.
+  // wheel is put away (the sheet closed, or switched source mid-spin) drops
+  // out instead of turning the wheel the next mount put up.
   let spinToken = 0;
 
   function loadSaved() {
@@ -198,6 +199,7 @@
 
     spinning = true;
     syncButtons();
+    if (onSpin) onSpin();
     const token = ++spinToken;
     const from = angle, delta = target - angle, start = performance.now();
     const step2 = (ts) => {
@@ -216,6 +218,7 @@
   function land(index) {
     setResult(segments[index]);
     syncButtons();
+    if (onResult) onResult(segments[index]);
   }
 
   function setResult(seg) {
@@ -249,12 +252,9 @@
     const has = segments.length > 0;
     $("#wheelSpinBtn").disabled = spinning || !has;
     $("#wheelSpinBtn").textContent = spinning ? "…" : (winner ? "Again" : "Spin");
-    $("#wheelRemoveBtn").hidden = !winner || !has;
+    $("#wheelRemoveBtn").hidden = !custom || !winner || !has;
     $("#wheelRemoveBtn").disabled = spinning || segments.length < 2;
-    const action = $("#wheelActionBtn");
-    action.hidden = !winner || !onResult;
-    action.textContent = actionLabel || "Open";
-    action.disabled = spinning;
+    $("#wheelEditBtn").hidden = !custom;
     $("#wheelEmpty").hidden = has;
   }
 
@@ -282,15 +282,15 @@
     syncButtons();
   }
 
-  // ---------- open / close ----------
-  // opts: { title, hint, labels | items, actionLabel, onResult, custom }
+  // ---------- mount / unmount ----------
+  // opts: { hint, labels | items, onResult, onSpin, custom, autoSpin }
   // `items` are { label, color, data } already — the Backlog passes its own
   // category colors so a slice matches the chip it came from.
-  function openWheel(opts) {
+  function mount(opts) {
     const o = opts || {};
     custom = !!o.custom;
     onResult = o.onResult || null;
-    actionLabel = o.actionLabel || "";
+    onSpin = o.onSpin || null;
     spinning = false;
     spinToken++;
     winner = null;
@@ -299,40 +299,40 @@
     else if (o.labels) segments = toSegments(o.labels.slice(0, MAX_SEGMENTS));
     else segments = toSegments(loadSaved());
 
-    $("#wheelTitle").textContent = o.title || "Spin the wheel";
     const hint = $("#wheelHint");
     hint.textContent = o.hint || "";
     hint.hidden = !o.hint;
-    $("#wheelEditBtn").hidden = !custom;
-    $("#wheelModal").hidden = false;
+    $("#pickWheel").hidden = false;
     setResult(null);
     openEditor(custom && !segments.length);
-    // Laid out only once the overlay is visible — the canvas has no width
-    // to measure before that.
-    requestAnimationFrame(() => { draw(); syncButtons(); });
+    // Laid out only once it's visible — the canvas has no width to measure
+    // before that.
+    requestAnimationFrame(() => {
+      draw();
+      syncButtons();
+      if (o.autoSpin) spin();
+    });
   }
 
-  function closeWheel() {
-    $("#wheelModal").hidden = true;
+  function unmount() {
+    $("#pickWheel").hidden = true;
+    $("#wheelEditBtn").hidden = true;
+    $("#wheelRemoveBtn").hidden = true;
     spinning = false;
     spinToken++;
+    onResult = null;
+    onSpin = null;
   }
-  function isOpen() { return !$("#wheelModal").hidden; }
+  function isMounted() { return !$("#pickWheel").hidden; }
+  function isSpinning() { return spinning; }
 
   function wire() {
     $("#wheelSpinBtn").onclick = spin;
     $("#wheelRemoveBtn").onclick = removeWinner;
-    $("#wheelCloseBtn").onclick = closeWheel;
     $("#wheelEditBtn").onclick = () => openEditor();
     $("#wheelApplyBtn").onclick = applyOptions;
-    $("#wheelActionBtn").onclick = () => {
-      if (!winner || !onResult) return;
-      const seg = winner, cb = onResult;
-      closeWheel();
-      cb(seg);
-    };
-    window.addEventListener("resize", () => { if (isOpen()) draw(); });
+    window.addEventListener("resize", () => { if (isMounted()) draw(); });
   }
 
-  window.LifeLogWheel = { init, wire, openWheel, closeWheel, isOpen, MAX_SEGMENTS };
+  window.LifeLogWheel = { init, wire, mount, unmount, spin, isMounted, isSpinning, MAX_SEGMENTS };
 })();

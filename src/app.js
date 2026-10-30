@@ -4656,7 +4656,7 @@
     Finance.wire(); // finance/recurring/finance-category modals + finance import/export
     Travel.wire(); // the trip and place sheets
     Backlog.wire(); // backlog modal: sync, priority/dropped, title suggestions
-    Wheel.wire(); // the random wheel modal (the Backlog's 🎡 Spin, in the bar and in the pick card)
+    Wheel.wire(); // the random wheel inside the Backlog's Pick sheet
     SettingsUI.wire(); // the Settings modal: tabs, data/storage, appearance, media, privacy
 
     $("#exportJsonBtn").onclick = IO.exportJson;
@@ -4721,6 +4721,7 @@
         if (ov.id === "catModal") Journal.cancelCategoryModal();
         else if (ov.id === "financeCatModal") Finance.cancelFinanceCatModal();
         else if (ov.id === "boardEditor") return; // it is the whole screen; nothing outside it to tap
+        else if (ov.id === "pickModal") Backlog.closePickModal(); // stops a spin or shuffle in flight
         else ov.hidden = true;
       });
     });
@@ -4794,7 +4795,7 @@
         if (Search.isOpen() && !isAnyModalOpen()) { Search.clear(); $("#searchClear").hidden = true; return; }
         if (state.view === "travel" && Travel.endSort()) return;
         Journal.closeEntryModal(); Journal.closeAchModal(); Journal.cancelCategoryModal(); Backlog.closeBacklogModal();
-        Backlog.closePickModal(); Backlog.closeOutTodaySheet(); Wheel.closeWheel();
+        Backlog.closePickModal(); Backlog.closeOutTodaySheet();
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
         Finance.closePauseModal(); Finance.cancelFinanceCatModal();
         Habits.closeHabitModal(); Notes.closeNoteCatModal();
@@ -4922,7 +4923,7 @@
   // over by the browser's scroll and cancelled.
   function wireSheetSwipe() {
     const SKIP = "input, textarea, select, [contenteditable], .todo-row, .note-list-row, canvas";
-    const NO_SWIPE = new Set(["conflictModal", "boardEditor", "wheelModal"]);
+    const NO_SWIPE = new Set(["conflictModal", "boardEditor"]);
     let drag = null;
     const scrolledAbove = (node, sheet) => {
       for (let n = node; n && n !== sheet.parentElement; n = n.parentElement) if (n.scrollTop > 0) return true;

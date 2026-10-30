@@ -1059,22 +1059,47 @@
   }
 
   // ---------- backlog view ----------
-  // ---------- "Pick random" ----------
-  // Pool the modal's reroll draws from — set once when opened, from
-  // whatever's currently eligible (scoped to the active category/search
-  // filters, same as the view itself). The scope strip at the top of the
-  // modal narrows it further without reopening: pickCats is the set of
-  // categories still switched on, and the two mood switches narrow it to
-  // starred items (pickFavOnly) and to ones already paid for
-  // (pickBoughtOnly). They stack: both on draws only from titles that are
-  // starred *and* bought. The categories aren't saved — a scope set for one
-  // sitting shouldn't outlive the modal — but the switches keep their
+  // ---------- Pick (0.296.0) ----------
+  // One button and one sheet for both ways of letting something else decide
+  // (they were Pick random and Spin, two buttons and two sheets that opened
+  // on top of each other). Backlog draws from the list; My list is the wheel
+  // of options you type yourself.
+  //
+  // Pool the backlog draw rolls on — set once when opened, from whatever's
+  // currently eligible (scoped to the active category/search filters, same
+  // as the view itself). The scope chips narrow it further without
+  // reopening: pickCats is the set of categories still switched on, and
+  // Starred and Bought narrow it to starred items and to ones already paid
+  // for (a category with Bought switched off passes, as on the Show row).
+  // They stack. The categories aren't saved — a scope set for one
+  // sitting shouldn't outlive the sheet — but Starred and Bought keep their
   // position while the app stays open, since they're a mood rather than a
   // filter.
   let pickPool = [];
   let pickCats = new Set();
-  let pickFavOnly = false;
-  let pickBoughtOnly = false;
+  let pickStarred = false;
+  let pickBought = false;
+  let pickCurrent = null;   // the title on the card
+  let pickToken = 0;        // bumped to drop a shuffle still running
+
+  // Which source and which reveal you used last, on this device.
+  const PICK_PREFS_KEY = "lifelog-pick-prefs-v1";
+  let pickPrefs = null;
+  function loadPickPrefs() {
+    if (pickPrefs) return pickPrefs;
+    pickPrefs = { source: "backlog", reveal: "shuffle" };
+    try {
+      const raw = JSON.parse(localStorage.getItem(PICK_PREFS_KEY));
+      if (raw && raw.source === "own") pickPrefs.source = "own";
+      if (raw && raw.reveal === "wheel") pickPrefs.reveal = "wheel";
+    } catch (e) {}
+    return pickPrefs;
+  }
+  function savePickPrefs() {
+    try { localStorage.setItem(PICK_PREFS_KEY, JSON.stringify(pickPrefs)); } catch (e) {}
+  }
+  const reducedMotion = () =>
+    !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 
   // Draws come out of a bag rather than off a fresh coin flip each time:
   // independent draws on a 40-title backlog will happily hand you the same
@@ -1159,35 +1184,21 @@
   // The pool as narrowed by the scope strip — what a draw actually rolls on.
   function pickCandidates() {
     return pickPool.filter((b) => pickCats.has(b.category)
-      && (!pickFavOnly || b.priority)
-      && (!pickBoughtOnly || b.bought));
+      && (!pickStarred || b.priority)
+      && (!pickBought || b.bought || !categoryShows(b.category).bought));
   }
 
   // Lives in the mode bar's right-hand slot rather than a row of its own —
   // one strip above the list instead of two, which matters most on a phone.
-  // Both ways of letting something else decide, as one right-hand group in
-  // the place Discover puts its Refresh. Pick random draws from the backlog;
-  // Spin is the wheel of options you type yourself, which has nothing to do
-  // with the list and so is always offered.
+  // Always offered: My list has nothing to do with what the backlog holds.
   function makePickGroup(items) {
     const right = el("div", "dsc-bar-right");
-    const spin = el("button", "btn btn-sm");
-    spin.appendChild(window.LifeLogIcons.labelled("dices", "Spin"));
-    spin.type = "button";
-    spin.title = "A wheel of your own options";
-    spin.onclick = () => Wheel.openWheel({
-      custom: true,
-      title: "Spin a wheel",
-      hint: "Your own options — spin to let it decide.",
-    });
-    right.appendChild(spin);
-    const eligible = eligibleForPick(items);
-    if (eligible.length) {
-      const btn = el("button", "btn btn-sm", "Pick random");
-      btn.type = "button";
-      btn.onclick = () => openPickModal(eligible);
-      right.appendChild(btn);
-    }
+    const btn = el("button", "btn btn-sm pick-open-btn");
+    btn.appendChild(window.LifeLogIcons.labelled("dices", "Pick"));
+    btn.type = "button";
+    btn.title = "Pick something for me — from the backlog or your own list";
+    btn.onclick = () => openPickModal(eligibleForPick(items));
+    right.appendChild(btn);
     // Last, so the sort sits at the far right as it does in every other view.
     right.appendChild(sortSelect("backlog", backlogSort(), async (value) => {
       state.data.settings.backlogSort = value;
@@ -1204,119 +1215,238 @@
   function openPickModal(pool) {
     pickPool = pool;
     // Every category the pool has, on: the view's own filters already said
-    // what's in play, and the strip is for narrowing from there.
+    // what's in play, and the chips are for narrowing from there.
     pickCats = new Set(pool.map((b) => b.category));
-    $("#pickFavOnly").checked = pickFavOnly;
-    $("#pickBoughtOnly").checked = pickBoughtOnly;
-    renderPickCats();
-    rerollPick();
+    pickCurrent = null;
     $("#pickModal").hidden = false;
+    // Nothing to draw from lands on My list rather than on an empty card.
+    setPickSource(pool.length ? loadPickPrefs().source : "own", false);
   }
-  function closePickModal() { $("#pickModal").hidden = true; }
+  function closePickModal() {
+    pickToken++;
+    Wheel.unmount();
+    $("#pickModal").hidden = true;
+  }
+
+  function setPickSource(src, remember) {
+    if (remember !== false) { loadPickPrefs().source = src; savePickPrefs(); }
+    const own = src === "own";
+    $("#pickModal").querySelectorAll(".pick-source .seg-btn").forEach((b) => {
+      const on = b.dataset.src === src;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", String(on));
+    });
+    for (const id of ["#pickScope", "#pickRerollBtn", "#pickRevealBtn", "#pickStartBtn", "#pickOpenBtn"]) $(id).hidden = own;
+    pickToken++;
+    if (own) {
+      $("#pickCard").hidden = true;
+      Wheel.mount({ custom: true, hint: "Your own options — spin to let it decide." });
+      return;
+    }
+    Wheel.unmount();
+    renderPickScope();
+    syncRevealBtn();
+    rerollPick({ spin: false });
+  }
+
+  function syncRevealBtn() {
+    const wheel = loadPickPrefs().reveal === "wheel";
+    const btn = $("#pickRevealBtn");
+    btn.classList.toggle("active", wheel);
+    btn.setAttribute("aria-pressed", String(wheel));
+  }
+
+  function toggleReveal() {
+    const p = loadPickPrefs();
+    p.reveal = p.reveal === "wheel" ? "shuffle" : "wheel";
+    savePickPrefs();
+    syncRevealBtn();
+    // Back to the card keeps the title you had rather than drawing another.
+    if (p.reveal === "shuffle" && pickCurrent && pickCandidates().includes(pickCurrent)) {
+      pickToken++;
+      Wheel.unmount();
+      showPick(pickCurrent);
+      return;
+    }
+    rerollPick({ spin: false });
+  }
 
   // One chip per category present in the pool, in the app's own category
-  // order so it reads like the filter bar it echoes. A single category is
-  // the whole pool, and a chip that can only be switched off to leave
-  // nothing is no use, so the row hides itself.
-  function renderPickCats() {
+  // order so it reads like the filter bar it echoes, then Starred and Bought
+  // as the Show row draws them. A single category is the whole pool, and a
+  // chip that can only be switched off to leave nothing is no use, so the
+  // categories drop out then.
+  function renderPickScope() {
     const wrap = $("#pickCats");
     wrap.textContent = "";
     const inPool = new Set(pickPool.map((b) => b.category));
     const names = state.data.categories.map((c) => c.name).filter((n) => inPool.has(n));
     for (const name of inPool) if (!names.includes(name)) names.push(name);
-    wrap.hidden = names.length < 2;
-    if (wrap.hidden) return;
-    for (const name of names) {
-      const on = pickCats.has(name);
-      const chip = el("button", "cat-chip pick-cat" + (on ? " on" : ""));
-      chip.type = "button";
-      chip.setAttribute("aria-pressed", String(on));
-      const dot = el("span", "dot");
-      dot.style.background = colorOf(name);
-      chip.appendChild(dot);
-      chip.appendChild(document.createTextNode(name));
-      chip.onclick = () => {
-        if (pickCats.has(name)) pickCats.delete(name);
-        else pickCats.add(name);
-        renderPickCats();
-        rerollPick();
-      };
-      wrap.appendChild(chip);
+    const chip = (on, onClick) => {
+      const c = el("button", "cat-chip pick-cat" + (on ? " on" : ""));
+      c.type = "button";
+      c.setAttribute("aria-pressed", String(on));
+      c.onclick = () => { onClick(); renderPickScope(); rerollPick({ spin: false }); };
+      wrap.appendChild(c);
+      return c;
+    };
+    if (names.length > 1) {
+      for (const name of names) {
+        const c = chip(pickCats.has(name), () => {
+          if (pickCats.has(name)) pickCats.delete(name);
+          else pickCats.add(name);
+        });
+        const dot = el("span", "dot");
+        dot.style.background = colorOf(name);
+        c.appendChild(dot);
+        c.appendChild(document.createTextNode(name));
+      }
     }
+    chip(pickStarred, () => { pickStarred = !pickStarred; })
+      .appendChild(window.LifeLogIcons.labelled("star", "Starred"));
+    chip(pickBought, () => { pickBought = !pickBought; })
+      .appendChild(window.LifeLogIcons.labelled("shopping-bag", "Bought"));
   }
 
-  // Every category switched off, or a mood switch with nothing left in scope
-  // that answers to it — say so in the card, rather than leaving the last
-  // draw on screen where it reads as a fresh one. With no category on at all
-  // that's the thing to fix first, whatever the switches are set to.
+  // Every category switched off, or Starred / Bought with nothing left in
+  // scope that answers to it — say so in the card, rather than leaving the
+  // last draw on screen where it reads as a fresh one. With no category on
+  // at all that's the thing to fix first.
   function showEmptyPick() {
+    pickCurrent = null;
+    $("#pickCard").hidden = false;
+    $("#pickCard").classList.add("is-empty");
     $("#pickModalTitle").textContent = "Nothing to pick from";
     const wanted = [];
-    if (pickFavOnly) wanted.push("starred");
-    if (pickBoughtOnly) wanted.push("already bought");
-    $("#pickModalCategory").textContent = pickCats.size && wanted.length
-      ? "Nothing in the categories you have on is " + wanted.join(" and ") + "."
-      : "Switch a category back on to draw from it.";
+    if (pickStarred) wanted.push("starred");
+    if (pickBought) wanted.push("bought");
+    $("#pickModalCategory").textContent = "";
+    $("#pickMeta").textContent = !pickCats.size
+      ? "Switch a category back on to draw from it."
+      : wanted.length ? "Nothing in the categories you have on is " + wanted.join(" and ") + "."
+        : "Everything here is started, dropped or not out yet.";
     $("#pickCover").hidden = true;
     $("#pickCoverImg").src = "";
-    $("#pickMeta").textContent = "";
-    $("#pickCoverLinks").innerHTML = "";
     $("#pickLinks").innerHTML = "";
-    $("#pickOpenBtn").onclick = null;
+    syncPickActions();
   }
 
-  function rerollPick() {
+  // opts.spin: whether a wheel reveal starts turning by itself. Again does;
+  // opening the sheet or changing the scope puts the wheel up and waits for
+  // the hub, which is the part you came for.
+  function rerollPick(opts) {
+    const spin = !opts || opts.spin !== false;
     const pool = pickCandidates();
     $("#pickCount").textContent = pool.length
-      ? "Drawing from " + pool.length + (pool.length === 1 ? " title" : " titles") : "";
-    $("#pickOpenBtn").disabled = !pool.length;
-    $("#pickRerollBtn").disabled = !pool.length;
-    $("#pickWheelBtn").disabled = pool.length < 2;
-    if (!pool.length) { showEmptyPick(); return; }
-    showPick(drawPick(pool));
+      ? pool.length + (pool.length === 1 ? " title" : " titles") : "";
+    pickToken++;
+    if (!pool.length) { Wheel.unmount(); showEmptyPick(); return; }
+    if (loadPickPrefs().reveal === "wheel" && pool.length > 1) { revealOnWheel(pool, spin); return; }
+    Wheel.unmount();
+    shuffleTo(drawPick(pool), pool);
   }
 
   // The same draw dealt out as a wheel: the titles the bag was about to hand
   // you become the slices, and whichever one it lands on is the pick — so the
   // suspense is real without the odds changing. A pool bigger than the wheel
   // holds is cut to the front of the bag, which is the least-recently-seen
-  // end of it.
-  function openPickWheel() {
-    const pool = pickCandidates();
-    if (pool.length < 2) return;
+  // end of it. Where it lands turns into the card a beat later.
+  function revealOnWheel(pool, autoSpin) {
+    pickCurrent = null;
+    $("#pickCard").hidden = true;
     const contenders = peekPickBag(pool, Wheel.MAX_SEGMENTS);
-    Wheel.openWheel({
-      title: "Spin for it",
+    const token = pickToken;
+    Wheel.mount({
       hint: pool.length > contenders.length
         ? contenders.length + " of " + pool.length + " titles on the wheel" : "",
       items: contenders.map((b) => ({ label: b.title, color: colorOf(b.category), data: b })),
-      actionLabel: "That's the pick",
-      onResult: (seg) => { spendPick(seg.data.id); showPick(seg.data); },
+      autoSpin,
+      onSpin: syncPickActions,
+      onResult: (seg) => {
+        spendPick(seg.data.id);
+        pickCurrent = seg.data;
+        syncPickActions();
+        setTimeout(() => {
+          if (token !== pickToken) return;
+          Wheel.unmount();
+          showPick(seg.data);
+        }, reducedMotion() ? 0 : 700);
+      },
     });
+    syncPickActions();
   }
 
-  function showPick(b) {
+  // The card flicks through other titles in scope, slowing down, before it
+  // settles on the one already drawn — the shuffle is the reveal, the bag
+  // decided. Under reduced motion it just shows the pick.
+  const SHUFFLE_STEPS = [50, 55, 65, 80, 100, 130, 170];
+  function shuffleTo(b, pool) {
+    const others = pool.filter((x) => x !== b);
+    if (reducedMotion() || !others.length) { showPick(b); return; }
+    const token = pickToken;
+    const card = $("#pickCard");
+    card.hidden = false;
+    card.classList.remove("is-empty", "is-landed");
+    card.classList.add("is-shuffling");
+    pickCurrent = null;
+    syncPickActions();
+    let i = 0, last = null;
+    const tick = () => {
+      if (token !== pickToken) return;
+      if (i >= SHUFFLE_STEPS.length) {
+        card.classList.remove("is-shuffling");
+        showPick(b, true);
+        return;
+      }
+      let next = others[Math.floor(Math.random() * others.length)];
+      if (next === last && others.length > 1) next = others[(others.indexOf(next) + 1) % others.length];
+      last = next;
+      paintPickFace(next);
+      setTimeout(tick, SHUFFLE_STEPS[i++]);
+    };
+    tick();
+  }
+
+  // Just the cover, title and category: what a shuffle frame shows.
+  function paintPickFace(b) {
+    $("#pickModalTitle").textContent = b.title;
+    $("#pickModalCategory").textContent = b.category;
+    $("#pickCard").style.setProperty("--pick-cat", colorOf(b.category));
+    const cover = $("#pickCover"), img = $("#pickCoverImg");
+    cover.hidden = false;
+    cover.classList.toggle("is-blank", !b.coverUrl);
+    img.onerror = () => { cover.classList.add("is-blank"); };
+    img.src = b.coverUrl || "";
+    img.hidden = !b.coverUrl;
+    $("#pickMeta").textContent = "";
+    $("#pickLinks").innerHTML = "";
+  }
+
+  function syncPickActions() {
+    const b = pickCurrent;
+    const busy = Wheel.isSpinning();
+    $("#pickRerollBtn").disabled = busy || !pickCandidates().length;
+    $("#pickRevealBtn").disabled = busy || pickCandidates().length < 2;
+    $("#pickOpenBtn").disabled = !b;
+    $("#pickStartBtn").disabled = !b || isStarted(b);
+  }
+
+  function showPick(b, landed) {
+    pickCurrent = b;
+    const card = $("#pickCard");
+    card.hidden = false;
+    card.classList.remove("is-empty", "is-shuffling");
+    card.classList.toggle("is-landed", !!landed);
+    paintPickFace(b);
     // Title, with a ★ favorite marker when the item is prioritized.
     const titleEl = $("#pickModalTitle");
-    titleEl.textContent = b.title;
     if (b.priority) {
       titleEl.appendChild(document.createTextNode(" "));
       const fav = priorityBadge();
-      fav.title = "Favorite (prioritized)";
+      fav.title = "Starred";
       titleEl.appendChild(fav);
     }
-    $("#pickModalCategory").textContent = b.category;
-
-    // Cover art, with the source/store links overlaid on it the way the edit
-    // modal does — falling back to the plain row under the title when there
-    // is no cover, or when its URL turns out to be a dead image.
-    const cover = $("#pickCover");
-    const coverImg = $("#pickCoverImg");
-    const paintLinks = (hasCover) =>
-      renderMediaLinks($("#pickCoverLinks"), $("#pickLinks"), hasCover, b.mediaSource, b.mediaId);
-    coverImg.onerror = () => { cover.hidden = true; paintLinks(false); };
-    if (b.coverUrl) { coverImg.src = b.coverUrl; cover.hidden = false; paintLinks(true); }
-    else { cover.hidden = true; coverImg.src = ""; paintLinks(false); }
+    renderMediaLinks(null, $("#pickLinks"), false, b.mediaSource, b.mediaId);
 
     // The full pulled metadata — rating/year/length/price + summary (shared
     // with the list row and edit modal), plus genres and your own note,
@@ -1333,8 +1463,7 @@
     }
     if (b.notes) meta.appendChild(el("p", "pick-note", b.notes));
     if (hasSteamPrice) loadBacklogPrices([{ mediaSource: b.mediaSource, mediaId: b.mediaId }]);
-
-    $("#pickOpenBtn").onclick = () => { closePickModal(); openBacklogModal(b); };
+    syncPickActions();
   }
 
   // ---------- Next Releases ----------
@@ -3348,11 +3477,14 @@
       $("#bCoverUrl").value = $("#bOvrCoverUrl").value.trim();
       setBacklogCover();
     };
-    $("#pickRerollBtn").onclick = rerollPick;
-    $("#pickWheelBtn").onclick = openPickWheel;
-    $("#pickFavOnly").onchange = (ev) => { pickFavOnly = ev.target.checked; rerollPick(); };
-    $("#pickBoughtOnly").onchange = (ev) => { pickBoughtOnly = ev.target.checked; rerollPick(); };
+    $("#pickRerollBtn").onclick = () => rerollPick();
+    $("#pickRevealBtn").onclick = toggleReveal;
+    $("#pickModal").querySelectorAll(".pick-source .seg-btn").forEach((b) => {
+      b.onclick = () => setPickSource(b.dataset.src);
+    });
     $("#pickCloseBtn").onclick = closePickModal;
+    $("#pickOpenBtn").onclick = () => { const b = pickCurrent; if (!b) return; closePickModal(); openBacklogModal(b); };
+    $("#pickStartBtn").onclick = () => { const b = pickCurrent; if (!b) return; closePickModal(); startItem(b.id); };
     $("#closeOutTodayBtn").onclick = closeOutTodaySheet;
     document.addEventListener("click", (e) => {
       if (!e.target.closest("#backlogModal .ac-wrap")) {

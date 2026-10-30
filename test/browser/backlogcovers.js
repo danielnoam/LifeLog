@@ -56,16 +56,16 @@ const shots = process.env.LIFELOG_SHOTS;
   check("a tile without art gets the tinted block", (await page.$$('.bl-tile[data-id="g3"] .cover-empty')).length === 1);
   check("starred and bought are marked", (await page.$$('.bl-tile[data-id="g1"] .bl-tile-mark')).length === 2);
   check("a price alert is marked", !!(await page.$('.bl-tile[data-id="g3"] .bl-tile-mark[aria-label="Price alert"]')));
-  check("with Spin, Pick random and the sort", (await page.$$(".dsc-bar-right > *")).length === 3);
+  check("with Pick and the sort", (await page.$$(".dsc-bar-right > *")).length === 2);
   if (shots) await page.screenshot({ path: shots + "/covers-phone.png" });
 
   await page.click('.bl-tile[data-id="g2"]'); await page.waitForTimeout(400);
   check("a cover opens the item's own sheet", !(await page.isHidden("#backlogModal")) && (await page.inputValue("#bTitle")) === "A Plain Game With A Long Name That Wraps");
-  check("not the Pick random card", await page.isHidden("#pickModal"));
+  check("not the Pick sheet", await page.isHidden("#pickModal"));
   await page.keyboard.press("Escape"); await page.waitForTimeout(400);
 
-  await page.click(".dsc-bar-right .btn:has-text('Pick random')"); await page.waitForTimeout(400);
-  check("Pick random is still the draw", await page.isVisible(".pick-scope"));
+  await page.click(".dsc-bar-right .pick-open-btn"); await page.waitForTimeout(400);
+  check("Pick is still the draw", await page.isVisible(".pick-scope"));
   await page.click("#pickCloseBtn"); await page.waitForTimeout(300);
 
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(500);

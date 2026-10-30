@@ -2186,49 +2186,96 @@ a.game-times:hover .game-time-value { text-decoration: underline; }
 .game-reviews { margin: var(--space-4) 0 0; font-size: var(--fs-xs); color: var(--text-dim); }
 .game-reviews a { color: var(--accent); text-decoration: none; display: inline-block; padding: var(--space-4) 0; }
 .game-reviews a:hover { text-decoration: underline; }
-/* "Pick random" scope strip — the categories a draw is rolling on (each a
-   toggle, same chip idiom as the filter bar) and the favorites switch. It
-   owns the modal's top edge, so the cover below it can't bleed the way the
-   edit modal's does. */
-.pick-scope { margin: -4px 0 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
-.pick-scope-cats { display: flex; flex-wrap: wrap; gap: 6px; }
-.pick-scope-cats[hidden] { display: none; }
+/* ---------- Pick sheet (0.296.0) ---------- */
+/* Title, the Backlog / My list switch and the close in one row; the switch
+   wraps under the title rather than squeezing it on a narrow phone. */
+.pick-head { gap: var(--space-8) var(--space-12); flex-wrap: wrap; }
+.pick-head h2 { flex: 1 1 auto; }
+.pick-head .btn-icon { order: 3; }
+/* What a backlog draw is rolling on: category chips, then Starred and
+   Bought, with the count at the end of the same wrap. It owns the sheet's
+   top edge, under the head. */
+.pick-scope {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-6);
+  margin: 0 0 var(--space-16); padding-bottom: var(--space-12); border-bottom: 1px solid var(--border);
+}
+.pick-scope[hidden] { display: none; }
+.pick-scope-chips { display: contents; }
 /* A button, not the filter bar's span — it needs the family the UA won't
    inherit for it, and the padding of a chip rather than a control. */
-.pick-cat { font-family: inherit; padding: 4px 10px; font-size: var(--fs-xs); }
-.pick-scope-foot {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 6px 12px; margin-top: 10px; flex-wrap: wrap;
+.pick-cat { font-family: inherit; padding: var(--space-4) var(--space-10); font-size: var(--fs-xs); display: inline-flex; align-items: center; gap: var(--space-6); }
+.pick-cat svg { width: 13px; height: 13px; }
+.pick-scope-count { margin-left: auto; font-size: var(--fs-xs); color: var(--text-dim); }
+/* The pick: a portrait cover beside what's known about it, as a row of the
+   backlog is drawn, rather than a 2:3 cover cropped to a banner. */
+.pick-card {
+  display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: var(--space-16); align-items: start;
+  --pick-cat: var(--accent);
 }
-.pick-scope-cats:empty + .pick-scope-foot, .pick-scope-cats[hidden] + .pick-scope-foot { margin-top: 0; }
-/* Both mood switches sit together on the left with the draw count opposite,
-   and the foot wraps rather than squeezing: two of these plus the count
-   don't fit on one line in a phone-width modal. */
-.pick-scope-toggles { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.modal label.pick-scope-toggle {
-  display: inline-flex; align-items: center; gap: 8px; margin: 0;
-  font-size: var(--fs-sm); color: var(--text-dim); cursor: pointer; user-select: none;
+.pick-card[hidden] { display: none; }
+.pick-card.is-empty { grid-template-columns: minmax(0, 1fr); }
+.pick-art {
+  aspect-ratio: 2 / 3; border-radius: var(--r-md); overflow: hidden;
+  background: color-mix(in srgb, var(--pick-cat) 28%, var(--bg-elev-2));
+  border: 1px solid var(--border);
 }
-.pick-scope-count { font-size: var(--fs-xs); color: var(--text-dim); }
-/* Inset and fully rounded — this cover sits under the scope strip rather
-   than against the modal's own top corners. */
-.pick-cover { margin: 0 0 14px; border-radius: var(--r-card); max-height: 160px; }
-.pick-cover img { height: 160px; border-radius: var(--r-card); }
-/* "Pick random" metadata block — same look as the edit-modal
-   cover meta, reused for the richer random-picker card. */
-.pick-meta { margin: 2px 0 4px; }
+.pick-art[hidden] { display: none; }
+.pick-art img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.pick-art img[hidden] { display: none; }
+.pick-body { min-width: 0; }
+.pick-eyebrow {
+  margin: 0; font-size: var(--fs-2xs); font-weight: 650; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-dim);
+}
+.pick-eyebrow:empty { display: none; }
+.pick-title { margin: var(--space-4) 0 var(--space-6); font-size: var(--fs-title); line-height: 1.25; overflow-wrap: anywhere; }
+/* The shuffle: each frame swaps the face, so the art and title fade a
+   little to read as flicking past rather than as a page that keeps
+   reloading. The landing settles in. */
+.pick-card.is-shuffling .pick-art, .pick-card.is-shuffling .pick-title { opacity: .55; }
+.pick-card.is-landed .pick-art { animation: pick-land .32s var(--spring-snappy); }
+.pick-card.is-landed .pick-body { animation: pick-body-in .24s var(--ll-move-ease); }
+@keyframes pick-land { from { scale: .94; } to { scale: 1; } }
+@keyframes pick-body-in { from { opacity: 0; translate: 0 4px; } to { opacity: 1; translate: 0 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .pick-card.is-landed .pick-art, .pick-card.is-landed .pick-body { animation: none; }
+}
+/* "Pick" metadata block — same look as the edit-modal cover meta. */
+.pick-meta { margin: 0; }
 .pick-meta:empty { display: none; }
+.pick-card.is-empty .pick-meta { font-size: var(--fs-sm); color: var(--text-dim); }
 .pick-meta .bl-meta { font-size: var(--fs-xs); color: var(--text-dim); }
-.pick-meta .bl-summary { font-size: var(--fs-sm); color: var(--text-dim); margin: 6px 0 0; }
+.pick-meta .bl-summary { font-size: var(--fs-sm); color: var(--text-dim); margin: var(--space-6) 0 0; }
 .pick-meta .bl-price:empty { display: none; }
-.pick-genres { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.pick-genre { font-size: var(--fs-2xs); padding: 2px 8px; border-radius: var(--r-pill); background: var(--bg-elev-2); color: var(--text-dim); }
-.pick-note { font-size: var(--fs-xs); color: var(--text-dim); font-style: italic; margin: 8px 0 0; }
-/* Source/store links as a standalone row (not overlaying a cover), so they
-   need a border to read against the card instead of an image. */
-.pick-links { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.pick-genres { display: flex; flex-wrap: wrap; gap: var(--space-6); margin-top: var(--space-8); }
+.pick-genre { font-size: var(--fs-2xs); padding: var(--space-2) var(--space-8); border-radius: var(--r-pill); background: var(--bg-elev-2); color: var(--text-dim); }
+.pick-note { font-size: var(--fs-xs); color: var(--text-dim); font-style: italic; margin: var(--space-8) 0 0; }
+/* Source/store links as a row of their own, bordered to read against the
+   card rather than over an image. */
+.pick-links { display: flex; flex-wrap: wrap; gap: var(--space-6); margin-top: var(--space-12); }
 .pick-links:empty { display: none; }
 .pick-links .cover-link-btn { border: 1px solid var(--border); }
+.pick-wheel[hidden] { display: none; }
+.pick-actions .btn { display: inline-flex; align-items: center; gap: var(--space-6); }
+.pick-actions .btn svg { width: 15px; height: 15px; }
+.pick-actions .btn[hidden] { display: none; }
+#pickRevealBtn.active { background: var(--accent-soft); border-color: var(--accent); color: var(--text); }
+/* A phone puts the switch on a row of its own under the title and close,
+   split evenly so each half is a full-size target. */
+@media (max-width: 720px) {
+  html:not(.force-pc) .pick-head .btn-icon { order: 2; }
+  html:not(.force-pc) .pick-source { order: 3; flex: 1 0 100%; }
+  html:not(.force-pc) .pick-source .seg-btn { flex: 1; min-height: 40px; }
+  html:not(.force-pc) .pick-card { grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-12); }
+  html:not(.force-pc) .pick-card.is-empty { grid-template-columns: minmax(0, 1fr); }
+  html:not(.force-pc) .pick-title { font-size: var(--fs-xl); }
+}
+html.force-mobile .pick-head .btn-icon { order: 2; }
+html.force-mobile .pick-source { order: 3; flex: 1 0 100%; }
+html.force-mobile .pick-source .seg-btn { flex: 1; min-height: 40px; }
+html.force-mobile .pick-card { grid-template-columns: 96px minmax(0, 1fr); gap: var(--space-12); }
+html.force-mobile .pick-card.is-empty { grid-template-columns: minmax(0, 1fr); }
+html.force-mobile .pick-title { font-size: var(--fs-xl); }
 
 /* ---------- random wheel ---------- */
 /* Square stage: the canvas paints itself at whatever width the modal gives
@@ -2270,7 +2317,7 @@ a.game-times:hover .game-time-value { text-decoration: underline; }
 }
 .wheel-hub:active:not(:disabled) { transform: translate(-50%, -50%) scale(.98); }
 .wheel-hub:disabled { opacity: .5; cursor: default; }
-.wheel-hint { margin: -10px 0 14px; font-size: var(--fs-sm); }
+.wheel-hint { margin: 0 0 var(--space-12); font-size: var(--fs-sm); text-align: center; }
 .wheel-empty { margin: 14px 0 0; font-size: var(--fs-sm); text-align: center; }
 /* The answer you opened the modal for, so it gets a panel of its own rather
    than a line of text under the wheel. */
