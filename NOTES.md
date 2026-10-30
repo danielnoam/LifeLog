@@ -16,6 +16,23 @@ what was decided against and why.
 
 ---
 
+- **Cover hover details, search status, Open on suggestions (0.295.0).**
+  The hover panel (`appendTileInfo` in backlog.js, also called by the
+  Timeline's `entryTile`) is built only when `(hover: hover) and
+  (pointer: fine)` matches, so a phone builds nothing for it, and shown
+  by CSS on `.bl-tile:hover`. It sits under the star/bag marks and has
+  `pointer-events: none`, so clicks and the bulk checkbox still reach the
+  tile. Fixed black and white like the sheet's times strip, since it is
+  on the art, not the theme. The price is a `.bl-price[data-appid]` span,
+  so `applyCachedPrices` fills it with the list rows' text; its row hides
+  (`:has(.bl-price:empty)`) until a price lands or when there is no
+  GG.deals key. Daniel kept the "(low $x)" part even though it wraps on a
+  narrow cover. In search, starred and bought are icons on the right
+  (his call), the rest are tags. The suggestion's Open closes both sheets
+  and opens the item through `openExisting` in journal.js; a Timeline
+  match opens the latest entry with that title. No data changed, so the
+  bridge needed nothing: it already reads every field the panel shows.
+
 - **Category on big covers, small month rows one line again (0.294.0).**
   After 0.293.0 Daniel asked for the chip as a label across the foot of a
   big cover (so the row is the cover's height, and the column is the

@@ -79,6 +79,8 @@ An entry has a rating, notes, cover art, genres, a length and when you
 started it. With big cover art, the category is a label on the cover and a
 book's author sits under the title. What you're in the middle of sits in the
 In progress card at the top; ✓ there logs it with the months it took.
+Typing a title you already have, in Add entry or Add to backlog, offers
+Open on it to go to its card instead of adding it twice.
 
 <table><tr>
 <td><img src="docs/screenshots/timeline-desktop.webp" alt="The Timeline on a computer" width="620"></td>
@@ -127,7 +129,9 @@ Timeline.
 ### Covers
 
 View → Layout → Covers draws any Backlog mode as a wall of cover art, with
-marks for starred, bought and price alert. A cover opens like a row.
+marks for starred, bought and price alert. A cover opens like a row. On a
+computer, holding the pointer over one shows its release, scores, How Long
+to Beat times and, if it isn't bought, its price.
 
 <table><tr>
 <td><img src="docs/screenshots/backlog-covers-desktop.webp" alt="Backlog covers on a computer" width="620"></td>
@@ -207,7 +211,9 @@ hours and reviews when you add your own Places key.
 ## Search
 
 One box over everything: entries, backlog, notes, habits, boards, expenses,
-trips, places and Settings pages, grouped by tab. Filter on a group narrows
+trips, places and Settings pages, grouped by tab. Timeline and Backlog
+results show their cover, where they stand (Completed, In progress,
+Dropped…) and a star or bag for starred and bought. Filter on a group narrows
 that tab instead, for bulk work.
 
 <table><tr>

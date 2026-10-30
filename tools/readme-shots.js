@@ -103,7 +103,7 @@ function buildData() {
   });
   const backlog = [
     item("Starfall Tactics", "Games", { priority: 1, summary: "A turn-based campaign across a collapsing star system: hire a crew, hold the line, and choose which worlds to save.", notes: "Friends say the second act is the best part.", bought: true, length: "35 hrs", externalRating: "88 Metacritic", genres: ["Strategy", "RPG"], releaseDate: "2025-03-14", releasePrecision: "day", releaseStatus: "released" }),
-    item("Marrow Keep", "Games", { priority: 1, length: "18 hrs", externalRating: "84 Metacritic", releaseDate: "2024-11-02", releasePrecision: "day", releaseStatus: "released" }),
+    item("Marrow Keep", "Games", { priority: 1, length: "18 hrs", externalRating: "84 Metacritic", hltb: { story: 1080, extras: 1560, complete: 2400 }, reviews: { opencritic: { score: 86 }, metauser: { score: 79 } }, releaseDate: "2024-11-02", releasePrecision: "day", releaseStatus: "released" }),
     item("Driftwood Saga", "Games", { bought: true, length: "60 hrs", releaseDate: "2023-06-20", releasePrecision: "day", releaseStatus: "released" }),
     item("Cobalt Run", "Games", { earlyAccess: true, length: "12 hrs", releaseDate: "2025-08-01", releasePrecision: "day", releaseStatus: "released" }),
     item("Lantern Hollow II", "Games", { releaseDate: soon(9), releasePrecision: "day", releaseStatus: "upcoming" }),
@@ -249,7 +249,9 @@ const SHOTS = [
   { name: "timeline-calendar", ui: { view: "timeline", timelineMode: "entries" }, visual: { timelineLayout: "calendar" } },
   { name: "stats", ui: { view: "timeline", timelineMode: "stats" } },
   { name: "backlog", ui: { view: "backlog", backlogMode: "entries" } },
-  { name: "backlog-covers", ui: { view: "backlog", backlogMode: "entries" }, visual: { backlogLayout: "covers" } },
+  // A computer's shot holds the pointer over a cover to show its details.
+  { name: "backlog-covers", ui: { view: "backlog", backlogMode: "entries" }, visual: { backlogLayout: "covers" },
+    go: async (page, tag) => { if (tag === "desktop") await page.hover('.bl-tile:has-text("Marrow Keep") .bl-tile-art'); } },
   { name: "next-releases", ui: { view: "backlog", backlogMode: "upcoming" }, visual: { outTodaySheet: "hide" } },
   { name: "item-sheet", ui: { view: "backlog", backlogMode: "entries" },
     noScroll: true, go: async (page) => { await page.click('.backlog-item-rich:has-text("Starfall Tactics") .bl-body'); } },

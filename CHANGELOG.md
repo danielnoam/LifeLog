@@ -4,6 +4,24 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.295.0] - 2026-10-30
+
+### Added
+- **Hover a cover for its details.** On a computer, in the Covers layout
+  (Backlog and Timeline), holding the pointer over a cover shows its
+  release, its scores (the source's rating, OpenCritic, Metacritic users),
+  How Long to Beat times or its length, and, for a game you haven't
+  bought, the price and your price alert. Phones are unchanged.
+- **Open what you already have.** Typing a title in Add entry or Add to
+  backlog, a suggestion you already have gets an Open button that takes
+  you to its card instead of adding a second copy.
+
+### Changed
+- **Search shows covers and status.** Timeline and Backlog results carry
+  their cover, a star and bag icon on the right for starred and bought,
+  and tags for Completed (with its stars), In progress, Dropped, Early
+  Access and how far a show has run.
+
 ## [0.294.0] - 2026-10-30
 
 ### Changed
