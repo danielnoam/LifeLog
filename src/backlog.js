@@ -267,13 +267,24 @@
   // Episode count switch is on.
   const countWord = (b) => (/manga/.test(b.mediaSource || "") ? "Ch" : "Ep");
   const countTotal = (b) => +b.episodesTotal || 0;
-  // Still airing, how many are out joins it (0.292.1): "5/6/12", watched,
-  // out, all of it, as Daniel asked (0.292.2), rather than two counts. With
-  // nothing to count against it's "Ep 5", so a bare number isn't a mystery.
-  function progressLabel(b) {
+  // Watched, out, all of it, as one count (0.292.1–0.292.2): "5/6/12".
+  // Since 0.293.1 its colour says the state the word used to, as Daniel
+  // asked: still airing or publishing in the airing colour, with "?" for a
+  // total nobody knows yet ("29/?"), fully out in the done colour. The words
+  // stay in its title for a screen reader and a hover.
+  function progressCount(b) {
     const n = Math.max(0, +b.progress || 0), total = countTotal(b), out = +b.episodesOut || 0;
-    if (stillAiring(b) && out) return n + "/" + out + (total ? "/" + total : "");
-    return total ? n + "/" + total : countWord(b) + " " + n;
+    const manga = /manga/.test(b.mediaSource || "");
+    const going = stillAiring(b), done = airingDone(b) && b.airing !== "cancelled";
+    let text;
+    if (going) text = n + (out ? "/" + out : "") + "/" + (total || "?");
+    else if (total || (done && out)) text = n + "/" + (total || out);
+    else text = countWord(b) + " " + n;
+    const unit = manga ? "chapter" : "episode";
+    const words = [(manga ? "Read " : "Watched ") + n + " " + unit + (n === 1 ? "" : "s"),
+      going && out && (out + " out"), total ? total + " in all" : going && "total not known yet",
+      going && (manga ? "still publishing" : "still airing"), done && "all out"].filter(Boolean).join(", ");
+    return { text, tone: going ? "is-going" : done ? "is-done" : "", words };
   }
   async function setProgress(b, n) {
     n = Math.max(0, Math.round(+n || 0));
@@ -329,9 +340,18 @@
     appendAuthor(text, b);
     // A show also says how far it has run (0.280.0), as its backlog row does.
     const counted = categoryShows(b.category).progress;
-    const since = el("span", "progress-since", (counted ? progressLabel(b) + " · " : "") + sinceLabel(b.startedAt));
-    // "6 of 12" beside the count already says it's airing (0.292.2).
-    const airing = counted && b.airing === "airing" && +b.episodesOut ? "" : airingLabel(b, counted);
+    const since = el("span", "progress-since");
+    if (counted) {
+      const c = progressCount(b);
+      const count = el("span", "progress-count" + (c.tone ? " " + c.tone : ""), c.text);
+      count.title = c.words;
+      count.setAttribute("aria-label", c.words);
+      since.append(count, " · ");
+    }
+    since.append(sinceLabel(b.startedAt));
+    // The count's colour already says airing, publishing or all out
+    // (0.293.1); only what it can't say stays a word.
+    const airing = counted && !["hiatus", "cancelled"].includes(b.airing) ? "" : airingLabel(b, counted);
     if (airing) since.appendChild(el("span", "bl-airing progress-airing" + (airingDone(b) ? " is-done" : ""), airing));
     text.appendChild(since);
     row.appendChild(text);

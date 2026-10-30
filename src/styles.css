@@ -1349,6 +1349,10 @@ html.force-mobile .progress-since .progress-airing::before { content: none; }
 /* The episode count (0.292.0): + on the In progress row, quieter than ✓
    like ▶ is; − count + in the item's sheet. */
 .progress-up { color: var(--text-dim); padding-inline: var(--space-8); }
+/* Its colour is the airing state (0.293.1): the same two as .bl-airing. */
+.progress-count { font-variant-numeric: tabular-nums; }
+.progress-count.is-going { color: var(--warning); }
+.progress-count.is-done { color: var(--success); }
 .progress-up:hover:not(:disabled) { color: var(--accent); }
 .count-field { margin-bottom: var(--space-12); font-size: var(--fs-sm); color: var(--text-dim); }
 .count-step { display: flex; align-items: center; gap: var(--space-8); margin-top: var(--space-6); }

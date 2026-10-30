@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.293.1] - 2026-10-30
+
+### Changed
+- **The episode count says the state in colour.** On In progress, the
+  count is in the airing colour while a show is airing or a manga is
+  publishing, and green once it's all out, so the words Airing,
+  Publishing and Complete are gone from those rows. When nobody knows the
+  total yet it shows a ?: 29/? for a manga still publishing. On hiatus and
+  Cancelled still show as words.
+
 ## [0.293.0] - 2026-10-30
 
 ### Changed

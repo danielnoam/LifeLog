@@ -134,6 +134,8 @@ const media = (id, title, extra) => ({ id, type: "ANIME", title: { romaji: title
   });
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(400);
   const progressRow = await page.evaluate(() => [...document.querySelectorAll(".progress-row")].map((r) => r.textContent).find((t) => /Dandadan/.test(t)) || "");
+  const countEl = await page.evaluate(() => { const c = [...document.querySelectorAll(".progress-row")].find((r) => /Dandadan/.test(r.textContent)).querySelector(".progress-count"); return c ? { cls: c.className, label: c.getAttribute("aria-label") } : null; });
+  check("its colour says it's airing, and its label says it in words", countEl && /is-going/.test(countEl.cls) && /still airing/.test(countEl.label), countEl);
   check("the In progress row joins the count to how many are out, once", /4\/6\/12 · since/.test(progressRow) && !/Airing/.test(progressRow), progressRow);
   await page.evaluate(() => [...document.querySelectorAll(".progress-row")].find((r) => /Dandadan/.test(r.textContent)).querySelector(".progress-up").click());
   await page.waitForTimeout(4500);

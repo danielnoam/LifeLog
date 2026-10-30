@@ -65,6 +65,12 @@ what was decided against and why.
   where those boxes ended (4px apart on desktop, 8px on a phone, where the
   logo row is shorter). Both boxes now stretch to the row's height and
   share `--topbar-label-gap`.
+- **The count's colour is the state (0.293.1).** Daniel: show
+  airing/publishing/complete as the count's colour, not a word; "29/?"
+  when the total isn't known. `progressCount` in backlog.js gives text,
+  tone and the words, which go in its title and aria-label so the state
+  isn't colour-only. Hiatus and Cancelled keep their words: there's no
+  third colour to say them, and both change what to expect.
 - **One count on In progress (0.292.1).** Daniel, after 0.292.0: an
   airing show showed its count twice ("Ep 4 of 12" and "Airing · 6 of
   12"). Joined as "Ep 4 · 6 of 12" (watched · out of total), the airing
