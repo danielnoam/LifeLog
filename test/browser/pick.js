@@ -77,7 +77,7 @@ const chip = (page, text) => page.click(`#pickCats .pick-cat:has-text("${text}")
 
   await page.click(".pick-open-btn"); await page.waitForTimeout(300);
   check("the wheel reveal is remembered", await page.isVisible("#wheelCanvas"));
-  await page.click('.pick-source [data-src="own"]'); await page.waitForTimeout(300);
+  await page.click('.pick-source [data-pick="own"]'); await page.waitForTimeout(300);
   check("My list hides the backlog's scope and buttons", await page.isHidden("#pickScope") && await page.isHidden("#pickOpenBtn") && await page.isVisible("#wheelEdit"));
   await page.fill("#wheelOptions", "Pizza\nRamen\nTacos");
   await page.click("#wheelApplyBtn"); await page.waitForTimeout(200);

@@ -455,6 +455,10 @@ behaviour the bag was built to avoid.
 
 ## "What fits in an evening"
 
+(Partly back in 0.296.0: Pick's Short / Medium / Long chips, once
+0.287.0's length parser existed. A time budget in minutes across units is
+still out.)
+
 Filtering the pick by how much time you have needs a length in minutes.
 `length` is free text off whichever of eight media sources filled it in —
 "12 hours", "2h 15m", "8 episodes", "320 pages" — so this is a parser for

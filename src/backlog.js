@@ -1268,7 +1268,7 @@
     const own = src === "own";
     $("#pickModal .pick-modal").classList.toggle("is-own", own);
     $("#pickModal").querySelectorAll(".pick-source .seg-btn").forEach((b) => {
-      const on = b.dataset.src === src;
+      const on = b.dataset.pick === src;
       b.classList.toggle("active", on);
       b.setAttribute("aria-pressed", String(on));
     });
@@ -3530,7 +3530,7 @@
     $("#pickRevealBtn").onclick = toggleReveal;
     window.addEventListener("resize", () => { if (!$("#pickModal").hidden) pickLayout(); });
     $("#pickModal").querySelectorAll(".pick-source .seg-btn").forEach((b) => {
-      b.onclick = () => setPickSource(b.dataset.src);
+      b.onclick = () => setPickSource(b.dataset.pick);
     });
     $("#pickCloseBtn").onclick = closePickModal;
     $("#pickOpenBtn").onclick = () => { const b = pickCurrent; if (!b) return; closePickModal(); openBacklogModal(b); };

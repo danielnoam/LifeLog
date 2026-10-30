@@ -16,6 +16,37 @@ what was decided against and why.
 
 ---
 
+- **Pick: one button for the draw and the wheel (0.296.0).** Daniel: Pick
+  random and Spin "should be combined into one button", and make them
+  better. They were two buttons and two sheets, and the backlog's wheel
+  opened as a second sheet over the pick card.
+  - **One sheet, two sources.** Backlog and My list are a `.seg` in the
+    head; the wheel (wheel.js) is now mounted inside the sheet
+    (`Wheel.mount/unmount`), not a sheet of its own (#wheelModal is gone).
+    Source and reveal are kept per device in `lifelog-pick-prefs-v1`. With
+    nothing drawable the sheet opens on My list.
+  - **Reveals.** The default flicks the card through other titles in scope
+    (`shuffleTo`, ~650ms, slowing) after the bag has already drawn, so the
+    odds don't change; reduced motion shows the pick at once. Wheel puts
+    the next 12 from the bag on the wheel and waits for the hub (Again
+    spins by itself); where it lands turns into the card 700ms later.
+  - **Computer layout.** Daniel: "in browser we can better use the full
+    screen". `pick-modal-wide` (set by `pickLayout`, the same test as
+    isMobileLayout, since a media query can't see force-pc) makes the sheet
+    920px in two columns; `.pick-card` goes `display: contents` so its art
+    and body land in the grid without a second copy of the markup.
+  - **Length chips.** Daniel asked for playtime / length / chapters
+    filters. DROPPED.md's "What fits in an evening" said the parser was
+    the big half; 0.287.0's `lengthKey` now exists, so `lengthBand` cuts
+    each unit on its own (`LENGTH_BANDS`) and never converts between them.
+    A film is always Short, on purpose: it fits an evening. Unknown length
+    drops out once a chip is on. The cut points are a guess, not his.
+  - **Bought** now follows the Show row's rule (a category with Bought off
+    passes), where "Bought only" used to drop those.
+  - **Bridge:** `lifelog_pick` (same eligibility and chips, plain random:
+    the device's no-repeat history isn't synced) and `length` on
+    `lifelog_backlog`.
+
 - **Cover hover details, search status, Open on suggestions (0.295.0).**
   The hover panel (`appendTileInfo` in backlog.js, also called by the
   Timeline's `entryTile`) is built only when `(hover: hover) and

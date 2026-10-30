@@ -4,6 +4,28 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.296.0] - 2026-10-30
+
+### Changed
+- **Pick and Spin are one button.** The Backlog's Pick opens one sheet,
+  Pick for me, with Backlog and My list at the top. Backlog draws from your
+  list: the card flicks through titles and settles on the pick, or turn on
+  Wheel to spin for it in the same sheet. My list is the wheel of your own
+  options, as Spin was. The sheet remembers which you used last.
+- **A bigger pick.** The card shows the cover upright beside the details,
+  and on a computer the sheet spreads over two columns with the cover or
+  the wheel large on the left.
+- **Bought** in the pick lets through a category with Bought switched off,
+  as the Show row does.
+
+### Added
+- **Start from the pick.** Start moves the pick to In progress in one tap.
+- **Short, Medium or Long.** Length chips narrow the pick, each title judged
+  in its own unit: up to 5 hours, 250 pages, 13 episodes or 50 chapters is
+  short; 25 hours, 500 pages, 40 episodes or 200 chapters and up is long.
+- **For AIs:** `lifelog_pick` picks at random from the backlog, and
+  `lifelog_backlog` takes a `length`.
+
 ## [0.295.0] - 2026-10-30
 
 ### Added

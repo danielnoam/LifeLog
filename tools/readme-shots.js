@@ -252,6 +252,12 @@ const SHOTS = [
   // A computer's shot holds the pointer over a cover to show its details.
   { name: "backlog-covers", ui: { view: "backlog", backlogMode: "entries" }, visual: { backlogLayout: "covers" },
     go: async (page, tag) => { if (tag === "desktop") await page.hover('.bl-tile:has-text("Marrow Keep") .bl-tile-art'); } },
+  // Pick on a title with a summary, so the details column has something in it.
+  { name: "pick", ui: { view: "backlog", backlogMode: "entries" }, noScroll: true,
+    go: async (page) => {
+      await page.click(".pick-open-btn");
+      await page.evaluate(() => { for (let i = 0; i < 20 && !/Starfall/.test(document.querySelector("#pickModalTitle").textContent); i++) document.querySelector("#pickRerollBtn").click(); });
+    } },
   { name: "next-releases", ui: { view: "backlog", backlogMode: "upcoming" }, visual: { outTodaySheet: "hide" } },
   { name: "item-sheet", ui: { view: "backlog", backlogMode: "entries" },
     noScroll: true, go: async (page) => { await page.click('.backlog-item-rich:has-text("Starfall Tactics") .bl-body'); } },

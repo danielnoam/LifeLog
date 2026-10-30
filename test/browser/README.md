@@ -36,6 +36,7 @@ because something shipped broken that no unit test could have caught:
 | `timelinecal` | the Timeline's Calendar layout: opening on the latest month with entries, the weekday offset, a day's cover and +N, the picked day's list and No day set, an entry opening, month steps, and names in the cells on a desktop |
 | `ledgershow` | the Ledger's project filter as a Show row: icon chips, Project and No project turning each other off, the label clearing |
 | `backlogshow` | the Backlog's Show chips: Starred, Bought, Not bought, Price alert, stacking and turning their opposites off, a category without Bought kept, the label clearing, and the row only on the Backlog |
+| `pick` | the Backlog's Pick sheet: one button, the draw going through everything before repeating, the category, Starred, Bought and length chips, the wheel reveal landing on the card, Start, and My list's own wheel, each remembered |
 | `droppedfold` | the Dropped fold, including that its rows are dimmed on the frame they appear |
 | `sorting` | every sort option means what it says at every level |
 | `everymode` | the bulk bar and progress panel in all five bulk-capable modes |

@@ -14,7 +14,7 @@ files are the web app (GitHub Pages), the Android app and the iOS app
 - [Getting around](#getting-around)
 - [Notebook](#notebook): [Notes](#notes), [Habits](#habits)
 - [Timeline](#timeline): [Log](#log), [Layouts](#timeline-layouts-covers-and-calendar), [Stats and Recap](#stats-and-recap)
-- [Backlog](#backlog): [List](#list), [Covers](#covers), [An item's sheet](#an-items-sheet), [Next releases](#next-releases), [Discover](#discover)
+- [Backlog](#backlog): [List](#list), [Covers](#covers), [Pick](#pick), [An item's sheet](#an-items-sheet), [Next releases](#next-releases), [Discover](#discover)
 - [Ledger](#ledger): [Expenses](#expenses), [Summary](#summary)
 - [Travel](#travel)
 - [Search](#search)
@@ -117,8 +117,8 @@ What you mean to get to, by category, in bands that each fold away:
 starred, ready, Early Access or Still airing, unreleased, dropped. Rows
 show the score, year, length, price and whether it's bought. Sort inside
 each band (name, added, release date, price, length), narrow it with the
-Show row (Starred, Bought, Not bought, Price alert), or let Pick random or
-Spin choose. ▷ starts an item (it moves to In progress), ✓ logs it on the
+Show row (Starred, Bought, Not bought, Price alert), or let Pick choose.
+▷ starts an item (it moves to In progress), ✓ logs it on the
 Timeline.
 
 <table><tr>
@@ -132,6 +132,19 @@ View → Layout → Covers draws any Backlog mode as a wall of cover art, with
 marks for starred, bought and price alert. A cover opens like a row. On a
 computer, holding the pointer over one shows its release, scores, How Long
 to Beat times and, if it isn't bought, its price.
+
+### Pick
+
+Pick lets something else decide. **Backlog** draws one title you could
+start today, narrowed by category, Starred, Bought and Short / Medium /
+Long, and never repeats until everything has had a turn. It flicks through
+covers onto the pick, or spins for it on a wheel; Start puts it in
+progress. **My list** is a wheel of your own options.
+
+<table><tr>
+<td><img src="docs/screenshots/pick-desktop.webp" alt="Pick on a computer" width="620"></td>
+<td><img src="docs/screenshots/pick-phone.webp" alt="Pick on a phone" width="200"></td>
+</tr></table>
 
 <table><tr>
 <td><img src="docs/screenshots/backlog-covers-desktop.webp" alt="Backlog covers on a computer" width="620"></td>

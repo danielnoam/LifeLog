@@ -77,7 +77,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Choose what a category's items offer: In progress, Bought, Author (0.267.0), Episode count (0.292.0)
 - Sort control inside each band: name, release date, price, length (0.157.0, 0.287.0)
 - Show filter: Starred, Bought, Not bought, Price alert, stacking (0.285.0, 0.286.0)
-- Pick random and Spin, scoped to the filters, with Bought only (0.82.0, 0.105.0, 0.110.0)
+- Pick, one sheet for a backlog draw (shuffle or wheel) and a wheel of your own options, scoped by category, Starred, Bought and length, with Start (0.82.0, 0.105.0, 0.110.0, 0.296.0)
 - Covers layout under View, in every mode: cover art with marks for starred, bought and price alert (0.289.0, 0.290.0)
 - Hover a cover on a computer for its release, scores, How Long to Beat times or length, and price if not bought (0.295.0)
 - Open on a title suggestion you already have, from the Add sheets, instead of adding a second copy (0.295.0)
