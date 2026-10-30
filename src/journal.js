@@ -9,7 +9,7 @@
   // Shared app plumbing, provided by app.js via init(ctx).
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
-    emptyCoverEl, coverEl, setSheetCover, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
+    emptyCoverEl, placeCatChip, coverEl, setSheetCover, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect, sortSelect,
     startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
@@ -26,7 +26,7 @@
 
   function init(ctx) {
     ({ state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
-      emptyCoverEl, coverEl, setSheetCover, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
+      emptyCoverEl, placeCatChip, coverEl, setSheetCover, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
       attachLongPressSelect, animatedNumberText, barRow, fillSelect, sortSelect,
       startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
       fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
@@ -342,7 +342,7 @@
     chip.appendChild(dot);
     chip.appendChild(document.createTextNode(e.category));
     chip.title = e.category;
-    side.appendChild(chip);
+    placeCatChip(side, chip);
     row.appendChild(titleWithAuthor("etitle", e, side !== row));
     const sp = spanLabel(e);
     if (sp) {

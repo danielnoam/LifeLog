@@ -1381,6 +1381,19 @@ html.force-mobile .progress-since .progress-airing::before { content: none; }
    every title in a card starting at the same x, whatever the chip says. */
 .entry .etn-side { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); flex-shrink: 0; width: 64px; }
 .entry .etn-side .entry-cat { max-width: 100%; padding: var(--space-2) var(--space-6); }
+/* Big covers carry the chip as a label across their foot instead, so the
+   row stays the cover's height. The opaque backing keeps the chip's tint
+   reading the same over any art. */
+.entry .etn-side.on-cover { position: relative; width: auto; }
+.etn-side.on-cover .etn-label {
+  position: absolute; left: 0; right: 0; bottom: 0; display: flex;
+  background: var(--bg-elev); border-radius: 0 0 var(--r-xs) var(--r-xs); overflow: hidden;
+}
+.entry .etn-side.on-cover .entry-cat {
+  display: block; flex: 1; min-width: 0; border-radius: 0; padding: var(--space-2);
+  text-align: center; font-size: var(--fs-2xs);
+}
+.etn-side.on-cover .entry-cat .dot { display: none; }
 /* Cover art on its way in (coverEl in app.js) fades up when it lands; its
    size class already holds the space, so nothing shifts. */
 img.etn-cover, img.bl-cover { transition: opacity .25s var(--ease); }

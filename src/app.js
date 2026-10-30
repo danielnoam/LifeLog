@@ -1293,6 +1293,17 @@
     return span;
   }
 
+  // A Timeline row's category chip (0.293.0): beside the title with covers
+  // off, under a small cover, and as a label across the bottom of a big one
+  // so the row is no taller than its cover. `side` is the row itself when
+  // covers are off, else the column holding the cover.
+  function placeCatChip(side, chip) {
+    if (!side.classList.contains("etn-side")) { side.appendChild(chip); return; }
+    if (state.visual.timelineCoverSize !== "big") { side.appendChild(chip); return; }
+    side.classList.add("on-cover");
+    side.appendChild(el("span", "etn-label")).appendChild(chip);
+  }
+
   // A sheet's cover (0.282.4). An item with no art, or a dead link, gets a
   // block tinted to its category like a row's placeholder, so the links,
   // scores and times sit where they would on a cover and every sheet reads
@@ -5863,7 +5874,7 @@
   });
   Journal.init({
     state, $, el, uid, activatable, toast, persist, render, renderLazySections, groupBy, countBy, colorOf,
-    emptyCoverEl, coverEl, setSheetCover, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
+    emptyCoverEl, placeCatChip, coverEl, setSheetCover, monthCardHeader, bulkActionBar, bulkCheckbox, toggleBulkItem,
     attachLongPressSelect, animatedNumberText, barRow, fillSelect, sortSelect,
     startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
     fillCategorySelect, wireCategorySelect, resolvePendingCatSelect,
@@ -5900,7 +5911,7 @@
   Backlog.init({
     state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
     MEDIA_SOURCE_LABELS, saveVisualSettings, isMobileLayout,
-    emptyState, emptyCoverEl, coverEl, setSheetCover, bulkActionBar, bulkCheckbox, toggleBulkItem,
+    emptyState, emptyCoverEl, placeCatChip, coverEl, setSheetCover, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect, sortSelect,
     startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
     openEntryModal: Journal.openEntryModal,

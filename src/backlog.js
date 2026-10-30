@@ -11,7 +11,7 @@
   // Shared app plumbing, provided by app.js via init(ctx).
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
-    emptyState, emptyCoverEl, coverEl, setSheetCover, bulkActionBar, bulkCheckbox, toggleBulkItem,
+    emptyState, emptyCoverEl, placeCatChip, coverEl, setSheetCover, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect, sortSelect, openEntryModal,
     startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
     fillCategorySelect, wireCategorySelect, titleSuggestions,
@@ -32,7 +32,7 @@
 
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
-      emptyState, emptyCoverEl, coverEl, setSheetCover, bulkActionBar, bulkCheckbox, toggleBulkItem,
+      emptyState, emptyCoverEl, placeCatChip, coverEl, setSheetCover, bulkActionBar, bulkCheckbox, toggleBulkItem,
       toggleBulkCategoryAll, attachLongPressSelect, sortSelect, openEntryModal,
       startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
       fillCategorySelect, wireCategorySelect, titleSuggestions,
@@ -322,9 +322,12 @@
   function inProgressRow(b) {
     const row = el("div", "entry progress-row");
     row.dataset.id = b.id;
+    // The chip sits under the cover, as on the month rows (0.293.0).
+    let side = row;
     if (state.visual.timelineCoverSize !== "none") {
       const size = state.visual.timelineCoverSize === "big" ? "cover-lg" : "cover-sm";
-      row.appendChild(b.coverUrl ? coverEl(b.coverUrl, "", "etn-cover " + size, b.category) : emptyCoverEl("etn-cover cover-empty " + size, b.category));
+      side = row.appendChild(el("div", "etn-side"));
+      side.appendChild(b.coverUrl ? coverEl(b.coverUrl, "", "etn-cover " + size, b.category) : emptyCoverEl("etn-cover cover-empty " + size, b.category));
     }
     const color = colorOf(b.category);
     const chip = el("span", "entry-cat");
@@ -333,7 +336,8 @@
     const dot = el("span", "dot"); dot.style.background = color;
     chip.appendChild(dot);
     chip.appendChild(document.createTextNode(b.category));
-    row.appendChild(chip);
+    chip.title = b.category;
+    placeCatChip(side, chip);
     const text = el("span", "progress-text");
     const t = el("span", "etitle", b.title); t.title = b.title;
     text.appendChild(t);
