@@ -122,14 +122,14 @@
       meta: [b.category, b.releaseYear ? String(b.releaseYear) : ""].filter(Boolean).join(" · "),
       cover: b,
       tags: backlogTags(b),
+      marks: [b.priority ? ["star", "Starred", "is-star"] : null, b.bought ? ["shopping-bag", "Bought", ""] : null],
       open: () => B.openBacklogModal(b),
     });
     // Where it stands, as the Backlog and In progress would show it
-    // (0.295.0): started, starred, bought, given up on, how far it's out.
+    // (0.295.0): started, given up on, how far it's out. Starred and bought
+    // are icons on the row's right, as on a cover.
     const backlogTags = (b) => [
       B.isStarted(b) ? ["In progress", "is-accent"] : null,
-      b.priority ? ["Starred", "is-star"] : null,
-      b.bought ? ["Bought", "is-done"] : null,
       b.dropped ? ["Dropped", ""] : null,
       b.earlyAccess ? ["Early Access", "is-warn"] : null,
       !b.earlyAccess && B.airingLabel(b, true) ? [B.airingLabel(b, true), ""] : null,
@@ -296,6 +296,18 @@
       text.appendChild(meta);
     }
     b.appendChild(text);
+    const marks = (it.marks || []).filter(Boolean);
+    if (marks.length) {
+      const box = el("span", "search-row-marks");
+      for (const [icon, label, cls] of marks) {
+        const m = el("span", "search-mark" + (cls ? " " + cls : ""));
+        m.appendChild(ctx.ico(icon));
+        m.title = label;
+        m.setAttribute("aria-label", label);
+        box.appendChild(m);
+      }
+      b.appendChild(box);
+    }
     b.onclick = () => it.open();
     return b;
   }

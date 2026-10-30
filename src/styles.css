@@ -2373,6 +2373,11 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 .search-tag.is-accent { color: var(--accent); }
 .search-tag.is-star, .search-tag.is-rating { color: var(--priority); }
 .search-tag.is-warn { color: var(--warning); }
+.search-row-marks { margin-left: auto; padding-left: var(--space-12); display: flex; gap: var(--space-8); flex: 0 0 auto; color: var(--text-dim); }
+.search-mark { display: inline-flex; }
+.search-mark .ico { width: 16px; height: 16px; }
+.search-mark.is-star { color: var(--priority); }
+.search-mark.is-star .ico { fill: currentColor; }
 .search-row mark { background: var(--accent-soft); color: inherit; border-radius: var(--r-xs); }
 .search-more { width: 100%; border-radius: 0; background: none; color: var(--text-dim); min-height: 40px; }
 .search-filter-note {
