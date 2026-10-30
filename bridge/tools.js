@@ -623,6 +623,7 @@ const TOOLS = [
       bought: S.bool("true: only bought ones; false: only not bought (the Backlog's Show → Bought / Not bought). On top of status; a category with Bought switched off passes either way"),
       price_alert: S.bool("Only Steam games with a price alert set and not bought yet (the Backlog's Show → Price alert)"),
       sort: S.str("starred (default: starred first, then by title) or length (shortest first, as the Backlog's Length sort; unknown last)", { enum: ["starred", "length"] }),
+      length: S.str("Only this length, judged in each title's own unit (the Pick sheet's chips): short is up to 5 hrs, 250 pages, 13 episodes or 50 chapters; long is 25 hrs, 500 pages, 40 episodes or 200 chapters and up; unknown lengths drop out", { enum: ["short", "medium", "long"] }),
       limit: S.limit,
     },
     async run(a) {
@@ -640,6 +641,7 @@ const TOOLS = [
         && (!a.starred || b.priority)
         && (a.bought == null || !!b.bought === a.bought || boughtOff(b.category))
         && (!a.price_alert || (b.priceAlert > 0 && b.mediaSource === "steam" && !b.bought))
+        && (!a.length || Backlog.lengthBand(b) === a.length)
         && (status === "all" || (status === "open" ? !b.dropped : status === "starred" ? b.priority && !b.dropped
           : status === "started" ? b.startedAt : status === "bought" ? b.bought
           : status === "airing" ? (b.airing === "airing" || b.airing === "hiatus") && !b.dropped : b.dropped)))
@@ -647,8 +649,39 @@ const TOOLS = [
       const lim = limitOf(a, 40);
       return [head(rows.length, Math.min(lim, rows.length), status + " backlog items"), ...rows.slice(0, lim).map((b) => {
         const flags = [b.priority && "starred", b.startedAt && "started " + b.startedAt, b.progress && progressFlag(b), b.bought && "bought", b.dropped && "dropped",
-          b.releaseDate && "out " + b.releaseDate, b.airing && airingFlag(b), a.sort === "length" && b.length].filter(Boolean);
+          b.releaseDate && "out " + b.releaseDate, b.airing && airingFlag(b), (a.sort === "length" || a.length) && b.length].filter(Boolean);
         return `- [${b.category}] ${b.title}${b.author ? " by " + b.author : ""}${flags.length ? " (" + flags.join(", ") + ")" : ""}${b.notes ? " — " + cut(b.notes, 100) : ""}  (${b.id})`;
+      })].join("\n");
+    },
+  },
+  {
+    name: "lifelog_pick",
+    description: "Pick something from the backlog at random, as the Backlog's Pick sheet does: only titles you could start today (not dropped, not started, already out). Narrow it like the sheet's chips. Doesn't change anything; the app's own picks also avoid what it showed recently, which this doesn't know about.",
+    readOnly: true,
+    input: {
+      category: S.str("Only this backlog category"),
+      starred: S.bool("Only starred ones"),
+      bought: S.bool("Only bought ones (a category with Bought switched off passes)"),
+      length: S.str("short, medium or long, judged in each title's own unit (see lifelog_backlog)", { enum: ["short", "medium", "long"] }),
+      count: S.int("How many different titles to pick (default 1, up to 10)"),
+    },
+    async run(a) {
+      const d = await readData();
+      const boughtOff = (name) => ((d.categories || []).find((c) => c.name === name) || {}).showBought === false;
+      const pool = (d.backlog || []).filter((b) => !b.dropped && !b.startedAt && Backlog.releaseStateOf(b) !== "waiting"
+        && (!a.category || lower(b.category) === lower(a.category))
+        && (!a.starred || b.priority)
+        && (!a.bought || b.bought || boughtOff(b.category))
+        && (!a.length || Backlog.lengthBand(b) === a.length));
+      if (!pool.length) return "Nothing in the backlog matches that.";
+      const n = Math.max(1, Math.min(10, Math.floor(+a.count || 1)));
+      for (let i = pool.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [pool[i], pool[j]] = [pool[j], pool[i]];
+      }
+      return [`Picked ${Math.min(n, pool.length)} of ${pool.length}:`, ...pool.slice(0, n).map((b) => {
+        const flags = [b.priority && "starred", b.bought && "bought", b.length].filter(Boolean);
+        return `- [${b.category}] ${b.title}${b.author ? " by " + b.author : ""}${flags.length ? " (" + flags.join(", ") + ")" : ""}  (${b.id})`;
       })].join("\n");
     },
   },

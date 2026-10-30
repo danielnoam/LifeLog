@@ -39,7 +39,7 @@ Backlog.init({
 const setSort = (v) => { testState.data.settings.backlogSort = v; };
 
 const { sanitizeBacklog, isUnreleased, releaseStateOf, upcomingAt, parseReleaseInput,
-  formatReleaseInput, bandOf, compareBacklog, peekPickBag, spendPick } = Backlog;
+  formatReleaseInput, bandOf, compareBacklog, peekPickBag, spendPick, lengthBand } = Backlog;
 
 // Dates relative to today, so these stay true whenever they're run.
 function shift(days) {
@@ -438,6 +438,21 @@ test("narrowing the scope drops what left it, widening picks up what came back",
   assert.deepStrictEqual(narrowed.map((b) => b.id).sort(), ["p0", "p1"]);
   const widened = peekPickBag(items, 6).map((b) => b.id).sort();
   assert.deepStrictEqual(widened, ["p0", "p1", "p2", "p3", "p4", "p5"]);
+});
+
+// ---------- Pick's length chips (0.296.0) ----------
+test("Short, Medium and Long judge each unit on its own", () => {
+  const band = (length, extra) => lengthBand({ length, ...extra });
+  assert.strictEqual(band("1h 52m"), "short");
+  assert.strictEqual(band("12 hrs"), "medium");
+  assert.strictEqual(band("60 hrs"), "long");
+  assert.strictEqual(band("180 pages"), "short");
+  assert.strictEqual(band("620 pages"), "long");
+  assert.strictEqual(band("2 seasons · 24 episodes"), "medium");
+  assert.strictEqual(band("12 volumes · 110 chapters"), "medium");
+  assert.strictEqual(band("", { hltb: { story: 30 * 60 } }), "long");
+  assert.strictEqual(band(""), null);
+  assert.strictEqual(band("a while"), null);
 });
 
 // ---------- within-band sorting (0.157.0) ----------

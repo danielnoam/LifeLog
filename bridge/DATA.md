@@ -61,6 +61,14 @@ event or anything else, by category.
   When it has a `story` time, `length` is that time ("32 hrs", "53½ hrs")
   unless the length is pinned. An `hltb` with only `at` means nothing was
   known that day.
+- How long something is counts in its own unit, never converted
+  (`lengthKey` in src/backlog.js): HLTB's `story` time, else the hours,
+  pages, episodes, chapters, volumes or seasons read out of `length`.
+  Short, Medium and Long (the Pick sheet's chips, `lifelog_backlog` and
+  `lifelog_pick`'s `length`) cut each unit on its own: up to 5 hrs, 250
+  pages, 13 episodes, 50 chapters, 5 volumes or 1 season is short; 25 hrs,
+  500 pages, 40 episodes, 200 chapters, 20 volumes or 5 seasons and up is
+  long; no length known is neither.
 - `reviews`: optional, a Steam game's scores out of 100, from the same
   place: `opencritic` and `metauser` (Metacritic's user score), each
   `{ score, verdict?, url? }`.

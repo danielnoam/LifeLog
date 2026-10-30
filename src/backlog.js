@@ -876,6 +876,30 @@
     return null;
   }
 
+  // Short, Medium or Long for the Pick sheet's length chips (0.296.0), each
+  // judged in its own unit, never converted between them — so "Short" is a
+  // quick game, a slim book and a one-cour show at once. The cut points are
+  // [short up to, long from] in each unit; seasons count whole.
+  const LENGTH_BANDS = {
+    0: [5 * 60, 25 * 60],  // minutes: a film is always Short
+    1: [250, 500],         // pages
+    2: [13, 40],           // episodes
+    3: [50, 200],          // chapters
+    4: [5, 20],            // volumes
+    5: [1, 5],             // seasons
+  };
+  const LENGTH_HINTS = {
+    short: "Up to 5 hrs, 250 pages, 13 episodes or 50 chapters",
+    medium: "In between",
+    long: "25 hrs, 500 pages, 40 episodes or 200 chapters and up",
+  };
+  function lengthBand(b) {
+    const k = lengthKey(b);
+    if (!k || !(k.n > 0)) return null;
+    const [short, long] = LENGTH_BANDS[k.unit];
+    return k.n <= short ? "short" : k.n >= long ? "long" : "medium";
+  }
+
   // ---------- manual release overrides ----------
   // What the Advanced foldout's date box accepts, turned into the same
   // { releaseDate, releasePrecision } shape every source adapter emits — so
@@ -1079,6 +1103,7 @@
   let pickCats = new Set();
   let pickStarred = false;
   let pickBought = false;
+  let pickLengths = new Set(); // short / medium / long; none on is any length
   let pickCurrent = null;   // the title on the card
   let pickToken = 0;        // bumped to drop a shuffle still running
 
@@ -1097,6 +1122,14 @@
   }
   function savePickPrefs() {
     try { localStorage.setItem(PICK_PREFS_KEY, JSON.stringify(pickPrefs)); } catch (e) {}
+  }
+  // Wide and in two columns on a computer, stacked on a phone — the same
+  // test as isMobileLayout in app.js.
+  function pickLayout() {
+    const root = document.documentElement;
+    const phone = root.classList.contains("force-mobile")
+      || (!root.classList.contains("force-pc") && window.innerWidth <= 720);
+    $("#pickModal .pick-modal").classList.toggle("pick-modal-wide", !phone);
   }
   const reducedMotion = () =>
     !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
@@ -1185,7 +1218,8 @@
   function pickCandidates() {
     return pickPool.filter((b) => pickCats.has(b.category)
       && (!pickStarred || b.priority)
-      && (!pickBought || b.bought || !categoryShows(b.category).bought));
+      && (!pickBought || b.bought || !categoryShows(b.category).bought)
+      && (!pickLengths.size || pickLengths.has(lengthBand(b))));
   }
 
   // Lives in the mode bar's right-hand slot rather than a row of its own —
@@ -1218,6 +1252,7 @@
     // what's in play, and the chips are for narrowing from there.
     pickCats = new Set(pool.map((b) => b.category));
     pickCurrent = null;
+    pickLayout();
     $("#pickModal").hidden = false;
     // Nothing to draw from lands on My list rather than on an empty card.
     setPickSource(pool.length ? loadPickPrefs().source : "own", false);
@@ -1231,6 +1266,7 @@
   function setPickSource(src, remember) {
     if (remember !== false) { loadPickPrefs().source = src; savePickPrefs(); }
     const own = src === "own";
+    $("#pickModal .pick-modal").classList.toggle("is-own", own);
     $("#pickModal").querySelectorAll(".pick-source .seg-btn").forEach((b) => {
       const on = b.dataset.src === src;
       b.classList.toggle("active", on);
@@ -1306,6 +1342,18 @@
       .appendChild(window.LifeLogIcons.labelled("star", "Starred"));
     chip(pickBought, () => { pickBought = !pickBought; })
       .appendChild(window.LifeLogIcons.labelled("shopping-bag", "Bought"));
+    // Length chips stack as "any of these"; a title with no length known
+    // drops out once one is on. Only offered when something has a length.
+    if (!pickPool.some((b) => lengthBand(b))) return;
+    wrap.appendChild(el("span", "pick-scope-break"));
+    for (const [key, label] of [["short", "Short"], ["medium", "Medium"], ["long", "Long"]]) {
+      const c = chip(pickLengths.has(key), () => {
+        if (pickLengths.has(key)) pickLengths.delete(key);
+        else pickLengths.add(key);
+      });
+      c.title = LENGTH_HINTS[key];
+      c.appendChild(window.LifeLogIcons.labelled("clock", label));
+    }
   }
 
   // Every category switched off, or Starred / Bought with nothing left in
@@ -1320,6 +1368,7 @@
     const wanted = [];
     if (pickStarred) wanted.push("starred");
     if (pickBought) wanted.push("bought");
+    if (pickLengths.size) wanted.push([...pickLengths].join(" or "));
     $("#pickModalCategory").textContent = "";
     $("#pickMeta").textContent = !pickCats.size
       ? "Switch a category back on to draw from it."
@@ -3479,6 +3528,7 @@
     };
     $("#pickRerollBtn").onclick = () => rerollPick();
     $("#pickRevealBtn").onclick = toggleReveal;
+    window.addEventListener("resize", () => { if (!$("#pickModal").hidden) pickLayout(); });
     $("#pickModal").querySelectorAll(".pick-source .seg-btn").forEach((b) => {
       b.onclick = () => setPickSource(b.dataset.src);
     });
@@ -3511,6 +3561,7 @@
     // the toast after a synced title is logged (journal.js's save)
     offerNextInSeries,
     isStarted, // the search page's In progress group
+    lengthBand, // Pick's length chips, and the bridge's lifelog_pick
     // "Pick random" modal (Escape close)
     closePickModal,
     // cover panel (applySteamAppId in app.js writes the fields, then repaints)

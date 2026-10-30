@@ -893,6 +893,29 @@ test("the command line runs the same tools", async () => {
   console.log(`\n${passed} test(s) passed.`);
 })();
 
+test("lifelog_pick draws only what could be started, and length bands judge each unit on its own", async () => {
+  reset();
+  await ok("lifelog_add_backlog_item", { title: "Celeste", category: "Games" });
+  await ok("lifelog_add_backlog_item", { title: "Elden Ring", category: "Games" });
+  await ok("lifelog_add_backlog_item", { title: "Gone Game", category: "Games" });
+  const d = data();
+  const by = (t) => d.backlog.find((b) => b.title === t);
+  by("Celeste").length = "4 hrs";
+  by("Elden Ring").length = "60 hrs";
+  by("Dune").length = "600 pages";
+  by("Gone Game").dropped = true;
+  fs.writeFileSync(FILE, JSON.stringify(d, null, 2));
+  const all = await ok("lifelog_pick", { count: 10 });
+  assert.match(all, /Picked 4 of 4/);
+  assert.doesNotMatch(all, /Gone Game/);
+  const long = await ok("lifelog_pick", { length: "long", count: 10 });
+  assert.match(long, /Elden Ring/);
+  assert.match(long, /Dune/);
+  assert.doesNotMatch(long, /Celeste/);
+  assert.doesNotMatch(await ok("lifelog_backlog", { length: "medium" }), /Celeste|Elden|Dune/);
+  assert.match(await ok("lifelog_pick", { length: "medium" }), /Nothing in the backlog/);
+});
+
 test("lifelog_backlog's starred, bought and price_alert stack like the Backlog's Show chips, and a category without Bought passes bought either way", async () => {
   reset();
   await ok("lifelog_add_backlog_item", { title: "Hades", category: "Games", starred: true });

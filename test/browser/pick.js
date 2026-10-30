@@ -11,8 +11,8 @@ const SEED = {
     { id: "chores", name: "Chores", color: "#e2554b", showBought: false },
   ],
   backlog: [
-    { id: "g1", title: "Starred Bought", category: "Games", priority: 1, bought: true, createdAt: "2026-01-01T00:00:00.000Z" },
-    { id: "g2", title: "Starred Only", category: "Games", priority: 1, createdAt: "2026-01-02T00:00:00.000Z" },
+    { id: "g1", title: "Starred Bought", category: "Games", priority: 1, bought: true, length: "4 hrs", createdAt: "2026-01-01T00:00:00.000Z" },
+    { id: "g2", title: "Starred Only", category: "Games", priority: 1, length: "40 hrs", createdAt: "2026-01-02T00:00:00.000Z" },
     { id: "g3", title: "Plain Game", category: "Games", createdAt: "2026-01-03T00:00:00.000Z" },
     { id: "g4", title: "Dropped Game", category: "Games", dropped: true, createdAt: "2026-01-04T00:00:00.000Z" },
     { id: "c1", title: "Plain Chore", category: "Chores", createdAt: "2026-01-05T00:00:00.000Z" },
@@ -56,6 +56,11 @@ const chip = (page, text) => page.click(`#pickCats .pick-cat:has-text("${text}")
   await chip(page, "Bought"); await page.waitForTimeout(100);
   check("Bought lets through a category without Bought", (await page.textContent("#pickCount")).trim() === "2 titles");
   await chip(page, "Bought");
+  await chip(page, "Short"); await page.waitForTimeout(100);
+  check("Short keeps only the short ones", (await page.textContent("#pickCount")).trim() === "1 title");
+  await chip(page, "Long"); await page.waitForTimeout(100);
+  check("length chips stack as either, unknown lengths out", (await page.textContent("#pickCount")).trim() === "2 titles");
+  await chip(page, "Short"); await chip(page, "Long");
   await chip(page, "Games"); await chip(page, "Chores"); await page.waitForTimeout(100);
   check("no category on says so", (await page.textContent("#pickModalTitle")).includes("Nothing to pick from") && await page.isDisabled("#pickOpenBtn"));
   await chip(page, "Games"); await page.waitForTimeout(100);

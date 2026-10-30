@@ -62,7 +62,8 @@ resource `lifelog://guide` and by the tool `lifelog_guide`.
 ## The tools
 
 Reading: `lifelog_overview` (start here), `lifelog_guide`, `lifelog_search`,
-`lifelog_get`, `lifelog_timeline`, `lifelog_backlog`, `lifelog_notes`,
+`lifelog_get`, `lifelog_timeline`, `lifelog_backlog`, `lifelog_pick` (a
+random title, as the Backlog's Pick sheet draws), `lifelog_notes`,
 `lifelog_expenses`, `lifelog_spending`, `lifelog_recurring`,
 `lifelog_habits`, `lifelog_accomplishments`, `lifelog_boards`,
 `lifelog_trips`, `lifelog_stats` (the Timeline's Stats, a year in numbers),
