@@ -16,6 +16,18 @@ what was decided against and why.
 
 ---
 
+- **Category on big covers, small month rows one line again (0.294.0).**
+  After 0.293.0 Daniel asked for the chip as a label across the foot of a
+  big cover (so the row is the cover's height, and the column is the
+  cover's 48px rather than 64px), for In progress to get the same
+  treatment (under small covers, on big ones), and for month rows with
+  small covers to go back to how they were: chip and "· Author" beside the
+  title, with the 0.291.1 narrow-card dot. So the 0.293.0 measurement
+  below (small covers losing ~12px of title) no longer applies. The label
+  is the chip on an opaque `--bg-elev` backing (the chip's tint is
+  translucent and would read differently over every cover), no dot, and
+  ellipsis at 48px; the full name stays in the chip's title.
+  `placeCatChip` in app.js decides where the chip goes for both rows.
 - **Timeline category under the cover, author under the title (0.293.0).**
   Daniel asked for the chip under the cover so rows take less width, and
   then the author on its own line. Measured before building: on the

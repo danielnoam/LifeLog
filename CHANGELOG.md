@@ -4,6 +4,16 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.294.0] - 2026-10-30
+
+### Changed
+- **Big covers carry their category.** With cover art set to Big, the
+  category is a label across the bottom of the cover, so a Timeline row
+  is no taller than its cover. With Small covers, month rows are back to
+  one line with the category and author beside the title.
+- **In progress rows match.** The category sits under the cover with
+  Small covers and on it with Big ones, so the title gets the row.
+
 ## [0.293.1] - 2026-10-30
 
 ### Changed

@@ -320,13 +320,14 @@
     const row = el("div", "entry");
     row.dataset.id = e.id;
     if (state.bulk.active) row.appendChild(bulkCheckbox(e));
-    // The category chip sits under the cover and a book's author under the
-    // title (0.293.0), so the title gets the row's width. With covers off
-    // the row is one line again and both stay beside the title.
+    // A big cover carries the category as a label across its foot and the
+    // author goes under the title (0.293.0), so the title gets the row's
+    // width. Small covers and covers off keep the one-line row, chip and
+    // "· Author" beside the title (Daniel's call, 0.294.0).
     let side = row;
     if (state.visual.timelineCoverSize !== "none") {
       const sizeClass = state.visual.timelineCoverSize === "big" ? "cover-lg" : "cover-sm";
-      side = row.appendChild(el("div", "etn-side"));
+      if (sizeClass === "cover-lg") side = row.appendChild(el("div", "etn-side"));
       if (e.coverUrl) {
         side.appendChild(coverEl(e.coverUrl, "", "etn-cover " + sizeClass, e.category));
       } else {

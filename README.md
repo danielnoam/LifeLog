@@ -76,8 +76,8 @@ six months as bars). Reminders on Android and iPhone.
 
 What you finished, by year and month, with each year's accomplishments.
 An entry has a rating, notes, cover art, genres, a length and when you
-started it. With cover art on, the category sits under the cover and a
-book's author under the title. What you're in the middle of sits in the
+started it. With big cover art, the category is a label on the cover and a
+book's author sits under the title. What you're in the middle of sits in the
 In progress card at the top; ✓ there logs it with the months it took.
 
 <table><tr>

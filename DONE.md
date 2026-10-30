@@ -52,7 +52,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Newest or oldest first, and optional month summaries (0.157.0, 0.143.0)
 - Covers layout under View: each month's entries as cover art, with the rating (0.290.0)
 - Calendar layout under View: a month of days with covers, the picked day's entries, and No day set (0.291.0)
-- With covers on, the category sits under the cover and a book's author under the title (0.293.0)
+- Big covers carry the category as a label on the cover, with a book's author under the title; In progress puts it under small covers too (0.293.0, 0.294.0)
 
 ## Timeline (Stats) and Recap
 

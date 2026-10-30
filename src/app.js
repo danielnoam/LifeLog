@@ -164,7 +164,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.293.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.294.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1293,10 +1293,10 @@
     return span;
   }
 
-  // A Timeline row's category chip (0.293.0): beside the title with covers
-  // off, under a small cover, and as a label across the bottom of a big one
-  // so the row is no taller than its cover. `side` is the row itself when
-  // covers are off, else the column holding the cover.
+  // A Timeline row's category chip (0.293.0): as a label across the bottom
+  // of a big cover, so the row is no taller than it; under a small one; or
+  // beside the title when `side` is the row itself (covers off, or a month
+  // row with small covers).
   function placeCatChip(side, chip) {
     if (!side.classList.contains("etn-side")) { side.appendChild(chip); return; }
     if (state.visual.timelineCoverSize !== "big") { side.appendChild(chip); return; }

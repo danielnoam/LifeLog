@@ -1288,9 +1288,9 @@ select:focus { outline: none; border-color: var(--accent); }
    cover, category chip and five stars all the room and the title a letter.
    There the chip draws as its dot (the name is its tooltip), the stars as
    "★4", and the span chip and a book's author step aside (the sheet has
-   both), so the title keeps the row. With covers on (0.293.0) the chip sits
-   under the cover with its name and the author under the title, so neither
-   needs to give way. */
+   both), so the title keeps the row. With big covers (0.294.0) the chip is a
+   label on the cover and the author sits under the title, so neither needs
+   to give way. */
 .month-grid > .month-card { container-type: inline-size; }
 @container (max-width: 280px) {
   .month-card .entry:not(.finance-entry) > .entry-cat { font-size: 0; gap: 0; padding: var(--space-4); }
@@ -1377,8 +1377,9 @@ html.force-mobile .progress-since .progress-airing::before { content: none; }
 }
 .entry .entry-cat .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .entry .etn-cover { object-fit: cover; border-radius: var(--r-xs); flex-shrink: 0; }
-/* Cover with the category chip under it (0.293.0). A fixed width keeps
-   every title in a card starting at the same x, whatever the chip says. */
+/* Cover with the category chip under it (In progress with small covers,
+   0.294.0). A fixed width keeps every title starting at the same x,
+   whatever the chip says. */
 .entry .etn-side { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); flex-shrink: 0; width: 64px; }
 .entry .etn-side .entry-cat { max-width: 100%; padding: var(--space-2) var(--space-6); }
 /* Big covers carry the chip as a label across their foot instead, so the
