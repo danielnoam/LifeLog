@@ -98,6 +98,8 @@
           const entries = (state.data.entries || []).map((e) => ({
             fields: [f(e.title, "title"), f(e.author, "author"), f(e.notes, "notes"), f(e.category, "category"), f((e.genres || []).join(", "), "genres")],
             meta: [e.category, dateLabel(e.date)].filter(Boolean).join(" · "),
+            cover: e,
+            tags: [["Completed", "is-done"], e.rating ? ["★" + e.rating, "is-rating"] : null],
             open: () => ctx.Journal.openEntryModal(e),
           }));
           const achs = [];
@@ -118,8 +120,20 @@
     const backlogRow = (b) => ({
       fields: [f(b.title, "title"), f(b.author, "author"), f(b.notes, "notes"), f(b.category, "category"), f((b.genres || []).join(", "), "genres")],
       meta: [b.category, b.releaseYear ? String(b.releaseYear) : ""].filter(Boolean).join(" · "),
+      cover: b,
+      tags: backlogTags(b),
       open: () => B.openBacklogModal(b),
     });
+    // Where it stands, as the Backlog and In progress would show it
+    // (0.295.0): started, starred, bought, given up on, how far it's out.
+    const backlogTags = (b) => [
+      B.isStarted(b) ? ["In progress", "is-accent"] : null,
+      b.priority ? ["Starred", "is-star"] : null,
+      b.bought ? ["Bought", "is-done"] : null,
+      b.dropped ? ["Dropped", ""] : null,
+      b.earlyAccess ? ["Early Access", "is-warn"] : null,
+      !b.earlyAccess && B.airingLabel(b, true) ? [B.airingLabel(b, true), ""] : null,
+    ];
     if (viewEnabled("timeline")) {
       out.push({
         view: "timeline", label: "In progress", icon: "play", filter: "timeline",
@@ -259,6 +273,12 @@
   function row({ it, where, titleHit }, w) {
     const b = el("button", "search-row");
     b.type = "button";
+    // Timeline and Backlog rows carry their cover (0.295.0), the tinted
+    // block where there's none, so a list of them lines up.
+    if (it.cover) {
+      const c = it.cover;
+      b.appendChild(c.coverUrl ? ctx.coverEl(c.coverUrl, "", "search-row-cover", c.category) : ctx.emptyCoverEl("search-row-cover cover-empty", c.category));
+    }
     const text = el("span", "search-row-text");
     const title = el("span", "search-row-title");
     const name = it.fields[0].text || it.untitled || "Untitled";
@@ -269,7 +289,12 @@
       s.appendChild(marked(snippet(where.text, w), w));
       text.appendChild(s);
     }
-    if (it.meta) text.appendChild(el("span", "search-row-meta", it.meta));
+    const tags = (it.tags || []).filter(Boolean);
+    if (it.meta || tags.length) {
+      const meta = el("span", "search-row-meta", it.meta || "");
+      for (const [label, cls] of tags) meta.appendChild(el("span", "search-tag" + (cls ? " " + cls : ""), label));
+      text.appendChild(meta);
+    }
     b.appendChild(text);
     b.onclick = () => it.open();
     return b;

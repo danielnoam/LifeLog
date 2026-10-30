@@ -1953,6 +1953,24 @@ html.force-mobile .cal-more {
 .bl-tile-mark .ico { width: 12px; height: 12px; }
 .bl-tile-mark.is-star { color: var(--priority); }
 .bl-tile-mark.is-star .ico { fill: currentColor; }
+/* Hover details (0.295.0): what the sheet would tell you, over the cover,
+   on a computer only. Fixed black and white like the sheet's times strip,
+   since it sits on the art, not the theme. */
+.tile-info {
+  position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: var(--space-2);
+  padding: var(--space-8); border-radius: var(--r-md); pointer-events: none;
+  background: linear-gradient(to top, rgba(0, 0, 0, .88), rgba(0, 0, 0, .7) 55%, rgba(0, 0, 0, .35));
+  color: #fff; opacity: 0; visibility: hidden;
+  transition: opacity var(--dur-fast) var(--ease), visibility 0s linear var(--dur-fast);
+}
+.tile-info-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-6); font-size: var(--fs-2xs); line-height: 1.3; }
+.tile-info-row:has(.bl-price:empty) { display: none; }
+.tile-info-label { color: rgba(255, 255, 255, .75); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile-info-row.is-price .tile-info-label { flex: 0 0 auto; }
+.tile-info-value { font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+@media (hover: hover) and (pointer: fine) {
+  .bl-tile:hover .tile-info { opacity: 1; visibility: visible; transition: opacity var(--dur) var(--ll-move-ease), visibility 0s; }
+}
 .bl-tile .bulk-check { position: absolute; top: var(--space-4); left: var(--space-4); margin: 0; }
 .bl-tile.is-dropped { filter: opacity(.55); }
 .bl-tile.is-dropped .bl-tile-title { text-decoration: line-through; }
@@ -2337,7 +2355,7 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 .search-list { background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; }
 .search-row {
   display: flex; width: 100%; text-align: left; background: none; border: 0; color: var(--text);
-  padding: 10px 14px; min-height: 44px; cursor: pointer; font: inherit;
+  align-items: center; padding: 10px 14px; min-height: 44px; cursor: pointer; font: inherit;
 }
 .search-row + .search-row, .search-more { border-top: 1px solid var(--border); }
 .search-row:hover { background: var(--hover-bg); }
@@ -2345,6 +2363,16 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 .search-row-title { font-size: var(--fs-md); font-weight: 600; overflow-wrap: anywhere; }
 .search-row-snippet { font-size: var(--fs-sm); color: var(--text-dim); overflow-wrap: anywhere; }
 .search-row-meta { font-size: var(--fs-xs); color: var(--text-faint); }
+.search-row-cover { flex: 0 0 auto; width: 32px; height: 46px; object-fit: cover; border-radius: var(--r-xs); margin-right: var(--space-12); background: var(--bg-elev-2); }
+.search-row-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-4) var(--space-6); }
+.search-tag {
+  font-size: var(--fs-2xs); line-height: 1.5; padding: 0 var(--space-6); border-radius: var(--r-pill);
+  background: var(--bg-elev-2); color: var(--text-dim); white-space: nowrap;
+}
+.search-tag.is-done { color: var(--success); }
+.search-tag.is-accent { color: var(--accent); }
+.search-tag.is-star, .search-tag.is-rating { color: var(--priority); }
+.search-tag.is-warn { color: var(--warning); }
 .search-row mark { background: var(--accent-soft); color: inherit; border-radius: var(--r-xs); }
 .search-more { width: 100%; border-radius: 0; background: none; color: var(--text-dim); min-height: 40px; }
 .search-filter-note {
@@ -2428,6 +2456,10 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
   color: var(--text-dim); background: var(--bg-elev-2); border: 1px solid var(--border);
   border-radius: var(--r-xs); padding: 2px 6px; white-space: nowrap;
 }
+/* Open on a suggestion you already have (0.295.0); its hit area reaches
+   44px tall without making the row any taller. */
+.ac-item .ac-open { flex: 0 0 auto; position: relative; }
+.ac-item .ac-open::after { content: ""; position: absolute; inset: -9px -4px; }
 /* Placeholder for the source still being searched, replaced by its results. */
 .ac-pending {
   padding: 8px 12px; font-size: var(--fs-xs); color: var(--text-dim); font-style: italic;

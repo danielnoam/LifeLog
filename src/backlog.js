@@ -502,7 +502,7 @@
 
     backlogMatches.forEach((b) => {
       const item = makeMediaAcItem(
-        { title: b.title, coverUrl: b.coverUrl || "", year: null, externalRating: null },
+        { title: b.title, coverUrl: b.coverUrl || "", year: null, externalRating: null, open: () => window.LifeLogJournal.openExisting("backlog", b.id) },
         () => {
           lastSyncedBacklogTitle = b.title;
           backlogSyncLocked = true;
@@ -526,7 +526,7 @@
 
     journalMatches.forEach((m) => {
       const item = makeMediaAcItem(
-        { title: m.title, coverUrl: m.coverUrl, year: null, externalRating: null },
+        { title: m.title, coverUrl: m.coverUrl, year: null, externalRating: null, open: () => window.LifeLogJournal.openExisting("entry", m.id) },
         () => {
           lastSyncedBacklogTitle = m.title;
           backlogSyncLocked = true;
@@ -2654,6 +2654,7 @@
     if (b.priority) marks.appendChild(tileMark("star", "Starred", "is-star"));
     if (b.bought) marks.appendChild(tileMark("shopping-bag", "Bought"));
     else if (b.priceAlert > 0 && b.mediaSource === "steam") marks.appendChild(tileMark("bell", "Price alert"));
+    appendTileInfo(art, b, { price: true });
     if (marks.firstChild) art.appendChild(marks);
     if (state.bulk.active) art.appendChild(bulkCheckbox(b));
     tile.appendChild(art);
@@ -2674,6 +2675,52 @@
       img.onerror = () => { img.onerror = fallback; img.src = url; };
     }
     return img;
+  }
+
+  // What a cover hides, shown over it on hover (0.295.0): the release, the
+  // scores, How Long to Beat's times (or the length) and, for a game not
+  // bought yet, GG.deals' price, which loadBacklogPrices patches into the
+  // .bl-price span like a list row's. Built only where there is a mouse:
+  // a phone would never see it, and the Covers layout is its whole list.
+  const canHover = () => !!(window.matchMedia && matchMedia("(hover: hover) and (pointer: fine)").matches);
+  const RATING_SOURCES = { OL: "Open Library", Jikan: "MyAnimeList" };
+  const HLTB_SHORT = [["story", "Main"], ["extras", "+ Extras"], ["complete", "Complete"]];
+  function appendTileInfo(art, item, opts) {
+    if (!canHover()) return;
+    const rows = [];
+    const add = (label, value) => { if (value) rows.push([label, value]); };
+    const year = yearOf(item);
+    add("Release", year ? String(year) : isUnreleased(item) ? "TBA" : "");
+    if (item.earlyAccess) add("Status", "Early Access");
+    else add("Status", airingLabel(item));
+    const ext = String(item.externalRating || "").trim();
+    const m = /^(\S+)\s+(.+)$/.exec(ext);
+    if (m) add(RATING_SOURCES[m[2]] || m[2], m[1]); else add("Rating", ext);
+    const reviews = item.reviews || {};
+    if (reviews.opencritic) add("OpenCritic", String(reviews.opencritic.score));
+    // Metacritic's user score only where the source's own isn't Metacritic,
+    // as on the sheet (0.282.2).
+    if (reviews.metauser && !/Metacritic$/.test(ext)) add("Metacritic users", String(reviews.metauser.score));
+    const hltb = item.hltb || {};
+    const timed = HLTB_SHORT.filter(([k]) => hltb[k] > 0);
+    if (timed.length) for (const [k, label] of timed) add(label, window.LifeLogMedia.gameHours(hltb[k]));
+    else add("Length", item.length);
+    const box = el("div", "tile-info");
+    box.setAttribute("aria-hidden", "true");
+    for (const [label, value] of rows) box.appendChild(tileInfoRow(label, document.createTextNode(value)));
+    if (opts && opts.price && item.mediaSource === "steam" && item.mediaId && !item.bought) {
+      const price = el("span", "bl-price");
+      price.dataset.appid = item.mediaId;
+      box.appendChild(tileInfoRow("Price", price)).classList.add("is-price");
+      if (item.priceAlert > 0) box.appendChild(tileInfoRow("Alert at", document.createTextNode("$" + Number(item.priceAlert).toFixed(2))));
+    }
+    if (box.firstChild) art.appendChild(box);
+  }
+  function tileInfoRow(label, value) {
+    const row = el("div", "tile-info-row");
+    row.appendChild(el("span", "tile-info-label", label));
+    row.appendChild(el("span", "tile-info-value")).appendChild(value);
+    return row;
   }
 
   function tileMark(icon, label, cls) {
@@ -3360,6 +3407,6 @@
     spendPick,
     // the Covers layout's bigger art (test/backlog.test.js), and the tile's
     // image for the Timeline's covers (journal.js)
-    tileCoverUrl, tileCover,
+    tileCoverUrl, tileCover, appendTileInfo,
   };
 })();

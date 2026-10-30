@@ -5894,7 +5894,7 @@
   Share.start({ Backlog, Notes, Travel, toast, viewEnabled, modeEnabled });
   Letterboxd.start({ unzip: (b) => window.LifeLogDocImport.unzip(b), parseCsv: IO.parseCsv, buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport });
   Search.start({
-    state, ico, render, viewEnabled, modeEnabled,
+    state, ico, render, viewEnabled, modeEnabled, coverEl, emptyCoverEl,
     Notes, Habits, Journal, Backlog, Finance, Travel, Settings: SettingsUI,
     goTo: (view) => { if (view !== state.view && viewEnabled(view)) switchToView(view); },
     viewLabel: (view) => { const t = document.querySelector('.tab[data-view="' + view + '"]'); return t ? t.textContent.trim() : view; },

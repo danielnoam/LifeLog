@@ -362,6 +362,7 @@
     tile.dataset.id = e.id;
     const art = el("div", "bl-tile-art");
     art.appendChild(window.LifeLogBacklog.tileCover(e.coverUrl, e.category));
+    window.LifeLogBacklog.appendTileInfo(art, e);
     if (state.bulk.active) art.appendChild(bulkCheckbox(e));
     tile.appendChild(art);
     tile.appendChild(el("span", "bl-tile-title", e.title));
@@ -1052,19 +1053,30 @@
       if (!key.includes(q)) continue;
       let g = groups.get(key);
       if (!g) {
-        g = { title: e.title, count: 0, category: e.category, year: e.year, month: e.month,
+        g = { id: e.id, title: e.title, count: 0, category: e.category, year: e.year, month: e.month,
               coverUrl: e.coverUrl || "", mediaId: e.mediaId || "", mediaSource: e.mediaSource || "", length: e.length || "", genres: e.genres || [] };
         groups.set(key, g);
       }
       g.count++;
       if (e.year > g.year || (e.year === g.year && e.month > g.month)) {
-        g.title = e.title; g.category = e.category; g.year = e.year; g.month = e.month;
+        g.id = e.id; g.title = e.title; g.category = e.category; g.year = e.year; g.month = e.month;
         g.coverUrl = e.coverUrl || ""; g.mediaId = e.mediaId || ""; g.mediaSource = e.mediaSource || ""; g.length = e.length || ""; g.genres = e.genres || [];
       }
     }
     return [...groups.values()]
       .sort((a, b) => a.title.toLowerCase().indexOf(q) - b.title.toLowerCase().indexOf(q) || b.count - a.count)
       .slice(0, 6);
+  }
+
+  // A suggestion's Open: shut whichever sheet is up and show the item's own.
+  function openExisting(kind, id) {
+    const B = window.LifeLogBacklog;
+    const item = kind === "entry" ? state.data.entries.find((e) => e.id === id) : state.data.backlog.find((b) => b.id === id);
+    if (!item) return;
+    closeEntryModal();
+    B.closeBacklogModal();
+    if (kind === "entry") openEntryModal(item);
+    else B.openBacklogModal(item);
   }
 
   // Suggest matching backlog items, so adding an entry surfaces the fact
@@ -1409,6 +1421,15 @@
     // say which is which. Absent on the backlog/journal title suggestions,
     // whose entries carry no source.
     if (r.source) item.appendChild(el("span", "ac-source", MEDIA_SOURCE_LABELS[r.source] || r.source));
+    // Something you already have (0.295.0): Open goes to its sheet instead
+    // of starting a second copy, which picking the row still does.
+    if (r.open) {
+      const btn = el("button", "btn btn-sm ac-open", "Open");
+      btn.type = "button";
+      btn.title = "Open the one you already have";
+      btn.onclick = (ev) => { ev.stopPropagation(); r.open(); };
+      item.appendChild(btn);
+    }
     item.onclick = onPick;
     return item;
   }
@@ -1531,7 +1552,7 @@
 
     localMatches.forEach((m) => {
       const item = makeMediaAcItem(
-        { title: m.title, coverUrl: m.coverUrl, year: null, externalRating: null },
+        { title: m.title, coverUrl: m.coverUrl, year: null, externalRating: null, open: () => openExisting("entry", m.id) },
         () => {
           lastSyncedEntryTitle = m.title;
           entrySyncLocked = true;
@@ -1555,7 +1576,7 @@
 
     backlogMatches.forEach((b) => {
       const item = makeMediaAcItem(
-        { title: b.title, coverUrl: b.coverUrl || "", year: null, externalRating: null },
+        { title: b.title, coverUrl: b.coverUrl || "", year: null, externalRating: null, open: () => openExisting("backlog", b.id) },
         () => {
           lastSyncedEntryTitle = b.title;
           entrySyncLocked = true;
@@ -2129,6 +2150,7 @@
     // modals (add menu, month-card "+", entry empty-state, filter-chip edit, Escape)
     openEntryModal,
     closeEntryModal,
+    openExisting,
     openAchModal,
     closeAchModal, // Escape handler in app.js
     openCategoryModal,
