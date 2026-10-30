@@ -320,12 +320,16 @@
     const row = el("div", "entry");
     row.dataset.id = e.id;
     if (state.bulk.active) row.appendChild(bulkCheckbox(e));
+    // The category chip sits under the cover, so the title gets the row's
+    // width; with covers off it stays beside the title.
+    let side = row;
     if (state.visual.timelineCoverSize !== "none") {
       const sizeClass = state.visual.timelineCoverSize === "big" ? "cover-lg" : "cover-sm";
+      side = row.appendChild(el("div", "etn-side"));
       if (e.coverUrl) {
-        row.appendChild(coverEl(e.coverUrl, "", "etn-cover " + sizeClass, e.category));
+        side.appendChild(coverEl(e.coverUrl, "", "etn-cover " + sizeClass, e.category));
       } else {
-        row.appendChild(emptyCoverEl("etn-cover cover-empty " + sizeClass, e.category));
+        side.appendChild(emptyCoverEl("etn-cover cover-empty " + sizeClass, e.category));
       }
     }
     const color = colorOf(e.category);
@@ -337,7 +341,7 @@
     chip.appendChild(dot);
     chip.appendChild(document.createTextNode(e.category));
     chip.title = e.category;
-    row.appendChild(chip);
+    side.appendChild(chip);
     row.appendChild(titleWithAuthor("etitle", e));
     const sp = spanLabel(e);
     if (sp) {

@@ -1291,7 +1291,7 @@ select:focus { outline: none; border-color: var(--accent); }
    both), so the title keeps the row. */
 .month-grid > .month-card { container-type: inline-size; }
 @container (max-width: 280px) {
-  .month-card .entry:not(.finance-entry) .entry-cat { font-size: 0; gap: 0; padding: var(--space-4); }
+  .month-card .entry:not(.finance-entry) > .entry-cat { font-size: 0; gap: 0; padding: var(--space-4); }
   .month-card .entry:not(.finance-entry) .erating-full, .month-card .entry:not(.finance-entry) .espan, .month-card .entry:not(.finance-entry) .eauthor { display: none; }
   .month-card .entry:not(.finance-entry) .erating-short { display: inline; }
 }
@@ -1369,6 +1369,8 @@ html.force-mobile .progress-since .progress-airing::before { content: none; }
 }
 .entry .entry-cat .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .entry .etn-cover { object-fit: cover; border-radius: var(--r-xs); flex-shrink: 0; }
+.entry .etn-side { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); flex-shrink: 0; width: 64px; }
+.entry .etn-side .entry-cat { max-width: 100%; padding: var(--space-2) var(--space-6); }
 /* Cover art on its way in (coverEl in app.js) fades up when it lands; its
    size class already holds the space, so nothing shifts. */
 img.etn-cover, img.bl-cover { transition: opacity .25s var(--ease); }
