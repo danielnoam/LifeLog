@@ -64,6 +64,11 @@ sync with it. Don't push with any step skipped.
 - **README.md** — the app as it is. Update it in the same commit when the
   change adds, removes or renames a feature, a tab, a file, a setup step or
   how it's built.
+  Keep it short, and the contents list at the top matching the sections.
+  If the change is visible, re-take the screenshots of the sections it
+  touches (`node tools/readme-shots.js <name>`, demo data only) and look at
+  each one; a new feature gets its own section and shot pair, added to
+  `SHOTS` in that script.
 - **DROPPED.md** — decided against (anything Daniel said no to, with his
   reason) or turned out to be impossible. Move an
   idea here rather than deleting it, and write down the *reason*, so it can
@@ -144,8 +149,8 @@ sync with it. Don't push with any step skipped.
   `releases/latest/download/LifeLog.apk`.
 - It only publishes when `APP_VERSION` is new (step 1). A push without a
   bump rebuilds but ships nothing to the app.
-- A push that only touches `**.md`, `test/**` or `.claude/**` doesn't run
-  the workflow at all, which is correct: nothing in the app changed.
+- A push that only touches `**.md`, `test/**`, `.claude/**`, `docs/**` or
+  `tools/readme-shots.js` doesn't run the workflow at all, which is correct: nothing in the app changed.
 - The "iOS app" workflow (0.216.0) builds an unsigned `LifeLog.ipa` on a
   Mac runner and uploads it into that same release once the Android job has
   created it. It never creates the release itself.

@@ -12,7 +12,7 @@ name: iOS app
 on:
   push:
     branches: [main, "claude/**"]
-    paths-ignore: ["**.md", "test/**", ".claude/**"]
+    paths-ignore: ["**.md", "test/**", ".claude/**", "docs/**", "tools/readme-shots.js"]
   workflow_dispatch:
 
 permissions:

@@ -16,6 +16,22 @@ what was decided against and why.
 
 ---
 
+- **The README's screenshots (2026-10-30, no release).** Daniel asked for
+  the README to show every section on a computer and a phone, and to stay
+  current. `tools/readme-shots.js` takes them from made-up demo data dated
+  from today (so it never reads as stale), never from his log, and refuses
+  every request off the machine, which is why covers are drawn SVGs and
+  Discover and the Travel map have no shot (both need live sources). Saved
+  as WebP, encoded by the same Chromium with no new dependency: a third of
+  the PNGs' size, which matters because every re-shoot stays in git
+  history; for the same reason the rule is to re-take only the sections a
+  release changed. On a phone the shot starts below the chips (scrolled
+  under the sticky bar), since they fill half the screen otherwise. The
+  demo device sets the month width to 260px: at the default 180px a month
+  card with a category chip and stars squeezes the title to a letter on a
+  1280px screen. The Android and iOS workflows ignore `docs/**` and the
+  script, so a new shot doesn't rebuild the apps.
+
 - **The Timeline calendar (0.291.0).** Daniel asked for one; a preview
   (phone and desktop) was OK'd before building. A third Layout under View
   rather than a mode, as he wanted for Covers. Entries are filed by year
