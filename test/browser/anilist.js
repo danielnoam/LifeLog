@@ -127,14 +127,14 @@ const media = (id, title, extra) => ({ id, type: "ANIME", title: { romaji: title
     doc.settings.anilist.token = "tok";
     doc.settings.mediaCategorySources = { ...(doc.settings.mediaCategorySources || {}), Anime: "anilist-anime" };
     const dd = doc.backlog.find((x) => x.id === "b2");
-    Object.assign(dd, { startedAt: "2026-09-02", progress: 4, progressAt: "2026-10-01T00:00:00.000Z" });
+    Object.assign(dd, { startedAt: "2026-09-02", progress: 4, progressAt: "2026-10-01T00:00:00.000Z", airing: "airing", episodesOut: 6, episodesTotal: 12 });
     localStorage.setItem("lifelog-cache-v1", JSON.stringify(doc));
     localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "timeline" }));
     localStorage.setItem("lifelog-anilist-base-v1", JSON.stringify({ "anilist-anime:9": { s: "current", p: 4 } }));
   });
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(400);
   const progressRow = await page.evaluate(() => [...document.querySelectorAll(".progress-row")].map((r) => r.textContent).find((t) => /Dandadan/.test(t)) || "");
-  check("the In progress row shows the count", /Ep 4 · since/.test(progressRow), progressRow);
+  check("the In progress row joins the count to how many are out, once", /Ep 4 · 6 of 12 · since/.test(progressRow) && /Airing$/.test(progressRow) && progressRow.split("6 of 12").length === 2, progressRow);
   await page.evaluate(() => [...document.querySelectorAll(".progress-row")].find((r) => /Dandadan/.test(r.textContent)).querySelector(".progress-up").click());
   await page.waitForTimeout(4500);
   check("+ sends episode 5 to AniList, and only the count", saved.length === 1 && saved[0].mediaId === 9 && saved[0].progress === 5 && !saved[0].status, saved);

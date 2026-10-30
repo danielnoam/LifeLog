@@ -16,6 +16,11 @@ what was decided against and why.
 
 ---
 
+- **One count on In progress (0.292.1).** Daniel, after 0.292.0: an
+  airing show showed its count twice ("Ep 4 of 12" and "Airing · 6 of
+  12"). Joined as "Ep 4 · 6 of 12" (watched · out of total), the airing
+  label passed `counted` so it drops its own count. Only where the
+  category counts; elsewhere the airing label is as before.
 - **AniList both ways (0.292.0).** Daniel asked for AniList applied on
   every open, Watching shown as In progress, completion dates placing
   entries, and a +1 episode control that writes back; then for the count

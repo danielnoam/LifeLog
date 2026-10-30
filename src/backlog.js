@@ -150,10 +150,11 @@
   // ---------- how far a show has run (0.265.0) ----------
   // The words for the airing fields (see AIRING_COUNTS in media.js). Nothing
   // for "upcoming": the year or TBA beside it already says that.
-  function airingLabel(b) {
+  // `counted` leaves the count to the episode count beside it (0.292.1).
+  function airingLabel(b, counted) {
     const manga = /manga/.test(b.mediaSource || "");
     const out = +b.episodesOut || 0, total = +b.episodesTotal || 0;
-    const count = out && total ? out + " of " + total : out ? out + " out" : "";
+    const count = counted ? "" : out && total ? out + " of " + total : out ? out + " out" : "";
     const season = b.airingSeason ? "S" + b.airingSeason + " " : "";
     const withCount = (s) => s + (count ? " · " + count : "");
     switch (b.airing) {
@@ -266,8 +267,11 @@
   // Episode count switch is on.
   const countWord = (b) => (/manga/.test(b.mediaSource || "") ? "Ch" : "Ep");
   const countTotal = (b) => +b.episodesTotal || 0;
+  // Still airing, how many are out joins it (0.292.1): "Ep 5 · 6 of 12",
+  // watched, out, all of it, as Daniel asked, rather than two counts.
   function progressLabel(b) {
-    const n = Math.max(0, +b.progress || 0), total = countTotal(b);
+    const n = Math.max(0, +b.progress || 0), total = countTotal(b), out = +b.episodesOut || 0;
+    if (stillAiring(b) && out) return countWord(b) + " " + n + " · " + (total ? out + " of " + total : out + " out");
     return countWord(b) + " " + n + (total ? " of " + total : "");
   }
   async function setProgress(b, n) {
@@ -325,7 +329,7 @@
     // A show also says how far it has run (0.280.0), as its backlog row does.
     const counted = categoryShows(b.category).progress;
     const since = el("span", "progress-since", (counted ? progressLabel(b) + " · " : "") + sinceLabel(b.startedAt));
-    const airing = airingLabel(b);
+    const airing = airingLabel(b, counted);
     if (airing) since.appendChild(el("span", "bl-airing progress-airing" + (airingDone(b) ? " is-done" : ""), airing));
     text.appendChild(since);
     row.appendChild(text);
@@ -3019,9 +3023,10 @@
     const on = shows.progress && $("#bStarted").checked;
     $("#bProgressWrap").hidden = !on;
     if (!on) return;
-    const src = $("#bMediaSource").value, total = +$("#bEpisodesTotal").value || 0;
+    const src = $("#bMediaSource").value, total = +$("#bEpisodesTotal").value || 0, out = +$("#bEpisodesOut").value || 0;
+    const airing = ["airing", "hiatus"].includes($("#bAiring").value) && out;
     $("#bProgressLabel").textContent = /manga/.test(src) ? "Chapters read" : "Episodes watched";
-    $("#bProgressOf").textContent = total ? "of " + total : "";
+    $("#bProgressOf").textContent = airing ? (total ? out + " of " + total + " out" : out + " out") : total ? "of " + total : "";
   }
   function nudgeProgressField(by) {
     const n = Math.max(0, (parseInt($("#bProgress").value, 10) || 0) + by);
