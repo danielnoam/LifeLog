@@ -552,13 +552,15 @@
   // and, from the list entry, `startedAt`, `completedAt` (YYYY-MM-DD, when
   // the day is known) and `score` (1-5, 0 for unscored).
   const ANILIST_LIST_MEDIA = "id type title { romaji english } coverImage { medium } startDate { year month day } status nextAiringEpisode { airingAt episode } averageScore genres episodes chapters volumes";
-  const ANILIST_LIST_ENTRY = "status score(format: POINT_5) startedAt { year month day } completedAt { year month day } media { " + ANILIST_LIST_MEDIA + " }";
+  const ANILIST_LIST_ENTRY = "status progress updatedAt score(format: POINT_5) startedAt { year month day } completedAt { year month day } media { " + ANILIST_LIST_MEDIA + " }";
   const ANILIST_LIST_STATUS = { PLANNING: "planning", CURRENT: "current", COMPLETED: "completed", PAUSED: "paused", DROPPED: "dropped" };
 
-  async function aniListQuery(query, variables) {
+  // With a token (0.292.0) the request is the signed-in user's: it can read
+  // a private list and write to it.
+  async function aniListQuery(query, variables, token) {
     const res = await fetch("https://graphql.anilist.co", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: { "Content-Type": "application/json", Accept: "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) },
       body: JSON.stringify({ query, variables }),
     });
     if (!res.ok) { lastError = "AniList request failed (HTTP " + res.status + ")"; return null; }
@@ -602,14 +604,19 @@
       startedAt: fuzzyDay(e.startedAt),
       completedAt: fuzzyDay(e.completedAt),
       score: Math.round(+e.score || 0),
+      // Episodes (chapters for a manga) you're through, and when the list
+      // entry last changed, in ms (0.292.0, for the two-way sync).
+      progress: Math.max(0, Math.round(+e.progress || 0)),
+      updatedAt: (+e.updatedAt || 0) * 1000,
+      ...(type === "MANGA" ? (m.chapters ? { total: m.chapters } : {}) : (m.episodes ? { total: m.episodes } : {})),
     };
   }
 
-  async function fetchAniListLists(userName, type) {
+  async function fetchAniListLists(userName, type, token) {
     if (!userName) { lastError = "Enter your AniList username"; return null; }
     try {
       const query = "query ($userName: String, $type: MediaType) { MediaListCollection(userName: $userName, type: $type, status_in: [PLANNING, CURRENT, COMPLETED, PAUSED, DROPPED]) { lists { isCustomList entries { " + ANILIST_LIST_ENTRY + " } } } }";
-      const data = await aniListQuery(query, { userName, type });
+      const data = await aniListQuery(query, { userName, type }, token);
       if (!data) return null;
       const lists = (data.MediaListCollection && data.MediaListCollection.lists) || [];
       const out = [];
@@ -624,6 +631,44 @@
         }
       }
       return out;
+    } catch (e) {
+      lastError = "AniList request failed (" + ((e && e.message) || "network error") + ")";
+      return null;
+    }
+  }
+
+  // Who a token belongs to: the check the token box runs when one is
+  // pasted. null when it's refused or AniList can't be reached.
+  async function aniListViewer(token) {
+    try {
+      const data = await aniListQuery("query { Viewer { id name } }", {}, token);
+      return data && data.Viewer ? { id: data.Viewer.id, name: data.Viewer.name } : null;
+    } catch (e) {
+      lastError = "AniList request failed (" + ((e && e.message) || "network error") + ")";
+      return null;
+    }
+  }
+
+  // Writes one title's list entry: `status` (PLANNING, CURRENT, COMPLETED,
+  // DROPPED), `progress`, and `startedAt` / `completedAt` as YYYY-MM-DD or
+  // YYYY-MM. A field left out is left as AniList has it. Returns the entry
+  // as AniList now has it ({ status, progress, updatedAt in ms }), or null.
+  const fuzzyInput = (s) => {
+    const m = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(s || "");
+    return m ? { year: +m[1], month: +m[2], day: m[3] ? +m[3] : null } : undefined;
+  };
+  async function saveAniListEntry(token, mediaId, fields) {
+    const vars = { mediaId: +mediaId };
+    if (fields.status) vars.status = fields.status;
+    if (fields.progress != null) vars.progress = Math.max(0, Math.round(+fields.progress || 0));
+    const started = fuzzyInput(fields.startedAt), completed = fuzzyInput(fields.completedAt);
+    if (started) vars.startedAt = started;
+    if (completed) vars.completedAt = completed;
+    const query = "mutation ($mediaId: Int, $status: MediaListStatus, $progress: Int, $startedAt: FuzzyDateInput, $completedAt: FuzzyDateInput) { SaveMediaListEntry(mediaId: $mediaId, status: $status, progress: $progress, startedAt: $startedAt, completedAt: $completedAt) { status progress updatedAt } }";
+    try {
+      const data = await aniListQuery(query, vars, token);
+      const e = data && data.SaveMediaListEntry;
+      return e ? { status: ANILIST_LIST_STATUS[e.status] || "", progress: +e.progress || 0, updatedAt: (+e.updatedAt || 0) * 1000 } : null;
     } catch (e) {
       lastError = "AniList request failed (" + ((e && e.message) || "network error") + ")";
       return null;
@@ -1475,11 +1520,13 @@
     async fetchSteamAppDetails(appId, proxyUrl, retries) {
       return fetchSteamAppDetails(appId, proxyUrl, retries);
     },
-    async fetchAniListLists(userName, type) {
+    async fetchAniListLists(userName, type, token) {
       lastError = "";
-      return fetchAniListLists(userName, type);
+      return fetchAniListLists(userName, type, token);
     },
     getLastError: () => lastError,
+    async aniListViewer(token) { lastError = ""; return aniListViewer(token); },
+    async saveAniListEntry(token, mediaId, fields) { lastError = ""; return saveAniListEntry(token, mediaId, fields); },
     steamCoverUrl,
     // pure helpers (used by sync.js/backlog.js, and by test/media.test.js)
     parseSteamReleaseDate,

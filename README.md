@@ -234,9 +234,13 @@ with what's new, the credits and the errors on this device.
 - **Imports**: Steam wishlist and played games, AniList, Letterboxd, Google
   Maps lists, Markdown, PDF and EPUB as notes, and JSON or CSV per tab.
   Every import goes through one review screen and can be undone.
-- **AniList**: the import reads every list. Planning goes to the Backlog,
-  Watching starts an item, Completed logs it on the Timeline, Paused and
-  Dropped mark it dropped. Shows and manga keep how far they've run.
+- **AniList, both ways**: your lists are applied on their own (every open,
+  or every day to every month). Planning goes to the Backlog, Watching
+  starts an item with its episode count, Completed logs it on the Timeline
+  on the day it was finished, Paused and Dropped mark it dropped. Signed
+  in, episode counts, starts, finishes and drops go back to AniList; when
+  both sides changed, the newer change wins. Shows and manga keep how far
+  they've run, and In progress items can count episodes (per category).
 - **Activity**: anything that takes a while runs in one list, keeps going
   with the app put away on Android, and is offered again if the app was
   closed on it.
@@ -378,7 +382,7 @@ src/travel.js       Travel: trips and places (travel.json)
 src/recap.js        the yearly Recap
 src/search.js       one search across everything
 src/media.js        cover art and metadata from the media sources
-src/sync.js         Steam and AniList imports, GG.deals prices, release re-checks
+src/sync.js         Steam import, the two-way AniList sync, GG.deals prices, release re-checks
 src/letterboxd.js   the Letterboxd import
 src/io.js           JSON/CSV import and export, and the shared review screen
 src/docimport.js    PDF and EPUB read as text, for notes

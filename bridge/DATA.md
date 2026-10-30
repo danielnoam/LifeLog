@@ -80,6 +80,17 @@ Things to play, read, watch or do next.
   a phone). Only meaningful with a `mediaSource` of `steam`.
 - `dropped`: true when given up on. Kept, but out of the way.
 - `startedAt`: `YYYY-MM-DD` when started (it shows as in progress).
+- `progress`: episodes watched (chapters read for a manga), a whole number
+  above 0, shown on an item in progress where its category's
+  `showProgress` is on. `progressAt`: an ISO time, when the count last
+  changed (by hand, the bridge or AniList). Set them with
+  `lifelog_set_progress`. For an AniList title (`mediaSource`
+  `anilist-anime` or `anilist-manga`) the app's two-way sync (0.292.0)
+  sends the count to AniList and takes AniList's: the side that changed
+  since the two last agreed wins, both changed means the newer time wins,
+  and with no time to go by the higher count does. The same goes for
+  status: Planning is a plain backlog item, Watching is started, Completed
+  is a timeline entry, Paused and Dropped are `dropped`.
 - `hltb`, `reviews`: as on a timeline entry, for a Steam game.
 - Filled in by media lookups: `coverUrl`, `mediaId`, `mediaSource`,
   `summary`, `releaseYear`, `externalRating`, `length`, `genres`.
@@ -113,8 +124,11 @@ backlog, `financeCategories` for expenses and recurring bills,
   `showBought` false hides marking them bought; both are absent when on.
   `showAuthor` is `true` or `false` once set; absent, an author shows when
   the category's lookup source (`settings.mediaCategorySources`) is
-  `openlibrary` or `googlebooks`. Off only hides: an item keeps its
-  `author`, `bought` and `startedAt`. `lifelog_rename_category` sets them.
+  `openlibrary` or `googlebooks`. `showProgress` (0.292.0) works the same
+  way: absent, the episode count shows when the lookup source is
+  `anilist-anime` or `anilist-manga`. Off only hides: an item keeps its
+  `author`, `bought`, `startedAt` and `progress`.
+  `lifelog_rename_category` sets them.
 - An expense category (`financeCategories` only) can hold subcategories:
   `subs`, a list of `{ id, name, createdAt, updatedAt }` (Games and Books
   under Entertainment). Names are unique within their category only. One
@@ -239,8 +253,13 @@ Synced preferences. The bridge never shows these to an AI, because
 `mediaKeys`, `steam` (proxy URL, SteamID64 and the Web API key) and
 `anilist` hold API keys and account names. The one
 that matters for data is `currency`, which `lifelog_overview` gives. The
-Export JSON and the phone's Documents copy carry `mediaKeys` and
-`steam.apiKey` blanked (0.260.0); the synced file has them.
+Export JSON and the phone's Documents copy carry `mediaKeys`,
+`steam.apiKey` (0.260.0) and `anilist.token` (0.292.0) blanked; the synced
+file has them. `anilist` holds `userName`, `animeCategory`,
+`mangaCategory`, `autoSyncDays` ("0" never, "open" every time the app
+opens, or days between syncs), and for sending changes back `clientId`,
+`token` (an AniList access token, a year long) and `connectedAt` (when it
+was pasted; titles added after it are added to AniList too).
 
 Keys: `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,
 `mediaCategorySources`, `mediaCategoryFallbackSources`, `mediaKeys`, `steam`,

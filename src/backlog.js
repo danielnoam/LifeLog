@@ -245,6 +245,7 @@
     delete b.dropped; // starting it is un-dropping it
     render();
     await persist();
+    if (window.LifeLogSync) window.LifeLogSync.aniListChanged(b);
     toast("Started — it's at the top of your Timeline", false, state.view === "timeline" ? null : { label: "Show", onClick: showTimeline });
   }
 
@@ -254,7 +255,45 @@
     delete b.startedAt;
     render();
     await persist();
+    if (window.LifeLogSync) window.LifeLogSync.aniListChanged(b);
     toast("Back in your backlog");
+  }
+
+  // ---------- episode count (0.292.0) ----------
+  // How far into an item in progress you are: `progress` episodes (chapters
+  // for a manga), and `progressAt`, when it last changed, which the AniList
+  // sync weighs against AniList's own time. Shown where the category's
+  // Episode count switch is on.
+  const countWord = (b) => (/manga/.test(b.mediaSource || "") ? "Ch" : "Ep");
+  const countTotal = (b) => +b.episodesTotal || 0;
+  function progressLabel(b) {
+    const n = Math.max(0, +b.progress || 0), total = countTotal(b);
+    return countWord(b) + " " + n + (total ? " of " + total : "");
+  }
+  async function setProgress(b, n) {
+    n = Math.max(0, Math.round(+n || 0));
+    if ((+b.progress || 0) === n) return;
+    if (n) b.progress = n; else delete b.progress;
+    b.progressAt = new Date().toISOString();
+    render();
+    await persist();
+    if (window.LifeLogSync) window.LifeLogSync.aniListChanged(b);
+  }
+  async function stepProgress(id) {
+    const b = state.data.backlog.find((x) => x.id === id);
+    if (!b) return;
+    await setProgress(b, (+b.progress || 0) + 1);
+    const total = countTotal(b);
+    if (total && b.progress >= total) toast("That was the last one", false, { label: "Log it", onClick: () => openEntryModal(null, b) });
+  }
+  function progressButton(b) {
+    const btn = el("button", "btn btn-sm progress-up");
+    btn.type = "button";
+    btn.appendChild(ico("plus"));
+    btn.title = (countWord(b) === "Ch" ? "Read chapter " : "Watched episode ") + ((+b.progress || 0) + 1);
+    btn.setAttribute("aria-label", btn.title + " of " + b.title);
+    btn.onclick = (ev) => { ev.stopPropagation(); stepProgress(b.id); };
+    return btn;
   }
 
   function sinceLabel(day) {
@@ -284,11 +323,13 @@
     text.appendChild(t);
     appendAuthor(text, b);
     // A show also says how far it has run (0.280.0), as its backlog row does.
-    const since = el("span", "progress-since", sinceLabel(b.startedAt));
+    const counted = categoryShows(b.category).progress;
+    const since = el("span", "progress-since", (counted ? progressLabel(b) + " · " : "") + sinceLabel(b.startedAt));
     const airing = airingLabel(b);
     if (airing) since.appendChild(el("span", "bl-airing progress-airing" + (airingDone(b) ? " is-done" : ""), airing));
     text.appendChild(since);
     row.appendChild(text);
+    if (counted) row.appendChild(progressButton(b));
     const stop = el("button", "btn btn-sm progress-stop");
     stop.appendChild(ico("undo-2"));
     stop.type = "button";
@@ -2903,6 +2944,7 @@
     updateStartedBtn();
     updateBoughtBtn();
     $("#bDropped").checked = editing ? !!item.dropped : false;
+    $("#bProgress").value = editing && +item.progress > 0 ? String(item.progress) : "";
     setAuthorField("b", editing ? item : null);
     $("#backlogMoreWrap").hidden = !editing;
     closeSheetMenus();
@@ -2967,8 +3009,23 @@
   function updateStateButtons() {
     const shows = categoryShows($("#bCategory").value);
     $("#bStartedBtn").hidden = !!$("#backlogId").value || (!shows.inProgress && !$("#bStarted").checked);
+    updateProgressField(shows);
     $("#bBoughtBtn").hidden = !shows.bought && !$("#bBought").checked;
     updateMoreMenu();
+  }
+
+  // The sheet's count: on an item in progress, where its category counts.
+  function updateProgressField(shows = categoryShows($("#bCategory").value)) {
+    const on = shows.progress && $("#bStarted").checked;
+    $("#bProgressWrap").hidden = !on;
+    if (!on) return;
+    const src = $("#bMediaSource").value, total = +$("#bEpisodesTotal").value || 0;
+    $("#bProgressLabel").textContent = /manga/.test(src) ? "Chapters read" : "Episodes watched";
+    $("#bProgressOf").textContent = total ? "of " + total : "";
+  }
+  function nudgeProgressField(by) {
+    const n = Math.max(0, (parseInt($("#bProgress").value, 10) || 0) + by);
+    $("#bProgress").value = n ? String(n) : "0";
   }
 
   function updatePriorityBtn() {
@@ -3013,6 +3070,7 @@
     $("#bStarted").checked = !$("#bStarted").checked;
     updateStartedBtn();
     updateMoreMenu();
+    updateProgressField();
   }
 
   // `opts` is for the sheet's More… menu: `toast` replaces the usual
@@ -3042,6 +3100,8 @@
     const bought = $("#bBought").checked;
     const dropped = $("#bDropped").checked;
     const started = $("#bStarted").checked;
+    const progressText = $("#bProgressWrap").hidden ? null : $("#bProgress").value.trim();
+    const progress = progressText === null ? null : Math.max(0, parseInt(progressText, 10) || 0);
     // A target for a game that isn't on Steam, or that's bought, has no
     // price to watch, so it isn't kept.
     const priceAlert = mediaSource === "steam" && !bought ? parseFloat($("#bPriceAlert").value) : NaN;
@@ -3071,6 +3131,10 @@
       // Keeps the day it was started when it's already going.
       if (started && !isStarted(b)) { b.startedAt = localDay(); startedNow = true; }
       else if (!started) delete b.startedAt;
+      if (progress !== null && progress !== (+b.progress || 0)) {
+        if (progress) b.progress = progress; else delete b.progress;
+        b.progressAt = new Date().toISOString();
+      }
     } else {
       const item = { id: uid(), title, category, createdAt: new Date().toISOString() };
       if (notes) item.notes = notes;
@@ -3091,11 +3155,13 @@
       overrides = saveAuthor("b", item, overrides);
       if (overrides) item.overrides = overrides;
       if (started) { item.startedAt = localDay(); startedNow = true; }
+      if (progress) { item.progress = progress; item.progressAt = new Date().toISOString(); }
       state.data.backlog.push(item);
     }
     closeBacklogModal();
     render();
     await persist();
+    if (window.LifeLogSync) window.LifeLogSync.aniListChanged(id ? state.data.backlog.find((x) => x.id === id) : state.data.backlog[state.data.backlog.length - 1]);
     // A fresh target is checked now rather than at the next price load, so
     // a game already under it says so at once (and asks for notifications
     // on a phone that hasn't allowed them yet).
@@ -3113,6 +3179,7 @@
     const id = $("#backlogId").value;
     if (!id) return;
     if (!confirm("Remove this from your backlog?")) return;
+    if (window.LifeLogSync) window.LifeLogSync.aniListRemoved(state.data.backlog.find((x) => x.id === id));
     state.data.backlog = state.data.backlog.filter((x) => x.id !== id);
     closeBacklogModal();
     render();
@@ -3125,6 +3192,7 @@
     "id", "title", "category", "createdAt", "updatedAt", "notes", "coverUrl",
     "mediaId", "mediaSource", "summary", "releaseYear", ...RELEASE_FIELDS,
     "externalRating", "length", "genres", "priority", "bought", "dropped", "overrides", "startedAt", "author", "priceAlert", "hltb", "reviews",
+    "progress", "progressAt",
   ]);
   function sanitizeBacklog(b) {
     const out = {
@@ -3160,6 +3228,8 @@
     if (b.dropped) out.dropped = true;
     if (+b.priceAlert > 0) out.priceAlert = +b.priceAlert;
     if (isStarted(b)) out.startedAt = b.startedAt;
+    if (Math.round(+b.progress) > 0) out.progress = Math.round(+b.progress);
+    if (b.progressAt && !isNaN(Date.parse(b.progressAt))) out.progressAt = String(b.progressAt);
     const overrides = sanitizeOverrides(b.overrides, OVERRIDE_KEYS);
     if (overrides) out.overrides = overrides;
     // Anything this build doesn't know about is carried through rather than
@@ -3183,6 +3253,8 @@
     $("#bPriorityBtn").onclick = togglePriority;
     $("#bBoughtBtn").onclick = toggleBought;
     $("#bStartedBtn").onclick = toggleStarted;
+    $("#bProgressDown").onclick = () => nudgeProgressField(-1);
+    $("#bProgressUp").onclick = () => nudgeProgressField(1);
     $("#bTitle").oninput = renderBacklogTitleSuggestions;
     $("#bCategory").onchange = () => { updateSyncBtnVisibility("b", $("#bCategory").value); updateStateButtons(); };
     wireAuthorField("b");

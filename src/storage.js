@@ -390,6 +390,7 @@
       out.settings.mediaKeys = Object.fromEntries(Object.keys(st.mediaKeys).map((k) => [k, ""]));
     }
     if (st.steam && typeof st.steam === "object") out.settings.steam = { ...st.steam, apiKey: "" };
+    if (st.anilist && typeof st.anilist === "object") out.settings.anilist = { ...st.anilist, token: "" };
     return out;
   }
 

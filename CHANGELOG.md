@@ -4,6 +4,31 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.292.0] - 2026-10-30
+
+### Added
+- **AniList syncs both ways.** Settings → Imports → AniList → Sync
+  automatically now applies what changed on your lists instead of just
+  counting it: a title you started there starts here, one you completed
+  moves to your timeline on the day AniList has it finished, a dropped or
+  paused one is dropped, and new titles come in. Choose Every open (no more
+  than every 10 minutes), every day, 3 days, week or month, or Never.
+  Sync AniList does the same at once. Only completed titles AniList has
+  no dates for wait for you to review. Undo in the toast takes a sync back.
+- **An episode count on In progress.** A + on the row moves it on by one;
+  the item's sheet has − and + to set it. It shows for AniList categories,
+  and for any other where you tick the category's new Episode count switch
+  (a TV category, say). For an AniList title the count syncs both ways.
+- **Sign in to AniList to send changes back.** Settings → Imports → Send
+  changes to AniList: paste a client ID, sign in, paste the token. Then
+  your episode counts, starts, finishes and drops go to AniList, and
+  titles you add here after signing in are added to your lists there.
+  Signed in, private lists work too.
+- When a title changed on both sides, the newer change wins; with no time
+  to go by, the further one does (Completed over Watching, more episodes
+  over fewer). Removing a title here never removes it on AniList, and the
+  sync won't bring it back.
+
 ## [0.291.1] - 2026-10-30
 
 ### Fixed

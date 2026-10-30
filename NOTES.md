@@ -16,6 +16,59 @@ what was decided against and why.
 
 ---
 
+- **AniList both ways (0.292.0).** Daniel asked for AniList applied on
+  every open, Watching shown as In progress, completion dates placing
+  entries, and a +1 episode control that writes back; then for the count
+  to be a per-category option (Shows too, counted locally), for the
+  interval to be a setting like before, and for conflicts to go by when
+  each side changed, else the further one.
+  - *How a conflict is decided.* Per title, status and count separately,
+    against a base: what this device saw the last time the two agreed,
+    in localStorage (`lifelog-anilist-base-v1`). Moved on one side only:
+    that side wins. Moved on both: AniList's `updatedAt` against the
+    item's `updatedAt` (status) or `progressAt` (count). No base, or a
+    time missing: further wins (Completed > Watching > Planning, higher
+    count). A status with no base never goes by time, because `updatedAt`
+    is when anything about the item changed (a cover refresh), not its
+    status; a hand-added backlog item edited yesterday would otherwise
+    push Planning over a title completed on AniList years ago. Paused
+    equals dropped, and dropped has no order, so with no base AniList's
+    stands. Tested in test/sync.test.js against the cases Daniel named.
+  - *Why the base is per device and not synced.* A device whose base is
+    stale only ever sees both sides agree (sync carried the change), so
+    nothing is lost; a synced base would be one more thing to merge.
+  - *The sync waits for GitHub first* (`whenSynced`, the boot reconcile):
+    otherwise a phone that hadn't heard about a title finished on the
+    computer would finish it again from AniList. Items it makes have ids
+    built from the AniList id (and the finish day), so two devices that do
+    it anyway make one item that merge folds.
+  - *No push queue.* A local change is just local state that differs from
+    the base; the next sync on any device with the token sends it. A + or
+    a start sends a few seconds later (aniListChanged, debounced), after
+    any taps that follow. Without a token a local win stays local and is
+    weighed again next time.
+  - *What is sent:* status (with started and completed dates), and the
+    count. Never a delete: removing a title adds it to `importSkips.anilist`
+    so no device brings it back. Titles not on any AniList list go there
+    only if created after `anilist.connectedAt`; signing in isn't asking
+    to copy all history over. Score isn't sent (AniList's scale is the
+    user's choice; LifeLog has 5 stars).
+  - *Undo after a pull* reverts it here, which the next sync then sends
+    to AniList as your change. That's on purpose: Undo means "that's
+    wrong", and both sides end up agreeing.
+  - *The token.* AniList's implicit grant with the pin redirect
+    (https://anilist.co/api/v2/oauth/pin) shows the token to paste, which
+    works the same on a phone and a computer with no redirect page to
+    host. AniList tokens have no scopes and last a year. Daniel chose to
+    sync it like his other keys ("Sync it", 2026-10-30) rather than keep
+    it per device; it's blanked in Export JSON and the phone backup, and
+    hidden from the bridge (settings.anilist is secret there). The bridge
+    sets counts (`lifelog_set_progress`); the app sends them at its next
+    sync, so the bridge itself never talks to AniList.
+  - *Untested live:* graphql.anilist.co isn't reachable from the cloud
+    container; the queries and the mutation were written from AniList's
+    schema and tested against faked responses (test/browser/anilist.js).
+
 - **Narrow month cards (0.291.1).** Found while taking the README's shots:
   at the default 180px month width on a 1280px screen, a Timeline row's
   cover, category chip and five stars left the title 6px. Daniel said fix

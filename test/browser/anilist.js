@@ -1,7 +1,10 @@
 // AniList and airing shows (0.265.0): one sync brings in Planning, starts
 // Watching, and moves what you completed there off the backlog (Undo puts
 // it back); a Completed title you have nowhere comes in as history, and
-// Paused or Dropped as dropped (0.268.0); a show's row says how far it has run, a mid-run one sorts into a
+// Paused or Dropped as dropped (0.268.0); since 0.292.0 it applies all of
+// that without a review (only undated history waits for one), takes the
+// episode count, and with a token sends a + on the In progress row back to
+// AniList. A show's row says how far it has run, a mid-run one sorts into a
 // "Still airing" band that folds, and the re-check finishes a show that ended.
 const { chromium, BASE, tally, forgetCopy } = require("./harness");
 const { check, done } = tally();
@@ -30,7 +33,7 @@ const media = (id, title, extra) => ({ id, type: "ANIME", title: { romaji: title
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => errs.push("pageerror: " + e.message));
-  const asked = [];
+  const asked = [], saved = [];
   await page.route("https://api.github.com/**", (r) => r.fulfill({ status: 404, body: "{}" }));
   await page.route("https://graphql.anilist.co/**", (r) => {
     const body = JSON.parse(r.request().postData() || "{}");
@@ -40,7 +43,7 @@ const media = (id, title, extra) => ({ id, type: "ANIME", title: { romaji: title
       return json({ MediaListCollection: { lists: [
         { isCustomList: false, entries: [{ status: "PLANNING", score: 0, startedAt: {}, completedAt: {}, media: media(11, "Planned Show") }] },
         { isCustomList: false, entries: [
-          { status: "CURRENT", score: 0, startedAt: { year: 2026, month: 9, day: 2 }, completedAt: {}, media: media(9, "Dandadan", { status: "RELEASING", nextAiringEpisode: { airingAt: 1924992000, episode: 6 } }) },
+          { status: "CURRENT", score: 0, progress: 4, updatedAt: 1790000000, startedAt: { year: 2026, month: 9, day: 2 }, completedAt: {}, media: media(9, "Dandadan", { status: "RELEASING", nextAiringEpisode: { airingAt: 1924992000, episode: 6 } }) },
           { status: "CURRENT", score: 0, startedAt: {}, completedAt: {}, media: media(12, "New Watching") },
         ] },
         { isCustomList: false, entries: [
@@ -54,6 +57,7 @@ const media = (id, title, extra) => ({ id, type: "ANIME", title: { romaji: title
         { isCustomList: true, entries: [{ status: "PLANNING", score: 0, startedAt: {}, completedAt: {}, media: media(11, "Planned Show") }] },
       ] } });
     }
+    if (/SaveMediaListEntry/.test(body.query)) { saved.push(body.variables); return json({ SaveMediaListEntry: { status: body.variables.status || "CURRENT", progress: body.variables.progress || 0, updatedAt: 1800000000 } }); }
     return json({});
   });
   await page.route("https://api.themoviedb.org/**", (r) => r.fulfill({ status: 200, contentType: "application/json", headers: { "Access-Control-Allow-Origin": "*" },
@@ -81,47 +85,66 @@ const media = (id, title, extra) => ({ id, type: "ANIME", title: { romaji: title
   await page.evaluate(() => { const v = JSON.parse(localStorage.getItem("lifelog-visual-settings-v1") || "{}"); v.backlogFoldEa = "open"; localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify(v)); });
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(400);
 
-  // The AniList sync.
+  // The AniList sync: everything applied, only undated history to review.
   await page.click("#settingsBtn"); await page.waitForTimeout(300);
   await page.click('.srow[data-page="imports"]'); await page.waitForTimeout(300);
   await page.click("#anilistSyncBtn");
   await page.waitForSelector("#financePickerModal:not([hidden])", { timeout: 8000 }); await page.waitForTimeout(300);
-  check("one request asks for every status list", asked.length === 1 && /status_in: \[PLANNING, CURRENT, COMPLETED, PAUSED, DROPPED\]/.test(asked[0]), asked);
+  check("one request asks for every status list, with the count and the time", asked.length === 1 && /status_in: \[PLANNING, CURRENT, COMPLETED, PAUSED, DROPPED\]/.test(asked[0]) && /progress updatedAt/.test(asked[0]), asked);
+  const toast = await page.evaluate(() => [...document.querySelectorAll("#noticeStack .toast")].map((t) => t.textContent).join(" | "));
+  check("the toast says what moved", /AniList: 4 new, 1 started, 1 finished, 1 dropped, 1 episode count/.test(toast), toast);
   const rows = await page.evaluate(() => [...document.querySelectorAll("#financePickerModal .picker-row")].map((r) => ({
     text: r.textContent, checked: r.querySelector("input[type=checkbox]")?.checked })));
-  const row = (re) => rows.find((r) => re.test(r.text));
-  check("Planning comes in as a backlog row", row(/Planned Show/) && /backlog/.test(row(/Planned Show/).text) && row(/Planned Show/).checked, rows);
-  check("a custom list doesn't repeat it", rows.filter((r) => /Planned Show/.test(r.text)).length === 1, rows.map((r) => r.text));
-  check("a new Watching title comes in progress", row(/New Watching/) && /in progress/.test(row(/New Watching/).text), rows);
-  check("one you have is started, as an update", row(/Dandadan/) && /started/.test(row(/Dandadan/).text) && row(/Dandadan/).checked, rows);
-  check("a Completed one is done and leaves the backlog", row(/Frieren/) && /leaves backlog/.test(row(/Frieren/).text) && row(/Frieren/).checked, rows);
-  check("a Completed title you have nowhere comes in as history, ticked", row(/Old Favourite/) && row(/Old Favourite/).checked && !/leaves backlog/.test(row(/Old Favourite/).text), rows);
-  check("one with no dates comes unticked", row(/Undated One/) && !row(/Undated One/).checked, rows);
-  check("one already on the timeline isn't offered again", !row(/Logged Already/), rows.map((r) => r.text));
-  check("a Paused one you have is dropped, as an update", row(/Chainsaw Man/) && /dropped/.test(row(/Chainsaw Man/).text) && row(/Chainsaw Man/).checked, rows);
-  check("a Dropped one you don't have comes in dropped", row(/Gave Up/) && /dropped/.test(row(/Gave Up/).text) && row(/Gave Up/).checked, rows);
-  await page.click("#financePickerConfirmBtn"); await page.waitForTimeout(800);
+  check("only the Completed title with no dates waits for review, unticked", rows.length === 1 && /Undated One/.test(rows[0].text) && !rows[0].checked, rows);
+  await page.click("#financePickerCancelBtn"); await page.waitForTimeout(300);
   let d = await data();
   const frierenEntry = d.entries.find((e) => e.title === "Frieren");
-  check("Frieren moved to the timeline in March with your score", frierenEntry && frierenEntry.year === 2026 && frierenEntry.month === 3 && frierenEntry.rating === 4
+  check("Frieren moved to the timeline on the day it was finished, with your score", frierenEntry && frierenEntry.year === 2026 && frierenEntry.month === 3 && frierenEntry.day === 14 && frierenEntry.rating === 4
     && frierenEntry.startMonth === 1 && frierenEntry.backlogAddedAt === "2026-01-01T00:00:00.000Z", frierenEntry);
   check("and is off the backlog", !d.backlog.some((x) => x.id === "b1"), d.backlog.map((x) => x.title));
   const old = d.entries.find((e) => e.title === "Old Favourite");
-  check("Old Favourite is filed in the month it was finished, spanning back, with your score", old && old.year === 2025 && old.month === 2 && old.startYear === 2024 && old.startMonth === 11 && old.rating === 5 && old.mediaId === "20", old);
-  check("Chainsaw Man is dropped", (d.backlog.find((x) => x.id === "b5") || {}).dropped === true, d.backlog.find((x) => x.id === "b5"));
+  check("Old Favourite is filed in the month it was finished, spanning back, with your score", old && old.year === 2025 && old.month === 2 && old.day === 9 && old.startYear === 2024 && old.startMonth === 11 && old.rating === 5 && old.mediaId === "20", old);
+  check("a custom list doesn't repeat Planned Show", d.backlog.filter((x) => x.title === "Planned Show").length === 1);
+  check("one already on the timeline isn't brought in again", d.entries.filter((e) => e.title === "Logged Already").length === 1);
+  check("Chainsaw Man (Paused) is dropped", (d.backlog.find((x) => x.id === "b5") || {}).dropped === true, d.backlog.find((x) => x.id === "b5"));
   check("Gave Up is in the backlog, dropped", (d.backlog.find((x) => x.title === "Gave Up") || {}).dropped === true);
-  check("Dandadan is started on the day AniList says", (d.backlog.find((x) => x.id === "b2") || {}).startedAt === "2026-09-02", d.backlog.find((x) => x.id === "b2"));
+  const dan = d.backlog.find((x) => x.id === "b2") || {};
+  check("Dandadan is started on the day AniList says, at episode 4", dan.startedAt === "2026-09-02" && dan.progress === 4 && !!dan.progressAt, dan);
   const nw = d.backlog.find((x) => x.title === "New Watching");
   check("New Watching is in progress", nw && /^\d{4}-\d{2}-\d{2}$/.test(nw.startedAt || ""), nw);
   check("Planned Show is in the backlog, not started", (d.backlog.find((x) => x.title === "Planned Show") || {}).startedAt === undefined && d.backlog.some((x) => x.title === "Planned Show"));
-  const toast = await page.textContent("#toast");
-  check("the toast says what moved", /moved off your backlog/.test(toast), toast);
+  check("nothing went to AniList without a token", saved.length === 0, saved);
 
-  await page.click("#toast .toast-action"); await page.waitForTimeout(700);
+  await page.evaluate(() => [...document.querySelectorAll("#noticeStack .toast-action")].find((b) => /Undo/.test(b.textContent))?.click()); await page.waitForTimeout(700);
   d = await data();
   check("Undo puts Frieren back on the backlog and takes the entry away", d.backlog.some((x) => x.id === "b1" && x.title === "Frieren") && !d.entries.some((e) => e.title === "Frieren"), { b: d.backlog.map((x) => x.title), e: d.entries.map((e) => e.title) });
   check("and un-starts Dandadan", (d.backlog.find((x) => x.id === "b2") || {}).startedAt === undefined);
   check("and un-drops Chainsaw Man, and takes the history away", (d.backlog.find((x) => x.id === "b5") || {}).dropped === undefined && !d.entries.some((e) => e.title === "Old Favourite"));
+
+  // Signed in: the + on the In progress row goes to AniList.
+  await page.evaluate(() => {
+    const doc = window.LifeLogStorage.cachedCopy();
+    doc.settings.anilist.token = "tok";
+    doc.settings.mediaCategorySources = { ...(doc.settings.mediaCategorySources || {}), Anime: "anilist-anime" };
+    const dd = doc.backlog.find((x) => x.id === "b2");
+    Object.assign(dd, { startedAt: "2026-09-02", progress: 4, progressAt: "2026-10-01T00:00:00.000Z" });
+    localStorage.setItem("lifelog-cache-v1", JSON.stringify(doc));
+    localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "timeline" }));
+    localStorage.setItem("lifelog-anilist-base-v1", JSON.stringify({ "anilist-anime:9": { s: "current", p: 4 } }));
+  });
+  await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(400);
+  const progressRow = await page.evaluate(() => [...document.querySelectorAll(".progress-row")].map((r) => r.textContent).find((t) => /Dandadan/.test(t)) || "");
+  check("the In progress row shows the count", /Ep 4 · since/.test(progressRow), progressRow);
+  await page.evaluate(() => [...document.querySelectorAll(".progress-row")].find((r) => /Dandadan/.test(r.textContent)).querySelector(".progress-up").click());
+  await page.waitForTimeout(4500);
+  check("+ sends episode 5 to AniList, and only the count", saved.length === 1 && saved[0].mediaId === 9 && saved[0].progress === 5 && !saved[0].status, saved);
+  d = await data();
+  check("and it's 5 here", (d.backlog.find((x) => x.id === "b2") || {}).progress === 5);
+  const base = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-anilist-base-v1") || "{}"));
+  check("the two now agree on 5", base["anilist-anime:9"] && base["anilist-anime:9"].p === 5, base);
+  await page.evaluate(() => { const doc = window.LifeLogStorage.cachedCopy(); delete doc.settings.anilist.token; localStorage.setItem("lifelog-cache-v1", JSON.stringify(doc)); localStorage.setItem("lifelog-ui-v1", JSON.stringify({ view: "backlog", backlogMode: "entries" })); });
+  await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(400);
+  await page.click("#settingsBtn"); await page.waitForTimeout(300);
 
   // The re-check finishes a show that ended.
   await page.evaluate(() => { const back = document.querySelector("#settingsBack, .settings-back"); if (back) back.click(); });

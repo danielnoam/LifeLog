@@ -261,13 +261,21 @@ test("a category shows In progress and Bought until they're turned off, and an a
     { name: "Comics", showAuthor: true }, { name: "Novels", showAuthor: false },
   ];
   state.data.settings = { mediaCategorySources: { Books: "openlibrary", Novels: "googlebooks", Comics: "" } };
-  assert.deepStrictEqual(Journal.categoryShows("Books"), { inProgress: true, bought: true, author: true });
-  assert.deepStrictEqual(Journal.categoryShows("Places"), { inProgress: false, bought: false, author: false });
+  assert.deepStrictEqual(Journal.categoryShows("Books"), { inProgress: true, bought: true, author: true, progress: false });
+  assert.deepStrictEqual(Journal.categoryShows("Places"), { inProgress: false, bought: false, author: false, progress: false });
   assert.strictEqual(Journal.categoryShows("Comics").author, true, "ticked by hand, with no source");
   assert.strictEqual(Journal.categoryShows("Novels").author, false, "unticked by hand beats a books source");
   assert.strictEqual(Journal.categoryShows("Gone").inProgress, true, "a name with no category gets the defaults");
   assert.strictEqual(Journal.authorOf({ category: "Books", author: "Ursula K. Le Guin" }), "Ursula K. Le Guin");
   assert.strictEqual(Journal.authorOf({ category: "Novels", author: "Ursula K. Le Guin" }), "", "kept, but hidden");
+});
+
+test("the episode count is on for an AniList category, and set by hand for any other", () => {
+  state.data.categories = [{ name: "Anime" }, { name: "Shows", showProgress: true }, { name: "Manga", showProgress: false }];
+  state.data.settings = { mediaCategorySources: { Anime: "anilist-anime", Shows: "tmdb-tv", Manga: "anilist-manga" } };
+  assert.strictEqual(Journal.categoryShows("Anime").progress, true);
+  assert.strictEqual(Journal.categoryShows("Shows").progress, true, "ticked for a TV category, counted here only");
+  assert.strictEqual(Journal.categoryShows("Manga").progress, false, "unticked beats an AniList source");
 });
 
 test("an entry keeps its author and the pin that says it was typed", () => {

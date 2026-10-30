@@ -72,6 +72,8 @@ straight from Google; the only tool that goes beyond your data).
 
 Changing: `lifelog_add_expense`, `lifelog_add_timeline_entry`,
 `lifelog_add_backlog_item`, `lifelog_finish_backlog_item`,
+`lifelog_set_progress` (an episode count; AniList gets it at the app's
+next sync),
 `lifelog_add_note`, `lifelog_update_list`, `lifelog_mark_habit`,
 `lifelog_update_item`, `lifelog_delete_item`,
 `lifelog_add_accomplishment`, `lifelog_update_accomplishment`,

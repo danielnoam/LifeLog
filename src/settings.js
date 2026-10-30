@@ -339,6 +339,7 @@
     "steam.wishlistCategory": "Steam wishlist category", "steam.autoSyncDays": "Steam auto-sync",
     "anilist.userName": "AniList user name", "anilist.animeCategory": "AniList anime category",
     "anilist.mangaCategory": "AniList manga category", "anilist.autoSyncDays": "AniList auto-sync",
+    "anilist.clientId": "AniList client ID", "anilist.token": "AniList access token", "anilist.connectedAt": "AniList sign-in time",
     "releases.autoRefreshDays": "release-date refresh",
     "importSkips.steamWishlist": "Steam wishlist skips", "importSkips.steamOwned": "Steam played-games skips", "importSkips.anilist": "AniList skips",
     timelineSort: "Timeline sort", ledgerSort: "Ledger sort", backlogSort: "Backlog sort", currency: "Home currency",
@@ -998,6 +999,10 @@
     if (current && state.data.categories.some((c) => c.name === current)) sel.value = current;
   }
 
+  function showAniListTokenState(text) {
+    const a = state.data.settings.anilist || {};
+    $("#anilistTokenState").textContent = text || (a.token ? "Signed in — changes here go to AniList" : "Not signed in — AniList is only read");
+  }
   // Fills one of the two AniList category selects. Unlike the Steam picker,
   // each leads with a "Don't import" blank option so a user can sync only
   // anime, only manga, or both.
@@ -1193,6 +1198,9 @@
     $("#steamGameTimes").value = ["off", "1", "3", "7", "30"].includes(gameTimes) ? gameTimes : "30";
     $("#anilistUserName").value = state.data.settings.anilist?.userName || "";
     $("#anilistAutoSyncDays").value = state.data.settings.anilist?.autoSyncDays || "0";
+    $("#anilistClientId").value = state.data.settings.anilist?.clientId || "";
+    $("#anilistToken").value = state.data.settings.anilist?.token || "";
+    showAniListTokenState();
     $("#releasesAutoRefreshDays").value = state.data.settings.releases?.autoRefreshDays || "0";
     updateSteamRetryUnresolvedButton();
     updateSteamBackfillRawgButton();
@@ -1650,6 +1658,32 @@
     $("#anilistMangaCategory").onchange = () => setAniListSetting("mangaCategory", $("#anilistMangaCategory").value);
     $("#anilistAutoSyncDays").onchange = () => setAniListSetting("autoSyncDays", $("#anilistAutoSyncDays").value);
     $("#anilistSyncBtn").onclick = syncAniListPlanning;
+    $("#anilistClientId").oninput = () => setAniListSetting("clientId", $("#anilistClientId").value.trim());
+    $("#anilistSignInBtn").onclick = () => {
+      const id = $("#anilistClientId").value.trim();
+      if (!/^\d+$/.test(id)) { toast("Paste your AniList client ID first (Settings → Developer on anilist.co)", true); return; }
+      window.open("https://anilist.co/api/v2/oauth/authorize?client_id=" + encodeURIComponent(id) + "&response_type=token", "_blank");
+    };
+    // A pasted token is checked with AniList before it's kept, so a wrong
+    // paste says so here rather than as a failed sync later. The time it was
+    // kept is when "added after signing in" starts (see aniListLocalOnly).
+    let tokenCheck = 0;
+    $("#anilistToken").oninput = async () => {
+      const token = $("#anilistToken").value.trim();
+      const mine = ++tokenCheck;
+      if (!token) { await setAniListSetting("token", ""); showAniListTokenState(); return; }
+      showAniListTokenState("Checking…");
+      const who = await window.LifeLogMedia.aniListViewer(token);
+      if (mine !== tokenCheck) return;
+      if (!who) { showAniListTokenState(window.LifeLogMedia.getLastError() || "AniList didn't accept that token"); return; }
+      const a = state.data.settings.anilist || (state.data.settings.anilist = { ...DEFAULT_SETTINGS.anilist });
+      a.token = token;
+      a.connectedAt = new Date().toISOString();
+      if (!a.userName) { a.userName = who.name; $("#anilistUserName").value = who.name; }
+      await persist();
+      showAniListTokenState("Signed in as " + who.name);
+      if (who.name.toLowerCase() !== String(a.userName).toLowerCase()) toast("That token is " + who.name + "'s, but the username above is " + a.userName, true);
+    };
 
     $("#releasesAutoRefreshDays").onchange = async () => {
       if (!state.data.settings.releases) state.data.settings.releases = { ...DEFAULT_SETTINGS.releases };

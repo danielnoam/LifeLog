@@ -45,7 +45,7 @@
   // timelineSort/ledgerSort/backlogSort replaced monthOrder in 0.157.0. Each
   // option is one complete statement about the whole list rather than a
   // direction bolted to a hidden field — see SORTS below.
-  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", googlePlaces: "", nyt: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "30" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
+  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", googlePlaces: "", nyt: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "30" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0", clientId: "", token: "", connectedAt: "" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
   // Local to this device, not synced. Every key a view reads off state.visual
   // belongs here: loadVisualSettings fills the gaps in a stored blob from this
   // object, so a default declared here is the only one there is — a `||` at
@@ -164,7 +164,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.291.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.292.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -4062,11 +4062,12 @@
   // sanitized them until 0.140.0, and three of the five places that create
   // one stamped createdAt or nothing at all, so two devices that each added a
   // category had nothing to decide between them.
-  // showInProgress / showBought / showAuthor (0.267.0) are a timeline
-  // category's switches; see categoryShows in journal.js for what absent means.
+  // showInProgress / showBought / showAuthor (0.267.0) and showProgress
+  // (0.292.0) are a timeline category's switches; see categoryShows in
+  // journal.js for what absent means.
   // subs (0.288.0) are an expense category's subcategories; see
   // sanitizeSubs.
-  const KNOWN_CATEGORY_KEYS = new Set(["id", "name", "color", "createdAt", "updatedAt", "showInProgress", "showBought", "showAuthor", "subs"]);
+  const KNOWN_CATEGORY_KEYS = new Set(["id", "name", "color", "createdAt", "updatedAt", "showInProgress", "showBought", "showAuthor", "showProgress", "subs"]);
   function sanitizeCategory(c) {
     const out = {
       id: c.id || uid(),
@@ -4078,6 +4079,7 @@
     if (c.showInProgress === false) out.showInProgress = false;
     if (c.showBought === false) out.showBought = false;
     if (typeof c.showAuthor === "boolean") out.showAuthor = c.showAuthor;
+    if (typeof c.showProgress === "boolean") out.showProgress = c.showProgress;
     const subs = sanitizeSubs(c.subs);
     if (subs.length) out.subs = subs;
     return keepUnknown(c, out, KNOWN_CATEGORY_KEYS);
@@ -4832,7 +4834,7 @@
     function onReconnectOrFocus() { retrySync(); pollForUpdates(); }
     window.addEventListener("online", onReconnectOrFocus);
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") { onReconnectOrFocus(); schedulePoll(); Sync.maybeAutoRefreshReleases(); Sync.maybeCheckPriceAlerts(); return; }
+      if (document.visibilityState === "visible") { onReconnectOrFocus(); schedulePoll(); Sync.maybeAutoRefreshReleases(); Sync.maybeCheckPriceAlerts(); Sync.maybeAutoCheckAniList(); return; }
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       // Leaving the app is the last sure chance to send a queued save.
       if (saveTimer) flushSave();
@@ -5450,7 +5452,7 @@
     // took the screen, this waits for tomorrow rather than stacking on it.
     if (!isAnyModalOpen()) setTimeout(() => { if (!isAnyModalOpen()) Backlog.maybeShowOutToday(); }, 1200);
     Sync.maybeAutoCheckSteamWishlist(); // fire-and-forget, doesn't block startup
-    Sync.maybeAutoCheckAniList(); // same — quiet background check, never blocks startup
+    Sync.maybeAutoCheckAniList(); // same — the two-way AniList sync, when it's due (0.292.0)
     Sync.maybeAutoRefreshReleases(); // same — keeps upcoming release dates current in the background
     Sync.maybeCheckPriceAlerts(); // same — the Steam games with a price target (0.276.0)
     Sync.maybeFillGameTimes(); // same — How Long to Beat times for Steam games (0.282.0)
@@ -5821,6 +5823,7 @@
     buildImportItems: IO.buildImportItems, importItemIncomplete: IO.importItemIncomplete,
     reviewAndImport: IO.reviewAndImport,
     setBacklogCover: Backlog.setBacklogCover, setEntryCover: Journal.setEntryCover,
+    whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } },
   });
   // A tab's label as the bar has it: its own text, not the mode dots or
   // search badge drawn into it.

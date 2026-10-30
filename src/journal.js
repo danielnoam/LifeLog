@@ -1087,9 +1087,12 @@
   // showInProgress and showBought are stored only when turned off. showAuthor
   // is stored once you set it; until then it follows the category's lookup
   // source, on for a books one, since that's where an author comes from.
+  // showProgress (0.292.0) is the same: the episode count on an item in
+  // progress, on by default for an AniList category, whose count syncs.
   // Off only hides things: an item keeps its author, its "bought" and its
   // start day.
   const BOOK_SOURCES = new Set(["openlibrary", "googlebooks"]);
+  const COUNT_SOURCES = new Set(["anilist-anime", "anilist-manga"]);
   // Every lookup source a category can use, as Settings → Media lookups and
   // the category sheet both offer them.
   const MEDIA_SOURCE_OPTIONS = [
@@ -1116,6 +1119,7 @@
       inProgress: c.showInProgress !== false,
       bought: c.showBought !== false,
       author: typeof c.showAuthor === "boolean" ? c.showAuthor : BOOK_SOURCES.has(source),
+      progress: typeof c.showProgress === "boolean" ? c.showProgress : COUNT_SOURCES.has(source),
     };
   }
   // The author an item shows, or "" when there's none or its category hides it.
@@ -1698,6 +1702,7 @@
     buildYearFilter();
     render();
     await persist();
+    if (window.LifeLogSync) window.LifeLogSync.aniListChanged({ mediaSource });
     toast(id ? "Entry updated" : (fromBacklogId ? "Moved to log" : "Entry added"));
     // A new synced entry is something finished: the sequel offer (0.275.0)
     // rides in a second toast under this one, once its lookup lands. An
@@ -1711,6 +1716,7 @@
     const id = $("#entryId").value;
     if (!id) return;
     if (!confirm("Delete this entry?")) return;
+    if (window.LifeLogSync) window.LifeLogSync.aniListRemoved(state.data.entries.find((x) => x.id === id));
     state.data.entries = state.data.entries.filter((x) => x.id !== id);
     closeEntryModal();
     buildYearFilter();
@@ -1751,6 +1757,7 @@
     buildYearFilter();
     render();
     await persist();
+    if (window.LifeLogSync) window.LifeLogSync.aniListChanged(item);
     toast(started ? "Back in progress — it's at the top of your Timeline" : "Moved to backlog");
   }
 
@@ -1818,7 +1825,7 @@
   // ---------- categories management ----------
   // Whether the sheet's Author box still follows the source picker: true
   // until you tick or untick it yourself (see categoryShows).
-  let catAuthorAuto = true;
+  let catAuthorAuto = true, catProgressAuto = true;
   function openCategoryModal(cat) {
     const editing = !!cat;
     $("#catModalTitle").textContent = editing ? "Edit category" : "Add category";
@@ -1828,11 +1835,13 @@
     const source = $("#cSource");
     source.replaceChildren(...MEDIA_SOURCE_OPTIONS.map((o) => { const opt = el("option", null, o.label); opt.value = o.value; return opt; }));
     source.value = (editing && (state.data.settings.mediaCategorySources || {})[cat.name]) || "";
-    const shows = editing ? categoryShows(cat.name) : { inProgress: true, bought: true, author: false };
+    const shows = editing ? categoryShows(cat.name) : { inProgress: true, bought: true, author: false, progress: false };
     $("#cShowInProgress").checked = shows.inProgress;
     $("#cShowBought").checked = shows.bought;
     $("#cShowAuthor").checked = shows.author;
     catAuthorAuto = !editing || typeof cat.showAuthor !== "boolean";
+    $("#cShowProgress").checked = shows.progress;
+    catProgressAuto = !editing || typeof cat.showProgress !== "boolean";
     const uses = $("#cUses");
     if (editing) {
       const entryCount = countBy(state.data.entries, (e) => e.category)[cat.name] || 0;
@@ -1859,6 +1868,7 @@
       if ($("#cShowInProgress").checked) delete c.showInProgress; else c.showInProgress = false;
       if ($("#cShowBought").checked) delete c.showBought; else c.showBought = false;
       if (catAuthorAuto) delete c.showAuthor; else c.showAuthor = $("#cShowAuthor").checked;
+      if (catProgressAuto) delete c.showProgress; else c.showProgress = $("#cShowProgress").checked;
     };
     const setSource = (name) => {
       const sources = state.data.settings.mediaCategorySources || (state.data.settings.mediaCategorySources = {});
@@ -2063,8 +2073,12 @@
     $("#fTitle").oninput = renderTitleSuggestions;
     $("#fCategory").onchange = () => updateSyncBtnVisibility("f", $("#fCategory").value);
     $("#fSyncBtn").onclick = syncEntryTitle;
-    $("#cSource").onchange = () => { if (catAuthorAuto) $("#cShowAuthor").checked = BOOK_SOURCES.has($("#cSource").value); };
+    $("#cSource").onchange = () => {
+      if (catAuthorAuto) $("#cShowAuthor").checked = BOOK_SOURCES.has($("#cSource").value);
+      if (catProgressAuto) $("#cShowProgress").checked = COUNT_SOURCES.has($("#cSource").value);
+    };
     $("#cShowAuthor").onchange = () => { catAuthorAuto = false; };
+    $("#cShowProgress").onchange = () => { catProgressAuto = false; };
     wireAuthorField("f");
     $("#fUnsyncBtn").onclick = unsyncEntry;
     $("#fBacklogUnlinkBtn").onclick = () => { $("#entryFromBacklog").value = ""; updateBacklogLinkBanner(); };

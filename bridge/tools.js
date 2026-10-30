@@ -42,6 +42,8 @@ const cut = (s, n) => { s = String(s || ""); return s.length > n ? s.slice(0, n 
 // How far a show has run (see DATA.md): "airing S3 7/10", "finished 24/24".
 const airingFlag = (b) => [b.airing, b.airingSeason && "S" + b.airingSeason,
   b.episodesOut && (b.episodesTotal ? b.episodesOut + "/" + b.episodesTotal : b.episodesOut + " out")].filter(Boolean).join(" ");
+// How far into it you are (0.292.0): "ep 7/12", "ch 40".
+const progressFlag = (b) => (/manga/.test(b.mediaSource || "") ? "ch " : "ep ") + (+b.progress || 0) + (b.episodesTotal ? "/" + b.episodesTotal : "");
 // An author given by hand is pinned, as one typed in the app is: a sync
 // won't replace it (see DATA.md).
 const authored = (a) => (a.author && String(a.author).trim() ? { author: String(a.author).trim(), overrides: { author: true } } : {});
@@ -622,7 +624,7 @@ const TOOLS = [
         .sort(a.sort === "length" ? byLength : (x, y) => (y.priority || 0) - (x.priority || 0) || String(x.title).localeCompare(String(y.title)));
       const lim = limitOf(a, 40);
       return [head(rows.length, Math.min(lim, rows.length), status + " backlog items"), ...rows.slice(0, lim).map((b) => {
-        const flags = [b.priority && "starred", b.startedAt && "started " + b.startedAt, b.bought && "bought", b.dropped && "dropped",
+        const flags = [b.priority && "starred", b.startedAt && "started " + b.startedAt, b.progress && progressFlag(b), b.bought && "bought", b.dropped && "dropped",
           b.releaseDate && "out " + b.releaseDate, b.airing && airingFlag(b), a.sort === "length" && b.length].filter(Boolean);
         return `- [${b.category}] ${b.title}${b.author ? " by " + b.author : ""}${flags.length ? " (" + flags.join(", ") + ")" : ""}${b.notes ? " — " + cut(b.notes, 100) : ""}  (${b.id})`;
       })].join("\n");
@@ -1016,6 +1018,27 @@ const TOOLS = [
     },
   },
   {
+    name: "lifelog_set_progress",
+    description: "Set how far into a backlog item you are: episodes watched (chapters read for a manga), as the + on an In progress row does. Give count, or add to move it on (add 1 = watched one more). For an AniList title the app sends it to AniList at its next sync.",
+    input: {
+      item: S.str("Its id or title"), count: S.int("The new count, 0 or more"), add: S.int("Or: how many to add (negative takes some off)"),
+    },
+    required: ["item"],
+    async run(a) {
+      if (a.count == null && a.add == null) fail("Give count or add.");
+      if (a.count != null && a.add != null) fail("Give count or add, not both.");
+      return change(`progress "${a.item}"`, (d) => {
+        const b = findItem(d, "backlog", a.item);
+        const n = Math.max(0, Math.round(a.count != null ? +a.count : (+b.progress || 0) + (+a.add || 0)));
+        if (!Number.isFinite(n)) fail("count is a whole number.");
+        const next = { ...structuredClone(b), progressAt: new Date().toISOString() };
+        if (n) next.progress = n; else delete next.progress;
+        replaceItem(d, "backlog", cleanItem(d, "backlog", next, n ? { progress: n } : {}));
+        return { text: `"${b.title}" is at ${progressFlag({ ...b, progress: n })}${b.startedAt ? "" : " (it isn't started; the count shows once it's in progress)"}. id ${b.id}`, touched: [["backlog", b.id]] };
+      });
+    },
+  },
+  {
     name: "lifelog_add_note",
     description: "Save a note. With list_items it's a checklist; with kind 'quote' a quote (author and source optional).",
     input: {
@@ -1197,19 +1220,20 @@ const TOOLS = [
   },
   {
     name: "lifelog_rename_category",
-    description: "Rename a category or project, or change its colour. Every item filed under it follows, as when renaming in the app (a note category's boards too). A timeline category also takes the switches for what its items show (In progress, Bought, Author).",
+    description: "Rename a category or project, or change its colour. Every item filed under it follows, as when renaming in the app (a note category's boards too). A timeline category also takes the switches for what its items show (In progress, Bought, Author, Episode count).",
     input: {
       kind: S.str("Which kind", { enum: Object.keys(NAME_LISTS) }), name: S.str("Its current name"),
       new_name: S.str("The new name"), color: S.str("New colour, #rrggbb"),
       show_in_progress: S.bool("Timeline only: offer In progress (start) on its items"),
       show_bought: S.bool("Timeline only: offer Bought on its items"),
       show_author: S.bool("Timeline only: show an author on its items"),
+      show_progress: S.bool("Timeline only: show an episode count on its items in progress"),
     },
     required: ["kind", "name"],
     async run(a) {
       const spec = NAME_LISTS[a.kind] || fail("kind must be one of: " + Object.keys(NAME_LISTS).join(", "));
       const to = a.new_name != null ? String(a.new_name).trim() : "";
-      const shows = [["show_in_progress", "showInProgress"], ["show_bought", "showBought"], ["show_author", "showAuthor"]].filter(([k]) => typeof a[k] === "boolean");
+      const shows = [["show_in_progress", "showInProgress"], ["show_bought", "showBought"], ["show_author", "showAuthor"], ["show_progress", "showProgress"]].filter(([k]) => typeof a[k] === "boolean");
       if (shows.length && a.kind !== "timeline") fail("The show_ switches are for a timeline category.");
       if (!to && !a.color && !shows.length) fail("Nothing to change: give new_name, color or a show_ switch.");
       if (a.new_name != null && !to) fail("new_name can't be empty.");
@@ -1224,7 +1248,7 @@ const TOOLS = [
         if (a.color) cat.color = a.color.toLowerCase();
         // Stored as the app stores them: In progress and Bought only when off.
         for (const [k, field] of shows) {
-          if (field !== "showAuthor" && a[k]) delete cat[field]; else cat[field] = a[k];
+          if (field !== "showAuthor" && field !== "showProgress" && a[k]) delete cat[field]; else cat[field] = a[k];
         }
         let settings = [];
         if (to && to !== from) { cat.name = to; settings = spec.rename(d, from, to) || []; }

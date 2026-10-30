@@ -116,7 +116,7 @@ function buildData() {
     item("Small Hours", "Movies", { length: "1h 38m", releaseDate: soon(16), releasePrecision: "day", releaseStatus: "upcoming" }),
     item("Coldwater", "Shows", { airing: "airing", episodesOut: 6, episodesTotal: 10, nextAt: soon(3), nextLabel: "S2 E7", releaseDate: "2025-09-12", releasePrecision: "day", releaseStatus: "released" }),
     item("Paper Moons", "Shows", { airing: "finished", episodesOut: 8, episodesTotal: 8, releaseDate: "2024-02-01", releasePrecision: "day", releaseStatus: "released" }),
-    item("Radiant Drift", "Anime", { airing: "airing", episodesOut: 4, episodesTotal: 12, nextAt: soon(5), nextLabel: "Ep 5", releaseDate: "2025-10-04", releasePrecision: "day", releaseStatus: "released" }),
+    item("Radiant Drift", "Anime", { startedAt: ymd(daysAgo(9)), progress: 3, airing: "airing", episodesOut: 4, episodesTotal: 12, nextAt: soon(5), nextLabel: "Ep 5", releaseDate: "2025-10-04", releasePrecision: "day", releaseStatus: "released" }),
     item("Hearthbound", "Anime", { priority: 1, airing: "finished", episodesOut: 24, episodesTotal: 24, releaseDate: "2023-01-10", releasePrecision: "day", releaseStatus: "released" }),
     item("Grey Meridian", "Games", { dropped: true, releaseDate: "2021-05-01", releasePrecision: "day", releaseStatus: "released" }),
     item("Tin Soldiers", "Games", { startedAt: ymd(daysAgo(12)), bought: true, releaseDate: "2024-01-20", releasePrecision: "day", releaseStatus: "released" }),
@@ -191,7 +191,7 @@ function buildData() {
   const data = {
     version: 1, categories, entries, backlog, accomplishments, notes, noteCategories, todos: [], todoCategories: [],
     habits, financeCategories, financeEntries, recurringExpenses, projects,
-    settings: { currency: "USD", mediaCategorySources: { Books: "openlibrary" } },
+    settings: { currency: "USD", mediaCategorySources: { Books: "openlibrary", Anime: "anilist-anime" } },
   };
 
   const tripStart = daysAgo(-18), day = (k) => ymd(new Date(tripStart.getFullYear(), tripStart.getMonth(), tripStart.getDate() + k));

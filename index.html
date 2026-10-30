@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.291.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.292.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -454,6 +454,7 @@
           <label class="toggle-label"><input type="checkbox" id="cShowInProgress" /> In progress</label>
           <label class="toggle-label"><input type="checkbox" id="cShowBought" /> Bought</label>
           <label class="toggle-label"><input type="checkbox" id="cShowAuthor" /> Author</label>
+          <label class="toggle-label"><input type="checkbox" id="cShowProgress" /> Episode count</label>
         </fieldset>
         <p class="hint">Turning one off hides it on this category's items. Nothing they already have is lost.</p>
         <p class="muted" id="cUses"></p>
@@ -537,6 +538,15 @@
         <label>Category
           <select id="bCategory" required></select>
         </label>
+        <div id="bProgressWrap" class="count-field" hidden>
+          <span id="bProgressLabel">Episodes watched</span>
+          <div class="count-step">
+            <button type="button" class="btn btn-sm" id="bProgressDown" title="One fewer" aria-label="One fewer"><span data-ico="minus"></span></button>
+            <input id="bProgress" type="number" inputmode="numeric" min="0" step="1" autocomplete="off" aria-labelledby="bProgressLabel" />
+            <button type="button" class="btn btn-sm" id="bProgressUp" title="One more" aria-label="One more"><span data-ico="plus"></span></button>
+            <span class="muted" id="bProgressOf"></span>
+          </div>
+        </div>
         <div id="bPriceAlertWrap" hidden>
           <label>Price alert
             <input id="bPriceAlert" type="number" inputmode="decimal" min="0" step="0.01" autocomplete="off" placeholder="Under $…" />
@@ -1781,9 +1791,10 @@
             <select id="anilistMangaCategory"></select>
           </label>
           <label class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Auto-check</span></span>
+            <span class="sitem-text"><span class="sitem-title">Sync automatically</span></span>
             <select id="anilistAutoSyncDays">
               <option value="0">Never</option>
+              <option value="open">Every open</option>
               <option value="1">Every day</option>
               <option value="3">Every 3 days</option>
               <option value="7">Every week</option>
@@ -1792,7 +1803,23 @@
           </label>
           <button id="anilistSyncBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Sync AniList</button>
         </div>
-        <p class="hint">Brings in your Planning list as backlog items and your Watching list as in progress, and moves backlog titles you've completed on AniList to your timeline. You review everything first. Needs no key or proxy, but the lists must be public (AniList → Settings → Lists → untick "Set anime/manga list to private"). Set one side to "Don't import" to bring in only the other.</p>
+        <p class="hint">Keeps your lists and LifeLog in step. Planning comes in as backlog items, Watching as in progress with its episode count, Completed goes to your timeline on the day AniList has it finished, and Paused or Dropped come in dropped. When a title changed on both sides, the newer change wins; with no time to go by, the further one does (Completed over Watching, more episodes over fewer). Completed titles AniList has no dates for wait for you to review. Removing something here never removes it on AniList. Needs no key, but until you sign in below the lists must be public (AniList → Settings → Lists → untick "Set anime/manga list to private"). Set one side to "Don't import" to sync only the other.</p>
+      </section>
+
+      <section class="sgroup">
+        <h3 class="sgroup-label">Send changes to AniList</h3>
+        <div class="sgroup-card">
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">AniList client ID</span></span>
+            <input id="anilistClientId" type="text" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="e.g. 12345" />
+          </label>
+          <button id="anilistSignInBtn" type="button" class="sitem sitem-go"><span data-ico="external-link"></span> Sign in to AniList</button>
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">Access token</span><span class="sitem-sub" id="anilistTokenState"></span></span>
+            <input id="anilistToken" type="password" autocomplete="off" spellcheck="false" placeholder="Paste the token AniList shows you" />
+          </label>
+        </div>
+        <p class="hint">Sends your episode counts, starts, finishes and drops back to AniList. Once: on anilist.co open Settings → Developer → Create new client, name it LifeLog, set the redirect URL to https://anilist.co/api/v2/oauth/pin and save. Paste its ID above, press Sign in, approve, and paste the token AniList shows you here. The token lasts a year and can change anything on your AniList account, so it syncs like your other keys but is left out of exports; delete the client on AniList to cut it off. Titles you add here after signing in are added to your AniList lists too.</p>
       </section>
 
       <section class="sgroup" id="paymentsGroup" hidden>
@@ -2283,38 +2310,38 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.291.1"></script>
-  <script defer src="src/headless.js?v=0.291.1"></script>
-  <script defer src="src/platform.js?v=0.291.1"></script>
-  <script defer src="src/icons.js?v=0.291.1"></script>
-  <script defer src="src/jobs.js?v=0.291.1"></script>
-  <script defer src="src/reconcile.js?v=0.291.1"></script>
-  <script defer src="src/qr.js?v=0.291.1"></script>
-  <script defer src="src/media.js?v=0.291.1"></script>
-  <script defer src="src/merge.js?v=0.291.1"></script>
-  <script defer src="src/storage.js?v=0.291.1"></script>
-  <script defer src="src/finance.js?v=0.291.1"></script>
-  <script defer src="src/settings.js?v=0.291.1"></script>
-  <script defer src="src/wheel.js?v=0.291.1"></script>
-  <script defer src="src/backlog.js?v=0.291.1"></script>
-  <script defer src="src/journal.js?v=0.291.1"></script>
-  <script defer src="src/markdown.js?v=0.291.1"></script>
-  <script defer src="src/notes.js?v=0.291.1"></script>
-  <script defer src="src/docimport.js?v=0.291.1"></script>
-  <script defer src="src/io.js?v=0.291.1"></script>
-  <script defer src="src/sync.js?v=0.291.1"></script>
-  <script defer src="src/habits.js?v=0.291.1"></script>
-  <script defer src="src/vendor/rough.js?v=0.291.1"></script>
-  <script defer src="src/boards.js?v=0.291.1"></script>
-  <script defer src="src/travel.js?v=0.291.1"></script>
-  <script defer src="src/recap.js?v=0.291.1"></script>
-  <script defer src="src/reminders.js?v=0.291.1"></script>
-  <script defer src="src/alerts.js?v=0.291.1"></script>
-  <script defer src="src/widgets.js?v=0.291.1"></script>
-  <script defer src="src/share.js?v=0.291.1"></script>
-  <script defer src="src/search.js?v=0.291.1"></script>
-  <script defer src="src/letterboxd.js?v=0.291.1"></script>
-  <script defer src="src/payments.js?v=0.291.1"></script>
-  <script defer src="src/app.js?v=0.291.1"></script>
+  <script defer src="src/errlog.js?v=0.292.0"></script>
+  <script defer src="src/headless.js?v=0.292.0"></script>
+  <script defer src="src/platform.js?v=0.292.0"></script>
+  <script defer src="src/icons.js?v=0.292.0"></script>
+  <script defer src="src/jobs.js?v=0.292.0"></script>
+  <script defer src="src/reconcile.js?v=0.292.0"></script>
+  <script defer src="src/qr.js?v=0.292.0"></script>
+  <script defer src="src/media.js?v=0.292.0"></script>
+  <script defer src="src/merge.js?v=0.292.0"></script>
+  <script defer src="src/storage.js?v=0.292.0"></script>
+  <script defer src="src/finance.js?v=0.292.0"></script>
+  <script defer src="src/settings.js?v=0.292.0"></script>
+  <script defer src="src/wheel.js?v=0.292.0"></script>
+  <script defer src="src/backlog.js?v=0.292.0"></script>
+  <script defer src="src/journal.js?v=0.292.0"></script>
+  <script defer src="src/markdown.js?v=0.292.0"></script>
+  <script defer src="src/notes.js?v=0.292.0"></script>
+  <script defer src="src/docimport.js?v=0.292.0"></script>
+  <script defer src="src/io.js?v=0.292.0"></script>
+  <script defer src="src/sync.js?v=0.292.0"></script>
+  <script defer src="src/habits.js?v=0.292.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.292.0"></script>
+  <script defer src="src/boards.js?v=0.292.0"></script>
+  <script defer src="src/travel.js?v=0.292.0"></script>
+  <script defer src="src/recap.js?v=0.292.0"></script>
+  <script defer src="src/reminders.js?v=0.292.0"></script>
+  <script defer src="src/alerts.js?v=0.292.0"></script>
+  <script defer src="src/widgets.js?v=0.292.0"></script>
+  <script defer src="src/share.js?v=0.292.0"></script>
+  <script defer src="src/search.js?v=0.292.0"></script>
+  <script defer src="src/letterboxd.js?v=0.292.0"></script>
+  <script defer src="src/payments.js?v=0.292.0"></script>
+  <script defer src="src/app.js?v=0.292.0"></script>
 </body>
 </html>

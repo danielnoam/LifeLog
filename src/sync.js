@@ -25,11 +25,11 @@
 
   // Shared app plumbing, provided by app.js via init(ctx).
   let state, $, toast, persist, render, afterDataChange, DEFAULT_SETTINGS, isOverridden,
-    buildImportItems, importItemIncomplete, reviewAndImport, setBacklogCover, setEntryCover;
+    buildImportItems, importItemIncomplete, reviewAndImport, setBacklogCover, setEntryCover, whenSynced;
 
   function init(ctx) {
     ({ state, $, toast, persist, render, afterDataChange, DEFAULT_SETTINGS, isOverridden,
-      buildImportItems, importItemIncomplete, reviewAndImport, setBacklogCover, setEntryCover } = ctx);
+      buildImportItems, importItemIncomplete, reviewAndImport, setBacklogCover, setEntryCover, whenSynced } = ctx);
   }
 
   // Builds the cover/media fields directly from a manually-entered Steam App
@@ -680,7 +680,7 @@
       if (report) report(i, pulls.length, type === "ANIME" ? "Reading your anime lists…" : "Reading your manga lists…");
       // null is a hard failure (network, private list, unknown user), kept
       // distinct from an empty-but-reachable list.
-      const media = await window.LifeLogMedia.fetchAniListLists(ctx.userName, type);
+      const media = await window.LifeLogMedia.fetchAniListLists(ctx.userName, type, ctx.token);
       if (media === null) { failed = true; continue; }
       for (const m of media) out.push({ m, category });
       if (report) report(i + 1, pulls.length);
@@ -710,9 +710,11 @@
   // finished (this month when it has no date), spanning back to when it was
   // started, rated with your AniList score.
   function aniListFinishedEntry(b, m) {
-    const done = /^\d{4}-\d{2}-\d{2}$/.test(m.completedAt || "") ? m.completedAt : today();
+    const dated = /^\d{4}-\d{2}-\d{2}$/.test(m.completedAt || "");
+    const done = dated ? m.completedAt : today();
     const year = +done.slice(0, 4), month = +done.slice(5, 7);
     const e = { title: b.title, category: b.category, year, month, date: year + "-" + pad2(month), backlogAddedAt: b.createdAt || null };
+    if (dated) e.day = +done.slice(8, 10);
     for (const k of ["coverUrl", "mediaId", "mediaSource", "length", "genres", "author", "notes", "externalRating"]) if (b[k]) e[k] = b[k];
     const started = /^\d{4}-\d{2}-\d{2}$/.test(b.startedAt || "") ? b.startedAt : (m.startedAt || "");
     if (started && started <= done) {
@@ -734,6 +736,7 @@
     const done = when || today();
     const year = +done.slice(0, 4), month = +done.slice(5, 7);
     const e = { title: m.title || "", category, year, month, date: year + "-" + pad2(month), mediaSource: m.source, mediaId: m.id };
+    if (day.test(m.completedAt || "")) e.day = +m.completedAt.slice(8, 10);
     for (const k of ["coverUrl", "length", "genres"]) if (m[k] && (!Array.isArray(m[k]) || m[k].length)) e[k] = m[k];
     if (when && day.test(m.startedAt || "") && m.startedAt < when) {
       e.startedAt = m.startedAt;
@@ -804,36 +807,7 @@
     return built;
   }
 
-  const anilistSource = {
-    id: "anilistSyncBtn",
-    label: "AniList",
-    lane: "anilist",
-    skipKey: "anilist",
-    hint: "Review what to bring in from your AniList lists. Planning and Watching come in to your backlog, Completed goes to your timeline (a backlog title you completed moves there), and Paused or Dropped come in dropped. Anything you already have is marked; if this sync can fill in something it's missing, that row says so and is ticked.",
-    plan() {
-      const cfg = state.data.settings.anilist || DEFAULT_SETTINGS.anilist;
-      const userName = (cfg.userName || "").trim();
-      const animeCategory = cfg.animeCategory || "";
-      const mangaCategory = cfg.mangaCategory || "";
-      if (!userName) return { error: "Enter your AniList username first" };
-      if (!animeCategory && !mangaCategory) return { error: "Pick a category for anime and/or manga first" };
-      if (!window.LifeLogMedia) return { error: "Media lookups aren't available" };
-      return { ctx: { userName, animeCategory, mangaCategory } };
-    },
-    async fetch(ctx, report, job) {
-      const out = await fetchAniList(ctx, report, job);
-      if (out === null) {
-        const err = window.LifeLogMedia.getLastError();
-        toast(err ? "AniList sync failed — " + err : "AniList sync failed", true);
-      }
-      return out;
-    },
-    build: buildAniList,
-    empty: () => "Your AniList lists came back empty — check the username, and that your lists are public",
-  };
-
   const syncSteamWishlist = () => runImport(steamWishlistSource);
-  const syncAniListPlanning = () => runImport(anilistSource);
 
   // Backlog items still stuck on the "Steam app <id>" placeholder title —
   // exact match against what syncSteamWishlist generates, so this can't
@@ -1298,42 +1272,378 @@
   // mediaSource: "anilist-anime"/"anilist-manga" + mediaId, the same shape a
   // normal AniList sync produces, so cover art and the genre breakdown pick
   // it up with no extra work.
-  // The AniList equivalent of maybeAutoCheckSteamWishlist, paced by Settings →
-  // Media → AniList "Check automatically" (days between checks; 0 = never).
-  // Fetches the AniList lists for whichever type(s) have a category chosen
-  // and counts what the sync would offer — new titles, titles to start,
-  // backlog titles you've completed there — toasting that count. It never
-  // opens the review picker or changes anything on its own. Counted off the
-  // same rows the sync builds, skips included, so the number is the number
-  // you'd get. Runs unattended, so failures stay silent.
-  async function maybeAutoCheckAniList() {
+  // ---------- AniList, both ways (0.292.0) ----------
+  // A title you have and AniList has is compared field by field, status
+  // (planning, current, completed, dropped; AniList's Paused counts as
+  // dropped) and episode count, against what this device saw the last time
+  // the two agreed: the base, kept per device. The side that moved since
+  // wins. When both moved, the newer change wins, AniList's updatedAt
+  // against the item's updatedAt (status) or progressAt (count). With no
+  // base, or a time missing, the further one wins: Completed over Watching
+  // over Planning, more episodes over fewer. A status change with no base
+  // never goes by time, since an item's updatedAt says when anything about
+  // it changed, not its status. A local win is sent to AniList when there's
+  // a token and kept here when there isn't, so the next sync weighs it again.
+  // Deleting never reaches AniList, and a title removed here isn't brought
+  // back by the next sync (its base is still there, or it's in the skips).
+  const ANILIST_BASE_KEY = "lifelog-anilist-base-v1";
+  const ANILIST_OPEN_GAP = 10 * 60 * 1000;
+  const ANILIST_UP = { planning: "PLANNING", current: "CURRENT", completed: "COMPLETED", dropped: "DROPPED" };
+  const STATUS_RANK = { planning: 0, current: 1, completed: 2 };
+  const isAniListSource = (src) => src === "anilist-anime" || src === "anilist-manga";
+  const isDay = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s || "");
+  const timeOf = (s) => Date.parse(s || "") || 0;
+  // Made from the title's key, so two devices bringing in the same title
+  // (or finishing it on the same day) make one item that sync folds, not two.
+  const aniListItemId = (key, suffix) => ("al-" + key + (suffix ? "-" + suffix : "")).replace(/[^a-z0-9-]+/gi, "-");
+
+  function readAniListBase() { try { return JSON.parse(localStorage.getItem(ANILIST_BASE_KEY)) || {}; } catch (e) { return {}; } }
+  function writeAniListBase(base) { try { localStorage.setItem(ANILIST_BASE_KEY, JSON.stringify(base)); } catch (e) {} }
+
+  function aniListLocalState(b, e) {
+    if (b) return { status: b.dropped ? "dropped" : isDay(b.startedAt) ? "current" : "planning", progress: Math.max(0, +b.progress || 0), at: timeOf(b.updatedAt), progressAt: timeOf(b.progressAt) };
+    return { status: "completed", progress: null, at: timeOf(e.createdAt), progressAt: 0 };
+  }
+
+  // Which side wins one field, or null when they agree.
+  function aniListSide(l, r, base, lt, rt, timed, further) {
+    if (l === r) return null;
+    if (base !== undefined) { if (l === base) return "remote"; if (r === base) return "local"; }
+    if ((base !== undefined || timed) && lt && rt && lt !== rt) return lt > rt ? "local" : "remote";
+    return further(l, r);
+  }
+  const furtherStatus = (l, r) => (l in STATUS_RANK && r in STATUS_RANK && STATUS_RANK[l] > STATUS_RANK[r] ? "local" : "remote");
+  const furtherCount = (l, r) => (l > r ? "local" : "remote");
+
+  // One title: the status and count both sides end on, and which of the two
+  // come from AniList (pull) or go to it (push). `b` is the backlog item,
+  // `e` the timeline entry when there's no backlog item (it's completed).
+  function decideAniList(m, b, e, base) {
+    const l = aniListLocalState(b, e);
+    const remote = m.listStatus === "paused" ? "dropped" : m.listStatus;
+    const statusSide = aniListSide(l.status, remote, base && base.s, l.at, m.updatedAt, false, furtherStatus);
+    const status = statusSide === "local" ? l.status : remote;
+    const rp = +m.progress || 0;
+    let progressSide = null;
+    if (status !== "completed") {
+      progressSide = l.progress === null ? (rp ? "remote" : null)
+        : aniListSide(l.progress, rp, base ? base.p : undefined, l.progressAt, m.updatedAt, true, furtherCount);
+    }
+    const progress = status === "completed" ? null : progressSide === "local" ? l.progress : l.progress === null || progressSide === "remote" ? rp : l.progress;
+    return { status, progress, pullStatus: statusSide === "remote", pullProgress: progressSide === "remote", pushStatus: statusSide === "local", pushProgress: progressSide === "local" };
+  }
+
+  // Every title on your lists against what you have: `titles` you have
+  // (matched by AniList id, or by title and category for one added by hand,
+  // which then gets linked), and `fresh` ones you have nowhere and haven't
+  // removed or skipped.
+  function planAniList(raw, data, base, skips) {
+    const nameKey = (t, c) => String(t || "").trim().toLowerCase() + "\u0000" + c;
+    const keyOf = (x) => x.mediaSource + ":" + x.mediaId;
+    const bKey = new Map(), bName = new Map(), eKey = new Map(), eName = new Map();
+    for (const x of data.backlog || []) {
+      if (isAniListSource(x.mediaSource) && x.mediaId) bKey.set(keyOf(x), x);
+      else if (!x.mediaId && !bName.has(nameKey(x.title, x.category))) bName.set(nameKey(x.title, x.category), x);
+    }
+    // The newest entry stands for a title logged more than once.
+    const newer = (map, k, x) => { const y = map.get(k); if (!y || String(x.date || "") > String(y.date || "")) map.set(k, x); };
+    for (const x of data.entries || []) {
+      if (isAniListSource(x.mediaSource) && x.mediaId) newer(eKey, keyOf(x), x);
+      else if (!x.mediaId) newer(eName, nameKey(x.title, x.category), x);
+    }
+    const titles = [], fresh = [];
+    for (const { m, category } of raw) {
+      const key = m.source + ":" + m.id;
+      let b = bKey.get(key) || null, e = b ? null : eKey.get(key) || null, link = null;
+      if (!b && !e) {
+        const n = nameKey(m.title, category);
+        b = bName.get(n) || null;
+        e = b ? null : eName.get(n) || null;
+        link = b || e;
+        if (b) bName.delete(n); else if (e) eName.delete(n);
+      }
+      if (!b && !e) {
+        if (!base[key] && !skips.has(key)) fresh.push({ m, category });
+        continue;
+      }
+      titles.push({ key, m, b, e, link, ...decideAniList(m, b, e, base[key]) });
+    }
+    return { titles, fresh };
+  }
+
+  // Makes the plan's pulls, and adds the fresh rows given, in state.data.
+  // Returns what changed, counted, and what Undo needs.
+  function applyAniListPlan(plan, rows) {
+    const d = state.data;
+    const undo = { added: { backlog: [], entries: [] }, removed: [], prev: [] };
+    const counts = { started: 0, finished: 0, dropped: 0, back: 0, progress: 0, added: 0 };
+    const now = new Date().toISOString();
+    const remember = (list, x) => {
+      if (undo.added[list].includes(x.id) || undo.prev.some((p) => p.id === x.id && p.list === list)) return;
+      undo.prev.push({ list, id: x.id, before: JSON.parse(JSON.stringify(x)) });
+    };
+    for (const t of plan.titles) {
+      const m = t.m;
+      let b = t.b;
+      if (t.link) {
+        remember(b ? "backlog" : "entries", t.link);
+        t.link.mediaSource = m.source;
+        t.link.mediaId = m.id;
+      }
+      if (t.pullStatus && b && t.status === "completed") {
+        const entry = { ...aniListFinishedEntry(b, m), id: aniListItemId(t.key, m.completedAt || today()), createdAt: now };
+        d.entries.push(entry);
+        undo.added.entries.push(entry.id);
+        undo.removed.push(b);
+        d.backlog = d.backlog.filter((x) => x !== b);
+        b = null;
+        counts.finished++;
+      } else if (t.pullStatus && b) {
+        remember("backlog", b);
+        if (t.status === "current") { if (!isDay(b.startedAt)) b.startedAt = m.startedAt || today(); delete b.dropped; counts.started++; }
+        else if (t.status === "dropped") { b.dropped = true; delete b.startedAt; counts.dropped++; }
+        else { delete b.startedAt; delete b.dropped; counts.back++; }
+      } else if (t.pullStatus && t.e) {
+        // Back on a list after you finished it: watching it again.
+        b = { ...aniListBacklogItem({ ...m, listStatus: t.status }, t.e.category), id: aniListItemId(t.key, today()), createdAt: now };
+        if (t.status === "dropped") b.dropped = true;
+        d.backlog.push(b);
+        undo.added.backlog.push(b.id);
+        if (t.status === "current") counts.started++; else counts.added++;
+      }
+      if (t.pullProgress && b) {
+        remember("backlog", b);
+        b.progress = t.progress;
+        b.progressAt = new Date(m.updatedAt || Date.now()).toISOString();
+        counts.progress++;
+      }
+    }
+    for (const it of rows) {
+      const list = it.kind === "entry" ? "entries" : "backlog";
+      const key = it.entry.mediaSource + ":" + it.entry.mediaId;
+      const rec = { ...it.entry, id: aniListItemId(key, list === "entries" ? (it.entry.date || "") : ""), createdAt: now };
+      const raw = plan.freshByKey && plan.freshByKey.get(key);
+      if (list === "backlog" && raw && raw.progress) { rec.progress = raw.progress; rec.progressAt = new Date(raw.updatedAt || Date.now()).toISOString(); }
+      if (d[list].some((x) => x.id === rec.id)) continue;
+      d[list].push(rec);
+      undo.added[list].push(rec.id);
+      counts.added++;
+    }
+    const changed = undo.prev.length || undo.removed.length || undo.added.backlog.length || undo.added.entries.length;
+    return { changed: !!changed, counts, undo };
+  }
+
+  async function undoAniListPlan(undo) {
+    const d = state.data;
+    for (const list of ["backlog", "entries"]) {
+      const gone = new Set(undo.added[list]);
+      d[list] = d[list].filter((x) => !gone.has(x.id));
+    }
+    for (const p of undo.prev) {
+      const at = d[p.list].findIndex((x) => x.id === p.id);
+      if (at >= 0) d[p.list][at] = p.before;
+    }
+    for (const b of undo.removed) if (!d.backlog.some((x) => x.id === b.id)) d.backlog.push(b);
+    afterDataChange();
+    await persist();
+    toast("AniList changes undone here — the next sync sends that to AniList");
+  }
+
+  // What to send AniList for a title you have: its status with the dates
+  // that go with it, and the count. Completing sends the whole count when
+  // AniList knows it, as its own site does.
+  function aniListPushFields(status, b, e, progress, total, withStatus, withProgress) {
+    const f = {};
+    if (withStatus) {
+      f.status = ANILIST_UP[status];
+      const started = b ? b.startedAt : e && e.startedAt;
+      if (isDay(started)) f.startedAt = started;
+      if (status === "completed" && e && e.year && e.month) f.completedAt = e.year + "-" + pad2(e.month) + (e.day ? "-" + pad2(e.day) : "");
+      if (status === "completed" && total) f.progress = total;
+    }
+    if (withProgress && progress != null) f.progress = progress;
+    return f;
+  }
+
+  // Titles you added here after signing in that AniList doesn't have on
+  // any list: they go to it. Older ones are left alone; signing in isn't
+  // asking to copy your whole history over.
+  function aniListLocalOnly(data, remoteKeys, cfg, base) {
+    const since = timeOf(cfg.connectedAt);
+    if (!since) return [];
+    const cats = new Set(anilistPulls(cfg).map(([, c]) => c));
+    const out = [], seen = new Set();
+    const consider = (x, isEntry) => {
+      if (!isAniListSource(x.mediaSource) || !x.mediaId || !cats.has(x.category)) return;
+      const key = x.mediaSource + ":" + x.mediaId;
+      if (remoteKeys.has(key) || seen.has(key) || base[key] || timeOf(x.createdAt) < since) return;
+      seen.add(key);
+      out.push({ key, mediaId: x.mediaId, b: isEntry ? null : x, e: isEntry ? x : null });
+    };
+    for (const b of data.backlog || []) consider(b, false);
+    for (const e of data.entries || []) consider(e, true);
+    return out;
+  }
+
+  // One sync: read your lists, apply what AniList won, send what this side
+  // won. `manual` is the Sync AniList button: it says what went wrong and
+  // opens the review for what still needs a look. Otherwise it's quiet
+  // unless something changed here.
+  let aniListRun = null, aniListAgain = false;
+  function syncAniList(opts = {}) {
+    if (aniListRun) { aniListAgain = aniListAgain || !opts.manual; if (opts.manual) toast("AniList is already syncing"); return aniListRun; }
+    aniListRun = runAniListSync(opts).finally(() => {
+      aniListRun = null;
+      if (aniListAgain) { aniListAgain = false; syncAniList({ nudge: true }); }
+    });
+    return aniListRun;
+  }
+  async function runAniListSync({ manual } = {}) {
     const cfg = state.data.settings.anilist || DEFAULT_SETTINGS.anilist;
-    const days = parseInt(cfg.autoSyncDays, 10) || 0;
-    if (!days) return;
     const userName = (cfg.userName || "").trim();
-    if (!userName || !anilistPulls(cfg).length) return;
-    if (!window.LifeLogMedia) return;
-    let last = null;
-    try { last = JSON.parse(localStorage.getItem(ANILIST_SYNC_KEY)); } catch (e) {}
-    const lastAt = (last && last.lastCheckedAt) ? new Date(last.lastCheckedAt).getTime() : 0;
-    if (Date.now() - lastAt < days * 24 * 60 * 60 * 1000) return;
+    const say = (msg) => { if (manual) toast(msg, true); };
+    if (!userName) return say("Enter your AniList username first");
+    if (!anilistPulls(cfg).length) return say("Pick a category for anime and/or manga first");
+    if (!window.LifeLogMedia) return say("Media lookups aren't available");
+    // What GitHub has first: a title finished on another device is already
+    // here, not finished a second time from AniList.
+    if (whenSynced) await whenSynced();
+    const token = (cfg.token || "").trim();
+    const btn = manual ? $("#anilistSyncBtn") : null;
+    const label = btn ? [...btn.childNodes].map((n) => n.cloneNode(true)) : null;
+    if (btn) { btn.disabled = true; btn.textContent = "Syncing…"; }
     try {
-      await window.LifeLogJobs.run({ label: "Checking your AniList lists", lane: "anilist" }, async (job) => {
-        const raw = await fetchAniList({ userName, animeCategory: cfg.animeCategory, mangaCategory: cfg.mangaCategory }, null, job);
-        if (!raw || !raw.length) { job.finish("Nothing new on your lists"); return; }
+      await window.LifeLogJobs.run({ label: manual ? "Syncing AniList" : "Checking your AniList lists", lane: "anilist", again: "anilistSyncBtn" }, async (job) => {
+        const raw = await fetchAniList({ userName, animeCategory: cfg.animeCategory, mangaCategory: cfg.mangaCategory, token }, manual ? (a, b, c) => job.progress(a, b, c) : null, job);
+        if (raw === null) {
+          const err = window.LifeLogMedia.getLastError();
+          say(err ? "AniList sync failed — " + err : "AniList sync failed");
+          job.fail("AniList couldn't be reached");
+          return;
+        }
+        if (job.stopping) { job.finish("Stopped"); return; }
+        const base = readAniListBase();
         const skips = new Set(((state.data.settings.importSkips || {}).anilist) || []);
-        const n = buildAniList(raw).items.filter((it) => (!it.dup || it.update)
-          && !skips.has((it.entry.mediaSource || "") + ":" + (it.entry.mediaId || ""))).length;
-        if (n > 0) toast(`${n} AniList change${n === 1 ? "" : "s"} to review — Settings → Imports to sync`);
-        job.finish(n ? `${n} to review` : "Nothing new on your lists");
+        const plan = planAniList(raw, state.data, base, skips);
+        plan.freshByKey = new Map(plan.fresh.map(({ m }) => [m.source + ":" + m.id, m]));
+        const built = plan.fresh.length ? buildAniList(plan.fresh) : { items: [], newCategories: [] };
+        const rows = built.items.filter((it) => !it.dup && !it.update && it.checked);
+        const leftovers = built.items.filter((it) => !it.dup && !it.update && !it.checked);
+        const result = applyAniListPlan(plan, rows);
+        for (const it of rows) {
+          const m = plan.freshByKey.get(it.entry.mediaSource + ":" + it.entry.mediaId);
+          if (m) base[m.source + ":" + m.id] = { s: m.listStatus === "paused" ? "dropped" : m.listStatus, p: m.listStatus === "completed" ? null : +m.progress || 0 };
+        }
+        // Sending: each title this side won, then the ones only here.
+        let sent = 0, failed = 0, waiting = 0;
+        const send = async (key, mediaId, fields, agreed) => {
+          if (!Object.keys(fields).length) { base[key] = agreed; return; }
+          if (!token) { waiting++; return; }
+          const r = await window.LifeLogMedia.saveAniListEntry(token, mediaId, fields);
+          if (r) { sent++; base[key] = agreed; } else failed++;
+        };
+        for (const t of plan.titles) {
+          if (job.stopping) break;
+          const b = t.status === "completed" ? null : state.data.backlog.find((x) => x.mediaSource + ":" + x.mediaId === t.key) || null;
+          const e = t.status === "completed" ? (t.e || state.data.entries.find((x) => x.mediaSource + ":" + x.mediaId === t.key)) : null;
+          const fields = aniListPushFields(t.status, b, e, t.progress, t.m.total, t.pushStatus, t.pushProgress);
+          await send(t.key, t.m.id, fields, { s: t.status, p: t.progress });
+        }
+        const remoteKeys = new Set(raw.map(({ m }) => m.source + ":" + m.id));
+        for (const x of token ? aniListLocalOnly(state.data, remoteKeys, cfg, base) : []) {
+          if (job.stopping) break;
+          const st = aniListLocalState(x.b, x.e);
+          await send(x.key, x.mediaId, aniListPushFields(st.status, x.b, x.e, st.progress, 0, true, !!x.b), { s: st.status, p: st.progress });
+        }
+        writeAniListBase(base);
+        if (failed && token) {
+          const err = window.LifeLogMedia.getLastError();
+          toast("Couldn't update AniList" + (err ? " — " + err : "") + ". It's tried again next sync.", true);
+        }
+        const c = result.counts;
+        const parts = [];
+        if (c.added) parts.push(c.added + " new");
+        if (c.started) parts.push(c.started + " started");
+        if (c.finished) parts.push(c.finished + " finished");
+        if (c.dropped) parts.push(c.dropped + " dropped");
+        if (c.back) parts.push(c.back + " back to the backlog");
+        if (c.progress) parts.push(c.progress + (c.progress === 1 ? " episode count" : " episode counts"));
+        if (result.changed) {
+          afterDataChange();
+          await persist();
+          toast("AniList: " + parts.join(", "), false, { label: "Undo", onClick: () => undoAniListPlan(result.undo) });
+        } else if (manual) {
+          toast(sent ? `AniList is up to date — sent ${sent} change${sent === 1 ? "" : "s"}` : waiting ? "Up to date here — sign in to AniList to send your changes" : "Your AniList lists are up to date");
+        }
+        if (leftovers.length) {
+          const review = () => reviewAndImport("AniList", "Completed titles AniList has no dates for. Tick the ones to log; they go under this month.", { items: leftovers, newCategories: [] }, (selected) => rememberAniListSkips(leftovers, selected));
+          if (manual) review();
+          else if (!result.changed) toast(`${leftovers.length} AniList title${leftovers.length === 1 ? "" : "s"} without dates to review`, false, { label: "Review", onClick: review });
+        }
+        job.finish([parts.join(", "), sent && `sent ${sent}`, leftovers.length && `${leftovers.length} to review`].filter(Boolean).join(" · ") || "Up to date");
       });
     } catch (e) {
-      // quiet — this is an unattended background check, not a user action
+      // Already said, and kept in Activity.
     } finally {
-      try { localStorage.setItem(ANILIST_SYNC_KEY, JSON.stringify({ lastCheckedAt: new Date().toISOString() })); } catch (e) {}
+      if (btn) { btn.disabled = false; btn.replaceChildren(...label); }
     }
   }
 
+  // Unticked in the review, they stay out of the way next time, as the
+  // other imports' skips do.
+  async function rememberAniListSkips(rows, selected) {
+    const chosen = new Set(selected);
+    const all = { ...(state.data.settings.importSkips || {}) };
+    const next = new Set(all.anilist || []);
+    for (const it of rows) {
+      const key = it.entry.mediaSource + ":" + it.entry.mediaId;
+      if (chosen.has(it)) next.delete(key); else next.add(key);
+    }
+    if (next.size) all.anilist = [...next]; else delete all.anilist;
+    state.data.settings.importSkips = all;
+    await persist();
+  }
+
+  // Settings → Imports → AniList → Sync automatically: "open" (every time
+  // the app opens or comes back, ANILIST_OPEN_GAP apart at most), days
+  // between syncs, or "0" for never. Per device, like the other checks.
+  function aniListDue(setting, lastAt, now = Date.now()) {
+    if (setting === "open") return now - lastAt >= ANILIST_OPEN_GAP;
+    const days = parseInt(setting, 10) || 0;
+    return days > 0 && now - lastAt >= days * 24 * 60 * 60 * 1000;
+  }
+  async function maybeAutoCheckAniList() {
+    const cfg = state.data.settings.anilist || DEFAULT_SETTINGS.anilist;
+    if (!(cfg.userName || "").trim() || !anilistPulls(cfg).length) return;
+    let last = null;
+    try { last = JSON.parse(localStorage.getItem(ANILIST_SYNC_KEY)); } catch (e) {}
+    const lastAt = (last && last.lastCheckedAt) ? new Date(last.lastCheckedAt).getTime() : 0;
+    if (!aniListDue(String(cfg.autoSyncDays || "0"), lastAt)) return;
+    try { localStorage.setItem(ANILIST_SYNC_KEY, JSON.stringify({ lastCheckedAt: new Date().toISOString() })); } catch (e) {}
+    await syncAniList();
+  }
+
+  // Something you did here to an AniList title (a count, a start, Done):
+  // with a token it goes out a few seconds later, after any taps that
+  // follow it, whatever the automatic setting says.
+  let aniListNudge = null;
+  function aniListChanged(item) {
+    const cfg = state.data.settings.anilist || {};
+    if (!item || !isAniListSource(item.mediaSource) || !(cfg.token || "").trim()) return;
+    clearTimeout(aniListNudge);
+    aniListNudge = setTimeout(() => syncAniList({ nudge: true }), 3000);
+  }
+  // A title deleted here stays gone: the next sync, on any device, leaves it
+  // out instead of bringing it back from your list. The caller persists.
+  function aniListRemoved(item) {
+    if (!item || !isAniListSource(item.mediaSource) || !item.mediaId) return;
+    const key = item.mediaSource + ":" + item.mediaId;
+    const all = { ...(state.data.settings.importSkips || {}) };
+    if ((all.anilist || []).includes(key)) return;
+    all.anilist = [...(all.anilist || []), key];
+    state.data.settings.importSkips = all;
+  }
+  const syncAniListPlanning = () => syncAniList({ manual: true });
   if (window.LifeLogJobs) {
     window.LifeLogJobs.onAgain("steamWishlistSyncBtn", () => syncSteamWishlist());
     window.LifeLogJobs.onAgain("anilistSyncBtn", () => syncAniListPlanning());
@@ -1352,6 +1662,8 @@
     applyItemRelease,
     ownedToEntry, syncSteamOwned,
     aniListBacklogItem, aniListFinishedEntry, aniListHistoryEntry, buildAniList,
+    decideAniList, planAniList, aniListPushFields, aniListDue, aniListLocalOnly,
+    syncAniList, aniListChanged, aniListRemoved,
     isUnresolvedSteamItem,
     steamGameNeedsInfo,
     steamGameNeedsRawgInfo,

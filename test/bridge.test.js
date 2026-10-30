@@ -413,6 +413,22 @@ test("a timeline category's switches are set by name, stored only where they dif
   cat = data().categories.find((c) => c.name === "Books");
   assert.strictEqual("showInProgress" in cat, false);
   await refused("lifelog_rename_category", { kind: "expense", name: "Food", show_bought: false }, /for a timeline category/);
+  await ok("lifelog_rename_category", { kind: "timeline", name: "Books", show_progress: true });
+  assert.strictEqual(data().categories.find((c) => c.name === "Books").showProgress, true, "an episode count switch is kept either way, as Author is");
+});
+
+test("an episode count is set or moved on, timed, and listed", async () => {
+  reset();
+  await ok("lifelog_add_backlog_item", { title: "Severance", category: "Books" });
+  await refused("lifelog_set_progress", { item: "Severance" }, /Give count or add/);
+  assert.match(await ok("lifelog_set_progress", { item: "Severance", count: 4 }), /at ep 4/);
+  assert.match(await ok("lifelog_set_progress", { item: "Severance", add: 1 }), /at ep 5/);
+  const b = data().backlog.find((x) => x.title === "Severance");
+  assert.strictEqual(b.progress, 5);
+  assert.ok(Date.parse(b.progressAt) > 0);
+  assert.match(await ok("lifelog_backlog", { query: "severance" }), /ep 5/);
+  await ok("lifelog_set_progress", { item: "Severance", count: 0 });
+  assert.strictEqual("progress" in data().backlog.find((x) => x.title === "Severance"), false);
 });
 
 test("one charge of a bill is changed, skipped or reset without touching the rest", async () => {
