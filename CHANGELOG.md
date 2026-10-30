@@ -4,6 +4,15 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.293.0] - 2026-10-30
+
+### Changed
+- **Timeline rows give the title more room.** With cover art on, an
+  entry's category now sits under its cover with its full name (narrow
+  month cards used to shrink it to a dot), and a book's author sits on
+  its own line under the title instead of beside it. Rows are a little
+  taller. With cover art set to None, the row stays one line as before.
+
 ## [0.292.4] - 2026-10-30
 
 ### Changed

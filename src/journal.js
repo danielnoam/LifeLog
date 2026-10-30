@@ -320,8 +320,9 @@
     const row = el("div", "entry");
     row.dataset.id = e.id;
     if (state.bulk.active) row.appendChild(bulkCheckbox(e));
-    // The category chip sits under the cover, so the title gets the row's
-    // width; with covers off it stays beside the title.
+    // The category chip sits under the cover and a book's author under the
+    // title (0.293.0), so the title gets the row's width. With covers off
+    // the row is one line again and both stay beside the title.
     let side = row;
     if (state.visual.timelineCoverSize !== "none") {
       const sizeClass = state.visual.timelineCoverSize === "big" ? "cover-lg" : "cover-sm";
@@ -342,7 +343,7 @@
     chip.appendChild(document.createTextNode(e.category));
     chip.title = e.category;
     side.appendChild(chip);
-    row.appendChild(titleWithAuthor("etitle", e));
+    row.appendChild(titleWithAuthor("etitle", e, side !== row));
     const sp = spanLabel(e);
     if (sp) {
       const chip = el("span", "espan", sp);
@@ -1133,14 +1134,15 @@
   // A one-line row's title, "Title · Author". The author gives way first
   // when the row is narrow (styles.css, .has-author), so the title is cut
   // only once the name is gone.
-  function titleWithAuthor(cls, item) {
+  function titleWithAuthor(cls, item, below) {
     const author = authorOf(item);
     const t = el("span", cls);
     t.title = author ? item.title + " · " + author : item.title;
     if (!author) { t.textContent = item.title; return t; }
     t.classList.add("has-author");
+    if (below) t.classList.add("author-below");
     t.appendChild(el("span", "etitle-text", item.title));
-    t.appendChild(el("span", "eauthor", "· " + author));
+    t.appendChild(el("span", "eauthor", below ? author : "· " + author));
     return t;
   }
 

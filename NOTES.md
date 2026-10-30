@@ -16,6 +16,23 @@ what was decided against and why.
 
 ---
 
+- **Timeline category under the cover, author under the title (0.293.0).**
+  Daniel asked for the chip under the cover so rows take less width, and
+  then the author on its own line. Measured before building: on the
+  default narrow desktop card (180px) 0.291.1 had already shrunk the chip
+  to a dot, so the cover + dot took 52px (small covers) / 78px (big)
+  before the title; the stacked column is a fixed 64px (fits "Movies" at
+  fs-2xs; a fixed width keeps every title in a card starting at the same
+  x). So with small covers on narrow cards the title column is ~12px
+  *narrower* than in 0.291.1, roughly even with big covers, and wider on
+  phones and wide cards. Daniel saw those numbers and the shots, with
+  gating it by card width offered, and said he liked it; the gain is the category's name back
+  and the author no longer competing with the title. Only Timeline month
+  rows: In progress rows and Backlog rows are unchanged. With covers set
+  to None there is no column to stack under, so the row stays one line
+  (chip and "· Author" beside the title, the 0.291.1 narrow rules apply).
+  The narrow-card rules now skip the stacked chip (`> .entry-cat`) and the
+  stacked author (`.author-below`).
 - **lifelog_search matches words, filters, and points elsewhere for reviews (0.292.4).**
   In a Telemachus chat that checked categories, the AI ran
   lifelog_search 76 times (up to 8 a round) guessing words, because the

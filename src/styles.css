@@ -1288,11 +1288,13 @@ select:focus { outline: none; border-color: var(--accent); }
    cover, category chip and five stars all the room and the title a letter.
    There the chip draws as its dot (the name is its tooltip), the stars as
    "★4", and the span chip and a book's author step aside (the sheet has
-   both), so the title keeps the row. */
+   both), so the title keeps the row. With covers on (0.293.0) the chip sits
+   under the cover with its name and the author under the title, so neither
+   needs to give way. */
 .month-grid > .month-card { container-type: inline-size; }
 @container (max-width: 280px) {
   .month-card .entry:not(.finance-entry) > .entry-cat { font-size: 0; gap: 0; padding: var(--space-4); }
-  .month-card .entry:not(.finance-entry) .erating-full, .month-card .entry:not(.finance-entry) .espan, .month-card .entry:not(.finance-entry) .eauthor { display: none; }
+  .month-card .entry:not(.finance-entry) .erating-full, .month-card .entry:not(.finance-entry) .espan, .month-card .entry:not(.finance-entry) .etitle:not(.author-below) .eauthor { display: none; }
   .month-card .entry:not(.finance-entry) .erating-short { display: inline; }
 }
 /* Multi-month span chip (e.g. "Jun–Aug") — a quiet, faint pill so it reads as
@@ -1341,6 +1343,8 @@ html.force-mobile .progress-since .progress-airing::before { content: none; }
 .etitle.has-author { display: flex; gap: var(--space-4); min-width: 0; }
 .etitle.has-author .etitle-text { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .etitle.has-author .eauthor { flex: 0 10000 auto; min-width: 4em; overflow: hidden; text-overflow: ellipsis; color: var(--text-dim); }
+.etitle.author-below { flex-direction: column; gap: 0; }
+.etitle.author-below .eauthor { flex: none; min-width: 0; white-space: nowrap; font-size: var(--fs-xs); }
 .progress-row .btn-sm { flex: 0 0 auto; }
 /* The episode count (0.292.0): + on the In progress row, quieter than ✓
    like ▶ is; − count + in the item's sheet. */
@@ -1369,6 +1373,8 @@ html.force-mobile .progress-since .progress-airing::before { content: none; }
 }
 .entry .entry-cat .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .entry .etn-cover { object-fit: cover; border-radius: var(--r-xs); flex-shrink: 0; }
+/* Cover with the category chip under it (0.293.0). A fixed width keeps
+   every title in a card starting at the same x, whatever the chip says. */
 .entry .etn-side { display: flex; flex-direction: column; align-items: center; gap: var(--space-4); flex-shrink: 0; width: 64px; }
 .entry .etn-side .entry-cat { max-width: 100%; padding: var(--space-2) var(--space-6); }
 /* Cover art on its way in (coverEl in app.js) fades up when it lands; its
