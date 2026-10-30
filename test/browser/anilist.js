@@ -134,7 +134,7 @@ const media = (id, title, extra) => ({ id, type: "ANIME", title: { romaji: title
   });
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(400);
   const progressRow = await page.evaluate(() => [...document.querySelectorAll(".progress-row")].map((r) => r.textContent).find((t) => /Dandadan/.test(t)) || "");
-  check("the In progress row joins the count to how many are out, once", /Ep 4 · 6 of 12 · since/.test(progressRow) && /Airing$/.test(progressRow) && progressRow.split("6 of 12").length === 2, progressRow);
+  check("the In progress row joins the count to how many are out, once", /4\/6\/12 · since/.test(progressRow) && !/Airing/.test(progressRow), progressRow);
   await page.evaluate(() => [...document.querySelectorAll(".progress-row")].find((r) => /Dandadan/.test(r.textContent)).querySelector(".progress-up").click());
   await page.waitForTimeout(4500);
   check("+ sends episode 5 to AniList, and only the count", saved.length === 1 && saved[0].mediaId === 9 && saved[0].progress === 5 && !saved[0].status, saved);

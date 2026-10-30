@@ -4,6 +4,13 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.292.2] - 2026-10-30
+
+### Changed
+- **A shorter count on In progress.** It reads 5/6/12 now: watched, out,
+  all of it (5/12 once a show is fully out). With the count saying how many
+  are out, "Airing" under it is gone too; On hiatus still shows.
+
 ## [0.292.1] - 2026-10-30
 
 ### Changed

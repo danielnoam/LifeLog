@@ -20,7 +20,12 @@ what was decided against and why.
   airing show showed its count twice ("Ep 4 of 12" and "Airing · 6 of
   12"). Joined as "Ep 4 · 6 of 12" (watched · out of total), the airing
   label passed `counted` so it drops its own count. Only where the
-  category counts; elsewhere the airing label is as before.
+  category counts; elsewhere the airing label is as before. 0.292.2:
+  Daniel, "no need for the word" and "we can do 5/5/12": the count is
+  "5/6/12" (watched/out/total), "5/12" when fully out, "Ep 5" only with
+  nothing to count against. The "Airing" line goes too when the
+  count shows how many are out. Hiatus, between seasons and the rest
+  still show, since they say something the count doesn't.
 - **AniList both ways (0.292.0).** Daniel asked for AniList applied on
   every open, Watching shown as In progress, completion dates placing
   entries, and a +1 episode control that writes back; then for the count

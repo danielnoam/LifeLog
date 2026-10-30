@@ -267,12 +267,13 @@
   // Episode count switch is on.
   const countWord = (b) => (/manga/.test(b.mediaSource || "") ? "Ch" : "Ep");
   const countTotal = (b) => +b.episodesTotal || 0;
-  // Still airing, how many are out joins it (0.292.1): "Ep 5 · 6 of 12",
-  // watched, out, all of it, as Daniel asked, rather than two counts.
+  // Still airing, how many are out joins it (0.292.1): "5/6/12", watched,
+  // out, all of it, as Daniel asked (0.292.2), rather than two counts. With
+  // nothing to count against it's "Ep 5", so a bare number isn't a mystery.
   function progressLabel(b) {
     const n = Math.max(0, +b.progress || 0), total = countTotal(b), out = +b.episodesOut || 0;
-    if (stillAiring(b) && out) return countWord(b) + " " + n + " · " + (total ? out + " of " + total : out + " out");
-    return countWord(b) + " " + n + (total ? " of " + total : "");
+    if (stillAiring(b) && out) return n + "/" + out + (total ? "/" + total : "");
+    return total ? n + "/" + total : countWord(b) + " " + n;
   }
   async function setProgress(b, n) {
     n = Math.max(0, Math.round(+n || 0));
@@ -329,7 +330,8 @@
     // A show also says how far it has run (0.280.0), as its backlog row does.
     const counted = categoryShows(b.category).progress;
     const since = el("span", "progress-since", (counted ? progressLabel(b) + " · " : "") + sinceLabel(b.startedAt));
-    const airing = airingLabel(b, counted);
+    // "6 of 12" beside the count already says it's airing (0.292.2).
+    const airing = counted && b.airing === "airing" && +b.episodesOut ? "" : airingLabel(b, counted);
     if (airing) since.appendChild(el("span", "bl-airing progress-airing" + (airingDone(b) ? " is-done" : ""), airing));
     text.appendChild(since);
     row.appendChild(text);
