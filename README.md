@@ -275,7 +275,8 @@ with what's new, the credits and the errors on this device.
   on the day it was finished, Paused and Dropped mark it dropped. Signed
   in, episode counts, starts, finishes and drops go back to AniList; when
   both sides changed, the newer change wins. Shows and manga keep how far
-  they've run, and In progress items can count episodes (per category).
+  they've run, and In progress items can count episodes (per category); moved back
+  to the Backlog, an item keeps its count and its row shows it.
 - **Activity**: anything that takes a while runs in one list, keeps going
   with the app put away on Android, and is offered again if the app was
   closed on it.

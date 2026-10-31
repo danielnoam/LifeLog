@@ -116,7 +116,8 @@
     // each of them kicking off the lookup that would have filled it in.
     const hasSteamPrice = item.mediaSource === "steam" && !!item.mediaId && !item.bought;
     const airing = airingLabel(item);
-    if (parts.length || hasSteamPrice || (item.bought && !(opts && opts.quietBought)) || item.earlyAccess || airing) {
+    const saved = savedCount(item);
+    if (parts.length || hasSteamPrice || (item.bought && !(opts && opts.quietBought)) || item.earlyAccess || airing || saved) {
       const metaLine = el("span", "bl-meta");
       if (parts.length) metaLine.appendChild(document.createTextNode(parts.join(" · ")));
       const sep = () => (metaLine.childNodes.length ? " · " : "");
@@ -130,6 +131,7 @@
       if (airing) {
         metaLine.appendChild(el("span", "bl-airing" + (airingDone(item) ? " is-done" : ""), sep() + airing));
       }
+      if (saved) metaLine.appendChild(savedCountEl(saved, sep()));
       if (item.bought) {
         // The sheet's cover already says so with its lit Bought button.
         if (!(opts && opts.quietBought)) metaLine.appendChild(el("span", "bl-bought", sep() + "Bought"));
@@ -145,6 +147,22 @@
       container.appendChild(el("p", "bl-summary", item.summary));
     }
     return hasSteamPrice;
+  }
+
+  // A count kept from when it was in progress (0.298.0): moving an item back
+  // to the backlog only clears startedAt, so the row says where you stopped.
+  // In progress shows its own count, so only a backlog item gets this one.
+  function savedCount(item) {
+    const n = Math.round(+item.progress || 0);
+    if (n <= 0 || isStarted(item) || !item.category || !categoryShows(item.category).progress) return null;
+    const manga = /manga/.test(item.mediaSource || "");
+    return { text: (manga ? "Ch " : "Ep ") + n, words: (manga ? "Read " : "Watched ") + n + (manga ? " chapter" : " episode") + (n === 1 ? "" : "s") };
+  }
+  function savedCountEl(c, before) {
+    const span = el("span", "bl-count", (before || "") + c.text);
+    span.title = c.words;
+    span.setAttribute("aria-label", c.words);
+    return span;
   }
 
   // ---------- how far a show has run (0.265.0) ----------
@@ -2816,6 +2834,8 @@
     row.appendChild(titleWithAuthor("etitle", b));
     if (b.priority) row.appendChild(priorityBadge());
     if (b.bought) row.appendChild(boughtTag());
+    const saved = savedCount(b);
+    if (saved) row.appendChild(savedCountEl(saved));
     if (!state.bulk.active) {
       if (categoryShows(b.category).inProgress) row.appendChild(startButton(b));
       row.appendChild(doneButton(b));
@@ -2874,6 +2894,8 @@
     add("Release", year ? String(year) : isUnreleased(item) ? "TBA" : "");
     if (item.earlyAccess) add("Status", "Early Access");
     else add("Status", airingLabel(item));
+    const saved = savedCount(item);
+    if (saved) add(/^Ch/.test(saved.text) ? "Read" : "Watched", saved.text.replace(/^\S+ /, ""));
     const ext = String(item.externalRating || "").trim();
     const m = /^(\S+)\s+(.+)$/.exec(ext);
     if (m) add(RATING_SOURCES[m[2]] || m[2], m[1]); else add("Rating", ext);

@@ -44,6 +44,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Notes carry over between the Backlog and the Timeline both ways (0.51.0, 0.281.0)
 - In progress card at the top, with ✓ Done logging the months it took (0.218.0)
 - An episode count on In progress items: + on the row, − and + in the sheet, per category (0.292.0)
+- A count kept from In progress shows on the item's Backlog row (Ep 7, Ch 12) (0.298.0)
 - Move an entry back to the Backlog (0.51.0)
 - More… in the entry sheet (0.220.0)
 - Bulk select by long press: move, delete, sync (0.30.0, 0.45.0)

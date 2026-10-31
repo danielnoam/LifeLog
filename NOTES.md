@@ -16,6 +16,19 @@ what was decided against and why.
 
 ---
 
+- **Saved count on Backlog rows (0.298.0).** Daniel asked whether moving an
+  item from In progress back to the Backlog keeps its episode count. It
+  always did: stopping clears only `startedAt` (stopItem, the sheet's Back
+  to backlog, and AniList's Planning all leave `progress` alone), and
+  AniList gets Planning with the count untouched. It was just invisible,
+  because the count only drew on the In progress card. `savedCount` in
+  backlog.js now puts "Ep N" / "Ch N" in the row's metadata line (beside
+  the title in the plain row, in the hover details on a cover), only for
+  an item not started, with a count above 0, in a category whose Episode
+  count switch is on. Plain "Ep 7" rather than In progress's "7/12": the
+  airing words beside it already give how many are out. Phones in the
+  Covers layout don't show it (a tile has no text line, only icon marks).
+
 - **Images in notes (0.297.0).** Daniel wanted to import Obsidian notes
   with their pictures. Images were in DROPPED.md: the data is one JSON file
   PUT whole on every save, so a picture inside it would be re-sent with

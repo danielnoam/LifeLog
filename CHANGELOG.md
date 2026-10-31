@@ -4,6 +4,14 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.298.0] - 2026-10-31
+
+### Added
+- **Backlog items remember where you stopped.** Moving something from In
+  progress back to the Backlog always kept its episode or chapter count;
+  now the Backlog row shows it too ("Ep 7", "Ch 12"), in every row layout
+  and in a cover's hover details, wherever the category counts episodes.
+
 ## [0.297.0] - 2026-10-31
 
 ### Added

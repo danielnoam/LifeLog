@@ -32,6 +32,7 @@ because something shipped broken that no unit test could have caught:
 | `recurtools` | a pasted price's currency, a monthly plan's charge day and its overrides following it, the link offer ticking only lookalikes, plans merging into one history (overlap kept as one-off charges, one row in the list), Undo putting them back, adding and deleting a one-off charge, and a merged bill as one bar in the Summary |
 | `fxrate` | rate lookup: URLs, fallback order, date pinning, precision, and the hint's spacing |
 | `bandfold` | each set-aside band folds on its own setting, and an all-one-band category still gets a bar |
+| `backlogcount` | an episode count kept when an item goes back to the Backlog, shown on its row (Ep/Ch) in the rich and plain rows, and only where the category counts |
 | `backlogcovers` | the Covers layout under View: the Backlog's tiles and their marks in the List's order, a folded band left out, a cover opening the item's own sheet, Pick random still the draw, Next releases' covers with their dates, 0.289.0's Covers mode landing on the List, and the Timeline's own layout with ratings |
 | `timelinecal` | the Timeline's Calendar layout: opening on the latest month with entries, the weekday offset, a day's cover and +N, the picked day's list and No day set, an entry opening, month steps, and names in the cells on a desktop |
 | `ledgershow` | the Ledger's project filter as a Show row: icon chips, Project and No project turning each other off, the label clearing |
