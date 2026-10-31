@@ -47,7 +47,7 @@ function handle(msg) {
       };
     case "tools/call":
       return callTool(params && params.name, (params && params.arguments) || {})
-        .then((r) => ({ content: [{ type: "text", text: r.text }], isError: !r.ok }));
+        .then((r) => ({ content: [{ type: "text", text: r.text }, ...(r.images || []).map((i) => ({ type: "image", data: i.data, mimeType: i.mimeType }))], isError: !r.ok }));
     case "resources/list":
       return { resources: [{ uri: GUIDE_URI, name: "LifeLog data guide", mimeType: "text/markdown",
         description: "Every collection and field in LifeLog's data, and what each means." }] };

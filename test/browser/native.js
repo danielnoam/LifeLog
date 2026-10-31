@@ -89,6 +89,11 @@ const FAKE_BRIDGE = () => {
         takeLaunchAction: async () => { const a = window.__widgetPlan.action; window.__widgetPlan.action = null; return a ? { action: a } : {}; },
         // Android's folder screen, then what's in the folder (0.202.0).
         pickMarkdownFolder: async () => window.__widgetPlan.folder || { files: [], cancelled: true },
+        // One picture from that folder (0.297.0): a 1×1 PNG, whatever was asked.
+        readDocument: async ({ uri }) => {
+          (window.__widgetPlan.read = window.__widgetPlan.read || []).push(uri);
+          return { data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", type: "image/png" };
+        },
         addListener: async (ev, cb) => { (window.__cap.widgetListeners[ev] = window.__cap.widgetListeners[ev] || []).push(cb); return { remove() {} }; },
         // Android's notification permission, for habit reminders.
         notificationState: async () => ({ state: window.__widgetPlan.notify || "prompt" }),
@@ -1306,6 +1311,9 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
       window.__widgetPlan.folder = { files: [
         { name: "Pancakes.md", folder: "Recipes", text: "# Pancakes\nFlour.", lastModified: 1700000000000 },
         { name: "Loose.md", folder: "", text: "Loose words", lastModified: 1700000000000 },
+        { name: "Shot.md", folder: "Recipes", path: "Recipes/Shot.md", text: "Plated\n\n![](attachments/plate.png)", lastModified: 1700000000000 },
+        { name: "plate.png", folder: "attachments", path: "attachments/plate.png", uri: "content://docs/tree/x/document/plate", size: 70, image: true },
+        { name: "other.png", folder: "attachments", path: "attachments/other.png", uri: "content://docs/tree/x/document/other", size: 70, image: true },
       ] };
       document.querySelector("#settingsBtn").click();
     });
@@ -1316,11 +1324,16 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await page.click("#importMdFolderBtn");
     await page.waitForSelector("#financePickerModal:not([hidden])", { timeout: 4000 });
     const titles = await page.evaluate(() => [...document.querySelectorAll("#financePickerList .etitle")].map((t) => t.textContent).sort());
-    check("the folder's files come in for review", titles.join() === "Loose,Pancakes", titles);
+    check("the folder's files come in for review, its pictures not as notes", titles.join() === "Loose,Pancakes,Shot", titles);
     await page.selectOption("#financePickerCatSelect", "\u0000folder");
     await page.click("#financePickerCatApply");
     const cats = await page.evaluate(() => [...document.querySelectorAll("#financePickerList .picker-row")].map((r) => (r.querySelector(".ecat") || {}).textContent || ""));
-    check("and each file's folder is there to file it under", cats.sort().join() === ",Recipes", cats);
+    check("and each file's folder is there to file it under", cats.sort().join() === ",Recipes,Recipes", cats);
+    await page.click("#financePickerConfirmBtn");
+    await page.waitForTimeout(1200);
+    const shot = await page.evaluate(() => (window.LifeLogNotes.searchable().find((n) => n.title === "Shot") || {}).text);
+    check("a note's picture is read from the folder, only the one it shows", /lifelog-img:\w+\.png/.test(shot || "") &&
+      JSON.stringify(await page.evaluate(() => window.__widgetPlan.read)) === JSON.stringify(["content://docs/tree/x/document/plate"]), shot);
     errs.push(...e);
     await ctx.close();
   }

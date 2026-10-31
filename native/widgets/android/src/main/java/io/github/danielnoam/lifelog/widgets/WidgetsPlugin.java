@@ -29,7 +29,10 @@ import org.json.JSONArray;
  *                      always sends however many notes there are
  *   pickMarkdownFolder()
  *                      Android's folder screen, then the Markdown files in
- *                      the folder picked (see MarkdownFolder)
+ *                      the folder picked, and where its pictures are (see
+ *                      MarkdownFolder)
+ *   readDocument({ uri })
+ *                      one of those pictures, as { data: base64, type }
  *   notificationState(), askForNotifications(), openNotificationSettings()
  *                      for habit reminders (see Reminders)
  *   biometricState(), authenticate({ title, subtitle })
@@ -300,6 +303,29 @@ public class WidgetsPlugin extends Plugin {
                 call.resolve(ret);
             } catch (Exception e) {
                 call.reject("Couldn't read that folder: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    /** A picture from the folder picked (0.297.0), read off the main thread. */
+    @PluginMethod
+    public void readDocument(PluginCall call) {
+        String uri = call.getString("uri");
+        if (uri == null || !uri.startsWith("content://")) {
+            call.reject("No picture given");
+            return;
+        }
+        new Thread(() -> {
+            try {
+                android.net.Uri doc = android.net.Uri.parse(uri);
+                byte[] bytes = MarkdownFolder.readBytes(getContext().getContentResolver(), doc);
+                JSObject ret = new JSObject();
+                ret.put("data", android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP));
+                String type = getContext().getContentResolver().getType(doc);
+                ret.put("type", type == null ? "" : type);
+                call.resolve(ret);
+            } catch (Exception e) {
+                call.reject("Couldn't read that picture: " + e.getMessage());
             }
         }).start();
     }

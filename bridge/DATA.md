@@ -167,6 +167,19 @@ Fields: `id`, `createdAt`, `updatedAt`, `editedAt` (when the text last
 changed), `kind`, `text`, `title`, `category` (optional, from
 `noteCategories`), `fav` (true when favourited), `items`, `author`, `source`.
 
+Images (0.297.0) are never inside the data. A text note shows one as a line
+of its own in `text`: `![alt](lifelog-img:<id>)`, where `<id>` is the file
+name (`k3j2….jpg`, or `.png`/`.gif`/`.webp`). The file is `images/<id>` on
+the data repo's own `lifelog-images` branch (a local copy keeps it in
+`images/` beside `lifelog.json`). The app shrinks a picture to 1600px on its
+long side before keeping it. Settings → Notebook → Images in notes → Clean
+up drops every file no note points at and starts that branch's history
+over. Two other forms can be in a note's text: `![[name.png]]` (Obsidian's
+embed) or a relative path is an image an import couldn't find, and an
+`https://` address is shown as a link and never fetched.
+`lifelog_note_images` lists a note's images and sends the kept ones back
+as pictures; `lifelog_add_note_image` adds one.
+
 ## Expenses (`financeEntries`)
 
 One-off spending. The Ledger also counts the charges recurring bills make;
@@ -273,7 +286,9 @@ Keys: `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,
 `mediaCategorySources`, `mediaCategoryFallbackSources`, `mediaKeys`, `steam`,
 `anilist`, `releases`, `importSkips` (per import source, the `source:id`
 keys of items left unticked in a review, so they stay hidden next time),
-`updatedAt`. `steam.gameTimes` is "off", or how many days a Steam game's How Long to
+`updatedAt`, `imagesCleanedAt` (when images in notes were last cleaned up;
+a device that sees a newer one uploads again any image of its own the
+clean-up dropped). `steam.gameTimes` is "off", or how many days a Steam game's How Long to
 Beat times stay fresh before they're asked again: "1", "3", "7" or "30"
 (the default). "on", from 0.282.0–0.282.2, means "30". Old files may still carry `monthOrder`,
 `monthMinWidth` and `monthMaxWidth`, which the app drops or moves on load.

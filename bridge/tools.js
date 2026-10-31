@@ -465,6 +465,27 @@ function noteText(n, max) {
 }
 
 // ---------- the tools ----------
+// Pictures in notes (0.297.0): what a note's text points at, and what kind
+// of file some bytes are.
+function noteImageRefs(text) {
+  const out = [];
+  const re = /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]|!\[([^\]]*)\]\(((?:[^()\s]|\([^()\s]*\))+)(?:\s+"[^"]*")?\)/g;
+  for (const m of String(text || "").matchAll(re)) {
+    const src = m[1] != null ? m[1].trim() : m[3];
+    const kept = /^lifelog-img:([a-z0-9]{8,40}\.(?:jpg|png|gif|webp))$/.exec(src);
+    out.push({ src, alt: m[2] || "", id: kept ? kept[1] : null, web: /^https?:/i.test(src) });
+  }
+  return out;
+}
+function imageType(b) {
+  if (!b || b.length < 12) return null;
+  if (b[0] === 0xff && b[1] === 0xd8) return "image/jpeg";
+  if (b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
+  if (b.slice(0, 3).toString() === "GIF") return "image/gif";
+  if (b.slice(0, 4).toString() === "RIFF" && b.slice(8, 12).toString() === "WEBP") return "image/webp";
+  return null;
+}
+
 const S = {
   str: (description, extra) => ({ type: "string", description, ...extra }),
   int: (description) => ({ type: "integer", description }),
@@ -1117,6 +1138,69 @@ const TOOLS = [
         // Newest first, the way the app adds them.
         d.notes = [n, ...d.notes.filter((x) => x !== n)];
         return { text: `Saved the ${kind || "note"}${a.title ? ` "${a.title}"` : ""}. id ${n.id}`, touched: [["notes", n.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_note_images",
+    description: "The images in a note, and the pictures themselves (up to 4, as images you can look at). In a note's text an image is a line of its own: ![alt](lifelog-img:<id>) is a picture LifeLog keeps; ![[name.png]] or a relative path is one an import couldn't find; a web address is only a link and isn't fetched.",
+    readOnly: true,
+    input: { note: S.str("The note's id or title"), pictures: S.bool("Send the pictures too (default true)") },
+    required: ["note"],
+    async run(a) {
+      const d = await readData();
+      const n = findItem(d, "notes", a.note);
+      const refs = noteImageRefs(n.text);
+      if (!refs.length) return `"${cut(n.title || n.text, 40)}" has no images. id ${n.id}`;
+      const lines = refs.map((r, i) => `${i + 1}. ${r.id ? "kept" : r.web ? "web link, not fetched" : "not brought in"}: ${r.id || r.src}${r.alt ? ` — "${r.alt}"` : ""}`);
+      const images = [];
+      if (a.pictures !== false) {
+        const st = storeOf();
+        for (const r of refs.filter((x) => x.id).slice(0, 4)) {
+          const bytes = st.images ? await st.images.get(r.id) : null;
+          if (!bytes) { lines.push(`(${r.id} isn't uploaded yet: the device that added it hasn't saved since.)`); continue; }
+          images.push({ data: bytes.toString("base64"), mimeType: imageType(bytes) || "image/jpeg" });
+        }
+      }
+      return { text: `"${cut(n.title || n.text, 40)}" (id ${n.id}) has ${refs.length} image${refs.length === 1 ? "" : "s"}:\n` + lines.join("\n"), images };
+    },
+  },
+  {
+    name: "lifelog_add_note_image",
+    description: "Add a picture to a note, as its own line at the end of the text (or after the line that contains `after`). Give a local file path or base64 data. JPEG, PNG, GIF or WebP up to 5 MB; it's kept as given, so shrink a big photo first. The picture is uploaded beside the data, then the note points at it.",
+    input: {
+      note: S.str("The note's id or title"),
+      file: S.str("Path to the picture on this machine"),
+      data: S.str("The picture as base64, instead of a file"),
+      alt: S.str("What it shows, optional"),
+      after: S.str("Put it after the first line containing this text, optional"),
+    },
+    required: ["note"],
+    async run(a) {
+      let bytes;
+      if (a.file) {
+        try { bytes = fs.readFileSync(String(a.file)); } catch (e) { fail(`Couldn't read ${a.file}: ${e.message}`); }
+      } else if (a.data) bytes = Buffer.from(String(a.data).replace(/^data:[^,]*,/, ""), "base64");
+      else fail("Give the picture as file or data.");
+      const type = imageType(bytes);
+      if (!type) fail("That isn't a JPEG, PNG, GIF or WebP picture.");
+      if (bytes.length > 5 * 1024 * 1024) fail(`That picture is ${(bytes.length / 1048576).toFixed(1)} MB; the most is 5 MB. Shrink it first.`);
+      const d0 = await readData();
+      const target = findItem(d0, "notes", a.note);
+      if (target.kind) fail("Only a plain note can show images, not a checklist or a quote.");
+      const id = require("crypto").randomBytes(8).toString("hex") + "." + { "image/jpeg": "jpg", "image/png": "png", "image/gif": "gif", "image/webp": "webp" }[type];
+      const st = storeOf();
+      if (!st.images) fail("This copy of LifeLog can't keep pictures.");
+      await st.images.put([{ id, bytes }]);
+      const line = "![" + String(a.alt || "").replace(/[\[\]\n]/g, " ").trim() + "](lifelog-img:" + id + ")";
+      return change(`image in note "${cut(target.title || target.text, 30)}"`, (d) => {
+        const n = findItem(d, "notes", target.id);
+        const lines = String(n.text || "").split("\n");
+        const at = a.after ? lines.findIndex((l) => lower(l).includes(lower(a.after))) : -1;
+        if (a.after && at < 0) fail(`No line in the note contains "${a.after}".`);
+        if (at >= 0) lines.splice(at + 1, 0, line); else lines.push(line);
+        replaceItem(d, "notes", cleanItem(d, "notes", { ...n, text: lines.join("\n").replace(/^\n+/, "") }));
+        return { text: `Added the picture to "${cut(n.title || n.text, 40)}" as ${id}.`, touched: [["notes", n.id]] };
       });
     },
   },
@@ -1931,7 +2015,9 @@ async function callTool(name, args) {
   if (!tool) return { ok: false, text: `No tool called ${name}.` };
   try {
     for (const k of tool.required || []) if (args == null || args[k] == null || args[k] === "") fail(`${k} is required.`);
-    return { ok: true, text: await tool.run(args || {}) };
+    const out = await tool.run(args || {});
+    // A tool may send pictures with its text (lifelog_note_images).
+    return out && typeof out === "object" ? { ok: true, text: out.text, images: out.images || [] } : { ok: true, text: out };
   } catch (e) {
     const known = e instanceof InputError || e instanceof SetupError;
     return { ok: false, text: known ? e.message : `${e.name}: ${e.message}` };

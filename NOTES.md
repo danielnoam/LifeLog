@@ -16,6 +16,68 @@ what was decided against and why.
 
 ---
 
+- **Images in notes (0.297.0).** Daniel wanted to import Obsidian notes
+  with their pictures. Images were in DROPPED.md: the data is one JSON file
+  PUT whole on every save, so a picture inside it would be re-sent with
+  every typo fixed and copied into every commit. What changed is where the
+  picture goes, not that reasoning.
+  - **A pointer in the text, the file beside the data.** A note shows a
+    picture as `![alt](lifelog-img:<id>)` on a line of its own; the file is
+    `images/<id>` in the same data repo, same token, no new service. The
+    Markdown form means it moves with the text, survives Export JSON (as a
+    pointer: the picture itself isn't in an export or the phone backup), and
+    an AI reading `text` can see where it is. No new note field, so no
+    merge rule: the text merges as it always did.
+  - **A branch of its own, `lifelog-images`.** Pictures never enter main's
+    history, which keeps lifelog.json's History light, and the branch can
+    be started over. Daniel's worry was that a deleted picture stays in git
+    history forever; Clean up (Settings → Notebook) builds a parentless
+    commit of only the pictures the notes still point at (the same blobs,
+    so nothing re-uploads) and force-moves the branch to it. GitHub frees
+    the dropped objects on its own schedule, not at once, and that timing
+    isn't documented. Trade-off: a note restored from History after a
+    clean-up shows "not synced yet" for a picture that was removed.
+  - **Uploaded before lifelog.json** (Storage.save calls
+    LifeLogImages.uploadPending first), so another device never sees a note
+    before its picture exists. All pending pictures go in one commit through
+    the git data API (blobs, a tree on top of the branch's, a commit, a
+    fast-forward ref move; a 422 means another device moved it, so retry on
+    top). A failed upload doesn't block the notes; it's retried on the next
+    save, and the reader says "not synced yet" meanwhile.
+  - **A clean-up racing another device.** B cleans with notes that don't
+    have A's newest note yet, and drops A's just-uploaded picture. So the
+    clean-up stamps `settings.imagesCleanedAt`; a device seeing a stamp it
+    hasn't checked lists the branch once and marks its own pictures missing
+    from it as not uploaded, and they go up again. noteimages.js stages it.
+  - **On the device**: its own IndexedDB database (`lifelog-images`), not
+    the app's, so its version never couples to storage.js's. A picture
+    fetched from GitHub is kept, so it shows offline from then on. A picture
+    added and never saved (sheet cancelled, import note left out) is dropped
+    after a day. The app-lock reset deletes the database with the rest.
+  - **Shrunk before it's kept**: longest side 1600px, JPEG at .82 on white
+    (a transparent PNG would go black). A small enough PNG, GIF or WebP is
+    kept as it came, so screenshots stay sharp and GIFs move. HEIC can't be
+    decoded by a WebView canvas, so it's refused with a reason.
+  - **Obsidian.** `![[name.png|300]]` and `![](path)` are matched to a picked
+    file by path suffix, then name, then name without extension (Obsidian
+    allows that). Pictures are kept only when the review is confirmed, and
+    only for the notes ticked. The duplicate check (noteKey in io.js) treats
+    every image form as the same, so a re-import isn't seen as new. Android's
+    folder screen lists pictures without their bytes (a vault can be
+    gigabytes) and `readDocument` reads one when a note needs it; its uri
+    must be a tree document uri. iOS has no folder picker: pick the files.
+    Find in folder is a toast action with `keepEarlier`, so the import's
+    Undo toast keeps its button.
+  - **Web images aren't loaded.** CSP allows https images, but fetching one
+    on read tells that site when a note was opened. They render as a link
+    chip instead.
+  - **Bridge**: `lifelog_note_images` returns MCP image content (callTool
+    passes `images` through), `lifelog_add_note_image` takes a file or
+    base64 up to 5 MB, unshrunk (Node has no canvas and the bridge has no
+    dependencies).
+  - Untested on a real phone: paste from the Android keyboard, the camera
+    from Add image, and the folder picker's pictures.
+
 - **Pick: one button for the draw and the wheel (0.296.0).** Daniel: Pick
   random and Spin "should be combined into one button", and make them
   better. They were two buttons and two sheets, and the backlog's wheel

@@ -91,6 +91,23 @@ function test(name, fn) {
 // ---------- parseCsv ----------
 // ---------- Markdown files as notes (0.200.0) ----------
 const { parseMarkdownNote } = IO;
+test("an embedded image is found by its path, else its name (0.297.0)", () => {
+  const files = [
+    { name: "x.png", webkitRelativePath: "Vault/attachments/x.png" },
+    { name: "x.png", webkitRelativePath: "Vault/other/x.png" },
+    { name: "Pasted image 1.png", path: "assets/Pasted image 1.png" },
+    { name: "photo.JPG", folder: "pics" },
+  ];
+  assert.strictEqual(IO.findImageFile("other/x.png", files), files[1]);
+  assert.strictEqual(IO.findImageFile("../attachments/x.png", files), files[0]);
+  assert.strictEqual(IO.findImageFile("x.png", files), files[0]);
+  assert.strictEqual(IO.findImageFile("Pasted%20image%201.png", files), files[2]);
+  assert.strictEqual(IO.findImageFile("<Pasted image 1.png>", files), files[2]);
+  assert.strictEqual(IO.findImageFile("photo.jpg", files), files[3]);
+  assert.strictEqual(IO.findImageFile("Pasted image 1", files), files[2]);
+  assert.strictEqual(IO.findImageFile("missing.png", files), null);
+  assert.strictEqual(IO.findImageFile("https://example.com/x.png", files), null);
+});
 test("a Markdown file's leading heading is its title and the rest its words", () => {
   const n = parseMarkdownNote("# Trip ideas\n\nLisbon in **May**\n- trams", "trips.md", Date.UTC(2025, 4, 1));
   assert.strictEqual(n.title, "Trip ideas");

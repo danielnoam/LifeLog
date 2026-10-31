@@ -12,7 +12,7 @@ files are the web app (GitHub Pages), the Android app and the iOS app
 ## Contents
 
 - [Getting around](#getting-around)
-- [Notebook](#notebook): [Notes](#notes), [Habits](#habits)
+- [Notebook](#notebook): [Notes](#notes), [Images in notes](#images-in-notes), [Habits](#habits)
 - [Timeline](#timeline): [Log](#log), [Layouts](#timeline-layouts-covers-and-calendar), [Stats and Recap](#stats-and-recap)
 - [Backlog](#backlog): [List](#list), [Covers](#covers), [Pick](#pick), [An item's sheet](#an-items-sheet), [Next releases](#next-releases), [Discover](#discover)
 - [Ledger](#ledger): [Expenses](#expenses), [Summary](#summary)
@@ -56,6 +56,21 @@ merge item by item between devices. A note can become a Timeline entry.
 <table><tr>
 <td><img src="docs/screenshots/notes-desktop.webp" alt="Notes on a computer" width="620"></td>
 <td><img src="docs/screenshots/notes-phone.webp" alt="Notes on a phone" width="200"></td>
+</tr></table>
+
+### Images in notes
+
+Add image under a note's text, or paste or drop one in. Each sits on its
+own line where you put it, shrunk to 1600px. Importing Obsidian notes with
+their images (or the whole folder) brings the pictures along; one that
+wasn't found shows as a dashed line, and **Find in folder** fills it in.
+Images sync on their own branch of the data repo, never inside
+`lifelog.json`, and **Settings → Notebook → Clean up** removes the ones no
+note shows.
+
+<table><tr>
+<td><img src="docs/screenshots/note-images-desktop.webp" alt="A note with an image on a computer" width="620"></td>
+<td><img src="docs/screenshots/note-images-phone.webp" alt="A note with an image on a phone" width="200"></td>
 </tr></table>
 
 ### Habits
@@ -293,7 +308,8 @@ every target connected in **Settings → Sync**:
 
 - **GitHub** (works on phones): `lifelog.json` in a **private repo**, so
   every device shares one log and every save is a commit. Boards and trips
-  sit beside it in `boards.json` and `travel.json`.
+  sit beside it in `boards.json` and `travel.json`, and images in notes on
+  the repo's `lifelog-images` branch.
 - **Local file** (desktop Chrome and Edge): a `.json` file you pick, for
   example in your Google Drive folder.
 
@@ -407,6 +423,7 @@ src/letterboxd.js   the Letterboxd import
 src/io.js           JSON/CSV import and export, and the shared review screen
 src/docimport.js    PDF and EPUB read as text, for notes
 src/markdown.js     Markdown for notes in a collection
+src/images.js       images in notes: shrunk, kept on the device, synced
 src/jobs.js         Activity: the work that takes a while
 src/share.js        what other apps share into LifeLog
 src/storage.js      persistence: GitHub, local file, IndexedDB

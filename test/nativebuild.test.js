@@ -385,7 +385,7 @@ test("the widgets' links, Face ID and the App Group are declared the way the wid
   // Every method the app calls on Android's plugin exists on iOS's too.
   const plugin = fs.readFileSync(path.join(__dirname, "..", "native", "widgets", "ios", "Plugin", "WidgetsPlugin.swift"), "utf8");
   for (const m of ["update", "takeQueue", "takeLaunchAction", "notePins", "notificationState", "askForNotifications",
-    "openNotificationSettings", "biometricState", "authenticate", "pickMarkdownFolder"]) {
+    "openNotificationSettings", "biometricState", "authenticate", "pickMarkdownFolder", "readDocument"]) {
     assert.ok(plugin.includes('CAPPluginMethod(name: "' + m + '"') && plugin.includes("@objc func " + m + "("), m);
   }
 });

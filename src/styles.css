@@ -4134,6 +4134,11 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .md blockquote { margin: 0 0 .9em; padding: 2px 0 2px 14px; border-left: 3px solid var(--border); color: var(--text-dim); }
 .md hr { border: 0; border-top: 1px solid var(--border); margin: 1.2em 0; }
 .md a { color: var(--accent); }
+/* Images in notes (0.297.0): a picture LifeLog keeps is drawn at the
+   column's width; anything it couldn't draw is a dashed line saying what it
+   was, so a note imported from Obsidian shows where its picture went. */
+.md .md-img { display: block; max-width: 100%; height: auto; margin: var(--space-8) 0; border-radius: var(--r-md); background: var(--bg); }
+.md .md-img-missing { display: inline-block; padding: var(--space-2) var(--space-8); border: 1px dashed var(--border-strong); border-radius: var(--r-sm); color: var(--text-dim); font-size: var(--fs-sm); }
 /* A note card's (.note-card, after .md so these win): the card's Markdown at the card's size, not the reader's: the same type
    as the plain text it replaced, headings only a step up, and nothing
    trailing a margin off the bottom of the card. */
@@ -4141,6 +4146,18 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .note-md > :last-child { margin-bottom: 0; }
 .note-md h2, .note-md h3, .note-md h4, .note-md h5, .note-md h6 { margin: .6em 0 .3em; font-size: var(--fs-md); }
 .note-md p, .note-md ul, .note-md ol, .note-md blockquote, .note-md pre { margin-bottom: .5em; }
+.note-md .md-img { max-height: 220px; width: auto; margin: var(--space-6) 0; }
+/* The note sheet's row of the note's images, with Add image under it. */
+.note-images { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-8); margin: calc(-1 * var(--space-4)) 0 var(--space-12); }
+.note-image-thumbs { display: flex; flex-wrap: wrap; gap: var(--space-8); }
+.note-image-thumbs[hidden] { display: none; }
+.note-image-thumb { position: relative; width: 64px; height: 64px; border-radius: var(--r-md); overflow: hidden; background: var(--bg); border: 1px solid var(--border); }
+.note-image-thumb .md-img { width: 100%; height: 100%; object-fit: cover; margin: 0; border-radius: 0; }
+.note-image-thumb .md-img-missing { font-size: var(--fs-3xs); padding: var(--space-4); border: 0; }
+.note-image-del { position: absolute; top: var(--space-2); right: var(--space-2); width: 22px; height: 22px; display: grid; place-items: center; padding: 0; border: 0; border-radius: var(--r-pill); background: var(--scrim); color: var(--text-on-fill); cursor: pointer; }
+.note-image-del .ico { width: 14px; height: 14px; }
+/* 44px to press on a phone: the thumb is 64, so the hit area reaches its middle. */
+.note-image-del::after { content: ""; position: absolute; inset: -11px; }
 @media (max-width: 720px) {
   #noteReader { padding: 0; align-items: stretch; }
   #noteReader .modal { width: 100%; height: 100%; max-height: none; border: 0; border-radius: 0; display: flex; flex-direction: column; padding: 16px 16px 12px; }

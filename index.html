@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.296.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.297.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -346,6 +346,11 @@
         <label id="nTextLabel"><span id="nTextLabelText">Note</span>
           <textarea id="nText" rows="8" autocomplete="off" placeholder="What happened, what you noticed…"></textarea>
         </label>
+        <div id="nImages" class="note-images">
+          <div id="nImageThumbs" class="note-image-thumbs" hidden></div>
+          <button type="button" class="btn btn-sm" id="nAddImageBtn"><span data-ico="image"></span> Add image</button>
+          <input type="file" id="nImageInput" accept="image/*" multiple hidden />
+        </div>
         <div id="nListEditor" class="note-list-editor" hidden>
           <div id="nItems" class="note-list-items"></div>
           <div class="note-list-new"><span aria-hidden="true">+</span><input id="nNewItem" type="text" autocomplete="off" placeholder="Add an item" aria-label="New item" /></div>
@@ -1411,8 +1416,12 @@
             <span class="sitem-btns"><button class="btn btn-small" data-io="import-json" data-tab="notes">JSON…</button><button class="btn btn-small" data-io="import-csv" data-tab="notes">CSV…</button></span>
           </div>
           <div class="sitem">
-            <span class="sitem-text"><span class="sitem-title">Markdown, PDF and EPUB files</span><span class="sitem-sub">One note per file — pick files, or a whole folder. A PDF or EPUB comes in as its text. You choose which, and their categories, before anything comes in</span></span>
+            <span class="sitem-text"><span class="sitem-title">Markdown, PDF and EPUB files</span><span class="sitem-sub">One note per file — pick files, or a whole folder. A PDF or EPUB comes in as its text. Images a note shows (Obsidian's too) come with it when they're in the folder or among the files. You choose which, and their categories, before anything comes in</span></span>
             <span class="sitem-btns"><button class="btn btn-small" id="importMdBtn">Files…</button><button class="btn btn-small" id="importMdFolderBtn" hidden>Folder…</button></span>
+          </div>
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Images in notes</span><span class="sitem-sub" id="noteImagesInfo">Kept on GitHub beside your data, apart from its history. Clean up removes the ones no note shows any more</span></span>
+            <span class="sitem-btns"><button class="btn btn-small" id="cleanUpImagesBtn">Clean up</button></span>
           </div>
         </div>
       </section>
@@ -1463,7 +1472,7 @@
       <input type="file" id="importTabJsonInput" accept="application/json,.json" hidden />
       <input type="file" id="importTabCsvInput" accept="text/csv,.csv" hidden />
       <input type="file" id="letterboxdImportInput" accept=".zip,.csv,application/zip,text/csv" multiple hidden />
-      <input type="file" id="importMdInput" accept=".md,.markdown,.txt,.pdf,.epub,text/markdown,text/plain,application/pdf,application/epub+zip" multiple hidden />
+      <input type="file" id="importMdInput" accept=".md,.markdown,.txt,.pdf,.epub,text/markdown,text/plain,application/pdf,application/epub+zip,image/*" multiple hidden />
       <input type="file" id="importMdFolderInput" webkitdirectory multiple hidden />
       </div>
 
@@ -2294,38 +2303,39 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.296.1"></script>
-  <script defer src="src/headless.js?v=0.296.1"></script>
-  <script defer src="src/platform.js?v=0.296.1"></script>
-  <script defer src="src/icons.js?v=0.296.1"></script>
-  <script defer src="src/jobs.js?v=0.296.1"></script>
-  <script defer src="src/reconcile.js?v=0.296.1"></script>
-  <script defer src="src/qr.js?v=0.296.1"></script>
-  <script defer src="src/media.js?v=0.296.1"></script>
-  <script defer src="src/merge.js?v=0.296.1"></script>
-  <script defer src="src/storage.js?v=0.296.1"></script>
-  <script defer src="src/finance.js?v=0.296.1"></script>
-  <script defer src="src/settings.js?v=0.296.1"></script>
-  <script defer src="src/wheel.js?v=0.296.1"></script>
-  <script defer src="src/backlog.js?v=0.296.1"></script>
-  <script defer src="src/journal.js?v=0.296.1"></script>
-  <script defer src="src/markdown.js?v=0.296.1"></script>
-  <script defer src="src/notes.js?v=0.296.1"></script>
-  <script defer src="src/docimport.js?v=0.296.1"></script>
-  <script defer src="src/io.js?v=0.296.1"></script>
-  <script defer src="src/sync.js?v=0.296.1"></script>
-  <script defer src="src/habits.js?v=0.296.1"></script>
-  <script defer src="src/vendor/rough.js?v=0.296.1"></script>
-  <script defer src="src/boards.js?v=0.296.1"></script>
-  <script defer src="src/travel.js?v=0.296.1"></script>
-  <script defer src="src/recap.js?v=0.296.1"></script>
-  <script defer src="src/reminders.js?v=0.296.1"></script>
-  <script defer src="src/alerts.js?v=0.296.1"></script>
-  <script defer src="src/widgets.js?v=0.296.1"></script>
-  <script defer src="src/share.js?v=0.296.1"></script>
-  <script defer src="src/search.js?v=0.296.1"></script>
-  <script defer src="src/letterboxd.js?v=0.296.1"></script>
-  <script defer src="src/payments.js?v=0.296.1"></script>
-  <script defer src="src/app.js?v=0.296.1"></script>
+  <script defer src="src/errlog.js?v=0.297.0"></script>
+  <script defer src="src/headless.js?v=0.297.0"></script>
+  <script defer src="src/platform.js?v=0.297.0"></script>
+  <script defer src="src/icons.js?v=0.297.0"></script>
+  <script defer src="src/jobs.js?v=0.297.0"></script>
+  <script defer src="src/reconcile.js?v=0.297.0"></script>
+  <script defer src="src/qr.js?v=0.297.0"></script>
+  <script defer src="src/media.js?v=0.297.0"></script>
+  <script defer src="src/merge.js?v=0.297.0"></script>
+  <script defer src="src/storage.js?v=0.297.0"></script>
+  <script defer src="src/finance.js?v=0.297.0"></script>
+  <script defer src="src/settings.js?v=0.297.0"></script>
+  <script defer src="src/wheel.js?v=0.297.0"></script>
+  <script defer src="src/backlog.js?v=0.297.0"></script>
+  <script defer src="src/journal.js?v=0.297.0"></script>
+  <script defer src="src/markdown.js?v=0.297.0"></script>
+  <script defer src="src/images.js?v=0.297.0"></script>
+  <script defer src="src/notes.js?v=0.297.0"></script>
+  <script defer src="src/docimport.js?v=0.297.0"></script>
+  <script defer src="src/io.js?v=0.297.0"></script>
+  <script defer src="src/sync.js?v=0.297.0"></script>
+  <script defer src="src/habits.js?v=0.297.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.297.0"></script>
+  <script defer src="src/boards.js?v=0.297.0"></script>
+  <script defer src="src/travel.js?v=0.297.0"></script>
+  <script defer src="src/recap.js?v=0.297.0"></script>
+  <script defer src="src/reminders.js?v=0.297.0"></script>
+  <script defer src="src/alerts.js?v=0.297.0"></script>
+  <script defer src="src/widgets.js?v=0.297.0"></script>
+  <script defer src="src/share.js?v=0.297.0"></script>
+  <script defer src="src/search.js?v=0.297.0"></script>
+  <script defer src="src/letterboxd.js?v=0.297.0"></script>
+  <script defer src="src/payments.js?v=0.297.0"></script>
+  <script defer src="src/app.js?v=0.297.0"></script>
 </body>
 </html>

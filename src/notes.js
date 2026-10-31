@@ -145,7 +145,9 @@
     return true;
   }
   // Everything a search should find, whatever the kind.
-  const noteHaystack = (n) => [n.title, n.text, n.author, n.source, n.category, ...(n.items || []).map((i) => i.text)]
+  // A picture's address isn't something you'd search for; its alt text is.
+  const IMG_REF = /!\[([^\]]*)\]\(lifelog-img:[^)]*\)/g;
+  const noteHaystack = (n) => [n.title, String(n.text || "").replace(IMG_REF, "$1"), n.author, n.source, n.category, ...(n.items || []).map((i) => i.text)]
     .filter(Boolean).join("\n").toLowerCase();
 
   // A note with no createdAt at all (hand-edited JSON, a bad import) still
@@ -1052,13 +1054,36 @@
     const md = window.LifeLogMarkdown;
     const body = el("div", "note-text md note-md");
     if (!md) { body.textContent = text; return body; }
-    body.appendChild(md.render(text));
+    body.appendChild(md.render(text, mdOpts));
     for (const a of body.querySelectorAll("a")) a.replaceWith(document.createTextNode(a.textContent));
     return body;
   }
+
+  // ---------- pictures (0.297.0) ----------
+  // A note's text points at a picture as ![alt](lifelog-img:<id>); the file
+  // is on this device or on GitHub (images.js). Anything else that looks
+  // like an image is markdown.js's chip: a web address isn't loaded, and an
+  // Obsidian embed that wasn't brought in says so.
+  const Images = () => window.LifeLogImages;
+  function drawImage(node) {
+    const I = Images();
+    const id = I && I.idOf(node.src);
+    if (!id) return null;
+    const img = document.createElement("img");
+    img.className = "md-img";
+    img.alt = node.alt || "";
+    img.decoding = "async";
+    I.url(id).then((u) => {
+      if (u) { img.src = u; return; }
+      img.replaceWith(el("span", "md-img-missing", "Image not synced yet — it shows once the device that added it saves"));
+    }).catch(() => img.replaceWith(el("span", "md-img-missing", "Couldn't load this image")));
+    return img;
+  }
+  const mdOpts = { image: drawImage };
   // A card's few lines of preview, without the Markdown's punctuation.
   const plainPreview = (text) => String(text || "")
     .replace(/```[\s\S]*?(```|$)/g, " ")
+    .replace(/!\[\[[^\]]*\]\]|!\[[^\]]*\]\([^)]*\)/g, " ")
     .replace(/^\s*(#+|>|[-*+](\s+\[[ xX]\])?|\d+[.)])\s*/gm, "")
     .replace(/(\*\*|__|`|\*)/g, "")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
@@ -1164,9 +1189,9 @@
     const md = window.LifeLogMarkdown;
     if (kindOf(n) === "quote") {
       const q = el("blockquote", "md-quote");
-      if (md) q.appendChild(md.render(n.text)); else q.textContent = n.text;
+      if (md) q.appendChild(md.render(n.text, mdOpts)); else q.textContent = n.text;
       out.appendChild(q);
-    } else if (md) out.appendChild(md.render(body));
+    } else if (md) out.appendChild(md.render(body, mdOpts));
     else out.appendChild(el("p", "note-text", body));
     if (!out.childNodes.length) out.appendChild(el("p", "muted", "Nothing written under the title yet."));
     $("#noteReader").hidden = false;
@@ -1271,6 +1296,7 @@
     $("#nListEditor").hidden = sheetKind !== "list";
     $("#nTextLabel").hidden = sheetKind === "list";
     $("#nQuoteFields").hidden = sheetKind !== "quote";
+    $("#nImages").hidden = sheetKind !== "text";
     $("#nTextLabelText").textContent = sheetKind === "quote" ? "Quote" : "Note";
     $("#nText").placeholder = sheetKind === "quote" ? "The words, as they were said" : "What happened, what you noticed…";
     $("#nText").rows = sheetKind === "quote" ? 4 : 8;
@@ -1323,6 +1349,107 @@
     sel.dataset.prev = sel.value;
   }
 
+  // The note sheet's pictures: a row of thumbnails for the ones the text
+  // points at, each removable, and Add image. Pasting or dropping one into
+  // the text adds it where the cursor is.
+  function renderSheetImages() {
+    const wrap = $("#nImageThumbs");
+    const I = Images(), md = window.LifeLogMarkdown;
+    const seen = new Set();
+    const refs = I && md ? md.images($("#nText").value).filter((r) => {
+      const id = I.idOf(r.src);
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    }) : [];
+    const kids = refs.map((r) => {
+      const id = I.idOf(r.src);
+      const prev = wrap.querySelector(`[data-id="${id}"]`);
+      if (prev) return prev;
+      const box = el("span", "note-image-thumb");
+      box.dataset.id = id;
+      box.appendChild(drawImage(r) || el("span"));
+      const del = el("button", "note-image-del");
+      del.type = "button";
+      del.setAttribute("aria-label", "Remove image");
+      del.appendChild(ico("x"));
+      del.onclick = () => removeSheetImage(id);
+      box.appendChild(del);
+      return box;
+    });
+    wrap.replaceChildren(...kids);
+    wrap.hidden = !kids.length;
+  }
+  function removeSheetImage(id) {
+    const ta = $("#nText");
+    const esc = id.replace(/[.]/g, "\\.");
+    ta.value = ta.value.replace(new RegExp("[ \\t]*!\\[[^\\]]*\\]\\(lifelog-img:" + esc + "\\)[ \\t]*\\n?", "g"), "").replace(/\n{3,}/g, "\n\n");
+    renderSheetImages();
+  }
+  // Each picture on a line of its own, where the cursor was.
+  async function addSheetImages(files) {
+    const I = Images();
+    const pics = [...files].filter((f) => /^image\//.test(f.type) || /\.(jpe?g|png|gif|webp|avif|bmp|heic|heif)$/i.test(f.name || ""));
+    if (!I || !pics.length) return;
+    const ta = $("#nText");
+    const refs = [];
+    for (const f of pics) {
+      try { refs.push(I.ref(await I.add(f), "")); }
+      catch (e) { toast((e && e.message) || "Couldn't add that image", true); }
+    }
+    if (!refs.length) return;
+    const at = ta.selectionStart == null ? ta.value.length : ta.selectionStart;
+    const before = ta.value.slice(0, at), after = ta.value.slice(ta.selectionEnd == null ? at : ta.selectionEnd);
+    const lead = before && !before.endsWith("\n") ? "\n" : "";
+    const tail = after && !after.startsWith("\n") ? "\n" : "";
+    const block = lead + refs.join("\n") + tail;
+    ta.value = before + block + after;
+    const caret = before.length + block.length;
+    ta.setSelectionRange(caret, caret);
+    renderSheetImages();
+  }
+
+  // Settings → Notebook → Images in notes: how many, and Clean up.
+  const mb = (b) => (b >= 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(b / 1024)) + " KB");
+  async function updateImagesSetting() {
+    const I = Images(), info = $("#noteImagesInfo");
+    if (!I || !info) return;
+    const st = await I.stats(state.data.notes).catch(() => null);
+    if (!st) return;
+    const parts = [st.used ? st.used + (st.used === 1 ? " image" : " images") + " in your notes" : "No images in your notes yet"];
+    if (st.count) parts.push(mb(st.bytes) + " kept on this device");
+    if (st.waiting) parts.push(st.waiting + " waiting to upload");
+    info.textContent = parts.join(" · ") + ". Clean up removes the ones no note shows any more";
+  }
+  async function cleanUpImages() {
+    const I = Images(), S = window.LifeLogStorage;
+    if (!I) return;
+    const btn = $("#cleanUpImagesBtn");
+    btn.disabled = true;
+    try {
+      const used = I.usedIds(state.data.notes);
+      const online = S && S.images && S.images.connected();
+      const there = online ? await S.images.list() : new Set();
+      const unused = [...there].filter((id) => !used.has(id)).length;
+      if (online && !unused && !confirm("Every image on GitHub is in a note. Clean up anyway? It also starts the images' history over, which frees the space of ones removed before.")) return;
+      if (unused && !confirm(`Remove ${unused} image${unused === 1 ? "" : "s"} no note shows any more? This can't be undone — a note brought back from History later won't have ${unused === 1 ? "it" : "them"}.`)) return;
+      toast("Cleaning up images…");
+      const res = await I.cleanUp(state.data);
+      if (res.remote) {
+        state.data.settings.imagesCleanedAt = new Date().toISOString();
+        await persist();
+      }
+      const r = res.remote;
+      toast(r ? (r.removed ? `Removed ${r.removed} image${r.removed === 1 ? "" : "s"} (${mb(r.bytes)}) — GitHub frees the space in its own time` : "Nothing to remove — the images' history starts over")
+        : res.local ? `Removed ${res.local} image${res.local === 1 ? "" : "s"} from this device` : "Nothing to remove");
+    } catch (e) {
+      toast("Couldn't clean up images — " + ((e && e.message) || e), true);
+    } finally {
+      btn.disabled = false;
+      updateImagesSetting();
+    }
+  }
+
   function openNoteModal(note, kind) {
     editingNoteId = note ? note.id : "";
     $("#noteModalTitle").textContent = note ? "Edit note" : "New note";
@@ -1349,6 +1476,7 @@
     // Only when it's showing one; with several there's no telling which.
     const shown = state.noteKinds.size === 1 ? [...state.noteKinds][0] : "";
     setSheetKind(note ? kindOf(note) : (kind || shown || "text"));
+    renderSheetImages();
     $("#noteModal").hidden = false;
     (sheetKind === "list" ? (note ? $("#nNewItem") : $("#nTitle")) : $("#nText")).focus();
   }
@@ -1438,6 +1566,33 @@
     $("#nText").onkeydown = (ev) => {
       if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") $("#noteForm").requestSubmit();
     };
+    $("#nText").addEventListener("input", renderSheetImages);
+    const imageFiles = (dt) => [...((dt && dt.files) || [])].filter((f) => /^image\//.test(f.type));
+    $("#nText").addEventListener("paste", (ev) => {
+      if (sheetKind !== "text") return;
+      const files = imageFiles(ev.clipboardData);
+      if (!files.length) return;
+      ev.preventDefault();
+      addSheetImages(files);
+    });
+    $("#nText").addEventListener("dragover", (ev) => {
+      if (sheetKind === "text" && ev.dataTransfer && [...ev.dataTransfer.types].includes("Files")) ev.preventDefault();
+    });
+    $("#nText").addEventListener("drop", (ev) => {
+      if (sheetKind !== "text") return;
+      const files = imageFiles(ev.dataTransfer);
+      if (!files.length) return;
+      ev.preventDefault();
+      addSheetImages(files);
+    });
+    $("#cleanUpImagesBtn").onclick = cleanUpImages;
+    $("#nAddImageBtn").onclick = () => $("#nImageInput").click();
+    $("#nImageInput").onchange = (ev) => {
+      const files = [...ev.target.files];
+      ev.target.value = "";
+      $("#nText").focus();
+      addSheetImages(files);
+    };
   }
 
   window.LifeLogNotes = {
@@ -1445,7 +1600,7 @@
     sanitizeNote, renameNoteCategory, noteYears, getFilteredNotes, noteCats, openNoteCatModal, closeNoteCatModal, noteHaystack,
     sanitizeTodo, foldTodosIntoLists, listNotes: () => state.data.notes.filter((n) => n.kind === "list"),
     renderNotes, focusQuickList, openNoteReader, closeNoteReader, isCollection,
-    openNoteModal, closeNoteModal,
+    openNoteModal, closeNoteModal, updateImagesSetting,
     // the search page (search.js, 0.251.0): every note, boards included,
     // and the way a row of each kind opens
     searchable: () => state.data.notes.concat(boardItems()),

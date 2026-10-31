@@ -67,5 +67,15 @@ test("only http(s) and mailto links are ever links", () => {
   assert.strictEqual(M.safeHref("data:text/html,x"), null);
 });
 
+test("images (0.297.0): ![alt](src) and Obsidian's ![[file|size]], before a link would take them", () => {
+  assert.deepStrictEqual(M.inline("see ![a cat](lifelog-img:abc12345.jpg) here"),
+    [{ t: "text", text: "see " }, { t: "img", alt: "a cat", src: "lifelog-img:abc12345.jpg" }, { t: "text", text: " here" }]);
+  assert.deepStrictEqual(M.inline("![[Pasted image 2024.png|300]]"), [{ t: "img", alt: "", src: "Pasted image 2024.png", embed: true }]);
+  assert.deepStrictEqual(M.inline('![](a/b.png "title")'), [{ t: "img", alt: "", src: "a/b.png" }]);
+  assert.deepStrictEqual(M.inline("[not](an-image.png)")[0].t, "link");
+  assert.deepStrictEqual(M.images("x\n![[one.png]]\n![two](b.png)\n[link](c)").map((i) => i.src), ["one.png", "b.png"]);
+  assert.strictEqual(M.images("![[one.png]]")[0].raw, "![[one.png]]");
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

@@ -123,6 +123,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Letterboxd import (0.252.0)
 - Google Maps lists and places into a trip (0.242.0, 0.245.0)
 - Markdown, PDF and EPUB files as notes, run as Activity jobs (0.200.0, 0.236.0, 0.268.0)
+- Obsidian images come in with their notes, from the files or the folder picked, and Find in folder (0.297.0)
 - One review screen for every import: pick rows, edit a row, see what an update writes (0.24.0, 0.258.0)
 - Imports can update what you have, only filling gaps (0.151.0, 0.154.0)
 - Imports remember what you skipped, and can be undone (0.257.0, 0.256.0)
@@ -137,6 +138,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Note categories, collections that open notes as pages, favourites (0.195.0, 0.204.0, 0.196.0)
 - Show, sort and type filters (0.195.0, 0.214.0)
 - Bulk select, and make a note into a timeline entry (0.142.0)
+- Images in notes: add, paste or drop; kept on their own GitHub branch; Clean up (0.297.0)
 
 ## Notebook (Habits)
 
@@ -239,6 +241,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Its changes in History, tagged with the AI's name, each undoable on any device (0.284.0)
 - Add habits, recurring bills, categories and projects; delete categories; stats, habit insights, upcoming releases; batch changes as one save (0.284.0)
 - Search by every word in any order, narrowed by collection, category or subcategory, with categories shown on each hit (0.292.4)
+- A note's images, read as pictures and added from a file or base64 (0.297.0)
 
 ## Building and shipping
 

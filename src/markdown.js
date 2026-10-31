@@ -72,6 +72,10 @@
   // links. Earliest match wins; what's inside bold or italic is parsed again.
   const INLINE = [
     ["code", /`([^`]+)`/],
+    // Images (0.297.0): ![alt](src) and Obsidian's ![[file.png|300]]. Each
+    // starts with "!", one place before the link it would otherwise be.
+    ["img", /!\[([^\]]*)\]\(((?:[^()\s]|\([^()\s]*\))+)(?:\s+"[^"]*")?\)/],
+    ["embed", /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]/],
     // An address may hold one level of brackets, as Wikipedia's do.
     ["link", /\[([^\]]+)\]\(((?:[^()\s]|\([^()\s]*\))+)\)/],
     ["bold", /\*\*([^*]+)\*\*|__([^_]+)__/],
@@ -91,6 +95,8 @@
       const { t, m } = best;
       if (m.index) out.push({ t: "text", text: rest.slice(0, m.index) });
       if (t === "code") out.push({ t, text: m[1] });
+      else if (t === "img") out.push({ t, alt: m[1], src: m[2] });
+      else if (t === "embed") out.push({ t: "img", alt: "", src: m[1].trim(), embed: true });
       else if (t === "link") out.push({ t, href: m[2], children: inline(m[1]) });
       else if (t === "url") out.push({ t: "link", href: m[0], children: [{ t: "text", text: m[0] }] });
       else out.push({ t, children: inline(m[1] || m[2]) });
@@ -101,7 +107,31 @@
 
   const safeHref = (href) => (/^(https?:|mailto:)/i.test(href) ? href : null);
 
-  function renderInline(parent, nodes) {
+  // How an image is drawn is the caller's (opts.image(node) → Element):
+  // notes.js turns a picture stored by LifeLog into an <img>. Without it,
+  // or when it hands nothing back, an image is a line saying what it was.
+  // A web address is never loaded on its own: opening a note would tell
+  // that site you read it.
+  function imageChip(n) {
+    const href = n.embed ? null : safeHref(n.src);
+    const chip = document.createElement(href ? "a" : "span");
+    chip.className = "md-img-missing";
+    if (href) { chip.href = href; chip.target = "_blank"; chip.rel = "noopener noreferrer"; }
+    const name = n.alt || String(n.src).replace(/^.*[\\/]/, "");
+    chip.textContent = (href ? "Image: " : "Image not brought in: ") + name;
+    return chip;
+  }
+
+  function renderInline(parent, nodes, opts) {
+    // A picture is a block of its own: the line breaks around it in the
+    // source would only add a blank line above or below it.
+    nodes = nodes.map((n, i) => {
+      if (n.t !== "text") return n;
+      let text = n.text;
+      if (i > 0 && nodes[i - 1].t === "img") text = text.replace(/^[ \t]*\n/, "");
+      if (i < nodes.length - 1 && nodes[i + 1].t === "img") text = text.replace(/\n[ \t]*$/, "");
+      return text === n.text ? n : { ...n, text };
+    });
     for (const n of nodes) {
       if (n.t === "text") {
         // Single line breaks inside a paragraph are kept, as the note had them.
@@ -112,26 +142,30 @@
         continue;
       }
       if (n.t === "code") { const c = document.createElement("code"); c.textContent = n.text; parent.appendChild(c); continue; }
+      if (n.t === "img") {
+        parent.appendChild((opts && opts.image && opts.image(n)) || imageChip(n));
+        continue;
+      }
       if (n.t === "link") {
         const href = safeHref(n.href);
         const a = document.createElement(href ? "a" : "span");
         if (href) { a.href = href; a.target = "_blank"; a.rel = "noopener noreferrer"; }
-        renderInline(a, n.children);
+        renderInline(a, n.children, opts);
         parent.appendChild(a);
         continue;
       }
       const tag = document.createElement(n.t === "bold" ? "strong" : "em");
-      renderInline(tag, n.children);
+      renderInline(tag, n.children, opts);
       parent.appendChild(tag);
     }
   }
 
-  function render(text) {
+  function render(text, opts) {
     const frag = document.createDocumentFragment();
     for (const b of parse(text)) {
       let node;
-      if (b.t === "h") { node = document.createElement("h" + Math.min(6, b.level + 1)); renderInline(node, inline(b.text)); }
-      else if (b.t === "p") { node = document.createElement("p"); renderInline(node, inline(b.text)); }
+      if (b.t === "h") { node = document.createElement("h" + Math.min(6, b.level + 1)); renderInline(node, inline(b.text), opts); }
+      else if (b.t === "p") { node = document.createElement("p"); renderInline(node, inline(b.text), opts); }
       else if (b.t === "hr") node = document.createElement("hr");
       else if (b.t === "code") {
         node = document.createElement("pre");
@@ -140,7 +174,7 @@
         node.appendChild(c);
       } else if (b.t === "quote") {
         node = document.createElement("blockquote");
-        node.appendChild(render(b.text));
+        node.appendChild(render(b.text, opts));
       } else {
         node = document.createElement(b.t);
         for (const it of b.items) {
@@ -152,7 +186,7 @@
             box.textContent = it.done ? "☑" : "☐";
             li.appendChild(box);
           }
-          renderInline(li, inline(it.text));
+          renderInline(li, inline(it.text), opts);
           node.appendChild(li);
         }
       }
@@ -161,5 +195,15 @@
     return frag;
   }
 
-  window.LifeLogMarkdown = { parse, inline, render, safeHref };
+  // Every picture a text points at, in order: { alt, src, embed? }.
+  function images(text) {
+    const out = [];
+    const re = /!\[\[([^\]|]+)(?:\|[^\]]*)?\]\]|!\[([^\]]*)\]\(((?:[^()\s]|\([^()\s]*\))+)(?:\s+"[^"]*")?\)/g;
+    for (const m of String(text || "").matchAll(re)) {
+      out.push(m[1] != null ? { alt: "", src: m[1].trim(), embed: true, raw: m[0] } : { alt: m[2], src: m[3], raw: m[0] });
+    }
+    return out;
+  }
+
+  window.LifeLogMarkdown = { parse, inline, render, safeHref, images };
 })();

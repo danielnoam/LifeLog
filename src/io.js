@@ -498,7 +498,11 @@
     // A checklist can be items and no title, so its items are part of what
     // it's called and what it matches on.
     const noteWords = (n) => [n.title, n.text, ...(n.items || []).map((i) => i.text)].filter(Boolean).join("\n");
-    if (want("note")) simple("note", incoming.notes || [], sanitizeNote, noteWords, (n) => low(noteWords(n)), state.data.notes || []);
+    // A picture is the same picture whichever way it's written: a note
+    // imported from Obsidian keeps ![[x.png]] until it's in, then points at
+    // the copy LifeLog kept, and imported again it's still one you have.
+    const noteKey = (n) => low(noteWords(n).replace(IMAGE_ANY, "![]"));
+    if (want("note")) simple("note", incoming.notes || [], sanitizeNote, noteWords, noteKey, state.data.notes || []);
     // A to-do you already have is an item of a list note now (0.197.0): the
     // same id, or the same words in the list its category became.
     const asTodos = (state.data.notes || []).filter((n) => n.kind === "list")
@@ -780,9 +784,126 @@
   // there would make every save slow and could outgrow the cache.
   const DOC_MAX = 300000;
   const isDoc = (name) => /\.(pdf|epub)$/i.test(name);
+
+  // ---------- pictures that come with Markdown (0.297.0) ----------
+  // Obsidian writes a picture as ![[Pasted image 2024.png]] or ![](attachments/x.png),
+  // pointing at a file in the vault. Picked along with the notes (or in the
+  // folder picked), each one is matched by its path, else by its name, kept
+  // by LifeLog (images.js) and the note made to point at that copy. One that
+  // isn't among the files stays as it was written, and shows as a line
+  // saying it wasn't brought in.
+  const IMAGE_ANY = /!\[\[[^\]]*\]\]|!\[[^\]]*\]\([^)]*\)/g;
+  const IMAGE_FILE = /\.(jpe?g|png|gif|webp|avif|bmp|heic|heif)$/i;
+  const isImageFile = (f) => !!f && (IMAGE_FILE.test(f.name || "") || /^image\//.test(f.type || ""));
+  const pathOf = (f) => String(f.path || f.webkitRelativePath || (f.folder ? f.folder + "/" + f.name : f.name) || "");
+  const normPath = (p) => {
+    let s = String(p || "").trim().replace(/\\/g, "/").replace(/^<|>$/g, "");
+    try { s = decodeURIComponent(s); } catch (e) { /* a literal % */ }
+    return s.replace(/^(\.\/)+/, "").replace(/^\/+/, "").toLowerCase();
+  };
+  // The file a note's `src` names: one whose path ends with it, else the one
+  // with its name. An embed without an extension (Obsidian allows it for
+  // pictures) matches a name that only adds one.
+  function findImageFile(src, files) {
+    const want = normPath(src);
+    if (!want || /^(https?:|data:|lifelog-img:)/.test(want)) return null;
+    const tail = want.replace(/^(\.\.\/)+/, "");
+    const name = tail.replace(/^.*\//, "");
+    const paths = files.map((f) => normPath(pathOf(f)));
+    let i = paths.findIndex((p) => p === tail || p.endsWith("/" + tail));
+    if (i < 0) i = files.findIndex((f) => normPath(f.name) === name);
+    if (i < 0 && !/\.[a-z0-9]+$/.test(name)) i = files.findIndex((f) => normPath(f.name).replace(/\.[a-z0-9]+$/, "") === name);
+    return i < 0 ? null : files[i];
+  }
+  // A picked file's bytes as a Blob: a browser File already is one; the
+  // Android folder screen hands back where it is, read when it's needed.
+  async function imageBlob(f) {
+    if (typeof Blob !== "undefined" && f instanceof Blob) return f;
+    const plugin = window.LifeLogPlatform && window.LifeLogPlatform.plugin("Widgets");
+    if (!f.uri || !plugin || !plugin.readDocument) throw new Error("Couldn't read " + f.name);
+    const res = await plugin.readDocument({ uri: f.uri });
+    const bin = atob(res.data || "");
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: res.type || "" });
+  }
+  // Points each picture in the notes at a copy LifeLog keeps. `kept` maps a
+  // file to its id, so a picture two notes share is kept once.
+  async function linkNoteImages(notes, files, job) {
+    const Images = window.LifeLogImages, md = window.LifeLogMarkdown;
+    const out = { added: 0, missing: [], failed: [] };
+    if (!Images || !md) return out;
+    const kept = new Map();
+    const total = notes.reduce((t, n) => t + md.images(n.text).length, 0);
+    let done = 0;
+    for (const n of notes) {
+      const refs = md.images(n.text);
+      if (!refs.length) continue;
+      let text = n.text;
+      for (const r of refs) {
+        if (job) job.progress(done++, total, r.src);
+        if (/^(https?:|data:|lifelog-img:)/i.test(r.src)) continue;
+        const f = findImageFile(r.src, files);
+        if (!f) { out.missing.push(r.src); continue; }
+        let id = kept.get(f);
+        if (!id) {
+          try { id = await Images.add(await imageBlob(f)); kept.set(f, id); out.added++; }
+          catch (e) { out.failed.push(f.name + ": " + ((e && e.message) || e)); continue; }
+        }
+        text = text.replace(r.raw, Images.ref(id, r.alt));
+      }
+      n.text = text;
+    }
+    return out;
+  }
+  // A folder of files: Android's own folder screen in the app, the
+  // browser's on a computer. Neither a phone's browser nor iOS has one.
+  function canPickFolder() {
+    const P = window.LifeLogPlatform;
+    if (P && P.ios) return false;
+    if (P && P.plugin("Widgets")) return true;
+    return !/Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+  async function pickFolder() {
+    const plugin = window.LifeLogPlatform && window.LifeLogPlatform.plugin("Widgets");
+    if (plugin) {
+      const res = await plugin.pickMarkdownFolder();
+      return res && !res.cancelled ? res.files || [] : [];
+    }
+    return new Promise((resolve) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.webkitdirectory = true;
+      input.multiple = true;
+      input.onchange = () => resolve([...input.files]);
+      input.oncancel = () => resolve([]);
+      input.click();
+    });
+  }
+  // The toast's Find in folder after an import that missed some pictures:
+  // the folder they're in (a whole vault will do), and the imported notes
+  // point at them from then on.
+  async function findImagesInFolder(ids) {
+    let files;
+    try { files = await pickFolder(); } catch (e) { toast("Couldn't read that folder — " + ((e && e.message) || e), true); return; }
+    const pictures = files.filter(isImageFile);
+    if (!files.length) return;
+    if (!pictures.length) { toast("No images in that folder", true); return; }
+    const notes = (state.data.notes || []).filter((n) => ids.includes(n.id));
+    let res = null;
+    const run = async (job) => { res = await linkNoteImages(notes, pictures, job); if (job) job.finish(`${res.added} image${res.added === 1 ? "" : "s"} found`); };
+    const Jobs = window.LifeLogJobs;
+    if (Jobs) await Jobs.run({ label: "Finding images", lane: "files" }, run); else await run(null);
+    if (!res || !res.added) { toast(res && res.missing.length ? `None of the ${res.missing.length} missing images ${res.missing.length === 1 ? "is" : "are"} in that folder` : "Nothing to find", true); return; }
+    afterDataChange();
+    await persist();
+    toast(`Found ${res.added} image${res.added === 1 ? "" : "s"}` + (res.missing.length ? ` — ${res.missing.length} still missing` : ""), !!res.missing.length);
+  }
+
   async function importMarkdown(files) {
     const picked = [...files].filter((f) => /\.(md|markdown|txt)$/i.test(f.name) || (isDoc(f.name) && typeof f.arrayBuffer === "function"));
-    if (!picked.length) { toast("No Markdown, PDF or EPUB files in that selection", true); return; }
+    const pictures = [...files].filter(isImageFile);
+    if (!picked.length) { toast(pictures.length ? "Pick the notes along with their images" : "No Markdown, PDF or EPUB files in that selection", true); return; }
     // Only notes with something in them, so the rows buildImportItems hands
     // back line up one to one with these and each can be told its folder.
     //
@@ -832,11 +953,35 @@
     const built = buildImportItems({ notes }, ["note"]);
     if (built.items.length === notes.length) built.items.forEach((it, i) => { it.folder = folders[i]; });
     const n = notes.length;
+    const withImages = built.items.filter((it) => window.LifeLogMarkdown && window.LifeLogMarkdown.images(it.entry.text).length).length;
     openImportPicker({
       title: `Import ${n} file${n === 1 ? "" : "s"}`,
-      hint: MD_HINT, mode: "import", items: built.items, newCategories: built.newCategories,
+      hint: MD_HINT + (withImages ? ` ${withImages} of them ${withImages === 1 ? "has" : "have"} images, brought in with the note when the image file was picked too.` : ""),
+      mode: "import", items: built.items, newCategories: built.newCategories,
       confirmLabel: "Import", searchable: picked.length > 8, categorize: "note",
-      onConfirm: applyImportSelection,
+      // Only the notes being imported get their pictures kept.
+      onConfirm: async (selected, addCats) => {
+        const chosen = selected.filter((i) => i.kind === "note" && !i.update).map((i) => i.entry);
+        let linked = null;
+        if (chosen.some((e) => window.LifeLogMarkdown && window.LifeLogMarkdown.images(e.text).length)) {
+          let res = null;
+          const run = async (job) => {
+            res = await linkNoteImages(chosen, pictures, job);
+            linked = res;
+            if (job) job.finish(`${res.added} image${res.added === 1 ? "" : "s"} kept` + (res.missing.length ? `, ${res.missing.length} not among the files` : ""));
+          };
+          const Jobs = window.LifeLogJobs;
+          if (Jobs) await Jobs.run({ label: "Bringing in images", lane: "files" }, run); else await run(null);
+        }
+        await applyImportSelection(selected, addCats);
+        if (linked && linked.failed.length) toast(`${linked.failed.length} image${linked.failed.length === 1 ? "" : "s"} couldn't be read. ${linked.failed[0]}`, true);
+        else if (linked && linked.missing.length) {
+          const ids = chosen.map((e) => e.id);
+          const n = linked.missing.length;
+          toast(`${n} image${n === 1 ? " wasn't" : "s weren't"} among the files picked` + (canPickFolder() ? "" : ` — ${n === 1 ? "it shows" : "they show"} as a dashed line in the note`), true,
+            canPickFolder() ? { label: "Find in folder", keepEarlier: true, onClick: () => findImagesInFolder(ids) } : undefined);
+        }
+      },
     });
   }
 
@@ -1351,7 +1496,7 @@
     buildImportItems,
     importItemIncomplete, reviewAndImport, openImportPicker,
     // pure helpers (exported for test/io.test.js)
-    importItemDateStr, importBucketKey, parseMarkdownNote, journalCsvText, parseJournalCsv, notesCsvText, parseNotesCsv, allCsvText, parseAllCsv,
+    importItemDateStr, importBucketKey, parseMarkdownNote, findImageFile, linkNoteImages, journalCsvText, parseJournalCsv, notesCsvText, parseNotesCsv, allCsvText, parseAllCsv,
     fillableFields, findImportTarget, applyImportSelection,
   };
 })();

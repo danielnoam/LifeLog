@@ -299,6 +299,7 @@
   }
 
   // ---- GitHub backend ----
+  let imagesError = null;
   let gh = loadGhCfg();      // { owner, repo, path, branch, token, sha } | null
   let githubError = null;
   // Whether the last load() actually got an answer out of GitHub. Not the
@@ -600,6 +601,108 @@
     }
   }
 
+  // ---- pictures in notes (0.297.0) ----
+  // One file per picture, images/<id>, on a branch of their own in the same
+  // repo: the token and the repo are the ones already given, and lifelog.json's
+  // history on the main branch never holds a picture. Clean up (cleanUp)
+  // replaces the branch with one fresh commit of only the pictures the notes
+  // still point at, which a branch of their own makes safe: nothing else
+  // lives there. GitHub frees what that drops on its own schedule.
+  const IMG_BRANCH = "lifelog-images";
+  const IMG_README = "Pictures in LifeLog notes, one file each under images/. The app writes this branch; Settings → Notes → Clean up pictures replaces it with one commit of the pictures still in use.\n";
+  const imgUrl = (rest) => `${API}/repos/${gh.owner}/${gh.repo}/${rest}`;
+  async function ghJson(method, rest, body) {
+    const init = { method, headers: ghHeaders(), cache: "no-store" };
+    if (body !== undefined) {
+      init.headers = Object.assign({ "Content-Type": "application/json" }, init.headers);
+      init.body = JSON.stringify(body);
+    }
+    const r = await fetch(imgUrl(rest), init);
+    if (method === "GET" && r.status === 404) return null;
+    if (!r.ok) throw ghErr(r.status, await r.text(), r);
+    return r.json();
+  }
+  function blobToB64(blob) {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(String(fr.result).replace(/^data:[^,]*,/, ""));
+      fr.onerror = () => reject(fr.error);
+      fr.readAsDataURL(blob);
+    });
+  }
+  // The branch's head commit and its tree, or null when there's no branch.
+  async function imgHead() {
+    const ref = await ghJson("GET", "git/ref/heads/" + IMG_BRANCH);
+    if (!ref) return null;
+    const commit = await ghJson("GET", "git/commits/" + ref.object.sha);
+    return { commit: ref.object.sha, tree: commit.tree.sha };
+  }
+  // A commit with no parent, holding the readme and `entries`.
+  async function imgRootCommit(entries, message) {
+    const readme = await ghJson("POST", "git/blobs", { content: IMG_README, encoding: "utf-8" });
+    const tree = await ghJson("POST", "git/trees", {
+      tree: [{ path: "README.md", mode: "100644", type: "blob", sha: readme.sha }].concat(entries),
+    });
+    return ghJson("POST", "git/commits", { message, tree: tree.sha, parents: [] });
+  }
+  async function ghPutImages(list) {
+    const entries = [];
+    for (const it of list) {
+      const b = await ghJson("POST", "git/blobs", { content: await blobToB64(it.blob), encoding: "base64" });
+      entries.push({ path: "images/" + it.id, mode: "100644", type: "blob", sha: b.sha });
+    }
+    const message = "Add " + list.length + (list.length === 1 ? " picture" : " pictures") + " (" + new Date().toISOString() + ")";
+    for (let tries = 1; ; tries++) {
+      const head = await imgHead();
+      if (!head) {
+        const c = await imgRootCommit(entries, message);
+        try { await ghJson("POST", "git/refs", { ref: "refs/heads/" + IMG_BRANCH, sha: c.sha }); return; }
+        catch (e) { if (e.status !== 422 || tries >= 3) throw e; continue; } // another device made it first
+      }
+      const tree = await ghJson("POST", "git/trees", { base_tree: head.tree, tree: entries });
+      const c = await ghJson("POST", "git/commits", { message, tree: tree.sha, parents: [head.commit] });
+      try { await ghJson("PATCH", "git/refs/heads/" + IMG_BRANCH, { sha: c.sha, force: false }); return; }
+      catch (e) { if (e.status !== 422 || tries >= 3) throw e; } // moved meanwhile: on top of the new head
+    }
+  }
+  // The ids of every picture on the branch.
+  async function ghListImages() {
+    const head = await imgHead();
+    if (!head) return new Set();
+    const listing = await ghJson("GET", "git/trees/" + head.tree + "?recursive=1");
+    return new Set(listing.tree.filter((e) => e.type === "blob" && e.path.startsWith("images/")).map((e) => e.path.slice(7)));
+  }
+  async function ghGetImage(id) {
+    const r = await fetch(ghContentsUrl("images/" + id) + "?ref=" + IMG_BRANCH, {
+      headers: Object.assign(ghHeaders(), { "Accept": "application/vnd.github.raw" }),
+      cache: "no-store",
+    });
+    if (r.status === 404) return null;
+    if (!r.ok) throw ghErr(r.status, await r.text(), r);
+    return r.blob();
+  }
+  // Keeps the pictures `keep` names, drops the rest, and starts the branch's
+  // history over. The kept files are the same blobs, so nothing uploads again.
+  async function ghCleanUpImages(keep) {
+    const head = await imgHead();
+    if (!head) return { removed: 0, bytes: 0, kept: 0 };
+    const listing = await ghJson("GET", "git/trees/" + head.tree + "?recursive=1");
+    if (listing.truncated) throw new Error("GitHub sent back only part of the picture list, so nothing was removed");
+    const files = listing.tree.filter((e) => e.type === "blob" && e.path.startsWith("images/"));
+    const kept = files.filter((e) => keep.has(e.path.slice(7)));
+    const gone = files.filter((e) => !keep.has(e.path.slice(7)));
+    const commits = await ghJson("GET", "commits?sha=" + IMG_BRANCH + "&per_page=2");
+    if (!gone.length && commits && commits.length < 2) return { removed: 0, bytes: 0, kept: kept.length };
+    const c = await imgRootCommit(kept.map((e) => ({ path: e.path, mode: "100644", type: "blob", sha: e.sha })),
+      "Clean up: " + kept.length + " pictures kept, " + gone.length + " removed");
+    // Forced: this is the one write that replaces the branch's history. A
+    // picture another device uploaded in between is dropped from GitHub;
+    // that device still holds it, and puts it back once it sees the new
+    // settings.imagesCleanedAt (LifeLogImages.uploadPending).
+    await ghJson("PATCH", "git/refs/heads/" + IMG_BRANCH, { sha: c.sha, force: true });
+    return { removed: gone.length, bytes: gone.reduce((t, e) => t + (e.size || 0), 0), kept: kept.length };
+  }
+
   // ---- files beside lifelog.json: boards (0.193.0), travel (0.241.0) ----
   // Drawing boards live in a file of their own, boards.json beside the data
   // file, so an ordinary save — ticking a habit — never uploads them, and a
@@ -843,6 +946,16 @@
     },
     disablePhoneBackup() { setPhoneCfg({ on: false }); return this.phoneBackup; },
 
+    // Pictures in notes on GitHub (0.297.0); LifeLogImages is the caller.
+    images: {
+      connected: () => !!(gh && gh.token),
+      get error() { return imagesError; },
+      put: (list) => ghPutImages(list),
+      get: (id) => ghGetImage(id),
+      list: () => ghListImages(),
+      cleanUp: (keep) => ghCleanUpImages(keep),
+    },
+
     get githubInfo() {
       return gh ? { owner: gh.owner, repo: gh.repo, path: gh.path, branch: gh.branch, tokenKind: tokenKind(gh.token) } : null;
     },
@@ -1008,6 +1121,13 @@
       let toGithub = false, toFile = false, merged = false;
 
       if (gh && gh.token) {
+        // Pictures first, so a note never reaches another device before the
+        // picture it points at. One that fails waits for the next save; the
+        // notes go anyway.
+        if (window.LifeLogImages) {
+          try { await window.LifeLogImages.uploadPending(data); imagesError = null; }
+          catch (e) { imagesError = e; }
+        }
         try {
           merged = await ghSave(data);
           githubError = null; toGithub = true;
@@ -1118,6 +1238,7 @@
       if (handle) await Storage.disconnect();
       await Boards.forget();
       await Travel.forget();
+      if (window.LifeLogImages) await window.LifeLogImages.forget().catch(() => {});
       // The sync base is a whole copy of the data too.
       keepCopy(CACHE_COPY, null); keepCopy(BASE_COPY, null);
       await Storage.copiesWritten();

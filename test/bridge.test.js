@@ -103,6 +103,7 @@ test("every read tool answers, and none of them ever shows an API key", async ()
   reset();
   for (const t of B.TOOLS.filter((x) => x.readOnly)) {
     const args = t.name === "lifelog_search" ? { query: "e" } : t.name === "lifelog_get" ? { collection: "notes", item: "no1" }
+      : t.name === "lifelog_note_images" ? { note: "no1" }
       : t.name === "lifelog_google_list" ? { link: "https://www.google.com/maps/place/Pantheon/@41.8986,12.4769,17z" } : {};
     const text = await ok(t.name, args);
     assert.ok(!/SECRET/.test(text), t.name + " leaked a secret");
@@ -883,6 +884,40 @@ test("the command line runs the same tools", async () => {
   const help = await run([]);
   assert.match(help.out, /lifelog_add_expense \(changes data\) --amount --category/);
 });
+
+test("images in notes (0.297.0): added beside the data, listed, and sent back as pictures", async () => {
+  reset();
+  // A 1×1 PNG.
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  const pic = path.join(dir, "pic.png");
+  fs.writeFileSync(pic, png);
+  await refused("lifelog_add_note_image", { note: "no1", data: Buffer.from("not a picture at all").toString("base64") }, /isn't a JPEG, PNG/);
+  await refused("lifelog_add_note_image", { note: "no2", file: pic }, /Only a plain note/);
+  await refused("lifelog_add_note_image", { note: "no1" }, /file or data/);
+  const said = await ok("lifelog_add_note_image", { note: "Plan", file: pic, alt: "The [plan]" });
+  const id = /as (\w+\.png)/.exec(said)[1];
+  const n = data().notes.find((x) => x.id === "no1");
+  assert.strictEqual(n.text, "Ship the bridge\n![The  plan](lifelog-img:" + id + ")");
+  assert.ok(fs.readFileSync(path.join(dir, "images", id)).equals(png), "the picture is kept beside the data");
+  // And from base64, after a given line.
+  d0 = data(); d0.notes.find((x) => x.id === "no1").text = "One\nTwo\n![[gone.png]]\n![x](https://example.com/a.png)\n![](lifelog-img:" + id + ")"; fs.writeFileSync(FILE, JSON.stringify(d0, null, 2));
+  await ok("lifelog_add_note_image", { note: "no1", data: png.toString("base64"), after: "one" });
+  assert.match(data().notes.find((x) => x.id === "no1").text, /^One\n!\[\]\(lifelog-img:\w+\.png\)\nTwo/);
+  const r = await call("lifelog_note_images", { note: "no1" });
+  assert.ok(r.ok, r.text);
+  assert.match(r.text, /has 4 images/);
+  assert.match(r.text, /not brought in: gone\.png/);
+  assert.match(r.text, /web link, not fetched: https:\/\/example\.com\/a\.png/);
+  assert.strictEqual(r.images.length, 2);
+  assert.ok(r.images.every((i) => i.mimeType === "image/png" && Buffer.from(i.data, "base64").equals(png)));
+  const quiet = await call("lifelog_note_images", { note: "no1", pictures: false });
+  assert.strictEqual(quiet.images.length, 0);
+  assert.match(await ok("lifelog_note_images", { note: "no2" }), /has no images/);
+  // Undo takes the line out again.
+  await ok("lifelog_undo", {});
+  assert.doesNotMatch(data().notes.find((x) => x.id === "no1").text, /^One\n!\[/);
+});
+let d0;
 
 (async () => {
   for (const [name, fn] of tests) {

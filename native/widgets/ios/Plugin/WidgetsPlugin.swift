@@ -27,6 +27,7 @@ public class WidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "biometricState", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "authenticate", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "pickMarkdownFolder", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "readDocument", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "holdBackground", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "releaseBackground", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "setPrivacyScreen", returnType: CAPPluginReturnPromise),
@@ -137,6 +138,11 @@ public class WidgetsPlugin: CAPPlugin, CAPBridgedPlugin {
     // ---- what iOS doesn't have ----
     @objc func pickMarkdownFolder(_ call: CAPPluginCall) {
         call.unavailable("Pick the Markdown files themselves on iOS")
+    }
+
+    // A picture from a picked folder (0.297.0): there's no folder to pick here.
+    @objc func readDocument(_ call: CAPPluginCall) {
+        call.unavailable("Pick the images along with the notes on iOS")
     }
 
     // ---- work that keeps going with the app put away (0.244.0) ----

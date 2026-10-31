@@ -1241,6 +1241,7 @@
     renderTabToggles();
     updateMediaSettings();
     updatePrivacySettings();
+    if (window.LifeLogNotes) window.LifeLogNotes.updateImagesSetting();
     $("#settingsModal").hidden = false;
     showPage(typeof page === "string" ? page : onePane() ? "" : "sync");
     updateStatuses();

@@ -164,7 +164,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.296.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.297.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -1391,7 +1391,9 @@
       // Only the newest keeps its Undo: an older one would undo past the
       // change that came after it.
       t.removeAttribute("id");
-      t.querySelectorAll(".toast-action").forEach((b) => b.remove());
+      // An action that changes nothing by itself (Find in folder, 0.297.0)
+      // leaves the one before it its Undo.
+      if (!(action && action.keepEarlier)) t.querySelectorAll(".toast-action").forEach((b) => b.remove());
       const next = el("div", "toast");
       next.id = "toast";
       t.after(next);
@@ -4176,7 +4178,7 @@
     "monthOrder",
     "currency", "mediaCategorySources", "mediaCategoryFallbackSources",
     "mediaKeys", "steam", "anilist", "releases", "importSkips", "updatedAt",
-    "monthMinWidth", "monthMaxWidth",
+    "monthMinWidth", "monthMaxWidth", "imagesCleanedAt",
   ]);
 
   function sanitizeAccomplishment(a, y) {
@@ -4271,6 +4273,9 @@
       importSkips: Object.fromEntries(Object.entries(incomingSettings.importSkips && typeof incomingSettings.importSkips === "object" ? incomingSettings.importSkips : {})
         .filter(([, v]) => Array.isArray(v)).map(([k, v]) => [k, v.filter((x) => typeof x === "string")])),
     };
+    // When the pictures on GitHub were last cleaned up (0.297.0): a device
+    // that sees a newer one checks its uploaded pictures are still there.
+    if (typeof incomingSettings.imagesCleanedAt === "string" && incomingSettings.imagesCleanedAt) data.settings.imagesCleanedAt = incomingSettings.imagesCleanedAt;
     keepUnknown(incomingSettings, data.settings, KNOWN_SETTINGS_KEYS);
     delete data.settings.monthOrder;
     const accIn = data.accomplishments || {};

@@ -89,6 +89,64 @@ async function gh(cfg, method, url, body) {
   return json;
 }
 
+// Pictures in notes (0.297.0), as the app keeps them: images/<id> on the
+// data repo's own "lifelog-images" branch, added in one commit on top of the
+// branch (made, with no history, when there isn't one yet).
+const IMG_BRANCH = "lifelog-images";
+const IMG_README = "Pictures in LifeLog notes, one file each under images/. The app writes this branch; Settings → Notes → Clean up pictures replaces it with one commit of the pictures still in use.\n";
+function githubImages(cfg, prepare) {
+  const repo = () => `/repos/${cfg.owner}/${cfg.repo}`;
+  async function head() {
+    try {
+      const ref = await gh(cfg, "GET", `${repo()}/git/ref/heads/${IMG_BRANCH}`);
+      const c = await gh(cfg, "GET", `${repo()}/git/commits/${ref.object.sha}`);
+      return { commit: ref.object.sha, tree: c.tree.sha };
+    } catch (e) {
+      if (e instanceof SetupError && /has no/.test(e.message)) return null;
+      throw e;
+    }
+  }
+  return {
+    async get(id) {
+      await prepare();
+      const res = await fetch(`${API}${repo()}/contents/images/${encodeURIComponent(id)}?ref=${IMG_BRANCH}`, {
+        headers: { Authorization: "Bearer " + cfg.token, Accept: "application/vnd.github.raw", "X-GitHub-Api-Version": "2022-11-28", "User-Agent": "LifeLog-bridge" },
+        signal: AbortSignal.timeout(30000),
+      });
+      if (res.status === 404) return null;
+      if (!res.ok) throw new Error("GitHub " + res.status + " reading image " + id);
+      return Buffer.from(await res.arrayBuffer());
+    },
+    async put(list) {
+      await prepare();
+      const entries = [];
+      for (const it of list) {
+        const b = await gh(cfg, "POST", `${repo()}/git/blobs`, { content: it.bytes.toString("base64"), encoding: "base64" });
+        entries.push({ path: "images/" + it.id, mode: "100644", type: "blob", sha: b.sha });
+      }
+      const message = "Add " + list.length + (list.length === 1 ? " picture" : " pictures") + " (" + new Date().toISOString() + ")";
+      for (let tries = 1; ; tries++) {
+        const h = await head();
+        try {
+          if (!h) {
+            const readme = await gh(cfg, "POST", `${repo()}/git/blobs`, { content: IMG_README, encoding: "utf-8" });
+            const tree = await gh(cfg, "POST", `${repo()}/git/trees`, { tree: [{ path: "README.md", mode: "100644", type: "blob", sha: readme.sha }, ...entries] });
+            const c = await gh(cfg, "POST", `${repo()}/git/commits`, { message, tree: tree.sha, parents: [] });
+            await gh(cfg, "POST", `${repo()}/git/refs`, { ref: "refs/heads/" + IMG_BRANCH, sha: c.sha });
+          } else {
+            const tree = await gh(cfg, "POST", `${repo()}/git/trees`, { base_tree: h.tree, tree: entries });
+            const c = await gh(cfg, "POST", `${repo()}/git/commits`, { message, tree: tree.sha, parents: [h.commit] });
+            await gh(cfg, "PATCH", `${repo()}/git/refs/heads/${IMG_BRANCH}`, { sha: c.sha, force: false });
+          }
+          return;
+        } catch (e) {
+          if (e.status !== 422 || tries >= 3) throw e; // another device moved the branch meanwhile
+        }
+      }
+    },
+  };
+}
+
 // `file` is another file in the data folder (boards.json beside
 // lifelog.json): written compact, as the app writes it, and read as `empty`
 // when it doesn't exist yet. Its version is then null, which a write takes as
@@ -104,6 +162,7 @@ function githubStore(cfg, file, empty) {
   return {
     where: () => `GitHub ${cfg.owner || "?"}/${cfg.repo}/${repoPath}`,
     sibling: (name, emptyDoc) => githubStore(cfg, name, emptyDoc),
+    images: githubImages(cfg, prepare),
     async read() {
       await prepare();
       let meta;
@@ -140,6 +199,17 @@ function fileStore(cfg, name, empty) {
   return {
     where: () => file,
     sibling: (n, emptyDoc) => fileStore(cfg, n, emptyDoc),
+    // A local copy keeps its pictures in images/ beside it.
+    images: {
+      async get(id) {
+        try { return fs.readFileSync(path.join(path.dirname(file), "images", path.basename(id))); } catch (e) { return null; }
+      },
+      async put(list) {
+        const dir = path.join(path.dirname(file), "images");
+        fs.mkdirSync(dir, { recursive: true });
+        for (const it of list) fs.writeFileSync(path.join(dir, path.basename(it.id)), it.bytes);
+      },
+    },
     async read() {
       if (empty && !fs.existsSync(file)) return { data: structuredClone(empty), version: "" };
       try { return { data: JSON.parse(fs.readFileSync(file, "utf8")), version: stamp() }; } catch (e) {

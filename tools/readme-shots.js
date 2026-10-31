@@ -262,6 +262,32 @@ const SHOTS = [
   { name: "item-sheet", ui: { view: "backlog", backlogMode: "entries" },
     noScroll: true, go: async (page) => { await page.click('.backlog-item-rich:has-text("Starfall Tactics") .bl-body'); } },
   { name: "notes", ui: { view: "notes", notesMode: "notes" } },
+  // Images in notes (0.297.0): a picture drawn here, kept by the app, then a
+  // note made around it and opened in the reader.
+  { name: "note-images", ui: { view: "notes", notesMode: "notes" }, noScroll: true,
+    go: async (page) => {
+      await page.evaluate(async () => {
+        const c = document.createElement("canvas"); c.width = 1600; c.height = 1000;
+        const g = c.getContext("2d");
+        const sky = g.createLinearGradient(0, 0, 0, 1000); sky.addColorStop(0, "#f7b267"); sky.addColorStop(1, "#f4845f");
+        g.fillStyle = sky; g.fillRect(0, 0, 1600, 1000);
+        g.fillStyle = "#fff3c4"; g.beginPath(); g.arc(1120, 360, 120, 0, 7); g.fill();
+        ["#6d597a", "#355070", "#2b2d42"].forEach((col, i) => {
+          g.fillStyle = col; g.beginPath(); g.moveTo(0, 1000);
+          for (let x = 0; x <= 1600; x += 40) g.lineTo(x, 620 + i * 100 + Math.sin(x / 1600 * 6 + i * 2) * 60);
+          g.lineTo(1600, 1000); g.fill();
+        });
+        const blob = await new Promise((r) => c.toBlob(r, "image/jpeg", 0.85));
+        const id = await window.LifeLogImages.add(blob);
+        window.LifeLogNotes.openNoteModal(null);
+        document.querySelector("#nTitle").value = "Ridge trail";
+        document.querySelector("#nText").value = "Up from the north car park, at the top just as the light turned.\n" + window.LifeLogImages.ref(id, "Sunset from the ridge") + "\nThree hours up, two down. More water next time.";
+        document.querySelector("#noteForm").requestSubmit();
+      });
+      await page.waitForTimeout(400);
+      await page.evaluate(() => window.LifeLogNotes.openNoteReader(window.LifeLogNotes.searchable().find((n) => n.title === "Ridge trail").id));
+      await page.waitForSelector("#noteReaderBody .md-img[src^='blob:']");
+    } },
   { name: "habits", ui: { view: "notes", notesMode: "habits" } },
   { name: "ledger", ui: { view: "finance", financeMode: "entries" } },
   { name: "ledger-summary", ui: { view: "finance", financeMode: "summary" } },

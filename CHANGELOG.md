@@ -4,6 +4,32 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.297.0] - 2026-10-31
+
+### Added
+- **Images in notes.** Add image under a note's text, or paste or drop a
+  picture into it. Each one sits on its own line where you put it, shows in
+  the note's card and full width when you read it, and has a thumbnail with
+  × in the sheet to take it out. A big photo is shrunk to 1600px first.
+- **Obsidian notes keep their pictures.** Import Markdown files with their
+  images, or pick the whole folder, and each `![[photo.png]]` or
+  `![](attachments/photo.png)` comes in with the note. A picture that wasn't
+  among the files shows as a dashed line naming it, and the toast's **Find
+  in folder** fills those in from a folder you point it at. On Android the
+  folder picker brings images too.
+- **Clean up images** in Settings → Notebook removes the ones no note
+  shows any more.
+- The AI bridge can see a note's images (`lifelog_note_images`) and add one
+  (`lifelog_add_note_image`).
+
+### Changed
+- Images live on GitHub in your data repo, on a branch of their own
+  (`lifelog-images`), never inside lifelog.json: a save still uploads only
+  your notes, and each image is uploaded once, before the note that shows
+  it. They're kept on each device after first view, so they show offline.
+- An image on a web address in a note isn't loaded: it shows as a link, so
+  reading a note doesn't tell another site you did.
+
 ## [0.296.1] - 2026-10-30
 
 ### Changed
