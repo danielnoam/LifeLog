@@ -1,8 +1,8 @@
 // Not a pass/fail suite — a measurement, which is why it lives outside
 // test/browser (run-all treats everything in there as a suite). It answers
 // one question: how much of a cold load is the row count, and therefore what
-// virtualising the rows could possibly buy. See TODO.md's first entry for the
-// numbers this produced and what they settled.
+// virtualising the rows could possibly buy. See the to-do list's first entry
+// (in the project folder) for the numbers this produced and what they settled.
 //
 //   node test/perf/serve-and-run.js          # serves the repo and runs this
 //

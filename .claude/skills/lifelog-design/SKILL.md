@@ -104,4 +104,4 @@ The full voice is DESIGN.md §8. The short version:
 
 If following DESIGN.md makes something worse, don't quietly break it. Make
 the case to the user. If they agree, change DESIGN.md in the same commit and
-write the reason in NOTES.md. Then ship with the `release-checklist` skill.
+write the reason in the commit and pull request. Then ship with the `release-checklist` skill.

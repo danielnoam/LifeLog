@@ -3,7 +3,8 @@
 What LifeLog does today, grouped by area, one line per feature with the
 version it came in (or was last reshaped in). Built from CHANGELOG.md on
 2026-10-17; features that were later removed are left out. CHANGELOG.md has
-the details of each release, NOTES.md the reasoning, TODO.md what's left,
+the details of each release, NOTES.md the reasoning up to 2026-11-02 (pull
+requests since), the to-do list in the project folder what's left,
 DROPPED.md what was turned down.
 
 Every release that adds a feature adds its line here in the same commit.
@@ -247,6 +248,7 @@ Every release that adds a feature adds its line here in the same commit.
 ## Building and shipping
 
 - Tests gate every publish: the APK, the IPA and the web app wait on the unit and browser tests in CI (0.271.0)
+- Pull requests into main, merged once the Tests check is green; `tools/release.js` releases what `changes/` has gathered; a PR labelled `test`, `test-android` or `test-ios` gets a test build on a `test-<branch>` pre-release (2026-11-02)
 
 ## Accessibility
 

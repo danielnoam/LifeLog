@@ -1,79 +1,75 @@
 ---
 name: release-checklist
-description: Release checklist for the LifeLog app (danielnoam/lifelog) — bump APP_VERSION, add a matching CHANGELOG.md entry, file notes under TODO.md/DONE.md/NOTES.md/DROPPED.md and README.md, keep the vanilla JS/CSS app lean, verify mobile and desktop, and push to main (which publishes the APK). Use this before shipping any change to LifeLog.
+description: Release checklist for the LifeLog app (danielnoam/lifelog): a branch and pull request per change, a changes/<branch>.md note (folded into CHANGELOG.md by tools/release.js, which also bumps the version in three places), DONE.md, DROPPED.md, the project folder's to-do list and README.md kept current, the bridge in step, the tests, phone and desktop checks, merging on green, test builds by label. Use this before shipping any change to LifeLog.
 ---
 
 # LifeLog release checklist
 
-Run through all of these before shipping a change. Every change pushed to
-`main` should leave the version number, CHANGELOG.md, and the notes files in
-sync with it. Don't push with any step skipped.
+Run through all of these before merging a change. It follows
+CONTRIBUTING.md's "Versions and releases" (2026-11-02, from Waypage):
+`main` only takes pull requests, and only a release PR bumps the version.
 
-## 1. Bump APP_VERSION
+## 1. Branch, and decide whether this PR releases
 
-- Defined in `src/app.js` (`const APP_VERSION = "x.y.z"`), rendered in
-  Settings as "LifeLog vX.Y.Z" — the only version string in the app, and
-  the user's main signal that a deploy picked up the new build.
-- Bump using semver, based on the change:
-  - New user-facing feature → bump minor (`0.X.0` → `0.(X+1).0`), reset patch to 0
-  - Bug fix / small tweak / styling-only → bump patch (`0.x.Y` → `0.x.(Y+1)`)
-  - Breaking change to the saved data format (`data.version` in `src/storage.js`) → bump major
-- Never push to `main` without bumping this, even for small fixes.
-- Also update the `?v=x.y.z` cache-busting query string on every
-  `<script>`/`<link rel="stylesheet">` tag in `index.html` to match —
-  browsers cache these by URL, so leaving the query string stale means
-  returning visitors keep serving old JS/CSS after a deploy even though
-  the file content changed on the server.
-- And bump `CACHE` in `sw.js` (`lifelog-vNN` → `vNN+1`). This step was
-  undocumented until 0.166.0 and had silently drifted three releases as a
-  result, which is exactly why it is written down now. It is not what keeps
-  assets fresh — the `?v=` query above does that — so a stale name doesn't
-  serve stale code. What it does is let the service worker's `activate`
-  handler drop the previous cache; leave it alone and every superseded
-  `app.js?v=…` stays in the user's cache storage forever.
-- If a release adds or removes a file under `src/`, add or remove it in
-  `sw.js`'s `ASSETS` list too, or it won't be precached for offline use.
-  That list is also exactly what goes into the Android app
+- Work on a branch named for the change (`fix/<what>`, `feature/<what>`,
+  `docs/<what>`), never on `main` and not on the session's `claude/...`
+  branch.
+- A merge releases only if it bumps the version. Daniel's own asks ship as
+  a release (several asks grouped into one, or a few). Work landing in
+  pieces, or that should go out with another change, doesn't bump: its
+  lines go in `changes/<branch>.md` and the next release PR takes them.
+- To bump: `node tools/release.js x.y.z`. New user-facing feature → minor
+  (`0.X.0` → `0.(X+1).0`); fix, small tweak, styling → patch; a change to
+  the saved data old versions can't read (`data.version` in
+  `src/storage.js`) → major. Always above the latest release: the updater
+  ignores lower numbers. The tool changes `APP_VERSION` in `src/app.js`,
+  every `?v=` in `index.html` and `CACHE` in `sw.js` (`lifelog-vN` →
+  `vN+1`, so the service worker drops the old cache), and folds every
+  `changes/*.md` note into a dated CHANGELOG.md entry, deleting the notes.
+  By hand it's the same three places.
+- A file added to or removed from `src/` goes in or out of `sw.js`'s
+  `ASSETS` too. That list is also exactly what goes into the apps
   (`tools/build-www.js`), and the app build fails if `index.html` loads
   anything the list is missing.
-- Changing `APP_VERSION` on `main` publishes a new Android release
-  (`app-v<version>`). See step 7.
+- Don't bump on a branch that isn't the release: a test build installs back
+  to the release only while the two have the same version code.
 
-## 2. Update CHANGELOG.md
+## 2. Change notes, not CHANGELOG.md
 
-- Keep-a-Changelog style: newest version first, `## [x.y.z] - YYYY-MM-DD`
-  (use today's date), with `### Added` / `### Changed` / `### Fixed` /
-  `### Removed` sections as needed.
-- The version heading here must always match `APP_VERSION` in `src/app.js`.
-- Write entries in plain, user-facing language. The workflow copies this
-  entry into the GitHub release as its notes.
+- Write the PR's lines to `changes/<branch>.md` (slashes become hyphens)
+  under `### Added` / `### Changed` / `### Fixed` / `### Removed`, in plain
+  user-facing language. Don't touch CHANGELOG.md: only `tools/release.js`
+  writes it, as `## [x.y.z] - YYYY-MM-DD`, newest first. A release for a
+  single change writes its note and runs the tool in the same PR.
+- The workflow copies the version's entry into the GitHub release as its
+  notes. `test/release.test.js` checks the newest entry is `APP_VERSION`,
+  every `?v=` matches it, and every note uses those headings.
 
 ## 3. Update the notes files
 
-- **TODO.md** — only the work that's left, in sections, each item with a
-  short plan. Remove items this change completes (in this commit, never
-  later); add any new follow-up ideas that came up while implementing. If
-  a section empties, remove it.
-- **DONE.md** — a line for every feature this release adds, in its area,
-  with the version. A feature this release removes loses its line.
-- **NOTES.md** — why what shipped is the way it is. Add an entry whenever a
-  change involved a decision the code can't explain by itself: something
-  that looks arbitrary but isn't, an approach that was tried and abandoned,
-  an invariant two files quietly depend on. Newest first. This is the file
-  that stops the next change re-breaking what this one fixed.
-- **README.md** — the app as it is. Update it in the same commit when the
-  change adds, removes or renames a feature, a tab, a file, a setup step or
-  how it's built.
-  Keep it short, and the contents list at the top matching the sections.
-  If the change is visible, re-take the screenshots of the sections it
-  touches (`node tools/readme-shots.js <name>`, demo data only) and look at
-  each one; a new feature gets its own section and shot pair, added to
-  `SHOTS` in that script.
-- **DROPPED.md** — decided against (anything Daniel said no to, with his
-  reason) or turned out to be impossible. Move an
-  idea here rather than deleting it, and write down the *reason*, so it can
-  come back if the reason stops being true. If an idea is a live one wrapped
-  in a rejection, split it: the workable half stays in TODO.md.
+- **The to-do list** (not in the repo; `/mnt/project-files/lifelog/TODO.md`):
+  only the work that's left, in sections, each item with a short plan.
+  Remove items this change completes, in the same turn; add follow-ups.
+- **DONE.md**: a line for every feature this change adds, in its area,
+  with the version it ships in. A feature this change removes loses its
+  line. Copy it over the project folder's copy if there is one.
+- **Why**: in the commit message and the PR description, where `git blame`
+  finds it: a decision the code can't explain by itself, an approach tried
+  and abandoned, a trade-off. A trap that would bite again gets a comment
+  at the spot in the code. NOTES.md is frozen (2026-11-02); search it,
+  don't add to it.
+- **README.md**: the app as it is. Update it in the same change when it
+  adds, removes or renames a feature, a tab, a file, a setup step or how
+  it's built. Keep it short, and the contents list at the top matching the
+  sections. If the change is visible, re-take the screenshots of the
+  sections it touches (`node tools/readme-shots.js <name>`, demo data
+  only) and look at each one; a new feature gets its own section and shot
+  pair, added to `SHOTS` in that script.
+- **DROPPED.md**: decided against (anything Daniel said no to, with his
+  reason) or turned out to be impossible. Move an idea here rather than
+  deleting it, and write down the *reason*, so it can come back if the
+  reason stops being true. If an idea is a live one wrapped in a
+  rejection, split it: the workable half stays on the to-do list.
 
 ## 3b. Keep the AI bridge in step
 
@@ -126,34 +122,39 @@ sync with it. Don't push with any step skipped.
   `contrast.js` from the same folder.
 - Kill the dev server and remove any temporary test scripts afterwards.
 
-## 6. Commit & push to main
+## 6. Commit, open a PR, merge on green
 
-- Work on `main` directly. No feature branches, no PRs: the owner wants a
-  change live as soon as it's done. This overrides a session's default
-  "develop on `claude/...`" branch. If a session was started on one, commit
-  there, then fast-forward `main` to it and push `main`
-  (`git push origin HEAD:main`).
-- Commit the version bump + CHANGELOG.md + the notes-file updates together
-  with the feature changes (or as one small follow-up commit).
-- Before pushing, `git fetch origin main` and rebase onto it if it moved.
-  Never force-push `main`.
-- `main` is production. The push deploys the web app to GitHub Pages at once
-  and, with a new `APP_VERSION`, publishes the APK. So step 5 has to pass
-  before the push, not after.
+- Commit the change, its `changes/` note (or the release bump) and the
+  notes files together. Push the branch and open a PR; the "why" goes in
+  its description.
+- Merge it (squash) once the **Tests** check is green, without asking.
+  "Don't build yet" or "fixes only" means open the PR but don't merge
+  until Daniel says build.
+- If `main` moved, merge it into the branch (a squash merge makes an old
+  tip unmergeable by fast-forward, so merge, don't rebase or force-push).
+  Never force-push `main`. Two releases at once: merge `main` in and run
+  `tools/release.js` again with the next free number.
+- `main` is production. A merge deploys the web app (`pages.yml`, once the
+  tests pass) and, with a new `APP_VERSION`, publishes the APK and IPA.
+  So step 5 has to pass before the merge, not after.
 
-## 7. Ship the APK
+## 7. Builds: test builds and the release
 
-- Nothing to build locally. `.github/workflows/android.yml` runs on every
-  push to `main`, builds and signs the APK, and publishes it as the GitHub
-  release `app-v<APP_VERSION>`. The app's updater downloads it from
-  `releases/latest/download/LifeLog.apk`.
-- It only publishes when `APP_VERSION` is new (step 1). A push without a
-  bump rebuilds but ships nothing to the app.
+- **Test builds:** label the PR `test` (APK and IPA), `test-android` or
+  `test-ios` (one, sooner). `test-builds.yml` starts the build, and every
+  push after rebuilds it onto the pre-release `test-<branch>`
+  (`tools/test-build.sh`), signed with the release key so it installs over
+  Daniel's app. It syncs with his real data. Unlabelling, closing the PR or
+  deleting the branch removes it. A branch without a label doesn't build.
+- **The release:** `android.yml` builds every push to `main`, signs it and
+  publishes the release `app-v<APP_VERSION>` when the version is new. The
+  app's updater reads `releases/latest`, which never names a pre-release.
+  `ios.yml` builds an unsigned `LifeLog.ipa` on a Mac runner and uploads it
+  into that same release once the Android job has created it.
 - A push that only touches `**.md`, `test/**`, `.claude/**`, `docs/**` or
-  `tools/readme-shots.js` doesn't run the workflow at all, which is correct: nothing in the app changed.
-- The "iOS app" workflow (0.216.0) builds an unsigned `LifeLog.ipa` on a
-  Mac runner and uploads it into that same release once the Android job has
-  created it. It never creates the release itself.
-- After pushing, check the "Android app" and "iOS app" runs on `main` went
-  green and the `app-v<version>` release has both files. If the build failed, fix it in the next
-  commit and push again; the app keeps offering the last release until then.
+  `tools/readme-shots.js` doesn't run the app workflows, which is correct:
+  nothing in the app changed.
+- After merging, check the "Android app", "iOS app" and "Web app" runs on
+  `main` went green and the `app-v<version>` release has both files. If the
+  build failed, fix it in a new PR; the app keeps offering the last release
+  until then.

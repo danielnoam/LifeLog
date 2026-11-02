@@ -2,11 +2,11 @@
 
 Things decided against, and things that turned out not to be possible. Kept
 here so the same idea doesn't get re-litigated every few months, and so
-TODO.md stays a list of work actually worth doing.
+the to-do list stays a list of work actually worth doing.
 
 Nothing here is forbidden forever — each entry says *why*, so if the reason
 stops being true (an API opens up, the misses pile up, the shape of the app
-changes) it can move back to TODO.md. What it isn't is an idea waiting for a
+changes) it can move back to the to-do list. What it isn't is an idea waiting for a
 free afternoon.
 
 Format: what it was, and the reason it isn't happening.

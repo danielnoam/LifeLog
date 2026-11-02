@@ -1,0 +1,44 @@
+# Test builds follow labels on a pull request (2026-11-02, from Waypage):
+# `test` for the APK and IPA, `test-android` or `test-ios` for one, sooner.
+# Adding one builds the branch (android.yml and/or ios.yml run on it, and
+# tools/test-build.sh publishes the pre-release test-<branch>); taking it
+# off, closing the pull request or deleting the branch removes it. A fork's
+# pull request has a read-only token here, and never gets a test build.
+name: Test builds
+
+on:
+  delete:
+  pull_request:
+    types: [closed, labeled, unlabeled]
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  build:
+    if: github.event_name == 'pull_request' && github.event.action == 'labeled' && startsWith(github.event.label.name, 'test')
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          LABEL: ${{ github.event.label.name }}
+        run: |
+          case "$LABEL" in test|test-android) gh workflow run android.yml --ref "$BRANCH" -R "$GITHUB_REPOSITORY" ;; esac
+          case "$LABEL" in test|test-ios) gh workflow run ios.yml --ref "$BRANCH" -R "$GITHUB_REPOSITORY" ;; esac
+
+  remove:
+    if: (github.event_name == 'pull_request' && (github.event.action == 'closed' || (github.event.action == 'unlabeled' && startsWith(github.event.label.name, 'test')))) || github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.event.ref }}
+        run: |
+          TAG="test-$(printf '%s' "$BRANCH" | tr -c 'A-Za-z0-9._-' '-')"
+          if gh release delete "$TAG" --yes --cleanup-tag -R "$GITHUB_REPOSITORY" 2>/dev/null; then
+            echo "removed $TAG"
+          else
+            echo "no $TAG to remove"
+          fi
