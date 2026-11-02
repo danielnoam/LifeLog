@@ -5,23 +5,50 @@ name: Android app
 
 on:
   push:
-    branches: [main, "claude/**"]
+    branches: ["**"]
     paths-ignore: ["**.md", "test/**", ".claude/**", "docs/**", "tools/readme-shots.js"]
   workflow_dispatch:
 
 permissions:
   contents: write
+  pull-requests: read
 
 concurrency:
   group: android-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # main always builds. Any other branch builds only when its open pull
+  # request carries a test label (test or test-android), so a branch push
+  # doesn't spend a build nobody asked for (2026-11-02, CONTRIBUTING.md).
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.g.outputs.build }}
+      test: ${{ steps.g.outputs.test }}
+    steps:
+      - id: g
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          if [ "$GITHUB_REF" = refs/heads/main ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          LABELS=",$(gh pr list -R "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json labels --jq '.[:1][] | [.labels[].name] | join(",")' 2>/dev/null || true),"
+          case "$LABELS" in
+            *,test,*|*,test-android,*) echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "$BRANCH has no open pull request labelled test or test-android, so no APK build"
+               echo "build=false" >> "$GITHUB_OUTPUT"; echo "test=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
   test:
+    needs: gate
+    if: needs.gate.outputs.build == 'true'
     uses: ./.github/workflows/tests.yml
 
   apk:
-    needs: test
+    needs: [gate, test]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,12 +108,15 @@ jobs:
 
       - name: Sign
         id: sign
-        # The release key signs main only. A branch build gets the throwaway
-        # key: an APK signed with the real key installs over everyone's app,
-        # and a branch is not where that should be minted.
+        # The release key signs main and a pull request labelled for a test
+        # build, which has to install over the released app to be tried
+        # (2026-11-02). Nothing else gets it: an APK signed with the real key
+        # installs over everyone's app. Only people with write access can
+        # push a branch or add a label, and a fork's pull request never
+        # sees the repo's secrets. See NOTES.md ("Pull requests and test builds").
         env:
-          KEYSTORE_B64: ${{ github.ref == 'refs/heads/main' && secrets.ANDROID_KEYSTORE_B64 || '' }}
-          KEYSTORE_PASSWORD: ${{ github.ref == 'refs/heads/main' && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
+          KEYSTORE_B64: ${{ (github.ref == 'refs/heads/main' || needs.gate.outputs.test == 'true') && secrets.ANDROID_KEYSTORE_B64 || '' }}
+          KEYSTORE_PASSWORD: ${{ (github.ref == 'refs/heads/main' || needs.gate.outputs.test == 'true') && secrets.ANDROID_KEYSTORE_PASSWORD || '' }}
         run: bash tools/sign-apk.sh
 
       - uses: actions/upload-artifact@v4
@@ -118,3 +148,13 @@ jobs:
             echo "**iPhone:** **LifeLog.ipa** is added here a few minutes later. It's unsigned: install it with AltStore or SideStore, which sign it with your own Apple ID."
           } >> notes.md
           gh release create "app-v$V" LifeLog.apk --title "LifeLog $V" --notes-file notes.md
+
+      # A branch whose pull request is labelled test or test-android: the APK
+      # goes on the pre-release test-<branch>, remade on every push. Never
+      # "latest", so the app's updater never offers it.
+      - name: Publish the test build
+        if: github.ref != 'refs/heads/main' && needs.gate.outputs.test == 'true' && steps.sign.outputs.signed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          V: ${{ steps.v.outputs.version }}
+        run: bash tools/test-build.sh create LifeLog.apk

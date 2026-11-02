@@ -25,6 +25,7 @@ files are the web app (GitHub Pages), the Android app and the iOS app
 - [The AI bridge](#the-ai-bridge)
 - [Project layout](#project-layout)
 - [Tests](#tests)
+- [Contributing](#contributing)
 - [Screenshots](#screenshots)
 
 Every screenshot is made-up demo data. Left is a computer, right a phone.
@@ -354,6 +355,9 @@ The same files, built into an APK by [Capacitor](https://capacitorjs.com).
   `main` once the tests pass. `tools/build-www.js` copies the files in
   `sw.js`'s `ASSETS` list into `www/`, Capacitor wraps them, and a release
   `app-v<version>` is published whenever `APP_VERSION` is new.
+- **Test builds**: a pull request labelled `test` (or `test-android`,
+  `test-ios`) is built onto the pre-release `test-<branch>`. It installs
+  over the app and keeps your data, and the updater never offers it.
 - **Signing**: releases are signed with the key in the repository secrets
   `ANDROID_KEYSTORE_B64` and `ANDROID_KEYSTORE_PASSWORD` (alias `lifelog`).
   Without them CI builds a test APK and publishes nothing.
@@ -445,7 +449,7 @@ src/styles.css      every style and the four themes
 native/             Android and iOS widgets, reminders, share extension
 bridge/             the AI bridge: MCP server, command line, data guide
 proxy/              optional Cloudflare Worker: CORS proxy for Steam
-tools/              native build helpers, and readme-shots.js for these screenshots
+tools/              native build helpers, release.js and test-build.sh, and readme-shots.js
 docs/screenshots/   the README's screenshots
 test/               zero-dependency tests: node test/run-all.js
 server.js, start.cmd tiny static server
@@ -453,9 +457,10 @@ manifest.json, sw.js PWA manifest and service worker
 DESIGN.md           the design language; read before UI work
 .claude/skills/     how to build (lifelog-design), check (lifelog-ui-audit)
                     and ship (release-checklist) a change
-TODO.md             the work that's left, each item with a plan
+CONTRIBUTING.md     how to work on LifeLog: the rules, pull requests, releases
+changes/            each pull request's changelog lines until the next release
 DONE.md             every feature, by area, with the version it came in
-NOTES.md            why things are the way they are
+NOTES.md            why things are the way they are, up to 2026-11-02
 DROPPED.md          decided against, and why
 CHANGELOG.md        every release, in user-facing words
 ```
@@ -471,8 +476,15 @@ The unit tests cover the data logic: sanitizers, the merge, release dates,
 finance maths, sync passes and the media layer against a stubbed `fetch`.
 The browser suites ([`test/browser/README.md`](test/browser/README.md))
 drive the real app in Chromium. CI runs both through
-`.github/workflows/tests.yml`, and the Android, iOS and Pages workflows
-wait on it: a failing test publishes nothing.
+`.github/workflows/tests.yml` on every pull request, and the Android, iOS
+and Pages workflows wait on it: a failing test publishes nothing.
+
+## Contributing
+
+`main` takes only pull requests, merged once the Tests check is green.
+Only a release bumps the version: `node tools/release.js x.y.z` folds the
+notes each pull request left in `changes/` into CHANGELOG.md. The rules,
+the release steps and test builds are in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Screenshots
 

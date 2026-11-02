@@ -1,5 +1,12 @@
 # Notes
 
+**Frozen on 2026-11-02.** No new entries: as in Waypage, why a change is the
+way it is now goes in its commit message and pull request description, where
+`git blame` finds it, and a trap that would bite again gets a comment at the
+spot in the code (CONTRIBUTING.md, "Keeping the notes files right"). What's
+below stays as the record of everything before, and the code's "see NOTES.md"
+comments still point here.
+
 Why things in LifeLog are the way they are: the reasoning behind decisions
 that are already shipped, kept because the code can say *what* it does but
 rarely *what else was tried*. This is the file to read before changing

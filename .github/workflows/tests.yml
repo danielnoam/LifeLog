@@ -1,21 +1,51 @@
-# The tests, as the gate in front of every publish (0.271.0): the Android
-# and iOS workflows and the Pages deploy each call this and wait on it, so a
-# red test stops the APK, the IPA and the web app alike. See NOTES.md ("CI
-# test gate").
+# The tests, as the gate in front of every publish (0.271.0) and every merge
+# (2026-11-02). The Android and iOS workflows and the Pages deploy call this and
+# wait on it, so a red test stops the APK, the IPA and the web app alike; and
+# it runs on every pull request, where its last job, "Tests", is the one check
+# main's ruleset requires before a merge (CONTRIBUTING.md). A pull request
+# that only changes Markdown skips the browser suites.
 name: Tests
 
 on:
   workflow_call:
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
+  scope:
+    runs-on: ubuntu-latest
+    outputs:
+      md: ${{ steps.scope.outputs.md }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Markdown only?
+        id: scope
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ] && ! git diff --name-only "$BASE" HEAD | grep -qv '\.md$'; then
+            echo "md=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "md=false" >> "$GITHUB_OUTPUT"
+          fi
+
   unit:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -27,6 +57,8 @@ jobs:
   # Pinned: ubuntu-latest moved to 26.04, which Playwright 1.56 can't
   # install Chromium on (2026-10-27). Move it on once Playwright supports it.
   browser:
+    needs: scope
+    if: needs.scope.outputs.md != 'true'
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -34,6 +66,8 @@ jobs:
         shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -45,3 +79,19 @@ jobs:
         env:
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
         run: node test/browser/run-all.js --shard=${{ matrix.shard }}/4
+
+  # One check for the ruleset to require: green when the unit tests passed
+  # and the browser shards passed or were skipped as Markdown-only.
+  tests:
+    name: Tests
+    needs: [scope, unit, browser]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          SCOPE: ${{ needs.scope.result }}
+          UNIT: ${{ needs.unit.result }}
+          BROWSER: ${{ needs.browser.result }}
+        run: |
+          echo "scope: $SCOPE, unit: $UNIT, browser: $BROWSER"
+          [ "$SCOPE" = success ] && [ "$UNIT" = success ] && { [ "$BROWSER" = success ] || [ "$BROWSER" = skipped ]; }
