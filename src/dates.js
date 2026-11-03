@@ -13,6 +13,7 @@
   const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const WEEKDAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
   let source = () => null;
   // The app hands over a getter rather than a copy, so a setting changed on
@@ -82,10 +83,13 @@
     return f === "mdy" ? wd + ", " + s : wd + " " + s;
   }
 
-  // A day and a month with no year: "3 Nov", "Nov 3", "03/11".
+  // A day and a month with no year, for "every year on…": "3 March",
+  // "March 3", "03/03", "03-03".
   function dayMonth(d, m, format) {
     const f = format ? cleanFormat(format) : dateFormat();
     if (f === "iso") return `${pad(m)}-${pad(d)}`;
+    if (f === "dmy") return `${d} ${MONTH_NAMES[m - 1]}`;
+    if (f === "mdy") return `${MONTH_NAMES[m - 1]} ${d}`;
     return day(`2000-${pad(m)}-${pad(d)}`, { year: false, format: f });
   }
 

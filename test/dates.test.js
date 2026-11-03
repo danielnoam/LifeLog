@@ -82,6 +82,12 @@ test("a timestamp is read on this device's clock, and nothing readable is blank"
   assert.strictEqual(D.dateTime(null), "");
 });
 
+test("a yearly day reads with the month in full, or as numbers", () => {
+  assert.strictEqual(D.dayMonth(3, 3), "3 March");
+  using({ dateFormat: "mdy" }, () => assert.strictEqual(D.dayMonth(3, 11), "November 3"));
+  using({ dateFormat: "mdy-num" }, () => assert.strictEqual(D.dayMonth(3, 11), "11/03"));
+});
+
 test("ranges share what they share", () => {
   assert.strictEqual(D.range("2026-03-03", "2026-03-16"), "3–16 Mar 2026");
   assert.strictEqual(D.range("2026-02-28", "2026-03-03"), "28 Feb – 3 Mar 2026");
