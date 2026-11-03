@@ -726,7 +726,7 @@ const stored = (page) => page.evaluate(() => window.LifeLogStorage.cachedCopy().
       /2 left to do/.test(first) && /Project 35 min left/.test(first) && /This week 3 days left/.test(first) && /Gym 2 more/.test(first), first);
     const gymCard = page.locator('.habit-card[data-id="g"]');
     check("a weekly card reads as the week, its streak in weeks",
-      /1\s*of 3 this week/.test(await gymCard.locator(".habit-goal").innerText())
+      /^1 of 3$/.test((await gymCard.locator(".habit-goal").innerText()).trim())
       && /3 times a week/.test(await gymCard.locator(".habit-sub").innerText())
       && /1 week in a row/.test(await gymCard.locator(".habit-streak").getAttribute("title")),
       await gymCard.innerText());

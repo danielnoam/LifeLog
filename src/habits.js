@@ -911,8 +911,9 @@
     // One line of one size, like the daily "2 of 3": a big count beside
     // smaller words sat off-centre.
     const done = mins ? minutesShort(p.done) : String(p.done);
-    const of = " of " + (mins ? minutesLabel(p.target) : p.target);
-    btn.appendChild(el("span", "habit-tick-label", done + of + (p.period === "day" ? "" : " " + periodName(p.period, today, true))));
+    const of = " of " + (mins ? minutesShort(p.target) : p.target);
+    // No "this week": the line under the name already says "3 hours a week".
+    btn.appendChild(el("span", "habit-tick-label", done + of));
     btn.title = mins ? "Set today's time" : p.met ? "Met — tap to take back today's" : "Tap to add one today";
     btn.style.setProperty("--habit-colour", h.color);
     btn.onclick = () => (mins ? openAmountSheet(h.id, today) : tickPeriod(h.id, today));
