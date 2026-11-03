@@ -3,6 +3,15 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.303.0] - 2026-11-03
+
+### Changed
+- A habit card's buttons sit under its grid, above Insights, and the grid fills the card's width. A timed habit's goal and its +15m / +30m / +1h buttons share one row.
+- The best run and kept rate moved from under the name to the Insights line.
+
+### Fixed
+- A habit done several times a day showed its count twice on the button ("2 2 of 3"); it reads "2 of 3". Goal buttons are one size of text, so "0 of 3 this week" is centred.
+
 ## [0.302.0] - 2026-11-03
 
 ### Added

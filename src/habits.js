@@ -792,40 +792,48 @@
     const bits = [];
     if (best) bits.push("best " + best + (SHORT_PERIOD[period] ? " " + SHORT_PERIOD[period] : ""));
     if (window90.due) bits.push(Math.round(window90.rate * 100) + "%");
+    let right = null;
     if (bits.length) {
-      const right = el("span", "habit-sub-right", bits.join(" · "));
+      right = el("span", "habit-sub-right", bits.join(" · "));
       right.title = (window90.due && period !== "year" ? Math.round(window90.rate * 100) + "% of the last 90 days. " : "")
         + "Since " + prettyDate(h.startedAt) + ": " + life.done + " of " + life.due + " " + periodWord(period, life.due) + " kept.";
-      sub.appendChild(right);
     }
     card.appendChild(sub);
 
-    // Today's tick, the one control you use every day. On a habit you avoid
-    // it logs a slip instead.
+    card.appendChild(grid(h, today));
+
+    // Today's tick, the one control you use every day, under the grid it
+    // fills. On a habit you avoid it logs a slip instead.
+    const actions = el("div", "habit-actions");
+    card.appendChild(actions);
     if (isDue(h, today) && h.avoid) {
-      card.appendChild(slipButton(h, today));
+      actions.appendChild(slipButton(h, today));
     } else if (isDue(h, today) && (isPeriodic(h) || isMinutes(h))) {
-      card.appendChild(goalButton(h, today));
-      if (isMinutes(h)) card.appendChild(stepButtons(h, today));
+      actions.appendChild(goalButton(h, today));
+      if (isMinutes(h)) actions.appendChild(stepButtons(h, today));
     } else if (isDue(h, today)) {
       const n = markOf(h, today);
       const btn = el("button", "habit-tick" + (isDone(h, today) ? " is-done" : ""));
       btn.type = "button";
       btn.dataset.id = h.id;
-      const mark = el("span", "habit-tick-mark", isDone(h, today) ? "" : (h.target > 1 ? String(n) : ""));
+      // The label says "2 of 3"; a count beside it said the 2 twice.
+      const mark = el("span", "habit-tick-mark", "");
       if (isDone(h, today)) mark.appendChild(ico("check"));
       btn.appendChild(mark);
       btn.appendChild(el("span", "habit-tick-label",
         h.target > 1 ? n + " of " + h.target : (isDone(h, today) ? "Done" : "Mark done")));
       btn.style.setProperty("--habit-colour", h.color);
       btn.onclick = () => tick(h.id, today);
-      card.appendChild(btn);
+      actions.appendChild(btn);
     } else {
-      card.appendChild(el("p", "habit-notdue", "Not due today"));
+      actions.appendChild(el("p", "habit-notdue", "Not due today"));
     }
 
-    card.appendChild(grid(h, today));
-    card.appendChild(insights(h, today));
+    // The best run and rate share Insights' line: both are the longer view.
+    const foot = el("div", "habit-foot");
+    foot.appendChild(insights(h, today));
+    if (right) foot.appendChild(right);
+    card.appendChild(foot);
     return card;
   }
 
@@ -900,22 +908,26 @@
     const btn = el("button", "habit-tick habit-goal" + (p.met ? " is-done" : ""));
     btn.type = "button";
     btn.dataset.id = h.id;
-    const mark = el("span", "habit-tick-mark", mins ? minutesShort(p.done) : String(p.done));
-    btn.appendChild(mark);
-    const of = "of " + (mins ? minutesLabel(p.target) : p.target);
-    btn.appendChild(el("span", "habit-tick-label", of + (p.period === "day" ? "" : " " + periodName(p.period, today, true))));
+    // One line of one size, like the daily "2 of 3": a big count beside
+    // smaller words sat off-centre.
+    const done = mins ? minutesShort(p.done) : String(p.done);
+    const of = " of " + (mins ? minutesLabel(p.target) : p.target);
+    btn.appendChild(el("span", "habit-tick-label", done + of + (p.period === "day" ? "" : " " + periodName(p.period, today, true))));
     btn.title = mins ? "Set today's time" : p.met ? "Met — tap to take back today's" : "Tap to add one today";
     btn.style.setProperty("--habit-colour", h.color);
     btn.onclick = () => (mins ? openAmountSheet(h.id, today) : tickPeriod(h.id, today));
     return btn;
   }
 
-  // The quick adds under a timed habit's name: the sizes a sitting comes in.
+  // The quick adds beside a timed habit's goal: the sizes a sitting comes
+  // in. Short labels so the goal and all three fit one row on a phone.
   function stepButtons(h, today) {
     const row = el("div", "habit-steps");
-    for (const [n, label] of [[15, "+15 min"], [30, "+30 min"], [60, "+1 h"]]) {
+    for (const [n, label, full] of [[15, "+15m", "Add 15 minutes"], [30, "+30m", "Add 30 minutes"], [60, "+1h", "Add an hour"]]) {
       const b = el("button", "btn", label);
       b.type = "button";
+      b.title = full;
+      b.setAttribute("aria-label", full);
       b.onclick = () => addMinutes(h.id, today, n);
       row.appendChild(b);
     }

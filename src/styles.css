@@ -3698,7 +3698,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .habit-goal-row > label.field-narrow { flex: 0 0 5rem; }
 /* A weekly goal's weeks, one bar over each grid column. */
 .habit-weeks { display: flex; gap: var(--space-4); padding-left: var(--space-16); }
-.habit-weeks > i { flex: 0 1 auto; width: 16px; height: 4px; border-radius: var(--r-hair); background: var(--bg-elev-2); }
+.habit-weeks > i { flex: 1 1 0; height: 4px; border-radius: var(--r-hair); background: var(--bg-elev-2); }
 .habit-weeks > i.is-off { background: transparent; }
 .habit-today-count { font-size: var(--fs-2xl); font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 .habit-today-label { font-size: var(--fs-sm); color: var(--text-dim); }
@@ -3717,9 +3717,14 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px;
 }
 .habit-card > * { grid-column: 1 / -1; }
-.habit-card > .habit-head { grid-column: 1; grid-row: 1; }
-.habit-card > .habit-sub { grid-column: 1; grid-row: 2; }
-.habit-card > .habit-tick, .habit-card > .habit-notdue { grid-column: 2; grid-row: 1 / span 2; align-self: center; }
+/* Under the grid, above Insights: the tick and, for a timed habit, its
+   +15/+30/+1 h steps on the same row. */
+/* Under the full-width grid, above Insights: the tick, or a timed habit's
+   goal with its +15/+30/+1 h steps beside it on the same row. */
+.habit-actions { display: flex; align-items: center; gap: var(--space-8); margin: var(--space-12) 0 0 var(--space-16); }
+.habit-actions > .habit-steps { margin: 0; flex-wrap: nowrap; gap: var(--space-8); }
+.habit-actions > .habit-steps .btn { min-height: 40px; padding: var(--space-4) var(--space-12); }
+.habit-actions > .habit-goal { min-width: 0; flex: 0 1 auto; }
 .habit-head { display: flex; align-items: center; gap: 10px; }
 .habit-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
 .habit-name {
@@ -3734,7 +3739,13 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
   margin: 4px 0 0 20px; font-size: var(--fs-xs); color: var(--text-dim);
 }
-.habit-sub-right { text-align: right; }
+.habit-foot { position: relative; }
+/* Insights' summary is the fold's first line; the numbers sit on its right
+   end, over the fold, so opening Insights pushes nothing sideways. */
+.habit-foot > .habit-sub-right {
+  position: absolute; top: 10px; right: 0; min-height: 24px; display: flex; align-items: center;
+  font-size: var(--fs-xs); color: var(--text-dim);
+}
 
 /* The one control you use every day: the only filled button on the card,
    and a thumb-sized target beside the name rather than a checkbox to aim at. */
@@ -3792,16 +3803,16 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 
 /* Twelve weeks, a row per weekday. Tapping a cell fixes a day you forgot,
    which is the only way a tracker survives being away from your phone. */
-/* As wide as its cells, so the week arrows and range above it centre on the
-   grid rather than the card; fit-content still shrinks it on a narrow one. */
-.habit-grid { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; justify-self: start; max-width: 100%; }
+/* The card's full width: the cells grow to fill it, so the grid isn't a
+   block in one corner with empty card beside it. */
+.habit-grid { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
 .habit-grid-row { display: flex; align-items: center; gap: 4px; }
 .habit-grid-day {
   flex: 0 0 12px; font-size: var(--fs-3xs); color: var(--text-faint);
   text-align: right; line-height: 1;
 }
 .habit-cell {
-  flex: 0 1 auto; width: 16px; aspect-ratio: 1; min-width: 0; padding: 0;
+  flex: 1 1 0; aspect-ratio: 1; min-width: 0; padding: 0;
   background: var(--bg-elev-2); border: 1px solid transparent; border-radius: var(--r-xs);
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
