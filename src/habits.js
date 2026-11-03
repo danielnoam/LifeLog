@@ -1285,7 +1285,6 @@
     // was meant, and 60 in a box reads as a typo.
     const hours = habit && isMinutes(habit) && habit.target >= 60 && habit.target % 60 === 0;
     $("#habitUnit").value = habit && isMinutes(habit) ? (hours ? "hours" : "min") : "times";
-    $("#habitPeriod").value = habit ? periodOf(habit) : "day";
     $("#habitTarget").value = habit ? (habit.avoid ? limitOf(habit) : hours ? habit.target / 60 : habit.target) : 1;
     $("#habitColor").value = habit ? habit.color : (CATEGORY_PALETTE[(state.data.habits || []).length % CATEGORY_PALETTE.length] || "#5b8cff");
     // Backfilling starts here: a habit you have been keeping for months
@@ -1297,7 +1296,10 @@
     $("#habitStart").max = todayStr();
     $("#habitFill").checked = false;
     const days = habit && habit.cadence && habit.cadence.days;
-    $("#habitCadence").value = days ? "days" : "daily";
+    // One "how often" (0.300.1): every day, certain days, or a goal over a
+    // week, month or year. 0.300.0 had a second select for the period
+    // beside this one, and two questions about how often read as one too many.
+    $("#habitCadence").value = habit && isPeriodic(habit) ? habit.period : days ? "days" : "daily";
     const boxes = [...document.querySelectorAll("#habitDays input")];
     boxes.forEach((b, i) => { b.checked = days ? days.includes(i) : [1, 2, 3, 4, 5].includes(i); });
     // After the cadence, not before: the backfill count is counted off the
@@ -1317,10 +1319,14 @@
   }
   function closeHabitModal() { $("#habitModal").hidden = true; editingId = null; }
 
+  const periodFromForm = () => (["week", "month", "year"].includes($("#habitCadence").value) ? $("#habitCadence").value : "day");
+
   function applyCadenceUI() {
-    const daily = $("#habitKind").value === "avoid" || $("#habitPeriod").value === "day";
-    $("#habitCadenceLabel").hidden = !daily;
-    $("#habitDaysLabel").hidden = !daily || $("#habitCadence").value !== "days";
+    // Something you avoid stays a daily limit, so it has no goal periods.
+    const avoid = $("#habitKind").value === "avoid";
+    for (const o of document.querySelectorAll("#habitCadence option[data-goal]")) o.hidden = o.disabled = avoid;
+    if (avoid && periodFromForm() !== "day") $("#habitCadence").value = "daily";
+    $("#habitDaysLabel").hidden = $("#habitCadence").value !== "days";
   }
 
   // The goal reads as a sentence, "3 times a week", and the hint under it
@@ -1328,9 +1334,8 @@
   function applyGoalUI() {
     const avoid = $("#habitKind").value === "avoid";
     $("#habitUnitLabel").hidden = avoid;
-    $("#habitPeriodLabel").hidden = avoid;
     applyCadenceUI();
-    const period = $("#habitPeriod").value;
+    const period = periodFromForm();
     const n = targetFromForm();
     const unit = $("#habitUnit").value;
     const amount = unit === "times" ? (n === 1 ? "Once" : n === 2 ? "Twice" : n + " times") : minutesLabel(n);
@@ -1394,7 +1399,7 @@
     // already a kept one.
     const avoiding = $("#habitKind").value === "avoid";
     // A weekly goal's past can't be filled in by rule: which three days?
-    const periodic = !avoiding && $("#habitPeriod").value !== "day";
+    const periodic = !avoiding && periodFromForm() !== "day";
     const days = !avoiding && !periodic && isDateStr(v) && v < was ? backfillDays(h, v, addDaysStr(was, -1)) : [];
     const target = targetFromForm();
     const mins = $("#habitUnit").value !== "times";
@@ -1433,14 +1438,14 @@
     if (!name) return;
     const days = [...document.querySelectorAll("#habitDays input")]
       .map((b, i) => (b.checked ? i : -1)).filter((i) => i >= 0);
-    if ($("#habitCadence").value === "days" && !days.length && ($("#habitKind").value === "avoid" || $("#habitPeriod").value === "day")) {
+    if ($("#habitCadence").value === "days" && !days.length) {
       toast("Pick at least one day, or switch back to every day", true);
       return;
     }
     const startedAt = isDateStr($("#habitStart").value) ? $("#habitStart").value : todayStr();
     if (startedAt > todayStr()) { toast("A habit can't start in the future", true); return; }
     const avoid = $("#habitKind").value === "avoid";
-    const period = !avoid && $("#habitPeriod").value !== "day" ? $("#habitPeriod").value : undefined;
+    const period = !avoid && periodFromForm() !== "day" ? periodFromForm() : undefined;
     const shape = {
       name,
       color: $("#habitColor").value,
@@ -1565,9 +1570,8 @@
     $("#cancelHabitBtn").onclick = closeHabitModal;
     $("#deleteHabitBtn").onclick = deleteCurrentHabit;
     $("#archiveHabitBtn").onclick = archiveCurrentHabit;
-    $("#habitCadence").onchange = () => { applyCadenceUI(); applyStartUI(); };
+    $("#habitCadence").onchange = () => { applyGoalUI(); applyStartUI(); };
     $("#habitKind").onchange = () => { applyKindUI(true); applyGoalUI(); applyStartUI(); };
-    $("#habitPeriod").onchange = () => { applyGoalUI(); applyStartUI(); };
     $("#habitUnit").onchange = () => { applyGoalUI(); applyStartUI(); };
     $("#habitStart").oninput = applyStartUI;
     $("#habitTarget").oninput = () => { applyGoalUI(); applyStartUI(); };

@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.300.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.300.1" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -1149,22 +1149,17 @@
               <option value="hours">hours</option>
             </select>
           </label>
-          <label id="habitPeriodLabel">Every
-            <select id="habitPeriod">
-              <option value="day">day</option>
-              <option value="week">week</option>
-              <option value="month">month</option>
-              <option value="year">year</option>
+          <label>How often
+            <select id="habitCadence">
+              <option value="daily">Every day</option>
+              <option value="days">Certain days</option>
+              <option value="week" data-goal>Each week</option>
+              <option value="month" data-goal>Each month</option>
+              <option value="year" data-goal>Each year</option>
             </select>
           </label>
         </div>
         <p class="hint" id="habitGoalHint" hidden></p>
-        <label id="habitCadenceLabel">On
-          <select id="habitCadence">
-            <option value="daily">Every day</option>
-            <option value="days">Certain days</option>
-          </select>
-        </label>
         <label id="habitDaysLabel" hidden>Days
           <span class="habit-days" id="habitDays">
             <label class="toggle-label"><input type="checkbox" />Sun</label>
@@ -2350,40 +2345,40 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.300.0"></script>
-  <script defer src="src/headless.js?v=0.300.0"></script>
-  <script defer src="src/platform.js?v=0.300.0"></script>
-  <script defer src="src/testbuilds.js?v=0.300.0"></script>
-  <script defer src="src/icons.js?v=0.300.0"></script>
-  <script defer src="src/jobs.js?v=0.300.0"></script>
-  <script defer src="src/reconcile.js?v=0.300.0"></script>
-  <script defer src="src/qr.js?v=0.300.0"></script>
-  <script defer src="src/media.js?v=0.300.0"></script>
-  <script defer src="src/merge.js?v=0.300.0"></script>
-  <script defer src="src/storage.js?v=0.300.0"></script>
-  <script defer src="src/finance.js?v=0.300.0"></script>
-  <script defer src="src/settings.js?v=0.300.0"></script>
-  <script defer src="src/wheel.js?v=0.300.0"></script>
-  <script defer src="src/backlog.js?v=0.300.0"></script>
-  <script defer src="src/journal.js?v=0.300.0"></script>
-  <script defer src="src/markdown.js?v=0.300.0"></script>
-  <script defer src="src/images.js?v=0.300.0"></script>
-  <script defer src="src/notes.js?v=0.300.0"></script>
-  <script defer src="src/docimport.js?v=0.300.0"></script>
-  <script defer src="src/io.js?v=0.300.0"></script>
-  <script defer src="src/sync.js?v=0.300.0"></script>
-  <script defer src="src/habits.js?v=0.300.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.300.0"></script>
-  <script defer src="src/boards.js?v=0.300.0"></script>
-  <script defer src="src/travel.js?v=0.300.0"></script>
-  <script defer src="src/recap.js?v=0.300.0"></script>
-  <script defer src="src/reminders.js?v=0.300.0"></script>
-  <script defer src="src/alerts.js?v=0.300.0"></script>
-  <script defer src="src/widgets.js?v=0.300.0"></script>
-  <script defer src="src/share.js?v=0.300.0"></script>
-  <script defer src="src/search.js?v=0.300.0"></script>
-  <script defer src="src/letterboxd.js?v=0.300.0"></script>
-  <script defer src="src/payments.js?v=0.300.0"></script>
-  <script defer src="src/app.js?v=0.300.0"></script>
+  <script defer src="src/errlog.js?v=0.300.1"></script>
+  <script defer src="src/headless.js?v=0.300.1"></script>
+  <script defer src="src/platform.js?v=0.300.1"></script>
+  <script defer src="src/testbuilds.js?v=0.300.1"></script>
+  <script defer src="src/icons.js?v=0.300.1"></script>
+  <script defer src="src/jobs.js?v=0.300.1"></script>
+  <script defer src="src/reconcile.js?v=0.300.1"></script>
+  <script defer src="src/qr.js?v=0.300.1"></script>
+  <script defer src="src/media.js?v=0.300.1"></script>
+  <script defer src="src/merge.js?v=0.300.1"></script>
+  <script defer src="src/storage.js?v=0.300.1"></script>
+  <script defer src="src/finance.js?v=0.300.1"></script>
+  <script defer src="src/settings.js?v=0.300.1"></script>
+  <script defer src="src/wheel.js?v=0.300.1"></script>
+  <script defer src="src/backlog.js?v=0.300.1"></script>
+  <script defer src="src/journal.js?v=0.300.1"></script>
+  <script defer src="src/markdown.js?v=0.300.1"></script>
+  <script defer src="src/images.js?v=0.300.1"></script>
+  <script defer src="src/notes.js?v=0.300.1"></script>
+  <script defer src="src/docimport.js?v=0.300.1"></script>
+  <script defer src="src/io.js?v=0.300.1"></script>
+  <script defer src="src/sync.js?v=0.300.1"></script>
+  <script defer src="src/habits.js?v=0.300.1"></script>
+  <script defer src="src/vendor/rough.js?v=0.300.1"></script>
+  <script defer src="src/boards.js?v=0.300.1"></script>
+  <script defer src="src/travel.js?v=0.300.1"></script>
+  <script defer src="src/recap.js?v=0.300.1"></script>
+  <script defer src="src/reminders.js?v=0.300.1"></script>
+  <script defer src="src/alerts.js?v=0.300.1"></script>
+  <script defer src="src/widgets.js?v=0.300.1"></script>
+  <script defer src="src/share.js?v=0.300.1"></script>
+  <script defer src="src/search.js?v=0.300.1"></script>
+  <script defer src="src/letterboxd.js?v=0.300.1"></script>
+  <script defer src="src/payments.js?v=0.300.1"></script>
+  <script defer src="src/app.js?v=0.300.1"></script>
 </body>
 </html>
