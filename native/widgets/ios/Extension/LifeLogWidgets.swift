@@ -89,14 +89,18 @@ struct HabitsView: View {
     @Environment(\.widgetFamily) var family
 
     var body: some View {
-        let rows = LLHabits.rows(entry.snap, entry.queue, entry.today)
+        // What's left first (0.300.0), so the rows that fit are the ones
+        // still to do; a done one keeps its place after them, to untick.
+        let all = LLHabits.rows(entry.snap, entry.queue, entry.today)
+        let rows = all.filter { !$0.done } + all.filter { $0.done }
+        let left = all.filter { !$0.done }.count
         let limit = family == .systemLarge ? 8 : 3
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("Habits").font(.headline).foregroundStyle(.white)
                 Spacer()
                 if !rows.isEmpty {
-                    Text("\(rows.filter { $0.done }.count) of \(rows.count)").font(.caption.bold()).foregroundStyle(accent)
+                    Text(left == 0 ? "All done" : "\(left) left").font(.caption.bold()).foregroundStyle(accent)
                 }
             }
             if entry.snap == nil { Empty(text: "Open LifeLog once") }
@@ -116,7 +120,12 @@ struct HabitsView: View {
             Link(destination: LLLink.action("open-habit:" + h.id)) {
                 HStack(spacing: 6) {
                     Circle().fill(hex(h.color)).frame(width: 8, height: 8)
-                    Text(h.name).font(.subheadline).foregroundStyle(.white).lineLimit(1)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(h.name).font(.subheadline).foregroundStyle(.white).lineLimit(1)
+                        if !h.left.isEmpty && family != .systemSmall {
+                            Text(h.left).font(.caption2).foregroundStyle(dimText).lineLimit(1)
+                        }
+                    }
                     if h.streak > 0 && family != .systemSmall {
                         HStack(spacing: 2) { Image(systemName: "flame"); Text("\(h.streak)") }.font(.caption2).foregroundStyle(dimText)
                     }
@@ -134,8 +143,11 @@ struct HabitsView: View {
                 .font(.caption2.bold()).padding(.horizontal, 6).frame(height: 22)
                 .foregroundStyle(h.done ? c : .red)
                 .overlay(Capsule().stroke(h.done ? c : .red, lineWidth: 1))
-        } else if h.target > 1 && !h.done {
-            Text("\(h.value)/\(h.target)").font(.caption2.bold()).frame(minWidth: 34, minHeight: 22)
+        } else if h.minutes && !h.done {
+            Text(h.amount < 60 ? "\(h.amount)m" : "\(h.amount / 60)h").font(.caption2.bold()).frame(minWidth: 34, minHeight: 22)
+                .foregroundStyle(c).overlay(Capsule().stroke(c, lineWidth: 1))
+        } else if (h.target > 1 || !h.period.isEmpty) && !h.done {
+            Text(h.period.isEmpty ? "\(h.value)/\(h.target)" : "\(h.amount)/\(h.target)").font(.caption2.bold()).frame(minWidth: 34, minHeight: 22)
                 .foregroundStyle(c).overlay(Capsule().stroke(c, lineWidth: 1))
         } else {
             ZStack {
@@ -152,7 +164,7 @@ struct HabitsWidget: Widget {
             HabitsView(entry: entry).containerBackground(bgColor, for: .widget)
         }
         .configurationDisplayName("Habits")
-        .description("Today's habits. Tap the circle to tick one.")
+        .description("What's left of today's habits and this week's goals. Tap the circle to tick one.")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }

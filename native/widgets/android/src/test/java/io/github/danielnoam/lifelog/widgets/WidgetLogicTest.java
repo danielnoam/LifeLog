@@ -554,4 +554,57 @@ public class WidgetLogicTest {
         assertFalse(HeadlessRefresh.isText("icon-192.png"));
         assertFalse(HeadlessRefresh.isText("src/vendor/Virgil.woff2"));
     }
+
+    // ---- goals: weekly counts and minutes (0.300.0) ----
+
+    private static JSONObject weekly() throws Exception {
+        // Sun 2026-09-20 to Sat 09-26: once on Monday so far, 3 a week.
+        return json("{\"id\":\"h\",\"startedAt\":\"2026-01-01\",\"target\":3,\"period\":\"week\",\"periodFrom\":\"2026-09-20\",\"runBefore\":4,\"marks\":{\"2026-09-21\":1,\"2026-09-19\":1}}");
+    }
+
+    @Test
+    public void aWeeklyGoalCountsTheWeekSoFarNotJustToday() throws Exception {
+        assertEquals("2026-09-20", WidgetStore.periodStart("week", D));
+        assertEquals("2026-09-01", WidgetStore.periodStart("month", D));
+        assertEquals("2026-01-01", WidgetStore.periodStart("year", D));
+        JSONObject snap = new JSONObject().put("today", D).put("habits", new JSONArray().put(weekly()));
+        WidgetStore.Row r = WidgetStore.habitRows(snap, NONE, D).get(0);
+        assertEquals(1, r.amount);
+        assertFalse(r.done);
+        assertEquals("1/3", HabitsWidget.tickText(r, ""));
+        assertEquals("2 more this week", WidgetStore.leftText(r));
+        assertEquals(1, WidgetStore.nextValue(r));
+        assertEquals(4, WidgetStore.streakOn(weekly(), NONE, D, D));
+    }
+
+    @Test
+    public void aMetWeekIsDoneAndAddsToTheRunAndTheNextTapTakesTodaysBack() throws Exception {
+        JSONArray twice = new JSONArray("[{\"kind\":\"habit\",\"id\":\"h\",\"date\":\"" + D + "\",\"value\":2}]");
+        JSONObject snap = new JSONObject().put("today", D).put("habits", new JSONArray().put(weekly()));
+        WidgetStore.Row r = WidgetStore.habitRows(snap, twice, D).get(0);
+        assertTrue(r.done);
+        assertEquals("", WidgetStore.leftText(r));
+        assertEquals(0, WidgetStore.nextValue(r));
+        assertEquals(5, WidgetStore.streakOn(weekly(), twice, D, D));
+        assertTrue(WidgetStore.leftOnly(WidgetStore.habitRows(snap, twice, D)).isEmpty());
+    }
+
+    @Test
+    public void aNewWeekTheAppHasntSeenJudgesTheLastOneFromTheMarksSent() throws Exception {
+        // Sunday 09-27: last week had one of three, so the run is over.
+        assertEquals(0, WidgetStore.streakOn(weekly(), NONE, D, "2026-09-27"));
+        JSONArray met = new JSONArray("[{\"kind\":\"habit\",\"id\":\"h\",\"date\":\"2026-09-25\",\"value\":2}]");
+        assertEquals(5, WidgetStore.streakOn(weekly(), met, D, "2026-09-27"));
+    }
+
+    @Test
+    public void aTimedHabitCountsMinutesAndATapAddsFifteen() throws Exception {
+        JSONObject h = json("{\"id\":\"h\",\"startedAt\":\"2026-01-01\",\"target\":60,\"unit\":\"min\",\"runBefore\":0,\"marks\":{\"" + D + "\":25}}");
+        JSONObject snap = new JSONObject().put("today", D).put("habits", new JSONArray().put(h));
+        WidgetStore.Row r = WidgetStore.habitRows(snap, NONE, D).get(0);
+        assertFalse(r.done);
+        assertEquals("25m", HabitsWidget.tickText(r, ""));
+        assertEquals("35 min left", WidgetStore.leftText(r));
+        assertEquals(40, WidgetStore.nextValue(r));
+    }
 }

@@ -67,7 +67,8 @@ random title, as the Backlog's Pick sheet draws), `lifelog_notes`,
 `lifelog_expenses`, `lifelog_spending`, `lifelog_recurring`,
 `lifelog_habits`, `lifelog_accomplishments`, `lifelog_boards`,
 `lifelog_trips`, `lifelog_stats` (the Timeline's Stats, a year in numbers),
-`lifelog_habit_insights`, `lifelog_upcoming` (what's coming out from the
+`lifelog_habit_insights`, `lifelog_habits_left` (what's still to do today
+and this week, month and year), `lifelog_upcoming` (what's coming out from the
 backlog), `lifelog_note_images` (a note's images, sent back as pictures), `lifelog_google_list` (reads a shared Google Maps list or place
 straight from Google; the only tool that goes beyond your data).
 

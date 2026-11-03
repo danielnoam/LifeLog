@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.300.0] - 2026-11-03
+
+### Added
+- Goals on habits: a target counted over a week, a month or a year ("Workout, 3 times a week", on any days), or in minutes ("1 hour a day on a project"). A goal's streak counts weeks, months or years in a row, and the time sheet, the +15, +30 and +1 h buttons, and the grid record minutes.
+- Left to do at the top of Habits, in place of the "3 of 6 today" line: what's still open today, this week, this month and this year, how much each needs, and a button that does the next bit.
+- The habits widget shows weekly goals and timed habits ("2 more this week", "35 min left") and says how many are left. On Android its settings add "Only what's still left". On iPhone what's left comes first.
+- Bridge: `lifelog_add_habit` takes `period` and `unit`, `lifelog_mark_habit` takes `add` (e.g. 30 minutes), and the new `lifelog_habits_left` lists what's still to do.
+
+### Changed
+- Habit reminders for a weekly, monthly or yearly goal stop once the period's target is met.
+
 ## [0.299.0] - 2026-11-03
 
 ### Added

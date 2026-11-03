@@ -142,6 +142,18 @@ test("the quick-add buttons are passed through as given", () => {
   assert.deepStrictEqual(W.snapshotOf(data(), { today: TODAY, actions: ["add-note"] }).actions, ["add-note"]);
 });
 
+test("a weekly goal sends its whole week of marks, its period and when it began (0.300.0)", () => {
+  const d = data();
+  d.habits.push({ id: "g", name: "Gym", color: "#f66151", period: "week", target: 3, unit: "min", startedAt: "2026-01-01", order: 9,
+    marks: { "2026-08-01": 1, [TODAY]: 1 } });
+  const g = W.snapshotOf(d, { today: TODAY }).habits.find((h) => h.id === "g");
+  assert.strictEqual(g.period, "week");
+  assert.strictEqual(g.unit, "min");
+  assert.ok(g.periodFrom <= TODAY && g.periodFrom.length === 10);
+  assert.ok(!("2026-08-01" in g.marks));
+  assert.strictEqual(g.marks[TODAY], 1);
+});
+
 test("a log with no habits or to-dos at all still makes a snapshot", () => {
   const s = W.snapshotOf({}, { today: TODAY });
   assert.deepStrictEqual([s.habits, s.todos], [[], []]);

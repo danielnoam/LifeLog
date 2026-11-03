@@ -30,14 +30,14 @@ enum LLReminders {
                 guard hm.count == 2 else { continue }
                 for day in [today, LLDate.add(today, 1)] {
                     guard LLHabits.dueOn(h, day), let d = LLDate.date(day) else { continue }
-                    if LLHabits.keptWith(h, LLHabits.markOn(h, q, day)) { continue }
+                    if LLHabits.doneOn(h, q, day) { continue }
                     var parts = Calendar(identifier: .gregorian).dateComponents([.year, .month, .day], from: d)
                     parts.hour = hm[0]
                     parts.minute = hm[1]
                     guard let at = Calendar(identifier: .gregorian).date(from: parts), at > now else { continue }
                     let content = UNMutableNotificationContent()
                     content.title = h["name"] as? String ?? "Habit"
-                    content.body = "Not done yet today"
+                    content.body = LLHabits.periodic(h) ? "Not done yet this " + (h["period"] as? String ?? "week") : "Not done yet today"
                     content.sound = .default
                     content.userInfo = ["action": "open-habit:" + (h["id"] as? String ?? "")]
                     let trigger = UNCalendarNotificationTrigger(dateMatching: parts, repeats: false)

@@ -148,7 +148,8 @@ function buildData() {
   const habits = [
     { id: id(), name: "Read 20 pages", color: "#3fb27f", order: 0, cadence: "daily", target: 1, startedAt: ymd(daysAgo(90)), marks: habitMarks((i) => i % 9 !== 4) },
     { id: id(), name: "Walk", color: "#5b8cff", order: 1, cadence: "daily", target: 1, startedAt: ymd(daysAgo(90)), marks: { ...habitMarks((i) => i % 4 !== 0), [ymd(NOW)]: 1 } },
-    { id: id(), name: "Gym", color: "#f66151", order: 2, cadence: { days: [0, 2, 4] }, target: 1, startedAt: ymd(daysAgo(90)), marks: habitMarks((i) => [0, 2, 4].includes(daysAgo(i).getDay()) && i % 5 !== 0) },
+    { id: id(), name: "Gym", color: "#f66151", order: 2, cadence: "daily", period: "week", target: 3, startedAt: ymd(daysAgo(90)), marks: habitMarks((i) => [0, 2, 4].includes(daysAgo(i).getDay()) && i % 13 !== 2) },
+    { id: id(), name: "Side project", color: "#c061cb", order: 2.5, cadence: "daily", unit: "min", target: 60, startedAt: ymd(daysAgo(90)), marks: { ...habitMarks((i) => i % 5 !== 0, 70, (i) => 30 + (i % 4) * 15), [ymd(NOW)]: 25 } },
     { id: id(), name: "Water", color: "#33c7de", order: 3, cadence: "daily", target: 3, startedAt: ymd(daysAgo(90)), marks: { ...habitMarks((i) => true, 70, (i) => (i % 3) + 1), [ymd(NOW)]: 2 } },
     { id: id(), name: "No soda", color: "#e5a50a", order: 4, cadence: "daily", avoid: true, limit: 0, target: 1, startedAt: ymd(daysAgo(90)), marks: habitMarks((i) => i % 11 === 3) },
   ];

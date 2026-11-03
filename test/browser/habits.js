@@ -75,22 +75,22 @@ const stored = (page) => page.evaluate(() => window.LifeLogStorage.cachedCopy().
       streak: document.querySelector(".habit-streak").textContent.trim(),
       tick: document.querySelector(".habit-tick").textContent.trim(),
       done: document.querySelector(".habit-tick").classList.contains("is-done"),
-      today: document.querySelector(".habit-today").innerText.replace(/\s+/g, " "),
+      today: document.querySelector(".habit-left").innerText.replace(/\s+/g, " "),
     }));
     // Three days up to yesterday, today untouched: the run still stands,
     // because the day isn't over.
     check("yesterday's run shows before today is ticked", /3/.test(before.streak) && !before.done, before);
-    check("and the header counts today honestly", /0 of 1/.test(before.today), before.today);
+    check("and the left-to-do panel lists it", /1 left to do/.test(before.today) && /Read/.test(before.today), before.today);
 
     await page.click(".habit-tick");
     await page.waitForTimeout(500);
     const after = await page.evaluate(() => ({
       streak: document.querySelector(".habit-streak").textContent.trim(),
       done: document.querySelector(".habit-tick").classList.contains("is-done"),
-      today: document.querySelector(".habit-today").innerText.replace(/\s+/g, " "),
+      today: document.querySelector(".habit-left").innerText.replace(/\s+/g, " "),
     }));
     check("a tap ticks today and extends the streak", /4/.test(after.streak) && after.done, after);
-    check("and the header follows", /1 of 1/.test(after.today), after.today);
+    check("and the panel follows", /Nothing left for now/.test(after.today) && /Done for now: Read/.test(after.today), after.today);
     check("the right day was recorded, not some other one",
       (await stored(page))[0].marks[TODAY] === 1, (await stored(page))[0].marks);
 
@@ -183,7 +183,7 @@ const stored = (page) => page.evaluate(() => window.LifeLogStorage.cachedCopy().
     check("a habit not due today offers no tick, and explains why",
       await page.evaluate(() => !document.querySelector(".habit-tick") && /Not due today/.test(document.querySelector(".habit-notdue").textContent)));
     check("and it isn't counted in today's tally either",
-      await page.evaluate(() => !document.querySelector(".habit-today")));
+      await page.evaluate(() => !document.querySelector(".habit-left")));
     errs.push(...e);
     await ctx.close();
   }
@@ -709,6 +709,69 @@ const stored = (page) => page.evaluate(() => window.LifeLogStorage.cachedCopy().
     await page.waitForTimeout(400);
     const back2 = (await stored(page))[0];
     check("and back to Do keeps it too", /7|8/.test(await streak()) && !back2.avoid && back2.marks[back(1)] === 1 && !back2.marks[back(8)], { s: await streak(), m: back2.marks });
+    errs.push(...e);
+    await ctx.close();
+  }
+
+  // ---- 14. goals: a week's count and minutes, and what's left (0.300.0) ----
+  {
+    // The week of TODAY began on Sunday 09-20; one workout so far, on Monday.
+    const gym = habit({ id: "g", name: "Gym", period: "week", target: 3, order: 1, marks: { "2026-09-21": 1, [back(10)]: 1, [back(8)]: 1, [back(6)]: 1 } });
+    const proj = habit({ id: "p", name: "Project", unit: "min", target: 60, order: 2, color: "#c061cb", marks: { [TODAY]: 25 } });
+    const { page, ctx, errs: e } = await app(browser, [gym, proj]);
+    await page.waitForSelector(".habit-left", { timeout: 8000 });
+    const panel = () => page.evaluate(() => document.querySelector(".habit-left").innerText.replace(/\s+/g, " "));
+    const first = await panel();
+    check("the panel lists today's timed habit and this week's goal, with what's left",
+      /2 left to do/.test(first) && /Project 35 min left/.test(first) && /This week 3 days left/.test(first) && /Gym 2 more/.test(first), first);
+    const gymCard = page.locator('.habit-card[data-id="g"]');
+    check("a weekly card reads as the week, its streak in weeks",
+      /1\s*of 3 this week/.test(await gymCard.locator(".habit-goal").innerText())
+      && /3 times a week/.test(await gymCard.locator(".habit-sub").innerText())
+      && /1 week in a row/.test(await gymCard.locator(".habit-streak").getAttribute("title")),
+      await gymCard.innerText());
+    await gymCard.locator(".habit-goal").click();
+    await page.waitForTimeout(400);
+    await page.locator('.habit-card[data-id="g"] .habit-goal').click();
+    await page.waitForTimeout(400);
+    let h = (await stored(page)).find((x) => x.id === "g");
+    check("two taps on a weekly goal add two today and meet the week", h.marks[TODAY] === 2
+      && (await page.locator('.habit-card[data-id="g"] .habit-goal').getAttribute("class")).includes("is-done"), h.marks);
+    await page.locator('.habit-card[data-id="g"] .habit-goal').click();
+    await page.waitForTimeout(400);
+    h = (await stored(page)).find((x) => x.id === "g");
+    check("one more once it's met takes today's back", !(TODAY in h.marks), h.marks);
+    check("the weekly grid has a bar over each week", await page.locator('.habit-card[data-id="g"] .habit-weeks > i').count() === 12);
+
+    await page.locator(".habit-left-do", { hasText: "+15" }).click();
+    await page.waitForTimeout(400);
+    h = (await stored(page)).find((x) => x.id === "p");
+    check("+15 in the panel adds a quarter of an hour", h.marks[TODAY] === 40, h.marks);
+    await page.locator('.habit-card[data-id="p"] .habit-goal').click();
+    await page.waitForTimeout(300);
+    check("the timed habit's button opens the time sheet with today's minutes",
+      !(await page.locator("#habitAmountModal").isHidden()) && await page.inputValue("#habitAmountInput") === "40");
+    await page.click('#habitAmountSteps [data-add="30"]');
+    await page.click("#habitAmountForm button[type=submit]");
+    await page.waitForTimeout(400);
+    h = (await stored(page)).find((x) => x.id === "p");
+    const after = await panel();
+    check("saving the sheet sets the day, and a met goal leaves the list", h.marks[TODAY] === 70 && !/Project \d/.test(after) && /Done for now: Project/.test(after), { m: h.marks, after });
+
+    // The form writes a goal as a sentence: 2 hours a week.
+    await page.locator('.habit-card[data-id="p"] .habit-name').click();
+    await page.fill("#habitTarget", "2");
+    await page.selectOption("#habitUnit", "hours");
+    await page.selectOption("#habitPeriod", "week");
+    check("a goal over a week hides the weekday choice and says what it means",
+      await page.locator("#habitCadenceLabel").isHidden() && /2 hours a week, on any days/.test(await page.locator("#habitGoalHint").innerText()));
+    await page.click("#habitForm button[type=submit]");
+    await page.waitForTimeout(400);
+    h = (await stored(page)).find((x) => x.id === "p");
+    check("and saves it in minutes", h.period === "week" && h.unit === "min" && h.target === 120, h);
+    await page.locator('.habit-card[data-id="p"] .habit-name').click();
+    check("reopened, whole hours show as hours",
+      await page.inputValue("#habitTarget") === "2" && await page.inputValue("#habitUnit") === "hours" && await page.inputValue("#habitPeriod") === "week");
     errs.push(...e);
     await ctx.close();
   }

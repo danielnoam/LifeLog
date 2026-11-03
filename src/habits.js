@@ -65,7 +65,14 @@
   const KNOWN_HABIT_KEYS = new Set([
     "id", "name", "color", "cadence", "target", "order",
     "startedAt", "archivedAt", "createdAt", "updatedAt", "marks", "avoid", "limit",
+    "period", "unit",
   ]);
+  // Goals (0.300.0): a target can be counted over a week, a month or a year
+  // rather than a day ("the gym, three times a week, any days"), and in
+  // minutes rather than times ("an hour on the project"). Both absent is the
+  // habit as it always was: times a day.
+  const PERIODS = ["week", "month", "year"];
+  const MAX_TARGET = 100000;
 
   function sanitizeHabit(h) {
     const out = {
@@ -76,7 +83,7 @@
       // the habit is due on no day at all, which is not a habit — it falls
       // back to daily rather than becoming a thing you can never keep.
       cadence: "daily",
-      target: Math.max(1, Math.round(+h.target) || 1),
+      target: Math.min(MAX_TARGET, Math.max(1, Math.round(+h.target) || 1)),
       order: Number.isFinite(+h.order) ? +h.order : 0,
       startedAt: isDateStr(h.startedAt) ? h.startedAt : todayStr(),
       createdAt: h.createdAt || null,
@@ -85,12 +92,21 @@
     const days = h.cadence && Array.isArray(h.cadence.days)
       ? [...new Set(h.cadence.days.map((n) => +n).filter((n) => n >= 0 && n <= 6))].sort()
       : null;
-    if (days && days.length && days.length < 7) out.cadence = { days };
+    const period = PERIODS.includes(h.period) ? h.period : null;
+    // Certain weekdays only mean something for a daily target: three times a
+    // week is any three days, which is the whole point of it.
+    if (days && days.length && days.length < 7 && !period) out.cadence = { days };
+    if (period) out.period = period;
+    if (h.unit === "min") out.unit = "min";
     if (isDateStr(h.archivedAt)) out.archivedAt = h.archivedAt;
     // Something you're keeping away from (0.203.0): marks count slips, and
     // a day is kept while they stay at or under `limit` — 0 for "none at
     // all", 1 for "at most one coffee". Absent on every habit you do.
     if (h.avoid) {
+      // Avoiding stays a daily limit of slips; a weekly one is a different
+      // feature nobody has asked for.
+      delete out.period;
+      delete out.unit;
       out.avoid = true;
       out.target = 1;
       out.limit = Math.max(0, Math.min(99, Math.round(+h.limit) || 0));
@@ -126,18 +142,121 @@
     return days.map((d) => DAY_LABELS[d]).join(", ");
   }
 
+  // ---------- goals: periods and minutes ----------
+  const periodOf = (habit) => (habit && PERIODS.includes(habit.period) ? habit.period : "day");
+  const isPeriodic = (habit) => periodOf(habit) !== "day";
+  const isMinutes = (habit) => !!habit && habit.unit === "min";
+
+  // The period a date sits in. Weeks run Sunday to Saturday, the same as the
+  // grid's columns, so a week you look at is a week that's counted.
+  function periodRange(period, dateStr) {
+    if (period === "week") {
+      const from = addDaysStr(dateStr, -dowOf(dateStr));
+      return [from, addDaysStr(from, 6)];
+    }
+    const y = +dateStr.slice(0, 4), m = +dateStr.slice(5, 7);
+    if (period === "month") {
+      const mm = String(m).padStart(2, "0");
+      return [y + "-" + mm + "-01", y + "-" + mm + "-" + String(new Date(y, m, 0).getDate()).padStart(2, "0")];
+    }
+    if (period === "year") return [y + "-01-01", y + "-12-31"];
+    return [dateStr, dateStr];
+  }
+
+  // What's been done between two dates, inside the habit's own life.
+  function amountBetween(habit, fromStr, toStr) {
+    const range = habit && clipRange(habit, fromStr, toStr);
+    if (!range) return 0;
+    let n = 0;
+    for (const [d, v] of Object.entries(habit.marks || {})) if (d >= range[0] && d <= range[1]) n += +v || 0;
+    return n;
+  }
+
+  // Where the habit stands in the period `dateStr` is in: how much is done,
+  // how much is left, and how many days the period still has after today.
+  function progressOf(habit, dateStr) {
+    const today = dateStr || todayStr();
+    const period = periodOf(habit);
+    const [from, to] = periodRange(period, today);
+    const done = period === "day" ? markOf(habit, today) : amountBetween(habit, from, to);
+    const target = habit.target || 1;
+    return { period, from, to, done, target, met: done >= target, left: Math.max(0, target - done), daysLeft: daysApart(today, to) };
+  }
+
+  // "1 hour", "90 min", "2 h 30 min".
+  function minutesLabel(n) {
+    n = Math.max(0, Math.round(+n || 0));
+    if (n < 60) return n + " min";
+    const h = Math.floor(n / 60), m = n % 60;
+    if (!m) return h + (h === 1 ? " hour" : " hours");
+    return h + " h " + m + " min";
+  }
+  // Shorter, for a button: "25m", "1h", "2h30".
+  function minutesShort(n) {
+    n = Math.max(0, Math.round(+n || 0));
+    if (n < 60) return n + "m";
+    const h = Math.floor(n / 60), m = n % 60;
+    return m ? h + "h" + String(m).padStart(2, "0") : h + "h";
+  }
+  const amountLabel = (habit, n) => (isMinutes(habit) ? minutesLabel(n) : n === 1 ? "once" : n === 2 ? "twice" : n + " times");
+
+  // "3 times a week", "1 hour a day", "Weekdays · 30 min".
+  function goalLabel(habit) {
+    if (!habit || habit.avoid) return cadenceLabel(habit);
+    const period = periodOf(habit);
+    const t = habit.target || 1;
+    if (period !== "day") {
+      const amount = amountLabel(habit, t);
+      return amount.charAt(0).toUpperCase() + amount.slice(1) + " a " + period;
+    }
+    if (isMinutes(habit)) {
+      const c = habit.cadence;
+      return (!c || c === "daily") ? minutesLabel(t) + " a day" : cadenceLabel(habit) + " · " + minutesLabel(t);
+    }
+    return cadenceLabel(habit) + (t > 1 ? " · " + t + "×" : "");
+  }
+
+  // How a period reads on a button and in the left-to-do list.
+  function periodName(period, dateStr, short) {
+    if (period === "week") return "this week";
+    if (period === "month") return short ? "in " + MONTHS[+dateStr.slice(5, 7) - 1] : MONTH_NAMES[+dateStr.slice(5, 7) - 1];
+    if (period === "year") return short ? "in " + dateStr.slice(0, 4) : dateStr.slice(0, 4);
+    return "today";
+  }
+  const PERIOD_UNIT = { day: ["day", "days"], week: ["week", "weeks"], month: ["month", "months"], year: ["year", "years"] };
+  const periodWord = (period, n) => PERIOD_UNIT[period][n === 1 ? 0 : 1];
+
+  // The periods from the one `fromStr` is in to the one `toStr` is in, as
+  // [start, end] pairs. Bounded, so corrupt dates can't spin.
+  function periodsBetween(period, fromStr, toStr) {
+    const out = [];
+    let [a, b] = periodRange(period, fromStr);
+    for (let guard = 0; guard < MAX_DAYS && a <= toStr; guard++) {
+      out.push([a, b]);
+      [a, b] = periodRange(period, addDaysStr(b, 1));
+    }
+    return out;
+  }
+  const metIn = (habit, p) => amountBetween(habit, p[0], p[1]) >= (habit.target || 1);
+
   // ---------- marks ----------
   // A habit you do is kept once its marks reach the target. One you avoid is
   // kept until its slips pass the limit — so a day with nothing recorded is
   // a kept day, which is the point: not doing something shouldn't take a tap.
   const markOf = (habit, dateStr) => (habit && habit.marks && +habit.marks[dateStr]) || 0;
   const limitOf = (habit) => Math.max(0, +habit.limit || 0);
+  // For a weekly, monthly or yearly goal a date counts as done once the
+  // period it's in has reached the target: that's what the tick, the
+  // reminders and the widgets ask.
   const isDone = (habit, dateStr) => (habit.avoid
     ? markOf(habit, dateStr) <= limitOf(habit)
-    : markOf(habit, dateStr) >= (habit.target || 1));
+    : isPeriodic(habit)
+      ? (() => { const r = periodRange(habit.period, dateStr); return amountBetween(habit, r[0], r[1]) >= (habit.target || 1); })()
+      : markOf(habit, dateStr) >= (habit.target || 1));
   // Where a tap wraps round: the target for a habit you do, one past the
   // limit (the first slip that breaks the day) for one you avoid.
-  const capOf = (habit) => (habit.avoid ? limitOf(habit) + 1 : habit.target || 1);
+  // A day of a weekly goal is one more toward it, so a tap there is a tick.
+  const capOf = (habit) => (habit.avoid ? limitOf(habit) + 1 : isPeriodic(habit) ? 1 : habit.target || 1);
 
   // One tap advances by one and wraps round at the cap. For the ordinary
   // habit (target 1) that is exactly a tick: on, then off; for "none at all"
@@ -145,6 +264,14 @@
   function nextMark(habit, dateStr) {
     const now = markOf(habit, dateStr);
     return now >= capOf(habit) ? 0 : now + 1;
+  }
+
+  // The card's (and the widget's) tick on a weekly, monthly or yearly goal:
+  // one more today until the period is met, then today's back to none, so a
+  // tap too many is undone by the next.
+  function nextPeriodMark(habit, dateStr) {
+    if (!isPeriodic(habit)) return nextMark(habit, dateStr);
+    return isDone(habit, dateStr) ? 0 : markOf(habit, dateStr) + 1;
   }
 
   // Switching a habit between doing and avoiding (0.205.0) keeps its history
@@ -161,7 +288,7 @@
     const out = {};
     for (let guard = 0; guard < MAX_DAYS && cursor && cursor <= end; guard++) {
       if (isDue({ ...habit, startedAt: cursor <= habit.startedAt ? cursor : habit.startedAt }, cursor)) {
-        const kept = isDone(habit, cursor);
+        const kept = isPeriodic(habit) ? markOf(habit, cursor) > 0 : isDone(habit, cursor);
         if (toAvoid && !kept && cursor !== today) out[cursor] = Math.max(0, limit) + 1;
         if (!toAvoid && kept) out[cursor] = Math.max(1, target);
       }
@@ -183,6 +310,10 @@
   function streakOf(habit, todayDateStr) {
     if (!habit) return 0;
     const today = todayDateStr || todayStr();
+    if (isPeriodic(habit)) {
+      const cur = periodRange(habit.period, today);
+      return runBefore(habit, today) + (metIn(habit, cur) ? 1 : 0);
+    }
     let cursor = today;
     if (isDue(habit, today) && !isDone(habit, today)) cursor = addDaysStr(today, -1);
     const floor = habit.startedAt || "1970-01-01";
@@ -206,6 +337,19 @@
   function runBefore(habit, dateStr) {
     if (!habit) return 0;
     const floor = habit.startedAt || "1970-01-01";
+    // A goal's run is periods met in a row, ending with the one before
+    // `dateStr`'s; the current period, like today, only ever adds.
+    if (isPeriodic(habit)) {
+      let p = periodRange(habit.period, addDaysStr(periodRange(habit.period, dateStr)[0], -1));
+      let run = 0;
+      for (let guard = 0; guard < MAX_DAYS && p[1] >= floor; guard++) {
+        if (habit.archivedAt && p[0] > habit.archivedAt) { p = periodRange(habit.period, addDaysStr(p[0], -1)); continue; }
+        if (!metIn(habit, p)) break;
+        run++;
+        p = periodRange(habit.period, addDaysStr(p[0], -1));
+      }
+      return run;
+    }
     let cursor = addDaysStr(dateStr, -1);
     let run = 0;
     for (let guard = 0; guard < MAX_DAYS && cursor >= floor; guard++) {
@@ -222,6 +366,7 @@
   // last day it has any mark for (or today, whichever is later).
   function bestStreakOf(habit, todayDateStr) {
     if (!habit) return 0;
+    if (isPeriodic(habit)) return bestRunOf(habit, todayDateStr).days;
     const dates = Object.keys(habit.marks || {});
     const last = dates.length ? dates.sort()[dates.length - 1] : (todayDateStr || todayStr());
     const end = last > (todayDateStr || todayStr()) ? last : (todayDateStr || todayStr());
@@ -285,7 +430,24 @@
   }
 
   // How many of the days it asked for were kept, over a window.
+  // A goal's window counts periods, not days: each one that ended inside it,
+  // plus the one still running if it's already met — an unfinished week
+  // isn't a missed one.
+  function periodStats(habit, fromStr, toStr) {
+    const range = clipRange(habit, fromStr, toStr);
+    if (!range) return { due: 0, done: 0, rate: 0 };
+    let due = 0, done = 0;
+    for (const p of periodsBetween(habit.period, range[0], range[1])) {
+      const met = metIn(habit, p);
+      if (p[1] > range[1] && !met) continue;
+      due++;
+      if (met) done++;
+    }
+    return { due, done, rate: due ? done / due : 0 };
+  }
+
   function statsFor(habit, fromStr, toStr) {
+    if (isPeriodic(habit)) return periodStats(habit, fromStr, toStr);
     const due = dueBetween(habit, fromStr, toStr);
     const done = keptBetween(habit, fromStr, toStr);
     return { due, done, rate: due ? done / due : 0 };
@@ -318,7 +480,7 @@
     const today = todayDateStr || todayStr();
     const out = [];
     const range = habit && clipRange(habit, habit.startedAt || today, today);
-    if (!range) return out;
+    if (!range || isPeriodic(habit)) return out;
     for (let dow = 0; dow < 7; dow++) {
       const c = habit.cadence;
       if (c && c !== "daily" && !(c.days || []).includes(dow)) continue;
@@ -340,6 +502,9 @@
   function monthRates(habit, todayDateStr, n = 6) {
     const today = todayDateStr || todayStr();
     const out = [];
+    // A monthly goal's month is one met-or-not, and a yearly one has no
+    // months to speak of: the bars would be all or nothing.
+    if (habit && (habit.period === "month" || habit.period === "year")) return out;
     let y = +today.slice(0, 4), m = +today.slice(5, 7);
     for (let i = 0; i < n; i++) {
       const mm = String(m).padStart(2, "0");
@@ -358,6 +523,20 @@
     const none = { days: 0, from: null, to: null };
     if (!habit) return none;
     const today = todayDateStr || todayStr();
+    // A goal's best run is in periods (`days` keeps its name for the
+    // callers), from the first day of the first to the last of the last.
+    if (isPeriodic(habit)) {
+      const end = habit.archivedAt && habit.archivedAt < today ? habit.archivedAt : today;
+      let run = 0, start = null, best = none;
+      for (const p of periodsBetween(habit.period, habit.startedAt || end, end)) {
+        if (metIn(habit, p)) {
+          if (!run) start = p[0];
+          run++;
+          if (run > best.days) best = { days: run, from: start, to: p[1] };
+        } else if (p[1] <= end) run = 0;
+      }
+      return best;
+    }
     const dates = Object.keys(habit.marks || {}).sort();
     const last = dates.length ? dates[dates.length - 1] : today;
     const end = last > today ? last : today;
@@ -397,6 +576,29 @@
     return live.filter((h) => h.name.toLowerCase().includes(q));
   }
 
+  // What's still open, for the panel at the top of the page (0.300.0): each
+  // habit you do that's due today and not done, or whose week, month or
+  // year hasn't reached its target, grouped by the period it has left. A
+  // habit you avoid is kept until you say otherwise, so it's never "left".
+  function leftToDo(habits, todayDateStr) {
+    const today = todayDateStr || todayStr();
+    const groups = { day: [], week: [], month: [], year: [] };
+    const done = [];
+    for (const h of habits || []) {
+      if (h.archivedAt || !isDue(h, today)) continue;
+      if (h.avoid) { if (isDone(h, today)) done.push(h); continue; }
+      const p = progressOf(h, today);
+      if (p.met) done.push(h); else groups[p.period].push({ habit: h, ...p });
+    }
+    return {
+      groups: ["day", "week", "month", "year"].filter((k) => groups[k].length).map((k) => ({
+        period: k, items: groups[k], daysLeft: daysApart(today, periodRange(k, today)[1]),
+      })),
+      left: groups.day.length + groups.week.length + groups.month.length + groups.year.length,
+      done,
+    };
+  }
+
   const byOrder = (a, b) => (a.order - b.order) || String(a.createdAt || "").localeCompare(String(b.createdAt || ""));
 
   // ---------- the view ----------
@@ -423,17 +625,11 @@
     // the habit, and its whole history, simply unreachable. Whatever is or
     // isn't in the live list, the archived list below still draws.
     const today = todayStr();
-    const due = all.filter((h) => isDue(h, today));
-    const kept = due.filter((h) => isDone(h, today));
     const R = window.LifeLogReminders;
     const remindBar = R && R.bar(all);
     if (remindBar) root.appendChild(remindBar);
-    if (due.length) {
-      const bar = el("div", "habit-today");
-      bar.appendChild(el("span", "habit-today-count", kept.length + " of " + due.length));
-      bar.appendChild(el("span", "habit-today-label", "today"));
-      root.appendChild(bar);
-    }
+    const panel = leftPanel(all, today);
+    if (panel) root.appendChild(panel);
 
     if (all.length) {
       // Columns wherever there's room for a second card beside the first.
@@ -465,6 +661,90 @@
     }
   }
 
+  // ---------- left to do (0.300.0) ----------
+  // The answer to "what haven't I done yet": today's open habits, then the
+  // weekly, monthly and yearly goals still short, each with how much is
+  // left and a button that does the next bit. Replaces the "3 of 6 today"
+  // line, which said how many without saying which.
+  function leftPanel(habits, today) {
+    const L = leftToDo(habits, today);
+    if (!L.left && !L.done.length) return null;
+    const box = el("section", "habit-left");
+    box.setAttribute("aria-label", "Left to do");
+    const head = el("div", "habit-left-head");
+    if (L.left) {
+      head.appendChild(el("span", "habit-today-count", String(L.left)));
+      head.appendChild(el("span", "habit-today-label", "left to do"));
+    } else {
+      head.appendChild(el("span", "habit-today-label habit-left-clear", "Nothing left for now"));
+    }
+    box.appendChild(head);
+    if (L.groups.length) {
+      const groups = el("div", "habit-left-groups");
+      for (const g of L.groups) {
+        const wrap = el("div", "habit-left-group");
+        const title = el("div", "habit-left-title");
+        title.appendChild(el("span", null, g.period === "day" ? "Today" : g.period === "week" ? "This week"
+          : periodName(g.period, today)));
+        title.appendChild(el("span", null, g.period === "day" ? "ends tonight"
+          : g.daysLeft === 0 ? "last day" : g.daysLeft + (g.daysLeft === 1 ? " day left" : " days left")));
+        wrap.appendChild(title);
+        for (const it of g.items) wrap.appendChild(leftRow(it, today));
+        groups.appendChild(wrap);
+      }
+      box.appendChild(groups);
+    }
+    if (L.done.length) box.appendChild(el("p", "habit-left-done", "Done for now: " + L.done.map((h) => h.name).join(", ")));
+    return box;
+  }
+
+  function leftRow(it, today) {
+    const h = it.habit;
+    const row = el("div", "habit-left-row");
+    row.style.setProperty("--habit-colour", h.color);
+    const dot = el("span", "habit-dot");
+    dot.style.background = h.color;
+    row.appendChild(dot);
+    const name = el("button", "habit-left-name", h.name);
+    name.type = "button";
+    name.title = "Go to this habit";
+    name.onclick = () => {
+      const card = document.querySelector('.habit-card[data-id="' + h.id + '"]');
+      if (card) card.scrollIntoView({ block: "center", behavior: "smooth" });
+    };
+    row.appendChild(name);
+    const mins = isMinutes(h);
+    const left = it.done === 0 && it.target === 1 ? "not yet"
+      : mins ? minutesLabel(it.left) + " left"
+      : it.period === "day" ? it.done + " of " + it.target
+      : it.left + " more";
+    row.appendChild(el("span", "habit-left-left", left));
+    const btn = el("button", "habit-left-do");
+    btn.type = "button";
+    if (mins) {
+      btn.textContent = "+15";
+      btn.setAttribute("aria-label", "Add 15 minutes to " + h.name);
+      btn.onclick = () => addMinutes(h.id, today, 15);
+    } else if (it.target === 1 && it.period === "day") {
+      btn.appendChild(ico("check"));
+      btn.setAttribute("aria-label", "Mark " + h.name + " done");
+      btn.onclick = () => tick(h.id, today);
+    } else {
+      btn.textContent = "+1";
+      btn.setAttribute("aria-label", "One more for " + h.name);
+      btn.onclick = () => (isPeriodic(h) ? tickPeriod(h.id, today) : tick(h.id, today));
+    }
+    row.appendChild(btn);
+    const bar = el("div", "habit-left-bar");
+    const fill = el("i");
+    fill.style.width = Math.min(100, Math.round(it.done / it.target * 100)) + "%";
+    bar.appendChild(fill);
+    row.appendChild(bar);
+    return row;
+  }
+
+  const SHORT_PERIOD = { week: "wk", month: "mo", year: "yr" };
+
   function habitCard(h, today) {
     const card = el("div", "habit-card");
     card.dataset.id = h.id;
@@ -482,7 +762,7 @@
     if (run) {
       const s = el("span", "habit-streak");
       s.appendChild(window.LifeLogIcons.labelled("flame", String(run)));
-      s.title = run + (run === 1 ? " day" : " days") + " in a row";
+      s.title = run + " " + periodWord(periodOf(h), run) + " in a row";
       head.appendChild(s);
     }
     // In the Android app, its reminder (see reminders.js).
@@ -494,19 +774,21 @@
     // One short line (0.205.0): how often, and the best run and the last
     // ninety days as numbers. The longer story is the grid's, and a tap
     // away in the title.
-    sub.appendChild(el("span", null, cadenceLabel(h) + (h.avoid
-      ? " · avoid" + (limitOf(h) ? " · ≤" + limitOf(h) : "")
-      : h.target > 1 ? " · " + h.target + "×" : "")));
+    sub.appendChild(el("span", null, h.avoid
+      ? cadenceLabel(h) + " · avoid" + (limitOf(h) ? " · ≤" + limitOf(h) : "")
+      : goalLabel(h)));
+    const period = periodOf(h);
     const best = bestStreakOf(h, today);
-    const window90 = statsFor(h, addDaysStr(today, -89), today);
+    // A yearly goal has no "last 90 days" worth a number; it gets its life.
+    const window90 = period === "year" ? statsFor(h, h.startedAt || today, today) : statsFor(h, addDaysStr(today, -89), today);
     const life = statsFor(h, h.startedAt || today, today);
     const bits = [];
-    if (best) bits.push("best " + best);
+    if (best) bits.push("best " + best + (SHORT_PERIOD[period] ? " " + SHORT_PERIOD[period] : ""));
     if (window90.due) bits.push(Math.round(window90.rate * 100) + "%");
     if (bits.length) {
       const right = el("span", "habit-sub-right", bits.join(" · "));
-      right.title = (window90.due ? Math.round(window90.rate * 100) + "% of the last 90 days. " : "")
-        + "Since " + prettyDate(h.startedAt) + ": " + life.done + " of " + life.due + " days kept.";
+      right.title = (window90.due && period !== "year" ? Math.round(window90.rate * 100) + "% of the last 90 days. " : "")
+        + "Since " + prettyDate(h.startedAt) + ": " + life.done + " of " + life.due + " " + periodWord(period, life.due) + " kept.";
       sub.appendChild(right);
     }
     card.appendChild(sub);
@@ -515,6 +797,9 @@
     // it logs a slip instead.
     if (isDue(h, today) && h.avoid) {
       card.appendChild(slipButton(h, today));
+    } else if (isDue(h, today) && (isPeriodic(h) || isMinutes(h))) {
+      card.appendChild(goalButton(h, today));
+      if (isMinutes(h)) card.appendChild(stepButtons(h, today));
     } else if (isDue(h, today)) {
       const n = markOf(h, today);
       const btn = el("button", "habit-tick" + (isDone(h, today) ? " is-done" : ""));
@@ -560,9 +845,14 @@
       f.appendChild(el("span", "habit-fact-small", small));
       facts.appendChild(f);
     };
-    fact(Math.round(life.rate * 100) + "%", life.done + " of " + life.due + " days since " + prettyDate(h.startedAt));
+    const period = periodOf(h);
+    fact(Math.round(life.rate * 100) + "%", life.done + " of " + life.due + " " + periodWord(period, life.due) + " since " + prettyDate(h.startedAt));
     const best = bestRunOf(h, today);
-    if (best.days) fact(best.days + (best.days === 1 ? " day" : " days"), "longest run, " + dayRangeLabel(best.from, best.to));
+    if (best.days) fact(best.days + " " + periodWord(period, best.days), "longest run, " + dayRangeLabel(best.from, best.to));
+    if (isMinutes(h)) {
+      const total = amountBetween(h, h.startedAt || today, today);
+      if (total) fact(minutesLabel(total), "in all since " + prettyDate(h.startedAt));
+    }
     const days = weekdayRates(h, today).filter((d) => d.due);
     if (days.length > 1) {
       const top = days.slice().sort((a, b) => b.rate - a.rate || b.due - a.due);
@@ -578,7 +868,7 @@
       bars.setAttribute("aria-label", "Kept per month: " + months.map((m) => m.label + " " + Math.round(m.rate * 100) + "%").join(", "));
       for (const m of months) {
         const col = el("div", "habit-month");
-        col.title = m.label + ": " + m.kept + " of " + m.due + " days";
+        col.title = m.label + ": " + m.kept + " of " + m.due + " " + periodWord(period, m.due);
         const bar = el("div", "habit-month-bar");
         const fill = el("div", "habit-month-fill");
         fill.style.height = Math.round(m.rate * 100) + "%";
@@ -592,6 +882,37 @@
       box.appendChild(bars);
     }
     return box;
+  }
+
+  // A goal's button: how far along this period is, out of what. A count
+  // goes up one a tap (and back to none once it's met); minutes open the
+  // sheet that says how many.
+  function goalButton(h, today) {
+    const p = progressOf(h, today);
+    const mins = isMinutes(h);
+    const btn = el("button", "habit-tick habit-goal" + (p.met ? " is-done" : ""));
+    btn.type = "button";
+    btn.dataset.id = h.id;
+    const mark = el("span", "habit-tick-mark", mins ? minutesShort(p.done) : String(p.done));
+    btn.appendChild(mark);
+    const of = "of " + (mins ? minutesLabel(p.target) : p.target);
+    btn.appendChild(el("span", "habit-tick-label", of + (p.period === "day" ? "" : " " + periodName(p.period, today, true))));
+    btn.title = mins ? "Set today's time" : p.met ? "Met — tap to take back today's" : "Tap to add one today";
+    btn.style.setProperty("--habit-colour", h.color);
+    btn.onclick = () => (mins ? openAmountSheet(h.id, today) : tickPeriod(h.id, today));
+    return btn;
+  }
+
+  // The quick adds under a timed habit's name: the sizes a sitting comes in.
+  function stepButtons(h, today) {
+    const row = el("div", "habit-steps");
+    for (const [n, label] of [[15, "+15 min"], [30, "+30 min"], [60, "+1 h"]]) {
+      const b = el("button", "btn", label);
+      b.type = "button";
+      b.onclick = () => addMinutes(h.id, today, n);
+      row.appendChild(b);
+    }
+    return row;
   }
 
   // An avoided habit's button: kept (so far) until you say otherwise.
@@ -652,6 +973,7 @@
   }
 
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const monthOf = (s) => MONTHS[+s.slice(5, 7) - 1];
   const prettyDate = (s) => isDateStr(s) ? +s.slice(8, 10) + " " + monthOf(s) + " " + s.slice(0, 4) : "";
   // "3–16 Mar 2026", "28 Feb – 3 Mar 2026", "30 Dec 2025 – 2 Jan 2026".
@@ -706,6 +1028,20 @@
     // saying nothing, and it reads as though the grid is broken.
     const c = h.cadence;
     const rows = !c || c === "daily" ? [0, 1, 2, 3, 4, 5, 6] : c.days;
+    // A weekly goal's columns are its weeks: a bar over each says whether
+    // that one was met, which the days under it can't.
+    if (h.period === "week") {
+      const strip = el("div", "habit-weeks");
+      strip.setAttribute("aria-hidden", "true");
+      for (let col = 0; col < GRID_WEEKS; col++) {
+        const from = addDaysStr(start, col * 7);
+        const b = el("i");
+        if (from > today || (h.startedAt && addDaysStr(from, 6) < h.startedAt)) b.className = "is-off";
+        else if (metIn(h, [from, addDaysStr(from, 6)])) { b.className = "is-met"; b.style.background = h.color; }
+        strip.appendChild(b);
+      }
+      wrap.appendChild(strip);
+    }
     for (const row of rows) {
       const line = el("div", "habit-grid-row");
       // Every row named. Until 0.235.0 a full week labelled only Mon, Wed
@@ -738,13 +1074,22 @@
               else { cell.classList.add("is-kept"); cell.style.boxShadow = `inset 0 0 0 2px ${h.color}`; }
             } else cell.classList.add("is-slip");
             cell.title = date + (done ? (n ? ` — ${n} of at most ${limitOf(h)}` : " — kept") : " — slipped");
+          } else if (isPeriodic(h)) {
+            // A day of a weekly goal isn't missed for having nothing in it,
+            // so a blank one stays blank; a day with something is filled.
+            if (n) { cell.classList.add("is-done"); cell.style.background = h.color; }
+            cell.title = date + (n ? " — " + (isMinutes(h) ? minutesLabel(n) : n === 1 ? "done" : n + " times") : "");
+          } else if (isMinutes(h)) {
+            if (done) { cell.classList.add("is-done"); cell.style.background = h.color; }
+            else if (n) { cell.classList.add("is-part"); cell.style.background = h.color + "66"; }
+            cell.title = date + (n ? " — " + minutesLabel(n) + " of " + minutesLabel(h.target) : " — missed");
           } else {
             if (done) { cell.classList.add("is-done"); cell.style.background = h.color; }
             else if (n) { cell.classList.add("is-part"); cell.style.background = h.color + "66"; }
             cell.title = date + (done ? " — done" : n ? ` — ${n} of ${h.target}` : " — missed");
           }
           if (anchor && anchor.id === h.id && anchor.date === date) cell.classList.add("is-anchor");
-          cell.onclick = (ev) => onCellPress(h.id, date, ev);
+          cell.onclick = isMinutes(h) ? () => openAmountSheet(h.id, date) : (ev) => onCellPress(h.id, date, ev);
         }
         line.appendChild(cell);
       }
@@ -754,7 +1099,8 @@
       wrap.appendChild(el("p", "habit-range-hint",
         "Tap the day this run ends on — or the same day again to stop."));
     }
-    longPressCells(wrap, h.id);
+    // Filling a run with minutes would be guessing how long each day was.
+    if (!isMinutes(h)) longPressCells(wrap, h.id);
     return wrap;
   }
 
@@ -872,6 +1218,60 @@
     await persist();
   }
 
+  async function setMark(id, dateStr, n) {
+    const h = (state.data.habits || []).find((x) => x.id === id);
+    if (!h) return null;
+    const was = markOf(h, dateStr);
+    const marks = { ...(h.marks || {}) };
+    if (n > 0) marks[dateStr] = n; else delete marks[dateStr];
+    if (Object.keys(marks).length) h.marks = marks; else delete h.marks;
+    render();
+    await persist();
+    return was;
+  }
+
+  async function tickPeriod(id, dateStr) {
+    const h = (state.data.habits || []).find((x) => x.id === id);
+    if (h) await setMark(id, dateStr, nextPeriodMark(h, dateStr));
+  }
+
+  async function addMinutes(id, dateStr, n) {
+    const h = (state.data.habits || []).find((x) => x.id === id);
+    if (!h) return;
+    const next = Math.min(1440, markOf(h, dateStr) + n);
+    const was = await setMark(id, dateStr, next);
+    const p = progressOf(h, dateStr);
+    toast("Added " + minutesLabel(n) + " — " + (p.met ? "done" : minutesLabel(p.left) + " to go") + (p.period === "day" ? "" : " " + periodName(p.period, dateStr, true)),
+      false, { label: "Undo", onClick: () => setMark(id, dateStr, was) });
+  }
+
+  // ---------- the time sheet ----------
+  let amountFor = null; // { id, date }
+
+  function openAmountSheet(id, dateStr) {
+    const h = (state.data.habits || []).find((x) => x.id === id);
+    if (!h) return;
+    amountFor = { id, date: dateStr };
+    $("#habitAmountTitle").textContent = h.name;
+    const p = progressOf(h, dateStr);
+    $("#habitAmountWhen").textContent = (dateStr === todayStr() ? "Today" : prettyDate(dateStr)) + " · goal " + goalLabel(h).toLowerCase()
+      + (p.period === "day" ? "" : " · " + minutesLabel(p.done) + " so far " + periodName(p.period, dateStr, true));
+    $("#habitAmountInput").value = markOf(h, dateStr) || "";
+    $("#habitAmountClear").hidden = !markOf(h, dateStr);
+    $("#habitAmountModal").hidden = false;
+  }
+  function closeAmountModal() { $("#habitAmountModal").hidden = true; amountFor = null; }
+
+  async function saveAmount(ev) {
+    if (ev) ev.preventDefault();
+    if (!amountFor) return;
+    const { id, date } = amountFor;
+    const n = Math.max(0, Math.min(1440, Math.round(+$("#habitAmountInput").value) || 0));
+    closeAmountModal();
+    const was = await setMark(id, date, n);
+    if (was !== n) toast(n ? "Saved " + minutesLabel(n) : "Cleared", false, { label: "Undo", onClick: () => setMark(id, date, was) });
+  }
+
   // ---------- the modal ----------
   let editingId = null;
   let startWas = null; // the start date the modal opened with
@@ -881,7 +1281,12 @@
     $("#habitModalTitle").textContent = habit ? "Edit habit" : "Add habit";
     $("#habitName").value = habit ? habit.name : "";
     $("#habitKind").value = habit && habit.avoid ? "avoid" : "do";
-    $("#habitTarget").value = habit ? (habit.avoid ? limitOf(habit) : habit.target) : 1;
+    // Minutes that make whole hours show as hours: "1 hour a day" is what
+    // was meant, and 60 in a box reads as a typo.
+    const hours = habit && isMinutes(habit) && habit.target >= 60 && habit.target % 60 === 0;
+    $("#habitUnit").value = habit && isMinutes(habit) ? (hours ? "hours" : "min") : "times";
+    $("#habitPeriod").value = habit ? periodOf(habit) : "day";
+    $("#habitTarget").value = habit ? (habit.avoid ? limitOf(habit) : hours ? habit.target / 60 : habit.target) : 1;
     $("#habitColor").value = habit ? habit.color : (CATEGORY_PALETTE[(state.data.habits || []).length % CATEGORY_PALETTE.length] || "#5b8cff");
     // Backfilling starts here: a habit you have been keeping for months
     // before you told the app about it has a start date in the past, and
@@ -901,8 +1306,8 @@
     $("#deleteHabitBtn").hidden = !habit;
     $("#archiveHabitBtn").hidden = !habit;
     if (habit && habit.archivedAt) window.LifeLogIcons.setLabel($("#archiveHabitBtn"), "undo-2", "Un-archive"); else window.LifeLogIcons.setLabel($("#archiveHabitBtn"), "archive", "Archive");
-    applyCadenceUI();
     applyKindUI();
+    applyGoalUI();
     // Reminders live on the phone, not in the habit (see reminders.js).
     const R = window.LifeLogReminders;
     const remind = !!(R && R.available());
@@ -913,7 +1318,37 @@
   function closeHabitModal() { $("#habitModal").hidden = true; editingId = null; }
 
   function applyCadenceUI() {
-    $("#habitDaysLabel").hidden = $("#habitCadence").value !== "days";
+    const daily = $("#habitKind").value === "avoid" || $("#habitPeriod").value === "day";
+    $("#habitCadenceLabel").hidden = !daily;
+    $("#habitDaysLabel").hidden = !daily || $("#habitCadence").value !== "days";
+  }
+
+  // The goal reads as a sentence, "3 times a week", and the hint under it
+  // says what that means in the one case it isn't obvious.
+  function applyGoalUI() {
+    const avoid = $("#habitKind").value === "avoid";
+    $("#habitUnitLabel").hidden = avoid;
+    $("#habitPeriodLabel").hidden = avoid;
+    applyCadenceUI();
+    const period = $("#habitPeriod").value;
+    const n = targetFromForm();
+    const unit = $("#habitUnit").value;
+    const amount = unit === "times" ? (n === 1 ? "Once" : n === 2 ? "Twice" : n + " times") : minutesLabel(n);
+    const h = editingId ? (state.data.habits || []).find((x) => x.id === editingId) : null;
+    const unitChanged = h && !avoid && Object.keys(h.marks || {}).length && isMinutes(h) !== (unit !== "times");
+    const bits = [];
+    if (!avoid && period !== "day") {
+      bits.push(amount + " a " + period + ", on any days." + (period === "week" ? " A week runs Sunday to Saturday, like the grid's columns." : ""));
+    }
+    if (unitChanged) bits.push("Days already recorded keep their numbers, so a tick becomes " + (unit === "times" ? "a count" : "a minute") + " — fix any in the grid that matter.");
+    $("#habitGoalHint").textContent = bits.join(" ");
+    $("#habitGoalHint").hidden = !bits.length;
+  }
+
+  // Minutes, whichever unit the box is in.
+  function targetFromForm() {
+    const n = Math.max(1, Math.round(+$("#habitTarget").value) || 1);
+    return $("#habitUnit").value === "hours" ? n * 60 : n;
   }
 
   // Do or avoid: the number beside it is how many times a day, or how many
@@ -922,7 +1357,7 @@
   // other kind (1 a day, none at all) is swapped in.
   function applyKindUI(switched) {
     const avoid = $("#habitKind").value === "avoid";
-    $("#habitTargetText").textContent = avoid ? "At most a day" : "Times a day";
+    $("#habitTargetText").textContent = avoid ? "At most a day" : "Goal";
     const t = $("#habitTarget");
     t.min = avoid ? "0" : "1";
     if (switched) t.value = avoid ? "0" : "1";
@@ -958,11 +1393,14 @@
     // A habit you avoid needs no filling in: a day with nothing recorded is
     // already a kept one.
     const avoiding = $("#habitKind").value === "avoid";
-    const days = !avoiding && isDateStr(v) && v < was ? backfillDays(h, v, addDaysStr(was, -1)) : [];
-    const target = Math.max(1, Math.round(+$("#habitTarget").value) || 1);
+    // A weekly goal's past can't be filled in by rule: which three days?
+    const periodic = !avoiding && $("#habitPeriod").value !== "day";
+    const days = !avoiding && !periodic && isDateStr(v) && v < was ? backfillDays(h, v, addDaysStr(was, -1)) : [];
+    const target = targetFromForm();
+    const mins = $("#habitUnit").value !== "times";
     $("#habitFillText").textContent = days.length
       ? "Mark those " + days.length + (days.length === 1 ? " day" : " days") + " as done" +
-        (target > 1 ? " (" + target + "× each)" : "")
+        (mins ? " (" + minutesLabel(target) + " each)" : target > 1 ? " (" + target + "× each)" : "")
       : "";
     label.hidden = !days.length;
     if (!days.length) $("#habitFill").checked = false;
@@ -995,20 +1433,23 @@
     if (!name) return;
     const days = [...document.querySelectorAll("#habitDays input")]
       .map((b, i) => (b.checked ? i : -1)).filter((i) => i >= 0);
-    if ($("#habitCadence").value === "days" && !days.length) {
+    if ($("#habitCadence").value === "days" && !days.length && ($("#habitKind").value === "avoid" || $("#habitPeriod").value === "day")) {
       toast("Pick at least one day, or switch back to every day", true);
       return;
     }
     const startedAt = isDateStr($("#habitStart").value) ? $("#habitStart").value : todayStr();
     if (startedAt > todayStr()) { toast("A habit can't start in the future", true); return; }
     const avoid = $("#habitKind").value === "avoid";
+    const period = !avoid && $("#habitPeriod").value !== "day" ? $("#habitPeriod").value : undefined;
     const shape = {
       name,
       color: $("#habitColor").value,
-      target: avoid ? 1 : Math.max(1, Math.round(+$("#habitTarget").value) || 1),
+      target: avoid ? 1 : Math.min(MAX_TARGET, targetFromForm()),
       avoid: avoid || undefined,
       limit: avoid ? Math.max(0, Math.round(+$("#habitTarget").value) || 0) : undefined,
-      cadence: $("#habitCadence").value === "days" ? { days } : "daily",
+      cadence: !period && $("#habitCadence").value === "days" ? { days } : "daily",
+      period,
+      unit: !avoid && $("#habitUnit").value !== "times" ? "min" : undefined,
       startedAt,
     };
     const fill = !$("#habitFillLabel").hidden && $("#habitFill").checked;
@@ -1025,6 +1466,8 @@
         Object.assign(h, shape);
         if (carried) { if (Object.keys(carried).length) h.marks = carried; else delete h.marks; }
         if (!avoid) { delete h.avoid; delete h.limit; }
+        if (!shape.period) delete h.period;
+        if (!shape.unit) delete h.unit;
         // Moving the start back uncovers days that now ask for something and
         // have nothing recorded. Ticking fifty cells by hand is the
         // difference between backfilling being possible and being done — but
@@ -1123,18 +1566,30 @@
     $("#deleteHabitBtn").onclick = deleteCurrentHabit;
     $("#archiveHabitBtn").onclick = archiveCurrentHabit;
     $("#habitCadence").onchange = () => { applyCadenceUI(); applyStartUI(); };
-    $("#habitKind").onchange = () => { applyKindUI(true); applyStartUI(); };
+    $("#habitKind").onchange = () => { applyKindUI(true); applyGoalUI(); applyStartUI(); };
+    $("#habitPeriod").onchange = () => { applyGoalUI(); applyStartUI(); };
+    $("#habitUnit").onchange = () => { applyGoalUI(); applyStartUI(); };
     $("#habitStart").oninput = applyStartUI;
-    $("#habitTarget").oninput = applyStartUI;
+    $("#habitTarget").oninput = () => { applyGoalUI(); applyStartUI(); };
+    $("#habitAmountForm").onsubmit = saveAmount;
+    $("#habitAmountCancel").onclick = closeAmountModal;
+    $("#habitAmountClear").onclick = () => { $("#habitAmountInput").value = 0; saveAmount(); };
+    $("#habitAmountSteps").onclick = (ev) => {
+      const b = ev.target.closest && ev.target.closest("[data-add]");
+      if (!b) return;
+      $("#habitAmountInput").value = Math.min(1440, (Math.round(+$("#habitAmountInput").value) || 0) + +b.dataset.add);
+    };
     $("#habitDays").oninput = applyStartUI;
   }
 
   window.LifeLogHabits = {
-    init, wire, renderHabits, openHabitModal, closeHabitModal, isHabitsMode,
+    init, wire, renderHabits, openHabitModal, closeHabitModal, closeAmountModal, isHabitsMode,
     sanitizeHabit,
     getFilteredHabits,
     // pure, and the point of the feature — see test/habits.test.js
     isDue, cadenceLabel, markOf, isDone, nextMark, capOf, limitOf, convertMarks,
+    periodOf, isPeriodic, isMinutes, periodRange, amountBetween, progressOf, goalLabel,
+    minutesLabel, minutesShort, nextPeriodMark, periodName, periodWord, leftToDo,
     streakOf, bestStreakOf, runBefore, statsFor, blankDaysBetween,
     weekdayRates, monthRates, bestRunOf,
     dueBetween, keptBetween, dueDaysBetween, orphanedMarks, firstMarkOf,

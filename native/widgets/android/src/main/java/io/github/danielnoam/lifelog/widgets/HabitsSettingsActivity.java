@@ -13,7 +13,7 @@ import org.json.JSONObject;
 
 /**
  * The habits widget's settings (0.201.0): whether it shows each habit's
- * streak and the "N of M today" line under its title. Optional when placed;
+ * streak, the "N left" line under its title and whether done ones hide. Optional when placed;
  * a long press on the widget brings it back.
  *
  * Since 0.270.0, which habits it shows and in what order, as the checklist
@@ -23,7 +23,7 @@ import org.json.JSONObject;
 public class HabitsSettingsActivity extends SettingsScreen {
 
     private final Sortable habits = new Sortable();
-    private CheckBox streak, summary;
+    private CheckBox streak, summary, left;
 
     @Override
     protected void build() {
@@ -56,7 +56,8 @@ public class HabitsSettingsActivity extends SettingsScreen {
         }
         heading("Show");
         streak = check("Each habit's streak", flag("streak"));
-        summary = check("How many are done today, under the title", flag("summary"));
+        summary = check("How many are left, under the title", flag("summary"));
+        left = check("Only what's still left (hide what's done)", WidgetStore.onlyLeft(was));
     }
 
     @Override
@@ -65,6 +66,7 @@ public class HabitsSettingsActivity extends SettingsScreen {
         out.put("order", habits.order());
         out.put("streak", streak.isChecked());
         out.put("summary", summary.isChecked());
+        out.put("left", left.isChecked());
     }
 
     @Override

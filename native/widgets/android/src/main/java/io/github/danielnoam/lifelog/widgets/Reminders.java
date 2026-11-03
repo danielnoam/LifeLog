@@ -189,8 +189,11 @@ final class Reminders {
     }
 
     static String text(WidgetStore.Row r) {
-        String left = r.target > 1 && r.value > 0 ? r.value + " of " + r.target + " so far today" : "Still to do today";
-        return r.streak > 0 ? left + " — keep your " + r.streak + "-day streak going" : left;
+        String goal = WidgetStore.leftText(r);
+        String left = !r.period.isEmpty() || r.minutes ? (goal.isEmpty() ? "Still to do" : goal.substring(0, 1).toUpperCase(java.util.Locale.ROOT) + goal.substring(1))
+            : r.target > 1 && r.value > 0 ? r.value + " of " + r.target + " so far today" : "Still to do today";
+        String unit = "week".equals(r.period) ? "-week" : "month".equals(r.period) ? "-month" : "year".equals(r.period) ? "-year" : "-day";
+        return r.streak > 0 ? left + " — keep your " + r.streak + unit + " streak going" : left;
     }
 
     private static void notify(Context c, WidgetStore.Row r) {

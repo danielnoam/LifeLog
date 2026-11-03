@@ -59,6 +59,12 @@ final class WidgetStore {
         /** A habit you avoid (0.203.0): value is today's slips, kept while it's at most limit. */
         boolean avoid;
         int limit;
+        /** A goal (0.300.0): "week", "month" or "year", else "" for a daily one. */
+        String period = "";
+        /** A timed habit: the marks, the target and `amount` are minutes. */
+        boolean minutes;
+        /** How much of the period (or today, for a daily one) is done. */
+        int amount;
     }
 
     private WidgetStore() {}
@@ -244,6 +250,41 @@ final class WidgetStore {
      * the week of marks the snapshot carries, plus the widget's ticks; a due
      * day not kept ends the run. `day` itself only ever adds — it isn't over.
      */
+    /** The first day of the period `date` is in: habits.js's periodRange. Weeks start on Sunday. */
+    static String periodStart(String period, String date) {
+        if ("week".equals(period)) return addDays(date, -Math.max(0, weekdayOf(date)));
+        if ("month".equals(period) && date.length() >= 10) return date.substring(0, 8) + "01";
+        if ("year".equals(period) && date.length() >= 10) return date.substring(0, 5) + "01-01";
+        return date;
+    }
+
+    static boolean periodic(JSONObject h) {
+        String p = str(h, "period");
+        return !h.optBoolean("avoid") && ("week".equals(p) || "month".equals(p) || "year".equals(p));
+    }
+
+    /** What's been done from `from` to `to`, the widget's ticks included. */
+    static int amountBetween(JSONObject h, JSONArray q, String from, String to) {
+        String started = str(h, "startedAt");
+        String d = !started.isEmpty() && from.compareTo(started) < 0 ? started : from;
+        int n = 0;
+        for (int guard = 0; guard < 400 && d.compareTo(to) <= 0; guard++) {
+            n += markOn(h, q, d);
+            d = addDays(d, 1);
+        }
+        return n;
+    }
+
+    /** Today's amount, or for a goal the period's so far. */
+    static int amountOn(JSONObject h, JSONArray q, String day) {
+        return periodic(h) ? amountBetween(h, q, periodStart(str(h, "period"), day), day) : markOn(h, q, day);
+    }
+
+    /** Whether `day` counts as done: its own mark, or for a goal the period's. */
+    static boolean doneOn(JSONObject h, JSONArray q, String day) {
+        return periodic(h) ? amountOn(h, q, day) >= Math.max(1, h.optInt("target", 1)) : keptWith(h, markOn(h, q, day));
+    }
+
     /** Whether a day with `mark` is kept: reached the target, or for a habit you avoid, stayed within its limit. */
     static boolean keptWith(JSONObject h, int mark) {
         return h.optBoolean("avoid")
@@ -257,6 +298,20 @@ final class WidgetStore {
     }
 
     static int streakOn(JSONObject h, JSONArray q, String snapToday, String day) {
+        // A goal's run is periods (habits.js's runBefore + the current one if
+        // met). The app counted up to the period it was in; if the phone has
+        // since moved into the next, that one is judged from the marks sent.
+        if (periodic(h)) {
+            String period = str(h, "period");
+            String start = periodStart(period, day);
+            String sent = str(h, "periodFrom");
+            int target = Math.max(1, h.optInt("target", 1));
+            int run = Math.max(0, h.optInt("runBefore", 0));
+            if (!sent.isEmpty() && start.compareTo(sent) > 0) {
+                run = amountBetween(h, q, sent, addDays(start, -1)) >= target ? run + 1 : 0;
+            }
+            return run + (amountOn(h, q, day) >= target ? 1 : 0);
+        }
         int run = 0;
         boolean broken = false;
         String d = addDays(day, -1);
@@ -308,7 +363,10 @@ final class WidgetStore {
             r.value = markOn(h, q, today);
             r.avoid = h.optBoolean("avoid");
             r.limit = Math.max(0, h.optInt("limit", 0));
-            r.done = keptWith(h, r.value);
+            r.period = periodic(h) ? str(h, "period") : "";
+            r.minutes = !r.avoid && "min".equals(str(h, "unit"));
+            r.amount = amountOn(h, q, today);
+            r.done = doneOn(h, q, today);
             r.streak = streakOn(h, q, snapToday, today);
             r.remind = str(h, "remind");
             rows.add(r);
@@ -342,17 +400,44 @@ final class WidgetStore {
         if (id == null) return;
         for (Row r : habitRows(c)) {
             if (!r.id.equals(id)) continue;
-            queueMark(c, id, r.value >= capOf(r) ? 0 : r.value + 1);
+            queueMark(c, id, nextValue(r));
             return;
         }
+    }
+
+    /**
+     * What a tap makes today's mark. A daily count steps on and wraps at the
+     * target; a goal or a timed habit (0.300.0) adds one (or 15 minutes)
+     * until it's met, and the tap after that takes today's back to none.
+     */
+    static int nextValue(Row r) {
+        if (r.minutes) return r.done ? 0 : r.value + 15;
+        if (!r.period.isEmpty()) return r.done ? 0 : r.value + 1;
+        return r.value >= capOf(r) ? 0 : r.value + 1;
     }
 
     /** A reminder's Done: all the way to the target, however far along it was. */
     static void finishHabit(Context c, String id) {
         if (id == null) return;
         for (Row r : habitRows(c)) {
-            if (r.id.equals(id) && !r.done && !r.avoid) queueMark(c, id, r.target);
+            if (r.id.equals(id) && !r.done && !r.avoid) queueMark(c, id, r.value + Math.max(0, r.target - r.amount));
         }
+    }
+
+    /** "2 more this week", "35 min left": what a goal still needs, or "" once it's met. */
+    static String leftText(Row r) {
+        if (r.done || r.avoid) return "";
+        int left = Math.max(0, r.target - r.amount);
+        String when = "week".equals(r.period) ? " this week" : "month".equals(r.period) ? " this month" : "year".equals(r.period) ? " this year" : "";
+        if (r.minutes) return minutesText(left) + " left" + when;
+        if (!r.period.isEmpty()) return left + " more" + when;
+        return "";
+    }
+
+    static String minutesText(int n) {
+        if (n < 60) return n + " min";
+        int h = n / 60, m = n % 60;
+        return m == 0 ? h + " h" : h + " h " + m + " min";
     }
 
     // ---- to-dos ----
@@ -594,6 +679,17 @@ final class WidgetStore {
     /** A widget's yes/no setting (0.201.0): on unless it's been turned off, so a widget with no settings shows everything. */
     static boolean flag(JSONObject cfg, String key) {
         return cfg == null || cfg.optBoolean(key, true);
+    }
+
+    /** "Only what's left" (0.300.0): off unless chosen, so a placed widget doesn't change under you. */
+    static boolean onlyLeft(JSONObject cfg) {
+        return cfg != null && cfg.optBoolean("left", false);
+    }
+
+    static List<Row> leftOnly(List<Row> rows) {
+        List<Row> out = new ArrayList<>();
+        for (Row r : rows) if (!r.done) out.add(r);
+        return out;
     }
 
     static void saveConfig(Context c, int widgetId, JSONObject cfg) {
