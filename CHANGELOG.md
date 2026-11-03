@@ -3,6 +3,14 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.302.0] - 2026-11-03
+
+### Added
+- Habits has a View button. Its one option hides the Left to do panel, on this device only.
+
+### Removed
+- The "Done for now" line under Left to do.
+
 ## [0.301.0] - 2026-11-03
 
 ### Added
