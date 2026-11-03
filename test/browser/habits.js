@@ -741,7 +741,7 @@ const stored = (page) => page.evaluate(() => window.LifeLogStorage.cachedCopy().
     await page.waitForTimeout(400);
     h = (await stored(page)).find((x) => x.id === "g");
     check("one more once it's met takes today's back", !(TODAY in h.marks), h.marks);
-    check("the weekly grid has a bar over each week", await page.locator('.habit-card[data-id="g"] .habit-weeks > i').count() === 12);
+    check("the weekly grid has a bar under each week", await page.locator('.habit-card[data-id="g"] .habit-weeks > i').count() === 12);
 
     await page.locator(".habit-left-do", { hasText: "+15" }).click();
     await page.waitForTimeout(400);

@@ -1045,10 +1045,12 @@
     const c = h.cadence;
     const order = Dates().weekOrder();
     const rows = !c || c === "daily" ? order : order.filter((d) => c.days.includes(d));
-    // A weekly goal's columns are its weeks: a bar over each says whether
-    // that one was met, which the days under it can't.
+    // A weekly goal's columns are its weeks: a bar under each says whether
+    // that one was met, which the days above it can't. Over the grid, with
+    // the cells full width, it read as a row of cells cut off at the top.
+    let strip = null;
     if (h.period === "week") {
-      const strip = el("div", "habit-weeks");
+      strip = el("div", "habit-weeks");
       strip.setAttribute("aria-hidden", "true");
       for (let col = 0; col < GRID_WEEKS; col++) {
         const from = addDaysStr(start, col * 7);
@@ -1057,7 +1059,6 @@
         else if (metIn(h, [from, addDaysStr(from, 6)])) { b.className = "is-met"; b.style.background = h.color; }
         strip.appendChild(b);
       }
-      wrap.appendChild(strip);
     }
     for (const row of rows) {
       const line = el("div", "habit-grid-row");
@@ -1112,6 +1113,7 @@
       }
       wrap.appendChild(line);
     }
+    if (strip) wrap.appendChild(strip);
     if (anchor && anchor.id === h.id) {
       wrap.appendChild(el("p", "habit-range-hint",
         "Tap the day this run ends on — or the same day again to stop."));
