@@ -3,6 +3,12 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.303.1] - 2026-11-03
+
+### Fixed
+- A long goal button ("1h15 of 3 hours this week") spilled out of its border beside the time buttons. It now reads "1h15 of 3h", since the line under the name already says "3 hours a week", and the row wraps if it still doesn't fit.
+- On a weekly goal, the bars that mark a met week sat on top of the grid and looked like a row of squares cut off. They're under the grid now.
+
 ## [0.303.0] - 2026-11-03
 
 ### Changed
