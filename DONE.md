@@ -154,6 +154,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Habit reminders on Android and iPhone (0.183.0, 0.217.0)
 - Goals: a target per week, month or year on any days, or in minutes; streaks in periods (0.300.0)
 - Left to do: what's still open today and this week, month and year, at the top of Habits and in the habits widget (0.300.0)
+- Habits view option: hide the Left to do panel (View button, this device only)
 
 ## Ledger
 

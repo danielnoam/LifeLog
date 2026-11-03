@@ -636,7 +636,7 @@
     const R = window.LifeLogReminders;
     const remindBar = R && R.bar(all);
     if (remindBar) root.appendChild(remindBar);
-    const panel = leftPanel(all, today);
+    const panel = state.visual.habitsLeftPanel !== "hide" && leftPanel(all, today);
     if (panel) root.appendChild(panel);
 
     if (all.length) {
@@ -702,7 +702,6 @@
       }
       box.appendChild(groups);
     }
-    if (L.done.length) box.appendChild(el("p", "habit-left-done", "Done for now: " + L.done.map((h) => h.name).join(", ")));
     return box;
   }
 

@@ -79,7 +79,7 @@ note shows.
 Habits to do or to avoid, every day or on set days, once or several times a
 day, or as a goal: a few times a week, month or year on any days, or a time
 in minutes ("1 hour a day"). Left to do, at the top, lists what's still open
-today and this period, with a button for the next bit. One tap ticks today;
+today and this period, with a button for the next bit (View can hide it). One tap ticks today;
 the grid pages back for backfilling. Streaks, a best run, and Insights (kept
 rate, longest run, best and weakest weekday, six months as bars). Reminders
 on Android and iPhone.

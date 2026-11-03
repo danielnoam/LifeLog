@@ -3687,7 +3687,6 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   background: var(--bg-elev-2); border-radius: var(--r-hair); overflow: hidden;
 }
 .habit-left-bar > i { display: block; height: 100%; background: var(--habit-colour, var(--accent)); border-radius: var(--r-hair); }
-.habit-left-done { margin: var(--space-10) 0 0; font-size: var(--fs-xs); color: var(--text-dim); }
 
 /* A timed habit's quick adds, under its name. */
 .habit-steps { display: flex; flex-wrap: wrap; gap: var(--space-8) var(--space-6); margin: var(--space-8) 0 0 var(--space-20); }
