@@ -125,13 +125,13 @@ request land on `main`:
 
 - **A PR that bumps the version** is a release: when it merges, the Android
   workflow publishes `app-v<version>` with the APK, iOS attaches the IPA,
-  and every phone's updater offers it. Daniel's own asks ship this way,
-  grouped into one release (or a few) rather than many small ones.
+  and every phone's updater offers it. Only Daniel decides when to release
+  (2026-11-03): he cuts one himself or asks for it.
 - **A PR that doesn't** just lands. Its lines go in its own file,
   `changes/<branch>.md` (`feature/more-sites` → `feature-more-sites.md`),
   never in CHANGELOG.md, so two branches never clash there. It ships with
-  the next release. Use this for work landing in pieces, and anything that
-  should go out with someone else's change.
+  the next release. This is the default for every change, Daniel's own
+  asks included.
 
 **To release what has gathered:** on an up-to-date branch run
 `node tools/release.js 0.300.0` (new feature: minor; fix or tweak: patch;

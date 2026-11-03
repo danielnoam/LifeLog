@@ -14,10 +14,10 @@ CONTRIBUTING.md's "Versions and releases" (2026-11-02, from Waypage):
 - Work on a branch named for the change (`fix/<what>`, `feature/<what>`,
   `docs/<what>`), never on `main` and not on the session's `claude/...`
   branch.
-- A merge releases only if it bumps the version. Daniel's own asks ship as
-  a release (several asks grouped into one, or a few). Work landing in
-  pieces, or that should go out with another change, doesn't bump: its
-  lines go in `changes/<branch>.md` and the next release PR takes them.
+- A merge releases only if it bumps the version, and only Daniel decides
+  when to release (2026-11-03). By default a PR doesn't bump: its lines go
+  in `changes/<branch>.md`, it merges on green, and the next release PR
+  takes them. Bump only when he asks for a release.
 - To bump: `node tools/release.js x.y.z`. New user-facing feature → minor
   (`0.X.0` → `0.(X+1).0`); fix, small tweak, styling → patch; a change to
   the saved data old versions can't read (`data.version` in

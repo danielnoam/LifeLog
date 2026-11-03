@@ -37,9 +37,11 @@ and the iOS app (Capacitor). See README.md for the layout.
 - `main` is production and takes only pull requests (2026-11-02, as in
   Waypage). A merge deploys the web app; only a merge with a new
   `APP_VERSION` publishes the APK and IPA (`node tools/release.js x.y.z`).
-  Daniel's own asks still ship as a release; work landing in pieces writes
-  its lines to `changes/<branch>.md` (never CHANGELOG.md) and the next
-  release PR takes it. Check the runs went green.
+  Daniel cuts releases himself (2026-11-03): by default a PR doesn't bump
+  the version, it writes its lines to `changes/<branch>.md` (never
+  CHANGELOG.md) and merges on green, with no APK or IPA built. Run
+  `tools/release.js` only when he asks for a release. Check the runs went
+  green.
 - When Daniel wants to try a change on his phone before it's merged, add
   the `test` label (or `test-android` / `test-ios`) to its PR and tell him
   the build is on the `test-<branch>` pre-release.
@@ -82,8 +84,8 @@ Daniel (danielnoam) owns LifeLog. These rules hold in every session.
   don't merge until he says build.
 - "Add to TODO" means plan it, not build it. Small asks listed without
   that get built now.
-- Several asks go out as one release, or a few grouped releases, not many
-  small ones.
+- Merge to main, don't release (2026-11-03): he wants changes merged and
+  will cut the release later himself. No version bump unless he asks.
 - A new look, a reworked screen or a big change: show or explain it first
   and wait for his OK before building. Don't stack extra changes on top of
   what he asked without saying so first.
