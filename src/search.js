@@ -21,7 +21,8 @@
   const dateLabel = (s) => {
     const m = /^(\d{4})(?:-(\d{2}))?(?:-(\d{2}))?/.exec(String(s || ""));
     if (!m) return "";
-    return (m[3] ? +m[3] + " " : "") + (m[2] ? MONTHS[+m[2]] + " " : "") + m[1];
+    if (m[3]) return (window.LifeLogDates || require("./dates.js")).day(m[1] + "-" + m[2] + "-" + m[3]);
+    return (m[2] ? MONTHS[+m[2]] + " " : "") + m[1];
   };
 
   // Every word typed has to be somewhere in the item; the first word is the

@@ -37,6 +37,8 @@
     const vp = document.querySelector('meta[name="viewport"]');
     if (vp && !/maximum-scale/.test(vp.content)) vp.content += ", maximum-scale=1";
   }
+  // Under Node (the bridge, the tests) nothing loaded dates.js as a script.
+  const Dates = window.LifeLogDates || require("./dates.js");
   const MONTHS = ["", "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"];
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -164,7 +166,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.300.1"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.301.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -500,6 +502,7 @@
     financeStatsYear: null,
     bulk: { active: false, selected: new Set() },
   };
+  Dates.bind(() => state.data && state.data.settings);
   let catColor = {}; // name -> color
 
   // Applied immediately (before any data load/await) so the right theme,
@@ -4179,6 +4182,7 @@
     "currency", "mediaCategorySources", "mediaCategoryFallbackSources",
     "mediaKeys", "steam", "anilist", "releases", "importSkips", "updatedAt",
     "monthMinWidth", "monthMaxWidth", "imagesCleanedAt",
+    "weekStart", "dateFormat",
   ]);
 
   function sanitizeAccomplishment(a, y) {
@@ -4276,6 +4280,10 @@
     // When the pictures on GitHub were last cleaned up (0.297.0): a device
     // that sees a newer one checks its uploaded pictures are still there.
     if (typeof incomingSettings.imagesCleanedAt === "string" && incomingSettings.imagesCleanedAt) data.settings.imagesCleanedAt = incomingSettings.imagesCleanedAt;
+    // Written only once chosen, so a file that never picked keeps reading
+    // as it always did (Sunday, "3 Nov 2026").
+    if (incomingSettings.weekStart !== undefined) data.settings.weekStart = Dates.cleanWeekStart(incomingSettings.weekStart);
+    if (incomingSettings.dateFormat !== undefined) data.settings.dateFormat = Dates.cleanFormat(incomingSettings.dateFormat);
     keepUnknown(incomingSettings, data.settings, KNOWN_SETTINGS_KEYS);
     delete data.settings.monthOrder;
     const accIn = data.accomplishments || {};
@@ -4817,6 +4825,12 @@
       // field, a modal's already open (its own form fields aside — e.g. a
       // button inside one could still be focused), or a modifier is held,
       // so Ctrl/Cmd/Alt combos pass straight through to the browser.
+      // ? also works from Settings, which is where the hint for it is: until
+      // 0.301.0 the open Settings sheet counted as a modal and swallowed it.
+      const onlySettings = !$("#settingsModal").hidden && document.querySelectorAll(".modal-overlay:not([hidden])").length === 1;
+      if (e.key === "?" && onlySettings && !isTypingTarget(document.activeElement) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault(); SettingsUI.closeSettings(); openShortcutsModal(); return;
+      }
       if (isTypingTarget(document.activeElement) || isAnyModalOpen() || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === "?") { e.preventDefault(); openShortcutsModal(); return; }
       if (e.key === "/") { e.preventDefault(); $("#search").focus(); return; }
@@ -5325,7 +5339,7 @@
         const info = el("div", "conflict-info");
         info.appendChild(el("strong", null, c.label));
         const count = (c.data.entries || []).length;
-        const when = c.data.exportedAt ? new Date(c.data.exportedAt).toLocaleString() : "unknown time";
+        const when = c.data.exportedAt ? Dates.dateTime(c.data.exportedAt, { year: true }) : "unknown time";
         info.appendChild(el("span", "muted", "Saved " + when + " · " + count + " entries"));
         item.appendChild(info);
         const btn = el("button", "btn btn-primary", "Use this");
@@ -5482,7 +5496,7 @@
         changed: () => Widgets.changed(),
         fmt: {
           money: (n) => Finance.amountText({ amount: n }),
-          day: (d) => new Date(d + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }),
+          day: (d) => Dates.day(d, { weekday: true, year: false }),
         },
       });
       Widgets.start({ state, Platform, persist, afterDataChange, toast, runAction, quickActions, spend: widgetSpend, hidden: widgetsHidden });
@@ -5526,7 +5540,7 @@
         changed: () => Widgets.changed(),
         fmt: {
           money: (n) => Finance.amountText({ amount: n }),
-          day: (d) => new Date(d + "T12:00:00").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }),
+          day: (d) => Dates.day(d, { weekday: true, year: false }),
         },
       });
       const ctx = { state, Platform, persist, afterDataChange, toast, runAction, quickActions, spend: widgetSpend, hidden: widgetsHidden };

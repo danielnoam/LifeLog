@@ -1,8 +1,20 @@
 # Changelog
 
 All notable changes to LifeLog are documented here. The version number
-always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
-the bottom of Settings.
+always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
+
+## [0.301.0] - 2026-11-03
+
+### Added
+- Settings → Appearance → Dates: choose which day the week starts on (Sunday, Monday or Saturday) and how dates are written (3 Nov 2026, Nov 3 2026, 03/11/2026, 11/03/2026 or 2026-11-03). Both sync to every device.
+- The week start moves weekly habit goals, the habit grid's columns and rows, the Timeline calendar, the weekday choices in the habit and recurring-charge forms, and the widgets. A Saturday week makes the weekend Friday and Saturday.
+- Every date the app shows follows the chosen format: Timeline, Backlog, Ledger, Habits, Notes, Boards, Travel, Recap, Search, History and the widgets.
+
+### Changed
+- The keyboard shortcuts hint at the foot of Settings shows only on a computer, and pressing ? there now opens the list.
+
+### Removed
+- The version line at the foot of Settings. It's on Settings → About.
 
 ## [0.300.1] - 2026-11-03
 

@@ -4,6 +4,9 @@
 // quote with its author) and can carry a category of its own. Shared app
 // plumbing arrives via init(ctx), same as every other view module.
 (function () {
+  // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
+  const Dates = () => window.LifeLogDates || require("./dates.js");
+
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
     monthCardHeader, emptyState, backfillUpdatedAt, keepUnknown, MONTHS,
@@ -351,12 +354,12 @@
 
   // ---------- rendering ----------
   function formatStamp(d) {
-    return d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" }) +
+    return Dates().day(d, { weekday: true, year: "auto" }) +
       " · " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
   }
   function formatEdited(iso) {
     const d = new Date(iso);
-    return isNaN(d) ? "" : d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+    return isNaN(d) ? "" : Dates().day(d);
   }
 
   // Read once per render rather than per card: "now" cannot change between

@@ -145,7 +145,7 @@ change can write its note and run the tool in the same PR.
 
 **The three places,** so a bump by hand is the same as the tool's:
 
-1. `APP_VERSION` in `src/app.js`, shown at the bottom of Settings.
+1. `APP_VERSION` in `src/app.js`, shown in Settings → About.
 2. The `?v=x.y.z` on every `<script>` and `<link rel="stylesheet">` in
    `index.html`, so browsers fetch the changed files.
 3. `CACHE` in `sw.js` (`lifelog-vN` → `vN+1`), so the old offline cache is

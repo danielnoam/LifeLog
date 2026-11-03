@@ -49,7 +49,7 @@ final class BacklogWidgets {
         String words;
         if (r.optBoolean("exact")) {
             int d = daysBetween(today, WidgetStore.str(r, "day"));
-            words = d == 0 ? "Today" : d == 1 ? "Tomorrow" : d > 1 && d <= 14 ? "In " + d + " days" : shortDay(WidgetStore.str(r, "day"));
+            words = d == 0 ? "Today" : d == 1 ? "Tomorrow" : d > 1 && d <= 14 ? "In " + d + " days" : written(r, "dayText", "day");
         } else {
             words = WidgetStore.str(r, "when");
         }
@@ -60,7 +60,13 @@ final class BacklogWidgets {
         int d = daysBetween(WidgetStore.str(r, "startedAt"), today);
         if (d == 0) return "Started today";
         if (d == 1) return "Since yesterday";
-        return "Since " + shortDay(WidgetStore.str(r, "startedAt"));
+        return "Since " + written(r, "startedText", "startedAt");
+    }
+
+    /** The date as the app wrote it (Settings → Dates, 0.301.0), else this phone's own short form. */
+    static String written(JSONObject r, String textKey, String dayKey) {
+        String text = WidgetStore.str(r, textKey);
+        return text.isEmpty() ? shortDay(WidgetStore.str(r, dayKey)) : text;
     }
 
     /**

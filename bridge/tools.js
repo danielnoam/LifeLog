@@ -129,7 +129,14 @@ function storeOf(file) {
   if (!sib) return store;
   return siblingStores[file] = siblingStores[file] || store.sibling(sib.name, sib.empty);
 }
-async function readData() { return (await storeOf().read()).data; }
+// Weeks start where the app's Settings → Dates says, so a weekly goal is
+// the same week here as on the phone. The date format is not followed: an
+// AI reads "3 Nov 2026" without guessing whether 03/11 is March or November.
+let seenSettings = null;
+const Dates = require("../src/dates.js");
+Dates.bind(() => ({ weekStart: seenSettings && seenSettings.weekStart }));
+const seen = (data) => { if (data && data.settings) seenSettings = data.settings; return data; };
+async function readData() { return seen((await storeOf().read()).data); }
 async function readTravel() { return Travel.sanitizeDoc((await storeOf("travel").read()).data); }
 async function readBoards() {
   const doc = (await storeOf("boards").read()).data;
@@ -214,6 +221,7 @@ async function commit(file, summary, apply) {
   const s = storeOf(file);
   for (let attempt = 0; attempt < 5; attempt++) {
     const { data, version } = await s.read();
+    if (!SIBLINGS[file]) seen(data);
     const before = structuredClone(data);
     const now = changeNow = nowIso();
     let out;
@@ -524,7 +532,7 @@ const TOOLS = [
       const names = (k) => (d[k] || []).map((c) => c.name).join(", ") || "none";
       const behind = d.appVersion && Merge.compareVersions(d.appVersion, L.version) > 0;
       return [
-        `Today is ${today()}. Home currency: ${currencyOf(d)}. Data from ${storeOf().where()}.`,
+        `Today is ${today()}. Home currency: ${currencyOf(d)}. Weeks start on ${Dates.WEEKDAY_NAMES[Dates.weekStart()]}. Data from ${storeOf().where()}.`,
         `Timeline entries: ${(d.entries || []).length}. Backlog: ${(d.backlog || []).length}. Notes: ${(d.notes || []).length}. Expenses: ${(d.financeEntries || []).length}, plus ${bills(d).length} recurring bills. Habits: ${(d.habits || []).filter((h) => !h.archivedAt).length} active. Accomplishments: ${allAccomplishments(d).length}. Drawing boards: see lifelog_boards. Trips: see lifelog_trips.`,
         `Timeline and backlog categories: ${names("categories")}.`,
         `Expense categories: ${(d.financeCategories || []).map((c) => c.name + (c.subs && c.subs.length ? ` (subcategories: ${c.subs.map((x) => x.name).join(", ")})` : "")).join(", ") || "none"}.`,

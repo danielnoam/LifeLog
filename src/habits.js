@@ -23,6 +23,9 @@
 // covered by test/habits.test.js without a browser.
 (function () {
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
+  // Where a week starts and how a date reads (0.301.0). Under Node (the
+  // bridge, the tests) nothing loaded dates.js as a script.
+  const Dates = () => window.LifeLogDates || require("./dates.js");
   let state, $, el, uid, toast, persist, render, emptyState, activatable,
     backfillUpdatedAt, keepUnknown, CATEGORY_PALETTE, buildCatFilter;
 
@@ -137,9 +140,13 @@
     const c = habit && habit.cadence;
     if (!c || c === "daily") return "Every day";
     const days = c.days || [];
-    if (days.length === 5 && [1, 2, 3, 4, 5].every((d) => days.includes(d))) return "Weekdays";
-    if (days.length === 2 && days.includes(0) && days.includes(6)) return "Weekends";
-    return days.map((d) => DAY_LABELS[d]).join(", ");
+    // Which days are the weekend follows the week (0.301.0): a week that
+    // starts on Saturday has Friday and Saturday off.
+    const D = Dates();
+    const same = (set) => days.length === set.length && set.every((d) => days.includes(d));
+    if (same(D.workDays())) return "Weekdays";
+    if (same(D.weekendDays())) return "Weekends";
+    return D.weekOrder().filter((d) => days.includes(d)).map((d) => DAY_LABELS[d]).join(", ");
   }
 
   // ---------- goals: periods and minutes ----------
@@ -147,11 +154,12 @@
   const isPeriodic = (habit) => periodOf(habit) !== "day";
   const isMinutes = (habit) => !!habit && habit.unit === "min";
 
-  // The period a date sits in. Weeks run Sunday to Saturday, the same as the
-  // grid's columns, so a week you look at is a week that's counted.
+  // The period a date sits in. A week starts on the day Settings → Dates
+  // says, the same as the grid's columns, so a week you look at is a week
+  // that's counted.
   function periodRange(period, dateStr) {
     if (period === "week") {
-      const from = addDaysStr(dateStr, -dowOf(dateStr));
+      const from = Dates().startOfWeek(dateStr);
       return [from, addDaysStr(from, 6)];
     }
     const y = +dateStr.slice(0, 4), m = +dateStr.slice(5, 7);
@@ -481,7 +489,7 @@
     const out = [];
     const range = habit && clipRange(habit, habit.startedAt || today, today);
     if (!range || isPeriodic(habit)) return out;
-    for (let dow = 0; dow < 7; dow++) {
+    for (const dow of Dates().weekOrder()) {
       const c = habit.cadence;
       if (c && c !== "daily" && !(c.days || []).includes(dow)) continue;
       // Due days of this weekday in the range: the first one, then weekly.
@@ -937,11 +945,12 @@
   // throw you back to this week in the middle of filling in last spring.
   const gridOffset = new Map();
 
-  // The Sunday that opens the window `off` weeks back from today, so every
-  // column is a whole week and the rows line up with the weekday labels.
+  // The first day of the week that opens the window `off` weeks back from
+  // today, so every column is a whole week and the rows line up with the
+  // weekday labels.
   function windowStart(today, off) {
     const end = addDaysStr(today, -off * 7);
-    return addDaysStr(addDaysStr(end, -(GRID_WEEKS - 1) * 7), -dowOf(end));
+    return Dates().startOfWeek(addDaysStr(end, -(GRID_WEEKS - 1) * 7));
   }
 
   // The furthest back worth going: the first window whose start has passed
@@ -975,14 +984,10 @@
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const monthOf = (s) => MONTHS[+s.slice(5, 7) - 1];
-  const prettyDate = (s) => isDateStr(s) ? +s.slice(8, 10) + " " + monthOf(s) + " " + s.slice(0, 4) : "";
-  // "3–16 Mar 2026", "28 Feb – 3 Mar 2026", "30 Dec 2025 – 2 Jan 2026".
-  function dayRangeLabel(a, b) {
-    if (a === b) return prettyDate(a);
-    if (a.slice(0, 4) !== b.slice(0, 4)) return prettyDate(a) + " – " + prettyDate(b);
-    if (a.slice(0, 7) !== b.slice(0, 7)) return +a.slice(8, 10) + " " + monthOf(a) + " – " + prettyDate(b);
-    return +a.slice(8, 10) + "–" + prettyDate(b);
-  }
+  const prettyDate = (s) => isDateStr(s) ? Dates().day(s) : "";
+  // "3–16 Mar 2026", "28 Feb – 3 Mar 2026", "30 Dec 2025 – 2 Jan 2026", or
+  // the same in the format Settings → Dates picked.
+  const dayRangeLabel = (a, b) => Dates().range(a, b);
   function rangeLabel(a, b) {
     const ya = a.slice(0, 4), yb = b.slice(0, 4);
     if (ya !== yb) return monthOf(a) + " " + ya + " – " + monthOf(b) + " " + yb;
@@ -1027,7 +1032,8 @@
     // on seven rows is four permanently empty ones — a lot of card spent
     // saying nothing, and it reads as though the grid is broken.
     const c = h.cadence;
-    const rows = !c || c === "daily" ? [0, 1, 2, 3, 4, 5, 6] : c.days;
+    const order = Dates().weekOrder();
+    const rows = !c || c === "daily" ? order : order.filter((d) => c.days.includes(d));
     // A weekly goal's columns are its weeks: a bar over each says whether
     // that one was met, which the days under it can't.
     if (h.period === "week") {
@@ -1049,7 +1055,7 @@
       const lbl = el("span", "habit-grid-day", DAY_LABELS[row].slice(0, 1));
       line.appendChild(lbl);
       for (let col = 0; col < GRID_WEEKS; col++) {
-        const date = addDaysStr(start, col * 7 + row);
+        const date = addDaysStr(start, col * 7 + Dates().weekPos(row));
         const cell = el("button", "habit-cell");
         cell.type = "button";
         cell.dataset.date = date;
@@ -1300,8 +1306,13 @@
     // week, month or year. 0.300.0 had a second select for the period
     // beside this one, and two questions about how often read as one too many.
     $("#habitCadence").value = habit && isPeriodic(habit) ? habit.period : days ? "days" : "daily";
-    const boxes = [...document.querySelectorAll("#habitDays input")];
-    boxes.forEach((b, i) => { b.checked = days ? days.includes(i) : [1, 2, 3, 4, 5].includes(i); });
+    // The chips run in the week's own order, and a new habit starts on the
+    // working days of that week.
+    const D = Dates();
+    const wrap = $("#habitDays");
+    const boxes = [...wrap.querySelectorAll("input")];
+    for (const d of D.weekOrder()) { const b = boxes.find((x) => +x.value === d); if (b) wrap.appendChild(b.closest("label")); }
+    boxes.forEach((b) => { b.checked = (days || D.workDays()).includes(+b.value); });
     // After the cadence, not before: the backfill count is counted off the
     // form, and the form still held the last habit's days until now.
     applyStartUI();
@@ -1343,7 +1354,7 @@
     const unitChanged = h && !avoid && Object.keys(h.marks || {}).length && isMinutes(h) !== (unit !== "times");
     const bits = [];
     if (!avoid && period !== "day") {
-      bits.push(amount + " a " + period + ", on any days." + (period === "week" ? " A week runs Sunday to Saturday, like the grid's columns." : ""));
+      bits.push(amount + " a " + period + ", on any days." + (period === "week" ? " A week runs " + weekSpan() + ", like the grid's columns." : ""));
     }
     if (unitChanged) bits.push("Days already recorded keep their numbers, so a tick becomes " + (unit === "times" ? "a count" : "a minute") + " — fix any in the grid that matter.");
     $("#habitGoalHint").textContent = bits.join(" ");
@@ -1425,10 +1436,17 @@
     }, fromStr, toStr);
   }
 
+  const checkedDays = () => [...document.querySelectorAll("#habitDays input")]
+    .filter((b) => b.checked).map((b) => +b.value).sort((a, b) => a - b);
+  // "Sunday to Saturday", "Saturday to Friday".
+  function weekSpan() {
+    const D = Dates(), o = D.weekOrder();
+    return D.WEEKDAY_NAMES[o[0]] + " to " + D.WEEKDAY_NAMES[o[6]];
+  }
+
   function cadenceFromForm() {
     if ($("#habitCadence").value !== "days") return "daily";
-    const days = [...document.querySelectorAll("#habitDays input")]
-      .map((b, i) => (b.checked ? i : -1)).filter((i) => i >= 0);
+    const days = checkedDays();
     return days.length && days.length < 7 ? { days } : "daily";
   }
 
@@ -1436,8 +1454,7 @@
     ev.preventDefault();
     const name = $("#habitName").value.trim();
     if (!name) return;
-    const days = [...document.querySelectorAll("#habitDays input")]
-      .map((b, i) => (b.checked ? i : -1)).filter((i) => i >= 0);
+    const days = checkedDays();
     if ($("#habitCadence").value === "days" && !days.length) {
       toast("Pick at least one day, or switch back to every day", true);
       return;

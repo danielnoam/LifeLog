@@ -17,6 +17,9 @@
 // snapshotOf and applyQueue are pure and tested in test/widgets.test.js; the
 // rest is wiring that only runs in the app.
 (function () {
+  // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
+  const Dates = () => window.LifeLogDates || require("./dates.js");
+
   // Marks sent per habit: enough for today and a day either side of a
   // midnight the app didn't see. The whole map would be ~1,100 dates for a
   // habit kept three years, sent on every save.
@@ -67,6 +70,8 @@
         const exact = b.nextAt === day || ((b.releasePrecision || "day") === "day" && String(b.releaseDate || "").slice(0, 10) === day);
         return {
           id: b.id, title: b.title, category: b.category, color: colorOf(b.category), day, exact,
+          // Written here so the widget's dates read like the app's (0.301.0).
+          dayText: Dates().day(day, { year: day.slice(0, 4) !== today.slice(0, 4) }),
           when: exact ? "" : String(releaseLabel(b) || "").replace(/^Sometime in /, ""),
           label: b.nextAt === day ? (b.nextLabel || "") : "",
           starred: !!b.priority,
@@ -76,7 +81,7 @@
       .filter((b) => /^\d{4}-\d{2}-\d{2}$/.test(String(b.startedAt || "")))
       .sort((a, b) => String(b.startedAt).localeCompare(String(a.startedAt)) || String(a.title).localeCompare(String(b.title)))
       .slice(0, BACKLOG_ROWS)
-      .map((b) => ({ id: b.id, title: b.title, category: b.category, color: colorOf(b.category), startedAt: b.startedAt, length: b.length || "" }));
+      .map((b) => ({ id: b.id, title: b.title, category: b.category, color: colorOf(b.category), startedAt: b.startedAt, startedText: Dates().day(b.startedAt, { year: b.startedAt.slice(0, 4) !== today.slice(0, 4) }), length: b.length || "" }));
     return { upcoming, inProgress };
   }
 
@@ -87,7 +92,7 @@
     // period, so it sends every mark since the period began; the widget
     // works out which period it's in by itself, as it does what's due.
     const periodFrom = (period) => {
-      if (period === "week") return addDays(today, -new Date(today + "T00:00:00").getDay());
+      if (period === "week") return Dates().startOfWeek(today);
       if (period === "month") return today.slice(0, 8) + "01";
       if (period === "year") return today.slice(0, 5) + "01-01";
       return today;
@@ -118,7 +123,8 @@
           ...(h.avoid ? { avoid: true, limit: +h.limit || 0 } : {}),
           // A goal: `runBefore` is then periods met in a row before the one
           // `periodFrom` starts, and a timed habit's marks are minutes.
-          ...(period ? { period, periodFrom: from } : {}),
+          // weekStart (0.301.0): the widget works out the current week itself.
+          ...(period ? { period, periodFrom: from, ...(period === "week" ? { weekStart: Dates().weekStart() } : {}) } : {}),
           ...(!h.avoid && h.unit === "min" ? { unit: "min" } : {}),
         };
       });
@@ -190,7 +196,7 @@
         out.open = open.length;
       }
       const d = new Date(n.createdAt || 0);
-      if (n.createdAt && !isNaN(d)) out.date = d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+      if (n.createdAt && !isNaN(d)) out.date = Dates().day(d);
       if (!out.text && !out.title && !(out.items || []).length) continue;
       used += JSON.stringify(out).length;
       if (used > NOTES_BUDGET && !pinned.has(n.id)) break;

@@ -15,6 +15,9 @@
 // the dark theme still reads in the light one. `seed` keeps a rough shape's
 // wobble the same every time it's drawn.
 (function () {
+  // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
+  const Dates = () => window.LifeLogDates || require("./dates.js");
+
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   let state, $, el, toast, uid, emptyState, download, Storage, render, bulkCheckbox, toggleBulkItem, attachLongPressSelect;
 
@@ -389,7 +392,7 @@
     for (const v of versions) {
       const row = el("div", "sitem board-hist-row");
       const text = el("span", "sitem-text");
-      text.appendChild(el("span", "sitem-title", new Date(v.savedAt).toLocaleString()));
+      text.appendChild(el("span", "sitem-title", Dates().dateTime(v.savedAt)));
       text.appendChild(el("span", "sitem-sub", v.bridge ? (v.bridge.by || "AI") + " · " + v.bridge.summary : v.source === "github" ? "GitHub" : "This device"));
       row.appendChild(text);
       const btns = el("span", "sitem-btns");
@@ -438,7 +441,7 @@
   async function restoreBoard(b, v) {
     await ensureLoaded();
     const now = findBoard(b.id);
-    const when = new Date(v.savedAt).toLocaleString();
+    const when = Dates().dateTime(v.savedAt);
     if (!confirm(now ? `Put "${b.name}" back to how it was on ${when}? What's on it now is replaced.` : `Bring back "${b.name}" as it was on ${when}?`)) return false;
     const copy = { ...JSON.parse(JSON.stringify(b)), updatedAt: new Date().toISOString() };
     if (now) doc.boards = doc.boards.map((x) => (x.id === b.id ? copy : x));
@@ -540,7 +543,7 @@
     if (isNaN(d) || d.getFullYear() < 1971) return "";
     const today = new Date();
     if (d.toDateString() === today.toDateString()) return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-    return d.toLocaleDateString([], { day: "numeric", month: "short", year: d.getFullYear() === today.getFullYear() ? undefined : "numeric" });
+    return Dates().day(d, { year: "auto" });
   }
 
   async function newBoard() {

@@ -170,7 +170,7 @@
   // The month and the picked day last for the session, not across launches:
   // reopening on today is what a calendar is expected to do.
   let calMonth = null, calDay = null;
-  const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const Dates = () => window.LifeLogDates || require("./dates.js");
   const pad2 = (n) => String(n).padStart(2, "0");
 
   function calKey(y, m) { return y + "-" + pad2(m); }
@@ -236,8 +236,10 @@
     head.appendChild(nav);
 
     const grid = el("div", "cal-grid");
-    for (const d of WEEKDAYS) grid.appendChild(el("span", "cal-wd", d));
-    const lead = new Date(y, m - 1, 1).getDay();
+    // Columns start on the day Settings → Dates says (0.301.0).
+    const D = Dates();
+    for (const d of D.weekOrder()) grid.appendChild(el("span", "cal-wd", D.WEEKDAYS[d]));
+    const lead = D.weekPos(new Date(y, m - 1, 1).getDay());
     for (let i = 0; i < lead; i++) grid.appendChild(el("span", "cal-day is-out"));
     for (let d = 1; d <= days; d++) {
       const list = byDay.get(d) || [];
@@ -247,7 +249,7 @@
       cell.classList.toggle("is-picked", d === calDay);
       cell.classList.toggle("has-entries", list.length > 0);
       cell.setAttribute("aria-pressed", String(d === calDay));
-      cell.setAttribute("aria-label", d + " " + MONTHS[m] + (list.length ? ", " + list.length + " finished" : ""));
+      cell.setAttribute("aria-label", D.day(calKey(y, m) + "-" + pad2(d), { year: false }) + (list.length ? ", " + list.length + " finished" : ""));
       cell.dataset.day = d;
       if (list.length) {
         const first = list[0];
@@ -277,8 +279,7 @@
     const side = el("div", "cal-side");
     const picked = byDay.get(calDay) || [];
     const dayCard = el("div", "month-card cal-daycard");
-    const wd = WEEKDAYS[new Date(y, m - 1, calDay).getDay()];
-    dayCard.appendChild(el("h3", null, wd + " " + calDay + " " + MONTHS_SHORT[m] +
+    dayCard.appendChild(el("h3", null, D.day(calKey(y, m) + "-" + pad2(calDay), { weekday: true, year: false }) +
       (picked.length ? " · " + picked.length + " finished" : "")));
     if (picked.length) for (const e of picked) dayCard.appendChild(calRow(e));
     else dayCard.appendChild(el("p", "cal-empty", "Nothing finished this day"));
@@ -995,8 +996,7 @@
     closeSheetMenus();
     const added = $("#addedLine");
     if (editing && entry.createdAt) {
-      added.textContent = "Added " + new Date(entry.createdAt).toLocaleDateString(undefined,
-        { year: "numeric", month: "short", day: "numeric" });
+      added.textContent = "Added " + Dates().day(entry.createdAt);
       added.hidden = false;
     } else added.hidden = true;
     setRating(editing ? (entry.rating || 0) : 0);
@@ -1799,8 +1799,7 @@
     $("#deleteAchBtn").hidden = !editing;
     const added = $("#achAddedLine");
     if (editing && ach.createdAt) {
-      added.textContent = "Added " + new Date(ach.createdAt).toLocaleDateString(undefined,
-        { year: "numeric", month: "short", day: "numeric" });
+      added.textContent = "Added " + Dates().day(ach.createdAt);
       added.hidden = false;
     } else added.hidden = true;
     $("#aNotes").value = editing ? (ach.notes || "") : "";

@@ -120,6 +120,21 @@ test("the overview names what other tools need", async () => {
   assert.match(t, /plus 1 recurring bills/, "a bill's replaced plan isn't a second bill");
 });
 
+test("weeks start where Settings → Dates says (0.301.0), and dates stay unambiguous", async () => {
+  reset();
+  assert.match(await ok("lifelog_overview", {}), /Weeks start on Sunday/);
+  const d = data();
+  d.settings.weekStart = 6;
+  d.settings.dateFormat = "mdy-num";
+  fs.writeFileSync(FILE, JSON.stringify(d, null, 2));
+  assert.match(await ok("lifelog_overview", {}), /Weeks start on Saturday/);
+  const Dates = require("../src/dates.js");
+  assert.strictEqual(Dates.startOfWeek("2026-11-03"), "2026-10-31");
+  assert.strictEqual(Dates.day("2026-11-03"), "3 Nov 2026", "the bridge never writes 11/03");
+  reset();
+  await ok("lifelog_overview", {});
+});
+
 test("spending counts recurring bills, as the Ledger does, and can leave them out", async () => {
   reset();
   const t = await ok("lifelog_spending", { start_date: "2026-09-01", end_date: "2026-09-30" });
