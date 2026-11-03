@@ -578,6 +578,18 @@ public class WidgetLogicTest {
     }
 
     @Test
+    public void aWeekStartsWhereSettingsSays() throws Exception {
+        // Thu 2026-09-24: a Saturday week began on the 19th, a Monday one on the 21st.
+        assertEquals("2026-09-19", WidgetStore.periodStart("week", D, 6));
+        assertEquals("2026-09-21", WidgetStore.periodStart("week", D, 1));
+        assertEquals("2026-09-19", WidgetStore.periodStart("week", "2026-09-19", 6));
+        JSONObject h = weekly().put("weekStart", 6).put("periodFrom", "2026-09-19");
+        JSONObject snap = new JSONObject().put("today", D).put("habits", new JSONArray().put(h));
+        // The Saturday mark now counts toward this week.
+        assertEquals(2, WidgetStore.habitRows(snap, NONE, D).get(0).amount);
+    }
+
+    @Test
     public void aMetWeekIsDoneAndAddsToTheRunAndTheNextTapTakesTodaysBack() throws Exception {
         JSONArray twice = new JSONArray("[{\"kind\":\"habit\",\"id\":\"h\",\"date\":\"" + D + "\",\"value\":2}]");
         JSONObject snap = new JSONObject().put("today", D).put("habits", new JSONArray().put(weekly()));

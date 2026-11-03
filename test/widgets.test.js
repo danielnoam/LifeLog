@@ -74,7 +74,7 @@ const BACKLOG = {
     { id: "u4", title: "Show", category: "TV", nextAt: "2026-10-19", nextLabel: "S2E4" },
     { id: "u5", title: "Dropped Game", category: "Games", releaseDate: "2026-10-18", releasePrecision: "day", dropped: true },
     { id: "u6", title: "Out Already", category: "Games", releaseDate: "2026-09-01", releasePrecision: "day" },
-    { id: "p1", title: "Playing", category: "Games", startedAt: "2026-10-10", length: "30 hrs" },
+    { id: "p1", title: "Playing", category: "Games", startedAt: "2026-10-10", startedText: "10 Oct", length: "30 hrs" },
     { id: "p2", title: "Watching", category: "TV", startedAt: "2026-10-15" },
     { id: "p3", title: "Not really", category: "TV", startedAt: "yes" },
   ],
@@ -87,7 +87,7 @@ const releaseLabel = (b) => b.releasePrecision === "month" ? "Sometime in Dec 20
 test("upcoming: what's out from today on, soonest first, starred ahead on a shared day; dropped and past left out", () => {
   const s = W.snapshotOf(BACKLOG, { today: TODAY, upcomingAt, releaseLabel });
   assert.deepStrictEqual(s.upcoming.map((r) => r.id), ["u2", "u4", "u1", "u3"]);
-  assert.deepStrictEqual(s.upcoming[0], { id: "u2", title: "Soon Game", category: "Games", color: "#3fb950", day: "2026-10-19", exact: true, when: "", label: "", starred: true });
+  assert.deepStrictEqual(s.upcoming[0], { id: "u2", title: "Soon Game", category: "Games", color: "#3fb950", day: "2026-10-19", dayText: "19 Oct", exact: true, when: "", label: "", starred: true });
 });
 
 test("upcoming: a next episode carries its label; a vague date carries the app's words, trimmed", () => {
@@ -100,8 +100,8 @@ test("upcoming: a next episode carries its label; a vague date carries the app's
 test("in progress: started items, latest first, with the category's colour and the length; a bad day is not started", () => {
   const s = W.snapshotOf(BACKLOG, { today: TODAY, upcomingAt, releaseLabel });
   assert.deepStrictEqual(s.inProgress, [
-    { id: "p2", title: "Watching", category: "TV", color: "#58a6ff", startedAt: "2026-10-15", length: "" },
-    { id: "p1", title: "Playing", category: "Games", color: "#3fb950", startedAt: "2026-10-10", length: "30 hrs" },
+    { id: "p2", title: "Watching", category: "TV", color: "#58a6ff", startedAt: "2026-10-15", startedText: "15 Oct", length: "" },
+    { id: "p1", title: "Playing", category: "Games", color: "#3fb950", startedAt: "2026-10-10", startedText: "10 Oct", length: "30 hrs" },
   ]);
 });
 

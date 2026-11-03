@@ -12,6 +12,9 @@
 // null is dropped outright — a recap that pads itself with "0 notes written"
 // is a report again, which is the thing this isn't.
 (function () {
+  // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
+  const Dates = () => window.LifeLogDates || require("./dates.js");
+
   let state, $, el, toast, MONTHS, prefersReducedMotion;
 
   function init(ctx) {
@@ -693,9 +696,7 @@
   }
 
   function prettyDate(iso) {
-    const d = new Date(iso + "T00:00:00");
-    if (isNaN(d.getTime())) return iso;
-    return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+    return Dates().day(iso, { year: false }) || iso;
   }
 
   // A journal category keeps the colour it has everywhere else; anything else

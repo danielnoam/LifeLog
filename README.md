@@ -256,7 +256,8 @@ that tab instead, for bulk work.
 ## Settings
 
 Pages with their own search: sync, import and export, history, app lock,
-four themes (Default, Light, Nord, Dracula), fonts and layout, tabs, media
+four themes (Default, Light, Nord, Dracula), fonts and layout, which day the
+week starts on and how dates are written (on every device), tabs, media
 lookups, imports, release dates, notifications on the phones, and About
 with what's new, the credits, the errors on this device and Test builds.
 
@@ -446,6 +447,7 @@ src/payments.js     Google Wallet payments offered to the Ledger (Android)
 src/widgets.js      the home-screen widgets, from the app's side
 src/headless.js     Android's background refresh
 src/platform.js     browser or native app, and native HTTP
+src/dates.js        where a week starts and how a date is written
 src/icons.js        the Lucide icon map
 src/errlog.js       the errors this device has hit
 src/qr.js, wheel.js QR codes for setup links; the Spin wheel

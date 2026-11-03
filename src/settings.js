@@ -98,7 +98,7 @@
 
   function formatHistoryDate(iso) {
     if (!iso) return "Unknown time";
-    return new Date(iso).toLocaleString();
+    return window.LifeLogDates.dateTime(iso) || "Unknown time";
   }
 
   async function updateHistoryPanel() {
@@ -390,7 +390,7 @@
     $("#phoneBackupSwitch").checked = pb.on;
     $("#phoneBackupInfo").textContent = !pb.on ? "Off — your data is on this phone only in the app"
       : pb.error ? "Couldn't save: " + pb.error
-      : pb.last ? pb.folder + " · saved " + new Date(pb.last).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })
+      : pb.last ? pb.folder + " · saved " + window.LifeLogDates.dateTime(pb.last, { year: true })
       : pb.folder;
   }
   async function setPhoneBackup(on) {
@@ -544,7 +544,7 @@
         // "## [0.231.0] - 2026-10-04" reads as "0.231.0 · 4 Oct 2026".
         changelog = (await res.text()).split(/\n(?=## \[)/).slice(1).map((v) => v
           .replace(/^## \[([^\]]+)\]\s*-\s*(\d{4}-\d{2}-\d{2})/, (m, ver, d) =>
-            "## " + ver + " · " + new Date(d + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })));
+            "## " + ver + " · " + window.LifeLogDates.day(d)));
       } catch (e) {
         body.textContent = "Couldn't load the changelog. It's on GitHub as CHANGELOG.md.";
         more.hidden = true;
@@ -578,7 +578,7 @@
       const row = el("div", "sitem");
       const text = row.appendChild(el("span", "sitem-text"));
       text.appendChild(el("span", "sitem-title", x.msg));
-      const when = new Date(x.at).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+      const when = window.LifeLogDates.dateTime(x.at, { year: true });
       text.appendChild(el("span", "sitem-sub", [when, x.v && "v" + x.v, x.n > 1 && x.n + " times"].filter(Boolean).join(" · ")));
       box.appendChild(row);
     });
@@ -1229,13 +1229,13 @@
     $("#settingsSearch").value = "";
     renderSearch();
     ghEditing = false;
-    $("#settingsVersion").textContent = "LifeLog v" + APP_VERSION;
     updateVersionSkew();
     updateFileInfo();
     updateGithubInfo();
     updateHistoryPanel();
     $("#ghPollInterval").value = String(state.visual.pollInterval);
     $("#fontFamily").value = state.visual.fontFamily;
+    fillDateSettings();
     $("#themeSelect").value = state.visual.theme || "default";
     $("#forceLayout").value = state.visual.forceLayout || "none";
     fillViewOptions();
@@ -1323,6 +1323,26 @@
     state.visual.forceLayout = $("#forceLayout").value;
     saveVisualSettings(state.visual);
     applyForceLayout();
+  }
+  // Week start and date format (0.301.0) sync, unlike the rest of the page:
+  // a week that starts on a different day on the phone would count a
+  // weekly goal differently from the computer.
+  function fillDateSettings() {
+    const D = window.LifeLogDates;
+    const fill = (sel, choices, value) => {
+      sel.replaceChildren(...choices.map((c) => new Option(c.label, String(c.value))));
+      sel.value = String(value);
+    };
+    fill($("#weekStart"), D.weekStartChoices(), D.weekStart());
+    fill($("#dateFormat"), D.formatChoices(), D.dateFormat());
+  }
+  async function onDateSettingChange() {
+    const D = window.LifeLogDates;
+    state.data.settings.weekStart = D.cleanWeekStart($("#weekStart").value);
+    state.data.settings.dateFormat = D.cleanFormat($("#dateFormat").value);
+    render();
+    if (window.LifeLogWidgets && window.LifeLogWidgets.changed) window.LifeLogWidgets.changed();
+    await persist();
   }
   function onThemeChange() {
     state.visual.theme = $("#themeSelect").value;
@@ -1605,6 +1625,8 @@
     $("#monthMax").onchange = onLayoutChange;
     $("#fontFamily").onchange = onFontChange;
     $("#themeSelect").onchange = onThemeChange;
+    $("#weekStart").onchange = onDateSettingChange;
+    $("#dateFormat").onchange = onDateSettingChange;
     $("#forceLayout").onchange = onForceLayoutChange;
     $("#timelineLayout").onchange = onLayoutChange;
     $("#backlogLayout").onchange = onLayoutChange;

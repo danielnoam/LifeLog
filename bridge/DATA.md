@@ -298,7 +298,16 @@ Keys: `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,
 keys of items left unticked in a review, so they stay hidden next time),
 `updatedAt`, `imagesCleanedAt` (when images in notes were last cleaned up;
 a device that sees a newer one uploads again any image of its own the
-clean-up dropped). `steam.gameTimes` is "off", or how many days a Steam game's How Long to
+clean-up dropped), `weekStart` and `dateFormat` (0.301.0, Settings →
+Appearance → Dates; absent until chosen). `weekStart` is the weekday a week
+starts on, 0 Sunday (the default), 1 Monday or 6 Saturday: weekly habit goals,
+habit grids, the Timeline calendar and the widgets count weeks from it, and so
+do the bridge's habit tools. A Saturday week also makes "Weekdays" Sunday to
+Thursday and "Weekends" Friday and Saturday. `dateFormat` is how the app
+writes a date: "dmy" ("3 Nov 2026", the default), "mdy" ("Nov 3, 2026"),
+"dmy-num" ("03/11/2026"), "mdy-num" ("11/03/2026") or "iso" ("2026-11-03").
+Stored dates never change shape, and the bridge keeps writing "3 Nov 2026" so
+an AI never has to guess which number is the month. `steam.gameTimes` is "off", or how many days a Steam game's How Long to
 Beat times stay fresh before they're asked again: "1", "3", "7" or "30"
 (the default). "on", from 0.282.0–0.282.2, means "30". Old files may still carry `monthOrder`,
 `monthMinWidth` and `monthMaxWidth`, which the app drops or moves on load.

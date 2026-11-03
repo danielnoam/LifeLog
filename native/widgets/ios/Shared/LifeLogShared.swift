@@ -198,10 +198,13 @@ enum LLHabits {
         return int((h["marks"] as? [String: Any])?[date])
     }
 
-    /// The first day of the period `date` is in, as habits.js's periodRange: weeks start on Sunday.
-    static func periodStart(_ period: String, _ date: String) -> String {
+    /// The first day of the period `date` is in, as habits.js's periodRange. Weeks start on
+    /// `weekStart` (0 Sunday, 1 Monday, 6 Saturday: Settings → Dates, sent with a weekly goal).
+    static func periodStart(_ period: String, _ date: String, _ weekStart: Int = 0) -> String {
         switch period {
-        case "week": return LLDate.add(date, -max(0, LLDate.weekday(date)))
+        case "week":
+            let wd = LLDate.weekday(date)
+            return wd < 0 ? date : LLDate.add(date, -((wd - weekStart + 7) % 7))
         case "month": return date.count >= 10 ? String(date.prefix(8)) + "01" : date
         case "year": return date.count >= 10 ? String(date.prefix(5)) + "01-01" : date
         default: return date
@@ -221,7 +224,7 @@ enum LLHabits {
     }
 
     static func amountOn(_ h: [String: Any], _ q: [[String: Any]], _ day: String) -> Int {
-        periodic(h) ? amountBetween(h, q, periodStart(str(h["period"]), day), day) : markOn(h, q, day)
+        periodic(h) ? amountBetween(h, q, periodStart(str(h["period"]), day, int(h["weekStart"])), day) : markOn(h, q, day)
     }
 
     /// Whether `day` counts as done: its own mark, or for a goal its period's.
@@ -244,7 +247,7 @@ enum LLHabits {
         // A goal's run is periods: the app's count before the period it was
         // in, the next one judged from the marks sent if the phone has moved on.
         if periodic(h) {
-            let start = periodStart(str(h["period"]), day)
+            let start = periodStart(str(h["period"]), day, int(h["weekStart"]))
             let sent = str(h["periodFrom"])
             let target = max(1, int(h["target"]))
             var run = max(0, int(h["runBefore"]))

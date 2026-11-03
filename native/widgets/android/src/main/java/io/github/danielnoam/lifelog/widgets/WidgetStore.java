@@ -250,12 +250,25 @@ final class WidgetStore {
      * the week of marks the snapshot carries, plus the widget's ticks; a due
      * day not kept ends the run. `day` itself only ever adds — it isn't over.
      */
-    /** The first day of the period `date` is in: habits.js's periodRange. Weeks start on Sunday. */
+    /** The first day of the period `date` is in: habits.js's periodRange, with weeks starting on Sunday. */
     static String periodStart(String period, String date) {
-        if ("week".equals(period)) return addDays(date, -Math.max(0, weekdayOf(date)));
+        return periodStart(period, date, 0);
+    }
+
+    /** The same, with weeks starting on `weekStart` (0 Sunday, 1 Monday, 6 Saturday: Settings → Dates). */
+    static String periodStart(String period, String date, int weekStart) {
+        if ("week".equals(period)) {
+            int wd = weekdayOf(date);
+            return wd < 0 ? date : addDays(date, -((wd - weekStart + 7) % 7));
+        }
         if ("month".equals(period) && date.length() >= 10) return date.substring(0, 8) + "01";
         if ("year".equals(period) && date.length() >= 10) return date.substring(0, 5) + "01-01";
         return date;
+    }
+
+    /** The period a goal's `day` is in; a weekly goal carries its week start in the snapshot (0.301.0). */
+    static String periodStartOf(JSONObject h, String day) {
+        return periodStart(str(h, "period"), day, h.optInt("weekStart", 0));
     }
 
     static boolean periodic(JSONObject h) {
@@ -277,7 +290,7 @@ final class WidgetStore {
 
     /** Today's amount, or for a goal the period's so far. */
     static int amountOn(JSONObject h, JSONArray q, String day) {
-        return periodic(h) ? amountBetween(h, q, periodStart(str(h, "period"), day), day) : markOn(h, q, day);
+        return periodic(h) ? amountBetween(h, q, periodStartOf(h, day), day) : markOn(h, q, day);
     }
 
     /** Whether `day` counts as done: its own mark, or for a goal the period's. */
@@ -303,7 +316,7 @@ final class WidgetStore {
         // since moved into the next, that one is judged from the marks sent.
         if (periodic(h)) {
             String period = str(h, "period");
-            String start = periodStart(period, day);
+            String start = periodStartOf(h, day);
             String sent = str(h, "periodFrom");
             int target = Math.max(1, h.optInt("target", 1));
             int run = Math.max(0, h.optInt("runBefore", 0));

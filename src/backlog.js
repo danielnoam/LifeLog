@@ -10,6 +10,9 @@
 
   // Shared app plumbing, provided by app.js via init(ctx).
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
+  // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
+  const Dates = () => window.LifeLogDates || require("./dates.js");
+
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy, colorOf,
     emptyState, emptyCoverEl, placeCatChip, coverEl, setSheetCover, bulkActionBar, bulkCheckbox, toggleBulkItem,
     toggleBulkCategoryAll, attachLongPressSelect, sortSelect, openEntryModal,
@@ -333,7 +336,7 @@
   function sinceLabel(day) {
     const d = new Date(day + "T00:00:00");
     const days = Math.round((new Date(localDay() + "T00:00:00") - d) / 86400000);
-    const date = d.toLocaleDateString(undefined, { day: "numeric", month: "short", ...(d.getFullYear() !== new Date().getFullYear() ? { year: "numeric" } : {}) });
+    const date = Dates().day(day, { year: "auto" });
     return "since " + date + (days <= 0 ? " · today" : days === 1 ? " · 1 day" : " · " + days + " days");
   }
 
@@ -1571,9 +1574,7 @@
   // "Fri 12 Sep" — the year is deliberately left off, since every row sits
   // under a month heading that already carries it.
   function formatDay(dateStr) {
-    const [y, m, d] = dateStr.split("-").map(Number);
-    const date = new Date(y, m - 1, d);
-    return date.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+    return Dates().day(dateStr, { weekday: true, year: false });
   }
 
   // Whole days from today, on the calendar rather than the clock — both ends
@@ -1758,8 +1759,7 @@
     return raw <= todayStr() && raw >= localDateStr(from) ? raw : "";
   }
   function dayLabel(raw) {
-    const [y, m, d] = raw.split("-").map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" });
+    return Dates().day(raw, { weekday: true, year: false });
   }
   function outLastWeek() {
     return state.data.backlog
@@ -3231,8 +3231,7 @@
     updateMoreMenu();
     const aging = $("#backlogAgingLine");
     if (editing && item.createdAt) {
-      aging.textContent = "Added " + new Date(item.createdAt).toLocaleDateString(undefined,
-        { year: "numeric", month: "short", day: "numeric" }) + " — " + agingText(item.createdAt);
+      aging.textContent = "Added " + Dates().day(item.createdAt) + " — " + agingText(item.createdAt);
       aging.hidden = false;
     } else aging.hidden = true;
     lastSyncedBacklogTitle = editing ? item.title : "";

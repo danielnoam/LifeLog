@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.300.1" />
+  <link rel="stylesheet" href="src/styles.css?v=0.301.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -1162,13 +1162,13 @@
         <p class="hint" id="habitGoalHint" hidden></p>
         <label id="habitDaysLabel" hidden>Days
           <span class="habit-days" id="habitDays">
-            <label class="toggle-label"><input type="checkbox" />Sun</label>
-            <label class="toggle-label"><input type="checkbox" />Mon</label>
-            <label class="toggle-label"><input type="checkbox" />Tue</label>
-            <label class="toggle-label"><input type="checkbox" />Wed</label>
-            <label class="toggle-label"><input type="checkbox" />Thu</label>
-            <label class="toggle-label"><input type="checkbox" />Fri</label>
-            <label class="toggle-label"><input type="checkbox" />Sat</label>
+            <label class="toggle-label"><input type="checkbox" value="0" />Sun</label>
+            <label class="toggle-label"><input type="checkbox" value="1" />Mon</label>
+            <label class="toggle-label"><input type="checkbox" value="2" />Tue</label>
+            <label class="toggle-label"><input type="checkbox" value="3" />Wed</label>
+            <label class="toggle-label"><input type="checkbox" value="4" />Thu</label>
+            <label class="toggle-label"><input type="checkbox" value="5" />Fri</label>
+            <label class="toggle-label"><input type="checkbox" value="6" />Sat</label>
           </span>
         </label>
         <div class="field-row">
@@ -1282,7 +1282,7 @@
               <button type="button" class="srow" data-page="about"><span class="srow-ic"><span data-ico="info"></span></span><span class="srow-text"><span class="srow-title">About</span><span class="srow-status" data-status="about"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
             </div>
           </div>
-          <p class="settings-foot"><span id="settingsVersion"></span> · Press <kbd>?</kbd> anywhere for keyboard shortcuts</p>
+          <p class="settings-foot">Press <kbd>?</kbd> for keyboard shortcuts</p>
         </nav>
       </aside>
 
@@ -1644,7 +1644,7 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="appearance" data-title="Appearance" data-keywords="theme dark light colour color font typeface layout phone computer desktop mobile">
+      <div class="settings-page" hidden data-page="appearance" data-title="Appearance" data-keywords="theme dark light colour color font typeface layout phone computer desktop mobile date format week start sunday monday saturday calendar day month year">
       <h2 class="settings-page-title">Appearance</h2>
       <section class="sgroup">
         <div class="sgroup-card">
@@ -1676,6 +1676,20 @@
           </label>
         </div>
         <p class="hint">This device only. Cover art, month cards and each list's options are on that tab's <strong>View</strong> button.</p>
+      </section>
+      <section class="sgroup">
+        <div class="sgroup-label">Dates</div>
+        <div class="sgroup-card">
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Week starts on</span><span class="sitem-sub">Weekly goals, habit grids, the calendar and widgets</span></span>
+            <select id="weekStart"></select>
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Date format</span></span>
+            <select id="dateFormat"></select>
+          </label>
+        </div>
+        <p class="hint">Every device. Date boxes you type into follow your phone's or browser's language settings.</p>
       </section>
       </div>
 
@@ -2345,40 +2359,41 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.300.1"></script>
-  <script defer src="src/headless.js?v=0.300.1"></script>
-  <script defer src="src/platform.js?v=0.300.1"></script>
-  <script defer src="src/testbuilds.js?v=0.300.1"></script>
-  <script defer src="src/icons.js?v=0.300.1"></script>
-  <script defer src="src/jobs.js?v=0.300.1"></script>
-  <script defer src="src/reconcile.js?v=0.300.1"></script>
-  <script defer src="src/qr.js?v=0.300.1"></script>
-  <script defer src="src/media.js?v=0.300.1"></script>
-  <script defer src="src/merge.js?v=0.300.1"></script>
-  <script defer src="src/storage.js?v=0.300.1"></script>
-  <script defer src="src/finance.js?v=0.300.1"></script>
-  <script defer src="src/settings.js?v=0.300.1"></script>
-  <script defer src="src/wheel.js?v=0.300.1"></script>
-  <script defer src="src/backlog.js?v=0.300.1"></script>
-  <script defer src="src/journal.js?v=0.300.1"></script>
-  <script defer src="src/markdown.js?v=0.300.1"></script>
-  <script defer src="src/images.js?v=0.300.1"></script>
-  <script defer src="src/notes.js?v=0.300.1"></script>
-  <script defer src="src/docimport.js?v=0.300.1"></script>
-  <script defer src="src/io.js?v=0.300.1"></script>
-  <script defer src="src/sync.js?v=0.300.1"></script>
-  <script defer src="src/habits.js?v=0.300.1"></script>
-  <script defer src="src/vendor/rough.js?v=0.300.1"></script>
-  <script defer src="src/boards.js?v=0.300.1"></script>
-  <script defer src="src/travel.js?v=0.300.1"></script>
-  <script defer src="src/recap.js?v=0.300.1"></script>
-  <script defer src="src/reminders.js?v=0.300.1"></script>
-  <script defer src="src/alerts.js?v=0.300.1"></script>
-  <script defer src="src/widgets.js?v=0.300.1"></script>
-  <script defer src="src/share.js?v=0.300.1"></script>
-  <script defer src="src/search.js?v=0.300.1"></script>
-  <script defer src="src/letterboxd.js?v=0.300.1"></script>
-  <script defer src="src/payments.js?v=0.300.1"></script>
-  <script defer src="src/app.js?v=0.300.1"></script>
+  <script defer src="src/errlog.js?v=0.301.0"></script>
+  <script defer src="src/headless.js?v=0.301.0"></script>
+  <script defer src="src/platform.js?v=0.301.0"></script>
+  <script defer src="src/dates.js?v=0.301.0"></script>
+  <script defer src="src/testbuilds.js?v=0.301.0"></script>
+  <script defer src="src/icons.js?v=0.301.0"></script>
+  <script defer src="src/jobs.js?v=0.301.0"></script>
+  <script defer src="src/reconcile.js?v=0.301.0"></script>
+  <script defer src="src/qr.js?v=0.301.0"></script>
+  <script defer src="src/media.js?v=0.301.0"></script>
+  <script defer src="src/merge.js?v=0.301.0"></script>
+  <script defer src="src/storage.js?v=0.301.0"></script>
+  <script defer src="src/finance.js?v=0.301.0"></script>
+  <script defer src="src/settings.js?v=0.301.0"></script>
+  <script defer src="src/wheel.js?v=0.301.0"></script>
+  <script defer src="src/backlog.js?v=0.301.0"></script>
+  <script defer src="src/journal.js?v=0.301.0"></script>
+  <script defer src="src/markdown.js?v=0.301.0"></script>
+  <script defer src="src/images.js?v=0.301.0"></script>
+  <script defer src="src/notes.js?v=0.301.0"></script>
+  <script defer src="src/docimport.js?v=0.301.0"></script>
+  <script defer src="src/io.js?v=0.301.0"></script>
+  <script defer src="src/sync.js?v=0.301.0"></script>
+  <script defer src="src/habits.js?v=0.301.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.301.0"></script>
+  <script defer src="src/boards.js?v=0.301.0"></script>
+  <script defer src="src/travel.js?v=0.301.0"></script>
+  <script defer src="src/recap.js?v=0.301.0"></script>
+  <script defer src="src/reminders.js?v=0.301.0"></script>
+  <script defer src="src/alerts.js?v=0.301.0"></script>
+  <script defer src="src/widgets.js?v=0.301.0"></script>
+  <script defer src="src/share.js?v=0.301.0"></script>
+  <script defer src="src/search.js?v=0.301.0"></script>
+  <script defer src="src/letterboxd.js?v=0.301.0"></script>
+  <script defer src="src/payments.js?v=0.301.0"></script>
+  <script defer src="src/app.js?v=0.301.0"></script>
 </body>
 </html>

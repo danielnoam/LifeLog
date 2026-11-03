@@ -2636,6 +2636,9 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 .srow-result { grid-template-columns: minmax(0, 1fr) auto; }
 .srow-empty { margin: 0; padding: 12px; font-size: var(--fs-sm); color: var(--text-dim); }
 .settings-foot { margin: 2px 6px 0; font-size: var(--fs-xs); color: var(--text-dim); }
+/* Only where there's a keyboard to press it on (0.301.0). The version it
+   used to carry is on About. */
+@media not ((hover: hover) and (pointer: fine)) { .settings-foot { display: none; } }
 /* Where a search result lands: a brief tint, so the eye finds it. */
 .search-hit { animation: search-hit 1.6s var(--ease); border-radius: var(--r-md); }
 @keyframes search-hit {

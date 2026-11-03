@@ -9,6 +9,9 @@
 // lifelog.json: a build older than this one merging that file would drop any
 // root key it doesn't know, and the deletion would then win everywhere.
 (function () {
+  // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
+  const Dates = () => window.LifeLogDates || require("./dates.js");
+
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
   const safeHref = (href) => window.LifeLogMarkdown.safeHref(href);
   let state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader, activatable, updateFilterbarVisibility;
@@ -134,22 +137,12 @@
     });
   }
 
-  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const parts = (day) => ({ y: +day.slice(0, 4), m: +day.slice(5, 7), d: +day.slice(8, 10) });
-  function dayLabel(day) {
-    const { m, d } = parts(day);
-    return `${WEEKDAYS[new Date(day + "T00:00:00Z").getUTCDay()]} ${d} ${MONTHS[m - 1]}`;
-  }
-  // "12–18 Oct 2026", "30 Sep – 3 Oct 2026", "28 Dec 2026 – 4 Jan 2027".
+  const dayLabel = (day) => Dates().day(day, { weekday: true, year: false });
+  // "12–18 Oct 2026", "30 Sep – 3 Oct 2026", "28 Dec 2026 – 4 Jan 2027", or
+  // the same in Settings → Dates' format.
   function rangeLabel(start, end) {
     if (!start) return "";
-    const a = parts(start);
-    if (!end || end === start) return `${a.d} ${MONTHS[a.m - 1]} ${a.y}`;
-    const b = parts(end);
-    if (a.y !== b.y) return `${a.d} ${MONTHS[a.m - 1]} ${a.y} – ${b.d} ${MONTHS[b.m - 1]} ${b.y}`;
-    if (a.m !== b.m) return `${a.d} ${MONTHS[a.m - 1]} – ${b.d} ${MONTHS[b.m - 1]} ${b.y}`;
-    return `${a.d}–${b.d} ${MONTHS[b.m - 1]} ${b.y}`;
+    return Dates().range(start, end || start);
   }
   const timeLabel = (p) => (p.time ? p.time + (p.endTime ? "–" + p.endTime : "") : "");
 
@@ -1618,7 +1611,7 @@
     for (const v of versions) {
       const row = el("div", "sitem board-hist-row");
       const label = el("span", "sitem-text");
-      label.appendChild(el("span", "sitem-title", new Date(v.savedAt).toLocaleString()));
+      label.appendChild(el("span", "sitem-title", Dates().dateTime(v.savedAt)));
       label.appendChild(el("span", "sitem-sub", v.bridge ? (v.bridge.by || "AI") + " · " + v.bridge.summary : v.source === "github" ? "GitHub" : "This device"));
       row.appendChild(label);
       const btns = el("span", "sitem-btns");
@@ -1677,7 +1670,7 @@
       if (state.view === "travel") render({ keepSnapshots: true });
     };
     put(JSON.parse(JSON.stringify(t)), JSON.parse(JSON.stringify(then)));
-    toast(`Brought back "${t.name}" as it was on ${new Date(v.savedAt).toLocaleDateString()}`, false, {
+    toast(`Brought back "${t.name}" as it was on ${Dates().day(v.savedAt)}`, false, {
       label: "Undo", onClick: () => put(before.trip, before.places),
     });
   }

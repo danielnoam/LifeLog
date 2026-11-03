@@ -7,6 +7,9 @@
 // (view renderers, modal openers, sanitizers for the shared import
 // infrastructure) is exposed on window.LifeLogFinance.
 (function () {
+  // Settings → Dates (0.301.0). Under Node nothing loaded dates.js.
+  const Dates = () => window.LifeLogDates || require("./dates.js");
+
   const CURRENCY_SYMBOLS = {
     ILS: "₪", USD: "$", EUR: "€", GBP: "£",
     CHF: "CHF", JPY: "¥", SEK: "kr", NOK: "kr", DKK: "kr", PLN: "zł", CZK: "Kč",
@@ -2018,7 +2021,8 @@
     const daySel = $("#recChargeDay"), monthSel = $("#recChargeMonth");
     monthSel.hidden = interval !== "yearly";
     if (interval === "weekly") {
-      fillDayOptions(daySel, 0, 7, (i) => WEEKDAY_NAMES[i]);
+      // In the week's own order (Settings → Dates), Sunday still saved as 0.
+      daySel.replaceChildren(...Dates().weekOrder().map((i) => new Option(WEEKDAY_NAMES[i], String(i))));
       daySel.value = String(own.weekday);
     } else if (interval === "yearly") {
       if (!monthSel.options.length) MONTH_NAMES.forEach((n, i) => monthSel.appendChild(new Option(n.slice(0, 3), String(i + 1))));
@@ -2745,8 +2749,7 @@
     // A row reads like the Ledger's own (the category pill, what it is, the
     // amount), with when it's charged under the name, the way In progress
     // puts "since" under its titles.
-    const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const shortDate = (d) => `${+d.slice(8, 10)} ${MONTHS_SHORT[+d.slice(5, 7) - 1]} ${d.slice(0, 4)}`;
+    const shortDate = (d) => Dates().day(d);
     const addRow = (r, isEnded, into) => {
       const row = el("div", "entry finance-entry recur-row" + (isEnded ? " is-ended" : ""));
       const color = financeColorOf(r.category);
@@ -2766,7 +2769,7 @@
       const when = [r.interval.charAt(0).toUpperCase() + r.interval.slice(1)];
       if (r.interval === "monthly") when[0] += ", on the " + ordinal(chargeDayOf(r));
       else if (r.interval === "weekly") when[0] += ", on " + WEEKDAY_NAMES[chargeWeekdayOf(r)] + "s";
-      else when[0] += ", on " + chargeDayOf(r) + " " + MONTH_NAMES[chargeMonthOf(r) - 1];
+      else when[0] += ", on " + Dates().dayMonth(chargeDayOf(r), chargeMonthOf(r));
       if (isEnded) when.push("ended " + shortDate(r.endDate));
       else if (isPausedOn(r, today)) {
         const p = r.pauses[livePauseIndex(r, today)];
@@ -2897,7 +2900,7 @@
     if (!items.length) { list.replaceChildren(); return; }
     const rows = items.map((f) => {
       const row = el("div", "proj-expense");
-      row.appendChild(el("span", "proj-expense-date", String(f.date).slice(5)));
+      row.appendChild(el("span", "proj-expense-date", Dates().day(String(f.date), { year: false }) || String(f.date).slice(5)));
       const dot = el("span", "dot");
       dot.style.background = financeColorOf(f.category);
       row.appendChild(dot);
@@ -3160,7 +3163,7 @@
     if (!lastFx || lastFx.code !== code || lastFx.rate !== rate) return "";
     const d = lastFx.date;
     const pretty = /^\d{4}-\d{2}-\d{2}$/.test(d)
-      ? new Date(d + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })
+      ? Dates().day(d, { year: false })
       : "";
     return pretty ? ` — ${lastFx.source} rate for ${pretty}` : "";
   }
