@@ -3721,10 +3721,13 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
    +15/+30/+1 h steps on the same row. */
 /* Under the full-width grid, above Insights: the tick, or a timed habit's
    goal with its +15/+30/+1 h steps beside it on the same row. */
-.habit-actions { display: flex; align-items: center; gap: var(--space-8); margin: var(--space-12) 0 0 var(--space-16); }
+/* Wraps only when the goal's text is too long for one row ("1h15 of 3h this
+   week" beside three steps on a phone); the button itself never shrinks
+   below its text, which had spilled out of its border. */
+.habit-actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-8); margin: var(--space-12) 0 0 var(--space-16); }
 .habit-actions > .habit-steps { margin: 0; flex-wrap: nowrap; gap: var(--space-8); }
 .habit-actions > .habit-steps .btn { min-height: 40px; padding: var(--space-4) var(--space-12); }
-.habit-actions > .habit-goal { min-width: 0; flex: 0 1 auto; }
+.habit-actions > .habit-goal { min-width: 0; flex: 0 0 auto; }
 .habit-head { display: flex; align-items: center; gap: 10px; }
 .habit-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
 .habit-name {
