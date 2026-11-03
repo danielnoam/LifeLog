@@ -164,7 +164,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.299.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.300.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -4803,7 +4803,7 @@
         Backlog.closePickModal(); Backlog.closeOutTodaySheet();
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
         Finance.closePauseModal(); Finance.cancelFinanceCatModal();
-        Habits.closeHabitModal(); Notes.closeNoteCatModal();
+        Habits.closeHabitModal(); Habits.closeAmountModal(); Notes.closeNoteCatModal();
         Travel.closeTripModal(); Travel.closePlaceModal(); Travel.closeImportModal(); Share.close();
         SettingsUI.closeSettings();
         SettingsUI.closeViewOptions();

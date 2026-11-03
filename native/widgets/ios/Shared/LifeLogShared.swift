@@ -163,6 +163,21 @@ struct LLHabit: Identifiable {
     let done: Bool
     let streak: Int
     let remind: String
+    /// A goal (0.300.0): "week", "month", "year", or "" for a daily one.
+    let period: String
+    /// A timed habit: target and amount are minutes.
+    let minutes: Bool
+    /// Today's amount, or the period's so far for a goal.
+    let amount: Int
+
+    /// "2 more this week", "35 min left", or "" once it's met.
+    var left: String {
+        if done || avoid { return "" }
+        let n = max(0, target - amount)
+        let when = period.isEmpty ? "" : " this " + period
+        if minutes { return LLHabits.minutesText(n) + " left" + when }
+        return period.isEmpty ? "" : "\(n) more" + when
+    }
 }
 
 enum LLHabits {
@@ -183,6 +198,42 @@ enum LLHabits {
         return int((h["marks"] as? [String: Any])?[date])
     }
 
+    /// The first day of the period `date` is in, as habits.js's periodRange: weeks start on Sunday.
+    static func periodStart(_ period: String, _ date: String) -> String {
+        switch period {
+        case "week": return LLDate.add(date, -max(0, LLDate.weekday(date)))
+        case "month": return date.count >= 10 ? String(date.prefix(8)) + "01" : date
+        case "year": return date.count >= 10 ? String(date.prefix(5)) + "01-01" : date
+        default: return date
+        }
+    }
+
+    static func periodic(_ h: [String: Any]) -> Bool {
+        !(h["avoid"] as? Bool ?? false) && ["week", "month", "year"].contains(str(h["period"]))
+    }
+
+    static func amountBetween(_ h: [String: Any], _ q: [[String: Any]], _ from: String, _ to: String) -> Int {
+        let started = str(h["startedAt"])
+        var d = !started.isEmpty && from < started ? started : from
+        var n = 0, guardN = 0
+        while guardN < 400 && d <= to { n += markOn(h, q, d); d = LLDate.add(d, 1); guardN += 1 }
+        return n
+    }
+
+    static func amountOn(_ h: [String: Any], _ q: [[String: Any]], _ day: String) -> Int {
+        periodic(h) ? amountBetween(h, q, periodStart(str(h["period"]), day), day) : markOn(h, q, day)
+    }
+
+    /// Whether `day` counts as done: its own mark, or for a goal its period's.
+    static func doneOn(_ h: [String: Any], _ q: [[String: Any]], _ day: String) -> Bool {
+        periodic(h) ? amountOn(h, q, day) >= max(1, int(h["target"])) : keptWith(h, markOn(h, q, day))
+    }
+
+    static func minutesText(_ n: Int) -> String {
+        if n < 60 { return "\(n) min" }
+        return n % 60 == 0 ? "\(n / 60) h" : "\(n / 60) h \(n % 60) min"
+    }
+
     static func keptWith(_ h: [String: Any], _ mark: Int) -> Bool {
         (h["avoid"] as? Bool ?? false) ? mark <= max(0, int(h["limit"])) : mark >= max(1, int(h["target"]))
     }
@@ -190,6 +241,18 @@ enum LLHabits {
     /// habits.js's streakOf: `runBefore` covers up to the day before the
     /// snapshot's own today; the days since are walked from its week of marks.
     static func streakOn(_ h: [String: Any], _ q: [[String: Any]], _ snapToday: String, _ day: String) -> Int {
+        // A goal's run is periods: the app's count before the period it was
+        // in, the next one judged from the marks sent if the phone has moved on.
+        if periodic(h) {
+            let start = periodStart(str(h["period"]), day)
+            let sent = str(h["periodFrom"])
+            let target = max(1, int(h["target"]))
+            var run = max(0, int(h["runBefore"]))
+            if !sent.isEmpty && start > sent {
+                run = amountBetween(h, q, sent, LLDate.add(start, -1)) >= target ? run + 1 : 0
+            }
+            return run + (amountOn(h, q, day) >= target ? 1 : 0)
+        }
         var run = 0
         var broken = false
         var d = LLDate.add(day, -1)
@@ -219,17 +282,23 @@ enum LLHabits {
                 id: str(h["id"]), name: str(h["name"]), color: str(h["color"]),
                 target: max(1, int(h["target"])), value: value,
                 avoid: avoid, limit: max(0, int(h["limit"])),
-                done: keptWith(h, value), streak: streakOn(h, q, snapToday, today), remind: str(h["remind"]))
+                done: doneOn(h, q, today), streak: streakOn(h, q, snapToday, today), remind: str(h["remind"]),
+                period: periodic(h) ? str(h["period"]) : "", minutes: !avoid && str(h["unit"]) == "min",
+                amount: amountOn(h, q, today))
         }
     }
 
-    /// A tap moves the mark on by one and wraps — habits.js's nextMark: at
-    /// the target, or one past an avoided habit's limit.
+    /// What a tap makes today's mark (WidgetStore.nextValue): a daily count
+    /// steps on and wraps at the target; a goal adds one, a timed habit 15
+    /// minutes, until it's met, and the tap after takes today's back to none.
     static func tick(_ id: String) {
         let today = LLDate.today()
         guard let r = rows(LLStore.snapshot(), LLStore.queue(), today).first(where: { $0.id == id }) else { return }
         let cap = r.avoid ? r.limit + 1 : r.target
-        LLStore.enqueue(["kind": "habit", "id": id, "date": today, "value": r.value >= cap ? 0 : r.value + 1, "at": LLDate.nowIso()])
+        let next = r.minutes ? (r.done ? 0 : r.value + 15)
+            : !r.period.isEmpty ? (r.done ? 0 : r.value + 1)
+            : (r.value >= cap ? 0 : r.value + 1)
+        LLStore.enqueue(["kind": "habit", "id": id, "date": today, "value": next, "at": LLDate.nowIso()])
     }
 }
 

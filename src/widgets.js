@@ -83,13 +83,26 @@
   function snapshotOf(data, { today, actions = [], remindAt = () => "", runBefore = () => 0, spend = null, pins = [], upcomingAt = () => "", releaseLabel = () => "" } = {}) {
     const since = addDays(today, -MARK_DAYS);
     const until = addDays(today, 1);
+    // A weekly, monthly or yearly goal (0.300.0) is counted over its whole
+    // period, so it sends every mark since the period began; the widget
+    // works out which period it's in by itself, as it does what's due.
+    const periodFrom = (period) => {
+      if (period === "week") return addDays(today, -new Date(today + "T00:00:00").getDay());
+      if (period === "month") return today.slice(0, 8) + "01";
+      if (period === "year") return today.slice(0, 5) + "01-01";
+      return today;
+    };
+    const PERIODS = ["week", "month", "year"];
     const habits = (data.habits || [])
       .filter((h) => !h.archivedAt)
       .slice()
       .sort(byOrder)
       .map((h) => {
         const marks = {};
-        for (const [d, v] of Object.entries(h.marks || {})) if (d >= since && d <= until) marks[d] = v;
+        const period = !h.avoid && PERIODS.includes(h.period) ? h.period : null;
+        const from = period ? periodFrom(period) : since;
+        const first = from < since ? from : since;
+        for (const [d, v] of Object.entries(h.marks || {})) if (d >= first && d <= until) marks[d] = v;
         return {
           id: h.id,
           name: h.name,
@@ -103,6 +116,10 @@
           // Something you avoid (0.203.0): the marks are slips, kept while
           // they stay at or under the limit.
           ...(h.avoid ? { avoid: true, limit: +h.limit || 0 } : {}),
+          // A goal: `runBefore` is then periods met in a row before the one
+          // `periodFrom` starts, and a timed habit's marks are minutes.
+          ...(period ? { period, periodFrom: from } : {}),
+          ...(!h.avoid && h.unit === "min" ? { unit: "min" } : {}),
         };
       });
 

@@ -445,15 +445,22 @@ const PER_MONTH = { weekly: 52 / 12, monthly: 1, yearly: 1 / 12 };
 function habitLine(h, t) {
   const mark = Habits.markOf(h, t);
   const due = Habits.isDue(h, t);
-  const state = !due ? "not due today" : Habits.isDone(h, t)
+  const p = Habits.progressOf(h, t);
+  const amount = (n) => (Habits.isMinutes(h) ? Habits.minutesLabel(n) : String(n));
+  const when = p.period === "day" ? "today" : `this ${p.period} (to ${p.to})`;
+  const state = !due ? "not due today" : !h.avoid && (Habits.isPeriodic(h) || Habits.isMinutes(h))
+    ? (p.met ? `done ${when}: ${amount(p.done)} of ${amount(p.target)}` : `${amount(p.done)} of ${amount(p.target)} ${when}, ${amount(p.left)} to go`)
+    : Habits.isDone(h, t)
     ? (h.avoid ? `kept today (${mark} of at most ${h.limit || 0})` : "done today")
     : (h.avoid ? `over the limit today (${mark})` : h.target > 1 ? `${mark} of ${h.target} today` : "not done yet today");
   const days = [];
   for (let i = 13; i >= 0; i--) {
     const d = Finance.addDaysStr(t, -i);
-    days.push(!Habits.isDue(h, d) ? "·" : Habits.isDone(h, d) ? (h.avoid && i === 0 && !Habits.markOf(h, d) ? "○" : "✓") : "✗");
+    days.push(!Habits.isDue(h, d) ? "·" : Habits.isPeriodic(h) ? (Habits.markOf(h, d) ? "✓" : "·")
+      : Habits.isDone(h, d) ? (h.avoid && i === 0 && !Habits.markOf(h, d) ? "○" : "✓") : "✗");
   }
-  return `- ${h.name}${h.avoid ? " (avoiding)" : ""} [${Habits.cadenceLabel(h)}]: ${state}; streak ${Habits.streakOf(h, t)}, best ${Habits.bestStreakOf(h, t)}; last 14 days ${days.join("")}  (${h.id})`;
+  const unit = Habits.isPeriodic(h) ? " " + Habits.periodWord(p.period, 2) : "";
+  return `- ${h.name}${h.avoid ? " (avoiding)" : ""} [${h.avoid ? Habits.cadenceLabel(h) : Habits.goalLabel(h)}]: ${state}; streak ${Habits.streakOf(h, t)}${unit}, best ${Habits.bestStreakOf(h, t)}; last 14 days ${days.join("")}  (${h.id})`;
 }
 
 function noteText(n, max) {
@@ -805,7 +812,7 @@ const TOOLS = [
   },
   {
     name: "lifelog_habits",
-    description: "Habits: whether each is done today, its streak and best streak, and the last 14 days (✓ kept, ✗ missed, · not due).",
+    description: "Habits: whether each is done today (or, for a weekly, monthly or yearly goal, how far along its period is), its streak and best streak, and the last 14 days (✓ kept, ✗ missed, · not due; for a goal ✓ is a day something was done).",
     readOnly: true,
     input: { include_archived: S.bool("Include archived habits") },
     async run(a) {
@@ -813,6 +820,29 @@ const TOOLS = [
       const t = today();
       const rows = (d.habits || []).filter((h) => a.include_archived || !h.archivedAt).sort((x, y) => (x.order || 0) - (y.order || 0));
       return [`${rows.length} habits, today ${t}.`, ...rows.map((h) => habitLine(h, t))].join("\n");
+    },
+  },
+
+  {
+    name: "lifelog_habits_left",
+    description: "What's still to do, as the Habits page's Left to do panel shows it: today's habits not done yet, then the weekly, monthly and yearly goals short of their target, with how much is left and how many days the period has. Habits you avoid are never listed as left.",
+    readOnly: true,
+    input: {},
+    async run() {
+      const d = await readData();
+      const t = today();
+      const L = Habits.leftToDo((d.habits || []).slice().sort((x, y) => (x.order || 0) - (y.order || 0)), t);
+      if (!(d.habits || []).some((h) => !h.archivedAt)) return "No habits yet.";
+      const out = [`Today ${t}: ${L.left ? L.left + " left" : "nothing left"}.`];
+      for (const g of L.groups) {
+        out.push(`${g.period === "day" ? "Today" : "This " + g.period} (${g.period === "day" ? "ends tonight" : g.daysLeft + " days left after today"}):`);
+        for (const it of g.items) {
+          const amt = (n) => (Habits.isMinutes(it.habit) ? Habits.minutesLabel(n) : String(n));
+          out.push(`- ${it.habit.name}: ${amt(it.done)} of ${amt(it.target)}, ${amt(it.left)} to go  (${it.habit.id})`);
+        }
+      }
+      if (L.done.length) out.push("Done for now: " + L.done.map((h) => h.name).join(", ") + ".");
+      return out.join("\n");
     },
   },
 
@@ -921,7 +951,7 @@ const TOOLS = [
           const prevSpent = effectiveExpenses(d, until).filter((f) => String(f.date).slice(0, 4) === String(year - 1));
           const sum = (l) => l.reduce((s, f) => s + (+f.amount || 0), 0);
           out.push(`Notes written: ${g.notes.length} (${g.prevNotes.length} in ${year - 1}). Checklist items ticked: ${g.todosDone.length}. Added to the backlog: ${g.backlogAdded.length}. Accomplishments: ${g.achievements.length}.`);
-          if (g.habits.length) out.push("Habits kept: " + g.habits.map((h) => `${h.habit.name} ${h.kept} of ${h.due} days (${Math.round(h.rate * 100)}%)`).join(", ") + ".");
+          if (g.habits.length) out.push("Habits kept: " + g.habits.map((h) => `${h.habit.name} ${h.kept} of ${h.due} ${Habits.periodWord(Habits.periodOf(h.habit), h.due)} (${Math.round(h.rate * 100)}%)`).join(", ") + ".");
           out.push(`Spent: ${money(d, sum(spent))} (${money(d, sum(prevSpent))} in ${year - 1}), recurring bills included${year === new Date().getFullYear() ? ", so far" : ""}.`);
         }
         return out.join("\n");
@@ -953,9 +983,12 @@ const TOOLS = [
       return list.map((h) => {
         const life = Habits.statsFor(h, h.startedAt || t, t);
         if (!life.due) return `${h.name}: nothing to say yet; it starts counting from ${h.startedAt}.`;
-        const lines = [`${h.name}${h.avoid ? " (avoiding)" : ""}: kept ${Math.round(life.rate * 100)}%, ${life.done} of ${life.due} days since ${h.startedAt}.`];
+        const per = Habits.periodOf(h);
+        const goal = !h.avoid && (Habits.isPeriodic(h) || Habits.isMinutes(h)) ? ` [${Habits.goalLabel(h)}]` : "";
+        const lines = [`${h.name}${h.avoid ? " (avoiding)" : ""}${goal}: kept ${Math.round(life.rate * 100)}%, ${life.done} of ${life.due} ${Habits.periodWord(per, life.due)} since ${h.startedAt}.`];
         const best = Habits.bestRunOf(h, t);
-        if (best.days) lines.push(`  Longest run: ${best.days} day${best.days === 1 ? "" : "s"}, ${best.from} to ${best.to}. Current streak ${Habits.streakOf(h, t)}.`);
+        if (best.days) lines.push(`  Longest run: ${best.days} ${Habits.periodWord(per, best.days)}, ${best.from} to ${best.to}. Current streak ${Habits.streakOf(h, t)}.`);
+        if (Habits.isMinutes(h)) lines.push(`  Time in all: ${Habits.minutesLabel(Habits.amountBetween(h, h.startedAt || t, t))}.`);
         const days = Habits.weekdayRates(h, t).filter((x) => x.due);
         if (days.length > 1) lines.push("  By weekday: " + days.map((x) => `${x.label} ${Math.round(x.rate * 100)}%`).join(", ") + ".");
         const months = Habits.monthRates(h, t).filter((m) => m.due);
@@ -1240,10 +1273,11 @@ const TOOLS = [
   },
   {
     name: "lifelog_mark_habit",
-    description: "Record a habit for a day: done (or one more toward its target), a set count, or cleared. For a habit you avoid, the count is the slips.",
+    description: "Record a habit for a day: done (or one more toward its target), a set count, or cleared. For a habit you avoid, the count is the slips. For a timed habit the value is that day's minutes; leaving value and add out tops it up to the target. For a weekly, monthly or yearly goal each day's count adds toward the period.",
     input: {
       habit: S.str("Its id or name"), date: S.date("Default today"),
-      value: S.int("The day's count; omit to add one (or mark done), 0 to clear"),
+      value: S.int("The day's count (minutes for a timed habit); omit to add one (or mark done), 0 to clear"),
+      add: S.int("Add this much to the day instead of setting it (e.g. 30 minutes)"),
     },
     required: ["habit"],
     async run(a) {
@@ -1252,13 +1286,22 @@ const TOOLS = [
       return change(`habit "${a.habit}" ${date}`, (d) => {
         const h = findItem(d, "habits", a.habit);
         const was = Habits.markOf(h, date);
+        const p = Habits.progressOf(h, date);
         const value = a.value != null ? Math.max(0, Math.round(+a.value) || 0)
-          : h.avoid ? was + 1 : Math.min(was + 1, h.target || 1);
+          : a.add != null ? Math.max(0, was + (Math.round(+a.add) || 0))
+          : h.avoid ? was + 1
+          : Habits.isMinutes(h) ? was + p.left
+          : Habits.isPeriodic(h) ? was + 1
+          : Math.min(was + 1, h.target || 1);
         const marks = { ...(h.marks || {}) };
         if (value) marks[date] = value; else delete marks[date];
         const next = cleanItem(d, "habits", { ...h, marks });
         replaceItem(d, "habits", next);
-        const state = Habits.isDone(next, date) ? (h.avoid ? "still kept" : "done") : (h.avoid ? "over the limit" : `${value} of ${h.target || 1}`);
+        const np = Habits.progressOf(next, date);
+        const amt = (n) => (Habits.isMinutes(next) ? Habits.minutesLabel(n) : String(n));
+        const state = Habits.isPeriodic(next) || Habits.isMinutes(next)
+          ? `${amt(np.done)} of ${amt(np.target)} ${np.period === "day" ? "that day" : "that " + np.period}${np.met ? ", done" : ""}`
+          : Habits.isDone(next, date) ? (h.avoid ? "still kept" : "done") : (h.avoid ? "over the limit" : `${value} of ${h.target || 1}`);
         return { text: `${h.name} on ${date}: ${value} (${state}). Streak now ${Habits.streakOf(next, today())}.`, touched: [["habits", h.id]] };
       });
     },
@@ -1699,11 +1742,14 @@ const TOOLS = [
   },
   {
     name: "lifelog_add_habit",
-    description: "Start a habit: something to do (daily, or on some weekdays, optionally several times a day) or something to keep away from (avoid, with a daily limit of slips).",
+    description: "Start a habit: something to do (daily, or on some weekdays, optionally several times a day), a goal over a week, month or year (\"workout 3 times a week\"), a timed one in minutes (\"an hour on the project a day\"), or something to keep away from (avoid, with a daily limit of slips).",
     input: {
       name: S.str("What the habit is"),
       days: { type: "array", items: { type: "string" }, description: "Weekdays it's due, e.g. [\"mon\",\"wed\",\"fri\"]; leave out for every day" },
-      target: S.int("Times a day, default 1"), avoid: S.bool("Something to keep away from; its marks count slips"),
+      target: S.int("How much counts as done in the period, default 1: times, or minutes with unit minutes"),
+      period: S.str("day (default), week, month or year: what the target is counted over. A goal over a week or longer is on any days, so leave days out"),
+      unit: S.str("times (default) or minutes"),
+      avoid: S.bool("Something to keep away from; its marks count slips"),
       limit: S.int("With avoid: slips a day that still count as kept, default 0"),
       color: S.str("#rrggbb, optional"), start_date: S.date("When it starts counting, default today"),
     },
@@ -1725,9 +1771,17 @@ const TOOLS = [
         if (days.length && days.length < 7) item.cadence = { days };
         if (a.color) item.color = a.color.toLowerCase();
         if (a.avoid) Object.assign(item, { avoid: true, limit: +a.limit || 0 });
-        else if (a.target) item.target = a.target;
+        else {
+          if (a.target) item.target = a.target;
+          const period = lower(a.period || "day");
+          if (!["day", "week", "month", "year"].includes(period)) fail(`period is day, week, month or year, not "${a.period}".`);
+          if (period !== "day") { item.period = period; delete item.cadence; }
+          const unit = lower(a.unit || "times");
+          if (!["times", "minutes", "min"].includes(unit)) fail(`unit is times or minutes, not "${a.unit}".`);
+          if (unit !== "times") item.unit = "min";
+        }
         const h = addItem(d, "habits", item);
-        return { text: `Started the habit "${h.name}" (${Habits.cadenceLabel(h)}${h.avoid ? `, avoiding, at most ${h.limit} a day` : h.target > 1 ? `, ${h.target} a day` : ""}) from ${h.startedAt}. id ${h.id}`, touched: [["habits", h.id]] };
+        return { text: `Started the habit "${h.name}" (${h.avoid ? `${Habits.cadenceLabel(h)}, avoiding, at most ${h.limit} a day` : Habits.goalLabel(h)}) from ${h.startedAt}. id ${h.id}`, touched: [["habits", h.id]] };
       });
     },
   },

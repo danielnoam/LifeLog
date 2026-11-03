@@ -113,8 +113,13 @@ public class HabitsWidget extends AppWidgetProvider {
 
         int kept = 0;
         for (WidgetStore.Row r : rows) if (r.done) kept++;
+        // How many are left (0.300.0), goals included: the question the
+        // widget is for.
         String subtitle = !loaded || !WidgetStore.flag(cfg, "summary") ? null
-            : rows.isEmpty() ? "Nothing due today" : kept + " of " + rows.size() + " today";
+            : rows.isEmpty() ? (WidgetStore.onlyLeft(cfg) ? "Nothing left for now" : "Nothing due today")
+            : kept == rows.size() ? "All done for now"
+            : (rows.size() - kept) + " left";
+        if (WidgetStore.onlyLeft(cfg)) rows = WidgetStore.leftOnly(rows);
         String pending = WidgetStore.pendingNote(c);
         if (pending != null) subtitle = subtitle == null ? pending : subtitle + " · " + pending;
         v.setTextViewText(R.id.widget_title, "Habits");
@@ -125,6 +130,7 @@ public class HabitsWidget extends AppWidgetProvider {
 
         String empty = !loaded ? "Open LifeLog once to bring your habits here"
             : WidgetStore.habitCount(c) == 0 ? "No habits yet — tap + to add one"
+            : WidgetStore.onlyLeft(cfg) ? "Nothing left for now"
             : "Nothing due today";
         v.setTextViewText(R.id.widget_empty, empty);
         v.setViewVisibility(R.id.widget_empty, rows.isEmpty() ? View.VISIBLE : View.GONE);
@@ -151,8 +157,11 @@ public class HabitsWidget extends AppWidgetProvider {
         v.removeAllViews(R.id.habit_grid);
         boolean loaded = WidgetStore.snapshot(c) != null;
         List<WidgetStore.Row> rows = WidgetStore.habitRows(c, widgetId);
+        org.json.JSONObject cfg = WidgetStore.config(c, widgetId);
+        if (WidgetStore.onlyLeft(cfg)) rows = WidgetStore.leftOnly(rows);
         String empty = !loaded ? "Open LifeLog once to bring your habits here"
-            : WidgetStore.habitCount(c) == 0 ? "No habits yet" : "Nothing due today";
+            : WidgetStore.habitCount(c) == 0 ? "No habits yet"
+            : WidgetStore.onlyLeft(cfg) ? "Nothing left" : "Nothing due today";
         v.setTextViewText(R.id.widget_empty, empty);
         v.setViewVisibility(R.id.widget_empty, rows.isEmpty() ? View.VISIBLE : View.GONE);
         if (rows.isEmpty()) return v;
@@ -196,6 +205,9 @@ public class HabitsWidget extends AppWidgetProvider {
     static String tickText(WidgetStore.Row r, String blank) {
         if (r.avoid) return !r.done ? "✕" : r.limit > 0 ? r.value + "/" + r.limit : "✓";
         if (r.done) return "✓";
+        // A timed habit shows its minutes so far; a goal its count of the period's.
+        if (r.minutes) return r.amount > 0 ? (r.amount < 60 ? r.amount + "m" : (r.amount / 60) + "h") : blank;
+        if (!r.period.isEmpty()) return r.amount + "/" + r.target;
         return r.target > 1 && r.value > 0 ? r.value + "/" + r.target : blank;
     }
 
@@ -220,7 +232,7 @@ public class HabitsWidget extends AppWidgetProvider {
 
     private static RemoteViews chip(Context c, WidgetStore.Row r, int detail, boolean streaks) {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_chip_habit);
-        boolean partway = !r.done && r.target > 1 && r.value > 0;
+        boolean partway = !r.done && (r.target > 1 || !r.period.isEmpty()) && r.amount > 0;
         setTick(v, R.id.chip_tick, R.id.chip_tick_ico, tickText(r, initial(r.text)));
         v.setTextColor(R.id.chip_tick, r.done ? c.getResources().getColor(R.color.widget_on_accent, null)
             : r.avoid ? SLIP : partway ? c.getResources().getColor(R.color.widget_muted, null) : r.color);
@@ -268,7 +280,8 @@ public class HabitsWidget extends AppWidgetProvider {
 
     private static RemoteViews row(Context c, WidgetStore.Row r, boolean streaks) {
         RemoteViews v = new RemoteViews(c.getPackageName(), R.layout.widget_row_habit);
-        v.setTextViewText(R.id.row_text, r.text);
+        String left = WidgetStore.leftText(r);
+        v.setTextViewText(R.id.row_text, left.isEmpty() ? r.text : r.text + " · " + left);
         v.setTextColor(R.id.row_dot, r.color);
         setStreak(v, R.id.row_streak, streaks ? r.streak : 0);
         v.setViewVisibility(R.id.row_streak, streaks && r.streak > 0 ? View.VISIBLE : View.GONE);

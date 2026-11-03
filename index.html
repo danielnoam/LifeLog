@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.299.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.300.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -1138,17 +1138,33 @@
             <option value="avoid">Avoid</option>
           </select>
         </label>
-        <div class="field-row">
-          <label>How often
-            <select id="habitCadence">
-              <option value="daily">Every day</option>
-              <option value="days">Certain days</option>
+        <div class="field-row habit-goal-row">
+          <label class="field-narrow"><span id="habitTargetText">Goal</span>
+            <input id="habitTarget" type="number" min="1" max="9999" step="1" value="1" inputmode="numeric" />
+          </label>
+          <label id="habitUnitLabel">Of
+            <select id="habitUnit">
+              <option value="times">times</option>
+              <option value="min">minutes</option>
+              <option value="hours">hours</option>
             </select>
           </label>
-          <label class="field-narrow"><span id="habitTargetText">Times a day</span>
-            <input id="habitTarget" type="number" min="1" max="99" step="1" value="1" />
+          <label id="habitPeriodLabel">Every
+            <select id="habitPeriod">
+              <option value="day">day</option>
+              <option value="week">week</option>
+              <option value="month">month</option>
+              <option value="year">year</option>
+            </select>
           </label>
         </div>
+        <p class="hint" id="habitGoalHint" hidden></p>
+        <label id="habitCadenceLabel">On
+          <select id="habitCadence">
+            <option value="daily">Every day</option>
+            <option value="days">Certain days</option>
+          </select>
+        </label>
         <label id="habitDaysLabel" hidden>Days
           <span class="habit-days" id="habitDays">
             <label class="toggle-label"><input type="checkbox" />Sun</label>
@@ -1181,6 +1197,33 @@
           <button type="button" class="btn" id="archiveHabitBtn" hidden><span data-ico="archive"></span> Archive</button>
           <span class="spacer"></span>
           <button type="button" class="btn" id="cancelHabitBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- How much of a timed habit a day had (0.300.0): minutes rather than a
+       tick, from the card's tick, its grid, or the left-to-do list. -->
+  <div class="modal-overlay" id="habitAmountModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="habitAmountTitle">
+      <div class="modal-head">
+        <h2 id="habitAmountTitle">Time spent</h2>
+      </div>
+      <form id="habitAmountForm">
+        <p class="hint" id="habitAmountWhen"></p>
+        <label>Minutes
+          <input id="habitAmountInput" type="number" min="0" max="1440" step="1" inputmode="numeric" />
+        </label>
+        <div class="habit-steps" id="habitAmountSteps">
+          <button type="button" class="btn" data-add="15">+15 min</button>
+          <button type="button" class="btn" data-add="30">+30 min</button>
+          <button type="button" class="btn" data-add="60">+1 h</button>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn" id="habitAmountClear">Clear</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="habitAmountCancel">Cancel</button>
           <button type="submit" class="btn btn-primary">Save</button>
         </div>
       </form>
@@ -2307,40 +2350,40 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.299.0"></script>
-  <script defer src="src/headless.js?v=0.299.0"></script>
-  <script defer src="src/platform.js?v=0.299.0"></script>
-  <script defer src="src/testbuilds.js?v=0.299.0"></script>
-  <script defer src="src/icons.js?v=0.299.0"></script>
-  <script defer src="src/jobs.js?v=0.299.0"></script>
-  <script defer src="src/reconcile.js?v=0.299.0"></script>
-  <script defer src="src/qr.js?v=0.299.0"></script>
-  <script defer src="src/media.js?v=0.299.0"></script>
-  <script defer src="src/merge.js?v=0.299.0"></script>
-  <script defer src="src/storage.js?v=0.299.0"></script>
-  <script defer src="src/finance.js?v=0.299.0"></script>
-  <script defer src="src/settings.js?v=0.299.0"></script>
-  <script defer src="src/wheel.js?v=0.299.0"></script>
-  <script defer src="src/backlog.js?v=0.299.0"></script>
-  <script defer src="src/journal.js?v=0.299.0"></script>
-  <script defer src="src/markdown.js?v=0.299.0"></script>
-  <script defer src="src/images.js?v=0.299.0"></script>
-  <script defer src="src/notes.js?v=0.299.0"></script>
-  <script defer src="src/docimport.js?v=0.299.0"></script>
-  <script defer src="src/io.js?v=0.299.0"></script>
-  <script defer src="src/sync.js?v=0.299.0"></script>
-  <script defer src="src/habits.js?v=0.299.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.299.0"></script>
-  <script defer src="src/boards.js?v=0.299.0"></script>
-  <script defer src="src/travel.js?v=0.299.0"></script>
-  <script defer src="src/recap.js?v=0.299.0"></script>
-  <script defer src="src/reminders.js?v=0.299.0"></script>
-  <script defer src="src/alerts.js?v=0.299.0"></script>
-  <script defer src="src/widgets.js?v=0.299.0"></script>
-  <script defer src="src/share.js?v=0.299.0"></script>
-  <script defer src="src/search.js?v=0.299.0"></script>
-  <script defer src="src/letterboxd.js?v=0.299.0"></script>
-  <script defer src="src/payments.js?v=0.299.0"></script>
-  <script defer src="src/app.js?v=0.299.0"></script>
+  <script defer src="src/errlog.js?v=0.300.0"></script>
+  <script defer src="src/headless.js?v=0.300.0"></script>
+  <script defer src="src/platform.js?v=0.300.0"></script>
+  <script defer src="src/testbuilds.js?v=0.300.0"></script>
+  <script defer src="src/icons.js?v=0.300.0"></script>
+  <script defer src="src/jobs.js?v=0.300.0"></script>
+  <script defer src="src/reconcile.js?v=0.300.0"></script>
+  <script defer src="src/qr.js?v=0.300.0"></script>
+  <script defer src="src/media.js?v=0.300.0"></script>
+  <script defer src="src/merge.js?v=0.300.0"></script>
+  <script defer src="src/storage.js?v=0.300.0"></script>
+  <script defer src="src/finance.js?v=0.300.0"></script>
+  <script defer src="src/settings.js?v=0.300.0"></script>
+  <script defer src="src/wheel.js?v=0.300.0"></script>
+  <script defer src="src/backlog.js?v=0.300.0"></script>
+  <script defer src="src/journal.js?v=0.300.0"></script>
+  <script defer src="src/markdown.js?v=0.300.0"></script>
+  <script defer src="src/images.js?v=0.300.0"></script>
+  <script defer src="src/notes.js?v=0.300.0"></script>
+  <script defer src="src/docimport.js?v=0.300.0"></script>
+  <script defer src="src/io.js?v=0.300.0"></script>
+  <script defer src="src/sync.js?v=0.300.0"></script>
+  <script defer src="src/habits.js?v=0.300.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.300.0"></script>
+  <script defer src="src/boards.js?v=0.300.0"></script>
+  <script defer src="src/travel.js?v=0.300.0"></script>
+  <script defer src="src/recap.js?v=0.300.0"></script>
+  <script defer src="src/reminders.js?v=0.300.0"></script>
+  <script defer src="src/alerts.js?v=0.300.0"></script>
+  <script defer src="src/widgets.js?v=0.300.0"></script>
+  <script defer src="src/share.js?v=0.300.0"></script>
+  <script defer src="src/search.js?v=0.300.0"></script>
+  <script defer src="src/letterboxd.js?v=0.300.0"></script>
+  <script defer src="src/payments.js?v=0.300.0"></script>
+  <script defer src="src/app.js?v=0.300.0"></script>
 </body>
 </html>

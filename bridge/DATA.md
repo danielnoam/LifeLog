@@ -249,8 +249,15 @@ Groups of expenses, like a trip: `id`, `name`, `color`, `createdAt`,
 - `id`, `createdAt`, `updatedAt`
 - `name`, `color`, `order` (position in the list)
 - `cadence`: `"daily"`, or `{ days: [0-6] }` for set weekdays (0 is Sunday).
-- `target`: how many times a day counts as done (default 1).
-- `marks`: `{ "YYYY-MM-DD": count }`, only days with a count above 0.
+- `target`: how much counts as done in a period (default 1): times, or
+  minutes with `unit: "min"`.
+- `period` (0.300.0): absent for a daily target, or `"week"`, `"month"` or
+  `"year"` for a goal counted over that period ("3 times a week", any
+  days). Weeks run Sunday to Saturday. A goal is always `cadence: "daily"`.
+- `unit` (0.300.0): absent for times, `"min"` for a timed habit (an hour on
+  a project); its marks are then minutes.
+- `marks`: `{ "YYYY-MM-DD": count }`, only days with a count above 0 (for a
+  timed habit, the day's minutes).
 - `avoid`: true for something kept away from (no coffee). Then the marks
   count slips, and a day is kept while they stay at or under `limit`. A day
   with no mark is a kept day.
@@ -258,7 +265,10 @@ Groups of expenses, like a trip: `id`, `name`, `color`, `createdAt`,
 - `startedAt`: the first day it counts. `archivedAt`: the day it stopped.
 
 A streak counts consecutive due days kept; a day the habit isn't due doesn't
-break one, and today not done yet doesn't either.
+break one, and today not done yet doesn't either. For a goal it counts
+periods met in a row, and the current period only adds once it's met.
+`lifelog_habits_left` lists what's still open today and this week, month and
+year, the way the Habits page's Left to do panel does.
 
 ## Accomplishments (`accomplishments`)
 

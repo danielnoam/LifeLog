@@ -167,15 +167,13 @@ refresh, and in the Android app a native Google sign-in, since Google blocks
 OAuth inside a WebView. If losing GitHub ever becomes the real worry, the
 cheaper route is the scheduled backup file on the phone in TODO.md.
 
-## Times-per-week habits, and a streak milestone becoming an accomplishment
+## A streak milestone becoming an accomplishment
 
-Both were left out of habits' first cut (0.171.0) on purpose and kept on the
-TODO list to revisit once habits had been lived with. They have been, and
-neither is wanted.
-
-Times-per-week ("the gym, three times, any days") would have made a streak a
-run of satisfied weeks rather than days — different logic, and a different
-thing to explain on every card — for a cadence nobody reached for.
+Left out of habits' first cut (0.171.0) on purpose and kept on the TODO list
+to revisit once habits had been lived with. It has been, and isn't wanted.
+(Times-per-week habits were dropped beside it for "a cadence nobody reached
+for"; Daniel reached for it on 2026-11-03 and it shipped as goals in
+0.300.0, streaks counted in weeks.)
 
 A hundred-day run offering to write itself into the year's accomplishments
 was a nice connection the app is shaped for, and it stays nice on paper. In

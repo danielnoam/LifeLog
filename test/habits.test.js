@@ -469,5 +469,90 @@ test("a switch writes only the days the habit asks for", () => {
   assert.deepStrictEqual(H.convertMarks(h, true, {}, "2026-03-08"), { "2026-03-02": 1, "2026-03-04": 1 });
 });
 
+console.log("\ngoals: weekly, monthly and yearly targets, and minutes (0.300.0)");
+
+// Sun 2026-03-01 opens the week; 2026-03-04 is a Wednesday.
+const weekly = (m, o) => H.sanitizeHabit({ name: "Gym", period: "week", target: 3, startedAt: "2026-02-01", marks: m, ...o });
+
+test("a goal keeps its period and unit, drops weekdays, and an avoided habit can't have one", () => {
+  const w = weekly({}, { cadence: { days: [1, 3] } });
+  assert.strictEqual(w.period, "week");
+  assert.strictEqual(w.cadence, "daily");
+  assert.strictEqual(H.sanitizeHabit({ name: "x", period: "fortnight" }).period, undefined);
+  assert.strictEqual(H.sanitizeHabit({ name: "x", unit: "min", target: 90 }).unit, "min");
+  const a = H.sanitizeHabit({ name: "x", avoid: true, period: "week", unit: "min" });
+  assert.strictEqual(a.period, undefined);
+  assert.strictEqual(a.unit, undefined);
+  assert.strictEqual(H.goalLabel(w), "3 times a week");
+  assert.strictEqual(H.goalLabel(H.sanitizeHabit({ name: "x", unit: "min", target: 60 })), "1 hour a day");
+  assert.strictEqual(H.goalLabel(H.sanitizeHabit({ name: "x", period: "month", target: 2 })), "Twice a month");
+  assert.strictEqual(H.goalLabel(H.sanitizeHabit({ name: "x", period: "week", unit: "min", target: 300 })), "5 hours a week");
+});
+
+test("weeks run Sunday to Saturday, months and years by the calendar", () => {
+  assert.deepStrictEqual(H.periodRange("week", "2026-03-04"), ["2026-03-01", "2026-03-07"]);
+  assert.deepStrictEqual(H.periodRange("month", "2026-02-10"), ["2026-02-01", "2026-02-28"]);
+  assert.deepStrictEqual(H.periodRange("year", "2026-02-10"), ["2026-01-01", "2026-12-31"]);
+});
+
+test("a day of a weekly goal is done once its week reaches the target, on any days", () => {
+  const w = weekly(marks("2026-03-01", "2026-03-03"));
+  assert.strictEqual(H.isDone(w, "2026-03-04"), false);
+  assert.deepStrictEqual(H.progressOf(w, "2026-03-04"), { period: "week", from: "2026-03-01", to: "2026-03-07", done: 2, target: 3, met: false, left: 1, daysLeft: 3 });
+  const met = weekly(marks("2026-03-01", "2026-03-03", "2026-03-04"));
+  assert.strictEqual(H.isDone(met, "2026-03-02"), true, "the whole week counts as done");
+});
+
+test("a goal's streak is weeks met in a row, and this week only adds", () => {
+  const m = marks("2026-02-15", "2026-02-16", "2026-02-17", "2026-02-22", "2026-02-24", "2026-02-26", "2026-03-02");
+  const w = weekly(m);
+  // Weeks of 15 Feb and 22 Feb met; this one has 1 of 3 and isn't over.
+  assert.strictEqual(H.streakOf(w, "2026-03-04"), 2);
+  assert.strictEqual(H.runBefore(w, "2026-03-04"), 2);
+  const done = weekly({ ...m, "2026-03-03": 1, "2026-03-04": 1 });
+  assert.strictEqual(H.streakOf(done, "2026-03-04"), 3);
+  // A missed week ends it: the week of 8 Feb had nothing.
+  assert.strictEqual(H.bestStreakOf(done, "2026-03-04"), 3);
+  assert.deepStrictEqual(H.bestRunOf(done, "2026-03-04"), { days: 3, from: "2026-02-15", to: "2026-03-07" });
+});
+
+test("a goal's rate counts weeks, and an unfinished week isn't a missed one", () => {
+  const w = weekly(marks("2026-02-15", "2026-02-16", "2026-02-17", "2026-03-02"));
+  // Weeks from 1 Feb: 1, 8, 15, 22 Feb are over (one met); this week isn't.
+  assert.deepStrictEqual(H.statsFor(w, "2026-02-01", "2026-03-04"), { due: 4, done: 1, rate: 0.25 });
+  assert.deepStrictEqual(H.weekdayRates(w, "2026-03-04"), [], "weekdays mean nothing to any-days goals");
+});
+
+test("a tap on a goal adds one today until it's met, then takes today's back", () => {
+  const w = weekly(marks("2026-03-01", "2026-03-02"));
+  assert.strictEqual(H.nextPeriodMark(w, "2026-03-04"), 1);
+  const met = weekly({ ...marks("2026-03-01", "2026-03-02"), "2026-03-04": 1 });
+  assert.strictEqual(H.nextPeriodMark(met, "2026-03-04"), 0);
+});
+
+test("a timed habit counts minutes against its daily target", () => {
+  const p = H.sanitizeHabit({ name: "Project", unit: "min", target: 60, startedAt: "2026-03-01", marks: { "2026-03-02": 75, "2026-03-03": 30 } });
+  assert.strictEqual(H.isDone(p, "2026-03-02"), true);
+  assert.strictEqual(H.isDone(p, "2026-03-03"), false);
+  assert.strictEqual(H.minutesLabel(90), "1 h 30 min");
+  assert.strictEqual(H.minutesShort(25), "25m");
+  assert.strictEqual(H.amountBetween(p, "2026-03-01", "2026-03-04"), 105);
+});
+
+test("left to do: open habits by period, avoided ones never left", () => {
+  const list = [
+    H.sanitizeHabit({ name: "Read", startedAt: "2026-03-01" }),
+    weekly(marks("2026-03-02")),
+    H.sanitizeHabit({ name: "Call", period: "month", target: 2, startedAt: "2026-03-01" }),
+    H.sanitizeHabit({ name: "Walk", startedAt: "2026-03-01", marks: marks("2026-03-04") }),
+    H.sanitizeHabit({ name: "No soda", avoid: true, startedAt: "2026-03-01" }),
+  ];
+  const L = H.leftToDo(list, "2026-03-04");
+  assert.strictEqual(L.left, 3);
+  assert.deepStrictEqual(L.groups.map((g) => [g.period, g.items.map((i) => i.habit.name), g.daysLeft]),
+    [["day", ["Read"], 0], ["week", ["Gym"], 3], ["month", ["Call"], 27]]);
+  assert.deepStrictEqual(L.done.map((h) => h.name), ["Walk", "No soda"]);
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

@@ -125,7 +125,7 @@ const FAKE_IOS = () => {
   await page.evaluate(() => window.__ios.urlOpen({ url: "lifelog://action/open-habits" }));
   await page.waitForTimeout(500);
   check("and a link that arrives while it's open does too", await page.evaluate(() =>
-    document.querySelector('#viewTabs .tab[data-view="notes"]').classList.contains("active") && !!document.querySelector(".habit-today, .empty-state")));
+    document.querySelector('#viewTabs .tab[data-view="notes"]').classList.contains("active") && !!document.querySelector(".habit-left, .habit-card, .empty-state")));
   check("the widgets get their snapshot", await page.evaluate(() => window.__ios.snaps > 0 && Array.isArray(window.__ios.lastSnap.notes)));
   check("Face ID is offered for the app lock", await page.evaluate(async () => {
     document.getElementById("settingsBtn").click();

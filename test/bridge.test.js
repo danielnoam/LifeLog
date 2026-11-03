@@ -716,6 +716,26 @@ test("habits, recurring bills, categories and projects can be added", async () =
   assert.match(await ok("lifelog_add_backlog_item", { title: "Severance", category: "Shows" }), /Severance/);
 });
 
+test("goals: a weekly count and a timed habit, marked and listed as what's left (0.300.0)", async () => {
+  reset();
+  assert.match(await ok("lifelog_add_habit", { name: "Workout", target: 3, period: "week" }), /Started the habit "Workout" \(3 times a week\)/);
+  assert.match(await ok("lifelog_add_habit", { name: "Project", target: 60, unit: "minutes" }), /\(1 hour a day\)/);
+  await refused("lifelog_add_habit", { name: "Odd", period: "fortnight" }, /period is day, week, month or year/);
+  let d = data();
+  const w = d.habits.find((h) => h.name === "Workout");
+  assert.strictEqual(w.period, "week");
+  assert.strictEqual(w.cadence, "daily");
+  assert.strictEqual(d.habits.find((h) => h.name === "Project").unit, "min");
+  assert.match(await ok("lifelog_mark_habit", { habit: "Workout" }), /1 of 3 that week/);
+  assert.match(await ok("lifelog_mark_habit", { habit: "Project", add: 25 }), /25 min of 1 hour that day/);
+  const left = await ok("lifelog_habits_left", {});
+  assert.match(left, /- Project: 25 min of 1 hour, 35 min to go/);
+  assert.match(left, /This week \(\d+ days left after today\):\n- Workout: 1 of 3, 2 to go/);
+  // Leaving value out tops a timed habit up to its target.
+  assert.match(await ok("lifelog_mark_habit", { habit: "Project" }), /1 hour of 1 hour that day, done/);
+  assert.match(await ok("lifelog_habits", {}), /Workout \[3 times a week\]: 1 of 3 this week/);
+});
+
 test("deleting a category moves its items as the app does, and undo puts it all back", async () => {
   reset(); withBills();
   assert.match(await ok("lifelog_delete_category", { kind: "expense", name: "Food" }), /Deleted the expense category "Food"\. 4 items moved to Other/);
