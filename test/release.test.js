@@ -92,4 +92,32 @@ test("a test build is a pre-release the updater never sees", () => {
   assert.ok(/needs\.gate\.outputs\.test == 'true'\) && secrets\.ANDROID_KEYSTORE_B64/.test(yml), "the release key signs main and labelled test builds only");
 });
 
+test("Test builds lists only test- pre-releases, reading the notes' first lines", () => {
+  global.window = { LifeLogPlatform: { native: false } };
+  global.document = { querySelector: () => null };
+  global.location = { hostname: "localhost", pathname: "/" };
+  require("../src/testbuilds.js");
+  const T = window.LifeLogTestBuilds;
+  const body = "version: 0.299.0\nbranch: feature/x\ncommit: abcdef1234567\npr: 31\n\nA test build of pull request #31.";
+  assert.deepStrictEqual(T.notesOf(body), { version: "0.299.0", branch: "feature/x", commit: "abcdef1234567", pr: "31" });
+  const r = T.parse([
+    { tag_name: "app-v0.298.0", prerelease: false, name: "LifeLog 0.298.0", published_at: "2026-10-31T00:00:00Z", assets: [] },
+    { tag_name: "test-feature-x", prerelease: true, name: "Test: Feature X", body, published_at: "2026-11-03T00:00:00Z", assets: [{ name: "LifeLog.apk" }] },
+    { tag_name: "nightly", prerelease: true, name: "Something else", assets: [] },
+    { tag_name: "test-draft", prerelease: true, draft: true, assets: [] },
+  ]);
+  assert.strictEqual(r.stable, "0.298.0");
+  assert.strictEqual(r.list.length, 1);
+  assert.deepStrictEqual([r.list[0].title, r.list[0].branch, r.list[0].sha, r.list[0].pr, r.list[0].apk, r.list[0].ipa], ["Feature X", "feature/x", "abcdef1234567", "31", true, false]);
+});
+
+test("sw.js serves a browser's test build from its commit and keeps the release's cache apart", () => {
+  const sw = fs.readFileSync(path.join(ROOT, "sw.js"), "utf8");
+  assert.ok(sw.includes('const PREVIEW = "lifelog-preview"'));
+  assert.ok(sw.includes("https://raw.githubusercontent.com/"));
+  assert.ok(sw.includes('!k.startsWith(PREVIEW)'), "activate must not drop the preview cache");
+  assert.ok(sw.includes('url.searchParams.has("release")'), "./?release leaves the preview");
+  assert.ok(sw.includes('"./src/testbuilds.js"'));
+});
+
 console.log(`\n${passed} passed`);

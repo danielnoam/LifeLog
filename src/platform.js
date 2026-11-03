@@ -109,11 +109,13 @@
   // file's uri, so a cancelled installer can be reopened without downloading
   // again; null when the plugins aren't there (an app older than this).
   const APK_MIME = "application/vnd.android.package-archive";
-  async function downloadUpdate(version, onProgress) {
+  // A test build (0.299.0) comes from its pre-release `tag` instead, and
+  // `version` is then the file's name part (test-<branch>-<sha>).
+  async function downloadUpdate(version, onProgress, tag = "app-v" + version) {
     if (os !== "android") return null;
     const FS = native && cap.Plugins && cap.Plugins.Filesystem;
     if (!FS || !(cap.Plugins && cap.Plugins.FileOpener) || !build || !build.repo) return null;
-    const url = "https://github.com/" + build.repo + "/releases/download/app-v" + version + "/LifeLog.apk";
+    const url = "https://github.com/" + build.repo + "/releases/download/" + tag + "/LifeLog.apk";
     const path = "LifeLog-" + version + ".apk";
     const listener = await FS.addListener("progress", (p) => {
       if (onProgress && p && p.contentLength > 0) onProgress(Math.min(1, p.bytes / p.contentLength));
@@ -128,7 +130,8 @@
   function openInstaller(uri) {
     return cap.Plugins.FileOpener.openFile({ path: uri, mimeType: APK_MIME });
   }
-  // APKs for versions already installed have done their job.
+  // APKs for versions already installed have done their job, and so has any
+  // test build's: it's asked for again from Test builds if wanted.
   async function clearOldUpdates(currentVersion, isNewer) {
     const FS = native && cap.Plugins && cap.Plugins.Filesystem;
     if (!FS) return;
@@ -137,7 +140,7 @@
       for (const f of files || []) {
         const name = typeof f === "string" ? f : f.name;
         const m = /^LifeLog-(\d+\.\d+\.\d+)\.apk$/.exec(name || "");
-        if (m && !isNewer(m[1], currentVersion)) await FS.deleteFile({ path: name, directory: "CACHE" });
+        if ((m && !isNewer(m[1], currentVersion)) || /^LifeLog-test-.+\.apk$/.test(name || "")) await FS.deleteFile({ path: name, directory: "CACHE" });
       }
     } catch (e) { /* nothing to tidy */ }
   }

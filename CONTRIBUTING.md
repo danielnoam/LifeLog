@@ -189,8 +189,11 @@ branch (`.github/workflows/test-builds.yml`) and every push after that
 rebuilds it, onto the pre-release `test-<branch>` (`tools/test-build.sh`).
 Taking the label off, closing the PR or deleting the branch removes it. A
 branch without a test label doesn't build at all. A pre-release is never
-the latest release, so the updater never offers it; install it from its
-release page. It's signed with the release key, so it installs over the
+the latest release, so the updater never offers it; Settings → About →
+Test builds lists them. There, Android installs one through the updater's
+own download, an iPhone opens its release page, and a browser on the web
+app opens it in place (`sw.js` serves that commit's files from
+raw.githubusercontent.com until Back to the release). It's signed with the release key, so it installs over the
 app you have and keeps your data. **It also syncs with your real data**:
 a test build that writes something wrong is taken back with Settings →
 History → Undo. A PR from a fork runs the tests too, but without the repo's
