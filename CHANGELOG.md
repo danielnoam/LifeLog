@@ -4,6 +4,11 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.300.1] - 2026-11-03
+
+### Changed
+- A habit's form asks how often once: every day, certain days, each week, each month or each year. 0.300.0 asked it twice, once for the goal's period and once for the days.
+
 ## [0.300.0] - 2026-11-03
 
 ### Added

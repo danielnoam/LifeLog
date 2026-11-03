@@ -762,16 +762,16 @@ const stored = (page) => page.evaluate(() => window.LifeLogStorage.cachedCopy().
     await page.locator('.habit-card[data-id="p"] .habit-name').click();
     await page.fill("#habitTarget", "2");
     await page.selectOption("#habitUnit", "hours");
-    await page.selectOption("#habitPeriod", "week");
+    await page.selectOption("#habitCadence", "week");
     check("a goal over a week hides the weekday choice and says what it means",
-      await page.locator("#habitCadenceLabel").isHidden() && /2 hours a week, on any days/.test(await page.locator("#habitGoalHint").innerText()));
+      await page.locator("#habitDaysLabel").isHidden() && await page.locator("#habitCadence option").count() === 5 && /2 hours a week, on any days/.test(await page.locator("#habitGoalHint").innerText()));
     await page.click("#habitForm button[type=submit]");
     await page.waitForTimeout(400);
     h = (await stored(page)).find((x) => x.id === "p");
     check("and saves it in minutes", h.period === "week" && h.unit === "min" && h.target === 120, h);
     await page.locator('.habit-card[data-id="p"] .habit-name').click();
     check("reopened, whole hours show as hours",
-      await page.inputValue("#habitTarget") === "2" && await page.inputValue("#habitUnit") === "hours" && await page.inputValue("#habitPeriod") === "week");
+      await page.inputValue("#habitTarget") === "2" && await page.inputValue("#habitUnit") === "hours" && await page.inputValue("#habitCadence") === "week");
     errs.push(...e);
     await ctx.close();
   }
