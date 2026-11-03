@@ -590,6 +590,7 @@
       $("#aboutVersion").textContent = "Version " + APP_VERSION + " · " + (P.android ? "Android app" : P.ios ? "iOS app" : "Web app");
       renderChangelog(false);
       renderErrLog();
+      if (window.LifeLogTestBuilds) window.LifeLogTestBuilds.render();
     }
     const was = currentPage;
     currentPage = name || "";

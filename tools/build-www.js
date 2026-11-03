@@ -96,6 +96,10 @@ function build(out = OUT, root = ROOT) {
     // GitHub Pages: the host is the owner lowercased, the path the repo as named.
     webUrl: repo ? "https://" + owner.toLowerCase() + ".github.io/" + name + "/" : null,
     builtAt: new Date().toISOString(),
+    // Which branch and commit, so Settings → About → Test builds knows a
+    // test build from the release (0.299.0).
+    branch: process.env.GITHUB_REF_NAME || null,
+    sha: process.env.GITHUB_SHA || null,
   };
   fs.writeFileSync(path.join(out, "app-build.json"), JSON.stringify(info, null, 2) + "\n");
   return { out, files: assets.length + 1, info };

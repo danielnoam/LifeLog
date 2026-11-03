@@ -2674,6 +2674,13 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 #errLogList { display: contents; }
 #errLogList .sitem-title { overflow-wrap: anywhere; font-weight: 450; }
 .modal #errLogList > .sitem + .sitem { border-top: 1px solid var(--border); }
+/* Settings → About → Test builds (0.299.0): a pull request per row, its
+   Install / Open on the right. */
+#testBuildsList { display: contents; }
+.modal #testBuildsList > * + * { border-top: 1px solid var(--border); }
+#testBuildsList .tb-row .sitem-title { overflow-wrap: anywhere; }
+#testBuildsList .tb-row .btn-small { flex: 0 0 auto; position: relative; }
+.sitem-sub.tb-warn { color: var(--warning); }
 .sitem-sub a { color: var(--accent); display: inline-block; padding: 12px 0; margin: -12px 0; }
 .sitem-sub br { content: ""; display: block; margin-top: 4px; }
 .modal .sitem select {

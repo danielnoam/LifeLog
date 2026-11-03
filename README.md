@@ -255,7 +255,7 @@ that tab instead, for bulk work.
 Pages with their own search: sync, import and export, history, app lock,
 four themes (Default, Light, Nord, Dracula), fonts and layout, tabs, media
 lookups, imports, release dates, notifications on the phones, and About
-with what's new, the credits and the errors on this device.
+with what's new, the credits, the errors on this device and Test builds.
 
 <table><tr>
 <td><img src="docs/screenshots/settings-desktop.webp" alt="Settings on a computer" width="620"></td>
@@ -356,8 +356,10 @@ The same files, built into an APK by [Capacitor](https://capacitorjs.com).
   `sw.js`'s `ASSETS` list into `www/`, Capacitor wraps them, and a release
   `app-v<version>` is published whenever `APP_VERSION` is new.
 - **Test builds**: a pull request labelled `test` (or `test-android`,
-  `test-ios`) is built onto the pre-release `test-<branch>`. It installs
-  over the app and keeps your data, and the updater never offers it.
+  `test-ios`) is built onto the pre-release `test-<branch>`. Settings →
+  About → Test builds installs one over the app (your data stays), opens it
+  in place in a browser, and goes back to the release. The updater never
+  offers one.
 - **Signing**: releases are signed with the key in the repository secrets
   `ANDROID_KEYSTORE_B64` and `ANDROID_KEYSTORE_PASSWORD` (alias `lifelog`).
   Without them CI builds a test APK and publishes nothing.

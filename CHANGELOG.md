@@ -4,6 +4,17 @@ All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown as "LifeLog vX.Y.Z" at
 the bottom of Settings.
 
+## [0.299.0] - 2026-11-03
+
+### Added
+- **Test builds** in Settings → About: try a change before it's released.
+  On Android, Install puts it over the LifeLog you have and keeps your
+  data; in a browser, Open runs it in place with a bar at the top to get
+  back; on iPhone, Get it opens the build's page for AltStore or SideStore.
+  **Back to the release** puts the released version back. A test build
+  syncs with your data like the release does, so Settings → History → Undo
+  takes back anything it gets wrong.
+
 ## [0.298.0] - 2026-10-31
 
 ### Added
