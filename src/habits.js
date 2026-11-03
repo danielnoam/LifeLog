@@ -1046,21 +1046,9 @@
     const c = h.cadence;
     const order = Dates().weekOrder();
     const rows = !c || c === "daily" ? order : order.filter((d) => c.days.includes(d));
-    // A weekly goal's columns are its weeks: a bar under each says whether
-    // that one was met, which the days above it can't. Over the grid, with
-    // the cells full width, it read as a row of cells cut off at the top.
-    let strip = null;
-    if (h.period === "week") {
-      strip = el("div", "habit-weeks");
-      strip.setAttribute("aria-hidden", "true");
-      for (let col = 0; col < GRID_WEEKS; col++) {
-        const from = addDaysStr(start, col * 7);
-        const b = el("i");
-        if (from > today || (h.startedAt && addDaysStr(from, 6) < h.startedAt)) b.className = "is-off";
-        else if (metIn(h, [from, addDaysStr(from, 6)])) { b.className = "is-met"; b.style.background = h.color; }
-        strip.appendChild(b);
-      }
-    }
+    // No met-week bar on weekly goals (removed after 0.303.1): over the grid or
+    // under it, a 4px row read as a row of cells cut off, and it made those
+    // cards taller than their neighbours. The streak and Insights say it.
     for (const row of rows) {
       const line = el("div", "habit-grid-row");
       // Every row named. Until 0.235.0 a full week labelled only Mon, Wed
@@ -1072,6 +1060,7 @@
         const cell = el("button", "habit-cell");
         cell.type = "button";
         cell.dataset.date = date;
+        if (date === today) { cell.classList.add("is-today"); cell.setAttribute("aria-current", "date"); }
         if (date > today) {
           cell.classList.add("is-future");
           cell.disabled = true;
@@ -1114,7 +1103,6 @@
       }
       wrap.appendChild(line);
     }
-    if (strip) wrap.appendChild(strip);
     if (anchor && anchor.id === h.id) {
       wrap.appendChild(el("p", "habit-range-hint",
         "Tap the day this run ends on — or the same day again to stop."));
