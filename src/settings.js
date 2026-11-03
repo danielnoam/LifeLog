@@ -731,7 +731,9 @@
   // the words in the language. The lists that rows are drawn into (tab
   // switches, history, categories) are data, not settings, and are skipped.
   const DYNAMIC = "#tabToggles, #mediaCatRows, #historyList, #trashList";
-  const VIEW_NAMES = { timeline: "Timeline", backlog: "Backlog", finance: "Ledger" };
+  const VIEW_NAMES = { timeline: "Timeline", backlog: "Backlog", finance: "Ledger", habits: "Habits" };
+  // Habits is a mode of the Notes tab, but its options are its own.
+  const viewKey = (view) => (view === "notes" && state.notesMode === "habits" ? "habits" : view);
   const squash = (t) => (t || "").replace(/\s+/g, " ").replace(/[…:]+\s*$/, "").trim();
   const shownIn = (n, root) => { for (let x = n; x && x !== root; x = x.parentElement) if (x.hidden) return false; return true; };
 
@@ -859,6 +861,7 @@
     $("#timelineMonthSummary").value = state.visual.timelineMonthSummary || "hide";
     $("#backlogCounts").value = state.visual.backlogCounts;
     $("#outTodaySheet").value = state.visual.outTodaySheet || "show";
+    $("#habitsLeftPanel").value = state.visual.habitsLeftPanel || "show";
     const A = window.LifeLogAlerts;
     const alertsHere = !!(A && A.available());
     $("#releaseAlertsRow").hidden = !alertsHere;
@@ -890,9 +893,14 @@
   // Opened from a search result for another tab, it goes to that tab first:
   // the options are for seeing their effect, which needs the list under them.
   function openViewOptions(view) {
-    view = view || state.view;
+    view = view || viewKey(state.view);
     if (!hasViewOptions(view)) return;
-    if (view !== state.view && switchToView) switchToView(view);
+    if (view === "habits") {
+      if (viewKey(state.view) !== "habits") {
+        state.notesMode = "habits";
+        if (state.view !== "notes" && switchToView) switchToView("notes"); else render();
+      }
+    } else if (view !== state.view && switchToView) switchToView(view);
     fillViewOptions();
     $("#viewOptionsTitle").textContent = (VIEW_NAMES[view] || "View") + " view";
     document.querySelectorAll("#viewOptionsModal [data-for]").forEach((sec) => {
@@ -904,7 +912,7 @@
 
   function syncViewOptionsButton(view) {
     const b = $("#viewOptionsBtn");
-    if (b) b.hidden = !hasViewOptions(view);
+    if (b) b.hidden = !hasViewOptions(viewKey(view));
   }
 
   function renderMediaCatRows() {
@@ -1639,6 +1647,11 @@
     $("#backlogFoldDropped").onchange = onBandFoldChange;
     $("#ledgerMonthSummary").onchange = onMonthSummaryChange;
     $("#timelineMonthSummary").onchange = onMonthSummaryChange;
+    $("#habitsLeftPanel").onchange = () => {
+      state.visual.habitsLeftPanel = $("#habitsLeftPanel").value;
+      saveVisualSettings(state.visual);
+      render();
+    };
     $("#currency").onchange = async () => {
       state.data.settings.currency = $("#currency").value;
       render();

@@ -90,7 +90,7 @@ const stored = (page) => page.evaluate(() => window.LifeLogStorage.cachedCopy().
       today: document.querySelector(".habit-left").innerText.replace(/\s+/g, " "),
     }));
     check("a tap ticks today and extends the streak", /4/.test(after.streak) && after.done, after);
-    check("and the panel follows", /Nothing left for now/.test(after.today) && /Done for now: Read/.test(after.today), after.today);
+    check("and the panel follows", /Nothing left for now/.test(after.today) && !/Done for now/.test(after.today), after.today);
     check("the right day was recorded, not some other one",
       (await stored(page))[0].marks[TODAY] === 1, (await stored(page))[0].marks);
 
@@ -756,7 +756,20 @@ const stored = (page) => page.evaluate(() => window.LifeLogStorage.cachedCopy().
     await page.waitForTimeout(400);
     h = (await stored(page)).find((x) => x.id === "p");
     const after = await panel();
-    check("saving the sheet sets the day, and a met goal leaves the list", h.marks[TODAY] === 70 && !/Project \d/.test(after) && /Done for now: Project/.test(after), { m: h.marks, after });
+    check("saving the sheet sets the day, and a met goal leaves the list", h.marks[TODAY] === 70 && !/Project \d/.test(after) && !/Done for now/.test(after), { m: h.marks, after });
+
+    // Habits has its own View options: the Left to do panel can be hidden.
+    check("the View button shows on Habits", await page.locator("#viewOptionsBtn").isVisible());
+    await page.click("#viewOptionsBtn");
+    check("and holds the Left to do choice", await page.locator("#habitsLeftPanel").isVisible()
+      && await page.locator('#viewOptionsModal [data-for="backlog"]').isHidden());
+    await page.selectOption("#habitsLeftPanel", "hide");
+    await page.waitForTimeout(300);
+    check("hiding it takes the panel away", await page.locator(".habit-left").count() === 0);
+    await page.selectOption("#habitsLeftPanel", "show");
+    await page.click("#closeViewOptionsBtn");
+    await page.waitForTimeout(300);
+    check("and showing it brings it back", await page.locator(".habit-left").count() === 1);
 
     // The form writes a goal as a sentence: 2 hours a week.
     await page.locator('.habit-card[data-id="p"] .habit-name').click();
