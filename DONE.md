@@ -156,6 +156,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Left to do: what's still open today and this week, month and year, at the top of Habits and in the habits widget (0.300.0)
 - Habits view option: hide the Left to do panel (View button, this device only) (0.302.0)
 - Habit cards: buttons under a full-width grid, best and rate on the Insights line (0.303.0)
+- Habit grids: smaller cells, lines between days, today ringed, no week-met bar (next release)
 
 ## Ledger
 

@@ -3697,9 +3697,6 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 #habitGoalHint, #habitAmountWhen { margin: 0 0 var(--space-12); }
 .habit-goal-row > label.field-narrow { flex: 0 0 5rem; }
 /* A weekly goal's weeks, one bar over each grid column. */
-.habit-weeks { display: flex; gap: var(--space-4); padding-left: var(--space-16); margin-top: var(--space-4); }
-.habit-weeks > i { flex: 1 1 0; height: 4px; border-radius: var(--r-hair); background: var(--bg-elev-2); }
-.habit-weeks > i.is-off { background: transparent; }
 .habit-today-count { font-size: var(--fs-2xl); font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
 .habit-today-label { font-size: var(--fs-sm); color: var(--text-dim); }
 
@@ -3809,13 +3806,21 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 /* The card's full width: the cells grow to fill it, so the grid isn't a
    block in one corner with empty card beside it. */
 .habit-grid { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
-.habit-grid-row { display: flex; align-items: center; gap: 4px; }
+.habit-grid-row { display: flex; align-items: center; gap: 4px; position: relative; }
+/* Cells stay small and the columns spread across the card's width. */
+.habit-grid-row { justify-content: space-between; }
+/* A hairline between the days, drawn in the gap so it costs no height. */
+.habit-grid-row + .habit-grid-row::before {
+  content: ""; position: absolute; left: 16px; right: 0; top: -2.5px;
+  height: 1px; background: var(--border); pointer-events: none;
+}
+/* Centred: right-aligned, the wide M and W sat left of S, T and F. */
 .habit-grid-day {
   flex: 0 0 12px; font-size: var(--fs-3xs); color: var(--text-faint);
-  text-align: right; line-height: 1;
+  text-align: center; line-height: 1;
 }
 .habit-cell {
-  flex: 1 1 0; aspect-ratio: 1; min-width: 0; padding: 0;
+  flex: 0 1 22px; aspect-ratio: 1; min-width: 0; padding: 0;
   background: var(--bg-elev-2); border: 1px solid transparent; border-radius: var(--r-xs);
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
@@ -3827,7 +3832,10 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 /* Held down: this is one end of a run, and the grid is waiting for the other.
    An outline in --text rather than --accent, because a kept cell is already
    filled with the habit's colour and an accent ring on it is invisible. */
-.habit-cell.is-anchor { outline: 2px solid var(--text); outline-offset: 1px; }
+/* Today's cell ringed outside its fill, so the ring shows on an empty cell,
+   a filled one and an avoid habit's inset outline alike. */
+.habit-cell.is-today { outline: 2px solid var(--text-dim); outline-offset: 1px; position: relative; z-index: 1; }
+.habit-cell.is-anchor { outline: 2px solid var(--text); outline-offset: 1px; position: relative; z-index: 1; }
 .habit-range-hint { margin: 8px 0 0; font-size: var(--fs-xs); color: var(--accent); text-align: center; }
 
 /* Walking the window back, for a habit you kept longer than the grid is
