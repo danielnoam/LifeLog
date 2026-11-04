@@ -141,6 +141,9 @@ Every release that adds a feature adds its line here in the same commit.
 - Show, sort and type filters (0.195.0, 0.214.0)
 - Bulk select, and make a note into a timeline entry (0.142.0)
 - Images in notes: add, paste or drop; kept on their own GitHub branch; Clean up (0.297.0)
+- One page to read and write a note (Read / Edit), category chip under the title, dates at the foot, kind and Delete in ⋯ (next release)
+- Notebook → View: line numbers in the editor, text size, open notes to read or edit (next release)
+- Checklist items move in the edit sheet by a drag handle or the arrow keys (next release)
 
 ## Notebook (Habits)
 

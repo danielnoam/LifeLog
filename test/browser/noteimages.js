@@ -177,7 +177,7 @@ const refIds = (text) => [...String(text || "").matchAll(/lifelog-img:([a-z0-9]+
   text = await a.inputValue("#nText");
   check("× takes the picture's line out of the text", refIds(text).length === 1 && !/\n\n\n/.test(text), text);
   await a.fill("#nTitle", "Ridge");
-  await a.click("#noteForm button[type=submit]");
+  await a.click("#noteModal button[type=submit]");
   await settled(a);
   await a.waitForTimeout(300);
   const hike = repo.file.data.notes.find((n) => n.title === "Ridge");
@@ -202,7 +202,7 @@ const refIds = (text) => [...String(text || "").matchAll(/lifelog-img:([a-z0-9]+
   await a.fill("#nText", "Short-lived\n");
   await a.setInputFiles("#nImageInput", [small]);
   await a.waitForSelector(".note-image-thumb img[src^='blob:']", { timeout: 8000 });
-  await a.click("#noteForm button[type=submit]");
+  await a.click("#noteModal button[type=submit]");
   await settled(a);
   const gone = repo.file.data.notes.find((n) => /Short-lived/.test(n.text));
   const goneId = refIds(gone.text)[0];
@@ -218,7 +218,7 @@ const refIds = (text) => [...String(text || "").matchAll(/lifelog-img:([a-z0-9]+
   await a.fill("#nText", "Racing the clean-up\n");
   await a.setInputFiles("#nImageInput", [small]);
   await a.waitForSelector(".note-image-thumb img[src^='blob:']", { timeout: 8000 });
-  await a.click("#noteForm button[type=submit]");
+  await a.click("#noteModal button[type=submit]");
   await settled(a);
   const raced = refIds(repo.file.data.notes.find((n) => /Racing/.test(n.text)).text)[0];
 
@@ -242,7 +242,7 @@ const refIds = (text) => [...String(text || "").matchAll(/lifelog-img:([a-z0-9]+
   await a.waitForTimeout(800);
   await a.evaluate(() => window.LifeLogNotes.openNoteModal(null));
   await a.fill("#nText", "Anything, to save");
-  await a.click("#noteForm button[type=submit]");
+  await a.click("#noteModal button[type=submit]");
   await settled(a);
   check("a device that sees a clean-up uploads again what it dropped", imageIds(repo).includes(raced), imageIds(repo));
 
