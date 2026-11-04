@@ -43,7 +43,7 @@ and the iOS app (Capacitor). See README.md for the layout.
   `tools/release.js` only when he asks for a release. Check the runs went
   green.
 - When Daniel wants to try a change on his phone before it's merged, add
-  the `test` label (or `test-android` / `test-ios`) to its PR and tell him
+  the `test` label (or `test-android` / `test-ios` / `test-desktop`) to its PR and tell him
   the build is on the `test-<branch>` pre-release.
 
 ## Branch names

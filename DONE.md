@@ -246,6 +246,12 @@ Every release that adds a feature adds its line here in the same commit.
 - Widgets, habit reminders and Face ID (0.217.0)
 - Share sheet extension (0.250.0)
 
+## Windows and Linux app
+
+- LifeLog for Windows and Linux (Tauri): opens offline, no proxy for Steam and Maps, the Save dialog for exports (next release)
+- Closes to the tray, with Add entry and Add expense; habit reminders and heads-ups ring while it runs; start at login (next release)
+- Updates itself when the release has signed update files, else opens the release page (next release)
+
 ## The AI bridge
 
 - An MCP server and command line for other AIs to read and change LifeLog (0.239.0, 0.240.0)
@@ -260,6 +266,7 @@ Every release that adds a feature adds its line here in the same commit.
 
 - Tests gate every publish: the APK, the IPA and the web app wait on the unit and browser tests in CI (0.271.0)
 - Pull requests into main, merged once the Tests check is green; `tools/release.js` releases what `changes/` has gathered; a PR labelled `test`, `test-android` or `test-ios` gets a test build on a `test-<branch>` pre-release (2026-11-02)
+- The Windows and Linux app builds beside the phones' (`desktop.yml`), attached to each release; the `test-desktop` label gives a PR desktop test files (next release)
 
 ## Accessibility
 

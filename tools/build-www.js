@@ -17,7 +17,11 @@ const path = require("path");
 const { execSync } = require("child_process");
 
 const ROOT = path.resolve(__dirname, "..");
-const OUT = path.resolve(ROOT, process.argv[2] || "www");
+const ARGS = process.argv.slice(2);
+// --desktop: the copy src-tauri/ bundles for Windows and Linux (into
+// www-desktop/, see tauri.conf.json).
+const DESKTOP = ARGS.includes("--desktop");
+const OUT = path.resolve(ROOT, ARGS.find((a) => !a.startsWith("--")) || (DESKTOP ? "www-desktop" : "www"));
 
 function assetList(root = ROOT) {
   const sw = fs.readFileSync(path.join(root, "sw.js"), "utf8");
@@ -72,7 +76,18 @@ function appIndexHtml(html) {
   return out;
 }
 
-function build(out = OUT, root = ROOT) {
+// The desktop copy (Tauri) keeps the web's index.html, which has no phone
+// bars to draw under, with one change: Tauri's calls into the app shell go
+// to its ipc: address (http://ipc.localhost on Windows), which the page's
+// connect-src has to allow, or every call falls back to a slower route and
+// logs a CSP error first.
+function desktopIndexHtml(html) {
+  const out = html.replace(/(connect-src [^;"]*)/, "$1 ipc: http://ipc.localhost");
+  if (out === html) throw new Error("couldn't find connect-src in index.html's CSP for the desktop copy");
+  return out;
+}
+
+function build(out = OUT, root = ROOT, desktop = DESKTOP) {
   const assets = assetList(root);
   const missing = referencedByIndex(root).filter((f) => !assets.includes(f));
   if (missing.length) {
@@ -85,7 +100,10 @@ function build(out = OUT, root = ROOT) {
     if (!fs.existsSync(from)) throw new Error("sw.js lists " + rel + ", which doesn't exist");
     const to = path.join(out, rel);
     fs.mkdirSync(path.dirname(to), { recursive: true });
-    if (rel === "index.html") fs.writeFileSync(to, appIndexHtml(fs.readFileSync(from, "utf8")));
+    if (rel === "index.html") {
+      const html = fs.readFileSync(from, "utf8");
+      fs.writeFileSync(to, desktop ? desktopIndexHtml(html) : appIndexHtml(html));
+    }
     else fs.copyFileSync(from, to);
   }
   const repo = repoSlug();
@@ -101,6 +119,7 @@ function build(out = OUT, root = ROOT) {
     branch: process.env.GITHUB_REF_NAME || null,
     sha: process.env.GITHUB_SHA || null,
   };
+  if (desktop) info.desktop = true;
   fs.writeFileSync(path.join(out, "app-build.json"), JSON.stringify(info, null, 2) + "\n");
   return { out, files: assets.length + 1, info };
 }
@@ -109,4 +128,4 @@ if (require.main === module) {
   const r = build();
   console.log("www: " + r.files + " files → " + path.relative(ROOT, r.out) + " (" + r.info.version + ", " + (r.info.repo || "no repo") + ")");
 }
-module.exports = { build, assetList, referencedByIndex, appVersion, appIndexHtml };
+module.exports = { build, assetList, referencedByIndex, appVersion, appIndexHtml, desktopIndexHtml };

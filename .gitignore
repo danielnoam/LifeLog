@@ -9,3 +9,7 @@ node_modules/
 /www/
 /android/
 /ios/
+/www-desktop/
+/src-tauri/target/
+/src-tauri/gen/
+/src-tauri/icons/

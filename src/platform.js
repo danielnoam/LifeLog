@@ -23,13 +23,24 @@
   // plugin, the storage flags — asks this rather than assuming Android.
   const os = native ? String((cap.getPlatform && cap.getPlatform()) || "android") : "web";
 
+  // The Windows and Linux app (Tauri, src-tauri/): the web's files in the
+  // system's WebView, with Tauri's API on window.__TAURI__ in place of
+  // Capacitor's plugins. Not `native`: that still means a phone, with its
+  // widgets, bars and APK updater. What the desktop shares with the phones
+  // (files in the bundle, no service worker, native HTTP, links out to the
+  // browser) asks `bundled` instead.
+  const tauri = !native && window.__TAURI__ && window.__TAURI__.core ? window.__TAURI__ : null;
+  const desktop = !!tauri;
+  const desktopOs = desktop ? (/Windows/i.test(navigator.userAgent) ? "windows" : "linux") : "";
+  const bundled = native || desktop;
+
   // Also baked into the app's index.html by tools/build-www.js, so the
   // edge-to-edge padding applies from the first frame; this is the same
   // thing again for anything that loads the page some other way.
   if (native) document.documentElement.classList.add("native");
 
   let build = null;
-  const ready = native
+  const ready = bundled
     ? fetch("app-build.json", { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((b) => { build = b; return b; })
@@ -53,6 +64,10 @@
   const launcher = () => (native && cap.Plugins && cap.Plugins.AppLauncher) || null;
   const nativeOpen = window.open.bind(window);
   function openOutside(url) {
+    if (desktop && tauri.opener) {
+      Promise.resolve(tauri.opener.openUrl(String(url))).catch(() => nativeOpen(url, "_blank"));
+      return true;
+    }
     const L = launcher();
     if (L) {
       // If Android can't find anything to open it with, fall back to the
@@ -65,7 +80,7 @@
     nativeOpen(url, "_blank");
     return true;
   }
-  if (native) {
+  if (bundled) {
     window.open = (url, target, features) => (isOutside(url) ? (openOutside(url), null) : nativeOpen(url, target, features));
     document.addEventListener("click", (e) => {
       const a = e.target && e.target.closest && e.target.closest("a[href]");
@@ -85,6 +100,7 @@
   // `base64: true` writes `text` as the bytes it encodes (a PNG) — the
   // Filesystem plugin takes base64 for binary when no encoding is given.
   async function saveAndShare(filename, text, opts = {}) {
+    if (desktop) return saveOnDesktop(filename, text, opts);
     const FS = native && cap.Plugins && cap.Plugins.Filesystem;
     const SH = native && cap.Plugins && cap.Plugins.Share;
     if (!FS || !SH) return false;
@@ -96,6 +112,24 @@
     } catch (e) {
       // Closing the share sheet is a choice, not a failure.
       if (!/cancel/i.test(String(e && e.message || e))) throw e;
+    }
+    return true;
+  }
+
+  // On a computer: the system's own Save dialog, then the file. A cancelled
+  // dialog is a choice, so it's still "done" and no link is clicked after it.
+  async function saveOnDesktop(filename, text, opts) {
+    if (!tauri.dialog || !tauri.fs) return false;
+    const ext = (/\.([A-Za-z0-9]+)$/.exec(filename) || [])[1];
+    const where = await tauri.dialog.save({ defaultPath: filename, filters: ext ? [{ name: ext.toUpperCase(), extensions: [ext] }] : [] });
+    if (!where) return true;
+    if (opts.base64) {
+      const bin = atob(text);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      await tauri.fs.writeFile(where, bytes);
+    } else {
+      await tauri.fs.writeTextFile(where, String(text));
     }
     return true;
   }
@@ -159,7 +193,24 @@
   // it for them too. The .invalid domain never resolves: if the interception
   // were ever missed, the request fails instead of going somewhere.
   const NATIVE_PROXY = "https://native-proxy.lifelog.invalid";
-  const nativeHttp = () => (native && cap.Plugins && cap.Plugins.CapacitorHttp) || null;
+  // On a computer it's Tauri's HTTP plugin, given the same request as
+  // CapacitorHttp and answering the same shape. Its scope (src-tauri/
+  // capabilities/default.json) lists the hosts upstreamFor maps to, and
+  // nothing else.
+  // Asked for at each request: a plugin's API may attach after this file runs.
+  const tauriHttp = desktop && {
+    async request({ url, headers, disableRedirects, connectTimeout, readTimeout }) {
+      const res = await tauri.http.fetch(url, {
+        method: "GET", headers: headers || {}, connectTimeout,
+        signal: AbortSignal.timeout((connectTimeout || 0) + (readTimeout || 20000)),
+        ...(disableRedirects ? { maxRedirections: 0 } : {}),
+      });
+      const out = {};
+      res.headers.forEach((v, k) => { out[k] = v; });
+      return { status: res.status, headers: out, url: res.url || url, data: await res.text() };
+    },
+  };
+  const nativeHttp = () => (native && cap.Plugins && cap.Plugins.CapacitorHttp) || (tauriHttp && tauri.http ? tauriHttp : null);
   function upstreamFor(url) {
     const u = new URL(url);
     let m = /^\/steam-wishlist\/(\d{17})$/.exec(u.pathname);
@@ -237,7 +288,7 @@
     const body = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
     return new Response(body, { status: res.status || 502, headers: { "Content-Type": "application/json" } });
   }
-  if (native) {
+  if (bundled) {
     const webFetch = window.fetch.bind(window);
     window.fetch = (input, init) => {
       const url = typeof input === "string" ? input : input && input.url;
@@ -253,6 +304,11 @@
     headless: !!(native && cap.headless),
     ios: os === "ios",
     android: os === "android",
+    // The Windows and Linux app, and Tauri's API there (src/desktop.js).
+    desktop,
+    windows: desktopOs === "windows",
+    linux: desktopOs === "linux",
+    get tauri() { return tauri; },
     ready,
     get build() { return build; },
     // A native plugin, or null in a browser or when the build doesn't carry it.

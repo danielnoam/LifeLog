@@ -1,0 +1,176 @@
+# Builds the Windows and Linux app (Tauri, src-tauri/) from the same files
+# GitHub Pages serves, and attaches it to the app-v<version> release the
+# Android workflow publishes. Same gate as android.yml and ios.yml: main
+# always builds, any other branch only when its open pull request carries
+# `test` or `test-desktop`.
+name: Desktop app
+
+on:
+  push:
+    branches: ["**"]
+    paths-ignore: ["**.md", "test/**", ".claude/**", "docs/**", "tools/readme-shots.js"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.g.outputs.build }}
+      test: ${{ steps.g.outputs.test }}
+    steps:
+      - id: g
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          if [ "$GITHUB_REF" = refs/heads/main ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          LABELS=",$(gh pr list -R "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json labels --jq '.[:1][] | [.labels[].name] | join(",")' 2>/dev/null || true),"
+          case "$LABELS" in
+            *,test,*|*,test-desktop,*) echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "$BRANCH has no open pull request labelled test or test-desktop, so no desktop build"
+               echo "build=false" >> "$GITHUB_OUTPUT"; echo "test=false" >> "$GITHUB_OUTPUT" ;;
+          esac
+
+  test:
+    needs: gate
+    if: needs.gate.outputs.build == 'true'
+    uses: ./.github/workflows/tests.yml
+
+  build:
+    needs: [gate, test]
+    outputs:
+      released: ${{ steps.attach.outputs.released }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # 22.04, not latest: an AppImage runs on systems at least as new as
+          # the one it was built on, so the older base reaches more of them.
+          - os: ubuntu-22.04
+            name: linux
+            bundles: appimage,deb
+          - os: windows-latest
+            name: windows
+            bundles: nsis,msi
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Linux libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
+
+      - run: npm ci
+
+      - name: Icons
+        run: npx tauri icon icon.svg
+
+      # The version comes from APP_VERSION, so tools/release.js keeps three
+      # places, not four. The updater's files are made and signed only when
+      # the key is set (TAURI_SIGNING_PRIVATE_KEY, and its public half as
+      # TAURI_UPDATER_PUBKEY); without it the app's update bar sends you to
+      # the release page instead.
+      - name: Build
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          PUBKEY: ${{ secrets.TAURI_UPDATER_PUBKEY }}
+        run: |
+          V="$(node -p "require('./tools/build-www').appVersion()")"
+          echo "V=$V" >> "$GITHUB_ENV"
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] && [ -n "$PUBKEY" ]; then
+            CONF="$(node -e 'console.log(JSON.stringify({version: process.argv[1], bundle: {createUpdaterArtifacts: true}, plugins: {updater: {pubkey: process.argv[2]}}}))' "$V" "$PUBKEY")"
+          else
+            unset TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+            CONF="$(node -e 'console.log(JSON.stringify({version: process.argv[1]}))' "$V")"
+          fi
+          npx tauri build --ci --bundles ${{ matrix.bundles }} --config "$CONF"
+
+      # Fixed names, so the release page and the app's links stay the same
+      # from one version to the next.
+      - name: Collect
+        shell: bash
+        run: node tools/desktop-files.js ${{ matrix.name }} out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LifeLog-${{ env.V }}-${{ matrix.name }}
+          path: out/*
+
+      - name: Attach to the release
+        id: attach
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Only the push that releases: the one whose commit the Android
+          # workflow tags app-v<version>. Every other merge to main builds
+          # (so a broken build shows) but leaves the release's files alone,
+          # since a merge isn't a release (2026-11-03).
+          for i in $(seq 1 40); do
+            AT="$(gh api "repos/$GITHUB_REPOSITORY/commits/app-v$V" --jq .sha 2>/dev/null || true)"
+            if [ "$AT" = "$GITHUB_SHA" ]; then
+              gh release upload "app-v$V" out/* --clobber
+              echo "released=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [ -n "$AT" ]; then
+              echo "app-v$V was released from another commit; this merge isn't a release, so nothing is attached"; exit 0
+            fi
+            sleep 30
+          done
+          echo "No app-v$V release after 20 minutes (did the Android build publish one?)"; exit 1
+
+      - name: Attach to the test build
+        if: github.ref != 'refs/heads/main' && needs.gate.outputs.test == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash tools/test-build.sh desktop out/*
+
+  # The updater reads one latest.json for both systems, so it's written once
+  # both builds are up, from the .sig files they attached.
+  updater:
+    needs: build
+    if: github.ref == 'refs/heads/main' && needs.build.outputs.released == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: latest.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="$(node -p "require('./tools/build-www').appVersion()")"
+          mkdir -p sigs
+          gh release download "app-v$V" -p '*.sig' -D sigs || true
+          if ! ls sigs/*.sig >/dev/null 2>&1; then
+            echo "No signed update files (the updater key isn't set), so no latest.json"; exit 0
+          fi
+          node tools/desktop-files.js manifest "$V" sigs > latest.json
+          cat latest.json
+          gh release upload "app-v$V" latest.json --clobber

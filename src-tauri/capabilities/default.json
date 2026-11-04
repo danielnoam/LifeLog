@@ -1,0 +1,32 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "What LifeLog's own page may ask of the system. Nothing else loads in the window: links out open in the browser.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "opener:allow-open-url",
+    "dialog:allow-save",
+    "fs:allow-write-file",
+    "fs:allow-write-text-file",
+    "notification:default",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled",
+    "updater:default",
+    "process:allow-restart",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://api.steampowered.com/*" },
+        { "url": "https://store.steampowered.com/api/*" },
+        { "url": "https://www.steamgriddb.com/api/v2/*" },
+        { "url": "https://api.gg.deals/*" },
+        { "url": "https://api.augmentedsteam.com/*" },
+        { "url": "https://maps.app.goo.gl/*" },
+        { "url": "https://goo.gl/*" },
+        { "url": "https://www.google.com/maps/*" }
+      ]
+    }
+  ]
+}

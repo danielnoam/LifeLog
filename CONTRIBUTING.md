@@ -173,18 +173,20 @@ force-push `main`.
 
 - A merge to **`main`** deploys the web app (`pages.yml`, once the tests
   pass), version bump or not.
-- `android.yml` and `ios.yml` build `main` on every push. Pushes that only
+- `android.yml`, `ios.yml` and `desktop.yml` build `main` on every push. Pushes that only
   touch `**.md`, `test/**`, `.claude/**`, `docs/**` or
   `tools/readme-shots.js` don't run them.
 - On `main`, when `APP_VERSION` has no release yet and the signing secrets
   are set, the Android workflow publishes the release `app-v<version>` with
-  `LifeLog.apk`, and the iOS workflow attaches an unsigned `LifeLog.ipa` to
-  it a few minutes later.
+  `LifeLog.apk`, the iOS workflow attaches an unsigned `LifeLog.ipa` to
+  it a few minutes later, and the desktop workflow its Windows and Linux
+  files (and `latest.json` for the desktop updater, when its key is set).
 - The app's built-in updater reads the repo's latest release (the repo is
   public for this reason) and offers any version **higher** than its own.
 
 **Test builds.** A pull request labelled `test` gets an APK and an IPA,
-`test-android` or `test-ios` just one (sooner). Adding the label builds the
+`test-android`, `test-ios` or `test-desktop` just one (sooner); `test`
+also builds the Windows and Linux app. Adding the label builds the
 branch (`.github/workflows/test-builds.yml`) and every push after that
 rebuilds it, onto the pre-release `test-<branch>` (`tools/test-build.sh`).
 Taking the label off, closing the PR or deleting the branch removes it. A

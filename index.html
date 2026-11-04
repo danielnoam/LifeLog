@@ -1954,6 +1954,7 @@
           <a class="sitem sitem-go" href="https://leafletjs.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Leaflet</span><span class="sitem-sub">The Travel maps · BSD 2-Clause</span></span></a>
           <a class="sitem sitem-go" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">OpenStreetMap contributors and CARTO</span><span class="sitem-sub">Map tiles, and town names through Nominatim · ODbL</span></span></a>
           <a class="sitem sitem-go" href="https://capacitorjs.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Capacitor</span><span class="sitem-sub">The Android and iOS apps around the web app · MIT</span></span></a>
+          <a class="sitem sitem-go" href="https://tauri.app" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Tauri</span><span class="sitem-sub">The Windows and Linux app around the web app · MIT or Apache 2.0</span></span></a>
         </div>
       </section>
       <section class="sgroup">
@@ -1979,9 +1980,9 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="notifications" data-title="Notifications" data-keywords="notifications notify alerts reminders habits charges recurring release day price drop steam sale phone buzz channel background refresh widgets">
+      <div class="settings-page" hidden data-page="notifications" data-title="Notifications" data-keywords="notifications notify alerts reminders habits charges recurring release day price drop steam sale phone buzz channel background refresh widgets start at login tray computer desktop">
       <h2 class="settings-page-title">Notifications</h2>
-      <p class="hint page-lede">What this phone may ring. Each kind is also its own channel in Android's notification settings, where its sound and importance are set.</p>
+      <p class="hint page-lede" id="notifyLede">What this phone may ring. Each kind is also its own channel in Android's notification settings, where its sound and importance are set.</p>
       <section class="sgroup">
         <div class="sgroup-card">
           <label class="sitem toggle-label">
@@ -2002,6 +2003,16 @@
           </label>
           <button id="openNotifSettingsBtn" type="button" class="sitem sitem-go"><span data-ico="bell"></span> Android's notification settings for LifeLog</button>
         </div>
+      </section>
+      <section class="sgroup" id="desktopTrayRow" hidden>
+        <div class="sgroup-label">On this computer</div>
+        <div class="sgroup-card">
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">Start at login</span><span class="sitem-sub">Opens LifeLog in the tray when you sign in, so reminders ring without opening it first</span></span>
+            <input type="checkbox" class="switch" id="startAtLogin" />
+          </label>
+        </div>
+        <p class="hint">These ring only while LifeLog is running. Closing the window keeps it in the tray; Quit in the tray's menu stops it, and anything due meanwhile rings when it opens again, if it's under an hour late (12 hours for the 9:00 heads-ups).</p>
       </section>
       <section class="sgroup" id="backgroundRefreshRow" hidden>
         <div class="sgroup-label">Background</div>
@@ -2485,6 +2496,7 @@
   <script defer src="src/errlog.js?v=0.303.2"></script>
   <script defer src="src/headless.js?v=0.303.2"></script>
   <script defer src="src/platform.js?v=0.303.2"></script>
+  <script defer src="src/desktop.js?v=0.303.2"></script>
   <script defer src="src/dates.js?v=0.303.2"></script>
   <script defer src="src/testbuilds.js?v=0.303.2"></script>
   <script defer src="src/icons.js?v=0.303.2"></script>

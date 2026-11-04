@@ -3737,7 +3737,7 @@
     else if (ghOn) txt = "Synced to " + (gi ? gi.owner + "/" + gi.repo : "GitHub");
     else if (fileOn) txt = "Saved to " + (Storage.fileName || "file");
     else if (Storage.fileName && Storage.needsReconnect) { cls = "storage-status local"; txt = "File needs reconnect — open Settings"; }
-    else { cls = "storage-status local"; txt = Storage.fsSupported ? "Browser only — set up Sync in Settings" : "Browser storage (this browser only)"; }
+    else { cls = "storage-status local"; txt = Platform.native || Platform.desktop ? "On this device only — set up Sync in Settings" : Storage.fsSupported ? "Browser only — set up Sync in Settings" : "Browser storage (this browser only)"; }
     // A 401/403 from GitHub is a *persistent* failure (revoked/expired token,
     // or one missing the `repo` scope) — "will sync when online" is misleading
     // there, because it never will until the token is fixed, leaving the user
@@ -5508,6 +5508,20 @@
       wireBackButton();
       wirePullToRefresh();
       wireScrollThumb();
+    } else if (Platform.desktop) {
+      // The Windows and Linux app: its files are in the bundle like the
+      // phones', so no worker, and a new version is a release to install.
+      // Reminders and heads-ups are rung by src/desktop.js while it runs.
+      checkForNewerApp();
+      if (window.LifeLogAlerts) window.LifeLogAlerts.start({
+        changed: () => {},
+        fmt: {
+          money: (n) => Finance.amountText({ amount: n }),
+          day: (d) => Dates.day(d, { weekday: true, year: false }),
+        },
+      });
+      if (window.LifeLogReminders) window.LifeLogReminders.start({ $, el, Platform, toast, changed: () => {}, render });
+      if (window.LifeLogDesktop) window.LifeLogDesktop.start({ state, runAction, hidden: widgetsHidden });
     } else if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").then(watchForUpdate).catch(() => {});
     }
@@ -5626,6 +5640,28 @@
       }
       install();
     };
+    // On a computer, Tauri's updater installs it and restarts, when the
+    // release has its signed files; otherwise the release page has the
+    // installer (a .deb is always updated that way).
+    if (Platform.desktop) {
+      btn.onclick = async () => {
+        say("Downloading LifeLog " + version + "…", "0%", true);
+        let done = false;
+        try {
+          done = await window.LifeLogDesktop.installUpdate((f) => { btn.textContent = Math.round(f * 100) + "%"; });
+        } catch (e) {
+          say("The update didn't finish", "Retry");
+          return;
+        }
+        if (!done) {
+          say("LifeLog " + version + " is out", "Get it");
+          Platform.openOutside(Platform.releasesUrl());
+        }
+      };
+      say("LifeLog " + version + " is out", "Update");
+      $("#updateBar").hidden = false;
+      return;
+    }
     // iOS installs nothing an app hands it: a sideloaded build is updated
     // from AltStore or SideStore, so the bar points at the release instead.
     if (Platform.ios) {

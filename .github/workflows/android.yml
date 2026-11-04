@@ -146,8 +146,10 @@ jobs:
             echo "**Installing:** open this page on your phone, tap **LifeLog.apk**, and allow your browser to install apps the first time it asks. Updates install over the top and keep your data."
             echo
             echo "**iPhone:** **LifeLog.ipa** is added here a few minutes later. It's unsigned: install it with AltStore or SideStore, which sign it with your own Apple ID."
+            echo
+            echo "**Windows and Linux:** **LifeLog-setup.exe** (or LifeLog.msi) and **LifeLog.AppImage** (or LifeLog.deb) are added here when they're built. Windows may warn that it doesn't know the publisher: choose More info, then Run anyway."
           } >> notes.md
-          gh release create "app-v$V" LifeLog.apk --title "LifeLog $V" --notes-file notes.md
+          gh release create "app-v$V" LifeLog.apk --target "$GITHUB_SHA" --title "LifeLog $V" --notes-file notes.md
 
       # A branch whose pull request is labelled test or test-android: the APK
       # goes on the pre-release test-<branch>, remade on every push. Never
