@@ -208,6 +208,7 @@ const refIds = (text) => [...String(text || "").matchAll(/lifelog-img:([a-z0-9]+
   const goneId = refIds(gone.text)[0];
   check("a second note's picture goes up too", imageIds(repo).includes(goneId), imageIds(repo));
   await a.evaluate((id) => { window.LifeLogNotes.openNoteModal(window.LifeLogNotes.searchable().find((n) => n.id === id)); }, gone.id);
+  await a.click("#noteMoreBtn"); // Delete is in the ⋯ menu (0.304.0)
   await a.click("#deleteNoteBtn");
   await settled(a);
   check("deleting the note leaves its picture on GitHub until a clean-up", imageIds(repo).includes(goneId));
