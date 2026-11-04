@@ -135,7 +135,7 @@ const caps = JSON.parse(fs.readFileSync(path.join(ROOT, "src-tauri", "capabiliti
 
 test("it makes no MSI, whose version can't pass 0.255", () => {
   assert.ok(!conf.bundle.targets.includes("msi"));
-  assert.match(fs.readFileSync(path.join(ROOT, ".github", "workflows", "desktop.yml"), "utf8"), /bundles: nsis\n/);
+  assert.match(fs.readFileSync(path.join(ROOT, ".github", "workflows", "desktop.yml"), "utf8"), /"bundles":"nsis"/);
 });
 
 test("it bundles the desktop copy, built by the same tool", () => {

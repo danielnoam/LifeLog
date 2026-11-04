@@ -24,9 +24,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # main always builds. Any other branch builds only when its open pull
-  # request carries a test label (test or test-ios), so a branch push
-  # doesn't spend a build nobody asked for (2026-11-02, CONTRIBUTING.md).
+  # Only when asked (2026-11-04: Daniel builds the web app, Windows and the
+  # APK by default, anything else only when he says so). On main, run this
+  # workflow by hand (Actions → iOS app → Run workflow) and it attaches the
+  # IPA to the current version's release; a push to main builds nothing.
+  # Any other branch builds when its open pull request carries test-ios
+  # (not plain `test`, which is the default set).
   gate:
     runs-on: ubuntu-latest
     outputs:
@@ -37,14 +40,21 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ github.ref_name }}
+          EVENT: ${{ github.event_name }}
         run: |
           if [ "$GITHUB_REF" = refs/heads/main ]; then
-            echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=false" >> "$GITHUB_OUTPUT"; exit 0
+            if [ "$EVENT" = workflow_dispatch ]; then
+              echo "build=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "iOS builds only when run by hand, so no IPA for this push"
+              echo "build=false" >> "$GITHUB_OUTPUT"
+            fi
+            echo "test=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
           LABELS=",$(gh pr list -R "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json labels --jq '.[:1][] | [.labels[].name] | join(",")' 2>/dev/null || true),"
           case "$LABELS" in
-            *,test,*|*,test-ios,*) echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=true" >> "$GITHUB_OUTPUT" ;;
-            *) echo "$BRANCH has no open pull request labelled test or test-ios, so no IPA build"
+            *,test-ios,*) echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "$BRANCH has no open pull request labelled test-ios, so no IPA build"
                echo "build=false" >> "$GITHUB_OUTPUT"; echo "test=false" >> "$GITHUB_OUTPUT" ;;
           esac
 

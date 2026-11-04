@@ -1,8 +1,11 @@
 # Builds the Windows and Linux app (Tauri, src-tauri/) from the same files
 # GitHub Pages serves, and attaches it to the app-v<version> release the
-# Android workflow publishes. Same gate as android.yml and ios.yml: main
-# always builds, any other branch only when its open pull request carries
-# `test` or `test-desktop`.
+# Android workflow publishes. Same gate as android.yml: main always builds,
+# any other branch only when its open pull request carries `test` or
+# `test-desktop`. Windows only by default (2026-11-04: Daniel builds the
+# web app, Windows and the APK unless he asks for more); Linux joins when
+# the workflow is run by hand with "Linux too" ticked, or a pull request
+# carries `test-linux`.
 name: Desktop app
 
 on:
@@ -10,6 +13,11 @@ on:
     branches: ["**"]
     paths-ignore: ["**.md", "test/**", ".claude/**", "docs/**", "tools/readme-shots.js"]
   workflow_dispatch:
+    inputs:
+      linux:
+        description: Linux too (AppImage and .deb)
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -25,19 +33,31 @@ jobs:
     outputs:
       build: ${{ steps.g.outputs.build }}
       test: ${{ steps.g.outputs.test }}
+      matrix: ${{ steps.g.outputs.matrix }}
     steps:
       - id: g
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ github.ref_name }}
+          LINUX_ASKED: ${{ github.event_name == 'workflow_dispatch' && inputs.linux }}
         run: |
+          WIN='{"os":"windows-latest","name":"windows","bundles":"nsis"}'
+          # 22.04, not latest: an AppImage runs on systems at least as new as
+          # the one it was built on, so the older base reaches more of them.
+          LIN='{"os":"ubuntu-22.04","name":"linux","bundles":"appimage,deb"}'
+          LABELS=""
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+            LABELS=",$(gh pr list -R "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json labels --jq '.[:1][] | [.labels[].name] | join(",")' 2>/dev/null || true),"
+          fi
+          case "$LABELS" in *,test-linux,*) LINUX_ASKED=true ;; esac
+          if [ "$LINUX_ASKED" = true ]; then INC="[$LIN,$WIN]"; else INC="[$WIN]"; fi
+          echo "matrix={\"include\":$INC}" >> "$GITHUB_OUTPUT"
           if [ "$GITHUB_REF" = refs/heads/main ]; then
             echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          LABELS=",$(gh pr list -R "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json labels --jq '.[:1][] | [.labels[].name] | join(",")' 2>/dev/null || true),"
           case "$LABELS" in
-            *,test,*|*,test-desktop,*) echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=true" >> "$GITHUB_OUTPUT" ;;
-            *) echo "$BRANCH has no open pull request labelled test or test-desktop, so no desktop build"
+            *,test,*|*,test-desktop,*|*,test-linux,*) echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "$BRANCH has no open pull request labelled test, test-desktop or test-linux, so no desktop build"
                echo "build=false" >> "$GITHUB_OUTPUT"; echo "test=false" >> "$GITHUB_OUTPUT" ;;
           esac
 
@@ -52,18 +72,10 @@ jobs:
       released: ${{ steps.attach.outputs.released }}
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          # 22.04, not latest: an AppImage runs on systems at least as new as
-          # the one it was built on, so the older base reaches more of them.
-          - os: ubuntu-22.04
-            name: linux
-            bundles: appimage,deb
-          - os: windows-latest
-            name: windows
-            # No MSI: Windows Installer caps a version's middle number at
-            # 255, and LifeLog's is past 300.
-            bundles: nsis
+      # From the gate: Windows always, Linux when asked. No MSI for Windows:
+      # Windows Installer caps a version's middle number at 255, and
+      # LifeLog's is past 300.
+      matrix: ${{ fromJSON(needs.gate.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

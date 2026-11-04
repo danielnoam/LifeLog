@@ -389,7 +389,7 @@ The same files, built into an APK by [Capacitor](https://capacitorjs.com).
   `sw.js`'s `ASSETS` list into `www/`, Capacitor wraps them, and a release
   `app-v<version>` is published whenever `APP_VERSION` is new.
 - **Test builds**: a pull request labelled `test` (or `test-android`,
-  `test-ios`) is built onto the pre-release `test-<branch>`. Settings →
+  `test-desktop`, and `test-ios` or `test-linux` when asked) is built onto the pre-release `test-<branch>`. Settings →
   About → Test builds installs one over the app (your data stays), opens it
   in place in a browser, and goes back to the release. The updater never
   offers one.
@@ -401,7 +401,8 @@ The same files, built into an APK by [Capacitor](https://capacitorjs.com).
 
 ### The iOS app
 
-Built by `.github/workflows/ios.yml` on a Mac runner and attached to each
+Built by `.github/workflows/ios.yml` on a Mac runner, only when it's run
+by hand (Actions → iOS app → Run workflow), and attached to the current
 release as `LifeLog.ipa`.
 
 - **It's unsigned**: without Apple's developer programme it's installed
@@ -417,9 +418,9 @@ release as `LifeLog.ipa`.
 ### The Windows and Linux app
 
 The same files in the system's own WebView, built by
-[Tauri](https://tauri.app) (`src-tauri/`) and attached to each release:
-`LifeLog-setup.exe` for Windows, `LifeLog.AppImage` or
-`LifeLog.deb` for Linux.
+[Tauri](https://tauri.app) (`src-tauri/`): `LifeLog-setup.exe` for
+Windows on each release, and `LifeLog.AppImage` or `LifeLog.deb` for
+Linux when `desktop.yml` is run by hand with **Linux too** ticked.
 
 - **Offline and fast**: the files are inside the app, so it opens with no
   connection and without waiting on one, and syncs when it can.

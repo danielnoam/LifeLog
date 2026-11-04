@@ -124,8 +124,9 @@ with a short plan of how it would be built, so someone else can pick it up.
 request land on `main`:
 
 - **A PR that bumps the version** is a release: when it merges, the Android
-  workflow publishes `app-v<version>` with the APK, iOS attaches the IPA,
-  and every phone's updater offers it. Only Daniel decides when to release
+  workflow publishes `app-v<version>` with the APK, the desktop workflow
+  attaches the Windows installer, and every updater offers it. The IPA and
+  the Linux files come only when Daniel asks for them (below). Only Daniel decides when to release
   (2026-11-03): he cuts one himself or asks for it.
 - **A PR that doesn't** just lands. Its lines go in its own file,
   `changes/<branch>.md` (`feature/more-sites` → `feature-more-sites.md`),
@@ -173,20 +174,24 @@ force-push `main`.
 
 - A merge to **`main`** deploys the web app (`pages.yml`, once the tests
   pass), version bump or not.
-- `android.yml`, `ios.yml` and `desktop.yml` build `main` on every push. Pushes that only
+- **What builds by default (2026-11-04):** the web app, the APK and the
+  Windows app, nothing else unless Daniel asks. `android.yml` and
+  `desktop.yml` (Windows) build `main` on every push. `ios.yml` builds
+  only when run by hand (Actions → iOS app → Run workflow), and Linux only
+  when `desktop.yml` is run by hand with **Linux too** ticked; on `main`
+  either attaches to the current version's release. Pushes that only
   touch `**.md`, `test/**`, `.claude/**`, `docs/**` or
   `tools/readme-shots.js` don't run them.
 - On `main`, when `APP_VERSION` has no release yet and the signing secrets
   are set, the Android workflow publishes the release `app-v<version>` with
-  `LifeLog.apk`, the iOS workflow attaches an unsigned `LifeLog.ipa` to
-  it a few minutes later, and the desktop workflow its Windows and Linux
-  files (and `latest.json` for the desktop updater, when its key is set).
+  `LifeLog.apk`, and the desktop workflow attaches `LifeLog-setup.exe`
+  (and `latest.json` for the desktop updater, when its key is set).
 - The app's built-in updater reads the repo's latest release (the repo is
   public for this reason) and offers any version **higher** than its own.
 
-**Test builds.** A pull request labelled `test` gets an APK and an IPA,
-`test-android`, `test-ios` or `test-desktop` just one (sooner); `test`
-also builds the Windows and Linux app. Adding the label builds the
+**Test builds.** A pull request labelled `test` gets an APK and the
+Windows app, `test-android` or `test-desktop` just one (sooner);
+`test-ios` (an IPA) and `test-linux` (Windows plus Linux) only when asked. Adding the label builds the
 branch (`.github/workflows/test-builds.yml`) and every push after that
 rebuilds it, onto the pre-release `test-<branch>` (`tools/test-build.sh`).
 Taking the label off, closing the PR or deleting the branch removes it. A
