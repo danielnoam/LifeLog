@@ -17,6 +17,7 @@
     "@capacitor/ios": "8.5.2",
     "@capacitor/share": "8.0.2",
     "@capawesome-team/capacitor-file-opener": "8.0.5",
+    "@tauri-apps/cli": "2.12.4",
     "lifelog-widgets": "file:native/widgets"
   }
 }

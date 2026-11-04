@@ -875,6 +875,15 @@
       $("#notifyCharges").checked = A.kindOn("charges");
       $("#notifyPrices").checked = A.kindOn("prices");
     }
+    // The computer app: no Android channels to point at, and Start at
+    // login in their place.
+    const D = window.LifeLogPlatform && window.LifeLogPlatform.desktop && window.LifeLogDesktop;
+    $("#desktopTrayRow").hidden = !D;
+    $("#openNotifSettingsBtn").hidden = !!D;
+    if (D) {
+      $("#notifyLede").textContent = "What this computer may ring, while LifeLog is open or in the tray.";
+      D.startsAtLogin().then((on) => { $("#startAtLogin").checked = !!on; $("#startAtLogin").disabled = on == null; });
+    }
     // The background refresh (0.279.0): Android only, and only an APK
     // that has the job.
     const Wg = window.LifeLogWidgets;
@@ -1736,6 +1745,13 @@
     $("#notifyCharges").onchange = () => { window.LifeLogAlerts && window.LifeLogAlerts.setKindOn("charges", $("#notifyCharges").checked); updateStatuses(); };
     $("#notifyPrices").onchange = () => { window.LifeLogAlerts && window.LifeLogAlerts.setKindOn("prices", $("#notifyPrices").checked); updateStatuses(); };
     $("#backgroundRefresh").onchange = () => { window.LifeLogWidgets && window.LifeLogWidgets.setBackgroundMinutes($("#backgroundRefresh").value); updateStatuses(); };
+    $("#startAtLogin").onchange = async () => {
+      const box = $("#startAtLogin");
+      try { await window.LifeLogDesktop.setStartsAtLogin(box.checked); } catch (e) {
+        box.checked = !box.checked;
+        toast("Couldn't change that: " + ((e && e.message) || e), true);
+      }
+    };
     $("#openNotifSettingsBtn").onclick = () => {
       const W = window.LifeLogPlatform && window.LifeLogPlatform.plugin("Widgets");
       if (W && W.openNotificationSettings) W.openNotificationSettings();

@@ -24,7 +24,11 @@
     try { localStorage.setItem(KEY, JSON.stringify(v)); } catch (e) { /* kept for this session only */ }
   };
   const isTime = (s) => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(s || ""));
-  const plugin = () => (ctx && ctx.Platform.plugin("Widgets")) || null;
+  // In the computer app src/desktop.js rings them itself, and
+  // answers the same permission questions.
+  const plugin = () => (ctx && (ctx.Platform.plugin("Widgets")
+    || (ctx.Platform.desktop && window.LifeLogDesktop && window.LifeLogDesktop.notifier))) || null;
+  const here = () => (ctx && ctx.Platform.desktop ? "computer" : "phone");
 
   const available = () => !!plugin();
   const isOn = () => read().on !== false;
@@ -120,8 +124,8 @@
     const { el } = ctx;
     const b = el("div", "habit-remind-bar");
     b.appendChild(el("span", "habit-remind-bar-text")).appendChild(isOn()
-      ? window.LifeLogIcons.labelled("bell", set + (set === 1 ? " reminder" : " reminders") + " on this phone")
-      : window.LifeLogIcons.labelled("bell-off", "Reminders paused on this phone"));
+      ? window.LifeLogIcons.labelled("bell", set + (set === 1 ? " reminder" : " reminders") + " on this " + here())
+      : window.LifeLogIcons.labelled("bell-off", "Reminders paused on this " + here()));
     const toggle = el("button", "btn btn-sm", isOn() ? "Pause" : "Resume");
     toggle.type = "button";
     toggle.onclick = () => setOn(!isOn());
@@ -134,7 +138,7 @@
         if (now === "granted" || now === "unavailable" || !warn.isConnected) return;
         warn.hidden = false;
         warn.textContent = now === "denied"
-          ? "Notifications are off for LifeLog in the phone's settings, so none of these will ring. "
+          ? "Notifications are off for LifeLog in the " + here() + "'s settings, so none of these will ring. "
           : "LifeLog needs your permission before any of these can ring. ";
         const fix = el("button", "btn btn-sm", now === "denied" ? "Open settings" : "Allow");
         fix.type = "button";

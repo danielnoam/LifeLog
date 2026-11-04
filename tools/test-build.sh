@@ -4,6 +4,7 @@
 #
 #   bash tools/test-build.sh create LifeLog.apk   # android.yml
 #   bash tools/test-build.sh attach LifeLog.ipa   # ios.yml
+#   bash tools/test-build.sh desktop out/*        # desktop.yml
 #
 # Only an open pull request labelled test, test-android or test-ios gets
 # one; `create` remakes the pre-release (and its tag) at the pushed commit
@@ -18,7 +19,9 @@
 # GITHUB_REPOSITORY.
 set -euo pipefail
 MODE="$1"
-FILE="$2"
+shift
+FILES=("$@")
+FILE="${FILES[0]}"
 BRANCH="${GITHUB_REF_NAME:?}"
 TAG="test-$(printf '%s' "$BRANCH" | tr -c 'A-Za-z0-9._-' '-')"
 PR="$(gh pr list --head "$BRANCH" --state open --json number,title,labels --jq '.[:1][] | "\(.number)\t\([.labels[].name] | join(","))\t\(.title)"' 2>/dev/null || true)"
@@ -32,9 +35,11 @@ LABELS=",${REST%%	*},"
 TITLE="${REST#*	}"
 # `test` for both, `test-android` for the APK alone, `test-ios` for the
 # IPA alone, so a one-platform test build is ready sooner.
-APK=false; IPA=false
+# `test-desktop` for the Windows and Linux files alone.
+APK=false; IPA=false; DESKTOP=false
 case "$LABELS" in *,test,*|*,test-android,*) APK=true ;; esac
 case "$LABELS" in *,test,*|*,test-ios,*) IPA=true ;; esac
+case "$LABELS" in *,test,*|*,test-desktop,*) DESKTOP=true ;; esac
 
 publish() {
   gh release delete "$TAG" --yes --cleanup-tag >/dev/null 2>&1 || true
@@ -52,8 +57,12 @@ publish() {
       echo
       echo "**iPhone only:** LifeLog.ipa is unsigned; install it with AltStore or SideStore."
     fi
+    if [ "$DESKTOP" = true ]; then
+      echo
+      echo "**Windows and Linux:** LifeLog-setup.exe and LifeLog.AppImage are added when they're built. Each installs over the desktop app you have and keeps its data."
+    fi
   } > test-notes.md
-  gh release create "$TAG" "$FILE" --prerelease --target "$GITHUB_SHA" --title "Test: $TITLE" --notes-file test-notes.md
+  gh release create "$TAG" "${FILES[@]}" --prerelease --target "$GITHUB_SHA" --title "Test: $TITLE" --notes-file test-notes.md
   echo "published $TAG for #$NUMBER at $GITHUB_SHA"
 }
 
@@ -76,8 +85,24 @@ case "$MODE" in
     echo "No $TAG pre-release at $GITHUB_SHA after 20 minutes (did the Android build publish one?)"
     exit 1
     ;;
+  desktop)
+    if [ "$DESKTOP" != true ]; then echo "#$NUMBER isn't labelled test or test-desktop, so no desktop test build"; exit 0; fi
+    # With no APK or IPA coming, the Linux job makes the pre-release and the
+    # Windows one waits for it, so the two never remake it over each other.
+    if [ "$APK" != true ] && [ "$IPA" != true ] && [[ "${FILES[*]}" == *.AppImage* ]]; then publish; exit 0; fi
+    for i in $(seq 1 40); do
+      if [ "$(gh release view "$TAG" --json targetCommitish --jq .targetCommitish 2>/dev/null || true)" = "$GITHUB_SHA" ]; then
+        gh release upload "$TAG" "${FILES[@]}" --clobber
+        echo "attached ${FILES[*]} to $TAG"
+        exit 0
+      fi
+      sleep 30
+    done
+    echo "No $TAG pre-release at $GITHUB_SHA after 20 minutes"
+    exit 1
+    ;;
   *)
-    echo "usage: test-build.sh create|attach <file>"
+    echo "usage: test-build.sh create|attach|desktop <file>..."
     exit 2
     ;;
 esac

@@ -20,7 +20,7 @@ files are the web app (GitHub Pages), the Android app and the iOS app
 - [Search](#search)
 - [Settings](#settings)
 - [Throughout the app](#throughout-the-app)
-- [Setup](#setup): [Run it](#run-it), [Where your data lives](#where-your-data-lives), [Use it on your phone](#use-it-on-your-phone), [Android](#the-android-app), [iOS](#the-ios-app)
+- [Setup](#setup): [Run it](#run-it), [Where your data lives](#where-your-data-lives), [Use it on your phone](#use-it-on-your-phone), [Android](#the-android-app), [iOS](#the-ios-app), [Windows and Linux](#the-windows-and-linux-app)
 - [Media sources and keys](#media-sources-and-keys)
 - [The AI bridge](#the-ai-bridge)
 - [Project layout](#project-layout)
@@ -385,6 +385,39 @@ release as `LifeLog.ipa`.
   there's no Markdown folder import.
 - Safari's Add to Home Screen still works as the web app.
 
+### The Windows and Linux app
+
+The same files in the system's own WebView, built by
+[Tauri](https://tauri.app) (`src-tauri/`) and attached to each release:
+`LifeLog-setup.exe` or `LifeLog.msi` for Windows, `LifeLog.AppImage` or
+`LifeLog.deb` for Linux.
+
+- **Offline and fast**: the files are inside the app, so it opens with no
+  connection and without waiting on one, and syncs when it can.
+- **No proxy needed**: Steam, SteamGridDB, GG.deals, Augmented Steam and
+  the Google Maps import go out through the app's own HTTP, as on the
+  phones.
+- **Its own copy**: it doesn't share a browser's storage, so connect sync
+  once with a setup link.
+- **The tray**: closing the window keeps LifeLog in the tray, with Add
+  entry and Add expense; Quit is in its menu. Habit reminders and the
+  charge, release-day and price heads-ups ring while it runs, and Settings
+  → Notifications can start it at login, straight into the tray.
+- **Updates**: the update bar installs a new version and restarts when the
+  release carries signed update files (the repository secrets
+  `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` and
+  `TAURI_UPDATER_PUBKEY`, from `npx tauri signer generate`); without them,
+  and for a `.deb`, it opens the release page.
+- **Windows warns on install**: the installer isn't code-signed, so
+  SmartScreen asks; choose More info, then Run anyway.
+- **How it's built**: `.github/workflows/desktop.yml`, on Windows and
+  Ubuntu 22.04 runners on every push to `main`, from
+  `node tools/build-www.js --desktop`. A pull request labelled `test` or
+  `test-desktop` gets its files on the `test-<branch>` pre-release.
+- **Building locally** (needs [Rust](https://rustup.rs), and on Linux the
+  WebKitGTK 4.1 packages): `npm install`, `npx tauri icon icon.svg`, then
+  `npx tauri build`.
+
 ## Media sources and keys
 
 Everything works without a key; a source that needs one stays quiet until
@@ -446,7 +479,8 @@ src/reminders.js    habit reminder times, kept on the phone
 src/payments.js     Google Wallet payments offered to the Ledger (Android)
 src/widgets.js      the home-screen widgets, from the app's side
 src/headless.js     Android's background refresh
-src/platform.js     browser or native app, and native HTTP
+src/platform.js     browser, phone or computer app, and native HTTP
+src/desktop.js      the Windows and Linux app: tray, reminders, updates
 src/dates.js        where a week starts and how a date is written
 src/icons.js        the Lucide icon map
 src/errlog.js       the errors this device has hit
@@ -454,6 +488,7 @@ src/qr.js, wheel.js QR codes for setup links; the Spin wheel
 src/vendor/         Leaflet (maps), rough.js and the Virgil font (boards)
 src/styles.css      every style and the four themes
 native/             Android and iOS widgets, reminders, share extension
+src-tauri/          the Windows and Linux app's shell (Tauri)
 bridge/             the AI bridge: MCP server, command line, data guide
 proxy/              optional Cloudflare Worker: CORS proxy for Steam
 tools/              native build helpers, release.js and test-build.sh, and readme-shots.js

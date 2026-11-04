@@ -1,0 +1,168 @@
+// Zero-dependency tests for the Windows and Linux app — `node test/desktop.test.js`.
+//
+// The app itself is only built in CI (desktop.yml), but what can quietly go
+// wrong without it can be checked here: what rings and when (src/desktop.js),
+// the desktop copy of the files (tools/build-www.js --desktop), the release
+// file names and the updater's latest.json (tools/desktop-files.js), and the
+// shell's config agreeing with all three.
+const assert = require("assert");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+
+global.window = {};
+global.localStorage = { getItem: () => null, setItem: () => {} };
+require("../src/desktop.js");
+const { dueNow } = global.window.LifeLogDesktop;
+const { build, desktopIndexHtml } = require("../tools/build-www.js");
+const { collect, manifest } = require("../tools/desktop-files.js");
+
+let passed = 0;
+function test(name, fn) {
+  try { fn(); passed++; console.log("  ok - " + name); }
+  catch (e) { console.error("  FAIL - " + name); console.error("    " + e.message); process.exitCode = 1; }
+}
+const ROOT = path.resolve(__dirname, "..");
+
+console.log("\nwhat rings");
+
+const habit = { id: "h1", name: "Read", period: "day" };
+const times = { h1: "21:00" };
+const timeOf = (id) => times[id] || "";
+
+test("a habit still to do rings at its time, and not before", () => {
+  assert.deepStrictEqual(dueNow({ today: "2026-11-04", now: "20:59", habits: [habit], timeOf }), []);
+  const due = dueNow({ today: "2026-11-04", now: "21:00", habits: [habit], timeOf });
+  assert.strictEqual(due.length, 1);
+  assert.strictEqual(due[0].title, "Read");
+  assert.strictEqual(due[0].body, "Still to do today");
+});
+
+test("it rings once a day", () => {
+  const fired = { "habit:h1:2026-11-04": "2026-11-04" };
+  assert.deepStrictEqual(dueNow({ today: "2026-11-04", now: "21:10", habits: [habit], timeOf, fired }), []);
+  assert.strictEqual(dueNow({ today: "2026-11-05", now: "21:10", habits: [habit], timeOf, fired }).length, 1);
+});
+
+test("a reminder missed by over an hour is let go", () => {
+  assert.strictEqual(dueNow({ today: "2026-11-04", now: "22:00", habits: [habit], timeOf }).length, 1);
+  assert.deepStrictEqual(dueNow({ today: "2026-11-04", now: "22:01", habits: [habit], timeOf }), []);
+});
+
+test("a weekly goal says the week", () => {
+  const due = dueNow({ today: "2026-11-04", now: "21:00", habits: [{ ...habit, period: "week" }], timeOf });
+  assert.strictEqual(due[0].body, "Still to do this week");
+});
+
+test("a habit with no time never rings", () => {
+  assert.deepStrictEqual(dueNow({ today: "2026-11-04", now: "21:00", habits: [{ id: "h2", name: "Run" }], timeOf }), []);
+});
+
+test("a heads-up rings on its day from its time, up to 12 hours late, once", () => {
+  const a = { id: "charge-r1-2026-11-05", day: "2026-11-04", time: "09:00", title: "Netflix charges tomorrow", body: "₪50" };
+  assert.deepStrictEqual(dueNow({ today: "2026-11-04", now: "08:59", alerts: [a] }), []);
+  assert.strictEqual(dueNow({ today: "2026-11-04", now: "09:00", alerts: [a] })[0].title, "Netflix charges tomorrow");
+  assert.strictEqual(dueNow({ today: "2026-11-04", now: "21:00", alerts: [a] }).length, 1);
+  assert.deepStrictEqual(dueNow({ today: "2026-11-04", now: "21:01", alerts: [a] }), []);
+  assert.deepStrictEqual(dueNow({ today: "2026-11-05", now: "09:00", alerts: [a] }), []);
+  assert.deepStrictEqual(dueNow({ today: "2026-11-04", now: "10:00", alerts: [a], fired: { ["alert:" + a.id]: "2026-11-04" } }), []);
+});
+
+console.log("\nthe desktop copy");
+
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "lifelog-desktop-"));
+const out = path.join(tmp, "www-desktop");
+const result = build(out, ROOT, true);
+const html = fs.readFileSync(path.join(out, "index.html"), "utf8");
+
+test("its index.html lets Tauri's calls through the CSP and nothing else changes", () => {
+  const web = fs.readFileSync(path.join(ROOT, "index.html"), "utf8");
+  assert.match(html, /connect-src [^;"]* ipc: http:\/\/ipc\.localhost/);
+  assert.strictEqual(html.replace(" ipc: http://ipc.localhost", ""), web);
+});
+
+test("it isn't marked as a phone", () => {
+  assert.doesNotMatch(html, /<html[^>]*class="[^"]*\bnative\b/);
+  assert.doesNotMatch(html, /viewport-fit=cover/);
+});
+
+test("its app-build.json says desktop", () => {
+  assert.strictEqual(result.info.desktop, true);
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(out, "app-build.json"), "utf8")).desktop, true);
+});
+
+test("an index.html without connect-src fails the build rather than shipping a broken app", () => {
+  assert.throws(() => desktopIndexHtml("<html></html>"), /connect-src/);
+});
+
+test("the phones' copy has no desktop flag", () => {
+  const phone = build(path.join(tmp, "www"), ROOT, false);
+  assert.strictEqual(phone.info.desktop, undefined);
+});
+
+console.log("\nthe release files");
+
+test("tauri's outputs get fixed names, with their signatures", () => {
+  const bundle = path.join(tmp, "bundle");
+  fs.mkdirSync(path.join(bundle, "nsis"), { recursive: true });
+  fs.mkdirSync(path.join(bundle, "msi"), { recursive: true });
+  fs.writeFileSync(path.join(bundle, "nsis", "LifeLog_0.303.2_x64-setup.exe"), "exe");
+  fs.writeFileSync(path.join(bundle, "nsis", "LifeLog_0.303.2_x64-setup.exe.sig"), "sig");
+  fs.writeFileSync(path.join(bundle, "msi", "LifeLog_0.303.2_x64_en-US.msi"), "msi");
+  const copied = collect("windows", path.join(tmp, "out"), bundle);
+  assert.deepStrictEqual(copied, ["LifeLog-setup.exe", "LifeLog-setup.exe.sig", "LifeLog.msi"]);
+  assert.strictEqual(fs.readFileSync(path.join(tmp, "out", "LifeLog-setup.exe"), "utf8"), "exe");
+});
+
+test("a missing installer fails the build", () => {
+  assert.throws(() => collect("linux", path.join(tmp, "out2"), path.join(tmp, "nothing")), /expected one/);
+});
+
+test("latest.json points each system at its signed file in this version's release", () => {
+  const sigs = path.join(tmp, "sigs");
+  fs.mkdirSync(sigs);
+  fs.writeFileSync(path.join(sigs, "LifeLog-setup.exe.sig"), "WIN\n");
+  fs.writeFileSync(path.join(sigs, "LifeLog.AppImage.sig"), "LIN");
+  const m = manifest("0.304.0", sigs, { repo: "o/r", date: "2026-11-04T00:00:00.000Z" });
+  assert.strictEqual(m.version, "0.304.0");
+  assert.deepStrictEqual(Object.keys(m.platforms).sort(), ["linux-x86_64", "linux-x86_64-appimage", "windows-x86_64", "windows-x86_64-nsis"]);
+  assert.strictEqual(m.platforms["windows-x86_64"].signature, "WIN");
+  assert.strictEqual(m.platforms["linux-x86_64"].url, "https://github.com/o/r/releases/download/app-v0.304.0/LifeLog.AppImage");
+});
+
+console.log("\nthe shell");
+
+const conf = JSON.parse(fs.readFileSync(path.join(ROOT, "src-tauri", "tauri.conf.json"), "utf8"));
+const caps = JSON.parse(fs.readFileSync(path.join(ROOT, "src-tauri", "capabilities", "default.json"), "utf8"));
+
+test("it bundles the desktop copy, built by the same tool", () => {
+  assert.strictEqual(conf.build.frontendDist, "../www-desktop");
+  assert.match(conf.build.beforeBuildCommand, /build-www\.js www-desktop --desktop/);
+});
+
+test("it has the phones' app id, so it's one app in the data's eyes", () => {
+  const cap = JSON.parse(fs.readFileSync(path.join(ROOT, "capacitor.config.json"), "utf8"));
+  assert.strictEqual(conf.identifier, cap.appId);
+});
+
+test("it leaves the page's own CSP in charge", () => {
+  assert.strictEqual(conf.app.security.csp, null);
+  assert.strictEqual(conf.app.withGlobalTauri, true);
+});
+
+test("its HTTP may reach only the hosts the no-proxy routes map to", () => {
+  const http = caps.permissions.find((p) => typeof p === "object" && p.identifier === "http:default");
+  const hosts = http.allow.map((a) => new URL(a.url.replace("*", "x")).host).sort();
+  const platform = fs.readFileSync(path.join(ROOT, "src", "platform.js"), "utf8");
+  const upstream = platform.slice(platform.indexOf("function upstreamFor"), platform.indexOf("function steamProxy"));
+  const mapped = [...new Set([...upstream.matchAll(/"https:\/\/([^/"]+)\//g)].map((m) => m[1]))].sort();
+  assert.deepStrictEqual(hosts.filter((h) => h !== "goo.gl"), mapped);
+  assert.ok(caps.permissions.every((p) => typeof p !== "string" || !/^fs:(default|allow-read|allow-remove|scope)/.test(p)));
+});
+
+test("the updater reads latest.json from the latest release", () => {
+  assert.deepStrictEqual(conf.plugins.updater.endpoints, ["https://github.com/danielnoam/LifeLog/releases/latest/download/latest.json"]);
+});
+
+fs.rmSync(tmp, { recursive: true, force: true });
+console.log(`\n${passed} passed`);

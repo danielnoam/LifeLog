@@ -43,12 +43,13 @@
 
   // Every export goes through here. In the Android app a download link does
   // nothing, so the file goes to Android's share sheet instead (see
-  // LifeLogPlatform.saveAndShare); everywhere else it's the ordinary link.
+  // LifeLogPlatform.saveAndShare), and on a computer's app the system's Save
+  // dialog; everywhere else it's the ordinary link.
   // `base64: true` when `text` is a binary file's bytes in base64 (a board's
   // PNG) rather than text.
   function download(filename, text, type, opts = {}) {
     const P = window.LifeLogPlatform;
-    if (P && P.native) {
+    if (P && (P.native || P.desktop)) {
       P.saveAndShare(filename, text, opts).then((done) => { if (!done) downloadLink(filename, text, type, opts); })
         .catch((e) => toast("Couldn't export: " + (e && e.message || e), true));
       return;
