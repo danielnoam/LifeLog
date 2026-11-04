@@ -418,7 +418,7 @@ release as `LifeLog.ipa`.
 
 The same files in the system's own WebView, built by
 [Tauri](https://tauri.app) (`src-tauri/`) and attached to each release:
-`LifeLog-setup.exe` or `LifeLog.msi` for Windows, `LifeLog.AppImage` or
+`LifeLog-setup.exe` for Windows, `LifeLog.AppImage` or
 `LifeLog.deb` for Linux.
 
 - **Offline and fast**: the files are inside the app, so it opens with no
