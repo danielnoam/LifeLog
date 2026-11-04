@@ -48,6 +48,8 @@ jobs:
 
   build:
     needs: [gate, test]
+    outputs:
+      released: ${{ steps.attach.outputs.released }}
     strategy:
       fail-fast: false
       matrix:
@@ -120,15 +122,25 @@ jobs:
           path: out/*
 
       - name: Attach to the release
+        id: attach
         if: github.ref == 'refs/heads/main'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          # Only the push that releases: the one whose commit the Android
+          # workflow tags app-v<version>. Every other merge to main builds
+          # (so a broken build shows) but leaves the release's files alone,
+          # since a merge isn't a release (2026-11-03).
           for i in $(seq 1 40); do
-            if gh release view "app-v$V" >/dev/null 2>&1; then
+            AT="$(gh api "repos/$GITHUB_REPOSITORY/commits/app-v$V" --jq .sha 2>/dev/null || true)"
+            if [ "$AT" = "$GITHUB_SHA" ]; then
               gh release upload "app-v$V" out/* --clobber
+              echo "released=true" >> "$GITHUB_OUTPUT"
               exit 0
+            fi
+            if [ -n "$AT" ]; then
+              echo "app-v$V was released from another commit; this merge isn't a release, so nothing is attached"; exit 0
             fi
             sleep 30
           done
@@ -145,7 +157,7 @@ jobs:
   # both builds are up, from the .sig files they attached.
   updater:
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && needs.build.outputs.released == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

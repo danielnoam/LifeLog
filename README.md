@@ -412,7 +412,8 @@ The same files in the system's own WebView, built by
   SmartScreen asks; choose More info, then Run anyway.
 - **How it's built**: `.github/workflows/desktop.yml`, on Windows and
   Ubuntu 22.04 runners on every push to `main`, from
-  `node tools/build-www.js --desktop`. A pull request labelled `test` or
+  `node tools/build-www.js --desktop`; the files go on a release only from
+  the push that releases it, so an ordinary merge changes no release. A pull request labelled `test` or
   `test-desktop` gets its files on the `test-<branch>` pre-release.
 - **Building locally** (needs [Rust](https://rustup.rs), and on Linux the
   WebKitGTK 4.1 packages): `npm install`, `npx tauri icon icon.svg`, then
