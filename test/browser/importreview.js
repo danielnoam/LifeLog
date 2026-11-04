@@ -59,12 +59,15 @@ const SMALL = { categories: [], entries: entries.slice(0, 6), backlog: [], notes
   check("the count line says what comes in, by kind", /^145 entries, 1 backlog item, 5 notes/.test(r.count), r.count);
   check("search and sort appear on a long list", r.search && r.sort);
 
+  // On a phone the years are in the filters sheet, behind the Years chip.
+  await page.click("#financePickerChips .picker-chip"); await page.waitForTimeout(350);
+  check("the Years chip opens the filters sheet", await page.evaluate(() => document.querySelector("#financePickerModal .picker-sheet").classList.contains("rail-open")));
   await page.click("#financePickerBuckets .picker-year-more"); await page.waitForTimeout(150);
   r = await read();
-  check("the chevron opens that year's months", r.months.length === 12 && /^Dec 3$/.test(r.months[0]), r.months);
+  check("the chevron opens that year's months", r.months.length === 12 && /^December 3$/.test(r.months[0]), r.months);
   await page.click("#financePickerBuckets .month-chip"); await page.waitForTimeout(150);
   r = await read();
-  check("a month chip turns its rows off and the year shows the part", /^Dec 0\/3$/.test(r.months[0]) && /^2026 38\/41$/.test(r.years[0]), { m: r.months[0], y: r.years[0] });
+  check("a month chip turns its rows off and the year shows the part", /^December 0\/3$/.test(r.months[0]) && /^2026 38\/41$/.test(r.years[0]), { m: r.months[0], y: r.years[0] });
   check("and the count line follows", /^142 entries/.test(r.count), r.count);
   await page.click("#financePickerBuckets .year-chip"); await page.waitForTimeout(150);
   r = await read();
@@ -73,6 +76,8 @@ const SMALL = { categories: [], entries: entries.slice(0, 6), backlog: [], notes
   r = await read();
   check("and again turns it all off", /^2026 0\/41$/.test(r.years[0]), r.years[0]);
 
+  check("the Years chip says how many years are off", /Years · 1 off/.test(await page.textContent("#financePickerChips")));
+  await page.click("#financePickerRailDone"); await page.waitForTimeout(350);
   await page.selectOption("#financePickerSort", "name"); await page.waitForTimeout(150);
   r = await read();
   check("A to Z puts Aardvark first", r.firstTitle === "Aardvark Quest", r.firstTitle);

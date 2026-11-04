@@ -19,6 +19,7 @@ files are the web app (GitHub Pages), the Android app and the iOS app
 - [Travel](#travel)
 - [Search](#search)
 - [Settings](#settings)
+- [Imports](#imports)
 - [Throughout the app](#throughout-the-app)
 - [Setup](#setup): [Run it](#run-it), [Where your data lives](#where-your-data-lives), [Use it on your phone](#use-it-on-your-phone), [Android](#the-android-app), [iOS](#the-ios-app)
 - [Media sources and keys](#media-sources-and-keys)
@@ -264,6 +265,23 @@ with what's new, the credits, the errors on this device and Test builds.
 <table><tr>
 <td><img src="docs/screenshots/settings-desktop.webp" alt="Settings on a computer" width="620"></td>
 <td><img src="docs/screenshots/settings-phone.webp" alt="Settings on a phone" width="200"></td>
+</tr></table>
+
+## Imports
+
+Every import (Steam, AniList, Letterboxd, a backup, a CSV, Markdown, PDF and
+EPUB notes) opens one review. On a computer it's three columns: filters
+(years and months that take a whole period in or out, category, kind, what
+to show, new categories to add), the list, and a preview of the row you're
+on, with a note drawn as it will look, pictures and all. ↑ and ↓ move, Space
+takes a row in or out. On a phone it fills the screen, the filters are
+chips, and tapping a row opens its preview. A note whose title is only a
+template's label ("Note:") is named by its first sentence. A Google Maps
+list gets the window too, its map beside the list.
+
+<table><tr>
+<td><img src="docs/screenshots/import-desktop.webp" alt="The import review on a computer" width="620"></td>
+<td><img src="docs/screenshots/import-phone.webp" alt="The import review on a phone" width="200"></td>
 </tr></table>
 
 ## Throughout the app

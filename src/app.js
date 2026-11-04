@@ -4942,7 +4942,9 @@
   // over by the browser's scroll and cancelled.
   function wireSheetSwipe() {
     const SKIP = "input, textarea, select, [contenteditable], .todo-row, .note-list-row, canvas";
-    const NO_SWIPE = new Set(["conflictModal", "boardEditor"]);
+    // The import review fills a phone and scrolls a long list: a pull there
+    // would throw away a review of hundreds of rows.
+    const NO_SWIPE = new Set(["conflictModal", "boardEditor", "financePickerModal"]);
     let drag = null;
     const scrolledAbove = (node, sheet) => {
       for (let n = node; n && n !== sheet.parentElement; n = n.parentElement) if (n.scrollTop > 0) return true;

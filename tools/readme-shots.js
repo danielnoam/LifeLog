@@ -295,6 +295,41 @@ const SHOTS = [
   { name: "travel", ui: { view: "travel", travelMode: "time" }, visual: { disabledViews: [] } },
   { name: "search", ui: { view: "backlog", backlogMode: "entries" }, noScroll: true,
     go: async (page) => { await page.click("#search"); await page.keyboard.type("lantern", { delay: 40 }); } },
+  // The import review (2026-11): an Obsidian folder of made-up notes, one
+  // with a picture drawn here, previewed beside the list on a computer.
+  { name: "import", ui: { view: "notes", notesMode: "notes" }, noScroll: true,
+    go: async (page, tag) => {
+      await page.evaluate(async () => {
+        const c = document.createElement("canvas"); c.width = 1200; c.height = 560;
+        const g = c.getContext("2d");
+        const sky = g.createLinearGradient(0, 0, 1200, 560); sky.addColorStop(0, "#3f5f8f"); sky.addColorStop(1, "#2f7a6b");
+        g.fillStyle = sky; g.fillRect(0, 0, 1200, 560);
+        g.fillStyle = "rgba(255,255,255,.55)"; g.beginPath(); g.arc(930, 150, 58, 0, 7); g.fill();
+        g.fillStyle = "rgba(0,0,0,.25)"; g.beginPath(); g.moveTo(0, 560); g.lineTo(0, 350); g.lineTo(290, 180); g.lineTo(530, 400); g.lineTo(750, 240); g.lineTo(1200, 440); g.lineTo(1200, 560); g.fill();
+        const png = await new Promise((r) => c.toBlob(r, "image/png"));
+        const day = (n) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+        const md = (name, folder, ago, body) => Object.assign(new File([`---\ndate: ${day(ago)}\n---\n${body}`], name + ".md", { lastModified: Date.now() }), { folder });
+        const files = [
+          md("Lauterbrunnen", "Trips", 26, "# Lauterbrunnen\n\nDay 3. Took the cable car up to Mürren before the clouds came in, and walked the ridge path back down to Gimmelwald.\n\n![[valley.png]]\n\n## What worked\n- The travel pass covered every train and the boat\n- Staying in the valley saved an hour a day\n\n## Next time\nGo up first thing, before the cloud."),
+          md("Inbox 1", "Inbox", 12, "# Note:\n\nFinished the first pass of the level layout. The middle room still feels empty."),
+          md("Inbox 2", "Inbox", 13, "# Note:\n\nIdea for the boss: it copies the last three moves you made."),
+          md("Weekly 42", "Journal", 14, "# Weekly\n\nShipped the save system, read two chapters, three runs.\n\n- [x] Save system\n- [ ] Settings menu"),
+          md("Inbox 3", "Inbox", 20, "# Note:\n\nBook club picked a new one for next month."),
+          md("Inbox 4", "Inbox", 26, "# Note:\n\nTrain times back: 16:02 or 17:32."),
+          md("Inbox 5", "Inbox", 27, "# Note:\n\nTry the fondue place by the station."),
+          md("Habits review", "Journal", 40, "# Habits review\n\nGym three times a week held for a month. Reading slipped on weekends."),
+          md("Inbox 6", "Inbox", 47, "# Note:\n\nShader idea: dither the fog instead of blending it."),
+          md("Jam", "Journal", 54, "# Game jam postmortem\n\n48 hours, five people. Scope was too big again."),
+          md("Inbox 7", "Inbox", 64, "# Note:\n\nRemember to renew the passport before March."),
+          md("Inbox 8", "Inbox", 400, "# Note:\n\nGift ideas: a board game, headphones."),
+          Object.assign(new File([png], "valley.png", { type: "image/png" }), { folder: "Trips" }),
+        ];
+        await window.LifeLogIO.importMarkdown(files);
+      });
+      await page.waitForSelector("#financePickerModal:not([hidden])");
+      if (tag === "desktop") await page.locator("#financePickerList .picker-row", { hasText: "Lauterbrunnen" }).click({ position: { x: 200, y: 10 } });
+      await page.waitForTimeout(300);
+    } },
   { name: "settings", ui: { view: "timeline", timelineMode: "entries" },
     noScroll: true, go: async (page) => { await page.click("#settingsBtn"); } },
 ];

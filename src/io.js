@@ -501,7 +501,9 @@
     // A picture is the same picture whichever way it's written: a note
     // imported from Obsidian keeps ![[x.png]] until it's in, then points at
     // the copy LifeLog kept, and imported again it's still one you have.
-    const noteKey = (n) => low(noteWords(n).replace(IMAGE_ANY, "![]"));
+    // A note imported before 2026-11 kept a placeholder title ("Note:"),
+    // one imported since is named by its first sentence: both key the same.
+    const noteKey = (n) => low(noteWords(PLACEHOLDER_TITLE.test(n.title || "") ? { ...n, title: firstSentence(n.text) || n.title } : n).replace(IMAGE_ANY, "![]"));
     if (want("note")) simple("note", incoming.notes || [], sanitizeNote, noteWords, noteKey, state.data.notes || []);
     // A to-do you already have is an item of a list note now (0.197.0): the
     // same id, or the same words in the list its category became.
@@ -737,6 +739,14 @@
   // `date` or `created`, else when the file was last changed; `category`
   // there files it. The words stay as the Markdown they were written in.
   const MD_TASK = /^\s*[-*+]\s+\[( |x|X)\]\s+(.*)$/;
+  const PLACEHOLDER_TITLE = /^(?:[\p{L}\d]{1,16}:|note|notes|untitled(?: note)?|new note)\s*$/iu;
+  function firstSentence(text, max = 80) {
+    const line = String(text || "").split("\n").map((l) => plainText(l)).find(Boolean) || "";
+    const end = line.search(/[.!?](\s|$)/);
+    let s = end > 0 ? line.slice(0, end) : line;
+    if (s.length > max) s = s.slice(0, s.lastIndexOf(" ", max) > 20 ? s.lastIndexOf(" ", max) : max).trim() + "…";
+    return s;
+  }
   function parseMarkdownNote(text, fileName, lastModified) {
     let body = String(text == null ? "" : text).replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
     const meta = {};
@@ -755,6 +765,10 @@
     if (heading && (!title || heading[1] === title)) { title = heading[1]; lines.splice(first, 1); }
     if (!title) title = String(fileName || "").replace(/^.*[\\/]/, "").replace(/\.(md|markdown|txt)$/i, "").trim();
     const words = lines.join("\n").trim();
+    // A title that's only a template's label ("Note:", "Untitled") says
+    // nothing in a list of 600 of them, so the note is named by its first
+    // sentence instead (2026-11, Daniel's Obsidian vault).
+    if (PLACEHOLDER_TITLE.test(title)) title = firstSentence(words) || title;
     const filled = words.split("\n").filter((l) => l.trim());
 
     const when = new Date(meta.date || meta.created || lastModified || NaN);
@@ -774,7 +788,7 @@
     }
     return { ...note, title, text: words };
   }
-  const MD_HINT = "One note per file. Pick which to bring in, and put any of them in a category: select them, choose it below, Apply. Files already in your notes are hidden.";
+  const MD_HINT = "One note per file. Tick what to bring in; to file some under a category, select them, pick it under Put the selected in, and Apply. Files already in your notes are hidden.";
   // `files` are browser Files, or what the Android app's folder picker
   // hands back (0.202.0): { name, folder, text, lastModified }.
   //
@@ -959,6 +973,12 @@
       hint: MD_HINT + (withImages ? ` ${withImages} of them ${withImages === 1 ? "has" : "have"} images, brought in with the note when the image file was picked too.` : ""),
       mode: "import", items: built.items, newCategories: built.newCategories,
       confirmLabel: "Import", searchable: picked.length > 8, categorize: "note",
+      // The preview draws a note's pictures from the files picked with it,
+      // read on this device; nothing is kept until Import.
+      previewImage: pictures.length ? async (src) => {
+        const f = findImageFile(src, pictures);
+        return f ? URL.createObjectURL(await imageBlob(f)) : null;
+      } : null,
       // Only the notes being imported get their pictures kept.
       onConfirm: async (selected, addCats) => {
         const chosen = selected.filter((i) => i.kind === "note" && !i.update).map((i) => i.entry);
@@ -1082,8 +1102,10 @@
       + (item.update ? " is-update" : (item.dup ? " is-dup" : ""))
       + (item.edited ? " is-edited" : "")
       + (finance ? " finance-entry" : ""));
+    row.importItem = item;
     const cb = el("input"); cb.type = "checkbox"; cb.checked = item.checked;
-    cb.onchange = () => { item.checked = cb.checked; onChange(); };
+    cb.setAttribute("aria-label", "Import " + (importItemTitle(item) || "this"));
+    cb.onchange = () => { item.checked = cb.checked; onChange(item); };
     row.appendChild(cb);
     const bar = el("div", "bar");
     bar.style.background = e.category ? (finance ? financeColorOf(e.category) : colorOf(e.category)) : "transparent";
@@ -1112,10 +1134,26 @@
       row.appendChild(el("span", "fdate", date || "—"));
       const text = item.kind === "habit" || item.kind === "board" ? e.name
         : (e.title || e.text || (e.items || []).map((i) => i.text).join(", ")).split("\n")[0];
-      const t = el("span", "etitle", (item.kind === "todo" && e.done ? "✓ " : "") + text); t.title = e.text || e.name; row.appendChild(t);
+      const t = el("span", "etitle", (item.kind === "todo" && e.done ? "✓ " : "") + text); t.title = e.text || e.name;
+      const snip = item.kind === "note" ? importSnippet(item) : "";
+      if (snip) {
+        const box = el("span", "picker-text");
+        box.appendChild(t);
+        box.appendChild(el("span", "picker-snippet", snip));
+        row.appendChild(box);
+      } else row.appendChild(t);
+      const pics = item.kind === "note" ? importImageCount(item) : 0;
+      if (pics) {
+        const p = el("span", "picker-pics");
+        p.appendChild(window.LifeLogIcons.svg("image"));
+        p.appendChild(document.createTextNode(String(pics)));
+        p.title = pics + (pics === 1 ? " image" : " images");
+        row.appendChild(p);
+      }
       if (e.category) row.appendChild(el("span", "ecat", e.category));
-      const tag = item.kind === "note" && e.kind ? e.kind : { note: "note", todo: "checklist item", habit: "habit", achievement: "achievement", board: "board" }[item.kind];
-      row.appendChild(el("span", "dup-tag", tag));
+      // A plain note says nothing by being one; a list or a quote does.
+      const tag = item.kind === "note" ? e.kind : { todo: "checklist item", habit: "habit", achievement: "achievement", board: "board" }[item.kind];
+      if (tag) row.appendChild(el("span", "dup-tag", tag));
     } else { // backlog
       row.appendChild(el("span", "fdate", "—"));
       const t = el("span", "etitle", e.title); t.title = e.title; row.appendChild(t);
@@ -1223,12 +1261,157 @@
     };
     return form;
   }
+  // ---------- the review window (laid out again in 2026-11) ----------
+  // What a row is called, in the list and at the top of its preview.
+  function importItemTitle(item) {
+    const e = item.entry;
+    if (item.kind === "finance" || item.kind === "recurring") return e.note || e.category || "";
+    if (item.kind === "habit" || item.kind === "board") return e.name || "";
+    if (item.kind === "note" || item.kind === "todo" || item.kind === "achievement") return String(e.title || e.text || (e.items || []).map((i) => i.text).join(", ")).split("\n")[0];
+    return e.title || e.name || "";
+  }
+  // A note's words without the Markdown's punctuation, for a row's second line.
+  const plainText = (text) => String(text || "")
+    .replace(/```[\s\S]*?(```|$)/g, " ")
+    .replace(/!\[\[[^\]]*\]\]|!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/^\s*(#+|>|[-*+](\s+\[[ xX]\])?|\d+[.)])\s*/gm, "")
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/[*_`~]+/g, "")
+    .replace(/\s+/g, " ").trim();
+  function importSnippet(item) {
+    const e = item.entry;
+    if (e.kind === "list") return (e.items || []).map((i) => i.text).join(", ");
+    if (!e.title) return "";
+    const words = plainText(e.text);
+    return words.startsWith(e.title) ? words.slice(e.title.length).replace(/^[\s.:,;!?—–-]+/, "") : words;
+  }
+  const importImageCount = (item) => (window.LifeLogMarkdown && item.entry && item.entry.text ? window.LifeLogMarkdown.images(item.entry.text).length : 0);
+
+  const PREVIEW_SKIP = new Set(["id", "title", "name", "text", "items", "kind", "coverUrl", "updatedAt", "order", "marks", "columns", "cards", "year", "month", "day"]);
+  const PREVIEW_LABELS = {
+    category: "Category", subcategory: "Subcategory", date: "Date", startDate: "Starts", amount: "Amount", interval: "Repeats",
+    rating: "Rating", note: "Note", author: "By", platform: "Platform", startedAt: "Started", finishedAt: "Finished",
+    createdAt: "Written", project: "Project", progress: "Progress", url: "Link", dropped: "Dropped", bought: "Bought",
+    starred: "Starred", releaseDate: "Out", cadence: "How often", target: "Goal", period: "Per", unit: "Unit",
+    chargeDay: "Charged on day", chargeWeekday: "Charged on", chargeMonth: "Charged in", endDate: "Ends", done: "Done",
+  };
+  const fieldLabel = (k) => PREVIEW_LABELS[k] || k.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
+  const dayText = (iso) => {
+    const D = window.LifeLogDates;
+    if (!iso) return "";
+    try { return D ? D.day(String(iso).slice(0, 10), { year: true }) || String(iso).slice(0, 10) : String(iso).slice(0, 10); }
+    catch (e) { return String(iso).slice(0, 10); }
+  };
+  function previewValue(key, v) {
+    if (typeof v === "boolean") return v ? "Yes" : "No";
+    if (/At$|Date$|^date$/.test(key) && /^\d{4}-\d{2}-\d{2}/.test(String(v))) return dayText(v);
+    if (key === "amount" && typeof v === "number" && formatMoney) return formatMoney(v);
+    return fillValueText(key, v);
+  }
+  // A picture in a note being reviewed: one this import brought (the file
+  // picked alongside it, read here and never sent anywhere), or one LifeLog
+  // already keeps (a backup's lifelog-img: link).
+  function previewImageNode(node, imageUrl) {
+    const I = window.LifeLogImages;
+    const id = I && I.idOf(node.src);
+    const want = id ? I.url(id) : imageUrl ? imageUrl(node.src) : null;
+    if (!want) return null;
+    const img = document.createElement("img");
+    img.className = "md-img";
+    img.alt = node.alt || "";
+    img.decoding = "async";
+    Promise.resolve(want).then((u) => {
+      if (u) img.src = u;
+      else img.replaceWith(el("span", "md-img-missing", "Image not among the files picked: " + String(node.src).replace(/^.*[\\/]/, "")));
+    }).catch(() => img.replaceWith(el("span", "md-img-missing", "Couldn't read this image")));
+    return img;
+  }
+  function importPreview(item, imageUrl) {
+    const e = item.entry;
+    const doc = el("article", "picker-doc");
+    if (e.coverUrl && /^(https:|data:)/.test(e.coverUrl)) {
+      const c = el("img", "picker-doc-cover"); c.alt = ""; c.decoding = "async"; c.referrerPolicy = "no-referrer"; c.src = e.coverUrl;
+      c.onerror = () => c.remove();
+      doc.appendChild(c);
+    }
+    doc.appendChild(el("h3", "picker-doc-title", importItemTitle(item) || "Untitled"));
+    const meta = el("div", "picker-doc-meta");
+    const metaBit = (icon, text) => { if (!text) return; const s = el("span"); s.appendChild(window.LifeLogIcons.labelled(icon, text)); meta.appendChild(s); };
+    const when = importItemDateStr(item);
+    metaBit("calendar", item.kind === "entry" ? `${MONTHS[+e.month] || ""} ${e.year}`.trim() : when ? dayText(when) : "");
+    if (item.folder) metaBit("notebook-text", item.folder);
+    if (e.category) {
+      const s = el("span", "picker-doc-cat");
+      const dot = el("span", "dot");
+      dot.style.background = item.kind === "finance" || item.kind === "recurring" ? financeColorOf(e.category) : colorOf(e.category);
+      s.appendChild(dot); s.appendChild(document.createTextNode(e.category));
+      meta.appendChild(s);
+    }
+    const pics = importImageCount(item);
+    if (pics) metaBit("image", pics + (pics === 1 ? " image" : " images"));
+    if (meta.childNodes.length) doc.appendChild(meta);
+    if (item.update) {
+      doc.appendChild(el("p", "picker-doc-note", "Already in your " + (item.targetKind === "entry" ? "timeline" : "backlog") + " — this fills in what it's missing, and changes nothing it already has"));
+      const dl = el("dl", "picker-doc-fields");
+      for (const f of item.fills) {
+        if (isEmptyField(e[f.key])) continue;
+        dl.appendChild(el("dt", null, f.label));
+        dl.appendChild(el("dd", "picker-doc-fill", "+ " + fillValueText(f.key, e[f.key])));
+      }
+      doc.appendChild(dl);
+      return doc;
+    }
+    if (item.dup) doc.appendChild(el("p", "picker-doc-note", "Already in your data — tick it only to bring in a second copy"));
+    if (item.kind === "note") {
+      const md = window.LifeLogMarkdown;
+      const body = el("div", "md picker-doc-body");
+      if (e.kind === "list") {
+        const ul = el("ul");
+        for (const it of e.items || []) { const li = el("li", "md-task" + (it.done ? " is-done" : "")); li.appendChild(el("span", "md-box", it.done ? "☑" : "☐")); li.appendChild(document.createTextNode(it.text)); ul.appendChild(li); }
+        body.appendChild(ul);
+      } else if (e.kind === "quote") {
+        const q = el("blockquote"); q.textContent = e.text || ""; body.appendChild(q);
+        if (e.author) body.appendChild(el("p", "muted", "— " + e.author));
+      } else if (md) {
+        body.appendChild(md.render(e.text || "", { image: (n) => previewImageNode(n, imageUrl) }));
+        // Links stay words here: a review isn't the place to leave the app.
+        for (const a of body.querySelectorAll("a")) a.replaceWith(document.createTextNode(a.textContent));
+      } else body.textContent = e.text || "";
+      doc.appendChild(body);
+      return doc;
+    }
+    const dl = el("dl", "picker-doc-fields");
+    for (const [k, v] of Object.entries(e)) {
+      if (PREVIEW_SKIP.has(k) || k === "category" || isEmptyField(v) || (typeof v === "object")) continue;
+      if (k === "createdAt" && item.kind !== "note") continue;
+      dl.appendChild(el("dt", null, fieldLabel(k)));
+      dl.appendChild(el("dd", null, previewValue(k, v)));
+    }
+    if (Array.isArray(e.items) && e.items.length) { dl.appendChild(el("dt", null, "Items")); dl.appendChild(el("dd", null, e.items.map((i) => i.text).join(", "))); }
+    if (dl.childNodes.length) doc.appendChild(dl);
+    return doc;
+  }
+
+  // The layout the window is in: a phone fills the screen and opens the
+  // preview over the list; under 1100px the filters sit behind chips. Same
+  // rules as the CSS (html.force-mobile / .force-pc as everywhere).
+  const pickerPhone = () => {
+    const r = document.documentElement;
+    if (r.classList.contains("force-mobile")) return true;
+    if (r.classList.contains("force-pc")) return false;
+    return window.innerWidth <= 720;
+  };
+  let pickerKeysWired = false, pickerKeyHandler = null;
+
   const KIND_WORDS = { entry: ["entry", "entries"], backlog: ["backlog item", "backlog items"], finance: ["expense", "expenses"], recurring: ["recurring expense", "recurring expenses"], note: ["note", "notes"], todo: ["checklist item", "checklist items"], habit: ["habit", "habits"], achievement: ["achievement", "achievements"], board: ["board", "boards"] };
   const importItemName = (i) => { const e = i.entry; return String(e.title || e.name || e.note || e.text || e.category || "").toLowerCase(); };
-  function openImportPicker({ title, hint, mode, items, newCategories, confirmLabel, onConfirm, searchable, categorize, threshold }) {
+  function openImportPicker({ title, hint, mode, items, newCategories, confirmLabel, onConfirm, searchable, categorize, threshold, previewImage }) {
     const sorted = items.slice().sort((a, b) => importItemDateStr(b).localeCompare(importItemDateStr(a)));
     items = sorted;
     newCategories = newCategories || [];
+    const sheet = $("#financePickerModal .picker-sheet");
+    sheet.classList.remove("rail-open", "preview-open", "no-rail");
+    sheet.classList.toggle("is-compact", items.length <= 6);
     $("#financePickerTitle").textContent = title;
     $("#financePickerHint").textContent = hint;
     $("#financePickerConfirmBtn").textContent = confirmLabel;
@@ -1248,10 +1431,17 @@
     unresolvedRow.hidden = mode !== "import" || !unresolvedCount;
     hideUnresolvedCb.checked = false;
     $("#financePickerUnresolvedCount").textContent = unresolvedCount ? `(${unresolvedCount})` : "";
+    const imagesRow = $("#financePickerImagesRow");
+    const imagesOnlyCb = $("#financePickerImagesOnly");
+    const withImages = items.filter((i) => i.kind === "note" && importImageCount(i)).length;
+    imagesRow.hidden = !withImages || withImages === items.length;
+    imagesOnlyCb.checked = false;
+    $("#financePickerImagesCount").textContent = withImages ? `(${withImages})` : "";
     // The search box comes on its own once the list is long (0.255.0).
     const searchInput = $("#financePickerSearch");
     searchInput.hidden = !(searchable || items.length > 20);
     searchInput.value = "";
+    searchInput.placeholder = items.some((i) => i.kind === "note") ? "Search titles and text…" : "Search…";
     let searchTerm = "";
     // Sort: by date either way, by name, or by the threshold's measure.
     const sortSel = $("#financePickerSort");
@@ -1285,6 +1475,28 @@
     const bucketsWrap = $("#financePickerBuckets");
     const newCatsWrap = $("#financePickerNewCats");
     const newCatsList = $("#financePickerNewCatsList");
+    const catFilterWrap = $("#financePickerCatFilter");
+    const kindFilterWrap = $("#financePickerKindFilter");
+    const chipsWrap = $("#financePickerChips");
+    const previewDoc = $("#financePickerPreviewDoc");
+    // Filters narrow the list (and what Select all / none reach); they never
+    // take a row in or out by themselves.
+    let catFilter = null, kindFilter = null;
+    let active = null;
+    const rowOf = new Map();
+    // Pictures picked with the notes, read into this device's memory for the
+    // preview and let go when the window closes.
+    const imageUrls = new Map();
+    const imageUrl = previewImage ? (src) => {
+      if (!imageUrls.has(src)) imageUrls.set(src, Promise.resolve(previewImage(src)).catch(() => null));
+      return imageUrls.get(src);
+    } : null;
+    const close = () => {
+      $("#financePickerModal").hidden = true;
+      for (const p of imageUrls.values()) p.then((u) => { if (u && u.startsWith("blob:")) URL.revokeObjectURL(u); });
+      imageUrls.clear();
+      sheet.classList.remove("rail-open", "preview-open");
+    };
 
     function renderNewCats() {
     newCatsWrap.hidden = !newCategories.length;
@@ -1294,10 +1506,9 @@
     newCategories.forEach((nc) => {
       const row = el("label", "toggle-label");
       const cb = el("input"); cb.type = "checkbox"; cb.checked = nc.add;
-      cb.onchange = () => { nc.add = cb.checked; updateCount(); };
+      cb.onchange = () => { nc.add = cb.checked; updateCount(); renderChips(); };
       row.appendChild(cb);
-      const dot = el("span", "dot"); dot.style.background = nc.color;
-      dot.style.width = "9px"; dot.style.height = "9px"; dot.style.borderRadius = "50%"; dot.style.display = "inline-block";
+      const dot = el("span", "dot picker-dot"); dot.style.background = nc.color;
       row.appendChild(dot);
       row.appendChild(document.createTextNode(nc.name + (nc.scope === "project" ? " (project)" : nc.scope === "note" ? " (notes)" : "")));
       newCatsList.appendChild(row);
@@ -1355,7 +1566,10 @@
       const hay = [e.note, e.category, e.title, e.text, e.name, e.amount != null ? String(e.amount) : ""].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(searchTerm);
     }
-    function visibleItems() {
+    const kindOf = (i) => (i.update ? "update" : i.kind);
+    // What the toggles and the search let through, before the category and
+    // kind filters: those count from here, so each says what picking it shows.
+    function baseItems() {
       return items.filter((i) =>
         // An update is a duplicate by identity but not by intent: it is the
         // one row that says what a re-sync would actually do, so the
@@ -1363,9 +1577,15 @@
         (i.update || !i.dup || showDupCb.checked) &&
         (!i.unresolved || !hideUnresolvedCb.checked) &&
         (!i.skipped || showSkipCb.checked) &&
+        (!imagesOnlyCb.checked || importImageCount(i) > 0) &&
         !underThreshold(i) &&
         matchesSearch(i)
       );
+    }
+    function visibleItems() {
+      return baseItems().filter((i) =>
+        (catFilter === null || (i.entry.category || "") === catFilter) &&
+        (kindFilter === null || kindOf(i) === kindFilter));
     }
     // Periods come as years, each a chip that toggles the whole year and
     // says how many of its rows are on, with its months behind a chevron
@@ -1386,13 +1606,14 @@
       if (!yearsSeeded) { yearsSeeded = true; if (monthCount <= 6) byYear.forEach((m, y) => openYears.add(y)); }
       bucketsWrap.innerHTML = "";
       bucketsWrap.hidden = monthCount < 2;
+      $("#financePickerYearsSec").hidden = bucketsWrap.hidden;
       const chipFor = (its, label, cls) => {
         const on = its.filter((i) => i.checked).length;
         const chip = el("button", "cat-chip " + cls + (on === its.length ? " on" : on ? " part" : ""));
         chip.type = "button";
         chip.appendChild(el("span", null, label));
         chip.appendChild(el("span", "bucket-count", on === its.length ? String(its.length) : `${on}/${its.length}`));
-        chip.title = "Toggle this period on/off";
+        chip.title = "Take this period in or out";
         chip.setAttribute("aria-pressed", String(on === its.length));
         chip.onclick = () => { const v = on !== its.length; its.forEach((i) => (i.checked = v)); render(); };
         return chip;
@@ -1415,16 +1636,94 @@
         group.appendChild(head);
         if (openYears.has(y) && months.size > 1) {
           const row = el("div", "picker-months");
-          [...months.keys()].sort((a, b) => b.localeCompare(a)).forEach((key) => row.appendChild(chipFor(months.get(key), MONTHS_SHORT[+key.slice(5)], "month-chip")));
+          [...months.keys()].sort((a, b) => b.localeCompare(a)).forEach((key) => row.appendChild(chipFor(months.get(key), MONTHS[+key.slice(5)] || MONTHS_SHORT[+key.slice(5)], "month-chip")));
           group.appendChild(row);
         }
         bucketsWrap.appendChild(group);
       });
     }
+    // Category and kind: one row each, a second press on the picked one
+    // shows everything again. Only there when there's more than one to pick.
+    function renderFilter(wrap, sec, groups, current, onPick) {
+      wrap.innerHTML = "";
+      $(sec).hidden = groups.length < 2 && current === null;
+      if ($(sec).hidden) return;
+      const row = (value, label, n, color) => {
+        const b = el("button", "picker-filter-row" + (current === value ? " on" : ""));
+        b.type = "button";
+        b.setAttribute("aria-pressed", String(current === value));
+        if (color !== undefined) { const d = el("span", "dot picker-dot"); d.style.background = color || "var(--text-faint)"; b.appendChild(d); }
+        b.appendChild(el("span", "picker-filter-name", label));
+        b.appendChild(el("span", "picker-filter-n", String(n)));
+        b.onclick = () => onPick(current === value ? null : value);
+        wrap.appendChild(b);
+      };
+      row(null, "All", groups.reduce((t, g) => t + g.n, 0));
+      for (const g of groups) row(g.value, g.label, g.n, g.color);
+    }
+    function renderFilters() {
+      const base = baseItems();
+      const inKind = base.filter((i) => kindFilter === null || kindOf(i) === kindFilter);
+      const cats = new Map();
+      for (const i of inKind) { const c = i.entry.category || ""; cats.set(c, (cats.get(c) || 0) + 1); }
+      const colorFor = (i, c) => (!c ? "" : (i.kind === "finance" || i.kind === "recurring") ? financeColorOf(c) : colorOf(c));
+      const sample = new Map(inKind.map((i) => [i.entry.category || "", i]));
+      const catGroups = [...cats.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .map(([c, n]) => ({ value: c, label: c || "No category", n, color: colorFor(sample.get(c), c) }));
+      renderFilter(catFilterWrap, "#financePickerCatSec", catGroups, catFilter, (v) => { catFilter = v; render(); });
+      const inCat = base.filter((i) => catFilter === null || (i.entry.category || "") === catFilter);
+      const kinds = new Map();
+      for (const i of inCat) { const k = kindOf(i); kinds.set(k, (kinds.get(k) || 0) + 1); }
+      const kindGroups = [...kinds.entries()].map(([k, n]) => ({ value: k, n,
+        label: k === "update" ? "Updates" : (KIND_WORDS[k] ? KIND_WORDS[k][1].replace(/^./, (c) => c.toUpperCase()) : k) }));
+      renderFilter(kindFilterWrap, "#financePickerKindSec", kindGroups, kindFilter, (v) => { kindFilter = v; render(); });
+      $("#financePickerShowSec").hidden = [thresholdRow, imagesRow, dupRow, skipRow, unresolvedRow].every((r) => r.hidden);
+      const secs = ["#financePickerYearsSec", "#financePickerCatSec", "#financePickerKindSec", "#financePickerShowSec", "#financePickerNewCats"];
+      sheet.classList.toggle("no-rail", secs.every((s) => $(s).hidden));
+    }
+    // Under 1100px the filters are a sheet; a chip per part opens it there.
+    function renderChips() {
+      chipsWrap.innerHTML = "";
+      const chip = (sec, label, on) => {
+        if ($(sec).hidden) return;
+        const b = el("button", "cat-chip picker-chip" + (on ? " is-set" : ""));
+        b.type = "button";
+        b.appendChild(el("span", null, label));
+        b.appendChild(window.LifeLogIcons.svg("chevron-down"));
+        b.onclick = () => openRail(sec);
+        chipsWrap.appendChild(b);
+      };
+      const offYears = [...bucketsWrap.querySelectorAll(".year-chip")].filter((c) => !c.classList.contains("on")).length;
+      chip("#financePickerYearsSec", offYears ? "Years · " + offYears + " off" : "Years", offYears > 0);
+      chip("#financePickerCatSec", catFilter === null ? "Category" : (catFilter || "No category"), catFilter !== null);
+      chip("#financePickerKindSec", kindFilter === null ? "Kind" : (kindFilter === "update" ? "Updates" : (KIND_WORDS[kindFilter] || [kindFilter, kindFilter])[1]), kindFilter !== null);
+      const shown = [showDupCb, showSkipCb, hideUnresolvedCb, imagesOnlyCb].filter((c) => c.checked).length + (threshold && parseFloat(thresholdInput.value) ? 1 : 0);
+      chip("#financePickerShowSec", shown ? "Show · " + shown : "Show", shown > 0);
+      if (newCategories.length) {
+        const on = newCategories.filter((n) => n.add).length;
+        const b = el("button", "picker-newcats-line");
+        b.type = "button";
+        const dots = el("span", "picker-newcats-dots");
+        for (const nc of newCategories.slice(0, 5)) { const d = el("span", "dot picker-dot"); d.style.background = nc.color; dots.appendChild(d); }
+        b.appendChild(dots);
+        b.appendChild(el("span", null, `${newCategories.length} new categor${newCategories.length === 1 ? "y" : "ies"}, ${on} added`));
+        b.appendChild(el("span", "picker-newcats-choose", "Choose"));
+        b.onclick = () => openRail("#financePickerNewCats");
+        chipsWrap.appendChild(b);
+      }
+      chipsWrap.hidden = !chipsWrap.childNodes.length;
+    }
+    function openRail(sec) {
+      sheet.classList.add("rail-open");
+      const s = $(sec);
+      if (s) requestAnimationFrame(() => s.scrollIntoView({ block: "start" }));
+    }
+    const closeRail = () => sheet.classList.remove("rail-open");
     // What the button will do, by kind: "36 entries, 20 backlog items, 2
     // updates · 2 new categories" (0.255.0), not a bare "58 selected".
     function updateCount() {
-      const chosen = visibleItems().filter((i) => i.checked);
+      const shownNow = visibleItems();
+      const chosen = shownNow.filter((i) => i.checked);
       const parts = [];
       for (const k of Object.keys(KIND_WORDS)) {
         const n = chosen.filter((i) => !i.update && i.kind === k).length;
@@ -1436,6 +1735,7 @@
       let text = parts.length ? parts.join(", ") + (mode === "import" ? "" : " selected") : (chosen.length ? `${chosen.length} selected` : "Nothing selected");
       if (cats && mode === "import") text += ` · ${cats} new categor${cats === 1 ? "y" : "ies"}`;
       $("#financePickerCount").textContent = text;
+      $("#financePickerSelCount").textContent = shownNow.length ? `${chosen.length} of ${shownNow.length} selected` : "Nothing to show";
       if (threshold) {
         const under = items.filter(underThreshold).length;
         $("#financePickerThresholdHidden").textContent = under ? `${under} hidden` : "";
@@ -1447,19 +1747,122 @@
       if (editing) render();
       editing = item;
       const form = importRowEditor(item, newCategories, () => { editing = null; render(); });
-      row.replaceWith(form);
+      (rowOf.get(item) || row).replaceWith(form);
       const first = form.querySelector("input, select");
       if (first) first.focus();
     } : null;
+
+    // ----- the preview -----
+    function showPreview() {
+      const shownNow = visibleItems();
+      if (!active || !shownNow.includes(active)) active = pickerPhone() ? null : shownNow[0] || null;
+      for (const [it, r] of rowOf) r.classList.toggle("is-active", it === active);
+      const at = active ? shownNow.indexOf(active) : -1;
+      $("#financePickerPos").textContent = at >= 0 ? `${at + 1} of ${shownNow.length}` : "";
+      $("#financePickerPrev").disabled = at <= 0;
+      $("#financePickerNext").disabled = at < 0 || at >= shownNow.length - 1;
+      const inc = $("#financePickerInclude");
+      inc.disabled = !active;
+      inc.checked = !!(active && active.checked);
+      $("#financePickerIncludeLabel").textContent = !active ? "Import this" : active.update ? "Import this update" : "Import this " + ((KIND_WORDS[active.kind] || ["item"])[0]);
+      $("#financePickerPreviewEdit").hidden = !onEdit || !active || active.dup;
+      previewDoc.innerHTML = "";
+      if (!active) { previewDoc.appendChild(el("p", "picker-doc-empty", shownNow.length ? "Pick something on the left to see it here" : "Nothing matches")); return; }
+      previewDoc.appendChild(importPreview(active, imageUrl));
+      previewDoc.scrollTop = 0;
+    }
+    function setActive(item, { scroll, open } = {}) {
+      active = item;
+      showPreview();
+      const r = rowOf.get(item);
+      if (scroll && r) r.scrollIntoView({ block: "nearest" });
+      if (open && pickerPhone()) sheet.classList.add("preview-open");
+    }
+    function move(step) {
+      const shownNow = visibleItems();
+      if (!shownNow.length) return;
+      const at = active ? shownNow.indexOf(active) : -1;
+      const next = shownNow[Math.max(0, Math.min(shownNow.length - 1, at + step))];
+      if (next) setActive(next, { scroll: true });
+    }
+    function toggleActive() {
+      if (!active) return;
+      active.checked = !active.checked;
+      const r = rowOf.get(active);
+      const cb = r && r.querySelector("input[type=checkbox]");
+      if (cb) cb.checked = active.checked;
+      changed();
+    }
+    // A tick changed: the counts, the year boxes and the preview follow
+    // without rebuilding 600 rows.
+    function changed() {
+      renderBuckets();
+      renderChips();
+      updateCount();
+      showPreview();
+    }
+
     function render() {
       editing = null;
       list.innerHTML = "";
-      visibleItems().forEach((item) => list.appendChild(importRowFor(item, updateCount, onEdit)));
+      rowOf.clear();
+      const shownNow = visibleItems();
+      // Month headings while the list is in date order.
+      const byDate = sortSel.value === "newest" || sortSel.value === "oldest";
+      const groupCount = new Map();
+      if (byDate) for (const i of shownNow) { const k = importBucketKey(i) || ""; groupCount.set(k, (groupCount.get(k) || 0) + 1); }
+      let lastKey = null;
+      const frag = document.createDocumentFragment();
+      shownNow.forEach((item) => {
+        if (byDate && groupCount.size > 1) {
+          const k = importBucketKey(item) || "";
+          if (k !== lastKey) {
+            lastKey = k;
+            const h = el("div", "picker-group");
+            h.appendChild(el("span", null, k ? importBucketLabel(k) : "No date"));
+            h.appendChild(el("span", "picker-group-n", String(groupCount.get(k))));
+            frag.appendChild(h);
+          }
+        }
+        const row = importRowFor(item, changed, onEdit);
+        rowOf.set(item, row);
+        frag.appendChild(row);
+      });
+      list.appendChild(frag);
       renderBuckets();
+      renderFilters();
+      renderChips();
       updateCount();
+      showPreview();
     }
+    // A press on a row shows it; only the box takes it in or out.
+    list.onclick = (ev) => {
+      const row = ev.target.closest(".picker-row");
+      if (!row || !row.importItem || ev.target.closest("input, button, select")) return;
+      // The strip with the box in it is the box's: 44px to hit on a phone.
+      if (ev.clientX - row.getBoundingClientRect().left < 44) return;
+      ev.preventDefault();
+      setActive(row.importItem, { open: true });
+    };
+    $("#financePickerInclude").onchange = (ev) => { if (active) { active.checked = ev.target.checked; const r = rowOf.get(active); const cb = r && r.querySelector("input[type=checkbox]"); if (cb) cb.checked = active.checked; changed(); } };
+    $("#financePickerPrev").onclick = () => move(-1);
+    $("#financePickerNext").onclick = () => move(1);
+    $("#financePickerPreviewBack").onclick = () => sheet.classList.remove("preview-open");
+    $("#financePickerPreviewEdit").onclick = () => {
+      if (!active || !onEdit) return;
+      editing = active;
+      const item = active;
+      const form = importRowEditor(item, newCategories, () => { editing = null; render(); setActive(item); });
+      previewDoc.innerHTML = "";
+      previewDoc.appendChild(form);
+      const first = form.querySelector("input, select");
+      if (first) first.focus();
+    };
+    $("#financePickerRailDone").onclick = closeRail;
+    $("#financePickerRailScrim").onclick = closeRail;
 
     showDupCb.onchange = render;
+    imagesOnlyCb.onchange = render;
     showSkipCb.onchange = () => {
       // Hidden again means out again: a skipped row ticked and then hidden
       // would otherwise come in unseen.
@@ -1477,16 +1880,41 @@
     thresholdInput.oninput = () => { items.forEach((i) => { if (underThreshold(i)) i.checked = false; }); render(); };
     $("#financePickerSelectAll").onclick = () => { visibleItems().forEach((i) => (i.checked = true)); render(); };
     $("#financePickerSelectNone").onclick = () => { visibleItems().forEach((i) => (i.checked = false)); render(); };
-    $("#financePickerCancelBtn").onclick = () => { $("#financePickerModal").hidden = true; };
+    $("#financePickerCancelBtn").onclick = close;
+    $("#financePickerCloseBtn").onclick = close;
     $("#financePickerConfirmBtn").onclick = async () => {
       const selected = items.filter((i) => i.checked);
       const addCats = newCategories.filter((nc) => nc.add);
-      $("#financePickerModal").hidden = true;
+      close();
       await onConfirm(selected, addCats);
     };
+    // Keys, on a computer: ↑ ↓ move the preview, Space takes the shown row
+    // in or out, / goes to the search. Escape (and Android's back) closes
+    // the preview or the filters sheet before anything else.
+    pickerKeyHandler = (e) => {
+      if ($("#financePickerModal").hidden) return;
+      if (e.key === "Escape") {
+        if (sheet.classList.contains("preview-open")) { sheet.classList.remove("preview-open"); e.stopImmediatePropagation(); e.preventDefault(); }
+        else if (sheet.classList.contains("rail-open")) { closeRail(); e.stopImmediatePropagation(); e.preventDefault(); }
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target;
+      const typing = t && t.closest && t.closest("input:not([type=checkbox]), textarea, select, [contenteditable], .picker-editor");
+      if (typing) return;
+      if (e.key === "ArrowDown" || e.key === "j") { e.preventDefault(); move(1); }
+      else if (e.key === "ArrowUp" || e.key === "k") { e.preventDefault(); move(-1); }
+      else if (e.key === " " && !(t && t.matches && t.matches("input[type=checkbox], button"))) { e.preventDefault(); toggleActive(); }
+      else if (e.key === "/" && !searchInput.hidden) { e.preventDefault(); searchInput.focus(); }
+    };
+    if (!pickerKeysWired) {
+      pickerKeysWired = true;
+      document.addEventListener("keydown", (e) => { if (pickerKeyHandler) pickerKeyHandler(e); }, true);
+    }
 
     render();
     $("#financePickerModal").hidden = false;
+    list.scrollTop = 0;
   }
 
   window.LifeLogIO = {
