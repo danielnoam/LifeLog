@@ -105,12 +105,10 @@ console.log("\nthe release files");
 test("tauri's outputs get fixed names, with their signatures", () => {
   const bundle = path.join(tmp, "bundle");
   fs.mkdirSync(path.join(bundle, "nsis"), { recursive: true });
-  fs.mkdirSync(path.join(bundle, "msi"), { recursive: true });
   fs.writeFileSync(path.join(bundle, "nsis", "LifeLog_0.303.2_x64-setup.exe"), "exe");
   fs.writeFileSync(path.join(bundle, "nsis", "LifeLog_0.303.2_x64-setup.exe.sig"), "sig");
-  fs.writeFileSync(path.join(bundle, "msi", "LifeLog_0.303.2_x64_en-US.msi"), "msi");
   const copied = collect("windows", path.join(tmp, "out"), bundle);
-  assert.deepStrictEqual(copied, ["LifeLog-setup.exe", "LifeLog-setup.exe.sig", "LifeLog.msi"]);
+  assert.deepStrictEqual(copied, ["LifeLog-setup.exe", "LifeLog-setup.exe.sig"]);
   assert.strictEqual(fs.readFileSync(path.join(tmp, "out", "LifeLog-setup.exe"), "utf8"), "exe");
 });
 
@@ -134,6 +132,11 @@ console.log("\nthe shell");
 
 const conf = JSON.parse(fs.readFileSync(path.join(ROOT, "src-tauri", "tauri.conf.json"), "utf8"));
 const caps = JSON.parse(fs.readFileSync(path.join(ROOT, "src-tauri", "capabilities", "default.json"), "utf8"));
+
+test("it makes no MSI, whose version can't pass 0.255", () => {
+  assert.ok(!conf.bundle.targets.includes("msi"));
+  assert.match(fs.readFileSync(path.join(ROOT, ".github", "workflows", "desktop.yml"), "utf8"), /bundles: nsis\n/);
+});
 
 test("it bundles the desktop copy, built by the same tool", () => {
   assert.strictEqual(conf.build.frontendDist, "../www-desktop");

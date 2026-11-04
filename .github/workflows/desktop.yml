@@ -61,7 +61,9 @@ jobs:
             bundles: appimage,deb
           - os: windows-latest
             name: windows
-            bundles: nsis,msi
+            # No MSI: Windows Installer caps a version's middle number at
+            # 255, and LifeLog's is past 300.
+            bundles: nsis
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4

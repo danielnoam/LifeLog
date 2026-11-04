@@ -2,7 +2,7 @@
 //
 //   node tools/desktop-files.js linux|windows <outDir>
 //     copies what `tauri build` made into <outDir> under fixed names
-//     (LifeLog.AppImage, LifeLog.deb, LifeLog-setup.exe, LifeLog.msi, and a
+//     (LifeLog.AppImage, LifeLog.deb and LifeLog-setup.exe, with a
 //     .sig beside each when the updater key signed them), so a release's
 //     download links read the same from one version to the next;
 //
@@ -19,14 +19,14 @@ const REPO = process.env.GITHUB_REPOSITORY || "danielnoam/LifeLog";
 // [bundle folder, file ending, fixed name]
 const FILES = {
   linux: [["appimage", ".AppImage", "LifeLog.AppImage"], ["deb", ".deb", "LifeLog.deb"]],
-  windows: [["nsis", "-setup.exe", "LifeLog-setup.exe"], ["msi", ".msi", "LifeLog.msi"]],
+  // No MSI: Windows Installer caps the version's middle number at 255.
+  windows: [["nsis", "-setup.exe", "LifeLog-setup.exe"]],
 };
 
 // Where the updater looks for each system: the installer-specific key first,
 // and the plain one for an updater that doesn't send its installer.
 const UPDATER = [
   ["LifeLog-setup.exe", ["windows-x86_64-nsis", "windows-x86_64"]],
-  ["LifeLog.msi", ["windows-x86_64-msi"]],
   ["LifeLog.AppImage", ["linux-x86_64-appimage", "linux-x86_64"]],
   ["LifeLog.deb", ["linux-x86_64-deb"]],
 ];
