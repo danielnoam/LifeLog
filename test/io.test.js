@@ -155,6 +155,21 @@ test("an imported Markdown note already in your notes is a duplicate, title and 
   state.data.notes = [];
 });
 
+test("a placeholder title like \"Note:\" becomes the note's first sentence", () => {
+  const n = parseMarkdownNote("# Note:\n\nIdea for the **boss**: it copies your last moves. Then it waits.", "a.md", 0);
+  assert.strictEqual(n.title, "Idea for the boss: it copies your last moves");
+  assert.strictEqual(parseMarkdownNote("# Things to buy:\n- milk", "b.md", 0).title, "Things to buy:");
+  assert.strictEqual(parseMarkdownNote("# Untitled\n" + "word ".repeat(40), "c.md", 0).title.endsWith("…"), true);
+  assert.strictEqual(parseMarkdownNote("# Note:", "d.md", 0).title, "Note:");
+});
+test("a note imported before with a \"Note:\" title is still a duplicate", () => {
+  state.data.notes = [{ id: "n1", title: "Note:", text: "Train times back. 16:02.", createdAt: "2026-01-01T00:00:00.000Z" }];
+  const built = buildImportItems({ notes: [parseMarkdownNote("# Note:\nTrain times back. 16:02.", "t.md", 0)] }, ["note"]);
+  assert.strictEqual(built.items[0].entry.title, "Train times back");
+  assert.strictEqual(built.items[0].dup, true);
+  state.data.notes = [];
+});
+
 test("parseCsv splits plain rows on commas and newlines", () => {
   const rows = parseCsv("a,b,c\n1,2,3");
   assert.deepStrictEqual(rows, [["a", "b", "c"], ["1", "2", "3"]]);

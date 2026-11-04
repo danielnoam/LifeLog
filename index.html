@@ -2174,50 +2174,102 @@
 
   <!-- Version conflict picker (shown on load if sources disagree) -->
   <!-- Finance entries picker — used for both CSV import preview and CSV export selection -->
-  <div class="modal-overlay" id="financePickerModal" hidden>
-    <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="financePickerTitle">
-      <h2 id="financePickerTitle">Import Finance CSV</h2>
-      <p class="hint" id="financePickerHint"></p>
-      <div class="picker-tools">
-        <input type="search" class="picker-search" id="financePickerSearch" placeholder="Search…" aria-label="Search the list" hidden />
-        <select id="financePickerSort" aria-label="Sort" hidden></select>
+  <!-- The import review (0.255.0, laid out again in 2026-11): every import
+       comes here. On a computer it's three columns, filters | list |
+       preview; under 1100px the filters move into a sheet behind chips; on
+       a phone it fills the screen and the preview opens over the list. -->
+  <div class="modal-overlay picker-overlay" id="financePickerModal" hidden>
+    <div class="modal picker-sheet" role="dialog" aria-modal="true" aria-labelledby="financePickerTitle">
+      <header class="picker-head">
+        <div class="picker-head-text">
+          <h2 id="financePickerTitle">Import Finance CSV</h2>
+          <p class="hint" id="financePickerHint"></p>
+        </div>
+        <button type="button" class="btn btn-icon picker-close" id="financePickerCloseBtn" aria-label="Close the import"><span data-ico="x"></span></button>
+      </header>
+      <div class="picker-body">
+        <aside class="picker-rail no-swipe" id="financePickerRail" aria-label="Filters">
+          <div class="picker-rail-top">
+            <h3>Filters</h3>
+            <button type="button" class="btn btn-small" id="financePickerRailDone">Done</button>
+          </div>
+          <section class="picker-rail-sec" id="financePickerYearsSec" data-sec="years">
+            <p class="picker-rail-h">Years</p>
+            <div class="picker-buckets" id="financePickerBuckets" hidden></div>
+          </section>
+          <section class="picker-rail-sec" id="financePickerCatSec" data-sec="category" hidden>
+            <p class="picker-rail-h">Category</p>
+            <div class="picker-filter" id="financePickerCatFilter"></div>
+          </section>
+          <section class="picker-rail-sec" id="financePickerKindSec" data-sec="kind" hidden>
+            <p class="picker-rail-h">Kind</p>
+            <div class="picker-filter" id="financePickerKindFilter"></div>
+          </section>
+          <section class="picker-rail-sec" id="financePickerShowSec" data-sec="show">
+            <p class="picker-rail-h">Show</p>
+            <label class="picker-threshold" id="financePickerThresholdRow" hidden>
+              <span id="financePickerThresholdLabel"></span>
+              <input type="number" id="financePickerThreshold" inputmode="decimal" min="0" />
+              <span id="financePickerThresholdUnit"></span>
+              <span class="muted" id="financePickerThresholdHidden"></span>
+            </label>
+            <label class="toggle-label" id="financePickerImagesRow" hidden>
+              <input type="checkbox" id="financePickerImagesOnly" />
+              With images only <span id="financePickerImagesCount" class="picker-filter-n"></span>
+            </label>
+            <label class="toggle-label" id="financePickerDupRow" hidden>
+              <input type="checkbox" id="financePickerShowDup" />
+              Show entries already in your data
+            </label>
+            <label class="toggle-label" id="financePickerSkipRow" hidden>
+              <input type="checkbox" id="financePickerShowSkipped" />
+              Show what you skipped before <span id="financePickerSkippedCount" class="picker-filter-n"></span>
+            </label>
+            <label class="toggle-label" id="financePickerUnresolvedRow" hidden>
+              <input type="checkbox" id="financePickerHideUnresolved" />
+              Hide unresolved titles <span id="financePickerUnresolvedCount" class="picker-filter-n"></span>
+            </label>
+          </section>
+          <section class="picker-rail-sec picker-newcats" id="financePickerNewCats" data-sec="newcats" hidden>
+            <p class="picker-newcats-eyebrow" id="financePickerNewCatsEyebrow"></p>
+            <div class="picker-newcats-list" id="financePickerNewCatsList"></div>
+          </section>
+        </aside>
+        <div class="picker-rail-scrim" id="financePickerRailScrim"></div>
+        <section class="picker-main">
+          <div class="picker-tools">
+            <input type="search" class="picker-search" id="financePickerSearch" placeholder="Search…" aria-label="Search the list" hidden />
+            <select id="financePickerSort" aria-label="Sort" hidden></select>
+          </div>
+          <div class="picker-chips" id="financePickerChips"></div>
+          <div class="picker-toolbar">
+            <span class="picker-selcount" id="financePickerSelCount"></span>
+            <button type="button" class="link-btn" id="financePickerSelectAll">Select all</button>
+            <button type="button" class="link-btn" id="financePickerSelectNone">Select none</button>
+          </div>
+          <div class="picker-catbar" id="financePickerCatBar" hidden>
+            <span class="muted">Put the selected in</span>
+            <select id="financePickerCatSelect" aria-label="Category"></select>
+            <button type="button" class="btn btn-small" id="financePickerCatApply">Apply</button>
+          </div>
+          <div class="picker-list" id="financePickerList" tabindex="-1"></div>
+        </section>
+        <section class="picker-preview" id="financePickerPreview" aria-label="Preview" aria-live="polite">
+          <div class="picker-preview-bar">
+            <button type="button" class="btn btn-icon picker-preview-back" id="financePickerPreviewBack" aria-label="Back to the list"><span data-ico="chevron-left"></span></button>
+            <label class="picker-include"><input type="checkbox" id="financePickerInclude" /> <span id="financePickerIncludeLabel">Import this</span></label>
+            <button type="button" class="btn btn-small" id="financePickerPreviewEdit" aria-label="Edit before import"><span data-ico="pencil"></span><span class="picker-edit-label">Edit</span></button>
+            <span class="spacer"></span>
+            <span class="picker-pos" id="financePickerPos"></span>
+            <button type="button" class="btn btn-icon" id="financePickerPrev" aria-label="Previous item"><span data-ico="arrow-up"></span></button>
+            <button type="button" class="btn btn-icon" id="financePickerNext" aria-label="Next item"><span data-ico="arrow-down"></span></button>
+          </div>
+          <div class="picker-preview-doc" id="financePickerPreviewDoc"></div>
+        </section>
       </div>
-      <label class="picker-threshold" id="financePickerThresholdRow" hidden>
-        <span id="financePickerThresholdLabel"></span>
-        <input type="number" id="financePickerThreshold" inputmode="decimal" min="0" />
-        <span id="financePickerThresholdUnit"></span>
-        <span class="muted" id="financePickerThresholdHidden"></span>
-      </label>
-      <div class="picker-newcats" id="financePickerNewCats" hidden>
-        <p class="picker-newcats-eyebrow" id="financePickerNewCatsEyebrow"></p>
-        <div class="picker-newcats-list" id="financePickerNewCatsList"></div>
-      </div>
-      <div class="picker-buckets" id="financePickerBuckets" hidden></div>
-      <div class="picker-catbar" id="financePickerCatBar" hidden>
-        <span class="muted">Put the selected in</span>
-        <select id="financePickerCatSelect" aria-label="Category"></select>
-        <button type="button" class="btn btn-small" id="financePickerCatApply">Apply</button>
-      </div>
-      <label class="toggle-label" id="financePickerDupRow" hidden>
-        <input type="checkbox" id="financePickerShowDup" />
-        Show entries already in your data
-      </label>
-      <label class="toggle-label" id="financePickerSkipRow" hidden>
-        <input type="checkbox" id="financePickerShowSkipped" />
-        Show what you skipped before <span id="financePickerSkippedCount" class="muted"></span>
-      </label>
-      <label class="toggle-label" id="financePickerUnresolvedRow" hidden>
-        <input type="checkbox" id="financePickerHideUnresolved" />
-        Hide unresolved titles <span id="financePickerUnresolvedCount" class="muted"></span>
-      </label>
-      <div class="picker-toolbar">
-        <button type="button" class="link-btn" id="financePickerSelectAll">Select all</button>
-        <button type="button" class="link-btn" id="financePickerSelectNone">Select none</button>
-      </div>
-      <div class="picker-list" id="financePickerList"></div>
       <div class="modal-actions picker-actions">
         <span class="muted picker-count" id="financePickerCount" aria-live="polite"></span>
-        <span class="spacer"></span>
+        <span class="picker-keys" aria-hidden="true"><kbd>↑</kbd><kbd>↓</kbd> move <kbd>Space</kbd> include <kbd>/</kbd> search</span>
         <button type="button" class="btn" id="financePickerCancelBtn">Cancel</button>
         <button type="button" class="btn btn-primary" id="financePickerConfirmBtn">Import</button>
       </div>

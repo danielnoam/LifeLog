@@ -1017,6 +1017,7 @@
   }
   function resetImport() {
     dropImportMap();
+    $("#importPlacesModal").classList.remove("has-picks");
     found = null; picks = [];
     $("#importPick").hidden = true;
     $("#importPick").textContent = "";
@@ -1138,6 +1139,9 @@
     const box = $("#importPick");
     box.textContent = "";
     box.hidden = !picks.length;
+    // A list to choose from gets the whole window (2026-11): the map beside
+    // the list on a computer, the screen on a phone.
+    $("#importPlacesModal").classList.toggle("has-picks", picks.length > 1);
     const byPlace = new Map(picks.map((x) => [x.p, x]));
     const groups = picks.length > 1 ? areas(found.places, cachedTown) : [{ name: "", places: found.places }];
     if (picks.length > 1) {
