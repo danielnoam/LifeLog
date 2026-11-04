@@ -32,13 +32,13 @@ async function run(b, width) {
     await page.evaluate(() => window.LifeLogNotes.openNoteModal(null));
     await page.click(`#noteKindSeg [data-kind="${kind}"]`);
   };
-  const save = async () => { await page.click("#noteForm button[type=submit]"); await page.waitForTimeout(300); };
+  const save = async () => { await page.click("#noteModal button[type=submit]"); await page.waitForTimeout(300); };
   const shot = (name) => page.screenshot({ path: require("path").join(require("os").tmpdir(), "notesheet-" + name + "-" + width + ".png") });
 
   // ---- a plain note's title ----
   await open("text");
   check("a plain note offers an optional title" + at, await page.evaluate(() =>
-    !document.querySelector("#nTitleLabel").hidden && /optional/.test(document.querySelector("#nTitleLabelText").textContent)));
+    !document.querySelector("#nTitleLabel").hidden && document.querySelector("#nTitle").placeholder === "Title"));
   await page.fill("#nTitle", "Idea");
   await page.fill("#nText", "Paint the fence blue");
   await shot("text");
@@ -67,6 +67,70 @@ async function run(b, width) {
   await save();
   d = await saved();
   check("and are saved in order" + at, d.notes.find((n) => n.kind === "list").items.map((i) => i.text).join() === "Passport,Charger");
+
+  // ---- moving a list's items in the sheet (0.304.0) ----
+  await page.evaluate(() => window.LifeLogNotes.openNoteModal(window.LifeLogStorage.cachedCopy().notes.find((n) => n.kind === "list")));
+  for (const t of ["Tickets"]) { await page.fill("#nNewItem", t); await page.press("#nNewItem", "Enter"); }
+  check("each row has a handle" + at, await page.evaluate(() => document.querySelectorAll("#nItems .note-list-grip").length === 3));
+  check("and the sheet says what it's for" + at, await page.evaluate(() => !document.querySelector("#nListHint").hidden));
+  const g = await page.locator("#nItems .note-list-grip").nth(2).boundingBox();
+  const top = await page.locator("#nItems .note-list-row").nth(0).boundingBox();
+  await page.mouse.move(g.x + g.width / 2, g.y + g.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(g.x + g.width / 2, top.y + 4, { steps: 8 });
+  await page.mouse.up();
+  const order = () => page.evaluate(() => [...document.querySelectorAll("#nItems .note-list-row input")].map((i) => i.value).join());
+  check("dragging the last item's handle to the top moves it there" + at, await order() === "Tickets,Passport,Charger", await order());
+  await page.focus("#nItems .note-list-row:nth-child(1) .note-list-grip");
+  await page.keyboard.press("ArrowDown");
+  check("the arrow keys move it one step" + at, await order() === "Passport,Tickets,Charger", await order());
+  check("keeping the handle focused" + at, await page.evaluate(() => document.activeElement === document.querySelectorAll("#nItems .note-list-grip")[1]));
+  await save();
+  d = await saved();
+  check("the new order is saved" + at, d.notes.find((n) => n.kind === "list").items.map((i) => i.text).join() === "Passport,Tickets,Charger");
+  check("a checklist offers no image" + at, await page.evaluate(() => {
+    window.LifeLogNotes.openNoteModal(window.LifeLogStorage.cachedCopy().notes.find((n) => n.kind === "list"));
+    const hidden = (s) => getComputedStyle(document.querySelector(s)).display === "none";
+    return hidden("#nAddImageBtn") && hidden("#nImages");
+  }));
+  await page.click("#cancelNoteBtn");
+
+  // ---- reading and editing, and the line numbers (0.304.0) ----
+  await page.evaluate(() => window.LifeLogNotes.openNote(window.LifeLogStorage.cachedCopy().notes.find((n) => n.title === "Idea")));
+  check("a note opens to read by default" + at, await page.evaluate(() => !document.querySelector("#noteReader").hidden && document.querySelector("#noteModal").hidden));
+  await page.click("#editNoteReaderBtn");
+  check("Edit swaps to the editor" + at, await page.evaluate(() => document.querySelector("#noteReader").hidden && !document.querySelector("#noteModal").hidden));
+  check("the dates sit in the foot" + at, await page.evaluate(() => !!document.querySelector(".nv-foot #noteStampLine:not([hidden])")));
+  check("no line numbers until they're on" + at, await page.evaluate(() => getComputedStyle(document.querySelector("#nGutter")).display === "none"));
+  await page.fill("#nText", "One\nTwo that is long enough to wrap on a phone screen, and then some more words after that\n\nFour");
+  await page.evaluate(() => window.LifeLogSettings.openViewOptions("notes", true));
+  await page.selectOption("#noteLineNumbers", "on");
+  await page.click("#closeViewOptionsBtn");
+  const nums = await page.evaluate(() => [...document.querySelectorAll("#nGutter > span")].map((s) => [s.textContent, s.getBoundingClientRect().height]));
+  check("one number per line typed" + at, nums.map((n) => n[0]).join() === "1,2,3,4", nums);
+  check("a wrapped line's number is as tall as it" + (width < 500 ? at : " (wide: one row)" + at),
+    width < 500 ? nums[1][1] > nums[0][1] * 1.5 : nums[1][1] >= nums[0][1] - 1, nums);
+  check("the textarea grows rather than scrolls" + at, await page.evaluate(() => { const t = document.querySelector("#nText"); return t.scrollHeight <= t.clientHeight + 2; }));
+  await page.click("#noteReadBtn");
+  await page.waitForTimeout(300);
+  check("Read saves and swaps back" + at, await page.evaluate(() => !document.querySelector("#noteReader").hidden && document.querySelector("#noteModal").hidden && /Four/.test(document.querySelector("#noteReaderBody").textContent)));
+  d = await saved();
+  check("with the text kept" + at, /Four$/.test(d.notes.find((n) => n.title === "Idea").text));
+  await page.click("#closeNoteReaderBtn");
+  await page.evaluate(() => window.LifeLogSettings.openViewOptions("notes", true));
+  await page.selectOption("#noteOpenIn", "edit");
+  await page.click("#closeViewOptionsBtn");
+  await page.evaluate(() => window.LifeLogNotes.openNote(window.LifeLogStorage.cachedCopy().notes.find((n) => n.title === "Idea")));
+  check("Open a note in: Edit view opens the editor" + at, await page.evaluate(() => document.querySelector("#noteReader").hidden && !document.querySelector("#noteModal").hidden));
+  await page.click("#noteMoreBtn");
+  check("the ⋯ menu holds the kind, Make entry and Delete" + at, await page.evaluate(() => {
+    const m = document.querySelector("#noteMoreMenu");
+    const shown = (s) => { const e = m.querySelector(s); return !!e && e.getClientRects().length > 0; };
+    return !m.hidden && shown('[data-kind="quote"]') && !shown('[data-kind="board"]') && shown("#noteToEntryBtn") && shown("#deleteNoteBtn");
+  }));
+  await page.keyboard.press("Escape");
+  check("Escape shuts the menu, not the note" + at, await page.evaluate(() => document.querySelector("#noteMoreMenu").hidden && !document.querySelector("#noteModal").hidden));
+  await page.click("#cancelNoteBtn");
 
   // ---- a quote's fields ----
   await open("quote");

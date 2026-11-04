@@ -41,7 +41,7 @@ const SEED = {
     await page.evaluate(() => { if (document.querySelector("#noteModal").hidden) window.LifeLogNotes.openNoteModal(null); });
     await page.click(`#noteKindSeg [data-kind="${kind}"]`);
   };
-  const save = async () => { await page.click("#noteForm button[type=submit]"); await page.waitForTimeout(250); };
+  const save = async () => { await page.click("#noteModal button[type=submit]"); await page.waitForTimeout(250); };
 
   // ---- a checklist, under a category made from the sheet ----
   await openNew("list");
@@ -198,15 +198,20 @@ const SEED = {
   check("and the choice is saved", (await saved()).settings.noteSort === "edited");
 
   // ---- editing: kinds change, and what counts as an edit ----
+  // A note opens to read (0.304.0); Edit is one tap from there.
   await page.locator('.note-card[data-id="mid"]').click();
   await page.waitForTimeout(150);
+  await page.click("#editNoteReaderBtn");
   await page.selectOption("#nCategory", "Trip");
   await save();
   d = await saved();
   check("filing a note under a category isn't an edit", d.notes.find((n) => n.id === "mid").category === "Trip" && !d.notes.find((n) => n.id === "mid").editedAt);
   await page.locator('.note-card[data-id="mid"]').click();
   await page.waitForTimeout(150);
+  await page.click("#editNoteReaderBtn");
   check("Make entry is offered on a plain note", await page.evaluate(() => !document.querySelector("#noteToEntryBtn").hidden));
+  // An old note's kind is in the ⋯ menu.
+  await page.click("#noteMoreBtn");
   await page.click('#noteKindSeg [data-kind="quote"]');
   check("but not on a quote", await page.evaluate(() => document.querySelector("#noteToEntryBtn").hidden));
   await page.fill("#nAuthor", "Me");

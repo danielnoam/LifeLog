@@ -52,17 +52,28 @@ anything from anywhere.
 
 Plain notes (Markdown), checklists and quotes, plus drawing boards with a
 hand-drawn look. Note categories, favourites, and collections that open
-their notes as pages. A checklist's items tick, reorder by long press and
-merge item by item between devices. A note can become a Timeline entry.
+their notes as pages. A checklist's items tick, reorder by long press (or
+by their handles while editing) and merge item by item between devices. A
+note can become a Timeline entry.
 
 <table><tr>
 <td><img src="docs/screenshots/notes-desktop.webp" alt="Notes on a computer" width="620"></td>
 <td><img src="docs/screenshots/notes-phone.webp" alt="Notes on a phone" width="200"></td>
 </tr></table>
 
+A note opens as one page with **Read** and **Edit** at the top: the title,
+a category chip under it, and the dates at the foot. **Notebook → View**
+turns on line numbers in the editor, sets the text size and picks which
+view a note opens in.
+
+<table><tr>
+<td><img src="docs/screenshots/note-editor-desktop.webp" alt="Editing a note with line numbers on a computer" width="620"></td>
+<td><img src="docs/screenshots/note-editor-phone.webp" alt="Editing a note with line numbers on a phone" width="200"></td>
+</tr></table>
+
 ### Images in notes
 
-Add image under a note's text, or paste or drop one in. Each sits on its
+Add image at the foot of a note you're writing, or paste or drop one in. Each sits on its
 own line where you put it, shrunk to 1600px. Importing Obsidian notes with
 their images (or the whole folder) brings the pictures along; one that
 wasn't found shows as a dashed line, and **Find in folder** fills it in.

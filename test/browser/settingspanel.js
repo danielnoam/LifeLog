@@ -164,8 +164,9 @@ const shown = (page, sel) => page.evaluate((q) => {
     await page.waitForTimeout(250);
     viewBtn[v] = await shown(page, "#viewOptionsBtn");
   }
-  check("the View button is on the Timeline, Backlog and Ledger, and not where there's nothing to set",
-    viewBtn.timeline && viewBtn.backlog && viewBtn.finance && !viewBtn.notes, viewBtn);
+  // Notebook got its own options in 0.304.0 (line numbers, text size, open in).
+  check("the View button is on the Notebook, Timeline, Backlog and Ledger",
+    viewBtn.timeline && viewBtn.backlog && viewBtn.finance && viewBtn.notes, viewBtn);
   const sheets = {};
   for (const v of ["timeline", "backlog", "finance"]) {
     await page.click(`#viewTabs .tab[data-view="${v}"]`);

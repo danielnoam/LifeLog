@@ -840,7 +840,7 @@
       if (state.bulk.active) { toggleBulkItem(card.dataset.id); return; }
       if (card.dataset.id.startsWith(BOARD)) { window.LifeLogBoards.openBoard(card.dataset.id.slice(BOARD.length)); return; }
       const n = (state.data.notes || []).find((x) => x.id === card.dataset.id);
-      if (n) openNoteModal(n);
+      if (n) openNote(n);
     };
     // A list is a panel you work in, so only its header (and date line)
     // opens it; every other note opens from anywhere on its card.
@@ -1166,8 +1166,7 @@
     if (meta) card.appendChild(el("span", "coll-card-meta", meta));
     card.onclick = () => {
       if (state.bulk.active) toggleBulkItem(n.id);
-      else if (kind === "list") openNoteModal(findList(n.id));
-      else openNoteReader(n.id);
+      else openNote(findList(n.id));
     };
     return card;
   }
@@ -1176,6 +1175,33 @@
   // A note in a collection opens as a page, its Markdown drawn, with Edit a
   // tap away — the note sheet is for writing, and a recipe is mostly read.
   let readingId = "";
+  // How a note opens from a card or a search row: a checklist is worked in,
+  // so it opens ready to edit; the rest as Notebook → View says (0.304.0;
+  // until then the feed opened the editor and collections the reader).
+  function openNote(n) {
+    if (!n) return;
+    if (kindOf(n) === "list" || state.visual.noteOpenIn === "edit") openNoteModal(n);
+    else openNoteReader(n.id);
+  }
+  // Read ⇄ Edit: one sheet goes and the other is there, with neither fade.
+  function swapSheets(close, open) {
+    const a = $(close), b = $(open);
+    a.classList.add("nv-instant"); b.classList.add("nv-instant");
+    a.hidden = true;
+    b.hidden = false;
+    requestAnimationFrame(() => requestAnimationFrame(() => { a.classList.remove("nv-instant"); b.classList.remove("nv-instant"); }));
+  }
+  function applyNoteView() {
+    const v = state.visual, root = document.documentElement.classList;
+    root.toggle("note-lines", v.noteLineNumbers === "on");
+    root.toggle("note-text-small", v.noteTextSize === "small");
+    root.toggle("note-text-large", v.noteTextSize === "large");
+    if (!$("#noteModal").hidden) fitText();
+  }
+  function setCatChip(chip, name) {
+    const dot = chip.querySelector(".dot");
+    if (dot) dot.style.background = name ? catColor(name) : "";
+  }
   function openNoteReader(id) {
     const n = findList(id);
     if (!n) return;
@@ -1183,8 +1209,13 @@
     let { title, body } = splitTitle(n);
     // A one-line note has no title to split off: the line is the note.
     if (!n.title && kindOf(n) === "text" && !body) { body = title; title = "Note"; }
+    applyNoteView();
     $("#noteReaderTitle").textContent = title;
-    const meta = [n.category, "Written " + formatEdited(n.createdAt || n.updatedAt), n.editedAt ? "edited " + formatEdited(n.editedAt) : ""]
+    const cat = $("#noteReaderCat");
+    cat.hidden = !n.category;
+    cat.lastElementChild.textContent = n.category || "";
+    setCatChip(cat, n.category);
+    const meta = ["Written " + formatStamp(noteDate(n)), n.editedAt ? "edited " + formatEdited(n.editedAt) : ""]
       .filter(Boolean).join(" · ");
     $("#noteReaderMeta").textContent = meta;
     const out = $("#noteReaderBody");
@@ -1197,6 +1228,7 @@
     } else if (md) out.appendChild(md.render(body, mdOpts));
     else out.appendChild(el("p", "note-text", body));
     if (!out.childNodes.length) out.appendChild(el("p", "muted", "Nothing written under the title yet."));
+    $("#noteReader .nv-scroll").scrollTop = 0;
     $("#noteReader").hidden = false;
   }
   function closeNoteReader() { $("#noteReader").hidden = true; readingId = ""; }
@@ -1294,17 +1326,77 @@
       b.setAttribute("aria-checked", String(on));
     });
     $("#nTitleLabel").hidden = sheetKind === "quote";
-    $("#nTitleLabelText").textContent = sheetKind === "list" ? "Title" : "Title (optional)";
-    $("#nTitle").placeholder = sheetKind === "list" ? "Shopping, packing, this week…" : "";
+    $("#nTitle").placeholder = sheetKind === "list" ? "Shopping, packing, this week…" : "Title";
     $("#nListEditor").hidden = sheetKind !== "list";
     $("#nTextLabel").hidden = sheetKind === "list";
     $("#nQuoteFields").hidden = sheetKind !== "quote";
     $("#nImages").hidden = sheetKind !== "text";
+    $("#nAddImageBtn").hidden = sheetKind !== "text";
+    $("#nListHint").hidden = sheetKind !== "list" || sheetItems.length < 2;
     $("#nTextLabelText").textContent = sheetKind === "quote" ? "Quote" : "Note";
     $("#nText").placeholder = sheetKind === "quote" ? "The words, as they were said" : "What happened, what you noticed…";
     $("#nText").rows = sheetKind === "quote" ? 4 : 8;
     const editing = editingNoteId && state.data.notes.find((x) => x.id === editingNoteId);
     $("#noteToEntryBtn").hidden = !editing || sheetKind !== "text";
+    // Reading is for what's written; a checklist is its own page.
+    $("#noteModeSeg").hidden = !editing || sheetKind === "list";
+    fitText();
+  }
+
+  // ---------- the text field (0.304.0) ----------
+  // It grows with what's written, so the page scrolls rather than the
+  // field, and the line numbers beside it are one per line you typed: a
+  // line that wraps keeps one number, as long as it is tall. Each height
+  // comes from an off-screen copy of the text at the same width and type.
+  let measure = null;
+  function fitText() {
+    const ta = $("#nText");
+    if (!ta || $("#noteModal").hidden || $("#nTextLabel").hidden) return;
+    const scroller = $("#noteForm");
+    const keep = scroller.scrollTop;
+    ta.style.height = "auto";
+    ta.style.height = ta.scrollHeight + "px";
+    scroller.scrollTop = keep;
+    drawGutter();
+  }
+  function drawGutter() {
+    const ta = $("#nText"), gutter = $("#nGutter");
+    if (!document.documentElement.classList.contains("note-lines") || sheetKind === "list") { gutter.replaceChildren(); return; }
+    if (!measure) { measure = el("div", "nv-measure"); measure.setAttribute("aria-hidden", "true"); }
+    if (!measure.isConnected) $("#nEditor").appendChild(measure);
+    const cs = getComputedStyle(ta);
+    measure.style.width = ta.clientWidth + "px";
+    measure.style.font = cs.font;
+    measure.style.lineHeight = cs.lineHeight;
+    measure.style.letterSpacing = cs.letterSpacing;
+    const lines = ta.value.split("\n");
+    measure.replaceChildren(...lines.map((l) => el("div", null, l || "\u200b")));
+    const rows = measure.children;
+    const spans = lines.map((_, i) => {
+      const s = el("span", null, String(i + 1));
+      s.style.height = rows[i].getBoundingClientRect().height + "px";
+      return s;
+    });
+    gutter.replaceChildren(...spans);
+    markLine();
+  }
+  function markLine() {
+    const ta = $("#nText"), gutter = $("#nGutter");
+    if (!gutter.firstChild) return;
+    const at = document.activeElement === ta ? ta.value.slice(0, ta.selectionStart).split("\n").length - 1 : -1;
+    [...gutter.children].forEach((s, i) => s.classList.toggle("on", i === at));
+  }
+
+  // ---------- the ⋯ menu ----------
+  function closeNoteMenu() {
+    $("#noteMoreMenu").hidden = true;
+    $("#noteMoreBtn").setAttribute("aria-expanded", "false");
+  }
+  function toggleNoteMenu() {
+    const menu = $("#noteMoreMenu");
+    menu.hidden = !menu.hidden;
+    $("#noteMoreBtn").setAttribute("aria-expanded", String(!menu.hidden));
+    if (!menu.hidden) { const first = menu.querySelector("button:not([hidden])"); if (first) first.focus(); }
   }
 
   function renderSheetItems() {
@@ -1314,6 +1406,12 @@
       // No tick here: that's the card's job. A finished item keeps its tick
       // and shows struck through.
       const row = el("div", "note-list-row" + (it.done ? " is-done" : ""));
+      row.dataset.idx = String(i);
+      const grip = el("button", "note-list-grip");
+      grip.type = "button";
+      grip.appendChild(ico("grip-vertical"));
+      grip.setAttribute("aria-label", "Move " + (it.text || "item") + " — drag, or use the arrow keys");
+      wireSheetGrip(grip, row, i);
       const input = document.createElement("input");
       input.type = "text";
       input.value = it.text;
@@ -1326,9 +1424,58 @@
       del.type = "button";
       del.setAttribute("aria-label", "Remove item");
       del.onclick = () => { sheetItems.splice(i, 1); renderSheetItems(); };
-      row.append(input, del);
+      row.append(grip, input, del);
       wrap.appendChild(row);
     });
+    $("#nListHint").hidden = sheetKind !== "list" || sheetItems.length < 2;
+  }
+  // Moving a checklist's items in the sheet (0.304.0): the handle follows
+  // the pointer and the row takes the place it's over; arrow keys move it
+  // one step. The order is saved with the rest on Save.
+  function wireSheetGrip(grip, row, i) {
+    grip.onkeydown = (ev) => {
+      const to = ev.key === "ArrowUp" ? i - 1 : ev.key === "ArrowDown" ? i + 1 : -1;
+      if (to < 0 || to >= sheetItems.length) return;
+      ev.preventDefault();
+      const [it] = sheetItems.splice(i, 1);
+      sheetItems.splice(to, 0, it);
+      renderSheetItems();
+      $("#nItems").children[to].querySelector(".note-list-grip").focus();
+    };
+    grip.onpointerdown = (ev) => {
+      if (ev.button > 0) return;
+      ev.preventDefault();
+      const wrap = $("#nItems");
+      grip.setPointerCapture(ev.pointerId);
+      row.classList.add("is-dragging");
+      wrap.classList.add("is-sorting");
+      let startY = ev.clientY;
+      const move = (e) => {
+        const y = e.clientY;
+        const others = [...wrap.children].filter((r) => r !== row);
+        const before = others.find((r) => { const b = r.getBoundingClientRect(); return y < b.top + b.height / 2; });
+        if ((before || null) !== row.nextElementSibling || (!before && row.nextElementSibling)) {
+          const top = row.offsetTop;
+          row.style.transform = "";
+          wrap.insertBefore(row, before || null);
+          startY += row.offsetTop - top;
+        }
+        row.style.transform = "translateY(" + (y - startY) + "px)";
+      };
+      const end = () => {
+        grip.removeEventListener("pointermove", move);
+        grip.removeEventListener("pointerup", end);
+        grip.removeEventListener("pointercancel", end);
+        row.classList.remove("is-dragging");
+        wrap.classList.remove("is-sorting");
+        row.style.transform = "";
+        const order = [...wrap.children].map((r) => sheetItems[+r.dataset.idx]);
+        if (order.some((it, k) => it !== sheetItems[k])) { sheetItems = order; renderSheetItems(); }
+      };
+      grip.addEventListener("pointermove", move);
+      grip.addEventListener("pointerup", end);
+      grip.addEventListener("pointercancel", end);
+    };
   }
   function addSheetItem() {
     const input = $("#nNewItem");
@@ -1350,6 +1497,7 @@
     opt(NEW_CATEGORY, "New category…");
     sel.value = noteCats().some((c) => c.name === value) ? value : "";
     sel.dataset.prev = sel.value;
+    setCatChip(sel.closest(".nv-cat"), sel.value);
   }
 
   // The note sheet's pictures: a row of thumbnails for the ones the text
@@ -1455,6 +1603,15 @@
 
   function openNoteModal(note, kind) {
     editingNoteId = note ? note.id : "";
+    applyNoteView();
+    closeNoteMenu();
+    // A new note picks its kind up top; an old one changes it now and then,
+    // from the ⋯ menu, where Make entry and Delete are too.
+    const seg = $("#noteKindSeg");
+    if (note) $("#noteKindMenuSlot").appendChild(seg);
+    else $("#noteForm .nv-col").prepend(seg);
+    seg.querySelector('[data-kind="board"]').hidden = !!note;
+    $("#noteMoreBtn").hidden = !note;
     $("#noteModalTitle").textContent = note ? "Edit note" : "New note";
     $("#nText").value = note && kindOf(note) !== "list" ? note.text : "";
     $("#nTitle").value = !note ? "" : kindOf(note) === "list" ? note.text : (note.title || "");
@@ -1480,13 +1637,20 @@
     const shown = state.noteKinds.size === 1 ? [...state.noteKinds][0] : "";
     setSheetKind(note ? kindOf(note) : (kind || shown || "text"));
     renderSheetImages();
-    $("#noteModal").hidden = false;
-    (sheetKind === "list" ? (note ? $("#nNewItem") : $("#nTitle")) : $("#nText")).focus();
+    $("#noteForm").scrollTop = 0;
+    if ($("#noteModal").hidden) $("#noteModal").hidden = false;
+    fitText();
+    (sheetKind === "list" ? (note ? $("#nNewItem") : $("#nTitle")) : $("#nText")).focus({ preventScroll: true });
   }
-  function closeNoteModal() { $("#noteModal").hidden = true; }
+  function closeNoteModal() { closeNoteMenu(); $("#noteModal").hidden = true; }
 
   async function saveNoteFromForm(ev) {
     ev.preventDefault();
+    await saveNote();
+  }
+  // Saves what's in the sheet and closes it; false when there's nothing to
+  // save yet (the toast says what's missing) and the sheet stays.
+  async function saveNote(after) {
     addSheetItem(); // an item typed but not yet entered is still meant
     const kind = sheetKind;
     const text = (kind === "list" ? $("#nTitle").value : $("#nText").value).trim();
@@ -1494,7 +1658,7 @@
     const title = $("#nTitle").value.trim();
     if (kind === "list" ? !text && !items.length : kind === "text" ? !text && !title : !text) {
       toast(kind === "list" ? "Give the list a title or an item" : kind === "quote" ? "Write the quote" : "Write something first", true);
-      return;
+      return false;
     }
     const fields = { text, kind: kind === "text" ? undefined : kind, title: kind === "text" ? $("#nTitle").value.trim() : undefined };
     if (kind === "quote") { fields.author = $("#nAuthor").value.trim(); fields.source = $("#nSource").value.trim(); }
@@ -1517,9 +1681,10 @@
     } else {
       state.data.notes.unshift(sanitizeNote({ ...fields, category, createdAt: now, updatedAt: now }));
     }
-    closeNoteModal();
+    if (after) after(); else closeNoteModal();
     render();
     await persist();
+    return true;
   }
 
   async function deleteNote() {
@@ -1537,10 +1702,34 @@
     $("#closeNoteReaderBtn").onclick = closeNoteReader;
     $("#editNoteReaderBtn").onclick = () => {
       const n = findList(readingId);
-      closeNoteReader();
-      if (n) openNoteModal(n);
+      if (!n) { closeNoteReader(); return; }
+      openNoteModal(n);
+      swapSheets("#noteReader", "#noteModal");
+      readingId = "";
+    };
+    // Read saves first: what you read is what's kept.
+    $("#noteReadBtn").onclick = () => {
+      const id = editingNoteId;
+      saveNote(() => { closeNoteMenu(); openNoteReader(id); swapSheets("#noteModal", "#noteReader"); });
     };
     $("#cancelNoteBtn").onclick = closeNoteModal;
+    const viewOptions = () => { closeNoteMenu(); window.LifeLogSettings.openViewOptions("notes", true); };
+    $("#noteViewBtn").onclick = viewOptions;
+    $("#noteReaderViewBtn").onclick = viewOptions;
+    $("#noteMoreBtn").onclick = (ev) => { ev.stopPropagation(); toggleNoteMenu(); };
+    $("#noteMoreMenu").addEventListener("click", (ev) => { if (ev.target.closest("button")) closeNoteMenu(); });
+    $("#noteModal").addEventListener("pointerdown", (ev) => {
+      if (!$("#noteMoreMenu").hidden && !ev.target.closest("#noteMoreMenu, #noteMoreBtn")) closeNoteMenu();
+    });
+    $("#noteMoreMenu").addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") { ev.stopPropagation(); closeNoteMenu(); $("#noteMoreBtn").focus(); }
+    });
+    $("#nText").addEventListener("input", fitText);
+    for (const t of ["keyup", "click", "focus", "blur"]) $("#nText").addEventListener(t, markLine);
+    if (window.ResizeObserver) {
+      let w = 0;
+      new ResizeObserver(() => { const now = $("#nText").clientWidth; if (now !== w) { w = now; fitText(); } }).observe($("#nText"));
+    }
     $("#deleteNoteBtn").onclick = deleteNote;
     $("#noteToEntryBtn").onclick = makeEntryFromNote;
     document.querySelectorAll("#noteKindSeg [data-kind]").forEach((b) => {
@@ -1555,7 +1744,7 @@
     };
     $("#nCategory").onchange = () => {
       const sel = $("#nCategory");
-      if (sel.value !== NEW_CATEGORY) { sel.dataset.prev = sel.value; return; }
+      if (sel.value !== NEW_CATEGORY) { sel.dataset.prev = sel.value; setCatChip(sel.closest(".nv-cat"), sel.value); return; }
       // Back to where it was until the new one exists: cancelling the
       // category sheet must not leave "New category…" chosen.
       sel.value = sel.dataset.prev || "";
@@ -1602,15 +1791,14 @@
     init, wire,
     sanitizeNote, renameNoteCategory, noteYears, getFilteredNotes, noteCats, openNoteCatModal, closeNoteCatModal, noteHaystack,
     sanitizeTodo, foldTodosIntoLists, listNotes: () => state.data.notes.filter((n) => n.kind === "list"),
-    renderNotes, focusQuickList, openNoteReader, closeNoteReader, isCollection,
+    renderNotes, focusQuickList, openNoteReader, closeNoteReader, isCollection, openNote, applyNoteView,
     openNoteModal, closeNoteModal, updateImagesSetting,
     // the search page (search.js, 0.251.0): every note, boards included,
     // and the way a row of each kind opens
     searchable: () => state.data.notes.concat(boardItems()),
     openSearchHit: (n) => {
       if (kindOf(n) === "board") { window.LifeLogBoards.openBoard(n.board.id); return; }
-      if (kindOf(n) !== "list" && isCollection(n.category)) { openNoteReader(n.id); return; }
-      openNoteModal(n);
+      openNote(n);
     },
     // pure helpers (test/notes.test.js)
     noteDate, noteYear, splitNoteForEntry, splitTitle, plainPreview,

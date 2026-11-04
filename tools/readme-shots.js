@@ -289,6 +289,11 @@ const SHOTS = [
       await page.evaluate(() => window.LifeLogNotes.openNoteReader(window.LifeLogNotes.searchable().find((n) => n.title === "Ridge trail").id));
       await page.waitForSelector("#noteReaderBody .md-img[src^='blob:']");
     } },
+  // Writing a note (0.304.0): the editor with its line numbers on.
+  { name: "note-editor", ui: { view: "notes", notesMode: "notes" }, noScroll: true, visual: { noteLineNumbers: "on" },
+    go: async (page) => {
+      await page.evaluate(() => window.LifeLogNotes.openNoteModal(window.LifeLogNotes.searchable().find((n) => n.title === "Weekend loaf")));
+    } },
   { name: "habits", ui: { view: "notes", notesMode: "habits" } },
   { name: "ledger", ui: { view: "finance", financeMode: "entries" } },
   { name: "ledger-summary", ui: { view: "finance", financeMode: "summary" } },

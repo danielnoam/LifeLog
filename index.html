@@ -328,64 +328,94 @@
     </div>
   </div>
 
-  <!-- Achievement add/edit modal -->
-  <div class="modal-overlay" id="noteModal" hidden>
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="noteModalTitle">
-      <h2 id="noteModalTitle">New note</h2>
-      <form id="noteForm">
-        <p class="muted added-line" id="noteStampLine" hidden></p>
-        <div class="note-kind-seg" id="noteKindSeg" role="radiogroup" aria-label="Kind of note">
-          <button type="button" role="radio" data-kind="text">Note</button>
-          <button type="button" role="radio" data-kind="list">Checklist</button>
-          <button type="button" role="radio" data-kind="quote">Quote</button>
-          <button type="button" role="radio" data-kind="board" title="A page to draw on — opens the board editor">Board</button>
+  <!-- A note, written (#noteModal) or read (#noteReader): one frame with
+       the same bar, so Read / Edit swaps between them in place (0.304.0). -->
+  <div class="modal-overlay nv-overlay" id="noteModal" hidden>
+    <div class="modal nv" role="dialog" aria-modal="true" aria-labelledby="noteModalTitle">
+      <div class="nv-bar">
+        <button type="button" class="btn btn-icon" id="cancelNoteBtn" title="Close" aria-label="Close"><span data-ico="x"></span></button>
+        <div class="nv-mode" id="noteModeSeg" role="group" aria-label="Read or edit">
+          <button type="button" id="noteReadBtn"><span data-ico="notebook-text"></span><span class="nv-mode-label">Read</span></button>
+          <button type="button" class="on" aria-pressed="true"><span data-ico="pencil"></span><span class="nv-mode-label">Edit</span></button>
         </div>
-        <label id="nTitleLabel" hidden><span id="nTitleLabelText">Title</span>
-          <input id="nTitle" type="text" autocomplete="off" placeholder="Shopping, packing, this week…" />
-        </label>
-        <label id="nTextLabel"><span id="nTextLabelText">Note</span>
-          <textarea id="nText" rows="8" autocomplete="off" placeholder="What happened, what you noticed…"></textarea>
-        </label>
-        <div id="nImages" class="note-images">
-          <div id="nImageThumbs" class="note-image-thumbs" hidden></div>
-          <button type="button" class="btn btn-sm" id="nAddImageBtn"><span data-ico="image"></span> Add image</button>
-          <input type="file" id="nImageInput" accept="image/*" multiple hidden />
+        <h2 id="noteModalTitle" class="sr-only">New note</h2>
+        <span class="spacer"></span>
+        <button type="button" class="btn btn-icon" id="noteViewBtn" title="View options" aria-label="View options"><span data-ico="sliders-horizontal"></span></button>
+        <button type="button" class="btn btn-icon" id="noteMoreBtn" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false"><span data-ico="ellipsis"></span></button>
+        <button type="submit" form="noteForm" class="btn btn-primary">Save</button>
+        <div class="nv-menu" id="noteMoreMenu" role="menu" hidden>
+          <p class="nv-menu-label" id="noteKindMenuLabel">Kind</p>
+          <div id="noteKindMenuSlot"></div>
+          <hr id="noteMenuRule" />
+          <button type="button" role="menuitem" id="noteToEntryBtn" hidden><span data-ico="film"></span> Make entry</button>
+          <button type="button" role="menuitem" class="nv-menu-danger" id="deleteNoteBtn" hidden><span data-ico="trash"></span> Delete note</button>
         </div>
-        <div id="nListEditor" class="note-list-editor" hidden>
-          <div id="nItems" class="note-list-items"></div>
-          <div class="note-list-new"><span aria-hidden="true">+</span><input id="nNewItem" type="text" autocomplete="off" placeholder="Add an item" aria-label="New item" /></div>
-        </div>
-        <div id="nQuoteFields" class="note-quote-fields" hidden>
-          <label>Author
-            <input id="nAuthor" type="text" autocomplete="off" placeholder="Who said it" />
+      </div>
+      <form id="noteForm" class="nv-scroll">
+        <div class="nv-col">
+          <div class="note-kind-seg" id="noteKindSeg" role="radiogroup" aria-label="Kind of note">
+            <button type="button" role="radio" data-kind="text"><span data-ico="notebook-text"></span> Note</button>
+            <button type="button" role="radio" data-kind="list"><span data-ico="list-checks"></span> Checklist</button>
+            <button type="button" role="radio" data-kind="quote"><span data-ico="quote"></span> Quote</button>
+            <button type="button" role="radio" data-kind="board" title="A page to draw on — opens the board editor"><span data-ico="presentation"></span> Board</button>
+          </div>
+          <label id="nTitleLabel" class="nv-title-label" hidden><span id="nTitleLabelText" class="sr-only">Title</span>
+            <input id="nTitle" class="nv-title" type="text" autocomplete="off" placeholder="Title" />
           </label>
-          <label>Source
-            <input id="nSource" type="text" autocomplete="off" placeholder="Book, film, talk…" />
+          <label class="nv-cat" title="Category"><span class="dot" id="nCatDot"></span><span class="sr-only">Category</span>
+            <select id="nCategory"></select>
           </label>
-        </div>
-        <label>Category
-          <select id="nCategory"></select>
-        </label>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-danger" id="deleteNoteBtn" hidden>Delete</button>
-          <button type="button" class="btn" id="noteToEntryBtn" hidden>Make entry</button>
-          <span class="spacer"></span>
-          <button type="button" class="btn" id="cancelNoteBtn">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save</button>
+          <div id="nQuoteFields" class="note-quote-fields" hidden>
+            <label>Author
+              <input id="nAuthor" type="text" autocomplete="off" placeholder="Who said it" />
+            </label>
+            <label>Source
+              <input id="nSource" type="text" autocomplete="off" placeholder="Book, film, talk…" />
+            </label>
+          </div>
+          <label id="nTextLabel" class="nv-text-label"><span id="nTextLabelText" class="sr-only">Note</span>
+            <span class="nv-editor" id="nEditor">
+              <span class="nv-gutter" id="nGutter" aria-hidden="true"></span>
+              <textarea id="nText" rows="8" autocomplete="off" placeholder="What happened, what you noticed…"></textarea>
+            </span>
+          </label>
+          <div id="nImages" class="note-images">
+            <div id="nImageThumbs" class="note-image-thumbs" hidden></div>
+            <input type="file" id="nImageInput" accept="image/*" multiple hidden />
+          </div>
+          <div id="nListEditor" class="note-list-editor" hidden>
+            <div id="nItems" class="note-list-items"></div>
+            <div class="note-list-new"><span aria-hidden="true">+</span><input id="nNewItem" type="text" autocomplete="off" placeholder="Add an item" aria-label="New item" /></div>
+          </div>
+          <p class="nv-hint" id="nListHint" hidden>Drag the handle to move an item</p>
         </div>
       </form>
+      <div class="nv-foot">
+        <button type="button" class="btn btn-icon" id="nAddImageBtn" title="Add image" aria-label="Add image"><span data-ico="image"></span></button>
+        <span class="spacer"></span>
+        <p class="added-line" id="noteStampLine" hidden></p>
+      </div>
     </div>
   </div>
 
-  <div class="modal-overlay" id="noteReader" hidden>
-    <div class="modal note-reader" role="dialog" aria-modal="true" aria-labelledby="noteReaderTitle">
-      <h2 id="noteReaderTitle"></h2>
-      <p class="muted note-reader-meta" id="noteReaderMeta"></p>
-      <div class="md" id="noteReaderBody"></div>
-      <div class="modal-actions">
+  <div class="modal-overlay nv-overlay" id="noteReader" hidden>
+    <div class="modal nv note-reader" role="dialog" aria-modal="true" aria-labelledby="noteReaderTitle">
+      <div class="nv-bar">
+        <button type="button" class="btn btn-icon" id="closeNoteReaderBtn" title="Close" aria-label="Close"><span data-ico="x"></span></button>
+        <div class="nv-mode" role="group" aria-label="Read or edit">
+          <button type="button" class="on" aria-pressed="true"><span data-ico="notebook-text"></span><span class="nv-mode-label">Read</span></button>
+          <button type="button" id="editNoteReaderBtn"><span data-ico="pencil"></span><span class="nv-mode-label">Edit</span></button>
+        </div>
         <span class="spacer"></span>
-        <button type="button" class="btn" id="closeNoteReaderBtn">Close</button>
-        <button type="button" class="btn btn-primary" id="editNoteReaderBtn">Edit</button>
+        <button type="button" class="btn btn-icon" id="noteReaderViewBtn" title="View options" aria-label="View options"><span data-ico="sliders-horizontal"></span></button>
+      </div>
+      <div class="nv-scroll">
+        <div class="nv-col">
+          <h2 id="noteReaderTitle" class="nv-title"></h2>
+          <p class="nv-cat nv-cat-static" id="noteReaderCat" hidden><span class="dot"></span><span></span></p>
+          <div class="md" id="noteReaderBody"></div>
+          <p class="note-reader-meta" id="noteReaderMeta"></p>
+        </div>
       </div>
     </div>
   </div>
@@ -2118,6 +2148,34 @@
           </label>
         </div>
         <p class="hint">Whether each block at the end of a category can fold behind a bar like <em>▸ Unreleased 12</em>, and how it starts. A folded block isn't drawn at all.</p>
+      </section>
+
+      <section class="sgroup" data-for="notes">
+        <div class="sgroup-card">
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Line numbers</span><span class="sitem-sub">Down the side of the note editor</span></span>
+            <select id="noteLineNumbers">
+              <option value="off">Off</option>
+              <option value="on">On</option>
+            </select>
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Text size</span><span class="sitem-sub">Writing and reading a note</span></span>
+            <select id="noteTextSize">
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+            </select>
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Open a note in</span></span>
+            <select id="noteOpenIn">
+              <option value="read">Reading view</option>
+              <option value="edit">Edit view</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint">This device only. Checklists always open ready to edit.</p>
       </section>
 
       <section class="sgroup" data-for="habits">

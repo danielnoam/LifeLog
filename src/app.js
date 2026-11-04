@@ -53,7 +53,7 @@
   // object, so a default declared here is the only one there is — a `||` at
   // the read site is a second copy that can drift from it.
   // maxWidth 0 = stretch.
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogLayout: "list", timelineLayout: "list", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, outTodaySheet: "show", ledgerMonthSummary: "show", timelineMonthSummary: "hide", habitsLeftPanel: "show",
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogLayout: "list", timelineLayout: "list", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, outTodaySheet: "show", ledgerMonthSummary: "show", timelineMonthSummary: "hide", habitsLeftPanel: "show", noteLineNumbers: "off", noteTextSize: "medium", noteOpenIn: "read",
     // One per set-aside band: "always" (a plain rule, never folds), "open"
     // (foldable, starts open) or "collapsed" (foldable, starts folded).
     // Dropped starts folded because it is the band you gave up on; the other

@@ -93,7 +93,7 @@ async function writeNote(page, text) {
   await page.click('#addMenu [data-add="note"]');
   await page.waitForSelector("#noteModal:not([hidden])", { timeout: 5000 });
   await page.fill("#nText", text);
-  await page.click("#noteForm button[type=submit]");
+  await page.click("#noteModal button[type=submit]");
   await settled(page);
 }
 

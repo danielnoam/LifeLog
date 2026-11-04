@@ -731,7 +731,7 @@
   // the words in the language. The lists that rows are drawn into (tab
   // switches, history, categories) are data, not settings, and are skipped.
   const DYNAMIC = "#tabToggles, #mediaCatRows, #historyList, #trashList";
-  const VIEW_NAMES = { timeline: "Timeline", backlog: "Backlog", finance: "Ledger", habits: "Habits" };
+  const VIEW_NAMES = { timeline: "Timeline", backlog: "Backlog", finance: "Ledger", habits: "Habits", notes: "Notebook" };
   // Habits is a mode of the Notes tab, but its options are its own.
   const viewKey = (view) => (view === "notes" && state.notesMode === "habits" ? "habits" : view);
   const squash = (t) => (t || "").replace(/\s+/g, " ").replace(/[…:]+\s*$/, "").trim();
@@ -862,6 +862,9 @@
     $("#backlogCounts").value = state.visual.backlogCounts;
     $("#outTodaySheet").value = state.visual.outTodaySheet || "show";
     $("#habitsLeftPanel").value = state.visual.habitsLeftPanel || "show";
+    $("#noteLineNumbers").value = state.visual.noteLineNumbers || "off";
+    $("#noteTextSize").value = state.visual.noteTextSize || "medium";
+    $("#noteOpenIn").value = state.visual.noteOpenIn || "read";
     const A = window.LifeLogAlerts;
     const alertsHere = !!(A && A.available());
     $("#releaseAlertsRow").hidden = !alertsHere;
@@ -892,10 +895,14 @@
 
   // Opened from a search result for another tab, it goes to that tab first:
   // the options are for seeing their effect, which needs the list under them.
-  function openViewOptions(view) {
+  // `here`: opened over a note, which may be one from another tab's search,
+  // so the tab behind stays where it is.
+  function openViewOptions(view, here) {
     view = view || viewKey(state.view);
     if (!hasViewOptions(view)) return;
-    if (view === "habits") {
+    if (here) {
+      // nothing to switch to
+    } else if (view === "habits") {
       if (viewKey(state.view) !== "habits") {
         state.notesMode = "habits";
         if (state.view !== "notes" && switchToView) switchToView("notes"); else render();
@@ -1647,6 +1654,13 @@
     $("#backlogFoldDropped").onchange = onBandFoldChange;
     $("#ledgerMonthSummary").onchange = onMonthSummaryChange;
     $("#timelineMonthSummary").onchange = onMonthSummaryChange;
+    for (const [id, key] of [["#noteLineNumbers", "noteLineNumbers"], ["#noteTextSize", "noteTextSize"], ["#noteOpenIn", "noteOpenIn"]]) {
+      $(id).onchange = () => {
+        state.visual[key] = $(id).value;
+        saveVisualSettings(state.visual);
+        if (window.LifeLogNotes) window.LifeLogNotes.applyNoteView();
+      };
+    }
     $("#habitsLeftPanel").onchange = () => {
       state.visual.habitsLeftPanel = $("#habitsLeftPanel").value;
       saveVisualSettings(state.visual);
