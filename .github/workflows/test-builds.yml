@@ -1,6 +1,7 @@
 # Test builds follow labels on a pull request (2026-11-02, from Waypage):
-# `test` for the APK, IPA and desktop app, `test-android`, `test-ios` or
-# `test-desktop` for one, sooner.
+# `test` for the APK and the Windows app (2026-11-04: the default set, with
+# the web copy), `test-android` or `test-desktop` for one, sooner, and
+# `test-ios` or `test-linux` only when those are asked for.
 # Adding one builds the branch (android.yml and/or ios.yml run on it, and
 # tools/test-build.sh publishes the pre-release test-<branch>); taking it
 # off, closing the pull request or deleting the branch removes it. A fork's
@@ -27,8 +28,8 @@ jobs:
           LABEL: ${{ github.event.label.name }}
         run: |
           case "$LABEL" in test|test-android) gh workflow run android.yml --ref "$BRANCH" -R "$GITHUB_REPOSITORY" ;; esac
-          case "$LABEL" in test|test-ios) gh workflow run ios.yml --ref "$BRANCH" -R "$GITHUB_REPOSITORY" ;; esac
-          case "$LABEL" in test|test-desktop) gh workflow run desktop.yml --ref "$BRANCH" -R "$GITHUB_REPOSITORY" ;; esac
+          case "$LABEL" in test-ios) gh workflow run ios.yml --ref "$BRANCH" -R "$GITHUB_REPOSITORY" ;; esac
+          case "$LABEL" in test|test-desktop|test-linux) gh workflow run desktop.yml --ref "$BRANCH" -R "$GITHUB_REPOSITORY" ;; esac
 
   remove:
     if: (github.event_name == 'pull_request' && (github.event.action == 'closed' || (github.event.action == 'unlabeled' && startsWith(github.event.label.name, 'test')))) || github.event.ref_type == 'branch'

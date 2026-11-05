@@ -3,6 +3,26 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.304.0] - 2026-11-04
+
+### Added
+- LifeLog for Windows and Linux: LifeLog-setup.exe on each release, and LifeLog.AppImage (or .deb) when a Linux build is asked for. It opens offline, looks up Steam, SteamGridDB, GG.deals and Google Maps without the proxy, and saves exports with the system's Save dialog.
+- On a computer, closing the window keeps LifeLog in the tray, with Add entry and Add expense. Habit reminders and the charge, release-day and price heads-ups ring while it runs, and Settings → Notifications can start it at login.
+- The computer app updates itself from the update bar once the release has signed update files, and opens the release page otherwise.
+- Notebook has a View button: line numbers down the side of the note editor, the text size for writing and reading, and which view a note opens in.
+- A checklist's items can be moved in the edit sheet: drag a row by its handle, or use the arrow keys on it.
+
+### Changed
+- The import review is laid out again for every import. On a computer it fills the window in three columns: filters (years and months, category, kind, what to show, new categories), the list with month headings, and a preview of the row you're on, notes drawn with their pictures. ↑ and ↓ move through the list, Space takes a row in or out, / searches. On a phone it fills the screen, the filters sit behind chips, and tapping a row opens its preview with Edit and up and down.
+- A Google Maps list into a trip gets the whole window: the map beside the list on a computer, the screen on a phone.
+- A Markdown note whose title is only a template's label, like "Note:", is named by its first sentence. Notes imported before with that label still count as already in your notes.
+- A note opens as one page for reading and writing, with Read and Edit at the top. It fills the screen on a phone and is a wide sheet on a computer. The title is a big plain line, the category a small chip under it, and the dates sit at the foot.
+- A note's kind, Make entry and Delete moved into the ⋯ menu. A new note still picks its kind at the top.
+- Notes open to read by default, from the feed too. Notebook → View → Open a note in sets it back to the editor. Checklists still open ready to edit.
+
+### Fixed
+- Editing a checklist no longer shows an Add image button.
+
 ## [0.303.2] - 2026-11-03
 
 ### Changed

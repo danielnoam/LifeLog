@@ -36,15 +36,18 @@ and the iOS app (Capacitor). See README.md for the layout.
   CONTRIBUTING.md's "Versions and releases".
 - `main` is production and takes only pull requests (2026-11-02, as in
   Waypage). A merge deploys the web app; only a merge with a new
-  `APP_VERSION` publishes the APK and IPA (`node tools/release.js x.y.z`).
+  `APP_VERSION` publishes the APK and the Windows app (`node tools/release.js x.y.z`).
   Daniel cuts releases himself (2026-11-03): by default a PR doesn't bump
   the version, it writes its lines to `changes/<branch>.md` (never
-  CHANGELOG.md) and merges on green, with no APK or IPA built. Run
+  CHANGELOG.md) and merges on green, with no release built. Run
   `tools/release.js` only when he asks for a release. Check the runs went
   green.
 - When Daniel wants to try a change on his phone before it's merged, add
-  the `test` label (or `test-android` / `test-ios` / `test-desktop`) to its PR and tell him
+  the `test` label (or `test-android` / `test-desktop`) to its PR and tell him
   the build is on the `test-<branch>` pre-release.
+- Builds are the web app, Windows and the APK only (2026-11-04). iOS
+  (`ios.yml` by hand, or `test-ios`) and Linux (`desktop.yml` by hand with
+  Linux ticked, or `test-linux`) only when Daniel asks.
 
 ## Branch names
 

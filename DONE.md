@@ -127,7 +127,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Markdown, PDF and EPUB files as notes, run as Activity jobs (0.200.0, 0.236.0, 0.268.0)
 - Obsidian images come in with their notes, from the files or the folder picked, and Find in folder (0.297.0)
 - One review screen for every import: pick rows, edit a row, see what an update writes (0.24.0, 0.258.0)
-- The review laid out again: three columns with a live preview on a computer, full screen with filter chips on a phone; Google Maps lists get the map beside the list; "Note:" titles named by their first sentence (next release)
+- The review laid out again: three columns with a live preview on a computer, full screen with filter chips on a phone; Google Maps lists get the map beside the list; "Note:" titles named by their first sentence (0.304.0)
 - Imports can update what you have, only filling gaps (0.151.0, 0.154.0)
 - Imports remember what you skipped, and can be undone (0.257.0, 0.256.0)
 - JSON and CSV export and import per tab, and everything as one CSV (0.191.0, 0.192.0)
@@ -142,9 +142,9 @@ Every release that adds a feature adds its line here in the same commit.
 - Show, sort and type filters (0.195.0, 0.214.0)
 - Bulk select, and make a note into a timeline entry (0.142.0)
 - Images in notes: add, paste or drop; kept on their own GitHub branch; Clean up (0.297.0)
-- One page to read and write a note (Read / Edit), category chip under the title, dates at the foot, kind and Delete in ⋯ (next release)
-- Notebook → View: line numbers in the editor, text size, open notes to read or edit (next release)
-- Checklist items move in the edit sheet by a drag handle or the arrow keys (next release)
+- One page to read and write a note (Read / Edit), category chip under the title, dates at the foot, kind and Delete in ⋯ (0.304.0)
+- Notebook → View: line numbers in the editor, text size, open notes to read or edit (0.304.0)
+- Checklist items move in the edit sheet by a drag handle or the arrow keys (0.304.0)
 
 ## Notebook (Habits)
 
@@ -160,7 +160,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Left to do: what's still open today and this week, month and year, at the top of Habits and in the habits widget (0.300.0)
 - Habits view option: hide the Left to do panel (View button, this device only) (0.302.0)
 - Habit cards: buttons under a full-width grid, best and rate on the Insights line (0.303.0)
-- Habit grids: smaller cells, lines between days, today ringed, no week-met bar (next release)
+- Habit grids: smaller cells, lines between days, today ringed, no week-met bar (0.304.0)
 
 ## Ledger
 
@@ -248,9 +248,9 @@ Every release that adds a feature adds its line here in the same commit.
 
 ## Windows and Linux app
 
-- LifeLog for Windows and Linux (Tauri): opens offline, no proxy for Steam and Maps, the Save dialog for exports (next release)
-- Closes to the tray, with Add entry and Add expense; habit reminders and heads-ups ring while it runs; start at login (next release)
-- Updates itself when the release has signed update files, else opens the release page (next release)
+- LifeLog for Windows and Linux (Tauri): opens offline, no proxy for Steam and Maps, the Save dialog for exports (0.304.0)
+- Closes to the tray, with Add entry and Add expense; habit reminders and heads-ups ring while it runs; start at login (0.304.0)
+- Updates itself when the release has signed update files, else opens the release page (0.304.0)
 
 ## The AI bridge
 
@@ -266,7 +266,7 @@ Every release that adds a feature adds its line here in the same commit.
 
 - Tests gate every publish: the APK, the IPA and the web app wait on the unit and browser tests in CI (0.271.0)
 - Pull requests into main, merged once the Tests check is green; `tools/release.js` releases what `changes/` has gathered; a PR labelled `test`, `test-android` or `test-ios` gets a test build on a `test-<branch>` pre-release (2026-11-02)
-- The Windows and Linux app builds beside the phones' (`desktop.yml`), attached to each release; the `test-desktop` label gives a PR desktop test files (next release)
+- The Windows and Linux app builds beside the phones' (`desktop.yml`), attached to each release; the `test-desktop` label gives a PR desktop test files (0.304.0)
 
 ## Accessibility
 
