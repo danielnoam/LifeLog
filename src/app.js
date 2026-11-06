@@ -1995,10 +1995,6 @@
     }
   }
 
-  // Crossing the phone breakpoint moves Home between first and the middle
-  // (placeTabs does nothing when the order already matches).
-  window.addEventListener("resize", () => { if (state) { placeTabs(); updateTabUnderline(); } });
-
   function updateTabUnderline() {
     const underline = $("#tabUnderline");
     const active = document.querySelector("#viewTabs .tab.active");
@@ -5051,6 +5047,9 @@
     wireSheetSwipe();
     Habits.wire();
     Boards.wire();
+    // Crossing the phone breakpoint moves Home between first and the middle
+    // (placeTabs does nothing when the order already matches).
+    window.addEventListener("resize", () => { placeTabs(); updateTabUnderline(); });
     Recap.wire();
 
     $("#closeShortcutsBtn").onclick = closeShortcutsModal;
