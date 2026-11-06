@@ -6,7 +6,8 @@
 
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
-use tauri::{AppHandle, Emitter, Manager, WindowEvent};
+use std::sync::atomic::{AtomicBool, Ordering};
+use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
 use tauri_plugin_notification::NotificationExt;
 
 // Start at login (Settings → Notifications) launches with this, straight
@@ -28,6 +29,27 @@ fn act(app: &AppHandle, action: &str) {
     let _ = app.emit("lifelog-action", action);
 }
 
+// Settings → Desktop (src/desktop.js tells these on start).
+// Closing the window: hide to the tray (the default) or quit.
+struct CloseToTray(AtomicBool);
+// Opened by Start at login, so the page can decide whether to show itself.
+struct LaunchedHidden(bool);
+
+#[tauri::command]
+fn set_close_to_tray(on: bool, state: State<CloseToTray>) {
+    state.0.store(on, Ordering::Relaxed);
+}
+
+#[tauri::command]
+fn launched_hidden(state: State<LaunchedHidden>) -> bool {
+    state.0
+}
+
+#[tauri::command]
+fn show_main(app: AppHandle) {
+    show(&app);
+}
+
 fn main() {
     tauri::Builder::default()
         // First, so a second launch (a click on the Start menu entry while it
@@ -45,6 +67,9 @@ fn main() {
         ))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .manage(CloseToTray(AtomicBool::new(true)))
+        .manage(LaunchedHidden(std::env::args().any(|a| a == HIDDEN_ARG)))
+        .invoke_handler(tauri::generate_handler![set_close_to_tray, launched_hidden, show_main])
         .setup(|app| {
             // A click on a reminder or a heads-up opens the window where it
             // points (the habit, the Ledger, Upcoming): src/desktop.js puts
@@ -99,11 +124,15 @@ fn main() {
         })
         // Closing the window hides it: the app keeps running in the tray, so
         // a habit reminder or a charge heads-up still rings. Quit is in the
-        // tray's menu.
+        // tray's menu. Settings → Desktop can make closing quit instead.
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                api.prevent_close();
-                let _ = window.hide();
+                if window.state::<CloseToTray>().0.load(Ordering::Relaxed) {
+                    api.prevent_close();
+                    let _ = window.hide();
+                } else {
+                    window.app_handle().exit(0);
+                }
             }
         })
         .run(tauri::generate_context!())

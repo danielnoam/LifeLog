@@ -3144,11 +3144,15 @@
   // Long-pressing a row is the only way into bulk mode (there's no separate
   // toggle button) — works for touch and mouse alike. Cancelled by movement
   // past a small threshold so it doesn't fire mid-scroll/mid-drag.
-  function attachLongPressSelect(row, b) {
+  // `kind` also gives the row its right-click menu (see contextMenu below).
+  function attachLongPressSelect(row, b, kind) {
+    if (kind) attachContextMenu(row, kind, b.id);
     let timer = null, start = null;
     const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } start = null; };
     row.addEventListener("pointerdown", (ev) => {
       if (state.bulk.active) return;
+      // A right or middle press is the menu's, never a held select.
+      if (ev.button !== 0) return;
       // A list note's rows and add line have a long press of their own:
       // reordering, as in the old To-do panels.
       if (ev.target.closest(".todo-row, .todo-compose")) return;
@@ -3169,6 +3173,183 @@
     row.addEventListener("pointerup", cancel);
     row.addEventListener("pointercancel", cancel);
   }
+
+  // ---------- right-click menus (computer) ----------
+  // A row's own actions at the pointer: what its sheet or its buttons
+  // already do, plus Select (bulk mode with this one ticked) and Delete.
+  // Each module registers a builder per kind of row; the rows ask for it
+  // through attachLongPressSelect's `kind`. While items are selected, a
+  // right-click on any row acts on the selection through the bulk bar's
+  // own controls, so the two never disagree. Phones keep the long press:
+  // a touch's contextmenu (Android fires one on a long press) is left alone.
+  const ctxBuilders = {};
+  let ctxEl = null, ctxClose = null, lastPointer = { type: "mouse", at: 0 };
+  if (typeof document.addEventListener === "function") document.addEventListener("pointerdown", (ev) => { lastPointer = { type: ev.pointerType, at: Date.now() }; }, true);
+
+  function registerContextMenu(kind, build) { ctxBuilders[kind] = build; }
+
+  function attachContextMenu(row, kind, id) {
+    row.addEventListener("contextmenu", (ev) => {
+      if (lastPointer.type !== "mouse" && Date.now() - lastPointer.at < 1500) return;
+      // Text fields and links keep the system's menu (copy, paste, open).
+      if (ev.target.closest && ev.target.closest("input, textarea, select, [contenteditable='true'], a[href]")) return;
+      const build = ctxBuilders[kind];
+      if (!build || isAnyModalOpen()) return;
+      let items;
+      if (state.bulk.active) {
+        if (!bulkKindOk(kind)) return;
+        if (!state.bulk.selected.has(id)) setBulkItem(id, true);
+        items = bulkMenuItems();
+      } else items = build(id, ctxHelpers);
+      if (!items || !items.length) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      // A menu opened from the keyboard (the menu key, Shift+F10) has no
+      // pointer position: it opens at the row instead.
+      let x = ev.clientX, y = ev.clientY;
+      if (!x && !y) { const r = row.getBoundingClientRect(); x = r.left + 24; y = r.top + Math.min(r.height, 40); }
+      openContextMenu(x, y, items);
+    });
+  }
+  // Habits have no bulk mode, and the Timeline's In progress rows aren't
+  // in its selection; the rest share one.
+  const bulkKindOk = (kind) => kind !== "habit" && kind !== "progress";
+
+  // One row through its view's bulk action (Delete asks first and words
+  // it right); if you say no, the selection is put back as it was.
+  async function runOne(id, bulkAction) {
+    const was = { active: state.bulk.active, selected: new Set(state.bulk.selected) };
+    state.bulk.selected = new Set([id]);
+    await bulkAction();
+    if (state.bulk.selected.has(id)) { state.bulk.active = was.active; state.bulk.selected = was.selected; }
+  }
+  function selectOne(id) {
+    state.bulk.active = true;
+    clearBulkRun();
+    state.bulk.selected.clear();
+    state.bulk.selected.add(id);
+    render();
+  }
+  const ctxHelpers = {
+    runOne, selectOne,
+    select: (id) => ({ icon: "square-check-big", label: "Select", run: () => selectOne(id) }),
+    del: (id, bulkDelete, label) => ({ icon: "trash", label: label || "Delete", danger: true, run: () => runOne(id, bulkDelete) }),
+    divider: { divider: true },
+  };
+
+  // The selection's menu, read off the bulk bar: its Move list, its Sync,
+  // Delete and Cancel, each running the bar's own control.
+  function bulkMenuItems() {
+    const bar = bulkBarEl && bulkBarEl.isConnected ? bulkBarEl : null;
+    const n = state.bulk.selected.size;
+    const items = [{ head: n + " selected" }];
+    if (!bar) return items.concat([{ icon: "x", label: "Clear selection", run: toggleBulkMode }]);
+    const sel = bar.querySelector(".bulk-move-select");
+    if (sel && !sel.disabled) {
+      const opts = [...sel.options].filter((o) => o.value);
+      if (opts.length) items.push({ icon: "layers", label: "Move to…", sub: () => opts.map((o) => ({
+        label: o.textContent.trim(), indent: /^\u00a0/.test(o.textContent),
+        run: () => { sel.value = o.value; sel.dispatchEvent(new Event("change")); },
+      })) });
+    }
+    const btns = [...bar.querySelectorAll("button")];
+    const sync = btns.find((b) => b.__onSync);
+    if (sync && !sync.disabled) items.push({ icon: "refresh-cw", label: "Sync", run: () => sync.click() });
+    items.push({ divider: true });
+    items.push({ icon: "x", label: "Clear selection", run: toggleBulkMode });
+    const del = btns.find((b) => b.classList.contains("btn-danger"));
+    if (del && !del.disabled) items.push({ icon: "trash", label: "Delete " + n, danger: true, run: () => del.click() });
+    return items;
+  }
+
+  function closeContextMenu() {
+    if (ctxClose) { ctxClose(); ctxClose = null; }
+    if (ctxEl) ctxEl.hidden = true;
+  }
+
+  // items: { icon, label, run, danger, sub: () => items, checked } |
+  // { divider } | { head }. `sub` swaps the menu for that list in place.
+  function openContextMenu(x, y, items) {
+    closeContextMenu();
+    if (!ctxEl) {
+      ctxEl = el("div", "menu-pop ctx-menu");
+      ctxEl.setAttribute("role", "menu");
+      ctxEl.hidden = true;
+      document.body.appendChild(ctxEl);
+    }
+    const fill = (list, back) => {
+      ctxEl.replaceChildren();
+      if (back) {
+        const b = el("button", "ctx-back");
+        b.type = "button";
+        b.appendChild(ico("chevron-left"));
+        b.appendChild(document.createTextNode(back.label));
+        b.onclick = () => { fill(back.items); place(); focusFirst(); };
+        ctxEl.appendChild(b);
+        ctxEl.appendChild(el("div", "menu-pop-divider"));
+      }
+      for (const it of list) {
+        if (!it || it.hidden) continue;
+        if (it.divider) { if (ctxEl.lastChild && !ctxEl.lastChild.classList.contains("menu-pop-divider")) ctxEl.appendChild(el("div", "menu-pop-divider")); continue; }
+        if (it.head) { ctxEl.appendChild(el("div", "ctx-head", it.head)); continue; }
+        const b = el("button", (it.danger ? "is-danger" : "") + (it.indent ? " is-indent" : ""));
+        b.type = "button";
+        b.setAttribute("role", "menuitem");
+        if (it.icon) b.appendChild(ico(it.icon, it.fill ? "is-fill" : ""));
+        else if (!it.indent) b.appendChild(el("span", "ctx-gap"));
+        b.appendChild(document.createTextNode(it.label));
+        if (it.sub) b.appendChild(ico("chevron-right", "ctx-more"));
+        b.onclick = (ev) => {
+          ev.stopPropagation();
+          if (it.sub) { fill(it.sub(), { label: it.label.replace(/…$/, ""), items: list }); place(); focusFirst(); return; }
+          closeContextMenu();
+          it.run();
+        };
+        ctxEl.appendChild(b);
+      }
+      if (ctxEl.lastChild && ctxEl.lastChild.classList.contains("menu-pop-divider")) ctxEl.lastChild.remove();
+    };
+    // Opens down and right of the pointer, flipped where it would run off
+    // the window.
+    const place = () => {
+      ctxEl.style.left = "0px"; ctxEl.style.top = "0px";
+      const w = ctxEl.offsetWidth, h = ctxEl.offsetHeight, m = 8;
+      const vw = window.innerWidth, vh = window.innerHeight;
+      ctxEl.style.left = Math.max(m, x + w > vw - m ? x - w : x) + "px";
+      ctxEl.style.top = Math.max(m, y + h > vh - m ? Math.max(m, vh - m - h) : y) + "px";
+    };
+    const buttons = () => [...ctxEl.querySelectorAll("button")];
+    const focusFirst = () => { const b = buttons()[0]; if (b) b.focus({ preventScroll: true }); };
+    fill(items);
+    ctxEl.hidden = false;
+    place();
+    const back = document.activeElement;
+    focusFirst();
+    const onDown = (ev) => { if (!ctxEl.contains(ev.target)) closeContextMenu(); };
+    const onKey = (ev) => {
+      if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); closeContextMenu(); if (back && back.focus) back.focus({ preventScroll: true }); return; }
+      if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+        ev.preventDefault();
+        const bs = buttons(), i = bs.indexOf(document.activeElement);
+        const next = ev.key === "ArrowDown" ? (i + 1) % bs.length : (i <= 0 ? bs.length - 1 : i - 1);
+        if (bs[next]) bs[next].focus({ preventScroll: true });
+      }
+    };
+    const onAway = () => closeContextMenu();
+    document.addEventListener("pointerdown", onDown, true);
+    document.addEventListener("keydown", onKey, true);
+    window.addEventListener("resize", onAway);
+    window.addEventListener("blur", onAway);
+    document.addEventListener("scroll", onAway, true);
+    ctxClose = () => {
+      document.removeEventListener("pointerdown", onDown, true);
+      document.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("resize", onAway);
+      window.removeEventListener("blur", onAway);
+      document.removeEventListener("scroll", onAway, true);
+    };
+  }
+  window.LifeLogContextMenu = { register: registerContextMenu, attach: attachContextMenu, open: openContextMenu, close: closeContextMenu, helpers: ctxHelpers };
 
   // While a pointer is held down on a bulk checkbox, dragging over other
   // checkboxes paints them to the same selected/unselected state — lets you

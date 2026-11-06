@@ -16,7 +16,7 @@ global.localStorage = { getItem: () => null, setItem: () => {} };
 const platform = { desktop: true, tauri: null };
 global.window.LifeLogPlatform = platform;
 require("../src/desktop.js");
-const { dueNow, notifyId, tick, start } = global.window.LifeLogDesktop;
+const { dueNow, notifyId, tick, start, prefs, setPref } = global.window.LifeLogDesktop;
 const { build, desktopIndexHtml } = require("../tools/build-www.js");
 const { collect, manifest } = require("../tools/desktop-files.js");
 
@@ -88,6 +88,28 @@ test("the shell routes a clicked notification through runAction", () => {
   const rs = fs.readFileSync(path.join(ROOT, "src-tauri/src/main.rs"), "utf8");
   assert.ok(/notification\(\)\.on_action/.test(rs));
   assert.ok(/extra\(\)\.get\("action"\)/.test(rs));
+});
+
+test("Settings → Desktop: closing keeps it in the tray and a login start stays there, until changed", () => {
+  const store = {};
+  const real = global.localStorage;
+  global.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = v; } };
+  assert.deepStrictEqual(prefs(), { loginOpens: "tray", closeToTray: true });
+  setPref("closeToTray", false);
+  setPref("loginOpens", "window");
+  assert.deepStrictEqual(prefs(), { loginOpens: "window", closeToTray: false });
+  store["lifelog-desktop-prefs-v1"] = "not json";
+  assert.deepStrictEqual(prefs(), { loginOpens: "tray", closeToTray: true });
+  global.localStorage = real;
+});
+
+test("the shell has the commands the page calls, and closing reads the setting", () => {
+  const rs = fs.readFileSync(path.join(ROOT, "src-tauri/src/main.rs"), "utf8");
+  const js = fs.readFileSync(path.join(ROOT, "src/desktop.js"), "utf8");
+  for (const cmd of [...js.matchAll(/invoke\("([a-z_]+)"/g)].map((m) => m[1])) {
+    assert.ok(new RegExp("generate_handler!\\[[^\\]]*\\b" + cmd + "\\b").test(rs), cmd + " is not registered");
+  }
+  assert.ok(/CloseToTray>\(\)\.0\.load/.test(rs));
 });
 
 async function asyncTests() {

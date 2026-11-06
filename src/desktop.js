@@ -158,6 +158,36 @@
     return true;
   }
 
+  // ---------- Settings → Desktop ----------
+  // This computer's own: kept in localStorage, not synced, since a second
+  // PC may want them otherwise. The shell (main.rs) asks nothing at launch:
+  // the page tells it on start whether closing hides or quits, and shows
+  // the window itself when a login start should open it.
+  const PREFS_KEY = "lifelog-desktop-prefs-v1";
+  const DEFAULT_PREFS = { loginOpens: "tray", closeToTray: true };
+  function prefs() {
+    let p = {};
+    try { p = JSON.parse(localStorage.getItem(PREFS_KEY)) || {}; } catch (e) { p = {}; }
+    return {
+      loginOpens: p.loginOpens === "window" ? "window" : DEFAULT_PREFS.loginOpens,
+      closeToTray: p.closeToTray === false ? false : DEFAULT_PREFS.closeToTray,
+    };
+  }
+  const invoke = (cmd, args) => { const c = T() && T().core; return c ? c.invoke(cmd, args) : Promise.resolve(null); };
+  function setPref(key, value) {
+    const p = prefs();
+    p[key] = value;
+    try { localStorage.setItem(PREFS_KEY, JSON.stringify(p)); } catch (e) { /* this session only */ }
+    if (key === "closeToTray") invoke("set_close_to_tray", { on: !!value }).catch(() => {});
+  }
+  async function applyPrefs() {
+    const p = prefs();
+    try { await invoke("set_close_to_tray", { on: p.closeToTray }); } catch (e) { /* the shell's default: hide */ }
+    if (p.loginOpens === "window") {
+      try { if (await invoke("launched_hidden")) await invoke("show_main"); } catch (e) { /* stays in the tray */ }
+    }
+  }
+
   // ---------- updating ----------
   // Resolves true once the new version is installed and the app restarts,
   // false when Tauri's updater has nothing for this copy (the release has no
@@ -184,6 +214,7 @@
     const t = T();
     if (!t) return;
     if (t.event) t.event.listen("lifelog-action", (e) => { if (e && typeof e.payload === "string") ctx.runAction(e.payload); });
+    applyPrefs();
     clearInterval(timer);
     timer = setInterval(tick, TICK_MS);
     setTimeout(tick, 3000);
@@ -193,6 +224,6 @@
     available: () => !!T(),
     notifier, start, tick, dueNow, notifyId,
     startsAtLogin, setStartsAtLogin, installUpdate,
-    FIRED_KEY,
+    prefs, setPref, FIRED_KEY, PREFS_KEY,
   };
 })();

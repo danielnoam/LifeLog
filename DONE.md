@@ -27,6 +27,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Folds (Advanced, Insights, a place's hours) grow open and shut (0.284.1)
 - Notices stack as pills (0.267.2)
 - Lucide icons everywhere, no emoji in the UI, and the timeline-pin app icon (0.247.0)
+- Right-click menus on a computer: Timeline, In progress, Backlog, Ledger, notes, boards and habits rows have their own actions, Select starts selecting, and with items selected it acts on all of them (0.305.0)
 - "New version ready" with a Reload button (0.118.0)
 - Activity: everything that takes a while in one list, with a ring or pill while it runs (0.244.0)
 - Work on the same site waits its turn; different sites run side by side (0.244.0)
@@ -251,6 +252,9 @@ Every release that adds a feature adds its line here in the same commit.
 - LifeLog for Windows and Linux (Tauri): opens offline, no proxy for Steam and Maps, the Save dialog for exports (0.304.0)
 - Closes to the tray, with Add entry and Add expense; habit reminders and heads-ups ring while it runs; start at login (0.304.0)
 - Updates itself when the release has signed update files, else opens the release page (0.304.0)
+- Clicking a reminder or heads-up opens the habit, the Ledger, Upcoming or the Backlog, from the tray too (0.305.0)
+- Keeps syncing every 10 minutes in the tray and checks again before a habit reminder rings (0.305.0)
+- Settings → Desktop: Start at login, open the window or stay in the tray at login, and whether closing hides or quits (0.305.0)
 
 ## The AI bridge
 

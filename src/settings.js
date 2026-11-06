@@ -705,6 +705,11 @@
         const text = on.length ? on.join(", ").replace(/^./, (c) => c.toUpperCase()) : "All off";
         return { text: bg ? text + " · refreshed every " + (bg >= 60 ? (bg / 60 === 1 ? "hour" : bg / 60 + " hours") : bg + " min") : text };
       }
+      case "desktop": {
+        const D = window.LifeLogDesktop;
+        if (!D) return null;
+        return { text: D.prefs().closeToTray ? "Closing keeps it in the tray" : "Closing quits" };
+      }
       case "releases": {
         const d = String((set.releases && set.releases.autoRefreshDays) || "0");
         return { text: EVERY[d] ? "Checked " + EVERY[d] : "Checked when you ask" };
@@ -881,11 +886,18 @@
     // The computer app: no Android channels to point at, and Start at
     // login in their place.
     const D = window.LifeLogPlatform && window.LifeLogPlatform.desktop && window.LifeLogDesktop;
-    $("#desktopTrayRow").hidden = !D;
+    $("#desktopNotifHint").hidden = !D;
+    $("#desktopRow").hidden = !D;
     $("#openNotifSettingsBtn").hidden = !!D;
     if (D) {
       $("#notifyLede").textContent = "What this computer may ring, while LifeLog is open or in the tray.";
-      D.startsAtLogin().then((on) => { $("#startAtLogin").checked = !!on; $("#startAtLogin").disabled = on == null; });
+      D.startsAtLogin().then((on) => {
+        $("#startAtLogin").checked = !!on;
+        $("#startAtLogin").disabled = on == null;
+        $("#loginOpensRow").hidden = !on;
+      });
+      $("#loginOpens").value = D.prefs().loginOpens;
+      $("#closeToTray").checked = D.prefs().closeToTray;
     }
     // The background refresh (0.279.0): Android only, and only an APK
     // that has the job.
@@ -1761,7 +1773,11 @@
         box.checked = !box.checked;
         toast("Couldn't change that: " + ((e && e.message) || e), true);
       }
+      $("#loginOpensRow").hidden = !box.checked;
+      updateStatuses();
     };
+    $("#loginOpens").onchange = () => { window.LifeLogDesktop.setPref("loginOpens", $("#loginOpens").value); updateStatuses(); };
+    $("#closeToTray").onchange = () => { window.LifeLogDesktop.setPref("closeToTray", $("#closeToTray").checked); updateStatuses(); };
     $("#openNotifSettingsBtn").onclick = () => {
       const W = window.LifeLogPlatform && window.LifeLogPlatform.plugin("Widgets");
       if (W && W.openNotificationSettings) W.openNotificationSettings();

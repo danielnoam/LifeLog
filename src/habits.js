@@ -32,6 +32,22 @@
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, render, emptyState, activatable,
       backfillUpdatedAt, keepUnknown, CATEGORY_PALETTE, buildCatFilter } = ctx);
+    const CM = window.LifeLogContextMenu;
+    if (CM) CM.register("habit", (id, hp) => {
+      const h = (state.data.habits || []).find((x) => x.id === id);
+      if (!h) return null;
+      return [
+        { icon: "pencil", label: "Edit", run: () => openHabitModal(h) },
+        { icon: "archive", label: h.archivedAt ? "Start again" : "Archive", run: () => archiveHabit(id) },
+        hp.divider,
+        // The sheet only asks when there's history to lose; a right-click
+        // is an easier slip, so it always asks.
+        { icon: "trash", label: "Delete", danger: true, run: () => {
+          if (!Object.keys(h.marks || {}).length && !confirm(`Delete “${h.name}”?`)) return;
+          deleteHabit(id);
+        } },
+      ];
+    });
   }
 
   // Local rather than imported, the same way backlog.js and finance.js each
@@ -663,6 +679,7 @@
         row.appendChild(el("span", "habit-archived-name", h.name));
         row.appendChild(el("span", "habit-archived-when", "stopped " + h.archivedAt));
         row.onclick = () => openHabitModal(h);
+        if (window.LifeLogContextMenu) window.LifeLogContextMenu.attach(row, "habit", h.id);
         wrap.appendChild(row);
       }
       root.appendChild(wrap);
@@ -755,6 +772,7 @@
   function habitCard(h, today) {
     const card = el("div", "habit-card");
     card.dataset.id = h.id;
+    if (window.LifeLogContextMenu) window.LifeLogContextMenu.attach(card, "habit", h.id);
 
     const head = el("div", "habit-head");
     const dot = el("span", "habit-dot");
@@ -1561,8 +1579,9 @@
   // Archiving, not deleting, is the ordinary way to stop: the point of a
   // habit is its history, and a year of ticks is not something to throw away
   // because you stopped in March.
-  async function archiveCurrentHabit() {
-    const h = (state.data.habits || []).find((x) => x.id === editingId);
+  // From the sheet, or a habit's right-click menu with its id.
+  async function archiveHabit(id) {
+    const h = (state.data.habits || []).find((x) => x.id === id);
     if (!h) return;
     if (h.archivedAt) delete h.archivedAt; else h.archivedAt = todayStr();
     const was = !!h.archivedAt;
@@ -1572,8 +1591,8 @@
     toast(was ? "Archived — its history stays" : "Back in the list");
   }
 
-  async function deleteCurrentHabit() {
-    const h = (state.data.habits || []).find((x) => x.id === editingId);
+  async function deleteHabit(id) {
+    const h = (state.data.habits || []).find((x) => x.id === id);
     if (!h) return;
     const n = Object.keys(h.marks || {}).length;
     if (n && !confirm(`Delete “${h.name}”? Its ${n} recorded ${n === 1 ? "day goes" : "days go"} with it. Archive instead to keep them.`)) return;
@@ -1587,8 +1606,8 @@
   function wire() {
     $("#habitForm").onsubmit = saveHabitFromForm;
     $("#cancelHabitBtn").onclick = closeHabitModal;
-    $("#deleteHabitBtn").onclick = deleteCurrentHabit;
-    $("#archiveHabitBtn").onclick = archiveCurrentHabit;
+    $("#deleteHabitBtn").onclick = () => deleteHabit(editingId);
+    $("#archiveHabitBtn").onclick = () => archiveHabit(editingId);
     $("#habitCadence").onchange = () => { applyGoalUI(); applyStartUI(); };
     $("#habitKind").onchange = () => { applyKindUI(true); applyGoalUI(); applyStartUI(); };
     $("#habitUnit").onchange = () => { applyGoalUI(); applyStartUI(); };
