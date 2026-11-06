@@ -11,13 +11,13 @@
   const Dates = () => window.LifeLogDates || require("./dates.js");
   const ico = (n, c) => window.LifeLogIcons.svg(n, c);
 
-  // [id, label, icon, half]. A half section sits beside another half one on
-  // a wide screen when the two are next to each other in your order.
+  // [id, label, icon, half]. Half sections next to each other in your order
+  // share a row on a wide screen (two or three across).
   const SECTIONS = [
     ["progress", "In progress", "play", false],
     ["upcoming", "Coming up", "calendar", true],
     ["scratchpad", "Scratchpad", "notebook-pen", true],
-    ["pinned", "Pinned notes", "pin", false],
+    ["pinned", "Pinned notes", "pin", true],
   ];
   const SECTION_IDS = SECTIONS.map(([id]) => id);
   const DAYS_AHEAD = 14;
@@ -342,16 +342,17 @@
       root.appendChild(page);
       return;
     }
-    // Two halves next to each other in your order share a row on a wide
-    // screen; a half on its own takes the whole width.
-    for (let i = 0; i < ids.length; i++) {
-      const id = ids[i], next = ids[i + 1];
-      if (HALF.has(id) && next && HALF.has(next)) {
-        const pair = el("div", "home-pair");
-        pair.append(BUILD[id](), BUILD[next]());
-        page.appendChild(pair);
-        i++;
-      } else page.appendChild(BUILD[id]());
+    // Halves next to each other in your order share a row on a wide screen;
+    // a half on its own takes the whole width.
+    for (let i = 0; i < ids.length;) {
+      let j = i;
+      while (j < ids.length && HALF.has(ids[j])) j++;
+      if (j - i >= 2) {
+        const row = el("div", "home-pair" + (j - i >= 3 ? " is-3" : ""));
+        ids.slice(i, j).forEach((id) => row.appendChild(BUILD[id]()));
+        page.appendChild(row);
+        i = j;
+      } else page.appendChild(BUILD[ids[i++]]());
     }
     root.appendChild(page);
   }
