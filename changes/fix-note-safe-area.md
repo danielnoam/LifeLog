@@ -9,5 +9,5 @@
 
 ### Changed
 - On Notebook's cards the date, category and star sit at the foot, under the note.
-- Add image moved into the note's ⋯ menu, and the foot only shows a saved note's dates.
+- Add image moved into the note's ⋯ menu, and the foot only shows a saved note's dates, on the left.
 - The View options moved out of the note: Notebook's own View button has them (line numbers, text size, open a note in).

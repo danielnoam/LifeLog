@@ -4556,11 +4556,11 @@ html.note-lines .nv-gutter { display: block; }
 .nv-hint { margin: var(--space-8) 0 0; font-size: var(--fs-xs); color: var(--text-dim); }
 .nv-hint[hidden] { display: none; }
 .nv-foot {
-  display: flex; align-items: center; justify-content: flex-end; gap: var(--space-8); flex: 0 0 auto;
+  display: flex; align-items: center; gap: var(--space-8); flex: 0 0 auto;
   padding: var(--space-10) var(--space-12); border-top: 1px solid var(--border);
 }
 .nv-foot[hidden] { display: none; }
-#noteStampLine { margin: 0; color: var(--text-dim); font-size: var(--fs-xs); text-align: right; }
+#noteStampLine { margin: 0; color: var(--text-dim); font-size: var(--fs-xs); }
 /* The ⋯ menu: Add image, the kind, Make entry and Delete — things done to a note
    now and then, kept out of the way of writing it. */
 .nv-menu {
