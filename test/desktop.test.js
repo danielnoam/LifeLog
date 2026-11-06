@@ -12,8 +12,11 @@ const path = require("path");
 
 global.window = {};
 global.localStorage = { getItem: () => null, setItem: () => {} };
+// desktop.js reads the platform once, at load; the tick test fills in tauri.
+const platform = { desktop: true, tauri: null };
+global.window.LifeLogPlatform = platform;
 require("../src/desktop.js");
-const { dueNow } = global.window.LifeLogDesktop;
+const { dueNow, notifyId, tick, start, prefs, setPref } = global.window.LifeLogDesktop;
 const { build, desktopIndexHtml } = require("../tools/build-www.js");
 const { collect, manifest } = require("../tools/desktop-files.js");
 
@@ -67,6 +70,75 @@ test("a heads-up rings on its day from its time, up to 12 hours late, once", () 
   assert.deepStrictEqual(dueNow({ today: "2026-11-05", now: "09:00", alerts: [a] }), []);
   assert.deepStrictEqual(dueNow({ today: "2026-11-04", now: "10:00", alerts: [a], fired: { ["alert:" + a.id]: "2026-11-04" } }), []);
 });
+
+test("a click goes where the phone's tap goes: the habit, or the heads-up's own action", () => {
+  assert.strictEqual(dueNow({ today: "2026-11-04", now: "21:00", habits: [habit], timeOf })[0].action, "open-habit:h1");
+  const a = { id: "release-2026-11-04", day: "2026-11-04", time: "09:00", title: "Out today", body: "Kestrel", action: "open-upcoming" };
+  assert.strictEqual(dueNow({ today: "2026-11-04", now: "09:00", alerts: [a] })[0].action, "open-upcoming");
+});
+
+test("each notification gets a steady positive 31-bit id", () => {
+  const a = notifyId("habit:h1:2026-11-04"), b = notifyId("alert:charge-r1-2026-11-05");
+  assert.ok(Number.isInteger(a) && a > 0 && a <= 0x7fffffff);
+  assert.strictEqual(a, notifyId("habit:h1:2026-11-04"));
+  assert.notStrictEqual(a, b);
+});
+
+test("the shell routes a clicked notification through runAction", () => {
+  const rs = fs.readFileSync(path.join(ROOT, "src-tauri/src/main.rs"), "utf8");
+  assert.ok(/notification\(\)\.on_action/.test(rs));
+  assert.ok(/extra\(\)\.get\("action"\)/.test(rs));
+});
+
+test("Settings → Desktop: closing keeps it in the tray and a login start stays there, until changed", () => {
+  const store = {};
+  const real = global.localStorage;
+  global.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = v; } };
+  assert.deepStrictEqual(prefs(), { loginOpens: "tray", closeToTray: true });
+  setPref("closeToTray", false);
+  setPref("loginOpens", "window");
+  assert.deepStrictEqual(prefs(), { loginOpens: "window", closeToTray: false });
+  store["lifelog-desktop-prefs-v1"] = "not json";
+  assert.deepStrictEqual(prefs(), { loginOpens: "tray", closeToTray: true });
+  global.localStorage = real;
+});
+
+test("the shell has the commands the page calls, and closing reads the setting", () => {
+  const rs = fs.readFileSync(path.join(ROOT, "src-tauri/src/main.rs"), "utf8");
+  const js = fs.readFileSync(path.join(ROOT, "src/desktop.js"), "utf8");
+  for (const cmd of [...js.matchAll(/invoke\("([a-z_]+)"/g)].map((m) => m[1])) {
+    assert.ok(new RegExp("generate_handler!\\[[^\\]]*\\b" + cmd + "\\b").test(rs), cmd + " is not registered");
+  }
+  assert.ok(/CloseToTray>\(\)\.0\.load/.test(rs));
+});
+
+async function asyncTests() {
+  // A habit reminder pulls from GitHub first; ticked meanwhile, it stays quiet.
+  const sent = [];
+  const realDate = global.Date;
+  const fixed = new realDate(2026, 10, 4, 21, 0, 0);
+  global.Date = class extends realDate { constructor(...a) { super(...(a.length ? a : [fixed.getTime()])); } static now() { return fixed.getTime(); } };
+  const data = { habits: [{ id: "h1", name: "Read" }] };
+  let left = true;
+  global.window.LifeLogHabits = { leftToDo: () => ({ groups: left ? [{ period: "day", items: [{ habit: data.habits[0] }] }] : [] }) };
+  global.window.LifeLogReminders = { isOn: () => true, remindAt: () => "21:00" };
+  platform.tauri = { notification: { sendNotification: (n) => sent.push(n) } };
+  const ctx = { state: { data }, runAction: () => {}, refresh: async () => { left = false; } };
+  const si = global.setInterval, st = global.setTimeout;
+  global.setInterval = () => 0; global.setTimeout = () => 0;
+  start(ctx);
+  global.setInterval = si; global.setTimeout = st;
+  await tick();
+  assert.strictEqual(sent.length, 0, "ticked on the phone: no ring");
+  ctx.refresh = async () => {};
+  left = true;
+  await tick();
+  assert.strictEqual(sent.length, 1);
+  assert.strictEqual(sent[0].extra.action, "open-habit:h1");
+  assert.strictEqual(sent[0].id, notifyId("habit:h1:2026-11-04"));
+  global.Date = realDate;
+  passed++; console.log("  ok - a reminder checks GitHub before it rings");
+}
 
 console.log("\nthe desktop copy");
 
@@ -168,4 +240,5 @@ test("the updater reads latest.json from the latest release", () => {
 });
 
 fs.rmSync(tmp, { recursive: true, force: true });
-console.log(`\n${passed} passed`);
+asyncTests().catch((e) => { console.error("  FAIL - a reminder checks GitHub before it rings"); console.error("    " + e.message); process.exitCode = 1; })
+  .then(() => console.log(`\n${passed} passed`));

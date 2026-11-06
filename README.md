@@ -431,8 +431,14 @@ Linux when `desktop.yml` is run by hand with **Linux too** ticked.
   once with a setup link.
 - **The tray**: closing the window keeps LifeLog in the tray, with Add
   entry and Add expense; Quit is in its menu. Habit reminders and the
-  charge, release-day and price heads-ups ring while it runs, and Settings
-  → Notifications can start it at login, straight into the tray.
+  charge, release-day and price heads-ups ring while it runs, and a click
+  on one opens the habit, the Ledger, Upcoming or the Backlog. In the tray
+  it still checks GitHub every 10 minutes.
+- **Settings → Desktop**: start at login, into the tray or with the
+  window open, and whether closing hides it or quits.
+- **Right-click menus**: on any computer, Timeline, Backlog, Ledger,
+  notes, boards and habits rows have a menu of their own actions, and
+  Select starts selecting from there.
 - **Updates**: the update bar installs a new version and restarts when the
   release carries signed update files (the repository secrets
   `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` and

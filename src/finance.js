@@ -72,6 +72,12 @@
       resolvePendingCatSelect, keepUnknown, download, csvEsc, parseCsv,
       buildImportItems, reviewAndImport, openImportPicker,
       backfillUpdatedAt, MONTHS, DEFAULT_SETTINGS } = ctx);
+    const CM = window.LifeLogContextMenu;
+    if (CM) CM.register("finance", (id, h) => {
+      const f = state.data.financeEntries.find((x) => x.id === id);
+      if (!f) return null;
+      return [{ icon: "pencil", label: "Open", run: () => openFinanceModal(f) }, h.divider, h.select(id), h.del(id, bulkDeleteFinanceSelected)];
+    });
   }
 
   // ---------- subcategories (0.288.0) ----------
@@ -1017,7 +1023,7 @@
       if (state.bulk.active) { toggleBulkItem(id); return; }
       openFinanceModal(f);
     };
-    if (!virtual) attachLongPressSelect(row, { id });
+    if (!virtual) attachLongPressSelect(row, { id }, "finance");
     return row;
   }
 

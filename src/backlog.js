@@ -48,6 +48,13 @@
     loadBacklogPrices, backlogPriceOf, priceEpoch, applySteamAppId,
       backfillUpdatedAt, saveUiState, saveVisualSettings, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
       DEFAULT_SETTINGS, DEFAULT_VISUAL, closeSheetMenus } = ctx);
+    const CM = window.LifeLogContextMenu;
+    if (CM) {
+      CM.register("backlog", backlogMenu);
+      // The Timeline's In progress rows: the same, less Select, since the
+      // Timeline's selection is of entries.
+      CM.register("progress", (id, h) => (backlogMenu(id, h) || []).filter((it) => it.label !== "Select"));
+    }
   }
 
   // Coarse "N days/months/years ago" for the backlog edit modal's aging line.
@@ -271,6 +278,40 @@
     toast("Started — it's at the top of your Timeline", false, state.view === "timeline" ? null : { label: "Show", onClick: showTimeline });
   }
 
+  // Right-click on a backlog row (app.js, contextMenu): ▶ and ✓, the
+  // star, and the sheet's More… moves, without opening the sheet.
+  function backlogMenu(id, h) {
+    const b = state.data.backlog.find((x) => x.id === id);
+    if (!b) return null;
+    const started = isStarted(b);
+    return [
+      { icon: "pencil", label: "Open", run: () => openBacklogModal(b) },
+      h.divider,
+      started ? { icon: "undo-2", label: "Back to backlog", run: () => stopItem(id) }
+        : { icon: "play", label: "Move to In progress", hidden: !categoryShows(b.category).inProgress, run: () => startItem(id) },
+      { icon: "check", label: "Set as Done", run: () => openEntryModal(null, b) },
+      { icon: "star", label: b.priority ? "Unstar" : "Star", fill: !!b.priority, run: () => setFlag(id, "priority") },
+      b.dropped ? { icon: "undo-2", label: "Not dropped", run: () => setFlag(id, "dropped") }
+        : { icon: "ban", label: "Move to Dropped", run: () => setFlag(id, "dropped") },
+      h.divider,
+      h.select(id),
+      h.del(id, bulkDeleteSelected),
+    ];
+  }
+
+  // Star or Dropped, flipped. Dropping stops it, as the sheet's move does.
+  async function setFlag(id, flag) {
+    const b = state.data.backlog.find((x) => x.id === id);
+    if (!b) return;
+    const on = !b[flag];
+    if (on) b[flag] = flag === "priority" ? 1 : true; else delete b[flag];
+    if (flag === "dropped" && on) delete b.startedAt;
+    render();
+    await persist();
+    if (flag === "dropped" && window.LifeLogSync) window.LifeLogSync.aniListChanged(b);
+    toast(flag === "priority" ? (on ? "Starred" : "Unstarred") : (on ? "Moved to Dropped" : "Back in your backlog"));
+  }
+
   async function stopItem(id) {
     const b = state.data.backlog.find((x) => x.id === id);
     if (!b) return;
@@ -343,6 +384,7 @@
   function inProgressRow(b) {
     const row = el("div", "entry progress-row");
     row.dataset.id = b.id;
+    if (window.LifeLogContextMenu) window.LifeLogContextMenu.attach(row, "progress", b.id);
     // The chip sits under the cover, as on the month rows (0.293.0).
     let side = row;
     if (state.visual.timelineCoverSize !== "none") {
@@ -2788,7 +2830,7 @@
       const b = (state.data.backlog || []).find((x) => x.id === id);
       if (b) openBacklogModal(b);
     };
-    attachLongPressSelect(row, { id });
+    attachLongPressSelect(row, { id }, "backlog");
     return row;
   }
 

@@ -506,7 +506,7 @@
         card.classList.add("is-bulk");
         card.classList.toggle("is-selected", state.bulk.selected.has(key));
         card.appendChild(bulkCheckbox({ id: key }));
-      } else attachLongPressSelect(card, { id: key });
+      } else attachLongPressSelect(card, { id: key }, "note");
       const thumb = el("div", "board-thumb");
       thumb.appendChild(boardSvg(b.elements, { thumb: true }));
       card.appendChild(thumb);

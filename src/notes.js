@@ -18,6 +18,8 @@
       monthCardHeader, emptyState, backfillUpdatedAt, keepUnknown, MONTHS,
       bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
       openEntryModal, DEFAULT_SETTINGS, CATEGORY_PALETTE, buildCatFilter, sortSelect } = ctx);
+    const CM = window.LifeLogContextMenu;
+    if (CM) CM.register("note", noteMenu);
   }
 
   // Looked up at call time rather than captured: this file is required by the
@@ -853,7 +855,7 @@
     card.onkeydown = (ev) => {
       if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); activate(); }
     };
-    attachLongPressSelect(card, { id });
+    attachLongPressSelect(card, { id }, "note");
     return card;
   }
 
@@ -1146,7 +1148,7 @@
       card.appendChild(bulkCheckbox({ id: n.id }));
     } else {
       card.appendChild(favButton(n));
-      attachLongPressSelect(card, { id: n.id });
+      attachLongPressSelect(card, { id: n.id }, "note");
     }
     if (isBoardItem(n)) {
       card.appendChild(el("span", "coll-card-title")).appendChild(window.LifeLogIcons.labelled("presentation", n.text));
@@ -1258,6 +1260,28 @@
     if (n) await persist();
     toast(`Moved ${counted(n, b)} to ${category}`);
   }
+  // Right-click on a note or board card (app.js, contextMenu). Boards come
+  // as "board:<id>", as they do to the bulk bar, which moves and deletes
+  // them alongside notes.
+  function noteMenu(id, h) {
+    const B = window.LifeLogBoards;
+    const board = id.startsWith(BOARD) ? (B.boardsNow() || []).find((b) => b.id === id.slice(BOARD.length)) : null;
+    const n = board ? null : (state.data.notes || []).find((x) => x.id === id);
+    if (!board && !n) return null;
+    const fav = !!(board || n).fav;
+    const cats = noteCats();
+    const current = (board || n).category || "";
+    return [
+      { icon: "pencil", label: "Open", run: () => (board ? B.openBoard(board.id) : openNote(n)) },
+      { icon: "star", label: fav ? "Unfavourite" : "Favourite", fill: fav, run: () => (board ? B.toggleFav(board.id) : toggleFav(n.id)) },
+      { icon: "layers", label: "Move to…", hidden: !cats.length, sub: () => cats.filter((c) => c.name !== current)
+        .map((c) => ({ label: c.name, run: () => h.runOne(id, () => bulkMoveNotesSelected(c.name)) })) },
+      h.divider,
+      h.select(id),
+      h.del(id, bulkDeleteNotesSelected),
+    ];
+  }
+
   async function bulkDeleteNotesSelected() {
     const ids = state.bulk.selected, boardIds = selectedBoards();
     const notes = state.data.notes.filter((x) => ids.has(x.id)).length;

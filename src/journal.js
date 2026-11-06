@@ -35,6 +35,24 @@
     pushOverrideValues, readOverrideChecks, seedGameInfo, paintGameInfo, saveGameInfo,
       applySteamAppId, backfillUpdatedAt, MONTHS, MONTHS_SHORT, MEDIA_SOURCE_LABELS,
       DEFAULT_SETTINGS, jumpToTimelineMonth, modeEnabled, closeSheetMenus } = ctx);
+    const CM = window.LifeLogContextMenu;
+    if (CM) CM.register("entry", entryMenu);
+  }
+
+  // Right-click on a timeline row (see app.js, contextMenu): the sheet's
+  // More… moves, without opening the sheet.
+  function entryMenu(id, h) {
+    const e = (state.data.entries || []).find((x) => x.id === id);
+    if (!e) return null;
+    return [
+      { icon: "pencil", label: "Open", run: () => openEntryModal(e) },
+      h.divider,
+      { icon: "undo-2", label: "Move to backlog", run: () => moveEntryToBacklog(false, id) },
+      { icon: "play", label: "Move to In progress", hidden: !categoryShows(e.category).inProgress, run: () => moveEntryToBacklog(true, id) },
+      h.divider,
+      h.select(id),
+      h.del(id, bulkDeleteEntriesSelected),
+    ];
   }
 
   // ---------- timeline view ----------
@@ -387,7 +405,7 @@
       const e = (state.data.entries || []).find((x) => x.id === id);
       if (e) openEntryModal(e);
     };
-    attachLongPressSelect(row, { id });
+    attachLongPressSelect(row, { id }, "entry");
     return row;
   }
 
@@ -1756,8 +1774,9 @@
   // `started` (0.220.0) sends it to In progress instead: for something
   // logged before it was actually finished. It keeps the day it was started
   // if it came from In progress in the first place, or starts today.
-  async function moveEntryToBacklog(started) {
-    const id = $("#entryId").value;
+  // From the sheet, or a row's right-click menu with its id.
+  async function moveEntryToBacklog(started, entryId) {
+    const id = entryId || $("#entryId").value;
     if (!id) return;
     const entry = state.data.entries.find((e) => e.id === id);
     if (!entry) return;
