@@ -34,7 +34,7 @@ Every screenshot is made-up demo data. Left is a computer, right a phone.
 
 ## Getting around
 
-Six tabs: Home in the middle, and Notebook, Timeline, Backlog, Ledger and
+Six tabs: Home (first on a computer, in the middle on a phone), and Notebook, Timeline, Backlog, Ledger and
 Travel, each with modes.
 On a computer the tabs sit along the top and hovering one drops its modes
 out; on a phone they're the bar at the bottom, and holding a tab raises its
@@ -54,7 +54,8 @@ What's on now, on one page, and where the app opens (a reload stays where
 you were). What you're in the middle of as covers; Coming up for the next
 two weeks, with releases and new episodes known to the day, recurring
 charges and the habits still left; a scratchpad that syncs, with Make a note
-to keep what's in it; and the notes you pin from a note's ⋯ menu. View
+to keep what's in it, or switched to Board to sketch on a board instead
+(Keep as a board files it); and the notes you pin from a note's ⋯ menu. View
 orders and hides the sections, per device, and Settings → Tabs turns Home
 off.
 

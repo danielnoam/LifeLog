@@ -270,9 +270,41 @@
     await persist();
   }
 
+  // Note or Board (per device, visual.homeScratchMode): the text pad, or a
+  // scratch board (boards.js) that opens in the full-screen editor.
+  const scratchMode = () => (state.visual.homeScratchMode === "board" && window.LifeLogBoards ? "board" : "note");
+  function modeSwitch() {
+    const seg = el("div", "seg home-pad-mode");
+    seg.setAttribute("role", "group");
+    seg.setAttribute("aria-label", "Scratchpad kind");
+    for (const [k, icon, label] of [["note", "notebook-pen", "Note"], ["board", "presentation", "Board"]]) {
+      const b = el("button", "seg-btn" + (scratchMode() === k ? " active" : ""));
+      b.type = "button";
+      b.dataset.mode = k;
+      b.setAttribute("aria-pressed", String(scratchMode() === k));
+      b.append(ico(icon), document.createTextNode(label));
+      b.onclick = () => {
+        if (scratchMode() === k) return;
+        if (padTimer) { clearTimeout(padTimer); savePad(); }
+        state.visual.homeScratchMode = k;
+        saveVisualSettings(state.visual);
+        render();
+      };
+      seg.appendChild(b);
+    }
+    return seg;
+  }
+
   function scratchpadSection() {
     const sec = el("section", "home-sec home-scratch");
-    sec.appendChild(sectionHead("scratchpad"));
+    const head = sectionHead("scratchpad");
+    if (window.LifeLogBoards) head.appendChild(modeSwitch());
+    sec.appendChild(head);
+    sec.appendChild(scratchMode() === "board" ? boardCard() : noteCard());
+    return sec;
+  }
+
+  function noteCard() {
     const card = el("div", "home-card");
     const field = padField();
     const saved = state.data.settings.scratchpad || "";
@@ -290,9 +322,51 @@
     make.onclick = makeNote;
     foot.appendChild(make);
     card.appendChild(foot);
-    sec.appendChild(card);
     requestAnimationFrame(fitPad);
-    return sec;
+    return card;
+  }
+
+  function boardCard() {
+    const B = window.LifeLogBoards;
+    const card = el("div", "home-card");
+    const open = el("button", "home-board");
+    open.type = "button";
+    open.id = "homeScratchBoard";
+    if (!B.isLoaded()) {
+      open.appendChild(el("span", "home-board-empty", "Loading…"));
+      B.ensureLoaded().then(() => { if (state.view === "home") render(); }).catch(() => {});
+    } else {
+      const b = B.scratchBoard();
+      if (b && b.elements.length) {
+        open.appendChild(B.thumbnail(b));
+        open.setAttribute("aria-label", "Open the scratch board");
+      } else open.appendChild(el("span", "home-board-empty", "Nothing drawn yet"));
+    }
+    const hint = el("span", "home-board-hint");
+    hint.append(ico("pencil"), document.createTextNode(" Tap to draw"));
+    open.appendChild(hint);
+    open.onclick = () => B.openScratch();
+    card.appendChild(open);
+    const foot = el("div", "home-pad-foot");
+    foot.appendChild(el("span", "home-pad-state", "Syncs like your boards"));
+    foot.appendChild(el("span", "spacer"));
+    const keep = el("button", "btn btn-small");
+    keep.type = "button";
+    keep.append(ico("plus"), document.createTextNode(" Keep as a board"));
+    keep.title = "File this drawing as a board in your Notebook and start a blank one";
+    keep.onclick = keepBoard;
+    foot.appendChild(keep);
+    card.appendChild(foot);
+    return card;
+  }
+
+  async function keepBoard() {
+    const B = window.LifeLogBoards;
+    const b = await B.keepScratch();
+    if (!b) { toast("The board is empty — draw something first", true); return; }
+    render();
+    const canOpen = viewEnabled("notes") && modeEnabled("notes", "boards");
+    toast(`Kept as "${b.name}" — the scratch board is blank`, false, canOpen ? { label: "Open", onClick: () => B.openBoard(b.id) } : null);
   }
 
   async function makeNote() {

@@ -66,9 +66,9 @@ const SEED = {
   await page.focus('#viewTabs .tab[data-view="timeline"]');
   await page.keyboard.press("ArrowRight"); await page.waitForTimeout(300);
   const after = await page.evaluate(() => ({ focus: document.activeElement.dataset.view, selected: [...document.querySelectorAll('#viewTabs .tab[aria-selected="true"]')].map((t) => t.dataset.view), active: document.querySelector("#viewTabs .tab.active").dataset.view }));
-  check("ArrowRight moves to the next tab and opens it", after.focus === "home" && after.selected.join() === "home" && after.active === "home", after);
+  check("ArrowRight moves to the next tab and opens it", after.focus === "backlog" && after.selected.join() === "backlog" && after.active === "backlog", after);
   await page.keyboard.press("Home"); await page.waitForTimeout(300);
-  check("Home goes to the first tab", await page.evaluate(() => document.activeElement.dataset.view) === "notes");
+  check("Home goes to the first tab (the Home tab, on a computer)", await page.evaluate(() => document.activeElement.dataset.view) === "home");
   await page.keyboard.press("ArrowLeft"); await page.waitForTimeout(300);
   check("ArrowLeft from the first wraps to the last", await page.evaluate(() => document.activeElement.dataset.view) === "finance");
   check("no errors", errs.length === 0, errs);

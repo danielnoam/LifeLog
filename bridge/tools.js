@@ -877,7 +877,7 @@ const TOOLS = [
       if (a.board) {
         const b = findBoard(list, a.board);
         const texts = boardTexts(b);
-        return [`${b.name}${b.category ? " [" + b.category + "]" : ""}${b.fav ? " ★" : ""} (${b.id}), ${b.elements.length} elements, last changed ${String(b.updatedAt).slice(0, 10)}.`,
+        return [`${b.name}${b.category ? " [" + b.category + "]" : ""}${b.fav ? " ★" : ""}${b.scratch ? " (Home's scratch board)" : ""} (${b.id}), ${b.elements.length} elements, last changed ${String(b.updatedAt).slice(0, 10)}.`,
           texts.length ? "Text on it:\n" + texts.map((t) => "- " + t).join("\n") : "No text on it."].join("\n");
       }
       const q = lower(a.query);
@@ -886,7 +886,7 @@ const TOOLS = [
       const lim = limitOf(a, 40);
       return [head(rows.length, Math.min(lim, rows.length), "boards"), ...rows.slice(0, lim).map((b) => {
         const texts = boardTexts(b);
-        return `- ${b.name}${b.category ? " [" + b.category + "]" : ""}${b.fav ? " ★" : ""}: ${b.elements.length} elements, changed ${String(b.updatedAt).slice(0, 10)}`
+        return `- ${b.name}${b.category ? " [" + b.category + "]" : ""}${b.fav ? " ★" : ""}${b.scratch ? " (Home's scratch board, not in the Boards list)" : ""}: ${b.elements.length} elements, changed ${String(b.updatedAt).slice(0, 10)}`
           + (texts.length ? `; text: ${cut(texts.join(" / "), 160)}` : "") + `  (${b.id})`;
       })].join("\n");
     },
@@ -1049,6 +1049,13 @@ const TOOLS = [
       out.push("", `Coming up to ${Finance.addDaysStr(t, days)} (${rows.length}):`, ...(rows.length ? rows.map((r) => `- ${r.day} · ${say(r)}`) : ["- nothing dated"]));
       const pad = (d.settings && d.settings.scratchpad) || "";
       out.push("", "Scratchpad:", pad ? pad : "(empty)");
+      // Board mode's drawing (boards.json); which mode shows is per device.
+      let scratch = null;
+      try { scratch = (await readBoards()).filter((b) => b.scratch).sort((x, y) => String(y.updatedAt).localeCompare(String(x.updatedAt)))[0]; } catch (e) { /* a second file */ }
+      if (scratch && scratch.elements.length) {
+        const texts = boardTexts(scratch);
+        out.push("", `Scratch board (Board mode): ${scratch.elements.length} elements${texts.length ? "; text: " + cut(texts.join(" / "), 300) : ""}  (${scratch.id})`);
+      }
       const pins = Home.pinnedNotes(d);
       out.push("", `Pinned notes (${pins.length}):`, ...(pins.length ? pins.map((n) => "- " + noteText(n, 300)) : ["- none"]));
       return out.join("\n");
@@ -1605,11 +1612,11 @@ const TOOLS = [
   },
   {
     name: "lifelog_update_board",
-    description: "Rename a drawing board, file it under a note category, or star it. Its drawing isn't touched.",
-    input: { board: S.str("Its id or name"), name: S.str("New name"), category: S.str("A note category; empty for none"), fav: S.bool("Starred") },
+    description: "Rename a drawing board, file it under a note category, or star it. keep files Home's scratch board as an ordinary board, as Keep as a board does. Its drawing isn't touched.",
+    input: { board: S.str("Its id or name"), name: S.str("New name"), category: S.str("A note category; empty for none"), fav: S.bool("Starred"), keep: S.bool("Home's scratch board only: file it in the Boards list (Home starts a blank one)") },
     required: ["board"],
     async run(a) {
-      if (a.name == null && a.category == null && a.fav == null) fail("Nothing to change: give name, category or fav.");
+      if (a.name == null && a.category == null && a.fav == null && !a.keep) fail("Nothing to change: give name, category, fav or keep.");
       if (a.name != null && !String(a.name).trim()) fail("A board needs a name.");
       const d = a.category ? await readData() : null;
       const category = a.category ? nameIn(d, "noteCategories", a.category, "note category") : "";
@@ -1619,6 +1626,10 @@ const TOOLS = [
         if (a.name != null) next.name = String(a.name).trim();
         if (a.category != null) { if (category) next.category = category; else delete next.category; }
         if (a.fav != null) { if (a.fav) next.fav = true; else delete next.fav; }
+        if (a.keep) {
+          if (!next.scratch) fail(`"${b.name}" is already in the Boards list; keep is for Home's scratch board.`);
+          delete next.scratch;
+        }
         replaceItem(doc, "boards", Boards.sanitizeBoard(next));
         return { text: `Updated the board ${b.id}: "${next.name}"${next.category ? " [" + next.category + "]" : ""}${next.fav ? " ★" : ""}.`, touched: [["boards", b.id]] };
       }, { file: "boards" });
