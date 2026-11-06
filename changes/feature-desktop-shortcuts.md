@@ -3,6 +3,7 @@
 - Tab opens and closes Settings (inside a text field it still moves to the next field).
 - Hold Shift to see each tab's number key beside it.
 - The computer's top bar shows the same icons as the phone's tabs.
+- In the computer app, Ctrl+scroll and Ctrl +/- zoom the view in and out, as in a browser.
 
 ### Fixed
 - ? opens the shortcuts list again on keyboards where Shift+/ doesn't type "?" (it was focusing search instead), and F and N work on a Hebrew layout too.

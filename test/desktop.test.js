@@ -220,6 +220,10 @@ test("it has the phones' app id, so it's one app in the data's eyes", () => {
   assert.strictEqual(conf.identifier, cap.appId);
 });
 
+test("Ctrl+scroll and Ctrl +/- zoom the window, as in a browser", () => {
+  assert.strictEqual(conf.app.windows[0].zoomHotkeysEnabled, true);
+});
+
 test("it leaves the page's own CSP in charge", () => {
   assert.strictEqual(conf.app.security.csp, null);
   assert.strictEqual(conf.app.withGlobalTauri, true);
