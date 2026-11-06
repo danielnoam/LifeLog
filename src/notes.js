@@ -1803,9 +1803,12 @@
       saveNote(() => { closeNoteMenu(); openNoteReader(id); swapSheets("#noteModal", "#noteReader"); });
     };
     $("#cancelNoteBtn").onclick = leaveNoteModal;
-    // Ctrl/Cmd+E swaps Read and Edit on a keyboard, even while typing.
+    // Ctrl/Cmd+E (or whatever Settings → Keyboard says) swaps Read and
+    // Edit, even while typing if the key has Ctrl or Alt in it.
     document.addEventListener("keydown", (ev) => {
-      if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || ev.shiftKey || ev.key.toLowerCase() !== "e") return;
+      const K = window.LifeLogKeys;
+      const hit = K && K.match(ev);
+      if (!hit || hit.id !== "noteMode" || K.blockedWhileTyping(hit.combo, document.activeElement)) return;
       const btn = !$("#noteReader").hidden ? $("#editNoteReaderBtn")
         : !$("#noteModal").hidden && !$("#noteModeSeg").hidden ? $("#noteReadBtn") : null;
       if (!btn) return;

@@ -1304,6 +1304,7 @@
               <button type="button" class="srow" data-page="notifications" id="notificationsRow" hidden><span class="srow-ic"><span data-ico="bell"></span></span><span class="srow-text"><span class="srow-title">Notifications</span><span class="srow-status" data-status="notifications"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
               <button type="button" class="srow" data-page="appearance"><span class="srow-ic"><span data-ico="palette"></span></span><span class="srow-text"><span class="srow-title">Appearance</span><span class="srow-status" data-status="appearance"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
               <button type="button" class="srow" data-page="tabs"><span class="srow-ic"><span data-ico="layout-grid"></span></span><span class="srow-text"><span class="srow-title">Tabs</span><span class="srow-status" data-status="tabs"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
+              <button type="button" class="srow" data-page="keyboard" id="keyboardRow" hidden><span class="srow-ic"><span data-ico="keyboard"></span></span><span class="srow-text"><span class="srow-title">Keyboard</span><span class="srow-status" data-status="keyboard"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
             </div>
           </div>
           <div class="sgroup">
@@ -1320,7 +1321,7 @@
               <button type="button" class="srow" data-page="about"><span class="srow-ic"><span data-ico="info"></span></span><span class="srow-text"><span class="srow-title">About</span><span class="srow-status" data-status="about"></span></span><span class="srow-chev" aria-hidden="true">›</span></button>
             </div>
           </div>
-          <p class="settings-foot">Press <kbd>?</kbd> for keyboard shortcuts</p>
+          <p class="settings-foot" id="settingsKeysFoot">Press <kbd>?</kbd> for keyboard shortcuts</p>
         </nav>
       </aside>
 
@@ -1988,6 +1989,40 @@
       </section>
       </div>
 
+      <!-- Settings → Keyboard: drawn by src/keys.js (renderPage). Shown on a
+           computer only; the keys sync, so the browser and the desktop app match. -->
+      <div class="settings-page" hidden data-page="keyboard" data-title="Keyboard" data-keywords="keyboard shortcuts keys keybinds hotkeys bindings rebind change remove reset shortcut key">
+      <h2 class="settings-page-title">Keyboard</h2>
+      <p class="hint page-lede">Click a key to change it, × to turn it off. Your keys sync, so the browser and the desktop app match.</p>
+      <section class="sgroup">
+        <div class="sgroup-label">Anywhere</div>
+        <div class="sgroup-card" id="kbActions"></div>
+      </section>
+      <section class="sgroup">
+        <div class="sgroup-label">Tabs</div>
+        <div class="sgroup-card">
+          <div id="kbTabs" class="kb-tabs"></div>
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">Shift + a tab's key opens its other mode</span></span>
+            <input type="checkbox" class="switch" id="kbOtherMode" />
+          </label>
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">Hold Shift to see each tab's key</span></span>
+            <input type="checkbox" class="switch" id="kbHints" />
+          </label>
+        </div>
+      </section>
+      <section class="sgroup">
+        <div class="sgroup-label">Fixed</div>
+        <div class="sgroup-card">
+          <div class="sitem kb-fixed"><span class="sitem-text"><span class="sitem-title">Stop searching, close a sheet or menu</span></span><span class="kb-caps"><kbd>Esc</kbd></span></div>
+          <div class="sitem kb-fixed"><span class="sitem-text"><span class="sitem-title">Save a note</span></span><span class="kb-caps"><kbd>Ctrl</kbd> <kbd>Enter</kbd></span></div>
+          <div class="sitem kb-fixed" id="kbZoomRow" hidden><span class="sitem-text"><span class="sitem-title">Zoom</span></span><span class="kb-caps"><kbd>Ctrl</kbd> + scroll</span></div>
+        </div>
+        <p class="hint">Plain keys only work when you're not typing in a field. Keys with Ctrl or Alt work anywhere.</p>
+      </section>
+      <div class="kb-foot"><button type="button" class="btn" id="kbResetAll">Reset all</button></div>
+      </div>
       <div class="settings-page" hidden data-page="desktop" data-title="Desktop" data-keywords="windows linux computer desktop app start at login startup boot sign in tray close quit minimise minimize window">
       <h2 class="settings-page-title">Desktop</h2>
       <p class="hint page-lede">How LifeLog runs on this computer.</p>
@@ -2383,20 +2418,11 @@
         <h2 id="shortcutsTitle">Keyboard shortcuts</h2>
         <button class="btn btn-icon" id="closeShortcutsBtn" title="Close" aria-label="Close keyboard shortcuts"><span data-ico="x"></span></button>
       </div>
-      <!-- The tab rows are built by openShortcutsModal(): a cheat-sheet that
-           lists a key for a tab you have turned off is telling you about a
-           key that does nothing. -->
-      <dl class="shortcuts-list">
-        <div><dt><kbd>N</kbd></dt><dd>Add entry</dd></div>
-        <div><dt><kbd>F</kbd> <kbd>/</kbd></dt><dd>Search</dd></div>
-        <div><dt><kbd>Tab</kbd></dt><dd>Open / close Settings</dd></div>
-        <div><dt><kbd>⇧</kbd></dt><dd>Hold to see each tab's number</dd></div>
-        <div id="shortcutViewRows"></div>
-        <div><dt><kbd>Ctrl</kbd> <kbd>E</kbd></dt><dd>Switch a note between Read and Edit</dd></div>
-        <div><dt><kbd>Esc</kbd></dt><dd>Stop searching, close a dialog / menu</dd></div>
-        <div><dt><kbd>?</kbd></dt><dd>Show this list</dd></div>
-      </dl>
-      <p class="hint">Only fire when you're not typing in a field, so they stay out of the way of titles, notes, and search.</p>
+      <!-- Built by renderShortcutRows() in app.js from src/keys.js, so it
+           lists the keys as you've set them, and nothing you turned off. -->
+      <dl class="shortcuts-list" id="shortcutRows"></dl>
+      <p class="hint">Plain keys only fire when you're not typing in a field, so they stay out of the way of titles, notes, and search.</p>
+      <button type="button" class="btn" id="shortcutsChangeBtn">Change keys</button>
     </div>
   </div>
 
@@ -2530,6 +2556,7 @@
   <script defer src="src/platform.js?v=0.306.0"></script>
   <script defer src="src/desktop.js?v=0.306.0"></script>
   <script defer src="src/dates.js?v=0.306.0"></script>
+  <script defer src="src/keys.js?v=0.306.0"></script>
   <script defer src="src/testbuilds.js?v=0.306.0"></script>
   <script defer src="src/icons.js?v=0.306.0"></script>
   <script defer src="src/jobs.js?v=0.306.0"></script>

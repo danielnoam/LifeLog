@@ -40,6 +40,7 @@
   }
   // Under Node (the bridge, the tests) nothing loaded dates.js as a script.
   const Dates = window.LifeLogDates || require("./dates.js");
+  const Keys = window.LifeLogKeys || require("./keys.js");
   const MONTHS = ["", "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December"];
   const MONTHS_SHORT = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -510,6 +511,8 @@
     bulk: { active: false, selected: new Set() },
   };
   Dates.bind(() => state.data && state.data.settings);
+  // enabledViews is a const further down, so it's asked for late.
+  Keys.bind(() => state.data && state.data.settings, () => enabledViews());
   let catColor = {}; // name -> color
 
   // Applied immediately (before any data load/await) so the right theme,
@@ -4046,20 +4049,23 @@
       clearTimeout(timer); timer = null;
       root.classList.remove("show-tab-keys");
     };
+    // Each tab's own key from Settings → Keyboard: its place number unless
+    // you picked another, and no badge on a tab you took the key off.
     const show = () => {
       timer = null;
       const order = enabledViews();
       document.querySelectorAll("#viewTabs .tab").forEach((tab) => {
-        const i = order.indexOf(tab.dataset.view);
+        const combo = order.includes(tab.dataset.view) && Keys.keysFor("tab:" + tab.dataset.view)[0];
         let key = tab.querySelector(".tab-key");
-        if (i < 0 || i > 8) { if (key) key.remove(); return; }
+        if (!combo) { if (key) key.remove(); return; }
         if (!key) { key = el("span", "tab-key"); key.setAttribute("aria-hidden", "true"); tab.appendChild(key); }
-        key.textContent = String(i + 1);
+        key.textContent = Keys.label(combo);
       });
       root.classList.add("show-tab-keys");
     };
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Shift") { if (timer) hide(); return; }
+      if (!Keys.hintsOn()) return;
       if (e.repeat || timer || root.classList.contains("show-tab-keys")) return;
       if (e.ctrlKey || e.metaKey || e.altKey || isTypingTarget(document.activeElement) || isAnyModalOpen()) return;
       timer = setTimeout(show, 250);
@@ -4077,47 +4083,47 @@
     const tag = node.tagName;
     return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || node.isContentEditable;
   }
-  // The cheat sheet's tab rows, rebuilt each time it opens: a key for a tab
-  // you have turned off is a key that does nothing, and listing it is worse
-  // than listing nothing. The Shift row only names the views that still have
-  // a second mode to reach.
+  // The cheat sheet, rebuilt from Settings → Keyboard each time it opens:
+  // a key you changed shows as you set it, one you turned off isn't listed,
+  // and neither is a tab you've hidden.
   function renderShortcutRows() {
-    const wrap = $("#shortcutViewRows");
+    const wrap = $("#shortcutRows");
     if (!wrap) return;
-    wrap.innerHTML = "";
-    const row = (keys, text) => {
+    wrap.replaceChildren();
+    const row = (combos, text) => {
+      if (!combos.length) return;
       const d = el("div");
       const dt = el("dt");
-      keys.forEach((k, i) => {
-        if (i) dt.appendChild(document.createTextNode(" "));
-        dt.appendChild(el("kbd", null, k));
+      combos.forEach((combo, n) => {
+        if (n) dt.appendChild(document.createTextNode(" "));
+        Keys.parts(combo).forEach((k, i) => {
+          if (i) dt.appendChild(document.createTextNode(" "));
+          dt.appendChild(el("kbd", null, k));
+        });
       });
       d.appendChild(dt);
       d.appendChild(el("dd", null, text));
       wrap.appendChild(d);
     };
-    // The number keys are the tab bar as it stands: 1 is the leftmost tab you
-    // have, whatever you've moved or turned off.
-    const digits = enabledViews().map((v, i) => [String(i + 1), v]);
-    for (const [digit, view] of digits) {
-      const tab = document.querySelector('#viewTabs .tab[data-view="' + view + '"]');
-      const name = (tab && tab.textContent) || view;
-      row([digit], VIEW_MODES[view] && modeIds(VIEW_MODES[view]).length > 1 ? name + " (again for the next mode)" : name);
+    for (const a of Keys.ACTIONS) row(Keys.keysFor(a.id), a.id === "help" ? "Show this list" : a.label);
+    if (Keys.hintsOn()) row(["ShiftLeft"], "Hold to see each tab's key");
+    for (const view of enabledViews()) {
+      const spec = VIEW_MODES[view];
+      row(Keys.keysFor("tab:" + view), tabLabel(view) + (spec && modeIds(spec).length > 1 ? " (again for the next mode)" : ""));
     }
-    const seconds = digits
-      .map(([digit, view]) => {
-        const spec = VIEW_MODES[view];
-        const other = spec && otherMode(spec);
-        const entry = other && modeEntries(spec).find(([id]) => id === other);
-        return entry ? { digit, label: entry[1] } : null;
-      })
-      .filter(Boolean);
-    if (seconds.length) {
-      const span = seconds.length > 1
-        ? [seconds[0].digit, "–", seconds[seconds.length - 1].digit]
-        : [seconds[0].digit];
-      row(["⇧", ...span], "That tab's other mode — " + seconds.map((x) => x.label).join(", "));
+    if (Keys.otherModeOn()) {
+      const seconds = enabledViews()
+        .map((view) => {
+          const spec = VIEW_MODES[view];
+          const other = spec && otherMode(spec);
+          const entry = other && modeEntries(spec).find(([id]) => id === other);
+          const combo = Keys.keysFor("tab:" + view)[0];
+          return entry && combo ? entry[1] + " (" + Keys.label(combo) + ")" : null;
+        })
+        .filter(Boolean);
+      if (seconds.length) row(["ShiftLeft"], "+ a tab's key: its other mode — " + seconds.join(", "));
     }
+    row(["Escape"], "Stop searching, close a dialog / menu");
   }
 
   // Add "an expense" to a Ledger you have turned off and it lands somewhere
@@ -4433,7 +4439,7 @@
     "currency", "mediaCategorySources", "mediaCategoryFallbackSources",
     "mediaKeys", "steam", "anilist", "releases", "importSkips", "updatedAt",
     "monthMinWidth", "monthMaxWidth", "imagesCleanedAt",
-    "weekStart", "dateFormat", "scratchpad",
+    "weekStart", "dateFormat", "scratchpad", "keys",
   ]);
 
   function sanitizeAccomplishment(a, y) {
@@ -4537,6 +4543,11 @@
     if (incomingSettings.dateFormat !== undefined) data.settings.dateFormat = Dates.cleanFormat(incomingSettings.dateFormat);
     // The Home tab's scratchpad (0.306.0), synced like a setting.
     if (typeof incomingSettings.scratchpad === "string" && incomingSettings.scratchpad) data.settings.scratchpad = incomingSettings.scratchpad;
+    // Settings → Keyboard: only what differs from the defaults.
+    if (incomingSettings.keys) {
+      const keys = Keys.clean(incomingSettings.keys);
+      if (Object.keys(keys).length) data.settings.keys = keys;
+    }
     keepUnknown(incomingSettings, data.settings, KNOWN_SETTINGS_KEYS);
     delete data.settings.monthOrder;
     const accIn = data.accomplishments || {};
@@ -5046,6 +5057,7 @@
     Recap.wire();
 
     $("#closeShortcutsBtn").onclick = closeShortcutsModal;
+    $("#shortcutsChangeBtn").onclick = () => { closeShortcutsModal(); SettingsUI.openSettings("keyboard"); };
     wireActivity();
     $("#closeBulkProgressBtn").onclick = closeBulkProgressPanel;
 
@@ -5056,9 +5068,13 @@
       // The board editor, while open, has every key: its own tools and undo,
       // and Escape steps out of a text box, then a selection, then the board.
       if (Boards.handleKey(e)) return;
-      // Tab opens and shuts Settings, outside text fields and other sheets;
-      // in a field it still steps to the next one.
-      if (e.key === "Tab" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && !isTextField(document.activeElement)) {
+      // Which shortcut this is, by Settings → Keyboard (src/keys.js). A
+      // plain key stands down while you type; one with Ctrl or Alt doesn't.
+      const hit = Keys.match(e);
+      const typing = !!hit && Keys.blockedWhileTyping(hit.combo, document.activeElement);
+      // Settings (Tab by default) opens and shuts it, outside text fields
+      // and other sheets; in a field Tab still steps to the next one.
+      if (hit && hit.id === "settings" && !typing) {
         const open = document.querySelectorAll(".modal-overlay:not([hidden])");
         if (!open.length) { e.preventDefault(); SettingsUI.openSettings(); return; }
         if (open.length === 1 && !$("#settingsModal").hidden) { e.preventDefault(); SettingsUI.closeSettings(); return; }
@@ -5101,37 +5117,31 @@
       // By the physical key as well as the character: on some layouts (a
       // Hebrew one on Windows) Shift+/ reports "/" or ".", not "?", and the
       // letters report their own alphabet, so F and N did nothing there.
-      const isHelp = e.key === "?" || (e.code === "Slash" && e.shiftKey);
+      // Keys are matched by e.code in keys.js, so they work on any layout.
+      if (!hit || typing) return;
       const onlySettings = !$("#settingsModal").hidden && document.querySelectorAll(".modal-overlay:not([hidden])").length === 1;
-      if (isHelp && onlySettings && !isTypingTarget(document.activeElement) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (hit.id === "help" && onlySettings) {
         e.preventDefault(); SettingsUI.closeSettings(); openShortcutsModal(); return;
       }
-      if (isTypingTarget(document.activeElement) || isAnyModalOpen() || e.ctrlKey || e.metaKey || e.altKey) return;
-      if (isHelp) { e.preventDefault(); openShortcutsModal(); return; }
-      if (e.key === "/" || (e.code === "KeyF" && !e.shiftKey) || e.key === "f") { e.preventDefault(); focusSearch(); return; }
-      if (e.code === "KeyN" || e.key === "n" || e.key === "N") { e.preventDefault(); Journal.openEntryModal(null); return; }
-      // After ? and N, both of which are themselves shifted keys.
-      // Keyed on e.code for Shift: Shift+2 is "@" on a US layout and something
-      // else again elsewhere, and the physical digit is what the cheat-sheet
-      // describes.
-      const digit = /^Digit([1-9])$/.exec(e.code || "");
-      const byDigit = digit && enabledViews()[+digit[1] - 1];
-      if (e.shiftKey && byDigit) {
-        e.preventDefault();
-        const spec = VIEW_MODES[byDigit];
-        // Only where there is another mode left to reach.
+      // Ctrl+E (note Read/Edit) is notes.js's own, inside the note sheets.
+      if (isAnyModalOpen() || hit.id === "noteMode") return;
+      if (hit.id === "help") { e.preventDefault(); openShortcutsModal(); return; }
+      if (hit.id === "search") { e.preventDefault(); focusSearch(); return; }
+      if (hit.id === "add") { e.preventDefault(); Journal.openEntryModal(null); return; }
+      const view = hit.id.startsWith("tab:") && hit.id.slice(4);
+      if (!view || !enabledViews().includes(view)) return;
+      e.preventDefault();
+      // Shift with a tab's key: its other mode, where there's one to reach.
+      if (hit.other) {
+        const spec = VIEW_MODES[view];
         const other = spec && otherMode(spec);
         if (other) spec.set(other);
-        if (byDigit !== state.view) switchToView(byDigit); else commitModeChange();
+        if (view !== state.view) switchToView(view); else commitModeChange();
         return;
       }
       // The tab you're on steps to its next mode, the same as clicking it
       // again at the top of the page (0.264.2).
-      if (byDigit && !e.shiftKey) {
-        e.preventDefault();
-        if (byDigit === state.view) stepMode(); else switchToView(byDigit);
-        return;
-      }
+      if (view === state.view) stepMode(); else switchToView(view);
     });
 
     wireTabKeyHints();
