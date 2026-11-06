@@ -415,7 +415,7 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
 
 .views { display: flex; gap: 4px; order: 2; }
 .tab {
-  position: relative;
+  position: relative; display: inline-flex; align-items: center; gap: 7px;
   background: transparent; border: none; color: var(--text-dim);
   /* The extra at the bottom is the mode dots' row (.tab-modes), inside the
      pill; every tab gets it so the row stays one height. */
@@ -441,6 +441,18 @@ input[type="checkbox"]:focus-visible { border-radius: var(--r-sm); outline-offse
   .tab:hover { background: var(--bg-elev-2); color: var(--text); }
 }
 .tab.active { background: var(--accent-fill); color: var(--text-on-accent); }
+/* The display above outranks the UA stylesheet's [hidden] rule. */
+.tab[hidden] { display: none; }
+/* Shift held: each tab's number key (the 1-9 that switches to it) on its
+   top-left corner, clear of the search badge on the right. */
+.tab-key { display: none; }
+html.show-tab-keys .tab-key {
+  display: block; position: absolute; top: -6px; left: -4px;
+  min-width: 17px; height: 17px; padding: 0 4px; border-radius: var(--r-xs);
+  background: var(--bg-elev-2); color: var(--text); border: 1px solid var(--border);
+  font-size: var(--fs-3xs); font-weight: 700; line-height: 15px; text-align: center;
+  box-shadow: var(--shadow); pointer-events: none;
+}
 
 /* Hovering a tab drops its modes out of it — the desktop half of the phone's
    press-and-hold fan, and the reason there is no switch above the content on
@@ -730,8 +742,8 @@ body.modal-open .activity-pill { visibility: hidden; }
 .ico { width: 1.2em; height: 1.2em; flex: 0 0 auto; display: inline-block; vertical-align: -0.25em; }
 .ico.is-fill { fill: currentColor; }
 h2 .ico { width: .85em; height: .85em; vertical-align: -0.1em; margin-right: 2px; }
-.tab-ico { display: none; }
-.tab-ico .ico { width: 22px; height: 22px; display: block; }
+.tab-ico { display: block; }
+.tab-ico .ico { width: 17px; height: 17px; display: block; }
 .btn-icon .ico, .jump-btn .ico, .search-clear .ico, .recap-close .ico, .lock-key .ico { width: 18px; height: 18px; display: block; margin: auto; }
 .empty-glyph .ico { width: 34px; height: 34px; }
 .recur-badge .ico { width: 12px; height: 12px; vertical-align: -0.15em; }
@@ -3285,7 +3297,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
      companion rule the rest of this file carries next to every other
      author display. */
   html:not(.force-pc) .tab[hidden] { display: none; }
-  html:not(.force-pc) .tab-ico { display: block; }
+  html:not(.force-pc) .tab-ico .ico { width: 22px; height: 22px; }
   html:not(.force-pc) .tab.active { color: var(--accent); background: none; }
   html:not(.force-pc) .views { position: relative; }
   /* Slides under whichever tab is active — tapping a tab or swiping the
@@ -3430,7 +3442,7 @@ html.force-mobile .tab {
 }
 /* Same companion rule as the @media block above — see the note there. */
 html.force-mobile .tab[hidden] { display: none; }
-html.force-mobile .tab-ico { display: block; }
+html.force-mobile .tab-ico .ico { width: 22px; height: 22px; }
 html.force-mobile .tab.active { color: var(--accent); background: none; }
 html.force-mobile .views { position: relative; }
 html.force-mobile .tab-modes { bottom: 6px; }

@@ -22,6 +22,7 @@ Every release that adds a feature adds its line here in the same commit.
 - The + menu adds anything from any tab (0.229.0)
 - One search across everything, with the tab's own filter kept (0.251.0); In progress is its own group (0.281.0); Timeline and Backlog results show their cover, status tags, and starred/bought icons (0.295.0)
 - Keyboard shortcuts: N to add, number keys for tabs, Shift+number for a second mode, / to search, ? for the list, from Settings too, whose hint shows only with a mouse (0.86.0, 0.127.0, 0.188.0, 0.301.0)
+- On a computer: F to search and Escape to stop, Tab opens and shuts Settings, holding Shift numbers the tabs, and the top bar's tabs carry their icons (next release)
 - Lists update in place, move instead of jumping, and rows fade in and out (0.129.0 to 0.139.0)
 - Sheets fade and rise in, swipe down to close, and keep focus where it was (0.209.0, 0.222.0, 0.223.0)
 - Folds (Advanced, Insights, a place's hours) grow open and shut (0.284.1)

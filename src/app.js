@@ -4000,6 +4000,53 @@
     return false;
   }
 
+  // Where Tab is still for moving on to the next field: text being typed,
+  // not a switch or a select just changed with the mouse.
+  function isTextField(node) {
+    if (!node) return false;
+    if (node.isContentEditable || node.tagName === "TEXTAREA") return true;
+    return node.tagName === "INPUT" && !/^(checkbox|radio|range|button|submit|reset|color|file)$/i.test(node.type);
+  }
+  // Selected, so a query already there is replaced by what you type next.
+  function focusSearch() {
+    const box = $("#search");
+    box.focus();
+    box.select();
+  }
+
+  // Holding Shift shows each tab's number key beside it. Only after a beat
+  // held on its own: Shift+click (a habit's day range) and capitals typed
+  // elsewhere shouldn't flash numbers over the bar.
+  function wireTabKeyHints() {
+    const root = document.documentElement;
+    let timer = null;
+    const hide = () => {
+      clearTimeout(timer); timer = null;
+      root.classList.remove("show-tab-keys");
+    };
+    const show = () => {
+      timer = null;
+      const order = enabledViews();
+      document.querySelectorAll("#viewTabs .tab").forEach((tab) => {
+        const i = order.indexOf(tab.dataset.view);
+        let key = tab.querySelector(".tab-key");
+        if (i < 0 || i > 8) { if (key) key.remove(); return; }
+        if (!key) { key = el("span", "tab-key"); key.setAttribute("aria-hidden", "true"); tab.appendChild(key); }
+        key.textContent = String(i + 1);
+      });
+      root.classList.add("show-tab-keys");
+    };
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== "Shift") { if (timer) hide(); return; }
+      if (e.repeat || timer || root.classList.contains("show-tab-keys")) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || isTypingTarget(document.activeElement) || isAnyModalOpen()) return;
+      timer = setTimeout(show, 250);
+    });
+    document.addEventListener("keyup", (e) => { if (e.key === "Shift") hide(); });
+    document.addEventListener("pointerdown", hide);
+    window.addEventListener("blur", hide);
+  }
+
   // Global one-key shortcuts (see wire()'s keydown handler) only fire
   // outside of text entry — otherwise typing a title/note/search term
   // starting with "n" or a digit would trigger one instead of being typed.
@@ -4984,10 +5031,24 @@
       // The board editor, while open, has every key: its own tools and undo,
       // and Escape steps out of a text box, then a selection, then the board.
       if (Boards.handleKey(e)) return;
+      // Tab opens and shuts Settings, outside text fields and other sheets;
+      // in a field it still steps to the next one.
+      if (e.key === "Tab" && !e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && !isTextField(document.activeElement)) {
+        const open = document.querySelectorAll(".modal-overlay:not([hidden])");
+        if (!open.length) { e.preventDefault(); SettingsUI.openSettings(); return; }
+        if (open.length === 1 && !$("#settingsModal").hidden) { e.preventDefault(); SettingsUI.closeSettings(); return; }
+      }
       if (e.key === "Tab" && trapTabInSheet(e)) return;
       if (e.key === "Escape") {
         if (SettingsUI.settingsBack()) return;
-        if (Search.isOpen() && !isAnyModalOpen()) { Search.clear(); $("#searchClear").hidden = true; return; }
+        // Stops the search: clears it and lets go of the box, so the next
+        // F or number key is a shortcut again rather than a letter typed.
+        const inSearch = document.activeElement === $("#search");
+        if ((Search.isOpen() || inSearch) && !isAnyModalOpen()) {
+          Search.clear(); $("#searchClear").hidden = true;
+          if (inSearch) $("#search").blur();
+          return;
+        }
         if (state.view === "travel" && Travel.endSort()) return;
         Journal.closeEntryModal(); Journal.closeAchModal(); Journal.cancelCategoryModal(); Backlog.closeBacklogModal();
         Backlog.closePickModal(); Backlog.closeOutTodaySheet();
@@ -5018,7 +5079,7 @@
       }
       if (isTypingTarget(document.activeElement) || isAnyModalOpen() || e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === "?") { e.preventDefault(); openShortcutsModal(); return; }
-      if (e.key === "/") { e.preventDefault(); $("#search").focus(); return; }
+      if (e.key === "/" || ((e.key === "f" || e.key === "F") && !e.shiftKey)) { e.preventDefault(); focusSearch(); return; }
       if (e.key === "n" || e.key === "N") { e.preventDefault(); Journal.openEntryModal(null); return; }
       // After ? and N, both of which are themselves shifted keys.
       // Keyed on e.code for Shift: Shift+2 is "@" on a US layout and something
@@ -5043,6 +5104,8 @@
         return;
       }
     });
+
+    wireTabKeyHints();
 
     // Retry a pending save and check for remote updates as soon as the
     // connection comes back, and again when the tab regains focus. Pause

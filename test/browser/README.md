@@ -89,3 +89,4 @@ the test fails without the fix before trusting it.
 | `importundo` | Undo in the import toast (0.256.0): added rows go, filled fields return to empty, a created category goes when unused, what was there stays |
 | `importedit` | editing a row before import (0.258.0): the pencil's form, Done writing title, month, category and rating back, the edited mark, an update row's values |
 | `outweek` | Out in the last 7 days (0.259.0): the Upcoming bar's button and count, the sheet as Out this week with dated tiles, three in a row, and one release as one large tile |
+| `desktopkeys` | computer keys: F focuses search without typing, Escape clears and leaves it, held Shift numbers the tabs (a tap doesn't), Tab opens and shuts Settings but not from a text field; every desktop tab shows its icon |
