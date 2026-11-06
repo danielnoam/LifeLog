@@ -3,6 +3,28 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.307.0] - 2026-11-06
+
+### Added
+- Settings → Keyboard, on a computer: change any shortcut (click its key, press the new one), turn it off with ×, give it a second key with +, put one back with ↺, or Reset all. A key another shortcut was using moves over, with Undo. Each tab can have its own key, and the Shift hint and the ? list show your keys. They sync, so the browser and the desktop app match.
+- Home's scratchpad has a Note / Board switch. Board shows a drawing you open in the full-screen board editor, and Keep as a board files it in your Notebook and starts a blank one. The switch is remembered per device; the drawing syncs like your other boards.
+- The AI bridge's `lifelog_home` shows the scratch board's text, `lifelog_boards` marks it, and `lifelog_update_board` takes `keep`.
+- On a computer, Ctrl+E (Cmd+E on a Mac) switches an open note between Read and Edit, even while typing. Read saves first, as the button does. It's in the ? shortcuts list.
+
+### Changed
+- Dropdowns open the app's own list instead of the system's, in every theme: a menu under the field on a computer, and a sheet from the bottom with large rows on a phone. Arrow keys, typing to jump to an option and Escape work as before.
+- On a computer, Home's Coming up, Scratchpad and Pinned notes sit side by side in one row when they're next to each other in your order (two across on a narrower window). On a phone they still stack.
+- On a computer (desktop app and browser) Home is now the first tab. On a phone it stays in the middle of the bottom bar. A tab order you set yourself in Settings → Tabs is kept.
+- Settings → About: What's new is folded shut until you open it, so the page opens on the links and credits instead of a long changelog.
+- Reading a note shows its written and edited dates in the bar at the bottom, the same place as the editor, instead of under the text.
+
+### Fixed
+- The Home tab's In progress row had the system's grey horizontal scrollbar on a computer; it now has the app's own, like every other scrollbar.
+- An open note now has the ⋯ button while reading it, not only while editing: Make entry, Pin to Home and Delete note are there in both.
+
+### Removed
+- The note editor's Save button. Closing a note (×, Escape, phone Back or a tap outside) keeps what was written; a new note left empty just closes. Ctrl+Enter still saves and closes.
+
 ## [0.306.0] - 2026-11-06
 
 ### Added
