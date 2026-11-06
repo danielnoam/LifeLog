@@ -195,7 +195,9 @@ Windows app, `test-android` or `test-desktop` just one (sooner);
 branch (`.github/workflows/test-builds.yml`) and every push after that
 rebuilds it, onto the pre-release `test-<branch>` (`tools/test-build.sh`).
 Taking the label off, closing the PR or deleting the branch removes it. A
-branch without a test label doesn't build at all. A pre-release is never
+branch without a test label doesn't build on a push; running a workflow
+by hand on it (Actions → Run workflow) builds it as that run's artifact
+only, with no pre-release and, for the APK, a throwaway key. A pre-release is never
 the latest release, so the updater never offers it; Settings → About →
 Test builds lists them. There, Android installs one through the updater's
 own download, an iPhone opens its release page, and a browser on the web

@@ -1,8 +1,8 @@
 # Builds the Windows and Linux app (Tauri, src-tauri/) from the same files
 # GitHub Pages serves, and attaches it to the app-v<version> release the
 # Android workflow publishes. Same gate as android.yml: main always builds,
-# any other branch only when its open pull request carries `test` or
-# `test-desktop`. Windows only by default (2026-11-04: Daniel builds the
+# any other branch when its open pull request carries `test` or
+# `test-desktop`, or when run by hand (an artifact only, no pre-release). Windows only by default (2026-11-04: Daniel builds the
 # web app, Windows and the APK unless he asks for more); Linux joins when
 # the workflow is run by hand with "Linux too" ticked, or a pull request
 # carries `test-linux`.
@@ -57,8 +57,14 @@ jobs:
           fi
           case "$LABELS" in
             *,test,*|*,test-desktop,*|*,test-linux,*) echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=true" >> "$GITHUB_OUTPUT" ;;
-            *) echo "$BRANCH has no open pull request labelled test, test-desktop or test-linux, so no desktop build"
-               echo "build=false" >> "$GITHUB_OUTPUT"; echo "test=false" >> "$GITHUB_OUTPUT" ;;
+            *) if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+                 echo "Run by hand without a test label: kept as this run's artifact only"
+                 echo "build=true" >> "$GITHUB_OUTPUT"
+               else
+                 echo "$BRANCH has no open pull request labelled test, test-desktop or test-linux, so no desktop build"
+                 echo "build=false" >> "$GITHUB_OUTPUT"
+               fi
+               echo "test=false" >> "$GITHUB_OUTPUT" ;;
           esac
 
   test:
