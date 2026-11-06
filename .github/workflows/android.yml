@@ -18,9 +18,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # main always builds. Any other branch builds only when its open pull
-  # request carries a test label (test or test-android), so a branch push
-  # doesn't spend a build nobody asked for (2026-11-02, CONTRIBUTING.md).
+  # main always builds. Any other branch builds when its open pull request
+  # carries a test label (test or test-android), so a branch push doesn't
+  # spend a build nobody asked for (2026-11-02, CONTRIBUTING.md), or when the
+  # workflow is run by hand: that APK gets the throwaway key and no
+  # pre-release, since only a label makes a test build (2026-11-06).
   gate:
     runs-on: ubuntu-latest
     outputs:
@@ -38,8 +40,14 @@ jobs:
           LABELS=",$(gh pr list -R "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json labels --jq '.[:1][] | [.labels[].name] | join(",")' 2>/dev/null || true),"
           case "$LABELS" in
             *,test,*|*,test-android,*) echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=true" >> "$GITHUB_OUTPUT" ;;
-            *) echo "$BRANCH has no open pull request labelled test or test-android, so no APK build"
-               echo "build=false" >> "$GITHUB_OUTPUT"; echo "test=false" >> "$GITHUB_OUTPUT" ;;
+            *) if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+                 echo "Run by hand without a test label: an APK with a throwaway key, kept as this run's artifact only"
+                 echo "build=true" >> "$GITHUB_OUTPUT"
+               else
+                 echo "$BRANCH has no open pull request labelled test or test-android, so no APK build"
+                 echo "build=false" >> "$GITHUB_OUTPUT"
+               fi
+               echo "test=false" >> "$GITHUB_OUTPUT" ;;
           esac
 
   test:

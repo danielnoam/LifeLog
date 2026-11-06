@@ -29,7 +29,8 @@ jobs:
   # workflow by hand (Actions → iOS app → Run workflow) and it attaches the
   # IPA to the current version's release; a push to main builds nothing.
   # Any other branch builds when its open pull request carries test-ios
-  # (not plain `test`, which is the default set).
+  # (not plain `test`, which is the default set), or when run by hand on it
+  # (an artifact only, no pre-release).
   gate:
     runs-on: ubuntu-latest
     outputs:
@@ -54,8 +55,14 @@ jobs:
           LABELS=",$(gh pr list -R "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json labels --jq '.[:1][] | [.labels[].name] | join(",")' 2>/dev/null || true),"
           case "$LABELS" in
             *,test-ios,*) echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=true" >> "$GITHUB_OUTPUT" ;;
-            *) echo "$BRANCH has no open pull request labelled test-ios, so no IPA build"
-               echo "build=false" >> "$GITHUB_OUTPUT"; echo "test=false" >> "$GITHUB_OUTPUT" ;;
+            *) if [ "$EVENT" = workflow_dispatch ]; then
+                 echo "Run by hand without test-ios: the IPA is kept as this run's artifact only"
+                 echo "build=true" >> "$GITHUB_OUTPUT"
+               else
+                 echo "$BRANCH has no open pull request labelled test-ios, so no IPA build"
+                 echo "build=false" >> "$GITHUB_OUTPUT"
+               fi
+               echo "test=false" >> "$GITHUB_OUTPUT" ;;
           esac
 
   test:
