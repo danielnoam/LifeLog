@@ -3,6 +3,29 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.305.0] - 2026-11-06
+
+### Added
+- On Windows and Linux, clicking a reminder or heads-up opens LifeLog where it points: the habit, the Ledger, Upcoming or the Backlog.
+- Right-click menus on a computer: rows in the Timeline, Backlog, Ledger, notes, boards and habits have their own actions (Open, Move, Set as Done, Star, Favourite, Archive, Delete and more). Select starts selecting from that row, and with items selected the menu acts on all of them.
+- Settings → Desktop on Windows and Linux: Start at login (moved from Notifications), whether a login start opens the window or stays in the tray, and whether closing the window keeps LifeLog in the tray or quits.
+
+### Changed
+- On Notebook's cards the date, category and star sit at the foot, under the note.
+- Add image moved into the note's ⋯ menu, and the foot only shows a saved note's dates, on the left.
+- The View options moved out of the note: Notebook's own View button has them (line numbers, text size, open a note in).
+
+### Fixed
+- The computer app now keeps checking GitHub every 10 minutes while it sits in the tray, and once more just before a habit reminder rings, so a habit already ticked on your phone no longer rings on the computer.
+- On a phone a note fills the screen to its edges again: the bar and the foot clear the status and gesture bars once, instead of the note floating with the page showing above and below it.
+- The category chip in a note's editor opens the picker wherever you tap it.
+- Back on the phone (and Escape) closes a note, whether you're reading or writing it.
+- Switching a note to Edit no longer opens the keyboard; tap where you want to type. A new note still starts typing.
+- A quote's opening mark sits in the line at the same size as its closing one.
+- A board's card no longer shows the boards icon by its name.
+- A checklist's card has the same colour as the other notes, and on a phone its header no longer sticks over the month's.
+- The install notes on a release no longer promise an iPhone or Linux file that is only built when asked for.
+
 ## [0.304.0] - 2026-11-04
 
 ### Added
