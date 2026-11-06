@@ -5073,14 +5073,18 @@
       // so Ctrl/Cmd/Alt combos pass straight through to the browser.
       // ? also works from Settings, which is where the hint for it is: until
       // 0.301.0 the open Settings sheet counted as a modal and swallowed it.
+      // By the physical key as well as the character: on some layouts (a
+      // Hebrew one on Windows) Shift+/ reports "/" or ".", not "?", and the
+      // letters report their own alphabet, so F and N did nothing there.
+      const isHelp = e.key === "?" || (e.code === "Slash" && e.shiftKey);
       const onlySettings = !$("#settingsModal").hidden && document.querySelectorAll(".modal-overlay:not([hidden])").length === 1;
-      if (e.key === "?" && onlySettings && !isTypingTarget(document.activeElement) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (isHelp && onlySettings && !isTypingTarget(document.activeElement) && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault(); SettingsUI.closeSettings(); openShortcutsModal(); return;
       }
       if (isTypingTarget(document.activeElement) || isAnyModalOpen() || e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.key === "?") { e.preventDefault(); openShortcutsModal(); return; }
-      if (e.key === "/" || ((e.key === "f" || e.key === "F") && !e.shiftKey)) { e.preventDefault(); focusSearch(); return; }
-      if (e.key === "n" || e.key === "N") { e.preventDefault(); Journal.openEntryModal(null); return; }
+      if (isHelp) { e.preventDefault(); openShortcutsModal(); return; }
+      if (e.key === "/" || (e.code === "KeyF" && !e.shiftKey) || e.key === "f") { e.preventDefault(); focusSearch(); return; }
+      if (e.code === "KeyN" || e.key === "n" || e.key === "N") { e.preventDefault(); Journal.openEntryModal(null); return; }
       // After ? and N, both of which are themselves shifted keys.
       // Keyed on e.code for Shift: Shift+2 is "@" on a US layout and something
       // else again elsewhere, and the physical digit is what the cheat-sheet

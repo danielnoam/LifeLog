@@ -67,6 +67,25 @@ const SEED = {
   await page.keyboard.press("Tab");
   check("Tab in the search box doesn't open Settings", !(await settingsOpen()));
 
+  // A Hebrew layout on Windows: Shift+/ reports "/" or ".", the F key "כ".
+  const press = (key, code, shiftKey) => page.evaluate(({ key, code, shiftKey }) =>
+    document.dispatchEvent(new KeyboardEvent("keydown", { key, code, shiftKey, bubbles: true, cancelable: true })), { key, code, shiftKey });
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  await press("?", "Slash", true);
+  const helpOpen = () => page.evaluate(() => !document.getElementById("shortcutsModal").hidden);
+  check("? opens the shortcuts list", await helpOpen());
+  await page.keyboard.press("Escape");
+  await press("/", "Slash", true);
+  check("Shift+/ opens it when the layout reports \"/\"", await helpOpen());
+  check("and doesn't focus search", (await focused()) !== "search");
+  await page.keyboard.press("Escape");
+  await press(".", "Slash", true);
+  check("or \".\"", await helpOpen());
+  await page.keyboard.press("Escape");
+  await press("כ", "KeyF", false);
+  check("the F key focuses search on a Hebrew layout", (await focused()) === "search");
+  await page.keyboard.press("Escape");
+
   check("no page errors", errs.length === 0, errs);
   await browser.close();
   console.log(`\n${pass} passed, ${fail} failed`);
