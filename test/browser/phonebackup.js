@@ -118,7 +118,7 @@ async function openSync(page) {
     await page.evaluate(() => window.LifeLogNotes.openNoteModal(null));
     await page.waitForTimeout(250);
     await page.fill("#nText", "Written after turning it on");
-    await page.click('#noteModal button[type="submit"]');
+    await page.click('#cancelNoteBtn');
     await settled(page);
     await page.waitForTimeout(600);
     f = await files();
@@ -132,7 +132,7 @@ async function openSync(page) {
     await page.evaluate(() => window.LifeLogNotes.openNoteModal(null));
     await page.waitForTimeout(250);
     await page.fill("#nText", "After turning it off");
-    await page.click('#noteModal button[type="submit"]');
+    await page.click('#cancelNoteBtn');
     await settled(page);
     await page.waitForTimeout(600);
     f = await files();

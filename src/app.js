@@ -4988,6 +4988,7 @@
         else if (ov.id === "financeCatModal") Finance.cancelFinanceCatModal();
         else if (ov.id === "boardEditor") return; // it is the whole screen; nothing outside it to tap
         else if (ov.id === "pickModal") Backlog.closePickModal(); // stops a spin or shuffle in flight
+        else if (ov.id === "noteModal") Notes.leaveNoteModal(); // keeps what was written
         else ov.hidden = true;
       });
     });
@@ -5080,7 +5081,7 @@
         Finance.closePauseModal(); Finance.cancelFinanceCatModal();
         // A note, read or written, shuts the way its × does (phone Back too),
         // unless a new category's sheet is up over it: that one goes first.
-        if ($("#noteCatModal").hidden) { Notes.closeNoteModal(); Notes.closeNoteReader(); }
+        if ($("#noteCatModal").hidden) { Notes.leaveNoteModal(); Notes.closeNoteReader(); }
         Habits.closeHabitModal(); Habits.closeAmountModal(); Notes.closeNoteCatModal();
         Travel.closeTripModal(); Travel.closePlaceModal(); Travel.closeImportModal(); Share.close();
         SettingsUI.closeSettings();

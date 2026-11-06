@@ -4584,7 +4584,7 @@ html.note-lines .nv-gutter { display: block; }
   padding: var(--space-10) var(--space-12); border-top: 1px solid var(--border);
 }
 .nv-foot[hidden] { display: none; }
-#noteStampLine { margin: 0; color: var(--text-dim); font-size: var(--fs-xs); }
+#noteStampLine, .nv-stamp { margin: 0; color: var(--text-dim); font-size: var(--fs-xs); }
 /* The ⋯ menu: Add image, the kind, Make entry and Delete — things done to a note
    now and then, kept out of the way of writing it. */
 .nv-menu {
@@ -4592,6 +4592,7 @@ html.note-lines .nv-gutter { display: block; }
   background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: var(--r-lg); box-shadow: var(--shadow);
 }
 .nv-bar { position: relative; }
+.nv-menu.nv-menu-end { right: var(--space-12); }
 .nv-menu[hidden] { display: none; }
 .nv-menu-label { margin: 0; padding: var(--space-6) var(--space-10) var(--space-2); font-size: var(--fs-2xs); color: var(--text-dim); }
 .nv-menu-label[hidden], .nv-menu hr[hidden], .nv-menu button[hidden] { display: none; }
@@ -4612,10 +4613,6 @@ html.note-lines .nv-gutter { display: block; }
 #noteReader .md { margin-top: var(--space-20); }
 html.note-text-small #noteReader .md { font-size: var(--fs-md); }
 html.note-text-large #noteReader .md { font-size: var(--fs-xl); }
-.note-reader-meta {
-  margin: var(--space-32) 0 0; padding-top: var(--space-12); border-top: 1px solid var(--border);
-  color: var(--text-dim); font-size: var(--fs-xs);
-}
 /* The checklist's rows in the sheet: a handle to drag by (0.304.0). */
 .note-list-grip {
   flex: 0 0 auto; align-self: stretch; display: flex; align-items: center; padding: 0 var(--space-4) 0 var(--space-10);

@@ -1258,6 +1258,9 @@
     } else if (md) out.appendChild(md.render(body, mdOpts));
     else out.appendChild(el("p", "note-text", body));
     if (!out.childNodes.length) out.appendChild(el("p", "muted", "Nothing written under the title yet."));
+    $("#noteReaderEntryBtn").hidden = kindOf(n) !== "text";
+    syncPinButton(n, $("#noteReaderPinBtn"));
+    closeNoteMenu("#noteReaderMenu", "#noteReaderMoreBtn");
     $("#noteReader .nv-scroll").scrollTop = 0;
     $("#noteReader").hidden = false;
   }
@@ -1350,12 +1353,13 @@
   // either: what a note-to-entry relationship should mean is exactly what
   // using this is meant to answer, and a field in a synced collection is the
   // expensive way to find out. Delete the note by hand if you want it gone.
-  function makeEntryFromNote() {
-    const n = state.data.notes.find((x) => x.id === editingNoteId);
+  function makeEntryFromNote(id = editingNoteId) {
+    const n = state.data.notes.find((x) => x.id === id);
     if (!n) return;
     const d = noteDate(n);
     const { title, notes } = n.title ? { title: n.title.slice(0, ENTRY_TITLE_MAX), notes: n.text } : splitNoteForEntry(n.text);
     closeNoteModal();
+    closeNoteReader();
     openEntryModal(null, null, {
       year: d.getFullYear(),
       month: d.getMonth() + 1,
@@ -1450,20 +1454,20 @@
 
   // ---------- the ⋯ menu ----------
   const homeOn = () => !(state.visual.disabledViews || []).includes("home");
-  function syncPinButton(n) {
-    const b = $("#notePinBtn");
+  function syncPinButton(n, b = $("#notePinBtn")) {
     b.hidden = !n || !homeOn();
     if (!n) return;
     b.replaceChildren(ico(n.pinned ? "pin-off" : "pin"), document.createTextNode(n.pinned ? " Unpin from Home" : " Pin to Home"));
   }
-  function closeNoteMenu() {
-    $("#noteMoreMenu").hidden = true;
-    $("#noteMoreBtn").setAttribute("aria-expanded", "false");
+  // The editor and the reader each have a ⋯ and a menu under it.
+  function closeNoteMenu(menu = "#noteMoreMenu", btn = "#noteMoreBtn") {
+    $(menu).hidden = true;
+    $(btn).setAttribute("aria-expanded", "false");
   }
-  function toggleNoteMenu() {
-    const menu = $("#noteMoreMenu");
+  function toggleNoteMenu(menuSel = "#noteMoreMenu", btn = "#noteMoreBtn") {
+    const menu = $(menuSel);
     menu.hidden = !menu.hidden;
-    $("#noteMoreBtn").setAttribute("aria-expanded", String(!menu.hidden));
+    $(btn).setAttribute("aria-expanded", String(!menu.hidden));
     if (!menu.hidden) { const first = menu.querySelector("button:not([hidden])"); if (first) first.focus(); }
   }
 
@@ -1712,8 +1716,22 @@
     // switched to Edit from reading, waits for a tap, so the phone's
     // keyboard doesn't cover what you were about to read.
     if (!note) (sheetKind === "list" ? $("#nTitle") : $("#nText")).focus({ preventScroll: true });
+    openedAs = sheetNow();
   }
   function closeNoteModal() { closeNoteMenu(); $("#noteModal").hidden = true; }
+  // There's no Save button: leaving the editor (×, Escape, phone Back, a
+  // tap outside) keeps what was written. Untouched, or a new note left
+  // empty, it just closes.
+  let openedAs = "";
+  const sheetNow = () => JSON.stringify([sheetKind, $("#nTitle").value, $("#nText").value, $("#nAuthor").value,
+    $("#nSource").value, $("#nCategory").value, $("#nNewItem").value.trim(), sheetItems]);
+  async function leaveNoteModal() {
+    if ($("#noteModal").hidden) return;
+    const blank = !editingNoteId && !$("#nTitle").value.trim() && !$("#nText").value.trim()
+      && !$("#nNewItem").value.trim() && !sheetItems.some((i) => i.text.trim());
+    if (blank || sheetNow() === openedAs) { closeNoteModal(); return; }
+    await saveNote();
+  }
 
   async function saveNoteFromForm(ev) {
     ev.preventDefault();
@@ -1758,11 +1776,12 @@
     return true;
   }
 
-  async function deleteNote() {
-    if (!editingNoteId) return;
+  async function deleteNote(id = editingNoteId) {
+    if (!id) return;
     if (!confirm("Delete this note?")) return;
-    state.data.notes = state.data.notes.filter((n) => n.id !== editingNoteId);
+    state.data.notes = state.data.notes.filter((n) => n.id !== id);
     closeNoteModal();
+    closeNoteReader();
     render();
     await persist();
     toast("Note deleted");
@@ -1783,23 +1802,42 @@
       const id = editingNoteId;
       saveNote(() => { closeNoteMenu(); openNoteReader(id); swapSheets("#noteModal", "#noteReader"); });
     };
-    $("#cancelNoteBtn").onclick = closeNoteModal;
-    $("#noteMoreBtn").onclick = (ev) => { ev.stopPropagation(); toggleNoteMenu(); };
-    $("#noteMoreMenu").addEventListener("click", (ev) => { if (ev.target.closest("button")) closeNoteMenu(); });
-    $("#noteModal").addEventListener("pointerdown", (ev) => {
-      if (!$("#noteMoreMenu").hidden && !ev.target.closest("#noteMoreMenu, #noteMoreBtn")) closeNoteMenu();
+    $("#cancelNoteBtn").onclick = leaveNoteModal;
+    // Ctrl/Cmd+E swaps Read and Edit on a keyboard, even while typing.
+    document.addEventListener("keydown", (ev) => {
+      if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || ev.shiftKey || ev.key.toLowerCase() !== "e") return;
+      const btn = !$("#noteReader").hidden ? $("#editNoteReaderBtn")
+        : !$("#noteModal").hidden && !$("#noteModeSeg").hidden ? $("#noteReadBtn") : null;
+      if (!btn) return;
+      ev.preventDefault();
+      btn.click();
     });
-    $("#noteMoreMenu").addEventListener("keydown", (ev) => {
-      if (ev.key === "Escape") { ev.stopPropagation(); closeNoteMenu(); $("#noteMoreBtn").focus(); }
-    });
+    for (const [sheet, menu, btn] of [["#noteModal", "#noteMoreMenu", "#noteMoreBtn"], ["#noteReader", "#noteReaderMenu", "#noteReaderMoreBtn"]]) {
+      $(btn).onclick = (ev) => { ev.stopPropagation(); toggleNoteMenu(menu, btn); };
+      $(menu).addEventListener("click", (ev) => { if (ev.target.closest("button")) closeNoteMenu(menu, btn); });
+      $(sheet).addEventListener("pointerdown", (ev) => {
+        if (!$(menu).hidden && !ev.target.closest(`${menu}, ${btn}`)) closeNoteMenu(menu, btn);
+      });
+      $(menu).addEventListener("keydown", (ev) => {
+        if (ev.key === "Escape") { ev.stopPropagation(); closeNoteMenu(menu, btn); $(btn).focus(); }
+      });
+    }
+    $("#noteReaderEntryBtn").onclick = () => makeEntryFromNote(readingId);
+    $("#noteReaderDeleteBtn").onclick = () => deleteNote(readingId);
+    $("#noteReaderPinBtn").onclick = async () => {
+      const id = readingId;
+      if (!id) return;
+      await togglePinned(id);
+      syncPinButton(findList(id), $("#noteReaderPinBtn"));
+    };
     $("#nText").addEventListener("input", fitText);
     for (const t of ["keyup", "click", "focus", "blur"]) $("#nText").addEventListener(t, markLine);
     if (window.ResizeObserver) {
       let w = 0;
       new ResizeObserver(() => { const now = $("#nText").clientWidth; if (now !== w) { w = now; fitText(); } }).observe($("#nText"));
     }
-    $("#deleteNoteBtn").onclick = deleteNote;
-    $("#noteToEntryBtn").onclick = makeEntryFromNote;
+    $("#deleteNoteBtn").onclick = () => deleteNote();
+    $("#noteToEntryBtn").onclick = () => makeEntryFromNote();
     $("#notePinBtn").onclick = async () => {
       if (!editingNoteId) return;
       await togglePinned(editingNoteId);
@@ -1865,7 +1903,7 @@
     sanitizeNote, renameNoteCategory, noteYears, getFilteredNotes, noteCats, openNoteCatModal, closeNoteCatModal, noteHaystack,
     sanitizeTodo, foldTodosIntoLists, listNotes: () => state.data.notes.filter((n) => n.kind === "list"),
     renderNotes, focusQuickList, openNoteReader, closeNoteReader, isCollection, openNote, applyNoteView,
-    openNoteModal, closeNoteModal, updateImagesSetting,
+    openNoteModal, closeNoteModal, leaveNoteModal, updateImagesSetting,
     pinnedCard, togglePinned, // the Home tab (home.js)
     // the search page (search.js, 0.251.0): every note, boards included,
     // and the way a row of each kind opens

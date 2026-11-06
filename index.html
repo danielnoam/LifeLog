@@ -336,14 +336,13 @@
       <div class="nv-bar">
         <button type="button" class="btn btn-icon" id="cancelNoteBtn" title="Close" aria-label="Close"><span data-ico="x"></span></button>
         <div class="nv-mode" id="noteModeSeg" role="group" aria-label="Read or edit">
-          <button type="button" id="noteReadBtn"><span data-ico="notebook-text"></span><span class="nv-mode-label">Read</span></button>
+          <button type="button" id="noteReadBtn" title="Read (Ctrl+E)"><span data-ico="notebook-text"></span><span class="nv-mode-label">Read</span></button>
           <button type="button" class="on" aria-pressed="true"><span data-ico="pencil"></span><span class="nv-mode-label">Edit</span></button>
         </div>
         <h2 id="noteModalTitle" class="sr-only">New note</h2>
         <span class="spacer"></span>
         <button type="button" class="btn btn-icon" id="noteMoreBtn" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false"><span data-ico="ellipsis"></span></button>
-        <button type="submit" form="noteForm" class="btn btn-primary">Save</button>
-        <div class="nv-menu" id="noteMoreMenu" role="menu" hidden>
+        <div class="nv-menu nv-menu-end" id="noteMoreMenu" role="menu" hidden>
           <button type="button" role="menuitem" id="nAddImageBtn"><span data-ico="image"></span> Add image</button>
           <hr id="noteImageRule" />
           <p class="nv-menu-label" id="noteKindMenuLabel">Kind</p>
@@ -405,17 +404,25 @@
         <button type="button" class="btn btn-icon" id="closeNoteReaderBtn" title="Close" aria-label="Close"><span data-ico="x"></span></button>
         <div class="nv-mode" role="group" aria-label="Read or edit">
           <button type="button" class="on" aria-pressed="true"><span data-ico="notebook-text"></span><span class="nv-mode-label">Read</span></button>
-          <button type="button" id="editNoteReaderBtn"><span data-ico="pencil"></span><span class="nv-mode-label">Edit</span></button>
+          <button type="button" id="editNoteReaderBtn" title="Edit (Ctrl+E)"><span data-ico="pencil"></span><span class="nv-mode-label">Edit</span></button>
         </div>
         <span class="spacer"></span>
+        <button type="button" class="btn btn-icon" id="noteReaderMoreBtn" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false"><span data-ico="ellipsis"></span></button>
+        <div class="nv-menu nv-menu-end" id="noteReaderMenu" role="menu" hidden>
+          <button type="button" role="menuitem" id="noteReaderEntryBtn" hidden><span data-ico="film"></span> Make entry</button>
+          <button type="button" role="menuitem" id="noteReaderPinBtn" hidden><span data-ico="pin"></span> Pin to Home</button>
+          <button type="button" role="menuitem" class="nv-menu-danger" id="noteReaderDeleteBtn"><span data-ico="trash"></span> Delete note</button>
+        </div>
       </div>
       <div class="nv-scroll">
         <div class="nv-col">
           <h2 id="noteReaderTitle" class="nv-title"></h2>
           <p class="nv-cat nv-cat-static" id="noteReaderCat" hidden><span class="dot"></span><span></span></p>
           <div class="md" id="noteReaderBody"></div>
-          <p class="note-reader-meta" id="noteReaderMeta"></p>
         </div>
+      </div>
+      <div class="nv-foot">
+        <p class="added-line nv-stamp" id="noteReaderMeta"></p>
       </div>
     </div>
   </div>
@@ -2385,6 +2392,7 @@
         <div><dt><kbd>Tab</kbd></dt><dd>Open / close Settings</dd></div>
         <div><dt><kbd>⇧</kbd></dt><dd>Hold to see each tab's number</dd></div>
         <div id="shortcutViewRows"></div>
+        <div><dt><kbd>Ctrl</kbd> <kbd>E</kbd></dt><dd>Switch a note between Read and Edit</dd></div>
         <div><dt><kbd>Esc</kbd></dt><dd>Stop searching, close a dialog / menu</dd></div>
         <div><dt><kbd>?</kbd></dt><dd>Show this list</dd></div>
       </dl>
