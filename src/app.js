@@ -3789,6 +3789,7 @@
   // ---------- background sync: retry pending saves, poll for remote updates ----------
   let syncInFlight = false;
   let pollTimer = null;
+  const TRAY_POLL_MS = 10 * 60 * 1000;
 
   // Re-attempt a save that previously only landed in the local cache.
   async function retrySync() {
@@ -4870,6 +4871,12 @@
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible") { onReconnectOrFocus(); schedulePoll(); Sync.maybeAutoRefreshReleases(); Sync.maybeCheckPriceAlerts(); Sync.maybeAutoCheckAniList(); return; }
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      // The computer app keeps running in the tray to ring reminders and
+      // heads-ups, so it keeps their lists fresh there too, at a walk: a
+      // habit ticked on the phone, a new reminder time, today's releases.
+      if (Platform.desktop && Storage.githubConnected) pollTimer = setInterval(() => {
+        pollForUpdates(); Sync.maybeAutoRefreshReleases(); Sync.maybeCheckPriceAlerts();
+      }, TRAY_POLL_MS);
       // Leaving the app is the last sure chance to send a queued save.
       if (saveTimer) flushSave();
     });
@@ -5524,7 +5531,7 @@
         },
       });
       if (window.LifeLogReminders) window.LifeLogReminders.start({ $, el, Platform, toast, changed: () => {}, render });
-      if (window.LifeLogDesktop) window.LifeLogDesktop.start({ state, runAction, hidden: widgetsHidden });
+      if (window.LifeLogDesktop) window.LifeLogDesktop.start({ state, runAction, hidden: widgetsHidden, refresh: pollForUpdates });
     } else if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("sw.js").then(watchForUpdate).catch(() => {});
     }

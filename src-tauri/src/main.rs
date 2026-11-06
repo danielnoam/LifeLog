@@ -7,6 +7,7 @@
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Emitter, Manager, WindowEvent};
+use tauri_plugin_notification::NotificationExt;
 
 // Start at login (Settings → Notifications) launches with this, straight
 // into the tray.
@@ -20,7 +21,7 @@ fn show(app: &AppHandle) {
     }
 }
 
-// The tray's Add entry / Add expense: the app's own runAction, through
+// The tray's Add entry / Add expense and a clicked notification: the app's own runAction, through
 // src/desktop.js, the same actions the phone's shortcuts send.
 fn act(app: &AppHandle, action: &str) {
     show(app);
@@ -45,6 +46,27 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .setup(|app| {
+            // A click on a reminder or a heads-up opens the window where it
+            // points (the habit, the Ledger, Upcoming): src/desktop.js puts
+            // the app's action in the notification's `extra`. Windows only
+            // reports it while the toast is on screen, not from the Action
+            // Center.
+            let handle = app.handle().clone();
+            app.notification().on_action(move |performed| {
+                if performed.action_id() != "tap" {
+                    return;
+                }
+                let action = performed
+                    .notification()
+                    .and_then(|n| n.extra().get("action"))
+                    .and_then(|v| v.as_str())
+                    .map(str::to_owned);
+                match action {
+                    Some(a) => act(&handle, &a),
+                    None => show(&handle),
+                }
+            })?;
+
             let open = MenuItem::with_id(app, "open", "Open LifeLog", true, None::<&str>)?;
             let entry = MenuItem::with_id(app, "add-entry", "Add entry", true, None::<&str>)?;
             let expense = MenuItem::with_id(app, "add-expense", "Add expense", true, None::<&str>)?;

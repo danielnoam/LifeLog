@@ -58,10 +58,20 @@
     openNotificationSettings() {},
   };
 
-  function ring(title, body) {
+  // A click is reported to src-tauri/src/main.rs, which shows the window
+  // and runs `extra.action` there, as a tapped notification does on Android.
+  // The id only has to be a stable 31-bit number per key.
+  function notifyId(key) {
+    let h = 0;
+    for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+    return (h & 0x7fffffff) || 1;
+  }
+  function ring(n) {
     const N = T() && T().notification;
     if (!N) return;
-    try { N.sendNotification({ title: String(title), body: String(body || "") }); } catch (e) { /* missed, not fatal */ }
+    try {
+      N.sendNotification({ id: notifyId(n.key), title: String(n.title), body: String(n.body || ""), extra: n.action ? { action: n.action } : {} });
+    } catch (e) { /* missed, not fatal */ }
   }
 
   // What's due by now and hasn't rung yet (pure; test/desktop.test.js).
@@ -77,22 +87,21 @@
       const key = "habit:" + h.id + ":" + today;
       if (late < 0 || late > LATE_HABIT_MIN || fired[key]) continue;
       const when = !h.period || h.period === "day" ? "today" : "this " + h.period;
-      out.push({ key, title: h.name, body: "Still to do " + when });
+      out.push({ key, title: h.name, body: "Still to do " + when, action: "open-habit:" + h.id, habit: true });
     }
     for (const a of alerts) {
       if (!a || a.day !== today || !a.time || fired["alert:" + a.id]) continue;
       const late = nowMin - minutesOf(a.time);
       if (late < 0 || late > LATE_ALERT_MIN) continue;
-      out.push({ key: "alert:" + a.id, title: a.title, body: a.body });
+      out.push({ key: "alert:" + a.id, title: a.title, body: a.body, action: a.action || "" });
     }
     return out;
   }
 
-  function tick() {
-    if (!ctx) return;
+  function dueFromState() {
     const H = window.LifeLogHabits, R = window.LifeLogReminders, A = window.LifeLogAlerts;
     const data = ctx.state.data;
-    if (!data) return;
+    if (!data) return null;
     const d = new Date();
     const today = localDate(d);
     const now = pad(d.getHours()) + ":" + pad(d.getMinutes());
@@ -107,16 +116,33 @@
       try { alerts = A.current(data, today, !!(ctx.hidden && ctx.hidden())); } catch (e) { alerts = []; }
     }
     const fired = readFired();
-    const due = dueNow({ today, now, habits, timeOf: R ? R.remindAt : () => "", alerts, fired });
-    if (!due.length) return;
-    for (const n of due) {
-      ring(n.title, n.body);
-      fired[n.key] = today;
-    }
-    // Only the last few days are kept: an older key can't come round again.
-    const keep = localDate(new Date(d.getTime() - 3 * 86400000));
-    for (const k of Object.keys(fired)) if (fired[k] < keep) delete fired[k];
-    writeFired(fired);
+    return { d, today, fired, due: dueNow({ today, now, habits, timeOf: R ? R.remindAt : () => "", alerts, fired }) };
+  }
+
+  let ticking = false;
+  async function tick() {
+    if (!ctx || ticking) return;
+    ticking = true;
+    try {
+      let r = dueFromState();
+      if (!r || !r.due.length) return;
+      // A habit ticked on the phone a minute ago shouldn't ring here: pull
+      // from GitHub once before a reminder goes off, then look again.
+      if (ctx.refresh && r.due.some((n) => n.habit)) {
+        try { await ctx.refresh(); } catch (e) { /* ring on what we have */ }
+        r = dueFromState();
+        if (!r || !r.due.length) return;
+      }
+      const { d, today, fired, due } = r;
+      for (const n of due) {
+        ring(n);
+        fired[n.key] = today;
+      }
+      // Only the last few days are kept: an older key can't come round again.
+      const keep = localDate(new Date(d.getTime() - 3 * 86400000));
+      for (const k of Object.keys(fired)) if (fired[k] < keep) delete fired[k];
+      writeFired(fired);
+    } finally { ticking = false; }
   }
 
   // ---------- start at login ----------
@@ -152,7 +178,7 @@
     return true;
   }
 
-  // ctx: { state, runAction, hidden }
+  // ctx: { state, runAction, hidden, refresh }
   function start(c) {
     ctx = c;
     const t = T();
@@ -165,7 +191,7 @@
 
   window.LifeLogDesktop = {
     available: () => !!T(),
-    notifier, start, tick, dueNow,
+    notifier, start, tick, dueNow, notifyId,
     startsAtLogin, setStartsAtLogin, installUpdate,
     FIRED_KEY,
   };
