@@ -398,7 +398,6 @@
     // ★ keeps a note at the top, above the years (0.196.0) — a board too (0.208.0).
     if (!state.bulk.active) stamp.appendChild(favButton(n));
     if (isBoardItem(n)) return boardCard(card, n, stamp);
-    card.appendChild(stamp);
     // textContent, never innerHTML: a note is whatever you typed, and the
     // white-space CSS is what keeps your line breaks.
     const kind = kindOf(n);
@@ -416,6 +415,8 @@
       if (n.title) card.appendChild(el("h4", "note-title", n.title));
       if (n.text) card.appendChild(noteBody(n.text));
     }
+    // The words first, when and where at the foot, as in the note itself.
+    card.appendChild(stamp);
     card.tabIndex = 0;
     card.setAttribute("role", "button");
     return card;
@@ -432,14 +433,14 @@
     return fav;
   }
 
-  // A board in the feed: its stamp and category, its name, its picture.
+  // A board in the feed: its name, its picture, then its stamp and category.
   function boardCard(card, n, stamp) {
     card.classList.add("is-board");
-    card.appendChild(stamp);
-    card.appendChild(el("p", "note-text note-list-title")).appendChild(window.LifeLogIcons.labelled("presentation", n.text));
+    card.appendChild(el("p", "note-text note-list-title", n.text));
     const thumb = el("div", "board-thumb-inline");
     thumb.appendChild(window.LifeLogBoards.thumbnail(n.board));
     card.appendChild(thumb);
+    card.appendChild(stamp);
     card.tabIndex = 0;
     card.setAttribute("role", "button");
     return card;
@@ -1640,7 +1641,10 @@
     $("#noteForm").scrollTop = 0;
     if ($("#noteModal").hidden) $("#noteModal").hidden = false;
     fitText();
-    (sheetKind === "list" ? (note ? $("#nNewItem") : $("#nTitle")) : $("#nText")).focus({ preventScroll: true });
+    // Only a new note starts typing. An existing one, opened to edit or
+    // switched to Edit from reading, waits for a tap, so the phone's
+    // keyboard doesn't cover what you were about to read.
+    if (!note) (sheetKind === "list" ? $("#nTitle") : $("#nText")).focus({ preventScroll: true });
   }
   function closeNoteModal() { closeNoteMenu(); $("#noteModal").hidden = true; }
 
@@ -1713,9 +1717,6 @@
       saveNote(() => { closeNoteMenu(); openNoteReader(id); swapSheets("#noteModal", "#noteReader"); });
     };
     $("#cancelNoteBtn").onclick = closeNoteModal;
-    const viewOptions = () => { closeNoteMenu(); window.LifeLogSettings.openViewOptions("notes", true); };
-    $("#noteViewBtn").onclick = viewOptions;
-    $("#noteReaderViewBtn").onclick = viewOptions;
     $("#noteMoreBtn").onclick = (ev) => { ev.stopPropagation(); toggleNoteMenu(); };
     $("#noteMoreMenu").addEventListener("click", (ev) => { if (ev.target.closest("button")) closeNoteMenu(); });
     $("#noteModal").addEventListener("pointerdown", (ev) => {

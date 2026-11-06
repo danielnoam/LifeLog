@@ -904,14 +904,10 @@
 
   // Opened from a search result for another tab, it goes to that tab first:
   // the options are for seeing their effect, which needs the list under them.
-  // `here`: opened over a note, which may be one from another tab's search,
-  // so the tab behind stays where it is.
-  function openViewOptions(view, here) {
+  function openViewOptions(view) {
     view = view || viewKey(state.view);
     if (!hasViewOptions(view)) return;
-    if (here) {
-      // nothing to switch to
-    } else if (view === "habits") {
+    if (view === "habits") {
       if (viewKey(state.view) !== "habits") {
         state.notesMode = "habits";
         if (state.view !== "notes" && switchToView) switchToView("notes"); else render();
