@@ -1952,9 +1952,15 @@
         </div>
       </section>
       <section class="sgroup">
-        <div class="sgroup-label">What's new</div>
-        <div class="md changelog" id="changelogBody"></div>
-        <button type="button" class="btn" id="changelogMoreBtn" hidden>Show older versions</button>
+        <div class="sgroup-card">
+          <details class="gh-advanced" id="changelogFold">
+            <summary class="sitem sitem-go"><span class="sitem-text"><span class="sitem-title">What's new</span><span class="sitem-sub">The changes in each version</span></span></summary>
+            <div class="changelog-box">
+              <div class="md changelog" id="changelogBody"></div>
+              <button type="button" class="btn" id="changelogMoreBtn" hidden>Show older versions</button>
+            </div>
+          </details>
+        </div>
       </section>
       <section class="sgroup">
         <div class="sgroup-label">Built with</div>

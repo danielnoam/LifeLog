@@ -531,7 +531,8 @@
   // CHANGELOG.md itself, the file every release already writes, so the page
   // can't fall behind it. It ships with the app (sw.js's ASSETS), so it reads
   // offline and in the Android and iOS apps too. Ten versions at first; the
-  // whole file is a few hundred of them.
+  // whole file is a few hundred of them. Folded shut until opened, and read
+  // only then.
   const CHANGELOG_FIRST = 10;
   let changelog = null;
   async function renderChangelog(all) {
@@ -589,7 +590,7 @@
     if (name === "about") {
       const P = window.LifeLogPlatform;
       $("#aboutVersion").textContent = "Version " + APP_VERSION + " · " + (P.android ? "Android app" : P.ios ? "iOS app" : "Web app");
-      renderChangelog(false);
+      $("#changelogFold").open = false;
       renderErrLog();
       if (window.LifeLogTestBuilds) window.LifeLogTestBuilds.render();
     }
@@ -1619,6 +1620,7 @@
     $("#closeSettingsPageBtn").onclick = closeSettings;
     $("#settingsBackBtn").onclick = () => showPage("");
     $("#changelogMoreBtn").onclick = () => renderChangelog(true);
+    $("#changelogFold").addEventListener("toggle", (e) => { if (e.target.open) renderChangelog(false); });
     document.querySelectorAll("#settingsHome .srow[data-page]").forEach((r) => r.onclick = () => showPage(r.dataset.page));
     const search = $("#settingsSearch");
     search.oninput = renderSearch;

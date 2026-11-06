@@ -4690,6 +4690,7 @@ html.native.force-mobile .nv-overlay > .modal.nv { padding-top: var(--sat); padd
 
 /* What's new: CHANGELOG.md in the reader's type, with each version's
    heading set apart so a long page scans by release. */
+.changelog-box { padding: 12px 14px 14px; }
 .changelog { margin-bottom: 12px; }
 .changelog h3 { font-size: var(--fs-lg); padding-top: 14px; border-top: 1px solid var(--border); }
 .changelog > h3:first-child { border-top: none; padding-top: 0; }
