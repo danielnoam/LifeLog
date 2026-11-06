@@ -69,7 +69,8 @@ random title, as the Backlog's Pick sheet draws), `lifelog_notes`,
 `lifelog_trips`, `lifelog_stats` (the Timeline's Stats, a year in numbers),
 `lifelog_habit_insights`, `lifelog_habits_left` (what's still to do today
 and this week, month and year), `lifelog_upcoming` (what's coming out from the
-backlog), `lifelog_note_images` (a note's images, sent back as pictures), `lifelog_google_list` (reads a shared Google Maps list or place
+backlog), `lifelog_home` (what the Home tab shows: in progress, coming up,
+the scratchpad and the pinned notes), `lifelog_note_images` (a note's images, sent back as pictures), `lifelog_google_list` (reads a shared Google Maps list or place
 straight from Google; the only tool that goes beyond your data).
 
 Changing: `lifelog_add_expense`, `lifelog_add_timeline_entry`,
@@ -77,7 +78,8 @@ Changing: `lifelog_add_expense`, `lifelog_add_timeline_entry`,
 `lifelog_set_progress` (an episode count; AniList gets it at the app's
 next sync),
 `lifelog_add_note`, `lifelog_add_note_image` (a picture from a file or
-base64, kept beside the data like the app's), `lifelog_update_list`, `lifelog_mark_habit`,
+base64, kept beside the data like the app's), `lifelog_set_scratchpad`,
+`lifelog_pin_note` (pin a note to Home, or unpin it), `lifelog_update_list`, `lifelog_mark_habit`,
 `lifelog_update_item`, `lifelog_delete_item`,
 `lifelog_add_accomplishment`, `lifelog_update_accomplishment`,
 `lifelog_delete_accomplishment`, `lifelog_rename_category`,

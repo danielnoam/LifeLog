@@ -88,6 +88,7 @@
       <nav class="views" id="viewTabs" role="tablist" aria-label="Tabs">
         <button class="tab" role="tab" aria-selected="false" data-view="notes"><span class="tab-ico" data-ico="notebook-pen"></span>Notebook</button>
         <button class="tab active" role="tab" aria-selected="true" data-view="timeline"><span class="tab-ico" data-ico="calendar-clock"></span>Timeline</button>
+        <button class="tab" role="tab" aria-selected="false" data-view="home"><span class="tab-ico" data-ico="house"></span>Home</button>
         <button class="tab" role="tab" aria-selected="false" data-view="backlog"><span class="tab-ico" data-ico="star"></span>Backlog</button>
         <button class="tab" role="tab" aria-selected="false" data-view="finance"><span class="tab-ico" data-ico="receipt"></span>Ledger</button>
         <button class="tab" role="tab" aria-selected="false" data-view="travel"><span class="tab-ico" data-ico="plane"></span>Travel</button>
@@ -349,6 +350,7 @@
           <div id="noteKindMenuSlot"></div>
           <hr id="noteMenuRule" />
           <button type="button" role="menuitem" id="noteToEntryBtn" hidden><span data-ico="film"></span> Make entry</button>
+          <button type="button" role="menuitem" id="notePinBtn" hidden><span data-ico="pin"></span> Pin to Home</button>
           <button type="button" role="menuitem" class="nv-menu-danger" id="deleteNoteBtn" hidden><span data-ico="trash"></span> Delete note</button>
         </div>
       </div>
@@ -1722,7 +1724,7 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="tabs" data-title="Tabs" data-keywords="hide show views modes order reorder move default opens notes habits timeline backlog ledger">
+      <div class="settings-page" hidden data-page="tabs" data-title="Tabs" data-keywords="hide show views modes order reorder move default opens home notes habits timeline backlog ledger">
       <h2 class="settings-page-title">Tabs</h2>
       <p class="hint page-lede">This device only. The arrows reorder, the star is the mode a tab opens on — with three modes, the middle one. Tabs you turn off leave the tab bar.</p>
       <div class="tab-toggles" id="tabToggles"></div>
@@ -2081,6 +2083,12 @@
         <h2 id="viewOptionsTitle">View</h2>
         <button class="btn btn-icon" id="closeViewOptionsBtn" title="Close" aria-label="Close view options"><span data-ico="x"></span></button>
       </div>
+
+      <section class="sgroup" data-for="home">
+        <p class="sgroup-label">Sections</p>
+        <div class="sgroup-card" id="homeSectionRows"></div>
+        <p class="hint">This device only. Coming up and Scratchpad share a row on a computer when they're next to each other.</p>
+      </section>
 
       <section class="sgroup" data-for="timeline">
         <div class="sgroup-card">
@@ -2537,6 +2545,7 @@
   <script defer src="src/vendor/rough.js?v=0.305.0"></script>
   <script defer src="src/boards.js?v=0.305.0"></script>
   <script defer src="src/travel.js?v=0.305.0"></script>
+  <script defer src="src/home.js?v=0.305.0"></script>
   <script defer src="src/recap.js?v=0.305.0"></script>
   <script defer src="src/reminders.js?v=0.305.0"></script>
   <script defer src="src/alerts.js?v=0.305.0"></script>

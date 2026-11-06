@@ -45,7 +45,7 @@
   //   "quote"      `text` is the quote, with `author` and `source`.
   // `category` names one of state.data.noteCategories.
   const KINDS = ["text", "list", "quote"];
-  const KNOWN_NOTE_KEYS = new Set(["id", "text", "title", "createdAt", "editedAt", "updatedAt", "kind", "category", "author", "source", "items", "fav"]);
+  const KNOWN_NOTE_KEYS = new Set(["id", "text", "title", "createdAt", "editedAt", "updatedAt", "kind", "category", "author", "source", "items", "fav", "pinned"]);
   function sanitizeNote(n) {
     const out = {
       id: n.id || uid(),
@@ -55,6 +55,8 @@
     };
     if (n.editedAt) out.editedAt = n.editedAt;
     if (n.fav) out.fav = true;
+    // Shown on the Home tab (home.js); it stays in the Notebook too.
+    if (n.pinned) out.pinned = true;
     if (n.kind === "list" || n.kind === "quote") out.kind = n.kind;
     const title = String(n.title == null ? "" : n.title).trim();
     if (title && !out.kind) out.title = title;
@@ -602,6 +604,14 @@
     render();
     await persist();
   }
+  async function togglePinned(noteId) {
+    const n = (state.data.notes || []).find((x) => x.id === noteId);
+    if (!n) return;
+    if (n.pinned) delete n.pinned; else n.pinned = true;
+    render();
+    await persist();
+    toast(n.pinned ? "Pinned to Home" : "Unpinned from Home");
+  }
   async function tickItem(noteId, itemId, done) {
     const n = findList(noteId);
     const it = n && (n.items || []).find((i) => i.id === itemId);
@@ -856,6 +866,22 @@
       if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); activate(); }
     };
     attachLongPressSelect(card, { id }, "note");
+    return card;
+  }
+
+  // A pinned note on the Home tab (home.js): the Notebook's own card, with
+  // its clicks, its ticks and its menu.
+  function pinnedCard(n) {
+    const card = noteCard(n);
+    card.classList.add("home-pin");
+    // No long press to select: Home has no bulk bar to act on a selection.
+    const open = () => { const x = (state.data.notes || []).find((y) => y.id === n.id); if (x) openNote(x); };
+    card.onclick = (ev) => {
+      if (card.classList.contains("is-list") && !ev.target.closest(".note-list-head, .note-stamp")) return;
+      open();
+    };
+    card.onkeydown = (ev) => { if (ev.target === card && (ev.key === "Enter" || ev.key === " ")) { ev.preventDefault(); open(); } };
+    if (window.LifeLogContextMenu) window.LifeLogContextMenu.attach(card, "note", n.id);
     return card;
   }
 
@@ -1274,10 +1300,12 @@
     return [
       { icon: "pencil", label: "Open", run: () => (board ? B.openBoard(board.id) : openNote(n)) },
       { icon: "star", label: fav ? "Unfavourite" : "Favourite", fill: fav, run: () => (board ? B.toggleFav(board.id) : toggleFav(n.id)) },
+      { icon: n && n.pinned ? "pin-off" : "pin", label: n && n.pinned ? "Unpin from Home" : "Pin to Home", hidden: !n || !homeOn(), run: () => togglePinned(n.id) },
       { icon: "layers", label: "Move to…", hidden: !cats.length, sub: () => cats.filter((c) => c.name !== current)
         .map((c) => ({ label: c.name, run: () => h.runOne(id, () => bulkMoveNotesSelected(c.name)) })) },
       h.divider,
-      h.select(id),
+      // Home has no bulk bar to act on a selection.
+      { ...h.select(id), hidden: state.view === "home" },
       h.del(id, bulkDeleteNotesSelected),
     ];
   }
@@ -1363,6 +1391,7 @@
     $("#nText").rows = sheetKind === "quote" ? 4 : 8;
     const editing = editingNoteId && state.data.notes.find((x) => x.id === editingNoteId);
     $("#noteToEntryBtn").hidden = !editing || sheetKind !== "text";
+    syncPinButton(editing);
     // ⋯ holds Add image (a note's own), and for a saved note its kind,
     // Make entry and Delete; a new checklist or quote has nothing in it.
     const images = sheetKind === "text";
@@ -1420,6 +1449,13 @@
   }
 
   // ---------- the ⋯ menu ----------
+  const homeOn = () => !(state.visual.disabledViews || []).includes("home");
+  function syncPinButton(n) {
+    const b = $("#notePinBtn");
+    b.hidden = !n || !homeOn();
+    if (!n) return;
+    b.replaceChildren(ico(n.pinned ? "pin-off" : "pin"), document.createTextNode(n.pinned ? " Unpin from Home" : " Pin to Home"));
+  }
   function closeNoteMenu() {
     $("#noteMoreMenu").hidden = true;
     $("#noteMoreBtn").setAttribute("aria-expanded", "false");
@@ -1764,6 +1800,11 @@
     }
     $("#deleteNoteBtn").onclick = deleteNote;
     $("#noteToEntryBtn").onclick = makeEntryFromNote;
+    $("#notePinBtn").onclick = async () => {
+      if (!editingNoteId) return;
+      await togglePinned(editingNoteId);
+      syncPinButton(state.data.notes.find((x) => x.id === editingNoteId));
+    };
     document.querySelectorAll("#noteKindSeg [data-kind]").forEach((b) => {
       // A board isn't written in this sheet: it opens the board editor.
       b.onclick = b.dataset.kind === "board"
@@ -1825,6 +1866,7 @@
     sanitizeTodo, foldTodosIntoLists, listNotes: () => state.data.notes.filter((n) => n.kind === "list"),
     renderNotes, focusQuickList, openNoteReader, closeNoteReader, isCollection, openNote, applyNoteView,
     openNoteModal, closeNoteModal, updateImagesSetting,
+    pinnedCard, togglePinned, // the Home tab (home.js)
     // the search page (search.js, 0.251.0): every note, boards included,
     // and the way a row of each kind opens
     searchable: () => state.data.notes.concat(boardItems()),

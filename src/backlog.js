@@ -3657,5 +3657,7 @@
     // the Covers layout's bigger art (test/backlog.test.js), and the tile's
     // image for the Timeline's covers (journal.js)
     tileCoverUrl, tileCover, appendTileInfo,
+    // the Home tab's In progress strip (home.js)
+    backlogTile, progressCount,
   };
 })();

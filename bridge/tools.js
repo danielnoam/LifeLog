@@ -15,7 +15,7 @@ const { load } = require("./load.js");
 const { readConfig, openStore, undoLog, SetupError } = require("./store.js");
 
 const L = load();
-const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Travel, Merge, Widgets, Recap } = L;
+const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Travel, Merge, Widgets, Recap, Home } = L;
 
 // ---------- the collections an AI may edit ----------
 // `cats` names the list a `category` must come from; notes may have none.
@@ -475,7 +475,7 @@ function noteText(n, max) {
   const items = n.kind === "list" ? (n.items || []).map((i) => `\n    [${i.done ? "x" : " "}] ${i.text}  (${i.id})`).join("") : "";
   const by = n.kind === "quote" ? [n.author, n.source].filter(Boolean).join(", ") : "";
   return `${n.title || (n.kind === "list" ? "List" : n.kind === "quote" ? "Quote" : "Note")}`
-    + `${n.category ? " [" + n.category + "]" : ""}${n.fav ? " ★" : ""} (${String(n.createdAt || "").slice(0, 10)}, ${n.id})`
+    + `${n.category ? " [" + n.category + "]" : ""}${n.fav ? " ★" : ""}${n.pinned ? " (pinned to Home)" : ""} (${String(n.createdAt || "").slice(0, 10)}, ${n.id})`
     + (n.text ? ": " + cut(n.text, max) : "") + (by ? " — " + by : "") + items;
 }
 
@@ -1030,6 +1030,30 @@ const TOOLS = [
       return out.join("\n");
     },
   },
+  {
+    name: "lifelog_home",
+    description: "What the Home tab shows: what's in progress, what's coming in the next days (releases and new episodes known to the day, recurring charges, habits still left), the scratchpad, and the notes pinned to Home.",
+    readOnly: true,
+    input: { days: S.int("How far ahead Coming up goes, default 14 (as the app)") },
+    async run(a) {
+      const d = await readData();
+      const t = today();
+      const days = Math.max(1, Math.min(365, parseInt(a.days, 10) || 14));
+      const out = [`Home, ${t}.`];
+      const prog = Home.inProgress(d);
+      out.push("", `In progress (${prog.length}):`, ...(prog.length ? prog.map((b) => `- ${b.title} [${b.category}] since ${b.startedAt}${+b.progress ? ", " + progressFlag(b) : ""}  (${b.id})`) : ["- nothing"]));
+      const rows = Home.comingUp(d, t, { Backlog, Finance, Habits, days });
+      const say = (r) => r.kind === "charge" ? `${r.title} charges ${money(d, r.amount)}${r.category ? " [" + r.category + "]" : ""}  (${r.id})`
+        : r.kind === "habit" ? (r.period === "day" ? `Habits left today: ${r.title}` : `${r.title}: ${r.done} of ${r.target} this ${r.period}`)
+          : `${r.title} [${r.category}] ${r.kind === "episode" ? (r.label || "new episode") : "release"}  (${r.id})`;
+      out.push("", `Coming up to ${Finance.addDaysStr(t, days)} (${rows.length}):`, ...(rows.length ? rows.map((r) => `- ${r.day} · ${say(r)}`) : ["- nothing dated"]));
+      const pad = (d.settings && d.settings.scratchpad) || "";
+      out.push("", "Scratchpad:", pad ? pad : "(empty)");
+      const pins = Home.pinnedNotes(d);
+      out.push("", `Pinned notes (${pins.length}):`, ...(pins.length ? pins.map((n) => "- " + noteText(n, 300)) : ["- none"]));
+      return out.join("\n");
+    },
+  },
   // ---------- writes ----------
   {
     name: "lifelog_add_expense",
@@ -1179,6 +1203,38 @@ const TOOLS = [
         // Newest first, the way the app adds them.
         d.notes = [n, ...d.notes.filter((x) => x !== n)];
         return { text: `Saved the ${kind || "note"}${a.title ? ` "${a.title}"` : ""}. id ${n.id}`, touched: [["notes", n.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_set_scratchpad",
+    description: "Write the Home tab's scratchpad (one synced box of free text). mode 'append' (default) adds a line at the end; 'replace' swaps the whole text; 'clear' empties it.",
+    input: { text: S.str("The text"), mode: S.str("How", { enum: ["append", "replace", "clear"] }) },
+    async run(a) {
+      const mode = a.mode || "append";
+      const text = String(a.text || "");
+      if (mode !== "clear" && !text.trim()) fail("Give the text to write (or mode 'clear').");
+      return change("scratchpad", (d) => {
+        d.settings = d.settings || {};
+        const was = d.settings.scratchpad || "";
+        const next = mode === "clear" ? "" : mode === "replace" ? text : (was ? was.replace(/\s+$/, "") + "\n" : "") + text;
+        if (next) d.settings.scratchpad = next; else delete d.settings.scratchpad;
+        return { text: mode === "clear" ? "Cleared the scratchpad." : mode === "replace" ? "Replaced the scratchpad." : "Added to the scratchpad.", touched: [["settings", "scratchpad"]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_pin_note",
+    description: "Pin a note to the Home tab, or unpin it (pinned: false). It stays in the Notebook either way.",
+    input: { note: S.str("The note's id, or its title or text"), pinned: S.bool("true to pin (default), false to unpin") },
+    async run(a) {
+      const on = a.pinned !== false;
+      return change(on ? "pin note" : "unpin note", (d) => {
+        const n = findItem(d, "notes", a.note);
+        const label = cut(n.title || n.text || "note", 60);
+        if (!!n.pinned === on) return { text: `"${label}" is already ${on ? "pinned to" : "off"} Home.`, touched: [] };
+        if (on) n.pinned = true; else delete n.pinned;
+        return { text: `${on ? "Pinned" : "Unpinned"} "${label}" ${on ? "to" : "from"} Home. id ${n.id}`, touched: [["notes", n.id]] };
       });
     },
   },
