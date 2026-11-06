@@ -53,6 +53,15 @@ async function run(b, width) {
   await page.evaluate(() => { window.LifeLogNotes.closeNoteModal(); window.LifeLogNotes.openNoteReader("plain"); });
   await page.waitForTimeout(200);
   check("reading a note shows ⋯" + at, await page.isVisible("#noteReaderMoreBtn"));
+  await page.keyboard.press("Control+e");
+  await page.waitForTimeout(200);
+  check("Ctrl+E goes from Read to Edit" + at, await page.evaluate(() =>
+    document.querySelector("#noteReader").hidden && !document.querySelector("#noteModal").hidden));
+  await page.focus("#nText");
+  await page.keyboard.press("Control+e");
+  await page.waitForTimeout(300);
+  check("and back to Read, even from the text" + at, await page.evaluate(() =>
+    !document.querySelector("#noteReader").hidden && document.querySelector("#noteModal").hidden));
   await page.click("#noteReaderMoreBtn");
   check("⋯ opens Make entry and Delete while reading" + at,
     await page.isVisible("#noteReaderEntryBtn") && await page.isVisible("#noteReaderDeleteBtn"));

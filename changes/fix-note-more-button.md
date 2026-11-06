@@ -3,3 +3,6 @@
 
 ### Changed
 - Reading a note shows its written and edited dates in the bar at the bottom, the same place as the editor, instead of under the text.
+
+### Added
+- On a computer, Ctrl+E (Cmd+E on a Mac) switches an open note between Read and Edit, even while typing. Read saves first, as the button does. It's in the ? shortcuts list.

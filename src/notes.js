@@ -1789,6 +1789,15 @@
       saveNote(() => { closeNoteMenu(); openNoteReader(id); swapSheets("#noteModal", "#noteReader"); });
     };
     $("#cancelNoteBtn").onclick = closeNoteModal;
+    // Ctrl/Cmd+E swaps Read and Edit on a keyboard, even while typing.
+    document.addEventListener("keydown", (ev) => {
+      if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || ev.shiftKey || ev.key.toLowerCase() !== "e") return;
+      const btn = !$("#noteReader").hidden ? $("#editNoteReaderBtn")
+        : !$("#noteModal").hidden && !$("#noteModeSeg").hidden ? $("#noteReadBtn") : null;
+      if (!btn) return;
+      ev.preventDefault();
+      btn.click();
+    });
     for (const [sheet, menu, btn] of [["#noteModal", "#noteMoreMenu", "#noteMoreBtn"], ["#noteReader", "#noteReaderMenu", "#noteReaderMoreBtn"]]) {
       $(btn).onclick = (ev) => { ev.stopPropagation(); toggleNoteMenu(menu, btn); };
       $(menu).addEventListener("click", (ev) => { if (ev.target.closest("button")) closeNoteMenu(menu, btn); });
