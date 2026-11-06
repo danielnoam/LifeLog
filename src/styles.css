@@ -688,6 +688,59 @@ body.modal-open .activity-pill { visibility: hidden; }
 .ctx-menu .ctx-back { color: var(--text-dim); }
 .ctx-menu .ctx-head { padding: 6px 12px 4px; font-size: var(--fs-xs); color: var(--text-dim); }
 
+/* The app's own list for every <select> (src/select.js): a menu under the
+   field on a computer, a sheet from the bottom on a phone. The field itself
+   keeps its look above. The selected option carries the accent and a tick;
+   the one under the pointer or the arrow keys gets the hover fill. */
+.dd-layer { position: fixed; inset: 0; z-index: 80; pointer-events: none; }
+.dd-pop { position: fixed; pointer-events: auto; padding: var(--space-4); overflow: hidden; }
+.dd-pop .dd-list { overflow-y: auto; overscroll-behavior: contain; max-height: inherit; outline: none; }
+.dd-pop { animation: dd-in .16s var(--ll-move-ease); }
+.dd-pop.is-up { animation-name: dd-in-up; }
+@keyframes dd-in { from { opacity: 0; translate: 0 -4px; } }
+@keyframes dd-in-up { from { opacity: 0; translate: 0 4px; } }
+.dd-opt {
+  display: flex; align-items: center; gap: var(--space-8); padding: var(--space-8) var(--space-12) var(--space-8) var(--space-6);
+  border-radius: var(--r-md); color: var(--text); font-size: var(--fs-sm); cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none;
+}
+.dd-opt .dd-text { overflow: hidden; text-overflow: ellipsis; }
+.dd-tick { flex: 0 0 16px; width: 16px; height: 16px; display: flex; color: var(--accent); }
+.dd-tick svg { width: 16px; height: 16px; }
+.dd-opt.is-active { background: var(--bg-elev-2); }
+.dd-opt[aria-selected="true"] { color: var(--accent); font-weight: 600; }
+.dd-opt[aria-disabled="true"] { color: var(--text-faint); cursor: default; }
+.dd-opt.is-grouped { padding-left: var(--space-14); }
+.dd-group {
+  padding: var(--space-8) var(--space-12) var(--space-4); font-size: var(--fs-2xs); font-weight: 600;
+  color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em;
+}
+.dd-scrim {
+  position: fixed; inset: 0; z-index: 80; background: var(--scrim);
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: dd-fade .2s var(--ll-move-ease);
+}
+.dd-sheet {
+  width: 100%; max-width: 560px; max-height: 70vh; display: flex; flex-direction: column;
+  background: var(--bg-elev); border: 1px solid var(--border); border-bottom: none;
+  border-radius: var(--r-sheet) var(--r-sheet) 0 0; box-shadow: var(--shadow);
+  padding: var(--space-8) var(--space-8) calc(var(--space-12) + var(--sab, 0px));
+  animation: dd-rise .26s var(--ll-move-ease);
+}
+.dd-sheet::before {
+  content: ""; align-self: center; width: 36px; height: 4px; border-radius: var(--r-pill);
+  background: var(--border); margin: var(--space-2) 0 var(--space-8); flex: 0 0 auto;
+}
+.dd-title { padding: var(--space-2) var(--space-12) var(--space-8); font-size: var(--fs-md); font-weight: 600; color: var(--text-dim); }
+.dd-sheet .dd-list { overflow-y: auto; overscroll-behavior: contain; outline: none; }
+.dd-sheet .dd-opt { min-height: 48px; font-size: var(--fs-lg); padding-left: var(--space-10); gap: var(--space-12); }
+.dd-sheet .dd-opt.is-active:not(:focus-within) { background: transparent; }
+.dd-sheet .dd-opt[aria-selected="true"] { background: var(--accent-soft); }
+.dd-sheet .dd-tick, .dd-sheet .dd-tick svg { width: 18px; height: 18px; flex-basis: 18px; }
+@keyframes dd-fade { from { opacity: 0; } }
+@keyframes dd-rise { from { translate: 0 40px; opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .dd-pop, .dd-scrim, .dd-sheet { animation: none; } }
+
 .add-menu { position: absolute; right: 0; bottom: calc(100% + 10px); }
 /* One group per tab, the way the Ledger's two items used to sit apart: a
    small heading with the tab's name, then what you can add there. A rule
@@ -4914,7 +4967,7 @@ html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(-
 .home-pair .home-pins { grid-template-columns: minmax(0, 1fr); }
 .home-card { background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; }
 
-.home-strip { display: flex; gap: var(--space-14); overflow-x: auto; padding-bottom: var(--space-4); scrollbar-width: thin; }
+.home-strip { display: flex; gap: var(--space-14); overflow-x: auto; padding-bottom: var(--space-4); }
 .home-tile { flex: 0 0 132px; }
 .home-tile-count {
   position: absolute; left: var(--space-6); bottom: var(--space-6); padding: 2px var(--space-8); border-radius: var(--r-pill);
