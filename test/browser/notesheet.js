@@ -32,7 +32,7 @@ async function run(b, width) {
     await page.evaluate(() => window.LifeLogNotes.openNoteModal(null));
     await page.click(`#noteKindSeg [data-kind="${kind}"]`);
   };
-  const save = async () => { await page.click("#noteModal button[type=submit]"); await page.waitForTimeout(300); };
+  const save = async () => { await page.click("#cancelNoteBtn"); await page.waitForTimeout(300); };
   const shot = (name) => page.screenshot({ path: require("path").join(require("os").tmpdir(), "notesheet-" + name + "-" + width + ".png") });
 
   // ---- a plain note's title ----

@@ -6,3 +6,6 @@
 
 ### Added
 - On a computer, Ctrl+E (Cmd+E on a Mac) switches an open note between Read and Edit, even while typing. Read saves first, as the button does. It's in the ? shortcuts list.
+
+### Removed
+- The note editor's Save button. Closing a note (×, Escape, phone Back or a tap outside) keeps what was written; a new note left empty just closes. Ctrl+Enter still saves and closes.

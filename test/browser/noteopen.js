@@ -49,6 +49,27 @@ async function run(b, width) {
   check("and says so when the note has gone since" + at, await page.evaluate(() =>
     document.querySelector("#noteModal").hidden && /deleted/.test(document.body.textContent)));
 
+  // ---- no Save button: leaving the editor keeps what was written ----
+  check("the editor has no Save button" + at, await page.evaluate(() => !document.querySelector('#noteModal button[type=submit]')));
+  await page.evaluate(() => window.LifeLogNotes.openNoteModal(null, "text"));
+  await page.fill("#nText", "Typed then closed");
+  await page.click("#cancelNoteBtn");
+  await page.waitForTimeout(200);
+  check("× keeps a new note" + at, await page.evaluate(async () =>
+    document.querySelector("#noteModal").hidden && (await window.LifeLogStorage.cachedCopy()).notes.some((n) => n.text === "Typed then closed")));
+  const count = async () => (await page.evaluate(async () => (await window.LifeLogStorage.cachedCopy()).notes.length));
+  const before = await count();
+  await page.evaluate(() => window.LifeLogNotes.openNoteModal(null, "text"));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  check("an empty new note just closes" + at, await page.evaluate(() => document.querySelector("#noteModal").hidden) && await count() === before);
+  await page.evaluate(async () => { const c = await window.LifeLogStorage.cachedCopy(); window.LifeLogNotes.openNoteModal(c.notes.find((n) => n.id === "plain")); });
+  await page.fill("#nText", "A plain note, changed");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(200);
+  check("Escape keeps an edit" + at, await page.evaluate(async () =>
+    (await window.LifeLogStorage.cachedCopy()).notes.find((n) => n.id === "plain").text === "A plain note, changed"));
+
   // ---- the ⋯ menu while reading (it was only in the editor) ----
   await page.evaluate(() => { window.LifeLogNotes.closeNoteModal(); window.LifeLogNotes.openNoteReader("plain"); });
   await page.waitForTimeout(200);

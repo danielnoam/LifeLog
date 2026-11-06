@@ -1716,8 +1716,22 @@
     // switched to Edit from reading, waits for a tap, so the phone's
     // keyboard doesn't cover what you were about to read.
     if (!note) (sheetKind === "list" ? $("#nTitle") : $("#nText")).focus({ preventScroll: true });
+    openedAs = sheetNow();
   }
   function closeNoteModal() { closeNoteMenu(); $("#noteModal").hidden = true; }
+  // There's no Save button: leaving the editor (×, Escape, phone Back, a
+  // tap outside) keeps what was written. Untouched, or a new note left
+  // empty, it just closes.
+  let openedAs = "";
+  const sheetNow = () => JSON.stringify([sheetKind, $("#nTitle").value, $("#nText").value, $("#nAuthor").value,
+    $("#nSource").value, $("#nCategory").value, $("#nNewItem").value.trim(), sheetItems]);
+  async function leaveNoteModal() {
+    if ($("#noteModal").hidden) return;
+    const blank = !editingNoteId && !$("#nTitle").value.trim() && !$("#nText").value.trim()
+      && !$("#nNewItem").value.trim() && !sheetItems.some((i) => i.text.trim());
+    if (blank || sheetNow() === openedAs) { closeNoteModal(); return; }
+    await saveNote();
+  }
 
   async function saveNoteFromForm(ev) {
     ev.preventDefault();
@@ -1788,7 +1802,7 @@
       const id = editingNoteId;
       saveNote(() => { closeNoteMenu(); openNoteReader(id); swapSheets("#noteModal", "#noteReader"); });
     };
-    $("#cancelNoteBtn").onclick = closeNoteModal;
+    $("#cancelNoteBtn").onclick = leaveNoteModal;
     // Ctrl/Cmd+E swaps Read and Edit on a keyboard, even while typing.
     document.addEventListener("keydown", (ev) => {
       if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || ev.shiftKey || ev.key.toLowerCase() !== "e") return;
@@ -1889,7 +1903,7 @@
     sanitizeNote, renameNoteCategory, noteYears, getFilteredNotes, noteCats, openNoteCatModal, closeNoteCatModal, noteHaystack,
     sanitizeTodo, foldTodosIntoLists, listNotes: () => state.data.notes.filter((n) => n.kind === "list"),
     renderNotes, focusQuickList, openNoteReader, closeNoteReader, isCollection, openNote, applyNoteView,
-    openNoteModal, closeNoteModal, updateImagesSetting,
+    openNoteModal, closeNoteModal, leaveNoteModal, updateImagesSetting,
     pinnedCard, togglePinned, // the Home tab (home.js)
     // the search page (search.js, 0.251.0): every note, boards included,
     // and the way a row of each kind opens

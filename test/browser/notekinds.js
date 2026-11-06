@@ -41,7 +41,7 @@ const SEED = {
     await page.evaluate(() => { if (document.querySelector("#noteModal").hidden) window.LifeLogNotes.openNoteModal(null); });
     await page.click(`#noteKindSeg [data-kind="${kind}"]`);
   };
-  const save = async () => { await page.click("#noteModal button[type=submit]"); await page.waitForTimeout(250); };
+  const save = async () => { await page.click("#cancelNoteBtn"); await page.waitForTimeout(250); };
 
   // ---- a checklist, under a category made from the sheet ----
   await openNew("list");
