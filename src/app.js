@@ -56,7 +56,7 @@
   // maxWidth 0 = stretch.
   const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogLayout: "list", timelineLayout: "list", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, outTodaySheet: "show", ledgerMonthSummary: "show", timelineMonthSummary: "hide", habitsLeftPanel: "show",
     // The Home tab's sections, in order, and the ones turned off (home.js).
-    homeSections: ["progress", "upcoming", "scratchpad", "pinned"], homeHidden: [], noteLineNumbers: "off", noteTextSize: "medium", noteOpenIn: "read",
+    homeSections: ["progress", "upcoming", "scratchpad", "pinned"], homeHidden: [], homeScratchMode: "note", noteLineNumbers: "off", noteTextSize: "medium", noteOpenIn: "read",
     // One per set-aside band: "always" (a plain rule, never folds), "open"
     // (foldable, starts open) or "collapsed" (foldable, starts folded).
     // Dropped starts folded because it is the band you gave up on; the other
@@ -766,18 +766,22 @@
     const known = [...new Set((saved || []).filter((x) => all.includes(x)))];
     return known.concat(all.filter((x) => !known.includes(x)));
   };
-  // A saved order from before Home existed gets it in the middle of what's
-  // on, where it starts for everyone else, not tacked on at the end.
+  // Home leads the bar on a computer and sits in the middle of the phone's
+  // bottom bar (Daniel, 2026-11-06). A saved order from before Home existed
+  // gets it in that same place, not tacked on at the end; an order saved
+  // with Home in it is kept as it is.
+  const homeFirst = () => !isMobileLayout();
   const orderedViews = () => {
     const saved = state.visual.viewOrder;
     if (Array.isArray(saved) && saved.length && !saved.includes("home")) {
-      const off = state.visual.disabledViews || [];
       const known = mergeOrder(saved, VIEW_ORDER.filter((v) => v !== "home"));
+      if (homeFirst()) return ["home", ...known];
+      const off = state.visual.disabledViews || [];
       const on = known.filter((v) => !off.includes(v));
       const at = on.length ? known.indexOf(on[Math.floor((on.length - 1) / 2)]) + 1 : 0;
       return [...known.slice(0, at), "home", ...known.slice(at)];
     }
-    return mergeOrder(saved, VIEW_ORDER);
+    return mergeOrder(saved, homeFirst() ? ["home", ...VIEW_ORDER.filter((v) => v !== "home")] : VIEW_ORDER);
   };
   const orderedModes = (spec) => {
     const saved = (state.visual.modeOrder || {})[spec.key] || DEFAULT_MODE_ORDER[spec.key];
@@ -1990,6 +1994,10 @@
       if (t) nav.insertBefore(t, anchor);
     }
   }
+
+  // Crossing the phone breakpoint moves Home between first and the middle
+  // (placeTabs does nothing when the order already matches).
+  window.addEventListener("resize", () => { if (state) { placeTabs(); updateTabUnderline(); } });
 
   function updateTabUnderline() {
     const underline = $("#tabUnderline");

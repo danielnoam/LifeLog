@@ -326,10 +326,12 @@ The Notes tab's drawing boards, in a file of their own beside
 `lifelog.json` (so drawing never slows a save), written compact:
 `{ "boards": [ ... ] }`. Each board has `id`, `name`, `createdAt`,
 `updatedAt`, `elements`, and optionally `category` (a note category's name)
-and `fav` (starred). Elements are strokes, shapes and text
+and `fav` (starred). `scratch: true` marks the Home scratchpad's board in
+Board mode: the app keeps it out of the Boards list and the feed until Keep
+as a board removes the flag (`lifelog_update_board` with `keep`). Elements are strokes, shapes and text
 (`{ id, t: "text", text, x, y, ... }`); only the text says anything an AI
 can use. `lifelog_boards` lists them with their text;
-`lifelog_update_board` renames, files and stars one; `lifelog_delete_board`
+`lifelog_update_board` renames, files, stars or keeps one; `lifelog_delete_board`
 deletes one. Nothing draws.
 
 ## Trips (`travel.json`)

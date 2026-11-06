@@ -1048,3 +1048,18 @@ test("Home (0.306.0): what the tab shows, the scratchpad and pinned notes", asyn
   await ok("lifelog_pin_note", { note: "no1", pinned: false });
   assert.strictEqual(data().notes.find((n) => n.id === "no1").pinned, undefined);
 });
+
+test("Home's scratch board: shown on Home, marked in the list, and kept as a board", async () => {
+  reset();
+  const doc = JSON.parse(fs.readFileSync(BOARDS, "utf8"));
+  doc.boards.push({ id: "bd9", name: "Scratchpad", scratch: true, createdAt: T, updatedAt: T,
+    elements: [{ id: "x1", t: "text", c: "ink", sw: 2, x: 0, y: 0, text: "Desk by the window" }] });
+  fs.writeFileSync(BOARDS, JSON.stringify(doc));
+  assert.match(await ok("lifelog_home", {}), /Scratch board \(Board mode\): 1 elements; text: Desk by the window {2}\(bd9\)/);
+  assert.match(await ok("lifelog_boards", {}), /Scratchpad \(Home's scratch board, not in the Boards list\)/);
+  await refused("lifelog_update_board", { board: "Doodle", keep: true }, /already in the Boards list/);
+  await ok("lifelog_update_board", { board: "bd9", keep: true, name: "Desk ideas" });
+  const b = boards().find((x) => x.id === "bd9");
+  assert.deepStrictEqual([b.name, b.scratch], ["Desk ideas", undefined]);
+  assert.doesNotMatch(await ok("lifelog_home", {}), /Scratch board/);
+});
