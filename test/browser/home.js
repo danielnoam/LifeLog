@@ -48,7 +48,12 @@ const SEED = {
   check("Home has no filter chips", await page.isHidden("#filterbar"));
   const heads = await page.evaluate(() => [...document.querySelectorAll(".home-sec-head h2")].map((h) => h.textContent.trim()));
   check("its sections, in the default order", JSON.stringify(heads) === JSON.stringify(["In progress", "Coming up", "Scratchpad", "Pinned notes"]), heads);
-  check("Coming up and Scratchpad share a row on a computer", await page.evaluate(() => !!document.querySelector(".home-pair .home-upcoming") && !!document.querySelector(".home-pair .home-scratch")));
+  const row = await page.evaluate(() => {
+    const r = document.querySelector(".home-pair");
+    const tops = [".home-upcoming", ".home-scratch", ".home-pinned"].map((s) => { const e = r && r.querySelector(s); return e ? Math.round(e.getBoundingClientRect().top) : null; });
+    return { three: !!r && r.classList.contains("is-3"), tops };
+  });
+  check("Coming up, Scratchpad and Pinned notes share one row on a computer", row.three && row.tops.every((t) => t !== null && t === row.tops[0]), row);
   check("in progress shows what's started", (await page.textContent(".home-progress")).includes("Playing Now"));
   const rows = await page.evaluate(() => [...document.querySelectorAll(".home-upcoming .home-row-title")].map((r) => r.textContent));
   check("coming up lists the episode, the charge and the release, soonest first", JSON.stringify(rows) === JSON.stringify(["Weekly Show", "Music", "Comes Out Soon"]), rows);
@@ -94,6 +99,7 @@ const SEED = {
   await page.click("#closeViewOptionsBtn"); await page.waitForTimeout(300);
   const after = await page.evaluate(() => [...document.querySelectorAll(".home-sec-head h2")].map((h) => h.textContent.trim()));
   check("moving Pinned notes to the top and hiding In progress redraws Home", JSON.stringify(after) === JSON.stringify(["Pinned notes", "Coming up", "Scratchpad"]), after);
+  check("and the three still share a row, Pinned notes first", await page.evaluate(() => { const r = document.querySelector(".home-pair.is-3"); return !!r && r.firstElementChild.classList.contains("home-pinned"); }));
   const vis = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-visual-settings-v1")));
   check("and is kept for this device", JSON.stringify(vis.homeSections) === JSON.stringify(["pinned", "progress", "upcoming", "scratchpad"]) && vis.homeHidden.join() === "progress", vis);
 
@@ -120,8 +126,8 @@ const SEED = {
   pp.on("pageerror", (e) => errs.push("phone pageerror: " + e.message));
   await pp.goto(BASE + "/", { waitUntil: "networkidle" }); await pp.waitForTimeout(600);
   check("on a phone the sections stack", await pp.evaluate(() => {
-    const a = document.querySelector(".home-upcoming").getBoundingClientRect(), s = document.querySelector(".home-scratch").getBoundingClientRect();
-    return s.top >= a.bottom - 1 && Math.abs(a.left - s.left) < 2;
+    const a = document.querySelector(".home-upcoming").getBoundingClientRect(), s = document.querySelector(".home-scratch").getBoundingClientRect(), p = document.querySelector(".home-pinned").getBoundingClientRect();
+    return s.top >= a.bottom - 1 && p.top >= s.bottom - 1 && Math.abs(a.left - s.left) < 2 && Math.abs(a.left - p.left) < 2;
   }));
   check("and nothing is wider than the screen", await pp.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
   await phone.close();
