@@ -14,6 +14,11 @@ function test(name, fn) {
 }
 
 // ---------- strokes ----------
+test("the scratch flag (Home's scratch board) survives sanitizing, and only when set", () => {
+  assert.strictEqual(B.sanitizeBoard({ id: "a", name: "S", scratch: true }).scratch, true);
+  assert.ok(!("scratch" in B.sanitizeBoard({ id: "b", name: "B", scratch: false })));
+});
+
 test("a straight stroke simplifies to its two ends", () => {
   const pts = Array.from({ length: 50 }, (_, i) => [i * 2, i]);
   assert.deepStrictEqual(B.simplify(pts, 0.5), [[0, 0], [98, 49]]);

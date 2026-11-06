@@ -253,6 +253,9 @@
     if (cat) out.category = cat;
     // ★, as a note has (0.208.0): first on the Boards page and in Favourites.
     if (b.fav) out.fav = true;
+    // Home's scratchpad in Board mode: kept out of the Boards list and the
+    // feed until Keep as a board files it.
+    if (b.scratch) out.scratch = true;
     return out;
   }
 
@@ -260,6 +263,7 @@
   let doc = null, loading = null, loadedAt = 0;
   let saveTimer = null, saving = null, changedSince = 0;
   const boards = () => (doc ? doc.boards : []);
+  const listed = () => boards().filter((b) => !b.scratch);
   const findBoard = (id) => boards().find((b) => b.id === id);
 
   function ensureLoaded(force) {
@@ -326,6 +330,40 @@
     await flush();
     if (isBoardsMode()) render();
   }
+  // ---------- Home's scratch board ----------
+  // One board flagged scratch. Two devices that each started one before
+  // syncing leave two: the newest stays the scratchpad and the others
+  // become ordinary boards, so nothing drawn is hidden for good.
+  function scratchBoard() {
+    const all = boards().filter((b) => b.scratch)
+      .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+    for (const extra of all.slice(1)) { delete extra.scratch; changed(extra); }
+    return all[0] || null;
+  }
+  async function openScratch() {
+    await ensureLoaded();
+    let b = scratchBoard();
+    if (!b) {
+      const now = new Date().toISOString();
+      b = sanitizeBoard({ id: uid(), name: "Scratchpad", scratch: true, createdAt: now, updatedAt: now, elements: [] });
+      doc.boards.push(b);
+      changed(b);
+    }
+    openBoard(b.id);
+  }
+  // Files the drawing as a board of its own; the next Board-mode tap
+  // starts a blank one.
+  async function keepScratch() {
+    await ensureLoaded();
+    const b = scratchBoard();
+    if (!b || !b.elements.length) return null;
+    delete b.scratch;
+    if (b.name === "Scratchpad") b.name = "Board " + listed().length;
+    changed(b);
+    await flush();
+    return b;
+  }
+
   function toggleFav(id) {
     const b = findBoard(id);
     if (!b) return;
@@ -472,9 +510,9 @@
     const q = (state.search || "").trim().toLowerCase();
     // The note category chips narrow boards too (0.207.0); "" is no category.
     const cf = state.noteActiveCats;
-    const list = boards().filter((b) => (!q || b.name.toLowerCase().includes(q)) && (!cf || !cf.size || cf.has(b.category || "")))
+    const list = listed().filter((b) => (!q || b.name.toLowerCase().includes(q)) && (!cf || !cf.size || cf.has(b.category || "")))
       .sort((a, b) => (!!b.fav - !!a.fav) || String(b.updatedAt).localeCompare(String(a.updatedAt)));
-    if (!boards().length) {
+    if (!listed().length) {
       root.appendChild(emptyState({
         glyph: "presentation", title: "No boards yet",
         body: "A board is a page to draw on: sketches, diagrams, arrows and notes, in a hand-drawn style.",
@@ -549,7 +587,7 @@
   async function newBoard() {
     await ensureLoaded();
     const now = new Date().toISOString();
-    const n = boards().length + 1;
+    const n = listed().length + 1;
     const b = sanitizeBoard({ id: uid(), name: "Board " + n, createdAt: now, updatedAt: now, elements: [] });
     doc.boards.push(b);
     changed(b);
@@ -701,7 +739,7 @@
     $("#boardEditor").hidden = true;
     flush();
     // Boards show in the notes feed too (0.206.0), so any Notes page redraws.
-    if (state.view === "notes") render();
+    if (state.view === "notes" || state.view === "home") render();
   }
   const isEditing = () => !!editing;
 
@@ -1268,7 +1306,8 @@
     init, wire,
     renderBoards, newBoard, openBoard, closeBoard, isEditing, handleKey, isBoardsMode, renderHistory,
     thumbnail: (b) => boardSvg(b.elements, { thumb: true }), isLoaded: () => !!doc,
-    ensureLoaded, flush, addBoards, boardsForExport, sanitizeBoard, boardsNow: () => boards(), toggleFav, setCategory, deleteBoards, renameCategory, renameCategoryIn,
+    ensureLoaded, flush, addBoards, boardsForExport, sanitizeBoard, boardsNow: () => listed(), toggleFav,
+    scratchBoard: () => (doc ? scratchBoard() : null), openScratch, keepScratch, setCategory, deleteBoards, renameCategory, renameCategoryIn,
     // pure helpers (test/boards.test.js)
     simplify, encodePoints, decodePoints, hitTest, bbox, boundsOf, moved, scaled, rotated, penPath, segDist,
   };

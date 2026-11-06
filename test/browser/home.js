@@ -1,4 +1,5 @@
-// The Home tab (0.306.0): in the middle of the bar, a fresh start lands on
+// The Home tab (0.306.0): first on a computer and in the middle of a phone's
+// bar, a fresh start lands on
 // it, its sections, the scratchpad, pinned notes, and the View sheet's order.
 const { chromium, BASE } = require("./harness");
 let pass = 0, fail = 0;
@@ -43,7 +44,7 @@ const SEED = {
   const active = () => page.evaluate(() => document.querySelector("#viewTabs .tab.active").dataset.view);
   const bar = await page.evaluate(() => [...document.querySelectorAll("#viewTabs .tab")].filter((t) => !t.hidden).map((t) => t.dataset.view));
 
-  check("Home sits in the middle of the bar", JSON.stringify(bar) === JSON.stringify(["notes", "timeline", "home", "backlog", "finance"]), bar);
+  check("on a computer Home is the first tab", JSON.stringify(bar) === JSON.stringify(["home", "notes", "timeline", "backlog", "finance"]), bar);
   check("a fresh start opens on Home, not the last tab", (await active()) === "home", await active());
   check("Home has no filter chips", await page.isHidden("#filterbar"));
   const heads = await page.evaluate(() => [...document.querySelectorAll(".home-sec-head h2")].map((h) => h.textContent.trim()));
@@ -103,6 +104,24 @@ const SEED = {
   const vis = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-visual-settings-v1")));
   check("and is kept for this device", JSON.stringify(vis.homeSections) === JSON.stringify(["pinned", "progress", "upcoming", "scratchpad"]) && vis.homeHidden.join() === "progress", vis);
 
+  // ---- the scratchpad as a board ----
+  await page.click('.home-pad-mode .seg-btn[data-mode="board"]'); await page.waitForTimeout(500);
+  check("Board swaps the text pad for the scratch board", (await page.$("#homeScratchpad")) === null && (await page.textContent("#homeScratchBoard")).includes("Nothing drawn yet"));
+  check("and is remembered for this device", await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-visual-settings-v1")).homeScratchMode) === "board");
+  await page.click("#homeScratchBoard"); await page.waitForTimeout(500);
+  check("tapping it opens the board editor", !(await page.isHidden("#boardEditor")));
+  await page.evaluate(() => { const b = window.LifeLogBoards.scratchBoard(); b.elements.push({ id: "s1", t: "text", c: "ink", sw: 2, x: 0, y: 0, text: "Desk by the window" }); });
+  await page.click("#boardBack"); await page.waitForTimeout(500);
+  const sb = await page.evaluate(() => ({ scratch: !!(window.LifeLogBoards.scratchBoard() || {}).scratch, listed: window.LifeLogBoards.boardsNow().length, thumb: !!document.querySelector("#homeScratchBoard svg") }));
+  check("the drawing shows on Home, and stays out of the Boards list", sb.scratch && sb.listed === 0 && sb.thumb, sb);
+  await page.click('.home-scratch button:has-text("Keep as a board")'); await page.waitForTimeout(500);
+  const kept = await page.evaluate(() => ({ scratch: window.LifeLogBoards.scratchBoard(), listed: window.LifeLogBoards.boardsNow().map((b) => b.elements.length) }));
+  check("Keep as a board files it and leaves a blank one", kept.scratch === null && JSON.stringify(kept.listed) === "[1]" && (await page.textContent("#homeScratchBoard")).includes("Nothing drawn yet"), kept);
+  await page.click('.home-pad-mode .seg-btn[data-mode="note"]'); await page.waitForTimeout(400);
+  check("Note brings the text pad back", (await page.$("#homeScratchpad")) !== null);
+  const rowHeads = await page.evaluate(() => [...document.querySelectorAll(".home-pair .home-sec-head")].map((h) => Math.round(h.getBoundingClientRect().height)));
+  check("the switch doesn't make the Scratchpad head taller than its neighbours", rowHeads.length > 1 && rowHeads.every((h) => h === rowHeads[0]), rowHeads);
+
   // ---- turned off ----
   await page.evaluate(() => {
     const v = JSON.parse(localStorage.getItem("lifelog-visual-settings-v1"));
@@ -125,6 +144,7 @@ const SEED = {
   const pp = await phone.newPage();
   pp.on("pageerror", (e) => errs.push("phone pageerror: " + e.message));
   await pp.goto(BASE + "/", { waitUntil: "networkidle" }); await pp.waitForTimeout(600);
+  check("on a phone Home sits in the middle of the bottom bar", await pp.evaluate(() => [...document.querySelectorAll("#viewTabs .tab")].filter((t) => !t.hidden).map((t) => t.dataset.view).join()) === "notes,timeline,home,backlog,finance");
   check("on a phone the sections stack", await pp.evaluate(() => {
     const a = document.querySelector(".home-upcoming").getBoundingClientRect(), s = document.querySelector(".home-scratch").getBoundingClientRect(), p = document.querySelector(".home-pinned").getBoundingClientRect();
     return s.top >= a.bottom - 1 && p.top >= s.bottom - 1 && Math.abs(a.left - s.left) < 2 && Math.abs(a.left - p.left) < 2;

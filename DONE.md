@@ -14,6 +14,8 @@ Every release that adds a feature adds its line here in the same commit.
 - Six tabs: Home, and Notebook, Timeline, Backlog, Ledger, Travel, each with modes (0.126.0, Travel 0.241.0, Home 0.306.0)
 - Home in the middle of the bar, where a fresh start opens: In progress covers, Coming up for two weeks (releases and episodes known to the day, recurring charges, habits left), a synced scratchpad with Make a note, notes pinned from a note's ⋯ menu; sections ordered and hidden under View (0.306.0)
 - On a computer, Home sections next to each other (Coming up, Scratchpad, Pinned notes) share one row, two or three across (unreleased)
+- Home scratchpad Note / Board switch: a scratch board (boards.json, `scratch`) kept out of the Boards list, opened in the editor, Keep as a board; switch per device (unreleased)
+- Home is the first tab on a computer and stays in the middle of the phone's bottom bar (unreleased)
 - Every tab and mode has its own name: Notebook (Notes, Habits), Timeline (Log, Stats), Backlog (List, Discover, Upcoming), Ledger (Expenses, Summary) (0.231.0)
 - Swipe between modes like a pager, and round from the last to the first (0.177.0)
 - Press and hold a tab for its modes; tap the current tab to step modes or scroll to the top (0.125.0, 0.264.2)
