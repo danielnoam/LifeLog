@@ -11,7 +11,8 @@ Every release that adds a feature adds its line here in the same commit.
 
 ## The app as a whole
 
-- Five tabs, each with modes: Notebook, Timeline, Backlog, Ledger, Travel (0.126.0, Travel 0.241.0)
+- Six tabs: Home, and Notebook, Timeline, Backlog, Ledger, Travel, each with modes (0.126.0, Travel 0.241.0, Home 0.306.0)
+- Home in the middle of the bar, where a fresh start opens: In progress covers, Coming up for two weeks (releases and episodes known to the day, recurring charges, habits left), a synced scratchpad with Make a note, notes pinned from a note's ⋯ menu; sections ordered and hidden under View (0.306.0)
 - Every tab and mode has its own name: Notebook (Notes, Habits), Timeline (Log, Stats), Backlog (List, Discover, Upcoming), Ledger (Expenses, Summary) (0.231.0)
 - Swipe between modes like a pager, and round from the last to the first (0.177.0)
 - Press and hold a tab for its modes; tap the current tab to step modes or scroll to the top (0.125.0, 0.264.2)
@@ -266,6 +267,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Add habits, recurring bills, categories and projects; delete categories; stats, habit insights, upcoming releases; batch changes as one save (0.284.0)
 - Search by every word in any order, narrowed by collection, category or subcategory, with categories shown on each hit (0.292.4)
 - A note's images, read as pictures and added from a file or base64 (0.297.0)
+- What Home shows, the scratchpad written, notes pinned to Home and unpinned (0.306.0)
 
 ## Building and shipping
 

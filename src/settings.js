@@ -735,8 +735,8 @@
   // comes up; "csv" finds the Export rows). Not the hints — they'd match half
   // the words in the language. The lists that rows are drawn into (tab
   // switches, history, categories) are data, not settings, and are skipped.
-  const DYNAMIC = "#tabToggles, #mediaCatRows, #historyList, #trashList";
-  const VIEW_NAMES = { timeline: "Timeline", backlog: "Backlog", finance: "Ledger", habits: "Habits", notes: "Notebook" };
+  const DYNAMIC = "#tabToggles, #mediaCatRows, #historyList, #trashList, #homeSectionRows";
+  const VIEW_NAMES = { home: "Home", timeline: "Timeline", backlog: "Backlog", finance: "Ledger", habits: "Habits", notes: "Notebook" };
   // Habits is a mode of the Notes tab, but its options are its own.
   const viewKey = (view) => (view === "notes" && state.notesMode === "habits" ? "habits" : view);
   const squash = (t) => (t || "").replace(/\s+/g, " ").replace(/[…:]+\s*$/, "").trim();
@@ -870,6 +870,7 @@
     $("#noteLineNumbers").value = state.visual.noteLineNumbers || "off";
     $("#noteTextSize").value = state.visual.noteTextSize || "medium";
     $("#noteOpenIn").value = state.visual.noteOpenIn || "read";
+    if (window.LifeLogHome) window.LifeLogHome.fillViewOptions();
     const A = window.LifeLogAlerts;
     const alertsHere = !!(A && A.available());
     $("#releaseAlertsRow").hidden = !alertsHere;

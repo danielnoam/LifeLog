@@ -165,7 +165,9 @@ Newest first. Three kinds:
 
 Fields: `id`, `createdAt`, `updatedAt`, `editedAt` (when the text last
 changed), `kind`, `text`, `title`, `category` (optional, from
-`noteCategories`), `fav` (true when favourited), `items`, `author`, `source`.
+`noteCategories`), `fav` (true when favourited), `pinned` (true when pinned
+to the Home tab; it stays in the Notebook too, `lifelog_pin_note`), `items`,
+`author`, `source`.
 
 Images (0.297.0) are never inside the data. A text note shows one as a line
 of its own in `text`: `![alt](lifelog-img:<id>)`, where `<id>` is the file
@@ -280,7 +282,8 @@ delete with the `lifelog_*_accomplishment` tools.
 
 ## Settings (`settings`)
 
-Synced preferences. The bridge never shows these to an AI, because
+Synced preferences. The bridge never shows these to an AI (the scratchpad
+excepted, below), because
 `mediaKeys`, `steam` (proxy URL, SteamID64 and the Web API key) and
 `anilist` hold API keys and account names. The one
 that matters for data is `currency`, which `lifelog_overview` gives. The
@@ -292,7 +295,12 @@ opens, or days between syncs), and for sending changes back `clientId`,
 `token` (an AniList access token, a year long) and `connectedAt` (when it
 was pasted; titles added after it are added to AniList too).
 
-Keys: `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,
+`scratchpad` (0.306.0) is the Home tab's scratchpad, one string of free
+text, absent when empty; `lifelog_home` reads it and `lifelog_set_scratchpad`
+writes it. Two devices editing it at once resolve as any setting does: the
+newer save wins.
+
+Keys: `scratchpad`, `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,
 `mediaCategorySources`, `mediaCategoryFallbackSources`, `mediaKeys`, `steam`,
 `anilist`, `releases`, `importSkips` (per import source, the `source:id`
 keys of items left unticked in a review, so they stay hidden next time),

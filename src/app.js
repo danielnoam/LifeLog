@@ -13,6 +13,7 @@
   const Boards = window.LifeLogBoards;
   const Travel = window.LifeLogTravel;
   const Recap = window.LifeLogRecap;
+  const Home = window.LifeLogHome || { init() {}, renderHome() {}, fillViewOptions() {} };
   const Widgets = window.LifeLogWidgets || { changed() {}, start() {}, assertBackground() {} };
   const Share = window.LifeLogShare || { open() {}, close() {}, start() {} };
   const Search = window.LifeLogSearch || { start() {}, setQuery() {}, clear() {}, refresh() {}, isOpen: () => false };
@@ -53,7 +54,9 @@
   // object, so a default declared here is the only one there is — a `||` at
   // the read site is a second copy that can drift from it.
   // maxWidth 0 = stretch.
-  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogLayout: "list", timelineLayout: "list", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, outTodaySheet: "show", ledgerMonthSummary: "show", timelineMonthSummary: "hide", habitsLeftPanel: "show", noteLineNumbers: "off", noteTextSize: "medium", noteOpenIn: "read",
+  const DEFAULT_VISUAL = { monthMinWidth: 180, monthMaxWidth: 0, fontFamily: "system", pollInterval: 30, forceLayout: "none", theme: "default", timelineCoverSize: "small", backlogCoverSize: "big", backlogLayout: "list", timelineLayout: "list", backlogSummaries: "show", backlogCounts: "split", discoverHideOwned: false, outTodaySheet: "show", ledgerMonthSummary: "show", timelineMonthSummary: "hide", habitsLeftPanel: "show",
+    // The Home tab's sections, in order, and the ones turned off (home.js).
+    homeSections: ["progress", "upcoming", "scratchpad", "pinned"], homeHidden: [], noteLineNumbers: "off", noteTextSize: "medium", noteOpenIn: "read",
     // One per set-aside band: "always" (a plain rule, never folds), "open"
     // (foldable, starts open) or "collapsed" (foldable, starts folded).
     // Dropped starts folded because it is the band you gave up on; the other
@@ -136,6 +139,8 @@
   const VISUAL_KEY = "lifelog-visual-settings-v1";
   const PENDING_KEY = "lifelog-pending-sync-v1";
   const UI_KEY = "lifelog-ui-v1";
+  // Set once per tab or app run, so only a fresh start opens on Home.
+  const STARTED_KEY = "lifelog-started";
   const MEDIA_KEY = "lifelog-media-settings-v1";
   const DEFAULT_MEDIA = {}; // legacy local-only shape; rawgKey/tmdbKey migrated into synced settings on load (see normalize())
   const MEDIA_SOURCE_LABELS = {
@@ -173,7 +178,9 @@
   // Every view there is, in the order the tab bar starts in. Settings → Tabs
   // can reorder them (orderedViews below), so anything that walks the tabs
   // left to right — the swipe, the number keys — asks enabledViews().
-  const VIEW_ORDER = ["notes", "timeline", "backlog", "finance", "travel"];
+  // Home sits in the middle (0.306.0): what's going on now, a tab either
+  // side of where you start.
+  const VIEW_ORDER = ["notes", "timeline", "home", "backlog", "finance", "travel"];
 
   function loadVisualSettings() {
     try {
@@ -759,7 +766,19 @@
     const known = [...new Set((saved || []).filter((x) => all.includes(x)))];
     return known.concat(all.filter((x) => !known.includes(x)));
   };
-  const orderedViews = () => mergeOrder(state.visual.viewOrder, VIEW_ORDER);
+  // A saved order from before Home existed gets it in the middle of what's
+  // on, where it starts for everyone else, not tacked on at the end.
+  const orderedViews = () => {
+    const saved = state.visual.viewOrder;
+    if (Array.isArray(saved) && saved.length && !saved.includes("home")) {
+      const off = state.visual.disabledViews || [];
+      const known = mergeOrder(saved, VIEW_ORDER.filter((v) => v !== "home"));
+      const on = known.filter((v) => !off.includes(v));
+      const at = on.length ? known.indexOf(on[Math.floor((on.length - 1) / 2)]) + 1 : 0;
+      return [...known.slice(0, at), "home", ...known.slice(at)];
+    }
+    return mergeOrder(saved, VIEW_ORDER);
+  };
   const orderedModes = (spec) => {
     const saved = (state.visual.modeOrder || {})[spec.key] || DEFAULT_MODE_ORDER[spec.key];
     return mergeOrder(saved, spec.modes.map(([id]) => id)).map((id) => spec.modes.find(([m]) => m === id));
@@ -1726,6 +1745,7 @@
         return;
       }
       if (state.view === "travel") { Travel.renderTravel(c); return; }
+      if (state.view === "home") { Home.renderHome(c); return; }
       const entries = getFiltered();
       // What you're on now (0.218.0), above the log — and shown even when
       // nothing's logged yet or nothing matches, so it never hides behind
@@ -3488,6 +3508,8 @@
     // Travel's one row is its trips (0.243.0), built by travel.js: a trip
     // has no categories, and is its own span of days rather than something
     // filed under a year.
+    // Home has nothing to filter: it is a page of what's on now.
+    if (state.view === "home") { bar.hidden = true; return; }
     const travel = state.view === "travel";
     if (travel) for (const id of ["#yearFilterGroup", "#catFilterGroup", "#kindFilterGroup", "#showFilterGroup", "#projFilterGroup"]) $(id).hidden = true;
     else $("#tripFilterGroup").hidden = true;
@@ -4411,7 +4433,7 @@
     "currency", "mediaCategorySources", "mediaCategoryFallbackSources",
     "mediaKeys", "steam", "anilist", "releases", "importSkips", "updatedAt",
     "monthMinWidth", "monthMaxWidth", "imagesCleanedAt",
-    "weekStart", "dateFormat",
+    "weekStart", "dateFormat", "scratchpad",
   ]);
 
   function sanitizeAccomplishment(a, y) {
@@ -4513,6 +4535,8 @@
     // as it always did (Sunday, "3 Nov 2026").
     if (incomingSettings.weekStart !== undefined) data.settings.weekStart = Dates.cleanWeekStart(incomingSettings.weekStart);
     if (incomingSettings.dateFormat !== undefined) data.settings.dateFormat = Dates.cleanFormat(incomingSettings.dateFormat);
+    // The Home tab's scratchpad (0.306.0), synced like a setting.
+    if (typeof incomingSettings.scratchpad === "string" && incomingSettings.scratchpad) data.settings.scratchpad = incomingSettings.scratchpad;
     keepUnknown(incomingSettings, data.settings, KNOWN_SETTINGS_KEYS);
     delete data.settings.monthOrder;
     const accIn = data.accomplishments || {};
@@ -5658,13 +5682,23 @@
     let savedUi = null;
     try { savedUi = JSON.parse(localStorage.getItem(UI_KEY)); } catch (e) {}
     applySavedUi(savedUi);
+    // A fresh start opens on Home (0.306.0); a reload, or coming back to the
+    // app, stays where you were. sessionStorage lives as long as the tab or
+    // the app's WebView, so it is what tells the two apart.
+    let landedHome = false;
+    try {
+      if (!sessionStorage.getItem(STARTED_KEY)) {
+        sessionStorage.setItem(STARTED_KEY, "1");
+        if (viewEnabled("home") && state.view !== "home") { state.view = "home"; landedHome = true; saveUiState(); }
+      }
+    } catch (e) { /* no sessionStorage: keep where you were */ }
 
     // Everything the first sight of the data needs, whichever path produced
     // it. Factored out because there are now two of those paths.
     const showData = () => {
       afterDataChange();
       lastPersistedSnapshot = structuredClone(state.data);
-      if (savedUi?.scrollY) setTimeout(() => window.scrollTo(0, savedUi.scrollY), 0);
+      if (savedUi?.scrollY && !landedHome) setTimeout(() => window.scrollTo(0, savedUi.scrollY), 0);
       noticeVersionSkew();
       refreshStorageStatus();
     };
@@ -6207,6 +6241,7 @@
   Recap.init({ state, $, el, toast, MONTHS, prefersReducedMotion });
   Boards.init({ state, $, el, uid, toast, emptyState, render, Storage, download: IO.download, bulkCheckbox, toggleBulkItem, attachLongPressSelect });
   Travel.init({ state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader, activatable, updateFilterbarVisibility });
+  Home.init({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, todayStr: () => Finance.localDateStr(new Date()) });
   Share.start({ Backlog, Notes, Travel, toast, viewEnabled, modeEnabled });
   Letterboxd.start({ unzip: (b) => window.LifeLogDocImport.unzip(b), parseCsv: IO.parseCsv, buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport });
   Search.start({

@@ -131,9 +131,9 @@ function buildData() {
     note(9, { kind: "list", category: "Ideas", items: [
       { id: id(), text: "Book the campsite" }, { id: id(), text: "Fix the bike's back brake", done: true, doneAt: iso(daysAgo(1)) },
       { id: id(), text: "Return library books" }, { id: id(), text: "Call about the internet plan" }] }),
-    note(1, { title: "Weekend loaf", category: "Recipes", fav: true, text: "500 g flour, 350 g water, 10 g salt, 100 g starter.\n\n- Mix, rest an hour\n- Four folds, 30 minutes apart\n- Overnight in the fridge, bake at 250 °C" }),
+    note(1, { title: "Weekend loaf", category: "Recipes", fav: true, pinned: true, text: "500 g flour, 350 g water, 10 g salt, 100 g starter.\n\n- Mix, rest an hour\n- Four folds, 30 minutes apart\n- Overnight in the fridge, bake at 250 °C" }),
     note(2, { kind: "quote", text: "The best time to plant a tree was twenty years ago. The second best time is now.", author: "Proverb", category: "Reading" }),
-    note(3, { title: "Game night ideas", category: "Ideas", text: "Co-op only this month. **Cobalt Run** looks right for four players; check whether it has drop-in." }),
+    note(3, { title: "Game night ideas", category: "Ideas", pinned: true, text: "Co-op only this month. **Cobalt Run** looks right for four players; check whether it has drop-in." }),
     note(14, { kind: "list", category: "Ideas", items: [
       { id: id(), text: "Headphones" }, { id: id(), text: "Desk lamp", done: true }, { id: id(), text: "A second controller" }] }),
     note(8, { title: "Things that worked this year", text: "Reading before bed instead of scrolling. One game at a time. Writing the week down on Sundays." }),
@@ -192,7 +192,8 @@ function buildData() {
   const data = {
     version: 1, categories, entries, backlog, accomplishments, notes, noteCategories, todos: [], todoCategories: [],
     habits, financeCategories, financeEntries, recurringExpenses, projects,
-    settings: { currency: "USD", mediaCategorySources: { Books: "openlibrary", Anime: "anilist-anime" } },
+    settings: { currency: "USD", mediaCategorySources: { Books: "openlibrary", Anime: "anilist-anime" },
+      scratchpad: "Call the landlord about the boiler\nPick up the film photos, ready Saturday\n\nGift ideas for Maya: the ceramics class, The Salt Archive hardback" },
   };
 
   const tripStart = daysAgo(-18), day = (k) => ymd(new Date(tripStart.getFullYear(), tripStart.getMonth(), tripStart.getDate() + k));
@@ -246,6 +247,7 @@ const SHOTS = [
       const box = await page.locator('.tab[data-view="backlog"]').boundingBox();
       await page.dispatchEvent('.tab[data-view="backlog"]', "pointerdown", { pointerType: "touch", isPrimary: true, clientX: box.x + box.width / 2, clientY: box.y + box.height / 2 });
     } },
+  { name: "home", ui: { view: "home" } },
   { name: "timeline", ui: { view: "timeline", timelineMode: "entries" } },
   { name: "timeline-calendar", ui: { view: "timeline", timelineMode: "entries" }, visual: { timelineLayout: "calendar" } },
   { name: "stats", ui: { view: "timeline", timelineMode: "stats" } },

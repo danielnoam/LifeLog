@@ -85,12 +85,13 @@ const activeView = (page) => page.evaluate(() => {
 
   // ---- 2. a disabled tab leaves the bar, and the swipe skips it ----
   {
-    const { page, ctx, errs: e } = await app(browser, { visual: { disabledViews: ["backlog"] } });
+    // Home off too (0.306.0), so Timeline's next tab is the disabled Backlog.
+    const { page, ctx, errs: e } = await app(browser, { visual: { disabledViews: ["backlog", "home"] } });
     const tabs = await shownTabs(page);
     check("a disabled tab is gone from the bar",
-      !tabs.includes("backlog") && tabs.length === ALL_VIEWS.length - 1, tabs);
+      !tabs.includes("backlog") && tabs.length === ALL_VIEWS.length - 2, tabs);
     check("and the ones left keep their order",
-      JSON.stringify(tabs) === JSON.stringify(ALL_VIEWS.filter((v) => v !== "backlog")), tabs);
+      JSON.stringify(tabs) === JSON.stringify(ALL_VIEWS.filter((v) => v !== "backlog" && v !== "home")), tabs);
 
     // Timeline → swipe left should land on Finance, not the disabled Backlog.
     // attachSwipe listens on pointer events, not touch, and only in the
@@ -315,11 +316,11 @@ const activeView = (page) => page.evaluate(() => {
 
     await press("Ledger", "tab-up");
     check("↑ moves a tab left, and the tab bar follows",
-      JSON.stringify(await barOrder()) === JSON.stringify(["notes", "timeline", "finance", "backlog", "travel"]) &&
-      JSON.stringify((await visual()).viewOrder) === JSON.stringify(["notes", "timeline", "finance", "backlog", "travel"]),
+      JSON.stringify(await barOrder()) === JSON.stringify(["notes", "timeline", "home", "finance", "backlog", "travel"]) &&
+      JSON.stringify((await visual()).viewOrder) === JSON.stringify(["notes", "timeline", "home", "finance", "backlog", "travel"]),
       { bar: await barOrder(), stored: (await visual()).viewOrder });
     check("and so does the list in Settings", await page.evaluate(() =>
-      [...document.querySelectorAll("#tabToggles .tab-toggle-view .sitem-title")].map((t) => t.textContent).join() === "Notebook,Timeline,Ledger,Backlog,Travel"));
+      [...document.querySelectorAll("#tabToggles .tab-toggle-view .sitem-title")].map((t) => t.textContent).join() === "Notebook,Timeline,Home,Ledger,Backlog,Travel"));
 
     await press("Discover", "mode-default");
     check("starring an end mode of a three-mode tab moves it into the middle",
@@ -343,7 +344,7 @@ const activeView = (page) => page.evaluate(() => {
       return dots.length === 3 && dots[1].classList.contains("is-on");
     }));
 
-    await page.keyboard.press("3");
+    await page.keyboard.press("4");
     await page.waitForTimeout(300);
     check("the number keys follow the tab bar as it now is", (await ui()).view === "finance", (await ui()).view);
     await page.keyboard.press("Shift+Digit2");
@@ -363,8 +364,10 @@ const activeView = (page) => page.evaluate(() => {
     });
     const dots = await page.evaluate(() => document.querySelectorAll('#viewTabs .tab[data-view="backlog"] .tab-mode-dot').length);
     const bar = await page.evaluate(() => [...document.querySelectorAll("#viewTabs .tab")].map((t) => t.dataset.view));
+    // Home, new since that order was saved, goes in the middle of the tabs
+    // that are on (0.306.0), where it starts for everyone.
     check("unknown ids in a saved order are dropped and missing ones added at the end",
-      dots === 3 && JSON.stringify(bar) === JSON.stringify(["finance", "notes", "timeline", "backlog", "travel"]), { dots, bar });
+      dots === 3 && JSON.stringify(bar) === JSON.stringify(["finance", "notes", "home", "timeline", "backlog", "travel"]), { dots, bar });
     errs.push(...e);
     await ctx.close();
   }

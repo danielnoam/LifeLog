@@ -12,6 +12,7 @@ files are the web app (GitHub Pages), the Android app and the iOS app
 ## Contents
 
 - [Getting around](#getting-around)
+- [Home](#home)
 - [Notebook](#notebook): [Notes](#notes), [Images in notes](#images-in-notes), [Habits](#habits)
 - [Timeline](#timeline): [Log](#log), [Layouts](#timeline-layouts-covers-and-calendar), [Stats and Recap](#stats-and-recap)
 - [Backlog](#backlog): [List](#list), [Covers](#covers), [Pick](#pick), [An item's sheet](#an-items-sheet), [Next releases](#next-releases), [Discover](#discover)
@@ -33,7 +34,8 @@ Every screenshot is made-up demo data. Left is a computer, right a phone.
 
 ## Getting around
 
-Five tabs, each with modes: Notebook, Timeline, Backlog, Ledger and Travel.
+Six tabs: Home in the middle, and Notebook, Timeline, Backlog, Ledger and
+Travel, each with modes.
 On a computer the tabs sit along the top and hovering one drops its modes
 out; on a phone they're the bar at the bottom, and holding a tab raises its
 modes. Swiping across the page moves between modes on both, and tapping
@@ -44,6 +46,21 @@ anything from anywhere.
 <table><tr>
 <td><img src="docs/screenshots/tabs-desktop.webp" alt="A tab's modes on a computer" width="620"></td>
 <td><img src="docs/screenshots/tabs-phone.webp" alt="A held tab's modes on a phone" width="200"></td>
+</tr></table>
+
+## Home
+
+What's on now, on one page, and where the app opens (a reload stays where
+you were). What you're in the middle of as covers; Coming up for the next
+two weeks, with releases and new episodes known to the day, recurring
+charges and the habits still left; a scratchpad that syncs, with Make a note
+to keep what's in it; and the notes you pin from a note's ⋯ menu. View
+orders and hides the sections, per device, and Settings → Tabs turns Home
+off.
+
+<table><tr>
+<td><img src="docs/screenshots/home-desktop.webp" alt="Home on a computer" width="620"></td>
+<td><img src="docs/screenshots/home-phone.webp" alt="Home on a phone" width="200"></td>
 </tr></table>
 
 ## Notebook
@@ -496,6 +513,7 @@ src/boards.js       drawing boards (boards.json)
 src/habits.js       Habits
 src/finance.js      Ledger: expenses, recurring bills, Summary
 src/travel.js       Travel: trips and places (travel.json)
+src/home.js         Home: in progress, coming up, the scratchpad and pinned notes
 src/recap.js        the yearly Recap
 src/search.js       one search across everything
 src/media.js        cover art and metadata from the media sources

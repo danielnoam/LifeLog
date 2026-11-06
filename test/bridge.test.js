@@ -1019,3 +1019,32 @@ test("lifelog_backlog's starred, bought and price_alert stack like the Backlog's
   assert.match(alerts, /Tunic/);
   assert.doesNotMatch(alerts, /Hades|Dune|Celeste/);
 });
+
+test("Home (0.306.0): what the tab shows, the scratchpad and pinned notes", async () => {
+  reset();
+  const d0 = data();
+  d0.backlog.find((b) => b.id === "b2").startedAt = daysAgo(3);
+  d0.backlog.push({ id: "b9", title: "Big Game", category: "Games", releaseDate: Finance.addDaysStr(today, 5), releasePrecision: "day", createdAt: T, updatedAt: T });
+  d0.backlog.push({ id: "b10", title: "Far Game", category: "Games", releaseDate: Finance.addDaysStr(today, 40), releasePrecision: "day", createdAt: T, updatedAt: T });
+  fs.writeFileSync(FILE, JSON.stringify(d0, null, 2));
+  const home = await ok("lifelog_home", {});
+  assert.match(home, /In progress \(1\):\n- Dune \[Books\] since /);
+  assert.match(home, new RegExp(`- ${Finance.addDaysStr(today, 5)} · Big Game \\[Games\\] release`));
+  assert.doesNotMatch(home, /Far Game/);
+  assert.match(home, /Habits left today: Read/);
+  assert.match(home, /Scratchpad:\n\(empty\)/);
+  assert.match(home, /Pinned notes \(0\):/);
+  await ok("lifelog_set_scratchpad", { text: "Buy stamps" });
+  await ok("lifelog_set_scratchpad", { text: "Call Sam" });
+  assert.strictEqual(data().settings.scratchpad, "Buy stamps\nCall Sam");
+  await ok("lifelog_undo", {});
+  assert.strictEqual(data().settings.scratchpad, "Buy stamps");
+  await ok("lifelog_set_scratchpad", { mode: "clear" });
+  assert.strictEqual(data().settings.scratchpad, undefined);
+  await refused("lifelog_set_scratchpad", { text: "  " }, /Give the text/);
+  assert.match(await ok("lifelog_pin_note", { note: "Plan" }), /^Pinned "Plan" to Home/);
+  assert.strictEqual(data().notes.find((n) => n.id === "no1").pinned, true);
+  assert.match(await ok("lifelog_home", {}), /Pinned notes \(1\):\n- Plan \[Ideas\] \(pinned to Home\)/);
+  await ok("lifelog_pin_note", { note: "no1", pinned: false });
+  assert.strictEqual(data().notes.find((n) => n.id === "no1").pinned, undefined);
+});
