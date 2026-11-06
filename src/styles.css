@@ -4966,7 +4966,7 @@ html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(-
 .home-pair .home-pins { grid-template-columns: minmax(0, 1fr); }
 .home-card { background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; }
 
-.home-strip { display: flex; gap: var(--space-14); overflow-x: auto; padding-bottom: var(--space-4); scrollbar-width: thin; }
+.home-strip { display: flex; gap: var(--space-14); overflow-x: auto; padding-bottom: var(--space-4); }
 .home-tile { flex: 0 0 132px; }
 .home-tile-count {
   position: absolute; left: var(--space-6); bottom: var(--space-6); padding: 2px var(--space-8); border-radius: var(--r-pill);
