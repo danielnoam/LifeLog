@@ -4592,6 +4592,7 @@ html.note-lines .nv-gutter { display: block; }
   background: var(--bg-elev); border: 1px solid var(--border-strong); border-radius: var(--r-lg); box-shadow: var(--shadow);
 }
 .nv-bar { position: relative; }
+.nv-menu.nv-menu-end { right: var(--space-12); }
 .nv-menu[hidden] { display: none; }
 .nv-menu-label { margin: 0; padding: var(--space-6) var(--space-10) var(--space-2); font-size: var(--fs-2xs); color: var(--text-dim); }
 .nv-menu-label[hidden], .nv-menu hr[hidden], .nv-menu button[hidden] { display: none; }

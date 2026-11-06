@@ -49,6 +49,18 @@ async function run(b, width) {
   check("and says so when the note has gone since" + at, await page.evaluate(() =>
     document.querySelector("#noteModal").hidden && /deleted/.test(document.body.textContent)));
 
+  // ---- the ⋯ menu while reading (it was only in the editor) ----
+  await page.evaluate(() => { window.LifeLogNotes.closeNoteModal(); window.LifeLogNotes.openNoteReader("plain"); });
+  await page.waitForTimeout(200);
+  check("reading a note shows ⋯" + at, await page.isVisible("#noteReaderMoreBtn"));
+  await page.click("#noteReaderMoreBtn");
+  check("⋯ opens Make entry and Delete while reading" + at,
+    await page.isVisible("#noteReaderEntryBtn") && await page.isVisible("#noteReaderDeleteBtn"));
+  await page.click("#noteReaderDeleteBtn");
+  await page.waitForTimeout(200);
+  check("Delete from the reader deletes and closes it" + at, await page.evaluate(() =>
+    document.querySelector("#noteReader").hidden && !document.querySelector('.note-card[data-id="plain"]') && !/A plain note/.test(document.querySelector("#view-notes, main").textContent)));
+
   check("no errors" + at, errs.length === 0, errs);
   await ctx.close();
 }

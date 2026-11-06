@@ -408,6 +408,12 @@
           <button type="button" id="editNoteReaderBtn"><span data-ico="pencil"></span><span class="nv-mode-label">Edit</span></button>
         </div>
         <span class="spacer"></span>
+        <button type="button" class="btn btn-icon" id="noteReaderMoreBtn" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false"><span data-ico="ellipsis"></span></button>
+        <div class="nv-menu nv-menu-end" id="noteReaderMenu" role="menu" hidden>
+          <button type="button" role="menuitem" id="noteReaderEntryBtn" hidden><span data-ico="film"></span> Make entry</button>
+          <button type="button" role="menuitem" id="noteReaderPinBtn" hidden><span data-ico="pin"></span> Pin to Home</button>
+          <button type="button" role="menuitem" class="nv-menu-danger" id="noteReaderDeleteBtn"><span data-ico="trash"></span> Delete note</button>
+        </div>
       </div>
       <div class="nv-scroll">
         <div class="nv-col">
