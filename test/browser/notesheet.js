@@ -162,6 +162,15 @@ async function run(b, width) {
     await page.evaluate(() => !document.querySelector("#noteModal").hidden && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)));
   await page.click("#cancelNoteBtn");
 
+  await page.evaluate(() => window.LifeLogNotes.openNoteModal(null));
+  await page.click("#noteMoreBtn");
+  check("a new note's ⋯ holds Add image, and no kind or Delete" + at, await page.evaluate(() => {
+    const shown = (s) => { const e = document.querySelector(s); return !!e && e.getClientRects().length > 0; };
+    return shown("#noteMoreMenu #nAddImageBtn") && !shown("#noteKindMenuLabel") && !shown("#deleteNoteBtn") && !shown("#noteFoot");
+  }));
+  await page.keyboard.press("Escape");
+  await page.click("#cancelNoteBtn");
+
   if (width < 720) {
     // In the phone app the sheet fills the screen to its edges and keeps
     // only its own bar and foot clear of the status and gesture bars; the
@@ -171,7 +180,7 @@ async function run(b, width) {
       html.classList.add("native");
       html.style.setProperty("--safe-area-inset-top", "40px");
       html.style.setProperty("--safe-area-inset-bottom", "30px");
-      window.LifeLogNotes.openNoteModal(null);
+      window.LifeLogNotes.openNoteModal(window.LifeLogStorage.cachedCopy().notes.find((n) => n.title === "Idea"));
       const m = document.querySelector("#noteModal > .modal").getBoundingClientRect();
       const bar = document.querySelector("#noteModal .nv-bar").getBoundingClientRect();
       const foot = document.querySelector("#noteModal .nv-foot").getBoundingClientRect();

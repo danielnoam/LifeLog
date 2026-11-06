@@ -343,6 +343,8 @@
         <button type="button" class="btn btn-icon" id="noteMoreBtn" title="More" aria-label="More" aria-haspopup="menu" aria-expanded="false"><span data-ico="ellipsis"></span></button>
         <button type="submit" form="noteForm" class="btn btn-primary">Save</button>
         <div class="nv-menu" id="noteMoreMenu" role="menu" hidden>
+          <button type="button" role="menuitem" id="nAddImageBtn"><span data-ico="image"></span> Add image</button>
+          <hr id="noteImageRule" />
           <p class="nv-menu-label" id="noteKindMenuLabel">Kind</p>
           <div id="noteKindMenuSlot"></div>
           <hr id="noteMenuRule" />
@@ -389,9 +391,7 @@
           <p class="nv-hint" id="nListHint" hidden>Drag the handle to move an item</p>
         </div>
       </form>
-      <div class="nv-foot">
-        <button type="button" class="btn btn-icon" id="nAddImageBtn" title="Add image" aria-label="Add image"><span data-ico="image"></span></button>
-        <span class="spacer"></span>
+      <div class="nv-foot" id="noteFoot">
         <p class="added-line" id="noteStampLine" hidden></p>
       </div>
     </div>

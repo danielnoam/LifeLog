@@ -1241,13 +1241,8 @@ select:focus { outline: none; border-color: var(--accent); }
 .note-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* After :hover, so a selected card stays marked while the pointer is over it. */
 .note-card.is-selected { border-color: var(--accent); background: var(--accent-soft); }
-.note-stamp {
-  display: flex; align-items: center; flex-wrap: wrap;
-  font-size: var(--fs-2xs); color: var(--text-dim); margin-top: var(--space-6);
-}
-/* At the foot the star ends the line instead of floating past the card. */
-.note-stamp .note-fav { float: none; margin: -4px -4px -4px auto; }
-.note-stamp .note-edited { white-space: pre; }
+/* flow-root holds the floated star inside the card now the stamp is last. */
+.note-stamp { display: flow-root; font-size: var(--fs-2xs); color: var(--text-dim); margin-top: var(--space-6); }
 .note-edited { font-style: italic; }
 .note-text {
   margin: 0; font-size: var(--fs-sm); color: var(--text); line-height: 1.45;
@@ -3375,7 +3370,8 @@ html.native, html.native body { overscroll-behavior-y: none; }
   /* Timeline is a single column at this width, so the year/month you're
      scrolled into can stick under the topbar like a sticky list header. */
   html:not(.force-pc) .year-head { position: sticky; top: var(--sticky-top); z-index: 6; background: var(--bg); }
-  html:not(.force-pc) .month-card h3 {
+  /* A checklist card's own header is an h3 too; it isn't the month's. */
+  html:not(.force-pc) .month-card h3:not(.note-list-head) {
     position: sticky; background: var(--bg-elev);
     /* stacks below the sticky year-head, whose height varies per year (achievement chips can wrap) */
     top: calc(var(--sticky-top) + var(--year-head-h, 46px) - 1px); z-index: 4;
@@ -3482,7 +3478,7 @@ html.force-mobile .proj-group-add { width: 20px; height: 20px; font-size: var(--
 html.force-mobile .views { touch-action: none; }
 
 html.force-mobile .year-head { position: sticky; top: var(--sticky-top); z-index: 6; background: var(--bg); }
-html.force-mobile .month-card h3 {
+html.force-mobile .month-card h3:not(.note-list-head) {
   position: sticky; background: var(--bg-elev);
   top: calc(var(--sticky-top) + var(--year-head-h, 46px) - 1px); z-index: 4;
 }
@@ -4331,7 +4327,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 /* A list is the To-do mode's panel (0.196.0): its header, the old rows,
    the done rule and the add line, on the panel's own surface. Only the
    header opens the note, so the rest of the card isn't a pointer. */
-.note-card.is-list { background: var(--surface-card); cursor: default; padding: 10px 12px 12px; }
+.note-card.is-list { cursor: default; padding: 10px 12px 12px; }
 .note-card.is-list:hover { border-color: var(--border-strong); }
 .note-list-head {
   margin: 0 0 4px; padding: 2px 0 10px; border-bottom: 1px solid var(--border);
@@ -4461,9 +4457,9 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .note-image-del::after { content: ""; position: absolute; inset: -11px; }
 
 /* ---------- a note, read or written (0.304.0) ----------
-   One frame for both: the bar (close, Read / Edit, View, the rest), the
-   page in a reading column, and on the editor a foot with the image button
-   and the dates. Full screen on a phone. The category is a chip under the
+   One frame for both: the bar (close, Read / Edit, the ⋯ menu, Save), the
+   page in a reading column, and on a saved note's editor a foot with its
+   dates. Full screen on a phone. The category is a chip under the
    title and the dates sit at the foot: what a note is about comes first. */
 .nv-overlay > .modal.nv {
   width: 760px; height: min(86vh, 860px); max-height: none; padding: 0;
@@ -4475,7 +4471,7 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   display: flex; align-items: center; gap: var(--space-6); flex: 0 0 auto;
   padding: var(--space-10) var(--space-12); border-bottom: 1px solid var(--border);
 }
-.nv-bar .spacer, .nv-foot .spacer { flex: 1; }
+.nv-bar .spacer { flex: 1; }
 .nv-mode {
   display: inline-flex; padding: var(--space-2); gap: 2px; border-radius: var(--r-lg);
   background: var(--bg); border: 1px solid var(--border);
@@ -4560,12 +4556,12 @@ html.note-lines .nv-gutter { display: block; }
 .nv-hint { margin: var(--space-8) 0 0; font-size: var(--fs-xs); color: var(--text-dim); }
 .nv-hint[hidden] { display: none; }
 .nv-foot {
-  display: flex; align-items: center; gap: var(--space-8); flex: 0 0 auto;
-  padding: var(--space-6) var(--space-12); border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: flex-end; gap: var(--space-8); flex: 0 0 auto;
+  padding: var(--space-10) var(--space-12); border-top: 1px solid var(--border);
 }
-.nv-foot .btn-icon[hidden] { display: none; }
+.nv-foot[hidden] { display: none; }
 #noteStampLine { margin: 0; color: var(--text-dim); font-size: var(--fs-xs); text-align: right; }
-/* The ⋯ menu: the kind, Make entry and Delete — things done to a note
+/* The ⋯ menu: Add image, the kind, Make entry and Delete — things done to a note
    now and then, kept out of the way of writing it. */
 .nv-menu {
   position: absolute; top: calc(100% - 4px); right: 72px; z-index: 3; min-width: 200px; padding: var(--space-4);

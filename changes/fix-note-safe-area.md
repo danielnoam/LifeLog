@@ -5,7 +5,9 @@
 - Switching a note to Edit no longer opens the keyboard; tap where you want to type. A new note still starts typing.
 - A quote's opening mark sits in the line at the same size as its closing one.
 - A board's card no longer shows the boards icon by its name.
+- A checklist's card has the same colour as the other notes, and on a phone its header no longer sticks over the month's.
 
 ### Changed
 - On Notebook's cards the date, category and star sit at the foot, under the note.
+- Add image moved into the note's ⋯ menu, and the foot only shows a saved note's dates.
 - The View options moved out of the note: Notebook's own View button has them (line numbers, text size, open a note in).
