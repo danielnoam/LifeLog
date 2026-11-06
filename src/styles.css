@@ -2650,11 +2650,38 @@ kbd {
   border-radius: var(--r-sm); font-family: inherit; font-size: var(--fs-xs); font-weight: 600; color: var(--text-dim);
 }
 .shortcuts-list { margin: 0; display: flex; flex-direction: column; gap: 10px; }
-/* The tab rows are built into a div of their own (#shortcutViewRows), which lays out as if it weren't there. */
-.shortcuts-list > div, #shortcutViewRows > div { display: flex; align-items: center; gap: 12px; }
-#shortcutViewRows { display: contents; }
+.shortcuts-list > div { display: flex; align-items: center; gap: 12px; }
 .shortcuts-list dt { flex: 0 0 auto; min-width: 44px; margin: 0; white-space: nowrap; }
 .shortcuts-list dd { margin: 0; color: var(--text-dim); font-size: var(--fs-md); }
+/* Settings → Keyboard (src/keys.js): each key a keycap you click to change,
+   with its own × to turn it off. */
+.kb-keys { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: var(--space-6); flex: 0 0 auto; }
+.kb-chip { display: inline-flex; align-items: stretch; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: var(--r-sm); background: var(--bg-elev-2); }
+.modal .kb-key, .modal .kb-x, .modal .kb-add, .modal .kb-reset {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 32px; margin: 0;
+  background: none; border: 0; font: inherit; cursor: pointer; transition: background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease);
+}
+.modal .kb-key { padding: 0 var(--space-4) 0 var(--space-10); font-size: var(--fs-sm); font-weight: 600; color: var(--text); border-radius: var(--r-sm) 0 0 var(--r-sm); white-space: nowrap; }
+.modal .kb-x { width: 26px; color: var(--text-dim); border-radius: 0 var(--r-sm) var(--r-sm) 0; }
+.modal .kb-x .ico { width: 14px; height: 14px; }
+.modal .kb-key:hover, .modal .kb-x:hover { background: var(--hover-bg); }
+.modal .kb-x:hover { color: var(--danger); }
+.modal .kb-key.listening { padding: 0 var(--space-10); color: var(--accent); font-weight: 550; border-radius: var(--r-sm); }
+.kb-chip:has(.listening) { border-color: var(--accent); background: var(--accent-soft); }
+.modal .kb-add { width: 32px; border: 1px dashed var(--border); border-radius: var(--r-sm); color: var(--text-dim); font-size: var(--fs-md); }
+.modal .kb-add:hover, .modal .kb-reset:hover { background: var(--hover-bg); color: var(--text); }
+.modal .kb-reset { width: 32px; border-radius: var(--r-sm); color: var(--text-dim); }
+.modal .kb-reset .ico { width: 16px; height: 16px; }
+.kb-none { padding: 0 var(--space-4); font-size: var(--fs-sm); font-style: italic; color: var(--text-dim); }
+/* A dot by the name of anything that isn't at its default. */
+.kb-changed .sitem-title::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: var(--space-8); border-radius: 50%; background: var(--accent); vertical-align: middle; }
+.kb-caps { display: inline-flex; align-items: center; gap: var(--space-4); flex: 0 0 auto; color: var(--text-dim); font-size: var(--fs-sm); white-space: nowrap; }
+.kb-tabs:empty { display: none; }
+.kb-tabs > * + * { border-top: 1px solid var(--border); }
+.modal .sgroup-card > .kb-tabs + * { border-top: 1px solid var(--border); }
+.kb-foot { display: flex; justify-content: flex-end; margin-top: var(--space-4); }
+#shortcutsChangeBtn { align-self: flex-start; margin-top: var(--space-8); }
+@media (prefers-reduced-motion: reduce) { .modal .kb-key, .modal .kb-x, .modal .kb-add, .modal .kb-reset { transition: none; } }
 .modal .row[hidden] { display: none; }
 .modal label[hidden] { display: none; }
 .rating-input { display: flex; gap: 4px; margin-top: 6px; }

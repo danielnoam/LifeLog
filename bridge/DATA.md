@@ -320,6 +320,14 @@ Beat times stay fresh before they're asked again: "1", "3", "7" or "30"
 (the default). "on", from 0.282.0–0.282.2, means "30". Old files may still carry `monthOrder`,
 `monthMinWidth` and `monthMaxWidth`, which the app drops or moves on load.
 
+`keys` (Settings → Keyboard) holds only the keyboard shortcuts changed from
+their defaults, absent when none are: `binds` maps an action (`add`,
+`search`, `settings`, `help`, `noteMode`, or `tab:<view>`) to its keys, at
+most two, each a combo of physical keys such as "KeyF", "Ctrl+KeyE" or
+"Shift+Slash" (an empty list turns it off); `otherMode: false` turns off
+Shift with a tab's key, `hints: false` the Shift-held tab keys. Tabs default
+to their place in the bar ("Digit1" for the leftmost). The bridge doesn't use it.
+
 ## Boards (`boards.json`)
 
 The Notes tab's drawing boards, in a file of their own beside

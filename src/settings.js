@@ -585,6 +585,7 @@
   }
 
   function showPage(name) {
+    if (name === "keyboard" && window.LifeLogKeys) window.LifeLogKeys.renderPage();
     if (name === "about") {
       const P = window.LifeLogPlatform;
       $("#aboutVersion").textContent = "Version " + APP_VERSION + " · " + (P.android ? "Android app" : P.ios ? "iOS app" : "Web app");
@@ -665,6 +666,10 @@
         const v = state.visual;
         const forced = v.forceLayout === "mobile" ? " · phone layout" : v.forceLayout === "pc" ? " · computer layout" : "";
         return { text: (THEMES[v.theme] || THEMES.default) + " · " + (FONTS[v.fontFamily] || FONTS.system) + forced };
+      }
+      case "keyboard": {
+        const n = window.LifeLogKeys ? window.LifeLogKeys.changedCount() : 0;
+        return { text: n ? (n === 1 ? "1 key changed" : n + " keys changed") : "Every key at its default" };
       }
       case "tabs": {
         const offViews = state.visual.disabledViews || [];
@@ -889,6 +894,8 @@
     const D = window.LifeLogPlatform && window.LifeLogPlatform.desktop && window.LifeLogDesktop;
     $("#desktopNotifHint").hidden = !D;
     $("#desktopRow").hidden = !D;
+    $("#keyboardRow").hidden = !(window.LifeLogKeys && window.LifeLogKeys.onComputer());
+    updateKeysFoot();
     $("#openNotifSettingsBtn").hidden = !!D;
     if (D) {
       $("#notifyLede").textContent = "What this computer may ring, while LifeLog is open or in the tray.";
@@ -1583,7 +1590,28 @@
   // Settings-modal DOM wiring; called from app.js's wire(). Journal
   // import/export buttons also live in the Settings modal but are wired
   // from app.js, where those handlers live.
+  // The foot of the Settings list names the key for the shortcut list, as
+  // you have it, and goes when that key is turned off.
+  function updateKeysFoot() {
+    const foot = $("#settingsKeysFoot");
+    const K = window.LifeLogKeys;
+    const combo = K && K.keysFor("help")[0];
+    foot.hidden = !combo;
+    if (!combo) return;
+    foot.replaceChildren("Press ", ...K.parts(combo).flatMap((k, i) => (i ? [" ", el("kbd", null, k)] : [el("kbd", null, k)])), " for keyboard shortcuts");
+  }
+
   function wire() {
+    if (window.LifeLogKeys) {
+      window.LifeLogKeys.initUI({
+        $: (q) => $(q), el: (...a) => el(...a), toast: (...a) => toast(...a), persist: () => persist(),
+        // The tabs as the bar has them, without the ones turned off.
+        tabs: () => viewToggles()
+          .filter(([v]) => !(state.visual.disabledViews || []).includes(v))
+          .map(([view, name, modes]) => ({ view, name, sub: modes.length > 1 ? "Again for the next mode" : "" })),
+        onChange: () => { updateStatuses(); updateKeysFoot(); },
+      });
+    }
     $("#restoreSettingsBtn").onclick = () => $("#restoreSettingsInput").click();
     $("#restoreSettingsInput").onchange = (e) => { if (e.target.files[0]) restoreSettingsFromFile(e.target.files[0]); e.target.value = ""; };
     $("#settingsBtn").onclick = openSettings;

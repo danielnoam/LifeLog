@@ -97,7 +97,7 @@ const { check, done } = tally();
   await page.keyboard.press(k); await page.waitForTimeout(250);
   check("and wraps back round to the first", count > 1 && (await mode()) === first, { count, now: await mode(), first });
   await page.keyboard.press("?"); await page.waitForTimeout(200);
-  check("the cheat-sheet says so", await page.evaluate(() => /again for the next mode/.test(document.querySelector("#shortcutViewRows").textContent)));
+  check("the cheat-sheet says so", await page.evaluate(() => /again for the next mode/.test(document.querySelector("#shortcutRows").textContent)));
 
   await b.close();
   done(errs);
