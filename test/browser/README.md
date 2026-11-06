@@ -42,6 +42,7 @@ because something shipped broken that no unit test could have caught:
 | `pick` | the Backlog's Pick sheet: one button, the draw going through everything before repeating, the category, Starred, Bought and length chips, the wheel reveal landing on the card, Start, and My list's own wheel, each remembered |
 | `noteimages` | images in notes: added, shrunk and removed in the sheet, uploaded to the `lifelog-images` branch before the lifelog.json that points at them, fetched by a second device, Clean up keeping only what notes show and starting the branch over, a device re-uploading what another's clean-up dropped, an Obsidian note imported with its picture, Find in folder, and a re-import seen as a note you have |
 | `droppedfold` | the Dropped fold, including that its rows are dimmed on the frame they appear |
+| `dropdowns` | the app's own list for every select: a click, Space or a phone tap opening it (a menu on a computer, a sheet on a phone), the options in order with the current one marked, arrows + Enter, a click or a tap picking and firing change, Escape and an outside press closing it, and a select inside Settings running its own handler |
 | `sorting` | every sort option means what it says at every level |
 | `everymode` | the bulk bar and progress panel in all five bulk-capable modes |
 | `btnaudit` | no pressable anywhere, rows and cards included, draws the browser's tap-highlight |
