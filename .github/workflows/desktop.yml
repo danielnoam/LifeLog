@@ -148,6 +148,11 @@ jobs:
           # since a merge isn't a release (2026-11-03).
           for i in $(seq 1 40); do
             AT="$(gh api "repos/$GITHUB_REPOSITORY/commits/app-v$V" --jq .sha 2>/dev/null || true)"
+            # Before the tag exists the API answers 422 and gh prints the
+            # error body, so AT came back as that JSON rather than empty: it
+            # read as "released from another commit", and 0.305.0's Windows
+            # build, done before the APK, attached nothing.
+            [[ "$AT" =~ ^[0-9a-f]{40}$ ]] || AT=""
             if [ "$AT" = "$GITHUB_SHA" ]; then
               gh release upload "app-v$V" out/* --clobber
               echo "released=true" >> "$GITHUB_OUTPUT"
