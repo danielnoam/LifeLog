@@ -3,6 +3,23 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.306.0] - 2026-11-06
+
+### Added
+- On a computer, F jumps to search so you can start typing, and Escape clears the search and leaves the box.
+- Tab opens and closes Settings (inside a text field it still moves to the next field).
+- Hold Shift to see each tab's number key beside it.
+- The computer's top bar shows the same icons as the phone's tabs.
+- In the computer app, Ctrl+scroll and Ctrl +/- zoom the view in and out, as in a browser.
+- A Home tab, in the middle of the tab bar: what you're in the middle of, what's coming in the next two weeks (releases and new episodes, recurring charges, habits still left), a scratchpad, and the notes you pin to it. A fresh start opens on Home; a reload stays where you were.
+- The scratchpad syncs between your devices, and Make a note turns what's in it into a note and clears it.
+- Pin to Home in a note's ⋯ menu (and its right-click menu on a computer) puts that note on Home. It stays in the Notebook too.
+- Home's View button orders its sections and turns each one on or off, for this device. Settings → Tabs turns Home off.
+- The AI bridge has `lifelog_home`, `lifelog_set_scratchpad` and `lifelog_pin_note`.
+
+### Fixed
+- ? opens the shortcuts list again on keyboards where Shift+/ doesn't type "?" (it was focusing search instead), and F and N work on a Hebrew layout too.
+
 ## [0.305.0] - 2026-11-06
 
 ### Added
