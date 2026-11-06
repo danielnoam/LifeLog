@@ -89,6 +89,12 @@ const SEED = {
   check("S does", (await focused()) === "search");
   await page.keyboard.press("Escape");
   await blur();
+  // Start from a tab that's neither, so "nothing happened" can't be the
+  // page already sitting on the third tab (Home went first on a computer
+  // in #55, which made the third tab the Timeline this suite opens on).
+  await page.evaluate((skip) => [...document.querySelectorAll("#viewTabs .tab")].find((t) => !skip.includes(t.dataset.view)).click(), [firstTab, secondTab]);
+  await page.waitForTimeout(200);
+  await blur();
   await page.keyboard.press("3");
   await page.waitForTimeout(200);
   const viewNow = () => page.evaluate(() => document.querySelector("#viewTabs .tab.active").dataset.view);
