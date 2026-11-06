@@ -103,7 +103,7 @@ async function run(b, width) {
   check("the dates sit in the foot" + at, await page.evaluate(() => !!document.querySelector(".nv-foot #noteStampLine:not([hidden])")));
   check("no line numbers until they're on" + at, await page.evaluate(() => getComputedStyle(document.querySelector("#nGutter")).display === "none"));
   await page.fill("#nText", "One\nTwo that is long enough to wrap on a phone screen, and then some more words after that\n\nFour");
-  await page.evaluate(() => window.LifeLogSettings.openViewOptions("notes", true));
+  await page.evaluate(() => window.LifeLogSettings.openViewOptions("notes"));
   await page.selectOption("#noteLineNumbers", "on");
   await page.click("#closeViewOptionsBtn");
   const nums = await page.evaluate(() => [...document.querySelectorAll("#nGutter > span")].map((s) => [s.textContent, s.getBoundingClientRect().height]));
@@ -117,7 +117,7 @@ async function run(b, width) {
   d = await saved();
   check("with the text kept" + at, /Four$/.test(d.notes.find((n) => n.title === "Idea").text));
   await page.click("#closeNoteReaderBtn");
-  await page.evaluate(() => window.LifeLogSettings.openViewOptions("notes", true));
+  await page.evaluate(() => window.LifeLogSettings.openViewOptions("notes"));
   await page.selectOption("#noteOpenIn", "edit");
   await page.click("#closeViewOptionsBtn");
   await page.evaluate(() => window.LifeLogNotes.openNote(window.LifeLogStorage.cachedCopy().notes.find((n) => n.title === "Idea")));
@@ -141,6 +141,56 @@ async function run(b, width) {
   }));
   await shot("quote");
   await page.click("#cancelNoteBtn");
+
+  // ---- 0.304.x phone fixes ----
+  await page.evaluate(() => window.LifeLogNotes.openNoteModal(null));
+  check("the whole category chip is the picker, not a label over it" + at, await page.evaluate(() => {
+    const c = document.querySelector("#noteModal .nv-cat").getBoundingClientRect();
+    return [c.left + 3, c.left + c.width / 2, c.right - 3].every((x) => document.elementFromPoint(x, c.top + c.height / 2).id === "nCategory");
+  }));
+  check("a note has no View button of its own; Notebook's View has the options" + at,
+    await page.evaluate(() => !document.querySelector("#noteModal .nv-bar [aria-label='View options'], #noteReader .nv-bar [aria-label='View options']")));
+  await page.keyboard.press("Escape");
+  check("Escape (and phone Back) shuts the editor" + at, await page.evaluate(() => document.querySelector("#noteModal").hidden));
+  await page.evaluate(() => window.LifeLogNotes.openNoteReader(window.LifeLogStorage.cachedCopy().notes.find((n) => n.title === "Idea").id));
+  await page.keyboard.press("Escape");
+  check("and the reader" + at, await page.evaluate(() => document.querySelector("#noteReader").hidden));
+  await page.evaluate(() => window.LifeLogNotes.openNoteReader(window.LifeLogStorage.cachedCopy().notes.find((n) => n.title === "Idea").id));
+  await page.click("#editNoteReaderBtn");
+  await page.waitForTimeout(50);
+  check("switching to Edit doesn't put the cursor in the text (no keyboard)" + at,
+    await page.evaluate(() => !document.querySelector("#noteModal").hidden && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)));
+  await page.click("#cancelNoteBtn");
+
+  await page.evaluate(() => window.LifeLogNotes.openNoteModal(null));
+  await page.click("#noteMoreBtn");
+  check("a new note's ⋯ holds Add image, and no kind or Delete" + at, await page.evaluate(() => {
+    const shown = (s) => { const e = document.querySelector(s); return !!e && e.getClientRects().length > 0; };
+    return shown("#noteMoreMenu #nAddImageBtn") && !shown("#noteKindMenuLabel") && !shown("#deleteNoteBtn") && !shown("#noteFoot");
+  }));
+  await page.keyboard.press("Escape");
+  await page.click("#cancelNoteBtn");
+
+  if (width < 720) {
+    // In the phone app the sheet fills the screen to its edges and keeps
+    // only its own bar and foot clear of the status and gesture bars; the
+    // padding every other sheet gets on native would float it over the page.
+    const fit = await page.evaluate(() => {
+      const html = document.documentElement;
+      html.classList.add("native");
+      html.style.setProperty("--safe-area-inset-top", "40px");
+      html.style.setProperty("--safe-area-inset-bottom", "30px");
+      window.LifeLogNotes.openNoteModal(window.LifeLogStorage.cachedCopy().notes.find((n) => n.title === "Idea"));
+      const m = document.querySelector("#noteModal > .modal").getBoundingClientRect();
+      const bar = document.querySelector("#noteModal .nv-bar").getBoundingClientRect();
+      const foot = document.querySelector("#noteModal .nv-foot").getBoundingClientRect();
+      return { m: [m.top, m.bottom], bar: bar.top, foot: foot.bottom, h: innerHeight };
+    });
+    check("on native the note fills the screen, its bar and foot clear of the system bars" + at,
+      fit.m[0] === 0 && fit.m[1] === fit.h && fit.bar === 40 && fit.foot === fit.h - 30, fit);
+    await page.click("#cancelNoteBtn");
+    await page.evaluate(() => document.documentElement.classList.remove("native"));
+  }
 
   check("the page doesn't scroll sideways" + at, await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   check("no errors" + at, errs.length === 0, errs);

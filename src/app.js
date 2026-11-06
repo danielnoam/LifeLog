@@ -4811,6 +4811,9 @@
         Backlog.closePickModal(); Backlog.closeOutTodaySheet();
         Finance.closeFinanceModal(); Finance.closeRecurringModal(); Finance.closeChangePlanModal();
         Finance.closePauseModal(); Finance.cancelFinanceCatModal();
+        // A note, read or written, shuts the way its × does (phone Back too),
+        // unless a new category's sheet is up over it: that one goes first.
+        if ($("#noteCatModal").hidden) { Notes.closeNoteModal(); Notes.closeNoteReader(); }
         Habits.closeHabitModal(); Habits.closeAmountModal(); Notes.closeNoteCatModal();
         Travel.closeTripModal(); Travel.closePlaceModal(); Travel.closeImportModal(); Share.close();
         SettingsUI.closeSettings();

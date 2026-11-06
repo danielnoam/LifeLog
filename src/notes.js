@@ -396,9 +396,9 @@
       stamp.appendChild(cat);
     }
     // ★ keeps a note at the top, above the years (0.196.0) — a board too (0.208.0).
-    if (!state.bulk.active) stamp.appendChild(favButton(n));
+    // First in the line so it floats at the end of the first row, not under a wrapped one.
+    if (!state.bulk.active) stamp.prepend(favButton(n));
     if (isBoardItem(n)) return boardCard(card, n, stamp);
-    card.appendChild(stamp);
     // textContent, never innerHTML: a note is whatever you typed, and the
     // white-space CSS is what keeps your line breaks.
     const kind = kindOf(n);
@@ -416,6 +416,8 @@
       if (n.title) card.appendChild(el("h4", "note-title", n.title));
       if (n.text) card.appendChild(noteBody(n.text));
     }
+    // The words first, when and where at the foot, as in the note itself.
+    card.appendChild(stamp);
     card.tabIndex = 0;
     card.setAttribute("role", "button");
     return card;
@@ -432,14 +434,14 @@
     return fav;
   }
 
-  // A board in the feed: its stamp and category, its name, its picture.
+  // A board in the feed: its name, its picture, then its stamp and category.
   function boardCard(card, n, stamp) {
     card.classList.add("is-board");
-    card.appendChild(stamp);
-    card.appendChild(el("p", "note-text note-list-title")).appendChild(window.LifeLogIcons.labelled("presentation", n.text));
+    card.appendChild(el("p", "note-text note-list-title", n.text));
     const thumb = el("div", "board-thumb-inline");
     thumb.appendChild(window.LifeLogBoards.thumbnail(n.board));
     card.appendChild(thumb);
+    card.appendChild(stamp);
     card.tabIndex = 0;
     card.setAttribute("role", "button");
     return card;
@@ -1331,13 +1333,19 @@
     $("#nTextLabel").hidden = sheetKind === "list";
     $("#nQuoteFields").hidden = sheetKind !== "quote";
     $("#nImages").hidden = sheetKind !== "text";
-    $("#nAddImageBtn").hidden = sheetKind !== "text";
     $("#nListHint").hidden = sheetKind !== "list" || sheetItems.length < 2;
     $("#nTextLabelText").textContent = sheetKind === "quote" ? "Quote" : "Note";
     $("#nText").placeholder = sheetKind === "quote" ? "The words, as they were said" : "What happened, what you noticed…";
     $("#nText").rows = sheetKind === "quote" ? 4 : 8;
     const editing = editingNoteId && state.data.notes.find((x) => x.id === editingNoteId);
     $("#noteToEntryBtn").hidden = !editing || sheetKind !== "text";
+    // ⋯ holds Add image (a note's own), and for a saved note its kind,
+    // Make entry and Delete; a new checklist or quote has nothing in it.
+    const images = sheetKind === "text";
+    $("#nAddImageBtn").hidden = !images;
+    $("#noteImageRule").hidden = !images || !editing;
+    $("#noteKindMenuLabel").hidden = $("#noteMenuRule").hidden = !editing;
+    $("#noteMoreBtn").hidden = !editing && !images;
     // Reading is for what's written; a checklist is its own page.
     $("#noteModeSeg").hidden = !editing || sheetKind === "list";
     fitText();
@@ -1611,7 +1619,6 @@
     if (note) $("#noteKindMenuSlot").appendChild(seg);
     else $("#noteForm .nv-col").prepend(seg);
     seg.querySelector('[data-kind="board"]').hidden = !!note;
-    $("#noteMoreBtn").hidden = !note;
     $("#noteModalTitle").textContent = note ? "Edit note" : "New note";
     $("#nText").value = note && kindOf(note) !== "list" ? note.text : "";
     $("#nTitle").value = !note ? "" : kindOf(note) === "list" ? note.text : (note.title || "");
@@ -1623,6 +1630,7 @@
     fillCategorySelect(note ? note.category : ([...state.noteActiveCats].find(Boolean) || ""));
     $("#deleteNoteBtn").hidden = !note;
     const stamp = $("#noteStampLine");
+    $("#noteFoot").hidden = !note;
     if (note) {
       let line = "Written " + formatStamp(noteDate(note));
       if (note.editedAt) {
@@ -1640,7 +1648,10 @@
     $("#noteForm").scrollTop = 0;
     if ($("#noteModal").hidden) $("#noteModal").hidden = false;
     fitText();
-    (sheetKind === "list" ? (note ? $("#nNewItem") : $("#nTitle")) : $("#nText")).focus({ preventScroll: true });
+    // Only a new note starts typing. An existing one, opened to edit or
+    // switched to Edit from reading, waits for a tap, so the phone's
+    // keyboard doesn't cover what you were about to read.
+    if (!note) (sheetKind === "list" ? $("#nTitle") : $("#nText")).focus({ preventScroll: true });
   }
   function closeNoteModal() { closeNoteMenu(); $("#noteModal").hidden = true; }
 
@@ -1713,9 +1724,6 @@
       saveNote(() => { closeNoteMenu(); openNoteReader(id); swapSheets("#noteModal", "#noteReader"); });
     };
     $("#cancelNoteBtn").onclick = closeNoteModal;
-    const viewOptions = () => { closeNoteMenu(); window.LifeLogSettings.openViewOptions("notes", true); };
-    $("#noteViewBtn").onclick = viewOptions;
-    $("#noteReaderViewBtn").onclick = viewOptions;
     $("#noteMoreBtn").onclick = (ev) => { ev.stopPropagation(); toggleNoteMenu(); };
     $("#noteMoreMenu").addEventListener("click", (ev) => { if (ev.target.closest("button")) closeNoteMenu(); });
     $("#noteModal").addEventListener("pointerdown", (ev) => {
