@@ -1612,7 +1612,7 @@ const TOOLS = [
   },
   {
     name: "lifelog_update_board",
-    description: "Rename a drawing board, file it under a note category, or star it. keep files Home's scratch board as an ordinary board, as Keep as a board does. Its drawing isn't touched.",
+    description: "Rename a drawing board, file it under a note category, or star it. keep files Home's scratch board as an ordinary board, as Home's Save to Notebook does. Its drawing isn't touched.",
     input: { board: S.str("Its id or name"), name: S.str("New name"), category: S.str("A note category; empty for none"), fav: S.bool("Starred"), keep: S.bool("Home's scratch board only: file it in the Boards list (Home starts a blank one)") },
     required: ["board"],
     async run(a) {

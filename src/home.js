@@ -257,7 +257,7 @@
   function fitPad() {
     if (!pad || !pad.isConnected) return;
     pad.style.height = "auto";
-    pad.style.height = Math.max(pad.scrollHeight, 160) + "px";
+    pad.style.height = Math.max(pad.scrollHeight, 240) + "px";
   }
   const markPad = (text) => { const s = $("#homePadState"); if (s) s.textContent = text; };
   async function savePad() {
@@ -317,7 +317,7 @@
     foot.appendChild(el("span", "spacer"));
     const make = el("button", "btn btn-small");
     make.type = "button";
-    make.append(ico("plus"), document.createTextNode(" Make a note"));
+    make.append(ico("plus"), document.createTextNode(" Save to Notebook"));
     make.title = "Save what's here as a note in your Notebook and clear the scratchpad";
     make.onclick = makeNote;
     foot.appendChild(make);
@@ -350,7 +350,7 @@
     foot.appendChild(el("span", "spacer"));
     const keep = el("button", "btn btn-small");
     keep.type = "button";
-    keep.append(ico("plus"), document.createTextNode(" Keep as a board"));
+    keep.append(ico("plus"), document.createTextNode(" Save to Notebook"));
     keep.title = "File this drawing as a board in your Notebook and start a blank one";
     keep.onclick = keepBoard;
     foot.appendChild(keep);
@@ -371,7 +371,7 @@
     probe.style.width = open.offsetWidth + "px";
     probe.style.height = "auto";
     open.parentNode.appendChild(probe);
-    open.style.height = Math.max(probe.scrollHeight, 160) + "px";
+    open.style.height = Math.max(probe.scrollHeight, 240) + "px";
     probe.remove();
   }
 
