@@ -2740,7 +2740,14 @@ kbd {
 .rating-input { display: flex; gap: 4px; margin-top: 6px; }
 .rating-input .star { background: none; border: none; cursor: pointer; padding: 0; font-size: var(--fs-2xl); line-height: 1; color: var(--text-faint); }
 .rating-input .star.filled { color: var(--accent); }
-.rating-input .star:hover { color: var(--accent-hover); }
+/* Hover previews the rating it would set: every star up to the pointer
+   lights, the ones after it dim even if filled. Hover-capable pointers
+   only, so a tap on a phone doesn't leave a stuck preview. */
+@media (hover: hover) {
+  .rating-input:has(.star:hover) .star { color: var(--text-faint); }
+  .rating-input:has(.star:hover) .star:hover,
+  .rating-input:has(.star:hover) .star:has(~ .star:hover) { color: var(--accent-hover); }
+}
 
 .modal-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
 /* The search results page (0.251.0): over the tab while the box has text. */
