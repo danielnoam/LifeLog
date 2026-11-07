@@ -49,7 +49,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Title suggestions from past entries and the backlog (0.5.0, 0.38.0)
 - Cover art, genres and length from the media lookups (0.44.0, 0.51.0, 0.72.0)
 - Started month, for things that took more than one month (0.95.0)
-- One date picker each for Finished and Started; the day is saved, not shown yet (0.281.0)
+- One date picker each for Started and Finished, in that order; the day is saved, not shown yet (0.281.0)
 - Notes carry over between the Backlog and the Timeline both ways (0.51.0, 0.281.0)
 - In progress card at the top, with ✓ Done logging the months it took (0.218.0)
 - An episode count on In progress items: + on the row, − and + in the sheet, per category (0.292.0)
