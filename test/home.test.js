@@ -57,9 +57,11 @@ test("habits still to do today are one row; a weekly goal short of its target is
     { id: "h3", name: "Gym", period: "week", target: 3, order: 2, startedAt: at(-10), marks: {} },
   ].map(Habits.sanitizeHabit) };
   const rows = Home.comingUp(data, today, deps).filter((r) => r.kind === "habit");
-  assert.strictEqual(rows[0].period, "day");
-  assert.strictEqual(rows[0].title, "Read, Walk");
-  assert.strictEqual(rows[0].count, 2);
+  // On the week's last day the weekly row is due today too, so find rows by period, not position.
+  const daily = rows.filter((r) => r.period === "day");
+  assert.strictEqual(daily.length, 1);
+  assert.strictEqual(daily[0].title, "Read, Walk");
+  assert.strictEqual(daily[0].count, 2);
   const gym = rows.find((r) => r.title === "Gym");
   assert.ok(gym && gym.period === "week" && gym.target === 3 && gym.done === 0, JSON.stringify(rows));
 });
