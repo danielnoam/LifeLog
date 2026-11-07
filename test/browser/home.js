@@ -105,7 +105,10 @@ const SEED = {
   check("and is kept for this device", JSON.stringify(vis.homeSections) === JSON.stringify(["pinned", "progress", "upcoming", "scratchpad"]) && vis.homeHidden.join() === "progress", vis);
 
   // ---- the scratchpad as a board ----
+  const padH = await page.evaluate(() => document.querySelector(".home-scratch .home-card").offsetHeight);
   await page.click('.home-pad-mode .seg-btn[data-mode="board"]'); await page.waitForTimeout(500);
+  const boardH = await page.evaluate(() => document.querySelector(".home-scratch .home-card").offsetHeight);
+  check("the board card is as tall as the note card", Math.abs(padH - boardH) <= 1, { padH, boardH });
   check("Board swaps the text pad for the scratch board", (await page.$("#homeScratchpad")) === null && (await page.textContent("#homeScratchBoard")).includes("Nothing drawn yet"));
   check("and is remembered for this device", await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-visual-settings-v1")).homeScratchMode) === "board");
   await page.click("#homeScratchBoard"); await page.waitForTimeout(500);

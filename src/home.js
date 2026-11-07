@@ -341,14 +341,12 @@
         open.appendChild(B.thumbnail(b));
         open.setAttribute("aria-label", "Open the scratch board");
       } else open.appendChild(el("span", "home-board-empty", "Nothing drawn yet"));
+      if (!open.hasAttribute("aria-label")) open.setAttribute("aria-label", "Draw on the scratch board");
     }
-    const hint = el("span", "home-board-hint");
-    hint.append(ico("pencil"), document.createTextNode(" Tap to draw"));
-    open.appendChild(hint);
     open.onclick = () => B.openScratch();
     card.appendChild(open);
+    requestAnimationFrame(() => matchPad(open));
     const foot = el("div", "home-pad-foot");
-    foot.appendChild(el("span", "home-pad-state", "Syncs like your boards"));
     foot.appendChild(el("span", "spacer"));
     const keep = el("button", "btn btn-small");
     keep.type = "button";
@@ -358,6 +356,23 @@
     foot.appendChild(keep);
     card.appendChild(foot);
     return card;
+  }
+
+  // The board is as tall as the text pad would be here, so switching
+  // between Note and Board doesn't move what's under the card.
+  function matchPad(open) {
+    if (!open.isConnected) return;
+    const probe = el("textarea", "home-pad");
+    probe.value = state.data.settings.scratchpad || "";
+    probe.setAttribute("aria-hidden", "true");
+    probe.tabIndex = -1;
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.width = open.offsetWidth + "px";
+    probe.style.height = "auto";
+    open.parentNode.appendChild(probe);
+    open.style.height = Math.max(probe.scrollHeight, 160) + "px";
+    probe.remove();
   }
 
   async function keepBoard() {
