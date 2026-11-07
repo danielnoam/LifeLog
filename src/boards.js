@@ -254,7 +254,7 @@
     // ★, as a note has (0.208.0): first on the Boards page and in Favourites.
     if (b.fav) out.fav = true;
     // Home's scratchpad in Board mode: kept out of the Boards list and the
-    // feed until Keep as a board files it.
+    // feed until Save to Notebook files it.
     if (b.scratch) out.scratch = true;
     return out;
   }
