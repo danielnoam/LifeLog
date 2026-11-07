@@ -5000,7 +5000,7 @@ html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(-
 .home-row-end.is-money { color: var(--text); font-weight: 600; }
 
 .home-pad {
-  display: block; width: 100%; min-height: 160px; resize: none; overflow: hidden; border: 0; outline: none; background: transparent;
+  display: block; width: 100%; min-height: 240px; resize: none; overflow: hidden; border: 0; outline: none; background: transparent;
   padding: var(--space-14) var(--space-16); color: var(--text); font: inherit; font-size: var(--fs-read); line-height: 1.6;
 }
 .home-pad::placeholder { color: var(--text-dim); }
@@ -5011,21 +5011,17 @@ html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(-
 /* Note / Board (src/home.js modeSwitch). Pulled into the head's line box
    with negative margins, so the Scratchpad head stays as tall as the heads
    beside it. */
-.home-pad-mode { margin: -14px 0 -6px auto; }
-.home-pad-mode .seg-btn { display: inline-flex; align-items: center; gap: var(--space-6); min-height: 32px; padding: 0 var(--space-10); font-size: var(--fs-xs); }
-.home-pad-mode .seg-btn .ico { width: 14px; height: 14px; }
+.home-pad-mode { margin: -4px 0 -4px auto; padding: 1px; gap: 1px; }
+.home-pad-mode .seg-btn { position: relative; display: inline-flex; align-items: center; gap: var(--space-4); min-height: 22px; padding: 0 var(--space-8); font-size: var(--fs-2xs); line-height: 1; }
+/* The tap area stays 44px tall on a phone without the switch growing. */
+.home-pad-mode .seg-btn::after { content: ""; position: absolute; inset: -11px 0; }
+.home-pad-mode .seg-btn .ico { width: 12px; height: 12px; }
 .home-board {
-  position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 220px;
+  position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 240px;
   padding: var(--space-14); border: 0; background: var(--bg); color: var(--text); font: inherit; cursor: pointer;
 }
 .home-board .board-thumb-svg { width: 100%; height: 100%; }
 .home-board-empty { color: var(--text-dim); font-size: var(--fs-sm); }
-.home-board-hint {
-  position: absolute; top: var(--space-10); right: var(--space-10); display: inline-flex; align-items: center; gap: var(--space-6);
-  padding: var(--space-4) var(--space-10); border-radius: var(--r-pill); background: var(--surface-card); border: 1px solid var(--border);
-  font-size: var(--fs-xs); color: var(--text-dim);
-}
-.home-board-hint .ico { width: 14px; height: 14px; }
 .home-card:has(.home-board:focus-visible) { border-color: var(--accent); }
 
 .home-pins { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-12); align-items: start; }
@@ -5038,12 +5034,12 @@ html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(-
   html:not(.force-pc) .home-tile { flex-basis: 112px; }
   html:not(.force-pc) .home-pins { grid-template-columns: minmax(0, 1fr); }
   html:not(.force-pc) .home-pad { font-size: var(--fs-lg); }
-  html:not(.force-pc) .home-pad-mode { margin: -8px 0 -4px auto; }
-  html:not(.force-pc) .home-pad-mode .seg-btn { min-height: 44px; }
+  html:not(.force-pc) .home-pad-mode .seg-btn { min-height: 28px; }
+  html:not(.force-pc) .home-pad-mode .seg-btn::after { inset: -8px 0; }
 }
 html.force-mobile .home-pair, html.force-mobile .home-pair.is-3 { grid-template-columns: minmax(0, 1fr); }
 html.force-mobile .home-tile { flex-basis: 112px; }
 html.force-mobile .home-pins { grid-template-columns: minmax(0, 1fr); }
 html.force-mobile .home-pad { font-size: var(--fs-lg); }
-html.force-mobile .home-pad-mode { margin: -8px 0 -4px auto; }
-html.force-mobile .home-pad-mode .seg-btn { min-height: 44px; }
+html.force-mobile .home-pad-mode .seg-btn { min-height: 28px; }
+html.force-mobile .home-pad-mode .seg-btn::after { inset: -8px 0; }

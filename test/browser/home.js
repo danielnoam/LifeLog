@@ -75,9 +75,9 @@ const SEED = {
   await page.reload({ waitUntil: "networkidle" }); await page.waitForTimeout(600);
   check("a reload on another tab stays on it", (await active()) === "backlog", await active());
   await page.click('#viewTabs .tab[data-view="home"]'); await page.waitForTimeout(400);
-  await page.click('.home-scratch button:has-text("Make a note")'); await page.waitForTimeout(500);
+  await page.click('.home-scratch button:has-text("Save to Notebook")'); await page.waitForTimeout(500);
   const made = await page.evaluate(() => { const d = window.LifeLogStorage.cachedCopy(); return { pad: d.settings.scratchpad, note: (d.notes.find((n) => n.text === "Buy stamps") || {}).id }; });
-  check("Make a note turns it into a note and clears the scratchpad", !!made.note && made.pad === undefined && (await page.inputValue("#homeScratchpad")) === "", made);
+  check("Save to Notebook turns it into a note and clears the scratchpad", !!made.note && made.pad === undefined && (await page.inputValue("#homeScratchpad")) === "", made);
 
   // ---- pinning from a note's ⋯ menu ----
   await page.evaluate(() => window.LifeLogNotes.openNote(window.LifeLogStorage.cachedCopy().notes.find((n) => n.id === "n2")));
@@ -105,7 +105,10 @@ const SEED = {
   check("and is kept for this device", JSON.stringify(vis.homeSections) === JSON.stringify(["pinned", "progress", "upcoming", "scratchpad"]) && vis.homeHidden.join() === "progress", vis);
 
   // ---- the scratchpad as a board ----
+  const padH = await page.evaluate(() => document.querySelector(".home-scratch .home-card").offsetHeight);
   await page.click('.home-pad-mode .seg-btn[data-mode="board"]'); await page.waitForTimeout(500);
+  const boardH = await page.evaluate(() => document.querySelector(".home-scratch .home-card").offsetHeight);
+  check("the board card is as tall as the note card", Math.abs(padH - boardH) <= 1, { padH, boardH });
   check("Board swaps the text pad for the scratch board", (await page.$("#homeScratchpad")) === null && (await page.textContent("#homeScratchBoard")).includes("Nothing drawn yet"));
   check("and is remembered for this device", await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-visual-settings-v1")).homeScratchMode) === "board");
   await page.click("#homeScratchBoard"); await page.waitForTimeout(500);
@@ -114,9 +117,9 @@ const SEED = {
   await page.click("#boardBack"); await page.waitForTimeout(500);
   const sb = await page.evaluate(() => ({ scratch: !!(window.LifeLogBoards.scratchBoard() || {}).scratch, listed: window.LifeLogBoards.boardsNow().length, thumb: !!document.querySelector("#homeScratchBoard svg") }));
   check("the drawing shows on Home, and stays out of the Boards list", sb.scratch && sb.listed === 0 && sb.thumb, sb);
-  await page.click('.home-scratch button:has-text("Keep as a board")'); await page.waitForTimeout(500);
+  await page.click('.home-scratch button:has-text("Save to Notebook")'); await page.waitForTimeout(500);
   const kept = await page.evaluate(() => ({ scratch: window.LifeLogBoards.scratchBoard(), listed: window.LifeLogBoards.boardsNow().map((b) => b.elements.length) }));
-  check("Keep as a board files it and leaves a blank one", kept.scratch === null && JSON.stringify(kept.listed) === "[1]" && (await page.textContent("#homeScratchBoard")).includes("Nothing drawn yet"), kept);
+  check("in Board, Save to Notebook files it and leaves a blank one", kept.scratch === null && JSON.stringify(kept.listed) === "[1]" && (await page.textContent("#homeScratchBoard")).includes("Nothing drawn yet"), kept);
   await page.click('.home-pad-mode .seg-btn[data-mode="note"]'); await page.waitForTimeout(400);
   check("Note brings the text pad back", (await page.$("#homeScratchpad")) !== null);
   const rowHeads = await page.evaluate(() => [...document.querySelectorAll(".home-pair .home-sec-head")].map((h) => Math.round(h.getBoundingClientRect().height)));

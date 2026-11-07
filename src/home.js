@@ -257,7 +257,7 @@
   function fitPad() {
     if (!pad || !pad.isConnected) return;
     pad.style.height = "auto";
-    pad.style.height = Math.max(pad.scrollHeight, 160) + "px";
+    pad.style.height = Math.max(pad.scrollHeight, 240) + "px";
   }
   const markPad = (text) => { const s = $("#homePadState"); if (s) s.textContent = text; };
   async function savePad() {
@@ -317,7 +317,7 @@
     foot.appendChild(el("span", "spacer"));
     const make = el("button", "btn btn-small");
     make.type = "button";
-    make.append(ico("plus"), document.createTextNode(" Make a note"));
+    make.append(ico("plus"), document.createTextNode(" Save to Notebook"));
     make.title = "Save what's here as a note in your Notebook and clear the scratchpad";
     make.onclick = makeNote;
     foot.appendChild(make);
@@ -341,23 +341,38 @@
         open.appendChild(B.thumbnail(b));
         open.setAttribute("aria-label", "Open the scratch board");
       } else open.appendChild(el("span", "home-board-empty", "Nothing drawn yet"));
+      if (!open.hasAttribute("aria-label")) open.setAttribute("aria-label", "Draw on the scratch board");
     }
-    const hint = el("span", "home-board-hint");
-    hint.append(ico("pencil"), document.createTextNode(" Tap to draw"));
-    open.appendChild(hint);
     open.onclick = () => B.openScratch();
     card.appendChild(open);
+    requestAnimationFrame(() => matchPad(open));
     const foot = el("div", "home-pad-foot");
-    foot.appendChild(el("span", "home-pad-state", "Syncs like your boards"));
     foot.appendChild(el("span", "spacer"));
     const keep = el("button", "btn btn-small");
     keep.type = "button";
-    keep.append(ico("plus"), document.createTextNode(" Keep as a board"));
+    keep.append(ico("plus"), document.createTextNode(" Save to Notebook"));
     keep.title = "File this drawing as a board in your Notebook and start a blank one";
     keep.onclick = keepBoard;
     foot.appendChild(keep);
     card.appendChild(foot);
     return card;
+  }
+
+  // The board is as tall as the text pad would be here, so switching
+  // between Note and Board doesn't move what's under the card.
+  function matchPad(open) {
+    if (!open.isConnected) return;
+    const probe = el("textarea", "home-pad");
+    probe.value = state.data.settings.scratchpad || "";
+    probe.setAttribute("aria-hidden", "true");
+    probe.tabIndex = -1;
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    probe.style.width = open.offsetWidth + "px";
+    probe.style.height = "auto";
+    open.parentNode.appendChild(probe);
+    open.style.height = Math.max(probe.scrollHeight, 240) + "px";
+    probe.remove();
   }
 
   async function keepBoard() {
