@@ -1,6 +1,6 @@
 # Builds the Windows and Linux app (Tauri, src-tauri/) from the same files
 # GitHub Pages serves, and attaches it to the app-v<version> release the
-# Android workflow publishes. Same gate as android.yml: main always builds,
+# Android workflow publishes. Same gate as android.yml: main builds a new APP_VERSION only,
 # any other branch when its open pull request carries `test` or
 # `test-desktop`, or when run by hand (an artifact only, no pre-release). Windows only by default (2026-11-04: Daniel builds the
 # web app, Windows and the APK unless he asks for more); Linux joins when
@@ -39,6 +39,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ github.ref_name }}
+          BEFORE: ${{ github.event.before }}
           LINUX_ASKED: ${{ github.event_name == 'workflow_dispatch' && inputs.linux }}
         run: |
           WIN='{"os":"windows-latest","name":"windows","bundles":"nsis"}'
@@ -53,7 +54,20 @@ jobs:
           if [ "$LINUX_ASKED" = true ]; then INC="[$LIN,$WIN]"; else INC="[$WIN]"; fi
           echo "matrix={\"include\":$INC}" >> "$GITHUB_OUTPUT"
           if [ "$GITHUB_REF" = refs/heads/main ]; then
-            echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=false" >> "$GITHUB_OUTPUT"; exit 0
+            # A merge to main builds when it carries a new APP_VERSION (a
+            # release) or touches the native or build side; a plain app change
+            # is already covered by the PR's Tests check, so it's web only
+            # (2026-11-08). Run by hand to build anyway.
+            V=$(gh api "repos/$GITHUB_REPOSITORY/contents/src/app.js?ref=$GITHUB_SHA" -H "Accept: application/vnd.github.raw" | sed -n 's/.*const APP_VERSION = "\([^"]*\)".*/\1/p' || true)
+            NATIVE=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$GITHUB_SHA" --jq '.files[].filename' 2>/dev/null | grep -E '^(native/|src-tauri/|assets/|\.github/workflows/|tools/(build-www|android-|desktop-files|sign-apk|widget-icons|test-build)|package(-lock)?\.json$|capacitor\.config)' | head -3 || true)
+            if [ "$GITHUB_EVENT_NAME" = push ] && [ -n "$V" ] && [ -z "$NATIVE" ] && gh release view "app-v$V" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "app-v$V is already released and nothing native changed, so this merge builds nothing"
+              echo "build=false" >> "$GITHUB_OUTPUT"
+            else
+              [ -n "$NATIVE" ] && echo "Native or build files changed: $NATIVE"
+              echo "build=true" >> "$GITHUB_OUTPUT"
+            fi
+            echo "test=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
           case "$LABELS" in
             *,test,*|*,test-desktop,*|*,test-linux,*) echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=true" >> "$GITHUB_OUTPUT" ;;

@@ -176,7 +176,12 @@ force-push `main`.
   pass), version bump or not.
 - **What builds by default (2026-11-04):** the web app, the APK and the
   Windows app, nothing else unless Daniel asks. `android.yml` and
-  `desktop.yml` (Windows) build `main` on every push. `ios.yml` builds
+  `desktop.yml` (Windows) build a push to `main` only when it carries a new
+  `APP_VERSION` (a release) or touches the native or build side
+  (`native/`, `src-tauri/`, `assets/`, the workflows, the build tools,
+  `package.json`, `capacitor.config.json`); a plain merge is web only,
+  since its PR already passed Tests (2026-11-08). Run either by hand to
+  build anyway. `ios.yml` builds
   only when run by hand (Actions → iOS app → Run workflow), and Linux only
   when `desktop.yml` is run by hand with **Linux too** ticked; on `main`
   either attaches to the current version's release. Pushes that only
