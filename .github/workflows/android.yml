@@ -18,7 +18,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # main always builds. Any other branch builds when its open pull request
+  # main builds when APP_VERSION is new (a release). Any other branch builds when its open pull request
   # carries a test label (test or test-android), so a branch push doesn't
   # spend a build nobody asked for (2026-11-02, CONTRIBUTING.md), or when the
   # workflow is run by hand: that APK gets the throwaway key and no
@@ -33,9 +33,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ github.ref_name }}
+          BEFORE: ${{ github.event.before }}
         run: |
           if [ "$GITHUB_REF" = refs/heads/main ]; then
-            echo "build=true" >> "$GITHUB_OUTPUT"; echo "test=false" >> "$GITHUB_OUTPUT"; exit 0
+            # A merge to main builds when it carries a new APP_VERSION (a
+            # release) or touches the native or build side; a plain app change
+            # is already covered by the PR's Tests check, so it's web only
+            # (2026-11-08). Run by hand to build anyway.
+            V=$(gh api "repos/$GITHUB_REPOSITORY/contents/src/app.js?ref=$GITHUB_SHA" -H "Accept: application/vnd.github.raw" | sed -n 's/.*const APP_VERSION = "\([^"]*\)".*/\1/p' || true)
+            NATIVE=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$GITHUB_SHA" --jq '.files[].filename' 2>/dev/null | grep -E '^(native/|src-tauri/|assets/|\.github/workflows/|tools/(build-www|android-|desktop-files|sign-apk|widget-icons|test-build)|package(-lock)?\.json$|capacitor\.config)' | head -3 || true)
+            if [ "$GITHUB_EVENT_NAME" = push ] && [ -n "$V" ] && [ -z "$NATIVE" ] && gh release view "app-v$V" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "app-v$V is already released and nothing native changed, so this merge builds nothing"
+              echo "build=false" >> "$GITHUB_OUTPUT"
+            else
+              [ -n "$NATIVE" ] && echo "Native or build files changed: $NATIVE"
+              echo "build=true" >> "$GITHUB_OUTPUT"
+            fi
+            echo "test=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
           LABELS=",$(gh pr list -R "$GITHUB_REPOSITORY" --head "$BRANCH" --state open --json labels --jq '.[:1][] | [.labels[].name] | join(",")' 2>/dev/null || true),"
           case "$LABELS" in
