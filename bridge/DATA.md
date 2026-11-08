@@ -265,10 +265,17 @@ Groups of expenses, like a trip: `id`, `name`, `color`, `createdAt`,
   with no mark is a kept day.
 - `limit`: for an avoided habit, how many slips a day still keeps.
 - `startedAt`: the first day it counts. `archivedAt`: the day it stopped.
+  Marks before `startedAt` are kept but don't count, so the bridge's
+  `lifelog_mark_habit` and `lifelog_fill_habit` move the start back to the
+  earliest day they fill.
 
 A streak counts consecutive due days kept; a day the habit isn't due doesn't
 break one, and today not done yet doesn't either. For a goal it counts
 periods met in a row, and the current period only adds once it's met.
+`lifelog_fill_habit` fills in the past in one go: every due day done, a
+value each day, or a total ("100 hours") spread evenly over a range or a
+list of days, leaving days that already have something unless told to
+overwrite.
 `lifelog_habits_left` lists what's still open today and this week, month and
 year, the way the Habits page's Left to do panel does.
 

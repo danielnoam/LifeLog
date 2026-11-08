@@ -275,6 +275,7 @@ Every release that adds a feature adds its line here in the same commit.
 - A note's images, read as pictures and added from a file or base64 (0.297.0)
 - What Home shows, the scratchpad written, notes pinned to Home and unpinned (0.306.0)
 - What Home's Ledger card shows, in `lifelog_home` (0.308.0)
+- A habit's past filled in one go: every due day done, a value a day, or a total spread over a range or a list of days; a day before the start moves the start back (0.309.0)
 
 ## Building and shipping
 

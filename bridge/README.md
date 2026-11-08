@@ -80,6 +80,7 @@ next sync),
 `lifelog_add_note`, `lifelog_add_note_image` (a picture from a file or
 base64, kept beside the data like the app's), `lifelog_set_scratchpad`,
 `lifelog_pin_note` (pin a note to Home, or unpin it), `lifelog_update_list`, `lifelog_mark_habit`,
+`lifelog_fill_habit` (a range or list of past days: done, a value each, or a total spread over them),
 `lifelog_update_item`, `lifelog_delete_item`,
 `lifelog_add_accomplishment`, `lifelog_update_accomplishment`,
 `lifelog_delete_accomplishment`, `lifelog_rename_category`,

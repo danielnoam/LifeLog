@@ -1372,14 +1372,96 @@ const TOOLS = [
           : Math.min(was + 1, h.target || 1);
         const marks = { ...(h.marks || {}) };
         if (value) marks[date] = value; else delete marks[date];
-        const next = cleanItem(d, "habits", { ...h, marks });
+        // A mark before the start would be kept but never counted (see
+        // orphanedMarks), so a day before it moves the start back to it.
+        const moved = value && h.startedAt && date < h.startedAt ? h.startedAt : null;
+        const next = cleanItem(d, "habits", { ...h, marks, ...(moved ? { startedAt: date } : {}) });
         replaceItem(d, "habits", next);
         const np = Habits.progressOf(next, date);
         const amt = (n) => (Habits.isMinutes(next) ? Habits.minutesLabel(n) : String(n));
         const state = Habits.isPeriodic(next) || Habits.isMinutes(next)
           ? `${amt(np.done)} of ${amt(np.target)} ${np.period === "day" ? "that day" : "that " + np.period}${np.met ? ", done" : ""}`
           : Habits.isDone(next, date) ? (h.avoid ? "still kept" : "done") : (h.avoid ? "over the limit" : `${value} of ${h.target || 1}`);
-        return { text: `${h.name} on ${date}: ${value} (${state}). Streak now ${Habits.streakOf(next, today())}.`, touched: [["habits", h.id]] };
+        const notes = (moved ? ` Moved its start back from ${moved} to ${date}.` : "")
+          + (value && !Habits.isDue(next, date) ? " It isn't due that day, so it doesn't count." : "");
+        return { text: `${h.name} on ${date}: ${value} (${state}). Streak now ${Habits.streakOf(next, today())}.${notes}`, touched: [["habits", h.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_fill_habit",
+    description: "Fill in a habit's past in one go: over a date range (from/to) or a list of dates, mark every due day done, set each day to a value, or spread a total across the days (\"100 hours on the project between March and May\" is total_hours 100, evenly over those days). Days that already have something are left as they are unless overwrite is true, and a total is then spread over the empty days only. A day before the habit's start moves the start back to it. Works on weekly, monthly and yearly goals too (give value or total; done counts one time a day). For a habit you avoid, value is that day's slips. value 0 clears the days. One change, so lifelog_undo takes it all back.",
+    input: {
+      habit: S.str("Its id or name"),
+      from: S.date("First day of the range"), to: S.date("Last day of the range, default today"),
+      dates: { type: "array", items: { type: "string" }, description: "Instead of a range: the exact days (YYYY-MM-DD)" },
+      value: S.int("Set each day to this (minutes for a timed habit); 0 clears them"),
+      total: S.int("Spread this much across the days, in the habit's unit (times, or minutes for a timed habit)"),
+      total_hours: S.num("For a timed habit: spread this many hours across the days"),
+      overwrite: S.bool("Replace what days already have, default false"),
+    },
+    required: ["habit"],
+    async run(a) {
+      const t = today();
+      const list = a.dates != null ? (Array.isArray(a.dates) ? a.dates : fail("dates is a list of YYYY-MM-DD days.")) : null;
+      if (list && (a.from || a.to)) fail("Give either from/to or dates, not both.");
+      if (list) for (const x of list) requireDate(x, "dates");
+      if (list && !list.length) fail("dates is empty.");
+      const from = requireDate(a.from, "from");
+      const to = requireDate(a.to, "to") || t;
+      if (!list && !from) fail("Give from (and to, default today), or dates.");
+      if (!list && from > to) fail("from comes after to.");
+      const asked = [a.value != null, a.total != null, a.total_hours != null].filter(Boolean).length;
+      if (asked > 1) fail("Give one of value, total or total_hours.");
+      const days0 = list ? [...new Set(list)].sort() : [];
+      if (!list) for (let c = from, g = 0; c <= to; c = Finance.addDaysStr(c, 1)) { if (++g > 4000) fail("That's more than 4000 days; fill it in parts."); days0.push(c); }
+      if (days0[days0.length - 1] > t) fail("Some of those days haven't happened yet.");
+      return change(`fill habit "${a.habit}" ${days0[0]}..${days0[days0.length - 1]}`, (d) => {
+        const h = findItem(d, "habits", a.habit);
+        const mins = Habits.isMinutes(h), periodic = Habits.isPeriodic(h);
+        if (a.total_hours != null && !mins) fail(`${h.name} counts times, not minutes: use total.`);
+        const total = a.total_hours != null ? Math.round(+a.total_hours * 60) : a.total != null ? Math.round(+a.total) : null;
+        if (total != null && !(total > 0)) fail("The total has to be above 0.");
+        if (h.avoid && a.value == null) fail(`${h.name} is a habit you avoid: a day with no mark is already kept. Give value for the slips that day.`);
+        if (a.value == null && total == null && mins && periodic) fail(`${h.name} is a goal of ${Habits.goalLabel(h)}: say how much each day with value, or a total.`);
+        const clearing = a.value != null && Math.round(+a.value) <= 0;
+        // The start moves back to the first day filled, so it counts.
+        const first = days0[0];
+        const startedAt = !clearing && h.startedAt && first < h.startedAt ? first : h.startedAt;
+        const shaped = { ...h, startedAt };
+        const due = days0.filter((x) => Habits.isDue(shaped, x));
+        const offDays = days0.length - due.length;
+        const had = due.filter((x) => Habits.markOf(h, x));
+        const days = a.overwrite || clearing ? due : due.filter((x) => !Habits.markOf(h, x));
+        if (!days.length) fail(due.length ? `Every one of those days already has something for ${h.name}; pass overwrite to replace it.` : `${h.name} isn't due on any of those days.`);
+        const each = clearing ? () => 0
+          : a.value != null ? () => Math.round(+a.value)
+          // Evenly, with the remainder spread through the run rather than
+          // piled on its first days: day i gets its share of the running total.
+          : total != null ? (i) => Math.floor(((i + 1) * total) / days.length) - Math.floor((i * total) / days.length)
+          : () => (periodic ? 1 : h.target || 1);
+        const marks = { ...(h.marks || {}) };
+        let changed = 0, most = 0, least = Infinity;
+        days.forEach((x, i) => {
+          const v = each(i);
+          most = Math.max(most, v); least = Math.min(least, v);
+          if ((marks[x] || 0) === v) return;
+          if (v) marks[x] = v; else delete marks[x];
+          changed++;
+        });
+        if (mins && most > 1440) fail(`That's ${Habits.minutesLabel(most)} on a day, more than a day has. Spread it over more days.`);
+        if (!changed) fail(`Those days already read that way for ${h.name}.`);
+        const next = cleanItem(d, "habits", { ...h, marks, startedAt });
+        replaceItem(d, "habits", next);
+        const amt = (n) => (mins ? Habits.minutesLabel(n) : String(n));
+        const per = clearing ? "cleared" : least === most ? `${amt(most)} each` : `${amt(least)} to ${amt(most)} a day`;
+        const sum = days.reduce((n, x, i) => n + each(i), 0);
+        const out = [`${h.name}: ${clearing ? "cleared" : "filled in"} ${changed} ${changed === 1 ? "day" : "days"} between ${days[0]} and ${days[days.length - 1]} (${per}${clearing ? "" : `, ${amt(sum)} in all`}).`];
+        if (!a.overwrite && !clearing && had.length) out.push(`Left ${had.length} ${had.length === 1 ? "day" : "days"} that already had something as they were.`);
+        if (offDays) out.push(`Skipped ${offDays} ${offDays === 1 ? "day" : "days"} it isn't due.`);
+        if (startedAt !== h.startedAt) out.push(`Moved its start back from ${h.startedAt} to ${startedAt}.`);
+        out.push(`Streak now ${Habits.streakOf(next, t)}, best ${Habits.bestStreakOf(next, t)}.`);
+        return { text: out.join(" "), touched: [["habits", h.id]] };
       });
     },
   },

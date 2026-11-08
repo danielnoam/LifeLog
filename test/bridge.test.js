@@ -249,6 +249,46 @@ test("a habit is marked for today, or cleared, and the streak follows", async ()
   await refused("lifelog_mark_habit", { habit: "Read", date: Finance.addDaysStr(today, 1) }, /hasn't happened/);
 });
 
+test("a habit's past is filled in one go: done, a value, or a total spread evenly", async () => {
+  reset();
+  const D = (n) => Finance.addDaysStr(today, -n);
+  // Done over a range: only the empty days, the two marked ones left alone.
+  let t = await ok("lifelog_fill_habit", { habit: "Read", from: D(5), to: D(1) });
+  assert.match(t, /filled in 3 days .*Left 2 days that already had something/);
+  assert.deepStrictEqual(Object.keys(data().habits[0].marks).length, 5);
+  // Before the start: the start moves back, so the days count.
+  t = await ok("lifelog_fill_habit", { habit: "Read", dates: [D(40), D(35)] });
+  assert.match(t, new RegExp(`Moved its start back from ${D(30)} to ${D(40)}`));
+  assert.strictEqual(data().habits[0].startedAt, D(40));
+  // A timed goal: 100 hours over 92 days, evenly, adding up exactly.
+  await ok("lifelog_add_habit", { name: "Project", target: 600, unit: "minutes", period: "week", start_date: D(10) });
+  t = await ok("lifelog_fill_habit", { habit: "Project", from: D(100), to: D(9), total_hours: 100 });
+  assert.match(t, /filled in 92 days .*\(1 h 5 min to 1 h 6 min a day, 100 hours in all\)/);
+  const p = data().habits.find((h) => h.name === "Project");
+  const vals = Object.values(p.marks);
+  assert.strictEqual(vals.reduce((n, v) => n + v, 0), 6000);
+  assert.ok(Math.max(...vals) - Math.min(...vals) <= 1);
+  assert.strictEqual(p.startedAt, D(100));
+  await refused("lifelog_fill_habit", { habit: "Project", from: D(3), to: D(2), total_hours: 100 }, /more than a day has/);
+  await refused("lifelog_fill_habit", { habit: "Project", from: D(3) }, /say how much each day/);
+  await refused("lifelog_fill_habit", { habit: "Read", total_hours: 3, from: D(3) }, /counts times/);
+  await refused("lifelog_fill_habit", { habit: "No coffee", from: D(3) }, /a day with no mark is already kept/);
+  await refused("lifelog_fill_habit", { habit: "Read", from: D(2), to: D(1) }, /already has something.*overwrite/);
+  await refused("lifelog_fill_habit", { habit: "Read", dates: [Finance.addDaysStr(today, 1)] }, /haven't happened/);
+  // Overwrite and clear, and undo takes a whole fill back.
+  await ok("lifelog_fill_habit", { habit: "Read", from: D(2), to: D(1), value: 0 });
+  assert.strictEqual(data().habits[0].marks[D(1)], undefined);
+  await ok("lifelog_undo", {});
+  assert.strictEqual(data().habits[0].marks[D(1)], 1);
+});
+
+test("marking a habit before its start moves the start back", async () => {
+  reset();
+  const day = Finance.addDaysStr(today, -45);
+  assert.match(await ok("lifelog_mark_habit", { habit: "Read", date: day }), /Moved its start back/);
+  assert.strictEqual(data().habits[0].startedAt, day);
+});
+
 test("any item can be edited, but only into something the app would keep", async () => {
   reset();
   await ok("lifelog_update_item", { collection: "financeEntries", item: "x1", set: { amount: 55, note: "Pizza and drinks" } });
