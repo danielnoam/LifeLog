@@ -5084,7 +5084,7 @@ html.force-mobile .home-pad { font-size: var(--fs-lg); }
 }
 .bill-suggest-btns { display: flex; gap: var(--space-8); margin-left: auto; }
 
-.cat-memory-hint { display: flex; align-items: center; gap: var(--space-6); margin: var(--space-6) 0 0; }
+.cat-memory-hint:not([hidden]) { display: flex; align-items: center; gap: var(--space-6); margin: var(--space-6) 0 0; }
 .cat-memory-hint .ico { width: 13px; height: 13px; flex: 0 0 auto; color: var(--accent); }
 
 .pace-card h2 { display: flex; align-items: center; gap: var(--space-8); }
