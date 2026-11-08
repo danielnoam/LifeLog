@@ -48,13 +48,17 @@ const SEED = {
   check("a fresh start opens on Home, not the last tab", (await active()) === "home", await active());
   check("Home has no filter chips", await page.isHidden("#filterbar"));
   const heads = await page.evaluate(() => [...document.querySelectorAll(".home-sec-head h2")].map((h) => h.textContent.trim()));
-  check("its sections, in the default order", JSON.stringify(heads) === JSON.stringify(["In progress", "Coming up", "Scratchpad", "Pinned notes"]), heads);
+  check("its sections, in the default order", JSON.stringify(heads) === JSON.stringify(["In progress", "Coming up", "Scratchpad", "Pinned notes", "Ledger"]), heads);
   const row = await page.evaluate(() => {
     const r = document.querySelector(".home-pair");
-    const tops = [".home-upcoming", ".home-scratch", ".home-pinned"].map((s) => { const e = r && r.querySelector(s); return e ? Math.round(e.getBoundingClientRect().top) : null; });
+    const tops = [".home-upcoming", ".home-scratch", ".home-pinned", ".home-ledger"].map((s) => { const e = r && r.querySelector(s); return e ? Math.round(e.getBoundingClientRect().top) : null; });
     return { three: !!r && r.classList.contains("is-3"), tops };
   });
-  check("Coming up, Scratchpad and Pinned notes share one row on a computer", row.three && row.tops.every((t) => t !== null && t === row.tops[0]), row);
+  // Four halves in a row go two by two, not three and a lone one.
+  check("Coming up, Scratchpad, Pinned notes and Ledger sit two by two on a computer", !row.three && row.tops.every((t) => t !== null)
+    && row.tops[0] === row.tops[1] && row.tops[2] === row.tops[3] && row.tops[2] > row.tops[0], row);
+  const ledger = await page.evaluate(() => ({ total: (document.querySelector(".home-ledger-total") || {}).textContent || "", text: document.querySelector(".home-ledger").textContent }));
+  check("the Ledger card shows this month so far, and says when nothing's been spent yet", /\d/.test(ledger.total) && ledger.text.includes("No expenses yet this month") && ledger.text.includes("Add expense"), ledger);
   check("in progress shows what's started", (await page.textContent(".home-progress")).includes("Playing Now"));
   const rows = await page.evaluate(() => [...document.querySelectorAll(".home-upcoming .home-row-title")].map((r) => r.textContent));
   check("coming up lists the episode, the charge and the release, soonest first", JSON.stringify(rows) === JSON.stringify(["Weekly Show", "Music", "Comes Out Soon"]), rows);
@@ -92,17 +96,18 @@ const SEED = {
 
   // ---- the View sheet ----
   await page.click("#viewOptionsBtn"); await page.waitForTimeout(300);
-  check("View lists the four sections", (await page.$$("#homeSectionRows .home-sec-row")).length === 4);
+  check("View lists the five sections", (await page.$$("#homeSectionRows .home-sec-row")).length === 5);
   await page.click('#homeSectionRows .home-sec-row:has-text("Pinned notes") [aria-label="Move Pinned notes up"]'); await page.waitForTimeout(200);
   await page.click('#homeSectionRows .home-sec-row:has-text("Pinned notes") [aria-label="Move Pinned notes up"]'); await page.waitForTimeout(200);
   await page.click('#homeSectionRows .home-sec-row:has-text("Pinned notes") [aria-label="Move Pinned notes up"]'); await page.waitForTimeout(200);
   await page.click('#homeSectionRows [aria-label="Show In progress"]'); await page.waitForTimeout(200);
+  await page.click('#homeSectionRows [aria-label="Show Ledger"]'); await page.waitForTimeout(200);
   await page.click("#closeViewOptionsBtn"); await page.waitForTimeout(300);
   const after = await page.evaluate(() => [...document.querySelectorAll(".home-sec-head h2")].map((h) => h.textContent.trim()));
-  check("moving Pinned notes to the top and hiding In progress redraws Home", JSON.stringify(after) === JSON.stringify(["Pinned notes", "Coming up", "Scratchpad"]), after);
+  check("moving Pinned notes to the top and hiding In progress and Ledger redraws Home", JSON.stringify(after) === JSON.stringify(["Pinned notes", "Coming up", "Scratchpad"]), after);
   check("and the three still share a row, Pinned notes first", await page.evaluate(() => { const r = document.querySelector(".home-pair.is-3"); return !!r && r.firstElementChild.classList.contains("home-pinned"); }));
   const vis = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-visual-settings-v1")));
-  check("and is kept for this device", JSON.stringify(vis.homeSections) === JSON.stringify(["pinned", "progress", "upcoming", "scratchpad"]) && vis.homeHidden.join() === "progress", vis);
+  check("and is kept for this device", JSON.stringify(vis.homeSections) === JSON.stringify(["pinned", "progress", "upcoming", "scratchpad", "ledger"]) && vis.homeHidden.join() === "progress,ledger", vis);
 
   // ---- the scratchpad as a board ----
   const padH = await page.evaluate(() => document.querySelector(".home-scratch .home-card").offsetHeight);

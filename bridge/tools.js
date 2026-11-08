@@ -1032,7 +1032,7 @@ const TOOLS = [
   },
   {
     name: "lifelog_home",
-    description: "What the Home tab shows: what's in progress, what's coming in the next days (releases and new episodes known to the day, recurring charges, habits still left), the scratchpad, and the notes pinned to Home.",
+    description: "What the Home tab shows: what's in progress, what's coming in the next days (releases and new episodes known to the day, recurring charges, habits still left), the scratchpad, the notes pinned to Home, and the Ledger card (this month so far against last month by the same day, top categories, latest expenses).",
     readOnly: true,
     input: { days: S.int("How far ahead Coming up goes, default 14 (as the app)") },
     async run(a) {
@@ -1058,6 +1058,12 @@ const TOOLS = [
       }
       const pins = Home.pinnedNotes(d);
       out.push("", `Pinned notes (${pins.length}):`, ...(pins.length ? pins.map((n) => "- " + noteText(n, 300)) : ["- none"]));
+      const g = Home.ledgerGlance(d, t, { Finance });
+      const diff = g.total - g.lastByNow;
+      out.push("", `Ledger: ${g.month} so far ${money(d, g.total)}` + (g.hasLast
+        ? `; ${g.prev} by the same day ${money(d, g.lastByNow)} (${diff >= 0 ? "+" : "-"}${money(d, Math.abs(diff))}), ${g.prev} in all ${money(d, g.lastTotal)}.` : "."),
+      ...(g.categories.length ? ["Top categories: " + g.categories.slice(0, 3).map((c) => `${c.name} ${money(d, c.amount)}`).join(", ")] : []),
+      "Latest:", ...(g.latest.length ? g.latest.map((f) => `- ${f.date} · ${f.note || f.subcategory || f.category} ${money(d, f.amount)} [${f.subcategory ? f.category + " › " + f.subcategory : f.category}]${f.virtual ? " (recurring)" : ""}  (${f.virtual ? f.recurringId : f.id})`) : ["- none"]));
       return out.join("\n");
     },
   },

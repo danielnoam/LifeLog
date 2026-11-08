@@ -55,7 +55,9 @@ you were). What you're in the middle of as covers; Coming up for the next
 two weeks, with releases and new episodes known to the day, recurring
 charges and the habits still left; a scratchpad that syncs, with Save to Notebook
 to keep what's in it, or switched to Board to sketch on a board instead
-(Save to Notebook files it as a board); and the notes you pin from a note's ⋯ menu. View
+(Save to Notebook files it as a board); the notes you pin from a note's ⋯ menu; and
+a Ledger card with this month's spending so far against last month by the same
+day, where it went and your latest expenses. View
 orders and hides the sections, per device, and Settings → Tabs turns Home
 off.
 

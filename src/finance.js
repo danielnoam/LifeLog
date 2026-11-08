@@ -4042,6 +4042,7 @@
     // the search page (search.js, 0.251.0)
     openRecurringModal,
     amountText: (x) => (x && x.amount ? formatMoney(x.amount) : ""),
+    formatMoney,
     // data lifecycle (used by app.js's emptyData/normalize/import infra)
     seedFinanceCategories,
     sanitizeFinanceEntry,

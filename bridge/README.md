@@ -70,7 +70,7 @@ random title, as the Backlog's Pick sheet draws), `lifelog_notes`,
 `lifelog_habit_insights`, `lifelog_habits_left` (what's still to do today
 and this week, month and year), `lifelog_upcoming` (what's coming out from the
 backlog), `lifelog_home` (what the Home tab shows: in progress, coming up,
-the scratchpad and the pinned notes), `lifelog_note_images` (a note's images, sent back as pictures), `lifelog_google_list` (reads a shared Google Maps list or place
+the scratchpad, the pinned notes and the Ledger card), `lifelog_note_images` (a note's images, sent back as pictures), `lifelog_google_list` (reads a shared Google Maps list or place
 straight from Google; the only tool that goes beyond your data).
 
 Changing: `lifelog_add_expense`, `lifelog_add_timeline_entry`,

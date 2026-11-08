@@ -3,6 +3,15 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.308.0] - 2026-11-08
+
+### Added
+- Home has a Ledger card: what you've spent this month so far, how that compares with last month by the same day, where the money went (a bar and the top three categories), your latest four expenses, and an Add expense button. Move or hide it from View like the other sections.
+- The AI bridge's `lifelog_home` reads the Ledger card too.
+
+### Changed
+- On a computer, four Home sections side by side now sit two by two instead of three and one.
+
 ## [0.307.1] - 2026-11-08
 
 ### Changed
