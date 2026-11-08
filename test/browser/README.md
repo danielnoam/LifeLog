@@ -63,6 +63,7 @@ because something shipped broken that no unit test could have caught:
 | `todomigrate` | the To-do mode's lists become list notes: old data, whoever left the app on To-do, and an older device still adding and ticking to-dos through a fake GitHub |
 | `tabio` | every tab's JSON and CSV export comes back whole through that tab's import, and the full backup through Everything |
 | `match` | auto-sync asks both sources and refuses a near-miss |
+| `pickspeed` | a SteamGridDB pick loads its Steam identity and RAWG cross-fill side by side, and skips RAWG's blurb when Steam's is coming |
 | `realloop` | the real bulk-sync loop feeds the progress panel live |
 | `ios` | the iOS app: a newer release offered as its page rather than an APK, the QR scan without Google's module, the backup where Files shows it, a widget's lifelog:// link opening the right thing, the widgets' snapshot, Face ID, no folder import |
 | `outtoday` | Out today: the card above Next releases for what's out today (not started ones), the list not repeating it, and the once-a-day sheet: shown on the first open, not again, again next day, not on an empty day, off by setting |

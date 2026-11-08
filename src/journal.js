@@ -574,14 +574,16 @@
             // media.js) — and a SteamGridDB match has neither a length nor
             // genres until RAWG is asked by title, which is what the title
             // argument is for.
-            const extras = await window.LifeLogMedia.fetchEntryExtras(r.id, r.source, keys, r.title);
+            const [extras, resolved] = await Promise.all([
+              window.LifeLogMedia.fetchEntryExtras(r.id, r.source, keys, r.title),
+              resolveMediaIdentity(r, keys),
+            ]);
             if (!isOverridden(item, "length")) { item.length = extras.length || r.length || ""; if (item.length) filled.push("length"); }
             // extras.genres is filled only by the SteamGridDB cross-fill, and
             // only for a source that stated none of its own — so a search
             // result that did come with genres still wins.
             const genres = extras.genres.length ? extras.genres : r.genres;
             if (genres && genres.length) { item.genres = genres.slice(); filled.push("genres"); } else delete item.genres;
-            const resolved = await resolveMediaIdentity(r, keys);
             item.mediaSource = resolved.mediaSource;
             item.mediaId = resolved.mediaId;
             synced++;
@@ -1271,6 +1273,26 @@
     return plain;
   }
 
+  // A backlog pick's identity and its per-title details, asked for at once.
+  // They used to run one after the other, because whether a SteamGridDB
+  // cross-fill needs RAWG's blurb depends on whether the identity found
+  // Steam's: a steamgriddb-steam-gg pick sat through SGDB, then Steam, then
+  // RAWG, then RAWG again before the item filled in. Now the cross-fill goes
+  // out alongside the identity without the blurb, and only that one request
+  // waits, for the picks that turn out to need it.
+  async function pickDetails(r, keys) {
+    const sgdb = r.source === "steamgriddb" || r.source === "steamgriddb-steam-gg";
+    const [resolved, details] = await Promise.all([
+      resolveMediaIdentity(r, keys),
+      window.LifeLogMedia.fetchDetails(r.id, r.source, keys, { title: r.title, wantSummary: !sgdb }),
+    ]);
+    if (sgdb && !resolved.summary && details.rawgId) {
+      const blurb = await window.LifeLogMedia.fetchDetails(details.rawgId, "rawg", keys);
+      return { resolved, details: { ...details, summary: blurb.summary || "" } };
+    }
+    return { resolved, details };
+  }
+
   // Shared setup for both lookup paths below: which sources a category is
   // configured to use, and a search closure that first retries the title with
   // any trailing "(2019)"-style suffix stripped.
@@ -1653,11 +1675,17 @@
       fillAuthor("f", r.author);
       lastSyncedEntryTitle = r.title;
       entrySyncLocked = true;
-      const extras = await window.LifeLogMedia.fetchEntryExtras(r.id, r.source, keys, r.title);
-      const { mediaId, mediaSource } = await resolveMediaIdentity(r, keys);
-      setEntryCover(r.coverUrl, mediaId, mediaSource, extras.length || r.length || "",
-        extras.genres.length ? extras.genres : (r.genres || []), r.externalRating || "");
       list.hidden = true;
+      const btn = $("#fSyncBtn");
+      btn.classList.add("busy");
+      try {
+        const [extras, { mediaId, mediaSource }] = await Promise.all([
+          window.LifeLogMedia.fetchEntryExtras(r.id, r.source, keys, r.title),
+          resolveMediaIdentity(r, keys),
+        ]);
+        setEntryCover(r.coverUrl, mediaId, mediaSource, extras.length || r.length || "",
+          extras.genres.length ? extras.genres : (r.genres || []), r.externalRating || "");
+      } finally { btn.classList.remove("busy"); }
     }, $("#fSyncBtn"), pinnedAuthor("f"));
   }
 
@@ -2180,6 +2208,7 @@
     fetchMediaMatch,
     renderStreamedSuggestions,
     resolveMediaIdentity,
+    pickDetails,
     updateSyncBtnVisibility,
     showSyncStatus,
     // what a category shows, and the author field (0.267.0)

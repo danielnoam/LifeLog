@@ -6291,6 +6291,7 @@
     fetchMediaMatch: Journal.fetchMediaMatch,
     renderStreamedSuggestions: Journal.renderStreamedSuggestions,
     resolveMediaIdentity: Journal.resolveMediaIdentity,
+    pickDetails: Journal.pickDetails,
     updateSyncBtnVisibility: Journal.updateSyncBtnVisibility,
     showSyncStatus: Journal.showSyncStatus,
     categoryShows: Journal.categoryShows, authorOf: Journal.authorOf, titleWithAuthor: Journal.titleWithAuthor,
