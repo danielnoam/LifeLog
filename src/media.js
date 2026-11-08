@@ -1444,7 +1444,54 @@
     return null;
   }
 
+  // Settings → Media lookups shows whether each key works (one cheap request
+  // per key). Each check asks for something small and, for Google, free:
+  // Place Details with only the id in its field mask is the free "IDs only"
+  // tier, so checking never costs a billed request. GG.deals and SteamGridDB
+  // are CORS-blocked, so like their real lookups they go through the proxy.
+  const enc = encodeURIComponent;
+  const KEY_CHECKS = {
+    rawg: (k) => ({ url: "https://api.rawg.io/api/genres?page_size=1&key=" + enc(k) }),
+    tmdb: (k) => ({ url: "https://api.themoviedb.org/3/configuration?api_key=" + enc(k) }),
+    ggdeals: (k, proxy) => proxy && { url: proxy + "/gg-deals?ids=620&key=" + enc(k) + "&region=us", success: true },
+    steamgriddb: (k, proxy) => proxy && {
+      url: proxy + "/steamgriddb/search/autocomplete/portal",
+      init: { headers: { Authorization: "Bearer " + k } }, success: true,
+    },
+    googlePlaces: (k) => ({
+      url: "https://places.googleapis.com/v1/places/ChIJN1t_tDeuEmsRUsoyG83frY4",
+      init: { headers: { "X-Goog-Api-Key": k, "X-Goog-FieldMask": "id" } },
+    }),
+    nyt: (k) => ({ url: "https://api.nytimes.com/svc/books/v3/lists/names.json?api-key=" + enc(k) }),
+  };
+  // { state, label, detail }: state is ok, bad (the key is the problem),
+  // warn (fixable elsewhere: limit, proxy) or down (the service didn't answer).
+  async function checkKey(kind, key, proxyUrl) {
+    const make = KEY_CHECKS[kind];
+    if (!make || !key) return null;
+    const req = make(key, proxyUrl);
+    if (!req) return { state: "warn", label: "Needs the proxy", detail: "Set the CORS proxy URL below — this service can't be reached without it" };
+    let res;
+    try { res = await get(req.url, req.init); }
+    catch (e) {
+      return e && e.name === "TimeoutError"
+        ? { state: "down", label: "No answer", detail: "The service didn't answer within " + FETCH_TIMEOUT_MS / 1000 + "s — it may be down" }
+        : { state: "down", label: "Can't reach", detail: "Couldn't reach the service — check your connection" };
+    }
+    let body = null;
+    try { body = await res.json(); } catch (e) { /* the status decides */ }
+    const said = body && ((body.error && (body.error.message || body.error)) || body.status_message || body.detail || body.fault && body.fault.faultstring);
+    const refused = res.status === 401 || res.status === 403 || (res.status === 400 && /key/i.test(String(said || "")));
+    if (refused || (res.ok && req.success && body && body.success === false)) {
+      return { state: "bad", label: "Key refused", detail: "The service turned the key down" + (said ? ": " + String(said).slice(0, 160) : "") };
+    }
+    if (res.status === 429) return { state: "warn", label: "Limit reached", detail: "The key works, but its rate limit or quota is used up for now" };
+    if (!res.ok) return { state: "down", label: "Error " + res.status, detail: "The service answered HTTP " + res.status + (said ? ": " + String(said).slice(0, 160) : "") };
+    return { state: "ok", label: "Working", detail: "The key works" };
+  }
+
   window.LifeLogMedia = {
+    checkKey,
     nextInSeries,
     async search(title, source, keys, proxyUrl, author) {
       lastError = "";

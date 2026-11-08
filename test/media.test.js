@@ -440,6 +440,54 @@ atest("a working RAWG search leaves no error behind", async () => {
   assert.strictEqual(Media.getLastError(), "");
 });
 
+// ---------- checkKey (Settings → Media lookups status) ----------
+function stubStatus(status, body) {
+  const calls = [];
+  global.fetch = async (url, init) => { calls.push({ url, init }); return { ok: status >= 200 && status < 300, status, json: async () => body }; };
+  return calls;
+}
+
+atest("checkKey: a working key reads Working", async () => {
+  const calls = stubStatus(200, { results: [] });
+  assert.strictEqual((await Media.checkKey("rawg", "k")).state, "ok");
+  assert.match(calls[0].url, /api\.rawg\.io\/api\/genres\?page_size=1&key=k$/);
+});
+
+atest("checkKey: a refused key, in the service's own words", async () => {
+  stubStatus(401, { status_message: "Invalid API key: You must be granted a valid key." });
+  const r = await Media.checkKey("tmdb", "bad");
+  assert.strictEqual(r.label, "Key refused");
+  assert.match(r.detail, /Invalid API key/);
+});
+
+atest("checkKey: Google's 400 about the key is a refused key, and the check stays on the free tier", async () => {
+  const calls = stubStatus(400, { error: { message: "API key not valid. Please pass a valid API key." } });
+  assert.strictEqual((await Media.checkKey("googlePlaces", "bad")).state, "bad");
+  assert.strictEqual(calls[0].init.headers["X-Goog-FieldMask"], "id");
+});
+
+atest("checkKey: GG.deals answering success:false is a refused key", async () => {
+  stubStatus(200, { success: false });
+  assert.strictEqual((await Media.checkKey("ggdeals", "bad", "https://p.test")).state, "bad");
+});
+
+atest("checkKey: proxy-only services say they need the proxy, without asking", async () => {
+  const calls = stubStatus(200, {});
+  assert.strictEqual((await Media.checkKey("steamgriddb", "k", "")).label, "Needs the proxy");
+  assert.strictEqual(calls.length, 0);
+});
+
+atest("checkKey: a service that never answers reads No answer", async () => {
+  global.fetch = async () => { const e = new Error("t"); e.name = "TimeoutError"; throw e; };
+  assert.strictEqual((await Media.checkKey("rawg", "k")).label, "No answer");
+});
+
+atest("checkKey: a spent quota and an empty key", async () => {
+  stubStatus(429, null);
+  assert.strictEqual((await Media.checkKey("nyt", "k")).label, "Limit reached");
+  assert.strictEqual(await Media.checkKey("nyt", ""), null);
+});
+
 atest("fetchEntryExtras still skips RAWG, whose search already said both", async () => {
   const calls = stubRawg();
   const e = await Media.fetchEntryExtras("hades-ii", "rawg", { rawg: "k" }, "Hades II");
