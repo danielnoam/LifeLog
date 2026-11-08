@@ -587,6 +587,7 @@
 
   function showPage(name) {
     if (name === "keyboard" && window.LifeLogKeys) window.LifeLogKeys.renderPage();
+    if (name === "media") KEY_KINDS.forEach(checkMediaKey);
     if (name === "about") {
       const P = window.LifeLogPlatform;
       $("#aboutVersion").textContent = "Version " + APP_VERSION + " · " + (P.android ? "Android app" : P.ios ? "iOS app" : "Web app");
@@ -1221,6 +1222,49 @@
     render();
   }
 
+  // Each key's status beside its title (Settings → Media lookups): one small
+  // request per key, asked when the page opens and again a moment after a key
+  // or the proxy changes. A working key is remembered for ten minutes, so
+  // stepping in and out of the page doesn't ask again; a failing one is asked
+  // every time, so a service coming back up shows as soon as you look.
+  const KEY_KINDS = ["rawg", "tmdb", "ggdeals", "steamgriddb", "googlePlaces", "nyt"];
+  const KEY_STATUS_ICONS = { ok: "check", bad: "x", warn: "triangle-alert", down: "triangle-alert", checking: "loader-circle" };
+  const keyWorks = new Map();
+  const keyAsk = {};
+  const keyTimers = {};
+  function paintKeyStatus(kind, r) {
+    const n = document.querySelector('[data-key-status="' + kind + '"]');
+    if (!n) return;
+    n.hidden = !r;
+    if (!r) return;
+    n.className = "key-status key-" + r.state;
+    n.title = r.detail || "";
+    window.LifeLogIcons.setLabel(n, KEY_STATUS_ICONS[r.state], r.label);
+  }
+  async function checkMediaKey(kind) {
+    if (!window.LifeLogMedia || !window.LifeLogMedia.checkKey) return;
+    const key = String((state.data.settings.mediaKeys || {})[kind] || "").trim();
+    const proxy = window.LifeLogPlatform.steamProxy(state.data.settings.steam?.proxyUrl);
+    const ask = keyAsk[kind] = (keyAsk[kind] || 0) + 1;
+    if (!key) { paintKeyStatus(kind, null); return; }
+    const id = kind + "|" + key + "|" + proxy;
+    const seen = keyWorks.get(id);
+    if (seen && Date.now() - seen < 10 * 60 * 1000) { paintKeyStatus(kind, { state: "ok", label: "Working", detail: "The key works" }); return; }
+    paintKeyStatus(kind, { state: "checking", label: "Checking", detail: "" });
+    let r;
+    try { r = await window.LifeLogMedia.checkKey(kind, key, proxy); }
+    catch (e) { r = { state: "down", label: "Can't reach", detail: "" }; }
+    if (ask !== keyAsk[kind]) return;
+    if (r && r.state === "ok") keyWorks.set(id, Date.now());
+    paintKeyStatus(kind, r);
+  }
+  function checkMediaKeySoon(kind) {
+    clearTimeout(keyTimers[kind]);
+    keyAsk[kind] = (keyAsk[kind] || 0) + 1;
+    paintKeyStatus(kind, null);
+    keyTimers[kind] = setTimeout(() => checkMediaKey(kind), 900);
+  }
+
   function updateMediaSettings() {
     if (!$("#rawgKey")) return;
     $("#rawgKey").value = state.data.settings.mediaKeys?.rawg || "";
@@ -1722,6 +1766,7 @@
     const setMediaKey = async (field, value) => {
       if (!state.data.settings.mediaKeys) state.data.settings.mediaKeys = { ...DEFAULT_SETTINGS.mediaKeys };
       state.data.settings.mediaKeys[field] = value;
+      checkMediaKeySoon(field);
       await persist();
     };
     $("#rawgKey").oninput = () => setMediaKey("rawg", $("#rawgKey").value);
@@ -1736,7 +1781,10 @@
       state.data.settings.steam[field] = value;
       await persist();
     };
-    $("#steamProxyUrl").oninput = () => setSteamSetting("proxyUrl", $("#steamProxyUrl").value.trim());
+    $("#steamProxyUrl").oninput = () => {
+      setSteamSetting("proxyUrl", $("#steamProxyUrl").value.trim());
+      ["ggdeals", "steamgriddb"].forEach(checkMediaKeySoon);
+    };
     $("#steamId64").oninput = () => setSteamSetting("steamId", $("#steamId64").value.trim());
     $("#steamApiKey").oninput = () => setSteamSetting("apiKey", $("#steamApiKey").value.trim());
     $("#steamOwnedSyncBtn").onclick = syncSteamOwned;

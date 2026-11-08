@@ -3013,6 +3013,18 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 #testBuildsList .tb-row .btn-small { flex: 0 0 auto; position: relative; }
 .sitem-sub.tb-warn { color: var(--warning); }
 .sitem-sub a { color: var(--accent); display: inline-block; padding: 12px 0; margin: -12px 0; }
+/* A key's status beside its title (Settings → Media lookups). The words stay
+   --text-dim; only the icon carries the colour. */
+.key-title { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-8); }
+.key-status { display: inline-flex; align-items: center; gap: var(--space-4); flex: 0 0 auto; font-size: var(--fs-xs); font-weight: 450; color: var(--text-dim); white-space: nowrap; }
+.key-status[hidden] { display: none; }
+.key-ok .ico { color: var(--success); }
+.key-bad .ico { color: var(--danger); }
+.key-warn .ico, .key-down .ico { color: var(--warning); }
+.key-checking .ico { animation: sync-spin 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .key-checking .ico { animation: none; }
+}
 .sitem-sub br { content: ""; display: block; margin-top: 4px; }
 .modal .sitem select {
   flex: 0 1 auto; width: auto; max-width: 100%; margin: 0; padding: 8px 10px; font-size: var(--fs-sm);
