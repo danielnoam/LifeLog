@@ -3068,7 +3068,16 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 .modal input.switch:checked { background-color: var(--accent); }
 .modal input.switch:checked::before { transform: translateX(16px); }
 .modal input.switch:disabled { cursor: default; }
-.modal input.switch:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+/* The tap border stays transparent: the checkbox hover rule would paint it,
+   a ring round the whole 48x44 tap area (and it sticks after a tap on a
+   phone). The outline would trace that same box, so the keyboard ring is
+   drawn round the track instead. */
+.modal input.switch:hover:not(:disabled) { border-color: transparent; }
+.modal input.switch:focus-visible { outline: none; }
+.modal input.switch:focus-visible::after {
+  content: ""; position: absolute; inset: -4px; border-radius: calc(var(--r-card) + 4px);
+  box-shadow: 0 0 0 2px var(--accent); pointer-events: none;
+}
 @media (prefers-reduced-motion: reduce) { .modal input.switch, .modal input.switch::before { transition: none; } }
 
 /* A view's own options (the View button in the header). */
