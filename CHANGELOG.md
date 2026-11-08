@@ -3,6 +3,17 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.307.1] - 2026-11-08
+
+### Changed
+- The entry sheet puts Started on the left and Finished on the right, in the order they happen.
+- Home's Note / Board switch is slimmer, about the height of the section title.
+- In Board mode the scratchpad drops the "Tap to draw" and "Syncs like your boards" labels, and the board is as tall as the note would be, so switching doesn't move the page.
+- The scratchpad is taller (240px before it grows), and its button is Save to Notebook in both Note and Board (was Make a note / Keep as a board).
+
+### Fixed
+- Hovering the rating stars in the entry sheet previews the rating you'd set: every star up to the pointer lights and the rest dim, instead of lighting only the one under the pointer and leaving a gap.
+
 ## [0.307.0] - 2026-11-06
 
 ### Added
