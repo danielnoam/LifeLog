@@ -292,6 +292,22 @@ test("a Google Wallet payment's Add becomes an expense, once, filed where that m
   assert.strictEqual(empty.financeEntries[0].category, "Other");
 });
 
+test("a Wallet payment keeps the subcategory its merchant was filed under; filingFor finds plans and skips gone categories", () => {
+  const d = {
+    financeCategories: [{ name: "Food", subs: [{ name: "Coffee" }] }, { name: "Home" }],
+    financeEntries: [
+      { id: "f1", date: "2026-08-01", amount: 12, category: "Food", subcategory: "Coffee", note: "Aroma" },
+      { id: "f2", date: "2026-09-01", amount: 9, category: "Gone", note: "aroma" },
+    ],
+    recurringExpenses: [{ id: "r1", startDate: "2026-01-01", interval: "monthly", amount: 35, category: "Home", note: "Gym" }],
+  };
+  W.applyQueue(d, [{ kind: "expense", id: "p1", date: TODAY, amount: "14", note: "Aroma" }]);
+  assert.deepStrictEqual([d.financeEntries[2].category, d.financeEntries[2].subcategory], ["Food", "Coffee"]);
+  assert.deepStrictEqual(W.filingFor(d, " gym "), { category: "Home", subcategory: "", date: "2026-01-01" });
+  assert.strictEqual(W.filingFor(d, "Kiosk"), null);
+  assert.strictEqual(W.filingFor(d, ""), null);
+});
+
 test("the snapshot says the home currency, so the phone knows which payments it can add by itself", () => {
   assert.strictEqual(W.snapshotOf({ settings: { currency: "EUR" } }, { today: TODAY }).currency, "EUR");
   assert.strictEqual(W.snapshotOf({}, { today: TODAY }).currency, "ILS");

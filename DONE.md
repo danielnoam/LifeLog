@@ -188,6 +188,9 @@ Every release that adds a feature adds its line here in the same commit.
 - Summary: highlights, recurring, by month, by category, top expenses (0.50.0, 0.91.0, 0.57.1)
 - Subcategories under an expense category: a folder-style picker, sub chips to filter, sub bars in By category, on bills and in the CSV (0.288.0)
 - Google Wallet payments offered to the Ledger, and expenses from a link (Android) (0.238.0)
+- Bills logged by hand spotted above Recurring (same note, day and price), made recurring with their charges in one go, or answered Not a bill (next release)
+- A new expense takes the category and subcategory its note was filed under last time, Wallet payments too (next release)
+- Summary's "<Month> so far": each category's spend, where it's heading by month end and its usual month, flagged at 25% over (next release)
 
 ## Travel
 

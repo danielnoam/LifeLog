@@ -819,6 +819,73 @@ const TOOLS = [
     },
   },
   {
+    name: "lifelog_bill_suggestions",
+    description: "Expenses logged by hand that look like a bill nobody made recurring (same note and category, about the same day each month or weekday each week, one price or one price change), as the Ledger offers them above Recurring. Each has a key for lifelog_make_bill_recurring or lifelog_dismiss_bill_suggestion.",
+    readOnly: true,
+    input: {},
+    async run() {
+      const d = await readData();
+      const found = Finance.spotBills(d, today(), ((d.settings || {}).importSkips || {}).bills);
+      if (!found.length) return "No hand-logged bills spotted.";
+      return [`${found.length} spotted:`, ...found.map((b) => `- ${b.note} [${catLabel(b)}]: ${b.entries.length} ${b.interval} charges, `
+        + (b.low === b.high ? money(d, b.low) : `${money(d, b.low)} to ${money(d, b.high)}`) + `, ${b.entries.map((e) => e.date).join(", ")}  (key ${b.key})`)].join("\n");
+    },
+  },
+  {
+    name: "lifelog_make_bill_recurring",
+    description: "Turn a spotted bill (key from lifelog_bill_suggestions) into a recurring bill, as the Ledger's Make recurring does: it starts at the first charge at the latest price, and the expenses become its charges, each keeping the amount it was logged with.",
+    input: { key: S.str("The suggestion's key") },
+    required: ["key"],
+    async run(a) {
+      return change(`make recurring ${a.key}`, (d) => {
+        const b = Finance.spotBills(d, today()).find((x) => x.key === a.key);
+        if (!b) fail(`No spotted bill with key ${a.key}; see lifelog_bill_suggestions.`);
+        const first = b.entries[0], last = b.entries[b.entries.length - 1];
+        const item = { startDate: first.date, interval: b.interval, amount: +last.amount, category: last.category, note: b.note };
+        if (last.subcategory) item.subcategory = last.subcategory;
+        const r = addItem(d, "recurringExpenses", item);
+        Finance.linkEntriesToPlan(r, b.entries, d);
+        return { text: `Made ${b.note} a ${b.interval} bill of ${money(d, r.amount)} from ${r.startDate}; its ${b.entries.length} past expenses are its charges now. id ${r.id}`,
+          touched: [["recurringExpenses", r.id], ...b.entries.map((e) => ["financeEntries", e.id])] };
+      });
+    },
+  },
+  {
+    name: "lifelog_dismiss_bill_suggestion",
+    description: "Stop suggesting a spotted bill (key from lifelog_bill_suggestions), as the Ledger's Not a bill does; kept in the synced settings on every device. undo: true takes it back.",
+    input: { key: S.str("The suggestion's key"), undo: S.bool("Suggest it again") },
+    required: ["key"],
+    async run(a) {
+      return change(`${a.undo ? "undismiss" : "dismiss"} bill ${a.key}`, (d) => {
+        d.settings = d.settings || {};
+        const all = { ...(d.settings.importSkips || {}) };
+        const keys = new Set(all.bills || []);
+        if (a.undo) keys.delete(a.key); else keys.add(a.key);
+        if (keys.size) all.bills = [...keys]; else delete all.bills;
+        d.settings.importSkips = all;
+        return { text: a.undo ? `${a.key} can be suggested again.` : `Won't suggest ${a.key} again.`, touched: [] };
+      });
+    },
+  },
+  {
+    name: "lifelog_month_pace",
+    description: "This month so far, as the Ledger's Summary shows it: per category (or one category's subcategories) what's spent, where it's heading by month end (spent so far, plus a usual rest of month and the bills still due), and its usual month (average of the three before). Flags a category heading 25% or more over its usual, from day 7. Projects are left out.",
+    readOnly: true,
+    input: { category: S.str("Only this expense category, split into its subcategories") },
+    async run(a) {
+      const d = await readData();
+      const cat = a.category ? nameIn(d, "financeCategories", a.category, "expense category") : null;
+      const now = new Date(today() + "T00:00:00");
+      const rows = effectiveExpenses(d, new Date(now.getFullYear(), now.getMonth() + 1, 0)).filter((f) => !cat || f.category === cat);
+      const pace = Finance.monthPace(rows, today(), (f) => (cat ? f.subcategory || "(no subcategory)" : f.category || "Other"));
+      if (!pace) return "Not enough history yet: the pace needs at least one full month before this one.";
+      const head = `Day ${pace.day} of ${pace.daysIn}${cat ? ` in ${cat}` : ""}; usual = average of ${pace.months} month${pace.months === 1 ? "" : "s"}.`
+        + (pace.judged ? "" : ` Where it's heading shows from day ${Finance.PACE.fromDay}.`);
+      return [head, ...pace.lines.map((l) => `- ${l.name}: ${money(d, l.spent)} spent, usually ${money(d, l.usual)}`
+        + (pace.judged ? `, heading for ${money(d, l.projected)}` + (l.over ? " (FLAGGED: 25%+ over)" : "") : ""))].join("\n");
+    },
+  },
+  {
     name: "lifelog_habits",
     description: "Habits: whether each is done today (or, for a weekly, monthly or yearly goal, how far along its period is), its streak and best streak, and the last 14 days (✓ kept, ✗ missed, · not due; for a goal ✓ is a day something was done).",
     readOnly: true,
@@ -1072,17 +1139,22 @@ const TOOLS = [
     name: "lifelog_add_expense",
     description: "Log an expense. Amount is what was paid; for another currency give currency and rate (home currency per 1 unit) and it is converted the way the app does.",
     input: {
-      amount: S.num("What was paid"), category: S.str("An expense category from lifelog_overview"),
+      amount: S.num("What was paid"), category: S.str("An expense category from lifelog_overview; left out, the category (and subcategory) an expense with the same note was filed under last time, as the app's Add expense does"),
       subcategory: S.str("One of that category's subcategories, optional; without it the expense is the category alone"),
       date: S.date("When, default today"), note: S.str("What or where"), project: S.str("A project, optional"),
       currency: S.str("Three-letter code if not the home currency"), rate: S.num("Home currency per 1 unit of `currency`"),
     },
-    required: ["amount", "category"],
+    required: ["amount"],
     async run(a) {
       const paid = +a.amount;
       if (!(paid > 0)) fail("amount must be more than 0.");
       const date = requireDate(a.date, "date") || today();
-      return change(`expense ${paid} ${a.category}`, (d) => {
+      return change(`expense ${paid} ${a.category || a.note || ""}`.trim(), (d) => {
+        if (!a.category) {
+          const filed = Widgets.filingFor(d, a.note);
+          if (!filed) fail(a.note ? `No expense noted "${a.note}" before; give a category.` : "Give a category, or a note filed before.");
+          a = { ...a, category: filed.category, ...(filed.subcategory && !a.subcategory ? { subcategory: filed.subcategory } : {}) };
+        }
         const code = String(a.currency || "").toUpperCase();
         const foreign = code && code !== currencyOf(d);
         if (foreign && !(+a.rate > 0)) fail(`Give a rate for ${code}: how many ${currencyOf(d)} one ${code} is.`);
