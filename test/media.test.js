@@ -396,6 +396,50 @@ atest("fetchEntryExtras cross-fills SteamGridDB's length and genres in one call"
   assert.strictEqual(calls.length, 1);
 });
 
+atest("the cross-fill hands back RAWG's id, so the blurb can be asked for later", async () => {
+  stubRawg();
+  const d = await Media.fetchDetails("sgdb-1", "steamgriddb", { rawg: "k" }, { title: "Hades II", wantSummary: false });
+  assert.strictEqual(d.rawgId, "hades-ii");
+});
+
+// RAWG failures used to come back as a bare [], so a refused key, a spent
+// quota and an outage all read as "No matches found".
+function stubRawgFailure(status, body) {
+  global.fetch = async () => ({ ok: false, status, json: async () => body });
+}
+
+atest("a refused RAWG key says so, with RAWG's own words", async () => {
+  stubRawgFailure(401, { error: "The key parameter is not valid" });
+  assert.deepStrictEqual(await Media.search("Hades", "rawg", { rawg: "bad" }), []);
+  assert.strictEqual(Media.getLastError(), "RAWG refused the API key (HTTP 401: The key parameter is not valid)");
+});
+
+atest("RAWG's rate limit reads as a quota problem", async () => {
+  stubRawgFailure(429, null);
+  await Media.search("Hades", "rawg-steam-gg", { rawg: "k" });
+  assert.strictEqual(Media.getLastError(), "RAWG's rate limit or monthly quota is used up (HTTP 429)");
+});
+
+atest("a RAWG request that never answers gives up and says so", async () => {
+  let signal = null;
+  global.fetch = async (url, init) => {
+    signal = init && init.signal;
+    const e = new Error("timed out"); e.name = "TimeoutError"; throw e;
+  };
+  await Media.search("Hades", "rawg", { rawg: "k" });
+  assert.ok(signal, "the request carries a timeout signal");
+  assert.match(Media.getLastError(), /^RAWG didn't answer within \d+s$/);
+});
+
+atest("a working RAWG search leaves no error behind", async () => {
+  stubRawgFailure(500, null);
+  await Media.search("Hades", "rawg", { rawg: "k" });
+  stubRawg();
+  const rows = await Media.search("Hades II", "rawg", { rawg: "k" });
+  assert.strictEqual(rows.length, 1);
+  assert.strictEqual(Media.getLastError(), "");
+});
+
 atest("fetchEntryExtras still skips RAWG, whose search already said both", async () => {
   const calls = stubRawg();
   const e = await Media.fetchEntryExtras("hades-ii", "rawg", { rawg: "k" }, "Hades II");

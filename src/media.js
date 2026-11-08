@@ -8,6 +8,40 @@
   // browser-side CORS rejections that never reach devtools-less users.
   let lastError = "";
 
+  // No request here waits forever. A browser fetch has no timeout of its
+  // own, so an API that accepts the connection and then never answers held
+  // a pick (and the Add behind it) for minutes; native requests already give
+  // up after 15+20s (platform.js), web ones now do too.
+  const FETCH_TIMEOUT_MS = 15000;
+  function get(url, init) {
+    const signal = typeof AbortSignal !== "undefined" && AbortSignal.timeout ? AbortSignal.timeout(FETCH_TIMEOUT_MS) : null;
+    return fetch(url, signal ? { ...(init || {}), signal } : init);
+  }
+
+  // Why a RAWG request came back empty, in words, for the "No matches" toast
+  // and the error log. RAWG failures used to be swallowed, so a dead key, a
+  // spent monthly quota and an outage all read as "No matches found".
+  async function rawgHttpError(res) {
+    let said = "";
+    try {
+      const body = await res.json();
+      said = String((body && (body.error || body.detail)) || "").slice(0, 160);
+    } catch (e) { /* not JSON — the status says enough */ }
+    const why = res.status === 401 || res.status === 403
+      ? "RAWG refused the API key"
+      : res.status === 429 ? "RAWG's rate limit or monthly quota is used up" : "RAWG request failed";
+    return why + " (HTTP " + res.status + (said ? ": " + said : "") + ")";
+  }
+  function rawgNetError(e) {
+    return e && e.name === "TimeoutError"
+      ? "RAWG didn't answer within " + FETCH_TIMEOUT_MS / 1000 + "s"
+      : "RAWG request failed (" + ((e && e.message) || "network error") + ")";
+  }
+  function noteRawgError(msg) {
+    lastError = msg;
+    if (typeof window !== "undefined" && window.LifeLogErrors) window.LifeLogErrors.record(msg);
+  }
+
   // Tags out, then the handful of entities a source's escaped text can
   // leave behind — Steam's short_description and AniList's description are both
   // HTML, so "Baldur&#39;s Gate" would otherwise reach a backlog row verbatim.
@@ -243,11 +277,11 @@
     try {
       const url = "https://api.rawg.io/api/games?search=" + encodeURIComponent(title) +
         "&key=" + encodeURIComponent(apiKey) + "&page_size=5";
-      const res = await fetch(url);
-      if (!res.ok) return [];
+      const res = await get(url);
+      if (!res.ok) { noteRawgError(await rawgHttpError(res)); return []; }
       const data = await res.json();
       return (data.results || []).map(mapRawgResult);
-    } catch (e) { return []; }
+    } catch (e) { noteRawgError(rawgNetError(e)); return []; }
   }
 
   // One row of a RAWG list, search or discover.
@@ -295,7 +329,7 @@
     try {
       const url = "https://api.rawg.io/api/games/" + encodeURIComponent(rawgId) +
         "/stores?key=" + encodeURIComponent(apiKey);
-      const res = await fetch(url);
+      const res = await get(url);
       if (!res.ok) return "";
       const data = await res.json();
       for (const entry of data.results || []) {
@@ -318,7 +352,7 @@
     try {
       const url = "https://api.rawg.io/api/games/" + encodeURIComponent(id) +
         "?key=" + encodeURIComponent(apiKey);
-      const res = await fetch(url);
+      const res = await get(url);
       if (!res.ok) return { ...EMPTY_DETAILS };
       const g = await res.json();
       return {
@@ -356,7 +390,7 @@
     try {
       const url = "https://api.themoviedb.org/3/" + type + "/" + encodeURIComponent(id) +
         "?api_key=" + encodeURIComponent(apiKey);
-      const res = await fetch(url);
+      const res = await get(url);
       if (!res.ok) return { ...EMPTY_DETAILS };
       const data = await res.json();
       // The date is re-read here, not just in search, so a re-check months
@@ -422,7 +456,7 @@
     try {
       const url = "https://api.themoviedb.org/3/search/" + type +
         "?query=" + encodeURIComponent(title) + "&api_key=" + encodeURIComponent(apiKey);
-      const res = await fetch(url);
+      const res = await get(url);
       if (!res.ok) return [];
       const data = await res.json();
       return (data.results || []).slice(0, 5).map((r) => mapTmdbResult(r, type));
@@ -455,7 +489,7 @@
     try {
       const url = "https://openlibrary.org/search.json?title=" + encodeURIComponent(title) +
         (author ? "&author=" + encodeURIComponent(author) : "") + "&limit=5";
-      const res = await fetch(url);
+      const res = await get(url);
       if (!res.ok) return [];
       const data = await res.json();
       return (data.docs || []).slice(0, 5).map((d) => ({
@@ -507,7 +541,7 @@
       // extra cost, and say outright what a date comparison can only guess:
       // whether it's out yet, and when the next episode lands.
       const query = "query ($search: String, $type: MediaType) { Page(perPage: 5) { media(search: $search, type: $type) { " + ANILIST_FIELDS + " } } }";
-      const res = await fetch("https://graphql.anilist.co", {
+      const res = await get("https://graphql.anilist.co", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ query, variables: { search: title, type } }),
@@ -558,7 +592,7 @@
   // With a token (0.292.0) the request is the signed-in user's: it can read
   // a private list and write to it.
   async function aniListQuery(query, variables, token) {
-    const res = await fetch("https://graphql.anilist.co", {
+    const res = await get("https://graphql.anilist.co", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json", ...(token ? { Authorization: "Bearer " + token } : {}) },
       body: JSON.stringify({ query, variables }),
@@ -682,7 +716,7 @@
   async function searchJikan(title, type) {
     try {
       const url = "https://api.jikan.moe/v4/" + type + "?q=" + encodeURIComponent(title) + "&limit=5";
-      const res = await fetch(url);
+      const res = await get(url);
       if (!res.ok) return [];
       const data = await res.json();
       return (data.data || []).map((d) => mapJikanResult(d, type));
@@ -747,7 +781,7 @@
     try {
       const url = "https://www.googleapis.com/books/v1/volumes?q=" +
         encodeURIComponent("intitle:" + title + (author ? " inauthor:" + author : "")) + "&maxResults=5";
-      const res = await fetch(url);
+      const res = await get(url);
       if (!res.ok) return [];
       const data = await res.json();
       return (data.items || []).slice(0, 5).map((it) => {
@@ -788,7 +822,7 @@
     const auth = { Authorization: "Bearer " + apiKey };
     try {
       const url = proxyUrl + "/steamgriddb/search/autocomplete/" + encodeURIComponent(title);
-      const res = await fetch(url, { headers: auth });
+      const res = await get(url, { headers: auth });
       if (!res.ok) { lastError = "SteamGridDB lookup failed (HTTP " + res.status + ")"; return []; }
       const data = await res.json();
       if (!data || !data.success) { lastError = "SteamGridDB lookup failed (bad response)"; return []; }
@@ -800,7 +834,7 @@
       const withCovers = await Promise.all(games.map(async (g) => {
         let coverUrl = "";
         try {
-          const gridRes = await fetch(proxyUrl + "/steamgriddb/grids/game/" + g.id, { headers: auth });
+          const gridRes = await get(proxyUrl + "/steamgriddb/grids/game/" + g.id, { headers: auth });
           if (gridRes.ok) {
             const gridData = await gridRes.json();
             coverUrl = (gridData.success && gridData.data && gridData.data[0] && (gridData.data[0].thumb || gridData.data[0].url)) || "";
@@ -865,6 +899,9 @@
       externalRating: top.externalRating || "",
       length: top.length || "",
       genres: top.genres || [],
+      // So a caller that skipped the blurb can still ask for it by RAWG id
+      // once it knows nothing better is coming (pickDetails in journal.js).
+      rawgId: top.id || "",
     };
     if (!wantSummary) return out;
     const details = await fetchRawgDetails(top.id, apiKey);
@@ -879,7 +916,7 @@
     if (!apiKey || !proxyUrl || !sgdbId) return null;
     try {
       const url = proxyUrl + "/steamgriddb/games/id/" + encodeURIComponent(sgdbId) + "?platformdata=steam";
-      const res = await fetch(url, { headers: { Authorization: "Bearer " + apiKey } });
+      const res = await get(url, { headers: { Authorization: "Bearer " + apiKey } });
       if (!res.ok) return null;
       const data = await res.json();
       if (!data || !data.success) return null;
@@ -965,7 +1002,7 @@
   };
   async function fetchGameInfo(appId, proxyUrl) {
     if (!proxyUrl || !/^\d+$/.test(String(appId || ""))) return { hltb: null, reviews: null };
-    const res = await fetch(proxyUrl + "/augsteam-app/" + appId);
+    const res = await get(proxyUrl + "/augsteam-app/" + appId);
     // A game Augmented Steam doesn't know is an answer, not a failure. The
     // worker's own "Not found" (an old worker without the route) is plain
     // text; Augmented Steam's is JSON.
@@ -1002,7 +1039,7 @@
     retries = retries || 0;
     attempt = attempt || 0;
     try {
-      const res = await fetch(proxyUrl + "/steam-appdetails/" + encodeURIComponent(appId));
+      const res = await get(proxyUrl + "/steam-appdetails/" + encodeURIComponent(appId));
       if (res.status === 429 && attempt < retries) {
         await sleep(1500 * (attempt + 1));
         return fetchSteamAppDetails(appId, proxyUrl, retries, attempt + 1);
@@ -1056,7 +1093,7 @@
       const base = proxyUrl ? proxyUrl + "/gg-deals" : "https://api.gg.deals/v1/prices/by-steam-app-id/";
       const url = base + "?ids=" +
         appIds.join(",") + "&key=" + encodeURIComponent(apiKey) + "&region=us";
-      const res = await fetch(url);
+      const res = await get(url);
       if (!res.ok) { lastError = "GG.deals price lookup failed (HTTP " + res.status + ")"; return {}; }
       const data = await res.json();
       if (!data || !data.success) { lastError = "GG.deals price lookup failed (bad response)"; return {}; }
@@ -1085,7 +1122,7 @@
     if (!id) return null;
     try {
       const query = "query ($id: Int) { Media(id: $id) { startDate { year month day } status type episodes chapters nextAiringEpisode { airingAt episode } } }";
-      const res = await fetch("https://graphql.anilist.co", {
+      const res = await get("https://graphql.anilist.co", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ query, variables: { id: parseInt(id, 10) } }),
@@ -1103,7 +1140,7 @@
     try {
       const url = "https://musicbrainz.org/ws/2/release-group/?query=" +
         encodeURIComponent(title) + "&fmt=json&limit=5";
-      const res = await fetch(url);
+      const res = await get(url);
       if (!res.ok) return [];
       const data = await res.json();
       return (data["release-groups"] || []).slice(0, 5).map((rg) => {
@@ -1195,11 +1232,11 @@
     try {
       const url = "https://api.rawg.io/api/games?key=" + encodeURIComponent(apiKey) +
         "&dates=" + dates + "&ordering=-added&page_size=20";
-      const res = await fetch(url);
-      if (!res.ok) return [];
+      const res = await get(url);
+      if (!res.ok) { noteRawgError(await rawgHttpError(res)); return []; }
       const data = await res.json();
       return (data.results || []).map(mapRawgResult);
-    } catch (e) { return []; }
+    } catch (e) { noteRawgError(rawgNetError(e)); return []; }
   }
 
   // TMDB's own /trending is the "hot right now" list. For what's coming it
@@ -1215,7 +1252,7 @@
         ymd(new Date()) + "&" + key
       : base + "trending/" + type + "/week?" + key;
     try {
-      const res = await fetch(url);
+      const res = await get(url);
       if (!res.ok) return [];
       const data = await res.json();
       return (data.results || []).slice(0, 20).map((r) => mapTmdbResult(r, type));
@@ -1232,7 +1269,7 @@
     const query = "query ($type: MediaType) { Page(perPage: 20) { media(type: $type, " +
       filter + ") { " + ANILIST_FIELDS + " } } }";
     try {
-      const res = await fetch("https://graphql.anilist.co", {
+      const res = await get("https://graphql.anilist.co", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ query, variables: { type } }),
@@ -1250,7 +1287,7 @@
     const filter = kind === "upcoming" ? "upcoming" : (type === "anime" ? "airing" : "publishing");
     try {
       const url = "https://api.jikan.moe/v4/top/" + type + "?filter=" + filter + "&limit=20";
-      const res = await fetch(url);
+      const res = await get(url);
       if (!res.ok) return [];
       const data = await res.json();
       return (data.data || []).map((d) => mapJikanResult(d, type));
@@ -1286,7 +1323,7 @@
   async function discoverNyt(kind, apiKey) {
     if (!apiKey || kind === "upcoming") return [];
     try {
-      const res = await fetch("https://api.nytimes.com/svc/books/v3/lists/overview.json?api-key=" + encodeURIComponent(apiKey));
+      const res = await get("https://api.nytimes.com/svc/books/v3/lists/overview.json?api-key=" + encodeURIComponent(apiKey));
       if (!res.ok) return [];
       const data = await res.json();
       const lists = (data.results && data.results.lists) || [];
@@ -1349,7 +1386,7 @@
     try {
       const base = "https://api.rawg.io/api/games/" + encodeURIComponent(id);
       const key = "key=" + encodeURIComponent(apiKey);
-      const [self, series] = await Promise.all([fetch(base + "?" + key), fetch(base + "/game-series?" + key + "&page_size=40")]);
+      const [self, series] = await Promise.all([get(base + "?" + key), get(base + "/game-series?" + key + "&page_size=40")]);
       if (!self.ok || !series.ok) return null;
       const g = await self.json();
       const rows = ((await series.json()).results || []).map(mapRawgResult);
@@ -1361,12 +1398,12 @@
     if (!apiKey || !id) return null;
     try {
       const key = "api_key=" + encodeURIComponent(apiKey);
-      const res = await fetch("https://api.themoviedb.org/3/movie/" + encodeURIComponent(id) + "?" + key);
+      const res = await get("https://api.themoviedb.org/3/movie/" + encodeURIComponent(id) + "?" + key);
       if (!res.ok) return null;
       const m = await res.json();
       const coll = m.belongs_to_collection;
       if (!coll || !coll.id) return null;
-      const cres = await fetch("https://api.themoviedb.org/3/collection/" + encodeURIComponent(coll.id) + "?" + key);
+      const cres = await get("https://api.themoviedb.org/3/collection/" + encodeURIComponent(coll.id) + "?" + key);
       if (!cres.ok) return null;
       const parts = ((await cres.json()).parts || []).filter((p) => String(p.id) !== String(id));
       return earliestAfter(parts.map((p) => mapTmdbResult(p, "movie")), m.release_date || "");
@@ -1377,7 +1414,7 @@
     if (!id) return null;
     try {
       const query = "query ($id: Int) { Media(id: $id) { relations { edges { relationType node { " + ANILIST_FIELDS + " } } } } }";
-      const res = await fetch("https://graphql.anilist.co", {
+      const res = await get("https://graphql.anilist.co", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify({ query, variables: { id: parseInt(id, 10) } }),

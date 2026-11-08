@@ -19,7 +19,7 @@
     startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
     fillCategorySelect, wireCategorySelect, titleSuggestions,
     backlogSuggestions, makeMediaAcItem, fetchMediaMatch, renderStreamedSuggestions,
-    resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
+    resolveMediaIdentity, pickDetails, updateSyncBtnVisibility, showSyncStatus,
     categoryShows, authorOf, titleWithAuthor, setAuthorField, fillAuthor, clearSyncedAuthor,
     pinnedAuthor, saveAuthor, wireAuthorField,
     renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
@@ -40,7 +40,7 @@
       startBulkRun, markBulkItem, finishBulkRun, bulkStopping,
       fillCategorySelect, wireCategorySelect, titleSuggestions,
       backlogSuggestions, makeMediaAcItem, fetchMediaMatch, renderStreamedSuggestions,
-      resolveMediaIdentity, updateSyncBtnVisibility, showSyncStatus,
+      resolveMediaIdentity, pickDetails, updateSyncBtnVisibility, showSyncStatus,
       categoryShows, authorOf, titleWithAuthor, setAuthorField, fillAuthor, clearSyncedAuthor,
       pinnedAuthor, saveAuthor, wireAuthorField,
       renderMediaLinks, isOverridden, sanitizeOverrides, keepUnknown,
@@ -655,20 +655,12 @@
     if (!isPinned("release")) $("#bReleaseYear").value = r.year ? String(r.year) : "";
     if (!isPinned("rating")) $("#bExternalRating").value = r.externalRating || "";
     $("#bGenres").value = (r.genres || []).join("|");
-    // Identity before details, because the answer feeds into them: a
-    // SteamGridDB pick that turns out to be on Steam already has Steam's
-    // own store blurb in hand, and knowing that here saves the RAWG
-    // cross-fill below a second request for a description that would lose
-    // to it anyway.
-    const resolved = await resolveMediaIdentity(r, keys);
-    // The per-title second call: TMDB's runtime/season counts plus the
-    // show's status and next episode air date — everything the Next
-    // Releases list needs — for a game on RAWG its description and a
-    // re-read of its rating, and for one off SteamGridDB (which states no
-    // rating, length, genres or description at all) a RAWG cross-fill of
-    // all four (see fetchDetails in media.js).
-    const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys,
-      { title: r.title, wantSummary: !resolved.summary });
+    // Identity and the per-title second call together (see pickDetails):
+    // TMDB's runtime/season counts plus the show's status and next episode
+    // air date, for a game on RAWG its description and a re-read of its
+    // rating, and for one off SteamGridDB (which states no rating, length,
+    // genres or description at all) a RAWG cross-fill of all four.
+    const { resolved, details } = await pickDetails(r, keys);
     if (!isPinned("length")) $("#bLength").value = details.length || r.length || "";
     if (!isPinned("rating") && details.externalRating) $("#bExternalRating").value = details.externalRating;
     // Only the cross-fill fills details.genres, and only for a source that
@@ -696,10 +688,14 @@
     if (!title) return;
     const list = $("#bTitleSuggest");
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
+    const btn = $("#bSyncBtn");
     await renderStreamedSuggestions(list, title, category, async (r) => {
-      await applyMediaResult(r, keys);
+      // The list goes and the button keeps spinning while the pick's details
+      // load, so a slow source reads as working rather than as a dead tap.
       list.hidden = true;
-    }, $("#bSyncBtn"), pinnedAuthor("b"));
+      btn.classList.add("busy");
+      try { await applyMediaResult(r, keys); } finally { btn.classList.remove("busy"); }
+    }, btn, pinnedAuthor("b"));
   }
 
   function unsyncBacklogItem() {
@@ -3069,18 +3065,11 @@
               if (r.year) item.releaseYear = r.year; else delete item.releaseYear;
             }
             if (!isOverridden(item, "rating")) item.externalRating = r.externalRating || "";
-            // Identity first, for the same reason as the single-item pick
-            // above: it decides whether the cross-fill has to go and find a
-            // description, or whether Steam's is already on its way.
-            const resolved = await resolveMediaIdentity(r, keys);
-            // TMDB needs a second per-title call for runtime/season data — the
-            // search endpoint doesn't include it (see fetchDetails in media.js),
-            // and the same response carries the status/next-episode dates. For
-            // a game it's where the description comes from, and for a
-            // SteamGridDB one where its rating, length and genres come from
-            // too, cross-filled off RAWG.
-            const details = await window.LifeLogMedia.fetchDetails(r.id, r.source, keys,
-              { title: r.title, wantSummary: !resolved.summary });
+            // Identity and the per-title details together, as in the
+            // single-item pick above (see pickDetails): TMDB's runtime/season
+            // data and status dates, a game's description, and for a
+            // SteamGridDB one its rating, length and genres cross-filled off RAWG.
+            const { resolved, details } = await pickDetails(r, keys);
             if (!isOverridden(item, "length")) { item.length = details.length || r.length || ""; if (item.length) filled.push("length"); }
             if (!isOverridden(item, "rating") && details.externalRating) item.externalRating = details.externalRating;
             if (item.externalRating) filled.push("rating");
