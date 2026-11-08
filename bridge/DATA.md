@@ -303,7 +303,9 @@ newer save wins.
 Keys: `scratchpad`, `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,
 `mediaCategorySources`, `mediaCategoryFallbackSources`, `mediaKeys`, `steam`,
 `anilist`, `releases`, `importSkips` (per import source, the `source:id`
-keys of items left unticked in a review, so they stay hidden next time),
+keys of items left unticked in a review, so they stay hidden next time;
+`bills` (0.309.0) holds the `category|note` keys of hand-logged bills
+answered Not a bill, so the Ledger stops suggesting them),
 `updatedAt`, `imagesCleanedAt` (when images in notes were last cleaned up;
 a device that sees a newer one uploads again any image of its own the
 clean-up dropped), `weekStart` and `dateFormat` (0.301.0, Settings →

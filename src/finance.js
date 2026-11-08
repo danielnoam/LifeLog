@@ -761,6 +761,143 @@
   // month/year counts and renderFinanceStats' `items`.
   // Paused ones are not (0.267.2): a pause is said once, on the plan in the
   // Recurring panel, not as a faded "Paused" row in every month it covers.
+  // ---------- bills logged by hand (0.309.0) ----------
+  // Expenses with the same note and category, charged on about the same day
+  // each month (or the same weekday each week) at about the same price, are
+  // a bill nobody made recurring. Idea from Sure's recurring identifier
+  // (github.com/we-promise/sure), rebuilt here; no code taken (it's AGPL).
+  //
+  // Deliberately strict, because a wrong suggestion is worse than none:
+  // the charge day must hold (within 3 days of the latest one's), the price
+  // must be one price or one price change of 10% at most (a weekly shop or
+  // a fuel stop wanders, a gym fee doesn't), the run must be recent, and at
+  // least 3 months or 4 weeks long. Yearly bills need years of history to show a
+  // pattern, so they aren't looked for.
+  const BILL_RULES = {
+    monthly: { gap: [25, 35], min: 3, stale: 45, tolerance: 0.1 },
+    weekly: { gap: [6, 8], min: 4, stale: 10, tolerance: 0.1 },
+  };
+  const billKeyOf = (category, note) => (category || "") + "|" + String(note || "").trim().toLowerCase();
+  const dayDiff = (a, b) => Math.round((new Date(b + "T00:00:00") - new Date(a + "T00:00:00")) / 86400000);
+  function spotBills(data, todayStr, skipped) {
+    const skip = new Set(skipped || []);
+    const plans = data.recurringExpenses || [];
+    const groups = new Map();
+    for (const e of data.financeEntries || []) {
+      const note = String(e.note || "").trim();
+      if (!note || !e.date || e.project || !(+e.amount > 0)) continue;
+      const k = billKeyOf(e.category, note);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(e);
+    }
+    const out = [];
+    for (const [key, list] of groups) {
+      if (skip.has(key) || list.length < 3) continue;
+      const note = String(list[0].note).trim();
+      if (plans.some((r) => sameNote(r.note, note))) continue;
+      list.sort((a, b) => a.date.localeCompare(b.date));
+      for (const [interval, rule] of Object.entries(BILL_RULES)) {
+        const last = list[list.length - 1];
+        if (dayDiff(last.date, todayStr) > rule.stale) continue;
+        const anchor = new Date(last.date + "T00:00:00");
+        const sameSlot = (e) => {
+          const d = new Date(e.date + "T00:00:00");
+          if (interval === "weekly") return d.getDay() === anchor.getDay();
+          // The 31st of a 30-day month is charged on the 30th.
+          const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+          return Math.abs(d.getDate() - Math.min(anchor.getDate(), dim)) <= 3;
+        };
+        const run = [last];
+        for (let i = list.length - 2; i >= 0; i--) {
+          const gap = dayDiff(list[i].date, run[0].date);
+          if (gap < rule.gap[0] || gap > rule.gap[1] || !sameSlot(list[i])) break;
+          run.unshift(list[i]);
+        }
+        if (run.length < rule.min) continue;
+        // One price, or one price change (all of the old before all of the
+        // new, within 10%): a bill. Prices that wander are shopping.
+        const cents = run.map((e) => Math.round(+e.amount * 100));
+        const steps = cents.filter((c, i) => i && c !== cents[i - 1]).length;
+        if (steps > 1) continue;
+        const amounts = run.map((e) => +e.amount).sort((a, b) => a - b);
+        if ((amounts[amounts.length - 1] - amounts[0]) / amounts[0] > rule.tolerance) continue;
+        out.push({
+          key, note, interval, category: last.category, subcategory: last.subcategory || "",
+          entries: run, amount: +last.amount, low: amounts[0], high: amounts[amounts.length - 1],
+          day: interval === "weekly" ? anchor.getDay() : anchor.getDate(),
+        });
+        break;
+      }
+    }
+    return out.sort((a, b) => b.entries[b.entries.length - 1].date.localeCompare(a.entries[a.entries.length - 1].date));
+  }
+
+  // ---------- this month's pace (0.309.0) ----------
+  // Where each category is heading this month against its usual month (the
+  // average of the three full months before). Idea from Sure's spending
+  // anomaly insight; its numbers kept: nothing is judged before day 7, and
+  // a category is flagged once it's heading 25% or more over its usual.
+  //
+  // The projection is what's spent so far, plus the rest of the month going
+  // as a usual month does: the usual one-off spending per day for the days
+  // left, and the bills still due. Not "so far × days in month", which is
+  // Sure's way: that turns rent on the 1st, or one chair bought on day 3,
+  // into thirty times itself.
+  // Project spending (a trip) is left out entirely; it is a one-off by
+  // definition and would make every month around it look odd.
+  // `rows` is every charge (one-offs and generated occurrences, as
+  // getEffectiveFinanceEntries gives them, up to the month's end);
+  // `groupOf` names a charge's line.
+  const PACE = { fromDay: 7, flag: 0.25, baselineMonths: 3 };
+  function monthPace(rows, todayStr, groupOf) {
+    const [y, m, dd] = todayStr.split("-").map(Number);
+    const ym = (yy, mm) => yy + "-" + String(mm).padStart(2, "0");
+    const thisMonth = ym(y, m);
+    const daysIn = new Date(y, m, 0).getDate();
+    const prev = [];
+    for (let i = 1; i <= PACE.baselineMonths; i++) {
+      const d = new Date(y, m - 1 - i, 1);
+      prev.push(ym(d.getFullYear(), d.getMonth() + 1));
+    }
+    const live = rows.filter((f) => !f.skipped && !f.paused && !f.project && f.date);
+    const firstMonth = live.reduce((min, f) => (f.date.slice(0, 7) < min ? f.date.slice(0, 7) : min), thisMonth);
+    // A Ledger younger than three months averages over the months it has.
+    const counted = prev.filter((k) => k >= firstMonth);
+    if (!counted.length) return null;
+    const groups = new Map();
+    const g = (k) => {
+      if (!groups.has(k)) groups.set(k, { name: k, sample: null, spent: 0, billsDue: 0, base: 0, baseOneOff: 0 });
+      return groups.get(k);
+    };
+    for (const f of live) {
+      const month = f.date.slice(0, 7);
+      const amt = +f.amount || 0;
+      if (month === thisMonth) {
+        const x = g(groupOf(f));
+        x.sample = x.sample || f;
+        if (f.date <= todayStr) x.spent += amt;
+        else if (f.recurringId) x.billsDue += amt;
+      } else if (counted.includes(month)) {
+        const x = g(groupOf(f));
+        x.sample = x.sample || f;
+        x.base += amt;
+        if (!f.recurringId) x.baseOneOff += amt;
+      }
+    }
+    const judged = dd >= PACE.fromDay;
+    const lines = [...groups.values()].map((x) => {
+      const usual = x.base / counted.length;
+      const projected = judged ? x.spent + (x.baseOneOff / counted.length) * ((daysIn - dd) / daysIn) + x.billsDue : null;
+      const over = judged && projected > usual * (1 + PACE.flag) && projected - usual >= 1;
+      return { name: x.name, sample: x.sample, spent: x.spent, usual, projected, over };
+    }).filter((l) => l.usual > 0 || l.spent > 0);
+    // Flagged first, the furthest over (as a share of its usual) leading;
+    // the rest by how big a usual month they are.
+    const ratio = (l) => (l.usual > 0 ? l.projected / l.usual : Infinity);
+    lines.sort((a, b) => (b.over - a.over) || (b.over ? ratio(b) - ratio(a) : b.usual - a.usual));
+    return { day: dd, daysIn, judged, months: counted.length, lines };
+  }
+
   function getEffectiveFinanceEntries() {
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const virtual = (state.data.recurringExpenses || []).flatMap((r) => planCharges(r, today)).filter((o) => !o.paused);
@@ -1282,6 +1419,7 @@
     big.appendChild(bigRow);
     root.appendChild(big);
     renderFinanceHighlights(root, items);
+    renderFinancePaceCard(root);
 
     const grid = el("div", "stats-grid");
     grid.appendChild(financeCategoryCard("By category", items));
@@ -1419,6 +1557,81 @@
     }
 
     card.appendChild(row);
+    root.appendChild(card);
+  }
+
+  // "<Month> so far" (0.309.0): each category's spend against its usual
+  // month, with where it's heading. Follows the category chips (one
+  // category picked: its subcategories) but not the year chips, which
+  // would only hide the month it's about.
+  function renderFinancePaceCard(root) {
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    if (state.financeActiveYears.size && !state.financeActiveYears.has(now.getFullYear())) return;
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const catOk = financeCatTest();
+    const rows = [...state.data.financeEntries,
+      ...(state.data.recurringExpenses || []).flatMap((r) => planCharges(r, monthEnd))]
+      .filter((f) => !catOk || catOk(f));
+    const parents = [...state.financeActiveCats].filter((k) => !k.includes(SUB_SEP));
+    const bySub = parents.length === 1;
+    const pace = monthPace(rows, todayStr(), (f) => (bySub ? catLabel(f) : f.category));
+    if (!pace || !pace.lines.length) return;
+    const lines = pace.lines.slice(0, 6);
+    const max = Math.max(1, ...lines.map((l) => Math.max(l.spent, l.usual, l.projected || 0)));
+
+    const card = el("div", "card pace-card");
+    card.style.marginTop = "20px";
+    const h2 = el("h2", null);
+    h2.appendChild(window.LifeLogIcons.labelled("activity", `${MONTHS[now.getMonth() + 1]} so far`));
+    h2.appendChild(el("span", "pace-day", `day ${pace.day} of ${pace.daysIn}`));
+    card.appendChild(h2);
+    const legend = el("div", "pace-legend");
+    legend.appendChild(el("span", "pace-key pace-key-spent", "spent"));
+    if (pace.judged) legend.appendChild(el("span", "pace-key pace-key-proj", "heading for"));
+    legend.appendChild(el("span", "pace-key pace-key-usual", pace.months === 1 ? "last month" : `usual month (${pace.months}-month average)`));
+    card.appendChild(legend);
+    const whole = (n) => moneyWhole(Math.round(n));
+    for (const l of lines) {
+      const color = financeColorOf(l.sample ? l.sample.category : l.name);
+      const row = el("div", "pace-row" + (l.over ? " is-over" : ""));
+      const name = el("span", "pace-name");
+      const dot = el("span", "dot");
+      dot.style.background = color;
+      name.appendChild(dot);
+      name.appendChild(document.createTextNode(bySub && l.sample ? (l.sample.subcategory || "Only " + l.sample.category) : l.name));
+      row.appendChild(name);
+      let say;
+      if (!pace.judged) say = `${whole(l.spent)} so far · usually ${whole(l.usual)}`;
+      else if (l.over) say = l.usual > 0 ? `${whole(l.projected)} by month end · usually ${whole(l.usual)}` : `${whole(l.projected)} by month end · new this month`;
+      else if (!l.spent && !l.projected) say = `Nothing yet · usually ${whole(l.usual)}`;
+      else say = `On track · usually ${whole(l.usual)}`;
+      const val = el("span", "pace-say");
+      if (l.over) val.appendChild(ico("trending-up"));
+      val.appendChild(el("span", null, say));
+      row.appendChild(val);
+      const bar = el("span", "pace-bar");
+      if (pace.judged) {
+        const proj = el("span", "pace-proj");
+        proj.style.width = Math.min(100, (l.projected / max) * 100) + "%";
+        proj.style.background = color;
+        bar.appendChild(proj);
+      }
+      const spent = el("span", "pace-spent");
+      spent.style.width = Math.min(100, (l.spent / max) * 100) + "%";
+      spent.style.background = color;
+      bar.appendChild(spent);
+      if (l.usual > 0) {
+        const mark = el("span", "pace-usual");
+        mark.style.left = Math.min(100, (l.usual / max) * 100) + "%";
+        bar.appendChild(mark);
+      }
+      bar.setAttribute("aria-hidden", "true");
+      row.appendChild(bar);
+      card.appendChild(row);
+    }
+    card.appendChild(el("p", "hint", pace.judged
+      ? "Flagged when a category is heading 25% or more over its usual month. Bills count at their price; trips and other projects are left out."
+      : `Where each category is heading shows from day ${PACE.fromDay}.`));
     root.appendChild(card);
   }
 
@@ -1658,6 +1871,31 @@
     return out;
   }
 
+  // Category memory (0.309.0): a new expense whose note matches one filed
+  // before takes that filing (category and subcategory) as you type, and
+  // says so under the note. Once you pick a category yourself it's yours
+  // and typing leaves it alone; a note that stops matching puts back the
+  // category the form opened with.
+  let finCatChosen = false;
+  let finCatDefault = "";
+  function suggestFinanceCategory() {
+    const hint = $("#finCatHint");
+    if ($("#financeId").value || finCatChosen) return false;
+    const note = $("#finNote").value;
+    const hit = window.LifeLogWidgets.filingFor(state.data, note);
+    if (!hit) {
+      if (!hint.hidden) $("#finCategory").value = finCatDefault;
+      hint.hidden = true;
+      return false;
+    }
+    $("#finCategory").value = subKey(hit.category, hit.subcategory);
+    $("#finCategory").dataset.prevValue = $("#finCategory").value;
+    hint.replaceChildren(ico("history"), document.createTextNode(
+      `${catLabel(hit)}, as your last “${note.trim()}” on ${Dates().day(hit.date)}`));
+    hint.hidden = false;
+    return true;
+  }
+
   function openFinanceModal(entry, presetDate, prefill) {
     const editing = !!entry;
     $("#financeModalTitle").textContent = editing ? "Edit finance entry" : "Add finance entry";
@@ -1687,13 +1925,16 @@
     if (editing && fx) $("#finAmount").value = fx.amount;
     applyFinanceCurrencyUI();
     $("#finNote").value = editing ? (entry.note || "") : "";
+    finCatChosen = false;
+    finCatDefault = $("#finCategory").value;
+    $("#finCatHint").hidden = true;
     if (!editing && prefill) {
       if (prefill.date) $("#finDate").value = prefill.date;
       if (prefill.currency) fillCurrencySelect($("#finCurrency"), prefill.currency);
       if (prefill.amount) $("#finAmount").value = prefill.amount;
       if (prefill.note) {
         $("#finNote").value = prefill.note;
-        $("#finCategory").value = window.LifeLogWidgets.categoryFor(state.data, prefill.note);
+        if (!suggestFinanceCategory()) $("#finCategory").value = window.LifeLogWidgets.categoryFor(state.data, prefill.note);
       }
       applyFinanceCurrencyUI();
     }
@@ -1897,18 +2138,21 @@
   // finance entry (see makeEntryRecurring): the entry is only removed once
   // the template is actually saved, so cancelling leaves it untouched.
   let pendingConvertEntryId = null;
+  // A spotted bill's other expenses (0.309.0), linked once the plan is saved.
+  let pendingLinkIds = [];
 
   function openRecurringModal(rec, prefill) {
     const editing = !!rec;
     const p = prefill || {};
     $("#recurringModalTitle").textContent = editing ? "Edit recurring expense"
-      : (p.convertFromId ? "Make recurring" : "Add recurring expense");
+      : (p.convertFromId || (p.linkIds || []).length ? "Make recurring" : "Add recurring expense");
     pendingConvertEntryId = editing ? null : (p.convertFromId || null);
+    pendingLinkIds = editing ? [] : (p.linkIds || []);
     $("#recConvertHint").hidden = !pendingConvertEntryId;
     $("#recId").value = editing ? rec.id : "";
     $("#recStart").value = editing ? rec.startDate : (p.startDate || todayStr());
     $("#recEnd").value = editing ? (rec.endDate || "") : "";
-    $("#recInterval").value = editing ? rec.interval : "monthly";
+    $("#recInterval").value = editing ? rec.interval : (p.interval || "monthly");
     fillChargeOn(editing ? rec : null);
     // Foreign plan: the Amount box holds what you're billed, in that
     // currency — same as the expense form, where the typed figure is the one
@@ -2067,6 +2311,7 @@
     setRecToolsOpen(false);
     $("#recurringModal").hidden = true;
     pendingConvertEntryId = null;
+    pendingLinkIds = [];
   }
 
   // The plan history strip: every template this bill has been through,
@@ -2402,6 +2647,7 @@
     }
     const amount = foreign ? Math.round(typed * rate * 100) / 100 : typed;
     const converted = pendingConvertEntryId;
+    const toLinkIds = pendingLinkIds;
     let created = null;
     if (id) {
       const r = state.data.recurringExpenses.find((x) => x.id === id);
@@ -2431,6 +2677,9 @@
       // template exists — the template regenerates it as its first occurrence.
       if (converted) state.data.financeEntries = state.data.financeEntries.filter((x) => x.id !== converted);
     }
+    const linking = created && toLinkIds.length
+      ? state.data.financeEntries.filter((e) => toLinkIds.includes(e.id)) : [];
+    if (linking.length) linkEntriesToPlan(created, linking);
     const A = window.LifeLogAlerts;
     if (A && A.available()) {
       const saved = created || state.data.recurringExpenses.find((x) => x.id === id);
@@ -2440,6 +2689,10 @@
     buildYearFilter();
     render();
     await persist();
+    if (linking.length) {
+      toast(`Made recurring — its ${linking.length} past expenses are its charges now`);
+      return;
+    }
     const done = id ? "Recurring expense updated" : (converted ? "Converted to a recurring expense" : "Recurring expense added");
     // A bill you just made recurring has usually been logged by hand before.
     const toLink = created ? linkSuggestionCount(created) : 0;
@@ -2657,6 +2910,42 @@
   }
   const linkSuggestionCount = (rec) => linkCandidates(rec).filter((c) => c.suggested).length;
 
+  // Past expenses become a plan's charges: each is removed from the list and
+  // lands on the plan's nearest occurrence, keeping the amount and note it
+  // was logged with as that occurrence's override. Shared by Link past
+  // expenses and a spotted bill's Make recurring (0.309.0), and the bridge,
+  // which passes its own `data` (it has no app state, hence the local fx).
+  function linkEntriesToPlan(rec, entries, data) {
+    data = data || state.data;
+    const home = (data.settings && data.settings.currency) || "ILS";
+    const fxOf = (f) => (f && f.currency && f.currency !== home ? { currency: f.currency, amount: +f.fxAmount || 0, rate: +f.rate || 0 } : null);
+    const ids = new Set(entries.map((e) => e.id));
+    data.financeEntries = data.financeEntries.filter((e) => !ids.has(e.id));
+    const minDate = entries.map((e) => e.date).sort()[0];
+    const movedStart = minDate < rec.startDate;
+    if (movedStart) rec.startDate = minDate;
+
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const latest = entries.map((e) => e.date).sort().pop();
+    const until = new Date(Math.max(today.getTime(), new Date(latest + "T00:00:00").getTime()));
+    const occs = recurringOccurrences(rec, until);
+    const pfx = fxOf(rec);
+    entries.forEach((e) => {
+      const occDate = closestOccurrenceDate(occs, e.date) || e.date;
+      const efx = fxOf(e);
+      const ov = {};
+      // A foreign plan's charge is what you were billed in its currency,
+      // at the rate you paid that day. Anything else is a home figure.
+      if (pfx && efx && efx.currency === pfx.currency) {
+        if (efx.amount !== pfx.amount) ov.fxAmount = efx.amount;
+        if (efx.rate > 0) rec.rates = { ...(rec.rates || {}), [occDate]: efx.rate };
+      } else if (e.amount !== rec.amount) ov.amount = e.amount;
+      if ((e.note || "") !== (rec.note || "")) ov.note = e.note || "";
+      if (Object.keys(ov).length) rec.overrides = { ...(rec.overrides || {}), [occDate]: ov };
+    });
+    return { minDate, movedStart };
+  }
+
   function openLinkPastExpensesPicker(rec) {
     const candidates = linkCandidates(rec);
     if (!candidates.length) { toast("No expenses in " + rec.category + " to link", true); return; }
@@ -2674,31 +2963,7 @@
       confirmLabel: "Link",
       onConfirm: async (selected) => {
         if (!selected.length) return;
-        const ids = new Set(selected.map((i) => i.entry.id));
-        state.data.financeEntries = state.data.financeEntries.filter((e) => !ids.has(e.id));
-        const minDate = selected.map((i) => i.entry.date).sort()[0];
-        const movedStart = minDate < rec.startDate;
-        if (movedStart) rec.startDate = minDate;
-
-        const today = new Date(); today.setHours(0, 0, 0, 0);
-        const latest = selected.map((i) => i.entry.date).sort().pop();
-        const until = new Date(Math.max(today.getTime(), new Date(latest + "T00:00:00").getTime()));
-        const occs = recurringOccurrences(rec, until);
-        const pfx = fxOf(rec);
-        selected.forEach((i) => {
-          const e = i.entry;
-          const occDate = closestOccurrenceDate(occs, e.date) || e.date;
-          const efx = fxOf(e);
-          const ov = {};
-          // A foreign plan's charge is what you were billed in its currency,
-          // at the rate you paid that day. Anything else is a home figure.
-          if (pfx && efx && efx.currency === pfx.currency) {
-            if (efx.amount !== pfx.amount) ov.fxAmount = efx.amount;
-            if (efx.rate > 0) rec.rates = { ...(rec.rates || {}), [occDate]: efx.rate };
-          } else if (e.amount !== rec.amount) ov.amount = e.amount;
-          if ((e.note || "") !== (rec.note || "")) ov.note = e.note || "";
-          if (Object.keys(ov).length) rec.overrides = { ...(rec.overrides || {}), [occDate]: ov };
-        });
+        const { minDate, movedStart } = linkEntriesToPlan(rec, selected.map((i) => i.entry));
 
         buildYearFilter();
         render();
@@ -2717,6 +2982,81 @@
     if (n) $("#recLinkOfferText").textContent = `${n} logged expense${n === 1 ? " looks" : "s look"} like this bill.`;
   }
 
+  // Spotted bills (0.309.0) the Ledger's filters let through: none while
+  // searching or selecting, two at most so the block stays about bills.
+  function billSuggestions() {
+    if (state.search.trim() || state.bulk.active) return [];
+    const catOk = financeCatTest();
+    const skipped = ((state.data.settings.importSkips || {}).bills) || [];
+    return spotBills(state.data, todayStr(), skipped)
+      .filter((b) => !catOk || catOk(b.entries[b.entries.length - 1]))
+      .slice(0, 2);
+  }
+
+  // A short money figure for a sentence: "$32", but "$15.49".
+  const moneyWhole = (n) => formatMoney(n).replace(/[.,]00$/, "");
+
+  function billSuggestionCard(b) {
+    const card = el("div", "bill-suggest");
+    card.appendChild(el("span", "bill-suggest-ico")).appendChild(ico("repeat"));
+    const text = el("div", "bill-suggest-text");
+    text.appendChild(el("b", null, `${b.note} looks like a ${b.interval} bill`));
+    const n = b.entries.length;
+    const when = b.interval === "weekly" ? `on ${WEEKDAY_NAMES[b.day]}s` : `around the ${ordinal(b.day)} each month`;
+    const price = b.low === b.high ? moneyWhole(b.low) : `${moneyWhole(b.low)}–${moneyWhole(b.high)}`;
+    text.appendChild(el("span", null, `${n} expenses, ${when}, ${price}. Make it recurring and these ${n} become its charges.`));
+    const dots = el("div", "bill-suggest-dates");
+    b.entries.forEach((e) => dots.appendChild(el("span", null, `${Dates().dayMonth(+e.date.slice(8, 10), +e.date.slice(5, 7))} · ${moneyWhole(+e.amount)}`)));
+    text.appendChild(dots);
+    card.appendChild(text);
+    const btns = el("div", "bill-suggest-btns");
+    const no = el("button", "btn", "Not a bill");
+    no.type = "button";
+    no.onclick = () => dismissBillSuggestion(b);
+    const yes = el("button", "btn btn-primary", "Make recurring");
+    yes.type = "button";
+    yes.onclick = () => {
+      const first = b.entries[0], last = b.entries[b.entries.length - 1];
+      openRecurringModal(null, {
+        // Every one of them is linked rather than the first converted: a
+        // converted entry comes back at the plan's price, and the run's
+        // first charges were often at the old one.
+        linkIds: b.entries.map((e) => e.id),
+        startDate: first.date,
+        amount: last.amount,
+        category: last.category,
+        subcategory: last.subcategory,
+        note: b.note,
+        interval: b.interval,
+      });
+    };
+    btns.appendChild(no);
+    btns.appendChild(yes);
+    card.appendChild(btns);
+    return card;
+  }
+
+  // "Not a bill" is remembered with the import skips, so it syncs and stays
+  // said on every device; Undo takes it back.
+  async function dismissBillSuggestion(b) {
+    const all = { ...(state.data.settings.importSkips || {}) };
+    all.bills = [...new Set([...(all.bills || []), b.key])];
+    state.data.settings.importSkips = all;
+    render();
+    await persist();
+    toast(`Won't suggest ${b.note} again`, false, {
+      label: "Undo",
+      onClick: async () => {
+        const now = { ...(state.data.settings.importSkips || {}) };
+        now.bills = (now.bills || []).filter((k) => k !== b.key);
+        if (!now.bills.length) delete now.bills;
+        state.data.settings.importSkips = now;
+        render();
+        await persist();
+      },
+    });
+  }
+
   function renderRecurringCard(root) {
     const today = todayStr();
     // One row per bill: a plan another took over from (a plan change, or a
@@ -2731,7 +3071,8 @@
     // need to stay openable — otherwise the only way back to one is hunting
     // down one of its occurrences.
     const ended = bills.filter((r) => r.endDate && r.endDate < today);
-    if (!active.length && !ended.length) return;
+    const spotted = billSuggestions();
+    if (!active.length && !ended.length && !spotted.length) return;
     // Dressed as the blocks other tabs pin above their years (0.243.0), the
     // Timeline's In progress and the Notebook's Favourites: a heading with a
     // glyph, its count and a +, over a card holding the rows.
@@ -2749,6 +3090,8 @@
     add.onclick = () => openRecurringModal(null);
     head.appendChild(add);
     block.appendChild(head);
+    spotted.forEach((b) => block.appendChild(billSuggestionCard(b)));
+    if (!active.length && !ended.length) { root.appendChild(block); return; }
     const card = el("div", "month-card recur-card");
     block.appendChild(card);
 
@@ -3844,6 +4187,8 @@
   // Finance-specific DOM wiring; called from app.js's wire().
   function wire() {
     wireCategorySelect("#finCategory", "#financeModal", true);
+    $("#finNote").addEventListener("input", suggestFinanceCategory);
+    $("#finCategory").addEventListener("change", () => { finCatChosen = true; $("#finCatHint").hidden = true; });
     wireCategorySelect("#recCategory", "#recurringModal", true);
     wireCategorySelect("#planCategory", "#changePlanModal", true);
 
@@ -4069,6 +4414,8 @@
     setPause, resumeOn, livePauseIndex, setOccurrence, resetOccurrence,
     renameFinanceCategory, renameFinanceSubcategory, renameProject,
     subKey, parseSubKey, catLabel, SUB_SEP,
+    // bills logged by hand and this month's pace (0.309.0), for the bridge and tests
+    spotBills, monthPace, billKeyOf, PACE, linkEntriesToPlan,
     localDateStr,
     closestOccurrenceDate,
     // exported for test/finance.test.js — the date-range reply's shape and

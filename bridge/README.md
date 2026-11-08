@@ -65,6 +65,8 @@ Reading: `lifelog_overview` (start here), `lifelog_guide`, `lifelog_search`,
 `lifelog_get`, `lifelog_timeline`, `lifelog_backlog`, `lifelog_pick` (a
 random title, as the Backlog's Pick sheet draws), `lifelog_notes`,
 `lifelog_expenses`, `lifelog_spending`, `lifelog_recurring`,
+`lifelog_bill_suggestions` (expenses logged by hand that look like a bill),
+`lifelog_month_pace` (this month so far against a usual month),
 `lifelog_habits`, `lifelog_accomplishments`, `lifelog_boards`,
 `lifelog_trips`, `lifelog_stats` (the Timeline's Stats, a year in numbers),
 `lifelog_habit_insights`, `lifelog_habits_left` (what's still to do today
@@ -88,6 +90,7 @@ base64, kept beside the data like the app's), `lifelog_set_scratchpad`,
 `lifelog_update_trip`, `lifelog_delete_trip`, `lifelog_add_place`,
 `lifelog_update_place`, `lifelog_delete_place`,
 `lifelog_import_google_list`, `lifelog_add_habit`, `lifelog_add_recurring`,
+`lifelog_make_bill_recurring`, `lifelog_dismiss_bill_suggestion`,
 `lifelog_add_category`, `lifelog_delete_category`,
 `lifelog_add_subcategory`, `lifelog_rename_subcategory`,
 `lifelog_delete_subcategory`, `lifelog_batch` (several

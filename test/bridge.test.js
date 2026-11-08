@@ -188,6 +188,33 @@ test("a foreign expense is converted, and needs its rate", async () => {
   assert.deepStrictEqual([f.amount, f.currency, f.fxAmount, f.rate], [39, "EUR", 10, 3.9]);
 });
 
+test("spotted bills are listed, made recurring with their charges, or dismissed; add_expense remembers a note's category", async () => {
+  reset();
+  const d0 = data();
+  const ago = (m) => { const x = new Date(today + "T00:00:00"); x.setDate(1); x.setMonth(x.getMonth() - m); x.setDate(10); return Finance.localDateStr(x); };
+  d0.financeEntries.push(...[4, 3, 2, 1].map((m, i) => ({ id: "gym" + m, date: ago(m), amount: i < 2 ? 32 : 35, category: "Food", note: "Gym", createdAt: T, updatedAt: T })));
+  fs.writeFileSync(FILE, JSON.stringify(d0));
+  let t = await ok("lifelog_bill_suggestions", {});
+  assert.match(t, /- Gym \[Food\]: 4 monthly charges, 32\.00 ILS to 35\.00 ILS/);
+  assert.match(t, /key Food\|gym/);
+  await ok("lifelog_dismiss_bill_suggestion", { key: "Food|gym" });
+  assert.deepStrictEqual(data().settings.importSkips.bills, ["Food|gym"]);
+  assert.match(await ok("lifelog_bill_suggestions", {}), /No hand-logged bills/);
+  await ok("lifelog_dismiss_bill_suggestion", { key: "Food|gym", undo: true });
+  t = await ok("lifelog_make_bill_recurring", { key: "Food|gym" });
+  assert.match(t, /Made Gym a monthly bill of 35\.00 ILS/);
+  const d = data();
+  const plan = d.recurringExpenses.find((r) => r.note === "Gym");
+  assert.strictEqual(plan.startDate, ago(4));
+  assert.ok(!d.financeEntries.some((f) => f.note === "Gym"), "the expenses became its charges");
+  assert.strictEqual(Object.values(plan.overrides || {}).filter((o) => o.amount === 32).length, 2, "the old price kept on its charges");
+  await refused("lifelog_make_bill_recurring", { key: "Food|gym" }, /No spotted bill/);
+  t = await ok("lifelog_add_expense", { amount: 7, note: "pizza" });
+  assert.strictEqual(data().financeEntries.slice(-1)[0].category, "Food", "filed where Pizza was last time");
+  await refused("lifelog_add_expense", { amount: 7, note: "Nowhere" }, /give a category/);
+  assert.match(await ok("lifelog_month_pace", {}), /^Day \d+ of \d+/);
+});
+
 test("timeline ratings are 1 to 5 stars", async () => {
   reset();
   await refused("lifelog_add_timeline_entry", { title: "X", category: "Games", rating: 8 }, /1-5/);
@@ -917,7 +944,7 @@ test("the command line runs the same tools", async () => {
   assert.strictEqual(bad.code, 1);
   assert.match(bad.err, /No category called "Nope"/);
   const help = await run([]);
-  assert.match(help.out, /lifelog_add_expense \(changes data\) --amount --category/);
+  assert.match(help.out, /lifelog_add_expense \(changes data\) --amount \[--category\]/);
 });
 
 test("images in notes (0.297.0): added beside the data, listed, and sent back as pictures", async () => {

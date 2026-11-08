@@ -1095,6 +1095,57 @@ test("renaming or deleting a sub moves only that parent's expenses", () => {
   assert.deepStrictEqual([d.financeEntries[1].category, d.financeEntries[1].subcategory], ["Other", undefined]);
 });
 
+test("spotBills: a hand-logged bill, not shopping, a wandering day, a stale run or a plan", () => {
+  const e = (date, amount, note, category = "Home") => ({ id: note + date, date, amount, note, category });
+  const d = {
+    financeEntries: [
+      e("2026-07-12", 32, "Gym"), e("2026-08-12", 32, "Gym"), e("2026-09-13", 35, "Gym"), e("2026-10-12", 35, "Gym"),
+      e("2026-08-03", 18, "Beans"), e("2026-09-03", 21, "Beans"), e("2026-10-03", 18, "Beans"),
+      e("2026-08-20", 50, "Fuel"), e("2026-09-02", 50, "Fuel"), e("2026-10-01", 50, "Fuel"),
+      e("2026-03-05", 9, "Old"), e("2026-04-05", 9, "Old"), e("2026-05-05", 9, "Old"),
+      e("2026-08-20", 15, "Netflix"), e("2026-09-20", 15, "Netflix"), e("2026-10-20", 15, "Netflix"),
+      e("2026-10-01", 5, "Paper", "Fun"), e("2026-10-08", 5, "Paper", "Fun"), e("2026-10-15", 5, "Paper", "Fun"), e("2026-10-22", 5, "Paper", "Fun"),
+      e("2026-08-07", 40, "Phone"), e("2026-09-07", 40, "Phone"), e("2026-10-07", 48, "Phone"),
+    ],
+    recurringExpenses: [{ id: "n", startDate: "2026-11-20", interval: "monthly", amount: 15, category: "Fun", note: "netflix" }],
+  };
+  const found = Finance.spotBills(d, "2026-11-01");
+  assert.deepStrictEqual(found.map((b) => [b.note, b.interval, b.entries.length]), [["Paper", "weekly", 4], ["Gym", "monthly", 4]]);
+  const gym = found.find((b) => b.note === "Gym");
+  assert.deepStrictEqual([gym.low, gym.high, gym.day, gym.key], [32, 35, 12, "Home|gym"]);
+  assert.deepStrictEqual(Finance.spotBills(d, "2026-11-01", ["Home|gym", "Fun|paper"]), [], "dismissed ones stay dismissed");
+  assert.deepStrictEqual(Finance.spotBills(d, "2027-01-20").map((b) => b.note), [], "a run that stopped isn't offered");
+});
+
+test("monthPace: bills at their price, one-offs plus a usual rest of month, flagged at 25% over", () => {
+  const rows = [
+    // three usual months
+    ...["08", "09", "10"].flatMap((m) => [
+      { date: `2026-${m}-01`, amount: 1000, category: "Home", recurringId: "rent" },
+      { date: `2026-${m}-10`, amount: 300, category: "Food" },
+      { date: `2026-${m}-15`, amount: 30, category: "Fun" },
+    ]),
+    { date: "2026-11-01", amount: 1000, category: "Home", recurringId: "rent" },
+    { date: "2026-11-03", amount: 400, category: "Home" },
+    { date: "2026-11-05", amount: 60, category: "Food" },
+    { date: "2026-11-09", amount: 90, category: "Fun" },
+    { date: "2026-11-11", amount: 500, category: "Fun", project: "Trip" },
+    { date: "2026-11-20", amount: 15, category: "Fun", recurringId: "nf" },
+  ];
+  const p = Finance.monthPace(rows, "2026-11-12", (f) => f.category);
+  assert.deepStrictEqual([p.day, p.daysIn, p.judged, p.months], [12, 30, true, 3]);
+  const line = (n) => p.lines.find((l) => l.name === n);
+  assert.strictEqual(line("Home").projected, 1400, "rent counted once, a one-off not multiplied");
+  assert.ok(line("Home").over, "a 400 chair on top of 1000 is 40% over");
+  assert.strictEqual(Math.round(line("Food").projected), 240, "60 so far + 300 x 18/30");
+  assert.ok(!line("Food").over);
+  assert.strictEqual(Math.round(line("Fun").projected), 90 + 18 + 15, "the trip is left out, the bill still due is in");
+  assert.strictEqual(p.lines[0].name, "Fun", "the furthest over comes first");
+  const early = Finance.monthPace(rows, "2026-11-04", (f) => f.category);
+  assert.ok(!early.judged && early.lines.every((l) => l.projected === null && !l.over), "nothing judged before day 7");
+  assert.strictEqual(Finance.monthPace([{ date: "2026-11-02", amount: 5, category: "Fun" }], "2026-11-12", (f) => f.category), null, "a first month has nothing to compare");
+});
+
 (async () => {
   for (const run of pending) await run();
   console.log(`\n${passed} test(s) passed.`);

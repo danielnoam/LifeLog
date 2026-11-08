@@ -243,7 +243,9 @@ currencies at the day's rate. Recurring bills charge on a day you pick
 changes, one-off charges, merges and per-charge edits. Projects group a
 burst of spending, like a trip; a category can hold subcategories. On the
 phones, a reminder before a bill charges; on Android, Google Wallet
-payments are offered in.
+payments are offered in. Expenses you keep logging by hand at the same
+price on the same day are spotted as a bill, with Make recurring, and a new
+expense takes the category its note was filed under last time.
 
 <table><tr>
 <td><img src="docs/screenshots/ledger-desktop.webp" alt="The Ledger on a computer" width="620"></td>
@@ -252,8 +254,9 @@ payments are offered in.
 
 ### Summary
 
-Highlights, recurring, by month, by category (with subcategories) and the
-largest expenses.
+Highlights, this month so far (each category's spend, where it's heading
+and its usual month, flagged when it's heading 25% over), recurring, by
+month, by category (with subcategories) and the largest expenses.
 
 <table><tr>
 <td><img src="docs/screenshots/ledger-summary-desktop.webp" alt="The Ledger's summary on a computer" width="620"></td>

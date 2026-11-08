@@ -235,18 +235,42 @@
       } else if (it.kind === "expense") {
         // A Google Wallet payment's Add (0.238.0), in the home currency.
         // Its id is the queue's, so one drained twice is added once. The
-        // category is the one this merchant got last time, if any.
+        // category (and its subcategory) is the one this merchant got last
+        // time, if any.
         const entries = data.financeEntries || (data.financeEntries = []);
         const amount = Math.round(parseFloat(it.amount) * 100) / 100;
         if (!(amount > 0) || !isDate(it.date) || entries.some((f) => f.id === it.id)) continue;
         const note = String(it.note || "").trim().slice(0, 200);
-        const item = { id: it.id, date: it.date, amount, category: categoryFor(data, note), createdAt: it.at || new Date().toISOString() };
+        const filed = filingFor(data, note);
+        const item = { id: it.id, date: it.date, amount, category: filed ? filed.category : categoryFor(data, note), createdAt: it.at || new Date().toISOString() };
+        if (filed && filed.subcategory) item.subcategory = filed.subcategory;
         if (note) item.note = note;
         entries.push(item);
         changed++;
       }
     }
     return changed;
+  }
+
+  // Where an expense with this exact note was filed last time (0.309.0):
+  // its category, subcategory and date, or null. Shared by the Wallet drain,
+  // the Add expense form and the bridge, so all three remember alike. A
+  // recurring plan counts as a filing from its start date; an entry or plan
+  // whose category no longer exists doesn't.
+  function filingFor(data, note) {
+    const key = String(note || "").trim().toLowerCase();
+    if (!key) return null;
+    const cats = new Map((data.financeCategories || []).map((c) => [c.name, c]));
+    let best = null;
+    const consider = (category, subcategory, date) => {
+      const cat = cats.get(category);
+      if (!cat || !date) return;
+      const sub = subcategory && (cat.subs || []).some((x) => x.name === subcategory) ? subcategory : "";
+      if (!best || String(date) > best.date) best = { category, subcategory: sub, date: String(date) };
+    };
+    for (const f of data.financeEntries || []) if (String(f.note || "").trim().toLowerCase() === key) consider(f.category, f.subcategory, f.date);
+    for (const r of data.recurringExpenses || []) if (String(r.note || "").trim().toLowerCase() === key) consider(r.category, r.subcategory, r.startDate);
+    return best;
   }
 
   // What an expense at `note` was filed under last time, or the first category.
@@ -427,5 +451,5 @@
     takeAction();
   }
 
-  window.LifeLogWidgets = { snapshotOf, applyQueue, categoryFor, actionOfUrl, start, changed, pushNow, backgroundMinutes, setBackgroundMinutes, backgroundAvailable, assertBackground, BACKGROUND_CHOICES, MARK_DAYS, DONE_PER_PANEL, NOTE_CHARS, NOTES_BUDGET };
+  window.LifeLogWidgets = { snapshotOf, applyQueue, categoryFor, filingFor, actionOfUrl, start, changed, pushNow, backgroundMinutes, setBackgroundMinutes, backgroundAvailable, assertBackground, BACKGROUND_CHOICES, MARK_DAYS, DONE_PER_PANEL, NOTE_CHARS, NOTES_BUDGET };
 })();

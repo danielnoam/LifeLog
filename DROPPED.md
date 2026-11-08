@@ -31,6 +31,14 @@ Android WebView, and decoration), scaling sheets and menus (sheets
 translate, see DESIGN.md §5), looping loaders and shimmer, and hover
 tilts, likes and confetti.
 
+## Price-rise flags on bills
+
+Suggested on 2026-11-08 from Sure (a finance app): when a bill's charge
+lands 10% or more above its plan, say so on its row ("up 16% since Sep")
+and add a "Bills that went up" card to the Summary with what the rises cost
+a year. Daniel said there's no need for it. A plan change already keeps the
+old price in the bill's history strip.
+
 ## Upcoming charges on the Ledger
 
 Suggested on 2026-10-21: a card above Recurring with what's charging in
