@@ -1466,6 +1466,170 @@ const TOOLS = [
     },
   },
   {
+    name: "lifelog_update_expenses",
+    description: "Change many expenses at once by filter, instead of one lifelog_update_item per id: move them to another category or subcategory, or set or remove their project (e.g. every \"Wolt\" expense into Food › Delivery, or all of March's into the Japan project). The filters work like lifelog_expenses' and at least one is needed. Recurring charges come from their plan and aren't touched (use lifelog_edit_recurring_charge). dry_run lists what would change without saving. One change, so lifelog_undo takes it all back.",
+    input: {
+      start_date: S.date("From"), end_date: S.date("To, default today"),
+      category: S.str("Only this category"), subcategory: S.str("With category: only this subcategory; \"\" for the ones with none"),
+      project: S.str("Only this project"), query: S.str("Text in the note"),
+      set_category: S.str("Move them to this category (their subcategory goes unless set_subcategory is given)"),
+      set_subcategory: S.str("Put them in this subcategory of their (new) category; \"\" removes it"),
+      set_project: S.str("Put them in this project; \"\" removes it"),
+      dry_run: S.bool("Only list what would change"),
+    },
+    async run(a) {
+      if (![a.start_date, a.end_date, a.category, a.project, a.query].some((x) => x != null && x !== "")) fail("Give at least one filter (start_date, end_date, category, project or query), so it can't change every expense by accident.");
+      if ([a.set_category, a.set_subcategory, a.set_project].every((x) => x == null)) fail("Nothing to change: give set_category, set_subcategory or set_project.");
+      const pick = (d) => {
+        const ids = new Set(expenseRows(d, { ...a, include_recurring: false }).map((f) => f.id));
+        return (d.financeEntries || []).filter((f) => ids.has(f.id));
+      };
+      const reshape = (d, f) => {
+        const next = structuredClone(f);
+        const moved = a.set_category != null && lower(a.set_category) !== lower(f.category);
+        if (a.set_category != null) next.category = a.set_category;
+        if (a.set_subcategory != null) { if (a.set_subcategory === "") delete next.subcategory; else next.subcategory = a.set_subcategory; }
+        else if (moved) delete next.subcategory;
+        if (a.set_project != null) { if (a.set_project === "") delete next.project; else next.project = a.set_project; }
+        return cleanItem(d, "financeEntries", next);
+      };
+      const same = (x, y) => x.category === y.category && (x.subcategory || "") === (y.subcategory || "") && (x.project || "") === (y.project || "");
+      if (a.dry_run) {
+        const d = await readData();
+        const rows = pick(d).map((f) => [f, reshape(d, f)]).filter(([f, n]) => !same(f, n));
+        if (!rows.length) return "Nothing would change.";
+        return [`${rows.length} expenses would change:`, ...rows.slice(0, 40).map(([f, n]) => `${expenseLine(d, f)} → [${catLabel(n)}]${n.project ? " · " + n.project : ""}`)].join("\n");
+      }
+      return change("edit expenses by filter", (d) => {
+        const touched = [];
+        let sum = 0;
+        for (const f of pick(d)) {
+          const n = reshape(d, f);
+          if (same(f, n)) continue;
+          replaceItem(d, "financeEntries", n);
+          touched.push(["financeEntries", f.id]);
+          sum += +f.amount || 0;
+        }
+        if (!touched.length) fail("No expense matches those filters, or they already read that way.");
+        const to = [a.set_category != null || a.set_subcategory != null ? "the category" : "", a.set_project != null ? "the project" : ""].filter(Boolean).join(" and ");
+        return { text: `Changed ${to} on ${touched.length} ${touched.length === 1 ? "expense" : "expenses"} (${money(d, sum)} in all).`, touched };
+      });
+    },
+  },
+  {
+    name: "lifelog_split_expense",
+    description: "Spread one expense over several months: it becomes that many expenses of an equal share (the cents left over go on the first), one a month on the same day of the month, with the same category, project and note plus \"(1/12)\". For a yearly payment that should count across the year. from_month picks the first month (default the expense's own), so it can run back over past months. One change, so lifelog_undo puts the single expense back.",
+    input: {
+      expense: S.str("Its id"), months: S.int("How many months, 2 to 60"),
+      from_month: S.str("First month, YYYY-MM; default the expense's own month"),
+    },
+    required: ["expense", "months"],
+    async run(a) {
+      const n = Math.round(+a.months);
+      if (!(n >= 2 && n <= 60)) fail("months is 2 to 60.");
+      if (a.from_month != null && !/^\d{4}-(0[1-9]|1[0-2])$/.test(String(a.from_month))) fail(`from_month is YYYY-MM, got "${a.from_month}".`);
+      return change(`split expense "${a.expense}" over ${n} months`, (d) => {
+        const f = findItem(d, "financeEntries", a.expense);
+        const cents = Math.round((+f.amount || 0) * 100);
+        if (cents < n) fail("That's too small to split that many ways.");
+        const fx = f.currency ? Math.round((+f.fxAmount || 0) * 100) : 0;
+        const share = (total, i) => Math.floor(total / n) + (i === 0 ? total % n : 0);
+        const day = +String(f.date).slice(8, 10) || 1;
+        let y = +(a.from_month || f.date).slice(0, 4), m = +(a.from_month || f.date).slice(5, 7);
+        const touched = [["financeEntries", f.id]];
+        const made = [];
+        for (let i = 0; i < n; i++) {
+          const last = new Date(y, m, 0).getDate();
+          const date = `${y}-${String(m).padStart(2, "0")}-${String(Math.min(day, last)).padStart(2, "0")}`;
+          const item = { ...structuredClone(f), date, amount: share(cents, i) / 100, note: `${f.note ? f.note + " " : ""}(${i + 1}/${n})` };
+          for (const k of ["id", "createdAt", "updatedAt"]) delete item[k];
+          if (f.currency) item.fxAmount = share(fx, i) / 100;
+          const e = addItem(d, "financeEntries", item);
+          made.push(e);
+          touched.push(["financeEntries", e.id]);
+          if (++m > 12) { m = 1; y++; }
+        }
+        d.financeEntries = d.financeEntries.filter((x) => x.id !== f.id);
+        const ahead = made.filter((e) => e.date > today()).length;
+        return {
+          text: `Split ${money(d, f.amount)} for ${catLabel(f)} into ${n} monthly expenses of about ${money(d, cents / n / 100)}, ${made[0].date} to ${made[n - 1].date}.`
+            + (ahead ? ` ${ahead} of them are after today, so they count as they come.` : ""),
+          touched,
+        };
+      });
+    },
+  },
+  {
+    name: "lifelog_append_note",
+    description: "Add text to the end (or the start) of a note without sending the whole note back, so nothing in a long note can be lost. For a checklist's items use lifelog_update_list.",
+    input: {
+      note: S.str("Its id or title"), text: S.str("What to add (Markdown)"),
+      at: S.str("end (default) or start", { enum: ["end", "start"] }),
+      same_paragraph: S.bool("Join with a single line break instead of a blank line, e.g. to add a line to a list"),
+    },
+    required: ["note", "text"],
+    async run(a) {
+      const add = String(a.text || "").trim();
+      if (!add) fail("Nothing to add.");
+      return change(`append to note "${a.note}"`, (d) => {
+        const n = findItem(d, "notes", a.note);
+        if (n.kind === "list") fail(`"${n.title || cut(n.text, 30)}" is a checklist: add items with lifelog_update_list.`);
+        const was = String(n.text || "").replace(/\s+$/, "");
+        const gap = a.same_paragraph ? "\n" : "\n\n";
+        const text = !was ? add : a.at === "start" ? add + gap + was : was + gap + add;
+        replaceItem(d, "notes", cleanItem(d, "notes", { ...structuredClone(n), text }));
+        return { text: `Added ${add.length} characters to the ${a.at === "start" ? "start" : "end"} of the note ${n.id}; it's ${text.length} characters now.`, touched: [["notes", n.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_move_to_backlog",
+    description: "Take a timeline entry back to the backlog, as the entry sheet's Move to backlog does: for a finish logged by mistake or something dropped. in_progress puts it back In progress instead. Its notes, cover and details go with it; the rating and the finish date don't.",
+    input: { entry: S.str("Its id or title"), in_progress: S.bool("Back In progress rather than the plain backlog") },
+    required: ["entry"],
+    async run(a) {
+      return change(`entry "${a.entry}" back to backlog`, (d) => {
+        const e = findItem(d, "entries", a.entry);
+        const item = { title: e.title, category: e.category };
+        for (const k of ["notes", "coverUrl", "mediaId", "mediaSource", "length", "author", "externalRating"]) if (e[k]) item[k] = e[k];
+        for (const k of ["hltb", "reviews"]) if (e[k]) item[k] = structuredClone(e[k]);
+        if (e.genres && e.genres.length) item.genres = e.genres.slice();
+        if (e.overrides && e.overrides.author) item.overrides = { author: true };
+        if (a.in_progress) item.startedAt = isDate(e.startedAt) ? e.startedAt : today();
+        const b = addItem(d, "backlog", item);
+        d.entries = d.entries.filter((x) => x.id !== e.id);
+        return { text: `Moved "${e.title}" from the timeline (${e.date}) back to ${a.in_progress ? "In progress" : "the backlog"}. id ${b.id}`, touched: [["backlog", b.id], ["entries", e.id]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_merge_habits",
+    description: "Fold one habit into another, for the same habit tracked twice: each day's marks are added together, the earlier start is kept, and the merged-away habit is deleted. Both have to be the same kind (both done or both avoided, both times or both minutes). lifelog_undo brings it back.",
+    destructive: true,
+    input: { from: S.str("The habit to merge away (id or name)"), into: S.str("The habit to keep (id or name)") },
+    required: ["from", "into"],
+    async run(a) {
+      return change(`merge habit "${a.from}" into "${a.into}"`, (d) => {
+        const src = findItem(d, "habits", a.from), dst = findItem(d, "habits", a.into);
+        if (src.id === dst.id) fail("Those are the same habit.");
+        if (!!src.avoid !== !!dst.avoid) fail(`One of them is a habit you avoid and the other one you do; their marks mean different things.`);
+        if (Habits.isMinutes(src) !== Habits.isMinutes(dst)) fail(`One counts minutes and the other times; their marks can't be added.`);
+        const marks = { ...(dst.marks || {}) };
+        let days = 0;
+        for (const [k, v] of Object.entries(src.marks || {})) { marks[k] = (marks[k] || 0) + (+v || 0); days++; }
+        const startedAt = [src.startedAt, dst.startedAt].filter(isDate).sort()[0] || dst.startedAt;
+        const next = cleanItem(d, "habits", { ...structuredClone(dst), marks, startedAt });
+        replaceItem(d, "habits", next);
+        d.habits = d.habits.filter((h) => h.id !== src.id);
+        const t = today();
+        return {
+          text: `Merged "${src.name}" into "${dst.name}": ${days} ${days === 1 ? "day" : "days"} of marks added, starting ${startedAt}. "${src.name}" is deleted. Streak now ${Habits.streakOf(next, t)}, best ${Habits.bestStreakOf(next, t)}.`,
+          touched: [["habits", dst.id], ["habits", src.id]],
+        };
+      });
+    },
+  },
+  {
     name: "lifelog_update_item",
     description: "Change fields on any item (expense, timeline entry, backlog item, note, habit, recurring bill, project). Check lifelog_guide for the fields; LifeLog's own rules clean the result, and anything it won't keep is refused.",
     input: {

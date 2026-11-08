@@ -289,6 +289,70 @@ test("marking a habit before its start moves the start back", async () => {
   assert.strictEqual(data().habits[0].startedAt, day);
 });
 
+test("expenses are changed by filter, previewed first, and undone in one go", async () => {
+  reset();
+  await refused("lifelog_update_expenses", { set_project: "Trip" }, /at least one filter/);
+  await refused("lifelog_update_expenses", { category: "Food" }, /Nothing to change/);
+  assert.match(await ok("lifelog_update_expenses", { query: "pizza", set_project: "Trip", dry_run: true }), /1 expenses would change:\n.*Pizza.*→ \[Food\] · Trip/);
+  assert.strictEqual(data().financeEntries[0].project, undefined, "a dry run saves nothing");
+  assert.match(await ok("lifelog_update_expenses", { category: "Food", set_category: "Rent", set_project: "" }), /Changed the category and the project on 2 expenses \(70\.00 ILS in all\)/);
+  assert.ok(data().financeEntries.every((f) => f.category === "Rent" && !f.project));
+  await refused("lifelog_update_expenses", { query: "pizza", set_project: "Nope" }, /No project called/);
+  await ok("lifelog_undo", {});
+  assert.deepStrictEqual(data().financeEntries.map((f) => [f.category, f.project || null]), [["Food", null], ["Food", "Trip"]]);
+});
+
+test("one expense is split over months, cents and all, and undo puts it back whole", async () => {
+  reset();
+  await ok("lifelog_add_expense", { amount: 100, category: "Food", date: "2026-01-31", note: "Membership" });
+  const id = data().financeEntries[2].id;
+  const t = await ok("lifelog_split_expense", { expense: id, months: 3, from_month: "2025-12" });
+  assert.match(t, /into 3 monthly expenses .* 2025-12-31 to 2026-02-28/);
+  const parts = data().financeEntries.filter((f) => /Membership/.test(f.note));
+  assert.deepStrictEqual(parts.map((f) => [f.date, f.amount, f.note]), [["2025-12-31", 33.34, "Membership (1/3)"], ["2026-01-31", 33.33, "Membership (2/3)"], ["2026-02-28", 33.33, "Membership (3/3)"]]);
+  await refused("lifelog_split_expense", { expense: "x1", months: 1 }, /2 to 60/);
+  await ok("lifelog_undo", {});
+  assert.deepStrictEqual(data().financeEntries.filter((f) => /Membership/.test(f.note)).map((f) => f.amount), [100]);
+});
+
+test("a note is added to without being sent back whole", async () => {
+  reset();
+  await ok("lifelog_append_note", { note: "Plan", text: "Then the tests" });
+  assert.strictEqual(data().notes[0].text, "Ship the bridge\n\nThen the tests");
+  await ok("lifelog_append_note", { note: "Plan", text: "First coffee", at: "start", same_paragraph: true });
+  assert.strictEqual(data().notes[0].text, "First coffee\nShip the bridge\n\nThen the tests");
+  await refused("lifelog_append_note", { note: "no2", text: "Bread" }, /lifelog_update_list/);
+});
+
+test("a timeline entry goes back to the backlog, or back in progress", async () => {
+  reset();
+  assert.match(await ok("lifelog_move_to_backlog", { entry: "Hades", in_progress: true }), /back to In progress/);
+  const d = data();
+  assert.ok(!d.entries.some((e) => e.id === "e1"));
+  const b = d.backlog.find((x) => x.title === "Hades");
+  assert.strictEqual(b.category, "Games");
+  assert.strictEqual(b.startedAt, today);
+  assert.strictEqual(b.rating, undefined);
+});
+
+test("two habits are merged: marks added, the earlier start kept, the other deleted", async () => {
+  reset();
+  const D = (n) => Finance.addDaysStr(today, -n);
+  await ok("lifelog_add_habit", { name: "Reading", start_date: D(60) });
+  await ok("lifelog_fill_habit", { habit: "Reading", dates: [D(50), D(1)] });
+  await refused("lifelog_merge_habits", { from: "No coffee", into: "Read" }, /avoid/);
+  const t = await ok("lifelog_merge_habits", { from: "Reading", into: "Read" });
+  assert.match(t, new RegExp(`Merged "Reading" into "Read": 2 days of marks added, starting ${D(60)}`));
+  const h = data().habits;
+  assert.ok(!h.some((x) => x.name === "Reading"));
+  const r = h.find((x) => x.name === "Read");
+  assert.strictEqual(r.startedAt, D(60));
+  assert.strictEqual(r.marks[D(1)], 2);
+  assert.strictEqual(r.marks[D(50)], 1);
+  await ok("lifelog_undo", {});
+  assert.ok(data().habits.some((x) => x.name === "Reading"));
+});
+
 test("any item can be edited, but only into something the app would keep", async () => {
   reset();
   await ok("lifelog_update_item", { collection: "financeEntries", item: "x1", set: { amount: 55, note: "Pizza and drinks" } });
