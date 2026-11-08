@@ -126,7 +126,7 @@
     weekOrder, weekPos, startOfWeek, workDays, weekendDays,
     day, dayMonth, range, dateTime, parts,
     formatChoices, weekStartChoices,
-    WEEK_STARTS, FORMATS, WEEKDAYS, WEEKDAY_NAMES, MONTHS,
+    WEEK_STARTS, FORMATS, WEEKDAYS, WEEKDAY_NAMES, MONTHS, MONTH_NAMES,
   };
   if (typeof window !== "undefined") window.LifeLogDates = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

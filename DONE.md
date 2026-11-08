@@ -16,6 +16,7 @@ Every release that adds a feature adds its line here in the same commit.
 - On a computer, Home sections next to each other (Coming up, Scratchpad, Pinned notes) share one row, two or three across (0.307.0)
 - Home scratchpad Note / Board switch: a scratch board (boards.json, `scratch`) kept out of the Boards list, opened in the editor, Keep as a board; switch per device (0.307.0)
 - Home is the first tab on a computer and stays in the middle of the phone's bottom bar (0.307.0)
+- Home Ledger card: this month so far against last month by the same day (trip spending counted), a category bar with the top three, the latest four expenses, Add expense; four halves sit two by two (0.308.0)
 - Every tab and mode has its own name: Notebook (Notes, Habits), Timeline (Log, Stats), Backlog (List, Discover, Upcoming), Ledger (Expenses, Summary) (0.231.0)
 - Swipe between modes like a pager, and round from the last to the first (0.177.0)
 - Press and hold a tab for its modes; tap the current tab to step modes or scroll to the top (0.125.0, 0.264.2)
@@ -273,6 +274,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Search by every word in any order, narrowed by collection, category or subcategory, with categories shown on each hit (0.292.4)
 - A note's images, read as pictures and added from a file or base64 (0.297.0)
 - What Home shows, the scratchpad written, notes pinned to Home and unpinned (0.306.0)
+- What Home's Ledger card shows, in `lifelog_home` (0.308.0)
 
 ## Building and shipping
 

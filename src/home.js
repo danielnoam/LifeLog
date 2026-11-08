@@ -18,6 +18,7 @@
     ["upcoming", "Coming up", "calendar", true],
     ["scratchpad", "Scratchpad", "notebook-pen", true],
     ["pinned", "Pinned notes", "pin", true],
+    ["ledger", "Ledger", "receipt", true],
   ];
   const SECTION_IDS = SECTIONS.map(([id]) => id);
   const DAYS_AHEAD = 14;
@@ -94,6 +95,36 @@
     if (day === today) return "Today";
     if (day === addDays(today, 1)) return "Tomorrow";
     return day <= addDays(today, 6) ? "This week" : "Later";
+  }
+
+  // This month's spending so far against last month's by the same day of the
+  // month (a whole last month would make every 8th look thrifty), where it
+  // went, and the latest expenses. Recurring charges count once they're due,
+  // as on the Ledger; skipped and paused ones don't.
+  function ledgerGlance(data, today, { Finance, latest = 4 } = {}) {
+    const end = new Date(today + "T00:00:00");
+    const charged = (data.recurringExpenses || []).flatMap((r) => Finance.planCharges(r, end));
+    const all = [...(data.financeEntries || []), ...charged]
+      .filter((f) => !f.skipped && !f.paused && isDate(f.date) && f.date <= today);
+    const month = today.slice(0, 7);
+    const [y, m] = month.split("-").map(Number);
+    const prev = m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
+    const prevDays = new Date(m === 1 ? y - 1 : y, m === 1 ? 12 : m - 1, 0).getDate();
+    const byDay = `${prev}-${String(Math.min(+today.slice(8), prevDays)).padStart(2, "0")}`;
+    const sum = (list) => list.reduce((t, f) => t + (+f.amount || 0), 0);
+    const now = all.filter((f) => f.date.startsWith(month));
+    const before = all.filter((f) => f.date.startsWith(prev));
+    const cats = {};
+    for (const f of now) cats[f.category || ""] = (cats[f.category || ""] || 0) + (+f.amount || 0);
+    return {
+      month, prev,
+      total: sum(now),
+      lastByNow: sum(before.filter((f) => f.date <= byDay)),
+      lastTotal: sum(before),
+      hasLast: before.length > 0,
+      categories: Object.entries(cats).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount),
+      latest: all.slice().sort((a, b) => b.date.localeCompare(a.date) || String(b.createdAt || "").localeCompare(String(a.createdAt || ""))).slice(0, latest),
+    };
   }
 
   const pinnedNotes = (data) => (data.notes || []).filter((n) => n.pinned)
@@ -415,7 +446,90 @@
     return sec;
   }
 
-  const BUILD = { progress: progressSection, upcoming: upcomingSection, scratchpad: scratchpadSection, pinned: pinnedSection };
+  function ledgerSection() {
+    const F = window.LifeLogFinance;
+    const today = todayStr();
+    const g = ledgerGlance(state.data, today, { Finance: F });
+    const run = goTo("finance", "entries");
+    const sec = el("section", "home-sec home-ledger");
+    sec.appendChild(sectionHead("ledger", run ? { label: "Ledger", run } : null));
+    const money = F.formatMoney;
+    const colorOf = (name) => (state.data.financeCategories.find((c) => c.name === name) || {}).color || "";
+    const card = el("div", "home-card");
+    const top = el("div", "home-ledger-top");
+    const D = Dates();
+    const monthName = D.MONTH_NAMES[+g.month.slice(5) - 1];
+    top.appendChild(el("p", "home-ledger-label", monthName + " so far"));
+    top.appendChild(el("p", "home-ledger-total", money(g.total)));
+    if (g.hasLast) {
+      const diff = g.total - g.lastByNow;
+      const lastName = D.MONTH_NAMES[+g.prev.slice(5) - 1];
+      const words = Math.abs(diff) < 0.005 ? `Same as this time in ${lastName}`
+        : `${money(Math.abs(diff))} ${diff > 0 ? "more" : "less"} than this time in ${lastName}`;
+      const vs = el("p", "home-ledger-vs" + (diff > 0.005 ? " is-up" : ""));
+      vs.appendChild(ico(diff > 0.005 ? "trending-up" : "trending-down"));
+      vs.appendChild(document.createTextNode(words));
+      top.appendChild(vs);
+      top.appendChild(el("p", "home-ledger-of", `${lastName} came to ${money(g.lastTotal)}`));
+    }
+    if (g.total > 0) {
+      const bar = el("div", "home-ledger-bar");
+      bar.setAttribute("aria-hidden", "true");
+      for (const c of g.categories) {
+        const seg = el("span");
+        seg.style.flexGrow = String(c.amount);
+        seg.style.background = colorOf(c.name);
+        bar.appendChild(seg);
+      }
+      top.appendChild(bar);
+      const legend = el("ul", "home-ledger-cats");
+      for (const c of g.categories.slice(0, 3)) {
+        const li = el("li");
+        const dot = el("span", "dot");
+        dot.style.background = colorOf(c.name);
+        li.append(dot, el("span", "home-ledger-cat", c.name || "Other"), el("span", "home-ledger-amt", money(c.amount)));
+        legend.appendChild(li);
+      }
+      top.appendChild(legend);
+    }
+    card.appendChild(top);
+    if (g.latest.length) {
+      card.appendChild(el("p", "home-day", "Latest"));
+      for (const f of g.latest) {
+        const row = el("button", "home-row");
+        row.type = "button";
+        const ki = el("span", "home-row-ico");
+        ki.appendChild(ico(f.virtual ? "repeat" : "banknote"));
+        row.appendChild(ki);
+        const text = el("span", "home-row-text");
+        text.appendChild(el("span", "home-row-title", f.note || f.subcategory || f.category || "Expense"));
+        const sub = el("span", "home-row-sub");
+        const dot = el("span", "dot");
+        dot.style.background = colorOf(f.category);
+        sub.append(dot, document.createTextNode([f.subcategory || f.category, f.date === today ? "Today" : D.day(f.date, { year: "auto" })].filter(Boolean).join(" · ")));
+        text.appendChild(sub);
+        row.appendChild(text);
+        row.appendChild(el("span", "home-row-end is-money", money(f.amount)));
+        if (f.virtual) {
+          const rec = (state.data.recurringExpenses || []).find((r) => r.id === f.recurringId);
+          row.onclick = () => rec && F.openRecurringModal(rec);
+        } else row.onclick = () => F.openFinanceModal(state.data.financeEntries.find((x) => x.id === f.id));
+        card.appendChild(row);
+      }
+    } else card.appendChild(el("p", "home-empty home-ledger-none", "No expenses yet this month."));
+    const foot = el("div", "home-pad-foot");
+    foot.appendChild(el("span", "spacer"));
+    const add = el("button", "btn btn-small");
+    add.type = "button";
+    add.append(ico("plus"), document.createTextNode(" Add expense"));
+    add.onclick = () => F.openFinanceModal(null);
+    foot.appendChild(add);
+    card.appendChild(foot);
+    sec.appendChild(card);
+    return sec;
+  }
+
+  const BUILD = { progress: progressSection, upcoming: upcomingSection, scratchpad: scratchpadSection, pinned: pinnedSection, ledger: ledgerSection };
   const HALF = new Set(SECTIONS.filter((s) => s[3]).map(([id]) => id));
 
   function renderHome(root) {
@@ -437,7 +551,7 @@
       let j = i;
       while (j < ids.length && HALF.has(ids[j])) j++;
       if (j - i >= 2) {
-        const row = el("div", "home-pair" + (j - i >= 3 ? " is-3" : ""));
+        const row = el("div", "home-pair" + (j - i === 3 || j - i > 4 ? " is-3" : ""));
         ids.slice(i, j).forEach((id) => row.appendChild(BUILD[id]()));
         page.appendChild(row);
         i = j;
@@ -504,7 +618,7 @@
   const api = {
     init, renderHome, fillViewOptions,
     // pure
-    SECTIONS, SECTION_IDS, sectionOrder, inProgress, comingUp, bucketOf, pinnedNotes,
+    SECTIONS, SECTION_IDS, sectionOrder, inProgress, comingUp, bucketOf, pinnedNotes, ledgerGlance,
   };
   if (typeof window !== "undefined") window.LifeLogHome = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

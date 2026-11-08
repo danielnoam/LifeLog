@@ -16,8 +16,8 @@ const at = (n) => Finance.addDaysStr(today, n);
 const deps = { Backlog, Finance, Habits };
 
 test("a saved section order keeps what it knows and adds what's new at the end", () => {
-  assert.deepStrictEqual(Home.sectionOrder(undefined), ["progress", "upcoming", "scratchpad", "pinned"]);
-  assert.deepStrictEqual(Home.sectionOrder(["pinned", "nope", "progress", "pinned"]), ["pinned", "progress", "upcoming", "scratchpad"]);
+  assert.deepStrictEqual(Home.sectionOrder(undefined), ["progress", "upcoming", "scratchpad", "pinned", "ledger"]);
+  assert.deepStrictEqual(Home.sectionOrder(["pinned", "nope", "progress", "pinned"]), ["pinned", "progress", "upcoming", "scratchpad", "ledger"]);
 });
 
 test("in progress is what's started and not dropped, newest start first", () => {
@@ -80,6 +80,31 @@ test("pinned notes are the ones marked pinned, last edited first", () => {
     { id: "c", pinned: true, createdAt: "2026-01-02", editedAt: "2026-04-01" },
   ] };
   assert.deepStrictEqual(Home.pinnedNotes(data).map((n) => n.id), ["c", "a"]);
+});
+
+test("the Ledger card: this month so far against last month by the same day, recurring once charged", () => {
+  const data = {
+    financeEntries: [
+      { id: "f1", date: "2026-03-02", amount: 30, category: "Food", note: "Lunch", createdAt: "a" },
+      { id: "f2", date: "2026-03-30", amount: 70, category: "Home", createdAt: "b" },
+      { id: "f3", date: "2026-02-10", amount: 40, category: "Food" },
+      { id: "f4", date: "2026-02-28", amount: 25, category: "Food" },
+      { id: "f5", date: "2026-04-01", amount: 999, category: "Food" },
+      { id: "f6", date: "2026-03-05", amount: 200, category: "Trip", project: "Rome" },
+    ],
+    recurringExpenses: [{ id: "r1", startDate: "2026-01-15", interval: "monthly", amount: 10, category: "Subs", note: "Music" }],
+  };
+  const g = Home.ledgerGlance(data, "2026-03-31", { Finance });
+  assert.strictEqual(g.total, 30 + 70 + 200 + 10);
+  // February has no 31st: the same day is its last.
+  assert.strictEqual(g.lastByNow, 40 + 25 + 10);
+  assert.strictEqual(g.lastTotal, 75);
+  assert.deepStrictEqual(g.categories.map((c) => c.name), ["Trip", "Home", "Food", "Subs"]);
+  assert.deepStrictEqual(g.latest.map((f) => (f.virtual ? f.recurringId : f.id)), ["f2", "r1", "f6", "f1"]);
+  const early = Home.ledgerGlance(data, "2026-03-03", { Finance });
+  assert.strictEqual(early.total, 30);
+  assert.strictEqual(early.lastByNow, 0);
+  assert.strictEqual(Home.ledgerGlance({}, "2026-03-03", { Finance }).hasLast, false);
 });
 
 console.log(`\n${passed} test(s) passed.`);
