@@ -3050,11 +3050,14 @@ html.is-searching #content, html.is-searching #filterSlot, html.is-searching .fa
 .mode-default { color: var(--text-faint); }
 .mode-default[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
 .tab-toggle-view .sitem-text, .tab-toggle-mode .sitem-text { flex-basis: 0; }
-/* A switch, for on/off rows. */
+/* A switch, for on/off rows. The transparent border is its tap area, and
+   it's 10px above and below but 4px at the sides, so the corner radius is
+   given per axis (half the 24px track plus each border) to keep the
+   visible track a true pill. One radius for both drew an oval. */
 .modal input.switch {
   -webkit-appearance: none; appearance: none; position: relative; flex: 0 0 auto;
   width: 40px; height: 24px; margin: -10px -4px; border: 10px solid transparent; border-inline-width: 4px;
-  box-sizing: content-box; background-clip: padding-box; border-radius: calc(var(--r-card) + 10px); cursor: pointer;
+  box-sizing: content-box; background-clip: padding-box; border-radius: calc(var(--r-card) + 4px) / calc(var(--r-card) + 10px); cursor: pointer;
   background-color: var(--border-strong); transition: background-color var(--dur-fast) var(--ease);
 }
 .modal input.switch::before {
@@ -5026,14 +5029,14 @@ html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(-
 .home-ledger-top + .home-day { border-top: 1px solid var(--border); padding-top: var(--space-10); }
 .home-ledger-none { padding: 0 var(--space-14) var(--space-12); }
 
-/* Note / Board (src/home.js modeSwitch). Pulled into the head's line box
-   with negative margins, so the Scratchpad head stays as tall as the heads
-   beside it. */
-.home-pad-mode { margin: -4px 0 -4px auto; padding: 1px; gap: 1px; }
-.home-pad-mode .seg-btn { position: relative; display: inline-flex; align-items: center; gap: var(--space-4); min-height: 22px; padding: 0 var(--space-8); font-size: var(--fs-2xs); line-height: 1; }
-/* The tap area stays 44px tall on a phone without the switch growing. */
-.home-pad-mode .seg-btn::after { content: ""; position: absolute; inset: -11px 0; }
-.home-pad-mode .seg-btn .ico { width: 12px; height: 12px; }
+/* Note / Board (src/home.js modeSwitch), at the start of the scratchpad's
+   foot; "Saved" moved up into the head in its place. */
+.home-pad-state { margin-left: auto; font-size: var(--fs-xs); color: var(--text-dim); }
+.home-pad-foot .btn { white-space: nowrap; }
+.home-pad-mode .seg-btn { position: relative; display: inline-flex; align-items: center; gap: var(--space-4); min-height: 30px; padding: 0 var(--space-10); font-size: var(--fs-xs); line-height: 1; }
+/* 30px tall plus 7px each way: the 44px tap area inside the 52px foot. */
+.home-pad-mode .seg-btn::after { content: ""; position: absolute; inset: -7px 0; }
+.home-pad-mode .seg-btn .ico { width: 14px; height: 14px; }
 .home-board {
   position: relative; display: flex; align-items: center; justify-content: center; width: 100%; height: 240px;
   padding: var(--space-14); border: 0; background: var(--bg); color: var(--text); font: inherit; cursor: pointer;
@@ -5052,15 +5055,11 @@ html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(-
   html:not(.force-pc) .home-tile { flex-basis: 112px; }
   html:not(.force-pc) .home-pins { grid-template-columns: minmax(0, 1fr); }
   html:not(.force-pc) .home-pad { font-size: var(--fs-lg); }
-  html:not(.force-pc) .home-pad-mode .seg-btn { min-height: 28px; }
-  html:not(.force-pc) .home-pad-mode .seg-btn::after { inset: -8px 0; }
 }
 html.force-mobile .home-pair, html.force-mobile .home-pair.is-3 { grid-template-columns: minmax(0, 1fr); }
 html.force-mobile .home-tile { flex-basis: 112px; }
 html.force-mobile .home-pins { grid-template-columns: minmax(0, 1fr); }
 html.force-mobile .home-pad { font-size: var(--fs-lg); }
-html.force-mobile .home-pad-mode .seg-btn { min-height: 28px; }
-html.force-mobile .home-pad-mode .seg-btn::after { inset: -8px 0; }
 
 /* ---------- Ledger: spotted bills, category memory, pace (0.309.0) ---------- */
 .bill-suggest {

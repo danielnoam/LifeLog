@@ -326,10 +326,23 @@
     return seg;
   }
 
+  function padFoot() {
+    const foot = el("div", "home-pad-foot");
+    if (window.LifeLogBoards) foot.appendChild(modeSwitch());
+    foot.appendChild(el("span", "spacer"));
+    return foot;
+  }
+
   function scratchpadSection() {
     const sec = el("section", "home-sec home-scratch");
     const head = sectionHead("scratchpad");
-    if (window.LifeLogBoards) head.appendChild(modeSwitch());
+    // "Saved" sits in the head: Note/Board took its place in the foot, and
+    // both there wrapped Save to Notebook onto two lines on a phone.
+    if (scratchMode() === "note") {
+      const said = el("span", "home-pad-state", state.data.settings.scratchpad ? "Saved" : "");
+      said.id = "homePadState";
+      head.appendChild(said);
+    }
     sec.appendChild(head);
     sec.appendChild(scratchMode() === "board" ? boardCard() : noteCard());
     return sec;
@@ -341,11 +354,7 @@
     const saved = state.data.settings.scratchpad || "";
     if (document.activeElement !== field && !padTimer) field.value = saved;
     card.appendChild(field);
-    const foot = el("div", "home-pad-foot");
-    const said = el("span", "home-pad-state", field.value ? "Saved" : "");
-    said.id = "homePadState";
-    foot.appendChild(said);
-    foot.appendChild(el("span", "spacer"));
+    const foot = padFoot();
     const make = el("button", "btn btn-small");
     make.type = "button";
     make.append(ico("plus"), document.createTextNode(" Save to Notebook"));
@@ -377,8 +386,7 @@
     open.onclick = () => B.openScratch();
     card.appendChild(open);
     requestAnimationFrame(() => matchPad(open));
-    const foot = el("div", "home-pad-foot");
-    foot.appendChild(el("span", "spacer"));
+    const foot = padFoot();
     const keep = el("button", "btn btn-small");
     keep.type = "button";
     keep.append(ico("plus"), document.createTextNode(" Save to Notebook"));
