@@ -347,8 +347,16 @@ and `fav` (starred). `scratch: true` marks the Home scratchpad's board in
 Board mode: the app keeps it out of the Boards list and the feed until Keep
 as a board removes the flag (`lifelog_update_board` with `keep`). Elements are strokes, shapes and text
 (`{ id, t: "text", text, x, y, ... }`); a filled shape has `f`, and one
-brought in from Excalidraw with a solid fill also `fc`, its fill colour. Only the text says anything an AI
-can use. `lifelog_boards` lists them with their text;
+brought in from Excalidraw with a solid fill also `fc`, its fill colour. A picture is
+`{ id, t: "img", x, y, w, h }` with `a` (its angle, radians) when turned and
+`cr` (`[x, y, w, h]`, fractions of the picture) when cropped, and one of:
+`img`, the id of a picture kept on the `lifelog-images` branch like a
+note's; `url`, an https web picture the app shows from its address every
+time and never keeps; or `miss`, the file an Excalidraw import couldn't
+find among the files picked (a dashed box until Find in folder). Only the
+text says anything an AI can use, and the pictures: `lifelog_boards` lists
+the boards with their text and picture count, `lifelog_board_images` sends
+a board's pictures;
 `lifelog_update_board` renames, files, stars or keeps one; `lifelog_delete_board`
 deletes one. Nothing draws.
 

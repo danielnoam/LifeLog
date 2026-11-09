@@ -13,6 +13,33 @@ function test(name, fn) {
   catch (e) { console.error("  FAIL - " + name); console.error("    " + e.message); process.exitCode = 1; }
 }
 
+// ---------- pictures ----------
+test("a picture keeps only a kept id, an https address or a missing file's name", () => {
+  const els = B.sanitizeBoard({ id: "p", name: "P", elements: [
+    { id: "a", t: "img", x: 1, y: 2, w: 30, h: 20, img: "abcdefgh12.png", extra: "x", cr: [0.1, 0, 0.5, 1] },
+    { id: "b", t: "img", x: 0, y: 0, w: 10, h: 10, img: "../../evil.png" },
+    { id: "c", t: "img", x: 0, y: 0, w: 10, h: 10, url: "javascript:alert(1)" },
+    { id: "d", t: "img", x: 0, y: 0, w: 10, h: 10, url: "http://example.com/a.png" },
+    { id: "e", t: "img", x: 0, y: 0, w: 10, h: 10, url: "https://example.com/a.png" },
+    { id: "f", t: "img", x: 0, y: 0, w: 10, h: 10, miss: "Pasted Image.png", cr: [0, 0, 1, 1] },
+  ] }).elements;
+  assert.deepStrictEqual(els.map((e) => e.id), ["a", "e", "f"]);
+  assert.deepStrictEqual(els[0], { id: "a", t: "img", x: 1, y: 2, w: 30, h: 20, img: "abcdefgh12.png", cr: [0.1, 0, 0.5, 1] });
+  assert.ok(!("cr" in els[2]), "a crop of the whole picture is no crop");
+});
+
+test("a picture is hit anywhere in its box, turns, and keeps its shape when resized", () => {
+  const e = { id: "i", t: "img", x: 0, y: 0, w: 100, h: 50, img: "abcdefgh12.png" };
+  assert.ok(B.hitTest(e, 50, 25, 2));
+  assert.ok(!B.hitTest(e, 150, 25, 2));
+  assert.deepStrictEqual(B.bbox(e), { x: 0, y: 0, w: 100, h: 50 });
+  const big = B.scaled(e, 0, 0, 2, 2);
+  assert.deepStrictEqual([big.x, big.y, big.w, big.h], [0, 0, 200, 100]);
+  const turned = B.rotated(e, 50, 25, Math.PI / 2);
+  assert.strictEqual(turned.a, 1.5708);
+  assert.ok(B.hitTest(turned, 50, 70, 2), "turned upright, it reaches below its old box");
+});
+
 // ---------- strokes ----------
 test("the scratch flag (Home's scratch board) survives sanitizing, and only when set", () => {
   assert.strictEqual(B.sanitizeBoard({ id: "a", name: "S", scratch: true }).scratch, true);

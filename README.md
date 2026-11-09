@@ -71,7 +71,8 @@ off.
 ### Notes
 
 Plain notes (Markdown), checklists and quotes, plus drawing boards with a
-hand-drawn look. Note categories, favourites, and collections that open
+hand-drawn look, which can hold pictures (the Image button, a paste or a
+drop). Note categories, favourites, and collections that open
 their notes as pages. A checklist's items tick, reorder by long press (or
 by their handles while editing) and merge item by item between devices. A
 note can become a Timeline entry.
@@ -314,8 +315,11 @@ takes a row in or out. On a phone it fills the screen, the filters are
 chips, and tapping a row opens its preview. A note whose title is only a
 template's label ("Note:") is named by its first sentence. An Excalidraw
 drawing (Obsidian's `.excalidraw.md`, or a `.excalidraw` file) picked with
-the notes becomes a board, its shapes, text, arrows and colours kept; images
-and frames in it are left out, and the preview says so. A Google Maps
+the notes becomes a board, its shapes, text, arrows, colours and pictures
+kept: a picture from the vault comes in when its file was picked too (else
+it's a dashed box until Find in folder), and a web picture is shown from its
+address. Frames, SVG pictures and formulas are left out, and the preview
+says so. A Google Maps
 list gets the window too, its map beside the list.
 
 <table><tr>
@@ -371,8 +375,8 @@ every target connected in **Settings → Sync**:
 
 - **GitHub** (works on phones): `lifelog.json` in a **private repo**, so
   every device shares one log and every save is a commit. Boards and trips
-  sit beside it in `boards.json` and `travel.json`, and images in notes on
-  the repo's `lifelog-images` branch.
+  sit beside it in `boards.json` and `travel.json`, and the pictures in
+  notes and on boards on the repo's `lifelog-images` branch.
 - **Local file** (desktop Chrome and Edge): a `.json` file you pick, for
   example in your Google Drive folder.
 
