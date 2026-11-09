@@ -453,8 +453,21 @@
     };
   }
 
+  // The Ledger's watchlist and its date pins (investments.json): two plain
+  // collections, like trips and places. Pins are their own list rather than
+  // an array inside the ticker so two devices pinning different days of one
+  // ticker both keep theirs. The watchlist keeps the order a side chose.
+  function mergeInvest(base, local, remote) {
+    base = base || {}; local = local || {}; remote = remote || {};
+    const list = mergeCollection(base.watchlist || [], local.watchlist || [], remote.watchlist || []).merged;
+    return {
+      watchlist: inChosenOrder(list, base.watchlist || [], local.watchlist || [], remote.watchlist || []),
+      pins: mergeCollection(base.pins || [], local.pins || [], remote.pins || []).merged,
+    };
+  }
+
   const api = {
-    COLLECTION_KEYS, byId, mergeBoards, mergeTravel, sameContent, flattenAccomplishments, unflattenAccomplishments,
+    COLLECTION_KEYS, byId, mergeBoards, mergeTravel, mergeInvest, sameContent, flattenAccomplishments, unflattenAccomplishments,
     compareVersions, maxVersion,
     stampChangedItems, diffCollection, diffSnapshots, summarizeConflicts,
     mergeCollection, mergeAccomplishmentYears, mergeSettings, mergeAllSources, settingsFromBackup,

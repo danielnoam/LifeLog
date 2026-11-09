@@ -56,6 +56,7 @@ require("../src/recap.js");
 // before running a single test.
 require("../src/boards.js");
 require("../src/travel.js");
+require("../src/invest.js");
 // app.js calls .init(ctx) on these unconditionally at its own top
 // level; normalize() doesn't depend on their behavior, so no-op stubs.
 global.window.LifeLogIO = { init: () => {} };

@@ -23,6 +23,7 @@
         { "url": "https://www.steamgriddb.com/api/v2/*" },
         { "url": "https://api.gg.deals/*" },
         { "url": "https://api.augmentedsteam.com/*" },
+        { "url": "https://api.tiingo.com/tiingo/*" },
         { "url": "https://maps.app.goo.gl/*" },
         { "url": "https://goo.gl/*" },
         { "url": "https://www.google.com/maps/*" }

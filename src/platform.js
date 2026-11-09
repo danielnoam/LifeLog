@@ -221,6 +221,11 @@
     if (m) return "https://store.steampowered.com/api/appdetails?appids=" + m[1] + "&filters=basic,genres";
     if (u.pathname.startsWith("/steamgriddb/")) return "https://www.steamgriddb.com/api/v2/" + u.pathname.slice("/steamgriddb/".length) + u.search;
     if (u.pathname === "/gg-deals") return "https://api.gg.deals/v1/prices/by-steam-app-id/" + u.search;
+    m = /^\/tiingo-prices\/([A-Za-z0-9.-]{1,12})$/.exec(u.pathname);
+    if (m) return "https://api.tiingo.com/tiingo/daily/" + m[1] + "/prices" + tiingoQuery(u, ["startDate"]);
+    m = /^\/tiingo-meta\/([A-Za-z0-9.-]{1,12})$/.exec(u.pathname);
+    if (m) return "https://api.tiingo.com/tiingo/daily/" + m[1];
+    if (u.pathname === "/tiingo-search") return "https://api.tiingo.com/tiingo/utilities/search" + tiingoQuery(u, ["query"]);
     m = /^\/augsteam-app\/(\d+)$/.exec(u.pathname);
     if (m) return "https://api.augmentedsteam.com/app/" + m[1] + "/v2";
     m = /^\/gmaps-link\/([A-Za-z0-9_-]{4,64})$/.exec(u.pathname);
@@ -228,6 +233,13 @@
     m = /^\/gmaps-list\/([A-Za-z0-9_-]{16,64})$/.exec(u.pathname);
     if (m) return "https://www.google.com/maps/preview/entitylist/getlist?authuser=0&hl=en&gl=us&pb=!1m4!1s" + m[1] + "!2e1!3m1!1e1!2e2!3e2!4i500!16b1";
     return null;
+  }
+  // Only the parameters a Tiingo route takes are passed on.
+  function tiingoQuery(u, names) {
+    const q = new URLSearchParams();
+    for (const n of names) { const v = u.searchParams.get(n); if (v) q.set(n, v); }
+    const s = q.toString();
+    return s ? "?" + s : "";
   }
   // The web build's proxy url is a synced setting, so an imported or merged
   // file could point it anywhere, and the Steam and SteamGridDB keys travel

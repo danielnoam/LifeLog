@@ -15,6 +15,7 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), "lifelog-bridge-"));
 const FILE = path.join(dir, "lifelog.json");
 const BOARDS = path.join(dir, "boards.json");
 const TRAVEL = path.join(dir, "travel.json");
+const INVEST = path.join(dir, "investments.json");
 process.env.LIFELOG_LOCAL_FILE = FILE;
 process.env.LIFELOG_STATE_DIR = path.join(dir, "state");
 process.env.LIFELOG_CONFIG = path.join(dir, "none.json");
@@ -77,6 +78,7 @@ const reset = () => {
   fs.writeFileSync(FILE, JSON.stringify(seed(), null, 2));
   fs.writeFileSync(BOARDS, JSON.stringify(boardsSeed()));
   fs.rmSync(TRAVEL, { force: true });
+  fs.rmSync(INVEST, { force: true });
   fs.rmSync(process.env.LIFELOG_STATE_DIR, { recursive: true, force: true });
 };
 const data = () => JSON.parse(fs.readFileSync(FILE, "utf8"));
@@ -667,6 +669,59 @@ test("trips: planned day by day, places moved and scheduled, a trip deleted with
   assert.deepStrictEqual([travel().trips.length, travel().places.length], [1, 3], "one undo brings back the trip and its places");
 });
 
+test("the watchlist: tickers, targets and pins in investments.json, prices from Tiingo with the app's key", async () => {
+  reset();
+  const invest = () => JSON.parse(fs.readFileSync(INVEST, "utf8"));
+  assert.match(await ok("lifelog_watchlist", {}), /Nothing on the watchlist yet/);
+  await ok("lifelog_watch_ticker", { symbol: "voo", name: "Vanguard S&P 500 ETF", target: 550, note: "Buy under the target" });
+  assert.ok(!/\n/.test(fs.readFileSync(INVEST, "utf8")), "investments.json is written compact, as the app writes it");
+  await refused("lifelog_watch_ticker", { symbol: "VOO" }, /already on the watchlist/);
+  await refused("lifelog_watch_ticker", { symbol: "not a ticker" }, /isn't a ticker/);
+  await ok("lifelog_add_pin", { ticker: "VOO", date: "2026-01-05", label: "Opened Blink" });
+  await ok("lifelog_add_pin", { ticker: "vanguard", date: "2026-06-01" });
+  await refused("lifelog_add_pin", { ticker: "VOO", date: "2999-01-01" }, /already happened/);
+  assert.deepStrictEqual(invest().pins.map((p) => p.date), ["2026-01-05", "2026-06-01"]);
+
+  // No key: the list without prices, saying why.
+  let out = await ok("lifelog_watchlist", {});
+  assert.match(out, /- VOO \(Vanguard S&P 500 ETF\): target \$550\.00, no prices: no Tiingo key/);
+  assert.match(out, /pin 1: 2026-01-05 "Opened Blink"/);
+
+  // With the key: asked straight of Tiingo, a Token header, closes from the
+  // first pin on.
+  const d = data(); d.settings = { ...(d.settings || {}), mediaKeys: { tiingo: "tk-9" } };
+  fs.writeFileSync(FILE, JSON.stringify(d));
+  const realFetch = global.fetch;
+  const asked = [];
+  global.fetch = async (url, init) => {
+    asked.push([String(url), init.headers.Authorization]);
+    const rows = [["2025-12-31", 500], ["2026-01-05", 520], ["2026-06-01", 572], ["2026-11-06", 600]]
+      .map(([day, close]) => ({ date: day + "T00:00:00.000Z", close, adjClose: close }));
+    return new Response(JSON.stringify(rows), { status: 200, headers: { "Content-Type": "application/json" } });
+  };
+  try {
+    out = await ok("lifelog_watchlist", { ticker: "VOO" });
+  } finally { global.fetch = realFetch; }
+  assert.match(asked[0][0], /^https:\/\/api\.tiingo\.com\/tiingo\/daily\/VOO\/prices\?startDate=/);
+  assert.strictEqual(asked[0][1], "Token tk-9");
+  assert.match(out, /\$600\.00 at the 2026-11-06 close/);
+  assert.match(out, /target \$550\.00 \(\+9\.1% from it\)/);
+  assert.match(out, /pin 2: 2026-06-01 at \$572\.00, \+10\.0% since pin 1 over 5 months/);
+  assert.match(out, /now: \+4\.9% since the last pin over 5 months, \+15\.4% since pin 1/);
+
+  const pinId = invest().pins[1].id;
+  await ok("lifelog_update_pin", { pin: pinId, label: "Bought more" });
+  assert.strictEqual(invest().pins[1].label, "Bought more");
+  await ok("lifelog_update_ticker", { ticker: "VOO", target: 0, note: "" });
+  assert.ok(!("target" in invest().watchlist[0]) && !("note" in invest().watchlist[0]), "0 and empty clear them");
+  await ok("lifelog_delete_pin", { pin: pinId });
+  assert.strictEqual(invest().pins.length, 1);
+  await ok("lifelog_unwatch_ticker", { ticker: "VOO" });
+  assert.deepStrictEqual([invest().watchlist.length, invest().pins.length], [0, 0]);
+  await ok("lifelog_undo", {});
+  assert.deepStrictEqual([invest().watchlist.length, invest().pins.length], [1, 1], "one undo brings back the ticker and its pin");
+});
+
 test("a Google Maps list: read straight from Google, then picked into a trip without doubles", async () => {
   reset();
   const { googleList, LIST_ID } = require("./fixtures/google-list.js");
@@ -770,6 +825,7 @@ test("every field the app's sanitizers keep is described in DATA.md", () => {
     "## Accomplishments (`accomplishments`)": [["app.js", "KNOWN_ACCOMPLISHMENT_KEYS"]],
     "## Settings (`settings`)": [["app.js", "KNOWN_SETTINGS_KEYS"]],
     "## Trips (`travel.json`)": [["travel.js", "KNOWN_TRIP_KEYS"], ["travel.js", "KNOWN_PLACE_KEYS"]],
+    "## Watchlist (`investments.json`)": [["invest.js", "KNOWN_WATCH_KEYS"], ["invest.js", "KNOWN_PIN_KEYS"]],
   };
   const missing = [];
   for (const [heading, lists] of Object.entries(where)) {

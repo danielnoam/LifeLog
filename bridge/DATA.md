@@ -396,6 +396,32 @@ change them. `lifelog_google_list` reads a shared Google Maps list (or one
 place) and `lifelog_import_google_list` adds its places to a trip with no
 day, skipping any already there (same `gid`, or the same name within 50 m).
 
+## Watchlist (`investments.json`)
+
+The Ledger's Investments mode: US stocks and ETFs followed, in a file of
+their own beside `lifelog.json`, written compact:
+`{ "watchlist": [ ... ], "pins": [ ... ] }`. Kept apart for the same reason
+as `travel.json`. Prices are US dollars and are never stored in the file:
+the app fetches daily closes from Tiingo with the key in
+`settings.mediaKeys.tiingo` and keeps them on each device only.
+
+- A ticker has `id`, `symbol` (upper case, like `VOO` or `BRK.B`),
+  `createdAt`, `updatedAt`, and optionally `name`, `target` (a price in
+  dollars you're waiting for) and `note`. The list's order is the order
+  shown. The same symbol twice (two devices adding it before a sync) folds
+  into the one added first, with the other's pins.
+- A pin has `id`, `watch` (its ticker's id), `date`, `createdAt`,
+  `updatedAt`, and optionally `label` (what happened that day). Its price is
+  the close that day, or the last one before it when the market was shut.
+  A pin whose ticker is gone is dropped when the file is read; removing a
+  ticker removes its pins.
+
+`lifelog_watchlist` lists the tickers with their targets, notes and pins,
+and with a Tiingo key their latest close, the change over a range, how far
+each is from its target, and the change between pins and since the last.
+`lifelog_watch_ticker`, `lifelog_update_ticker`, `lifelog_unwatch_ticker`,
+`lifelog_add_pin`, `lifelog_update_pin` and `lifelog_delete_pin` change them.
+
 The app's By area view and `lifelog_google_list` group places the same way
 (`Travel.areas`): places within 15 km of each other are one area, named
 after the town most of their places give (from the address, else `town`),

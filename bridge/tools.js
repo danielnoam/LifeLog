@@ -15,7 +15,7 @@ const { load } = require("./load.js");
 const { readConfig, openStore, undoLog, SetupError } = require("./store.js");
 
 const L = load();
-const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Travel, Merge, Widgets, Recap, Home } = L;
+const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Travel, Invest, Merge, Widgets, Recap, Home } = L;
 
 // ---------- the collections an AI may edit ----------
 // `cats` names the list a `category` must come from; notes may have none.
@@ -120,6 +120,8 @@ function cleanItem(data, coll, item, asked) {
 const SIBLINGS = {
   boards: { name: "boards.json", empty: { boards: [] }, keys: ["boards"] },
   travel: { name: "travel.json", empty: { trips: [], places: [] }, keys: ["trips", "places"] },
+  // The Ledger's watchlist and its date pins (investments.json).
+  invest: { name: "investments.json", empty: { watchlist: [], pins: [] }, keys: ["watchlist", "pins"] },
 };
 let store = null, cfg = null;
 const siblingStores = {};
@@ -138,6 +140,7 @@ Dates.bind(() => ({ weekStart: seenSettings && seenSettings.weekStart }));
 const seen = (data) => { if (data && data.settings) seenSettings = data.settings; return data; };
 async function readData() { return seen((await storeOf().read()).data); }
 async function readTravel() { return Travel.sanitizeDoc((await storeOf("travel").read()).data); }
+async function readInvest() { return Invest.sanitizeDoc((await storeOf("invest").read()).data); }
 async function readBoards() {
   const doc = (await storeOf("boards").read()).data;
   return (doc.boards || []).map(Boards.sanitizeBoard);
@@ -310,6 +313,27 @@ function findTrip(list, ident) {
   const want = String(ident == null ? "" : ident).trim();
   if (!want) fail("Say which trip (its id or name).");
   return list.find((t) => t.id === want) || pickByText(list, want, (t) => t.name, "trip");
+}
+function findWatch(list, ident) {
+  const want = String(ident == null ? "" : ident).trim();
+  if (!want) fail("Say which ticker (its symbol or id).");
+  const sym = Invest.cleanSymbol(want);
+  return list.find((w) => w.id === want) || (sym && list.find((w) => w.symbol === sym))
+    || pickByText(list.filter((w) => w.name), want, (w) => w.name, "ticker on the watchlist");
+}
+// A ticker's daily closes from Tiingo, with the key from the app's settings.
+// Node isn't a browser, so it's asked directly, not through the proxy. Null
+// when there's no key; an error message when Tiingo said no.
+async function closesOf(data, symbol, startDate) {
+  const key = String(((data.settings || {}).mediaKeys || {}).tiingo || "").trim();
+  if (!key) return null;
+  try {
+    const res = await fetch("https://api.tiingo.com/tiingo/daily/" + encodeURIComponent(symbol) + "/prices?startDate=" + startDate, {
+      headers: { Authorization: "Token " + key, "User-Agent": "LifeLog-bridge" }, signal: AbortSignal.timeout(20000),
+    });
+    if (!res.ok) return "Tiingo answered " + res.status + (res.status === 404 ? " (it doesn't know " + symbol + ")" : "");
+    return Invest.parseTiingo(await res.json());
+  } catch (e) { return "couldn't reach Tiingo"; }
 }
 function findPlace(doc, ident, trip) {
   const want = String(ident == null ? "" : ident).trim();
@@ -1012,6 +1036,46 @@ const TOOLS = [
       }
       const loose = Travel.sortDay(places.filter((p) => !p.day));
       if (loose.length) out.push("No day yet", ...loose.map(placeLine));
+      return out.join("\n");
+    },
+  },
+
+  {
+    name: "lifelog_watchlist",
+    description: "The Ledger's Investments watchlist: each US stock or ETF followed, its target price and note, and its date pins. With prices (US dollars, adjusted for splits and dividends) when a Tiingo key is set in the app: the latest close, the change over the range, how far it is from its target, and the change between each pin and to now. Give ticker for one ticker in full.",
+    readOnly: true,
+    input: { ticker: S.str("One ticker's symbol or id"), range: S.str("The change measured over", { enum: ["1M", "3M", "6M", "YTD", "1Y", "5Y", "Max"] }) },
+    async run(a) {
+      const doc = await readInvest();
+      if (!doc.watchlist.length) return "Nothing on the watchlist yet.";
+      const list = a.ticker ? [findWatch(doc.watchlist, a.ticker)] : doc.watchlist;
+      const range = a.range || "1Y";
+      const d = await readData();
+      const start = Invest.rangeStart(range, today()) || "1980-01-01";
+      const out = a.ticker ? [] : [`${doc.watchlist.length} ticker${doc.watchlist.length === 1 ? "" : "s"} on the watchlist (change over ${range})`];
+      for (const w of list) {
+        const pins = doc.pins.filter((p) => p.watch === w.id);
+        const first = pins.length ? pins.map((p) => p.date).sort()[0] : null;
+        const closes = await closesOf(d, w.symbol, first && first < start ? Finance.localDateStr(new Date(Date.parse(first + "T12:00:00Z") - 10 * 864e5)) : start);
+        const pts = Array.isArray(closes) ? closes : [];
+        const shown = Invest.sliceRange(pts, range);
+        const last = pts.length ? pts[pts.length - 1] : null;
+        const bits = [];
+        if (last) bits.push(`${Invest.usd(last[1])} at the ${last[0]} close`);
+        if (shown.length > 1) bits.push(Invest.pct(Invest.changeOf(shown[0][1], last[1])) + " over " + range);
+        if (w.target) bits.push("target " + Invest.usd(w.target) + (last ? ` (${Invest.pct(Invest.changeOf(w.target, last[1]))} from it)` : ""));
+        if (closes === null) bits.push("no prices: no Tiingo key in the app's Settings → Media lookups");
+        else if (typeof closes === "string") bits.push("no prices: " + closes);
+        out.push(`- ${w.symbol}${w.name ? " (" + w.name + ")" : ""}: ${bits.join(", ") || "no prices"}${w.note ? " — " + cut(w.note, 200) : ""}  (${w.id})`);
+        if (pins.length) {
+          const steps = Invest.pinSteps(pins, pts);
+          steps.steps.forEach((st, k) => {
+            const move = k && st.change != null ? `, ${Invest.pct(st.change)} since pin ${k} over ${Invest.spanLabel(st.days)}` : "";
+            out.push(`  pin ${k + 1}: ${st.pin.date}${st.pin.label ? " \"" + st.pin.label + "\"" : ""}${st.price != null ? " at " + Invest.usd(st.price) : ""}${move}  (${st.pin.id})`);
+          });
+          if (steps.now && steps.now.change != null) out.push(`  now: ${Invest.pct(steps.now.change)} since the last pin over ${Invest.spanLabel(steps.now.days)}${steps.total != null ? ", " + Invest.pct(steps.total) + " since pin 1" : ""}`);
+        }
+      }
       return out.join("\n");
     },
   },
@@ -2003,6 +2067,112 @@ const TOOLS = [
     },
   },
   {
+    name: "lifelog_watch_ticker",
+    description: "Add a US stock or ETF to the Ledger's Investments watchlist, by its ticker (VOO, AAPL). Prices are in US dollars. A ticker already on it is refused.",
+    input: { symbol: S.str("The ticker, e.g. VOO"), name: S.str("Its name, e.g. Vanguard S&P 500 ETF"), target: S.num("A target price in dollars"), note: S.str("A note, e.g. why you're watching it") },
+    required: ["symbol"],
+    async run(a) {
+      const symbol = Invest.cleanSymbol(a.symbol);
+      if (!symbol) fail(`"${a.symbol}" isn't a ticker (letters, digits, dots and dashes, like VOO or BRK.B).`);
+      if (a.target != null && !Invest.cleanPrice(a.target)) fail("A target is a price above zero.");
+      return change(`watch ${symbol}`, (doc) => {
+        const list = Invest.sanitizeDoc(doc).watchlist;
+        if (list.some((w) => w.symbol === symbol)) fail(`${symbol} is already on the watchlist.`);
+        const now = changeNow || nowIso();
+        const w = Invest.sanitizeWatch({ id: L.uid(), symbol, name: a.name, target: a.target, note: a.note, createdAt: now, updatedAt: now });
+        (doc.watchlist = doc.watchlist || []).push(w);
+        return { text: `Added ${w.symbol}${w.name ? " (" + w.name + ")" : ""} to the watchlist${w.target ? ", target " + Invest.usd(w.target) : ""} (${w.id}).`, touched: [["watchlist", w.id]] };
+      }, { file: "invest" });
+    },
+  },
+  {
+    name: "lifelog_update_ticker",
+    description: "Change a watched ticker's target price, note or name. An empty value (or target 0) clears it.",
+    input: { ticker: S.str("Its symbol or id"), target: S.num("Target price in dollars; 0 clears it"), note: S.str("The note; empty clears it"), name: S.str("Its name") },
+    required: ["ticker"],
+    async run(a) {
+      if (a.target == null && a.note == null && a.name == null) fail("Nothing to change: give target, note or name.");
+      if (a.target != null && +a.target !== 0 && !Invest.cleanPrice(a.target)) fail("A target is a price above zero, or 0 to clear it.");
+      return change(`edit ticker "${a.ticker}"`, (doc) => {
+        const w = findWatch(Invest.sanitizeDoc(doc).watchlist, a.ticker);
+        const next = { ...(doc.watchlist.find((x) => x.id === w.id)) };
+        if (a.target != null) { if (+a.target) next.target = +a.target; else delete next.target; }
+        for (const k of ["note", "name"]) if (a[k] != null) { if (String(a[k]).trim()) next[k] = a[k]; else delete next[k]; }
+        const clean = Invest.sanitizeWatch(next);
+        replaceItem(doc, "watchlist", clean);
+        return { text: `Updated ${clean.symbol}: ${clean.target ? "target " + Invest.usd(clean.target) : "no target"}${clean.note ? ", note \"" + cut(clean.note, 80) + "\"" : ""}.`, touched: [["watchlist", w.id]] };
+      }, { file: "invest" });
+    },
+  },
+  {
+    name: "lifelog_unwatch_ticker",
+    description: "Take a ticker off the watchlist, with its pins. Undoable with lifelog_undo.",
+    destructive: true,
+    input: { ticker: S.str("Its symbol or id") },
+    required: ["ticker"],
+    async run(a) {
+      return change(`unwatch "${a.ticker}"`, (doc) => {
+        const w = findWatch(Invest.sanitizeDoc(doc).watchlist, a.ticker);
+        const pins = (doc.pins || []).filter((p) => p.watch === w.id);
+        doc.watchlist = doc.watchlist.filter((x) => x.id !== w.id);
+        doc.pins = (doc.pins || []).filter((p) => p.watch !== w.id);
+        return { text: `Took ${w.symbol} off the watchlist${pins.length ? " with its " + pins.length + " pin" + (pins.length === 1 ? "" : "s") : ""}.`, touched: [["watchlist", w.id], ...pins.map((p) => ["pins", p.id])] };
+      }, { file: "invest" });
+    },
+  },
+  {
+    name: "lifelog_add_pin",
+    description: "Pin a date on a watched ticker, to compare its price then with its other pins and now (when you bought, a dip, a piece of news). On a day the market was shut, the close before it counts.",
+    input: { ticker: S.str("Its symbol or id"), date: S.date("The day"), label: S.str("What happened, e.g. Bought more") },
+    required: ["ticker", "date"],
+    async run(a) {
+      requireDate(a.date, "date");
+      if (a.date > today()) fail("A pin is a day that has already happened.");
+      return change(`pin ${a.date} on "${a.ticker}"`, (doc) => {
+        const w = findWatch(Invest.sanitizeDoc(doc).watchlist, a.ticker);
+        const now = changeNow || nowIso();
+        const p = Invest.sanitizePin({ id: L.uid(), watch: w.id, date: a.date, label: a.label, createdAt: now, updatedAt: now });
+        (doc.pins = doc.pins || []).push(p);
+        return { text: `Pinned ${p.date}${p.label ? " \"" + p.label + "\"" : ""} on ${w.symbol} (${p.id}).`, touched: [["pins", p.id]] };
+      }, { file: "invest" });
+    },
+  },
+  {
+    name: "lifelog_update_pin",
+    description: "Move a pin to another day or change its label (empty clears it).",
+    input: { pin: S.str("The pin's id"), date: S.date("The day"), label: S.str("Its label") },
+    required: ["pin"],
+    async run(a) {
+      if (a.date == null && a.label == null) fail("Nothing to change: give date or label.");
+      if (a.date != null) { requireDate(a.date, "date"); if (a.date > today()) fail("A pin is a day that has already happened."); }
+      return change(`edit pin ${a.pin}`, (doc) => {
+        const p = (doc.pins || []).find((x) => x.id === a.pin);
+        if (!p) fail(`No pin with the id "${a.pin}" (lifelog_watchlist lists them).`);
+        const next = { ...p };
+        if (a.date != null) next.date = a.date;
+        if (a.label != null) { if (String(a.label).trim()) next.label = a.label; else delete next.label; }
+        const clean = Invest.sanitizePin(next);
+        replaceItem(doc, "pins", clean);
+        return { text: `The pin is now ${clean.date}${clean.label ? " \"" + clean.label + "\"" : ""}.`, touched: [["pins", p.id]] };
+      }, { file: "invest" });
+    },
+  },
+  {
+    name: "lifelog_delete_pin",
+    description: "Delete a pin from a watched ticker. Undoable with lifelog_undo.",
+    destructive: true,
+    input: { pin: S.str("The pin's id") },
+    required: ["pin"],
+    async run(a) {
+      return change(`delete pin ${a.pin}`, (doc) => {
+        const p = (doc.pins || []).find((x) => x.id === a.pin);
+        if (!p) fail(`No pin with the id "${a.pin}" (lifelog_watchlist lists them).`);
+        doc.pins = doc.pins.filter((x) => x.id !== p.id);
+        return { text: `Deleted the pin on ${p.date}${p.label ? " \"" + p.label + "\"" : ""}.`, touched: [["pins", p.id]] };
+      }, { file: "invest" });
+    },
+  },
+  {
     name: "lifelog_add_trip",
     description: "Start a trip in the Travel tab. Dates are optional; with them every day of the trip shows in its plan.",
     input: { name: S.str("What to call it"), start: S.date("First day"), end: S.date("Last day") },
@@ -2423,7 +2593,7 @@ const TOOLS = [
           gathered[n].label = at;
         }
       } finally { batch = null; }
-      const files = ["data", "boards", "travel"].filter((f) => gathered.some((g) => g.file === f));
+      const files = ["data", "boards", "travel", "invest"].filter((f) => gathered.some((g) => g.file === f));
       const summary = `${steps.length} change${steps.length === 1 ? "" : "s"}`;
       const run = (f, d) => {
         for (const g of gathered.filter((x) => x.file === f)) {

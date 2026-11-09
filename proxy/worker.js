@@ -58,6 +58,14 @@
 //     A saved list's places, from the endpoint Google Maps' own page reads
 //     (unofficial: Google has no API for lists). Travel's import (0.242.0).
 //
+//   GET /tiingo-prices/<ticker>?startDate=YYYY-MM-DD
+//   GET /tiingo-meta/<ticker>
+//   GET /tiingo-search?query=<text>
+//     -> https://api.tiingo.com/tiingo/daily/<ticker>/prices, .../daily/<ticker>
+//        and .../utilities/search: the Ledger watchlist's prices. Your Tiingo
+//     token stays in LifeLog's Settings and comes along as an Authorization
+//     header, passed through as SteamGridDB's is.
+//
 //   GET /augsteam-app/<appid>
 //     -> https://api.augmentedsteam.com/app/<appid>/v2
 //     A game's How Long to Beat times (and other bits) from Augmented
@@ -105,6 +113,20 @@ export default {
       const target = `https://www.steamgriddb.com/api/v2/${subpath}${url.search}`;
       const auth = request.headers.get("Authorization");
       return proxyJson(target, auth ? { Authorization: auth } : {});
+    }
+
+    const tiingoAuth = () => { const a = request.headers.get("Authorization"); return a ? { Authorization: a } : {}; };
+    const pricesMatch = url.pathname.match(/^\/tiingo-prices\/([A-Za-z0-9.-]{1,12})$/);
+    if (pricesMatch) {
+      const start = url.searchParams.get("startDate") || "";
+      const q = /^\d{4}-\d{2}-\d{2}$/.test(start) ? `?startDate=${start}` : "";
+      return proxyJson(`https://api.tiingo.com/tiingo/daily/${pricesMatch[1]}/prices${q}`, tiingoAuth());
+    }
+    const metaMatch = url.pathname.match(/^\/tiingo-meta\/([A-Za-z0-9.-]{1,12})$/);
+    if (metaMatch) return proxyJson(`https://api.tiingo.com/tiingo/daily/${metaMatch[1]}`, tiingoAuth());
+    if (url.pathname === "/tiingo-search") {
+      const query = (url.searchParams.get("query") || "").slice(0, 60);
+      return proxyJson(`https://api.tiingo.com/tiingo/utilities/search?query=${encodeURIComponent(query)}`, tiingoAuth());
     }
 
     const augMatch = url.pathname.match(/^\/augsteam-app\/(\d{1,10})$/);

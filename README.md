@@ -16,7 +16,7 @@ files are the web app (GitHub Pages), the Android app and the iOS app
 - [Notebook](#notebook): [Notes](#notes), [Images in notes](#images-in-notes), [Habits](#habits)
 - [Timeline](#timeline): [Log](#log), [Layouts](#timeline-layouts-covers-and-calendar), [Stats and Recap](#stats-and-recap)
 - [Backlog](#backlog): [List](#list), [Covers](#covers), [Pick](#pick), [An item's sheet](#an-items-sheet), [Next releases](#next-releases), [Discover](#discover)
-- [Ledger](#ledger): [Expenses](#expenses), [Summary](#summary)
+- [Ledger](#ledger): [Expenses](#expenses), [Summary](#summary), [Investments](#investments)
 - [Travel](#travel)
 - [Search](#search)
 - [Settings](#settings)
@@ -266,6 +266,20 @@ month, by category (with subcategories) and the largest expenses.
 <td><img src="docs/screenshots/ledger-summary-phone.webp" alt="The Ledger's summary on a phone" width="200"></td>
 </tr></table>
 
+### Investments
+
+A watchlist of US stocks and ETFs, in dollars: a price chart for each over
+a range (1M to Max), a target price and a note, and pins on the days you
+want to compare (when you bought, a dip), with the change between each pin
+and since the last. Prices come from Tiingo with a free key of your own,
+once a day, and are kept on each device; the watchlist and pins sync in
+`investments.json`.
+
+<table><tr>
+<td><img src="docs/screenshots/ledger-investments-desktop.webp" alt="The Ledger's watchlist on a computer" width="620"></td>
+<td><img src="docs/screenshots/ledger-investments-phone.webp" alt="The Ledger's watchlist on a phone" width="200"></td>
+</tr></table>
+
 ## Travel
 
 Off by default (Settings → Tabs). Trips with places planned By time, By
@@ -374,9 +388,10 @@ The app keeps a working copy on the device and, on every save, writes to
 every target connected in **Settings → Sync**:
 
 - **GitHub** (works on phones): `lifelog.json` in a **private repo**, so
-  every device shares one log and every save is a commit. Boards and trips
-  sit beside it in `boards.json` and `travel.json`, and the pictures in
-  notes and on boards on the repo's `lifelog-images` branch.
+  every device shares one log and every save is a commit. Boards, trips
+  and the Ledger's watchlist sit beside it in `boards.json`, `travel.json`
+  and `investments.json`, and the pictures in notes and on boards on the
+  repo's `lifelog-images` branch.
 - **Local file** (desktop Chrome and Edge): a `.json` file you pick, for
   example in your Google Drive folder.
 
@@ -501,6 +516,7 @@ you add it in **Settings → Media lookups**.
 | Augmented Steam | no; CORS proxy | Steam games: How Long to Beat times, OpenCritic and Metacritic user scores |
 | New York Times | yes (free) | books: bestseller lists in Discover |
 | Google Places | yes (your own) | Travel: a place's rating, hours and reviews |
+| Tiingo | yes (free, personal use); CORS proxy in a browser | the Ledger's watchlist: daily stock and ETF prices |
 | Open Library, AniList, Jikan, Google Books, MusicBrainz | no | books, anime and manga, music |
 
 Steam's endpoints and SteamGridDB send no CORS headers, so on the web the
@@ -528,6 +544,7 @@ src/boards.js       drawing boards (boards.json)
 src/habits.js       Habits
 src/finance.js      Ledger: expenses, recurring bills, Summary
 src/travel.js       Travel: trips and places (travel.json)
+src/invest.js       The Ledger's Investments mode: watchlist and pins (investments.json)
 src/home.js         Home: in progress, coming up, the scratchpad and pinned notes
 src/recap.js        the yearly Recap
 src/search.js       one search across everything

@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.309.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.310.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -149,6 +149,7 @@
         <p class="add-head" aria-hidden="true"></p>
         <button type="button" data-add="finance" data-view="finance"><span class="add-ico" aria-hidden="true" data-ico="banknote"></span>Expense</button>
         <button type="button" data-add="recurring" data-view="finance"><span class="add-ico" aria-hidden="true" data-ico="repeat"></span>Recurring expense</button>
+        <button type="button" data-add="ticker" data-view="finance"><span class="add-ico" aria-hidden="true" data-ico="trending-up"></span>Ticker to watch</button>
       </div>
       <div class="add-group" data-view="travel">
         <p class="add-head" aria-hidden="true"></p>
@@ -200,6 +201,10 @@
       <div class="filter-group" id="tripFilterGroup" hidden>
         <label class="filter-label">Trips</label>
         <div class="cats" id="tripFilter"></div>
+      </div>
+      <div class="filter-group" id="rangeFilterGroup" hidden>
+        <label class="filter-label">Range</label>
+        <div class="cats" id="rangeFilter"></div>
       </div>
     </div>
     <!-- What a mode carries besides the list — the Notes count, the
@@ -1085,6 +1090,56 @@
     </div>
   </div>
 
+  <!-- The Ledger's watchlist (invest.js): a ticker's sheet and a pin's. -->
+  <div class="modal-overlay" id="watchModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="watchModalTitle">
+      <h2 id="watchModalTitle">Watch a ticker</h2>
+      <form id="watchForm">
+        <div id="watchSymbolRow">
+          <label>Ticker or name
+            <input id="watchSymbol" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="e.g. VOO or Vanguard" />
+          </label>
+          <div class="invest-results" id="watchResults" hidden></div>
+        </div>
+        <label>Target price ($)
+          <input id="watchTarget" type="text" inputmode="decimal" autocomplete="off" placeholder="Optional, e.g. 550" />
+        </label>
+        <label>Note
+          <input id="watchNote" type="text" autocomplete="off" placeholder="Optional, e.g. buy more under the target" />
+        </label>
+        <p class="hint" id="watchHint"></p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="deleteWatchBtn" hidden>Remove</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelWatchBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="watchSaveBtn">Add to watchlist</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="investPinModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="investPinModalTitle">
+      <h2 id="investPinModalTitle">Pin a date</h2>
+      <p class="muted" id="investPinTicker"></p>
+      <form id="investPinForm">
+        <label>Date
+          <input id="investPinDate" type="date" required />
+        </label>
+        <label>Label
+          <input id="investPinLabel" type="text" autocomplete="off" placeholder="Optional, e.g. Bought more" />
+        </label>
+        <p class="hint">The price on that day is compared with your other pins and the latest close. On a day the market was shut, the close before it counts.</p>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="deleteInvestPinBtn" hidden>Delete</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelInvestPinBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="importPlacesModal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="importPlacesTitle">
       <h2 id="importPlacesTitle">Import from Google Maps</h2>
@@ -1743,7 +1798,7 @@
       <div class="tab-toggles" id="tabToggles"></div>
       </div>
 
-      <div class="settings-page" hidden data-page="media" data-title="Media lookups" data-keywords="api keys rawg tmdb steamgriddb gg.deals google places reviews hours nyt new york times bestsellers books proxy cors cover art metadata sources">
+      <div class="settings-page" hidden data-page="media" data-title="Media lookups" data-keywords="api keys rawg tmdb steamgriddb gg.deals google places reviews hours nyt new york times bestsellers books tiingo stocks etf prices watchlist proxy cors cover art metadata sources">
       <h2 class="settings-page-title">Media lookups</h2>
       <p class="hint page-lede">Where covers, ratings and release dates come from. Syncs to your other devices.</p>
       <section class="sgroup">
@@ -1779,6 +1834,10 @@
             <span class="sitem-text"><span class="sitem-title key-title">New York Times key<span class="key-status" data-key-status="nyt" role="status" hidden></span></span><span class="sitem-sub">The bestseller lists in Discover, for a books category — free at <a href="https://developer.nytimes.com/my-apps" target="_blank" rel="noopener">developer.nytimes.com</a>, with the Books API turned on</span></span>
             <input id="nytKey" type="password" placeholder="Paste your NYT API key…" autocomplete="off" spellcheck="false" />
           </label>
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title key-title">Tiingo key<span class="key-status" data-key-status="tiingo" role="status" hidden></span></span><span class="sitem-sub">Stock and ETF prices for the Ledger's watchlist — free at <a href="https://www.tiingo.com/account/api/token" target="_blank" rel="noopener">tiingo.com</a>, for personal use; needs the proxy in a browser</span></span>
+            <input id="tiingoKey" type="password" placeholder="Paste your Tiingo API token…" autocomplete="off" spellcheck="false" />
+          </label>
         </div>
         <p class="hint">Open Library, AniList, Jikan, Google Books and MusicBrainz need no key.</p>
       </section>
@@ -1787,7 +1846,7 @@
         <h3 class="sgroup-label">CORS proxy</h3>
         <div class="sgroup-card">
           <label class="sitem sitem-stack">
-            <span class="sitem-text"><span class="sitem-title">Proxy URL</span><span class="sitem-sub">For SteamGridDB, GG.deals, game times and the Steam wishlist import, which a browser can't call directly</span></span>
+            <span class="sitem-text"><span class="sitem-title">Proxy URL</span><span class="sitem-sub">For SteamGridDB, GG.deals, game times, the Steam wishlist import and stock prices, which a browser can't call directly</span></span>
             <input id="steamProxyUrl" type="text" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://your-worker.workers.dev" />
           </label>
         </div>
@@ -1996,6 +2055,7 @@
           <a class="sitem sitem-go" href="https://frankfurter.dev" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Frankfurter</span><span class="sitem-sub">Exchange rates for expenses in another currency</span></span></a>
           <a class="sitem sitem-go" href="https://developers.google.com/maps/documentation/places/web-service" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Google Places</span><span class="sitem-sub">Place details in Travel, with your own key</span></span></a>
           <a class="sitem sitem-go" href="https://developer.nytimes.com/docs/books-product/1/overview" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">The New York Times Books API</span><span class="sitem-sub">Bestseller lists in Discover, with your own key. Data provided by The New York Times</span></span></a>
+          <a class="sitem sitem-go" href="https://www.tiingo.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Tiingo</span><span class="sitem-sub">Stock and ETF prices for the Ledger's watchlist, with your own key</span></span></a>
         </div>
       </section>
       </div>
@@ -2562,45 +2622,46 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.309.0"></script>
-  <script defer src="src/headless.js?v=0.309.0"></script>
-  <script defer src="src/platform.js?v=0.309.0"></script>
-  <script defer src="src/desktop.js?v=0.309.0"></script>
-  <script defer src="src/dates.js?v=0.309.0"></script>
-  <script defer src="src/keys.js?v=0.309.0"></script>
-  <script defer src="src/testbuilds.js?v=0.309.0"></script>
-  <script defer src="src/icons.js?v=0.309.0"></script>
-  <script defer src="src/select.js?v=0.309.0"></script>
-  <script defer src="src/jobs.js?v=0.309.0"></script>
-  <script defer src="src/reconcile.js?v=0.309.0"></script>
-  <script defer src="src/qr.js?v=0.309.0"></script>
-  <script defer src="src/media.js?v=0.309.0"></script>
-  <script defer src="src/merge.js?v=0.309.0"></script>
-  <script defer src="src/storage.js?v=0.309.0"></script>
-  <script defer src="src/finance.js?v=0.309.0"></script>
-  <script defer src="src/settings.js?v=0.309.0"></script>
-  <script defer src="src/wheel.js?v=0.309.0"></script>
-  <script defer src="src/backlog.js?v=0.309.0"></script>
-  <script defer src="src/journal.js?v=0.309.0"></script>
-  <script defer src="src/markdown.js?v=0.309.0"></script>
-  <script defer src="src/images.js?v=0.309.0"></script>
-  <script defer src="src/notes.js?v=0.309.0"></script>
-  <script defer src="src/docimport.js?v=0.309.0"></script>
-  <script defer src="src/io.js?v=0.309.0"></script>
-  <script defer src="src/sync.js?v=0.309.0"></script>
-  <script defer src="src/habits.js?v=0.309.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.309.0"></script>
-  <script defer src="src/boards.js?v=0.309.0"></script>
-  <script defer src="src/travel.js?v=0.309.0"></script>
-  <script defer src="src/home.js?v=0.309.0"></script>
-  <script defer src="src/recap.js?v=0.309.0"></script>
-  <script defer src="src/reminders.js?v=0.309.0"></script>
-  <script defer src="src/alerts.js?v=0.309.0"></script>
-  <script defer src="src/widgets.js?v=0.309.0"></script>
-  <script defer src="src/share.js?v=0.309.0"></script>
-  <script defer src="src/search.js?v=0.309.0"></script>
-  <script defer src="src/letterboxd.js?v=0.309.0"></script>
-  <script defer src="src/payments.js?v=0.309.0"></script>
-  <script defer src="src/app.js?v=0.309.0"></script>
+  <script defer src="src/errlog.js?v=0.310.0"></script>
+  <script defer src="src/headless.js?v=0.310.0"></script>
+  <script defer src="src/platform.js?v=0.310.0"></script>
+  <script defer src="src/desktop.js?v=0.310.0"></script>
+  <script defer src="src/dates.js?v=0.310.0"></script>
+  <script defer src="src/keys.js?v=0.310.0"></script>
+  <script defer src="src/testbuilds.js?v=0.310.0"></script>
+  <script defer src="src/icons.js?v=0.310.0"></script>
+  <script defer src="src/select.js?v=0.310.0"></script>
+  <script defer src="src/jobs.js?v=0.310.0"></script>
+  <script defer src="src/reconcile.js?v=0.310.0"></script>
+  <script defer src="src/qr.js?v=0.310.0"></script>
+  <script defer src="src/media.js?v=0.310.0"></script>
+  <script defer src="src/merge.js?v=0.310.0"></script>
+  <script defer src="src/storage.js?v=0.310.0"></script>
+  <script defer src="src/finance.js?v=0.310.0"></script>
+  <script defer src="src/settings.js?v=0.310.0"></script>
+  <script defer src="src/wheel.js?v=0.310.0"></script>
+  <script defer src="src/backlog.js?v=0.310.0"></script>
+  <script defer src="src/journal.js?v=0.310.0"></script>
+  <script defer src="src/markdown.js?v=0.310.0"></script>
+  <script defer src="src/images.js?v=0.310.0"></script>
+  <script defer src="src/notes.js?v=0.310.0"></script>
+  <script defer src="src/docimport.js?v=0.310.0"></script>
+  <script defer src="src/io.js?v=0.310.0"></script>
+  <script defer src="src/sync.js?v=0.310.0"></script>
+  <script defer src="src/habits.js?v=0.310.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.310.0"></script>
+  <script defer src="src/boards.js?v=0.310.0"></script>
+  <script defer src="src/travel.js?v=0.310.0"></script>
+  <script defer src="src/invest.js?v=0.310.0"></script>
+  <script defer src="src/home.js?v=0.310.0"></script>
+  <script defer src="src/recap.js?v=0.310.0"></script>
+  <script defer src="src/reminders.js?v=0.310.0"></script>
+  <script defer src="src/alerts.js?v=0.310.0"></script>
+  <script defer src="src/widgets.js?v=0.310.0"></script>
+  <script defer src="src/share.js?v=0.310.0"></script>
+  <script defer src="src/search.js?v=0.310.0"></script>
+  <script defer src="src/letterboxd.js?v=0.310.0"></script>
+  <script defer src="src/payments.js?v=0.310.0"></script>
+  <script defer src="src/app.js?v=0.310.0"></script>
 </body>
 </html>

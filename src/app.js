@@ -12,6 +12,7 @@
   const Habits = window.LifeLogHabits;
   const Boards = window.LifeLogBoards;
   const Travel = window.LifeLogTravel;
+  const Invest = window.LifeLogInvest;
   const Recap = window.LifeLogRecap;
   const Home = window.LifeLogHome || { init() {}, renderHome() {}, fillViewOptions() {} };
   const Widgets = window.LifeLogWidgets || { changed() {}, start() {}, assertBackground() {} };
@@ -49,7 +50,7 @@
   // timelineSort/ledgerSort/backlogSort replaced monthOrder in 0.157.0. Each
   // option is one complete statement about the whole list rather than a
   // direction bolted to a hidden field — see SORTS below.
-  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", googlePlaces: "", nyt: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "30" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0", clientId: "", token: "", connectedAt: "" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
+  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", googlePlaces: "", nyt: "", tiingo: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "30" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0", clientId: "", token: "", connectedAt: "" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
   // Local to this device, not synced. Every key a view reads off state.visual
   // belongs here: loadVisualSettings fills the gaps in a stored blob from this
   // object, so a default declared here is the only one there is — a `||` at
@@ -172,7 +173,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.309.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.310.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -734,7 +735,7 @@
     },
     finance: {
       key: "finance",
-      modes: [["entries", "Expenses", "receipt"], ["summary", "Summary", "chart-pie"]],
+      modes: [["entries", "Expenses", "receipt"], ["summary", "Summary", "chart-pie"], ["invest", "Investments", "trending-up"]],
       get: () => state.financeMode,
       set: (m) => { state.financeMode = m; },
     },
@@ -1748,6 +1749,7 @@
       }
       if (state.view === "finance") {
         if (state.financeMode === "summary") Finance.renderFinanceStats(c);
+        else if (state.financeMode === "invest") Invest.renderInvest(c);
         else Finance.renderFinanceEntries(c);
         return;
       }
@@ -3518,9 +3520,13 @@
     // Home has nothing to filter: it is a page of what's on now.
     if (state.view === "home") { bar.hidden = true; return; }
     const travel = state.view === "travel";
-    if (travel) for (const id of ["#yearFilterGroup", "#catFilterGroup", "#kindFilterGroup", "#showFilterGroup", "#projFilterGroup"]) $(id).hidden = true;
-    else $("#tripFilterGroup").hidden = true;
-    bar.hidden = travel ? $("#tripFilterGroup").hidden : ($("#yearFilterGroup").hidden && $("#catFilterGroup").hidden
+    // The Ledger's Investments mode has one row too, its Range (invest.js):
+    // a ticker is filed under no year or category.
+    const invest = state.view === "finance" && state.financeMode === "invest";
+    if (travel || invest) for (const id of ["#yearFilterGroup", "#catFilterGroup", "#kindFilterGroup", "#showFilterGroup", "#projFilterGroup"]) $(id).hidden = true;
+    if (!travel) $("#tripFilterGroup").hidden = true;
+    if (!invest) $("#rangeFilterGroup").hidden = true;
+    bar.hidden = travel ? $("#tripFilterGroup").hidden : invest ? $("#rangeFilterGroup").hidden : ($("#yearFilterGroup").hidden && $("#catFilterGroup").hidden
       && $("#kindFilterGroup").hidden && $("#showFilterGroup").hidden && $("#projFilterGroup").hidden);
   }
 
@@ -4924,6 +4930,11 @@
       }
       else if (b.dataset.add === "finance") Finance.openFinanceModal(null);
       else if (b.dataset.add === "recurring") Finance.openRecurringModal(null);
+      else if (b.dataset.add === "ticker") {
+        VIEW_MODES.finance.set("invest");
+        if (state.view !== "finance") switchToView("finance"); else commitModeChange();
+        Invest.addTicker();
+      }
       else if (b.dataset.add === "trip") Travel.addTrip();
       else if (b.dataset.add === "place") Travel.addPlace();
       else if (b.dataset.add === "import-places") Travel.importPlaces();
@@ -4936,6 +4947,7 @@
     Notes.wire(); // the note modal (Timeline's Notes mode + the + menu)
     Finance.wire(); // finance/recurring/finance-category modals + finance import/export
     Travel.wire(); // the trip and place sheets
+    Invest.wire(); // the Ledger watchlist's ticker and pin sheets
     Backlog.wire(); // backlog modal: sync, priority/dropped, title suggestions
     Wheel.wire(); // the random wheel inside the Backlog's Pick sheet
     SettingsUI.wire(); // the Settings modal: tabs, data/storage, appearance, media, privacy
@@ -5107,6 +5119,7 @@
         if ($("#noteCatModal").hidden) { Notes.leaveNoteModal(); Notes.closeNoteReader(); }
         Habits.closeHabitModal(); Habits.closeAmountModal(); Notes.closeNoteCatModal();
         Travel.closeTripModal(); Travel.closePlaceModal(); Travel.closeImportModal(); Share.close();
+        Invest.closeWatchModal(); Invest.closePinModal();
         SettingsUI.closeSettings();
         SettingsUI.closeViewOptions();
         closeShortcutsModal();
@@ -6259,6 +6272,7 @@
   Recap.init({ state, $, el, toast, MONTHS, prefersReducedMotion });
   Boards.init({ state, $, el, uid, toast, emptyState, render, Storage, download: IO.download, bulkCheckbox, toggleBulkItem, attachLongPressSelect });
   Travel.init({ state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader, activatable, updateFilterbarVisibility });
+  Invest.init({ state, $, el, uid, toast, emptyState, render, Storage, updateFilterbarVisibility, openSettings: (page) => SettingsUI.openSettings(page) });
   Home.init({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, todayStr: () => Finance.localDateStr(new Date()) });
   Share.start({ Backlog, Notes, Travel, toast, viewEnabled, modeEnabled });
   Letterboxd.start({ unzip: (b) => window.LifeLogDocImport.unzip(b), parseCsv: IO.parseCsv, buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport });
