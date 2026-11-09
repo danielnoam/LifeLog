@@ -18,6 +18,7 @@
   const IDB_HISTORY_STORE = "history";
   const IDB_BOARDS_HISTORY = "boardsHistory"; // boards.json's own saves (0.194.0)
   const IDB_TRAVEL_HISTORY = "travelHistory"; // travel.json's (0.241.0)
+  const IDB_INVEST_HISTORY = "investHistory"; // investments.json's
   const BOARDS_HISTORY_CAP = 30;
   const HISTORY_CAP = 40; // a rollback aid, not a full audit log — oldest entries beyond this are pruned
 
@@ -33,13 +34,14 @@
   function idb() {
     if (dbOpen) return dbOpen;
     return (dbOpen = new Promise((resolve, reject) => {
-      const req = indexedDB.open(IDB_NAME, 4);
+      const req = indexedDB.open(IDB_NAME, 5);
       req.onupgradeneeded = () => {
         const db = req.result;
         if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
         if (!db.objectStoreNames.contains(IDB_HISTORY_STORE)) db.createObjectStore(IDB_HISTORY_STORE, { keyPath: "id" });
         if (!db.objectStoreNames.contains(IDB_BOARDS_HISTORY)) db.createObjectStore(IDB_BOARDS_HISTORY, { keyPath: "id" });
         if (!db.objectStoreNames.contains(IDB_TRAVEL_HISTORY)) db.createObjectStore(IDB_TRAVEL_HISTORY, { keyPath: "id" });
+        if (!db.objectStoreNames.contains(IDB_INVEST_HISTORY)) db.createObjectStore(IDB_INVEST_HISTORY, { keyPath: "id" });
       };
       req.onsuccess = () => {
         // A newer build in another tab may need to upgrade the database; let
@@ -907,11 +909,26 @@
     fileKey: "travelFile", fileType: "LifeLog trips",
   });
 
+  // The Ledger's watchlist (investments.json): beside lifelog.json for the
+  // same reason as travel.json.
+  const Invest = siblingStore({
+    file: "investments.json", label: "investments", keys: ["watchlist", "pins"],
+    merge: (base, local, remote) => window.LifeLogMerge.mergeInvest(base, local, remote),
+    shaKey: "investSha", cacheKey: "investCache", baseKey: "investBase",
+    histStore: IDB_INVEST_HISTORY, histCap: BOARDS_HISTORY_CAP, histMark: "lifelog-invest-history-mark",
+    fileKey: "investFile", fileType: "LifeLog watchlist",
+  });
+
   const Storage = {
     fsSupported,
     bridgeOf,
     boards: Boards,
     travel: Travel,
+    invest: Invest,
+    // Values only this device keeps (the watchlist's prices): never synced,
+    // never in a backup.
+    deviceGet: (key) => idbGet("device:" + key),
+    deviceSet: (key, val) => idbSet("device:" + key, val),
     get needsReconnect() { return needsReconnect; },
     get fileName() { return handle ? handle.name : null; },
     get fileConnected() { return !!(handle && !needsReconnect); },
@@ -1238,11 +1255,13 @@
       if (handle) await Storage.disconnect();
       await Boards.forget();
       await Travel.forget();
+      await Invest.forget();
+      await idbDel("device:investPrices").catch(() => {});
       if (window.LifeLogImages) await window.LifeLogImages.forget().catch(() => {});
       // The sync base is a whole copy of the data too.
       keepCopy(CACHE_COPY, null); keepCopy(BASE_COPY, null);
       await Storage.copiesWritten();
-      try { localStorage.removeItem("lifelog-travel-ui"); } catch (e) {}
+      try { localStorage.removeItem("lifelog-travel-ui"); localStorage.removeItem("lifelog-invest-ui"); } catch (e) {}
     },
 
     // Lightweight poll for changes made elsewhere (e.g. another device).

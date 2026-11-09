@@ -1,0 +1,3 @@
+### Added
+- The Ledger has a third mode, Investments: a watchlist of US stocks and ETFs. Each ticker gets a price chart (1M, 3M, 6M, YTD, 1Y, 5Y or Max), a sparkline and its change in the list, an optional target price and note, and pins on the days you want to compare, with the change between each pin and since the last. Prices come from Tiingo with a free key of your own (Settings → Media lookups), in US dollars, adjusted for splits and dividends; in a browser they go through the CORS proxy. "Ticker to watch" is in the + menu.
+- AI bridge: `lifelog_watchlist` (with prices when the app has a Tiingo key), `lifelog_watch_ticker`, `lifelog_update_ticker`, `lifelog_unwatch_ticker`, `lifelog_add_pin`, `lifelog_update_pin` and `lifelog_delete_pin`.

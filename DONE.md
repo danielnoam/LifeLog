@@ -193,6 +193,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Bills logged by hand spotted above Recurring (same note, day and price), made recurring with their charges in one go, or answered Not a bill (next release)
 - A new expense takes the category and subcategory its note was filed under last time, Wallet payments too (next release)
 - Summary's "<Month> so far": each category's spend, where it's heading by month end and its usual month, flagged at 25% over (next release)
+- Investments mode: a watchlist of US stocks and ETFs with Tiingo prices (your own key), a chart over 1M to Max, a target and a note per ticker, and date pins with the change between them (next release)
 
 ## Travel
 
@@ -282,6 +283,7 @@ Every release that adds a feature adds its line here in the same commit.
 - What Home's Ledger card shows, in `lifelog_home` (0.308.0)
 - A habit's past filled in one go: every due day done, a value a day, or a total spread over a range or a list of days; a day before the start moves the start back (0.309.0)
 - Expenses changed in bulk by filter (category, subcategory, project, with a dry run), one expense split over months, text added to a note without resending it, a timeline entry sent back to the backlog or In progress, two habits merged (0.309.0)
+- The Ledger's watchlist: tickers with their targets, notes and pins, prices straight from Tiingo with the app's key, and tools to watch, edit and unwatch tickers and add, move and delete pins (next release)
 
 ## Building and shipping
 

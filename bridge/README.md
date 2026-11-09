@@ -68,7 +68,9 @@ random title, as the Backlog's Pick sheet draws), `lifelog_notes`,
 `lifelog_bill_suggestions` (expenses logged by hand that look like a bill),
 `lifelog_month_pace` (this month so far against a usual month),
 `lifelog_habits`, `lifelog_accomplishments`, `lifelog_boards`,
-`lifelog_trips`, `lifelog_stats` (the Timeline's Stats, a year in numbers),
+`lifelog_trips`, `lifelog_watchlist` (the Ledger's watched stocks and ETFs,
+their targets and pins, with prices when the app has a Tiingo key),
+`lifelog_stats` (the Timeline's Stats, a year in numbers),
 `lifelog_habit_insights`, `lifelog_habits_left` (what's still to do today
 and this week, month and year), `lifelog_upcoming` (what's coming out from the
 backlog), `lifelog_home` (what the Home tab shows: in progress, coming up,
@@ -92,7 +94,9 @@ base64, kept beside the data like the app's), `lifelog_set_scratchpad`,
 `lifelog_delete_accomplishment`, `lifelog_rename_category`,
 `lifelog_edit_recurring_charge`, `lifelog_pause_recurring`,
 `lifelog_update_board`, `lifelog_delete_board`, `lifelog_add_trip`,
-`lifelog_update_trip`, `lifelog_delete_trip`, `lifelog_add_place`,
+`lifelog_update_trip`, `lifelog_delete_trip`, `lifelog_watch_ticker`,
+`lifelog_update_ticker`, `lifelog_unwatch_ticker`, `lifelog_add_pin`,
+`lifelog_update_pin`, `lifelog_delete_pin`, `lifelog_add_place`,
 `lifelog_update_place`, `lifelog_delete_place`,
 `lifelog_import_google_list`, `lifelog_add_habit`, `lifelog_add_recurring`,
 `lifelog_make_bill_recurring`, `lifelog_dismiss_bill_suggestion`,
@@ -120,7 +124,7 @@ board.
 - `cli.js`: the same tools as a command.
 - `tools.js`: the tools themselves, one table for both.
 - `store.js`: reading and saving the files (`lifelog.json`, and
-  `boards.json` and `travel.json` beside it), on GitHub or local, and the
+  `boards.json`, `travel.json` and `investments.json` beside it), on GitHub or local, and the
   undo history.
 - `load.js`: loads the app's own modules into Node.
 - `DATA.md`: every collection and field.

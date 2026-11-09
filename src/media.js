@@ -1463,6 +1463,7 @@
       init: { headers: { "X-Goog-Api-Key": k, "X-Goog-FieldMask": "id" } },
     }),
     nyt: (k) => ({ url: "https://api.nytimes.com/svc/books/v3/lists/names.json?api-key=" + enc(k) }),
+    tiingo: (k, proxy) => proxy && { url: proxy + "/tiingo-meta/SPY", init: { headers: { Authorization: "Token " + k } } },
   };
   // { state, label, detail }: state is ok, bad (the key is the problem),
   // warn (fixable elsewhere: limit, proxy) or down (the service didn't answer).

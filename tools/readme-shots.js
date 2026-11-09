@@ -232,7 +232,41 @@ function buildData() {
       ],
     }],
   };
-  return { data, travel, boards };
+  // The Ledger's watchlist: made-up tickers with made-up prices (seeded,
+  // never asked of Tiingo), kept on the "device" as the app keeps them.
+  const lastClose = (() => { const d = daysAgo(1); while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() - 1); return d; })();
+  const closes = (seed, drift, wobble, endPrice) => {
+    const out = [];
+    let v = 100, r = seed;
+    const rand = () => { r = (r * 16807) % 2147483647; return (r - 1) / 2147483646; };
+    for (let d = new Date(lastClose.getFullYear() - 6, lastClose.getMonth(), lastClose.getDate()); d <= lastClose; d.setDate(d.getDate() + 1)) {
+      if (d.getDay() === 0 || d.getDay() === 6) continue;
+      v *= 1 + drift + (rand() - 0.5) * wobble;
+      out.push([ymd(d), v]);
+    }
+    const k = endPrice / out[out.length - 1][1];
+    return out.map(([day, x]) => [day, Math.round(x * k * 100) / 100]);
+  };
+  const W = (symbol, name, extra) => ({ id: id(), symbol, name, createdAt: iso(daysAgo(300)), ...extra });
+  const watch = [
+    W("ACME", "Acme Index Fund", { target: 520, note: "Add more if it dips below the target" }),
+    W("NOVA", "Nova Growth ETF"),
+    W("PLNT", "Planet Dividend ETF", { target: 30 }),
+    W("ORBT", "Orbit Robotics"),
+  ];
+  const invest = {
+    watchlist: watch,
+    pins: [
+      { id: id(), watch: watch[0].id, date: ymd(daysAgo(290)), label: "Started investing", createdAt: iso(daysAgo(290)) },
+      { id: id(), watch: watch[0].id, date: ymd(daysAgo(170)), label: "The spring dip", createdAt: iso(daysAgo(170)) },
+      { id: id(), watch: watch[0].id, date: ymd(daysAgo(60)), label: "Bought more", createdAt: iso(daysAgo(60)) },
+    ],
+  };
+  const prices = Object.fromEntries([
+    ["ACME", closes(11, 0.0005, 0.022, 612.4)], ["NOVA", closes(29, 0.0007, 0.03, 548.1)],
+    ["PLNT", closes(41, 0.0002, 0.016, 28.35)], ["ORBT", closes(57, 0.0003, 0.045, 186.2)],
+  ].map(([sym, points]) => [sym, { at: iso(NOW), points }]));
+  return { data, travel, boards, invest, prices };
 }
 
 // ---------- the shots ----------
@@ -299,6 +333,10 @@ const SHOTS = [
   { name: "habits", ui: { view: "notes", notesMode: "habits" } },
   { name: "ledger", ui: { view: "finance", financeMode: "entries" } },
   { name: "ledger-summary", ui: { view: "finance", financeMode: "summary" } },
+  // With a key and a proxy set, so the prices (seeded fresh) show rather
+  // than the setup card; nothing is asked of Tiingo.
+  { name: "ledger-investments", ui: { view: "finance", financeMode: "invest" },
+    settings: { mediaKeys: { tiingo: "demo" }, steam: { proxyUrl: "https://proxy.example" } } },
   { name: "travel", ui: { view: "travel", travelMode: "time" }, visual: { disabledViews: [] } },
   { name: "search", ui: { view: "backlog", backlogMode: "entries" }, noScroll: true,
     go: async (page) => { await page.click("#search"); await page.keyboard.type("lantern", { delay: 40 }); } },
@@ -363,8 +401,8 @@ async function toWebp(page, png) {
   return Buffer.from(b64, "base64");
 }
 
-async function seedIdb(page, travel, boards) {
-  await page.evaluate(({ travel, boards }) => new Promise((resolve, reject) => {
+async function seedIdb(page, travel, boards, invest, prices) {
+  await page.evaluate(({ travel, boards, invest, prices }) => new Promise((resolve, reject) => {
     const q = indexedDB.open("lifelog");
     q.onerror = () => reject(q.error);
     q.onsuccess = () => {
@@ -372,10 +410,12 @@ async function seedIdb(page, travel, boards) {
       const tx = db.transaction("handles", "readwrite");
       tx.objectStore("handles").put(travel, "travelCache");
       tx.objectStore("handles").put(boards, "boardsCache");
+      tx.objectStore("handles").put(invest, "investCache");
+      tx.objectStore("handles").put(prices, "device:investPrices");
       tx.oncomplete = () => { db.close(); resolve(); };
       tx.onerror = () => reject(tx.error);
     };
-  }), { travel, boards });
+  }), { travel, boards, invest, prices });
 }
 
 async function main() {
@@ -384,7 +424,7 @@ async function main() {
   const server = spawn(process.execPath, [path.join(ROOT, "server.js")], { env: { ...process.env, PORT: String(port) }, stdio: "ignore" });
   const BASE = "http://localhost:" + port;
   await new Promise((r) => setTimeout(r, 600));
-  const { data, travel, boards } = buildData();
+  const { data, travel, boards, invest, prices } = buildData();
   const browser = await chromium.launch();
   const errors = [];
   const encoder = await browser.newPage();
@@ -396,12 +436,12 @@ async function main() {
         const page = await ctx.newPage();
         page.on("pageerror", (e) => errors.push(shot.name + "/" + size.tag + ": " + e.message));
         await page.goto(BASE + "/", { waitUntil: "networkidle" });
-        await seedIdb(page, travel, boards);
+        await seedIdb(page, travel, boards, invest, prices);
         await page.evaluate(({ data, ui, visual }) => {
           localStorage.setItem("lifelog-cache-v1", JSON.stringify(data));
           localStorage.setItem("lifelog-ui-v1", JSON.stringify(ui));
           localStorage.setItem("lifelog-visual-settings-v1", JSON.stringify({ outTodaySheet: "hide", ...visual }));
-        }, { data, ui: shot.ui, visual: shot.visual || {} });
+        }, { data: shot.settings ? { ...data, settings: { ...data.settings, ...shot.settings } } : data, ui: shot.ui, visual: shot.visual || {} });
         await page.reload({ waitUntil: "networkidle" });
         await page.waitForTimeout(700);
         // A phone's chips fill half its screen; the shot starts where the
