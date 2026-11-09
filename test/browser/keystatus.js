@@ -11,7 +11,7 @@ const SEED = {
   categories: [], backlog: [], entries: [], notes: [], todos: [], financeEntries: [], recurringExpenses: [],
   projects: [], todoCategories: [], financeCategories: [],
   settings: {
-    mediaKeys: { rawg: "rk", tmdb: "tk", ggdeals: "gk", steamgriddb: "sk", googlePlaces: "", nyt: "nk" },
+    mediaKeys: { rawg: "rk", tmdb: "tk", ggdeals: "gk", steamgriddb: "sk", googlePlaces: "", nyt: "nk", tiingo: "ik" },
     steam: { proxyUrl: "https://proxy.lifelog.test" },
   },
 };
@@ -32,6 +32,7 @@ async function run(b, viewport, name) {
     if (url.includes("themoviedb")) return reply(route, 200, { images: {} });
     if (url.includes("/gg-deals")) return reply(route, 200, { success: true, data: {} });
     if (url.includes("/steamgriddb/")) return reply(route, 401, { success: false, errors: ["Invalid API key"] });
+    if (url.includes("/tiingo-meta/")) return reply(route, 200, { ticker: "SPY", name: "SPDR S&P 500 ETF" });
     if (url.includes("nytimes")) return reply(route, 429, { fault: { faultstring: "Rate limit quota violation" } });
     return reply(route, 404, {});
   });
@@ -50,10 +51,10 @@ async function run(b, viewport, name) {
   const status = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll("[data-key-status]")]
     .map((n) => [n.dataset.keyStatus, n.hidden ? "" : n.className.replace("key-status key-", "") + ":" + n.textContent.trim()])));
   check(name + ": each key shows its own state", JSON.stringify(status) === JSON.stringify({
-    rawg: "down:No answer", tmdb: "ok:Working", ggdeals: "ok:Working", steamgriddb: "bad:Key refused", googlePlaces: "", nyt: "warn:Limit reached",
+    rawg: "down:No answer", tmdb: "ok:Working", ggdeals: "ok:Working", steamgriddb: "bad:Key refused", googlePlaces: "", nyt: "warn:Limit reached", tiingo: "ok:Working",
   }), status);
   const links = await page.evaluate(() => [...document.querySelectorAll('.settings-page[data-page="media"] .sitem-stack .sitem-sub a')].map((a) => a.href));
-  check(name + ": every key's setup page is a link", links.length === 6 && links.every((h) => h.startsWith("https://")), links);
+  check(name + ": every key's setup page is a link", links.length === 7 && links.every((h) => h.startsWith("https://")), links);
   if (SHOTS) {
     await page.evaluate(() => document.querySelector('[data-key-status="rawg"]').closest(".sgroup").scrollIntoView({ block: "start" }));
     await page.waitForTimeout(300);
