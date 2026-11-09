@@ -26,7 +26,17 @@ const { check, done } = tally();
   };
   const items = () => page.$$eval(".ctx-menu:not([hidden]) button, .ctx-menu:not([hidden]) .ctx-head", (n) => n.map((x) => x.textContent.trim()));
   const pick = (label) => page.click(`.ctx-menu:not([hidden]) button:text-is("${label}")`);
-  const right = (loc) => loc.click({ button: "right", position: { x: 60, y: 12 } });
+  // Any scroll closes the menu, so the row is brought to the middle and the
+  // page left to settle first: a row at the window's bottom edge (the
+  // Ledger's second entry is) used to be scrolled into view by the click
+  // itself, and on a slow runner that scroll could land after the menu
+  // opened and shut it again.
+  const right = async (loc) => {
+    await loc.evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await page.waitForTimeout(250);
+    await loc.click({ button: "right", position: { x: 60, y: 12 } });
+    await page.waitForSelector(".ctx-menu:not([hidden])", { timeout: 2000 }).catch(() => {});
+  };
 
   await go({ view: "backlog", backlogMode: "entries" });
   const rows = () => page.locator(".backlog-item-rich[data-id]");
