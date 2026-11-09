@@ -6274,7 +6274,7 @@
     monthCardHeader, emptyState, buildYearFilter, buildCatFilter, saveUiState,
     bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
     openEntryModal: Journal.openEntryModal,
-    backfillUpdatedAt, keepUnknown, MONTHS, DEFAULT_SETTINGS, CATEGORY_PALETTE, sortSelect,
+    backfillUpdatedAt, keepUnknown, MONTHS, DEFAULT_SETTINGS, CATEGORY_PALETTE, sortSelect, attachSwipe,
   });
 
   Backlog.init({

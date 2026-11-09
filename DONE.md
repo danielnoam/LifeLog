@@ -155,6 +155,7 @@ Every release that adds a feature adds its line here in the same commit.
 - One page to read and write a note (Read / Edit), category chip under the title, dates at the foot, kind and Delete in ⋯ (0.304.0)
 - Notebook → View: line numbers in the editor, text size, open notes to read or edit (0.304.0)
 - Checklist items move in the edit sheet by a drag handle or the arrow keys (0.304.0)
+- Copy text and Favourite in a note's ⋯ menu, Read and Edit; on a phone a sideways swipe flips Read and Edit (unreleased)
 
 ## Notebook (Habits)
 

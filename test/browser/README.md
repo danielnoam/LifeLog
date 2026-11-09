@@ -49,6 +49,7 @@ because something shipped broken that no unit test could have caught:
 | `press` | a tap still visibly responds now that the highlight is gone |
 | `v151`, `importkinds`, `importmodes` | import updates: what gets filled, for which kinds, and never a duplicate |
 | `boards` | the drawing board: every tool with mouse and touch, resize/rotate/fill, undo, a reload, PNG/SVG/JSON out and back, History bringing a board back, the boards file, and boards.json syncing and merging against a fake GitHub |
+| `notemenu` | a note's ⋯ in Read and Edit: Copy text (a note, a quote, a checklist, unsaved words), Favourite and Unfavourite sticking through a save, none on a new note, and a phone's swipe flipping Read and Edit (saving) while a vertical drag stays put |
 | `notekinds` | notes' three kinds through the sheet and the cards, categories and their chips, the Types row, the sort, a list working like the old To-do panel (add, edit, delete, reorder, Clear), favourites, bulk move |
 | `noteopen` | a note widget's tap opening its note, or saying it's gone; no Open items filter under Lists |
 | `mdimport` | Markdown files, a PDF and a folder as notes: one row per file, an unreadable PDF saying why, a file's own category, filing the selected under an existing, new or folder category, lists from task files |
