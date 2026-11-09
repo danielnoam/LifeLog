@@ -346,7 +346,8 @@ The Notes tab's drawing boards, in a file of their own beside
 and `fav` (starred). `scratch: true` marks the Home scratchpad's board in
 Board mode: the app keeps it out of the Boards list and the feed until Keep
 as a board removes the flag (`lifelog_update_board` with `keep`). Elements are strokes, shapes and text
-(`{ id, t: "text", text, x, y, ... }`); only the text says anything an AI
+(`{ id, t: "text", text, x, y, ... }`); a filled shape has `f`, and one
+brought in from Excalidraw with a solid fill also `fc`, its fill colour. Only the text says anything an AI
 can use. `lifelog_boards` lists them with their text;
 `lifelog_update_board` renames, files, stars or keeps one; `lifelog_delete_board`
 deletes one. Nothing draws.

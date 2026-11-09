@@ -641,7 +641,7 @@
     ensureCategories(d.categories, [...recs("entry"), ...recs("backlog")]);
     ensureCategories(d.financeCategories, [...recs("finance"), ...recs("recurring")]);
     ensureSubcategories(d.financeCategories, [...recs("finance"), ...recs("recurring")]);
-    ensureCategories(d.noteCategories = d.noteCategories || [], recs("note").filter((n) => n.category));
+    ensureCategories(d.noteCategories = d.noteCategories || [], [...recs("note"), ...recs("board")].filter((n) => n.category));
     // To-dos from an older file land in their list notes (0.197.0), the way
     // they do when an older device syncs them; a to-do category is the name
     // of its list, not a category to add.
@@ -915,8 +915,15 @@
     toast(`Found ${res.added} image${res.added === 1 ? "" : "s"}` + (res.missing.length ? ` — ${res.missing.length} still missing` : ""), !!res.missing.length);
   }
 
+  // The folder a picked file sits in: the Android folder screen says it, a
+  // browser folder pick has it in the path, a file picked alone has none.
+  const folderOf = (f) => {
+    if (typeof f.folder === "string") return f.folder;
+    const parts = String(f.webkitRelativePath || "").split("/");
+    return parts.length > 2 ? parts[parts.length - 2] : "";
+  };
   async function importMarkdown(files) {
-    const picked = [...files].filter((f) => /\.(md|markdown|txt)$/i.test(f.name) || (isDoc(f.name) && typeof f.arrayBuffer === "function"));
+    const picked = [...files].filter((f) => /\.(md|markdown|txt|excalidraw)$/i.test(f.name) || (isDoc(f.name) && typeof f.arrayBuffer === "function"));
     const pictures = [...files].filter(isImageFile);
     if (!picked.length) { toast(pictures.length ? "Pick the notes along with their images" : "No Markdown, PDF or EPUB files in that selection", true); return; }
     // Only notes with something in them, so the rows buildImportItems hands
@@ -925,7 +932,12 @@
     // Reading runs as a job (0.268.0), so a folder of files or a long PDF
     // shows in Activity with how far it has got, and can be stopped: what
     // was read by then goes to the review like a finished read.
+    // A drawing from Obsidian's Excalidraw plugin (or Excalidraw itself)
+    // becomes a board instead (docimport.js), with what a board can't show
+    // counted for the review.
     const notes = [], folders = [], failed = [];
+    const boards = [], boardFolders = [], boardSkips = [];
+    const Doc = window.LifeLogDocImport;
     if (picked.some((f) => isDoc(f.name))) toast("Reading " + (picked.length === 1 ? picked[0].name : picked.length + " files") + "…");
     const Jobs = window.LifeLogJobs;
     let ran = false, stopped = false;
@@ -942,36 +954,52 @@
           } catch (err) { failed.push(f.name + ": " + (err.message || err)); continue; }
         } else {
           const text = typeof f.text === "function" ? await f.text() : f.text;
+          if (Doc && sanitizeBoard && Doc.isExcalidraw(f.name, text)) {
+            try {
+              const got = Doc.excalidrawToBoard(text, f.name, f.lastModified, uid);
+              boards.push(got.board);
+              boardSkips.push(got.skipped);
+              boardFolders.push(folderOf(f));
+            } catch (err) { failed.push(f.name + ": " + (err.message || err)); }
+            continue;
+          }
           n = parseMarkdownNote(text, f.name, f.lastModified);
         }
         if (n.items) n.items = n.items.filter((i) => i.text);
         if (!(n.title || n.text || (n.items || []).length)) continue;
-        const parts = String(f.webkitRelativePath || "").split("/");
-        folders.push(typeof f.folder === "string" ? f.folder : parts.length > 2 ? parts[parts.length - 2] : "");
+        folders.push(folderOf(f));
         notes.push(n);
       }
       stopped = !!(job && job.stopping);
       if (job) {
-        const left = picked.length - notes.length - failed.length;
-        job.finish(job.stopping ? `Stopped — ${notes.length} read, sent to review` : `${notes.length} read` + (failed.length ? `, ${failed.length} couldn't be` : "") + (left > 0 && !job.stopping ? `, ${left} empty` : ""));
+        const got = notes.length + boards.length;
+        const left = picked.length - got - failed.length;
+        job.finish(job.stopping ? `Stopped — ${got} read, sent to review` : `${got} read` + (failed.length ? `, ${failed.length} couldn't be` : "") + (left > 0 && !job.stopping ? `, ${left} empty` : ""));
       }
     };
     const label = "Reading " + (picked.length === 1 ? picked[0].name : picked.length + " files");
     try { if (Jobs) await Jobs.run({ label, lane: "files" }, read); else await read(null); }
     catch (e) { toast("Couldn't read those files (" + ((e && e.message) || e) + ")", true); return; }
-    if (!ran || (stopped && !notes.length)) return;
+    if (!ran || (stopped && !notes.length && !boards.length)) return;
     // One file that can't be read says why; several say how many and the
     // first reason, and the rest still come in.
-    if (failed.length && !notes.length) { toast(failed.length === 1 ? failed[0] : `None of those ${failed.length} files could be read. ${failed[0]}`, true); return; }
+    if (failed.length && !notes.length && !boards.length) { toast(failed.length === 1 ? failed[0] : `None of those ${failed.length} files could be read. ${failed[0]}`, true); return; }
     if (failed.length) toast(`${failed.length} file${failed.length === 1 ? "" : "s"} couldn't be read. ${failed[0]}`, true);
-    if (!notes.length) { toast("Those files are empty", true); return; }
-    const built = buildImportItems({ notes }, ["note"]);
-    if (built.items.length === notes.length) built.items.forEach((it, i) => { it.folder = folders[i]; });
-    const n = notes.length;
-    const withImages = built.items.filter((it) => window.LifeLogMarkdown && window.LifeLogMarkdown.images(it.entry.text).length).length;
+    if (!notes.length && !boards.length) { toast("Those files are empty", true); return; }
+    // The boards you have, so a drawing brought in before is a duplicate.
+    if (boards.length && boardsForExport) await boardsForExport();
+    const built = buildImportItems({ notes, boards }, ["note", "board"]);
+    const noteRows = built.items.filter((it) => it.kind === "note"), boardRows = built.items.filter((it) => it.kind === "board");
+    if (noteRows.length === notes.length) noteRows.forEach((it, i) => { it.folder = folders[i]; });
+    if (boardRows.length === boards.length) boardRows.forEach((it, i) => { it.folder = boardFolders[i]; it.leftOut = Doc.skippedText(boardSkips[i]); });
+    const n = notes.length + boards.length;
+    const withImages = noteRows.filter((it) => window.LifeLogMarkdown && window.LifeLogMarkdown.images(it.entry.text).length).length;
+    const partial = boardRows.filter((it) => it.leftOut).length;
     openImportPicker({
       title: `Import ${n} file${n === 1 ? "" : "s"}`,
-      hint: MD_HINT + (withImages ? ` ${withImages} of them ${withImages === 1 ? "has" : "have"} images, brought in with the note when the image file was picked too.` : ""),
+      hint: MD_HINT + (withImages ? ` ${withImages} of them ${withImages === 1 ? "has" : "have"} images, brought in with the note when the image file was picked too.` : "") +
+        (boards.length ? ` ${boards.length === 1 ? "One file is an Excalidraw drawing and becomes a board" : boards.length + " files are Excalidraw drawings and become boards"}` +
+          (partial ? `; ${partial === 1 ? "one has" : partial + " have"} parts a board can't show (images, frames, embeds), which are left out.` : ".") : ""),
       mode: "import", items: built.items, newCategories: built.newCategories,
       confirmLabel: "Import", searchable: picked.length > 8, categorize: "note",
       // The preview draws a note's pictures from the files picked with it,
@@ -1363,6 +1391,14 @@
       return doc;
     }
     if (item.dup) doc.appendChild(el("p", "picker-doc-note", "Already in your data — tick it only to bring in a second copy"));
+    if (item.kind === "board" && window.LifeLogBoards) {
+      // An Excalidraw drawing, drawn as the board it becomes.
+      if (item.leftOut) doc.appendChild(el("p", "picker-doc-note", "Left out, as a board can't show them: " + item.leftOut));
+      const box = el("div", "picker-doc-board");
+      box.appendChild(window.LifeLogBoards.thumbnail(e));
+      doc.appendChild(box);
+      return doc;
+    }
     if (item.kind === "note") {
       const md = window.LifeLogMarkdown;
       const body = el("div", "md picker-doc-body");
