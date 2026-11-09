@@ -11,13 +11,13 @@
   let state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
     monthCardHeader, emptyState, backfillUpdatedAt, keepUnknown, MONTHS,
     bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
-    openEntryModal, DEFAULT_SETTINGS, CATEGORY_PALETTE, buildCatFilter, sortSelect;
+    openEntryModal, DEFAULT_SETTINGS, CATEGORY_PALETTE, buildCatFilter, sortSelect, attachSwipe;
 
   function init(ctx) {
     ({ state, $, el, uid, toast, persist, render, renderLazySections, groupBy,
       monthCardHeader, emptyState, backfillUpdatedAt, keepUnknown, MONTHS,
       bulkActionBar, bulkCheckbox, toggleBulkItem, attachLongPressSelect,
-      openEntryModal, DEFAULT_SETTINGS, CATEGORY_PALETTE, buildCatFilter, sortSelect } = ctx);
+      openEntryModal, DEFAULT_SETTINGS, CATEGORY_PALETTE, buildCatFilter, sortSelect, attachSwipe } = ctx);
     const CM = window.LifeLogContextMenu;
     if (CM) CM.register("note", noteMenu);
   }
@@ -1258,8 +1258,11 @@
     } else if (md) out.appendChild(md.render(body, mdOpts));
     else out.appendChild(el("p", "note-text", body));
     if (!out.childNodes.length) out.appendChild(el("p", "muted", "Nothing written under the title yet."));
+    // Wide code and tables scroll sideways themselves, so no Read/Edit swipe starts on them.
+    out.querySelectorAll("pre, table").forEach((x) => x.classList.add("no-swipe"));
     $("#noteReaderEntryBtn").hidden = kindOf(n) !== "text";
     syncPinButton(n, $("#noteReaderPinBtn"));
+    syncFavButton(n, $("#noteReaderFavBtn"));
     closeNoteMenu("#noteReaderMenu", "#noteReaderMoreBtn");
     $("#noteReader .nv-scroll").scrollTop = 0;
     $("#noteReader").hidden = false;
@@ -1395,7 +1398,9 @@
     $("#nText").rows = sheetKind === "quote" ? 4 : 8;
     const editing = editingNoteId && state.data.notes.find((x) => x.id === editingNoteId);
     $("#noteToEntryBtn").hidden = !editing || sheetKind !== "text";
+    $("#noteCopyBtn").hidden = !editing;
     syncPinButton(editing);
+    syncFavButton(editing);
     // ⋯ holds Add image (a note's own), and for a saved note its kind,
     // Make entry and Delete; a new checklist or quote has nothing in it.
     const images = sheetKind === "text";
@@ -1453,11 +1458,47 @@
   }
 
   // ---------- the ⋯ menu ----------
+  // Copy text: what the note says, as plain text to paste anywhere. A
+  // checklist comes out as Markdown task lines, a quote with who said it.
+  function noteAsText({ kind, title, text, author, source, items }) {
+    if (kind === "list") {
+      const lines = (items || []).filter((i) => (i.text || "").trim()).map((i) => `- [${i.done ? "x" : " "}] ${i.text.trim()}`);
+      return [String(title || "").trim(), lines.join("\n")].filter(Boolean).join("\n\n");
+    }
+    if (kind === "quote") {
+      const by = [author, source].map((x) => String(x || "").trim()).filter(Boolean).join(", ");
+      return [String(text || "").trim(), by ? "— " + by : ""].filter(Boolean).join("\n");
+    }
+    return [String(title || "").trim(), String(text || "").trim()].filter(Boolean).join("\n\n");
+  }
+  async function copyText(text) {
+    if (!text) { toast("Nothing to copy yet"); return; }
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (e) {
+      // Older WebViews refuse the async clipboard; the old command still works there.
+      const ta = el("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.cssText = "position:fixed;top:0;left:0;opacity:0;";
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand("copy");
+      ta.remove();
+      if (!ok) { toast("Couldn't copy, the clipboard was blocked", true); return; }
+    }
+    toast("Copied");
+  }
   const homeOn = () => !(state.visual.disabledViews || []).includes("home");
   function syncPinButton(n, b = $("#notePinBtn")) {
     b.hidden = !n || !homeOn();
     if (!n) return;
     b.replaceChildren(ico(n.pinned ? "pin-off" : "pin"), document.createTextNode(n.pinned ? " Unpin from Home" : " Pin to Home"));
+  }
+  function syncFavButton(n, b = $("#noteFavBtn")) {
+    b.hidden = !n;
+    if (!n) return;
+    b.replaceChildren(ico("star", n.fav ? "is-fill" : ""), document.createTextNode(n.fav ? " Unfavourite" : " Favourite"));
   }
   // The editor and the reader each have a ⋯ and a menu under it.
   function closeNoteMenu(menu = "#noteMoreMenu", btn = "#noteMoreBtn") {
@@ -1826,7 +1867,17 @@
       });
     }
     $("#noteReaderEntryBtn").onclick = () => makeEntryFromNote(readingId);
+    $("#noteReaderCopyBtn").onclick = () => {
+      const n = findList(readingId);
+      if (n) copyText(noteAsText({ ...n, kind: kindOf(n), title: kindOf(n) === "list" ? n.text : n.title, text: n.text }));
+    };
     $("#noteReaderDeleteBtn").onclick = () => deleteNote(readingId);
+    $("#noteReaderFavBtn").onclick = async () => {
+      const id = readingId;
+      if (!id) return;
+      await toggleFav(id);
+      syncFavButton(findList(id), $("#noteReaderFavBtn"));
+    };
     $("#noteReaderPinBtn").onclick = async () => {
       const id = readingId;
       if (!id) return;
@@ -1841,6 +1892,23 @@
     }
     $("#deleteNoteBtn").onclick = () => deleteNote();
     $("#noteToEntryBtn").onclick = () => makeEntryFromNote();
+    // The sheet as it stands, so unsaved words copy too.
+    $("#noteCopyBtn").onclick = () => copyText(noteAsText({
+      kind: sheetKind, title: $("#nTitle").value, text: $("#nText").value,
+      author: $("#nAuthor").value, source: $("#nSource").value, items: sheetItems,
+    }));
+    $("#noteFavBtn").onclick = async () => {
+      if (!editingNoteId) return;
+      await toggleFav(editingNoteId);
+      syncFavButton(state.data.notes.find((x) => x.id === editingNoteId));
+    };
+    // On a phone a sideways swipe flips Read and Edit, as the switch is laid
+    // out: left goes to Edit, right back to Read (which saves, as the button does).
+    if (attachSwipe) {
+      const swipeOpts = { threshold: 60, requireHorizontal: true };
+      attachSwipe($("#noteReader .nv-scroll"), { ...swipeOpts, onLeft: () => $("#editNoteReaderBtn").click(), onRight: () => {} });
+      attachSwipe($("#noteForm"), { ...swipeOpts, onLeft: () => {}, onRight: () => { if (!$("#noteModeSeg").hidden) $("#noteReadBtn").click(); } });
+    }
     $("#notePinBtn").onclick = async () => {
       if (!editingNoteId) return;
       await togglePinned(editingNoteId);

@@ -163,6 +163,8 @@ passphrase, and leaving device storage to the phone's own encryption.
 
 ## Google Drive backup
 
+(Back on the to-do list 2026-11-09: Daniel put it on his own list again, so the costs below are written into its plan there.)
+
 A scheduled copy of the data file in Google Drive, as a backup beside GitHub
 (never a second sync source, which would need merging between the two).
 
