@@ -64,7 +64,9 @@ const { check, done } = tally();
   for (const [ui, sel, want] of [
     [{ view: "timeline", timelineMode: "entries" }, ".entry:not(.progress-row)[data-id]", ["Open", "Move to backlog", "Select", "Delete"]],
     [{ view: "timeline", timelineMode: "entries" }, ".progress-row[data-id]", ["Open", "Back to backlog", "Set as Done", "Delete"]],
-    [{ view: "finance", financeMode: "entries" }, ".finance-entry[data-id]", ["Open", "Select", "Delete"]],
+    // A charge a recurring expense makes (id "rec:n") has no menu of its own,
+    // and on some days one sorts second, so only logged entries are tried.
+    [{ view: "finance", financeMode: "entries" }, ".finance-entry[data-id]:not([data-id*=\":\"])", ["Open", "Select", "Delete"]],
     [{ view: "notes", notesMode: "notes" }, ".note-card[data-id]", ["Open", "Move to…", "Select", "Delete"]],
     [{ view: "notes", notesMode: "habits" }, ".habit-card[data-id]", ["Edit", "Archive", "Delete"]],
   ]) {
