@@ -3,6 +3,18 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.310.0] - 2026-11-09
+
+### Added
+- Boards can hold pictures: the Image button in the board's toolbar (or I), a paste, or a picture dropped on the board. A picture moves, turns and resizes at its own shape (hold Shift to stretch it), and it's kept and synced like the pictures in notes.
+- Excalidraw drawings come in with their pictures. A picture from your vault comes in when its file is picked with the drawing (or later with Find in folder); until then it's a dashed box with its file's name. A web picture is shown from its address each time, so it needs a connection. Cropped pictures stay cropped.
+- The Ledger has a third mode, Investments: a watchlist of US stocks and ETFs. Each ticker gets a price chart (1M, 3M, 6M, YTD, 1Y, 5Y or Max), a sparkline and its change in the list, an optional target price and note, and pins on the days you want to compare, with the change between each pin and since the last. Prices come from Tiingo with a free key of your own (Settings → Media lookups), in US dollars, adjusted for splits and dividends; in a browser they go through the CORS proxy. "Ticker to watch" is in the + menu.
+- AI bridge: `lifelog_watchlist` (with prices when the app has a Tiingo key), `lifelog_watch_ticker`, `lifelog_update_ticker`, `lifelog_unwatch_ticker`, `lifelog_add_pin`, `lifelog_update_pin` and `lifelog_delete_pin`.
+
+### Changed
+- Settings → Notes → Clean up counts the pictures on boards too, and won't run while your boards can't be loaded from GitHub, so a board's pictures are never removed.
+- Exported board PNGs and SVGs carry their pictures inside.
+
 ## [0.309.0] - 2026-11-09
 
 ### Added

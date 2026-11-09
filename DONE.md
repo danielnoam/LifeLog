@@ -28,7 +28,7 @@ Every release that adds a feature adds its line here in the same commit.
 - One search across everything, with the tab's own filter kept (0.251.0); In progress is its own group (0.281.0); Timeline and Backlog results show their cover, status tags, and starred/bought icons (0.295.0)
 - Keyboard shortcuts: N to add, number keys for tabs, Shift+number for a second mode, / to search, ? for the list, from Settings too, whose hint shows only with a mouse (0.86.0, 0.127.0, 0.188.0, 0.301.0)
 - Settings → Keyboard: change, remove or reset any shortcut, a key per tab, synced (0.307.0)
-- On a computer: F to search and Escape to stop, Tab opens and shuts Settings, holding Shift numbers the tabs, and the top bar's tabs carry their icons (next release)
+- On a computer: F to search and Escape to stop, Tab opens and shuts Settings, holding Shift numbers the tabs, and the top bar's tabs carry their icons (0.306.0)
 - Lists update in place, move instead of jumping, and rows fade in and out (0.129.0 to 0.139.0)
 - Sheets fade and rise in, swipe down to close, and keep focus where it was (0.209.0, 0.222.0, 0.223.0)
 - Folds (Advanced, Insights, a place's hours) grow open and shut (0.284.1)
@@ -135,7 +135,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Google Maps lists and places into a trip (0.242.0, 0.245.0)
 - Markdown, PDF and EPUB files as notes, run as Activity jobs (0.200.0, 0.236.0, 0.268.0)
 - Obsidian images come in with their notes, from the files or the folder picked, and Find in folder (0.297.0)
-- Excalidraw drawings (Obsidian's `.excalidraw.md`, compressed or not, and `.excalidraw` files) come in as boards with the Markdown import; images and frames left out and counted (0.309.0); their pictures come in too, vault files when picked, web ones shown from their address (next release)
+- Excalidraw drawings (Obsidian's `.excalidraw.md`, compressed or not, and `.excalidraw` files) come in as boards with the Markdown import; images and frames left out and counted (0.309.0); their pictures come in too, vault files when picked, web ones shown from their address (0.310.0)
 - One review screen for every import: pick rows, edit a row, see what an update writes (0.24.0, 0.258.0)
 - The review laid out again: three columns with a live preview on a computer, full screen with filter chips on a phone; Google Maps lists get the map beside the list; "Note:" titles named by their first sentence (0.304.0)
 - Imports can update what you have, only filling gaps (0.151.0, 0.154.0)
@@ -148,7 +148,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Three kinds of note: plain, list, quote (0.195.0)
 - Lists are the checklist: items tick, merge item by item between devices, reorder by long press (0.197.0, 0.122.0)
 - Drawing boards, as a kind of note (0.193.0, 0.194.0, 0.204.0)
-- Pictures on boards: Image button, paste or drop; moved, resized at their own shape, turned; kept with the notes' images and counted by Clean up; exported inside PNG and SVG (next release)
+- Pictures on boards: Image button, paste or drop; moved, resized at their own shape, turned; kept with the notes' images and counted by Clean up; exported inside PNG and SVG (0.310.0)
 - Note categories, collections that open notes as pages, favourites (0.195.0, 0.204.0, 0.196.0)
 - Show, sort and type filters (0.195.0, 0.214.0)
 - Bulk select, and make a note into a timeline entry (0.142.0)
@@ -191,10 +191,10 @@ Every release that adds a feature adds its line here in the same commit.
 - Summary: highlights, recurring, by month, by category, top expenses (0.50.0, 0.91.0, 0.57.1)
 - Subcategories under an expense category: a folder-style picker, sub chips to filter, sub bars in By category, on bills and in the CSV (0.288.0)
 - Google Wallet payments offered to the Ledger, and expenses from a link (Android) (0.238.0)
-- Bills logged by hand spotted above Recurring (same note, day and price), made recurring with their charges in one go, or answered Not a bill (next release)
-- A new expense takes the category and subcategory its note was filed under last time, Wallet payments too (next release)
-- Summary's "<Month> so far": each category's spend, where it's heading by month end and its usual month, flagged at 25% over (next release)
-- Investments mode: a watchlist of US stocks and ETFs with Tiingo prices (your own key), a chart over 1M to Max, a target and a note per ticker, and date pins with the change between them (next release)
+- Bills logged by hand spotted above Recurring (same note, day and price), made recurring with their charges in one go, or answered Not a bill (0.309.0)
+- A new expense takes the category and subcategory its note was filed under last time, Wallet payments too (0.309.0)
+- Summary's "<Month> so far": each category's spend, where it's heading by month end and its usual month, flagged at 25% over (0.309.0)
+- Investments mode: a watchlist of US stocks and ETFs with Tiingo prices (your own key), a chart over 1M to Max, a target and a note per ticker, and date pins with the change between them (0.310.0)
 
 ## Travel
 
@@ -282,10 +282,10 @@ Every release that adds a feature adds its line here in the same commit.
 - A note's images, read as pictures and added from a file or base64 (0.297.0)
 - What Home shows, the scratchpad written, notes pinned to Home and unpinned (0.306.0)
 - What Home's Ledger card shows, in `lifelog_home` (0.308.0)
-- A board's pictures counted in `lifelog_boards` and sent back by `lifelog_board_images` (next release)
+- A board's pictures counted in `lifelog_boards` and sent back by `lifelog_board_images` (0.310.0)
 - A habit's past filled in one go: every due day done, a value a day, or a total spread over a range or a list of days; a day before the start moves the start back (0.309.0)
 - Expenses changed in bulk by filter (category, subcategory, project, with a dry run), one expense split over months, text added to a note without resending it, a timeline entry sent back to the backlog or In progress, two habits merged (0.309.0)
-- The Ledger's watchlist: tickers with their targets, notes and pins, prices straight from Tiingo with the app's key, and tools to watch, edit and unwatch tickers and add, move and delete pins (next release)
+- The Ledger's watchlist: tickers with their targets, notes and pins, prices straight from Tiingo with the app's key, and tools to watch, edit and unwatch tickers and add, move and delete pins (0.310.0)
 
 ## Building and shipping
 
