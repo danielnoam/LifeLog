@@ -161,6 +161,12 @@ for before building, because they're different jobs:
 Probably worth doing only the first, with a clear warning about the
 passphrase, and leaving device storage to the phone's own encryption.
 
+## Another Upcoming widget
+
+On Daniel's own list (2026-11-09) and called off the same day ("Never
+mind, about the widget"). Android has had an Upcoming widget since
+0.277.0; the iPhone twin stays under iOS in the to-do list.
+
 ## Google Drive backup
 
 (Back on the to-do list 2026-11-09: Daniel put it on his own list again, so the costs below are written into its plan there.)
