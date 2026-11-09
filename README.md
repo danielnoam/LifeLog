@@ -310,7 +310,10 @@ to show, new categories to add), the list, and a preview of the row you're
 on, with a note drawn as it will look, pictures and all. ↑ and ↓ move, Space
 takes a row in or out. On a phone it fills the screen, the filters are
 chips, and tapping a row opens its preview. A note whose title is only a
-template's label ("Note:") is named by its first sentence. A Google Maps
+template's label ("Note:") is named by its first sentence. An Excalidraw
+drawing (Obsidian's `.excalidraw.md`, or a `.excalidraw` file) picked with
+the notes becomes a board, its shapes, text, arrows and colours kept; images
+and frames in it are left out, and the preview says so. A Google Maps
 list gets the window too, its map beside the list.
 
 <table><tr>

@@ -634,5 +634,209 @@
       createdAt: isNaN(when) ? null : when.toISOString() };
   }
 
-  window.LifeLogDocImport = { unzip, htmlToMarkdown, epubToNote, pdfToNote, fileToNote, parseCMap, logicalOrder };
+  // ---------- Excalidraw drawings (Obsidian's plugin) ----------
+  // Obsidian's Excalidraw plugin saves a drawing as `Name.excalidraw.md`:
+  // front matter with `excalidraw-plugin:`, the drawing's words for search,
+  // and the scene itself as JSON in a ```json block, or LZ-string compressed
+  // (base64, broken into lines) in a ```compressed-json one. Excalidraw's own
+  // `.excalidraw` file is that JSON alone. Either becomes a board.
+  const isExcalidraw = (name, text) => /\.excalidraw(\.md)?$/i.test(String(name || "")) ||
+    /^﻿?---\r?\n(?:[^\n]*\n)*?excalidraw-plugin\s*:/.test(String(text || "").slice(0, 4000));
+
+  // LZ-string's decompressFromBase64, the only half of it this needs.
+  const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
+  function lzBase64(input) {
+    input = String(input || "").replace(/[^A-Za-z0-9+/=]/g, "");
+    if (!input) return "";
+    const vals = new Uint8Array(input.length);
+    for (let i = 0; i < input.length; i++) vals[i] = B64.indexOf(input[i]);
+    let val = vals[0], position = 32, index = 1;
+    const bits = (n) => {
+      let out = 0;
+      for (let p = 0; p < n; p++) {
+        const bit = val & position;
+        position >>= 1;
+        if (!position) { position = 32; val = index < vals.length ? vals[index] : 0; index++; }
+        if (bit) out |= 1 << p;
+      }
+      return out;
+    };
+    const dict = [0, 1, 2];
+    let dictSize = 4, numBits = 3, enlargeIn = 4;
+    const first = bits(2);
+    if (first === 2) return "";
+    let w = String.fromCharCode(bits(first === 0 ? 8 : 16));
+    dict[3] = w;
+    const out = [w];
+    for (;;) {
+      if (index > vals.length) return "";
+      let c = bits(numBits);
+      if (c === 2) return out.join("");
+      if (c < 2) {
+        dict[dictSize++] = String.fromCharCode(bits(c === 0 ? 8 : 16));
+        c = dictSize - 1;
+        if (--enlargeIn === 0) { enlargeIn = 1 << numBits; numBits++; }
+      }
+      let entry;
+      if (typeof dict[c] === "string") entry = dict[c];
+      else if (c === dictSize) entry = w + w[0];
+      else throw new Error("This drawing's data is damaged");
+      out.push(entry);
+      dict[dictSize++] = w + entry[0];
+      w = entry;
+      if (--enlargeIn === 0) { enlargeIn = 1 << numBits; numBits++; }
+    }
+  }
+
+  // The scene in a file: the block under "Drawing" (the plugin's heading),
+  // else the first such block, else the whole file as JSON.
+  function excalidrawScene(text) {
+    const s = String(text || "").replace(/^﻿/, "").replace(/\r\n?/g, "\n");
+    const at = s.search(/^#+\s*Drawing\s*$/m);
+    const block = /```(compressed-json|json)[ \t]*\n([\s\S]*?)\n```/.exec(at >= 0 ? s.slice(at) : s) ||
+      /```(compressed-json|json)[ \t]*\n([\s\S]*?)\n```/.exec(s);
+    let json = block ? (block[1] === "compressed-json" ? lzBase64(block[2]) : block[2]) : s.trim();
+    let scene;
+    try { scene = JSON.parse(json); } catch (e) { throw new Error("This Excalidraw drawing's data can't be read"); }
+    if (!scene || !Array.isArray(scene.elements)) throw new Error("This isn't an Excalidraw drawing");
+    return scene;
+  }
+
+  // Excalidraw's default stroke, and the other near-blacks, become "ink",
+  // the theme's text colour, so a drawing still reads in a dark theme.
+  const INK = new Set(["#000", "#000000", "#1e1e1e", "#212529", "#343a40", "#000000ff"]);
+  const paint = (c) => {
+    const s = String(c || "").trim().toLowerCase();
+    if (!s || s === "transparent" || /^#[0-9a-f]{6}00$/.test(s)) return null;
+    if (INK.has(s)) return "ink";
+    return /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/.test(s) || /^(rgba?|hsla?)\([\d\s.,%]+\)$/.test(s) || /^[a-z]{3,20}$/.test(s) ? s : "ink";
+  };
+  const rnd = (n) => Math.round(+n || 0);
+  const turnPt = (x, y, cx, cy, a) => {
+    if (!a) return [x, y];
+    const c = Math.cos(a), s = Math.sin(a);
+    return [cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c];
+  };
+  const SKIP_NAMES = { image: ["image", "images"], frame: ["frame", "frames"], magicframe: ["frame", "frames"],
+    embeddable: ["embedded page", "embedded pages"], iframe: ["embedded page", "embedded pages"] };
+  // What a drawing had that a board can't show, in words: "2 images, 1 frame".
+  function skippedText(skipped) {
+    const by = new Map();
+    for (const [t, n] of Object.entries(skipped || {})) {
+      const [one, many] = SKIP_NAMES[t] || ["other shape", "other shapes"];
+      const prev = by.get(one) || { n: 0, many };
+      prev.n += n;
+      by.set(one, prev);
+    }
+    return [...by].map(([one, { n, many }]) => n + " " + (n === 1 ? one : many)).join(", ");
+  }
+
+  // A scene's elements as a board's (boards.js has the shapes): rectangles,
+  // ellipses and text keep their box and angle; a diamond is its four sides;
+  // a line or arrow of several points is a line per segment, the arrowheads
+  // on the end segments; a freehand stroke is a pen stroke. A solid fill
+  // keeps its own colour (`fc`); a hatched one is the board's hatching.
+  // Deleted elements are left out quietly; images, frames and embeds are
+  // counted in `skipped`.
+  function excalidrawToElements(scene, makeId) {
+    let n = 0;
+    const id = makeId || (() => "x" + Date.now().toString(36) + (n++).toString(36));
+    const out = [], skipped = {};
+    for (const e of scene.elements || []) {
+      if (!e || e.isDeleted) continue;
+      const stroke = paint(e.strokeColor), bg = paint(e.backgroundColor);
+      const c = stroke || bg || "ink";
+      const sw = Math.max(1, rnd(e.strokeWidth || 1));
+      const seed = (Math.abs(rnd(e.seed)) % 2147483647) || 1;
+      const a = ((+e.angle || 0) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+      const angle = a < 1e-3 || Math.PI * 2 - a < 1e-3 ? 0 : Math.round(a * 1e4) / 1e4;
+      const x = +e.x || 0, y = +e.y || 0, w = +e.width || 0, h = +e.height || 0;
+      const cx = x + w / 2, cy = y + h / 2;
+      const fill = (el) => {
+        if (!bg) return el;
+        el.f = true;
+        if (e.fillStyle === "solid" || !stroke) el.fc = bg;
+        return el;
+      };
+      const line = (t, p, q) => {
+        if (Math.hypot(q[0] - p[0], q[1] - p[1]) < 0.5) return;
+        out.push({ id: id(), t, c, sw, seed, x: rnd(p[0]), y: rnd(p[1]), x2: rnd(q[0]), y2: rnd(q[1]) });
+      };
+      if (e.type === "rectangle" || e.type === "ellipse") {
+        const el = fill({ id: id(), t: e.type === "rectangle" ? "rect" : "ellipse", c, sw, seed, x: rnd(x), y: rnd(y), w: Math.max(1, rnd(w)), h: Math.max(1, rnd(h)) });
+        if (angle) el.a = angle;
+        out.push(el);
+      } else if (e.type === "diamond") {
+        const pts = [[cx, y], [x + w, cy], [cx, y + h], [x, cy]].map(([px, py]) => turnPt(px, py, cx, cy, angle));
+        pts.forEach((p, i) => line("line", p, pts[(i + 1) % 4]));
+      } else if (e.type === "line" || e.type === "arrow") {
+        const pts = (Array.isArray(e.points) ? e.points : []).map(([px, py]) => turnPt(x + (+px || 0), y + (+py || 0), cx, cy, angle));
+        if (pts.length < 2) continue;
+        const head = e.type === "arrow" && e.endArrowhead !== null, tail = e.type === "arrow" && !!e.startArrowhead;
+        const last = pts.length - 2;
+        for (let i = 0; i <= last; i++) {
+          const p = pts[i], q = pts[i + 1];
+          if (i === 0 && tail) {
+            // The arrowhead at the start points back: the segment is drawn
+            // from its middle out to each end.
+            const m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+            line("arrow", m, p);
+            line(i === last && head ? "arrow" : "line", m, q);
+          } else line(i === last && head ? "arrow" : "line", p, q);
+        }
+      } else if (e.type === "freedraw") {
+        const pts = (Array.isArray(e.points) ? e.points : []).map(([px, py]) => turnPt(x + (+px || 0), y + (+py || 0), cx, cy, angle).map(rnd));
+        const p = [];
+        let px = 0, py = 0;
+        pts.forEach(([qx, qy], i) => {
+          if (i && qx === px && qy === py) return;
+          p.push(p.length ? qx - px : qx, p.length ? qy - py : qy);
+          px = qx; py = qy;
+        });
+        if (!p.length) continue;
+        // Excalidraw draws a freehand line about two and a half times its
+        // stroke width; a pen stroke is as wide as it says.
+        out.push({ id: id(), t: "pen", c, sw: Math.max(1, Math.round((+e.strokeWidth || 1) * 2.5)), p });
+      } else if (e.type === "text") {
+        const text = String(e.text != null ? e.text : e.originalText || "").replace(/\r\n?/g, "\n");
+        if (!text.trim()) continue;
+        const fs = Math.max(6, rnd(e.fontSize || 20));
+        const lines = text.split("\n");
+        const align = e.textAlign === "center" ? 0.5 : e.textAlign === "right" ? 1 : 0;
+        if (align && lines.length > 1 && !angle) {
+          // A board's text is left-aligned, so a centred label in a box is
+          // a text per line, each placed by its length against the widest.
+          const widest = Math.max(...lines.map((l) => l.length)) || 1;
+          lines.forEach((l, i) => {
+            if (!l.trim()) return;
+            const lw = w * (l.length / widest);
+            out.push({ id: id(), t: "text", c, sw: 4, fs, x: rnd(x + (w - lw) * align), y: rnd(y + i * fs * 1.25), text: l });
+          });
+        } else {
+          const el = { id: id(), t: "text", c, sw: 4, fs, x: rnd(x), y: rnd(y), text };
+          if (angle) el.a = angle;
+          out.push(el);
+        }
+      } else {
+        const t = String(e.type || "other");
+        skipped[t] = (skipped[t] || 0) + 1;
+      }
+    }
+    return { elements: out, skipped };
+  }
+
+  // One board from an Excalidraw file: named for the file, dated when it was
+  // last changed.
+  function excalidrawToBoard(text, fileName, lastModified, makeId) {
+    const { elements, skipped } = excalidrawToElements(excalidrawScene(text), makeId);
+    const total = Object.values(skipped).reduce((t, n) => t + n, 0);
+    if (!elements.length) throw new Error(total ? "Nothing on this drawing a board can show (" + skippedText(skipped) + ")" : "This drawing is empty");
+    const name = String(fileName || "").replace(/^.*[\\/]/, "").replace(/\.excalidraw(\.md)?$/i, "").replace(/\.(md|json)$/i, "").trim();
+    const when = new Date(lastModified || NaN);
+    const stamp = isNaN(when) ? null : when.toISOString();
+    return { board: { name: name || "Drawing", createdAt: stamp, updatedAt: stamp || undefined, elements }, skipped };
+  }
+
+  window.LifeLogDocImport = { unzip, htmlToMarkdown, epubToNote, pdfToNote, fileToNote, parseCMap, logicalOrder,
+    isExcalidraw, lzBase64, excalidrawScene, excalidrawToElements, excalidrawToBoard, skippedText };
 })();

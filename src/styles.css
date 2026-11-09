@@ -1698,6 +1698,8 @@ img.cover-loading { opacity: 0; }
 .picker-doc-cat .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .picker-doc-note { margin: 0 0 var(--space-16); font-size: var(--fs-sm); color: var(--text-dim); }
 .picker-doc-body { font-size: var(--fs-read); line-height: 1.6; }
+.picker-doc-board { padding: var(--space-16); border-radius: var(--r-md); background: var(--bg); border: 1px solid var(--border); }
+.picker-doc-board .board-thumb-svg { display: block; width: 100%; height: auto; max-height: 520px; overflow: hidden; }
 .picker-doc-body .md-img { max-width: 100%; max-height: 520px; width: auto; }
 .picker-doc-fields { display: grid; grid-template-columns: minmax(90px, max-content) minmax(0, 1fr); gap: var(--space-10) var(--space-16); margin: 0; font-size: var(--fs-sm); max-width: 560px; }
 .picker-doc-fields dt { color: var(--text-dim); }

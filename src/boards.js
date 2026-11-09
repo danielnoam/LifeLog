@@ -11,6 +11,9 @@
 //   rect / ellipse { id, t, c, sw, seed, x, y, w, h }
 //   line / arrow   { id, t, c, sw, seed, x, y, x2, y2 }
 //   text   { id, t: "text", c, sw, x, y, text }                 sw picks the size
+// A rect or ellipse with `f` is filled with the board's hatching; one
+// brought in from Excalidraw with a solid fill also has `fc`, its fill's own
+// colour, drawn solid (softened in the dark themes so ink text on it reads).
 // `c` is a colour, or "ink" for the theme's text colour, so a board drawn in
 // the dark theme still reads in the light one. `seed` keeps a rough shape's
 // wobble the same every time it's drawn.
@@ -607,14 +610,15 @@
   function roughPaths(e) {
     if (!window.rough) return null;
     roughGen = roughGen || window.rough.generator();
-    const key = JSON.stringify([e.t, e.x, e.y, e.w, e.h, e.x2, e.y2, e.sw, e.seed, !!e.f]);
+    const key = JSON.stringify([e.t, e.x, e.y, e.w, e.h, e.x2, e.y2, e.sw, e.seed, !!e.f, !!e.fc]);
     const hit = roughCache.get(e.id);
     if (hit && hit.key === key) return hit.paths;
     // "S" and "F" stand in for the stroke and fill colour: the colour itself
     // is applied at draw time, so a recolour or a theme change needs no new
     // paths. A fill is rough.js's hachure — strokes, drawn in the fill colour.
     const o = { seed: e.seed || 1, roughness: 1.1, bowing: 1, strokeWidth: e.sw, stroke: "S" };
-    if (e.f) Object.assign(o, { fill: "F", fillStyle: "hachure", hachureGap: 5 + e.sw, fillWeight: Math.max(1, e.sw / 2) });
+    if (e.f && e.fc) Object.assign(o, { fill: "F", fillStyle: "solid" });
+    else if (e.f) Object.assign(o, { fill: "F", fillStyle: "hachure", hachureGap: 5 + e.sw, fillWeight: Math.max(1, e.sw / 2) });
     let drawables;
     if (e.t === "rect") drawables = [roughGen.rectangle(e.x, e.y, e.w, e.h, o)];
     else if (e.t === "ellipse") drawables = [roughGen.ellipse(e.x + e.w / 2, e.y + e.h / 2, Math.abs(e.w), Math.abs(e.h), o)];
@@ -652,15 +656,25 @@
     const g = svgEl("g", { "data-id": e.id, stroke: color, "stroke-width": e.sw, fill: "none", "stroke-linecap": "round", transform: turn(e) });
     const paths = roughPaths(e);
     if (paths) {
-      for (const p of paths) g.appendChild(svgEl("path", { d: p.d, stroke: p.stroke ? color : "none", fill: p.fill ? color : "none", "stroke-width": p.w }));
-    } else if (e.t === "rect") g.appendChild(svgEl("rect", norm(e.x, e.y, e.w, e.h)));
-    else if (e.t === "ellipse") g.appendChild(svgEl("ellipse", { cx: e.x + e.w / 2, cy: e.y + e.h / 2, rx: Math.abs(e.w / 2), ry: Math.abs(e.h / 2) }));
+      for (const p of paths) {
+        const solid = p.fill && e.f && e.fc;
+        g.appendChild(svgEl("path", { d: p.d, stroke: p.stroke ? color : "none", fill: p.fill ? (solid ? inkOf(e.fc) : color) : "none",
+          "fill-opacity": solid ? solidOpacity() : null, "stroke-width": p.w }));
+      }
+    } else if (e.t === "rect" || e.t === "ellipse") {
+      const solid = e.f && e.fc ? { fill: inkOf(e.fc), "fill-opacity": solidOpacity() } : {};
+      g.appendChild(e.t === "rect" ? svgEl("rect", { ...(({ x, y, w, h }) => ({ x, y, width: w, height: h }))(norm(e.x, e.y, e.w, e.h)), ...solid })
+        : svgEl("ellipse", { cx: e.x + e.w / 2, cy: e.y + e.h / 2, rx: Math.abs(e.w / 2), ry: Math.abs(e.h / 2), ...solid }));
+    }
     else {
       g.appendChild(svgEl("line", { x1: e.x, y1: e.y, x2: e.x2, y2: e.y2 }));
       if (e.t === "arrow") for (const [hx, hy] of arrowHead(e)) g.appendChild(svgEl("line", { x1: e.x2, y1: e.y2, x2: hx, y2: hy }));
     }
     return g;
   }
+  // Excalidraw's fills are pale, picked for a white page: full strength in
+  // the Light theme, toned down on a dark one so the ink on them reads.
+  const solidOpacity = () => (typeof document !== "undefined" && document.documentElement.classList.contains("theme-light") ? 1 : 0.4);
   function turn(e) {
     if (!e.a || !ROTATES.has(e.t)) return null;
     const r = rawBox(e);
@@ -1108,7 +1122,7 @@
     editing.elements = editing.elements.map((e) => {
       if (!selection.has(e.id) || !fits(e)) return e;
       const out = { ...e, ...patch };
-      if (out.f === false) delete out.f;
+      if (out.f === false) { delete out.f; delete out.fc; }
       if ("sw" in patch && e.t === "text") delete out.fs;
       return out;
     });
