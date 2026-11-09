@@ -1680,10 +1680,10 @@
     if (!I || !info) return;
     const st = await I.stats(state.data.notes).catch(() => null);
     if (!st) return;
-    const parts = [st.used ? st.used + (st.used === 1 ? " image" : " images") + " in your notes" : "No images in your notes yet"];
+    const parts = [st.used ? st.used + (st.used === 1 ? " image" : " images") + " in your notes and boards" : "No images in your notes or boards yet"];
     if (st.count) parts.push(mb(st.bytes) + " kept on this device");
     if (st.waiting) parts.push(st.waiting + " waiting to upload");
-    info.textContent = parts.join(" · ") + ". Clean up removes the ones no note shows any more";
+    info.textContent = parts.join(" · ") + ". Clean up removes the ones no note or board shows any more";
   }
   async function cleanUpImages() {
     const I = Images(), S = window.LifeLogStorage;
@@ -1691,12 +1691,12 @@
     const btn = $("#cleanUpImagesBtn");
     btn.disabled = true;
     try {
-      const used = I.usedIds(state.data.notes);
+      const used = await I.usedEverywhere(state.data);
       const online = S && S.images && S.images.connected();
       const there = online ? await S.images.list() : new Set();
       const unused = [...there].filter((id) => !used.has(id)).length;
-      if (online && !unused && !confirm("Every image on GitHub is in a note. Clean up anyway? It also starts the images' history over, which frees the space of ones removed before.")) return;
-      if (unused && !confirm(`Remove ${unused} image${unused === 1 ? "" : "s"} no note shows any more? This can't be undone — a note brought back from History later won't have ${unused === 1 ? "it" : "them"}.`)) return;
+      if (online && !unused && !confirm("Every image on GitHub is in a note or on a board. Clean up anyway? It also starts the images' history over, which frees the space of ones removed before.")) return;
+      if (unused && !confirm(`Remove ${unused} image${unused === 1 ? "" : "s"} no note or board shows any more? This can't be undone — a note or board brought back from History later won't have ${unused === 1 ? "it" : "them"}.`)) return;
       toast("Cleaning up images…");
       const res = await I.cleanUp(state.data);
       if (res.remote) {

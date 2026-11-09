@@ -103,7 +103,7 @@ test("every read tool answers, and none of them ever shows an API key", async ()
   reset();
   for (const t of B.TOOLS.filter((x) => x.readOnly)) {
     const args = t.name === "lifelog_search" ? { query: "e" } : t.name === "lifelog_get" ? { collection: "notes", item: "no1" }
-      : t.name === "lifelog_note_images" ? { note: "no1" }
+      : t.name === "lifelog_note_images" ? { note: "no1" } : t.name === "lifelog_board_images" ? { board: "bd1" }
       : t.name === "lifelog_google_list" ? { link: "https://www.google.com/maps/place/Pantheon/@41.8986,12.4769,17z" } : {};
     const text = await ok(t.name, args);
     assert.ok(!/SECRET/.test(text), t.name + " leaked a secret");
@@ -1049,6 +1049,30 @@ test("the command line runs the same tools", async () => {
   assert.match(bad.err, /No category called "Nope"/);
   const help = await run([]);
   assert.match(help.out, /lifelog_add_expense \(changes data\) --amount \[--category\]/);
+});
+
+test("a board's pictures are counted and sent back, web and missing ones named", async () => {
+  reset();
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+  const said = await ok("lifelog_add_note_image", { note: "no1", data: png.toString("base64") });
+  const id = /as (\w+\.png)/.exec(said)[1];
+  const doc = boardsSeed();
+  doc.boards[1].elements = [
+    { id: "i1", t: "img", x: 0, y: 0, w: 120, h: 80, img: id },
+    { id: "i2", t: "img", x: 0, y: 100, w: 50, h: 50, url: "https://example.com/cat.png" },
+    { id: "i3", t: "img", x: 0, y: 200, w: 50, h: 50, miss: "Pasted Image 1.png" },
+  ];
+  fs.writeFileSync(BOARDS, JSON.stringify(doc));
+  assert.match(await ok("lifelog_boards", {}), /Doodle: 3 elements, 3 pictures/);
+  const r = await call("lifelog_board_images", { board: "Doodle" });
+  assert.ok(r.ok, r.text);
+  assert.match(r.text, /has 3 pictures/);
+  assert.match(r.text, new RegExp("kept: " + id.replace(".", "\\.") + ", 120×80"));
+  assert.match(r.text, /web picture, not fetched: https:\/\/example\.com\/cat\.png/);
+  assert.match(r.text, /not found at import: Pasted Image 1\.png/);
+  assert.strictEqual(r.images.length, 1);
+  assert.ok(Buffer.from(r.images[0].data, "base64").equals(png));
+  assert.match(await ok("lifelog_board_images", { board: "Kitchen plan" }), /has no pictures/);
 });
 
 test("images in notes (0.297.0): added beside the data, listed, and sent back as pictures", async () => {

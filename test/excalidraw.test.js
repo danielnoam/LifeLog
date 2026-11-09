@@ -43,6 +43,48 @@ ${block}
 let n = 0;
 const ids = () => "id" + n++;
 
+test("a drawing's pictures: vault files, web pictures, data URLs and crops; SVGs and formulas left out", () => {
+  const scene = { type: "excalidraw", elements: [
+    { type: "image", fileId: "f1", x: 10, y: 20, width: 200, height: 100, angle: 0 },
+    { type: "image", fileId: "f2", x: 0, y: 0, width: 50, height: 50, angle: 0 },
+    { type: "image", fileId: "f3", x: 0, y: 0, width: 80, height: 40, angle: 0,
+      crop: { x: 100, y: 0, width: 200, height: 100, naturalWidth: 400, naturalHeight: 200 } },
+    { type: "image", fileId: "f4", x: 0, y: 0, width: 10, height: 10 },
+    { type: "image", fileId: "f5", x: 0, y: 0, width: 10, height: 10 },
+    { type: "image", fileId: "nope", x: 0, y: 0, width: 10, height: 10 },
+  ], files: { f3: { mimeType: "image/png", dataURL: "data:image/png;base64,iVBORw0KGgo=" } } };
+  const file = `---
+excalidraw-plugin: parsed
+---
+# Excalidraw Data
+
+## Embedded Files
+f1: [[Attachments/Pasted Image 2024.png]]
+
+f2: https://example.com/cat.jpg
+
+f4: $$E=mc^2$$
+
+f5: [[diagram.svg]]
+
+%%
+## Drawing
+\`\`\`json
+${JSON.stringify(scene)}
+\`\`\`
+%%`;
+  const { board, skipped, pictures } = D.excalidrawToBoard(file, "Pics.excalidraw.md", 0, ids);
+  const [a, b, c] = board.elements;
+  assert.strictEqual(board.elements.length, 3);
+  assert.deepStrictEqual({ ...a, id: 0 }, { id: 0, t: "img", x: 10, y: 20, w: 200, h: 100, miss: "Attachments/Pasted Image 2024.png" });
+  assert.deepStrictEqual({ ...b, id: 0 }, { id: 0, t: "img", x: 0, y: 0, w: 50, h: 50, url: "https://example.com/cat.jpg" });
+  assert.deepStrictEqual(c.cr, [0.25, 0, 0.5, 0.5]);
+  assert.deepStrictEqual(pictures[a.id], { link: "Attachments/Pasted Image 2024.png" });
+  assert.deepStrictEqual(pictures[c.id], { data: "data:image/png;base64,iVBORw0KGgo=" });
+  assert.deepStrictEqual(skipped, { formula: 1, svg: 1, image: 1 });
+  assert.strictEqual(D.skippedText(skipped), "1 formula, 1 SVG picture, 1 image");
+});
+
 test("a compressed Obsidian drawing becomes a board: shapes kept, images counted, deleted ones gone", () => {
   const file = obsidianFile("```compressed-json\n" + COMPRESSED + "\n```");
   assert.ok(D.isExcalidraw("Plans/Kitchen.excalidraw.md", ""));

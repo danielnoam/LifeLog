@@ -718,7 +718,46 @@
     return [cx + (x - cx) * c - (y - cy) * s, cy + (x - cx) * s + (y - cy) * c];
   };
   const SKIP_NAMES = { image: ["image", "images"], frame: ["frame", "frames"], magicframe: ["frame", "frames"],
-    embeddable: ["embedded page", "embedded pages"], iframe: ["embedded page", "embedded pages"] };
+    embeddable: ["embedded page", "embedded pages"], iframe: ["embedded page", "embedded pages"],
+    formula: ["formula", "formulas"], svg: ["SVG picture", "SVG pictures"], file: ["embedded file", "embedded files"] };
+
+  // Where each picture's file is. Excalidraw's own file carries them as
+  // data: URLs in `files`; Obsidian's plugin lists them under "Embedded
+  // Files", one `fileId: [[name.png]]` (or a web address, or a formula) a
+  // line, and the picture is a file in the vault beside the drawing.
+  //   { [fileId]: { data } | { link } | { url } | { skip: "formula" | "svg" | "file" } }
+  const PICTURE_EXT = /\.(jpe?g|png|gif|webp|heic|heif|avif|bmp)$/i;
+  function excalidrawFiles(text, scene) {
+    const out = {};
+    const s = String(text || "").replace(/\r\n?/g, "\n");
+    const at = s.search(/^#+\s*Embedded Files\s*$/m);
+    if (at >= 0) {
+      const body = s.slice(at).split("\n").slice(1);
+      for (const line of body) {
+        if (/^#|^%%|^```/.test(line)) break;
+        const m = /^([A-Za-z0-9_-]{2,80}):\s*(.+?)\s*$/.exec(line);
+        if (!m) continue;
+        const v = m[2];
+        let wiki = /^!?\[\[([^\]|#]+)(?:[#|][^\]]*)?\]\]/.exec(v), md = /^!?\[[^\]]*\]\(<?([^)>]+)>?\)/.exec(v);
+        const target = wiki ? wiki[1].trim() : md ? md[1].trim() : /^https?:\/\/\S+$/.test(v) ? v : null;
+        if (/^\$\$|^\$[^$]/.test(v)) out[m[1]] = { skip: "formula" };
+        else if (!target) out[m[1]] = { skip: "file" };
+        else if (/^https:\/\//i.test(target)) out[m[1]] = /\.svg(\?|#|$)/i.test(target) ? { skip: "svg" } : { url: target };
+        else if (/^http:/i.test(target)) out[m[1]] = { skip: "file" };
+        else if (/\.svg$/i.test(target)) out[m[1]] = { skip: "svg" };
+        else if (PICTURE_EXT.test(target)) out[m[1]] = { link: target };
+        else out[m[1]] = { skip: "file" };
+      }
+    }
+    for (const [id, f] of Object.entries((scene && scene.files) || {})) {
+      if (!f || out[id]) continue;
+      const data = String(f.dataURL || "");
+      if (/^data:image\/svg/i.test(data)) out[id] = { skip: "svg" };
+      else if (/^data:image\/[a-z0-9.+-]+;base64,/i.test(data)) out[id] = { data };
+      else if (/^https:\/\//i.test(data)) out[id] = { url: data };
+    }
+    return out;
+  }
   // What a drawing had that a board can't show, in words: "2 images, 1 frame".
   function skippedText(skipped) {
     const by = new Map();
@@ -736,9 +775,12 @@
   // a line or arrow of several points is a line per segment, the arrowheads
   // on the end segments; a freehand stroke is a pen stroke. A solid fill
   // keeps its own colour (`fc`); a hatched one is the board's hatching.
-  // Deleted elements are left out quietly; images, frames and embeds are
-  // counted in `skipped`.
-  function excalidrawToElements(scene, makeId) {
+  // Deleted elements are left out quietly; frames, embeds, and pictures a
+  // board can't show (an SVG, a formula, another file) are counted in
+  // `skipped`.
+  function excalidrawToElements(scene, makeId, files) {
+    files = files || {};
+    const pictures = {};
     let n = 0;
     const id = makeId || (() => "x" + Date.now().toString(36) + (n++).toString(36));
     const out = [], skipped = {};
@@ -817,26 +859,44 @@
           if (angle) el.a = angle;
           out.push(el);
         }
+      } else if (e.type === "image" && files[e.fileId] && !files[e.fileId].skip) {
+        // A picture: its box and angle, the crop as fractions of the whole
+        // picture, and where its file is (`pictures`, for the import to
+        // keep). A web one stays its address; one in the vault is named in
+        // `miss` until it's found among the files picked.
+        const f = files[e.fileId];
+        const el = { id: id(), t: "img", x: rnd(x), y: rnd(y), w: Math.max(1, rnd(w)), h: Math.max(1, rnd(h)) };
+        if (angle) el.a = angle;
+        const c = e.crop;
+        if (c && +c.naturalWidth > 0 && +c.naturalHeight > 0 && +c.width > 0 && +c.height > 0) {
+          const r4 = (v) => Math.round(v * 1e4) / 1e4;
+          el.cr = [r4(c.x / c.naturalWidth), r4(c.y / c.naturalHeight), r4(c.width / c.naturalWidth), r4(c.height / c.naturalHeight)];
+        }
+        if (f.url) el.url = f.url;
+        else el.miss = f.link || "Picture in the drawing";
+        pictures[el.id] = f;
+        out.push(el);
       } else {
-        const t = String(e.type || "other");
+        const t = e.type === "image" && files[e.fileId] ? files[e.fileId].skip : String(e.type || "other");
         skipped[t] = (skipped[t] || 0) + 1;
       }
     }
-    return { elements: out, skipped };
+    return { elements: out, skipped, pictures };
   }
 
   // One board from an Excalidraw file: named for the file, dated when it was
   // last changed.
   function excalidrawToBoard(text, fileName, lastModified, makeId) {
-    const { elements, skipped } = excalidrawToElements(excalidrawScene(text), makeId);
+    const scene = excalidrawScene(text);
+    const { elements, skipped, pictures } = excalidrawToElements(scene, makeId, excalidrawFiles(text, scene));
     const total = Object.values(skipped).reduce((t, n) => t + n, 0);
     if (!elements.length) throw new Error(total ? "Nothing on this drawing a board can show (" + skippedText(skipped) + ")" : "This drawing is empty");
     const name = String(fileName || "").replace(/^.*[\\/]/, "").replace(/\.excalidraw(\.md)?$/i, "").replace(/\.(md|json)$/i, "").trim();
     const when = new Date(lastModified || NaN);
     const stamp = isNaN(when) ? null : when.toISOString();
-    return { board: { name: name || "Drawing", createdAt: stamp, updatedAt: stamp || undefined, elements }, skipped };
+    return { board: { name: name || "Drawing", createdAt: stamp, updatedAt: stamp || undefined, elements }, skipped, pictures };
   }
 
   window.LifeLogDocImport = { unzip, htmlToMarkdown, epubToNote, pdfToNote, fileToNote, parseCMap, logicalOrder,
-    isExcalidraw, lzBase64, excalidrawScene, excalidrawToElements, excalidrawToBoard, skippedText };
+    isExcalidraw, lzBase64, excalidrawScene, excalidrawFiles, excalidrawToElements, excalidrawToBoard, skippedText };
 })();
