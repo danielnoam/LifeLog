@@ -82,7 +82,9 @@ note can become a Timeline entry.
 </tr></table>
 
 A note opens as one page with **Read** and **Edit** at the top: the title,
-a category chip under it, and the dates at the foot. **Notebook → View**
+a category chip under it, and the dates at the foot (on a phone, swipe
+sideways to switch). Its ⋯ menu copies the text, stars it and pins it to
+Home. **Notebook → View**
 turns on line numbers in the editor, sets the text size and picks which
 view a note opens in.
 

@@ -64,10 +64,11 @@ const { check, done } = tally();
   for (const [ui, sel, want] of [
     [{ view: "timeline", timelineMode: "entries" }, ".entry:not(.progress-row)[data-id]", ["Open", "Move to backlog", "Select", "Delete"]],
     [{ view: "timeline", timelineMode: "entries" }, ".progress-row[data-id]", ["Open", "Back to backlog", "Set as Done", "Delete"]],
-    [{ view: "finance", financeMode: "entries" }, ".finance-entry[data-id]", ["Open", "Select", "Delete"]],
+    [{ view: "finance", financeMode: "entries" }, ".finance-entry[data-id]:not([data-id*=':'])", ["Open", "Select", "Delete"]],
     [{ view: "notes", notesMode: "notes" }, ".note-card[data-id]", ["Open", "Move to…", "Select", "Delete"]],
     [{ view: "notes", notesMode: "habits" }, ".habit-card[data-id]", ["Edit", "Archive", "Delete"]],
   ]) {
+    // A recurring bill's charge (id "plan:n") has no menu; which row comes second moves with the date.
     await go(ui);
     await right(page.locator(sel).nth(1));
     const got = await items();
