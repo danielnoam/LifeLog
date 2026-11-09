@@ -4319,6 +4319,10 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .board-svg[data-tool="hand"], .board-svg.panning { cursor: grab; }
 .board-svg[data-tool="text"] { cursor: text; }
 .board-text { font-family: Virgil, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; white-space: pre; }
+/* A picture still on its way, or one an import couldn't find. */
+.board-pic-wait { fill: var(--bg-elev-2); stroke: var(--text-faint); stroke-width: 1.5; stroke-dasharray: 6 5; vector-effect: non-scaling-stroke; }
+.board-pic-icon { color: var(--text-dim); }
+.board-pic-label { fill: var(--text-dim); font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 .board-handle {
   fill: var(--bg-elev); stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke;
 }

@@ -395,6 +395,11 @@ function placeFields(a, into) {
 function boardTexts(b) {
   return (b.elements || []).filter((e) => e.t === "text" && String(e.text || "").trim()).map((e) => String(e.text).trim());
 }
+// A board's pictures (t "img"): kept on the images branch (`img`), a web
+// picture shown from its address (`url`), or a file an import couldn't find
+// (`miss`).
+const boardPictures = (b) => (b.elements || []).filter((e) => e.t === "img");
+const picturesNote = (b) => { const n = boardPictures(b).length; return n ? `, ${n} picture${n === 1 ? "" : "s"}` : ""; };
 
 // The category lists by what the user calls them, and the rename that
 // carries a name through every item holding it: the app's own.
@@ -960,7 +965,7 @@ const TOOLS = [
   },
   {
     name: "lifelog_boards",
-    description: "The drawing boards (Notes → Boards): name, category, and the text written on each. Give board for one board's text in full. Drawings themselves aren't described.",
+    description: "The drawing boards (Notes → Boards): name, category, how many pictures, and the text written on each. Give board for one board's text in full. Drawings themselves aren't described; lifelog_board_images sends a board's pictures.",
     readOnly: true,
     input: { board: S.str("One board's id or name"), query: S.str("Text in a board's name or its written text"), category: S.str("A note category"), limit: S.limit },
     async run(a) {
@@ -968,7 +973,7 @@ const TOOLS = [
       if (a.board) {
         const b = findBoard(list, a.board);
         const texts = boardTexts(b);
-        return [`${b.name}${b.category ? " [" + b.category + "]" : ""}${b.fav ? " ★" : ""}${b.scratch ? " (Home's scratch board)" : ""} (${b.id}), ${b.elements.length} elements, last changed ${String(b.updatedAt).slice(0, 10)}.`,
+        return [`${b.name}${b.category ? " [" + b.category + "]" : ""}${b.fav ? " ★" : ""}${b.scratch ? " (Home's scratch board)" : ""} (${b.id}), ${b.elements.length} elements${picturesNote(b)}, last changed ${String(b.updatedAt).slice(0, 10)}.`,
           texts.length ? "Text on it:\n" + texts.map((t) => "- " + t).join("\n") : "No text on it."].join("\n");
       }
       const q = lower(a.query);
@@ -977,9 +982,33 @@ const TOOLS = [
       const lim = limitOf(a, 40);
       return [head(rows.length, Math.min(lim, rows.length), "boards"), ...rows.slice(0, lim).map((b) => {
         const texts = boardTexts(b);
-        return `- ${b.name}${b.category ? " [" + b.category + "]" : ""}${b.fav ? " ★" : ""}${b.scratch ? " (Home's scratch board, not in the Boards list)" : ""}: ${b.elements.length} elements, changed ${String(b.updatedAt).slice(0, 10)}`
+        return `- ${b.name}${b.category ? " [" + b.category + "]" : ""}${b.fav ? " ★" : ""}${b.scratch ? " (Home's scratch board, not in the Boards list)" : ""}: ${b.elements.length} elements${picturesNote(b)}, changed ${String(b.updatedAt).slice(0, 10)}`
           + (texts.length ? `; text: ${cut(texts.join(" / "), 160)}` : "") + `  (${b.id})`;
       })].join("\n");
+    },
+  },
+
+  {
+    name: "lifelog_board_images",
+    description: "The pictures on a drawing board, and the pictures themselves (up to 4, as images you can look at). Each is a picture LifeLog keeps, a web picture the board shows from its address (not fetched here), or one an Excalidraw import couldn't find among the files picked.",
+    readOnly: true,
+    input: { board: S.str("The board's id or name"), pictures: S.bool("Send the pictures too (default true)") },
+    required: ["board"],
+    async run(a) {
+      const b = findBoard(await readBoards(), a.board);
+      const pics = boardPictures(b);
+      if (!pics.length) return `"${b.name}" has no pictures. id ${b.id}`;
+      const lines = pics.map((p, i) => `${i + 1}. ${p.img ? "kept: " + p.img : p.url ? "web picture, not fetched: " + p.url : "not found at import: " + p.miss}, ${Math.round(p.w)}×${Math.round(p.h)} on the board`);
+      const images = [];
+      if (a.pictures !== false) {
+        const st = storeOf();
+        for (const p of pics.filter((x) => x.img).slice(0, 4)) {
+          const bytes = st.images ? await st.images.get(p.img) : null;
+          if (!bytes) { lines.push(`(${p.img} isn't uploaded yet: the device that added it hasn't saved since.)`); continue; }
+          images.push({ data: bytes.toString("base64"), mimeType: imageType(bytes) || "image/jpeg" });
+        }
+      }
+      return { text: `"${b.name}" (id ${b.id}) has ${pics.length} picture${pics.length === 1 ? "" : "s"}:\n` + lines.join("\n"), images };
     },
   },
 

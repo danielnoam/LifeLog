@@ -871,6 +871,44 @@
     }
     return out;
   }
+  // An Excalidraw drawing's pictures, kept the way a note's are: a data:
+  // URL from the drawing itself, or the vault file it names when that was
+  // among the files picked. A web picture isn't kept (its `url` is shown
+  // from the web); one not found keeps `miss`, a dashed box until Find in
+  // folder.
+  const dataUrlBlob = (u) => {
+    const m = /^data:([^;,]+);base64,(.*)$/s.exec(u);
+    if (!m) throw new Error("This picture's data can't be read");
+    const bin = atob(m[2]);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new Blob([bytes], { type: m[1] });
+  };
+  async function keepBoardPictures(items, files, job) {
+    const Images = window.LifeLogImages;
+    const out = { added: 0, missing: 0, failed: [] };
+    if (!Images) return out;
+    const kept = new Map();
+    const total = items.reduce((t, it) => t + Object.keys(it.pictures).length, 0);
+    let done = 0;
+    for (const it of items) {
+      for (const e of it.entry.elements || []) {
+        const f = e.t === "img" && !e.img && it.pictures[e.id];
+        if (!f || f.url) continue;
+        if (job) job.progress(done++, total, f.link || it.entry.name);
+        const key = f.data || findImageFile(f.link, files);
+        if (!key) { out.missing++; continue; }
+        let id = kept.get(key);
+        if (!id) {
+          try { id = await Images.add(f.data ? dataUrlBlob(f.data) : await imageBlob(key)); kept.set(key, id); out.added++; }
+          catch (err) { out.failed.push((f.link || "A picture") + ": " + ((err && err.message) || err)); continue; }
+        }
+        e.img = id;
+        delete e.miss;
+      }
+    }
+    return out;
+  }
   // A folder of files: Android's own folder screen in the app, the
   // browser's on a computer. Neither a phone's browser nor iOS has one.
   function canPickFolder() {
@@ -898,7 +936,7 @@
   // The toast's Find in folder after an import that missed some pictures:
   // the folder they're in (a whole vault will do), and the imported notes
   // point at them from then on.
-  async function findImagesInFolder(ids) {
+  async function findImagesInFolder(ids, boardIds) {
     let files;
     try { files = await pickFolder(); } catch (e) { toast("Couldn't read that folder — " + ((e && e.message) || e), true); return; }
     const pictures = files.filter(isImageFile);
@@ -906,7 +944,28 @@
     if (!pictures.length) { toast("No images in that folder", true); return; }
     const notes = (state.data.notes || []).filter((n) => ids.includes(n.id));
     let res = null;
-    const run = async (job) => { res = await linkNoteImages(notes, pictures, job); if (job) job.finish(`${res.added} image${res.added === 1 ? "" : "s"} found`); };
+    const B = window.LifeLogBoards;
+    const run = async (job) => {
+      res = await linkNoteImages(notes, pictures, job);
+      // A drawing's pictures, by the file each named.
+      if (boardIds && boardIds.length && B && window.LifeLogImages) {
+        const found = [], kept = new Map();
+        let boardAdded = 0;
+        for (const m of await B.missingPictures(boardIds)) {
+          const f = findImageFile(m.miss, pictures);
+          if (!f) { res.missing.push(m.miss); continue; }
+          let img = kept.get(f);
+          if (!img) {
+            try { img = await window.LifeLogImages.add(await imageBlob(f)); kept.set(f, img); boardAdded++; }
+            catch (e) { res.failed.push(f.name + ": " + ((e && e.message) || e)); continue; }
+          }
+          found.push({ board: m.board, id: m.id, img });
+        }
+        if (found.length) await B.linkPictures(found);
+        res.added += boardAdded;
+      }
+      if (job) job.finish(`${res.added} image${res.added === 1 ? "" : "s"} found`);
+    };
     const Jobs = window.LifeLogJobs;
     if (Jobs) await Jobs.run({ label: "Finding images", lane: "files" }, run); else await run(null);
     if (!res || !res.added) { toast(res && res.missing.length ? `None of the ${res.missing.length} missing images ${res.missing.length === 1 ? "is" : "are"} in that folder` : "Nothing to find", true); return; }
@@ -936,7 +995,7 @@
     // becomes a board instead (docimport.js), with what a board can't show
     // counted for the review.
     const notes = [], folders = [], failed = [];
-    const boards = [], boardFolders = [], boardSkips = [];
+    const boards = [], boardFolders = [], boardSkips = [], boardPictures = [];
     const Doc = window.LifeLogDocImport;
     if (picked.some((f) => isDoc(f.name))) toast("Reading " + (picked.length === 1 ? picked[0].name : picked.length + " files") + "…");
     const Jobs = window.LifeLogJobs;
@@ -959,6 +1018,7 @@
               const got = Doc.excalidrawToBoard(text, f.name, f.lastModified, uid);
               boards.push(got.board);
               boardSkips.push(got.skipped);
+              boardPictures.push(got.pictures || {});
               boardFolders.push(folderOf(f));
             } catch (err) { failed.push(f.name + ": " + (err.message || err)); }
             continue;
@@ -991,7 +1051,7 @@
     const built = buildImportItems({ notes, boards }, ["note", "board"]);
     const noteRows = built.items.filter((it) => it.kind === "note"), boardRows = built.items.filter((it) => it.kind === "board");
     if (noteRows.length === notes.length) noteRows.forEach((it, i) => { it.folder = folders[i]; });
-    if (boardRows.length === boards.length) boardRows.forEach((it, i) => { it.folder = boardFolders[i]; it.leftOut = Doc.skippedText(boardSkips[i]); });
+    if (boardRows.length === boards.length) boardRows.forEach((it, i) => { it.folder = boardFolders[i]; it.leftOut = Doc.skippedText(boardSkips[i]); it.pictures = boardPictures[i]; });
     const n = notes.length + boards.length;
     const withImages = noteRows.filter((it) => window.LifeLogMarkdown && window.LifeLogMarkdown.images(it.entry.text).length).length;
     const partial = boardRows.filter((it) => it.leftOut).length;
@@ -999,7 +1059,8 @@
       title: `Import ${n} file${n === 1 ? "" : "s"}`,
       hint: MD_HINT + (withImages ? ` ${withImages} of them ${withImages === 1 ? "has" : "have"} images, brought in with the note when the image file was picked too.` : "") +
         (boards.length ? ` ${boards.length === 1 ? "One file is an Excalidraw drawing and becomes a board" : boards.length + " files are Excalidraw drawings and become boards"}` +
-          (partial ? `; ${partial === 1 ? "one has" : partial + " have"} parts a board can't show (images, frames, embeds), which are left out.` : ".") : ""),
+          (partial ? `; ${partial === 1 ? "one has" : partial + " have"} parts a board can't show (frames, embeds, SVG pictures, formulas), which are left out.` : ".") +
+          (boardRows.some((it) => Object.values(it.pictures || {}).some((f) => f.link)) ? " A drawing's pictures come in with it when the image files were picked too." : "") : ""),
       mode: "import", items: built.items, newCategories: built.newCategories,
       confirmLabel: "Import", searchable: picked.length > 8, categorize: "note",
       // The preview draws a note's pictures from the files picked with it,
@@ -1011,6 +1072,16 @@
       // Only the notes being imported get their pictures kept.
       onConfirm: async (selected, addCats) => {
         const chosen = selected.filter((i) => i.kind === "note" && !i.update).map((i) => i.entry);
+        const drawings = selected.filter((i) => i.kind === "board" && !i.update && i.pictures && Object.keys(i.pictures).length);
+        let drawn = null;
+        if (drawings.length) {
+          const run = async (job) => {
+            drawn = await keepBoardPictures(drawings, pictures, job);
+            if (job) job.finish(`${drawn.added} picture${drawn.added === 1 ? "" : "s"} kept` + (drawn.missing ? `, ${drawn.missing} not among the files` : ""));
+          };
+          const Jobs = window.LifeLogJobs;
+          if (Jobs) await Jobs.run({ label: "Bringing in drawings' pictures", lane: "files" }, run); else await run(null);
+        }
         let linked = null;
         if (chosen.some((e) => window.LifeLogMarkdown && window.LifeLogMarkdown.images(e.text).length)) {
           let res = null;
@@ -1023,12 +1094,18 @@
           if (Jobs) await Jobs.run({ label: "Bringing in images", lane: "files" }, run); else await run(null);
         }
         await applyImportSelection(selected, addCats);
-        if (linked && linked.failed.length) toast(`${linked.failed.length} image${linked.failed.length === 1 ? "" : "s"} couldn't be read. ${linked.failed[0]}`, true);
+        const boardIds = drawings.map((i) => i.entry.id);
+        if (drawn && drawn.failed.length) toast(`${drawn.failed.length} picture${drawn.failed.length === 1 ? "" : "s"} in drawings couldn't be read. ${drawn.failed[0]}`, true);
+        else if (drawn && drawn.missing && !(linked && (linked.failed.length || linked.missing.length))) {
+          const n = drawn.missing;
+          toast(`${n} picture${n === 1 ? " in a drawing wasn't" : "s in drawings weren't"} among the files picked` + (canPickFolder() ? "" : ` — ${n === 1 ? "it shows" : "they show"} as a dashed box on the board`), true,
+            canPickFolder() ? { label: "Find in folder", keepEarlier: true, onClick: () => findImagesInFolder([], boardIds) } : undefined);
+        } else if (linked && linked.failed.length) toast(`${linked.failed.length} image${linked.failed.length === 1 ? "" : "s"} couldn't be read. ${linked.failed[0]}`, true);
         else if (linked && linked.missing.length) {
           const ids = chosen.map((e) => e.id);
           const n = linked.missing.length;
           toast(`${n} image${n === 1 ? " wasn't" : "s weren't"} among the files picked` + (canPickFolder() ? "" : ` — ${n === 1 ? "it shows" : "they show"} as a dashed line in the note`), true,
-            canPickFolder() ? { label: "Find in folder", keepEarlier: true, onClick: () => findImagesInFolder(ids) } : undefined);
+            canPickFolder() ? { label: "Find in folder", keepEarlier: true, onClick: () => findImagesInFolder(ids, boardIds) } : undefined);
         }
       },
     });
@@ -1395,7 +1472,11 @@
       // An Excalidraw drawing, drawn as the board it becomes.
       if (item.leftOut) doc.appendChild(el("p", "picker-doc-note", "Left out, as a board can't show them: " + item.leftOut));
       const box = el("div", "picker-doc-board");
-      box.appendChild(window.LifeLogBoards.thumbnail(e));
+      // Its pictures read from the files picked, nothing kept until Import.
+      const pics = item.pictures || {};
+      box.appendChild(window.LifeLogBoards.thumbnail(e, Object.keys(pics).length ? {
+        picture: (p) => { const f = pics[p.id]; return !f ? null : f.data ? f.data : f.link && imageUrl ? imageUrl(f.link) : null; },
+      } : undefined));
       doc.appendChild(box);
       return doc;
     }

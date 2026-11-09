@@ -33,14 +33,36 @@
   const ref = (id, alt) => "![" + String(alt || "").replace(/[\[\]\n]/g, " ").trim() + "](" + SCHEME + id + ")";
   const typeOf = (id) => ({ jpg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" })[String(id).split(".").pop()] || "image/jpeg";
 
-  // Every picture the notes point at.
-  function usedIds(notes) {
+  // Every picture the notes point at, and the boards' too when they're
+  // given: a board's picture element (t "img") names its id in `img`.
+  function usedIds(notes, boards) {
     const out = new Set();
     const re = /\]\(lifelog-img:([a-z0-9]{8,40}\.(?:jpg|png|gif|webp))\)/g;
     for (const n of notes || []) {
       for (const m of String((n && n.text) || "").matchAll(re)) out.add(m[1]);
     }
+    for (const b of boards || []) {
+      for (const e of (b && b.elements) || []) if (e && e.t === "img" && ID.test(String(e.img || ""))) out.add(e.img);
+    }
     return out;
+  }
+  // The boards as this device holds them, or null while boards.json hasn't
+  // been loaded: then nobody can say a picture isn't on a board.
+  const loadedBoards = () => {
+    const B = window.LifeLogBoards;
+    return B && B.allBoards ? B.allBoards() : null;
+  };
+  // Clean up has to know every board, so it loads them fresh and stops
+  // when GitHub couldn't be read, rather than remove a board's pictures.
+  async function usedEverywhere(data) {
+    const B = window.LifeLogBoards, S = window.LifeLogStorage;
+    let boards = [];
+    if (B && B.allBoards) {
+      await B.ensureLoaded(true);
+      if (S && S.boards && S.boards.error) throw new Error("Couldn't load your boards, so their images can't be checked. Try again when GitHub is reachable");
+      boards = B.allBoards() || [];
+    }
+    return usedIds(data && data.notes, boards);
   }
 
   // ---------- this device's copy ----------
@@ -120,13 +142,15 @@
     return { blob: out, ext: "jpg", w, h };
   }
 
-  // Keeps a picture on this device, waiting to be uploaded. Returns its id.
-  async function add(blob) {
+  // Keeps a picture on this device, waiting to be uploaded. Returns its id;
+  // addSized also says its size, for a board to place it at.
+  async function addSized(blob) {
     const s = await shrink(blob);
     const id = newId(s.ext);
     await keep({ id, blob: s.blob, w: s.w, h: s.h, size: s.blob.size, uploaded: false, addedAt: Date.now() });
-    return id;
+    return { id, w: s.w, h: s.h };
   }
+  const add = async (blob) => (await addSized(blob)).id;
 
   // ---------- showing one ----------
   const urls = new Map();
@@ -175,10 +199,13 @@
     const notes = (data && data.notes) || [];
     const cleaned = (data && data.settings && data.settings.imagesCleanedAt) || "";
     uploading = (async () => {
-      const used = usedIds(notes);
+      // Boards not loaded yet: their pictures can't be told from strays, so
+      // nothing is dropped and the clean-up check waits for a later save.
+      const boards = loadedBoards();
+      const used = usedIds(notes, boards);
       let checked = "";
       try { checked = localStorage.getItem(CHECKED_KEY) || ""; } catch (e) {}
-      if (cleaned && cleaned !== checked) {
+      if (cleaned && cleaned !== checked && boards) {
         const there = await S.images.list();
         for (const r of await allRecs()) {
           if (r.uploaded && used.has(r.id) && !there.has(r.id)) await keep({ ...r, uploaded: false });
@@ -191,7 +218,7 @@
       for (const r of recs) {
         if (r.uploaded) continue;
         if (used.has(r.id)) todo.push(r);
-        else if (now - (r.addedAt || 0) > STRAY_MS) await delRec(r.id).catch(() => {});
+        else if (boards && now - (r.addedAt || 0) > STRAY_MS) await delRec(r.id).catch(() => {});
       }
       if (!todo.length) return 0;
       await S.images.put(todo.map((r) => ({ id: r.id, blob: r.blob })));
@@ -202,11 +229,12 @@
   }
 
   // Settings → Notes → Clean up pictures: GitHub keeps only what the notes
-  // point at (storage.js starts the branch over), and this device drops its
-  // copies of the rest. The caller stamps settings.imagesCleanedAt.
+  // and boards point at (storage.js starts the branch over), and this
+  // device drops its copies of the rest. The caller stamps
+  // settings.imagesCleanedAt.
   async function cleanUp(data) {
     const S = window.LifeLogStorage;
-    const used = usedIds(data.notes);
+    const used = await usedEverywhere(data);
     await uploadPending(data);
     let local = 0;
     for (const r of await allRecs()) {
@@ -234,7 +262,7 @@
   }
 
   async function stats(notes) {
-    const used = usedIds(notes);
+    const used = usedIds(notes, loadedBoards());
     let count = 0, bytes = 0, waiting = 0;
     for (const r of await allRecs().catch(() => [])) {
       count++; bytes += r.size || 0;
@@ -243,5 +271,5 @@
     return { used: used.size, count, bytes, waiting };
   }
 
-  window.LifeLogImages = { SCHEME, idOf, ref, usedIds, add, shrink, url, uploadPending, cleanUp, stats, forget };
+  window.LifeLogImages = { SCHEME, idOf, ref, usedIds, usedEverywhere, add, addSized, shrink, url, uploadPending, cleanUp, stats, forget };
 })();

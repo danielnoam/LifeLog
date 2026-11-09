@@ -11,6 +11,13 @@
 //   rect / ellipse { id, t, c, sw, seed, x, y, w, h }
 //   line / arrow   { id, t, c, sw, seed, x, y, x2, y2 }
 //   text   { id, t: "text", c, sw, x, y, text }                 sw picks the size
+//   img    { id, t: "img", x, y, w, h, img, cr, url, miss }
+// A picture (img) is one of images.js's, on the lifelog-images branch like
+// a note's: `img` is its id. `cr` [x, y, w, h], fractions of the picture,
+// is the part shown when it was cropped in Excalidraw. A web picture from
+// an Excalidraw drawing isn't kept: `url` is its address, loaded from there
+// each time it's shown (Daniel's call, 2026-11-09). One an import couldn't
+// find has `miss`, the file it named, for Find in folder.
 // A rect or ellipse with `f` is filled with the board's hatching; one
 // brought in from Excalidraw with a solid fill also has `fc`, its fill's own
 // colour, drawn solid (softened in the dark themes so ink text on it reads).
@@ -36,6 +43,7 @@
     ["pen", "pencil", "Pen (P)", "p"], ["eraser", "eraser", "Eraser (E)", "e"],
     ["rect", "square", "Rectangle (R)", "r"], ["ellipse", "circle", "Ellipse (O)", "o"],
     ["arrow", "arrow-up-right", "Arrow (A)", "a"], ["line", "slash", "Line (L)", "l"], ["text", "type", "Text (T)", "t"],
+    ["image", "image", "Image (I) — or paste or drop one", "i"],
   ];
 
   // ---------- pure geometry (test/boards.test.js) ----------
@@ -103,10 +111,10 @@
   // Latin only; Hebrew and the rest fall through to the system font.
   const FONT_URL = "src/vendor/Virgil.woff2";
   const BOARD_FONT = "Virgil, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif";
-  const ROTATES = new Set(["rect", "ellipse", "text"]);
+  const ROTATES = new Set(["rect", "ellipse", "text", "img"]);
   // A shape's own box, before any rotation: what `a` turns about its centre.
   function rawBox(e) {
-    if (e.t === "rect" || e.t === "ellipse") return norm(e.x, e.y, e.w, e.h);
+    if (e.t === "rect" || e.t === "ellipse" || e.t === "img") return norm(e.x, e.y, e.w, e.h);
     const size = textSize(e), lines = textLines(e);
     return { x: e.x, y: e.y, w: Math.max(size / 2, ...lines.map((l) => textWidth(l, size))), h: lines.length * size * 1.25 };
   }
@@ -242,13 +250,29 @@
     const last = pts[pts.length - 1];
     return d + `L${last[0]} ${last[1]}`;
   }
+  // A picture's fields hold only what they're for: an id of images.js's
+  // shape, an https address, a file name. Nothing else is ever drawn.
+  const PIC_ID = /^[a-z0-9]{8,40}\.(jpg|png|gif|webp)$/;
+  function cleanPicture(e) {
+    if (e.t !== "img") return e;
+    const out = { id: e.id, t: "img", x: +e.x || 0, y: +e.y || 0, w: Math.max(1, +e.w || 1), h: Math.max(1, +e.h || 1) };
+    if (e.a) out.a = +e.a || 0;
+    if (PIC_ID.test(String(e.img || ""))) out.img = e.img;
+    if (/^https:\/\/[^\s"<>]+$/i.test(String(e.url || "")) && e.url.length <= 2000) out.url = e.url;
+    if (e.miss) out.miss = String(e.miss).slice(0, 300);
+    if (Array.isArray(e.cr) && e.cr.length === 4 && e.cr.every((v) => Number.isFinite(+v))) {
+      const [cx, cy, cw, ch] = e.cr.map(Number);
+      if (cw > 0 && ch > 0 && (cx || cy || cw < 1 || ch < 1)) out.cr = [cx, cy, cw, ch];
+    }
+    return out.img || out.url || out.miss ? out : null;
+  }
   function sanitizeBoard(b) {
     const out = {
       id: b.id || (uid ? uid() : "b" + Date.now().toString(36)),
       name: String(b.name == null ? "" : b.name).trim() || "Untitled board",
       createdAt: b.createdAt || null,
       updatedAt: b.updatedAt || b.createdAt || "1970-01-01T00:00:00.000Z",
-      elements: Array.isArray(b.elements) ? b.elements.filter((e) => e && e.id && e.t) : [],
+      elements: Array.isArray(b.elements) ? b.elements.filter((e) => e && e.id && e.t).map(cleanPicture).filter(Boolean) : [],
     };
     // A note category (0.206.0), so a board sits in the feed and in a
     // collection beside the notes it belongs with.
@@ -303,7 +327,11 @@
     if (saving) { await saving; if (!changedSince) return; }
     const sent = JSON.parse(JSON.stringify(doc.boards));
     const mark = changedSince;
-    saving = Storage.boards.save({ boards: sent }).then((res) => {
+    // Pictures go up before the boards that show them, as a note's do
+    // before lifelog.json; one that fails waits for the next save.
+    const pics = window.LifeLogImages && sent.some((b) => b.elements.some((e) => e.t === "img" && e.img))
+      ? window.LifeLogImages.uploadPending(state && state.data).catch(() => {}) : Promise.resolve();
+    saving = pics.then(() => Storage.boards.save({ boards: sent })).then((res) => {
       if (res.merged) {
         // Another device saved first and got merged in. Take the merge, and
         // keep whatever was drawn here while the save was out.
@@ -408,6 +436,28 @@
     doc.boards = doc.boards.filter((b) => !ids.includes(b.id));
     const n = before - doc.boards.length;
     if (n) { changedSince++; await flush(); }
+    return n;
+  }
+  // Pictures an import couldn't find, by board, for Find in folder.
+  async function missingPictures(ids) {
+    await ensureLoaded();
+    return boards().filter((b) => !ids || ids.includes(b.id))
+      .flatMap((b) => b.elements.filter((e) => e.t === "img" && !e.img && e.miss).map((e) => ({ board: b.id, id: e.id, miss: e.miss })));
+  }
+  // found: [{ board, id, img }]: each picture now kept, put on its board.
+  async function linkPictures(found) {
+    await ensureLoaded();
+    let n = 0;
+    for (const f of found) {
+      const b = findBoard(f.board);
+      const i = b ? b.elements.findIndex((e) => e.id === f.id) : -1;
+      if (i < 0) continue;
+      const { miss, url, ...rest } = b.elements[i];
+      b.elements[i] = { ...rest, img: f.img };
+      changed(b);
+      n++;
+    }
+    if (n) { await flush(); if (editing) redraw(); else if (isBoardsMode()) render(); }
     return n;
   }
   async function boardsForExport() {
@@ -637,7 +687,94 @@
     const ang = Math.atan2(e.y2 - e.y, e.x2 - e.x);
     return [ang + Math.PI * 0.82, ang - Math.PI * 0.82].map((a) => [e.x2 + Math.cos(a) * size, e.y2 + Math.sin(a) * size]);
   }
-  function drawElement(e) {
+  // ---------- pictures ----------
+  // Where each picture is shown from, once known: an object URL from
+  // images.js (this device, else fetched from GitHub once), or null when
+  // it's in neither place yet. Drawing never waits: a picture still on its
+  // way is a placeholder, swapped for the picture wherever it's drawn when
+  // it comes.
+  // One not found anywhere is asked for again a minute later, as another
+  // device may upload it meanwhile.
+  const picUrls = new Map(), picMissed = new Map();
+  const picWaiting = new Set();
+  function pictureUrl(id) {
+    if (picUrls.has(id)) return picUrls.get(id);
+    if (!picWaiting.has(id) && window.LifeLogImages && !(Date.now() - (picMissed.get(id) || 0) < 60000)) {
+      picWaiting.add(id);
+      window.LifeLogImages.url(id).catch(() => null).then((u) => {
+        picWaiting.delete(id);
+        if (!u) { picMissed.set(id, Date.now()); return; }
+        picUrls.set(id, u);
+        refreshPictures((n) => n.__el.img === id);
+      });
+    }
+    return null;
+  }
+  function refreshPictures(which) {
+    if (typeof document === "undefined") return;
+    for (const n of document.querySelectorAll("[data-pic]")) {
+      if (n.__el && which(n)) n.replaceWith(drawElement(n.__el, n.__opts));
+    }
+  }
+  // A picture: the image inside its own box, cropped by the box's viewBox.
+  // `opts.picture(e)` is an import's preview, a picture read from the files
+  // picked and not kept yet.
+  function drawPicture(e, opts) {
+    const r = norm(e.x, e.y, e.w, e.h);
+    const g = svgEl("g", { "data-id": e.id, "data-pic": e.img || e.url || e.miss || "", transform: turn(e) });
+    g.__el = e; g.__opts = opts;
+    let href = e.img ? pictureUrl(e.img) : null;
+    if (!href && opts && opts.picture) {
+      const pre = opts.preview && opts.preview.get(e.id);
+      if (pre) href = pre;
+      else if (opts.preview && !opts.preview.has(e.id)) {
+        opts.preview.set(e.id, null);
+        Promise.resolve(opts.picture(e)).catch(() => null).then((u) => {
+          if (!u) return;
+          opts.preview.set(e.id, u);
+          refreshPictures((n) => n.__el === e);
+        });
+      }
+    }
+    if (!href && !e.img && e.url) href = e.url;
+    if (href) {
+      const [cx, cy, cw, ch] = e.cr || [0, 0, 1, 1];
+      const box = svgEl("svg", { x: r.x, y: r.y, width: r.w, height: r.h, viewBox: `${cx} ${cy} ${cw} ${ch}`, preserveAspectRatio: "none", overflow: "hidden" });
+      const img = svgEl("image", { x: 0, y: 0, width: 1, height: 1, preserveAspectRatio: "none", href });
+      // A web address that doesn't answer is a placeholder after all.
+      if (href === e.url) img.addEventListener("error", () => { g.replaceChildren(...placeholder(e, r)); }, { once: true });
+      box.appendChild(img);
+      g.appendChild(box);
+      return g;
+    }
+    g.append(...placeholder(e, r));
+    return g;
+  }
+  // Dashed, with the image icon and what it was, so a picture that hasn't
+  // come yet still takes its room and can be moved or deleted.
+  function placeholder(e, r) {
+    const out = [svgEl("rect", { x: r.x, y: r.y, width: r.w, height: r.h, class: "board-pic-wait", rx: 6 })];
+    const s = Math.min(48, r.w * 0.4, r.h * 0.4);
+    if (s >= 12) {
+      const icon = svgEl("svg", { x: r.x + r.w / 2 - s / 2, y: r.y + r.h / 2 - s / 2 - (e.miss || e.url ? s * 0.3 : 0), width: s, height: s,
+        viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round", class: "board-pic-icon" });
+      const ico = window.LifeLogIcons && window.LifeLogIcons.svg("image");
+      if (ico) for (const c of [...ico.childNodes]) icon.appendChild(c);
+      out.push(icon);
+    }
+    const name = e.miss || e.url;
+    if (name && r.w > 80 && r.h > 60) {
+      const fs = Math.max(10, Math.min(14, r.w / 18));
+      const label = String(name).replace(/^.*[\\/]/, "");
+      const max = Math.floor(r.w / (fs * 0.6)) - 2;
+      const t = svgEl("text", { x: r.x + r.w / 2, y: r.y + r.h / 2 + s * 0.55 + fs, "font-size": fs, "text-anchor": "middle", class: "board-pic-label" });
+      t.textContent = label.length > max ? label.slice(0, Math.max(1, max - 1)) + "…" : label;
+      out.push(t);
+    }
+    return out;
+  }
+  function drawElement(e, opts) {
+    if (e.t === "img") return drawPicture(e, opts);
     const color = inkOf(e.c);
     if (e.t === "pen") {
       return svgEl("path", { d: penPath(decodePoints(e.p)), stroke: color, "stroke-width": e.sw, fill: "none",
@@ -681,11 +818,12 @@
     return `rotate(${e.a * 180 / Math.PI} ${r.x + r.w / 2} ${r.y + r.h / 2})`;
   }
   // A board as a standalone SVG: the list's thumbnails, and the export.
-  function boardSvg(elements, { thumb = false, pad = 24 } = {}) {
+  function boardSvg(elements, { thumb = false, pad = 24, picture = null } = {}) {
     const b = boundsOf(elements) || { x: 0, y: 0, w: 320, h: 200 };
     const svg = svgEl("svg", { viewBox: `${b.x - pad} ${b.y - pad} ${b.w + pad * 2} ${b.h + pad * 2}`, class: thumb ? "board-thumb-svg" : null });
     if (thumb) svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
-    for (const e of elements) svg.appendChild(drawElement(e));
+    const opts = picture ? { picture, preview: new Map() } : null;
+    for (const e of elements) svg.appendChild(drawElement(e, opts));
     return svg;
   }
 
@@ -957,8 +1095,11 @@
         const ux = x - (hx - cx), uy = y - (hy - cy);
         // Never through zero: past the anchor it would turn inside out.
         let sx = Math.max(0.05, (ux - ax) / ((cx - ax) || 1)), sy = Math.max(0.05, (uy - ay) / ((cy - ay) || 1));
+        // Text always keeps its proportions; a picture does unless Shift
+        // is held; a shape only while it is.
         const onlyText = op.orig.every((e) => e.t === "text");
-        if (ev.shiftKey || onlyText) sx = sy = Math.max(sx, sy);
+        const pictures = op.orig.some((e) => e.t === "img") && op.orig.every((e) => e.t === "text" || e.t === "img");
+        if (onlyText || (pictures ? !ev.shiftKey : ev.shiftKey)) sx = sy = Math.max(sx, sy);
         next = (e) => scaled(e, ax, ay, sx, sy);
       } else {
         let da = Math.atan2(y - op.h.cy, x - op.h.cx) - op.a0;
@@ -1096,6 +1237,59 @@
     redraw();
   }
 
+  // ---------- adding pictures ----------
+  // The Image button's file picker, a paste, or files dropped on the board.
+  // Each is kept by images.js (shrunk, waiting to upload) and placed where
+  // it was dropped, else in the middle of the screen, no bigger than about
+  // half of it.
+  function pickPictures() {
+    if (!editing) return;
+    commitText();
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.multiple = true;
+    input.onchange = () => addPictures([...input.files]);
+    input.click();
+  }
+  async function addPictures(files, at) {
+    const I = window.LifeLogImages;
+    const list = files.filter((f) => f && (/^image\//.test(f.type || "") || /\.(jpe?g|png|gif|webp|heic|heif)$/i.test(f.name || "")));
+    if (!editing || !I || !list.length) return;
+    const board = editing;
+    const r = svg.getBoundingClientRect();
+    const [cx, cy] = at || toWorld(r.width / 2, r.height / 2);
+    const room = Math.min(r.width, r.height) * 0.5 / view.k;
+    const added = [];
+    let failed = null;
+    for (const f of list) {
+      try {
+        const p = await I.addSized(f);
+        const k = Math.min(1, room / Math.max(p.w, p.h, 1));
+        const w = Math.max(8, Math.round(p.w * k)), h = Math.max(8, Math.round(p.h * k));
+        const off = added.length * 24 / view.k;
+        added.push({ id: uid(), t: "img", img: p.id, x: Math.round(cx - w / 2 + off), y: Math.round(cy - h / 2 + off), w, h });
+      } catch (e) { failed = (e && e.message) || String(e); }
+    }
+    if (failed) toast(added.length ? `${list.length - added.length} of those couldn't be added — ${failed}` : failed, true);
+    if (!added.length || editing !== board) return;
+    remember();
+    editing.elements.push(...added);
+    tool = "select";
+    selection = new Set(added.map((e) => e.id));
+    syncToolbar();
+    changed(editing); redraw();
+  }
+  function onPaste(ev) {
+    if (!editing || $("#boardEditor").hidden) return;
+    const a = document.activeElement;
+    if (a === textInput || a === $("#boardName")) return;
+    const files = [...((ev.clipboardData && ev.clipboardData.items) || [])].filter((i) => i.kind === "file" && /^image\//.test(i.type)).map((i) => i.getAsFile()).filter(Boolean);
+    if (!files.length) return;
+    ev.preventDefault();
+    addPictures(files);
+  }
+
   // ---------- chrome ----------
   function syncToolbar() {
     document.querySelectorAll("#boardTools [data-tool]").forEach((b) => b.classList.toggle("on", b.dataset.tool === tool));
@@ -1116,7 +1310,7 @@
   // drawn next — fill only to the shapes that can hold one, and a width to a
   // resized text puts it back on the three sizes.
   function restyle(patch) {
-    const fits = (e) => !("f" in patch) || e.t === "rect" || e.t === "ellipse";
+    const fits = (e) => e.t !== "img" && (!("f" in patch) || e.t === "rect" || e.t === "ellipse");
     if (!editing || !editing.elements.some((e) => selection.has(e.id) && fits(e))) return;
     remember();
     editing.elements = editing.elements.map((e) => {
@@ -1153,7 +1347,7 @@
     if (!mod && e.key === "0") { fitView(); applyView(); return true; }
     if (!mod && !e.altKey) {
       const t = TOOLS.find(([, , , key]) => key === e.key.toLowerCase());
-      if (t) { setTool(t[0]); return true; }
+      if (t) { if (t[0] === "image") pickPictures(); else setTool(t[0]); return true; }
     }
     return true;
   }
@@ -1174,8 +1368,32 @@
     fontData = btoa(bin);
     return fontData;
   }
+  // An exported file can't reach the app's pictures either: each goes in as
+  // a data: URL. A web picture stays its address.
+  const asDataUrl = (blob) => new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+  async function inlinePictures(node) {
+    for (const img of node.querySelectorAll("image")) {
+      const href = img.getAttribute("href");
+      if (!href || !href.startsWith("blob:")) continue;
+      try { img.setAttribute("href", await asDataUrl(await (await fetch(href)).blob())); }
+      catch (e) { /* see above */ }
+    }
+  }
   async function resolvedSvg(b) {
+    const I = window.LifeLogImages;
+    if (I) {
+      await Promise.all(b.elements.filter((e) => e.t === "img" && e.img && !picUrls.has(e.img)).map(async (e) => {
+        const u = await I.url(e.img).catch(() => null);
+        if (u) picUrls.set(e.img, u);
+      }));
+    }
     const out = boardSvg(b.elements, { pad: 32 });
+    await inlinePictures(out);
     if (b.elements.some((e) => e.t === "text")) {
       try {
         const style = svgEl("style", {});
@@ -1241,7 +1459,7 @@
       const b = el("button", "board-tool");
       b.appendChild(ico(icon));
       b.type = "button"; b.dataset.tool = id; b.title = label; b.setAttribute("aria-label", label);
-      b.onclick = () => setTool(id);
+      b.onclick = () => (id === "image" ? pickPictures() : setTool(id));
       tools.appendChild(b);
     }
     const style = $("#boardStyle");
@@ -1268,6 +1486,13 @@
     svg.addEventListener("pointerup", onPointerUp);
     svg.addEventListener("pointercancel", onPointerUp);
     svg.addEventListener("wheel", onWheel, { passive: false });
+    svg.addEventListener("dragover", (ev) => { if (editing && [...(ev.dataTransfer && ev.dataTransfer.types) || []].includes("Files")) ev.preventDefault(); });
+    svg.addEventListener("drop", (ev) => {
+      if (!editing || !ev.dataTransfer || !ev.dataTransfer.files.length) return;
+      ev.preventDefault();
+      addPictures([...ev.dataTransfer.files], pointerWorld(ev));
+    });
+    document.addEventListener("paste", onPaste);
     textInput.addEventListener("input", placeTextInput);
     textInput.addEventListener("blur", () => commitText());
     textInput.addEventListener("keydown", (e) => {
@@ -1319,7 +1544,8 @@
   window.LifeLogBoards = {
     init, wire,
     renderBoards, newBoard, openBoard, closeBoard, isEditing, handleKey, isBoardsMode, renderHistory,
-    thumbnail: (b) => boardSvg(b.elements, { thumb: true }), isLoaded: () => !!doc,
+    thumbnail: (b, opts) => boardSvg(b.elements, { thumb: true, ...(opts || {}) }), isLoaded: () => !!doc,
+    allBoards: () => (doc ? boards() : null), missingPictures, linkPictures,
     ensureLoaded, flush, addBoards, boardsForExport, sanitizeBoard, boardsNow: () => listed(), toggleFav,
     scratchBoard: () => (doc ? scratchBoard() : null), openScratch, keepScratch, setCategory, deleteBoards, renameCategory, renameCategoryIn,
     // pure helpers (test/boards.test.js)
