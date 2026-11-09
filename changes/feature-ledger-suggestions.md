@@ -1,5 +1,0 @@
-### Added
-- The Ledger spots a bill you've been logging by hand: the same note, on about the same day each month (or weekday each week), at one price or after one price change. A card above Recurring offers Make recurring, which turns those expenses into the new bill's charges, each keeping what it cost; Not a bill stops the suggestion on every device.
-- Add expense remembers: type a note you've used before and the category (and subcategory) it was filed under last time is picked for you, with a line saying so. Pick a category yourself and it stays. Google Wallet payments on Android now keep the subcategory too.
-- The Ledger's Summary has "<Month> so far": each category's spending this month, where it's heading by month end, and its usual month (the three before), flagged when it's heading 25% or more over. Bills count at their price and trips are left out, so rent on the 1st doesn't look like a spending spree.
-- Bridge tools: `lifelog_bill_suggestions`, `lifelog_make_bill_recurring`, `lifelog_dismiss_bill_suggestion` and `lifelog_month_pace`; `lifelog_add_expense` can leave out the category and take the one its note had last time.

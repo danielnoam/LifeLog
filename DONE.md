@@ -135,7 +135,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Google Maps lists and places into a trip (0.242.0, 0.245.0)
 - Markdown, PDF and EPUB files as notes, run as Activity jobs (0.200.0, 0.236.0, 0.268.0)
 - Obsidian images come in with their notes, from the files or the folder picked, and Find in folder (0.297.0)
-- Excalidraw drawings (Obsidian's `.excalidraw.md`, compressed or not, and `.excalidraw` files) come in as boards with the Markdown import; images and frames left out and counted (unreleased)
+- Excalidraw drawings (Obsidian's `.excalidraw.md`, compressed or not, and `.excalidraw` files) come in as boards with the Markdown import; images and frames left out and counted (0.309.0)
 - One review screen for every import: pick rows, edit a row, see what an update writes (0.24.0, 0.258.0)
 - The review laid out again: three columns with a live preview on a computer, full screen with filter chips on a phone; Google Maps lists get the map beside the list; "Note:" titles named by their first sentence (0.304.0)
 - Imports can update what you have, only filling gaps (0.151.0, 0.154.0)
@@ -155,7 +155,7 @@ Every release that adds a feature adds its line here in the same commit.
 - One page to read and write a note (Read / Edit), category chip under the title, dates at the foot, kind and Delete in ⋯ (0.304.0)
 - Notebook → View: line numbers in the editor, text size, open notes to read or edit (0.304.0)
 - Checklist items move in the edit sheet by a drag handle or the arrow keys (0.304.0)
-- Copy text and Favourite in a note's ⋯ menu, Read and Edit; on a phone a sideways swipe flips Read and Edit (unreleased)
+- Copy text and Favourite in a note's ⋯ menu, Read and Edit; on a phone a sideways swipe flips Read and Edit (0.309.0)
 
 ## Notebook (Habits)
 

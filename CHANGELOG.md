@@ -3,6 +3,37 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.309.0] - 2026-11-09
+
+### Added
+- Excalidraw drawings come in as boards: pick an Obsidian `.excalidraw.md` (or a `.excalidraw` file) with Markdown import, or import the whole vault folder. Rectangles, ellipses, diamonds, lines, arrows, freehand and text keep their place, size, angle, colour and stroke; solid fills keep their colour (softer on dark themes). Images, frames and embeds are left out, and the review says how many
+- The AI bridge can fill in a habit's past in one go: mark every day in a range as done, set each day to a value, or spread a total (like 100 hours on a timed habit) evenly across a range or a list of days. It works on weekly, monthly and yearly goals too, and one undo takes it all back.
+- The AI bridge can change many expenses at once by filter (move them to another category or subcategory, or set their project), with a preview first.
+- The AI bridge can spread one expense over several months, like a yearly payment counted month by month.
+- The AI bridge can add text to a note without rewriting the whole note, so a long note can't get cut short.
+- The AI bridge can send a timeline entry back to the backlog or back to In progress.
+- The AI bridge can merge two habits that track the same thing, adding their days together.
+- Settings → Media lookups shows whether each API key works, next to its name: Working, Key refused, Limit reached, Needs the proxy or No answer. It checks when you open the page and again after you change a key or the proxy.
+- The sign-up and key pages named under each API key are now links.
+- The Ledger spots a bill you've been logging by hand: the same note, on about the same day each month (or weekday each week), at one price or after one price change. A card above Recurring offers Make recurring, which turns those expenses into the new bill's charges, each keeping what it cost; Not a bill stops the suggestion on every device.
+- Add expense remembers: type a note you've used before and the category (and subcategory) it was filed under last time is picked for you, with a line saying so. Pick a category yourself and it stays. Google Wallet payments on Android now keep the subcategory too.
+- The Ledger's Summary has "<Month> so far": each category's spending this month, where it's heading by month end, and its usual month (the three before), flagged when it's heading 25% or more over. Bills count at their price and trips are left out, so rent on the 1st doesn't look like a spending spree.
+- Bridge tools: `lifelog_bill_suggestions`, `lifelog_make_bill_recurring`, `lifelog_dismiss_bill_suggestion` and `lifelog_month_pace`; `lifelog_add_expense` can leave out the category and take the one its note had last time.
+- A note's ⋯ menu has Copy text, in Read and in Edit: the title and words as plain text (a checklist as `- [ ]` lines, a quote with who said it), including words not saved yet.
+- Favourite in a note's ⋯ menu, so a note can be starred from inside it.
+- On a phone, swipe left while reading a note to edit it, and right while editing to save and read it.
+
+### Changed
+- Home scratchpad: the Note / Board switch moved to the bottom bar beside Save to Notebook, and "Saved" moved up next to the Scratchpad title
+
+### Fixed
+- When the AI bridge marked a habit on a day before its start date, the mark was saved but never counted. Now the start date moves back to that day.
+- A RAWG search that comes back empty now says why (the key was refused, the monthly quota or rate limit is used up, or RAWG didn't answer) instead of just "No matches found", and each failure goes in Settings → About → Errors.
+- Picking a SteamGridDB game fills it in faster: its Steam lookup and its RAWG rating, length and genres now load side by side instead of one after another, and the sync button keeps spinning until they're done.
+- A game, film or book lookup that never answers gives up after 15 seconds instead of holding the sheet forever.
+- On/off switches no longer get a big blue frame when the pointer is over them or after a tap on a phone; the keyboard focus ring now hugs the switch
+- On/off switches are a true pill again: their ends were drawn as an oval, which made them look pinched
+
 ## [0.308.0] - 2026-11-08
 
 ### Added

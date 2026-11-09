@@ -1,2 +1,0 @@
-### Added
-- Excalidraw drawings come in as boards: pick an Obsidian `.excalidraw.md` (or a `.excalidraw` file) with Markdown import, or import the whole vault folder. Rectangles, ellipses, diamonds, lines, arrows, freehand and text keep their place, size, angle, colour and stroke; solid fills keep their colour (softer on dark themes). Images, frames and embeds are left out, and the review says how many
