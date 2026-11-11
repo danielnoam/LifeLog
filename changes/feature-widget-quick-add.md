@@ -1,3 +1,0 @@
-### Added
-- Android: the quick add widget's buttons open a small window over the home screen instead of the app. Add an entry (category, day, rating, notes), an expense (category and subcategory, or Auto), a backlog item (starred or not), a note or a checklist item, and it's added the next time LifeLog opens. "Open in LifeLog" takes what you typed to the full form. Turn it off in the widget's settings to have the buttons open the app as before.
-- Android: the checklist widget's + and its list headings open the same window on that list; a new item shows on the widget at once and stays open for the next one.
