@@ -150,16 +150,38 @@ final class WidgetStore {
         }
     }
 
+    /**
+     * Something added in the quick-add window (QuickAddActivity): an entry,
+     * a backlog item, a note, a list item or an expense, each with an id of
+     * its own, so two alike are both kept and one drained twice lands once.
+     */
+    static void queueAdd(Context c, JSONObject item) {
+        try {
+            if (!item.has("at")) item.put("at", nowIso());
+            enqueue(c, item);
+        } catch (JSONException e) {
+            // Nothing to queue.
+        }
+    }
+
+    /** An id the way the app makes them (app.js uid). */
+    static String newId() {
+        return "e" + Long.toString(System.currentTimeMillis(), 36)
+            + Integer.toString(4096 + new java.util.Random().nextInt(1679616 - 4096), 36);
+    }
+
     static int pendingCount(Context c) {
         return tickCount(queue(c));
     }
 
-    /** What the habit and to-do widgets' "N ticks sync…" line counts: not a payment. */
+    /** What the habit and to-do widgets' "N ticks sync…" line counts: ticks and list items added, not a payment or the window's other adds. */
     static int tickCount(JSONArray q) {
         int n = 0;
         for (int i = 0; i < q.length(); i++) {
             JSONObject o = q.optJSONObject(i);
-            if (o != null && !"expense".equals(o.optString("kind"))) n++;
+            if (o == null) continue;
+            String kind = o.optString("kind");
+            if ("habit".equals(kind) || "todo".equals(kind) || "item".equals(kind)) n++;
         }
         return n;
     }
@@ -549,8 +571,8 @@ final class WidgetStore {
             panelList.put(str(l, "name"), str(l, "id"));
             panelColor.put(str(l, "name"), parseColor(str(l, "color"), 0));
         }
-        for (int i = 0; i < todos.length(); i++) {
-            JSONObject t = todos.optJSONObject(i);
+        for (int i = 0; i < todos.length() + q.length(); i++) {
+            JSONObject t = i < todos.length() ? todos.optJSONObject(i) : queuedItem(q.optJSONObject(i - todos.length()), all);
             if (t == null) continue;
             if (lists != null && !lists.contains(str(t, "list"))) continue;
             String cat = str(t, "category");
@@ -620,6 +642,27 @@ final class WidgetStore {
             }
         }
         return rows;
+    }
+
+    /**
+     * An item added to a list in the quick-add window, as a row the snapshot
+     * would carry, so it shows on the to-do widget before the app has run;
+     * null for anything else or a list that has gone.
+     */
+    static JSONObject queuedItem(JSONObject o, JSONArray lists) {
+        if (o == null || !"item".equals(o.optString("kind"))) return null;
+        String list = str(o, "list");
+        for (int i = 0; lists != null && i < lists.length(); i++) {
+            JSONObject l = lists.optJSONObject(i);
+            if (l == null || !list.equals(str(l, "id"))) continue;
+            try {
+                return new JSONObject().put("id", str(o, "id")).put("text", str(o, "text"))
+                    .put("category", str(l, "name")).put("list", list).put("color", str(l, "color")).put("done", false);
+            } catch (JSONException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     /** Where an id stands in a settings order; one not in it goes after. */
@@ -781,8 +824,73 @@ final class WidgetStore {
     }
 
     static String pendingNote(Context c) {
-        int n = pendingCount(c);
+        return pendingNote(queue(c));
+    }
+
+    /** "Ticks" while that's all there is; once an item added on the widget waits too, "changes". */
+    static String pendingNote(JSONArray q) {
+        int n = tickCount(q);
         if (n == 0) return null;
-        return n == 1 ? "1 tick syncs when you open LifeLog" : n + " ticks sync when you open LifeLog";
+        boolean added = false;
+        for (int i = 0; i < q.length(); i++) {
+            JSONObject o = q.optJSONObject(i);
+            if (o != null && "item".equals(o.optString("kind"))) added = true;
+        }
+        String what = added ? (n == 1 ? "change syncs" : "changes sync") : (n == 1 ? "tick syncs" : "ticks sync");
+        return n + " " + what + " when you open LifeLog";
+    }
+
+    // ---- the quick-add window (QuickAddActivity) ----
+
+    /** The window's kind for a quick-add action, or null where it has none (a habit, say). */
+    static String quickKind(String action) {
+        if (action == null) return null;
+        if (action.equals("add-entry")) return "entry";
+        if (action.equals("add-expense")) return "expense";
+        if (action.equals("add-backlog")) return "backlog";
+        if (action.equals("add-note")) return "note";
+        if (action.equals("add-todo") || action.startsWith("add-todo:")) return "item";
+        return null;
+    }
+
+    /**
+     * Whether the window can take this action: the app has sent a snapshot
+     * the window can fill its choices from, and the lock isn't hiding the
+     * widgets' text (then the app opens, behind its PIN, as before).
+     */
+    static boolean quickReady(JSONObject snap, String action) {
+        String kind = quickKind(action);
+        if (kind == null || snap == null || snap.optBoolean("hidden")) return false;
+        switch (kind) {
+            case "entry":
+            case "backlog": return snap.optJSONArray("entryCats") != null && snap.optJSONArray("entryCats").length() > 0;
+            case "expense": return snap.optJSONArray("financeCats") != null;
+            case "note": return snap.has("noteCats");
+            default: return snap.optJSONArray("lists") != null && snap.optJSONArray("lists").length() > 0;
+        }
+    }
+
+    static Intent quickIntent(Context c, String action) {
+        Intent i = new Intent(c, QuickAddActivity.class);
+        i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_MULTIPLE_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION);
+        i.putExtra(QuickAddActivity.EXTRA_ACTION, action);
+        return i;
+    }
+
+    /**
+     * A widget's add button: the quick-add window where it can take the
+     * action, else the app on its form, as every add button did
+     * before. `inApp` is a quick-add widget's "Open LifeLog instead" setting.
+     */
+    static PendingIntent addButton(Context c, String action, int requestCode, android.net.Uri data, boolean inApp) {
+        if (inApp || !quickReady(snapshot(c), action)) return openAppOn(c, action, requestCode, data);
+        Intent i = quickIntent(c, action);
+        if (data != null) i.setData(data);
+        return PendingIntent.getActivity(c, requestCode, i, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    /** The same for a tap that arrives as a broadcast (a list's heading on the to-do widget). */
+    static Intent addIntent(Context c, String action) {
+        return quickReady(snapshot(c), action) ? quickIntent(c, action) : launch(c, action);
     }
 }

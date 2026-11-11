@@ -369,7 +369,9 @@ list gets the window too, its map beside the list.
 - **App lock**: a PIN, with fingerprint or face where the device has it.
 - **Widgets**: on Android, checklist, habits, quick add, spending, note,
   random note, upcoming and in progress, with an optional background
-  refresh; on iPhone, habits, checklist, quick add, this month and a note.
+  refresh. Quick add and the checklist's + open a small window over the
+  home screen, so an entry, expense, backlog item, note or list item goes
+  in without opening the app and syncs when it next opens; on iPhone, habits, checklist, quick add, this month and a note.
 - **Keyboard**: N adds, number keys switch tabs (hold Shift to see them), F or / searches and Escape stops, Tab opens Settings, ? lists the rest; Settings → Keyboard changes, removes or resets any of them.
 - **Offline**: an installable PWA that works with no connection and syncs
   when there is one.

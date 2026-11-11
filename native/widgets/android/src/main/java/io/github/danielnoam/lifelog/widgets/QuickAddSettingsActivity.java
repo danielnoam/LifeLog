@@ -28,12 +28,18 @@ public class QuickAddSettingsActivity extends SettingsScreen {
             buttons.add(action, QuickAddWidget.LABELS[i]
                 + (WidgetStore.offers(this, action) ? "" : " (its tab is off in LifeLog)"), all || has(chosen, action), true);
         }
+        heading("A tap");
+        quick = check("Add from the home screen, without opening LifeLog", was == null || !was.optBoolean("inApp", false));
+        hint("Off, each button opens its form in LifeLog instead.");
     }
+
+    private android.widget.CheckBox quick;
 
     @Override
     protected void collect(JSONObject out) throws JSONException {
         out.put("buttons", buttons.picked());
         out.put("order", buttons.order());
+        out.put("inApp", !quick.isChecked());
     }
 
     @Override

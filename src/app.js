@@ -5366,6 +5366,19 @@
     }
     else if (action === "add-backlog" && viewEnabled("backlog")) Backlog.openBacklogModal(null);
     else if (action === "add-note" && modeEnabled("notes", "notes")) Notes.openNoteModal(null);
+    // The quick-add window's "Open in LifeLog": the form, with what was
+    // typed there carried over.
+    else if (/^add-(entry|backlog|note)\?/.test(action)) {
+      const q = new URLSearchParams(action.slice(action.indexOf("?") + 1));
+      const title = String(q.get("title") || "").trim().slice(0, 300);
+      if (action.startsWith("add-entry?") && viewEnabled("timeline")) Journal.openEntryModal(null, null, { title });
+      else if (action.startsWith("add-backlog?") && viewEnabled("backlog")) Backlog.openBacklogModal(null, null, { title });
+      else if (action.startsWith("add-note?") && modeEnabled("notes", "notes")) {
+        Notes.openNoteModal(null, "text");
+        $("#nTitle").value = title;
+        $("#nText").value = String(q.get("text") || "");
+      }
+    }
     else if (action === "add-habit" && modeEnabled("notes", "habits")) { goTo("notes", "habits"); Habits.openHabitModal(null); }
     else if (action === "open-finance" && viewEnabled("finance")) goTo("finance", "entries");
     else if (action === "open-habits" && modeEnabled("notes", "habits")) goTo("notes", "habits");

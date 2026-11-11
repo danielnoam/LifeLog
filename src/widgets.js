@@ -85,7 +85,7 @@
     return { upcoming, inProgress };
   }
 
-  function snapshotOf(data, { today, actions = [], remindAt = () => "", runBefore = () => 0, spend = null, pins = [], upcomingAt = () => "", releaseLabel = () => "" } = {}) {
+  function snapshotOf(data, { today, actions = [], remindAt = () => "", runBefore = () => 0, spend = null, pins = [], upcomingAt = () => "", releaseLabel = () => "", currencySymbol = "" } = {}) {
     const since = addDays(today, -MARK_DAYS);
     const until = addDays(today, 1);
     // A weekly, monthly or yearly goal (0.300.0) is counted over its whole
@@ -167,7 +167,18 @@
     // `currency` (0.238.0): a Google Wallet payment in it gets an Add button
     // on the phone; one in any other needs the form, for its rate.
     const currency = (data.settings && data.settings.currency) || "ILS";
-    return { v: 4, today, habits, todos, doneCount, lists: listsOut, actions, spend, currency, ...notesOf(data, pins), ...backlogRows(data, today, upcomingAt, releaseLabel) };
+    return { v: 4, today, habits, todos, doneCount, lists: listsOut, actions, spend, currency, currencySymbol, ...quickChoices(data), ...notesOf(data, pins), ...backlogRows(data, today, upcomingAt, releaseLabel) };
+  }
+
+  // What the quick-add window (QuickAddActivity) offers to pick from: the
+  // timeline's categories (an entry's and a backlog item's) and the
+  // Ledger's, with their subcategories. The note categories and the lists
+  // already travel for the note and to-do widgets.
+  function quickChoices(data) {
+    return {
+      entryCats: (data.categories || []).map((c) => ({ name: c.name, color: c.color || "" })),
+      financeCats: (data.financeCategories || []).map((c) => ({ name: c.name, color: c.color || "", subs: (c.subs || []).map((s) => s.name) })),
+    };
   }
 
   // What the note widgets pick from: each note cut to what a widget can
@@ -208,6 +219,12 @@
   // Ticks from a widget, onto the data. Anything that has gone since the
   // tick (deleted on another device, say) is skipped rather than recreated.
   // Returns how many actually changed something.
+  //
+  // The quick-add window's adds ride the same queue: an entry, a backlog
+  // item, a note, a list item, or an expense with its category picked.
+  // Each carries an id made on the phone, so one drained twice is added
+  // once. A category that has gone since falls back the way a form would:
+  // the first one (an expense: where its note went last time).
   function applyQueue(data, items) {
     let changed = 0;
     for (const it of items || []) {
@@ -236,16 +253,57 @@
         // A Google Wallet payment's Add (0.238.0), in the home currency.
         // Its id is the queue's, so one drained twice is added once. The
         // category (and its subcategory) is the one this merchant got last
-        // time, if any.
+        // time, if any, unless the quick-add window picked one.
         const entries = data.financeEntries || (data.financeEntries = []);
-        const amount = Math.round(parseFloat(it.amount) * 100) / 100;
+        const amount = Math.round(parseFloat(String(it.amount).replace(",", ".")) * 100) / 100;
         if (!(amount > 0) || !isDate(it.date) || entries.some((f) => f.id === it.id)) continue;
         const note = String(it.note || "").trim().slice(0, 200);
-        const filed = filingFor(data, note);
+        const picked = (data.financeCategories || []).find((c) => c.name === it.category);
+        const filed = picked ? { category: picked.name, subcategory: (picked.subs || []).some((s) => s.name === it.subcategory) ? it.subcategory : "" } : filingFor(data, note);
         const item = { id: it.id, date: it.date, amount, category: filed ? filed.category : categoryFor(data, note), createdAt: it.at || new Date().toISOString() };
         if (filed && filed.subcategory) item.subcategory = filed.subcategory;
         if (note) item.note = note;
         entries.push(item);
+        changed++;
+      } else if (it.kind === "entry" || it.kind === "backlog") {
+        const title = String(it.title || "").trim().slice(0, 300);
+        const list = it.kind === "entry" ? (data.entries || (data.entries = [])) : (data.backlog || (data.backlog = []));
+        if (!title || list.some((x) => x.id === it.id)) continue;
+        const cats = (data.categories || []).map((c) => c.name);
+        const category = cats.includes(it.category) ? it.category : cats[0] || "Other";
+        const item = { id: it.id, title, category, createdAt: it.at || new Date().toISOString() };
+        const notes = String(it.notes || "").trim();
+        if (notes) item.notes = notes;
+        if (it.kind === "entry") {
+          if (!isDate(it.date)) continue;
+          item.year = +it.date.slice(0, 4);
+          item.month = +it.date.slice(5, 7);
+          item.date = it.date.slice(0, 7);
+          item.day = +it.date.slice(8, 10);
+          const rating = Math.round(+it.rating || 0);
+          if (rating >= 1 && rating <= 5) item.rating = rating;
+        } else if (it.starred) item.priority = 1;
+        list.push(item);
+        changed++;
+      } else if (it.kind === "note") {
+        const notes = data.notes || (data.notes = []);
+        const text = String(it.text || "").trim();
+        if (!text || notes.some((n) => n.id === it.id)) continue;
+        const at = it.at || new Date().toISOString();
+        const note = { id: it.id, text, createdAt: at, editedAt: at };
+        const title = String(it.title || "").trim();
+        if (title) note.title = title;
+        if ((data.noteCategories || []).some((c) => c.name === it.category)) note.category = it.category;
+        notes.unshift(note);
+        changed++;
+      } else if (it.kind === "item") {
+        // After the list's open items, as the list's own add line puts it.
+        const n = (data.notes || []).find((x) => x.id === it.list && x.kind === "list");
+        const text = String(it.text || "").trim();
+        if (!n || !text) continue;
+        const items = n.items || (n.items = []);
+        if (items.some((x) => x.id === it.id)) continue;
+        items.splice(items.map((x) => !x.done).lastIndexOf(true) + 1, 0, { id: it.id, text });
         changed++;
       }
     }
@@ -307,6 +365,7 @@
       spend: ctx.spend ? ctx.spend() : null,
       upcomingAt: window.LifeLogBacklog ? window.LifeLogBacklog.upcomingAt : undefined,
       releaseLabel: window.LifeLogBacklog ? window.LifeLogBacklog.releaseLabel : undefined,
+      currencySymbol: window.LifeLogFinance && window.LifeLogFinance.currencyGlyph ? window.LifeLogFinance.currencyGlyph() : "",
       pins,
     });
     // With the lock on and "hide in widgets" set (0.262.0), the widgets get
@@ -356,22 +415,45 @@
       try {
         const res = await W.takeQueue();
         const data = ctx.state.data;
-        const before = (data.financeEntries || []).length;
-        const n = applyQueue(data, (res && res.items) || []);
+        const items = (res && res.items) || [];
+        const n = applyQueue(data, items);
         if (n) {
           ctx.afterDataChange();
           await ctx.persist();
-          const paid = (data.financeEntries || []).length - before, ticks = n - paid;
-          const said = [];
-          if (ticks) said.push(ticks === 1 ? "a tick from your home-screen widget" : ticks + " ticks from your home-screen widget");
-          if (paid) said.push(paid === 1 ? "a Google Wallet payment to the Ledger" : paid + " Google Wallet payments to the Ledger");
-          ctx.toast("Added " + said.join(" and "));
+          ctx.toast(drainText(data, items));
         }
       } catch (e) { /* the queue stays for next time */ }
       finally { draining = null; }
       push();
     })();
     return draining;
+  }
+
+  // What the toast says the queue brought: ticks, things added from the
+  // quick-add window, Google Wallet payments. Counted from what's now in
+  // the data, so a skipped one (its list deleted, say) isn't claimed.
+  function drainText(data, items) {
+    const has = (it) => {
+      if (it.kind === "expense") return (data.financeEntries || []).some((f) => f.id === it.id);
+      if (it.kind === "entry") return (data.entries || []).some((x) => x.id === it.id);
+      if (it.kind === "backlog") return (data.backlog || []).some((x) => x.id === it.id);
+      if (it.kind === "note") return (data.notes || []).some((x) => x.id === it.id);
+      if (it.kind === "item") return (data.notes || []).some((x) => (x.items || []).some((i) => i.id === it.id));
+      return false;
+    };
+    let ticks = 0, added = 0, paid = 0;
+    for (const it of items) {
+      if (!it) continue;
+      if (it.kind === "habit" || it.kind === "todo") ticks++;
+      else if (!has(it)) continue;
+      else if (it.kind === "expense" && it.from !== "quick") paid++;
+      else added++;
+    }
+    const said = [];
+    if (added) said.push(added === 1 ? "1 thing from your home screen" : added + " things from your home screen");
+    if (ticks) said.push(ticks === 1 ? "a tick from your home-screen widget" : ticks + " ticks from your home-screen widget");
+    if (paid) said.push(paid === 1 ? "a Google Wallet payment to the Ledger" : paid + " Google Wallet payments to the Ledger");
+    return said.length ? "Added " + said.join(" and ") : "Your home-screen widget is up to date";
   }
 
   // One ask at a time: at launch the start-up ask and a lifelog:// link's
