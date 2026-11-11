@@ -569,6 +569,7 @@ src/headless.js     Android's background refresh
 src/platform.js     browser, phone or computer app, and native HTTP
 src/desktop.js      the Windows and Linux app: tray, reminders, updates
 src/dates.js        where a week starts and how a date is written
+src/datefield.js    every date box drawn in that format
 src/icons.js        the Lucide icon map
 src/select.js       the app's own dropdown list for every <select>
 src/errlog.js       the errors this device has hit

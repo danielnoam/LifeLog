@@ -414,7 +414,7 @@
       const by = [n.author, n.source].filter(Boolean).join(", ");
       if (by) card.appendChild(el("p", "note-author", "— " + by));
     } else if (kind === "list") {
-      if (state.bulk.active) card.appendChild(el("p", "note-text note-list-title", n.text || "Untitled list"));
+      if (state.bulk.active) bulkListPreview(card, n);
       else listPanel(card, n);
     } else {
       if (n.title) card.appendChild(el("h4", "note-title", n.title));
@@ -510,6 +510,35 @@
     }
     card.appendChild(rows);
     card.appendChild(listCompose(n));
+  }
+
+  // While selecting, a list keeps its items on its card, read-only: drawn as
+  // its title alone, a list was a one-line card among full ones and you
+  // couldn't tell which list you were ticking. A press anywhere selects it.
+  function bulkListPreview(card, n) {
+    card.appendChild(el("p", "note-text note-list-title", n.text || "Untitled list"));
+    const items = n.items || [];
+    const open = items.filter((i) => !i.done), done = items.filter((i) => i.done).sort(byNewestDone);
+    const rows = el("div", "note-list-rows is-preview");
+    if (!items.length) rows.appendChild(el("p", "dsc-note", "Nothing here."));
+    const row = (it) => {
+      const r = el("div", "todo-row" + (it.done ? " is-done" : ""));
+      const cb = document.createElement("input");
+      cb.type = "checkbox";
+      cb.className = "todo-check";
+      cb.checked = !!it.done;
+      cb.disabled = true;
+      cb.tabIndex = -1;
+      cb.setAttribute("aria-hidden", "true");
+      r.append(cb, el("span", "todo-text", it.text));
+      return r;
+    };
+    for (const it of open) rows.appendChild(row(it));
+    if (done.length) {
+      rows.appendChild(el("div", "todo-done-sep", done.length + " done"));
+      for (const it of done) rows.appendChild(row(it));
+    }
+    card.appendChild(rows);
   }
 
   // Everything on a row stops at the row: the card underneath opens the note
