@@ -2698,6 +2698,21 @@ html.force-mobile .pick-title { font-size: var(--fs-xl); }
 @media (max-width: 380px) {
   .modal .row-dates-tight input[type=date]::-webkit-calendar-picker-indicator { display: none; }
 }
+/* A date box's text in the app's date format (src/datefield.js): the box's
+   own text, in the device's language, is hidden and .date-face draws the
+   same day over it. Typing on a computer brings the box's own fields back. */
+.date-field { position: relative; display: block; min-width: 0; }
+.date-field > input.has-face { width: 100%; }
+.date-field:not(.is-typing) > input.has-face { color: transparent; }
+.date-field:not(.is-typing) > input.has-face::-webkit-datetime-edit { opacity: 0; }
+.date-field:not(.is-typing) > input.has-face::-webkit-date-and-time-value { opacity: 0; }
+.date-face {
+  position: absolute; inset: 0 32px 0 0; display: flex; align-items: center;
+  pointer-events: none; color: var(--text); white-space: nowrap; overflow: hidden;
+  font-variant-numeric: tabular-nums;
+}
+.date-field.is-typing > .date-face { visibility: hidden; }
+.date-field > input.has-face:disabled ~ .date-face { color: var(--text-faint); }
 
 kbd {
   display: inline-block; min-width: 20px; padding: 2px 6px; text-align: center;
@@ -4481,6 +4496,11 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 .note-list-head .mc-left .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 .note-list-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .note-card.is-bulk .note-list-title { font-weight: 650; white-space: normal; }
+/* A list's items while selecting (bulkListPreview): read-only, so the press
+   reaches the card and selects it. */
+.note-list-rows.is-preview { pointer-events: none; }
+.note-list-rows.is-preview .todo-check:disabled { opacity: 1; }
+.note-list-rows.is-preview .todo-text { cursor: inherit; }
 .note-list-rows > .dsc-note { margin: 6px 0 2px; }
 .note-list-compose { margin: 10px 0 0; }
 .note-card.is-list .todo-row { user-select: none; -webkit-user-select: none; }

@@ -1426,6 +1426,7 @@
     const D = window.LifeLogDates;
     state.data.settings.weekStart = D.cleanWeekStart($("#weekStart").value);
     state.data.settings.dateFormat = D.cleanFormat($("#dateFormat").value);
+    if (window.LifeLogDateField) window.LifeLogDateField.refresh();
     render();
     if (window.LifeLogWidgets && window.LifeLogWidgets.changed) window.LifeLogWidgets.changed();
     await persist();

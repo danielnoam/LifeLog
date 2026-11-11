@@ -1334,7 +1334,7 @@
         const wrap = el("span", "picker-editor-when"); wrap.appendChild(m); wrap.appendChild(y);
         inputs.year = y; inputs.month = m;
         const l = el("label", "picker-editor-field"); l.appendChild(el("span", null, "When")); l.appendChild(wrap); form.appendChild(l);
-      } else if (key === "date" || key === "startDate") { const i = el("input"); i.type = "date"; i.value = e[key] || ""; field(key, key === "date" ? "Date" : "Starts", i); }
+      } else if (key === "date" || key === "startDate") { const i = el("input"); i.type = "date"; i.value = e[key] || ""; field(key, key === "date" ? "Date" : "Starts", i); if (window.LifeLogDateField) window.LifeLogDateField.enhance(i); }
       else if (key === "category") {
         const sel = el("select");
         const none = document.createElement("option"); none.value = ""; none.textContent = "No category"; sel.appendChild(none);
