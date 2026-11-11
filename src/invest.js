@@ -521,7 +521,8 @@
     return 10 * mag;
   }
   function chart(w, pts, all) {
-    const box = el("div", "invest-chart");
+    // A sideways drag here scrubs the days, so it mustn't also switch Ledger mode.
+    const box = el("div", "invest-chart no-swipe");
     const W = 1000, H = 300;
     let lo = Math.min(...pts.map((p) => p[1])), hi = Math.max(...pts.map((p) => p[1]));
     // A target close to the range joins the scale; one far off would flatten
@@ -630,6 +631,9 @@
     const hide = () => { if (held) return; tip.hidden = true; dot.hidden = true; cross.style.display = "none"; };
     svg.addEventListener("pointermove", (e) => { if (!held) show(e.clientX, false); });
     svg.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") hide(); });
+    // A finger lifted after scrubbing lets the day go; a tap still holds it (click comes after).
+    svg.addEventListener("pointerup", (e) => { if (e.pointerType !== "mouse") hide(); });
+    svg.addEventListener("pointercancel", (e) => { if (e.pointerType !== "mouse") hide(); });
     svg.addEventListener("click", (e) => { held = true; show(e.clientX, true); });
     document.addEventListener("pointerdown", function off(e) {
       if (!box.isConnected) { document.removeEventListener("pointerdown", off); return; }

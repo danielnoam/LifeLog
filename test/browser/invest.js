@@ -96,9 +96,25 @@ const seed = (key) => ({
     check("the total since pin 1 is shown" + at, /Since pin 1 \(10 months\)/.test(await page.textContent(".invest-total")));
     check("both pins are flags on the 1Y chart" + at, (await page.$$(".invest-flag")).length === 2);
 
-    // A tap on the chart holds the day, with a button to pin it.
     const box = await page.$(".invest-chart svg");
     const bb = await box.boundingBox();
+    // On a phone a sideways drag across the chart scrubs it rather than
+    // swiping to the next Ledger mode.
+    if (width < 720) {
+      const y0 = bb.y + bb.height * 0.5;
+      await page.mouse.move(bb.x + bb.width * 0.8, y0);
+      await page.mouse.down();
+      for (let i = 1; i <= 12; i++) { await page.mouse.move(bb.x + bb.width * (0.8 - i * 0.05), y0 + i * 0.3); await page.waitForTimeout(16); }
+      const mid = await page.evaluate(() => ({ tip: !document.querySelector(".invest-tip").hidden, layer: !!document.querySelector(".mode-layer") }));
+      await page.mouse.up();
+      await page.waitForTimeout(600);
+      const ui = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-ui-v1") || "{}").financeMode);
+      check("a drag across the chart scrubs the days" + at, mid.tip && !mid.layer, mid);
+      check("and stays on Investments" + at, ui === "invest" && await page.isVisible(".invest-chart"), ui);
+      await page.mouse.click(bb.x + 4, bb.y - 30);
+      await page.waitForTimeout(200);
+    }
+    // A tap on the chart holds the day, with a button to pin it.
     await page.mouse.click(bb.x + bb.width * 0.5, bb.y + bb.height * 0.5);
     check("a click on the chart offers Pin this day" + at, await page.isVisible(".invest-pin-btn"));
     await page.click(".invest-pin-btn");
