@@ -5119,7 +5119,7 @@
         if ($("#noteCatModal").hidden) { Notes.leaveNoteModal(); Notes.closeNoteReader(); }
         Habits.closeHabitModal(); Habits.closeAmountModal(); Notes.closeNoteCatModal();
         Travel.closeTripModal(); Travel.closePlaceModal(); Travel.closeImportModal(); Share.close();
-        Invest.closeWatchModal(); Invest.closePinModal();
+        Invest.closeWatchModal(); Invest.closePinModal(); Invest.closeBuyModal();
         SettingsUI.closeSettings();
         SettingsUI.closeViewOptions();
         closeShortcutsModal();
@@ -5172,13 +5172,13 @@
     function onReconnectOrFocus() { retrySync(); pollForUpdates(); }
     window.addEventListener("online", onReconnectOrFocus);
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") { onReconnectOrFocus(); schedulePoll(); Sync.maybeAutoRefreshReleases(); Sync.maybeCheckPriceAlerts(); Sync.maybeAutoCheckAniList(); return; }
+      if (document.visibilityState === "visible") { onReconnectOrFocus(); schedulePoll(); Sync.maybeAutoRefreshReleases(); Sync.maybeCheckPriceAlerts(); Invest.checkTargets(); Sync.maybeAutoCheckAniList(); return; }
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       // The computer app keeps running in the tray to ring reminders and
       // heads-ups, so it keeps their lists fresh there too, at a walk: a
       // habit ticked on the phone, a new reminder time, today's releases.
       if (Platform.desktop && Storage.githubConnected) pollTimer = setInterval(() => {
-        pollForUpdates(); Sync.maybeAutoRefreshReleases(); Sync.maybeCheckPriceAlerts();
+        pollForUpdates(); Sync.maybeAutoRefreshReleases(); Sync.maybeCheckPriceAlerts(); Invest.checkTargets();
       }, TRAY_POLL_MS);
       // Leaving the app is the last sure chance to send a queued save.
       if (saveTimer) flushSave();
@@ -5371,6 +5371,11 @@
     else if (action === "open-habits" && modeEnabled("notes", "habits")) goTo("notes", "habits");
     // A release-day heads-up (0.272.0): Upcoming, where Out today leads.
     else if (action === "open-upcoming" && modeEnabled("backlog", "upcoming")) goTo("backlog", "upcoming");
+    // An investment target reached: that ticker, in the Ledger's Investments.
+    else if (action.startsWith("open-invest:") && modeEnabled("finance", "invest")) {
+      Invest.select(action.slice("open-invest:".length));
+      goTo("finance", "invest");
+    }
     // A price alert (0.276.0): the list, where the row says the price.
     else if (action === "open-backlog" && viewEnabled("backlog")) goTo("backlog", "entries");
     // The In progress widget (0.277.0): the Timeline, where its card is.
@@ -5811,6 +5816,7 @@
     Sync.maybeAutoCheckAniList(); // same — the two-way AniList sync, when it's due (0.292.0)
     Sync.maybeAutoRefreshReleases(); // same — keeps upcoming release dates current in the background
     Sync.maybeCheckPriceAlerts(); // same — the Steam games with a price target (0.276.0)
+    Invest.checkTargets(); // same — the watched tickers with a target
     Sync.maybeFillGameTimes(); // same — How Long to Beat times for Steam games (0.282.0)
 
     if (Platform.native) {
@@ -5887,6 +5893,7 @@
       await retrySync();
       await Sync.maybeAutoRefreshReleases();
       await Sync.maybeCheckPriceAlerts();
+      await Invest.checkTargets();
       if (savePending()) await flushSave();
       await Widgets.pushNow(ctx);
       const changed = before !== JSON.stringify(state.data)
@@ -6272,7 +6279,8 @@
   Recap.init({ state, $, el, toast, MONTHS, prefersReducedMotion });
   Boards.init({ state, $, el, uid, toast, emptyState, render, Storage, download: IO.download, bulkCheckbox, toggleBulkItem, attachLongPressSelect });
   Travel.init({ state, $, el, uid, toast, emptyState, render, Storage, monthCardHeader, activatable, updateFilterbarVisibility });
-  Invest.init({ state, $, el, uid, toast, emptyState, render, Storage, updateFilterbarVisibility, openSettings: (page) => SettingsUI.openSettings(page) });
+  Invest.init({ state, $, el, uid, toast, emptyState, render, Storage, updateFilterbarVisibility, openSettings: (page) => SettingsUI.openSettings(page),
+    openInvest: () => { VIEW_MODES.finance.set("invest"); if (state.view !== "finance") switchToView("finance"); else commitModeChange(); } });
   Home.init({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, todayStr: () => Finance.localDateStr(new Date()) });
   Share.start({ Backlog, Notes, Travel, toast, viewEnabled, modeEnabled });
   Letterboxd.start({ unzip: (b) => window.LifeLogDocImport.unzip(b), parseCsv: IO.parseCsv, buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport });

@@ -41,6 +41,7 @@ final class Reminders {
     static final String CHANNEL_CHARGES = "charge_reminders";
     static final String CHANNEL_RELEASES = "release_days";
     static final String CHANNEL_PRICES = "price_drops";
+    static final String CHANNEL_TARGETS = "invest_targets";
     static final String ACTION_FIRE = "io.github.danielnoam.lifelog.widgets.REMIND";
     static final String ACTION_DONE = "io.github.danielnoam.lifelog.widgets.REMIND_DONE";
     private static final String KEY_LAST = "remind_checked_until";
@@ -161,6 +162,11 @@ final class Reminders {
             ch.setDescription("A Steam game in your Backlog at the price you asked for");
             nm.createNotificationChannel(ch);
         }
+        if (nm.getNotificationChannel(CHANNEL_TARGETS) == null) {
+            NotificationChannel ch = new NotificationChannel(CHANNEL_TARGETS, "Investment targets", NotificationManager.IMPORTANCE_DEFAULT);
+            ch.setDescription("A ticker on your watchlist closing at or under its target");
+            nm.createNotificationChannel(ch);
+        }
     }
 
     private static void notifyAlert(Context c, JSONObject a) {
@@ -169,7 +175,7 @@ final class Reminders {
         ensureAlertChannels(nm);
         String id = WidgetStore.str(a, "id");
         String kind = WidgetStore.str(a, "kind");
-        String channel = "release".equals(kind) ? CHANNEL_RELEASES : "price".equals(kind) ? CHANNEL_PRICES : CHANNEL_CHARGES;
+        String channel = "release".equals(kind) ? CHANNEL_RELEASES : "price".equals(kind) ? CHANNEL_PRICES : "target".equals(kind) ? CHANNEL_TARGETS : CHANNEL_CHARGES;
         String action = WidgetStore.str(a, "action");
         Notification.Builder b = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O
             ? new Notification.Builder(c, channel)

@@ -5206,7 +5206,6 @@ html.force-mobile .pace-say { white-space: normal; }
 .invest-tip { position: absolute; transform: translate(-50%, calc(-100% - 12px)); background: var(--bg-elev-2); border: 1px solid var(--border-strong); border-radius: var(--r-md); padding: var(--space-6) var(--space-10); font-size: var(--fs-xs); color: var(--text-dim); white-space: nowrap; box-shadow: var(--shadow); pointer-events: none; z-index: 2; display: flex; flex-direction: column; gap: var(--space-2); }
 .invest-tip[hidden], .invest-dot[hidden], .invest-results[hidden] { display: none; }
 .invest-tip.below { transform: translate(-50%, 12px); }
-.invest-tip.is-held { pointer-events: auto; }
 .invest-tip b { color: var(--text); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
 .invest-pin-btn { margin-top: var(--space-6); gap: var(--space-6); }
 .invest-pin-btn .ico { width: 14px; height: 14px; }
@@ -5251,9 +5250,74 @@ html.force-mobile .pace-say { white-space: normal; }
 .invest-result:hover, .invest-result:focus-visible { background: var(--hover-bg); }
 .invest-result b { color: var(--text); font-size: var(--fs-sm); min-width: 56px; }
 .invest-result span { color: var(--text-dim); font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.invest-tip-cmp { color: var(--text-dim); }
+/* The held day, under the chart: its close, Pin this day, a buy on it. */
+.invest-held { display: flex; align-items: center; gap: var(--space-8); flex-wrap: wrap; margin-top: var(--space-8); padding: var(--space-8) var(--space-10); border: 1px solid var(--border); border-radius: var(--r-md); background: var(--bg-elev-2); }
+.invest-held[hidden] { display: none; }
+.invest-held-t { display: flex; align-items: baseline; gap: var(--space-8); flex: 1 1 200px; min-width: 0; font-size: var(--fs-xs); color: var(--text-dim); }
+.invest-held-t b { color: var(--text); font-size: var(--fs-md); font-variant-numeric: tabular-nums; }
+.invest-held .invest-pin-btn { margin-top: 0; }
+.invest-held .btn, .invest-compare-btn { display: inline-flex; align-items: center; gap: var(--space-6); }
+.invest-buy .invest-pin-l span { display: block; margin-left: 0; overflow: hidden; text-overflow: ellipsis; }
+#investBuyTotal { margin: calc(-1 * var(--space-4)) 0 var(--space-12); }
+.invest-held-x { margin-left: auto; }
+.invest-anchor { stroke: var(--accent); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.invest-dot.is-anchor { background: var(--accent); }
+.invest-avgline { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 2 4; vector-effect: non-scaling-stroke; }
+.invest-tlabel.is-avg { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.invest-tlabel.is-right { left: auto; right: 60px; }
+.invest-buymark { position: absolute; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid var(--accent); transform: translate(-50%, 6px); pointer-events: none; }
+.invest-buymark.is-sell { border-bottom: 0; border-top: 7px solid var(--warning); transform: translate(-50%, -13px); }
+/* Holding: four numbers, then the buys. */
+.invest-hold { margin-top: var(--space-16); border-top: 1px solid var(--border); padding-top: var(--space-12); }
+.invest-hold h3 { display: flex; align-items: center; gap: var(--space-8); margin: 0 0 var(--space-8); font-size: var(--fs-md); color: var(--text); }
+.invest-hold h3 .ico { width: 16px; height: 16px; color: var(--accent); }
+.invest-hold h3 .btn { margin-left: auto; }
+.invest-hold-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-8); margin-bottom: var(--space-8); }
+.invest-stat { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-8) var(--space-10); background: var(--bg-elev-2); border-radius: var(--r-md); min-width: 0; }
+.invest-stat span { color: var(--text-dim); font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: .4px; }
+.invest-stat b { color: var(--text); font-size: var(--fs-sm); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.invest-hold-note { margin: 0 0 var(--space-8); color: var(--text-dim); font-size: var(--fs-xs); }
+.invest-buy { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: var(--space-10); width: 100%; padding: var(--space-6) var(--space-4); margin: 0 calc(-1 * var(--space-4)); min-height: 44px; background: none; border: 0; border-radius: var(--r-md); color: inherit; font: inherit; text-align: left; cursor: pointer; box-sizing: content-box; }
+.invest-buy:hover { background: var(--hover-bg); }
+.invest-buy-k { justify-self: start; padding: 1px var(--space-6); border-radius: var(--r-pill); font-size: var(--fs-2xs); font-weight: 700; background: var(--accent-soft); color: var(--accent); }
+.invest-buy.is-sell .invest-buy-k { background: color-mix(in srgb, var(--warning) 15%, transparent); color: var(--warning); }
+/* Compare any two pins. */
+.invest-pins h3 .invest-compare-btn { margin-left: auto; gap: var(--space-6); }
+.invest-pins h3 .invest-compare-btn + .btn { margin-left: 0; }
+.invest-compare-btn .ico { width: 14px; height: 14px; color: inherit; }
+.invest-compare-btn.on { background: var(--accent-soft); color: var(--accent); border-color: transparent; }
+.invest-compare { display: flex; flex-direction: column; gap: var(--space-2); margin: 0 0 var(--space-8); padding: var(--space-8) var(--space-12); border-radius: var(--r-md); background: var(--accent-soft); font-size: var(--fs-sm); color: var(--text-dim); }
+.invest-compare-h { color: var(--text); font-weight: 600; }
+.invest-compare-v b { font-size: var(--fs-md); }
+.invest-pin.is-picked, .invest-pin.is-picked:hover { background: var(--accent-soft); }
+.invest-pin.is-now.is-picked { cursor: pointer; }
+/* Everything held, at the top of Watching. */
+.invest-sum { display: flex; align-items: baseline; gap: var(--space-10); flex-wrap: wrap; margin: 0 0 var(--space-10); padding-bottom: var(--space-10); border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--text-dim); }
+.invest-sum b { color: var(--text); font-size: var(--fs-xl); font-variant-numeric: tabular-nums; }
+/* The buy sheet. */
+.invest-buy-kind { margin-bottom: var(--space-12); }
+.invest-buy-pair { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-12); }
+/* Tickers as chips over the chart: a phone's way to switch. */
+.invest-strip { display: none; }
+.invest-chip { display: inline-flex; align-items: baseline; gap: var(--space-6); flex: none; min-height: 36px; padding: var(--space-6) var(--space-12); border: 1px solid var(--border); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-dim); font: inherit; font-size: var(--fs-sm); cursor: pointer; box-sizing: border-box; }
+.invest-chip b { color: var(--text); }
+.invest-chip span { font-size: var(--fs-xs); }
+.invest-chip.on { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.invest-chip-add { align-items: center; padding: var(--space-6) var(--space-10); }
+.invest-chip-add .ico { width: 16px; height: 16px; }
 @media (max-width: 720px) {
-  .invest { grid-template-columns: 1fr; gap: var(--space-16); }
-  .invest-chart { height: 220px; }
+  .invest { grid-template-columns: 1fr; gap: var(--space-12); }
+  .invest-chart { height: 260px; margin-top: var(--space-24); }
+  .invest-strip { display: flex; gap: var(--space-8); overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--space-16)); padding: 0 var(--space-16); }
+  .invest-strip::-webkit-scrollbar { display: none; }
+  .invest-hold-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #rangeFilterGroup > label { display: none; }
+  #rangeFilter { flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; }
 }
-html.force-mobile .invest { grid-template-columns: 1fr; gap: var(--space-16); }
-html.force-mobile .invest-chart { height: 220px; }
+html.force-mobile .invest { grid-template-columns: 1fr; gap: var(--space-12); }
+html.force-mobile .invest-chart { height: 260px; margin-top: var(--space-24); }
+html.force-mobile .invest-strip { display: flex; gap: var(--space-8); overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--space-16)); padding: 0 var(--space-16); }
+html.force-mobile .invest-hold-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+html.force-mobile #rangeFilterGroup > label { display: none; }
+html.force-mobile #rangeFilter { flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; }

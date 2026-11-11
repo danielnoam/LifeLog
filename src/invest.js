@@ -1,6 +1,7 @@
 // LifeLog — the Ledger's Investments mode: a watchlist of US stocks and ETFs,
-// each with a price chart, an optional target price and note, and date pins
-// to see how the price moved between them. Prices are in dollars only.
+// each with a price chart, an optional target price and note, date pins to
+// see how the price moved between them, and the buys and sells you made, for
+// what you hold and how it's doing. Prices are in dollars only.
 //
 // The watchlist and its pins live in investments.json beside lifelog.json
 // (Storage.invest), for the same reason travel.json does: a build older than
@@ -16,14 +17,15 @@
 (function () {
   const Dates = () => window.LifeLogDates || require("./dates.js");
   const ico = (n) => window.LifeLogIcons.svg(n);
-  let state, $, el, uid, toast, emptyState, render, Storage, updateFilterbarVisibility, openSettings;
+  let state, $, el, uid, toast, emptyState, render, Storage, updateFilterbarVisibility, openSettings, openInvest;
 
   function init(ctx) {
-    ({ state, $, el, uid, toast, emptyState, render, Storage, updateFilterbarVisibility, openSettings } = ctx);
+    ({ state, $, el, uid, toast, emptyState, render, Storage, updateFilterbarVisibility, openSettings, openInvest } = ctx);
   }
 
   // ---------- pure: cleaning and price maths (test/invest.test.js) ----------
-  const KNOWN_WATCH_KEYS = new Set(["id", "symbol", "name", "target", "note", "createdAt", "updatedAt"]);
+  const KNOWN_WATCH_KEYS = new Set(["id", "symbol", "name", "target", "note", "buys", "createdAt", "updatedAt"]);
+  const KNOWN_BUY_KEYS = new Set(["id", "date", "units", "price", "sell", "note", "createdAt", "updatedAt"]);
   const KNOWN_PIN_KEYS = new Set(["id", "watch", "date", "label", "createdAt", "updatedAt"]);
   // Fields this build doesn't know are carried through, so a newer build's
   // additions survive an older one saving (the same rule as app.js's).
@@ -59,7 +61,74 @@
     if (target) out.target = target;
     const note = text(w.note);
     if (note) out.note = note.slice(0, 500);
+    // Buys ride on the ticker rather than in a list of their own: 0.310.0
+    // keeps a ticker's unknown fields but drops an unknown list, so this is
+    // the shape an older build saving the file can't lose.
+    const buys = (Array.isArray(w.buys) ? w.buys : []).map(sanitizeBuy).filter(Boolean);
+    if (buys.length) out.buys = sortBuys(buys);
     return keepUnknown(w, out, KNOWN_WATCH_KEYS);
+  }
+  // A buy (or, with sell, a sale): the day, how many shares and the price
+  // paid for each. Fractions of a share are fine; Blink sells them.
+  function cleanUnits(v) {
+    const n = typeof v === "number" ? v : parseFloat(String(v == null ? "" : v).replace(/[,\s]/g, ""));
+    return isFinite(n) && n > 0 ? Math.round(n * 1e6) / 1e6 : null;
+  }
+  function sanitizeBuy(b) {
+    b = b || {};
+    const units = cleanUnits(b.units), price = cleanPrice(b.price);
+    if (!isDay(b.date) || !units || !price) return null;
+    const out = {
+      id: b.id || newId(),
+      date: b.date, units, price,
+      createdAt: b.createdAt || null,
+      updatedAt: b.updatedAt || b.createdAt || "1970-01-01T00:00:00.000Z",
+    };
+    if (b.sell) out.sell = true;
+    const note = text(b.note);
+    if (note) out.note = note.slice(0, 200);
+    return keepUnknown(b, out, KNOWN_BUY_KEYS);
+  }
+  const sortBuys = (list) => [...list].sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt).localeCompare(String(b.createdAt)));
+  // What the buys add up to, at average cost: a sale takes shares out at the
+  // average paid so far, and what it made over that is realized. `last` is
+  // the latest close, for the value and the gain on what's still held.
+  function holdingOf(buys, last) {
+    let units = 0, cost = 0, realized = 0, bought = 0;
+    for (const b of sortBuys(buys || [])) {
+      if (b.sell) {
+        const take = Math.min(b.units, units);
+        if (!take) continue;
+        const avg = cost / units;
+        realized += take * (b.price - avg);
+        cost -= take * avg;
+        units -= take;
+        if (units < 1e-9) { units = 0; cost = 0; }
+      } else {
+        units += b.units;
+        cost += b.units * b.price;
+        bought += b.units * b.price;
+      }
+    }
+    const value = last != null && units ? units * last : null;
+    return {
+      units: Math.round(units * 1e6) / 1e6,
+      cost, avg: units ? cost / units : null, bought, realized,
+      value,
+      gain: value != null ? value - cost : null,
+      gainPct: value != null && cost ? value / cost - 1 : null,
+    };
+  }
+  function unitsText(n) {
+    const s = (Math.round(n * 1e4) / 1e4).toLocaleString("en-US", { maximumFractionDigits: 4 });
+    return s + (n === 1 ? " share" : " shares");
+  }
+  // Two points on a ticker's line, either way round: the change from the
+  // earlier to the later, in % and dollars, and how long between.
+  function compareDays(points, a, b) {
+    const [from, to] = a <= b ? [a, b] : [b, a];
+    const p1 = priceOn(points, from), p2 = priceOn(points, to);
+    return { from, to, fromPrice: p1, toPrice: p2, change: changeOf(p1, p2), diff: p1 != null && p2 != null ? p2 - p1 : null, days: daysBetween(from, to) };
   }
   function sanitizePin(p) {
     p = p || {};
@@ -90,6 +159,11 @@
       const drop = keep === w ? first : w;
       if (keep === w) { watchlist[watchlist.indexOf(first)] = w; seen.set(w.symbol, w); }
       for (const k of ["name", "target", "note"]) if (keep[k] == null && drop[k] != null) keep[k] = drop[k];
+      if (drop.buys) {
+        const ids = new Set((keep.buys || []).map((b) => b.id));
+        const more = drop.buys.filter((b) => !ids.has(b.id));
+        if (more.length) keep.buys = sortBuys([...(keep.buys || []), ...more]);
+      }
       moved.set(drop.id, keep.id);
     }
     const ids = new Set(watchlist.map((w) => w.id));
@@ -175,7 +249,8 @@
     const digits = Math.abs(v) < 1 ? 4 : 2;
     return (v < 0 ? "−" : "") + "$" + Math.abs(v).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: digits });
   }
-  const signedUsd = (v) => (v == null ? "" : (v >= 0 ? "+" : "") + usd(v));
+  // A difference, to the cent.
+  const signedUsd = (v) => (v == null ? "" : (v >= 0 ? "+" : "") + usd(Math.round(v * 100) / 100));
 
   // Tiingo's daily rows → [[day, close]]. The adjusted close, so a split
   // doesn't draw as a crash and a dividend counts as part of the return.
@@ -220,6 +295,7 @@
       d = sanitizeDoc(d);
       doc = doc && changedSince ? sanitizeDoc(mergeDocs(lastSent, doc, d)) : d;
       loadError = null; loadedAt = Date.now();
+      noteTargets();
       if (dirty) scheduleSave(0);
       return doc;
     }).catch((e) => { loadError = e; if (!doc) doc = { watchlist: [], pins: [] }; return doc; })
@@ -228,6 +304,7 @@
   }
   function changed(item) {
     if (item) item.updatedAt = new Date().toISOString();
+    noteTargets();
     changedSince++;
     scheduleSave(800);
   }
@@ -340,6 +417,8 @@
         }
         lastProblem.delete(symbol);
         savePrices();
+        const w = watchlist().find((x) => x.symbol === symbol);
+        if (w) checkTarget(w);
         return true;
       } catch (e) {
         lastProblem.set(symbol, (e && e.name === "TimeoutError") ? "Tiingo didn't answer — try again in a bit" : (e && e.message) || "Couldn't reach Tiingo");
@@ -422,13 +501,45 @@
       return;
     }
     const w = selected();
+    if (!compare || compare.watch !== w.id) compare = null;
     const wrap = el("div", "invest");
     const block = blocker();
     if (block) wrap.appendChild(setupCard(block));
+    wrap.appendChild(tickerStrip(w));
     wrap.appendChild(chartCard(w));
     wrap.appendChild(listCard(w));
     c.appendChild(wrap);
     if (prices) refreshAll();
+  }
+
+  // On a phone the Watching list sits under the chart and the pins, so the
+  // tickers also run as a row of chips over the chart (hidden on a computer).
+  function tickerStrip(current) {
+    const row = el("div", "invest-strip no-swipe");
+    row.setAttribute("role", "group");
+    row.setAttribute("aria-label", "Tickers");
+    const range = uiState().range;
+    for (const w of watchlist()) {
+      const all = pointsOf(w.symbol);
+      const pts = sliceRange(all, range);
+      const ch = pts.length > 1 ? changeOf(pts[0][1], all[all.length - 1][1]) : null;
+      const chip = el("button", "invest-chip" + (w === current ? " on" : ""));
+      chip.type = "button";
+      chip.setAttribute("aria-pressed", String(w === current));
+      chip.appendChild(el("b", null, w.symbol));
+      if (ch != null) chip.appendChild(el("span", ch >= 0 ? "invest-up" : "invest-down", pct(ch)));
+      chip.onclick = () => { setUi({ selected: w.id }); render({ keepSnapshots: true }); };
+      row.appendChild(chip);
+    }
+    const add = el("button", "invest-chip invest-chip-add");
+    add.type = "button";
+    add.setAttribute("aria-label", "Add a ticker");
+    add.appendChild(ico("plus"));
+    add.onclick = () => openWatchModal(null);
+    row.appendChild(add);
+    // The picked chip in view, for a list wider than the phone.
+    requestAnimationFrame(() => { const on = row.querySelector(".on"); if (on && row.scrollWidth > row.clientWidth) row.scrollLeft = on.offsetLeft - 16; });
+    return row;
   }
 
   function setupCard(block) {
@@ -489,12 +600,13 @@
     }
 
     const problem = lastProblem.get(w.symbol);
-    if (pts.length > 1) card.appendChild(chart(w, pts, all));
+    if (pts.length > 1) card.appendChild(chart(w, pts, all, last));
     else {
       const msg = blocker() ? "No prices yet." : problem ? problem : fetching.has(w.symbol) || !prices ? "Getting prices…" : "No prices for this range.";
       card.appendChild(el("div", "invest-chart-empty", msg));
     }
     if (problem && pts.length > 1) card.appendChild(el("p", "invest-problem", problem + ". Showing the prices kept on this device."));
+    card.appendChild(holdingBlock(w, all, last));
     card.appendChild(pinsBlock(w, all));
     return card;
   }
@@ -505,7 +617,8 @@
   // The chart: a line of closes over the range, a dashed line at the target
   // when it's near enough to share the scale, and the pins as numbered flags.
   // Hovering (or dragging a finger) shows a day's close; a click or tap holds
-  // it, with a button to pin that day.
+  // it, with buttons to pin that day or log a buy on it, and the next drag
+  // reads the move from the held day.
   const SVGNS = "http://www.w3.org/2000/svg";
   let chartObserver = null;
   function svgEl(tag, attrs, cls) {
@@ -520,16 +633,22 @@
     for (const m of [1, 2, 2.5, 5, 10]) if (raw <= m * mag) return m * mag;
     return 10 * mag;
   }
-  function chart(w, pts, all) {
+  function chart(w, pts, all, lastPt) {
     // A sideways drag here scrubs the days, so it mustn't also switch Ledger mode.
+    const outer = el("div", "invest-chart-wrap");
     const box = el("div", "invest-chart no-swipe");
+    outer.appendChild(box);
     const W = 1000, H = 300;
+    const hold = holdingOf(w.buys, lastPt ? lastPt[1] : null);
     let lo = Math.min(...pts.map((p) => p[1])), hi = Math.max(...pts.map((p) => p[1]));
-    // A target close to the range joins the scale; one far off would flatten
-    // the line to fit it, so it's left to the chip above.
+    // A target (or your average cost) close to the range joins the scale; one
+    // far off would flatten the line to fit it, so it's left to the chip above.
     const span0 = hi - lo || hi * 0.02 || 1;
-    const showTarget = w.target && w.target > lo - span0 * 0.35 && w.target < hi + span0 * 0.35;
+    const near = (v) => v && v > lo - span0 * 0.35 && v < hi + span0 * 0.35;
+    const showTarget = near(w.target);
+    const showAvg = hold.units > 0 && near(hold.avg);
     if (showTarget) { lo = Math.min(lo, w.target); hi = Math.max(hi, w.target); }
+    if (showAvg) { lo = Math.min(lo, hold.avg); hi = Math.max(hi, hold.avg); }
     const step = niceStep(hi - lo || hi * 0.02 || 1);
     lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
     if (hi === lo) hi = lo + step;
@@ -551,15 +670,20 @@
     const indexOfDay = (day) => { let i = pts.findIndex((p) => p[0] >= day); if (i < 0) i = n - 1; else if (pts[i][0] > day && i > 0) i--; return i; };
     for (const p of pins) { const xi = x(indexOfDay(p.date)); svg.appendChild(svgEl("line", { x1: xi, x2: xi, y1: 0, y2: H }, "invest-pinline")); }
     if (showTarget) svg.appendChild(svgEl("line", { x1: 0, x2: W, y1: y(w.target), y2: y(w.target) }, "invest-targetline"));
+    if (showAvg) svg.appendChild(svgEl("line", { x1: 0, x2: W, y1: y(hold.avg), y2: y(hold.avg) }, "invest-avgline"));
     svg.appendChild(svgEl("path", { d }, "invest-line " + (up ? "up" : "down")));
+    const anchorLine = svgEl("line", { x1: 0, x2: 0, y1: 0, y2: H }, "invest-anchor");
+    anchorLine.style.display = "none";
+    svg.appendChild(anchorLine);
     const cross = svgEl("line", { x1: 0, x2: 0, y1: 0, y2: H }, "invest-cross");
     cross.style.display = "none";
     svg.appendChild(cross);
     box.appendChild(svg);
+    const buys = (w.buys || []).filter((b) => b.date >= pts[0][0] && b.date <= pts[n - 1][0]);
 
     // Labels in pixels, placed once the box has a size.
     const place = () => {
-      for (const n2 of box.querySelectorAll(".invest-yl, .invest-xl, .invest-flag, .invest-pindot, .invest-tlabel")) n2.remove();
+      for (const n2 of box.querySelectorAll(".invest-yl, .invest-xl, .invest-flag, .invest-pindot, .invest-tlabel, .invest-buymark")) n2.remove();
       const cw = svg.clientWidth, ch = svg.clientHeight;
       if (!cw || !ch) return;
       for (const v of ticks) {
@@ -583,9 +707,25 @@
         dot.style.left = px + "px"; dot.style.top = (y(pts[i][1]) / H * ch) + "px";
         box.appendChild(dot);
       }
+      // Buys as small marks under the line, sells over it.
+      for (const b of buys) {
+        const i = indexOfDay(b.date);
+        const m = el("span", "invest-buymark" + (b.sell ? " is-sell" : ""));
+        m.style.left = (i / (n - 1) * cw) + "px";
+        m.style.top = (y(pts[i][1]) / H * ch) + "px";
+        m.title = (b.sell ? "Sold " : "Bought ") + unitsText(b.units) + " at " + usd(b.price) + " · " + Dates().day(b.date);
+        box.appendChild(m);
+      }
       if (showTarget) {
         const t = el("span", "invest-tlabel", "Target " + usd(w.target));
         t.style.top = (y(w.target) / H * ch) + "px";
+        box.appendChild(t);
+      }
+      if (showAvg) {
+        const t = el("span", "invest-tlabel is-avg", "Your average " + usd(hold.avg));
+        t.style.top = (y(hold.avg) / H * ch) + "px";
+        // Off to the right when it would sit on the target's label.
+        if (showTarget && Math.abs(y(hold.avg) - y(w.target)) / H * ch < 22) t.classList.add("is-right");
         box.appendChild(t);
       }
     };
@@ -594,53 +734,98 @@
     if (chartObserver) chartObserver.disconnect();
     if (window.ResizeObserver) { let last = 0; chartObserver = new ResizeObserver(() => { const wdt = svg.clientWidth; if (wdt !== last) { last = wdt; place(); } }); chartObserver.observe(svg); }
 
-    // The day under the pointer.
+    // The day under the pointer, measured from the start of the range, or
+    // from the held day once one is held (a tap or a click holds it; a drag
+    // then reads the move between the two).
     const tip = el("div", "invest-tip");
     tip.hidden = true;
     const dot = el("span", "invest-dot");
     dot.hidden = true;
+    const anchorDot = el("span", "invest-dot is-anchor");
+    anchorDot.hidden = true;
+    box.appendChild(anchorDot);
     box.appendChild(dot);
     box.appendChild(tip);
-    let held = false;
-    const show = (clientX, hold) => {
+    const bar = el("div", "invest-held");
+    bar.hidden = true;
+    outer.appendChild(bar);
+    let held = null;
+    const indexAt = (clientX, r) => Math.max(0, Math.min(n - 1, Math.round(((clientX - r.left) / r.width) * (n - 1))));
+    const show = (clientX) => {
       const r = svg.getBoundingClientRect();
       if (!r.width) return;
-      const i = Math.max(0, Math.min(n - 1, Math.round(((clientX - r.left) / r.width) * (n - 1))));
+      const i = indexAt(clientX, r);
       const [day, close] = pts[i];
       const px = i / (n - 1) * r.width, py = y(close) / H * r.height;
       cross.setAttribute("x1", x(i)); cross.setAttribute("x2", x(i)); cross.style.display = "";
       dot.hidden = false; dot.style.left = px + "px"; dot.style.top = py + "px";
       tip.innerHTML = "";
       tip.appendChild(el("b", null, usd(close)));
-      tip.appendChild(el("span", null, Dates().day(day, { weekday: true }) + " · " + pct(changeOf(pts[0][1], close)) + " from " + Dates().day(pts[0][0], { year: "auto" })));
-      if (hold) {
-        const pinBtn = el("button", "btn invest-pin-btn");
-        pinBtn.type = "button";
-        pinBtn.appendChild(ico("pin"));
-        pinBtn.appendChild(document.createTextNode("Pin this day"));
-        pinBtn.onclick = (ev) => { ev.stopPropagation(); openPinModal(null, w, day); };
-        tip.appendChild(pinBtn);
+      tip.appendChild(el("span", null, Dates().day(day, { weekday: true })));
+      if (held != null && held !== i) {
+        const c = compareDays(pts, pts[held][0], day);
+        const line = el("span", "invest-tip-cmp");
+        line.appendChild(el("span", c.change >= 0 ? "invest-up" : "invest-down", pct(c.change)));
+        line.appendChild(document.createTextNode(" " + signedUsd(c.diff) + " over " + spanLabel(c.days) + (day < pts[held][0] ? " to " : " from ") + Dates().day(pts[held][0], { year: "auto" })));
+        tip.appendChild(line);
+      } else if (held == null) {
+        tip.appendChild(el("span", null, pct(changeOf(pts[0][1], close)) + " from " + Dates().day(pts[0][0], { year: "auto" })));
       }
       tip.hidden = false;
-      tip.classList.toggle("is-held", !!hold);
       const half = Math.min(130, r.width / 2);
       tip.style.left = Math.min(Math.max(px, half), r.width - half) + "px";
       tip.style.top = py + "px";
       tip.classList.toggle("below", py < 90);
     };
-    const hide = () => { if (held) return; tip.hidden = true; dot.hidden = true; cross.style.display = "none"; };
-    svg.addEventListener("pointermove", (e) => { if (!held) show(e.clientX, false); });
+    const hide = () => { tip.hidden = true; dot.hidden = true; cross.style.display = "none"; };
+    const release = () => {
+      held = null; bar.hidden = true; anchorDot.hidden = true; anchorLine.style.display = "none";
+    };
+    const holdAt = (clientX) => {
+      const r = svg.getBoundingClientRect();
+      if (!r.width) return;
+      held = indexAt(clientX, r);
+      const [day, close] = pts[held];
+      anchorLine.setAttribute("x1", x(held)); anchorLine.setAttribute("x2", x(held)); anchorLine.style.display = "";
+      anchorDot.hidden = false;
+      anchorDot.style.left = (held / (n - 1) * r.width) + "px";
+      anchorDot.style.top = (y(close) / H * r.height) + "px";
+      bar.innerHTML = "";
+      const t = el("span", "invest-held-t");
+      t.appendChild(el("b", null, usd(close)));
+      t.appendChild(el("span", null, Dates().day(day, { weekday: true, year: "auto" }) + " · " + pct(changeOf(close, pts[n - 1][1])) + " to the latest close"));
+      bar.appendChild(t);
+      const pinBtn = el("button", "btn btn-sm invest-pin-btn");
+      pinBtn.type = "button";
+      pinBtn.appendChild(ico("pin"));
+      pinBtn.appendChild(document.createTextNode("Pin this day"));
+      pinBtn.onclick = (ev) => { ev.stopPropagation(); openPinModal(null, w, day); };
+      bar.appendChild(pinBtn);
+      const buyBtn = el("button", "btn btn-sm invest-buy-here");
+      buyBtn.type = "button";
+      buyBtn.appendChild(document.createTextNode("+ Buy on this day"));
+      buyBtn.onclick = (ev) => { ev.stopPropagation(); openBuyModal(null, w, day); };
+      bar.appendChild(buyBtn);
+      const x2 = el("button", "btn btn-icon btn-sm invest-held-x");
+      x2.type = "button";
+      x2.setAttribute("aria-label", "Let the day go");
+      x2.appendChild(ico("x"));
+      x2.onclick = (ev) => { ev.stopPropagation(); release(); };
+      bar.appendChild(x2);
+      bar.hidden = false;
+    };
+    svg.addEventListener("pointermove", (e) => show(e.clientX));
     svg.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") hide(); });
-    // A finger lifted after scrubbing lets the day go; a tap still holds it (click comes after).
+    // A finger lifted after scrubbing lets the readout go; the held day stays.
     svg.addEventListener("pointerup", (e) => { if (e.pointerType !== "mouse") hide(); });
     svg.addEventListener("pointercancel", (e) => { if (e.pointerType !== "mouse") hide(); });
-    svg.addEventListener("click", (e) => { held = true; show(e.clientX, true); });
+    svg.addEventListener("click", (e) => { holdAt(e.clientX); if (e.pointerType === "mouse" || !e.pointerType) show(e.clientX); });
     document.addEventListener("pointerdown", function off(e) {
-      if (!box.isConnected) { document.removeEventListener("pointerdown", off); return; }
-      if (held && !tip.contains(e.target) && e.target !== svg && !svg.contains(e.target)) { held = false; hide(); }
+      if (!outer.isConnected) { document.removeEventListener("pointerdown", off); return; }
+      if (held != null && !outer.contains(e.target) && !e.target.closest(".modal-overlay")) release();
     });
     svg.style.touchAction = "pan-y";
-    return box;
+    return outer;
   }
   // Month names (or years, on a long range) spaced so they don't collide.
   function axisLabels(pts, width) {
@@ -660,17 +845,83 @@
     return out.filter((_, k) => k % every === 0).filter((a) => a.i / (n - 1) < 0.96);
   }
 
+  // What you hold of a ticker: from the buys and sells you've logged, at
+  // average cost. Typed in by hand (Blink has no export), so it stays small:
+  // the four numbers, then the buys, each opening to edit.
+  function holdingBlock(w, all, last) {
+    const block = el("div", "invest-hold");
+    const h = el("h3");
+    h.appendChild(ico("coins"));
+    h.appendChild(document.createTextNode("Holding"));
+    const add = el("button", "btn invest-addbuy", "+ Add a buy");
+    add.type = "button";
+    add.onclick = () => openBuyModal(null, w, last ? last[0] : todayStr());
+    h.appendChild(add);
+    block.appendChild(h);
+    const buys = w.buys || [];
+    if (!buys.length) {
+      block.appendChild(el("p", "invest-pins-empty", "Log what you bought (and sold) to see what you hold, what it cost and how it's doing."));
+      return block;
+    }
+    const hd = holdingOf(buys, last ? last[1] : null);
+    const stats = el("div", "invest-hold-stats");
+    const stat = (label, value, cls) => {
+      const s2 = el("div", "invest-stat");
+      s2.appendChild(el("span", null, label));
+      s2.appendChild(el("b", cls || null, value));
+      stats.appendChild(s2);
+    };
+    stat("Shares", hd.units ? (Math.round(hd.units * 1e4) / 1e4).toLocaleString("en-US", { maximumFractionDigits: 4 }) : "0");
+    stat("Average cost", hd.avg != null ? usd(hd.avg) : "—");
+    stat("Value", hd.value != null ? usd(hd.value) : hd.units ? "—" : usd(0));
+    stat("Gain", hd.gain != null ? signedUsd(hd.gain) + (hd.gainPct != null ? " (" + pct(hd.gainPct) + ")" : "") : "—",
+      hd.gain == null ? "" : hd.gain >= 0 ? "invest-up" : "invest-down");
+    block.appendChild(stats);
+    if (Math.abs(hd.realized) >= 0.005) {
+      block.appendChild(el("p", "invest-hold-note", "Sales so far made " + signedUsd(hd.realized) + " over what those shares cost."));
+    }
+    const list = el("div", "invest-buys");
+    for (const b of [...sortBuys(buys)].reverse()) {
+      const row = el("button", "invest-buy" + (b.sell ? " is-sell" : ""));
+      row.type = "button";
+      row.appendChild(el("span", "invest-buy-k", b.sell ? "Sell" : "Buy"));
+      const l = el("span", "invest-pin-l");
+      l.appendChild(el("b", null, unitsText(b.units) + " at " + usd(b.price)));
+      l.appendChild(el("span", null, Dates().day(b.date) + (b.note ? " · " + b.note : "")));
+      row.appendChild(l);
+      row.appendChild(el("span", "invest-pin-v", usd(b.units * b.price)));
+      row.setAttribute("aria-label", "Edit " + (b.sell ? "sale" : "buy") + " on " + Dates().day(b.date));
+      row.onclick = () => openBuyModal(b, w);
+      list.appendChild(row);
+    }
+    block.appendChild(list);
+    return block;
+  }
+
+  // Any two pins (or a pin and the latest close) compared: Compare turns
+  // the rows into picks, and the change between the two shows under them.
+  let compare = null;
   function pinsBlock(w, all) {
     const block = el("div", "invest-pins");
     const h = el("h3");
     h.appendChild(ico("pin"));
     h.appendChild(document.createTextNode("Pins"));
-    const add = el("button", "btn", "+ Pin a date");
+    const pins = pinsOf(w.id);
+    const comparing = compare && compare.watch === w.id;
+    if (pins.length >= 2 || (pins.length === 1 && all.length)) {
+      const cmp = el("button", "btn invest-compare-btn" + (comparing ? " on" : ""));
+      cmp.type = "button";
+      cmp.setAttribute("aria-pressed", String(!!comparing));
+      cmp.appendChild(ico(comparing ? "check" : "arrow-left-right"));
+      cmp.appendChild(document.createTextNode(comparing ? "Done" : "Compare"));
+      cmp.onclick = () => { compare = comparing ? null : { watch: w.id, picked: [] }; render({ keepSnapshots: true }); };
+      h.appendChild(cmp);
+    }
+    const add = el("button", "btn invest-addpin", "+ Pin a date");
     add.type = "button";
     add.onclick = () => openPinModal(null, w, all.length ? all[all.length - 1][0] : todayStr());
     h.appendChild(add);
     block.appendChild(h);
-    const pins = pinsOf(w.id);
     if (!pins.length) {
       block.appendChild(el("p", "invest-pins-empty", "Pin a day to compare the price then and now — when you bought, a dip, a piece of news. Tap the chart to pin the day under your finger."));
       return block;
@@ -684,9 +935,41 @@
       } else row.appendChild(el("span", null, "No price for one of these days"));
       return row;
     };
+    const pickKey = (st) => (st === "now" ? "now" : st.pin.id);
+    const isPicked = (key) => comparing && compare.picked.includes(key);
+    const pick = (key) => {
+      const p = compare.picked;
+      if (p.includes(key)) p.splice(p.indexOf(key), 1);
+      else { p.push(key); if (p.length > 2) p.shift(); }
+      render({ keepSnapshots: true });
+    };
+    if (comparing) {
+      const picked = compare.picked;
+      const dayOf = (key) => (key === "now" ? (s.now && s.now.day) : (pins.find((p) => p.id === key) || {}).date);
+      const nameOf = (key) => {
+        if (key === "now") return "the latest close";
+        const k = s.steps.findIndex((st) => st.pin.id === key);
+        return k < 0 ? "" : (s.steps[k].pin.label || "Pin " + (k + 1));
+      };
+      const box = el("div", "invest-compare");
+      if (picked.length < 2) box.appendChild(el("span", null, picked.length ? "Now pick a second one." : "Pick two pins, or a pin and the latest close."));
+      else {
+        const [a, b] = [...picked].sort((x, y) => String(dayOf(x)).localeCompare(String(dayOf(y))));
+        const c = compareDays(all, dayOf(a), dayOf(b));
+        const head = el("span", "invest-compare-h", nameOf(a) + " → " + nameOf(b));
+        box.appendChild(head);
+        const line = el("span", "invest-compare-v");
+        if (c.change != null) {
+          line.appendChild(el("b", c.change >= 0 ? "invest-up" : "invest-down", pct(c.change)));
+          line.appendChild(document.createTextNode(" " + signedUsd(c.diff) + " a share over " + spanLabel(c.days)));
+        } else line.appendChild(document.createTextNode("No price for one of these days"));
+        box.appendChild(line);
+      }
+      block.appendChild(box);
+    }
     s.steps.forEach((st, k) => {
       if (k) { const prev = s.steps[k - 1]; block.appendChild(gap(st.change, prev.price, st.price, st.days)); }
-      const row = el("button", "invest-pin");
+      const row = el("button", "invest-pin" + (isPicked(pickKey(st)) ? " is-picked" : ""));
       row.type = "button";
       row.appendChild(el("span", "invest-pin-n", String(k + 1)));
       const l = el("span", "invest-pin-l");
@@ -694,14 +977,25 @@
       l.appendChild(el("span", null, Dates().day(st.pin.date)));
       row.appendChild(l);
       row.appendChild(el("span", "invest-pin-v", st.price != null ? usd(st.price) : "—"));
-      row.setAttribute("aria-label", "Edit pin " + (k + 1));
-      row.onclick = () => openPinModal(st.pin, w);
+      if (comparing) {
+        row.setAttribute("aria-pressed", String(isPicked(pickKey(st))));
+        row.setAttribute("aria-label", "Compare pin " + (k + 1));
+        row.onclick = () => pick(pickKey(st));
+      } else {
+        row.setAttribute("aria-label", "Edit pin " + (k + 1));
+        row.onclick = () => openPinModal(st.pin, w);
+      }
       block.appendChild(row);
     });
     if (s.now) {
       const lastStep = s.steps[s.steps.length - 1];
       block.appendChild(gap(s.now.change, lastStep.price, s.now.price, s.now.days));
-      const row = el("div", "invest-pin is-now");
+      const row = el(comparing ? "button" : "div", "invest-pin is-now" + (isPicked("now") ? " is-picked" : ""));
+      if (comparing) {
+        row.type = "button";
+        row.setAttribute("aria-pressed", String(isPicked("now")));
+        row.onclick = () => pick("now");
+      }
       const n = el("span", "invest-pin-n is-now");
       n.appendChild(ico("clock"));
       row.appendChild(n);
@@ -744,6 +1038,19 @@
     h.appendChild(add);
     card.appendChild(h);
     const range = uiState().range;
+    // Everything you hold, together, when any ticker has buys.
+    const held = watchlist().map((w) => { const all = pointsOf(w.symbol); return holdingOf(w.buys, all.length ? all[all.length - 1][1] : null); })
+      .filter((x) => x.units > 0);
+    if (held.length) {
+      const value = held.reduce((t, x) => t + (x.value || 0), 0);
+      const cost = held.filter((x) => x.value != null).reduce((t, x) => t + x.cost, 0);
+      const gain = value - cost;
+      const sum = el("div", "invest-sum");
+      sum.appendChild(el("span", null, "You hold"));
+      sum.appendChild(el("b", null, usd(value)));
+      if (cost) sum.appendChild(el("span", gain >= 0 ? "invest-up" : "invest-down", signedUsd(gain) + " (" + pct(gain / cost) + ")"));
+      card.appendChild(sum);
+    }
     for (const w of watchlist()) {
       const all = pointsOf(w.symbol);
       const pts = sliceRange(all, range);
@@ -759,7 +1066,8 @@
         sym.appendChild(el("i", hit ? "is-hit" : "", (hit ? "At target " : "Target ") + usd(w.target)));
       }
       t.appendChild(sym);
-      t.appendChild(el("span", null, w.name || ""));
+      const hd = holdingOf(w.buys, last);
+      t.appendChild(el("span", null, hd.units > 0 ? unitsText(hd.units) + (hd.value != null ? " · " + usd(hd.value) : "") : (w.name || "")));
       row.appendChild(t);
       row.appendChild(sparkline(pts, ch == null || ch >= 0));
       const p = el("span", "invest-row-p");
@@ -836,6 +1144,7 @@
         for (const k of ["target", "note"]) if (next[k] == null) delete w[k];
         Object.assign(w, next);
         changed(w);
+        checkTarget(w);
       }
       closeWatchModal();
       render({ keepSnapshots: true });
@@ -933,6 +1242,132 @@
     toast("Pin removed", false, { label: "Undo", onClick: () => { doc.pins.push(p); changed(p); render({ keepSnapshots: true }); } });
   }
 
+  // ---------- the buy sheet ----------
+  let editingBuy = null, buyWatch = null, buyKind = "buy";
+  function setBuyKind(kind) {
+    buyKind = kind === "sell" ? "sell" : "buy";
+    for (const b of document.querySelectorAll("#investBuyForm .seg-btn")) {
+      const on = b.dataset.kind === buyKind;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-pressed", String(on));
+    }
+    $("#investBuyModalTitle").textContent = (editingBuy ? "Edit " : "Add a ") + (buyKind === "sell" ? "sale" : "buy");
+    buyTotal();
+  }
+  function buyTotal() {
+    const u = cleanUnits($("#investBuyUnits").value), p = cleanPrice($("#investBuyPrice").value);
+    $("#investBuyTotal").textContent = u && p ? (buyKind === "sell" ? "You got " : "You paid ") + usd(u * p) + " in all." : "The close on that day is filled in; change it to what you paid.";
+  }
+  function closeOn(day) {
+    const all = buyWatch ? pointsOf(buyWatch.symbol) : [];
+    const p = priceOn(all, day);
+    return p != null ? String(Math.round(p * 100) / 100) : "";
+  }
+  async function openBuyModal(buy, w, day) {
+    await ensureLoaded();
+    editingBuy = buy || null;
+    buyWatch = w || null;
+    if (!buyWatch) return;
+    $("#investBuyTicker").textContent = buyWatch.symbol + (buyWatch.name ? " · " + buyWatch.name : "");
+    $("#investBuyDate").value = buy ? buy.date : (day || todayStr());
+    $("#investBuyDate").max = todayStr();
+    $("#investBuyUnits").value = buy ? String(buy.units) : "";
+    $("#investBuyPrice").value = buy ? String(buy.price) : closeOn($("#investBuyDate").value);
+    $("#investBuyNote").value = (buy && buy.note) || "";
+    $("#deleteInvestBuyBtn").hidden = !buy;
+    setBuyKind(buy && buy.sell ? "sell" : "buy");
+    $("#investBuyModal").hidden = false;
+    setTimeout(() => $("#investBuyUnits").focus(), 0);
+  }
+  function closeBuyModal() { $("#investBuyModal").hidden = true; editingBuy = null; buyWatch = null; }
+  function saveBuyFromForm() {
+    const w = buyWatch && findWatch(buyWatch.id);
+    if (!w) { closeBuyModal(); return; }
+    const date = $("#investBuyDate").value;
+    if (!isDay(date)) { toast("Pick the day of the " + (buyKind === "sell" ? "sale" : "buy"), true); return; }
+    if (!cleanUnits($("#investBuyUnits").value)) { toast("Shares is a number above zero, like 2.5", true); return; }
+    if (!cleanPrice($("#investBuyPrice").value)) { toast("The price is a number above zero, like 550", true); return; }
+    const now = new Date().toISOString();
+    const fields = { date, units: $("#investBuyUnits").value, price: $("#investBuyPrice").value, sell: buyKind === "sell", note: $("#investBuyNote").value, updatedAt: now };
+    const list = (w.buys || []).slice();
+    if (buyKind === "sell") {
+      const others = list.filter((b) => !editingBuy || b.id !== editingBuy.id);
+      if (!(holdingOf(others.filter((b) => b.date <= date), null).units > 0)) { toast("Nothing held on that day to sell: log the buy first", true); return; }
+    }
+    if (editingBuy) {
+      const i = list.findIndex((b) => b.id === editingBuy.id);
+      const next = sanitizeBuy({ ...(i >= 0 ? list[i] : editingBuy), ...fields });
+      if (!next.sell) delete next.sell;
+      if (!next.note) delete next.note;
+      if (i >= 0) list[i] = next; else list.push(next);
+    } else {
+      list.push(sanitizeBuy({ id: newId(), ...fields, createdAt: now }));
+    }
+    w.buys = sortBuys(list);
+    changed(w);
+    closeBuyModal();
+    render({ keepSnapshots: true });
+  }
+  function deleteBuy() {
+    const w = buyWatch && findWatch(buyWatch.id);
+    if (!w || !editingBuy) return;
+    const gone = (w.buys || []).find((b) => b.id === editingBuy.id);
+    if (!gone) return;
+    w.buys = w.buys.filter((b) => b.id !== gone.id);
+    if (!w.buys.length) delete w.buys;
+    changed(w);
+    closeBuyModal();
+    render({ keepSnapshots: true });
+    toast((gone.sell ? "Sale" : "Buy") + " removed", false, {
+      label: "Undo",
+      onClick: () => { const x = findWatch(w.id); if (!x) return; x.buys = sortBuys([...(x.buys || []), gone]); changed(x); render({ keepSnapshots: true }); },
+    });
+  }
+
+  // ---------- target alerts ----------
+  // A ticker's latest close at or under its target is recorded once per dip
+  // (alerts.js): a toast here, and on a phone or the desktop app a
+  // notification. A close back over the target, or no target, clears it.
+  function checkTarget(w) {
+    const A = window.LifeLogAlerts;
+    if (!A || !A.targetHit) return;
+    const all = pointsOf(w.symbol);
+    const last = all.length ? all[all.length - 1][1] : null;
+    if (!w.target || last == null || last > w.target) { A.targetClear(w.id); return; }
+    if (!A.targetHit(w, last)) return;
+    toast(w.symbol + " closed at " + usd(last) + ", under your " + usd(w.target) + " target", false,
+      { label: "Show", onClick: () => { select(w.id); if (openInvest) openInvest(); } });
+  }
+  // At launch, on coming back to the app and in Android's background run:
+  // the tickers with a target, their prices asked for only when stale (six
+  // hours), so this costs Tiingo at most a few requests a day.
+  // Only on a device that has seen a target, so a launch doesn't ask GitHub
+  // for investments.json when nobody watches anything.
+  const TARGETS_FLAG = "lifelog-invest-targets";
+  function noteTargets() {
+    try {
+      if (watchlist().some((w) => w.target)) localStorage.setItem(TARGETS_FLAG, "1");
+      else localStorage.removeItem(TARGETS_FLAG);
+    } catch (e) { /* private window */ }
+  }
+  async function checkTargets() {
+    try { if (!localStorage.getItem(TARGETS_FLAG)) return; } catch (e) { return; }
+    try {
+      await ensureLoaded();
+      noteTargets();
+      await loadPrices();
+      for (const w of [...watchlist()]) {
+        if (!w.target) { if (window.LifeLogAlerts && window.LifeLogAlerts.targetClear) window.LifeLogAlerts.targetClear(w.id); continue; }
+        await refresh(w.symbol);
+        checkTarget(w);
+      }
+    } catch (e) { /* the next launch tries again */ }
+  }
+  function select(id) {
+    const w = findWatch(id) || watchlist().find((x) => x.symbol === id);
+    setUi({ selected: w ? w.id : id });
+  }
+
   async function addTicker() { await ensureLoaded(); openWatchModal(null); }
 
   function wire() {
@@ -943,15 +1378,24 @@
     $("#investPinForm").addEventListener("submit", (e) => { e.preventDefault(); savePinFromForm(); });
     $("#cancelInvestPinBtn").onclick = closePinModal;
     $("#deleteInvestPinBtn").onclick = () => { if (editingPin) deletePin(editingPin); };
+    $("#investBuyForm").addEventListener("submit", (e) => { e.preventDefault(); saveBuyFromForm(); });
+    $("#cancelInvestBuyBtn").onclick = closeBuyModal;
+    $("#deleteInvestBuyBtn").onclick = deleteBuy;
+    for (const b of document.querySelectorAll("#investBuyForm .seg-btn")) b.onclick = () => setBuyKind(b.dataset.kind);
+    $("#investBuyUnits").addEventListener("input", buyTotal);
+    $("#investBuyPrice").addEventListener("input", buyTotal);
+    $("#investBuyDate").addEventListener("change", () => { if (!editingBuy) { const p = closeOn($("#investBuyDate").value); if (p) $("#investBuyPrice").value = p; } buyTotal(); });
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && saveTimer) flush(); });
     window.addEventListener("pagehide", () => { if (saveTimer) flush(); });
   }
 
   const api = {
     init, wire, renderInvest, buildRangeFilter, ensureLoaded, flush, addTicker,
-    openWatchModal, closeWatchModal, openPinModal, closePinModal,
+    openWatchModal, closeWatchModal, openPinModal, closePinModal, openBuyModal, closeBuyModal,
+    checkTargets, select,
     // pure, for tests and the bridge
-    sanitizeWatch, sanitizePin, sanitizeDoc, cleanSymbol, cleanPrice,
+    sanitizeWatch, sanitizePin, sanitizeBuy, sanitizeDoc, cleanSymbol, cleanPrice, cleanUnits,
+    holdingOf, compareDays, unitsText, signedUsd,
     RANGES, rangeStart, sliceRange, priceOn, changeOf, pinSteps, spanLabel, pct, usd,
     parseTiingo, rewritesHistory, joinSeries, parseSearch,
   };

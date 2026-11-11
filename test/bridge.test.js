@@ -103,7 +103,8 @@ const test = (name, fn) => tests.push([name, fn]);
 
 test("every read tool answers, and none of them ever shows an API key", async () => {
   reset();
-  for (const t of B.TOOLS.filter((x) => x.readOnly)) {
+  // lifelog_compare_pins needs two pins' ids: the watchlist test runs it.
+  for (const t of B.TOOLS.filter((x) => x.readOnly && x.name !== "lifelog_compare_pins")) {
     const args = t.name === "lifelog_search" ? { query: "e" } : t.name === "lifelog_get" ? { collection: "notes", item: "no1" }
       : t.name === "lifelog_note_images" ? { note: "no1" } : t.name === "lifelog_board_images" ? { board: "bd1" }
       : t.name === "lifelog_google_list" ? { link: "https://www.google.com/maps/place/Pantheon/@41.8986,12.4769,17z" } : {};
@@ -699,9 +700,30 @@ test("the watchlist: tickers, targets and pins in investments.json, prices from 
       .map(([day, close]) => ({ date: day + "T00:00:00.000Z", close, adjClose: close }));
     return new Response(JSON.stringify(rows), { status: 200, headers: { "Content-Type": "application/json" } });
   };
+  let buyId;
   try {
     out = await ok("lifelog_watchlist", { ticker: "VOO" });
+    // Compare any two pins, or a pin and the latest close.
+    const [p1, p2] = invest().pins.map((p) => p.id);
+    assert.match(await ok("lifelog_compare_pins", { from: p2, to: p1 }), /VOO from "Opened Blink" \(2026-01-05\) at \$520\.00 to \(2026-06-01\) at \$572\.00: \+10\.0%, \+\$52\.00 a share, over 5 months/);
+    assert.match(await ok("lifelog_compare_pins", { from: p1, to: "now" }), /to the latest close \(2026-11-06\) at \$600\.00: \+15\.4%/);
+    await refused("lifelog_compare_pins", { from: "nope", to: "now" }, /No pin with the id/);
+    // A buy without a price takes that day's close; a sale needs something held.
+    await refused("lifelog_add_buy", { ticker: "VOO", date: "2026-01-04", units: 1, sell: true }, /Nothing of VOO held/);
+    assert.match(await ok("lifelog_add_buy", { ticker: "VOO", date: "2026-01-05", units: 10 }), /Bought 10 shares of VOO on 2026-01-05 at \$520\.00/);
+    await ok("lifelog_add_buy", { ticker: "VOO", date: "2026-06-01", units: 4, price: 580, sell: true, note: "Trimmed" });
+    out = await ok("lifelog_watchlist", { ticker: "VOO" });
+    assert.match(out, /holding: 6 shares, average cost \$520\.00, worth \$3,600\.00 \(\+\$480\.00, \+15\.4%\), sales made \+\$240\.00/);
+    assert.match(out, /sold 2026-06-01: 4 shares at \$580\.00 "Trimmed"/);
+    buyId = invest().watchlist[0].buys[1].id;
   } finally { global.fetch = realFetch; }
+  await refused("lifelog_add_buy", { ticker: "VOO", date: "2026-02-01", units: 1 }, /Give the price/);
+  await ok("lifelog_update_buy", { buy: buyId, units: 2, note: "" });
+  assert.deepStrictEqual([invest().watchlist[0].buys[1].units, "note" in invest().watchlist[0].buys[1]], [2, false]);
+  await ok("lifelog_delete_buy", { buy: buyId });
+  assert.strictEqual(invest().watchlist[0].buys.length, 1);
+  await ok("lifelog_undo", {});
+  assert.strictEqual(invest().watchlist[0].buys.length, 2, "undo brings the sale back");
   assert.match(asked[0][0], /^https:\/\/api\.tiingo\.com\/tiingo\/daily\/VOO\/prices\?startDate=/);
   assert.strictEqual(asked[0][1], "Token tk-9");
   assert.match(out, /\$600\.00 at the 2026-11-06 close/);

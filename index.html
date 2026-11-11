@@ -1140,6 +1140,40 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="investBuyModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="investBuyModalTitle">
+      <h2 id="investBuyModalTitle">Add a buy</h2>
+      <p class="muted" id="investBuyTicker"></p>
+      <form id="investBuyForm">
+        <div class="seg invest-buy-kind" role="group" aria-label="Buy or sell">
+          <button type="button" class="seg-btn" data-kind="buy" aria-pressed="true">Buy</button>
+          <button type="button" class="seg-btn" data-kind="sell" aria-pressed="false">Sell</button>
+        </div>
+        <label>Date
+          <input id="investBuyDate" type="date" required />
+        </label>
+        <div class="invest-buy-pair">
+          <label>Shares
+            <input id="investBuyUnits" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 2.5" />
+          </label>
+          <label>Price per share ($)
+            <input id="investBuyPrice" type="text" inputmode="decimal" autocomplete="off" />
+          </label>
+        </div>
+        <p class="hint" id="investBuyTotal"></p>
+        <label>Note
+          <input id="investBuyNote" type="text" autocomplete="off" placeholder="Optional, e.g. monthly autobuy" />
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="deleteInvestBuyBtn" hidden>Delete</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelInvestBuyBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="investBuySaveBtn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="importPlacesModal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="importPlacesTitle">
       <h2 id="importPlacesTitle">Import from Google Maps</h2>
@@ -2138,6 +2172,10 @@
           <label class="sitem toggle-label">
             <span class="sitem-text"><span class="sitem-title">Price drops</span><span class="sitem-sub">A Steam game at or under the price you set on it</span></span>
             <input type="checkbox" class="switch" id="notifyPrices" />
+          </label>
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">Investment targets</span><span class="sitem-sub">A ticker on your watchlist closing at or under its target</span></span>
+            <input type="checkbox" class="switch" id="notifyTargets" />
           </label>
           <button id="openNotifSettingsBtn" type="button" class="sitem sitem-go"><span data-ico="bell"></span> Android's notification settings for LifeLog</button>
         </div>

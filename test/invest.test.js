@@ -136,4 +136,61 @@ test("the merge keeps both devices' pins on one ticker, and a removal on one sid
   assert.deepStrictEqual(out.watchlist.map((w) => w.id), ["w1"], "QQQ removed on the other device stays removed");
 });
 
+test("a buy needs a real day, shares and a price above zero; fractions are fine", () => {
+  const w = I.sanitizeWatch({ symbol: "VOO", buys: [
+    { id: "b2", date: "2026-03-01", units: "0.5", price: "$600" },
+    { id: "b1", date: "2026-01-05", units: 2, price: 500, sell: false, note: " first " },
+    { id: "bad1", date: "2026-02-30", units: 1, price: 1 },
+    { id: "bad2", date: "2026-02-01", units: 0, price: 1 },
+    { id: "bad3", date: "2026-02-01", units: 1, price: -4 },
+  ] });
+  assert.deepStrictEqual(w.buys.map((b) => [b.id, b.units, b.price]), [["b1", 2, 500], ["b2", 0.5, 600]], "kept in date order");
+  assert.strictEqual(w.buys[0].note, "first");
+  assert.ok(!("sell" in w.buys[0]));
+  assert.ok(!("buys" in I.sanitizeWatch({ symbol: "VOO", buys: [] })));
+});
+
+test("a holding is at average cost: a sale takes shares out at the average and its profit is realized", () => {
+  const h = I.holdingOf([
+    { date: "2026-01-01", units: 10, price: 100 },
+    { date: "2026-02-01", units: 10, price: 200 },
+    { date: "2026-03-01", units: 5, price: 300, sell: true },
+  ], 250);
+  assert.strictEqual(h.units, 15);
+  assert.strictEqual(h.avg, 150);
+  assert.strictEqual(h.cost, 2250);
+  assert.strictEqual(h.realized, 750, "5 sold at 300 over an average of 150");
+  assert.strictEqual(h.value, 3750);
+  assert.strictEqual(h.gain, 1500);
+  assert.ok(Math.abs(h.gainPct - 2 / 3) < 1e-9);
+  const none = I.holdingOf([{ date: "2026-01-01", units: 1, price: 10, sell: true }], 20);
+  assert.deepStrictEqual([none.units, none.value, none.realized], [0, null, 0], "a sale with nothing held counts for nothing");
+  assert.strictEqual(I.holdingOf([{ date: "2026-01-01", units: 3, price: 10 }], null).value, null, "no close, no value");
+});
+
+test("two days compare either way round, from the close on or before each", () => {
+  const pts = series([["2026-01-02", 100], ["2026-01-05", 110], ["2026-02-02", 121]]);
+  const c = I.compareDays(pts, "2026-02-02", "2026-01-03");
+  assert.deepStrictEqual([c.from, c.to, c.fromPrice, c.toPrice, c.diff, c.days], ["2026-01-03", "2026-02-02", 100, 121, 21, 30]);
+  assert.ok(Math.abs(c.change - 0.21) < 1e-9);
+});
+
+test("the same ticker on two devices keeps both devices' buys", () => {
+  const doc = I.sanitizeDoc({ watchlist: [
+    { id: "a", symbol: "VOO", createdAt: T0, buys: [{ id: "b1", date: "2026-01-05", units: 1, price: 500 }] },
+    { id: "b", symbol: "VOO", createdAt: T1, buys: [{ id: "b2", date: "2026-02-05", units: 2, price: 520 }] },
+  ] });
+  assert.deepStrictEqual(doc.watchlist[0].buys.map((b) => b.id), ["b1", "b2"]);
+});
+
+test("the merge keeps a buy logged on each device on the same ticker, and a deletion on one", () => {
+  const b0 = { id: "b0", date: "2026-01-01", units: 1, price: 400, updatedAt: T0 };
+  const base = { watchlist: [{ id: "w1", symbol: "VOO", updatedAt: T0, buys: [b0] }], pins: [] };
+  const local = { watchlist: [{ id: "w1", symbol: "VOO", updatedAt: T1, buys: [b0, { id: "bl", date: "2026-03-01", units: 1, price: 500, updatedAt: T1 }] }], pins: [] };
+  const remote = { watchlist: [{ id: "w1", symbol: "VOO", target: 450, updatedAt: "2026-02-15T00:00:00.000Z", buys: [{ id: "br", date: "2026-02-01", units: 2, price: 450, updatedAt: T1 }] }], pins: [] };
+  const out = M.mergeInvest(base, local, remote);
+  assert.deepStrictEqual(out.watchlist[0].buys.map((b) => b.id), ["br", "bl"], "both new buys, in date order; b0 deleted on the remote");
+  assert.strictEqual(out.watchlist[0].target, 450, "the rest of the ticker is the newer side's");
+});
+
 console.log(`\n${passed} test(s) passed.`);
