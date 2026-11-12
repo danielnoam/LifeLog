@@ -1042,7 +1042,7 @@ const TOOLS = [
 
   {
     name: "lifelog_watchlist",
-    description: "The Ledger's Investments watchlist: each US stock or ETF followed, its target price and note, and its date pins. With prices (US dollars, adjusted for splits and dividends) when a Tiingo key is set in the app: the latest close, the change over the range, how far it is from its target, and the change between each pin and to now. Give ticker for one ticker in full.",
+    description: "The Ledger's Investments watchlist: each US stock or ETF followed, its target price and note, its date pins, and what you hold of it from the buys and sells logged (shares, average cost, value, gain). With prices (US dollars, adjusted for splits and dividends) when a Tiingo key is set in the app: the latest close, the change over the range, how far it is from its target, and the change between each pin and to now. Give ticker for one ticker in full.",
     readOnly: true,
     input: { ticker: S.str("One ticker's symbol or id"), range: S.str("The change measured over", { enum: ["1M", "3M", "6M", "YTD", "1Y", "5Y", "Max"] }) },
     async run(a) {
@@ -1074,6 +1074,16 @@ const TOOLS = [
             out.push(`  pin ${k + 1}: ${st.pin.date}${st.pin.label ? " \"" + st.pin.label + "\"" : ""}${st.price != null ? " at " + Invest.usd(st.price) : ""}${move}  (${st.pin.id})`);
           });
           if (steps.now && steps.now.change != null) out.push(`  now: ${Invest.pct(steps.now.change)} since the last pin over ${Invest.spanLabel(steps.now.days)}${steps.total != null ? ", " + Invest.pct(steps.total) + " since pin 1" : ""}`);
+        }
+        if (w.buys && w.buys.length) {
+          const h = Invest.holdingOf(w.buys, last ? last[1] : null);
+          const bits2 = [Invest.unitsText(h.units)];
+          if (h.avg != null) bits2.push("average cost " + Invest.usd(h.avg));
+          if (h.value != null) bits2.push("worth " + Invest.usd(h.value) + " (" + Invest.signedUsd(h.gain) + ", " + Invest.pct(h.gainPct) + ")");
+          if (Math.abs(h.realized) >= 0.005) bits2.push("sales made " + Invest.signedUsd(h.realized));
+          out.push(`  holding: ${bits2.join(", ")}`);
+          if (a.ticker) for (const b of w.buys) out.push(`  ${b.sell ? "sold" : "bought"} ${b.date}: ${Invest.unitsText(b.units)} at ${Invest.usd(b.price)}${b.note ? " \"" + cut(b.note, 80) + "\"" : ""}  (${b.id})`);
+          else out.push(`  ${w.buys.length} buy${w.buys.length === 1 ? "" : "s"}/sale${w.buys.length === 1 ? "" : "s"} logged (give ticker to list them)`);
         }
       }
       return out.join("\n");
@@ -2169,6 +2179,114 @@ const TOOLS = [
         if (!p) fail(`No pin with the id "${a.pin}" (lifelog_watchlist lists them).`);
         doc.pins = doc.pins.filter((x) => x.id !== p.id);
         return { text: `Deleted the pin on ${p.date}${p.label ? " \"" + p.label + "\"" : ""}.`, touched: [["pins", p.id]] };
+      }, { file: "invest" });
+    },
+  },
+  {
+    name: "lifelog_compare_pins",
+    description: "The change in a watched ticker's price between any two of its pins, or a pin and the latest close (the Pins → Compare in the app), in % and dollars a share, and how long between. Needs a Tiingo key in the app.",
+    readOnly: true,
+    input: { from: S.str("A pin's id"), to: S.str("Another pin's id, or \"now\" for the latest close") },
+    required: ["from", "to"],
+    async run(a) {
+      const doc = await readInvest();
+      const pinOf = (id) => { const p = doc.pins.find((x) => x.id === id); if (!p) fail(`No pin with the id "${id}" (lifelog_watchlist lists them).`); return p; };
+      const p1 = pinOf(a.from);
+      const p2 = String(a.to).trim().toLowerCase() === "now" ? null : pinOf(a.to);
+      if (p2 && p2.watch !== p1.watch) fail("Those pins are on different tickers.");
+      const w = doc.watchlist.find((x) => x.id === p1.watch);
+      const first = [p1.date, p2 ? p2.date : p1.date].sort()[0];
+      const closes = await closesOf(await readData(), w.symbol, Finance.localDateStr(new Date(Date.parse(first + "T12:00:00Z") - 10 * 864e5)));
+      if (closes === null) return "No prices: no Tiingo key in the app's Settings → Media lookups.";
+      if (typeof closes === "string") return "No prices: " + closes;
+      const last = closes.length ? closes[closes.length - 1][0] : null;
+      if (!p2 && !last) return "No closes yet for " + w.symbol + ".";
+      const c = Invest.compareDays(closes, p1.date, p2 ? p2.date : last);
+      const name = (p, day) => (p ? `${p.label ? "\"" + p.label + "\" " : ""}(${p.date})` : `the latest close (${day})`);
+      const [na, nb] = c.from === p1.date ? [name(p1), name(p2, last)] : [name(p2, last), name(p1)];
+      if (c.change == null) return `${w.symbol}: no price for one of these days.`;
+      return `${w.symbol} from ${na} at ${Invest.usd(c.fromPrice)} to ${nb} at ${Invest.usd(c.toPrice)}: ${Invest.pct(c.change)}, ${Invest.signedUsd(c.diff)} a share, over ${Invest.spanLabel(c.days)}.`;
+    },
+  },
+  {
+    name: "lifelog_add_buy",
+    description: "Log a buy (or, with sell: true, a sale) of a watched ticker: the day, the shares (fractions are fine) and the price paid per share in US dollars. Without a price, that day's close is used (needs a Tiingo key in the app). The Holding in the app adds them up at average cost.",
+    input: { ticker: S.str("Its symbol or id"), date: S.date("The day"), units: S.num("How many shares, e.g. 2.5"), price: S.num("Price per share in dollars; leave out for that day's close"), sell: S.bool("true for a sale"), note: S.str("A note, e.g. monthly autobuy") },
+    required: ["ticker", "date", "units"],
+    async run(a) {
+      requireDate(a.date, "date");
+      if (a.date > today()) fail("A buy is a day that has already happened.");
+      if (!Invest.cleanUnits(a.units)) fail("Shares is a number above zero.");
+      if (a.price != null && !Invest.cleanPrice(a.price)) fail("A price is a number above zero.");
+      let price = a.price;
+      if (price == null) {
+        const doc0 = await readInvest();
+        const w0 = findWatch(doc0.watchlist, a.ticker);
+        const closes = await closesOf(await readData(), w0.symbol, Finance.localDateStr(new Date(Date.parse(a.date + "T12:00:00Z") - 10 * 864e5)));
+        if (closes === null) fail("Give the price: there's no Tiingo key in the app to look up that day's close.");
+        if (typeof closes === "string") fail("Give the price: " + closes + ".");
+        price = Invest.priceOn(closes, a.date);
+        if (price == null) fail(`No close for ${w0.symbol} on or before ${a.date}; give the price.`);
+      }
+      return change(`${a.sell ? "sell" : "buy"} ${a.units} of "${a.ticker}"`, (doc) => {
+        const w = findWatch(Invest.sanitizeDoc(doc).watchlist, a.ticker);
+        const raw = doc.watchlist.find((x) => x.id === w.id);
+        const now = changeNow || nowIso();
+        const b = Invest.sanitizeBuy({ id: L.uid(), date: a.date, units: a.units, price, sell: !!a.sell, note: a.note, createdAt: now, updatedAt: now });
+        if (b.sell) {
+          const held = Invest.holdingOf((raw.buys || []).filter((x) => x.date <= b.date), null).units;
+          if (!(held > 0)) fail(`Nothing of ${w.symbol} held on ${b.date} to sell.`);
+        }
+        const next = Invest.sanitizeWatch({ ...raw, buys: [...(raw.buys || []), b], updatedAt: now });
+        replaceItem(doc, "watchlist", next);
+        const h = Invest.holdingOf(next.buys, null);
+        return { text: `${b.sell ? "Sold" : "Bought"} ${Invest.unitsText(b.units)} of ${w.symbol} on ${b.date} at ${Invest.usd(b.price)} (${b.id}). Holding now ${Invest.unitsText(h.units)} at an average ${Invest.usd(h.avg)}.`, touched: [["watchlist", w.id]] };
+      }, { file: "invest" });
+    },
+  },
+  {
+    name: "lifelog_update_buy",
+    description: "Change a logged buy or sale: its day, shares, price, whether it's a sale, or its note (empty clears it).",
+    input: { buy: S.str("The buy's id (lifelog_watchlist with ticker lists them)"), date: S.date("The day"), units: S.num("Shares"), price: S.num("Price per share in dollars"), sell: S.bool("true for a sale, false for a buy"), note: S.str("The note") },
+    required: ["buy"],
+    async run(a) {
+      if (["date", "units", "price", "sell", "note"].every((k) => a[k] == null)) fail("Nothing to change: give date, units, price, sell or note.");
+      if (a.date != null) { requireDate(a.date, "date"); if (a.date > today()) fail("A buy is a day that has already happened."); }
+      if (a.units != null && !Invest.cleanUnits(a.units)) fail("Shares is a number above zero.");
+      if (a.price != null && !Invest.cleanPrice(a.price)) fail("A price is a number above zero.");
+      return change(`edit buy ${a.buy}`, (doc) => {
+        const raw = (doc.watchlist || []).find((w) => (w.buys || []).some((b) => b.id === a.buy));
+        if (!raw) fail(`No buy with the id "${a.buy}" (lifelog_watchlist with ticker lists them).`);
+        const now = changeNow || nowIso();
+        const buys = raw.buys.map((b) => {
+          if (b.id !== a.buy) return b;
+          const nb = { ...b, updatedAt: now };
+          for (const k of ["date", "units", "price"]) if (a[k] != null) nb[k] = a[k];
+          if (a.sell != null) { if (a.sell) nb.sell = true; else delete nb.sell; }
+          if (a.note != null) { if (String(a.note).trim()) nb.note = a.note; else delete nb.note; }
+          return nb;
+        });
+        const next = Invest.sanitizeWatch({ ...raw, buys, updatedAt: now });
+        replaceItem(doc, "watchlist", next);
+        const b = next.buys.find((x) => x.id === a.buy);
+        return { text: `The ${b.sell ? "sale" : "buy"} is now ${Invest.unitsText(b.units)} of ${next.symbol} on ${b.date} at ${Invest.usd(b.price)}.`, touched: [["watchlist", raw.id]] };
+      }, { file: "invest" });
+    },
+  },
+  {
+    name: "lifelog_delete_buy",
+    description: "Delete a logged buy or sale. Undoable with lifelog_undo.",
+    destructive: true,
+    input: { buy: S.str("The buy's id") },
+    required: ["buy"],
+    async run(a) {
+      return change(`delete buy ${a.buy}`, (doc) => {
+        const raw = (doc.watchlist || []).find((w) => (w.buys || []).some((b) => b.id === a.buy));
+        if (!raw) fail(`No buy with the id "${a.buy}" (lifelog_watchlist with ticker lists them).`);
+        const gone = raw.buys.find((b) => b.id === a.buy);
+        const next = Invest.sanitizeWatch({ ...raw, buys: raw.buys.filter((b) => b.id !== a.buy), updatedAt: changeNow || nowIso() });
+        replaceItem(doc, "watchlist", next);
+        return { text: `Deleted the ${gone.sell ? "sale" : "buy"} of ${Invest.unitsText(gone.units)} of ${next.symbol} on ${gone.date}.`, touched: [["watchlist", raw.id]] };
       }, { file: "invest" });
     },
   },

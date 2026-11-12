@@ -707,6 +707,7 @@
         const rel = A.releaseMode();
         if (rel !== "off") on.push(rel === "all" ? "release days" : "starred release days");
         if (A.kindOn("prices")) on.push("price drops");
+        if (A.kindOn("targets")) on.push("investment targets");
         const Wg = window.LifeLogWidgets;
         const bg = Wg && Wg.backgroundAvailable && Wg.backgroundAvailable() ? Wg.backgroundMinutes() : 0;
         const text = on.length ? on.join(", ").replace(/^./, (c) => c.toUpperCase()) : "All off";
@@ -890,6 +891,7 @@
       $("#notifyHabits").checked = !!(window.LifeLogReminders && window.LifeLogReminders.isOn());
       $("#notifyCharges").checked = A.kindOn("charges");
       $("#notifyPrices").checked = A.kindOn("prices");
+      $("#notifyTargets").checked = A.kindOn("targets");
     }
     // The computer app: no Android channels to point at, and Start at
     // login in their place.
@@ -1848,6 +1850,7 @@
     $("#notifyHabits").onchange = () => { window.LifeLogReminders && window.LifeLogReminders.setOn($("#notifyHabits").checked); updateStatuses(); };
     $("#notifyCharges").onchange = () => { window.LifeLogAlerts && window.LifeLogAlerts.setKindOn("charges", $("#notifyCharges").checked); updateStatuses(); };
     $("#notifyPrices").onchange = () => { window.LifeLogAlerts && window.LifeLogAlerts.setKindOn("prices", $("#notifyPrices").checked); updateStatuses(); };
+    $("#notifyTargets").onchange = () => { window.LifeLogAlerts && window.LifeLogAlerts.setKindOn("targets", $("#notifyTargets").checked); updateStatuses(); };
     $("#backgroundRefresh").onchange = () => { window.LifeLogWidgets && window.LifeLogWidgets.setBackgroundMinutes($("#backgroundRefresh").value); updateStatuses(); };
     $("#startAtLogin").onchange = async () => {
       const box = $("#startAtLogin");

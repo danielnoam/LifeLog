@@ -123,4 +123,17 @@ test("hidden in widgets: a notification says what kind of thing, not which", () 
   assert.ok(a.every((x) => x.title === "LifeLog"));
 });
 
+test("target: a ticker's hit rings once from what it carries; an old hit is dropped; hidden says what kind", () => {
+  const targets = {
+    w1: { day: "2026-03-10", time: "14:31", price: 548.2, target: 550, symbol: "VOO" },
+    w2: { day: "2026-03-01", time: "09:00", price: 400, target: 410, symbol: "QQQ" },
+  };
+  const a = alertsOf({ backlog: [] }, { today: "2026-03-10", targets });
+  assert.deepStrictEqual(a.map((x) => [x.id, x.kind, x.day, x.time, x.title, x.body, x.action]), [
+    ["target-w1", "target", "2026-03-10", "14:31", "VOO closed at $548.20", "At or under your $550.00 target", "open-invest:w1"],
+  ]);
+  const h = alertsOf({ backlog: [] }, { today: "2026-03-10", targets, hidden: true });
+  assert.strictEqual(h[0].body, "A ticker on your watchlist reached its target");
+});
+
 console.log(`\n${passed} test(s) passed.`);

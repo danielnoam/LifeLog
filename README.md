@@ -271,9 +271,12 @@ month, by category (with subcategories) and the largest expenses.
 A watchlist of US stocks and ETFs, in dollars: a price chart for each over
 a range (1M to Max), a target price and a note, and pins on the days you
 want to compare (when you bought, a dip), with the change between each pin
-and since the last. Prices come from Tiingo with a free key of your own,
-once a day, and are kept on each device; the watchlist and pins sync in
-`investments.json`.
+and since the last, or between any two with Compare. Tap the chart to hold
+a day, then drag to read the move from it. Log your buys and sales for a
+Holding (shares, average cost, value and gain), and get a notification when
+a ticker closes at or under its target. Prices come from Tiingo with a free
+key of your own, once a day, and are kept on each device; the watchlist,
+pins and buys sync in `investments.json`.
 
 <table><tr>
 <td><img src="docs/screenshots/ledger-investments-desktop.webp" alt="The Ledger's watchlist on a computer" width="620"></td>

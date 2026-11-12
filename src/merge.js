@@ -460,8 +460,20 @@
   function mergeInvest(base, local, remote) {
     base = base || {}; local = local || {}; remote = remote || {};
     const list = mergeCollection(base.watchlist || [], local.watchlist || [], remote.watchlist || []).merged;
+    // A ticker's buys merge buy by buy, so two devices each logging a buy on
+    // the same ticker both keep it; the rest of the ticker is newest-wins.
+    const find = (arr, id) => (arr || []).find((w) => w && w.id === id);
+    const withBuys = list.map((w) => {
+      const b = find(base.watchlist, w.id), l = find(local.watchlist, w.id), r = find(remote.watchlist, w.id);
+      if (!(b && b.buys) && !(l && l.buys) && !(r && r.buys)) return w;
+      const buys = mergeCollection((b && b.buys) || [], (l && l.buys) || [], (r && r.buys) || []).merged
+        .sort((x, y) => String(x.date).localeCompare(String(y.date)) || String(x.createdAt).localeCompare(String(y.createdAt)));
+      const out = { ...w };
+      if (buys.length) out.buys = buys; else delete out.buys;
+      return out;
+    });
     return {
-      watchlist: inChosenOrder(list, base.watchlist || [], local.watchlist || [], remote.watchlist || []),
+      watchlist: inChosenOrder(withBuys, base.watchlist || [], local.watchlist || [], remote.watchlist || []),
       pins: mergeCollection(base.pins || [], local.pins || [], remote.pins || []).merged,
     };
   }

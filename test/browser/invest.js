@@ -83,7 +83,7 @@ const seed = (key) => ({
 
     // Pins: two by the button, a label each, then the steps between them.
     for (const [day, label] of [["2026-01-05", "Opened Blink"], ["2026-06-01", "Bought more"]]) {
-      await page.click(".invest-pins h3 .btn");
+      await page.click(".invest-addpin");
       await page.waitForSelector("#investPinModal:not([hidden])");
       await page.fill("#investPinDate", day);
       await page.fill("#investPinLabel", label);
@@ -124,6 +124,68 @@ const seed = (key) => ({
     await page.click("#cancelInvestPinBtn");
     await page.waitForTimeout(500);
 
+    // With a day held, moving over the chart reads the change from it.
+    await page.mouse.move(bb.x + bb.width * 0.85, bb.y + bb.height * 0.5);
+    const cmpTip = await page.evaluate(() => { const t = document.querySelector(".invest-tip"); return t.hidden ? "" : t.textContent; });
+    check("with a day held, the readout measures from it" + at, /[+−][\d.]+%.*over .* from /.test(cmpTip), cmpTip);
+    await page.click(".invest-held-x");
+    check("× lets the held day go" + at, !(await page.isVisible(".invest-held")));
+
+    // Compare any two pins: Compare, then pin 1 and the latest close.
+    await page.click(".invest-compare-btn");
+    check("Compare asks for two" + at, /Pick two pins/.test(await page.textContent(".invest-compare")));
+    await page.click(".invest-pin >> nth=0");
+    await page.click(".invest-pin.is-now");
+    const cmp = await page.textContent(".invest-compare");
+    check("two picks show the change between them" + at, /^Opened Blink → the latest close[+−][\d.]+% [+−]?\$[\d,.]+ a share over 10 months$/.test(cmp), cmp);
+    check("while comparing, a pin row doesn't open its sheet" + at, (await page.$$(".invest-pin.is-picked")).length === 2 && !(await page.isVisible("#investPinModal")));
+    await page.click(".invest-compare-btn");
+    check("Done leaves compare" + at, !(await page.isVisible(".invest-compare")));
+
+    // Holding: a buy with the close filled in, then a sale.
+    await page.click(".invest-addbuy");
+    await page.waitForSelector("#investBuyModal:not([hidden])");
+    await page.fill("#investBuyDate", "2026-01-05");
+    await page.dispatchEvent("#investBuyDate", "change");
+    const prefilled = await page.inputValue("#investBuyPrice");
+    check("a buy's price starts at that day's close" + at, /^\d+(\.\d+)?$/.test(prefilled) && +prefilled > 100, prefilled);
+    await page.fill("#investBuyUnits", "10");
+    await page.click("#investBuySaveBtn");
+    await page.waitForTimeout(300);
+    await page.click(".invest-addbuy");
+    await page.click('#investBuyForm .seg-btn[data-kind="sell"]');
+    await page.fill("#investBuyDate", "2026-06-01");
+    await page.dispatchEvent("#investBuyDate", "change");
+    await page.fill("#investBuyUnits", "4");
+    await page.click("#investBuySaveBtn");
+    await page.waitForTimeout(300);
+    const stats = await page.$$eval(".invest-stat b", (n) => n.map((x) => x.textContent));
+    check("the holding counts what's left after the sale" + at, stats[0] === "6" && stats[1] === "$" + (+prefilled).toFixed(2), stats);
+    check("value and gain are shown" + at, /^\$[\d,.]+$/.test(stats[2]) && /^[+−]\$[\d,.]+ \([+−][\d.]+%\)$/.test(stats[3]), stats);
+    check("the sale's profit is noted" + at, /Sales so far made \+\$/.test(await page.textContent(".invest-hold-note")));
+    check("buys and sells are marks on the chart" + at, (await page.$$(".invest-buymark")).length === 2 && (await page.$$(".invest-buymark.is-sell")).length === 1);
+    check("the list row says what you hold" + at, /6 shares · \$/.test(await page.textContent(".invest-row >> nth=0")));
+    check("Watching totals it" + at, /You hold\$[\d,.]+[+−]\$/.test(await page.textContent(".invest-sum")));
+
+    // A target the close is under is recorded once, as an alert.
+    await page.click(".invest-edit");
+    await page.fill("#watchTarget", "900");
+    await page.click("#watchSaveBtn");
+    await page.waitForTimeout(300);
+    const hit = await page.evaluate(() => {
+      const s = JSON.parse(localStorage.getItem("lifelog-alerts-v1") || "{}");
+      const list = window.LifeLogAlerts.current({ backlog: [], recurringExpenses: [] }, new Date().toISOString().slice(0, 10), false);
+      return { stored: Object.values(s.targets || {}).map((t) => t.symbol + "@" + t.target), alert: (list.find((a) => a.kind === "target") || {}).title || "" };
+    });
+    check("a close under the target is recorded" + at, hit.stored.join() === "VOO@900", hit);
+    check("and becomes a notification" + at, /^VOO closed at \$[\d,.]+$/.test(hit.alert), hit);
+    check("with a toast to show it" + at, await page.isVisible(".toast >> text=under your $900.00 target"));
+    await page.click(".invest-edit");
+    await page.fill("#watchTarget", "550");
+    await page.click("#watchSaveBtn");
+    await page.waitForTimeout(300);
+    check("a target back under the close clears it" + at, await page.evaluate(() => !Object.keys(JSON.parse(localStorage.getItem("lifelog-alerts-v1") || "{}").targets || {}).length));
+
     // A second ticker typed without the search, its name looked up.
     await page.click(".invest-list h2 .btn");
     await page.fill("#watchSymbol", "qqq");
@@ -133,6 +195,15 @@ const seed = (key) => ({
     check("the list shows both tickers" + at, listed.join() === "VOO,QQQ", listed);
     check("a typed ticker is looked up for its name" + at, (await page.textContent(".invest-head")).includes("QQQInvesco QQQ Trust"));
     check("the VOO row carries its target" + at, (await page.textContent(".invest-row >> nth=0")).includes("Target $550.00"));
+    if (width < 720) {
+      const chips = await page.$$eval(".invest-strip .invest-chip b", (n) => n.map((x) => x.textContent));
+      check("on a phone the tickers are chips over the chart" + at, chips.join() === "VOO,QQQ" && await page.isVisible(".invest-strip"), chips);
+      await page.click(".invest-strip .invest-chip >> nth=0");
+      await page.waitForTimeout(200);
+      check("a chip switches the ticker" + at, (await page.textContent(".invest-head")).startsWith("VOO"));
+      const range = await page.evaluate(() => { const r = document.querySelector("#rangeFilter"); const c = [...r.children].map((x) => x.getBoundingClientRect().top); return new Set(c.map(Math.round)).size; });
+      check("the Range row is one line" + at, range === 1, range);
+    } else check("on a computer there are no chips" + at, !(await page.isVisible(".invest-strip")));
 
     if (process.env.SHOTS) {
       await page.click(".invest-row >> nth=0");

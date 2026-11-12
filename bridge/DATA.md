@@ -415,12 +415,24 @@ the app fetches daily closes from Tiingo with the key in
   the close that day, or the last one before it when the market was shut.
   A pin whose ticker is gone is dropped when the file is read; removing a
   ticker removes its pins.
+- A ticker's `buys` (optional) are the buys and sales logged on it, in date
+  order, each with `id`, `date`, `units` (shares, fractions allowed),
+  `price` (dollars a share), `createdAt`, `updatedAt`, and optionally
+  `sell: true` and `note`. They sit on the ticker rather than in a list of
+  their own so a 0.310.0 app saving the file keeps them. The holding is
+  worked out at average cost: a sale takes shares out at the average paid,
+  and what it got over that is realized. Two devices each logging a buy on
+  one ticker keep both (merged buy by buy).
 
 `lifelog_watchlist` lists the tickers with their targets, notes and pins,
 and with a Tiingo key their latest close, the change over a range, how far
 each is from its target, and the change between pins and since the last.
 `lifelog_watch_ticker`, `lifelog_update_ticker`, `lifelog_unwatch_ticker`,
 `lifelog_add_pin`, `lifelog_update_pin` and `lifelog_delete_pin` change them.
+`lifelog_compare_pins` gives the change between any two pins, or a pin and
+the latest close. `lifelog_add_buy`, `lifelog_update_buy` and
+`lifelog_delete_buy` log what you bought and sold; `lifelog_watchlist` shows
+the holding (and, with `ticker`, every buy).
 
 The app's By area view and `lifelog_google_list` group places the same way
 (`Travel.areas`): places within 15 km of each other are one area, named

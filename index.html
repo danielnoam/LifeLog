@@ -5,7 +5,7 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; font-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'; manifest-src 'self'; worker-src 'self'" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LifeLog</title>
-  <link rel="stylesheet" href="src/styles.css?v=0.311.0" />
+  <link rel="stylesheet" href="src/styles.css?v=0.312.0" />
   <link rel="manifest" href="manifest.json" />
   <meta name="theme-color" content="#11141a" />
   <link rel="icon" href="icon.svg" type="image/svg+xml" />
@@ -1140,6 +1140,40 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="investBuyModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="investBuyModalTitle">
+      <h2 id="investBuyModalTitle">Add a buy</h2>
+      <p class="muted" id="investBuyTicker"></p>
+      <form id="investBuyForm">
+        <div class="seg invest-buy-kind" role="group" aria-label="Buy or sell">
+          <button type="button" class="seg-btn" data-kind="buy" aria-pressed="true">Buy</button>
+          <button type="button" class="seg-btn" data-kind="sell" aria-pressed="false">Sell</button>
+        </div>
+        <label>Date
+          <input id="investBuyDate" type="date" required />
+        </label>
+        <div class="invest-buy-pair">
+          <label>Shares
+            <input id="investBuyUnits" type="text" inputmode="decimal" autocomplete="off" placeholder="e.g. 2.5" />
+          </label>
+          <label>Price per share ($)
+            <input id="investBuyPrice" type="text" inputmode="decimal" autocomplete="off" />
+          </label>
+        </div>
+        <p class="hint" id="investBuyTotal"></p>
+        <label>Note
+          <input id="investBuyNote" type="text" autocomplete="off" placeholder="Optional, e.g. monthly autobuy" />
+        </label>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-danger" id="deleteInvestBuyBtn" hidden>Delete</button>
+          <span class="spacer"></span>
+          <button type="button" class="btn" id="cancelInvestBuyBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="investBuySaveBtn">Save</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="importPlacesModal" hidden>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="importPlacesTitle">
       <h2 id="importPlacesTitle">Import from Google Maps</h2>
@@ -2139,6 +2173,10 @@
             <span class="sitem-text"><span class="sitem-title">Price drops</span><span class="sitem-sub">A Steam game at or under the price you set on it</span></span>
             <input type="checkbox" class="switch" id="notifyPrices" />
           </label>
+          <label class="sitem toggle-label">
+            <span class="sitem-text"><span class="sitem-title">Investment targets</span><span class="sitem-sub">A ticker on your watchlist closing at or under its target</span></span>
+            <input type="checkbox" class="switch" id="notifyTargets" />
+          </label>
           <button id="openNotifSettingsBtn" type="button" class="sitem sitem-go"><span data-ico="bell"></span> Android's notification settings for LifeLog</button>
         </div>
       </section>
@@ -2622,47 +2660,47 @@
     </div>
   </div>
 
-  <script defer src="src/errlog.js?v=0.311.0"></script>
-  <script defer src="src/headless.js?v=0.311.0"></script>
-  <script defer src="src/platform.js?v=0.311.0"></script>
-  <script defer src="src/desktop.js?v=0.311.0"></script>
-  <script defer src="src/dates.js?v=0.311.0"></script>
-  <script defer src="src/datefield.js?v=0.311.0"></script>
-  <script defer src="src/keys.js?v=0.311.0"></script>
-  <script defer src="src/testbuilds.js?v=0.311.0"></script>
-  <script defer src="src/icons.js?v=0.311.0"></script>
-  <script defer src="src/select.js?v=0.311.0"></script>
-  <script defer src="src/jobs.js?v=0.311.0"></script>
-  <script defer src="src/reconcile.js?v=0.311.0"></script>
-  <script defer src="src/qr.js?v=0.311.0"></script>
-  <script defer src="src/media.js?v=0.311.0"></script>
-  <script defer src="src/merge.js?v=0.311.0"></script>
-  <script defer src="src/storage.js?v=0.311.0"></script>
-  <script defer src="src/finance.js?v=0.311.0"></script>
-  <script defer src="src/settings.js?v=0.311.0"></script>
-  <script defer src="src/wheel.js?v=0.311.0"></script>
-  <script defer src="src/backlog.js?v=0.311.0"></script>
-  <script defer src="src/journal.js?v=0.311.0"></script>
-  <script defer src="src/markdown.js?v=0.311.0"></script>
-  <script defer src="src/images.js?v=0.311.0"></script>
-  <script defer src="src/notes.js?v=0.311.0"></script>
-  <script defer src="src/docimport.js?v=0.311.0"></script>
-  <script defer src="src/io.js?v=0.311.0"></script>
-  <script defer src="src/sync.js?v=0.311.0"></script>
-  <script defer src="src/habits.js?v=0.311.0"></script>
-  <script defer src="src/vendor/rough.js?v=0.311.0"></script>
-  <script defer src="src/boards.js?v=0.311.0"></script>
-  <script defer src="src/travel.js?v=0.311.0"></script>
-  <script defer src="src/invest.js?v=0.311.0"></script>
-  <script defer src="src/home.js?v=0.311.0"></script>
-  <script defer src="src/recap.js?v=0.311.0"></script>
-  <script defer src="src/reminders.js?v=0.311.0"></script>
-  <script defer src="src/alerts.js?v=0.311.0"></script>
-  <script defer src="src/widgets.js?v=0.311.0"></script>
-  <script defer src="src/share.js?v=0.311.0"></script>
-  <script defer src="src/search.js?v=0.311.0"></script>
-  <script defer src="src/letterboxd.js?v=0.311.0"></script>
-  <script defer src="src/payments.js?v=0.311.0"></script>
-  <script defer src="src/app.js?v=0.311.0"></script>
+  <script defer src="src/errlog.js?v=0.312.0"></script>
+  <script defer src="src/headless.js?v=0.312.0"></script>
+  <script defer src="src/platform.js?v=0.312.0"></script>
+  <script defer src="src/desktop.js?v=0.312.0"></script>
+  <script defer src="src/dates.js?v=0.312.0"></script>
+  <script defer src="src/datefield.js?v=0.312.0"></script>
+  <script defer src="src/keys.js?v=0.312.0"></script>
+  <script defer src="src/testbuilds.js?v=0.312.0"></script>
+  <script defer src="src/icons.js?v=0.312.0"></script>
+  <script defer src="src/select.js?v=0.312.0"></script>
+  <script defer src="src/jobs.js?v=0.312.0"></script>
+  <script defer src="src/reconcile.js?v=0.312.0"></script>
+  <script defer src="src/qr.js?v=0.312.0"></script>
+  <script defer src="src/media.js?v=0.312.0"></script>
+  <script defer src="src/merge.js?v=0.312.0"></script>
+  <script defer src="src/storage.js?v=0.312.0"></script>
+  <script defer src="src/finance.js?v=0.312.0"></script>
+  <script defer src="src/settings.js?v=0.312.0"></script>
+  <script defer src="src/wheel.js?v=0.312.0"></script>
+  <script defer src="src/backlog.js?v=0.312.0"></script>
+  <script defer src="src/journal.js?v=0.312.0"></script>
+  <script defer src="src/markdown.js?v=0.312.0"></script>
+  <script defer src="src/images.js?v=0.312.0"></script>
+  <script defer src="src/notes.js?v=0.312.0"></script>
+  <script defer src="src/docimport.js?v=0.312.0"></script>
+  <script defer src="src/io.js?v=0.312.0"></script>
+  <script defer src="src/sync.js?v=0.312.0"></script>
+  <script defer src="src/habits.js?v=0.312.0"></script>
+  <script defer src="src/vendor/rough.js?v=0.312.0"></script>
+  <script defer src="src/boards.js?v=0.312.0"></script>
+  <script defer src="src/travel.js?v=0.312.0"></script>
+  <script defer src="src/invest.js?v=0.312.0"></script>
+  <script defer src="src/home.js?v=0.312.0"></script>
+  <script defer src="src/recap.js?v=0.312.0"></script>
+  <script defer src="src/reminders.js?v=0.312.0"></script>
+  <script defer src="src/alerts.js?v=0.312.0"></script>
+  <script defer src="src/widgets.js?v=0.312.0"></script>
+  <script defer src="src/share.js?v=0.312.0"></script>
+  <script defer src="src/search.js?v=0.312.0"></script>
+  <script defer src="src/letterboxd.js?v=0.312.0"></script>
+  <script defer src="src/payments.js?v=0.312.0"></script>
+  <script defer src="src/app.js?v=0.312.0"></script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 // LifeLog — heads-ups on the phone (0.272.0): a recurring charge coming up,
-// what in the Backlog is out today, and (0.276.0) a Steam game that has
-// dropped to the price you asked for.
+// what in the Backlog is out today, (0.276.0) a Steam game that has
+// dropped to the price you asked for, and a watched stock or ETF that has
+// closed at or under its target (the Ledger's Investments).
 //
 // Same road as the habit reminders (reminders.js): what to say and when is
 // worked out here, where the data is, and rides out in the widgets'
@@ -132,15 +133,36 @@
     return out;
   }
 
+  // A ticker's close at or under its target (invest.js checkTarget), kept
+  // and rung like a price hit. The hit carries what it says, so this needs
+  // nothing from investments.json, which isn't in `data`.
+  function targetAlerts(today, hits) {
+    const out = [];
+    const since = addDays(today, -1);
+    for (const [id, h] of Object.entries(hits || {})) {
+      if (!h || !isDate(h.day) || h.day < since || !h.symbol) continue;
+      out.push({
+        id: "target-" + id,
+        kind: "target",
+        day: h.day, time: h.time,
+        title: h.symbol + " closed at $" + Number(h.price).toFixed(2),
+        body: "At or under your $" + Number(h.target).toFixed(2) + " target",
+        action: "open-invest:" + id,
+      });
+    }
+    return out;
+  }
+
   // `hidden`: the lock is on with "hide in widgets" (0.262.0). A
   // notification shows on the lock screen, so it says what kind of thing,
   // not which.
-  const HIDDEN_BODY = { charge: "A recurring charge is coming up", release: "Something in your Backlog is out today", price: "A game in your Backlog is on sale" };
-  function alertsOf(data, { today, charges = {}, releases = "off", prices = {}, finance, fmt, hidden = false } = {}) {
+  const HIDDEN_BODY = { charge: "A recurring charge is coming up", release: "Something in your Backlog is out today", price: "A game in your Backlog is on sale", target: "A ticker on your watchlist reached its target" };
+  function alertsOf(data, { today, charges = {}, releases = "off", prices = {}, targets = {}, finance, fmt, hidden = false } = {}) {
     const list = [
       ...(finance ? chargeAlerts(data, today, charges, finance, fmt) : []),
       ...releaseAlerts(data, today, releases),
       ...priceAlerts(data, today, prices),
+      ...targetAlerts(today, targets),
     ].sort((a, b) => a.day.localeCompare(b.day) || a.id.localeCompare(b.id)).slice(0, MAX);
     if (!hidden) return list;
     return list.map((a) => ({ ...a, title: "LifeLog", body: HIDDEN_BODY[a.kind] || "LifeLog has something for you" }));
@@ -215,6 +237,29 @@
   }
   function priceHitOf(id) { return (read().prices || {})[id] || null; }
 
+  // A watched ticker's close at or under its target. Once per dip, as with
+  // games; a new target is news again even while the old hit stands.
+  function targetHit(w, price) {
+    const s = read();
+    s.targets = s.targets || {};
+    const had = s.targets[w.id];
+    if (had && had.target === w.target) return false;
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 1);
+    s.targets[w.id] = { day: localDate(now), time: pad(now.getHours()) + ":" + pad(now.getMinutes()), price, target: w.target, symbol: w.symbol };
+    write(s);
+    if (ctx) ctx.changed();
+    if (kindOn("targets") && window.LifeLogReminders) window.LifeLogReminders.ensureAllowed();
+    return true;
+  }
+  function targetClear(id) {
+    const s = read();
+    if (!s.targets || !s.targets[id]) return;
+    delete s.targets[id];
+    write(s);
+    if (ctx) ctx.changed();
+  }
+
   // What the snapshot carries, from the app's state (widgets.js calls this).
   function current(data, today, hidden) {
     const F = window.LifeLogFinance;
@@ -224,6 +269,7 @@
       charges: kindOn("charges") ? s.charges || {} : {},
       releases: releaseMode(),
       prices: kindOn("prices") ? s.prices || {} : {},
+      targets: kindOn("targets") ? s.targets || {} : {},
       finance: F,
       fmt: ctx ? ctx.fmt : { money: String, day: String },
       hidden,
@@ -237,6 +283,7 @@
     start, available, current, alertsOf, outDay,
     chargeDays, setChargeDays, releaseMode, setReleaseMode,
     priceHit, priceClear, priceHitOf,
+    targetHit, targetClear,
     kindOn, setKindOn,
     CHARGE_DAYS, RELEASE_MODES, KEY, AT,
   };
