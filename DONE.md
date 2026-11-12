@@ -195,6 +195,8 @@ Every release that adds a feature adds its line here in the same commit.
 - A new expense takes the category and subcategory its note was filed under last time, Wallet payments too (0.309.0)
 - Summary's "<Month> so far": each category's spend, where it's heading by month end and its usual month, flagged at 25% over (0.309.0)
 - Investments mode: a watchlist of US stocks and ETFs with Tiingo prices (your own key), a chart over 1M to Max, a target and a note per ticker, and date pins with the change between them (0.310.0)
+- Investments holdings: buys and sales per ticker (fractional shares) with shares, average cost, value, gain and what sales made, marks and an average-cost line on the chart, a "You hold" total (0.312.0)
+- Investments: Compare any two pins (or a pin and the latest close), a held day to measure a drag from, target notifications, ticker chips on a phone (0.312.0)
 
 ## Travel
 
