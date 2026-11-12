@@ -235,6 +235,28 @@ public class WidgetLogicTest {
         assertTrue(SpendWidget.stale("", D));
     }
 
+    // ---- the Investments widget ----
+
+    @Test
+    public void investmentsShedRowsThenTheHeaderDownToTheTotal() {
+        assertEquals(InvestWidget.DETAIL_FULL, InvestWidget.detail(0));
+        assertEquals(InvestWidget.DETAIL_FULL, InvestWidget.detail(380));
+        assertEquals(InvestWidget.DETAIL_LINE, InvestWidget.detail(200));
+        assertEquals(InvestWidget.DETAIL_TOTAL, InvestWidget.detail(100));
+        assertEquals(3, InvestWidget.rowsFit(200, InvestWidget.DETAIL_LINE));
+        assertEquals(5, InvestWidget.rowsFit(380, InvestWidget.DETAIL_FULL));
+        assertEquals(1, InvestWidget.rowsFit(150, InvestWidget.DETAIL_LINE));
+        assertEquals(0, InvestWidget.rowsFit(100, InvestWidget.DETAIL_TOTAL));
+        assertEquals(Integer.MAX_VALUE, InvestWidget.rowsFit(0, InvestWidget.DETAIL_FULL));
+    }
+
+    @Test
+    public void aSparklineNeedsTwoPointsAndStaysInItsBox() throws Exception {
+        assertNull(InvestWidget.sparkOf(null));
+        assertNull(InvestWidget.sparkOf(new JSONArray("[0.5]")));
+        assertArrayEquals(new float[] { 0f, 1f, 0.25f }, InvestWidget.sparkOf(new JSONArray("[-1, 2, 0.25]")), 0.0001f);
+    }
+
     // ---- the to-do list's ids, which keep its place (Android 12+) ----
 
     @Test

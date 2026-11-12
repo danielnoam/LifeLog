@@ -817,6 +817,7 @@ final class WidgetStore {
         TodosWidget.refresh(c);
         QuickAddWidget.refresh(c);
         SpendWidget.refresh(c);
+        InvestWidget.refresh(c);
         NoteWidget.refresh(c);
         RandomNoteWidget.refresh(c);
         UpcomingWidget.refresh(c);

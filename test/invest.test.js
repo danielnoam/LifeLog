@@ -175,6 +175,35 @@ test("two days compare either way round, from the close on or before each", () =
   assert.ok(Math.abs(c.change - 0.21) < 1e-9);
 });
 
+test("the widget gets the holding, a row per ticker with its day and month, and dots when hidden", () => {
+  const days = [];
+  for (let t = Date.UTC(2026, 9, 1); t <= Date.UTC(2026, 10, 10); t += 864e5) days.push(new Date(t).toISOString().slice(0, 10));
+  const pts = days.map((d, i) => [d, 100 + i]);
+  const list = [
+    { id: "w1", symbol: "VOO", name: "Vanguard", buys: [{ date: "2026-10-01", units: 2, price: 100 }] },
+    { id: "w2", symbol: "AAPL", name: "Apple Inc", target: 200 },
+    { id: "w3", symbol: "NEW", name: "No prices yet" },
+  ];
+  const last = pts[pts.length - 1][1];
+  const out = I.widgetOf(list, { VOO: { points: pts }, AAPL: { points: pts } });
+  assert.strictEqual(out.day, "2026-11-10");
+  assert.match(out.closed, /^Closed /);
+  assert.strictEqual(out.hold.value, I.usd(2 * last));
+  assert.ok(out.hold.up && out.hold.todayUp);
+  assert.match(out.hold.today, /^\+\$2\.00 today$/);
+  const [voo, aapl, none] = out.rows;
+  assert.deepStrictEqual([voo.symbol, voo.price, voo.hit, voo.up], ["VOO", I.usd(last), false, true]);
+  assert.match(voo.sub, /^2 shares · /);
+  assert.strictEqual(aapl.sub, "Apple Inc");
+  assert.ok(aapl.hit, "under its target");
+  assert.ok(voo.spark.length > 1 && voo.spark.length <= 33 && voo.spark[0] === 0 && voo.spark[voo.spark.length - 1] === 1);
+  assert.deepStrictEqual([none.price, none.day, none.spark], ["—", "", []]);
+  const hid = I.widgetOf(list, { VOO: { points: pts } }, { hidden: true });
+  assert.deepStrictEqual([hid.hold.value, hid.hold.gain, hid.rows[0].sub, hid.rows[0].price, hid.rows[0].spark], ["•••••", "", "Holding", "•••", []]);
+  assert.strictEqual(I.widgetOf(list.slice(1), {}).hold, null, "nothing held, no total");
+  assert.strictEqual(I.widgetOf([], {}), null);
+});
+
 test("the same ticker on two devices keeps both devices' buys", () => {
   const doc = I.sanitizeDoc({ watchlist: [
     { id: "a", symbol: "VOO", createdAt: T0, buys: [{ id: "b1", date: "2026-01-05", units: 1, price: 500 }] },

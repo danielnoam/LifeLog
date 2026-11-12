@@ -8,4 +8,7 @@
     <color name="widget_on_accent">#FFFFFF</color>
     <color name="widget_button">#E9ECF1</color>
     <color name="widget_slip">#E2554B</color>
+    <color name="widget_up">#1E8E5A</color>
+    <color name="widget_down">#C93C37</color>
+    <color name="widget_up_soft">#291E8E5A</color>
 </resources>

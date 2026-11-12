@@ -305,6 +305,7 @@
   function changed(item) {
     if (item) item.updatedAt = new Date().toISOString();
     noteTargets();
+    widgetsChanged();
     changedSince++;
     scheduleSave(800);
   }
@@ -419,6 +420,7 @@
         savePrices();
         const w = watchlist().find((x) => x.symbol === symbol);
         if (w) checkTarget(w);
+        widgetsChanged();
         return true;
       } catch (e) {
         lastProblem.set(symbol, (e && e.name === "TimeoutError") ? "Tiingo didn't answer — try again in a bit" : (e && e.message) || "Couldn't reach Tiingo");
@@ -1343,26 +1345,116 @@
   // hours), so this costs Tiingo at most a few requests a day.
   // Only on a device that has seen a target, so a launch doesn't ask GitHub
   // for investments.json when nobody watches anything.
-  const TARGETS_FLAG = "lifelog-invest-targets";
+  const TARGETS_FLAG = "lifelog-invest-targets", WATCH_FLAG = "lifelog-invest-watch";
   function noteTargets() {
     try {
       if (watchlist().some((w) => w.target)) localStorage.setItem(TARGETS_FLAG, "1");
       else localStorage.removeItem(TARGETS_FLAG);
+      if (watchlist().length) localStorage.setItem(WATCH_FLAG, "1");
+      else localStorage.removeItem(WATCH_FLAG);
     } catch (e) { /* private window */ }
   }
+  // On a phone the same pass keeps the Investments widget's prices fresh:
+  // every ticker, not only the targeted ones, still at most once in six hours.
   async function checkTargets() {
-    try { if (!localStorage.getItem(TARGETS_FLAG)) return; } catch (e) { return; }
+    const native = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+    let go = false;
+    try { go = !!localStorage.getItem(TARGETS_FLAG) || (native && !!localStorage.getItem(WATCH_FLAG)); } catch (e) { return; }
+    if (!go) return;
     try {
       await ensureLoaded();
       noteTargets();
       await loadPrices();
       for (const w of [...watchlist()]) {
-        if (!w.target) { if (window.LifeLogAlerts && window.LifeLogAlerts.targetClear) window.LifeLogAlerts.targetClear(w.id); continue; }
+        if (!w.target && window.LifeLogAlerts && window.LifeLogAlerts.targetClear) window.LifeLogAlerts.targetClear(w.id);
+        if (!w.target && !native) continue;
         await refresh(w.symbol);
-        checkTarget(w);
+        if (w.target) checkTarget(w);
       }
+      widgetsChanged();
     } catch (e) { /* the next launch tries again */ }
   }
+
+  // ---------- the Android widget (widgets.js carries it as `invest`) ----------
+  // What you hold, then a row per ticker: its close, the day's move and a
+  // month's sparkline (0..1, oldest first). Worked out here, where the
+  // prices are; the widget only draws it. With the lock's "hide in widgets"
+  // on, the tickers stay and the amounts go.
+  const WIDGET_ROWS = 8, SPARK_POINTS = 32;
+  function widgetOf(list, priceMap, { hidden = false } = {}) {
+    if (!list || !list.length) return null;
+    let value = 0, cost = 0, today = 0, any = false, lastDay = "";
+    const rows = [];
+    for (const w of list) {
+      const all = (priceMap && priceMap[w.symbol] && priceMap[w.symbol].points) || [];
+      const last = all.length ? all[all.length - 1] : null;
+      const prev = all.length > 1 ? all[all.length - 2][1] : null;
+      if (last && last[0] > lastDay) lastDay = last[0];
+      const hd = holdingOf(w.buys, last ? last[1] : null);
+      if (hd.units > 0 && hd.value != null) {
+        any = true;
+        value += hd.value; cost += hd.cost;
+        if (prev != null) today += hd.units * (last[1] - prev);
+      }
+      const dayCh = last && prev ? changeOf(prev, last[1]) : null;
+      const month = sliceRange(all, "1M");
+      let spark = [];
+      if (month.length > 1) {
+        const every = Math.max(1, Math.ceil(month.length / SPARK_POINTS));
+        const pts = month.filter((_, i) => i % every === 0 || i === month.length - 1).map((p) => p[1]);
+        const lo = Math.min(...pts), hi = Math.max(...pts), span = hi - lo || 1;
+        spark = pts.map((v) => Math.round(((v - lo) / span) * 1000) / 1000);
+      }
+      const held = hd.units > 0;
+      if (rows.length < WIDGET_ROWS) rows.push({
+        id: w.id,
+        symbol: w.symbol,
+        sub: hidden ? (held ? "Holding" : (w.name || "")) : held ? unitsText(hd.units) + (hd.value != null ? " · " + usd(hd.value) : "") : (w.name || ""),
+        price: hidden ? "•••" : last ? usd(last[1]) : "—",
+        day: hidden || dayCh == null ? "" : pct(dayCh),
+        up: dayCh == null || dayCh >= 0,
+        sparkUp: month.length < 2 || month[month.length - 1][1] >= month[0][1],
+        hit: !!(w.target && last && last[1] <= w.target),
+        spark: hidden ? [] : spark,
+      });
+    }
+    const gain = value - cost, base = value - today;
+    const hold = any ? {
+      value: hidden ? "•••••" : usd(value),
+      short: hidden ? "•••••" : "$" + Math.round(value).toLocaleString("en-US"),
+      gain: hidden ? "" : signedUsd(gain) + (cost ? " (" + pct(gain / cost) + ")" : ""),
+      gainPct: hidden || !cost ? "" : pct(gain / cost),
+      up: gain >= 0,
+      today: hidden ? "" : signedUsd(today) + " today",
+      todayPct: hidden || !base ? "" : pct(today / base) + " today",
+      todayUp: today >= 0,
+    } : null;
+    return { day: lastDay, closed: lastDay ? "Closed " + Dates().day(lastDay, { weekday: true, year: "auto" }) : "", hold, rows };
+  }
+  // The snapshot's `invest`, from what's loaded, else what was worked out
+  // last time (the watchlist and prices load after the first push).
+  const WIDGET_KEY = "lifelog-invest-widget";
+  function widgetSnapshot(hidden) {
+    if (doc && prices) {
+      const out = widgetOf(watchlist(), prices, { hidden: false });
+      try { if (out) localStorage.setItem(WIDGET_KEY, JSON.stringify(watchlist().length ? { list: watchlist(), prices: pricesFor(watchlist()) } : null)); else localStorage.removeItem(WIDGET_KEY); } catch (e) { /* private window */ }
+      return hidden ? widgetOf(watchlist(), prices, { hidden: true }) : out;
+    }
+    try {
+      const kept = JSON.parse(localStorage.getItem(WIDGET_KEY) || "null");
+      return kept ? widgetOf(kept.list, kept.prices, { hidden }) : null;
+    } catch (e) { return null; }
+  }
+  // A month and a day of closes per ticker is all the widget needs.
+  function pricesFor(list) {
+    const out = {};
+    for (const w of list) {
+      const all = pointsOf(w.symbol);
+      out[w.symbol] = { points: sliceRange(all, "1M").length > 1 ? all.slice(-Math.max(2, sliceRange(all, "1M").length + 1)) : all.slice(-2) };
+    }
+    return out;
+  }
+  const widgetsChanged = () => { if (typeof window !== "undefined" && window.LifeLogWidgets && window.LifeLogWidgets.changed) window.LifeLogWidgets.changed(); };
   function select(id) {
     const w = findWatch(id) || watchlist().find((x) => x.symbol === id);
     setUi({ selected: w ? w.id : id });
@@ -1392,10 +1484,10 @@
   const api = {
     init, wire, renderInvest, buildRangeFilter, ensureLoaded, flush, addTicker,
     openWatchModal, closeWatchModal, openPinModal, closePinModal, openBuyModal, closeBuyModal,
-    checkTargets, select,
+    checkTargets, select, widgetSnapshot,
     // pure, for tests and the bridge
     sanitizeWatch, sanitizePin, sanitizeBuy, sanitizeDoc, cleanSymbol, cleanPrice, cleanUnits,
-    holdingOf, compareDays, unitsText, signedUsd,
+    holdingOf, compareDays, unitsText, signedUsd, widgetOf,
     RANGES, rangeStart, sliceRange, priceOn, changeOf, pinSteps, spanLabel, pct, usd,
     parseTiingo, rewritesHistory, joinSeries, parseSearch,
   };

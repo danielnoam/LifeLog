@@ -258,6 +258,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Widgets: Upcoming (what's out next, counted down) and In progress (0.277.0)
 - Background refresh: the app run with no screen on a schedule, so widgets and alerts catch up with the app closed (0.279.0)
 - Quick-add window: the quick add widget's buttons and the checklist widget's + open a small window over the home screen (entry, expense, backlog item, note, list item) instead of the app; saved on the phone and added when LifeLog next opens (0.311.0)
+- Investments widget (Android): what you hold and the day's move, then each ticker with its close, day's change, a month's sparkline and an "At target" tag; a row opens that ticker; shrinks to the total; amounts hidden with the lock's "hide in widgets" (unreleased)
 
 ## iOS app
 
