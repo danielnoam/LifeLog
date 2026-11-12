@@ -371,7 +371,7 @@ list gets the window too, its map beside the list.
   every save in Settings → History to restore or undo, and Recently deleted.
 - **App lock**: a PIN, with fingerprint or face where the device has it.
 - **Widgets**: on Android, checklist, habits, quick add, spending, note,
-  random note, upcoming and in progress, with an optional background
+  random note, upcoming, in progress and investments, with an optional background
   refresh. Quick add and the checklist's + open a small window over the
   home screen, so an entry, expense, backlog item, note or list item goes
   in without opening the app and syncs when it next opens; on iPhone, habits, checklist, quick add, this month and a note.

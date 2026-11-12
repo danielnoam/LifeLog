@@ -376,6 +376,11 @@
     if (hidden) {
       snap.todos = []; snap.lists = []; snap.notes = []; snap.upcoming = []; snap.inProgress = []; snap.hidden = true;
     }
+    // The Ledger's Investments (invest.js): what you hold and the watchlist,
+    // amounts left out when hidden. Null without a watchlist or the mode.
+    if (window.LifeLogInvest && ctx.investOn && ctx.investOn()) {
+      try { snap.invest = window.LifeLogInvest.widgetSnapshot(hidden); } catch (e) { snap.invest = null; }
+    }
     // Charge and release-day heads-ups (0.272.0), rung beside the habit
     // reminders. An APK or IPA older than that ignores the key.
     if (window.LifeLogAlerts) {

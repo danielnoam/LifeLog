@@ -5384,9 +5384,10 @@
     else if (action === "open-habits" && modeEnabled("notes", "habits")) goTo("notes", "habits");
     // A release-day heads-up (0.272.0): Upcoming, where Out today leads.
     else if (action === "open-upcoming" && modeEnabled("backlog", "upcoming")) goTo("backlog", "upcoming");
-    // An investment target reached: that ticker, in the Ledger's Investments.
-    else if (action.startsWith("open-invest:") && modeEnabled("finance", "invest")) {
-      Invest.select(action.slice("open-invest:".length));
+    // An investment target reached, or a row on the Investments widget: that
+    // ticker. The widget's other taps open Investments as it was left.
+    else if ((action === "open-invest" || action.startsWith("open-invest:")) && modeEnabled("finance", "invest")) {
+      if (action.startsWith("open-invest:")) Invest.select(action.slice("open-invest:".length));
       goTo("finance", "invest");
     }
     // A price alert (0.276.0): the list, where the row says the price.
@@ -5843,7 +5844,7 @@
           day: (d) => Dates.day(d, { weekday: true, year: false }),
         },
       });
-      Widgets.start({ state, Platform, persist, afterDataChange, toast, runAction, quickActions, spend: widgetSpend, hidden: widgetsHidden });
+      Widgets.start({ state, Platform, persist, afterDataChange, toast, runAction, quickActions, spend: widgetSpend, hidden: widgetsHidden, investOn: () => modeEnabled("finance", "invest") });
       Widgets.assertBackground();
       if (window.LifeLogReminders) window.LifeLogReminders.start({ $, el, Platform, toast, changed: Widgets.changed, render });
       if (window.LifeLogPayments) window.LifeLogPayments.start({ $, Platform, toast });
@@ -5901,7 +5902,7 @@
           day: (d) => Dates.day(d, { weekday: true, year: false }),
         },
       });
-      const ctx = { state, Platform, persist, afterDataChange, toast, runAction, quickActions, spend: widgetSpend, hidden: widgetsHidden };
+      const ctx = { state, Platform, persist, afterDataChange, toast, runAction, quickActions, spend: widgetSpend, hidden: widgetsHidden, investOn: () => modeEnabled("finance", "invest") };
       await reconcileFromSources();
       await retrySync();
       await Sync.maybeAutoRefreshReleases();

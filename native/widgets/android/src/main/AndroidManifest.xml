@@ -61,6 +61,18 @@
         </receiver>
 
         <receiver
+            android:name="io.github.danielnoam.lifelog.widgets.InvestWidget"
+            android:exported="false"
+            android:label="@string/widget_invest_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_invest_info" />
+        </receiver>
+
+        <receiver
             android:name="io.github.danielnoam.lifelog.widgets.NoteWidget"
             android:exported="false"
             android:label="@string/widget_note_label">

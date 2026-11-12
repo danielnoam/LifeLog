@@ -1,0 +1,2 @@
+### Added
+- An Investments widget on Android: what you hold, its gain and today's move, then each ticker with its close, the day's change, a month's sparkline and an "At target" tag. Tap a ticker to open it. It shrinks down to the total (or your first ticker when you hold nothing), and hides the amounts when the lock's "Hide in widgets" is on. With a watchlist, the app now refreshes every ticker's price when it opens (still at most once in six hours), so the widget stays current.

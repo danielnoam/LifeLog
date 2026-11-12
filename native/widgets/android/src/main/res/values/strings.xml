@@ -8,6 +8,8 @@
     <string name="widget_quickadd_description">Add an entry, an expense, a backlog item, a note or a checklist item</string>
     <string name="widget_spend_label">LifeLog spending</string>
     <string name="widget_spend_description">What this month has cost so far, and where it went</string>
+    <string name="widget_invest_label">LifeLog investments</string>
+    <string name="widget_invest_description">What you hold and how your tickers moved</string>
     <string name="widget_note_label">LifeLog note</string>
     <string name="widget_note_description">One note you choose, on your home screen</string>
     <string name="widget_randomnote_label">LifeLog random note</string>
