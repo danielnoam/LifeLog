@@ -3,6 +3,17 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.311.0] - 2026-11-12
+
+### Added
+- Android: the quick add widget's buttons open a small window over the home screen instead of the app. Add an entry (category, day, rating, notes), an expense (category and subcategory, or Auto), a backlog item (starred or not), a note or a checklist item, and it's added the next time LifeLog opens. "Open in LifeLog" takes what you typed to the full form. Turn it off in the widget's settings to have the buttons open the app as before.
+- Android: the checklist widget's + and its list headings open the same window on that list; a new item shows on the widget at once and stays open for the next one.
+
+### Fixed
+- On a phone, dragging a finger across an Investments price chart scrubs through the days again instead of swiping to the next Ledger mode. Lifting the finger clears the price; a tap still holds the day with Pin this day.
+- Date boxes (an entry's Started and Finished, and every other date box) now show the date format chosen in Settings → Appearance → Dates instead of the phone's or browser's own. The calendar that opens from one still follows the device's language.
+- Selecting notes no longer shrinks a list to its title: its items stay on the card, read-only, and a press anywhere on it selects it.
+
 ## [0.310.0] - 2026-11-09
 
 ### Added
