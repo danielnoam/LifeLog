@@ -1402,6 +1402,60 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await web.ctx.close();
   }
 
+  // ---- 17b. the quick-add window's adds, and its "Open in LifeLog" ----
+  {
+    const at = new Date().toISOString();
+    const withAll = {
+      ...doc([], "2026-09-01T00:00:00.000Z"),
+      settings: { currency: "ILS" },
+      categories: [{ name: "Games", color: "#7c6cf0" }, { name: "Books", color: "#e59a3c" }],
+      financeCategories: [{ name: "Food", color: "#e59a3c", subs: [{ id: "s1", name: "Coffee" }] }],
+      notes: [{ id: "L1", kind: "list", text: "Shopping", items: [{ id: "m", text: "Milk" }], createdAt: "2026-09-01T00:00:00.000Z" }],
+    };
+    const queue = [
+      { kind: "entry", id: "qe1", title: "Hades", category: "Games", date: "2026-11-10", rating: 4, at },
+      { kind: "item", id: "qi1", list: "L1", text: "Eggs", at },
+      { kind: "expense", id: "qx1", date: "2026-11-10", amount: "18", note: "Aroma", category: "Food", subcategory: "Coffee", from: "quick", at },
+    ];
+    const { page, ctx, errs: e } = await openApp(browser, { cache: withAll, widgets: { queue, action: null } });
+    await page.waitForTimeout(600);
+    const got = await page.evaluate(() => {
+      const d = window.LifeLogStorage.cachedCopy();
+      const data = d.data || d;
+      return {
+        entry: data.entries.find((x) => x.id === "qe1"),
+        items: data.notes.find((n) => n.id === "L1").items.map((i) => i.text),
+        expense: data.financeEntries.find((f) => f.id === "qx1"),
+        toast: (document.querySelector("#toast") || {}).textContent || "",
+      };
+    });
+    check("an entry from the window lands on its day, rated", !!got.entry && got.entry.month === 11 && got.entry.day === 10 && got.entry.rating === 4, got.entry);
+    check("a list item lands on its list", got.items.join() === "Milk,Eggs", got.items);
+    check("an expense keeps the category and sub it picked", !!got.expense && got.expense.category === "Food" && got.expense.subcategory === "Coffee", got.expense);
+    check("and the toast counts what came from the home screen, not as Wallet payments", /Added 3 things from your home screen/.test(got.toast) && !/Wallet/.test(got.toast), got.toast);
+    const snap = await page.evaluate(() => window.__cap.widgetSnaps[window.__cap.widgetSnaps.length - 1]);
+    check("the window is sent the categories and the currency's sign",
+      !!snap && snap.entryCats.length === 2 && snap.financeCats[0].subs.join() === "Coffee" && snap.currencySymbol === "₪", snap && [snap.entryCats, snap.financeCats, snap.currencySymbol]);
+
+    await page.evaluate(() => {
+      window.__widgetPlan.action = "add-entry?title=Outer+Wilds";
+      (window.__cap.widgetListeners.action || []).forEach((cb) => cb({}));
+    });
+    await page.waitForTimeout(300);
+    check("Open in LifeLog brings the title to the entry form",
+      await page.evaluate(() => !document.querySelector("#entryModal").hidden && document.querySelector("#fTitle").value === "Outer Wilds"));
+    await page.evaluate(() => {
+      document.querySelector("#entryModal").hidden = true;
+      window.__widgetPlan.action = "add-note?title=Gifts&text=A+mug";
+      (window.__cap.widgetListeners.action || []).forEach((cb) => cb({}));
+    });
+    await page.waitForTimeout(300);
+    check("and a note's title and text to the note sheet",
+      await page.evaluate(() => !document.querySelector("#noteModal").hidden && document.querySelector("#nTitle").value === "Gifts" && document.querySelector("#nText").value === "A mug"));
+    errs.push(...e);
+    await ctx.close();
+  }
+
   // ---- 18. charge and release-day heads-ups (0.272.0) ----
   {
     const shift = (n) => { const d = new Date(); d.setDate(d.getDate() + n); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };

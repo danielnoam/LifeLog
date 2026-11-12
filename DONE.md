@@ -255,6 +255,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Widget settings: pick and order lists, habits and quick add buttons (0.199.0, 0.201.0, 0.266.0, 0.270.0)
 - Widgets: Upcoming (what's out next, counted down) and In progress (0.277.0)
 - Background refresh: the app run with no screen on a schedule, so widgets and alerts catch up with the app closed (0.279.0)
+- Quick-add window: the quick add widget's buttons and the checklist widget's + open a small window over the home screen (entry, expense, backlog item, note, list item) instead of the app; saved on the phone and added when LifeLog next opens (0.311.0)
 
 ## iOS app
 

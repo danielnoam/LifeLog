@@ -71,7 +71,7 @@ public class TodosWidget extends AppWidgetProvider {
         String open = intent.getStringExtra(ListWidget.EXTRA_OPEN);
         if (open != null) {
             try {
-                c.startActivity(WidgetStore.launch(c, open));
+                c.startActivity(WidgetStore.addIntent(c, open));
             } catch (RuntimeException e) {
                 // Refused: the heading does nothing rather than crash the widget.
             }

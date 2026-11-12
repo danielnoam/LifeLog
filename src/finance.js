@@ -4383,6 +4383,8 @@
 
   window.LifeLogFinance = {
     init,
+    // the quick-add window's amount field (widgets.js)
+    currencyGlyph,
     wire,
     // the search page (search.js, 0.251.0)
     openRecurringModal,

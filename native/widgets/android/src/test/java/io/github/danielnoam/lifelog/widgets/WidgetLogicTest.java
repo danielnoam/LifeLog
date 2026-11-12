@@ -499,6 +499,63 @@ public class WidgetLogicTest {
         assertNull(ShareIntent.actionOf(" ", "\n"));
     }
 
+    // ---- the quick-add window ----
+
+    @Test
+    public void anItemAddedFromTheWindowShowsOnItsListBeforeTheAppRuns() throws Exception {
+        JSONObject snap = json("{\"lists\":[{\"id\":\"L\",\"name\":\"Shop\",\"color\":\"\"},{\"id\":\"W\",\"name\":\"Work\",\"color\":\"\"}],"
+            + "\"todos\":[{\"id\":\"a\",\"text\":\"Milk\",\"category\":\"Shop\",\"list\":\"L\",\"color\":\"\",\"done\":false},"
+            + "{\"id\":\"b\",\"text\":\"Old\",\"category\":\"Shop\",\"list\":\"L\",\"color\":\"\",\"done\":true}],\"doneCount\":{\"Shop\":1}}");
+        JSONArray q = new JSONArray("[{\"kind\":\"item\",\"id\":\"n\",\"list\":\"L\",\"text\":\"Eggs\"},{\"kind\":\"item\",\"id\":\"z\",\"list\":\"Gone\",\"text\":\"Lost\"}]");
+        assertEquals("[Shop] o:a o:n --1 done-- x:b [Work]", rows(snap, q));
+        // Ticked on the widget before the app has run, it moves under the line like any other.
+        q.put(json("{\"kind\":\"todo\",\"id\":\"n\",\"done\":true}"));
+        assertEquals("[Shop] o:a --2 done-- x:n x:b [Work]", rows(snap, q));
+    }
+
+    @Test
+    public void thePendingLineSaysChangesOnceAnAddIsWaiting() throws Exception {
+        assertNull(WidgetStore.pendingNote(new JSONArray("[{\"kind\":\"entry\",\"id\":\"e\"}]")));
+        assertEquals("2 ticks sync when you open LifeLog", WidgetStore.pendingNote(new JSONArray("[{\"kind\":\"habit\",\"id\":\"h\"},{\"kind\":\"todo\",\"id\":\"t\"}]")));
+        assertEquals("2 changes sync when you open LifeLog", WidgetStore.pendingNote(new JSONArray("[{\"kind\":\"habit\",\"id\":\"h\"},{\"kind\":\"item\",\"id\":\"i\"}]")));
+        assertEquals("1 change syncs when you open LifeLog", WidgetStore.pendingNote(new JSONArray("[{\"kind\":\"item\",\"id\":\"i\"}]")));
+    }
+
+    @Test
+    public void theWindowOpensOnlyWhereItHasSomethingToOffer() throws Exception {
+        JSONObject snap = json("{\"entryCats\":[{\"name\":\"Games\"}],\"financeCats\":[],\"noteCats\":[],\"lists\":[]}");
+        assertTrue(WidgetStore.quickReady(snap, "add-entry"));
+        assertTrue(WidgetStore.quickReady(snap, "add-backlog"));
+        assertTrue(WidgetStore.quickReady(snap, "add-expense"));
+        assertTrue(WidgetStore.quickReady(snap, "add-note"));
+        // No list to add to: the app's own add line, which makes one.
+        assertFalse(WidgetStore.quickReady(snap, "add-todo"));
+        assertFalse(WidgetStore.quickReady(snap, "add-habit"));
+        // An app older than the window sent no categories; the lock hides it all.
+        assertFalse(WidgetStore.quickReady(json("{\"lists\":[]}"), "add-entry"));
+        snap.put("hidden", true);
+        assertFalse(WidgetStore.quickReady(snap, "add-note"));
+        assertFalse(WidgetStore.quickReady(null, "add-note"));
+        assertEquals("item", WidgetStore.quickKind("add-todo:L"));
+    }
+
+    @Test
+    public void anAmountIsAPlainNumberAboveNought() {
+        assertEquals("12.5", QuickAddActivity.amountOf("12,5"));
+        assertEquals("4", QuickAddActivity.amountOf(" 4 "));
+        assertEquals(".5", QuickAddActivity.amountOf(".5"));
+        assertNull(QuickAddActivity.amountOf("0"));
+        assertNull(QuickAddActivity.amountOf("1.234"));
+        assertNull(QuickAddActivity.amountOf("5-2"));
+        assertNull(QuickAddActivity.amountOf(""));
+    }
+
+    @Test
+    public void openInLifeLogCarriesWhatsTyped() {
+        assertEquals("?title=Hades+%26+co", QuickAddActivity.query("title", "Hades & co", "text", ""));
+        assertEquals("", QuickAddActivity.query("title", ""));
+    }
+
     @Test
     public void aQueuedPaymentIsntCountedAsAWidgetTick() throws Exception {
         JSONArray q = new JSONArray("[{\"kind\":\"habit\",\"id\":\"h\"},{\"kind\":\"expense\",\"id\":\"e\"},{\"kind\":\"todo\",\"id\":\"t\"}]");

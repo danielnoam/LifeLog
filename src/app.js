@@ -173,7 +173,7 @@
   // hideWidgets keeps notes and to-dos out of the widgets while locked.
   const DEFAULT_PRIVACY = { enabled: false, pinHash: null, pinSalt: null, pinKdf: null, credentialId: null, graceMinutes: 0, lastUnlockAt: 0,
     relockMinutes: 5, fails: 0, lockedUntil: 0, bioOnOpen: true, privacyScreen: false, hideWidgets: false };
-  const APP_VERSION = "0.310.0"; // bump with each shipped change so it's visible in Settings
+  const APP_VERSION = "0.311.0"; // bump with each shipped change so it's visible in Settings
 
   const CATEGORY_PALETTE = ["#e23b3b", "#e2723b", "#e2b23b", "#9fe23b", "#3be25a", "#3bb2e2", "#5b8cff", "#723be2", "#b23be2", "#e23b72", "#7a8a99"];
 
@@ -5366,6 +5366,19 @@
     }
     else if (action === "add-backlog" && viewEnabled("backlog")) Backlog.openBacklogModal(null);
     else if (action === "add-note" && modeEnabled("notes", "notes")) Notes.openNoteModal(null);
+    // The quick-add window's "Open in LifeLog": the form, with what was
+    // typed there carried over.
+    else if (/^add-(entry|backlog|note)\?/.test(action)) {
+      const q = new URLSearchParams(action.slice(action.indexOf("?") + 1));
+      const title = String(q.get("title") || "").trim().slice(0, 300);
+      if (action.startsWith("add-entry?") && viewEnabled("timeline")) Journal.openEntryModal(null, null, { title });
+      else if (action.startsWith("add-backlog?") && viewEnabled("backlog")) Backlog.openBacklogModal(null, null, { title });
+      else if (action.startsWith("add-note?") && modeEnabled("notes", "notes")) {
+        Notes.openNoteModal(null, "text");
+        $("#nTitle").value = title;
+        $("#nText").value = String(q.get("text") || "");
+      }
+    }
     else if (action === "add-habit" && modeEnabled("notes", "habits")) { goTo("notes", "habits"); Habits.openHabitModal(null); }
     else if (action === "open-finance" && viewEnabled("finance")) goTo("finance", "entries");
     else if (action === "open-habits" && modeEnabled("notes", "habits")) goTo("notes", "habits");
