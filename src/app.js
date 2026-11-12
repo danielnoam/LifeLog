@@ -4685,6 +4685,27 @@
     new ResizeObserver(setTopbarH).observe(topbar);
     setTopbarH();
 
+    // A computer's top bar is one row that doesn't wrap, so a narrow or
+    // zoomed-in window pushed the ⚙ past the right edge. When the row
+    // doesn't fit with the search at its 160px floor, the tabs drop to
+    // icons (their names become tooltips) and the wordmark goes.
+    const corner = $(".settings-corner");
+    const fitTopbar = () => {
+      topbar.classList.remove("is-tight");
+      const edge = topbar.getBoundingClientRect().right - parseFloat(getComputedStyle(topbar).paddingRight);
+      const tight = !isMobileLayout() && corner.getBoundingClientRect().right > edge + 0.5;
+      topbar.classList.toggle("is-tight", tight);
+      for (const t of document.querySelectorAll("#viewTabs .tab")) {
+        if (tight) t.title = [...t.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent).join("").trim();
+        else t.removeAttribute("title");
+      }
+    };
+    const fitObserver = new ResizeObserver(fitTopbar);
+    fitObserver.observe(topbar);
+    fitObserver.observe(corner);
+    fitObserver.observe($("#viewTabs"));
+    fitTopbar();
+
     // Same idea for the mobile bottom bar — its height changes as the
     // jump-nav row (see updateJumpNav) animates open/closed, and .content's
     // bottom padding / the FAB / toast / bulk-bar all anchor off it so none

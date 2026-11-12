@@ -524,8 +524,15 @@ html.show-tab-keys .tab-key {
 
 /* The wrapper is what the topbar lays out; the input fills it. Block, not
    flex: as a flex item the input keeps its intrinsic min-width, which stops
-   the wrapper shrinking and pushes the ⚙ onto a second row on a phone. */
-.search-wrap { position: relative; display: block; width: 200px; order: 3; margin-left: auto; }
+   the wrapper shrinking and pushes the ⚙ onto a second row on a phone.
+   On a computer it takes the room the row has left, up to 480px, and never
+   drops under 160px: past that the tabs give up their labels (.is-tight,
+   set by fitTopbar in app.js) rather than push the ⚙ off the right edge,
+   which is what a zoomed-in window used to do. */
+.search-wrap { position: relative; display: block; order: 3; margin-left: auto; flex: 1 1 200px; min-width: 160px; max-width: 480px; }
+.topbar.is-tight { gap: 12px; }
+.topbar.is-tight .brand h1 { display: none; }
+.topbar.is-tight .tab { gap: 0; padding-left: 11px; padding-right: 11px; font-size: 0; }
 .search {
   background: var(--bg); border: 1px solid var(--border); color: var(--text);
   padding: 8px 32px 8px 12px; border-radius: var(--r-md); width: 100%; font-size: var(--fs-sm);
@@ -3374,7 +3381,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
      ⚙ on a second row the moment the field gets any wider — which the ✕'s
      own padding was enough to do. Taking whatever is left over instead is
      what the row wanted all along. */
-  html:not(.force-pc) .search-wrap { order: 2; margin-left: 0; width: auto; flex: 1 1 0; min-width: 0; }
+  html:not(.force-pc) .search-wrap { order: 2; margin-left: 0; width: auto; flex: 1 1 0; min-width: 0; max-width: none; }
   html:not(.force-pc) .brand h1 { display: none; }
   /* Thumb-sized on a phone, where the native one was smallest of all. */
   html:not(.force-pc) .search-clear { width: 34px; font-size: var(--fs-sm); }
@@ -3539,7 +3546,7 @@ html.native, html.native body { overscroll-behavior-y: none; }
 
 /* Above .fab-wrap (35) — see the note in the phone block above. */
 html.force-mobile .topbar { flex-wrap: wrap; gap: 10px; padding: 10px 14px 28px; z-index: 40; }
-html.force-mobile .search-wrap { order: 2; margin-left: 0; width: auto; flex: 1 1 0; min-width: 0; }
+html.force-mobile .search-wrap { order: 2; margin-left: 0; width: auto; flex: 1 1 0; min-width: 0; max-width: none; }
 html.force-mobile .brand h1 { display: none; }
 html.force-mobile .search-clear { width: 34px; font-size: var(--fs-sm); }
 /* Fields on a phone (0.222.0): 44px to hit, and 16px text, below which
@@ -5024,7 +5031,10 @@ html.force-mobile .place-grip { padding: var(--space-8); margin: calc(-1 * var(-
 .home-pair .home-pins { grid-template-columns: minmax(0, 1fr); }
 .home-card { background: var(--surface-card); border: 1px solid var(--border); border-radius: var(--r-card); overflow: hidden; }
 
-.home-strip { display: flex; gap: var(--space-14); overflow-x: auto; padding-bottom: var(--space-4); }
+/* A scroller clips at its padding box, and a cover's hover and focus
+   outline sit 4px outside it, so the strip pads 6px all round and takes
+   the same back in margin to stay lined up with the heading. */
+.home-strip { display: flex; gap: var(--space-14); overflow-x: auto; padding: var(--space-6) var(--space-6) calc(var(--space-4) + var(--space-6)); margin: calc(-1 * var(--space-6)); }
 .home-tile { flex: 0 0 132px; }
 .home-tile-count {
   position: absolute; left: var(--space-6); bottom: var(--space-6); padding: 2px var(--space-8); border-radius: var(--r-pill);
