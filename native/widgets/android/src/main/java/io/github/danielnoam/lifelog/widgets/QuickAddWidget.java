@@ -11,7 +11,9 @@ import android.widget.RemoteViews;
 /**
  * Buttons that open the app on the right form. Narrow, each is its icon
  * alone (0.189.0): five labels in two cells were each cut to a letter or two.
- * Its settings choose which buttons it has (0.201.0).
+ * Its settings choose which buttons it has (0.201.0). A button opens the
+ * quick-add window (QuickAddActivity) rather than the app where it can, and
+ * the settings can send them to the app as before.
  */
 public class QuickAddWidget extends AppWidgetProvider {
 
@@ -75,6 +77,8 @@ public class QuickAddWidget extends AppWidgetProvider {
         int shown = 0;
         for (String action : ACTIONS) if (shows(WidgetStore.offers(c, action), chosen, action)) shown++;
         boolean icons = iconsOnly(WidgetSize.of(manager, widgetId).width, shown);
+        // Off unless chosen: the buttons open the quick-add window, not the app.
+        boolean inApp = cfg != null && cfg.optBoolean("inApp", false);
         v.removeAllViews(R.id.quickadd_row);
         for (int i : ordered(WidgetStore.orderOf(cfg))) {
             if (!shows(WidgetStore.offers(c, ACTIONS[i]), chosen, ACTIONS[i])) continue;
@@ -83,7 +87,7 @@ public class QuickAddWidget extends AppWidgetProvider {
             b.setTextViewText(R.id.add_label, LABELS[i]);
             b.setViewVisibility(R.id.add_label, icons ? View.GONE : View.VISIBLE);
             b.setContentDescription(R.id.add_button, "Add " + LABELS[i].toLowerCase(java.util.Locale.ROOT));
-            b.setOnClickPendingIntent(R.id.add_button, WidgetStore.openApp(c, ACTIONS[i], 300 + i));
+            b.setOnClickPendingIntent(R.id.add_button, WidgetStore.addButton(c, ACTIONS[i], 300 + i, null, inApp));
             v.addView(R.id.quickadd_row, b);
         }
         return v;

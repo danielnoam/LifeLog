@@ -317,5 +317,77 @@ test("a link's query stays encoded for runAction, so a merchant with & in it sta
   assert.strictEqual(W.actionOfUrl("lifelog://action/add-expense?amount=4.50&note=A%26B"), "add-expense?amount=4.50&note=A%26B");
 });
 
+console.log("\nthe quick-add window");
+
+test("the snapshot carries what the window picks from: timeline and Ledger categories, subs, the currency's sign", () => {
+  const s = W.snapshotOf({
+    categories: [{ name: "Games", color: "#112233" }, { name: "Books" }],
+    financeCategories: [{ name: "Food", color: "#445566", subs: [{ name: "Coffee" }] }],
+  }, { today: TODAY, currencySymbol: "₪" });
+  assert.deepStrictEqual(s.entryCats, [{ name: "Games", color: "#112233" }, { name: "Books", color: "" }]);
+  assert.deepStrictEqual(s.financeCats, [{ name: "Food", color: "#445566", subs: ["Coffee"] }]);
+  assert.strictEqual(s.currencySymbol, "₪");
+});
+
+const quickData = () => ({
+  ...data(),
+  categories: [{ name: "Games" }, { name: "Books" }],
+  financeCategories: [{ name: "Food", subs: [{ name: "Coffee" }] }, { name: "Home" }],
+  entries: [], backlog: [], financeEntries: [],
+});
+
+test("an entry lands on its month and day, rated, in its category; once however often it's drained", () => {
+  const d = quickData();
+  const it = { kind: "entry", id: "q1", title: " Hades ", category: "Games", date: "2026-09-23", rating: 4, notes: "Great", at: "2026-09-24T08:00:00.000Z" };
+  assert.strictEqual(W.applyQueue(d, [it]), 1);
+  assert.strictEqual(W.applyQueue(d, [it]), 0);
+  assert.deepStrictEqual(d.entries, [{ id: "q1", title: "Hades", category: "Games", createdAt: "2026-09-24T08:00:00.000Z", notes: "Great", year: 2026, month: 9, date: "2026-09", day: 23, rating: 4 }]);
+});
+
+test("a category deleted since falls back to the first; no title or date is skipped", () => {
+  const d = quickData();
+  W.applyQueue(d, [
+    { kind: "entry", id: "q1", title: "Dune", category: "Gone", date: TODAY },
+    { kind: "entry", id: "q2", title: "", category: "Books", date: TODAY },
+    { kind: "entry", id: "q3", title: "No date", category: "Books" },
+  ]);
+  assert.deepStrictEqual(d.entries.map((e) => [e.id, e.category]), [["q1", "Games"]]);
+});
+
+test("a backlog item can come starred", () => {
+  const d = quickData();
+  W.applyQueue(d, [{ kind: "backlog", id: "b1", title: "Outer Wilds", category: "Games", starred: true }, { kind: "backlog", id: "b2", title: "Piranesi", category: "Books" }]);
+  assert.deepStrictEqual(d.backlog.map((b) => [b.title, b.category, b.priority]), [["Outer Wilds", "Games", 1], ["Piranesi", "Books", undefined]]);
+});
+
+test("a note goes on top, with its title and a category that still exists", () => {
+  const d = quickData();
+  W.applyQueue(d, [{ kind: "note", id: "n1", text: "Idea", title: "Later", category: "Work", at: "2026-09-24T08:00:00.000Z" }, { kind: "note", id: "n2", text: "", title: "Empty" }]);
+  assert.deepStrictEqual(d.notes[0], { id: "n1", text: "Idea", createdAt: "2026-09-24T08:00:00.000Z", editedAt: "2026-09-24T08:00:00.000Z", title: "Later", category: "Work" });
+  assert.ok(!d.notes.some((n) => n.id === "n2"));
+});
+
+test("a list item goes after the list's open items, and a tick on it in the same queue lands too", () => {
+  const d = quickData();
+  W.applyQueue(d, [{ kind: "item", id: "i1", list: "Lg", text: "Eggs" }, { kind: "todo", id: "i1", done: true, at: "2026-09-24T09:00:00.000Z" }, { kind: "item", id: "i2", list: "Gone", text: "Lost" }]);
+  const lg = d.notes.find((n) => n.id === "Lg");
+  assert.deepStrictEqual(lg.items.map((i) => i.id), ["t2", "i1", "t3"]);
+  assert.strictEqual(lg.items[1].done, true);
+});
+
+test("the window's expense keeps the category and sub it picked; Auto files it as Wallet's would", () => {
+  const d = quickData();
+  d.financeEntries.push({ id: "old", date: "2026-09-01", amount: 3, category: "Home", note: "Kiosk" });
+  W.applyQueue(d, [
+    { kind: "expense", id: "x1", date: TODAY, amount: "12,5", note: "Aroma", category: "Food", subcategory: "Coffee", from: "quick" },
+    { kind: "expense", id: "x2", date: TODAY, amount: "4", note: "Kiosk", from: "quick" },
+    { kind: "expense", id: "x3", date: TODAY, amount: "4", category: "Food", subcategory: "Gone", from: "quick" },
+  ]);
+  const by = (id) => d.financeEntries.find((f) => f.id === id);
+  assert.deepStrictEqual([by("x1").amount, by("x1").category, by("x1").subcategory], [12.5, "Food", "Coffee"]);
+  assert.strictEqual(by("x2").category, "Home");
+  assert.deepStrictEqual([by("x3").category, by("x3").subcategory], ["Food", undefined]);
+});
+
 console.log(`\n${passed} test(s) passed.`);
 if (process.exitCode) console.log("Some tests FAILED — see above.");

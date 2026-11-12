@@ -166,6 +166,17 @@
             </intent-filter>
         </activity>
 
+        <!-- The quick-add window: a widget's add button opens it over the
+             home screen, without the app (QuickAddActivity). Not exported:
+             only the widgets' own PendingIntents start it. -->
+        <activity
+            android:name="io.github.danielnoam.lifelog.widgets.QuickAddActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/LifeLogQuickAdd"
+            android:windowSoftInputMode="adjustResize|stateAlwaysVisible" />
         <receiver
             android:name="io.github.danielnoam.lifelog.widgets.ReminderReceiver"
             android:exported="false">

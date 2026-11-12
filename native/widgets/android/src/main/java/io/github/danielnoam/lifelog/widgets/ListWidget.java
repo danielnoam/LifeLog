@@ -80,8 +80,8 @@ final class ListWidget {
         // list's heading has its own then.
         v.setViewVisibility(R.id.widget_add, addAction == null ? View.GONE : View.VISIBLE);
         if (addAction != null) {
-            v.setOnClickPendingIntent(R.id.widget_add, WidgetStore.openAppOn(c, addAction, requestBase + 1,
-                Uri.parse("lifelog-widget://add/" + widgetId)));
+            v.setOnClickPendingIntent(R.id.widget_add, WidgetStore.addButton(c, addAction, requestBase + 1,
+                Uri.parse("lifelog-widget://add/" + widgetId), false));
         }
 
         Intent tick = new Intent(c, provider);
