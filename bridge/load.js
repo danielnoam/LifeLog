@@ -36,6 +36,7 @@ function load() {
   src("boards.js");
   src("travel.js");
   src("invest.js");
+  src("waypage.js");
   src("widgets.js");
   src("home.js");
   window.LifeLogIO = { init: () => {} };
@@ -59,6 +60,7 @@ function load() {
     Boards: window.LifeLogBoards,
     Travel: window.LifeLogTravel,
     Invest: window.LifeLogInvest,
+    Waypage: window.LifeLogWaypage,
     Recap: window.LifeLogRecap,
     Home: window.LifeLogHome,
   };

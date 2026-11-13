@@ -1253,6 +1253,30 @@ test("lifelog_backlog's starred, bought and price_alert stack like the Backlog's
   assert.doesNotMatch(alerts, /Hades|Dune|Celeste/);
 });
 
+test("Waypage (0.313.0): the reading log is shown without its token, and a review row is answered", async () => {
+  reset();
+  const d0 = data();
+  d0.backlog.push({ id: "wp-c1", title: "Saltmarsh Letters", category: "Books", startedAt: daysAgo(2), waypageId: "c1", waypageProgress: 0.18, createdAt: T, updatedAt: T });
+  d0.entries.push({ id: "e9", title: "Wren", category: "Books", year: 2025, month: 3, date: "2025-03", createdAt: T, updatedAt: T });
+  d0.settings.waypage = { repo: "me/waypage-data", token: "github_pat_SECRET", kinds: { book: "Books" }, habit: "h1",
+    review: { c2: { title: "Wren", author: "S. Haddad", kind: "book", progress: 1, finishedAt: "2026-11-10", reason: "logged", match: "entries:e9" } } };
+  fs.writeFileSync(FILE, JSON.stringify(d0, null, 2));
+  const shown = await ok("lifelog_waypage", {});
+  assert.doesNotMatch(shown, /SECRET/);
+  assert.match(shown, /Saltmarsh Letters \[Books\] 18%/);
+  assert.match(shown, /To review \(1\):\n- Wren by S\. Haddad .*review id c2/);
+  assert.match(await ok("lifelog_home", {}), /Saltmarsh Letters \[Books\] since .*, 18% in Waypage/);
+  await refused("lifelog_waypage_review", { id: "nope", answer: "same" }, /No review row/);
+  assert.match(await ok("lifelog_waypage_review", { id: "c2", answer: "add" }), /Added to the Timeline as a re-read: "Wren"/);
+  const after = data();
+  assert.strictEqual(after.entries.filter((e) => e.title === "Wren").length, 2);
+  assert.deepStrictEqual(after.settings.waypage.review, {});
+  assert.strictEqual(after.settings.waypage.seen.c2, true);
+  assert.strictEqual(after.settings.waypage.token, "github_pat_SECRET", "the token stays where it was");
+  await ok("lifelog_undo", {});
+  assert.strictEqual(data().entries.filter((e) => e.title === "Wren").length, 1);
+});
+
 test("Home (0.306.0): what the tab shows, the scratchpad and pinned notes", async () => {
   reset();
   const d0 = data();

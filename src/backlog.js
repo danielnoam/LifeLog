@@ -415,6 +415,8 @@
       count.setAttribute("aria-label", c.words);
       since.append(count, " · ");
     }
+    const wp = !counted && window.LifeLogWaypage ? window.LifeLogWaypage.progressLabel(b) : "";
+    if (wp) since.append(wp + " in Waypage · ");
     since.append(sinceLabel(b.startedAt));
     // The count's colour already says airing, publishing or all out
     // (0.293.1); only what it can't say stays a word.

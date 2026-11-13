@@ -13,6 +13,7 @@
   const Boards = window.LifeLogBoards;
   const Travel = window.LifeLogTravel;
   const Invest = window.LifeLogInvest;
+  const Waypage = window.LifeLogWaypage || { init() {}, wire() {}, start() {}, check() {}, progressLabel: () => "" };
   const Recap = window.LifeLogRecap;
   const Home = window.LifeLogHome || { init() {}, renderHome() {}, fillViewOptions() {} };
   const Widgets = window.LifeLogWidgets || { changed() {}, start() {}, assertBackground() {} };
@@ -50,7 +51,7 @@
   // timelineSort/ledgerSort/backlogSort replaced monthOrder in 0.157.0. Each
   // option is one complete statement about the whole list rather than a
   // direction bolted to a hidden field — see SORTS below.
-  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", igdb: "", igdbSecret: "", googlePlaces: "", nyt: "", tiingo: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "30" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0", clientId: "", token: "", connectedAt: "" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
+  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", igdb: "", igdbSecret: "", googlePlaces: "", nyt: "", tiingo: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "30" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0", clientId: "", token: "", connectedAt: "" }, waypage: { repo: "", token: "" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
   // Local to this device, not synced. Every key a view reads off state.visual
   // belongs here: loadVisualSettings fills the gaps in a stored blob from this
   // object, so a default declared here is the only one there is — a `||` at
@@ -4450,7 +4451,7 @@
     // stale source of truth for the same question.
     "monthOrder",
     "currency", "mediaCategorySources", "mediaCategoryFallbackSources",
-    "mediaKeys", "steam", "anilist", "releases", "importSkips", "updatedAt",
+    "mediaKeys", "steam", "anilist", "waypage", "releases", "importSkips", "updatedAt",
     "monthMinWidth", "monthMaxWidth", "imagesCleanedAt",
     "weekStart", "dateFormat", "scratchpad", "keys",
   ]);
@@ -4542,6 +4543,8 @@
       mediaKeys,
       steam: { ...DEFAULT_SETTINGS.steam, ...(incomingSettings.steam || {}) },
       anilist: { ...DEFAULT_SETTINGS.anilist, ...(incomingSettings.anilist || {}) },
+      // The reading log from Waypage (0.313.0, waypage.js).
+      waypage: window.LifeLogWaypage ? window.LifeLogWaypage.cleanConfig(incomingSettings.waypage) : { ...DEFAULT_SETTINGS.waypage, ...(incomingSettings.waypage || {}) },
       releases: { ...DEFAULT_SETTINGS.releases, ...(incomingSettings.releases || {}) },
       // Per import source, the "source:id" keys you left unticked (0.257.0).
       importSkips: Object.fromEntries(Object.entries(incomingSettings.importSkips && typeof incomingSettings.importSkips === "object" ? incomingSettings.importSkips : {})
@@ -4975,6 +4978,7 @@
     Backlog.wire(); // backlog modal: sync, priority/dropped, title suggestions
     Wheel.wire(); // the random wheel inside the Backlog's Pick sheet
     SettingsUI.wire(); // the Settings modal: tabs, data/storage, appearance, media, privacy
+    Waypage.wire(); // its group on Settings → Imports
 
     $("#exportJsonBtn").onclick = IO.exportJson;
     $("#importJsonBtn").onclick = () => $("#importJsonInput").click();
@@ -5852,6 +5856,7 @@
     if (!isAnyModalOpen()) setTimeout(() => { if (!isAnyModalOpen()) Backlog.maybeShowOutToday(); }, 1200);
     Sync.maybeAutoCheckSteamWishlist(); // fire-and-forget, doesn't block startup
     Sync.maybeAutoCheckAniList(); // same — the two-way AniList sync, when it's due (0.292.0)
+    Waypage.start(); // same — the reading log from Waypage, every few minutes while open (0.313.0)
     Sync.maybeAutoRefreshReleases(); // same — keeps upcoming release dates current in the background
     Sync.maybeCheckPriceAlerts(); // same — the Steam games with a price target (0.276.0)
     Invest.checkTargets(); // same — the watched tickers with a target
@@ -6320,6 +6325,8 @@
   Invest.init({ state, $, el, uid, toast, emptyState, render, Storage, updateFilterbarVisibility, openSettings: (page) => SettingsUI.openSettings(page),
     openInvest: () => { VIEW_MODES.finance.set("invest"); if (state.view !== "finance") switchToView("finance"); else commitModeChange(); } });
   Home.init({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, todayStr: () => Finance.localDateStr(new Date()) });
+  Waypage.init({ state, $, el, toast, persist, afterDataChange, render,
+    whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } } });
   Share.start({ Backlog, Notes, Travel, toast, viewEnabled, modeEnabled });
   Letterboxd.start({ unzip: (b) => window.LifeLogDocImport.unzip(b), parseCsv: IO.parseCsv, buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport });
   Search.start({
