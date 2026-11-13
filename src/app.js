@@ -154,7 +154,7 @@
     "jikan-anime": "Jikan", "jikan-manga": "Jikan",
     openlibrary: "Open Library", googlebooks: "Google Books", hardcover: "Hardcover", musicbrainz: "MusicBrainz",
     steam: "Steam",
-    "nyt-openlibrary": "NYT bestsellers", "nyt-googlebooks": "NYT bestsellers",
+    "nyt-openlibrary": "NYT bestsellers", "nyt-googlebooks": "NYT bestsellers", "nyt-hardcover": "NYT bestsellers",
   };
   const PRIVACY_KEY = "lifelog-privacy-v1";
   // App lock: gates opening the app on this device. Local-only, never synced
