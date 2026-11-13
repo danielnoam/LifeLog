@@ -334,6 +334,7 @@
   const SETTING_LABELS = {
     "mediaKeys.rawg": "RAWG API key", "mediaKeys.tmdb": "TMDB API key",
     "mediaKeys.ggdeals": "GG.deals API key", "mediaKeys.steamgriddb": "SteamGridDB API key",
+    "mediaKeys.igdb": "IGDB client ID", "mediaKeys.igdbSecret": "IGDB client secret",
     "mediaKeys.googlePlaces": "Google Places API key", "mediaKeys.nyt": "New York Times API key", "mediaKeys.tiingo": "Tiingo API token",
     "steam.proxyUrl": "Steam proxy URL", "steam.steamId": "Steam ID", "steam.apiKey": "Steam Web API key",
     "steam.wishlistCategory": "Steam wishlist category", "steam.autoSyncDays": "Steam auto-sync",
@@ -627,7 +628,7 @@
   const EVERY = { "1": "every day", "3": "every 3 days", "7": "every week", "30": "every month" };
   const THEMES = { default: "Dark", light: "Light", nord: "Nord", dracula: "Dracula" };
   const FONTS = { system: "system typeface", serif: "serif", mono: "monospace", rounded: "rounded" };
-  const KEY_NAMES = { rawg: "RAWG", tmdb: "TMDB", ggdeals: "GG.deals", steamgriddb: "SteamGridDB", googlePlaces: "Google Places", nyt: "New York Times", tiingo: "Tiingo" };
+  const KEY_NAMES = { rawg: "RAWG", tmdb: "TMDB", ggdeals: "GG.deals", steamgriddb: "SteamGridDB", igdb: "IGDB", googlePlaces: "Google Places", nyt: "New York Times", tiingo: "Tiingo" };
   const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
 
   function statusOf(page) {
@@ -1229,7 +1230,7 @@
   // or the proxy changes. A working key is remembered for ten minutes, so
   // stepping in and out of the page doesn't ask again; a failing one is asked
   // every time, so a service coming back up shows as soon as you look.
-  const KEY_KINDS = ["rawg", "tmdb", "ggdeals", "steamgriddb", "googlePlaces", "nyt", "tiingo"];
+  const KEY_KINDS = ["rawg", "tmdb", "ggdeals", "steamgriddb", "igdb", "googlePlaces", "nyt", "tiingo"];
   const KEY_STATUS_ICONS = { ok: "check", bad: "x", warn: "triangle-alert", down: "triangle-alert", checking: "loader-circle" };
   const keyWorks = new Map();
   const keyAsk = {};
@@ -1249,12 +1250,13 @@
     const proxy = window.LifeLogPlatform.steamProxy(state.data.settings.steam?.proxyUrl);
     const ask = keyAsk[kind] = (keyAsk[kind] || 0) + 1;
     if (!key) { paintKeyStatus(kind, null); return; }
-    const id = kind + "|" + key + "|" + proxy;
+    const keys = state.data.settings.mediaKeys || {};
+    const id = kind + "|" + key + "|" + proxy + (kind === "igdb" ? "|" + String(keys.igdbSecret || "").trim() : "");
     const seen = keyWorks.get(id);
     if (seen && Date.now() - seen < 10 * 60 * 1000) { paintKeyStatus(kind, { state: "ok", label: "Working", detail: "The key works" }); return; }
     paintKeyStatus(kind, { state: "checking", label: "Checking", detail: "" });
     let r;
-    try { r = await window.LifeLogMedia.checkKey(kind, key, proxy); }
+    try { r = await window.LifeLogMedia.checkKey(kind, key, proxy, keys); }
     catch (e) { r = { state: "down", label: "Can't reach", detail: "" }; }
     if (ask !== keyAsk[kind]) return;
     if (r && r.state === "ok") keyWorks.set(id, Date.now());
@@ -1273,6 +1275,8 @@
     $("#tmdbKey").value = state.data.settings.mediaKeys?.tmdb || "";
     $("#ggdealsKey").value = state.data.settings.mediaKeys?.ggdeals || "";
     $("#steamgriddbKey").value = state.data.settings.mediaKeys?.steamgriddb || "";
+    $("#igdbClientId").value = state.data.settings.mediaKeys?.igdb || "";
+    $("#igdbSecret").value = state.data.settings.mediaKeys?.igdbSecret || "";
     $("#googlePlacesKey").value = state.data.settings.mediaKeys?.googlePlaces || "";
     $("#nytKey").value = state.data.settings.mediaKeys?.nyt || "";
     $("#tiingoKey").value = state.data.settings.mediaKeys?.tiingo || "";
@@ -1777,6 +1781,8 @@
     $("#tmdbKey").oninput = () => setMediaKey("tmdb", $("#tmdbKey").value);
     $("#ggdealsKey").oninput = () => setMediaKey("ggdeals", $("#ggdealsKey").value);
     $("#steamgriddbKey").oninput = () => setMediaKey("steamgriddb", $("#steamgriddbKey").value);
+    $("#igdbClientId").oninput = () => setMediaKey("igdb", $("#igdbClientId").value.trim());
+    $("#igdbSecret").oninput = async () => { await setMediaKey("igdbSecret", $("#igdbSecret").value.trim()); checkMediaKeySoon("igdb"); };
     $("#googlePlacesKey").oninput = () => setMediaKey("googlePlaces", $("#googlePlacesKey").value.trim());
     $("#nytKey").oninput = () => setMediaKey("nyt", $("#nytKey").value.trim());
     $("#tiingoKey").oninput = () => setMediaKey("tiingo", $("#tiingoKey").value.trim());
@@ -1788,7 +1794,7 @@
     };
     $("#steamProxyUrl").oninput = () => {
       setSteamSetting("proxyUrl", $("#steamProxyUrl").value.trim());
-      ["ggdeals", "steamgriddb"].forEach(checkMediaKeySoon);
+      ["ggdeals", "steamgriddb", "igdb"].forEach(checkMediaKeySoon);
     };
     $("#steamId64").oninput = () => setSteamSetting("steamId", $("#steamId64").value.trim());
     $("#steamApiKey").oninput = () => setSteamSetting("apiKey", $("#steamApiKey").value.trim());

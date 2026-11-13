@@ -476,7 +476,7 @@ Linux when `desktop.yml` is run by hand with **Linux too** ticked.
 
 - **Offline and fast**: the files are inside the app, so it opens with no
   connection and without waiting on one, and syncs when it can.
-- **No proxy needed**: Steam, SteamGridDB, GG.deals, Augmented Steam and
+- **No proxy needed**: Steam, SteamGridDB, IGDB, GG.deals, Augmented Steam and
   the Google Maps import go out through the app's own HTTP, as on the
   phones.
 - **Its own copy**: it doesn't share a browser's storage, so connect sync
@@ -516,6 +516,7 @@ you add it in **Settings → Media lookups**.
 | --- | --- | --- |
 | RAWG | yes (free) | games: ratings, playtime, genres, descriptions |
 | SteamGridDB | yes (free) + CORS proxy | games: better cover art |
+| IGDB | yes (a free Twitch app's client ID and secret) + CORS proxy in a browser | games: a second source beside RAWG, with play times and early access |
 | TMDB | yes (free) | films and TV, with next-episode dates |
 | GG.deals | yes (free); proxy if CORS-blocked | current game prices |
 | Augmented Steam | no; CORS proxy | Steam games: How Long to Beat times, OpenCritic and Metacritic user scores |

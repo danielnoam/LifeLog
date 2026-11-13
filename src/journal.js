@@ -575,7 +575,7 @@
             // genres until RAWG is asked by title, which is what the title
             // argument is for.
             const [extras, resolved] = await Promise.all([
-              window.LifeLogMedia.fetchEntryExtras(r.id, r.source, keys, r.title),
+              window.LifeLogMedia.fetchEntryExtras(r.id, r.source, keys, r.title, window.LifeLogPlatform.steamProxy(state.data.settings.steam?.proxyUrl)),
               resolveMediaIdentity(r, keys),
             ]);
             if (!isOverridden(item, "length")) { item.length = extras.length || r.length || ""; if (item.length) filled.push("length"); }
@@ -1139,6 +1139,8 @@
     { value: "rawg-steam-gg", label: "RAWG + Steam + GG.deals (games)" },
     { value: "steamgriddb", label: "SteamGridDB (games)" },
     { value: "steamgriddb-steam-gg", label: "SteamGridDB + Steam + GG.deals (games)" },
+    { value: "igdb", label: "IGDB (games)" },
+    { value: "igdb-steam-gg", label: "IGDB + Steam + GG.deals (games)" },
     { value: "steam", label: "Steam (manual App ID)" },
     { value: "tmdb-movie", label: "TMDB (movie)" },
     { value: "tmdb-tv", label: "TMDB (TV)" },
@@ -1236,6 +1238,7 @@
   // asks its own source for the mapping:
   //   rawg-steam-gg        → RAWG's per-game store links, scanned for a Steam one
   //   steamgriddb-steam-gg → SGDB's external_platform_data for the game
+  //   igdb-steam-gg        → IGDB's external ids (or its Steam store link)
   // Either can come back empty (plenty of games aren't on Steam), and then
   // the item falls back to that source's plain identity — without an App ID
   // a combo result is just a RAWG or a SteamGridDB match, and storing it
@@ -1270,6 +1273,10 @@
       // independently of which id ends up identifying it.
       return appId ? onSteam(appId) : { mediaSource: "steamgriddb", mediaId: r.id || "", release: null, summary: "" };
     }
+    if (r.source === "igdb-steam-gg") {
+      const appId = await window.LifeLogMedia.fetchIgdbSteamAppId(r.id, keys, proxyUrl);
+      return appId ? onSteam(appId) : { mediaSource: "igdb", mediaId: r.id || "", release: null, summary: "" };
+    }
     return plain;
   }
 
@@ -1284,7 +1291,7 @@
     const sgdb = r.source === "steamgriddb" || r.source === "steamgriddb-steam-gg";
     const [resolved, details] = await Promise.all([
       resolveMediaIdentity(r, keys),
-      window.LifeLogMedia.fetchDetails(r.id, r.source, keys, { title: r.title, wantSummary: !sgdb }),
+      window.LifeLogMedia.fetchDetails(r.id, r.source, keys, { title: r.title, wantSummary: !sgdb, proxyUrl: window.LifeLogPlatform.steamProxy(state.data.settings.steam?.proxyUrl) }),
     ]);
     if (sgdb && !resolved.summary && details.rawgId) {
       const blurb = await window.LifeLogMedia.fetchDetails(details.rawgId, "rawg", keys);
@@ -1680,7 +1687,7 @@
       btn.classList.add("busy");
       try {
         const [extras, { mediaId, mediaSource }] = await Promise.all([
-          window.LifeLogMedia.fetchEntryExtras(r.id, r.source, keys, r.title),
+          window.LifeLogMedia.fetchEntryExtras(r.id, r.source, keys, r.title, window.LifeLogPlatform.steamProxy(state.data.settings.steam?.proxyUrl)),
           resolveMediaIdentity(r, keys),
         ]);
         setEntryCover(r.coverUrl, mediaId, mediaSource, extras.length || r.length || "",

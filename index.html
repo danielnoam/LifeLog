@@ -1832,13 +1832,13 @@
       <div class="tab-toggles" id="tabToggles"></div>
       </div>
 
-      <div class="settings-page" hidden data-page="media" data-title="Media lookups" data-keywords="api keys rawg tmdb steamgriddb gg.deals google places reviews hours nyt new york times bestsellers books tiingo stocks etf prices watchlist proxy cors cover art metadata sources">
+      <div class="settings-page" hidden data-page="media" data-title="Media lookups" data-keywords="api keys rawg igdb twitch tmdb steamgriddb gg.deals google places reviews hours nyt new york times bestsellers books tiingo stocks etf prices watchlist proxy cors cover art metadata sources">
       <h2 class="settings-page-title">Media lookups</h2>
       <p class="hint page-lede">Where covers, ratings and release dates come from. Syncs to your other devices.</p>
       <section class="sgroup">
         <h3 class="sgroup-label">Source per category</h3>
         <div class="sgroup-card" id="mediaCatRows"></div>
-        <p class="hint">The fallback is tried when the source finds nothing; <strong>Sync</strong> on an item searches both. "Steam" takes an App ID from the store URL. "RAWG + Steam + GG.deals" also finds the Steam ID, for a price too.</p>
+        <p class="hint">The fallback is tried when the source finds nothing; <strong>Sync</strong> on an item searches both. "Steam" takes an App ID from the store URL. "RAWG + Steam + GG.deals" (or IGDB's) also finds the Steam ID, for a price too. IGDB makes a good fallback for RAWG.</p>
       </section>
 
       <section class="sgroup">
@@ -1859,6 +1859,14 @@
           <label class="sitem sitem-stack">
             <span class="sitem-text"><span class="sitem-title key-title">SteamGridDB key<span class="key-status" data-key-status="steamgriddb" role="status" hidden></span></span><span class="sitem-sub">Game covers — free at <a href="https://www.steamgriddb.com/profile/preferences/api" target="_blank" rel="noopener">steamgriddb.com, Preferences → API</a>; needs the proxy</span></span>
             <input id="steamgriddbKey" type="password" placeholder="Paste your SteamGridDB API key…" autocomplete="off" spellcheck="false" />
+          </label>
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title key-title">IGDB client ID<span class="key-status" data-key-status="igdb" role="status" hidden></span></span><span class="sitem-sub">Games, a second source beside RAWG — free: register an app at <a href="https://dev.twitch.tv/console/apps" target="_blank" rel="noopener">dev.twitch.tv/console</a> (any name, redirect URL http://localhost, Confidential), then copy its client ID and a new secret; needs the proxy in a browser</span></span>
+            <input id="igdbClientId" type="password" placeholder="Paste your Twitch client ID…" autocomplete="off" spellcheck="false" />
+          </label>
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title">IGDB client secret</span></span>
+            <input id="igdbSecret" type="password" placeholder="Paste your Twitch client secret…" autocomplete="off" spellcheck="false" />
           </label>
           <label class="sitem sitem-stack">
             <span class="sitem-text"><span class="sitem-title key-title">Google Places key<span class="key-status" data-key-status="googlePlaces" role="status" hidden></span></span><span class="sitem-sub">A Travel place's rating, opening hours and reviews — <a href="https://console.cloud.google.com/apis/library/places.googleapis.com" target="_blank" rel="noopener">console.cloud.google.com</a>, with Places API (New) turned on; billing must be on, though personal use stays inside the free monthly allowance</span></span>
@@ -2077,6 +2085,7 @@
           <a class="sitem sitem-go" href="https://www.themoviedb.org" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">TMDB</span><span class="sitem-sub">Films and TV. This product uses the TMDB API but is not endorsed or certified by TMDB</span></span></a>
           <a class="sitem sitem-go" href="https://rawg.io" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">RAWG</span><span class="sitem-sub">Games</span></span></a>
           <a class="sitem sitem-go" href="https://www.steamgriddb.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">SteamGridDB</span><span class="sitem-sub">Game artwork</span></span></a>
+          <a class="sitem sitem-go" href="https://www.igdb.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">IGDB</span><span class="sitem-sub">Games, play times and early access, with your own Twitch app</span></span></a>
           <a class="sitem sitem-go" href="https://store.steampowered.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Steam</span><span class="sitem-sub">Your library and wishlist, and release dates</span></span></a>
           <a class="sitem sitem-go" href="https://gg.deals" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">GG.deals</span><span class="sitem-sub">Game prices</span></span></a>
           <a class="sitem sitem-go" href="https://augmentedsteam.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Augmented Steam</span><span class="sitem-sub">Its API brings the game times and review scores</span></span></a>

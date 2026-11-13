@@ -1192,6 +1192,242 @@
     return base ? base + "|" + part : "";
   }
 
+  // ---------- IGDB ----------
+  // Twitch's game database: a second games source beside RAWG, so a games
+  // category still finds things when RAWG is down (it was out for a week in
+  // November 2026). It signs in through Twitch with a client ID and secret
+  // (Settings → Media lookups) traded for an app token that lasts about 60
+  // days, kept on this device only. Its API takes POSTed queries and sends
+  // no CORS headers, so it goes through the proxy like SteamGridDB: your
+  // worker in a browser, the app's own native route on a phone or computer
+  // (platform.js). It knows what RAWG knows, plus a real early access status
+  // for any game, not just Steam ones, and a typical play time.
+  const IGDB_TOKEN_KEY = "lifelog-igdb-token-v1";
+  let igdbToken = null;
+  function igdbErr(msg) {
+    lastError = msg;
+    if (typeof window !== "undefined" && window.LifeLogErrors) window.LifeLogErrors.record(msg);
+  }
+  function igdbCreds(keys) {
+    const k = keys || {};
+    const id = String(k.igdb || "").trim(), secret = String(k.igdbSecret || "").trim();
+    return id && secret ? { id, secret } : null;
+  }
+  function readIgdbToken() {
+    if (igdbToken) return igdbToken;
+    try { igdbToken = JSON.parse(localStorage.getItem(IGDB_TOKEN_KEY) || "null"); } catch (e) { igdbToken = null; }
+    return igdbToken;
+  }
+  function saveIgdbToken(t) {
+    igdbToken = t;
+    try { if (t) localStorage.setItem(IGDB_TOKEN_KEY, JSON.stringify(t)); else localStorage.removeItem(IGDB_TOKEN_KEY); } catch (e) { /* kept in memory */ }
+  }
+  // A day's margin, so a token never runs out halfway through a sync.
+  async function igdbAccessToken(creds, proxyUrl, fresh) {
+    const t = readIgdbToken();
+    if (!fresh && t && t.clientId === creds.id && t.expiresAt > Date.now() + 86400000) return t.token;
+    const res = await get(proxyUrl + "/igdb-token", { headers: { "Client-ID": creds.id, Authorization: "Secret " + creds.secret } });
+    let body = null;
+    try { body = await res.json(); } catch (e) { /* the status says it */ }
+    if (!res.ok || !body || !body.access_token) {
+      saveIgdbToken(null);
+      const said = body && (body.message || body.error);
+      const err = new Error("Twitch refused the IGDB client ID or secret (HTTP " + res.status + (said ? ": " + String(said).slice(0, 120) : "") + ")");
+      err.status = res.status;
+      throw err;
+    }
+    saveIgdbToken({ clientId: creds.id, token: body.access_token, expiresAt: Date.now() + (+body.expires_in || 0) * 1000 });
+    return body.access_token;
+  }
+  // One query against one endpoint, as rows. A 401 means the token was
+  // revoked or ran out early: one fresh token, one more try.
+  async function igdbQuery(endpoint, query, keys, proxyUrl) {
+    const creds = igdbCreds(keys);
+    if (!creds) return [];
+    if (!proxyUrl) { igdbErr("IGDB needs the CORS proxy URL set (Settings → Media lookups) — it's CORS-blocked without it"); return []; }
+    try {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const token = await igdbAccessToken(creds, proxyUrl, attempt > 0);
+        const res = await get(proxyUrl + "/igdb/" + endpoint + "?q=" + encodeURIComponent(query), {
+          headers: { "Client-ID": creds.id, Authorization: "Bearer " + token },
+        });
+        if (res.status === 401 && attempt === 0) continue;
+        if (!res.ok) {
+          igdbErr(res.status === 429 ? "IGDB's rate limit is used up for now (HTTP 429)" : "IGDB request failed (HTTP " + res.status + ")");
+          return [];
+        }
+        const rows = await res.json();
+        return Array.isArray(rows) ? rows : [];
+      }
+      return [];
+    } catch (e) {
+      igdbErr(e && e.name === "TimeoutError"
+        ? "IGDB didn't answer within " + FETCH_TIMEOUT_MS / 1000 + "s"
+        : (e && e.status ? e.message : "IGDB request failed (" + ((e && e.message) || "network error") + ")"));
+      return [];
+    }
+  }
+  // A search phrase inside IGDB's query language, which quotes with ".
+  const igdbText = (s) => String(s || "").replace(/["\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 120);
+
+  const IGDB_FIELDS = "name,slug,cover.image_id,first_release_date,release_dates.date,release_dates.human," +
+    "aggregated_rating,aggregated_rating_count,rating,rating_count,genres.name,status,game_status.status";
+  function igdbCover(g) {
+    const id = g.cover && g.cover.image_id;
+    return /^[A-Za-z0-9_]+$/.test(id || "") ? "https://images.igdb.com/igdb/image/upload/t_cover_big/" + id + ".jpg" : "";
+  }
+  // IGDB writes each platform's date for people ("Mar 15, 2026", "Mar
+  // 2026", "Q1 2026", "2026", "TBD"), and that wording is the only place it
+  // admits how vague a date is: the numeric `date` beside a "2026" is a
+  // placeholder Dec 31. So the earliest dated release is read from the words.
+  const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  function releaseFromIgdbHuman(human) {
+    const h = String(human || "").trim().toLowerCase();
+    const mm = (name) => String(MONTHS.indexOf(name.slice(0, 3)) + 1).padStart(2, "0");
+    let m = /^([a-z]{3})[a-z]* (\d{1,2}), (\d{4})$/.exec(h);
+    if (m && MONTHS.includes(m[1])) return { releaseDate: m[3] + "-" + mm(m[1]) + "-" + m[2].padStart(2, "0"), releasePrecision: "day" };
+    m = /^([a-z]{3})[a-z]* (\d{4})$/.exec(h);
+    if (m && MONTHS.includes(m[1])) return { releaseDate: m[2] + "-" + mm(m[1]), releasePrecision: "month" };
+    m = /^q([1-4]) (\d{4})$/.exec(h);
+    if (m) return { releaseDate: m[2] + "-" + String((+m[1] - 1) * 3 + 1).padStart(2, "0"), releasePrecision: "quarter" };
+    m = /^(\d{4})$/.exec(h);
+    if (m) return { releaseDate: m[1], releasePrecision: "year" };
+    return null;
+  }
+  function releaseFromIgdb(g) {
+    const dated = (g.release_dates || []).filter((r) => r && r.human)
+      .map((r) => ({ r, rel: releaseFromIgdbHuman(r.human) }))
+      .filter((x) => x.rel)
+      .sort((a, b) => (a.rel.releaseDate < b.rel.releaseDate ? -1 : a.rel.releaseDate > b.rel.releaseDate ? 1 : 0));
+    let rel = dated.length ? dated[0].rel : null;
+    // IGDB's timestamps are UTC midnights, so read in UTC: a local reading
+    // west of Greenwich is the day before.
+    if (!rel && +g.first_release_date > 0) rel = { releaseDate: new Date(g.first_release_date * 1000).toISOString().slice(0, 10), releasePrecision: "day" };
+    if (!rel) return { releaseDate: "", releasePrecision: "tba", releaseStatus: "upcoming" };
+    const today = ymd(new Date());
+    // A vague date is upcoming until its whole span has passed: "2026" is
+    // still coming on Dec 1, 2026.
+    const end = rel.releasePrecision === "day" ? rel.releaseDate
+      : rel.releasePrecision === "year" ? rel.releaseDate + "-12-31"
+      : rel.releasePrecision === "quarter" ? rel.releaseDate.slice(0, 5) + String(+rel.releaseDate.slice(5) + 2).padStart(2, "0") + "-31"
+      : rel.releaseDate + "-31";
+    return { ...rel, ...(end > today ? { releaseStatus: "upcoming" } : rel.releaseDate <= today && rel.releasePrecision === "day" ? { releaseStatus: "released" } : {}) };
+  }
+  // Early access as IGDB states it: its newer game_status name, or the old
+  // status number (4) on entries not moved over yet. Said as false only when
+  // IGDB says outright that the game is out, so a game with no status at
+  // all doesn't clear a flag Steam set.
+  function igdbEarlyAccess(g) {
+    const name = String((g.game_status && g.game_status.status) || "").toLowerCase();
+    if (name) return name === "early access" ? { earlyAccess: true } : name === "released" ? { earlyAccess: false } : {};
+    if (g.status === 4) return { earlyAccess: true };
+    if (g.status === 0) return { earlyAccess: false };
+    return {};
+  }
+  // Critics first, as RAWG's Metacritic is: "84 IGDB" is the critics'
+  // average, "76% IGDB users" the players'. Too few votes says nothing.
+  function igdbRating(g) {
+    if (g.aggregated_rating && (g.aggregated_rating_count || 0) >= 3) return Math.round(g.aggregated_rating) + " IGDB";
+    if (g.rating && (g.rating_count || 0) >= 5) return Math.round(g.rating) + "% IGDB users";
+    return "";
+  }
+  function mapIgdbResult(g) {
+    const rel = releaseFromIgdb(g);
+    return {
+      id: String(g.id || ""),
+      title: g.name || "",
+      coverUrl: igdbCover(g),
+      year: rel.releaseDate ? parseInt(rel.releaseDate, 10) : null,
+      ...rel,
+      ...igdbEarlyAccess(g),
+      summary: "",
+      externalRating: igdbRating(g),
+      length: "",
+      genres: normGenres((g.genres || []).map((x) => x && x.name)),
+      source: "igdb",
+    };
+  }
+
+  async function searchIgdb(title, keys, proxyUrl) {
+    const q = igdbText(title);
+    if (!q) return [];
+    const rows = await igdbQuery("games", 'search "' + q + '"; fields ' + IGDB_FIELDS + "; limit 8;", keys, proxyUrl);
+    return rows.map(mapIgdbResult);
+  }
+  async function searchIgdbSteamGg(title, keys, proxyUrl) {
+    return (await searchIgdb(title, keys, proxyUrl)).map((r) => ({ ...r, source: "igdb-steam-gg" }));
+  }
+
+  // The per-game extras: the description, a fresh rating and date, and a
+  // typical play time from IGDB's time-to-beat table (its "normally", what
+  // most players took), asked for at the same time.
+  async function fetchIgdbDetails(id, keys, proxyUrl) {
+    if (!/^\d+$/.test(String(id || ""))) return { ...EMPTY_DETAILS };
+    const [games, times] = await Promise.all([
+      igdbQuery("games", "fields " + IGDB_FIELDS + ",summary; where id = " + id + ";", keys, proxyUrl),
+      igdbQuery("game_time_to_beats", "fields normally,hastily; where game_id = " + id + ";", keys, proxyUrl),
+    ]);
+    const g = games[0];
+    if (!g) return { ...EMPTY_DETAILS };
+    const r = mapIgdbResult(g);
+    const t = times[0] || {};
+    const secs = +t.normally || +t.hastily || 0;
+    return {
+      ...EMPTY_DETAILS,
+      externalRating: r.externalRating,
+      length: secs > 0 ? gameHours(secs / 60) : "",
+      summary: firstParagraph(g.summary || ""),
+      releaseDate: r.releaseDate, releasePrecision: r.releasePrecision, releaseStatus: r.releaseStatus || "",
+      ...igdbEarlyAccess(g),
+    };
+  }
+  async function fetchIgdbRelease(id, keys, proxyUrl) {
+    const d = await fetchIgdbDetails(id, keys, proxyUrl);
+    return d.releasePrecision ? d : null;
+  }
+
+  // The Steam App ID for an IGDB game, for "IGDB + Steam + GG.deals": its
+  // external ids where IGDB files one under Steam (source 1, or category 1
+  // on older entries), else a Steam store link among its websites.
+  async function fetchIgdbSteamAppId(id, keys, proxyUrl) {
+    if (!/^\d+$/.test(String(id || ""))) return "";
+    const g = (await igdbQuery("games", "fields external_games.uid,external_games.category,external_games.external_game_source,websites.url; where id = " + id + ";", keys, proxyUrl))[0];
+    if (!g) return "";
+    for (const x of g.external_games || []) {
+      const src = x && (typeof x.external_game_source === "object" ? x.external_game_source.id : x.external_game_source);
+      if ((src === 1 || x.category === 1) && /^\d+$/.test(String(x.uid || ""))) return String(x.uid);
+    }
+    for (const w of g.websites || []) {
+      const m = /store\.steampowered\.com\/app\/(\d+)/.exec((w && w.url) || "");
+      if (m) return m[1];
+    }
+    return "";
+  }
+
+  // Discover's two lists. IGDB has no "trending" either, so popular is the
+  // past year's games by how many players rated them, and upcoming the next
+  // two years' by how many are waiting for them (IGDB's "hypes").
+  async function discoverIgdb(kind, keys, proxyUrl) {
+    const now = Math.floor(Date.now() / 1000);
+    const year = 365 * 86400;
+    const q = kind === "upcoming"
+      ? "fields " + IGDB_FIELDS + "; where first_release_date > " + now + " & first_release_date < " + (now + 2 * year) + " & hypes > 0; sort hypes desc; limit 20;"
+      : "fields " + IGDB_FIELDS + "; where first_release_date > " + (now - year) + " & first_release_date < " + now + " & rating_count > 0; sort rating_count desc; limit 20;";
+    return (await igdbQuery("games", q, keys, proxyUrl)).map(mapIgdbResult);
+  }
+
+  // Next in series: the games IGDB groups with this one (its collections),
+  // the earliest dated after it, as RAWG's series list is read.
+  async function nextIgdb(id, keys, proxyUrl) {
+    if (!/^\d+$/.test(String(id || ""))) return null;
+    const self = (await igdbQuery("games", "fields collections,first_release_date,release_dates.date,release_dates.human; where id = " + id + ";", keys, proxyUrl))[0];
+    const cols = ((self && self.collections) || []).filter((c) => Number.isInteger(c)).slice(0, 5);
+    if (!cols.length) return null;
+    const rows = (await igdbQuery("games", "fields " + IGDB_FIELDS + "; where collections = (" + cols.join(",") + ") & id != " + id + "; limit 50;", keys, proxyUrl)).map(mapIgdbResult);
+    const rel = releaseFromIgdb(self);
+    return earliestAfter(rows, rel.releasePrecision === "tba" ? "" : rel.releaseDate);
+  }
+
   // ---------- discover ----------
   // The lists behind the Backlog's Discover mode: what's big right now, and
   // what's coming. Every one of them returns the same normalized rows a
@@ -1204,7 +1440,7 @@
   // artwork database, and Steam's charts are CORS-blocked like the rest of
   // its API. Those return nothing rather than something misleading.
   const DISCOVER_SOURCES = [
-    "rawg", "rawg-steam-gg", "tmdb-movie", "tmdb-tv",
+    "rawg", "rawg-steam-gg", "igdb", "igdb-steam-gg", "tmdb-movie", "tmdb-tv",
     "anilist-anime", "anilist-manga", "jikan-anime", "jikan-manga",
   ];
 
@@ -1427,16 +1663,24 @@
     } catch (e) { return null; }
   }
 
-  async function nextInSeries(id, source, keys, title) {
+  async function nextInSeries(id, source, keys, title, proxyUrl) {
     const k = keys || {};
     if (source === "rawg" || source === "rawg-steam-gg") {
       const r = await nextRawg(id, k.rawg || "");
       return r ? { ...r, source } : null;
     }
+    if (source === "igdb" || source === "igdb-steam-gg") {
+      const r = await nextIgdb(id, k, proxyUrl || "");
+      return r ? { ...r, source } : null;
+    }
     if (source === "steam") {
       const match = pickMatch(await searchRawg(title || "", k.rawg || ""), title || "");
       const r = match ? await nextRawg(match.id, k.rawg) : null;
-      return r ? { ...r, source: "rawg-steam-gg" } : null;
+      if (r) return { ...r, source: "rawg-steam-gg" };
+      // No RAWG key, or RAWG down: IGDB, by the same exact-title rule.
+      const alt = igdbCreds(k) && proxyUrl ? pickMatch(await searchIgdb(title || "", k, proxyUrl), title || "") : null;
+      const n = alt ? await nextIgdb(alt.id, k, proxyUrl) : null;
+      return n ? { ...n, source: "igdb-steam-gg" } : null;
     }
     if (source === "tmdb-movie") return nextTmdbMovie(id, k.tmdb || "");
     if (source === "anilist-anime") return nextAniList(id, "ANIME");
@@ -1464,13 +1708,23 @@
     }),
     nyt: (k) => ({ url: "https://api.nytimes.com/svc/books/v3/lists/names.json?api-key=" + enc(k) }),
     tiingo: (k, proxy) => proxy && { url: proxy + "/tiingo-meta/SPY", init: { headers: { Authorization: "Token " + k } } },
+    // IGDB's check is the Twitch sign-in itself, so a working pair leaves a
+    // token behind for the first search.
+    igdb: (k, proxy, keys) => proxy && {
+      url: proxy + "/igdb-token",
+      init: { headers: { "Client-ID": k, Authorization: "Secret " + String(keys.igdbSecret || "").trim() } },
+      igdb: true,
+    },
   };
   // { state, label, detail }: state is ok, bad (the key is the problem),
   // warn (fixable elsewhere: limit, proxy) or down (the service didn't answer).
-  async function checkKey(kind, key, proxyUrl) {
+  async function checkKey(kind, key, proxyUrl, keys) {
     const make = KEY_CHECKS[kind];
     if (!make || !key) return null;
-    const req = make(key, proxyUrl);
+    if (kind === "igdb" && !String((keys || {}).igdbSecret || "").trim()) {
+      return { state: "warn", label: "Needs the secret", detail: "Paste the client secret too — IGDB signs in with both" };
+    }
+    const req = make(String(key).trim(), proxyUrl, keys || {});
     if (!req) return { state: "warn", label: "Needs the proxy", detail: "Set the CORS proxy URL below — this service can't be reached without it" };
     let res;
     try { res = await get(req.url, req.init); }
@@ -1481,13 +1735,14 @@
     }
     let body = null;
     try { body = await res.json(); } catch (e) { /* the status decides */ }
-    const said = body && ((body.error && (body.error.message || body.error)) || body.status_message || body.detail || body.fault && body.fault.faultstring);
-    const refused = res.status === 401 || res.status === 403 || (res.status === 400 && /key/i.test(String(said || "")));
+    const said = body && ((body.error && (body.error.message || body.error)) || body.status_message || body.detail || body.fault && body.fault.faultstring || body.message);
+    const refused = res.status === 401 || res.status === 403 || (res.status === 400 && /key|client/i.test(String(said || "")));
     if (refused || (res.ok && req.success && body && body.success === false)) {
       return { state: "bad", label: "Key refused", detail: "The service turned the key down" + (said ? ": " + String(said).slice(0, 160) : "") };
     }
     if (res.status === 429) return { state: "warn", label: "Limit reached", detail: "The key works, but its rate limit or quota is used up for now" };
     if (!res.ok) return { state: "down", label: "Error " + res.status, detail: "The service answered HTTP " + res.status + (said ? ": " + String(said).slice(0, 160) : "") };
+    if (req.igdb && body && body.access_token) saveIgdbToken({ clientId: String(key).trim(), token: body.access_token, expiresAt: Date.now() + (+body.expires_in || 0) * 1000 });
     return { state: "ok", label: "Working", detail: "The key works" };
   }
 
@@ -1501,6 +1756,8 @@
       if (source === "rawg-steam-gg") return searchRawgSteamGg(title, keys.rawg || "");
       if (source === "steamgriddb") return searchSteamGridDB(title, keys.steamgriddb || "", proxyUrl || "");
       if (source === "steamgriddb-steam-gg") return searchSteamGridDbSteamGg(title, keys.steamgriddb || "", proxyUrl || "");
+      if (source === "igdb") return searchIgdb(title, keys, proxyUrl || "");
+      if (source === "igdb-steam-gg") return searchIgdbSteamGg(title, keys, proxyUrl || "");
       if (source === "tmdb-movie") return searchTmdb(title, "movie", keys.tmdb || "");
       if (source === "tmdb-tv") return searchTmdb(title, "tv", keys.tmdb || "");
       if (source === "openlibrary") return searchOpenLibrary(title, author);
@@ -1517,11 +1774,12 @@
     // to "RAWG + Steam + GG.deals" wants its discovered games resolved to a
     // Steam App ID on the way in, exactly as a searched one would be, and
     // the mappers only ever know their own bare source.
-    async discover(source, kind, keys) {
+    async discover(source, kind, keys, proxyUrl) {
       lastError = "";
       const k = keys || {};
       let rows = [];
       if (source === "rawg" || source === "rawg-steam-gg") rows = await discoverRawg(kind, k.rawg || "");
+      else if (source === "igdb" || source === "igdb-steam-gg") rows = await discoverIgdb(kind, k, proxyUrl || "");
       else if (source === "tmdb-movie") rows = await discoverTmdb(kind, "movie", k.tmdb || "");
       else if (source === "tmdb-tv") rows = await discoverTmdb(kind, "tv", k.tmdb || "");
       else if (source === "anilist-anime") rows = await discoverAniList(kind, "ANIME");
@@ -1553,6 +1811,7 @@
     async fetchDetails(id, source, keys, opts) {
       const k = keys || {};
       const o = opts || {};
+      if (source === "igdb" || source === "igdb-steam-gg") return fetchIgdbDetails(id, k, o.proxyUrl || "");
       if (source === "tmdb-movie") return fetchTmdbDetails(id, "movie", k.tmdb || "");
       if (source === "tmdb-tv") return fetchTmdbDetails(id, "tv", k.tmdb || "");
       if (source === "rawg" || source === "rawg-steam-gg") return fetchRawgDetails(id, k.rawg || "");
@@ -1571,9 +1830,9 @@
     // answers both fields at once, which is why this is a single call and
     // not a length lookup with a genre lookup behind it. Never the second
     // request a description would cost: there's nowhere here to put one.
-    async fetchEntryExtras(id, source, keys, title) {
+    async fetchEntryExtras(id, source, keys, title, proxyUrl) {
       if (source === "rawg" || source === "rawg-steam-gg") return { length: "", genres: [] };
-      const d = await this.fetchDetails(id, source, keys, { title, wantSummary: false });
+      const d = await this.fetchDetails(id, source, keys, { title, wantSummary: false, proxyUrl });
       return { length: d.length, genres: d.genres };
     },
     // Re-checks one item's release info by its stored media id. Returns null
@@ -1583,6 +1842,7 @@
     async fetchRelease(id, source, keys, proxyUrl) {
       lastError = "";
       if (source === "rawg" || source === "rawg-steam-gg") return fetchRawgRelease(id, (keys && keys.rawg) || "");
+      if (source === "igdb" || source === "igdb-steam-gg") return fetchIgdbRelease(id, keys || {}, proxyUrl || "");
       if (source === "anilist-anime" || source === "anilist-manga") return fetchAniListRelease(id);
       if (source === "steamgriddb" || source === "steamgriddb-steam-gg") {
         return fetchSteamGridDbRelease(id, (keys && keys.steamgriddb) || "", proxyUrl || "");
@@ -1595,6 +1855,9 @@
     },
     async fetchRawgSteamAppId(rawgId, apiKey) {
       return fetchRawgSteamAppId(rawgId, apiKey);
+    },
+    async fetchIgdbSteamAppId(igdbId, keys, proxyUrl) {
+      return fetchIgdbSteamAppId(igdbId, keys, proxyUrl);
     },
     async fetchSteamGridDbSteamAppId(sgdbId, apiKey, proxyUrl) {
       return fetchSteamGridDbSteamAppId(sgdbId, apiKey, proxyUrl);
@@ -1631,5 +1894,7 @@
     stripHtml,
     firstParagraph,
     rawgMeta,
+    mapIgdbResult,
+    releaseFromIgdbHuman,
   };
 })();

@@ -1990,10 +1990,15 @@
   };
   const standInKey = (standIn) => (standIn.startsWith("nyt-") ? "nyt" : "rawg");
 
+  // With no RAWG key, IGDB stands in for the games ones instead (it needs
+  // both its client ID and secret), with the same "-steam-gg" tail.
   function discoverSourceFor(configured, keys) {
     if (window.LifeLogMedia.supportsDiscover(configured)) return configured;
     const standIn = DISCOVER_STANDIN[configured];
-    return standIn && (keys[standInKey(standIn)] || "") ? standIn : "";
+    if (!standIn) return "";
+    if (keys[standInKey(standIn)]) return standIn;
+    if (standIn.startsWith("rawg") && String(keys.igdb || "").trim() && String(keys.igdbSecret || "").trim()) return standIn.replace(/^rawg/, "igdb");
+    return "";
   }
 
   // Two maps: the sources that can answer, and the ones a key away from it.
@@ -2034,7 +2039,7 @@
       return "Books have no popularity list of their own. Set a New York Times key in Settings → Media lookups and this shows the NYT bestsellers.";
     }
     return (MEDIA_SOURCE_LABELS[source] || source) +
-      " publishes no popularity list of its own. Set a RAWG key in Settings → Media lookups and this fills in from RAWG instead.";
+      " publishes no popularity list of its own. Set a RAWG key or IGDB's client ID and secret in Settings → Media lookups and this fills in from there instead.";
   }
 
   function discoverCache() {
@@ -2190,7 +2195,7 @@
       // without a second pass it would sit there over a full set of rows.
       if (cached) { discoverRuns.set(key, { status: "ok", rows: cached }); adopted = true; continue; }
       discoverRuns.set(key, { status: "loading", rows: [] });
-      window.LifeLogMedia.discover(source, discoverKind, keys)
+      window.LifeLogMedia.discover(source, discoverKind, keys, window.LifeLogPlatform.steamProxy((state.data.settings.steam || {}).proxyUrl))
         .catch(() => [])
         .then((rows) => {
           discoverRuns.set(key, { status: "ok", rows: rows || [] });
@@ -2212,7 +2217,7 @@
     if (!entry || !entry.mediaId || !entry.mediaSource || !window.LifeLogMedia) return;
     const keys = state.data.settings.mediaKeys || DEFAULT_SETTINGS.mediaKeys;
     let next = null;
-    try { next = await window.LifeLogMedia.nextInSeries(entry.mediaId, entry.mediaSource, keys, entry.title); } catch (e) { next = null; }
+    try { next = await window.LifeLogMedia.nextInSeries(entry.mediaId, entry.mediaSource, keys, entry.title, window.LifeLogPlatform.steamProxy((state.data.settings.steam || {}).proxyUrl)); } catch (e) { next = null; }
     if (!next || !next.title) return;
     if (discoverOwnedTag(next.title, discoverOwnedIndex())) return;
     toast("Next in the series: " + next.title, false, {

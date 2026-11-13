@@ -66,6 +66,19 @@
 //     token stays in LifeLog's Settings and comes along as an Authorization
 //     header, passed through as SteamGridDB's is.
 //
+//   GET /igdb-token
+//     -> POST https://id.twitch.tv/oauth2/token (client credentials)
+//     IGDB signs in through Twitch. Your client ID comes as a Client-ID
+//     header and the secret as "Authorization: Secret <secret>"; both go
+//     no further than Twitch, and the token comes back to LifeLog, which
+//     keeps it on the device until it runs out (about 60 days).
+//
+//   GET /igdb/<endpoint>?q=<query>
+//     -> POST https://api.igdb.com/v4/<endpoint> with the query as its body
+//     IGDB's API takes its query as a POST body and sends no CORS headers.
+//     Client-ID and the token's Authorization header pass through. Only
+//     the endpoints LifeLog reads are allowed.
+//
 //   GET /augsteam-app/<appid>
 //     -> https://api.augmentedsteam.com/app/<appid>/v2
 //     A game's How Long to Beat times (and other bits) from Augmented
@@ -75,7 +88,7 @@
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "Authorization, Content-Type",
+  "Access-Control-Allow-Headers": "Authorization, Content-Type, Client-ID",
 };
 
 export default {
@@ -129,6 +142,21 @@ export default {
       return proxyJson(`https://api.tiingo.com/tiingo/utilities/search?query=${encodeURIComponent(query)}`, tiingoAuth());
     }
 
+    if (url.pathname === "/igdb-token") {
+      const id = request.headers.get("Client-ID") || "";
+      const secret = (request.headers.get("Authorization") || "").replace(/^Secret\s+/i, "");
+      if (!/^[A-Za-z0-9]{8,64}$/.test(id) || !/^[A-Za-z0-9]{8,64}$/.test(secret)) {
+        return new Response("A Twitch client ID and secret are needed", { status: 400, headers: CORS_HEADERS });
+      }
+      return proxyJson(`https://id.twitch.tv/oauth2/token?client_id=${id}&client_secret=${secret}&grant_type=client_credentials`, {}, "POST");
+    }
+    const igdbMatch = url.pathname.match(/^\/igdb\/(games|external_games|game_time_to_beats)$/);
+    if (igdbMatch) {
+      const headers = { "Content-Type": "text/plain", Accept: "application/json" };
+      for (const h of ["Client-ID", "Authorization"]) { const v = request.headers.get(h); if (v) headers[h] = v; }
+      return proxyJson(`https://api.igdb.com/v4/${igdbMatch[1]}`, headers, "POST", (url.searchParams.get("q") || "").slice(0, 4000));
+    }
+
     const augMatch = url.pathname.match(/^\/augsteam-app\/(\d{1,10})$/);
     // Says who's asking: a request with no User-Agent is one some APIs turn
     // away (0.282.3).
@@ -171,9 +199,9 @@ async function resolveShortLink(start) {
   }
 }
 
-async function proxyJson(target, extraHeaders) {
+async function proxyJson(target, extraHeaders, method, body) {
   try {
-    const res = await fetch(target, { headers: extraHeaders || {} });
+    const res = await fetch(target, { method: method || "GET", headers: extraHeaders || {}, ...(body != null ? { body } : {}) });
     const body = await res.text();
     return new Response(body, {
       status: res.status,
