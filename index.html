@@ -1832,7 +1832,7 @@
       <div class="tab-toggles" id="tabToggles"></div>
       </div>
 
-      <div class="settings-page" hidden data-page="media" data-title="Media lookups" data-keywords="api keys rawg igdb twitch tmdb steamgriddb gg.deals google places reviews hours nyt new york times bestsellers books tiingo stocks etf prices watchlist proxy cors cover art metadata sources">
+      <div class="settings-page" hidden data-page="media" data-title="Media lookups" data-keywords="api keys rawg igdb twitch hardcover tmdb steamgriddb gg.deals google places reviews hours nyt new york times bestsellers books tiingo stocks etf prices watchlist proxy cors cover art metadata sources">
       <h2 class="settings-page-title">Media lookups</h2>
       <p class="hint page-lede">Where covers, ratings and release dates come from. Syncs to your other devices.</p>
       <section class="sgroup">
@@ -1867,6 +1867,10 @@
           <label class="sitem sitem-stack">
             <span class="sitem-text"><span class="sitem-title">IGDB client secret</span></span>
             <input id="igdbSecret" type="password" placeholder="Paste your Twitch client secret…" autocomplete="off" spellcheck="false" />
+          </label>
+          <label class="sitem sitem-stack">
+            <span class="sitem-text"><span class="sitem-title key-title">Hardcover token<span class="key-status" data-key-status="hardcover" role="status" hidden></span></span><span class="sitem-sub">Books, with their series — free at <a href="https://hardcover.app/account/api" target="_blank" rel="noopener">hardcover.app, Settings → Hardcover API</a>; it expires when you chose; needs the proxy in a browser</span></span>
+            <input id="hardcoverKey" type="password" placeholder="Paste your Hardcover API token…" autocomplete="off" spellcheck="false" />
           </label>
           <label class="sitem sitem-stack">
             <span class="sitem-text"><span class="sitem-title key-title">Google Places key<span class="key-status" data-key-status="googlePlaces" role="status" hidden></span></span><span class="sitem-sub">A Travel place's rating, opening hours and reviews — <a href="https://console.cloud.google.com/apis/library/places.googleapis.com" target="_blank" rel="noopener">console.cloud.google.com</a>, with Places API (New) turned on; billing must be on, though personal use stays inside the free monthly allowance</span></span>
@@ -2094,6 +2098,7 @@
           <a class="sitem sitem-go" href="https://anilist.co" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">AniList</span><span class="sitem-sub">Anime and manga, and your lists there</span></span></a>
           <a class="sitem sitem-go" href="https://jikan.moe" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Jikan</span><span class="sitem-sub">MyAnimeList, unofficially</span></span></a>
           <a class="sitem sitem-go" href="https://openlibrary.org" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Open Library</span><span class="sitem-sub">Books and covers</span></span></a>
+          <a class="sitem sitem-go" href="https://hardcover.app" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Hardcover</span><span class="sitem-sub">Books, their series and what's trending, with your own token</span></span></a>
           <a class="sitem sitem-go" href="https://musicbrainz.org" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">MusicBrainz and the Cover Art Archive</span><span class="sitem-sub">Albums and covers</span></span></a>
           <a class="sitem sitem-go" href="https://frankfurter.dev" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Frankfurter</span><span class="sitem-sub">Exchange rates for expenses in another currency</span></span></a>
           <a class="sitem sitem-go" href="https://developers.google.com/maps/documentation/places/web-service" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Google Places</span><span class="sitem-sub">Place details in Travel, with your own key</span></span></a>

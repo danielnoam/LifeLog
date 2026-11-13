@@ -733,6 +733,74 @@ atest("checkKey for IGDB signs in with both halves, and says when the secret is 
   assert.strictEqual((await Media.checkKey("igdb", "clientid123", "https://proxy.test", IGDB_KEYS)).state, "ok");
 });
 
+// ---------- Hardcover ----------
+test("mapHardcoverBook: a search hit, with its series and position", () => {
+  const b = Media.mapHardcoverBook({
+    id: 369, slug: "the-well-of-ascension", title: "The Well of Ascension", author_names: ["Brandon Sanderson"],
+    image: { url: "https://assets.hardcover.app/x.jpg" }, release_year: 2007, pages: 590, rating: 4.31, ratings_count: 900,
+    featured_series: { position: 2, series: { name: "Mistborn" } }, genres: ["Fantasy"], description: "Vin's back.\n\nMore.",
+  });
+  assert.strictEqual(b.id, "the-well-of-ascension");
+  assert.strictEqual(b.author, "Brandon Sanderson");
+  assert.strictEqual(b.series, "Mistborn #2");
+  assert.strictEqual(b.externalRating, "4.3 Hardcover");
+  assert.strictEqual(b.length, "590 pages");
+  assert.strictEqual(b.year, 2007);
+  assert.strictEqual(b.summary, "Vin's back.");
+  assert.strictEqual(b.coverUrl, "https://assets.hardcover.app/x.jpg");
+});
+
+test("mapHardcoverBook: a table row reads its cached image and contributors", () => {
+  const b = Media.mapHardcoverBook({ slug: "x", title: "X", cached_image: { url: "https://a.test/c.jpg" }, cached_contributors: [{ author: { name: "A. Writer" } }], rating: 5, ratings_count: 1 });
+  assert.strictEqual(b.coverUrl, "https://a.test/c.jpg");
+  assert.strictEqual(b.author, "A. Writer");
+  assert.strictEqual(b.externalRating, "");
+  assert.strictEqual("series" in b, false);
+});
+
+function stubHardcover(answer) {
+  const calls = [];
+  global.fetch = async (url, init) => {
+    const body = JSON.parse(decodeURIComponent(/[?&]q=([^&]*)/.exec(url)[1]));
+    calls.push({ url, init, body });
+    const a = answer(body, calls.length);
+    return { ok: (a.status || 200) < 300, status: a.status || 200, json: async () => a.body || a };
+  };
+  return calls;
+}
+
+atest("Hardcover search sends the token behind Bearer once and reads the hits", async () => {
+  const calls = stubHardcover(() => ({ data: { search: { results: JSON.stringify({ hits: [{ document: { slug: "mistborn", title: "Mistborn", author_names: ["B"] } }, { document: { title: "No slug" } }] }) } } }));
+  const rows = await Media.search("Mistborn", "hardcover", { hardcover: "Bearer tok" }, "https://proxy.test", "Sanderson");
+  assert.deepStrictEqual(rows.map((r) => r.id), ["mistborn"]);
+  assert.strictEqual(calls[0].init.headers.Authorization, "Bearer tok");
+  assert.strictEqual(calls[0].body.variables.q, "Mistborn Sanderson");
+  assert.ok(calls[0].url.startsWith("https://proxy.test/hardcover?q="));
+});
+
+atest("Hardcover: a GraphQL error is said, not shown as no matches", async () => {
+  stubHardcover(() => ({ errors: [{ message: "Unable to verify token" }] }));
+  assert.deepStrictEqual(await Media.search("X", "hardcover", { hardcover: "tok" }, "https://proxy.test"), []);
+  assert.match(Media.getLastError(), /Unable to verify token/);
+});
+
+atest("Hardcover next in series skips a second edition at the same place", async () => {
+  const calls = stubHardcover((body) => /books\(where: \{slug/.test(body.query)
+    ? { data: { books: [{ title: "Mistborn", book_series: [{ position: 1, series_id: 40 }] }] } }
+    : { data: { book_series: [{ position: 1.5, book: { slug: "mistborn-2", title: "Mistborn" } }, { position: 2, book: { slug: "the-well-of-ascension", title: "The Well of Ascension", cached_contributors: [{ author: { name: "B" } }] } }] } });
+  const next = await Media.nextInSeries("mistborn", "hardcover", { hardcover: "tok" }, "Mistborn", "https://proxy.test");
+  assert.strictEqual(next.title, "The Well of Ascension");
+  assert.strictEqual(next.source, "hardcover");
+  assert.match(calls[1].body.query, /series_id: \{_eq: 40\}, position: \{_gt: 1\}/);
+});
+
+atest("Hardcover's key check reads a GraphQL error inside a 200 as a refused token", async () => {
+  stubHardcover(() => ({ errors: [{ message: "invalid token" }] }));
+  assert.strictEqual((await Media.checkKey("hardcover", "tok", "https://proxy.test")).state, "bad");
+  stubHardcover(() => ({ data: { me: [{ username: "d" }] } }));
+  assert.strictEqual((await Media.checkKey("hardcover", "tok", "https://proxy.test")).state, "ok");
+});
+
 // The sync cases above have all run by now; the async ones are only queued,
 // so the tally waits on them rather than reporting a count six short.
 (async () => {

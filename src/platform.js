@@ -202,7 +202,7 @@
     async request({ url, method, headers, data, disableRedirects, connectTimeout, readTimeout }) {
       const res = await tauri.http.fetch(url, {
         method: method || "GET", headers: headers || {}, connectTimeout,
-        ...(data != null ? { body: data } : {}),
+        ...(data != null ? { body: typeof data === "string" ? data : JSON.stringify(data) } : {}),
         signal: AbortSignal.timeout((connectTimeout || 0) + (readTimeout || 20000)),
         ...(disableRedirects ? { maxRedirections: 0 } : {}),
       });
@@ -227,11 +227,16 @@
     m = /^\/tiingo-meta\/([A-Za-z0-9.-]{1,12})$/.exec(u.pathname);
     if (m) return "https://api.tiingo.com/tiingo/daily/" + m[1];
     if (u.pathname === "/tiingo-search") return "https://api.tiingo.com/tiingo/utilities/search" + tiingoQuery(u, ["query"]);
-    // IGDB is the one POST: the worker turns these GETs into
-    // IGDB's own shape, and so does this.
+    // IGDB and Hardcover are the POSTs: the worker turns these GETs into
+    // their own shape, and so does this.
     if (u.pathname === "/igdb-token") return { url: "https://id.twitch.tv/oauth2/token", method: "POST", igdbToken: true };
     m = /^\/igdb\/(games|external_games|game_time_to_beats)$/.exec(u.pathname);
     if (m) return { url: "https://api.igdb.com/v4/" + m[1], method: "POST", data: (u.searchParams.get("q") || "").slice(0, 4000) };
+    if (u.pathname === "/hardcover") {
+      let body = null;
+      try { body = JSON.parse((u.searchParams.get("q") || "").slice(0, 6000)); } catch (e) { /* sent as nothing */ }
+      return { url: "https://api.hardcover.app/v1/graphql", method: "POST", data: body || {}, contentType: "application/json" };
+    }
     m = /^\/augsteam-app\/(\d+)$/.exec(u.pathname);
     if (m) return "https://api.augmentedsteam.com/app/" + m[1] + "/v2";
     m = /^\/gmaps-link\/([A-Za-z0-9_-]{4,64})$/.exec(u.pathname);
@@ -309,7 +314,8 @@
       if (!/^[A-Za-z0-9]{8,64}$/.test(id) || !/^[A-Za-z0-9]{8,64}$/.test(secret)) return json({ error: "A Twitch client ID and secret are needed" }, 400);
       req = { url: target.url + "?client_id=" + id + "&client_secret=" + secret + "&grant_type=client_credentials", method: "POST", headers: {} };
     } else if (typeof target === "object") {
-      req = { url: target.url, method: target.method, data: target.data, headers: { ...headers, "Content-Type": "text/plain", Accept: "application/json" } };
+      // A JSON body goes as an object: CapacitorHttp serializes it itself.
+      req = { url: target.url, method: target.method, data: target.data, headers: { ...headers, "Content-Type": target.contentType || "text/plain", Accept: "application/json" } };
     }
     const res = await nativeRequest(req);
     const body = typeof res.data === "string" ? res.data : JSON.stringify(res.data);

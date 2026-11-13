@@ -25,6 +25,7 @@
         { "url": "https://api.augmentedsteam.com/*" },
         { "url": "https://api.igdb.com/v4/*" },
         { "url": "https://id.twitch.tv/oauth2/token*" },
+        { "url": "https://api.hardcover.app/v1/graphql" },
         { "url": "https://api.tiingo.com/tiingo/*" },
         { "url": "https://maps.app.goo.gl/*" },
         { "url": "https://goo.gl/*" },
