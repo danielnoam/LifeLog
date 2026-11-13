@@ -1,6 +1,6 @@
 // LifeLog — Google Wallet payments offered to the Ledger (0.238.0), the
 // Android app only. The phone does the work (native/widgets: Payments,
-// PaymentListener); this is the switch for it, on Settings → Imports, and
+// PaymentListener); this is the switch for it, on Settings → Connections, and
 // the two things it needs from Android: notification access, to see
 // Wallet's notification, and LifeLog's own notifications, to offer it.
 // The switch lives on the phone, not in the synced data: it means nothing
@@ -69,7 +69,7 @@
     if (!last.access) W.openPaymentAccess();
   }
 
-  // For the Imports row on the Settings list.
+  // For the Connections row on the Settings list.
   const summary = () => (plugin() && last.on ? "Google Wallet" : "");
 
   // ctx: { $, Platform, toast }

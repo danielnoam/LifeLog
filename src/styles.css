@@ -5340,5 +5340,5 @@ html.force-mobile .invest-hold-stats { grid-template-columns: repeat(2, minmax(0
 html.force-mobile #rangeFilterGroup > label { display: none; }
 html.force-mobile #rangeFilter { flex-wrap: nowrap; gap: 6px; overflow-x: auto; scrollbar-width: none; }
 
-/* Settings → Imports → Waypage reading: a review row's three answers. */
+/* Settings → Connections → Waypage reading: a review row's three answers. */
 .wp-review-btns { display: flex; flex-wrap: wrap; gap: var(--space-8); }

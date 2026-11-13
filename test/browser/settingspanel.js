@@ -108,6 +108,9 @@ const shown = (page, sel) => page.evaluate((q) => {
   check("every page has a row on the list, and every row a page",
     rows.length === pages.length && rows.every((r) => pages.includes(r.page)), { rows, pages });
   check("and every row says where things stand", rows.every((r) => r.status.trim()), rows);
+  check("the connections row is named Connections, its id still imports (2026-11-13)",
+    await page.evaluate(() => document.querySelector('.srow[data-page="imports"] .srow-title').textContent === "Connections" &&
+      document.querySelector('.settings-page[data-page="imports"]').dataset.title === "Connections"));
   check("an unsynced device's row says so", /not synced/i.test(rows.find((r) => r.page === "sync").status), rows);
   check("on a computer the list and the first page open together",
     await shown(page, "#settingsHome") && await shown(page, '.settings-page[data-page="sync"]'));
@@ -137,6 +140,10 @@ const shown = (page, sel) => page.evaluate((q) => {
   await page.waitForTimeout(200);
   check("a select's choices are searchable too",
     await page.evaluate(() => [...document.querySelectorAll("#settingsResults .srow-result")].some((r) => /Color scheme/.test(r.textContent))));
+  await page.fill("#settingsSearch", "imports");
+  await page.waitForTimeout(200);
+  check("the old name, imports, still finds the Connections page",
+    await page.evaluate(() => [...document.querySelectorAll("#settingsResults .srow-result")].some((r) => /Connections/.test(r.textContent))));
   await page.fill("#settingsSearch", "qqqzzz");
   await page.waitForTimeout(200);
   check("nothing found says so", await page.evaluate(() => /No results/.test(document.querySelector("#settingsResults").textContent)));

@@ -362,7 +362,7 @@ list gets the window too, its map beside the list.
   both sides changed, the newer change wins. Shows and manga keep how far
   they've run, and In progress items can count episodes (per category); moved back
   to the Backlog, an item keeps its count and its row shows it.
-- **Stremio, read only**: sign in once in Settings → Imports (only the key
+- **Stremio, read only**: sign in once in Settings → Connections (only the key
   Stremio sends back is kept). Your library goes to the Backlog, what
   you're partway through to In progress with the episode you're on, and
   watched movies to the Timeline on the day you last played them, all

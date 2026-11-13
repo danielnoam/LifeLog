@@ -1419,7 +1419,7 @@ const TOOLS = [
     async run() {
       const d = await readData();
       const c = Waypage.cleanConfig((d.settings || {}).waypage);
-      const out = [c.repo ? `Waypage: reading ${c.repo}${c.token ? "" : " (no token yet, so nothing is read)"}.` : "Waypage isn't connected (Settings → Imports → Waypage reading)."];
+      const out = [c.repo ? `Waypage: reading ${c.repo}${c.token ? "" : " (no token yet, so nothing is read)"}.` : "Waypage isn't connected (Settings → Connections → Waypage reading)."];
       const kinds = Waypage.KINDS.map((k) => `${Waypage.KIND_NAMES[k]} → ${c.kinds[k] || "not brought in"}`);
       out.push("Kinds: " + kinds.join(", ") + ".");
       const h = (d.habits || []).find((x) => x.id === c.habit);

@@ -1,4 +1,4 @@
-// Letterboxd import (0.252.0): the export zip, picked in Settings → Imports,
+// Letterboxd import (0.252.0): the export zip, picked in Settings → Connections,
 // opens the import review with the diary as entries and the watchlist as
 // backlog; confirming writes them. The zip is built here with deflate, the
 // way Letterboxd's is.
@@ -51,7 +51,7 @@ const SEED = {
 
   await page.click("#settingsBtn"); await page.waitForTimeout(300);
   await page.click('.srow[data-page="imports"]'); await page.waitForTimeout(300);
-  check("the Imports page offers Letterboxd", await page.isVisible("#letterboxdImportBtn"));
+  check("the Connections page offers Letterboxd", await page.isVisible("#letterboxdImportBtn"));
   check("films default to the Films category", (await page.inputValue("#letterboxdCategory")) === "Films");
   await page.setInputFiles("#letterboxdImportInput", { name: "letterboxd-export.zip", mimeType: "application/zip", buffer: ZIP });
   await page.waitForSelector("#financePickerModal:not([hidden])", { timeout: 8000 });

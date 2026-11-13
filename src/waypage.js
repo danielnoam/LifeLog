@@ -382,7 +382,7 @@
     document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
   }
 
-  // ---------- Settings › Imports › Waypage ----------
+  // ---------- Settings › Connections › Waypage ----------
   async function save(c, opts = {}) {
     state.data.settings.waypage = c;
     afterDataChange();
