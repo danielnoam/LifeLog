@@ -1108,10 +1108,14 @@
     setTimeout(() => (w ? $("#watchTarget") : $("#watchSymbol")).focus(), 0);
   }
   function closeWatchModal() { $("#watchModal").hidden = true; editingWatch = null; picked = null; searchAsk++; }
-  function showResults(list) {
+  // Each query's matches, kept for the session, so typing back over a word
+  // answers at once and costs no request.
+  const searchCache = new Map();
+  function showResults(list, status) {
     const box = $("#watchResults");
     box.innerHTML = "";
-    box.hidden = !list.length;
+    box.hidden = !list.length && !status;
+    if (status) box.appendChild(el("p", "invest-results-status", status));
     for (const r of list.slice(0, 6)) {
       const b = el("button", "invest-result");
       b.type = "button";
@@ -1121,17 +1125,45 @@
       box.appendChild(b);
     }
   }
+  // The search, and when it fails or finds nothing, the typed text tried as
+  // an exact ticker: that route is the one prices already use, so a proxy
+  // without /tiingo-search still completes VOO.
+  async function findMatches(q) {
+    let list = [], problem = null;
+    try { list = await search(q); } catch (e) { problem = e; }
+    if (problem && (problem.status === 401 || problem.status === 403 || problem.status === 429)) throw problem;
+    const exact = cleanSymbol(q);
+    if (exact && !list.length) {
+      try { const m = await lookup(exact); list.unshift({ symbol: m.symbol, name: m.name, type: "", active: true, country: "" }); }
+      catch (e) { /* not a ticker; the search's answer stands */ }
+    }
+    if (problem && !list.length) throw problem;
+    return list;
+  }
   function onSymbolInput() {
     picked = null;
     clearTimeout(searchTimer);
     const q = $("#watchSymbol").value.trim();
     const ask = ++searchAsk;
-    if (q.length < 1 || blocker()) { showResults([]); return; }
+    if (!q) { showResults([]); return; }
+    const block = blocker();
+    if (block) { showResults([], block === "key" ? "Add a Tiingo key in Settings → Media lookups to search as you type" : "Searching needs the CORS proxy, in Settings → Media lookups"); return; }
+    const key = q.toLowerCase();
+    if (searchCache.has(key)) { const hit = searchCache.get(key); showResults(hit, hit.length ? "" : "No US tickers match “" + q + "”"); return; }
+    if ($("#watchResults").hidden || !$("#watchResults").querySelector(".invest-result")) showResults([], "Searching…");
     searchTimer = setTimeout(async () => {
-      let list = [];
-      try { list = await search(q); } catch (e) { list = []; }
-      if (ask === searchAsk && !$("#watchModal").hidden) showResults(list);
-    }, 350);
+      let list = [], status = "";
+      try {
+        list = await findMatches(q);
+        searchCache.set(key, list);
+        if (!list.length) status = "No US tickers match “" + q + "”";
+      } catch (e) {
+        status = (e && e.name === "TimeoutError") ? "Tiingo didn't answer — try again in a bit"
+          : e && e.status === 404 ? "Search isn't on your proxy yet — redeploy proxy/worker.js"
+            : (e && e.message) || "Couldn't reach Tiingo";
+      }
+      if (ask === searchAsk && !$("#watchModal").hidden) showResults(list, status);
+    }, 250);
   }
   async function saveWatchFromForm() {
     await ensureLoaded();
