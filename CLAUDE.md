@@ -63,15 +63,10 @@ Daniel (danielnoam) owns LifeLog. These rules hold in every session.
 
 ### The notes files
 
-- The to-do list is not in the repo (moved 2026-11-02). It lives only in
-  the shared project folder, `/mnt/project-files/lifelog/TODO.md`: read
-  it there, and edit it there in the same turn as the change it tracks.
-  It holds only what's left, grouped into sections, each item with a
-  short plan of how it would be built. When something ships, or Daniel
-  says he doesn't want it, take it out: shipped work becomes a line in
-  DONE.md (and a note in `changes/`), a no becomes an entry in DROPPED.md
-  with his reason. Remove anything stale or already covered. Never leave
-  done work on it.
+- The to-do list is not in the repo; Daniel keeps it himself. When
+  something ships, it becomes a line in DONE.md (and a note in
+  `changes/`); when Daniel says he doesn't want something, it becomes an
+  entry in DROPPED.md with his reason.
 - If the project's shared folder has a copy of DONE.md, copy the repo's
   version over it after every change so they match.
 - Before suggesting ideas, check DONE.md, the to-do list and DROPPED.md,

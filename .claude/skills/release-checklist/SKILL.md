@@ -1,6 +1,6 @@
 ---
 name: release-checklist
-description: Release checklist for the LifeLog app (danielnoam/lifelog): a branch and pull request per change, a changes/<branch>.md note (folded into CHANGELOG.md by tools/release.js, which also bumps the version in three places), DONE.md, DROPPED.md, the project folder's to-do list and README.md kept current, the bridge in step, the tests, phone and desktop checks, merging on green, test builds by label. Use this before shipping any change to LifeLog.
+description: Release checklist for the LifeLog app (danielnoam/lifelog): a branch and pull request per change, a changes/<branch>.md note (folded into CHANGELOG.md by tools/release.js, which also bumps the version in three places), DONE.md, DROPPED.md and README.md kept current, the bridge in step, the tests, phone and desktop checks, merging on green, test builds by label. Use this before shipping any change to LifeLog.
 ---
 
 # LifeLog release checklist
@@ -47,9 +47,6 @@ CONTRIBUTING.md's "Versions and releases" (2026-11-02, from Waypage):
 
 ## 3. Update the notes files
 
-- **The to-do list** (not in the repo; `/mnt/project-files/lifelog/TODO.md`):
-  only the work that's left, in sections, each item with a short plan.
-  Remove items this change completes, in the same turn; add follow-ups.
 - **DONE.md**: a line for every feature this change adds, in its area,
   with the version it ships in. A feature this change removes loses its
   line. Copy it over the project folder's copy if there is one.
