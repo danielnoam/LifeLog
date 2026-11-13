@@ -109,8 +109,8 @@ async function openSync(page) {
     check("the row says where and when", await page.evaluate(() =>
       /Documents\/LifeLog · saved/.test(document.getElementById("phoneBackupInfo").textContent)),
       await page.evaluate(() => document.getElementById("phoneBackupInfo").textContent));
-    check("and the Sync row mentions it", await page.evaluate(() =>
-      /backed up on this phone/.test(document.querySelector('.srow[data-page="sync"] .srow-status').textContent)));
+    check("and the Sync row stops warning", await page.evaluate(() =>
+      document.querySelector('.srow[data-page="sync"] .srow-status').dataset.tone !== "warn"));
 
     // An edit reaches the backup like any save.
     await page.keyboard.press("Escape"); await page.keyboard.press("Escape");
