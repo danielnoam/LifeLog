@@ -233,7 +233,9 @@ Release dates are re-checked, and again on the day something is due.
 
 What's popular now and coming soon from the sources your categories use,
 with Hide what I have. Books get the NYT bestseller lists with a free New
-York Times key. Logging a synced title offers the next one in its series.
+York Times key, or Hardcover's trending. A category with two lists to show
+(RAWG or IGDB, NYT or Hardcover) gets a switch on its card. Logging a
+synced title offers the next one in its series.
 (No screenshot: it needs the live sources.)
 
 ## Ledger

@@ -72,6 +72,7 @@ because something shipped broken that no unit test could have caught:
 | `pickspeed` | a SteamGridDB pick loads its Steam identity and RAWG cross-fill side by side, and skips RAWG's blurb when Steam's is coming |
 | `igdb` | an IGDB + Steam + GG.deals pick signs in to Twitch once and lands on the Steam App ID with IGDB's play time and rating; a SteamGridDB category with no RAWG key gets IGDB's Discover lists |
 | `hardcover` | a Hardcover search shows author, series and place; a pick fills author, pages, rating and blurb keyed by slug; Popular is its trending, with no Coming soon card |
+| `discoverswitch` | a category with two Discover lists gets a switch in its card head, the pick is remembered per device and shows in place; one list keeps the plain source name; books sit out Coming soon |
 | `keystatus` | each media key's Working / Key refused / No answer status, re-checked after an edit, and its setup link |
 | `realloop` | the real bulk-sync loop feeds the progress panel live |
 | `ios` | the iOS app: a newer release offered as its page rather than an APK, the QR scan without Google's module, the backup where Files shows it, a widget's lifelog:// link opening the right thing, the widgets' snapshot, Face ID, no folder import |
