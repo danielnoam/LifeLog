@@ -29,7 +29,7 @@ const COLLECTIONS = {
   projects: { label: "project", clean: Finance.sanitizeProject, name: "name" },
 };
 // Never handed to an AI: API keys and account names live in settings.
-const SECRET_SETTINGS = ["mediaKeys", "steam", "anilist"];
+const SECRET_SETTINGS = ["mediaKeys", "steam", "anilist", "stremio"];
 
 // ---------- small helpers ----------
 const today = () => Finance.localDateStr(new Date());

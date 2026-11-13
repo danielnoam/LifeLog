@@ -341,8 +341,10 @@
     "anilist.userName": "AniList user name", "anilist.animeCategory": "AniList anime category",
     "anilist.mangaCategory": "AniList manga category", "anilist.autoSyncDays": "AniList auto-sync",
     "anilist.clientId": "AniList client ID", "anilist.token": "AniList access token", "anilist.connectedAt": "AniList sign-in time",
+    "stremio.email": "Stremio email", "stremio.authKey": "Stremio sign-in key", "stremio.movieCategory": "Stremio movie category",
+    "stremio.showCategory": "Stremio show category", "stremio.autoSyncDays": "Stremio auto-check", "stremio.connectedAt": "Stremio sign-in time",
     "releases.autoRefreshDays": "release-date refresh",
-    "importSkips.steamWishlist": "Steam wishlist skips", "importSkips.steamOwned": "Steam played-games skips", "importSkips.anilist": "AniList skips", "importSkips.bills": "Not a bill answers",
+    "importSkips.steamWishlist": "Steam wishlist skips", "importSkips.steamOwned": "Steam played-games skips", "importSkips.anilist": "AniList skips", "importSkips.stremio": "Stremio skips", "importSkips.bills": "Not a bill answers",
     timelineSort: "Timeline sort", ledgerSort: "Ledger sort", backlogSort: "Backlog sort", currency: "Home currency",
   };
   function settingLabel(path) {
@@ -695,6 +697,7 @@
         const parts = [];
         if (set.steam && set.steam.steamId) parts.push("Steam wishlist" + (set.steam.wishlistCategory ? " → " + set.steam.wishlistCategory : ""));
         if (set.anilist && set.anilist.userName) parts.push("AniList");
+        if (set.stremio && set.stremio.authKey) parts.push("Stremio");
         const wallet = window.LifeLogPayments && window.LifeLogPayments.summary();
         if (wallet) parts.push(wallet);
         return { text: parts.length ? parts.join(" · ") : "Steam wishlist, AniList" };
@@ -1302,6 +1305,7 @@
     renderSteamWishlistCategoryOptions();
     renderAniListCategoryOptions("#anilistAnimeCategory", state.data.settings.anilist?.animeCategory);
     renderAniListCategoryOptions("#anilistMangaCategory", state.data.settings.anilist?.mangaCategory);
+    if (window.LifeLogStremio) window.LifeLogStremio.renderSettings();
     renderMediaCatRows();
   }
 

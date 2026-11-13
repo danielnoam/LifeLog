@@ -134,6 +134,7 @@ Every release that adds a feature adds its line here in the same commit.
 - AniList: every list, Completed as timeline history, Paused and Dropped as dropped (0.73.0, 0.265.0, 0.268.0)
 - AniList both ways: applied automatically (every open to monthly), episode counts, starts, finishes and drops sent back once signed in, newer change wins (0.292.0)
 - Letterboxd import (0.252.0)
+- Stremio, read only: sign in once (only the key is kept), your library to the Backlog, what you're watching to In progress with its episode, watched movies to the Timeline on their last play, matched on TMDB by IMDb id, through the review; an automatic check offers the review (unreleased)
 - Google Maps lists and places into a trip (0.242.0, 0.245.0)
 - Markdown, PDF and EPUB files as notes, run as Activity jobs (0.200.0, 0.236.0, 0.268.0)
 - Obsidian images come in with their notes, from the files or the folder picked, and Find in folder (0.297.0)

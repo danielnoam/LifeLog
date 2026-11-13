@@ -394,6 +394,7 @@
     }
     if (st.steam && typeof st.steam === "object") out.settings.steam = { ...st.steam, apiKey: "" };
     if (st.anilist && typeof st.anilist === "object") out.settings.anilist = { ...st.anilist, token: "" };
+    if (st.stremio && typeof st.stremio === "object") out.settings.stremio = { ...st.stremio, authKey: "" };
     return out;
   }
 

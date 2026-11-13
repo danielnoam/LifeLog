@@ -19,6 +19,7 @@
   const Share = window.LifeLogShare || { open() {}, close() {}, start() {} };
   const Search = window.LifeLogSearch || { start() {}, setQuery() {}, clear() {}, refresh() {}, isOpen: () => false };
   const Letterboxd = window.LifeLogLetterboxd || { start() {}, importFiles: async () => {} };
+  const Stremio = window.LifeLogStremio || { start() {}, maybeAutoCheck: async () => {}, renderSettings() {} };
   // Absent only under the unit tests, which load this file without a page.
   // The status-bar style last sent to Android (see syncSystemBars). Up here
   // with the module's other state, not beside its function: applyTheme runs
@@ -50,7 +51,7 @@
   // timelineSort/ledgerSort/backlogSort replaced monthOrder in 0.157.0. Each
   // option is one complete statement about the whole list rather than a
   // direction bolted to a hidden field — see SORTS below.
-  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", igdb: "", igdbSecret: "", hardcover: "", googlePlaces: "", nyt: "", tiingo: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "30" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0", clientId: "", token: "", connectedAt: "" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
+  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", igdb: "", igdbSecret: "", hardcover: "", googlePlaces: "", nyt: "", tiingo: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "30" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0", clientId: "", token: "", connectedAt: "" }, stremio: { email: "", authKey: "", movieCategory: "", showCategory: "", autoSyncDays: "0", connectedAt: "" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, stremio, releases — synced
   // Local to this device, not synced. Every key a view reads off state.visual
   // belongs here: loadVisualSettings fills the gaps in a stored blob from this
   // object, so a default declared here is the only one there is — a `||` at
@@ -4451,7 +4452,7 @@
     // stale source of truth for the same question.
     "monthOrder",
     "currency", "mediaCategorySources", "mediaCategoryFallbackSources",
-    "mediaKeys", "steam", "anilist", "releases", "importSkips", "updatedAt",
+    "mediaKeys", "steam", "anilist", "stremio", "releases", "importSkips", "updatedAt",
     "monthMinWidth", "monthMaxWidth", "imagesCleanedAt",
     "weekStart", "dateFormat", "scratchpad", "keys",
   ]);
@@ -4543,6 +4544,7 @@
       mediaKeys,
       steam: { ...DEFAULT_SETTINGS.steam, ...(incomingSettings.steam || {}) },
       anilist: { ...DEFAULT_SETTINGS.anilist, ...(incomingSettings.anilist || {}) },
+      stremio: { ...DEFAULT_SETTINGS.stremio, ...(incomingSettings.stremio || {}) },
       releases: { ...DEFAULT_SETTINGS.releases, ...(incomingSettings.releases || {}) },
       // Per import source, the "source:id" keys you left unticked (0.257.0).
       importSkips: Object.fromEntries(Object.entries(incomingSettings.importSkips && typeof incomingSettings.importSkips === "object" ? incomingSettings.importSkips : {})
@@ -5197,7 +5199,7 @@
     function onReconnectOrFocus() { retrySync(); pollForUpdates(); }
     window.addEventListener("online", onReconnectOrFocus);
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible") { onReconnectOrFocus(); schedulePoll(); Sync.maybeAutoRefreshReleases(); Sync.maybeCheckPriceAlerts(); Invest.checkTargets(); Sync.maybeAutoCheckAniList(); return; }
+      if (document.visibilityState === "visible") { onReconnectOrFocus(); schedulePoll(); Sync.maybeAutoRefreshReleases(); Sync.maybeCheckPriceAlerts(); Invest.checkTargets(); Sync.maybeAutoCheckAniList(); Stremio.maybeAutoCheck(); return; }
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       // The computer app keeps running in the tray to ring reminders and
       // heads-ups, so it keeps their lists fresh there too, at a walk: a
@@ -5853,6 +5855,7 @@
     if (!isAnyModalOpen()) setTimeout(() => { if (!isAnyModalOpen()) Backlog.maybeShowOutToday(); }, 1200);
     Sync.maybeAutoCheckSteamWishlist(); // fire-and-forget, doesn't block startup
     Sync.maybeAutoCheckAniList(); // same — the two-way AniList sync, when it's due (0.292.0)
+    Stremio.maybeAutoCheck(); // same — the Stremio library, read only
     Sync.maybeAutoRefreshReleases(); // same — keeps upcoming release dates current in the background
     Sync.maybeCheckPriceAlerts(); // same — the Steam games with a price target (0.276.0)
     Invest.checkTargets(); // same — the watched tickers with a target
@@ -6322,6 +6325,10 @@
     openInvest: () => { VIEW_MODES.finance.set("invest"); if (state.view !== "finance") switchToView("finance"); else commitModeChange(); } });
   Home.init({ state, $, el, toast, persist, render, saveVisualSettings, switchToView, modeEnabled, viewEnabled, todayStr: () => Finance.localDateStr(new Date()) });
   Share.start({ Backlog, Notes, Travel, toast, viewEnabled, modeEnabled });
+  Stremio.start({
+    state, toast, persist, DEFAULT_SETTINGS, buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport,
+    whenSynced: async () => { if (firstReconcile) { try { await firstReconcile; } catch (e) { /* its own problem */ } } },
+  });
   Letterboxd.start({ unzip: (b) => window.LifeLogDocImport.unzip(b), parseCsv: IO.parseCsv, buildImportItems: IO.buildImportItems, reviewAndImport: IO.reviewAndImport });
   Search.start({
     state, ico, render, viewEnabled, modeEnabled, coverEl, emptyCoverEl,

@@ -237,6 +237,10 @@
       try { body = JSON.parse((u.searchParams.get("q") || "").slice(0, 6000)); } catch (e) { /* sent as nothing */ }
       return { url: "https://api.hardcover.app/v1/graphql", method: "POST", data: body || {}, contentType: "application/json" };
     }
+    // Stremio's API (the Stremio sync) is all POSTs of JSON, so the body is
+    // the caller's own, passed on as it is (see viaNative).
+    m = /^\/stremio\/(login|logout|datastoreGet)$/.exec(u.pathname);
+    if (m) return { url: "https://api.strem.io/api/" + m[1], method: "POST", bodyFromInit: true, contentType: "application/json" };
     m = /^\/augsteam-app\/(\d+)$/.exec(u.pathname);
     if (m) return "https://api.augmentedsteam.com/app/" + m[1] + "/v2";
     m = /^\/gmaps-link\/([A-Za-z0-9_-]{4,64})$/.exec(u.pathname);
@@ -313,6 +317,10 @@
       const secret = (headers.authorization || "").replace(/^Secret\s+/i, "");
       if (!/^[A-Za-z0-9]{8,64}$/.test(id) || !/^[A-Za-z0-9]{8,64}$/.test(secret)) return json({ error: "A Twitch client ID and secret are needed" }, 400);
       req = { url: target.url + "?client_id=" + id + "&client_secret=" + secret + "&grant_type=client_credentials", method: "POST", headers: {} };
+    } else if (target.bodyFromInit) {
+      let body = {};
+      try { body = JSON.parse(String((init && init.body) || "{}").slice(0, 4000)); } catch (e) { /* sent as nothing */ }
+      req = { url: target.url, method: "POST", data: body, headers: { "Content-Type": "application/json", Accept: "application/json" } };
     } else if (typeof target === "object") {
       // A JSON body goes as an object: CapacitorHttp serializes it itself.
       req = { url: target.url, method: target.method, data: target.data, headers: { ...headers, "Content-Type": target.contentType || "text/plain", Accept: "application/json" } };
