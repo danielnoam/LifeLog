@@ -1901,7 +1901,7 @@
       </section>
       </div>
 
-      <div class="settings-page" hidden data-page="imports" data-title="Imports" data-keywords="steam wishlist how long to beat hltb game times opencritic metacritic scores anilist planning watching completed anime manga waypage reading books audiobooks comics serials minutes google wallet pay payment notification expense letterboxd films diary watchlist zip csv owned library played playtime backfill api key">
+      <div class="settings-page" hidden data-page="imports" data-title="Imports" data-keywords="steam wishlist how long to beat hltb game times opencritic metacritic scores anilist planning watching completed anime manga stremio waypage reading books audiobooks comics serials minutes google wallet pay payment notification expense letterboxd films diary watchlist zip csv owned library played playtime backfill api key">
       <h2 class="settings-page-title">Imports</h2>
       <p class="hint page-lede">You pick what comes in, and nothing already in your backlog is added twice. The automatic check only tells you what's new.</p>
       <section class="sgroup">
@@ -1967,6 +1967,46 @@
           <button id="letterboxdImportBtn" type="button" class="sitem sitem-go"><span data-ico="film"></span> Import from Letterboxd</button>
         </div>
         <p class="hint">On Letterboxd: Settings → Import &amp; Export → Export your data. Pick the zip it gives you (or its CSV files). Your diary and watched films become Timeline entries on the day you saw them, with your stars; the watchlist goes to the Backlog. You review the list before anything comes in.</p>
+      </section>
+
+      <section class="sgroup">
+        <h3 class="sgroup-label">Stremio</h3>
+        <div class="sgroup-card">
+          <div class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Stremio account</span><span class="sitem-sub" id="stremioState"></span></span>
+          </div>
+          <label class="sitem sitem-stack" id="stremioEmailRow">
+            <span class="sitem-text"><span class="sitem-title">Email</span></span>
+            <input id="stremioEmail" type="email" autocomplete="off" spellcheck="false" placeholder="The email you sign in to Stremio with" />
+          </label>
+          <label class="sitem sitem-stack" id="stremioPasswordRow">
+            <span class="sitem-text"><span class="sitem-title">Password</span></span>
+            <input id="stremioPassword" type="password" autocomplete="off" spellcheck="false" placeholder="Used once to sign in, never kept" />
+          </label>
+          <button id="stremioSignInBtn" type="button" class="sitem sitem-go"><span data-ico="log-in"></span> Sign in to Stremio</button>
+          <button id="stremioSignOutBtn" type="button" class="sitem sitem-go" hidden><span data-ico="log-out"></span> Sign out of Stremio</button>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Add movies to</span></span>
+            <select id="stremioMovieCategory"></select>
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Add shows to</span></span>
+            <select id="stremioShowCategory"></select>
+          </label>
+          <label class="sitem">
+            <span class="sitem-text"><span class="sitem-title">Check automatically</span></span>
+            <select id="stremioAutoSyncDays">
+              <option value="0">Never</option>
+              <option value="open">Every open</option>
+              <option value="1">Every day</option>
+              <option value="3">Every 3 days</option>
+              <option value="7">Every week</option>
+              <option value="30">Every month</option>
+            </select>
+          </label>
+          <button id="stremioSyncBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Sync Stremio</button>
+        </div>
+        <p class="hint">Reads your Stremio library and never changes it. Your library comes in as backlog items, what you're partway through as in progress with the episode you're on, and watched movies go to your timeline on the day you last played them (Stremio keeps only the last play). Everything goes through the review; an automatic check only offers it. Titles are matched on TMDB when you have a TMDB key. Your password is only used to sign in: the key Stremio sends back syncs like your other keys and is left out of exports. It can change anything on your Stremio account, and Sign out ends it. This is the API Stremio's own apps use; it isn't public and may change.</p>
       </section>
 
       <section class="sgroup">
@@ -2121,6 +2161,7 @@
           <a class="sitem sitem-go" href="https://augmentedsteam.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Augmented Steam</span><span class="sitem-sub">Its API brings the game times and review scores</span></span></a>
           <a class="sitem sitem-go" href="https://howlongtobeat.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">HowLongToBeat</span><span class="sitem-sub">Game times</span></span></a>
           <a class="sitem sitem-go" href="https://opencritic.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">OpenCritic and Metacritic</span><span class="sitem-sub">Review scores</span></span></a>
+          <a class="sitem sitem-go" href="https://www.stremio.com" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Stremio</span><span class="sitem-sub">Your movie and show library, read with your sign-in</span></span></a>
           <a class="sitem sitem-go" href="https://anilist.co" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">AniList</span><span class="sitem-sub">Anime and manga, and your lists there</span></span></a>
           <a class="sitem sitem-go" href="https://github.com/danielnoam/waypage" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Waypage</span><span class="sitem-sub">What you read there, from its reading activity file</span></span></a>
           <a class="sitem sitem-go" href="https://jikan.moe" target="_blank" rel="noopener"><span class="sitem-text"><span class="sitem-title">Jikan</span><span class="sitem-sub">MyAnimeList, unofficially</span></span></a>
@@ -2742,6 +2783,7 @@
   <script defer src="src/share.js?v=0.312.0"></script>
   <script defer src="src/search.js?v=0.312.0"></script>
   <script defer src="src/letterboxd.js?v=0.312.0"></script>
+  <script defer src="src/stremio.js?v=0.312.0"></script>
   <script defer src="src/payments.js?v=0.312.0"></script>
   <script defer src="src/app.js?v=0.312.0"></script>
 </body>

@@ -325,7 +325,7 @@ with what's new, the credits, the errors on this device and Test builds.
 
 ## Imports
 
-Every import (Steam, AniList, Letterboxd, a backup, a CSV, Markdown, PDF and
+Every import (Steam, AniList, Stremio, Letterboxd, a backup, a CSV, Markdown, PDF and
 EPUB notes) opens one review. On a computer it's three columns: filters
 (years and months that take a whole period in or out, category, kind, what
 to show, new categories to add), the list, and a preview of the row you're
@@ -351,7 +351,7 @@ list gets the window too, its map beside the list.
 - **Media lookups**: cover art, scores, release dates, genres, descriptions
   and lengths, from a primary and a fallback source per category. See
   [Media sources and keys](#media-sources-and-keys).
-- **Imports**: Steam wishlist and played games, AniList, Letterboxd, Google
+- **Imports**: Steam wishlist and played games, AniList, Stremio, Letterboxd, Google
   Maps lists, Markdown, PDF and EPUB as notes, and JSON or CSV per tab.
   Every import goes through one review screen and can be undone.
 - **AniList, both ways**: your lists are applied on their own (every open,
@@ -362,6 +362,13 @@ list gets the window too, its map beside the list.
   both sides changed, the newer change wins. Shows and manga keep how far
   they've run, and In progress items can count episodes (per category); moved back
   to the Backlog, an item keeps its count and its row shows it.
+- **Stremio, read only**: sign in once in Settings → Imports (only the key
+  Stremio sends back is kept). Your library goes to the Backlog, what
+  you're partway through to In progress with the episode you're on, and
+  watched movies to the Timeline on the day you last played them, all
+  through the review. Stremio keeps only the last play, so earlier watches
+  aren't there. Nothing is written to Stremio. It uses the API Stremio's
+  own apps use, which isn't public.
 - **Waypage reading log**: with Share reading activity on in
   [Waypage](https://github.com/danielnoam/waypage), what you read there
   comes in by itself, with a read-only token for its sync repo. A book in
@@ -533,6 +540,7 @@ you add it in **Settings → Media lookups**.
 | Google Places | yes (your own) | Travel: a place's rating, hours and reviews |
 | Tiingo | yes (free, personal use); CORS proxy in a browser | the Ledger's watchlist: daily stock and ETF prices |
 | Open Library, AniList, Jikan, Google Books, MusicBrainz | no | books, anime and manga, music |
+| Stremio | your sign-in (only its key is kept) | your movie and show library and what you've watched, read only |
 
 Steam's endpoints and SteamGridDB send no CORS headers, so on the web the
 wishlist import, Steam dates, prices and game times need a proxy you host:
@@ -566,6 +574,7 @@ src/search.js       one search across everything
 src/media.js        cover art and metadata from the media sources
 src/sync.js         Steam import, the two-way AniList sync, GG.deals prices, release re-checks
 src/letterboxd.js   the Letterboxd import
+src/stremio.js      the Stremio sync, read only
 src/io.js           JSON/CSV import and export, and the shared review screen
 src/docimport.js    PDF and EPUB read as text, for notes
 src/markdown.js     Markdown for notes in a collection

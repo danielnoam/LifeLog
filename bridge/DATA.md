@@ -298,8 +298,8 @@ delete with the `lifelog_*_accomplishment` tools.
 
 Synced preferences. The bridge never shows these to an AI (the scratchpad
 excepted, below), because
-`mediaKeys`, `steam` (proxy URL, SteamID64 and the Web API key) and
-`anilist` hold API keys and account names. The one
+`mediaKeys`, `steam` (proxy URL, SteamID64 and the Web API key),
+`anilist` and `stremio` hold API keys and account names. The one
 that matters for data is `currency`, which `lifelog_overview` gives. The
 Export JSON and the phone's Documents copy carry `mediaKeys`,
 `steam.apiKey` (0.260.0) and `anilist.token` (0.292.0) blanked; the synced
@@ -308,6 +308,14 @@ file has them. `anilist` holds `userName`, `animeCategory`,
 opens, or days between syncs), and for sending changes back `clientId`,
 `token` (an AniList access token, a year long) and `connectedAt` (when it
 was pasted; titles added after it are added to AniList too).
+`stremio` (read-only Stremio sync) holds `email`, `authKey` (the key
+Stremio sends back for a sign-in; the password is never kept; blanked in
+exports, and it can change anything on the Stremio account),
+`movieCategory` and `showCategory` ("" is don't import), `autoSyncDays`
+(as AniList's; an automatic check only offers a review) and
+`connectedAt`. The sync never writes to Stremio. What it brings in is
+ordinary backlog items and timeline entries, matched to TMDB
+(`tmdb-movie`/`tmdb-tv`) by IMDb id when there's a TMDB key.
 
 `waypage` (0.313.0) is the reading log from Waypage (`src/waypage.js`):
 `repo` ("owner/waypage-data"), `token` (a fine-grained GitHub token with
@@ -330,7 +338,7 @@ newer save wins.
 
 Keys: `scratchpad`, `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,
 `mediaCategorySources`, `mediaCategoryFallbackSources`, `mediaKeys`, `steam`,
-`anilist`, `waypage`, `releases`, `importSkips` (per import source, the `source:id`
+`anilist`, `waypage`, `stremio`, `releases`, `importSkips` (per import source, the `source:id`
 keys of items left unticked in a review, so they stay hidden next time;
 `bills` (0.309.0) holds the `category|note` keys of hand-logged bills
 answered Not a bill, so the Ledger stops suggesting them),

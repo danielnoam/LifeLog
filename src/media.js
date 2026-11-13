@@ -451,6 +451,38 @@
     return out;
   }
 
+  // An IMDb id to its TMDB title (the Stremio sync): Stremio files
+  // movies and shows under their IMDb id, and TMDB's /find maps one across.
+  // `type` is "movie" or "tv". undefined means TMDB couldn't be asked (no
+  // key, network), null that it was asked and has no such title.
+  async function findTmdbByImdb(imdbId, type, apiKey) {
+    if (!apiKey || !/^tt\d+$/.test(imdbId || "")) return undefined;
+    try {
+      const url = "https://api.themoviedb.org/3/find/" + encodeURIComponent(imdbId) +
+        "?external_source=imdb_id&api_key=" + encodeURIComponent(apiKey);
+      const res = await get(url);
+      if (!res.ok) return undefined;
+      const data = await res.json();
+      const hit = (data[type === "movie" ? "movie_results" : "tv_results"] || [])[0];
+      return hit ? mapTmdbResult(hit, type) : null;
+    } catch (e) { return undefined; }
+  }
+
+  // How many episodes each season of a show has, and how far it has aired,
+  // so a Stremio "S2E5" can be turned into a count of episodes watched.
+  async function fetchTmdbSeasons(id, apiKey) {
+    if (!apiKey || !id) return null;
+    try {
+      const res = await get("https://api.themoviedb.org/3/tv/" + encodeURIComponent(id) + "?api_key=" + encodeURIComponent(apiKey));
+      if (!res.ok) return null;
+      const data = await res.json();
+      return {
+        seasons: (data.seasons || []).filter((x) => x.season_number > 0).map((x) => ({ season: x.season_number, episodes: x.episode_count || 0 })),
+        ...tmdbAiring(data),
+      };
+    } catch (e) { return null; }
+  }
+
   async function searchTmdb(title, type, apiKey) {
     if (!apiKey) return [];
     try {
@@ -2009,6 +2041,8 @@
     mergeRelease,
     aniListStatus,
     tmdbAiring,
+    findTmdbByImdb,
+    fetchTmdbSeasons,
     jikanAiring,
     mapAniListListEntry,
     normGenres,
