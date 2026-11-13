@@ -5257,6 +5257,8 @@ html.force-mobile .pace-say { white-space: normal; }
 .invest-results { display: flex; flex-direction: column; margin: calc(-1 * var(--space-6)) 0 var(--space-12); border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
 .invest-result { display: flex; align-items: baseline; gap: var(--space-10); padding: var(--space-10) var(--space-12); min-height: 44px; box-sizing: border-box; background: none; border: 0; border-top: 1px solid var(--border); color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .invest-result:first-child { border-top: 0; }
+.invest-results-status { margin: 0; padding: var(--space-10) var(--space-12); font-size: var(--fs-xs); color: var(--text-dim); }
+.invest-results-status + .invest-result { border-top: 1px solid var(--border); }
 .invest-result:hover, .invest-result:focus-visible { background: var(--hover-bg); }
 .invest-result b { color: var(--text); font-size: var(--fs-sm); min-width: 56px; }
 .invest-result span { color: var(--text-dim); font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
