@@ -677,27 +677,18 @@
       case "tabs": {
         const offViews = state.visual.disabledViews || [];
         const tabs = viewToggles();
-        const on = tabs.filter(([v]) => !offViews.includes(v)).length;
-        const offModes = Object.entries(state.visual.disabledModes || {})
-          .filter(([v]) => !offViews.includes(v))
-          .reduce((n, [, m]) => n + (m || []).length, 0);
-        const head = on === tabs.length && !offModes ? "All tabs on"
-          : on + " of " + tabs.length + " tabs on" + (offModes ? " · " + plural(offModes, "mode", "modes") + " off" : "");
-        return { text: head + " · " + tabs.filter(([v]) => !offViews.includes(v)).map(([, label]) => label).join(", ") };
+        return { text: tabs.filter(([v]) => !offViews.includes(v)).length + " of " + tabs.length };
       }
       case "media": {
-        const keys = Object.entries(set.mediaKeys || {}).filter(([, v]) => v).map(([k]) => KEY_NAMES[k] || k);
-        const cats = Object.values(set.mediaCategorySources || {}).filter((v) => v && (typeof v === "string" || v.primary)).length;
-        if (!keys.length && !cats) return { text: "No sources set up yet" };
-        return { text: [keys.length ? keys.join(", ") : "", cats ? plural(cats, "category", "categories") + " set up" : ""].filter(Boolean).join(" · ") };
+        const keys = set.mediaKeys || {};
+        const names = Object.keys(KEY_NAMES);
+        return { text: names.filter((k) => keys[k]).length + " of " + names.length + " keys" };
       }
       case "imports": {
-        const parts = [];
-        if (set.steam && set.steam.steamId) parts.push("Steam wishlist" + (set.steam.wishlistCategory ? " → " + set.steam.wishlistCategory : ""));
-        if (set.anilist && set.anilist.userName) parts.push("AniList");
-        const wallet = window.LifeLogPayments && window.LifeLogPayments.summary();
-        if (wallet) parts.push(wallet);
-        return { text: parts.length ? parts.join(" · ") : "Steam wishlist, AniList" };
+        const links = [!!(set.steam && set.steam.steamId), !!(set.anilist && set.anilist.userName)];
+        const wallet = document.getElementById("paymentsGroup");
+        if (wallet && !wallet.hidden) links.push(!!(window.LifeLogPayments && window.LifeLogPayments.summary()));
+        return { text: links.filter(Boolean).length + " of " + links.length + " linked" };
       }
       case "notifications": {
         const A = window.LifeLogAlerts, R = window.LifeLogReminders;
