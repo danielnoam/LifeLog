@@ -341,6 +341,7 @@
     "anilist.userName": "AniList user name", "anilist.animeCategory": "AniList anime category",
     "anilist.mangaCategory": "AniList manga category", "anilist.autoSyncDays": "AniList auto-sync",
     "anilist.clientId": "AniList client ID", "anilist.token": "AniList access token", "anilist.connectedAt": "AniList sign-in time",
+    "waypage.repo": "Waypage sync repo", "waypage.token": "Waypage token", "waypage.kinds": "Waypage categories", "waypage.habit": "Waypage minutes habit",
     "releases.autoRefreshDays": "release-date refresh",
     "importSkips.steamWishlist": "Steam wishlist skips", "importSkips.steamOwned": "Steam played-games skips", "importSkips.anilist": "AniList skips", "importSkips.bills": "Not a bill answers",
     timelineSort: "Timeline sort", ledgerSort: "Ledger sort", backlogSort: "Backlog sort", currency: "Home currency",
@@ -1234,6 +1235,7 @@
     renderAniListCategoryOptions("#anilistAnimeCategory", state.data.settings.anilist?.animeCategory);
     renderAniListCategoryOptions("#anilistMangaCategory", state.data.settings.anilist?.mangaCategory);
     renderMediaCatRows();
+    if (window.LifeLogWaypage) window.LifeLogWaypage.renderSettings();
   }
 
   // Shown only while this device is behind the data — the storage line in

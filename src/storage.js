@@ -394,6 +394,7 @@
     }
     if (st.steam && typeof st.steam === "object") out.settings.steam = { ...st.steam, apiKey: "" };
     if (st.anilist && typeof st.anilist === "object") out.settings.anilist = { ...st.anilist, token: "" };
+    if (st.waypage && typeof st.waypage === "object") out.settings.waypage = { ...st.waypage, token: "" };
     return out;
   }
 

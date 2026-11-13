@@ -134,6 +134,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Steam games you've played, with a minimum play time (0.253.0, 0.255.0)
 - AniList: every list, Completed as timeline history, Paused and Dropped as dropped (0.73.0, 0.265.0, 0.268.0)
 - AniList both ways: applied automatically (every open to monthly), episode counts, starts, finishes and drops sent back once signed in, newer change wins (0.292.0)
+- Waypage reading log: reading.json from your Waypage sync repo (read-only token, every few minutes, ETag); Backlog books started with their %, new ones added, finished ones moved to the Timeline, a category per kind, re-reads and author clashes reviewed, minutes into a minutes habit; bridge tools (0.313.0)
 - Letterboxd import (0.252.0)
 - Google Maps lists and places into a trip (0.242.0, 0.245.0)
 - Markdown, PDF and EPUB files as notes, run as Activity jobs (0.200.0, 0.236.0, 0.268.0)

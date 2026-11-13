@@ -184,9 +184,11 @@
       tile.setAttribute("role", "button");
       tile.setAttribute("aria-label", b.title);
       const c = B.progressCount && window.LifeLogJournal.categoryShows(b.category).progress ? B.progressCount(b) : null;
-      if (c) {
-        const badge = el("span", "home-tile-count", c.text);
-        badge.title = c.words;
+      // How far you are in Waypage (0.313.0), when it's read there.
+      const wp = !c && window.LifeLogWaypage ? window.LifeLogWaypage.progressLabel(b) : "";
+      if (c || wp) {
+        const badge = el("span", "home-tile-count", c ? c.text : wp);
+        badge.title = c ? c.words : wp + " in Waypage";
         tile.querySelector(".bl-tile-art").appendChild(badge);
       }
       const since = el("span", "home-tile-since");

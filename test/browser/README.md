@@ -85,6 +85,7 @@ because something shipped broken that no unit test could have caught:
 | `projadd` | the project pill's + opens the form already on that project |
 | `tabmenu` | the desktop tab menu: no flash while crossing the bar, open under the pointer from menu back to tab, swapped along the bar; a tab's number again stepping through its modes |
 | `anilist` | a show's airing state on its row and in the Still airing band (folding); the AniList sync bringing in Planning, starting Watching, moving Completed off the backlog with Undo; the re-check finishing an ended show |
+| `waypage` | the reading log from Waypage: reading.json read with the token (GitHub's API stood in for), a matched backlog book started with its %, a new one added in its kind's category, a finished one moved to the Timeline, articles left out, minutes on top of the habit's own, a re-read reviewed and added, Home's % badges, the ETag sent back and nothing brought in twice |
 
 ## Writing one
 

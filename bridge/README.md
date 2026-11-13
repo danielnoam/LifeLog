@@ -74,7 +74,7 @@ their targets and pins, with prices when the app has a Tiingo key),
 `lifelog_habit_insights`, `lifelog_habits_left` (what's still to do today
 and this week, month and year), `lifelog_upcoming` (what's coming out from the
 backlog), `lifelog_home` (what the Home tab shows: in progress, coming up,
-the scratchpad, the pinned notes and the Ledger card), `lifelog_note_images` (a note's images, sent back as pictures), `lifelog_board_images` (a drawing board's pictures, the same way), `lifelog_google_list` (reads a shared Google Maps list or place
+the scratchpad, the pinned notes and the Ledger card), `lifelog_waypage` (the reading log from Waypage: what's being read there, what it finished, the review list), `lifelog_note_images` (a note's images, sent back as pictures), `lifelog_board_images` (a drawing board's pictures, the same way), `lifelog_google_list` (reads a shared Google Maps list or place
 straight from Google; the only tool that goes beyond your data).
 
 Changing: `lifelog_add_expense`, `lifelog_add_timeline_entry`,
@@ -83,7 +83,7 @@ Changing: `lifelog_add_expense`, `lifelog_add_timeline_entry`,
 next sync),
 `lifelog_add_note`, `lifelog_add_note_image` (a picture from a file or
 base64, kept beside the data like the app's), `lifelog_set_scratchpad`,
-`lifelog_pin_note` (pin a note to Home, or unpin it), `lifelog_update_list`, `lifelog_mark_habit`,
+`lifelog_pin_note` (pin a note to Home, or unpin it), `lifelog_waypage_review` (answer a Waypage review row: same, add or never), `lifelog_update_list`, `lifelog_mark_habit`,
 `lifelog_fill_habit` (a range or list of past days: done, a value each, or a total spread over them),
 `lifelog_merge_habits`, `lifelog_append_note` (add to a note without resending it),
 `lifelog_move_to_backlog` (a timeline entry back to the backlog or In progress),
