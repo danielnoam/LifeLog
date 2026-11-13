@@ -624,98 +624,38 @@
     return true;
   }
 
-  // ---------- the status line under each row ----------
-  const EVERY = { "1": "every day", "3": "every 3 days", "7": "every week", "30": "every month" };
-  const THEMES = { default: "Dark", light: "Light", nord: "Nord", dracula: "Dracula" };
-  const FONTS = { system: "system typeface", serif: "serif", mono: "monospace", rounded: "rounded" };
-  const KEY_NAMES = { rawg: "RAWG", tmdb: "TMDB", ggdeals: "GG.deals", steamgriddb: "SteamGridDB", igdb: "IGDB", hardcover: "Hardcover", googlePlaces: "Google Places", nyt: "New York Times", tiingo: "Tiingo" };
+  // ---------- the line under each row ----------
+  // A few words on what the page holds, not where things stand (2026-11-13,
+  // Daniel: the old status lines ran to two lines and said too much). Only
+  // something that needs you still shows: sync off or broken, errors recorded.
+  const ABOUT_ROW = {
+    sync: "Keep your devices in step",
+    io: "Back up or bring data in",
+    history: "Undo saves, restore deleted",
+    lock: "A PIN to open the app",
+    desktop: "Startup and tray",
+    notifications: "Reminders and alerts",
+    appearance: "Theme, font and layout",
+    tabs: "Show, hide and order tabs",
+    keyboard: "Shortcuts",
+    media: "Keys for covers and details",
+    imports: "Steam, AniList, Letterboxd and more",
+    releases: "Upcoming release checks",
+    about: "Version, what's new, credits",
+  };
+
   const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
 
   function statusOf(page) {
-    const set = state.data.settings || {};
-    switch (page) {
-      case "about": {
-        const n = window.LifeLogErrors ? window.LifeLogErrors.list().length : 0;
-        return { text: "Version " + APP_VERSION + (n ? " · " + (n === 1 ? "1 error" : n + " errors") + " recorded" : " · what's new, credits") };
-      }
-      case "sync": {
-        const gi = Storage.githubInfo;
-        const file = Storage.fileName && !Storage.needsReconnect;
-        const phone = Storage.phoneBackup.on ? " · phone backup" : "";
-        if (Storage.githubConnected && gi) return { text: "GitHub · " + gi.owner + "/" + gi.repo + (file ? " · backup file" : "") + phone, tone: "ok" };
-        if (phone) return { text: "Not synced · backed up on this phone" };
-        if (Storage.fileName && Storage.needsReconnect) return { text: "The backup file needs permission again", tone: "warn" };
-        if (file) return { text: "Backup file only · " + Storage.fileName };
-        return { text: "Not synced — on this device only", tone: "warn" };
-      }
-      case "io": return { text: "Back up, or bring in a spreadsheet" };
-      case "history": {
-        const n = historyCache.length, gone = computeRecentlyDeleted().length;
-        const saves = n ? "Undo or restore any of " + plural(n, "save", "saves") : "Undo or restore a recent save";
-        return { text: saves + (gone ? " · " + plural(gone, "deleted item", "deleted items") : "") };
-      }
-      case "lock": {
-        const p = state.privacy;
-        if (!p.pinHash) return { text: "Off" };
-        const how = p.credentialId ? "PIN + fingerprint" : "PIN";
-        if (!p.enabled) return { text: how + " set up, not required" };
-        const g = +p.graceMinutes || 0;
-        const r = p.relockMinutes == null ? 5 : +p.relockMinutes;
-        const mins = (m) => (m === 60 ? "an hour" : plural(m, "minute", "minutes"));
-        const away = r < 0 ? "" : r === 0 ? " · locks when put away" : " · locks after " + mins(r) + " away";
-        return { text: how + " · " + (g ? "asks after " + mins(g) : "asks every time") + away };
-      }
-      case "appearance": {
-        const v = state.visual;
-        const forced = v.forceLayout === "mobile" ? " · phone layout" : v.forceLayout === "pc" ? " · computer layout" : "";
-        return { text: (THEMES[v.theme] || THEMES.default) + " · " + (FONTS[v.fontFamily] || FONTS.system) + forced };
-      }
-      case "keyboard": {
-        const n = window.LifeLogKeys ? window.LifeLogKeys.changedCount() : 0;
-        return { text: n ? (n === 1 ? "1 key changed" : n + " keys changed") : "Every key at its default" };
-      }
-      case "tabs": {
-        const offViews = state.visual.disabledViews || [];
-        const tabs = viewToggles();
-        return { text: tabs.filter(([v]) => !offViews.includes(v)).length + " of " + tabs.length };
-      }
-      case "media": {
-        const keys = set.mediaKeys || {};
-        const names = Object.keys(KEY_NAMES);
-        return { text: names.filter((k) => keys[k]).length + " of " + names.length + " keys" };
-      }
-      case "imports": {
-        const links = [!!(set.steam && set.steam.steamId), !!(set.anilist && set.anilist.userName)];
-        const wallet = document.getElementById("paymentsGroup");
-        if (wallet && !wallet.hidden) links.push(!!(window.LifeLogPayments && window.LifeLogPayments.summary()));
-        return { text: links.filter(Boolean).length + " of " + links.length + " linked" };
-      }
-      case "notifications": {
-        const A = window.LifeLogAlerts, R = window.LifeLogReminders;
-        if (!A) return null;
-        const on = [];
-        if (R && R.isOn()) on.push("habits");
-        if (A.kindOn("charges")) on.push("charges");
-        const rel = A.releaseMode();
-        if (rel !== "off") on.push(rel === "all" ? "release days" : "starred release days");
-        if (A.kindOn("prices")) on.push("price drops");
-        if (A.kindOn("targets")) on.push("investment targets");
-        const Wg = window.LifeLogWidgets;
-        const bg = Wg && Wg.backgroundAvailable && Wg.backgroundAvailable() ? Wg.backgroundMinutes() : 0;
-        const text = on.length ? on.join(", ").replace(/^./, (c) => c.toUpperCase()) : "All off";
-        return { text: bg ? text + " · refreshed every " + (bg >= 60 ? (bg / 60 === 1 ? "hour" : bg / 60 + " hours") : bg + " min") : text };
-      }
-      case "desktop": {
-        const D = window.LifeLogDesktop;
-        if (!D) return null;
-        return { text: D.prefs().closeToTray ? "Closing keeps it in the tray" : "Closing quits" };
-      }
-      case "releases": {
-        const d = String((set.releases && set.releases.autoRefreshDays) || "0");
-        return { text: EVERY[d] ? "Checked " + EVERY[d] : "Checked when you ask" };
-      }
+    if (page === "sync" && !Storage.githubConnected && !Storage.phoneBackup.on) {
+      if (Storage.fileName && Storage.needsReconnect) return { text: "The backup file needs permission again", tone: "warn" };
+      if (!Storage.fileName) return { text: "Not synced — on this device only", tone: "warn" };
     }
-    return null;
+    if (page === "about") {
+      const n = window.LifeLogErrors ? window.LifeLogErrors.list().length : 0;
+      if (n) return { text: (n === 1 ? "1 error" : n + " errors") + " recorded", tone: "warn" };
+    }
+    return ABOUT_ROW[page] ? { text: ABOUT_ROW[page] } : null;
   }
 
   function updateStatuses() {
