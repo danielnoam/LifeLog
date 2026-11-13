@@ -100,7 +100,8 @@ Things to play, read, watch or do next.
   status: Planning is a plain backlog item, Watching is started, Completed
   is a timeline entry, Paused and Dropped are `dropped`.
 - `hltb`, `reviews`: as on a timeline entry, for a Steam game.
-- Filled in by media lookups: `coverUrl`, `mediaId`, `mediaSource`,
+- Filled in by media lookups (`mediaSource` names the source: `rawg`,
+  `igdb`, `steam`, `tmdb-movie`…): `coverUrl`, `mediaId`, `mediaSource`,
   `summary`, `releaseYear`, `externalRating`, `length`, `genres`.
 - Release dates, from lookups: `releaseDate`, `releasePrecision` (how exact
   the date is), `releaseStatus`, `nextAt` and `nextLabel` (the next episode

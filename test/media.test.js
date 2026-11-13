@@ -614,6 +614,125 @@ atest("nextInSeries: TV, books and music answer null without a request", async (
   assert.strictEqual(calls, 0);
 });
 
+// ---------- IGDB ----------
+test("releaseFromIgdbHuman reads how vague IGDB says a date is", () => {
+  const r = Media.releaseFromIgdbHuman;
+  assert.deepStrictEqual(r("Mar 05, 2026"), { releaseDate: "2026-03-05", releasePrecision: "day" });
+  assert.deepStrictEqual(r("Sep 2026"), { releaseDate: "2026-09", releasePrecision: "month" });
+  assert.deepStrictEqual(r("Q3 2026"), { releaseDate: "2026-07", releasePrecision: "quarter" });
+  assert.deepStrictEqual(r("2027"), { releaseDate: "2027", releasePrecision: "year" });
+  assert.strictEqual(r("TBD"), null);
+});
+
+test("mapIgdbResult: earliest platform date, critics first, cover, early access", () => {
+  const g = Media.mapIgdbResult({
+    id: 1942, name: "Hades II", cover: { image_id: "co8abc" },
+    release_dates: [{ human: "Sep 25, 2025", date: 1758758400 }, { human: "May 06, 2024", date: 1714953600 }],
+    aggregated_rating: 91.4, aggregated_rating_count: 12, rating: 88, rating_count: 400,
+    genres: [{ name: "Roguelike" }], game_status: { status: "Early Access" },
+  });
+  assert.strictEqual(g.id, "1942");
+  assert.strictEqual(g.source, "igdb");
+  assert.strictEqual(g.releaseDate, "2024-05-06");
+  assert.strictEqual(g.releasePrecision, "day");
+  assert.strictEqual(g.releaseStatus, "released");
+  assert.strictEqual(g.year, 2024);
+  assert.strictEqual(g.externalRating, "91 IGDB");
+  assert.strictEqual(g.coverUrl, "https://images.igdb.com/igdb/image/upload/t_cover_big/co8abc.jpg");
+  assert.strictEqual(g.earlyAccess, true);
+  assert.deepStrictEqual(g.genres, ["Roguelike"]);
+});
+
+test("mapIgdbResult: no date is TBA and upcoming; a year still to finish is upcoming; few votes say nothing", () => {
+  const tba = Media.mapIgdbResult({ id: 1, name: "X", rating: 90, rating_count: 2 });
+  assert.strictEqual(tba.releasePrecision, "tba");
+  assert.strictEqual(tba.releaseStatus, "upcoming");
+  assert.strictEqual(tba.externalRating, "");
+  assert.strictEqual("earlyAccess" in tba, false);
+  const y = new Date().getFullYear();
+  const later = Media.mapIgdbResult({ id: 2, name: "Y", release_dates: [{ human: String(y) }], status: 0, rating: 76.4, rating_count: 9 });
+  assert.strictEqual(later.releasePrecision, "year");
+  assert.strictEqual(later.releaseStatus, "upcoming");
+  assert.strictEqual(later.earlyAccess, false);
+  assert.strictEqual(later.externalRating, "76% IGDB users");
+});
+
+// A fake proxy: the Twitch token route and IGDB's endpoints.
+function stubIgdb(answers) {
+  const calls = [];
+  global.fetch = async (url, init) => {
+    calls.push({ url, init });
+    const path = url.replace(/^https:\/\/proxy\.test/, "").split("?")[0];
+    const a = typeof answers[path] === "function" ? answers[path](calls) : answers[path];
+    const status = (a && a.status) || 200;
+    return { ok: status < 300, status, json: async () => (a && a.body !== undefined ? a.body : a) };
+  };
+  return calls;
+}
+const IGDB_KEYS = { igdb: "clientid123", igdbSecret: "secret12345" };
+
+atest("IGDB search signs in once, then queries with the token", async () => {
+  const calls = stubIgdb({
+    "/igdb-token": { access_token: "tok1", expires_in: 5000000 },
+    "/igdb/games": [{ id: 7, name: "Celeste", release_dates: [{ human: "Jan 25, 2018" }] }],
+  });
+  const rows = await Media.search('Cel"este', "igdb-steam-gg", IGDB_KEYS, "https://proxy.test");
+  assert.strictEqual(rows.length, 1);
+  assert.strictEqual(rows[0].source, "igdb-steam-gg");
+  assert.strictEqual(calls[0].init.headers["Client-ID"], "clientid123");
+  assert.strictEqual(calls[0].init.headers.Authorization, "Secret secret12345");
+  assert.strictEqual(calls[1].init.headers.Authorization, "Bearer tok1");
+  assert.match(decodeURIComponent(calls[1].url), /search "Cel este"; fields /);
+  await Media.search("Celeste", "igdb", IGDB_KEYS, "https://proxy.test");
+  assert.strictEqual(calls.filter((c) => c.url.includes("/igdb-token")).length, 1);
+});
+
+atest("IGDB: a revoked token gets one fresh one and one retry", async () => {
+  let n = 0;
+  const calls = stubIgdb({
+    "/igdb-token": { access_token: "tok2", expires_in: 5000000 },
+    "/igdb/games": () => (n++ === 0 ? { status: 401, body: {} } : [{ id: 8, name: "Hollow Knight" }]),
+  });
+  const rows = await Media.search("Hollow Knight", "igdb", IGDB_KEYS, "https://proxy.test");
+  assert.strictEqual(rows.length, 1);
+  assert.strictEqual(calls.filter((c) => c.url.includes("/igdb-token")).length, 1);
+});
+
+atest("IGDB without the proxy or the secret asks nothing", async () => {
+  const calls = stubIgdb({});
+  assert.deepStrictEqual(await Media.search("X", "igdb", IGDB_KEYS, ""), []);
+  assert.match(Media.getLastError(), /proxy/);
+  assert.deepStrictEqual(await Media.search("X", "igdb", { igdb: "clientid123" }, "https://proxy.test"), []);
+  assert.strictEqual(calls.length, 0);
+});
+
+atest("IGDB details: blurb, play time from time-to-beat, early access cleared on release", async () => {
+  stubIgdb({
+    "/igdb/games": [{ id: 9, name: "Z", summary: "First.\n\nSecond.", status: 0, aggregated_rating: 80, aggregated_rating_count: 5 }],
+    "/igdb/game_time_to_beats": [{ normally: 36000, hastily: 20000 }],
+  });
+  const d = await Media.fetchDetails("9", "igdb", IGDB_KEYS, { proxyUrl: "https://proxy.test" });
+  assert.strictEqual(d.summary, "First.");
+  assert.strictEqual(d.length, "10 hrs");
+  assert.strictEqual(d.externalRating, "80 IGDB");
+  assert.strictEqual(d.earlyAccess, false);
+});
+
+atest("IGDB's Steam App ID comes from its external ids, else its Steam link", async () => {
+  stubIgdb({ "/igdb/games": [{ id: 1, external_games: [{ uid: "abc", category: 5 }, { uid: "1145360", external_game_source: 1 }] }] });
+  assert.strictEqual(await Media.fetchIgdbSteamAppId("1", IGDB_KEYS, "https://proxy.test"), "1145360");
+  stubIgdb({ "/igdb/games": [{ id: 1, websites: [{ url: "https://store.steampowered.com/app/504230/Celeste/" }] }] });
+  assert.strictEqual(await Media.fetchIgdbSteamAppId("1", IGDB_KEYS, "https://proxy.test"), "504230");
+});
+
+atest("checkKey for IGDB signs in with both halves, and says when the secret is missing", async () => {
+  assert.strictEqual((await Media.checkKey("igdb", "clientid123", "https://proxy.test", { igdb: "clientid123" })).label, "Needs the secret");
+  stubIgdb({ "/igdb-token": { status: 400, body: { status: 400, message: "invalid client secret" } } });
+  assert.strictEqual((await Media.checkKey("igdb", "clientid123", "https://proxy.test", IGDB_KEYS)).state, "bad");
+  stubIgdb({ "/igdb-token": { access_token: "t", expires_in: 100 } });
+  assert.strictEqual((await Media.checkKey("igdb", "clientid123", "https://proxy.test", IGDB_KEYS)).state, "ok");
+});
+
 // The sync cases above have all run by now; the async ones are only queued,
 // so the tally waits on them rather than reporting a count six short.
 (async () => {

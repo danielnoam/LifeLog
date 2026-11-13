@@ -444,6 +444,10 @@ IGDB has a real `status` enum that includes it, but wiring IGDB means a whole
 new media source behind Twitch OAuth for one boolean. Not worth it. Games
 without a Steam App ID simply don't get the flag.
 
+Update (2026-11-13): IGDB came in anyway, as a whole games source beside
+RAWG (RAWG was down for a week), so a game picked from IGDB now carries
+the flag. A RAWG- or SteamGridDB-only game still doesn't.
+
 ## Progressive loading for SteamGridDB search
 
 SteamGridDB does an autocomplete request and then a second round of per-game

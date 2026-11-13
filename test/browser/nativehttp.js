@@ -14,14 +14,16 @@ const FAKE_BRIDGE = () => {
     Plugins: {
       App: { addListener: () => Promise.resolve({ remove() {} }), minimizeApp: () => Promise.resolve() },
       CapacitorHttp: {
-        request: async ({ url, method, headers, disableRedirects, readTimeout, connectTimeout }) => {
-          window.__http.push({ url, method, headers, disableRedirects, readTimeout, connectTimeout });
+        request: async ({ url, method, headers, data, disableRedirects, readTimeout, connectTimeout }) => {
+          window.__http.push({ url, method, headers, data, disableRedirects, readTimeout, connectTimeout });
           if (window.__httpFails) throw new Error("Unable to resolve host");
           // A Google Maps short link: one hop on goo.gl, then Maps itself.
           if (url === "https://maps.app.goo.gl/Code1") return { status: 302, headers: { location: "https://goo.gl/maps/hop" }, data: "" };
           if (url === "https://goo.gl/maps/hop") return { status: 301, headers: { Location: "https://www.google.com/maps/@/data=!4m3!11m2!2sListId00000000000001!3e3" }, data: "" };
           if (url === "https://maps.app.goo.gl/Gone") return { status: 404, headers: {}, data: "Not found" };
           if (url.startsWith("https://www.google.com/maps/preview/entitylist/getlist")) return { status: 200, headers: {}, data: ")]}'\n[[]]" };
+          if (url.startsWith("https://id.twitch.tv/oauth2/token")) return { status: 200, data: JSON.stringify({ access_token: "tok", expires_in: 5000000 }) };
+          if (url.startsWith("https://api.igdb.com/v4/")) return { status: 200, data: JSON.stringify([{ id: 7, name: "Celeste" }]) };
           if (url.startsWith("https://store.steampowered.com/api/appdetails")) {
             const id = /appids=(\d+)/.exec(url)[1];
             return { status: 200, data: { [id]: { success: true, data: { name: "Portal 2", release_date: { date: "18 Apr, 2011" }, genres: [] } } } };
@@ -69,6 +71,19 @@ const FAKE_BRIDGE = () => {
       && /Bearer k/.test(JSON.stringify(routed[0].headers)), routed[0]);
     check("the wishlist goes to Steam's wishlist API", routed[1] && routed[1].url === "https://api.steampowered.com/IWishlistService/GetWishlist/v1/?steamid=76561197960287930", routed[1]);
     check("GG.deals gets its query string", routed[2] && routed[2].url === "https://api.gg.deals/v1/prices/by-steam-app-id/?ids=620&key=abc&region=us", routed[2]);
+
+    // IGDB: a Twitch sign-in, then its query POSTed as the body.
+    const igdb = await page.evaluate(async (p) => {
+      window.__http = [];
+      const rows = await window.LifeLogMedia.search("Celeste", "igdb", { igdb: "clientid123", igdbSecret: "secret12345" }, p);
+      return { rows, asked: window.__http };
+    }, proxy);
+    check("IGDB works in the app with no proxy running", igdb.rows.length === 1 && igdb.rows[0].title === "Celeste", igdb);
+    check("signing in goes to Twitch, as a POST", igdb.asked[0] && igdb.asked[0].method === "POST"
+      && igdb.asked[0].url === "https://id.twitch.tv/oauth2/token?client_id=clientid123&client_secret=secret12345&grant_type=client_credentials", igdb.asked[0]);
+    check("and the search is a POST to IGDB with the query as its body and the token", igdb.asked[1] && igdb.asked[1].method === "POST"
+      && igdb.asked[1].url === "https://api.igdb.com/v4/games" && /^search "Celeste";/.test(igdb.asked[1].data)
+      && /Bearer tok/.test(JSON.stringify(igdb.asked[1].headers)), igdb.asked[1]);
 
     // Travel's Google import (0.242.0; redirects read, not followed, 0.243.2).
     const maps = await page.evaluate(async (p) => {

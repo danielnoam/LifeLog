@@ -50,7 +50,7 @@
   // timelineSort/ledgerSort/backlogSort replaced monthOrder in 0.157.0. Each
   // option is one complete statement about the whole list rather than a
   // direction bolted to a hidden field — see SORTS below.
-  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", googlePlaces: "", nyt: "", tiingo: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "30" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0", clientId: "", token: "", connectedAt: "" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
+  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", igdb: "", igdbSecret: "", googlePlaces: "", nyt: "", tiingo: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "30" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0", clientId: "", token: "", connectedAt: "" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
   // Local to this device, not synced. Every key a view reads off state.visual
   // belongs here: loadVisualSettings fills the gaps in a stored blob from this
   // object, so a default declared here is the only one there is — a `||` at
@@ -148,6 +148,7 @@
   const MEDIA_SOURCE_LABELS = {
     rawg: "RAWG", "rawg-steam-gg": "RAWG",
     steamgriddb: "SteamGridDB", "steamgriddb-steam-gg": "SteamGridDB",
+    igdb: "IGDB", "igdb-steam-gg": "IGDB",
     "tmdb-movie": "TMDB", "tmdb-tv": "TMDB",
     "anilist-anime": "AniList", "anilist-manga": "AniList",
     "jikan-anime": "Jikan", "jikan-manga": "Jikan",
@@ -2432,6 +2433,8 @@
       case "steam": return `https://store.steampowered.com/app/${enc}`;
       case "rawg": return `https://rawg.io/games/${enc}`;
       case "steamgriddb": return `https://www.steamgriddb.com/game/${enc}`;
+      // IGDB's short game link is its id in base 36.
+      case "igdb": return /^\d+$/.test(mediaId) ? `https://www.igdb.com/g/${Number(mediaId).toString(36)}` : "";
       case "tmdb-movie": return `https://www.themoviedb.org/movie/${enc}`;
       case "tmdb-tv": return `https://www.themoviedb.org/tv/${enc}`;
       case "anilist-anime": return `https://anilist.co/anime/${enc}`;
