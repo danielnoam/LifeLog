@@ -11,8 +11,8 @@ Each rule is marked:
 - **Target:** agreed direction, not built yet. New code follows it; old code
   moves toward it when it's being touched anyway.
 
-Neighbours: **NOTES.md** says why a particular piece is built the way it is,
-and **TODO.md** holds the work. Two skills apply this file:
+Neighbour: **NOTES.md** says why a particular piece is built the way it is.
+Two skills apply this file:
 `.claude/skills/lifelog-design` (building UI) and
 `.claude/skills/lifelog-ui-audit` (checking it).
 

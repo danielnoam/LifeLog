@@ -181,11 +181,11 @@ is a copy that doesn't depend on GitHub, and the cost is large for that: a
 Google Cloud project and OAuth client, hour-long browser tokens with no
 refresh, and in the Android app a native Google sign-in, since Google blocks
 OAuth inside a WebView. If losing GitHub ever becomes the real worry, the
-cheaper route is the scheduled backup file on the phone in TODO.md.
+cheaper route is the scheduled backup file on the phone on the to-do list.
 
 ## A streak milestone becoming an accomplishment
 
-Left out of habits' first cut (0.171.0) on purpose and kept on the TODO list
+Left out of habits' first cut (0.171.0) on purpose and kept on the to-do list
 to revisit once habits had been lived with. It has been, and isn't wanted.
 (Times-per-week habits were dropped beside it for "a cadence nobody reached
 for"; Daniel reached for it on 2026-11-03 and it shipped as goals in
@@ -234,7 +234,7 @@ as the biggest thing on the card.
 
 ## Virtualising the Timeline and Backlog rows
 
-Parked in TODO.md since 0.136.1 on a suspicion, re-measured 2026-09-21 on
+Parked on the to-do list since 0.136.1 on a suspicion, re-measured 2026-09-21 on
 0.163.1, and dropped on the numbers. Chromium at 4x CPU throttle, 460x1100,
 Timeline, median of three loads, dataset swept so the row count is the only
 variable (`node test/perf/serve-and-run.js`):
@@ -284,7 +284,7 @@ sweep above starts to show a slope. The rig is still in `test/perf/` to check.
 
 ## Project budgets, and bulk-splitting a lump into many expenses
 
-Two ideas that sat in TODO.md from 0.145.0: a budget per project with a
+Two ideas that sat on the to-do list from 0.145.0: a budget per project with a
 spent-against-it bar, and a way to break one lump entry ("Switzerland —
 10,000") into many real expenses in one go. Both were written as "want using
 the feature first". The feature has now been used for twenty versions and
@@ -421,7 +421,7 @@ second-hand through RAWG, which is where the app's game ratings come from.
 
 The Netflix half — "what's hot on the services I actually have" — is
 answerable through TMDB's watch-provider filter instead, and that idea lives
-in TODO.md as real work.
+on the to-do list as real work.
 
 ## "Hot books" and "hot music" in Discover
 
@@ -499,7 +499,7 @@ from `persist()`.
 Finance's and the to-do list's category modals are the same form over a
 different collection, and #todoCatModal was written as a knowing third copy
 (0.128.2) rather than doing this refactor in the middle of a feature. It sat
-in TODO.md until 0.141.0 on the assumption that it was just deferred work.
+on the to-do list until 0.141.0 on the assumption that it was just deferred work.
 
 The `open` half really is mechanical — ids, title, the "uses" count and its
 noun, the default colour, whether the name input takes focus. The save half
@@ -539,7 +539,7 @@ If the id schemes ever converge for another reason, this is worth reopening.
 
 **Built it, measured it, threw it away.** adopt() replaces a row's children
 wholesale, so the <img> a refill installs is a different element from the one
-before it. The TODO entry asking for this assumed that costs a decode per
+before it. The to-do entry asking for this assumed that costs a decode per
 visible cover, and guessed it might also flash — a fresh <img> with no bitmap
 paints nothing.
 
@@ -569,7 +569,7 @@ reused node runs the *fresh* handler, so any onerror closing over its own
 `img` would fire against the detached one and silently do nothing. Four
 handlers had to be rewritten to say `this`.
 
-So: a measurable cost, a new trap, and zero benefit. The TODO entry set the
+So: a measurable cost, a new trap, and zero benefit. The to-do entry set the
 bar at "only worth special-casing if it shows up in a measurement" — this is
 that measurement. Reopen only if a profile ever shows image decode on the
 render path, which would mean something about how Chrome caches has changed.
