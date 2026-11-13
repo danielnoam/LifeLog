@@ -175,4 +175,13 @@ test("default kinds use the categories you have", () => {
   assert.strictEqual(W.cleanConfig({ repo: "https://github.com/me/waypage-data.git" }).repo, "me/waypage-data");
 });
 
+test("Make a token opens GitHub's form filled in: name, owner, a year, contents read", () => {
+  const u = new URL(W.tokenUrl("danielnoam/waypage-data"));
+  assert.strictEqual(u.origin + u.pathname, "https://github.com/settings/personal-access-tokens/new");
+  assert.deepStrictEqual([u.searchParams.get("target_name"), u.searchParams.get("contents"), u.searchParams.get("expires_in"), u.searchParams.get("name")],
+    ["danielnoam", "read", "366", "LifeLog reads Waypage"]);
+  assert.ok(u.searchParams.get("name").length <= 40);
+  assert.strictEqual(new URL(W.tokenUrl("")).searchParams.get("target_name"), null);
+});
+
 console.log(`\n${passed} passed`);

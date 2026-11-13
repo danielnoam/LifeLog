@@ -459,10 +459,26 @@
     }
   }
 
+  // GitHub's form for a new fine-grained token, filled in (its URL
+  // parameters: name, description, owner, expiry, contents=read). The one
+  // thing a link can't pick is the repo, so that's the step left.
+  function tokenUrl(repo) {
+    const owner = String(repo || "").split("/")[0];
+    const p = new URLSearchParams({ name: "LifeLog reads Waypage", description: "Read-only: LifeLog reads activity/reading.json", expires_in: "366", contents: "read" });
+    if (owner) p.set("target_name", owner);
+    return "https://github.com/settings/personal-access-tokens/new?" + p.toString();
+  }
+  // Your Waypage repo is most likely beside your LifeLog one.
+  function guessRepo() {
+    const gh = window.LifeLogStorage && window.LifeLogStorage.githubInfo;
+    return gh && gh.owner ? gh.owner + "/waypage-data" : "";
+  }
+
   function renderSettings() {
     if (!$("#waypageRepo")) return;
     const c = cfgNow();
-    $("#waypageRepo").value = c.repo;
+    $("#waypageRepo").value = c.repo || guessRepo();
+    $("#waypageTokenLink").href = tokenUrl(c.repo || guessRepo());
     $("#waypageToken").value = c.token;
     fillKinds();
     fillHabitSelect();
@@ -487,7 +503,14 @@
       paintStatus();
     };
     $("#waypageRepo").onchange = () => setField("repo", cleanConfig({ repo: $("#waypageRepo").value }).repo);
-    $("#waypageToken").onchange = () => setField("token", $("#waypageToken").value.trim());
+    $("#waypageToken").onchange = async () => {
+      // A pasted token with no repo typed takes the one shown, then reads at once.
+      const repo = cleanConfig({ repo: $("#waypageRepo").value }).repo;
+      if (repo && repo !== cfgNow().repo) await setField("repo", repo);
+      await setField("token", $("#waypageToken").value.trim());
+      if (connected(cfgNow())) check({ manual: true });
+    };
+    $("#waypageRepo").addEventListener("input", () => { $("#waypageTokenLink").href = tokenUrl($("#waypageRepo").value); });
     $("#waypageHabit").onchange = async () => {
       const c = cfgNow();
       moveHabit(state.data, c, $("#waypageHabit").value);
@@ -500,7 +523,7 @@
   const api = {
     init, wire, start, check, renderSettings, progressLabel,
     // pure, for tests and the bridge
-    KINDS, KIND_NAMES, DEFAULTS, cleanConfig, parseActivity, apply, resolve, moveHabit, defaultKinds, titleKey, minutesText, entryFrom, backlogFrom,
+    KINDS, KIND_NAMES, DEFAULTS, tokenUrl, cleanConfig, parseActivity, apply, resolve, moveHabit, defaultKinds, titleKey, minutesText, entryFrom, backlogFrom,
   };
   if (typeof window !== "undefined") window.LifeLogWaypage = api;
   if (typeof module !== "undefined" && module.exports) module.exports = api;

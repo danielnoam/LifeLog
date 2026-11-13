@@ -2007,6 +2007,7 @@
             <span class="sitem-text"><span class="sitem-title">Waypage's sync repo</span><span class="sitem-sub" id="waypageStatus"></span></span>
             <input id="waypageRepo" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. yourname/waypage-data" />
           </label>
+          <a id="waypageTokenLink" class="sitem sitem-go" href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener"><span data-ico="external-link"></span> Make a token on GitHub</a>
           <label class="sitem sitem-stack">
             <span class="sitem-text"><span class="sitem-title">Read-only token</span></span>
             <input id="waypageToken" type="password" autocomplete="off" spellcheck="false" placeholder="github_pat_…" />
@@ -2018,7 +2019,7 @@
           </label>
           <button id="waypageCheckBtn" type="button" class="sitem sitem-go"><span data-ico="refresh-cw"></span> Check Waypage now</button>
         </div>
-        <p class="hint">Reads what you read in Waypage, every few minutes. A book already in your backlog starts there and shows how far you are; finishing it in Waypage puts it on your Timeline on that day. One you don't have comes in by itself, and one already on your Timeline waits below for you to say whether it's a re-read. Reading and listening minutes fill the minutes habit you pick, on top of what you add by hand. In Waypage turn on Settings › GitHub sync › Other apps › Share reading activity. The token is a fine-grained one for that repo only, with Contents: Read-only; it syncs like your other keys.</p>
+        <p class="hint">Reads what you read in Waypage, every few minutes. A book already in your backlog starts there and shows how far you are; finishing it in Waypage puts it on your Timeline on that day. One you don't have comes in by itself, and one already on your Timeline waits below for you to say whether it's a re-read. Reading and listening minutes fill the minutes habit you pick, on top of what you add by hand. In Waypage turn on Settings › GitHub sync › Other apps › Share reading activity. Make a token opens GitHub with the name and Contents: Read-only filled in: pick waypage-data under Repository access, generate it and paste it here. It syncs like your other keys.</p>
         <div id="waypageReview" hidden>
           <h3 class="sgroup-label">From Waypage, to check</h3>
           <div class="sgroup-card" id="waypageReviewList"></div>
