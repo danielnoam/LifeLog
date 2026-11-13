@@ -115,6 +115,12 @@ Things to play, read, watch or do next.
   `between`.
 - `overrides`: values the user set by hand over a lookup's (`release`,
   `cover`, `rating`, `length`, `author`).
+- Read in Waypage (0.313.0): `waypageId` (the item's id in Waypage's
+  reading activity), `waypageProgress` (0 to 1, how far it's read there) and
+  `waypageChapters` (`{ read, total }`, for a serial or an audiobook with
+  chapters). The app sets them; an AI leaves them alone. Finishing it in
+  Waypage moves it to the timeline by itself, and the entry keeps
+  `waypageId`.
 
 Finishing an item moves it to the timeline: a new entry with the same title
 and category, its notes kept, and the backlog item removed
@@ -311,6 +317,20 @@ exports, and it can change anything on the Stremio account),
 ordinary backlog items and timeline entries, matched to TMDB
 (`tmdb-movie`/`tmdb-tv`) by IMDb id when there's a TMDB key.
 
+`waypage` (0.313.0) is the reading log from Waypage (`src/waypage.js`):
+`repo` ("owner/waypage-data"), `token` (a fine-grained GitHub token with
+Contents: Read-only on that repo; blanked in exports like the others),
+`connectedAt`, `kinds` (Waypage's kind, `book`, `audiobook`, `comic`,
+`serial` or `article`, to the category it fills; "" leaves that kind out),
+`habit` (the id of the minutes habit its minutes fill, or ""), `minutes`
+(per day, what Waypage put into that habit, so a change replaces only its
+own part), `seen` and `never` (Waypage ids already brought in, or kept out
+for good; something you removed isn't brought back), and `review` (Waypage
+id → the item as Waypage has it, with `reason` "logged", already on the
+Timeline, or "author", a backlog title with another author, and `match`,
+"backlog:<id>" or "entries:<id>"). `lifelog_waypage` shows it without the
+token; `lifelog_waypage_review` answers a review row.
+
 `scratchpad` (0.306.0) is the Home tab's scratchpad, one string of free
 text, absent when empty; `lifelog_home` reads it and `lifelog_set_scratchpad`
 writes it. Two devices editing it at once resolve as any setting does: the
@@ -318,7 +338,7 @@ newer save wins.
 
 Keys: `scratchpad`, `currency`, `timelineSort`, `ledgerSort`, `backlogSort`,
 `mediaCategorySources`, `mediaCategoryFallbackSources`, `mediaKeys`, `steam`,
-`anilist`, `stremio`, `releases`, `importSkips` (per import source, the `source:id`
+`anilist`, `waypage`, `stremio`, `releases`, `importSkips` (per import source, the `source:id`
 keys of items left unticked in a review, so they stay hidden next time;
 `bills` (0.309.0) holds the `category|note` keys of hand-logged bills
 answered Not a bill, so the Ledger stops suggesting them),

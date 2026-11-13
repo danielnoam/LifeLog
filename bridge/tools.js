@@ -15,7 +15,7 @@ const { load } = require("./load.js");
 const { readConfig, openStore, undoLog, SetupError } = require("./store.js");
 
 const L = load();
-const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Travel, Invest, Merge, Widgets, Recap, Home } = L;
+const { App, Finance, Journal, Backlog, Notes, Habits, Boards, Travel, Invest, Merge, Widgets, Recap, Home, Waypage } = L;
 
 // ---------- the collections an AI may edit ----------
 // `cats` names the list a `category` must come from; notes may have none.
@@ -29,7 +29,7 @@ const COLLECTIONS = {
   projects: { label: "project", clean: Finance.sanitizeProject, name: "name" },
 };
 // Never handed to an AI: API keys and account names live in settings.
-const SECRET_SETTINGS = ["mediaKeys", "steam", "anilist", "stremio"];
+const SECRET_SETTINGS = ["mediaKeys", "steam", "anilist", "waypage", "stremio"];
 
 // ---------- small helpers ----------
 const today = () => Finance.localDateStr(new Date());
@@ -1211,7 +1211,7 @@ const TOOLS = [
       const days = Math.max(1, Math.min(365, parseInt(a.days, 10) || 14));
       const out = [`Home, ${t}.`];
       const prog = Home.inProgress(d);
-      out.push("", `In progress (${prog.length}):`, ...(prog.length ? prog.map((b) => `- ${b.title} [${b.category}] since ${b.startedAt}${+b.progress ? ", " + progressFlag(b) : ""}  (${b.id})`) : ["- nothing"]));
+      out.push("", `In progress (${prog.length}):`, ...(prog.length ? prog.map((b) => `- ${b.title} [${b.category}] since ${b.startedAt}${+b.progress ? ", " + progressFlag(b) : ""}${b.waypageProgress != null ? ", " + Waypage.progressLabel(b) + " in Waypage" : ""}  (${b.id})`) : ["- nothing"]));
       const rows = Home.comingUp(d, t, { Backlog, Finance, Habits, days });
       const say = (r) => r.kind === "charge" ? `${r.title} charges ${money(d, r.amount)}${r.category ? " [" + r.category + "]" : ""}  (${r.id})`
         : r.kind === "habit" ? (r.period === "day" ? `Habits left today: ${r.title}` : `${r.title}: ${r.done} of ${r.target} this ${r.period}`)
@@ -1408,6 +1408,49 @@ const TOOLS = [
         const next = mode === "clear" ? "" : mode === "replace" ? text : (was ? was.replace(/\s+$/, "") + "\n" : "") + text;
         if (next) d.settings.scratchpad = next; else delete d.settings.scratchpad;
         return { text: mode === "clear" ? "Cleared the scratchpad." : mode === "replace" ? "Replaced the scratchpad." : "Added to the scratchpad.", touched: [["settings", "scratchpad"]] };
+      });
+    },
+  },
+  {
+    name: "lifelog_waypage",
+    description: "The reading log from Waypage (the user's read-later and ebook app): whether it's connected, which Waypage kinds fill which category, the minutes habit it fills, what's being read there now with how far, what it finished lately, and the review list (things that matched a Timeline entry or a backlog title by another author, waiting for an answer). Never shows the token.",
+    readOnly: true,
+    input: {},
+    async run() {
+      const d = await readData();
+      const c = Waypage.cleanConfig((d.settings || {}).waypage);
+      const out = [c.repo ? `Waypage: reading ${c.repo}${c.token ? "" : " (no token yet, so nothing is read)"}.` : "Waypage isn't connected (Settings → Imports → Waypage reading)."];
+      const kinds = Waypage.KINDS.map((k) => `${Waypage.KIND_NAMES[k]} → ${c.kinds[k] || "not brought in"}`);
+      out.push("Kinds: " + kinds.join(", ") + ".");
+      const h = (d.habits || []).find((x) => x.id === c.habit);
+      out.push(h ? `Minutes fill the habit "${h.name}" (${h.id}).` : "Minutes fill no habit.");
+      const now = (d.backlog || []).filter((b) => b.waypageId && b.startedAt && !b.dropped);
+      out.push("", `Reading in Waypage (${now.length}):`, ...(now.length ? now.map((b) => `- ${b.title} [${b.category}] ${Waypage.progressLabel(b) || "started"}, since ${b.startedAt}  (${b.id})`) : ["- nothing"]));
+      const done = (d.entries || []).filter((e) => e.waypageId).sort((x, y) => (y.year * 400 + y.month * 32 + (y.day || 0)) - (x.year * 400 + x.month * 32 + (x.day || 0))).slice(0, 10);
+      out.push("", "Finished there lately:", ...(done.length ? done.map((e) => `- ${e.title} [${e.category}] ${e.year}-${String(e.month).padStart(2, "0")}${e.day ? "-" + String(e.day).padStart(2, "0") : ""}  (${e.id})`) : ["- nothing yet"]));
+      const rows = Object.entries(c.review);
+      out.push("", `To review (${rows.length}):`, ...(rows.length ? rows.map(([id, r]) => `- ${r.title}${r.author ? " by " + r.author : ""} (${r.kind}${r.finishedAt ? ", finished " + r.finishedAt : ""}): ${r.reason === "logged" ? "already on the Timeline, a re-read?" : "a backlog title by another author"}  (review id ${id}, matches ${r.match})`) : ["- nothing"]));
+      return out.join("\n");
+    },
+  },
+  {
+    name: "lifelog_waypage_review",
+    description: "Answer one row of the Waypage review list (see lifelog_waypage): 'same' links it to the Timeline entry or backlog item it matched, so nothing new is added; 'add' adds it as new (on the Timeline as a re-read when it's finished there, else in progress); 'never' keeps it out of LifeLog for good.",
+    input: { id: S.str("The review id from lifelog_waypage"), answer: S.str("same, add or never", { enum: ["same", "add", "never"] }) },
+    async run(a) {
+      if (!["same", "add", "never"].includes(a.answer)) fail("answer must be same, add or never.");
+      return change("waypage review", (d) => {
+        d.settings = d.settings || {};
+        const c = Waypage.cleanConfig(d.settings.waypage);
+        const r = c.review[String(a.id || "")];
+        if (!r) fail(`No review row "${a.id}". lifelog_waypage lists them.`);
+        const before = { backlog: new Set((d.backlog || []).map((x) => x.id)), entries: new Set((d.entries || []).map((x) => x.id)) };
+        if (!Waypage.resolve(d, c, String(a.id), a.answer, today(), nowIso())) fail(`Couldn't add "${r.title}": its kind (${r.kind}) isn't brought in.`);
+        d.settings.waypage = c;
+        const touched = [["settings", "waypage"]];
+        for (const list of ["backlog", "entries"]) for (const x of d[list] || []) if (!before[list].has(x.id) || x.waypageId === String(a.id)) touched.push([list, x.id]);
+        const said = a.answer === "same" ? "Linked to what it matched" : a.answer === "add" ? (r.finishedAt ? "Added to the Timeline as a re-read" : "Added as in progress") : "Kept out of LifeLog for good";
+        return { text: `${said}: "${r.title}".`, touched };
       });
     },
   },

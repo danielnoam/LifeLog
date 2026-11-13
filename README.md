@@ -369,6 +369,12 @@ list gets the window too, its map beside the list.
   through the review. Stremio keeps only the last play, so earlier watches
   aren't there. Nothing is written to Stremio. It uses the API Stremio's
   own apps use, which isn't public.
+- **Waypage reading log**: with Share reading activity on in
+  [Waypage](https://github.com/danielnoam/waypage), what you read there
+  comes in by itself, with a read-only token for its sync repo. A book in
+  your Backlog starts and shows how far you are, finishing it puts it on
+  the Timeline, one you don't have is added, and a re-read waits for you to
+  say so. Reading minutes fill the minutes habit you pick.
 - **Activity**: anything that takes a while runs in one list, keeps going
   with the app put away on Android, and is offered again if the app was
   closed on it.
