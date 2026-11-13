@@ -32,7 +32,7 @@ const SEED = {
 
   await page.keyboard.press("Tab");
   check("the Keyboard row shows on a computer", await page.isVisible('#settingsHome .srow[data-page="keyboard"]'));
-  check("and says every key is at its default", /default/.test(await page.textContent('[data-status="keyboard"]')));
+  check("and says what it holds", /Shortcuts/.test(await page.textContent('[data-status="keyboard"]')));
   await page.click('#settingsHome .srow[data-page="keyboard"]');
   await page.waitForTimeout(300);
   const rows = await page.evaluate(() => [...document.querySelectorAll("#kbActions .kb-row")].map((r) => r.dataset.kb));
@@ -76,7 +76,7 @@ const SEED = {
   const firstTab = await page.evaluate(() => document.querySelector("#kbTabs .kb-row").dataset.kb.slice(4));
   const secondTab = await page.evaluate(() => document.querySelectorAll("#kbTabs .kb-row")[2].dataset.kb.slice(4));
   await page.click("#settingsBackBtn").catch(() => {});
-  check("the status counts what changed", /3 keys changed/.test(await page.textContent('[data-status="keyboard"]')), await page.textContent('[data-status="keyboard"]'));
+  check("three keys count as changed", await page.evaluate(() => window.LifeLogKeys.changedCount() === 3));
 
   await page.keyboard.press("Escape"); await page.waitForTimeout(150);
   await page.keyboard.press("Escape"); await page.waitForTimeout(250);

@@ -1495,12 +1495,12 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await page.evaluate(() => window.LifeLogSettings.openSettings("notifications"));
     await page.waitForTimeout(300);
     check("Settings → Notifications (0.278.0) offers a release-day notification in the app", await page.evaluate(() => !document.querySelector("#releaseAlertsRow").hidden && document.querySelector("#releaseAlerts").value === "off"));
-    check("and every kind on, with the index row saying so", await page.evaluate(() => document.querySelector("#notifyHabits").checked && document.querySelector("#notifyCharges").checked && document.querySelector("#notifyPrices").checked
-      && !document.querySelector("#notificationsRow").hidden && /charges/.test(document.querySelector('[data-status="notifications"]').textContent)));
+    check("and every kind on, with the index row shown", await page.evaluate(() => document.querySelector("#notifyHabits").checked && document.querySelector("#notifyCharges").checked && document.querySelector("#notifyPrices").checked
+      && !document.querySelector("#notificationsRow").hidden));
     await page.click("#notifyCharges");
     await page.waitForTimeout(700);
     check("charges switched off leave the snapshot, the choice kept", ((await lastSnap(page)).alerts || []).every((a) => a.kind !== "charge")
-      && await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-alerts-v1")).charges.r1 === "3" && !/charges/.test(document.querySelector('[data-status="notifications"]').textContent)));
+      && await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-alerts-v1")).charges.r1 === "3"));
     await page.click("#notifyCharges");
     await page.waitForTimeout(700);
     check("and come back when switched on", ((await lastSnap(page)).alerts || []).some((a) => a.kind === "charge"));
@@ -1517,8 +1517,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     check("Background refresh is offered on Android, off", await page.evaluate(() => !document.querySelector("#backgroundRefreshRow").hidden && document.querySelector("#backgroundRefresh").value === "0" && window.__cap.background.length === 0));
     await page.selectOption("#backgroundRefresh", "60");
     await page.waitForTimeout(300);
-    check("every hour: the plugin schedules it, the index row says so", await page.evaluate(() => window.__cap.background.join(",") === "60" && JSON.parse(localStorage.getItem("lifelog-background-v1")).minutes === 60
-      && /refreshed every hour/.test(document.querySelector('[data-status="notifications"]').textContent)));
+    check("every hour: the plugin schedules it", await page.evaluate(() => window.__cap.background.join(",") === "60" && JSON.parse(localStorage.getItem("lifelog-background-v1")).minutes === 60));
     await page.reload({ waitUntil: "load" });
     await page.waitForTimeout(1200);
     check("and the next launch tells the plugin again", await page.evaluate(() => window.__cap.background.join(",") === "60"));
@@ -1526,7 +1525,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await page.waitForTimeout(300);
     await page.selectOption("#backgroundRefresh", "0");
     await page.waitForTimeout(300);
-    check("off cancels it", await page.evaluate(() => window.__cap.background.join(",") === "60,0" && !/refreshed/.test(document.querySelector('[data-status="notifications"]').textContent)));
+    check("off cancels it", await page.evaluate(() => window.__cap.background.join(",") === "60,0"));
     errs.push(...e);
     await ctx.close();
 

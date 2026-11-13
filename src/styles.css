@@ -2377,6 +2377,12 @@ html.force-mobile .cal-more {
 /* Rows here are things you don't own yet, so they lean on the backlog row's
    shape but say plainly which list they came from and offer one action. */
 .dsc-source { font-size: var(--fs-2xs); font-weight: 500; color: var(--text-dim); text-transform: none; }
+/* Which list a card shows, where a category has more than one (RAWG or
+   IGDB, NYT or Hardcover). Small, in the head where the source name was;
+   30px tall plus 7px each way is the 44px tap area. */
+.dsc-switch { margin-left: auto; text-transform: none; letter-spacing: normal; }
+.dsc-switch .seg-btn { position: relative; min-height: 30px; padding: 0 var(--space-10); font-size: var(--fs-xs); line-height: 1; }
+.dsc-switch .seg-btn::after { content: ""; position: absolute; inset: -7px 0; }
 .dsc-row { cursor: pointer; }
 .dsc-tag {
   flex: 0 0 auto; font-size: var(--fs-2xs); color: var(--text-dim);

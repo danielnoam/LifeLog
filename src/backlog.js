@@ -1982,7 +1982,9 @@
   //
   // Books have the same gap, filled by the New York Times bestseller lists
   // (0.272.0) with a free NYT key. They have no "Coming soon", so a books
-  // category sits that one out.
+  // category sits that one out. Which stand-ins a category can use, and
+  // which it shows, is discoverCandidates' job; this map now only says what
+  // a category with no key set is missing.
   const DISCOVER_STANDIN = {
     steamgriddb: "rawg",
     "steamgriddb-steam-gg": "rawg-steam-gg",
@@ -1990,17 +1992,37 @@
     openlibrary: "nyt-openlibrary",
     googlebooks: "nyt-googlebooks",
   };
-  const standInKey = (standIn) => (standIn.startsWith("nyt-") ? "nyt" : "rawg");
-
-  // With no RAWG key, IGDB stands in for the games ones instead (it needs
-  // both its client ID and secret), with the same "-steam-gg" tail.
-  function discoverSourceFor(configured, keys) {
-    if (window.LifeLogMedia.supportsDiscover(configured)) return configured;
-    const standIn = DISCOVER_STANDIN[configured];
-    if (!standIn) return "";
-    if (keys[standInKey(standIn)]) return standIn;
-    if (standIn.startsWith("rawg") && String(keys.igdb || "").trim() && String(keys.igdbSecret || "").trim()) return standIn.replace(/^rawg/, "igdb");
-    return "";
+  // Every list a category could show, its own source's first: a games
+  // category can show RAWG's or IGDB's, a books one NYT's bestsellers or
+  // Hardcover's trending, each where its key is set. The card offers a
+  // switch when there's more than one (Daniel, 2026-11-13). Book lists know
+  // no books still to come, so they sit out Coming soon.
+  const GAME_SOURCES = /^(rawg|igdb|steamgriddb)(-steam-gg)?$|^steam$/;
+  const BOOK_LIST_SOURCES = new Set(["openlibrary", "googlebooks", "hardcover"]);
+  function discoverCandidates(configured, keys, kind) {
+    const out = [];
+    const add = (s) => { if (s && !out.includes(s)) out.push(s); };
+    if (window.LifeLogMedia.supportsDiscover(configured)) add(configured);
+    if (GAME_SOURCES.test(configured)) {
+      const tail = configured.endsWith("-steam-gg") ? "-steam-gg" : "";
+      if (String(keys.rawg || "").trim()) add("rawg" + tail);
+      if (String(keys.igdb || "").trim() && String(keys.igdbSecret || "").trim()) add("igdb" + tail);
+    } else if (BOOK_LIST_SOURCES.has(configured)) {
+      if (String(keys.nyt || "").trim()) add("nyt-" + configured);
+      if (String(keys.hardcover || "").trim()) add("hardcover");
+    }
+    return kind === "upcoming" ? out.filter((s) => !s.startsWith("nyt-") && s !== "hardcover") : out;
+  }
+  // The list picked on each category's card, per device: it's a way of
+  // looking, like the Discover kind, not something to sync.
+  const DISCOVER_PICK_KEY = "lifelog-discover-pick-v1";
+  function discoverPicks() {
+    try { return JSON.parse(localStorage.getItem(DISCOVER_PICK_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function setDiscoverPick(cats, source) {
+    const all = discoverPicks();
+    for (const c of cats) all[c] = source;
+    try { localStorage.setItem(DISCOVER_PICK_KEY, JSON.stringify(all)); } catch (e) {}
   }
 
   // Two maps: the sources that can answer, and the ones a key away from it.
@@ -2018,28 +2040,29 @@
     // chip row above it did nothing: narrowing to Games still sat a books
     // card and an anime card beside it.
     const cf = state.activeCats;
-    const lists = new Map(), needsKey = new Map();
+    const lists = new Map(), needsKey = new Map(), choices = new Map();
+    const picks = discoverPicks();
     for (const c of state.data.categories) {
       if (cf.size && !cf.has(c.name)) continue;
       const configured = cfg[c.name];
       if (!configured) continue;
-      // Book lists (NYT's, Hardcover's trending) know no books still to come.
-      if (discoverKind === "upcoming" && (configured === "hardcover" || String(DISCOVER_STANDIN[configured] || "").startsWith("nyt-"))) continue;
-      const listSource = discoverSourceFor(configured, keys);
+      const candidates = discoverCandidates(configured, keys, discoverKind);
+      if (!candidates.length && discoverKind === "upcoming" && (BOOK_LIST_SOURCES.has(configured))) continue;
+      const listSource = candidates.includes(picks[c.name]) ? picks[c.name] : candidates[0];
       if (listSource) {
-        if (!lists.has(listSource)) lists.set(listSource, []);
+        if (!lists.has(listSource)) { lists.set(listSource, []); choices.set(listSource, candidates); }
         lists.get(listSource).push(c.name);
       } else if (DISCOVER_STANDIN[configured]) {
         if (!needsKey.has(configured)) needsKey.set(configured, []);
         needsKey.get(configured).push(c.name);
       }
     }
-    return { lists, needsKey };
+    return { lists, needsKey, choices };
   }
 
   function discoverUnavailableNote(source) {
     if (String(DISCOVER_STANDIN[source] || "").startsWith("nyt-")) {
-      return "Books have no popularity list of their own. Set a New York Times key in Settings → Media lookups and this shows the NYT bestsellers.";
+      return "Books have no popularity list of their own. Set a New York Times key or a Hardcover token in Settings → Media lookups and this shows the NYT bestsellers or Hardcover's trending.";
     }
     return (MEDIA_SOURCE_LABELS[source] || source) +
       " publishes no popularity list of its own. Set a RAWG key or IGDB's client ID and secret in Settings → Media lookups and this fills in from there instead.";
@@ -2416,10 +2439,26 @@
   // the source label opposite is what says where the list came from, which
   // matters most when RAWG is standing in for a category set to something
   // else.
-  function discoverCardHead(title, sourceLabel) {
+  function discoverCardHead(title, sourceLabel, sw) {
     const head = el("div", "backlog-section-head");
     head.appendChild(el("span", "backlog-section-name", title));
-    head.appendChild(el("span", "backlog-section-count dsc-source", sourceLabel));
+    if (sw && sw.choices.length > 1) {
+      const group = el("div", "seg dsc-switch");
+      group.setAttribute("role", "group");
+      group.setAttribute("aria-label", "List for " + title);
+      for (const s of sw.choices) {
+        const btn = el("button", "seg-btn", MEDIA_SOURCE_LABELS[s] || s);
+        btn.type = "button";
+        const on = s === sw.current;
+        btn.classList.toggle("active", on);
+        btn.setAttribute("aria-pressed", String(on));
+        btn.onclick = () => { if (!on) { setDiscoverPick(sw.cats, s); render(); } };
+        group.appendChild(btn);
+      }
+      head.appendChild(group);
+    } else {
+      head.appendChild(el("span", "backlog-section-count dsc-source", sourceLabel));
+    }
     return head;
   }
 
@@ -2428,17 +2467,17 @@
   // show instead of rows — Loading, "nothing came back", "you already have
   // all of these", the hidden-count footnote — ride in the same keyed list
   // under reserved keys, the way every other view's furniture does.
-  function fillDiscoverCard(card, title, sourceLabel, parts) {
+  function fillDiscoverCard(card, title, sourceLabel, parts, sw) {
     // The card keeps the shape every other backlog section has — a head and
     // a .backlog-list — so it inherits the same CSS. Only the list's children
     // are reconciled; the head is small enough to refill.
     let head = card.firstElementChild, list = card.lastElementChild;
     if (!head || !list || head === list) {
-      head = discoverCardHead(title, sourceLabel);
+      head = discoverCardHead(title, sourceLabel, sw);
       list = el("div", "backlog-list");
       card.replaceChildren(head, list);
     } else {
-      adopt(head, discoverCardHead(title, sourceLabel));
+      adopt(head, discoverCardHead(title, sourceLabel, sw));
     }
     const covers = coversLayout();
     list.classList.toggle("bl-covers", covers);
@@ -2461,7 +2500,7 @@
   let dscRootEl = null, dscBarEl = null, dscGridEl = null;
 
   function renderDiscover(root) {
-    const { lists, needsKey } = discoverSourceMap();
+    const { lists, needsKey, choices } = discoverSourceMap();
     if (!lists.size && !needsKey.size) {
       // Two different dead ends, and telling them apart matters: one is
       // something you set up, the other is a chip you can click off.
@@ -2515,7 +2554,7 @@
         // thin one from the source.
         if (hidden) parts.push({ key: "__hidden", kind: "note", text: hidden + " already yours, hidden" });
       }
-      cards.push({ key: "src:" + source, title: cats.join(" · "), sourceLabel: MEDIA_SOURCE_LABELS[source] || source, parts });
+      cards.push({ key: "src:" + cats.join("|"), title: cats.join(" · "), sourceLabel: MEDIA_SOURCE_LABELS[source] || source, parts, sw: { choices: choices.get(source) || [source], current: source, cats } });
     }
     for (const [source, cats] of needsKey) {
       cards.push({
@@ -2529,7 +2568,7 @@
     reconcile(dscGridEl, cards, {
       keyOf: (c) => c.key,
       create: () => el("div", "backlog-section"),
-      update: (card, c) => fillDiscoverCard(card, c.title, c.sourceLabel, c.parts),
+      update: (card, c) => fillDiscoverCard(card, c.title, c.sourceLabel, c.parts, c.sw),
     });
     ensureDiscover(sources);
   }
