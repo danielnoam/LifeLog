@@ -1129,7 +1129,7 @@
   // progress, on by default for an AniList category, whose count syncs.
   // Off only hides things: an item keeps its author, its "bought" and its
   // start day.
-  const BOOK_SOURCES = new Set(["openlibrary", "googlebooks"]);
+  const BOOK_SOURCES = new Set(["openlibrary", "googlebooks", "hardcover"]);
   const COUNT_SOURCES = new Set(["anilist-anime", "anilist-manga"]);
   // Every lookup source a category can use, as Settings → Media lookups and
   // the category sheet both offer them.
@@ -1150,6 +1150,7 @@
     { value: "jikan-manga", label: "Jikan (manga)" },
     { value: "openlibrary", label: "Open Library (books)" },
     { value: "googlebooks", label: "Google Books (books)" },
+    { value: "hardcover", label: "Hardcover (books)" },
     { value: "musicbrainz", label: "MusicBrainz (music)" },
   ];
   function categoryShows(name) {
@@ -1457,6 +1458,8 @@
     info.appendChild(el("span", "ac-title", r.title));
     const meta = [];
     if (r.author) meta.push(r.author);
+    // Hardcover's series, "Mistborn #2": which book of a series a match is.
+    if (r.series) meta.push(r.series);
     if (r.year) meta.push(String(r.year));
     if (r.externalRating) meta.push("★ " + r.externalRating);
     if (meta.length) info.appendChild(el("span", "ac-meta", meta.join(" · ")));

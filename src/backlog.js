@@ -2021,7 +2021,8 @@
       if (cf.size && !cf.has(c.name)) continue;
       const configured = cfg[c.name];
       if (!configured) continue;
-      if (discoverKind === "upcoming" && String(DISCOVER_STANDIN[configured] || "").startsWith("nyt-")) continue;
+      // Book lists (NYT's, Hardcover's trending) know no books still to come.
+      if (discoverKind === "upcoming" && (configured === "hardcover" || String(DISCOVER_STANDIN[configured] || "").startsWith("nyt-"))) continue;
       const listSource = discoverSourceFor(configured, keys);
       if (listSource) {
         if (!lists.has(listSource)) lists.set(listSource, []);

@@ -23,6 +23,7 @@ const FAKE_BRIDGE = () => {
           if (url === "https://maps.app.goo.gl/Gone") return { status: 404, headers: {}, data: "Not found" };
           if (url.startsWith("https://www.google.com/maps/preview/entitylist/getlist")) return { status: 200, headers: {}, data: ")]}'\n[[]]" };
           if (url.startsWith("https://id.twitch.tv/oauth2/token")) return { status: 200, data: JSON.stringify({ access_token: "tok", expires_in: 5000000 }) };
+          if (url === "https://api.hardcover.app/v1/graphql") return { status: 200, data: JSON.stringify({ data: { search: { results: { hits: [{ document: { slug: "mistborn", title: "Mistborn", author_names: ["Brandon Sanderson"] } }] } } } }) };
           if (url.startsWith("https://api.igdb.com/v4/")) return { status: 200, data: JSON.stringify([{ id: 7, name: "Celeste" }]) };
           if (url.startsWith("https://store.steampowered.com/api/appdetails")) {
             const id = /appids=(\d+)/.exec(url)[1];
@@ -84,6 +85,17 @@ const FAKE_BRIDGE = () => {
     check("and the search is a POST to IGDB with the query as its body and the token", igdb.asked[1] && igdb.asked[1].method === "POST"
       && igdb.asked[1].url === "https://api.igdb.com/v4/games" && /^search "Celeste";/.test(igdb.asked[1].data)
       && /Bearer tok/.test(JSON.stringify(igdb.asked[1].headers)), igdb.asked[1]);
+
+    // Hardcover: its GraphQL body goes as an object, for CapacitorHttp to send as JSON.
+    const hc = await page.evaluate(async (p) => {
+      window.__http = [];
+      const rows = await window.LifeLogMedia.search("Mistborn", "hardcover", { hardcover: "Bearer hctok" }, p);
+      return { rows, asked: window.__http };
+    }, proxy);
+    check("Hardcover works in the app with no proxy running", hc.rows.length === 1 && hc.rows[0].id === "mistborn" && hc.rows[0].author === "Brandon Sanderson", hc);
+    check("as a JSON POST with the token once, not twice, behind Bearer", hc.asked[0] && hc.asked[0].method === "POST"
+      && hc.asked[0].data && /search\(query: \$q/.test(hc.asked[0].data.query) && hc.asked[0].data.variables.q === "Mistborn"
+      && /"Content-Type":"application\/json"/.test(JSON.stringify(hc.asked[0].headers)) && /"Bearer hctok"/.test(JSON.stringify(hc.asked[0].headers)), hc.asked[0]);
 
     // Travel's Google import (0.242.0; redirects read, not followed, 0.243.2).
     const maps = await page.evaluate(async (p) => {
