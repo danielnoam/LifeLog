@@ -641,7 +641,6 @@
     media: "Keys for covers and details",
     imports: "Steam, AniList, Letterboxd and more",
     releases: "Upcoming release checks",
-    about: "Version, what's new, credits",
   };
 
   const plural = (n, one, many) => n + " " + (n === 1 ? one : many);
@@ -653,7 +652,8 @@
     }
     if (page === "about") {
       const n = window.LifeLogErrors ? window.LifeLogErrors.list().length : 0;
-      if (n) return { text: (n === 1 ? "1 error" : n + " errors") + " recorded", tone: "warn" };
+      return n ? { text: "Version " + APP_VERSION + " · " + (n === 1 ? "1 error" : n + " errors") + " recorded", tone: "warn" }
+        : { text: "Version " + APP_VERSION + " · what's new, credits" };
     }
     return ABOUT_ROW[page] ? { text: ABOUT_ROW[page] } : null;
   }
