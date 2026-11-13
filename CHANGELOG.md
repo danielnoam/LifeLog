@@ -3,6 +3,31 @@
 All notable changes to LifeLog are documented here. The version number
 always matches `APP_VERSION` in `src/app.js`, shown in Settings → About.
 
+## [0.313.0] - 2026-11-13
+
+### Added
+- Discover: a category with more than one list to show gets a switch in its card's head (games: RAWG or IGDB; books: NYT bestsellers or Hardcover's trending). Your pick is remembered on this device.
+- Hardcover as a books source (or fallback): each match shows its series and place in it ("Mistborn #2"), a pick brings the author, pages, rating and blurb, finishing a book offers the next one in its series, and Discover's Popular shows what's trending on Hardcover. Set it up in Settings → Media lookups with your Hardcover API token; a browser needs the proxy, the apps don't.
+- IGDB as a games source: "IGDB" and "IGDB + Steam + GG.deals" in a category's source or fallback, so a games category still finds things when RAWG is down. It brings the cover, rating, genres, description, a typical play time, early access for any game (not only Steam ones), Discover's Popular and Coming soon lists, and next in the series. Set it up in Settings → Media lookups with a free Twitch app's client ID and secret; a browser needs the proxy, the apps don't.
+- A SteamGridDB or Steam games category with no RAWG key gets its Discover lists from IGDB.
+- An Investments widget on Android: what you hold, its gain and today's move, then each ticker with its close, the day's change, a month's sparkline and an "At target" tag. Tap a ticker to open it. It shrinks down to the total (or your first ticker when you hold nothing), and hides the amounts when the lock's "Hide in widgets" is on. With a watchlist, the app now refreshes every ticker's price when it opens (still at most once in six hours), so the widget stays current.
+- Stremio sync, read only: in Settings → Imports, sign in to Stremio once (your password is only used to sign in; the key Stremio sends back is kept, synced like your other keys and left out of exports) and pick where movies and shows go. Sync Stremio brings your library into the Backlog, what you're partway through into In progress with the episode you're on, and watched movies onto the Timeline on the day you last played them, all through the review. Titles are matched on TMDB when you have a TMDB key. An automatic check (every open to monthly) only offers the review. Nothing is ever changed on Stremio, and Sign out ends the session.
+- Reading log from Waypage (Settings → Imports → Waypage reading): with Waypage's Share reading activity on, LifeLog reads what you read there every few minutes, with a read-only token for your Waypage sync repo. Make a token on GitHub opens GitHub's form already filled in (name, a year, Contents: Read-only), so you only pick waypage-data, generate and paste; the repo is guessed from your LifeLog sync, and pasting the token reads at once. A book, audiobook, comic or serial already in your Backlog starts there and shows how far you are (62%, or ch 31/40), one you don't have comes in by itself, and finishing it in Waypage puts it on your Timeline on that day. You pick which category each kind goes to; articles stay out unless you pick one.
+- One that's already on your Timeline (a re-read), or matches a backlog title by another author, waits in a review list there: Same one, Add, or Never.
+- Reading and listening minutes from Waypage fill the minutes habit you pick, on top of the minutes you add by hand.
+- The AI bridge has `lifelog_waypage` (what's being read, what finished, the review list) and `lifelog_waypage_review` (answer a review row).
+
+### Changed
+- The ticker search answers a little sooner after you stop typing, and a word you've already searched answers at once without asking Tiingo again.
+- The line under each Settings row is now a few words on what that page holds (Tabs: "Show, hide and order tabs") instead of a status that could run to two lines. Only something that needs you still shows there: Sync off or its backup file needing permission, and errors recorded under About. About also still shows the version number.
+- On a computer the search box grows into the top bar's free space, up to about twice its old width.
+
+### Fixed
+- Watch a ticker: the search as you type no longer fails silently. It shows "Searching…" while it asks, says when no US ticker matches, and says what went wrong (no key, a key Tiingo turned down, the hourly limit, or a web proxy that needs redeploying for the search route).
+- A full ticker you type (like VOO) still completes with its name when the search itself fails, through the same lookup prices use.
+- The Settings button no longer slides off the right edge in a narrow or zoomed-in window: when the top bar runs out of room, the tabs show only their icons (hover for the name) instead.
+- The outline around a hovered or focused cover on Home → In progress is no longer cut off at the row's edges.
+
 ## [0.312.0] - 2026-11-12
 
 ### Added

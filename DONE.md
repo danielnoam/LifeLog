@@ -111,9 +111,9 @@ Every release that adds a feature adds its line here in the same commit.
 - A media source per category, with a fallback source (0.9.5, 0.54.0)
 - Sources: RAWG, TMDB, AniList, Jikan, Open Library, Google Books, MusicBrainz, Steam, SteamGridDB (0.9.5, 0.11.0, 0.18.0, 0.74.0)
 - RAWG or SteamGridDB + Steam + GG.deals game sources (0.65.0, 0.99.6)
-- IGDB and IGDB + Steam + GG.deals game sources, with a Twitch app's client ID and secret: play time, early access for any game, Discover lists (standing in for SteamGridDB and Steam without a RAWG key), next in the series (unreleased)
-- Hardcover books source with your API token: series and place shown on each match, next in the series, Discover's Popular from Hardcover's trending (unreleased)
-- Discover card switch between a category's lists (RAWG or IGDB, NYT bestsellers or Hardcover), remembered per device (unreleased)
+- IGDB and IGDB + Steam + GG.deals game sources, with a Twitch app's client ID and secret: play time, early access for any game, Discover lists (standing in for SteamGridDB and Steam without a RAWG key), next in the series (0.313.0)
+- Hardcover books source with your API token: series and place shown on each match, next in the series, Discover's Popular from Hardcover's trending (0.313.0)
+- Discover card switch between a category's lists (RAWG or IGDB, NYT bestsellers or Hardcover), remembered per device (0.313.0)
 - Sync button shows matches from both sources as each answers (0.88.0, 0.99.3)
 - Season and book markers stripped before searching (0.48.0)
 - Advanced: keep my own value, set a Steam App ID by hand (0.100.0, 0.111.0)
@@ -136,7 +136,7 @@ Every release that adds a feature adds its line here in the same commit.
 - AniList both ways: applied automatically (every open to monthly), episode counts, starts, finishes and drops sent back once signed in, newer change wins (0.292.0)
 - Waypage reading log: reading.json from your Waypage sync repo (read-only token, every few minutes, ETag); Backlog books started with their %, new ones added, finished ones moved to the Timeline, a category per kind, re-reads and author clashes reviewed, minutes into a minutes habit; bridge tools (0.313.0)
 - Letterboxd import (0.252.0)
-- Stremio, read only: sign in once (only the key is kept), your library to the Backlog, what you're watching to In progress with its episode, watched movies to the Timeline on their last play, matched on TMDB by IMDb id, through the review; an automatic check offers the review (unreleased)
+- Stremio, read only: sign in once (only the key is kept), your library to the Backlog, what you're watching to In progress with its episode, watched movies to the Timeline on their last play, matched on TMDB by IMDb id, through the review; an automatic check offers the review (0.313.0)
 - Google Maps lists and places into a trip (0.242.0, 0.245.0)
 - Markdown, PDF and EPUB files as notes, run as Activity jobs (0.200.0, 0.236.0, 0.268.0)
 - Obsidian images come in with their notes, from the files or the folder picked, and Find in folder (0.297.0)
@@ -263,7 +263,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Widgets: Upcoming (what's out next, counted down) and In progress (0.277.0)
 - Background refresh: the app run with no screen on a schedule, so widgets and alerts catch up with the app closed (0.279.0)
 - Quick-add window: the quick add widget's buttons and the checklist widget's + open a small window over the home screen (entry, expense, backlog item, note, list item) instead of the app; saved on the phone and added when LifeLog next opens (0.311.0)
-- Investments widget (Android): what you hold and the day's move, then each ticker with its close, day's change, a month's sparkline and an "At target" tag; a row opens that ticker; shrinks to the total; amounts hidden with the lock's "hide in widgets" (unreleased)
+- Investments widget (Android): what you hold and the day's move, then each ticker with its close, day's change, a month's sparkline and an "At target" tag; a row opens that ticker; shrinks to the total; amounts hidden with the lock's "hide in widgets" (0.313.0)
 
 ## iOS app
 
