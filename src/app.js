@@ -51,7 +51,7 @@
   // timelineSort/ledgerSort/backlogSort replaced monthOrder in 0.157.0. Each
   // option is one complete statement about the whole list rather than a
   // direction bolted to a hidden field — see SORTS below.
-  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", igdb: "", igdbSecret: "", googlePlaces: "", nyt: "", tiingo: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "30" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0", clientId: "", token: "", connectedAt: "" }, waypage: { repo: "", token: "" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
+  const DEFAULT_SETTINGS = { timelineSort: "newest", ledgerSort: "newest", backlogSort: "title", currency: "ILS", mediaCategorySources: {}, mediaCategoryFallbackSources: {}, mediaKeys: { rawg: "", tmdb: "", ggdeals: "", steamgriddb: "", igdb: "", igdbSecret: "", hardcover: "", googlePlaces: "", nyt: "", tiingo: "" }, steam: { proxyUrl: "", steamId: "", apiKey: "", wishlistCategory: "", autoSyncDays: "0", gameTimes: "30" }, anilist: { userName: "", animeCategory: "", mangaCategory: "", autoSyncDays: "0", clientId: "", token: "", connectedAt: "" }, waypage: { repo: "", token: "" }, releases: { autoRefreshDays: "0" }, importSkips: {} }; // timelineSort, ledgerSort, backlogSort, currency, mediaCategorySources, mediaCategoryFallbackSources, mediaKeys, steam, anilist, releases — synced
   // Local to this device, not synced. Every key a view reads off state.visual
   // belongs here: loadVisualSettings fills the gaps in a stored blob from this
   // object, so a default declared here is the only one there is — a `||` at
@@ -153,7 +153,7 @@
     "tmdb-movie": "TMDB", "tmdb-tv": "TMDB",
     "anilist-anime": "AniList", "anilist-manga": "AniList",
     "jikan-anime": "Jikan", "jikan-manga": "Jikan",
-    openlibrary: "Open Library", googlebooks: "Google Books", musicbrainz: "MusicBrainz",
+    openlibrary: "Open Library", googlebooks: "Google Books", hardcover: "Hardcover", musicbrainz: "MusicBrainz",
     steam: "Steam",
     "nyt-openlibrary": "NYT bestsellers", "nyt-googlebooks": "NYT bestsellers",
   };
@@ -2444,6 +2444,7 @@
       case "jikan-manga": return `https://myanimelist.net/manga/${enc}`;
       case "openlibrary": return `https://openlibrary.org${mediaId.startsWith("/") ? "" : "/"}${mediaId}`;
       case "googlebooks": return `https://books.google.com/books?id=${enc}`;
+      case "hardcover": return `https://hardcover.app/books/${enc}`;
       case "musicbrainz": return `https://musicbrainz.org/release-group/${enc}`;
       default: return "";
     }

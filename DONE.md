@@ -112,6 +112,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Sources: RAWG, TMDB, AniList, Jikan, Open Library, Google Books, MusicBrainz, Steam, SteamGridDB (0.9.5, 0.11.0, 0.18.0, 0.74.0)
 - RAWG or SteamGridDB + Steam + GG.deals game sources (0.65.0, 0.99.6)
 - IGDB and IGDB + Steam + GG.deals game sources, with a Twitch app's client ID and secret: play time, early access for any game, Discover lists (standing in for SteamGridDB and Steam without a RAWG key), next in the series (unreleased)
+- Hardcover books source with your API token: series and place shown on each match, next in the series, Discover's Popular from Hardcover's trending (unreleased)
 - Sync button shows matches from both sources as each answers (0.88.0, 0.99.3)
 - Season and book markers stripped before searching (0.48.0)
 - Advanced: keep my own value, set a Steam App ID by hand (0.100.0, 0.111.0)

@@ -482,7 +482,7 @@ Linux when `desktop.yml` is run by hand with **Linux too** ticked.
 
 - **Offline and fast**: the files are inside the app, so it opens with no
   connection and without waiting on one, and syncs when it can.
-- **No proxy needed**: Steam, SteamGridDB, IGDB, GG.deals, Augmented Steam and
+- **No proxy needed**: Steam, SteamGridDB, IGDB, Hardcover, GG.deals, Augmented Steam and
   the Google Maps import go out through the app's own HTTP, as on the
   phones.
 - **Its own copy**: it doesn't share a browser's storage, so connect sync
@@ -527,6 +527,7 @@ you add it in **Settings → Media lookups**.
 | GG.deals | yes (free); proxy if CORS-blocked | current game prices |
 | Augmented Steam | no; CORS proxy | Steam games: How Long to Beat times, OpenCritic and Metacritic user scores |
 | New York Times | yes (free) | books: bestseller lists in Discover |
+| Hardcover | yes (your API token, expires) + CORS proxy in a browser | books: series, next in the series, trending in Discover |
 | Google Places | yes (your own) | Travel: a place's rating, hours and reviews |
 | Tiingo | yes (free, personal use); CORS proxy in a browser | the Ledger's watchlist: daily stock and ETF prices |
 | Open Library, AniList, Jikan, Google Books, MusicBrainz | no | books, anime and manga, music |

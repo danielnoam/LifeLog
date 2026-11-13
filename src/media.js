@@ -1428,6 +1428,116 @@
     return earliestAfter(rows, rel.releasePrecision === "tba" ? "" : rel.releaseDate);
   }
 
+  // ---------- Hardcover ----------
+  // A books source with what Open Library and Google Books lack: which
+  // series a book is in, and where, so a finished book can offer the next
+  // one. It's a GraphQL API behind a personal token (hardcover.app →
+  // Settings → Hardcover API), which expires when you said it would and
+  // may be reset while the API is in beta. Its docs say queries mustn't run
+  // in a browser, so it goes through the proxy like IGDB: your worker in a
+  // browser, the app's own native route on a phone or computer.
+  // Rate limit: 60 requests a minute, and search gives up after 2s.
+  function noteError(msg) {
+    lastError = msg;
+    if (typeof window !== "undefined" && window.LifeLogErrors) window.LifeLogErrors.record(msg);
+  }
+  function hardcoverToken(keys) {
+    return String((keys || {}).hardcover || "").trim().replace(/^bearer\s+/i, "");
+  }
+  async function hardcoverQuery(query, variables, keys, proxyUrl) {
+    const token = hardcoverToken(keys);
+    if (!token) return null;
+    if (!proxyUrl) { noteError("Hardcover needs the CORS proxy URL set (Settings → Media lookups)"); return null; }
+    try {
+      const body = JSON.stringify({ query, variables: variables || {} });
+      const res = await get(proxyUrl + "/hardcover?q=" + encodeURIComponent(body), { headers: { Authorization: "Bearer " + token } });
+      if (!res.ok) {
+        noteError(res.status === 401 || res.status === 403 ? "Hardcover refused the token (HTTP " + res.status + ") — it may have expired"
+          : res.status === 429 ? "Hardcover's rate limit is used up for now (HTTP 429)" : "Hardcover request failed (HTTP " + res.status + ")");
+        return null;
+      }
+      const data = await res.json();
+      if (data && data.errors && data.errors.length) {
+        noteError("Hardcover: " + String(data.errors[0].message || "query failed").slice(0, 160));
+        return null;
+      }
+      return (data && data.data) || null;
+    } catch (e) {
+      noteError(e && e.name === "TimeoutError" ? "Hardcover didn't answer within " + FETCH_TIMEOUT_MS / 1000 + "s"
+        : "Hardcover request failed (" + ((e && e.message) || "network error") + ")");
+      return null;
+    }
+  }
+  // Too few readers' votes say nothing, as with IGDB's.
+  function hardcoverRating(rating, count) {
+    return +rating > 0 && (+count || 0) >= 3 ? (Math.round(+rating * 10) / 10) + " Hardcover" : "";
+  }
+  // One book, from a search hit (Typesense's document) or a GraphQL row.
+  // A row is read through the cached_* columns rather than the image and
+  // contributions relations: the API refuses queries more than three
+  // levels deep, and a series' books are already two down. Its id is the
+  // slug, since that's what its page address is made of
+  // (hardcover.app/books/<slug>).
+  function mapHardcoverBook(d) {
+    const img = d.image || d.cached_image || {};
+    const people = d.author_names || (Array.isArray(d.cached_contributors) ? d.cached_contributors.map((c) => c && c.author && c.author.name).filter(Boolean) : []);
+    const series = d.featured_series && d.featured_series.series ? d.featured_series.series.name : (d.series_names || [])[0];
+    const pos = d.featured_series && d.featured_series.position != null ? d.featured_series.position : d.featured_series_position;
+    return {
+      id: String(d.slug || ""),
+      title: d.title || "",
+      coverUrl: /^https:\/\//.test(img.url || "") ? img.url : "",
+      year: +d.release_year || null,
+      ...releaseFromParts(+d.release_year || null, null, null),
+      summary: firstParagraph(d.description || ""),
+      externalRating: hardcoverRating(d.rating, d.ratings_count),
+      length: +d.pages > 0 ? d.pages + " pages" : "",
+      genres: normGenres(d.genres),
+      author: people[0] || "",
+      ...(series ? { series: String(series) + (pos != null && pos !== "" ? " #" + pos : "") } : {}),
+      source: "hardcover",
+    };
+  }
+  const HARDCOVER_BOOK = "slug title release_year pages rating ratings_count description cached_image cached_contributors";
+
+  async function searchHardcover(title, author, keys, proxyUrl) {
+    const q = String(title || "").trim() + (author ? " " + String(author).trim() : "");
+    if (!q.trim()) return [];
+    const data = await hardcoverQuery('query ($q: String!) { search(query: $q, query_type: "Book", per_page: 8) { results } }', { q: q.slice(0, 200) }, keys, proxyUrl);
+    let results = data && data.search && data.search.results;
+    if (typeof results === "string") { try { results = JSON.parse(results); } catch (e) { results = null; } }
+    return ((results && results.hits) || []).map((h) => h && h.document).filter((d) => d && d.title && d.slug).map(mapHardcoverBook);
+  }
+
+  // Next in the series: the first book filed after this one in its first
+  // series, by position. Hardcover can list one book twice at a position
+  // (two editions under different titles), so this one's own title is
+  // passed over. A book in no series, or the last, answers null.
+  async function nextHardcover(slug, keys, proxyUrl) {
+    if (!/^[a-z0-9-]{1,200}$/i.test(String(slug || ""))) return null;
+    const mine = await hardcoverQuery("query ($s: String!) { books(where: {slug: {_eq: $s}}, limit: 1) { title book_series(limit: 3) { position series_id } } }", { s: slug }, keys, proxyUrl);
+    const self = mine && mine.books && mine.books[0];
+    const entry = ((self && self.book_series) || []).find((x) => Number.isInteger(x.series_id) && Number.isFinite(+x.position));
+    if (!entry) return null;
+    const after = await hardcoverQuery("{ book_series(where: {series_id: {_eq: " + entry.series_id + "}, position: {_gt: " + (+entry.position) + "}}, order_by: {position: asc}, limit: 5) { position book { " + HARDCOVER_BOOK + " } } }", null, keys, proxyUrl);
+    const own = titleKey(self.title || "");
+    const book = ((after && after.book_series) || []).map((x) => x && x.book).find((b) => b && b.title && b.slug && titleKey(b.title) !== own);
+    return book ? mapHardcoverBook(book) : null;
+  }
+
+  // Discover's Popular: the books most added on Hardcover this past month.
+  // No Coming soon, the way NYT's lists have none.
+  async function discoverHardcover(kind, keys, proxyUrl) {
+    if (kind === "upcoming") return [];
+    const to = new Date(), from = new Date(Date.now() - 30 * 86400000);
+    const trend = await hardcoverQuery('{ books_trending(from: "' + ymd(from) + '", to: "' + ymd(to) + '", limit: 20, offset: 0) { ids } }', null, keys, proxyUrl);
+    const ids = ((trend && trend.books_trending && trend.books_trending.ids) || []).filter((n) => Number.isInteger(n)).slice(0, 20);
+    if (!ids.length) return [];
+    const data = await hardcoverQuery("{ books(where: {id: {_in: [" + ids.join(",") + "]}}) { id " + HARDCOVER_BOOK + " } }", null, keys, proxyUrl);
+    const byId = new Map(((data && data.books) || []).map((b) => [b.id, b]));
+    return ids.map((i) => byId.get(i)).filter((b) => b && b.slug).map(mapHardcoverBook);
+  }
+
   // ---------- discover ----------
   // The lists behind the Backlog's Discover mode: what's big right now, and
   // what's coming. Every one of them returns the same normalized rows a
@@ -1440,7 +1550,7 @@
   // artwork database, and Steam's charts are CORS-blocked like the rest of
   // its API. Those return nothing rather than something misleading.
   const DISCOVER_SOURCES = [
-    "rawg", "rawg-steam-gg", "igdb", "igdb-steam-gg", "tmdb-movie", "tmdb-tv",
+    "rawg", "rawg-steam-gg", "igdb", "igdb-steam-gg", "hardcover", "tmdb-movie", "tmdb-tv",
     "anilist-anime", "anilist-manga", "jikan-anime", "jikan-manga",
   ];
 
@@ -1606,7 +1716,8 @@
   // remasters included, so the pick is the earliest dated after this one),
   // TMDB groups films into collections (same pick, by release date), and
   // AniList states SEQUEL relations outright. TV shows have seasons, not
-  // sequels, and books and music have no such link in their sources, so
+  // sequels, and Hardcover files a book in its series by position. Books
+  // from other sources and music have no such link, so
   // those answer null without a request. A Steam-linked game has no RAWG
   // id, only a title, so RAWG is asked for the title first and only an
   // exact match is trusted (see pickMatch) — the wrong game's sequel is
@@ -1682,6 +1793,7 @@
       const n = alt ? await nextIgdb(alt.id, k, proxyUrl) : null;
       return n ? { ...n, source: "igdb-steam-gg" } : null;
     }
+    if (source === "hardcover") return nextHardcover(id, k, proxyUrl || "");
     if (source === "tmdb-movie") return nextTmdbMovie(id, k.tmdb || "");
     if (source === "anilist-anime") return nextAniList(id, "ANIME");
     if (source === "anilist-manga") return nextAniList(id, "MANGA");
@@ -1708,6 +1820,13 @@
     }),
     nyt: (k) => ({ url: "https://api.nytimes.com/svc/books/v3/lists/names.json?api-key=" + enc(k) }),
     tiingo: (k, proxy) => proxy && { url: proxy + "/tiingo-meta/SPY", init: { headers: { Authorization: "Token " + k } } },
+    // Hardcover's: who the token belongs to. A bad token is a GraphQL error
+    // inside an HTTP 200, so the check reads the body.
+    hardcover: (k, proxy) => proxy && {
+      url: proxy + "/hardcover?q=" + enc(JSON.stringify({ query: "{ me { username } }" })),
+      init: { headers: { Authorization: "Bearer " + String(k).trim().replace(/^bearer\s+/i, "") } },
+      graphql: true,
+    },
     // IGDB's check is the Twitch sign-in itself, so a working pair leaves a
     // token behind for the first search.
     igdb: (k, proxy, keys) => proxy && {
@@ -1740,6 +1859,9 @@
     if (refused || (res.ok && req.success && body && body.success === false)) {
       return { state: "bad", label: "Key refused", detail: "The service turned the key down" + (said ? ": " + String(said).slice(0, 160) : "") };
     }
+    if (req.graphql && res.ok && body && body.errors && body.errors.length) {
+      return { state: "bad", label: "Key refused", detail: "The service turned the key down: " + String(body.errors[0].message || "").slice(0, 160) };
+    }
     if (res.status === 429) return { state: "warn", label: "Limit reached", detail: "The key works, but its rate limit or quota is used up for now" };
     if (!res.ok) return { state: "down", label: "Error " + res.status, detail: "The service answered HTTP " + res.status + (said ? ": " + String(said).slice(0, 160) : "") };
     if (req.igdb && body && body.access_token) saveIgdbToken({ clientId: String(key).trim(), token: body.access_token, expiresAt: Date.now() + (+body.expires_in || 0) * 1000 });
@@ -1766,6 +1888,7 @@
       if (source === "jikan-anime") return searchJikan(title, "anime");
       if (source === "jikan-manga") return searchJikan(title, "manga");
       if (source === "googlebooks") return searchGoogleBooks(title, author);
+      if (source === "hardcover") return searchHardcover(title, author, keys, proxyUrl || "");
       if (source === "musicbrainz") return searchMusicBrainz(title);
       return [];
     },
@@ -1780,6 +1903,7 @@
       let rows = [];
       if (source === "rawg" || source === "rawg-steam-gg") rows = await discoverRawg(kind, k.rawg || "");
       else if (source === "igdb" || source === "igdb-steam-gg") rows = await discoverIgdb(kind, k, proxyUrl || "");
+      else if (source === "hardcover") rows = await discoverHardcover(kind, k, proxyUrl || "");
       else if (source === "tmdb-movie") rows = await discoverTmdb(kind, "movie", k.tmdb || "");
       else if (source === "tmdb-tv") rows = await discoverTmdb(kind, "tv", k.tmdb || "");
       else if (source === "anilist-anime") rows = await discoverAniList(kind, "ANIME");
@@ -1895,6 +2019,7 @@
     firstParagraph,
     rawgMeta,
     mapIgdbResult,
+    mapHardcoverBook,
     releaseFromIgdbHuman,
   };
 })();

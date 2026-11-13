@@ -45,7 +45,7 @@ event or anything else, by category.
 - `coverUrl`, `mediaId`, `mediaSource`, `length`, `genres` (up to 4): what a
   media lookup filled in (cover art, the source's id, how long it is).
 - `author`: optional, a book's author. A books lookup (Open Library, Google
-  Books) fills it in; the user can type one too.
+  Books, Hardcover) fills it in; the user can type one too.
 - `overrides`: values the user set by hand over a lookup's (`cover`,
   `length`, `author`). An author typed by hand has `author: true` here, and
   a lookup then neither replaces it nor ignores it: it searches with it.
@@ -101,7 +101,7 @@ Things to play, read, watch or do next.
   is a timeline entry, Paused and Dropped are `dropped`.
 - `hltb`, `reviews`: as on a timeline entry, for a Steam game.
 - Filled in by media lookups (`mediaSource` names the source: `rawg`,
-  `igdb`, `steam`, `tmdb-movie`…): `coverUrl`, `mediaId`, `mediaSource`,
+  `igdb`, `hardcover`, `steam`, `tmdb-movie`…): `coverUrl`, `mediaId`, `mediaSource`,
   `summary`, `releaseYear`, `externalRating`, `length`, `genres`.
 - Release dates, from lookups: `releaseDate`, `releasePrecision` (how exact
   the date is), `releaseStatus`, `nextAt` and `nextLabel` (the next episode

@@ -79,6 +79,13 @@
 //     Client-ID and the token's Authorization header pass through. Only
 //     the endpoints LifeLog reads are allowed.
 //
+//   GET /hardcover?q=<JSON body>
+//     -> POST https://api.hardcover.app/v1/graphql
+//     Hardcover's books API. Its docs say queries may not run in a browser,
+//     so they come through here. Your token stays in LifeLog's Settings and
+//     comes along as the Authorization header, passed through as
+//     SteamGridDB's is.
+//
 //   GET /augsteam-app/<appid>
 //     -> https://api.augmentedsteam.com/app/<appid>/v2
 //     A game's How Long to Beat times (and other bits) from Augmented
@@ -155,6 +162,12 @@ export default {
       const headers = { "Content-Type": "text/plain", Accept: "application/json" };
       for (const h of ["Client-ID", "Authorization"]) { const v = request.headers.get(h); if (v) headers[h] = v; }
       return proxyJson(`https://api.igdb.com/v4/${igdbMatch[1]}`, headers, "POST", (url.searchParams.get("q") || "").slice(0, 4000));
+    }
+
+    if (url.pathname === "/hardcover") {
+      const auth = request.headers.get("Authorization");
+      const headers = { "Content-Type": "application/json", "User-Agent": "LifeLog-proxy (+https://github.com/danielnoam/LifeLog)", ...(auth ? { Authorization: auth } : {}) };
+      return proxyJson("https://api.hardcover.app/v1/graphql", headers, "POST", (url.searchParams.get("q") || "").slice(0, 6000));
     }
 
     const augMatch = url.pathname.match(/^\/augsteam-app\/(\d{1,10})$/);

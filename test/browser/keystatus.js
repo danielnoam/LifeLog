@@ -51,10 +51,10 @@ async function run(b, viewport, name) {
   const status = await page.evaluate(() => Object.fromEntries([...document.querySelectorAll("[data-key-status]")]
     .map((n) => [n.dataset.keyStatus, n.hidden ? "" : n.className.replace("key-status key-", "") + ":" + n.textContent.trim()])));
   check(name + ": each key shows its own state", JSON.stringify(status) === JSON.stringify({
-    rawg: "down:No answer", tmdb: "ok:Working", ggdeals: "ok:Working", steamgriddb: "bad:Key refused", igdb: "warn:Needs the secret", googlePlaces: "", nyt: "warn:Limit reached", tiingo: "ok:Working",
+    rawg: "down:No answer", tmdb: "ok:Working", ggdeals: "ok:Working", steamgriddb: "bad:Key refused", igdb: "warn:Needs the secret", hardcover: "", googlePlaces: "", nyt: "warn:Limit reached", tiingo: "ok:Working",
   }), status);
   const links = await page.evaluate(() => [...document.querySelectorAll('.settings-page[data-page="media"] .sitem-stack .sitem-sub a')].map((a) => a.href));
-  check(name + ": every key's setup page is a link", links.length === 8 && links.every((h) => h.startsWith("https://")), links);
+  check(name + ": every key's setup page is a link", links.length === 9 && links.every((h) => h.startsWith("https://")), links);
   if (SHOTS) {
     await page.evaluate(() => document.querySelector('[data-key-status="rawg"]').closest(".sgroup").scrollIntoView({ block: "start" }));
     await page.waitForTimeout(300);
