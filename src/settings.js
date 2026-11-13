@@ -642,7 +642,7 @@
     tabs: "Show, hide and order tabs",
     keyboard: "Shortcuts",
     media: "Keys for covers and details",
-    imports: "Steam, AniList, Letterboxd and more",
+    imports: "Steam, AniList, Stremio, Waypage",
     releases: "Upcoming release checks",
   };
 

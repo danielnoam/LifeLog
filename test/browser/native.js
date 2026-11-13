@@ -1378,7 +1378,7 @@ async function openApp(browser, { native = true, latestTag = null, cache = doc([
     await page.waitForTimeout(300);
     await page.evaluate(() => document.querySelector('.srow[data-page="imports"]').click());
     await page.waitForTimeout(300);
-    check("the switch is on Imports, in the app", await page.evaluate(() => !document.querySelector("#paymentsGroup").hidden));
+    check("the switch is on Connections, in the app", await page.evaluate(() => !document.querySelector("#paymentsGroup").hidden));
     await page.selectOption("#paymentsOn", "on");
     await page.waitForTimeout(400);
     const on = await page.evaluate(() => ({ set: window.__cap.paymentsSet, asked: window.__cap.askedToNotify, opened: window.__cap.paymentAccessOpened,

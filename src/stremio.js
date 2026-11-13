@@ -352,7 +352,7 @@
     await sync();
   }
 
-  // ---------- Settings → Imports → Stremio ----------
+  // ---------- Settings → Connections → Stremio ----------
   const $ = (id) => document.getElementById(id);
   async function setSetting(field, value) {
     const st = S();
