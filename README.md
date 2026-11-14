@@ -30,7 +30,6 @@ files are the web app (GitHub Pages), the Android app and the iOS app
 - [Contributing](#contributing)
 - [Screenshots](#screenshots)
 
-Every screenshot is made-up demo data. Left is a computer, right a phone.
 
 ## Getting around
 
