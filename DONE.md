@@ -30,6 +30,7 @@ Every release that adds a feature adds its line here in the same commit.
 - One search across everything, with the tab's own filter kept (0.251.0); In progress is its own group (0.281.0); Timeline and Backlog results show their cover, status tags, and starred/bought icons (0.295.0)
 - Keyboard shortcuts: N to add, number keys for tabs, Shift+number for a second mode, / to search, ? for the list, from Settings too, whose hint shows only with a mouse (0.86.0, 0.127.0, 0.188.0, 0.301.0)
 - Settings → Keyboard: change, remove or reset any shortcut, a key per tab, synced (0.307.0)
+- Board tool keys (V, H, P, E, R, O, A, L, T, I) in Settings → Keyboard → Boards: change, remove or reset each, by the physical key so a Hebrew layout works; shown in each tool button's corner on a computer, listed under ? and in the tooltip
 - On a computer: F to search and Escape to stop, Tab opens and shuts Settings, holding Shift numbers the tabs, and the top bar's tabs carry their icons (0.306.0)
 - Lists update in place, move instead of jumping, and rows fade in and out (0.129.0 to 0.139.0)
 - Sheets fade and rise in, swipe down to close, and keep focus where it was (0.209.0, 0.222.0, 0.223.0)
@@ -156,7 +157,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Lists are the checklist: items tick, merge item by item between devices, reorder by long press (0.197.0, 0.122.0)
 - Drawing boards, as a kind of note (0.193.0, 0.194.0, 0.204.0)
 - Pictures on boards: Image button, paste or drop; moved, resized at their own shape, turned; kept with the notes' images and counted by Clean up; exported inside PNG and SVG (0.310.0)
-- Boards: copy, cut and paste a selection (Ctrl/Cmd + C, X, V and Copy / Paste buttons) through the system clipboard, across boards and apps; the drag box highlights what it covers live
+- Boards: copy, cut and paste a selection (Ctrl/Cmd + C, X, V and Copy / Paste buttons) through the system clipboard, across boards and apps; the drag box highlights what it covers live, and the box itself shows while you drag (mouse or touch)
 - Note categories, collections that open notes as pages, favourites (0.195.0, 0.204.0, 0.196.0)
 - Show, sort and type filters (0.195.0, 0.214.0)
 - Bulk select, and make a note into a timeline entry (0.142.0)

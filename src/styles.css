@@ -2735,6 +2735,7 @@ kbd {
 .shortcuts-list { margin: 0; display: flex; flex-direction: column; gap: 10px; }
 .shortcuts-list > div { display: flex; align-items: center; gap: 12px; }
 .shortcuts-list dt { flex: 0 0 auto; min-width: 44px; margin: 0; white-space: nowrap; }
+.shortcuts-list > .shortcuts-head { margin-top: var(--space-8); font-size: var(--fs-sm); font-weight: 600; color: var(--text-dim); }
 .shortcuts-list dd { margin: 0; color: var(--text-dim); font-size: var(--fs-md); }
 /* Settings → Keyboard (src/keys.js): each key a keycap you click to change,
    with its own × to turn it off. */
@@ -4411,6 +4412,12 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 }
 .board-tool:hover, .board-width:hover, .board-delete:hover, .board-fill:hover { background: var(--bg-elev-2); color: var(--text); }
 .board-tool.on { background: var(--accent-soft); color: var(--accent); }
+.board-tool { position: relative; }
+.board-tool-key {
+  position: absolute; right: 3px; bottom: 2px; font-size: var(--fs-3xs); font-weight: 600; line-height: 1;
+  color: var(--text-faint); pointer-events: none;
+}
+.board-tool.on .board-tool-key { color: var(--accent); }
 .board-swatch::before {
   content: ""; width: 20px; height: 20px; border-radius: 50%; background: var(--swatch);
   box-shadow: 0 0 0 1px var(--border-strong);

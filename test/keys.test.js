@@ -112,4 +112,41 @@ test("labels read as printed on the keys", () => {
   assert.strictEqual(K.label("Comma"), ",");
 });
 
+test("board tools keep their letters, by the physical key", () => {
+  settings = {};
+  const tool = (e) => K.matchBoard(e);
+  assert.strictEqual(tool(key("KeyV")), "select");
+  assert.strictEqual(tool(key("KeyP")), "pen");
+  assert.strictEqual(tool({ ...key("KeyP"), key: "פ" }), "pen", "a Hebrew layout still finds it");
+  assert.strictEqual(tool(key("KeyI")), "image");
+  assert.strictEqual(tool(key("KeyN")), null);
+  assert.strictEqual(tool(key("KeyP", { ctrl: true })), null);
+  assert.strictEqual(K.boardKeyLabel("ellipse"), "O");
+});
+
+test("a board tool only takes keys from other board tools", () => {
+  settings = {};
+  assert.deepStrictEqual(K.assign("board:pen", "KeyN"), [], "N for Add entry is elsewhere, so nothing moves");
+  assert.deepStrictEqual(K.keysFor("add"), ["KeyN"]);
+  assert.strictEqual(K.matchBoard(key("KeyN")), "pen");
+  assert.strictEqual(hit(key("KeyN")), "add", "outside a board N still adds");
+  assert.deepStrictEqual(K.assign("board:pen", "KeyE", "KeyP"), ["board:eraser"]);
+  assert.deepStrictEqual(K.keysFor("board:eraser"), []);
+  assert.deepStrictEqual(K.assign("search", "KeyV", "KeyF"), [], "an app key leaves board tools alone");
+  assert.deepStrictEqual(K.keysFor("board:select"), ["KeyV"]);
+  assert.ok(K.changedCount() >= 3);
+  K.resetAll();
+  assert.strictEqual(settings.keys, undefined);
+  assert.strictEqual(K.matchBoard(key("KeyE")), "eraser");
+});
+
+test("clean() keeps board tool keys", () => {
+  assert.deepStrictEqual(K.clean({ binds: { "board:pen": ["KeyB"], "board:nope": ["KeyQ"] } }), { binds: { "board:pen": ["KeyB"] } });
+});
+
+test("the board's own keys are fixed", () => {
+  for (const c of ["Space", "Delete", "Digit0", "Ctrl+KeyZ", "Ctrl+KeyA", "Escape"]) assert.ok(K.BOARD_FIXED[c], c);
+  for (const a of K.BOARD_ACTIONS) for (const c of a.defaults) assert.ok(!K.BOARD_FIXED[c], a.id);
+});
+
 console.log(`\n${passed} test(s) passed.`);

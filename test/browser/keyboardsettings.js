@@ -128,6 +128,29 @@ const SEED = {
   await page.waitForTimeout(200);
   check("a key with Alt is kept as Alt + R", (await page.textContent('[data-kb="noteMode"] .kb-key')) === "Alt + R");
 
+  // Board tools: their own group, sharing keys with the app but not each other.
+  const boardRows = await page.evaluate(() => [...document.querySelectorAll("#kbBoards .kb-row")].map((r) => r.dataset.kb));
+  check("every board tool has a row", boardRows.length === 10 && boardRows.includes("board:pen") && boardRows.includes("board:image"), boardRows);
+  await page.click('[data-kb="board:pen"] .kb-key');
+  await page.keyboard.press("n");
+  await page.waitForTimeout(200);
+  check("a board tool can share N with Add entry", (await page.textContent('[data-kb="board:pen"] .kb-key')) === "N" && (await page.textContent('[data-kb="add"] .kb-key')) === "N");
+  await page.click('[data-kb="board:pen"] .kb-key');
+  await page.keyboard.press("e");
+  await page.waitForTimeout(200);
+  const moved = await page.evaluate(() => [...document.querySelectorAll("#toastStack .toast, .toast")].map((t) => t.textContent).join(" "));
+  check("but takes E from the eraser", /E moved from Eraser/.test(moved) && await page.isVisible('[data-kb="board:eraser"] .kb-none'), moved);
+  await page.click('[data-kb="board:pen"] .kb-key');
+  await page.keyboard.press("Space");
+  await page.waitForTimeout(200);
+  const fixed = await page.textContent("#toast").catch(() => "");
+  check("a board's fixed key can't be given to a tool, and says why", /Space is a fixed key on boards/.test(fixed), fixed);
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(150);
+  check("so the tool keeps its key", (await page.textContent('[data-kb="board:pen"] .kb-key')) === "E");
+  await page.click("#kbResetAll");
+  await page.waitForTimeout(200);
+
   check("no page errors", errs.length === 0, errs);
   await browser.close();
   console.log(`\n${pass} passed, ${fail} failed`);

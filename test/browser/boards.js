@@ -135,6 +135,8 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
     await page.mouse.move(500, 500); await page.mouse.move(900, 700);
     const live = await page.evaluate(() => document.querySelectorAll("#boardSvg rect.board-sel:not(.board-sel-group)").length);
     check("items inside the drag box show as selected before the mouse is released", live === 5, live);
+    const box = await page.evaluate(() => { const r = document.querySelector("#boardSvg .board-box"); return r && r.getBoundingClientRect().toJSON(); });
+    check("the drag box itself shows, as big as the drag", !!box && Math.round(box.width) === 800 && Math.round(box.height) === 550, box);
     await page.mouse.up();
 
     // Copy, paste (offset, selected, one undo step), cut.
@@ -270,6 +272,23 @@ const GH = { owner: "someone", repo: "lifelog-data", path: "lifelog.json", branc
     await page.keyboard.press("Escape");
     await page.keyboard.press("0");
     check("0 fits the drawing", await page.evaluate(() => document.querySelector("#boardZoomBtn").textContent) !== "125%");
+
+    // Tool keys go by the physical key, and follow Settings → Keyboard.
+    await page.keyboard.press("p");
+    check("P picks the pen", await page.evaluate(() => document.querySelector("#boardSvg").dataset.tool) === "pen");
+    await page.evaluate(() => document.querySelector("#boardSvg").dispatchEvent(new KeyboardEvent("keydown", { key: "ר", code: "KeyR", bubbles: true })));
+    check("R on a Hebrew layout still picks the rectangle", await page.evaluate(() => document.querySelector("#boardSvg").dataset.tool) === "rect");
+    check("each tool's button names its key", await page.getAttribute('#boardTools [data-tool="ellipse"]', "title") === "Ellipse (O)");
+    await page.evaluate(() => window.LifeLogKeys.setKeys("board:pen", ["KeyB"]));
+    await page.keyboard.press("v");
+    await page.keyboard.press("b");
+    check("a key changed in Settings picks its tool", await page.evaluate(() => document.querySelector("#boardSvg").dataset.tool) === "pen");
+    check("the button shows the new key", await page.getAttribute('#boardTools [data-tool="pen"]', "title") === "Pen (B)");
+    check("and in its corner", await page.textContent('#boardTools [data-tool="pen"] .board-tool-key') === "B");
+    await page.keyboard.press("v");
+    await page.keyboard.press("p");
+    check("and the old key no longer does", await page.evaluate(() => document.querySelector("#boardSvg").dataset.tool) === "select");
+    await page.evaluate(() => window.LifeLogKeys.resetAll());
 
     await page.click('[data-tool="text"]');
     await page.mouse.click(420, 500);
