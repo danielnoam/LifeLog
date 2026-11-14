@@ -4462,20 +4462,9 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
   margin-bottom: 14px;
 }
-.note-kind-seg button {
-  border: 0; background: transparent; color: var(--text-dim); font: inherit; font-size: var(--fs-sm);
-  padding: 6px 12px; border-radius: var(--r-md); cursor: pointer; -webkit-tap-highlight-color: transparent;
-}
-.note-kind-seg button:hover { color: var(--text); }
-.note-kind-seg button.on { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 /* A type chip's glyph sits where a category chip's dot does. */
 .kind-chip .kind-ico { width: 12px; text-align: center; font-size: var(--fs-2xs); line-height: 1; opacity: .75; }
 .kind-chip.on .kind-ico { opacity: 1; }
-.note-kind-seg {
-  display: flex; padding: 4px; gap: 2px; border-radius: var(--r-lg); margin-bottom: 14px;
-  background: var(--bg); border: 1px solid var(--border);
-}
-.note-kind-seg button { flex: 1; }
 
 .note-cat {
   display: inline-flex; align-items: center; gap: 6px; margin-left: 8px;
@@ -4651,6 +4640,17 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
   background: var(--bg); border: 1px solid var(--border);
 }
 .nv-mode[hidden] { display: none; }
+/* A new note's sheet says which kind it is; an open note's is for screen readers. */
+.modal .nv-heading { margin: 0 0 0 var(--space-6); font-size: var(--fs-read); font-weight: 600; }
+.nv-fav.on { color: var(--priority); }
+/* A new board: a blank board, as Home's scratch board, that opens the editor. */
+.nv-board {
+  display: flex; align-items: center; justify-content: center; width: 100%; height: 360px; margin-top: var(--space-16);
+  border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--bg);
+  color: var(--text-dim); font: inherit; font-size: var(--fs-sm); cursor: pointer;
+}
+.nv-board:hover { border-color: var(--text-dim); }
+.nv-board[hidden] { display: none; }
 .nv-mode button {
   border: 0; background: transparent; color: var(--text-dim); font: inherit; font-size: var(--fs-sm);
   padding: var(--space-6) var(--space-12); border-radius: var(--r-md); cursor: pointer;
@@ -4696,10 +4696,6 @@ html.force-mobile .view-options-overlay[hidden] > .modal { translate: 0 100%; }
 }
 .nv-cat-static { cursor: default; padding-right: var(--space-10); }
 .nv-cat-static[hidden] { display: none; }
-#noteForm .note-kind-seg { margin: 0 0 var(--space-16); }
-#noteForm .note-kind-seg[hidden] { display: none; }
-.note-kind-seg button { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-6); }
-.note-kind-seg button .ico { width: 15px; height: 15px; }
 #noteForm .note-quote-fields { margin-top: var(--space-16); }
 .nv-text-label { display: block; margin: var(--space-16) 0 0; }
 .nv-text-label[hidden] { display: none; }
@@ -4747,18 +4743,14 @@ html.note-lines .nv-gutter { display: block; }
 .nv-menu-label { margin: 0; padding: var(--space-6) var(--space-10) var(--space-2); font-size: var(--fs-2xs); color: var(--text-dim); }
 .nv-menu-label[hidden], .nv-menu hr[hidden], .nv-menu button[hidden] { display: none; }
 .nv-menu hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-4) var(--space-2); }
-.nv-menu button, .nv-menu .note-kind-seg button {
+.nv-menu button {
   display: flex; width: 100%; gap: var(--space-10); align-items: center; justify-content: flex-start;
   border: 0; background: transparent; color: var(--text); font: inherit; font-size: var(--fs-sm); font-weight: 400;
   padding: var(--space-10); border-radius: var(--r-md); text-align: left; cursor: pointer; flex: none;
 }
 .nv-menu button:hover { background: var(--accent-soft); }
 .nv-menu button .ico { width: 16px; height: 16px; color: var(--text-dim); }
-.nv-menu .note-kind-seg { display: block; padding: 0; margin: 0; border: 0; background: none; }
-.nv-menu .note-kind-seg button.on { background: none; color: var(--accent); font-weight: 600; }
-.nv-menu .note-kind-seg button.on .ico { color: var(--accent); }
 .nv-menu .nv-menu-danger, .nv-menu .nv-menu-danger .ico { color: var(--danger); }
-.nv-menu .note-kind-seg button[hidden] { display: none; }
 /* Reading. */
 #noteReader .md { margin-top: var(--space-20); }
 html.note-text-small #noteReader .md { font-size: var(--fs-md); }
@@ -4783,8 +4775,6 @@ html.note-text-large #noteReader .md { font-size: var(--fs-xl); }
   .nv-mode-label { display: none; }
   .nv-mode button { padding: var(--space-8) var(--space-12); }
   .nv-menu { right: var(--space-12); }
-  #noteForm .note-kind-seg button { padding: 6px 4px; }
-  #noteForm .note-kind-seg button .ico { display: none; }
   .nv-editor, html.note-text-small .nv-editor { --nv-fs: var(--fs-lg); }
   html.note-text-large .nv-editor { --nv-fs: var(--fs-xl); }
   .nv-gutter { width: 2em; }
@@ -4798,8 +4788,6 @@ html.force-mobile .nv-scroll { padding: var(--space-16) var(--space-16) var(--sp
 html.force-mobile .nv-mode-label { display: none; }
 html.force-mobile .nv-mode button { padding: var(--space-8) var(--space-12); }
 html.force-mobile .nv-menu { right: var(--space-12); }
-html.force-mobile #noteForm .note-kind-seg button { padding: 6px 4px; }
-html.force-mobile #noteForm .note-kind-seg button .ico { display: none; }
 html.force-mobile .nv-editor, html.note-text-small.force-mobile .nv-editor { --nv-fs: var(--fs-lg); }
 html.note-text-large.force-mobile .nv-editor { --nv-fs: var(--fs-xl); }
 html.force-mobile .nv-gutter { width: 2em; }

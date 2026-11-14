@@ -4948,15 +4948,17 @@
     addMenu.querySelectorAll("button").forEach((b) => b.onclick = () => {
       closeAddMenu();
       if (b.dataset.add === "entry") Journal.openEntryModal(null);
-      else if (b.dataset.add === "note") Notes.openNoteModal(null);
+      else if (b.dataset.add === "note") Notes.openNoteModal(null, "text");
+      else if (b.dataset.add === "list" || b.dataset.add === "quote") Notes.openNoteModal(null, b.dataset.add);
       else if (b.dataset.add === "achievement") Journal.openAchModal(null);
       else if (b.dataset.add === "backlog") Backlog.openBacklogModal(null);
       else if (b.dataset.add === "habit") Habits.openHabitModal(null);
       else if (b.dataset.add === "board") {
-        VIEW_MODES.notes.set("notes");
-        state.noteKinds = new Set(["board"]);
-        if (state.view !== "notes") switchToView("notes"); else commitModeChange();
-        Boards.newBoard();
+        Notes.openNoteModal(null, "board", { after: () => {
+          VIEW_MODES.notes.set("notes");
+          state.noteKinds = new Set(["board"]);
+          if (state.view !== "notes") switchToView("notes"); else commitModeChange();
+        } });
       }
       else if (b.dataset.add === "finance") Finance.openFinanceModal(null);
       else if (b.dataset.add === "recurring") Finance.openRecurringModal(null);

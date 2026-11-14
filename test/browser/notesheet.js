@@ -29,8 +29,7 @@ async function run(b, width) {
   const at = " (" + width + "px)";
   const saved = () => page.evaluate(() => window.LifeLogStorage.cachedCopy());
   const open = async (kind) => {
-    await page.evaluate(() => window.LifeLogNotes.openNoteModal(null));
-    await page.click(`#noteKindSeg [data-kind="${kind}"]`);
+    await page.evaluate((k) => window.LifeLogNotes.openNoteModal(null, k), kind);
   };
   const save = async () => { await page.click("#cancelNoteBtn"); await page.waitForTimeout(300); };
   const shot = (name) => page.screenshot({ path: require("path").join(require("os").tmpdir(), "notesheet-" + name + "-" + width + ".png") });
@@ -123,10 +122,14 @@ async function run(b, width) {
   await page.evaluate(() => window.LifeLogNotes.openNote(window.LifeLogStorage.cachedCopy().notes.find((n) => n.title === "Idea")));
   check("Open a note in: Edit view opens the editor" + at, await page.evaluate(() => document.querySelector("#noteReader").hidden && !document.querySelector("#noteModal").hidden));
   await page.click("#noteMoreBtn");
-  check("the ⋯ menu holds the kind, Make entry and Delete" + at, await page.evaluate(() => {
+  check("the ⋯ menu holds Make entry and Delete, and no kind to switch to" + at, await page.evaluate(() => {
     const m = document.querySelector("#noteMoreMenu");
     const shown = (s) => { const e = m.querySelector(s); return !!e && e.getClientRects().length > 0; };
-    return !m.hidden && shown('[data-kind="quote"]') && !shown('[data-kind="board"]') && shown("#noteToEntryBtn") && shown("#deleteNoteBtn");
+    return !m.hidden && !m.querySelector("[data-kind]") && shown("#noteToEntryBtn") && shown("#deleteNoteBtn") && !shown("#noteFavBtn");
+  }));
+  check("the star sits beside ⋯" + at, await page.evaluate(() => {
+    const f = document.querySelector("#noteFavBtn"), m = document.querySelector("#noteMoreBtn");
+    return f.getClientRects().length > 0 && f.nextElementSibling === m && f.getBoundingClientRect().right <= m.getBoundingClientRect().left;
   }));
   await page.keyboard.press("Escape");
   check("Escape shuts the menu, not the note" + at, await page.evaluate(() => document.querySelector("#noteMoreMenu").hidden && !document.querySelector("#noteModal").hidden));
@@ -164,9 +167,9 @@ async function run(b, width) {
 
   await page.evaluate(() => window.LifeLogNotes.openNoteModal(null));
   await page.click("#noteMoreBtn");
-  check("a new note's ⋯ holds Add image, and no kind or Delete" + at, await page.evaluate(() => {
+  check("a new note's ⋯ holds Add image, and no Delete or star" + at, await page.evaluate(() => {
     const shown = (s) => { const e = document.querySelector(s); return !!e && e.getClientRects().length > 0; };
-    return shown("#noteMoreMenu #nAddImageBtn") && !shown("#noteKindMenuLabel") && !shown("#deleteNoteBtn") && !shown("#noteFoot");
+    return shown("#noteMoreMenu #nAddImageBtn") && !shown("#deleteNoteBtn") && !shown("#noteFoot") && !shown("#noteFavBtn");
   }));
   await page.keyboard.press("Escape");
   await page.click("#cancelNoteBtn");
