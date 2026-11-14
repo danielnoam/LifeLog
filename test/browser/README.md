@@ -13,6 +13,10 @@ means its area's suites plus the `always` list. A new suite goes into an
 area or `always` there, or `test/browseraffected.test.js` fails. Main and
 releases always run everything.
 
+CI splits the suites across eight shards balanced by `durations.json`, the
+seconds each took in CI (a suite not listed counts as 10). If one shard
+starts finishing well after the others, re-measure from a run's logs.
+
 `run-all.js` serves the repo on a free port and passes it down, so there is
 no port to remember and no stale server to collide with. Each suite runs as
 its own process: a crash takes that suite down rather than the run, and a

@@ -7,6 +7,7 @@
 //                                              second (CI runs eight at once)
 //   node test/browser/run-all.js --only=a,b    just these suites (a pull
 //                                              request's, from affected.js)
+//   node test/browser/run-all.js --list ...    which suites it would run
 //
 // Each suite is a child process: a crash takes that suite down and not the
 // run, and a suite left mid-run by a timeout can't poison the next one's
@@ -65,6 +66,25 @@ function runSuite(name, url) {
   });
 }
 
+// The shards are balanced by how long each suite took in CI (durations.json),
+// longest first onto the least-loaded shard, so one slow suite doesn't hold
+// the whole run up the way an every-eighth split did (native alone is over
+// three minutes).
+function inShard(names, which, count) {
+  let secs = {};
+  try { secs = JSON.parse(fs.readFileSync(path.join(HERE, "durations.json"), "utf8")); } catch (e) {}
+  const load = new Array(count).fill(0);
+  const mine = [];
+  const order = [...names].sort((a, b) => (secs[b] || 10) - (secs[a] || 10) || a.localeCompare(b));
+  for (const n of order) {
+    let i = 0;
+    for (let j = 1; j < count; j++) if (load[j] < load[i]) i = j;
+    load[i] += secs[n] || 10;
+    if (i === which - 1) mine.push(n);
+  }
+  return mine.sort();
+}
+
 (async () => {
   const args = process.argv.slice(2);
   const filter = args.find((a) => !a.startsWith("--"));
@@ -78,11 +98,12 @@ function runSuite(name, url) {
     const unknown = only.filter((n) => !all.includes(n));
     if (unknown.length) { console.error("No such suite: " + unknown.join(", ")); process.exit(2); }
   }
-  const suites = all
+  const picked = all
     .filter((n) => !filter || n.includes(filter))
     .filter((n) => !only || only.includes(n))
-    .sort()
-    .filter((n, i) => !shard || i % +shard[2] === +shard[1] - 1);
+    .sort();
+  const suites = shard ? inShard(picked, +shard[1], +shard[2]) : picked;
+  if (args.includes("--list")) { console.log(suites.join("\n")); return; }
 
   // A pull request's few suites leave some of the eight shards with nothing.
   if (!suites.length && (only || shard)) { console.log("No suites in this shard."); return; }
