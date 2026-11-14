@@ -3,7 +3,10 @@
 # wait on it, so a red test stops the APK, the IPA and the web app alike; and
 # it runs on every pull request, where its last job, "Tests", is the one check
 # main's ruleset requires before a merge (CONTRIBUTING.md). A pull request
-# that only changes Markdown skips the browser suites.
+# runs only the browser suites its files need (test/browser/affected.js and
+# areas.json; Markdown alone needs none). Everything else that calls this,
+# main's deploy, a release's builds and a hand run, runs every suite, so
+# nothing ships on the smaller set.
 name: Tests
 
 on:
@@ -22,23 +25,25 @@ jobs:
   scope:
     runs-on: ubuntu-latest
     outputs:
-      md: ${{ steps.scope.outputs.md }}
+      suites: ${{ steps.scope.outputs.suites }}
     steps:
       - uses: actions/checkout@v4
         if: github.event_name == 'pull_request'
         with:
           persist-credentials: false
           fetch-depth: 0
-      - name: Markdown only?
+      - name: Which browser suites?
         id: scope
         env:
           BASE: ${{ github.event.pull_request.base.sha }}
         run: |
-          if [ "$GITHUB_EVENT_NAME" = pull_request ] && ! git diff --name-only "$BASE" HEAD | grep -qv '\.md$'; then
-            echo "md=true" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            SUITES=$(git diff --name-only "$BASE" HEAD | node test/browser/affected.js)
           else
-            echo "md=false" >> "$GITHUB_OUTPUT"
+            SUITES=all
           fi
+          echo "Browser suites: $SUITES"
+          echo "suites=$SUITES" >> "$GITHUB_OUTPUT"
 
   unit:
     runs-on: ubuntu-latest
@@ -52,18 +57,18 @@ jobs:
       - run: node test/run-all.js
 
   # The browser suites one after another take most of half an hour, so they
-  # run as four shards side by side. Playwright isn't a dependency of the
+  # run as eight shards side by side (a public repo's minutes are free). Playwright isn't a dependency of the
   # project (test/browser/README.md); it's installed here without saving.
   # Pinned: ubuntu-latest moved to 26.04, which Playwright 1.56 can't
   # install Chromium on (2026-10-27). Move it on once Playwright supports it.
   browser:
     needs: scope
-    if: needs.scope.outputs.md != 'true'
+    if: needs.scope.outputs.suites != 'none'
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -75,13 +80,19 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/pw" --no-save playwright@1.56.1
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
-      - name: Browser suites, shard ${{ matrix.shard }} of 4
+      - name: Browser suites, shard ${{ matrix.shard }} of 8
         env:
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
-        run: node test/browser/run-all.js --shard=${{ matrix.shard }}/4
+          SUITES: ${{ needs.scope.outputs.suites }}
+        run: |
+          if [ "$SUITES" = all ]; then
+            node test/browser/run-all.js --shard=${{ matrix.shard }}/8
+          else
+            node test/browser/run-all.js --shard=${{ matrix.shard }}/8 --only="$SUITES"
+          fi
 
   # One check for the ruleset to require: green when the unit tests passed
-  # and the browser shards passed or were skipped as Markdown-only.
+  # and the browser shards passed or were skipped (no suite needed).
   tests:
     name: Tests
     needs: [scope, unit, browser]

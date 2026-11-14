@@ -178,8 +178,15 @@ headings.
 **How a change gets in:** `main` takes only pull requests. Push a branch
 (`fix/<what>`, `feature/<what>` or `docs/<what>`), open a PR, and merge it
 when the **Tests** check is green (`.github/workflows/tests.yml` runs the
-unit tests and the browser suites on every PR; a PR that only changes
-Markdown skips the browser suites). No review is required: anyone with
+unit tests on every PR, and the browser suites the PR's files need, in
+eight shards side by side). Which suites a file needs is in
+`test/browser/areas.json`: a shared file such as `src/app.js`,
+`src/styles.css` or `index.html`, or any file the map doesn't know, runs
+every suite; a feature file runs its area's suites plus a short list that
+always runs; Markdown, the bridge and unit tests run none. A new suite or
+`src/` file goes into that map (`test/browseraffected.test.js` fails until
+it does). A merge to `main` and every release run every suite before
+anything deploys, so the smaller set never ships on its own. No review is required: anyone with
 write access merges on green, and Daniel decides who has write access. If
 `main` moved, merge it into the branch rather than rebasing. Never
 force-push `main`.
