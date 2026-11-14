@@ -38,6 +38,7 @@ const SEED = {
 
   await page.click("#settingsBtn"); await page.waitForTimeout(300);
   await page.click('.srow[data-page="imports"]'); await page.waitForTimeout(300);
+  await page.click('.srow[data-page="conn-steam"]'); await page.waitForTimeout(300);
   check("the Connections page offers the played-games backfill", await page.isVisible("#steamOwnedSyncBtn"));
   check("the API key field shows the saved key without revealing it", (await page.inputValue("#steamApiKey")) === SEED.settings.steam.apiKey && (await page.getAttribute("#steamApiKey", "type")) === "password");
   await page.click("#steamOwnedSyncBtn");

@@ -51,6 +51,7 @@ const SEED = {
 
   await page.click("#settingsBtn"); await page.waitForTimeout(300);
   await page.click('.srow[data-page="imports"]'); await page.waitForTimeout(300);
+  await page.click('.srow[data-page="conn-letterboxd"]'); await page.waitForTimeout(300);
   check("the Connections page offers Letterboxd", await page.isVisible("#letterboxdImportBtn"));
   check("films default to the Films category", (await page.inputValue("#letterboxdCategory")) === "Films");
   await page.setInputFiles("#letterboxdImportInput", { name: "letterboxd-export.zip", mimeType: "application/zip", buffer: ZIP });

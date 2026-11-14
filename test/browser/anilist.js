@@ -88,6 +88,7 @@ const media = (id, title, extra) => ({ id, type: "ANIME", title: { romaji: title
   // The AniList sync: everything applied, only undated history to review.
   await page.click("#settingsBtn"); await page.waitForTimeout(300);
   await page.click('.srow[data-page="imports"]'); await page.waitForTimeout(300);
+  await page.click('.srow[data-page="conn-anilist"]'); await page.waitForTimeout(300);
   await page.click("#anilistSyncBtn");
   await page.waitForSelector("#financePickerModal:not([hidden])", { timeout: 8000 }); await page.waitForTimeout(300);
   check("one request asks for every status list, with the count and the time", asked.length === 1 && /status_in: \[PLANNING, CURRENT, COMPLETED, PAUSED, DROPPED\]/.test(asked[0]) && /progress updatedAt/.test(asked[0]), asked);
