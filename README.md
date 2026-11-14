@@ -25,10 +25,7 @@ files are the web app (GitHub Pages), the Android app and the iOS app
 - [Setup](#setup): [Run it](#run-it), [Where your data lives](#where-your-data-lives), [Use it on your phone](#use-it-on-your-phone), [Android](#the-android-app), [iOS](#the-ios-app), [Windows and Linux](#the-windows-and-linux-app)
 - [Media sources and keys](#media-sources-and-keys)
 - [The AI bridge](#the-ai-bridge)
-- [Project layout](#project-layout)
-- [Tests](#tests)
 - [Contributing](#contributing)
-- [Screenshots](#screenshots)
 
 
 ## Getting around
@@ -580,97 +577,11 @@ Its changes show in Settings → History tagged with the AI's name, and each
 can be undone. See [`bridge/README.md`](bridge/README.md) and
 [`bridge/DATA.md`](bridge/DATA.md).
 
-## Project layout
-
-```
-index.html          app shell and every sheet
-src/app.js          shell: state, tabs and modes, filters, shared helpers
-src/journal.js      Timeline: Log, Stats, the entry sheet, accomplishments
-src/backlog.js      Backlog: List, Next releases, Discover, the item sheet
-src/notes.js        Notes: the feed, the sheet, lists and quotes
-src/boards.js       drawing boards (boards.json)
-src/habits.js       Habits
-src/finance.js      Ledger: expenses, recurring bills, Summary
-src/travel.js       Travel: trips and places (travel.json)
-src/invest.js       The Ledger's Investments mode: watchlist and pins (investments.json)
-src/home.js         Home: in progress, coming up, the scratchpad and pinned notes
-src/recap.js        the yearly Recap
-src/search.js       one search across everything
-src/media.js        cover art and metadata from the media sources
-src/sync.js         Steam import, the two-way AniList sync, GG.deals prices, release re-checks
-src/letterboxd.js   the Letterboxd import
-src/stremio.js      the Stremio sync, read only
-src/io.js           JSON/CSV import and export, and the shared review screen
-src/docimport.js    PDF and EPUB read as text, for notes
-src/markdown.js     Markdown for notes in a collection
-src/images.js       images in notes: shrunk, kept on the device, synced
-src/jobs.js         Activity: the work that takes a while
-src/share.js        what other apps share into LifeLog
-src/storage.js      persistence: GitHub, local file, IndexedDB
-src/merge.js        the three-way merge between devices
-src/reconcile.js    keyed list updates in place
-src/settings.js     the Settings sheet
-src/alerts.js       charge and release-day notifications
-src/reminders.js    habit reminder times, kept on the phone
-src/payments.js     Google Wallet payments offered to the Ledger (Android)
-src/widgets.js      the home-screen widgets, from the app's side
-src/headless.js     Android's background refresh
-src/platform.js     browser, phone or computer app, and native HTTP
-src/desktop.js      the Windows and Linux app: tray, reminders, updates
-src/dates.js        where a week starts and how a date is written
-src/datefield.js    every date box drawn in that format
-src/icons.js        the Lucide icon map
-src/select.js       the app's own dropdown list for every <select>
-src/errlog.js       the errors this device has hit
-src/qr.js, wheel.js QR codes for setup links; the Spin wheel
-src/vendor/         Leaflet (maps), rough.js and the Virgil font (boards)
-src/styles.css      every style and the four themes
-native/             Android and iOS widgets, reminders, share extension
-src-tauri/          the Windows and Linux app's shell (Tauri)
-bridge/             the AI bridge: MCP server, command line, data guide
-proxy/              optional Cloudflare Worker: CORS proxy for Steam
-tools/              native build helpers, release.js and test-build.sh, and readme-shots.js
-docs/screenshots/   the README's screenshots
-test/               zero-dependency tests: node test/run-all.js
-server.js, start.cmd tiny static server
-manifest.json, sw.js PWA manifest and service worker
-DESIGN.md           the design language; read before UI work
-.claude/skills/     how to build (lifelog-design), check (lifelog-ui-audit)
-                    and ship (release-checklist) a change
-CONTRIBUTING.md     how to work on LifeLog: the rules, pull requests, releases
-changes/            each pull request's changelog lines until the next release
-DONE.md             every feature, by area, with the version it came in
-NOTES.md            why things are the way they are, up to 2026-11-02
-DROPPED.md          decided against, and why
-CHANGELOG.md        every release, in user-facing words
-```
-
-## Tests
-
-```bash
-node test/run-all.js            # unit tests, plain Node assert
-node test/browser/run-all.js    # browser suites, needs Playwright
-```
-
-The unit tests cover the data logic: sanitizers, the merge, release dates,
-finance maths, sync passes and the media layer against a stubbed `fetch`.
-The browser suites ([`test/browser/README.md`](test/browser/README.md))
-drive the real app in Chromium. CI runs both through
-`.github/workflows/tests.yml` on every pull request, and the Android, iOS
-and Pages workflows wait on it: a failing test publishes nothing.
-
 ## Contributing
 
 `main` takes only pull requests, merged once the Tests check is green.
 Only a release bumps the version: `node tools/release.js x.y.z` folds the
 notes each pull request left in `changes/` into CHANGELOG.md. The rules,
 the release steps and test builds are in [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-## Screenshots
-
-`node tools/readme-shots.js` takes every screenshot in this README from
-made-up demo data, at 1280×800 and at phone size, into `docs/screenshots/`.
-`node tools/readme-shots.js backlog` takes only the shots whose name holds
-"backlog". It needs Playwright, like the browser suites, and blocks every
-request off the machine. A new feature with something to see gets a shot
-here: add it to `SHOTS` in the script, with demo data that shows it.
+Where the code lives, how to run the tests and how the screenshots here
+are taken are in [`ARCHITECTURE.md`](ARCHITECTURE.md).

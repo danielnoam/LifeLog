@@ -38,7 +38,7 @@ test("the bundle is the offline cache's list and nothing else", () => {
 });
 
 test("your data file, the tests and the docs never ship inside the app", () => {
-  for (const f of ["lifelog.json", "NOTES.md", "sw.js", "server.js"]) {
+  for (const f of ["lifelog.json", "ARCHITECTURE.md", "sw.js", "server.js"]) {
     assert.ok(!shipped.includes(f), f + " was bundled");
   }
   assert.ok(!shipped.some((f) => f.startsWith("test/") || f.startsWith("tools/")), "test/ or tools/ was bundled");

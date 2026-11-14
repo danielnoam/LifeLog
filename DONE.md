@@ -3,8 +3,8 @@
 What LifeLog does today, grouped by area, one line per feature with the
 version it came in (or was last reshaped in). Built from CHANGELOG.md on
 2026-10-17; features that were later removed are left out. CHANGELOG.md has
-the details of each release, NOTES.md the reasoning up to 2026-11-02 (pull
-requests since), the to-do list what's left,
+the details of each release, commit messages and pull requests the
+reasoning, the to-do list what's left,
 DROPPED.md what was turned down.
 
 Every release that adds a feature adds its line here in the same commit.
