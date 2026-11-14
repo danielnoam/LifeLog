@@ -5102,6 +5102,15 @@ html.home-dragging .home.can-arrange .home-sec:not(.is-pushed):hover::before { c
 .home-ledger-amt { color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .home-ledger-top + .home-day { border-top: 1px solid var(--border); padding-top: var(--space-10); }
 .home-ledger-none { padding: 0 var(--space-14) var(--space-12); }
+.home-invest-none { padding: var(--space-14) var(--space-14) var(--space-4); }
+.home-invest-gain { display: flex; align-items: center; gap: var(--space-6); font-size: var(--fs-sm); margin-top: var(--space-2); font-variant-numeric: tabular-nums; }
+.home-invest-gain .ico { width: 16px; height: 16px; flex: 0 0 auto; }
+.home-ledger-top + .home-invest-row { border-top: 1px solid var(--border); }
+.home-invest-row .invest-spark { flex: 0 0 auto; width: 64px; height: 24px; }
+.home-invest-end { display: flex; flex-direction: column; align-items: flex-end; min-width: 72px; font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+.home-invest-end b { font-size: var(--fs-sm); color: var(--text); }
+.home-invest-hit { margin-left: var(--space-8); padding: 0 var(--space-6); border-radius: var(--r-pill); background: color-mix(in srgb, var(--success) 15%, transparent); color: var(--success); font-style: normal; font-size: var(--fs-xs); font-weight: 600; }
+.home-invest-closed { font-size: var(--fs-xs); color: var(--text-dim); }
 
 /* Note / Board (src/home.js modeSwitch), at the start of the scratchpad's
    foot; "Saved" moved up into the head in its place. */

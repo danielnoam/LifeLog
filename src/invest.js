@@ -331,6 +331,7 @@
     if (changedSince) scheduleSave(800);
   }
   const isOpen = () => state.view === "finance" && state.financeMode === "invest";
+  const onHome = () => state.view === "home";
 
   // ---------- this device's view: range and the ticker shown ----------
   const UI_KEY = "lifelog-invest-ui";
@@ -441,7 +442,7 @@
       for (const w of [...watchlist()]) {
         const got = await refresh(w.symbol);
         if (got) any = true;
-        if (got && isOpen()) render({ keepSnapshots: true });
+        if (got && (isOpen() || onHome())) render({ keepSnapshots: true });
       }
     } finally { refreshingAll = false; }
     if (!any && isOpen() && watchlist().some((w) => lastProblem.has(w.symbol))) render({ keepSnapshots: true });
@@ -1492,6 +1493,20 @@
     setUi({ selected: w ? w.id : id });
   }
 
+  // ---------- Home's Investments section (home.js draws it) ----------
+  // The widget's numbers, from what's loaded; null while the watchlist and
+  // prices load, with a repaint of Home once they have.
+  function homeGlance() {
+    if (doc && prices) return { ...widgetOf(watchlist(), prices) || { hold: null, rows: [], closed: "" }, count: watchlist().length, blocked: blocker() };
+    Promise.all([ensureLoaded(), loadPrices()]).then(() => { if (onHome()) render({ keepSnapshots: true }); }).catch(() => {});
+    return null;
+  }
+  const homeSpark = (row) => sparkline(row.spark.map((v, i) => [i, v]), row.sparkUp);
+  function openTicker(id) {
+    if (id) select(id);
+    if (openInvest) openInvest();
+  }
+
   async function addTicker() { await ensureLoaded(); openWatchModal(null); }
 
   function wire() {
@@ -1516,7 +1531,7 @@
   const api = {
     init, wire, renderInvest, buildRangeFilter, ensureLoaded, flush, addTicker,
     openWatchModal, closeWatchModal, openPinModal, closePinModal, openBuyModal, closeBuyModal,
-    checkTargets, select, widgetSnapshot,
+    checkTargets, select, widgetSnapshot, homeGlance, homeSpark, openTicker,
     // pure, for tests and the bridge
     sanitizeWatch, sanitizePin, sanitizeBuy, sanitizeDoc, cleanSymbol, cleanPrice, cleanUnits,
     holdingOf, compareDays, unitsText, signedUsd, widgetOf,

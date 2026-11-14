@@ -55,9 +55,10 @@ you were). What you're in the middle of as covers; Coming up for the next
 two weeks, with releases and new episodes known to the day, recurring
 charges and the habits still left; a scratchpad that syncs, with Save to Notebook
 to keep what's in it, or switched to Board to sketch on a board instead
-(Save to Notebook files it as a board); the notes you pin from a note's ⋯ menu; and
+(Save to Notebook files it as a board); the notes you pin from a note's ⋯ menu;
 a Ledger card with this month's spending so far against last month by the same
-day, where it went and your latest expenses. On a computer you arrange it
+day, where it went and your latest expenses; and an Investments card with what
+you hold, the gain since you bought and each ticker's month and day. On a computer you arrange it
 in floors: drag a section by its heading into a floor to share its width
 (a full floor moves its last section down), or between floors to start a
 new one. A phone shows the floors one under the other. View hides

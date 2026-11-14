@@ -48,14 +48,14 @@ const SEED = {
   check("a fresh start opens on Home, not the last tab", (await active()) === "home", await active());
   check("Home has no filter chips", await page.isHidden("#filterbar"));
   const heads = await page.evaluate(() => [...document.querySelectorAll(".home-sec-head h2")].map((h) => h.textContent.trim()));
-  check("its sections, in the default order", JSON.stringify(heads) === JSON.stringify(["In progress", "Coming up", "Scratchpad", "Pinned notes", "Ledger"]), heads);
+  check("its sections, in the default order", JSON.stringify(heads) === JSON.stringify(["In progress", "Coming up", "Scratchpad", "Pinned notes", "Ledger", "Investments"]), heads);
   const row = await page.evaluate(() => {
     const floors = [...document.querySelectorAll(".home-floor")].map((f) => [...f.children].map((c) => c.dataset.sec));
     const tops = [".home-upcoming", ".home-scratch", ".home-pinned", ".home-ledger"].map((s) => Math.round(document.querySelector(s).getBoundingClientRect().top));
     return { floors, tops };
   });
   // Four halves in a row go two by two, not three and a lone one.
-  check("Coming up, Scratchpad, Pinned notes and Ledger sit two by two on a computer", JSON.stringify(row.floors) === JSON.stringify([["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"]])
+  check("Coming up, Scratchpad, Pinned notes and Ledger sit two by two on a computer", JSON.stringify(row.floors) === JSON.stringify([["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"], ["invest"]])
     && row.tops[0] === row.tops[1] && row.tops[2] === row.tops[3] && row.tops[2] > row.tops[0], row);
   const ledger = await page.evaluate(() => ({ total: (document.querySelector(".home-ledger-total") || {}).textContent || "", text: document.querySelector(".home-ledger").textContent }));
   check("the Ledger card shows this month so far, and says when nothing's been spent yet", /\d/.test(ledger.total) && ledger.text.includes("No expenses yet this month") && ledger.text.includes("Add expense"), ledger);
@@ -96,16 +96,17 @@ const SEED = {
 
   // ---- the View sheet ----
   await page.click("#viewOptionsBtn"); await page.waitForTimeout(300);
-  check("View lists the five sections", (await page.$$("#homeSectionRows .home-sec-row")).length === 5);
+  check("View lists the six sections", (await page.$$("#homeSectionRows .home-sec-row")).length === 6);
   await page.click('#homeSectionRows .home-sec-row:has-text("Pinned notes") [aria-label="Move Pinned notes up"]'); await page.waitForTimeout(200);
   await page.click('#homeSectionRows [aria-label="Show In progress"]'); await page.waitForTimeout(200);
   await page.click('#homeSectionRows [aria-label="Show Ledger"]'); await page.waitForTimeout(200);
+  await page.click('#homeSectionRows [aria-label="Show Investments"]'); await page.waitForTimeout(200);
   await page.click("#closeViewOptionsBtn"); await page.waitForTimeout(300);
   const floorsNow = () => page.evaluate(() => [...document.querySelectorAll(".home-floor")].map((f) => [...f.children].map((c) => c.dataset.sec)));
   const after = await floorsNow();
-  check("moving Pinned notes up swaps it with Scratchpad, and hiding In progress and Ledger leaves their floors", JSON.stringify(after) === JSON.stringify([["upcoming", "pinned"], ["scratchpad"]]), after);
+  check("moving Pinned notes up swaps it with Scratchpad, and hiding In progress, Ledger and Investments leaves their floors", JSON.stringify(after) === JSON.stringify([["upcoming", "pinned"], ["scratchpad"]]), after);
   let vis = await page.evaluate(() => JSON.parse(localStorage.getItem("lifelog-visual-settings-v1")));
-  check("and is kept for this device", JSON.stringify(vis.homeFloors) === JSON.stringify([["upcoming", "pinned"], ["scratchpad"]]) && vis.homeHidden.join() === "progress,ledger", vis);
+  check("and is kept for this device", JSON.stringify(vis.homeFloors) === JSON.stringify([["upcoming", "pinned"], ["scratchpad"]]) && vis.homeHidden.join() === "progress,ledger,invest", vis);
 
   // ---- arranging by dragging a heading ----
   const dragHead = async (from, to) => {
@@ -149,7 +150,7 @@ const SEED = {
   await page.click("#viewOptionsBtn"); await page.waitForTimeout(300);
   await page.click("#homeResetLayoutBtn"); await page.waitForTimeout(300);
   await page.click("#closeViewOptionsBtn"); await page.waitForTimeout(300);
-  check("Reset layout brings back the default floors and every section", JSON.stringify(await floorsNow()) === JSON.stringify([["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"]]), await floorsNow());
+  check("Reset layout brings back the default floors and every section", JSON.stringify(await floorsNow()) === JSON.stringify([["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"], ["invest"]]), await floorsNow());
 
   // ---- the scratchpad as a board ----
   const padH = await page.evaluate(() => document.querySelector(".home-scratch .home-card").offsetHeight);

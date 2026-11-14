@@ -23,6 +23,7 @@
     ["scratchpad", "Scratchpad", "notebook-pen", true],
     ["pinned", "Pinned notes", "pin", true],
     ["ledger", "Ledger", "receipt", true],
+    ["invest", "Investments", "trending-up", true],
   ];
   const SECTION_IDS = SECTIONS.map(([id]) => id);
   const DAYS_AHEAD = 14;
@@ -50,7 +51,9 @@
   // The rows the old section order made, before floors: halves next to each other
   // shared a row, two or three across.
   const HALVES = new Set(SECTIONS.filter((s) => s[3]).map(([id]) => id));
+  const BEFORE_FLOORS = ["progress", "upcoming", "scratchpad", "pinned", "ledger"];
   function legacyFloors(order) {
+    order = order.filter((id) => BEFORE_FLOORS.includes(id));
     const out = [];
     for (let i = 0; i < order.length;) {
       let j = i;
@@ -62,7 +65,8 @@
     }
     return out;
   }
-  const DEFAULT_FLOORS = legacyFloors(SECTION_IDS);
+  // Sections added since floors (Investments) start on a floor of their own at the bottom.
+  const DEFAULT_FLOORS = legacyFloors(SECTION_IDS).concat(SECTION_IDS.filter((id) => !BEFORE_FLOORS.includes(id)).map((id) => [id]));
 
   // The floors a device keeps, cleaned: hidden and unknown sections go, as
   // do floors left empty, and a section added since (or shown again) gets a
@@ -624,7 +628,70 @@
     return sec;
   }
 
-  const BUILD = { progress: progressSection, upcoming: upcomingSection, scratchpad: scratchpadSection, pinned: pinnedSection, ledger: ledgerSection };
+  // What you hold and how it did, then each ticker as on the widget: a
+  // month's sparkline, its close and the day's move. The numbers are
+  // invest.js's own (the widget's), so the two never disagree.
+  const INVEST_ROWS = 5;
+  function investSection() {
+    const I = window.LifeLogInvest;
+    const sec = el("section", "home-sec home-invest");
+    const toMode = modeEnabled("finance", "invest") && viewEnabled("finance");
+    sec.appendChild(sectionHead("invest", toMode ? { label: "Investments", run: () => I.openTicker(null) } : null));
+    const card = el("div", "home-card");
+    sec.appendChild(card);
+    const g = I && I.homeGlance();
+    if (!g) { card.appendChild(el("p", "home-empty home-invest-none", "Loading your watchlist…")); return sec; }
+    const addBtn = () => {
+      const add = el("button", "btn btn-small");
+      add.type = "button";
+      add.append(ico("plus"), document.createTextNode(" Add ticker"));
+      add.onclick = () => I.addTicker();
+      return add;
+    };
+    if (!g.count) {
+      card.appendChild(el("p", "home-empty home-invest-none", "Nothing on your watchlist yet."));
+      const foot = el("div", "home-pad-foot");
+      foot.append(el("span", "spacer"), addBtn());
+      card.appendChild(foot);
+      return sec;
+    }
+    if (g.hold) {
+      const top = el("div", "home-ledger-top");
+      top.appendChild(el("p", "home-ledger-label", "You hold"));
+      top.appendChild(el("p", "home-ledger-total", g.hold.value));
+      const gain = el("p", "home-invest-gain " + (g.hold.up ? "invest-up" : "invest-down"));
+      gain.appendChild(ico(g.hold.up ? "trending-up" : "trending-down"));
+      gain.appendChild(document.createTextNode(g.hold.gain + " since you bought"));
+      top.appendChild(gain);
+      if (g.hold.today) top.appendChild(el("p", "home-ledger-of", g.hold.today + (g.hold.todayPct ? " (" + g.hold.todayPct.replace(" today", "") + ")" : "")));
+      card.appendChild(top);
+    }
+    for (const r of g.rows.slice(0, INVEST_ROWS)) {
+      const row = el("button", "home-row home-invest-row");
+      row.type = "button";
+      const text = el("span", "home-row-text");
+      const title = el("span", "home-row-title", r.symbol);
+      if (r.hit) title.appendChild(el("i", "home-invest-hit", "At target"));
+      text.appendChild(title);
+      text.appendChild(el("span", "home-row-sub", r.sub));
+      row.appendChild(text);
+      row.appendChild(I.homeSpark(r));
+      const end = el("span", "home-invest-end");
+      end.appendChild(el("b", null, r.price));
+      if (r.day) end.appendChild(el("span", r.up ? "invest-up" : "invest-down", r.day));
+      row.appendChild(end);
+      row.onclick = () => I.openTicker(r.id);
+      card.appendChild(row);
+    }
+    const foot = el("div", "home-pad-foot");
+    foot.appendChild(el("span", "home-invest-closed", g.blocked === "key" ? "Add a Tiingo key for prices" : g.count > INVEST_ROWS ? `${g.count - INVEST_ROWS} more · ${g.closed}` : g.closed));
+    foot.appendChild(el("span", "spacer"));
+    foot.appendChild(addBtn());
+    card.appendChild(foot);
+    return sec;
+  }
+
+  const BUILD = { progress: progressSection, upcoming: upcomingSection, scratchpad: scratchpadSection, pinned: pinnedSection, ledger: ledgerSection, invest: investSection };
 
   function renderHome(root) {
     if (drag) endDrag();

@@ -16,19 +16,20 @@ const at = (n) => Finance.addDaysStr(today, n);
 const deps = { Backlog, Finance, Habits };
 
 test("a saved section order keeps what it knows and adds what's new at the end", () => {
-  assert.deepStrictEqual(Home.sectionOrder(undefined), ["progress", "upcoming", "scratchpad", "pinned", "ledger"]);
-  assert.deepStrictEqual(Home.sectionOrder(["pinned", "nope", "progress", "pinned"]), ["pinned", "progress", "upcoming", "scratchpad", "ledger"]);
+  assert.deepStrictEqual(Home.sectionOrder(undefined), ["progress", "upcoming", "scratchpad", "pinned", "ledger", "invest"]);
+  assert.deepStrictEqual(Home.sectionOrder(["pinned", "nope", "progress", "pinned"]), ["pinned", "progress", "upcoming", "scratchpad", "ledger", "invest"]);
 });
 
 test("floors: the old order turns into the rows it made, halves two or three across", () => {
-  assert.deepStrictEqual(Home.DEFAULT_FLOORS, [["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"]]);
-  assert.deepStrictEqual(Home.floorLayout(undefined, { order: ["pinned", "progress", "upcoming", "scratchpad"], hidden: ["progress"] }),
-    [["pinned", "upcoming"], ["scratchpad", "ledger"]]);
+  assert.deepStrictEqual(Home.DEFAULT_FLOORS, [["progress"], ["upcoming", "scratchpad"], ["pinned", "ledger"], ["invest"]]);
+  // Investments came after floors: it never joins an old row, it gets its own at the bottom.
+  assert.deepStrictEqual(Home.floorLayout(undefined, { order: ["pinned", "invest", "progress", "upcoming", "scratchpad"], hidden: ["progress"] }),
+    [["pinned", "upcoming"], ["scratchpad", "ledger"], ["invest"]]);
 });
 
 test("floors: saved floors lose hidden, unknown and repeated sections and empty floors, and gain new ones at the bottom", () => {
   assert.deepStrictEqual(Home.floorLayout([["ledger", "nope"], [], ["progress", "ledger"], "x", ["pinned"]], { hidden: ["pinned"] }),
-    [["ledger"], ["progress"], ["upcoming"], ["scratchpad"]]);
+    [["ledger"], ["progress"], ["upcoming"], ["scratchpad"], ["invest"]]);
 });
 
 test("floors: dropping into a floor with room, into a full one, and between floors", () => {
