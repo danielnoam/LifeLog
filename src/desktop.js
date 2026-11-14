@@ -189,15 +189,19 @@
   }
 
   // ---------- updating ----------
-  // Resolves true once the new version is installed and the app restarts,
-  // false when Tauri's updater has nothing for this copy (the release has no
-  // signed update files yet, or this is a .deb), so the caller can send you
-  // to the release page instead.
-  async function installUpdate(onProgress) {
+  // Two steps, so the bar says "Downloading" only when there is something to
+  // download. findUpdate resolves Tauri's update, or null when the updater has
+  // nothing for this copy (the release has no signed update files, so no
+  // latest.json, or this is a .deb, or the check itself failed): the caller
+  // then sends you to the release page. installUpdate resolves true once the
+  // new version is installed and the app restarts.
+  async function findUpdate() {
     const U = T() && T().updater;
-    if (!U) return false;
-    let update = null;
-    try { update = await U.check(); } catch (e) { return false; }
+    if (!U) return null;
+    try { return (await U.check()) || null; } catch (e) { return null; }
+  }
+  async function installUpdate(onProgress, found) {
+    const update = found || await findUpdate();
     if (!update) return false;
     let total = 0, got = 0;
     await update.downloadAndInstall((e) => {
@@ -223,7 +227,7 @@
   window.LifeLogDesktop = {
     available: () => !!T(),
     notifier, start, tick, dueNow, notifyId,
-    startsAtLogin, setStartsAtLogin, installUpdate,
+    startsAtLogin, setStartsAtLogin, findUpdate, installUpdate,
     prefs, setPref, FIRED_KEY, PREFS_KEY,
   };
 })();
