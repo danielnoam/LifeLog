@@ -168,7 +168,7 @@
   // with nothing known is remembered on this device for two weeks so it
   // isn't asked on every launch, and one whose lookup failed waits a day
   // (0.282.3), so a game the route keeps failing on can't hold the same
-  // forty in front of every launch. Settings → Imports turns it off.
+  // forty in front of every launch. Settings → Connections turns it off.
   const GAME_TIMES_KEY = "lifelog-gametimes-v1";
   const GAME_TIMES_MISS_DAYS = 14, GAME_TIMES_FAIL_DAYS = 1, GAME_TIMES_PER_RUN = 40;
   const dayMs = 24 * 60 * 60 * 1000;
@@ -977,7 +977,7 @@
     if (count) window.LifeLogIcons.setLabel(btn, "gamepad-2", `Backfill missing game info (${count})`);
   }
 
-  // A quiet periodic check, paced by Settings → Imports → "Check
+  // A quiet periodic check, paced by Settings → Connections → "Check
   // automatically" (days between checks; 0 = never runs). Only counts how
   // many wishlist games aren't in the backlog/Journal yet and toasts that
   // count — never opens the review picker or adds anything on its own, and
@@ -1009,7 +1009,7 @@
         );
         const newCount = items.filter((it) => !existingSteamIds.has(String(it.appid))).length;
         if (newCount > 0) {
-          toast(`${newCount} new Steam wishlist game${newCount === 1 ? "" : "s"} — Settings → Imports to sync`);
+          toast(`${newCount} new Steam wishlist game${newCount === 1 ? "" : "s"} — Settings → Connections to sync`);
         }
         job.finish(newCount ? `${newCount} new on your wishlist` : "Nothing new on your wishlist");
       });
@@ -1604,7 +1604,7 @@
     await persist();
   }
 
-  // Settings → Imports → AniList → Sync automatically: "open" (every time
+  // Settings → Connections → AniList → Sync automatically: "open" (every time
   // the app opens or comes back, ANILIST_OPEN_GAP apart at most), days
   // between syncs, or "0" for never. Per device, like the other checks.
   function aniListDue(setting, lastAt, now = Date.now()) {

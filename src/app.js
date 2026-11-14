@@ -4983,7 +4983,7 @@
     Backlog.wire(); // backlog modal: sync, priority/dropped, title suggestions
     Wheel.wire(); // the random wheel inside the Backlog's Pick sheet
     SettingsUI.wire(); // the Settings modal: tabs, data/storage, appearance, media, privacy
-    Waypage.wire(); // its group on Settings → Imports
+    Waypage.wire(); // its group on Settings → Connections
 
     $("#exportJsonBtn").onclick = IO.exportJson;
     $("#importJsonBtn").onclick = () => $("#importJsonInput").click();

@@ -1,4 +1,4 @@
-// Steam played-games backfill (0.253.0): with a key set, the Imports button
+// Steam played-games backfill (0.253.0): with a key set, the Connections button
 // reads GetOwnedGames through the proxy and opens the import review with
 // every played game as a Timeline entry, the long ones ticked. Confirming
 // writes entries with the Steam link, the hours and the month last played.
@@ -38,7 +38,7 @@ const SEED = {
 
   await page.click("#settingsBtn"); await page.waitForTimeout(300);
   await page.click('.srow[data-page="imports"]'); await page.waitForTimeout(300);
-  check("the Imports page offers the played-games backfill", await page.isVisible("#steamOwnedSyncBtn"));
+  check("the Connections page offers the played-games backfill", await page.isVisible("#steamOwnedSyncBtn"));
   check("the API key field shows the saved key without revealing it", (await page.inputValue("#steamApiKey")) === SEED.settings.steam.apiKey && (await page.getAttribute("#steamApiKey", "type")) === "password");
   await page.click("#steamOwnedSyncBtn");
   await page.waitForSelector("#financePickerModal:not([hidden])", { timeout: 8000 });

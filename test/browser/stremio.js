@@ -65,7 +65,7 @@ const TMDB = {
 
   await page.click("#settingsBtn"); await page.waitForTimeout(300);
   await page.click('.srow[data-page="imports"]'); await page.waitForTimeout(300);
-  check("the Imports page offers Stremio, signed out", await page.isVisible("#stremioSignInBtn") && /Not signed in/.test(await page.textContent("#stremioState")));
+  check("the Connections page offers Stremio, signed out", await page.isVisible("#stremioSignInBtn") && /Not signed in/.test(await page.textContent("#stremioState")));
   await page.fill("#stremioEmail", "me@example.com");
   await page.fill("#stremioPassword", "wrong");
   await page.click("#stremioSignInBtn"); await page.waitForTimeout(400);

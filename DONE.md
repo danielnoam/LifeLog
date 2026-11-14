@@ -121,7 +121,7 @@ Every release that adds a feature adds its line here in the same commit.
 - Re-checked again on the day an episode or a release is due, and the day after (0.271.0)
 - Source choices and API keys sync between devices (0.16.0, 0.17.0)
 - Self-hosted CORS proxy for Steam and SteamGridDB on the web; no proxy needed on Android (0.59.0, 0.215.0)
-- How Long to Beat times (Main Story is the length) and OpenCritic and Metacritic user scores for Steam games, shown on the sheet's cover; Settings → Imports switch (0.282.0)
+- How Long to Beat times (Main Story is the length) and OpenCritic and Metacritic user scores for Steam games, shown on the sheet's cover; Settings → Connections switch (0.282.0)
 - A sheet's cover shows the length (runtime, seasons and episodes, pages, playtime) along its foot, review scores top left, store links top right (0.282.1)
 - Every source's score named on the cover ("TMDB 8.4"), kept on timeline entries too; a show's status and episodes out on the cover (0.282.2)
 - Failed game-time lookups wait a day and show in Activity, instead of re-asking the same games every launch (0.282.3)
