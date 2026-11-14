@@ -53,11 +53,11 @@ CONTRIBUTING.md's "Versions and releases" (2026-11-02, from Waypage):
 - **Why**: in the commit message and the PR description, where `git blame`
   finds it: a decision the code can't explain by itself, an approach tried
   and abandoned, a trade-off. A trap that would bite again gets a comment
-  at the spot in the code. NOTES.md is frozen (2026-11-02); search it,
-  don't add to it.
+  at the spot in the code.
 - **README.md**: the app as it is. Update it in the same change when it
-  adds, removes or renames a feature, a tab, a file, a setup step or how
-  it's built. Keep it short, and the contents list at the top matching the
+  adds, removes or renames a feature, a tab, a setup step or how it's
+  built; a new or renamed file updates ARCHITECTURE.md's project layout.
+  Keep it short, and the contents list at the top matching the
   sections. If the change is visible, re-take the screenshots of the
   sections it touches (`node tools/readme-shots.js <name>`, demo data
   only) and look at each one; a new feature gets its own section and shot

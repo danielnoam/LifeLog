@@ -14,10 +14,10 @@ and the iOS app (Capacitor). See README.md for the layout.
   (security, platforms, speed, design, the AI bridge), keeping the notes
   files right, and how pull requests, versions, releases and test builds
   work. Everything below is only what's specific to Claude sessions.
-- Search **NOTES.md** for what you're about to change (a function, class,
-  feature or version) before changing something that looks arbitrary; it
-  usually isn't. Don't read it whole: it's ~400 KB. It's frozen since
-  2026-11-02; newer reasons are in commit messages and PR descriptions.
+- Before changing something that looks arbitrary, check `git log` and the
+  PR descriptions for why; it usually isn't. ARCHITECTURE.md has the
+  project layout. Old comments that say "see NOTES.md" mean the removed
+  file: `git show 2f6df11:NOTES.md`.
 
 ## UI work
 

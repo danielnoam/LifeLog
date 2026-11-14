@@ -25,10 +25,10 @@ builds (`tools/build-www.js`, Capacitor). Playwright isn't a dependency; see
 
 | File | What it holds |
 |---|---|
-| `README.md` | Every feature with pictures, the setup, and the project layout. |
+| `README.md` | Every feature with pictures, and the setup. |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | The project layout (which file does what), how to run the tests, and how the README's screenshots are taken. |
 | `DESIGN.md` | The design language: tokens, scales, motion, components, voice, accessibility, each rule marked Now or Target. |
 | `bridge/README.md`, `bridge/DATA.md` | How other AIs read and change LifeLog, and every field of the data. |
-| `NOTES.md` | Why things were built the way they are, up to 2026-11-02 (frozen since). Search it, don't read it whole: it's ~400 KB. Each entry starts with a bold title and its version. |
 | `DONE.md` | What the app does, by area, one line per feature with its version. |
 | `DROPPED.md` | What was decided against, and why. |
 | `CHANGELOG.md` | Every release, in user-facing words. |
@@ -121,9 +121,10 @@ with a short plan of how it would be built, so someone else can pick it up.
   reason. Take it off the to-do list (or close its issue) at the same time.
 - **Why** goes in the commit message and the pull request description,
   where `git blame` finds it. Something that broke and could break again
-  gets a comment at the spot in the code. NOTES.md takes no new entries.
+  gets a comment at the spot in the code.
 - **README.md describes the app as it is.** A change that adds, removes or
-  renames a feature, a tab, a file or a setup step updates it, in a few
+  renames a feature, a tab or a setup step updates it (a new or renamed
+  file updates ARCHITECTURE.md's layout instead), in a few
   lines, with the contents list kept matching the sections. A visible
   change re-takes the shots of the sections it touches with
   `node tools/readme-shots.js <name>` (made-up demo data only); a new
